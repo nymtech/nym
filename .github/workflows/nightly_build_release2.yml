@@ -182,7 +182,7 @@ jobs:
           GIT_BRANCH_NAME: "${{needs.get_release.outputs.output1}}"
           IS_SUCCESS: "${{ env.WORKFLOW_CONCLUSION == 'success' }}"
           MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
-          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
+          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM_NIGHTLY }}"
           MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
           MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
           MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"

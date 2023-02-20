@@ -40,8 +40,7 @@ jobs:
         working-directory: "ci-tools/version-bumper"
 
       - name: run-version-bumper
-        run: "version-bumper bump binaries"
-        working-directory: "nym"
+        run: "version-bumper bump binaries --nym-repo-directory nym"
 
       - name: push-changes-to-branch
         run: |

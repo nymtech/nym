@@ -8,7 +8,6 @@ import {
 import { Bip39, Random } from '@cosmjs/crypto';
 import { DirectSecp256k1HdWallet, EncodeObject } from '@cosmjs/proto-signing';
 import { Coin, coin as cosmosCoin, DeliverTxResponse, isDeliverTxFailure, StdFee } from '@cosmjs/stargate';
-import { Misbehaviour } from 'cosmjs-types/ibc/lightclients/tendermint/v1/tendermint';
 import {
   ContractStateParams,
   Delegation,
@@ -33,7 +32,7 @@ import {
   RewardingParams,
   StakeSaturationResponse,
   UnbondedMixnodeResponse,
-} from '../compiledTypes';
+} from '@nymproject/types';
 import QueryClient from './query-client';
 import SigningClient, { ISigningClient } from './signing-client';
 
@@ -345,9 +344,9 @@ export default class ValidatorClient implements INymClient {
     return delegations;
   }
 
-  public async getDelegationDetails(mix_id: number, delegator: string): Promise<Delegation>{
+  public async getDelegationDetails(mix_id: number, delegator: string): Promise<Delegation> {
     return this.client.getDelegationDetails(this.mixnetContract, mix_id, delegator);
-  };
+  }
 
   /**
    * Generate a minimum gateway bond required to create a fresh mixnode.

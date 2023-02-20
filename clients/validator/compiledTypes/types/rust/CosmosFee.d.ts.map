@@ -1,1 +1,0 @@
-{"version":3,"file":"CosmosFee.d.ts","sourceRoot":"","sources":["../../../src/types/rust/CosmosFee.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,IAAI,EAAE,MAAM,QAAQ,CAAC;AAEnC,MAAM,WAAW,SAAS;IACxB,MAAM,EAAE,KAAK,CAAC,IAAI,CAAC,CAAC;IACpB,SAAS,EAAE,MAAM,CAAC;IAClB,KAAK,EAAE,MAAM,GAAG,IAAI,CAAC;IACrB,OAAO,EAAE,MAAM,GAAG,IAAI,CAAC;CACxB"}

@@ -18,13 +18,12 @@ import {
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
-  RewardingStatus,
+  RewardingParams,
   StakeSaturationResponse,
   UnbondedMixnodeResponse,
   LayerDistribution,
-} from '../compiledTypes';
+} from '@nymproject/types';
 import { SmartContractQuery } from './types';
-import { RewardingParams } from '../compiledTypes/types/global';
 
 export default class NyxdQuerier implements INyxdQuery {
   client: SmartContractQuery;

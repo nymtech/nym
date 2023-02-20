@@ -10,6 +10,7 @@
     "test": "ts-mocha tests/**/*.test.ts",
     "testmock": "ts-mocha tests/mock/*.test.ts",
     "coverage": "nyc npm test",
+    "clean": "rm -rf ./dist",
     "lint": "eslint tests",
     "lint:fix": "eslint tests --fix",
     "docs": "typedoc --out docs src/index.ts"
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.7.0",
     "@typescript-eslint/parser": "^5.7.0",
+    "@nymproject/types": "^1.0.0",
     "eslint": "^7.18.0",
     "eslint-config-airbnb": "^19.0.2",
     "eslint-config-airbnb-typescript": "^16.1.0",

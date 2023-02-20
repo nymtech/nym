@@ -1,1 +1,0 @@
-{"version":3,"file":"DelegationSummaryResponse.d.ts","sourceRoot":"","sources":["../../../src/types/rust/DelegationSummaryResponse.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,WAAW,CAAC;AACzC,OAAO,KAAK,EAAE,wBAAwB,EAAE,MAAM,4BAA4B,CAAC;AAE3E,MAAM,WAAW,0BAA0B;IACzC,WAAW,EAAE,KAAK,CAAC,wBAAwB,CAAC,CAAC;IAC7C,iBAAiB,EAAE,OAAO,CAAC;IAC3B,aAAa,EAAE,OAAO,CAAC;CACxB"}

@@ -25,10 +25,9 @@ import {
   PagedMixDelegationsResponse,
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
-  RewardingStatus,
   StakeSaturationResponse,
   UnbondedMixnodeResponse,
-} from '../compiledTypes';
+} from '@nymproject/types';
 
 export interface SmartContractQuery {
   queryContractSmart(address: string, queryMsg: Record<string, unknown>): Promise<JsonObject>;

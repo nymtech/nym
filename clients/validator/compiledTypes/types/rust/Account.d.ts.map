@@ -1,1 +1,0 @@
-{"version":3,"file":"Account.d.ts","sourceRoot":"","sources":["../../../src/types/rust/Account.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,iBAAiB,CAAC;AAErD,MAAM,WAAW,OAAO;IACtB,cAAc,EAAE,MAAM,CAAC;IACvB,cAAc,EAAE,MAAM,CAAC;IACvB,iBAAiB,EAAE,aAAa,CAAC;CAClC"}

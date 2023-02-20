@@ -1,5 +1,4 @@
 import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate';
-import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
 // eslint-disable-next-line import/no-cycle
 import NyxdQuerier from './nyxd-querier';
 import {
@@ -18,15 +17,15 @@ import {
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
-  RewardingStatus,
   StakeSaturationResponse,
   UnbondedMixnodeResponse,
   MixNodeBond,
   MixNodeRewarding,
-} from '../compiledTypes';
+} from '@nymproject/types';
 import NymApiQuerier, { INymApiQuery } from './nym-api-querier';
 import { ICosmWasmQuery } from './types';
-import { RewardingParams } from '../compiledTypes/types/global';
+import { RewardingParams } from '@nymproject/types';
+import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
 
 export interface INyxdQuery {
   // nym-specific implemented inside NymQuerier

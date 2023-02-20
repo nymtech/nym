@@ -1,1 +1,0 @@
-{"version":3,"file":"StakeSaturationResponse.d.ts","sourceRoot":"","sources":["../../../src/types/rust/StakeSaturationResponse.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,uBAAuB;IACtC,UAAU,EAAE,MAAM,CAAC;IACnB,mBAAmB,EAAE,MAAM,CAAC;IAC5B,KAAK,EAAE,MAAM,CAAC;CACf"}

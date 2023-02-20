@@ -1,1 +1,0 @@
-{"version":3,"file":"PendingUndelegate.d.ts","sourceRoot":"","sources":["../../../src/types/rust/PendingUndelegate.ts"],"names":[],"mappings":"AAEA,MAAM,WAAW,iBAAiB;IAChC,YAAY,EAAE,MAAM,CAAC;IACrB,QAAQ,EAAE,MAAM,CAAC;IACjB,KAAK,EAAE,MAAM,GAAG,IAAI,CAAC;IACrB,YAAY,EAAE,MAAM,CAAC;CACtB"}

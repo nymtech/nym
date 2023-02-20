@@ -15,5 +15,5 @@
     "out": "docs"
   },
 
-  "exclude": ["dist", "examples", "tests", "node_modules", "types"]
+  "exclude": ["dist", "examples", "tests", "node_module", "types"]
 }

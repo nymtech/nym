@@ -39,7 +39,7 @@ import {
   RewardingParams,
   RewardingStatus,
   UnbondedMixnodeResponse,
-} from '../compiledTypes';
+} from '@nymproject/types';
 import NymApiQuerier from './nym-api-querier';
 
 // methods exposed by `SigningCosmWasmClient`

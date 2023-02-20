@@ -1,1 +1,0 @@
-{"version":3,"file":"Interval.d.ts","sourceRoot":"","sources":["../../../src/types/rust/Interval.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,QAAQ;IACvB,EAAE,EAAE,MAAM,CAAC;IACX,kBAAkB,EAAE,MAAM,CAAC;IAC3B,mBAAmB,EAAE,MAAM,CAAC;IAC5B,gBAAgB,EAAE,MAAM,CAAC;IACzB,YAAY,EAAE,MAAM,CAAC;IACrB,oBAAoB,EAAE,MAAM,CAAC;CAC9B"}

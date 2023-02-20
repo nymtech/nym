@@ -26,6 +26,6 @@ nym-sphinx-forwarding = { path = "../nymsphinx/forwarding" }
 nym-sphinx-framing = { path = "../nymsphinx/framing" }
 nym-sphinx-params = { path = "../nymsphinx/params" }
 nym-sphinx-types = { path = "../nymsphinx/types" }
-task = { path = "../task" }
+nym-task = { path = "../task" }
 validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"]}
 nym-version-checker = { path = "../version-checker" }

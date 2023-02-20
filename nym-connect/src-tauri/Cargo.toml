@@ -51,7 +51,7 @@ config-common = { path = "../../common/config", package = "config" }
 nym-crypto = { path = "../../common/crypto" }
 logging = { path = "../../common/logging"}
 nym-socks5-client = { path = "../../clients/socks5" }
-task = { path = "../../common/task" }
+nym-task = { path = "../../common/task" }
 
 [dev-dependencies]
 ts-rs = "6.1.2"

@@ -19,7 +19,7 @@ log = { workspace = true }
 client-connections = { path = "../../client-connections" }
 ordered-buffer = { path = "../ordered-buffer" }
 socks5-requests = { path = "../requests" }
-task = { path = "../../task" }
+nym-task = { path = "../../task" }
 
 [dev-dependencies]
 tokio-test = "0.4.2"

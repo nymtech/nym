@@ -6,7 +6,7 @@ import {
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
   UnbondedMixnodeResponse,
-} from '../../compiledTypes';
+} from '@nymproject/types';
 import { TestHelper } from './client';
 import { mixnet, mixnodeowneraddress, mix_id } from './testData';
 

@@ -4,10 +4,10 @@ import {
   LayerDistribution,
   MixnetContractVersion,
   StakeSaturationResponse,
-} from '../../compiledTypes';
+} from '@nymproject/types';
 import { TestHelper } from './client';
 import { mixnet, mix_id } from './testData';
-import { RewardingParams } from '../../compiledTypes/types/global';
+import { RewardingParams } from '@nymproject/types';
 
 describe('Mixnet mock tests', () => {
   const testHelper = new TestHelper();

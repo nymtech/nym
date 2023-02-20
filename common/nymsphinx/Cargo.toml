@@ -1,8 +1,13 @@
 [package]
 name = "nym-sphinx"
 version = "0.1.0"
-authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2021"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+readme = { workspace = true }
+homepage = { workspace = true }
+documentation = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -22,7 +27,7 @@ nym-sphinx-types = { path = "types" }
 
 # those dependencies are due to intriducing preparer and receiver. Perpaphs that indicates they should be moved
 # to separate crate?
-nym-crypto = { path = "../crypto" }
+nym-crypto = { path = "../crypto", version = "0.1.0" }
 nym-topology = { path = "../topology" }
 
 [dev-dependencies]

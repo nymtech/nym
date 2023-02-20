@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::time::Duration;
-use topology::{gateway, mix, NymTopology};
+use nym_topology::{gateway, mix, NymTopology};
 
 // declared type aliases for easier code reasoning
 type Version = String;

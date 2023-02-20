@@ -5,7 +5,7 @@ use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
 use nym_crypto::asymmetric::identity;
 use std::fmt::{Debug, Formatter};
-use topology::{gateway, mix, NymTopology};
+use nym_topology::{gateway, mix, NymTopology};
 
 #[derive(Clone)]
 pub(crate) struct TestRoute {

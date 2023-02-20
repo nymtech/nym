@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
-use topology::{NymTopology, NymTopologyError};
+use nym_topology::{NymTopology, NymTopologyError};
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
 #[derive(Debug, Clone, Error)]

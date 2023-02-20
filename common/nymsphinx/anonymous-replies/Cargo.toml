@@ -16,7 +16,7 @@ nym-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }
 nym-sphinx-types = { path = "../types" }
-topology = { path = "../../topology" }
+nym-topology = { path = "../../topology" }
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
 version = "0.2.83"

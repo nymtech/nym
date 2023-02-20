@@ -11,7 +11,7 @@ use std::hash::{Hash, Hasher};
 use std::mem;
 use std::str::Utf8Error;
 use thiserror::Error;
-use topology::{gateway, mix};
+use nym_topology::{gateway, mix};
 
 const MIXNODE_TYPE: u8 = 0;
 const GATEWAY_TYPE: u8 = 1;

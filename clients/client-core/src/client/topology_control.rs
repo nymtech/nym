@@ -12,7 +12,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{RwLock, RwLockReadGuard};
-use topology::{nym_topology_from_detailed, NymTopology, NymTopologyError};
+use nym_topology::{nym_topology_from_detailed, NymTopology, NymTopologyError};
 use url::Url;
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before

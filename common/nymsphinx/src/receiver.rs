@@ -187,7 +187,7 @@ mod message_receiver {
     use nym_crypto::asymmetric::identity;
     use nym_mixnet_contract_common::Layer;
     use std::collections::HashMap;
-    use topology::{gateway, mix, NymTopology};
+    use nym_topology::{gateway, mix, NymTopology};
 
     // TODO: is it somehow maybe possible to move it to `topology` and have if conditionally
     // available to other modules?

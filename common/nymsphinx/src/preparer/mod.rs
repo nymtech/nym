@@ -17,7 +17,7 @@ use nym_sphinx_types::{delays, Delay};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::time::Duration;
-use topology::{NymTopology, NymTopologyError};
+use nym_topology::{NymTopology, NymTopologyError};
 
 pub(crate) mod payload;
 

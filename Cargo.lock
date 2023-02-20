@@ -710,6 +710,7 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-topology",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -721,7 +722,6 @@ dependencies = [
  "time 0.3.17",
  "tokio",
  "tokio-stream",
- "topology",
  "url",
  "validator-client",
  "wasm-bindgen",
@@ -3406,6 +3406,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-topology",
  "nym-vesting-contract-common",
  "nymcoconut",
  "okapi",
@@ -3427,7 +3428,6 @@ dependencies = [
  "time 0.3.17",
  "tokio",
  "tokio-stream",
- "topology",
  "ts-rs",
  "url",
  "validator-client",
@@ -3546,6 +3546,7 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-topology",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3555,7 +3556,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-tungstenite 0.14.0",
- "topology",
  "url",
  "validator-client",
  "version-checker",
@@ -3699,6 +3699,7 @@ dependencies = [
  "nym-sphinx",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-topology",
  "nym-types",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3710,7 +3711,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml",
- "topology",
  "url",
  "validator-client",
  "version-checker",
@@ -3847,6 +3847,7 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-topology",
  "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
@@ -3860,7 +3861,6 @@ dependencies = [
  "task",
  "thiserror",
  "tokio",
- "topology",
  "url",
  "validator-client",
  "version-checker",
@@ -3881,11 +3881,11 @@ dependencies = [
  "nym-sphinx-framing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-topology",
  "rand 0.7.3",
  "rand_distr",
  "thiserror",
  "tokio",
- "topology",
 ]
 
 [[package]]
@@ -3897,9 +3897,9 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-topology",
  "rand 0.7.3",
  "thiserror",
- "topology",
 ]
 
 [[package]]
@@ -3922,10 +3922,10 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-topology",
  "rand 0.7.3",
  "serde",
  "thiserror",
- "topology",
  "wasm-bindgen",
 ]
 
@@ -3952,9 +3952,9 @@ dependencies = [
  "nym-sphinx-forwarding",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-topology",
  "rand 0.7.3",
  "thiserror",
- "topology",
 ]
 
 [[package]]
@@ -3991,6 +3991,21 @@ name = "nym-sphinx-types"
 version = "0.1.0"
 dependencies = [
  "sphinx",
+]
+
+[[package]]
+name = "nym-topology"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "log",
+ "nym-crypto",
+ "nym-mixnet-contract-common",
+ "nym-sphinx-addressing",
+ "nym-sphinx-types",
+ "rand 0.7.3",
+ "thiserror",
+ "version-checker",
 ]
 
 [[package]]
@@ -6531,21 +6546,6 @@ dependencies = [
  "tower-service",
  "tracing",
  "tracing-futures",
-]
-
-[[package]]
-name = "topology"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "log",
- "nym-crypto",
- "nym-mixnet-contract-common",
- "nym-sphinx-addressing",
- "nym-sphinx-types",
- "rand 0.7.3",
- "thiserror",
- "version-checker",
 ]
 
 [[package]]

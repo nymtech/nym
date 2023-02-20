@@ -15,7 +15,7 @@ use nym_crypto::asymmetric::identity;
 use rand::{seq::SliceRandom, thread_rng};
 use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
-use topology::{filter::VersionFilterable, gateway};
+use nym_topology::{filter::VersionFilterable, gateway};
 use url::Url;
 #[cfg(not(target_arch = "wasm32"))]
 use validator_client::nyxd::SigningNyxdClient;

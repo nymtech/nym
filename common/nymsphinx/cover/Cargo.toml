@@ -17,4 +17,4 @@ nym-sphinx-chunking = { path = "../chunking" }
 nym-sphinx-params = { path = "../params" }
 nym-sphinx-forwarding = { path = "../forwarding" }
 nym-sphinx-types = { path = "../types" }
-topology = { path = "../../topology" }
+nym-topology = { path = "../../topology" }

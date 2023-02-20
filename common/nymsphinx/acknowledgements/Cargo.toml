@@ -15,6 +15,6 @@ nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }
 nym-sphinx-types = { path = "../types" }
 nym-pemstore = { path = "../../pemstore" }
-topology = { path = "../../topology" }
+nym-topology = { path = "../../topology" }
 
 

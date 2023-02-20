@@ -15,7 +15,7 @@ use std::convert::TryFrom;
 use std::fmt::{self, Formatter};
 use std::time;
 use thiserror::Error;
-use topology::{NymTopology, NymTopologyError};
+use nym_topology::{NymTopology, NymTopologyError};
 
 #[derive(Debug, Error)]
 pub enum ReplySurbError {

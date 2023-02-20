@@ -19,7 +19,7 @@ use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
 use std::time;
 use thiserror::Error;
-use topology::{NymTopology, NymTopologyError};
+use nym_topology::{NymTopology, NymTopologyError};
 
 pub const LOOP_COVER_MESSAGE_PAYLOAD: &[u8] = b"The cake is a lie!";
 

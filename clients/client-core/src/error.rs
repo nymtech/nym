@@ -3,7 +3,7 @@
 
 use gateway_client::error::GatewayClientError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
-use topology::NymTopologyError;
+use nym_topology::NymTopologyError;
 use validator_client::ValidatorClientError;
 
 #[derive(thiserror::Error, Debug)]

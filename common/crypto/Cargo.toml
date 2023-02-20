@@ -1,8 +1,13 @@
 [package]
 name = "nym-crypto"
 version = "0.1.0"
-authors = ["Jedrzej Stuczynski <andrew@nymtech.net"]
-edition = "2021"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+readme = { workspace = true }
+homepage = { workspace = true }
+documentation = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -26,7 +31,7 @@ thiserror = "1.0.37"
 
 # internal
 nymsphinx-types = { path = "../nymsphinx/types" }
-nym-pemstore = { path = "../../common/pemstore" }
+nym-pemstore = { path = "../../common/pemstore", version = "0.1.0" }
 
 [dev-dependencies]
 rand_chacha = "0.2"

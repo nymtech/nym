@@ -3,9 +3,9 @@ use client_core::{
     error::ClientCoreStatusMessage,
 };
 use futures::{channel::mpsc, StreamExt};
+use nym_task::manager::TaskStatus;
 use std::sync::Arc;
 use tap::TapFallible;
-use nym_task::manager::TaskStatus;
 use tokio::sync::RwLock;
 
 use config_common::NymConfig;
@@ -136,7 +136,7 @@ pub fn start_connection_check(state: Arc<RwLock<State>>, window: tauri::Window<t
 pub fn start_status_listener(
     state: Arc<RwLock<State>>,
     window: tauri::Window<tauri::Wry>,
-    mut msg_receiver: task::StatusReceiver,
+    mut msg_receiver: nym_task::StatusReceiver,
 ) {
     log::info!("Starting status listener");
 

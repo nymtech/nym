@@ -12,8 +12,8 @@ use crate::{
     storage::NymApiStorage,
     support::caching::CacheNotification,
 };
-use std::time::Duration;
 use nym_task::TaskClient;
+use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time;
 

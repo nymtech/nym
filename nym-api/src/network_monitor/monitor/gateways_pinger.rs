@@ -6,8 +6,8 @@ use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClie
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
-use std::time::Duration;
 use nym_task::TaskClient;
+use std::time::Duration;
 use tokio::time::{sleep, Instant};
 
 // TODO: should it perhaps be moved to config along other timeout values?

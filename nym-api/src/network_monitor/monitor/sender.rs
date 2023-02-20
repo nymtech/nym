@@ -17,6 +17,7 @@ use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiv
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_task::TaskClient;
 use pin_project::pin_project;
 use std::mem;
 use std::num::NonZeroUsize;
@@ -24,7 +25,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
-use nym_task::TaskClient;
 
 use gateway_client::bandwidth::BandwidthController;
 use validator_client::nyxd::SigningNyxdClient;

@@ -23,13 +23,13 @@ use config::NymConfig;
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_task::{TaskClient, TaskManager};
 use nym_version_checker::parse_version;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use nym_task::{TaskClient, TaskManager};
 
 mod http;
 mod listener;

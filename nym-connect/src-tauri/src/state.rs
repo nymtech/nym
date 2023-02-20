@@ -199,7 +199,9 @@ impl State {
     }
 
     /// Spawn a new thread running the SOCKS5 client
-    fn start_nym_socks5_client(&mut self) -> Result<(nym_task::StatusReceiver, ExitStatusReceiver)> {
+    fn start_nym_socks5_client(
+        &mut self,
+    ) -> Result<(nym_task::StatusReceiver, ExitStatusReceiver)> {
         let id = self.get_config_id()?;
         let (control_tx, msg_rx, exit_status_rx, used_gateway) =
             tasks::start_nym_socks5_client(&id)?;

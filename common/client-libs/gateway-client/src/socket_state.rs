@@ -9,8 +9,8 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
-use std::sync::Arc;
 use nym_task::TaskClient;
+use std::sync::Arc;
 use tungstenite::Message;
 
 #[cfg(not(target_arch = "wasm32"))]

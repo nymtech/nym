@@ -3,10 +3,10 @@
 
 use crate::connection_controller::ConnectionReceiver;
 use client_connections::LaneQueueLengths;
+use nym_task::TaskClient;
 use socks5_requests::ConnectionId;
 use std::fmt::Debug;
 use std::{sync::Arc, time::Duration};
-use nym_task::TaskClient;
 use tokio::{net::TcpStream, sync::Notify};
 
 mod inbound;

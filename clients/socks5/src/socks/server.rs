@@ -10,10 +10,10 @@ use client_core::client::{
 };
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_task::TaskClient;
 use proxy_helpers::connection_controller::Controller;
 use std::net::SocketAddr;
 use tap::TapFallible;
-use nym_task::TaskClient;
 use tokio::net::TcpListener;
 
 /// A Socks5 server that listens for connections.

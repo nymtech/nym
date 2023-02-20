@@ -22,8 +22,8 @@ use futures::StreamExt;
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
-use std::error::Error;
 use nym_task::{TaskClient, TaskManager};
+use std::error::Error;
 use validator_client::nyxd::QueryNyxdClient;
 
 pub mod config;

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub(crate) use cache::NodeStatusCache;
+use nym_task::TaskManager;
 use okapi::openapi3::OpenApi;
 use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
 use std::time::Duration;
-use nym_task::TaskManager;
 
 use crate::{
     nym_contract_cache::cache::NymContractCache,

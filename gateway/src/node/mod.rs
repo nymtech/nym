@@ -18,6 +18,7 @@ use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use network_defaults::NymNetworkDetails;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_task::{TaskClient, TaskManager};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use statistics_common::collector::StatisticsSender;
@@ -25,7 +26,6 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use nym_task::{TaskClient, TaskManager};
 use validator_client::Client;
 
 pub(crate) mod client_handling;

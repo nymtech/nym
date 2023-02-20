@@ -32,7 +32,11 @@ impl Listener {
         }
     }
 
-    pub(crate) async fn run(&mut self, handler: HandlerBuilder, mut task_client: nym_task::TaskClient) {
+    pub(crate) async fn run(
+        &mut self,
+        handler: HandlerBuilder,
+        mut task_client: nym_task::TaskClient,
+    ) {
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {

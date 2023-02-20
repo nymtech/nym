@@ -5,10 +5,10 @@ use client_connections::{ConnectionCommand, ConnectionCommandSender};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nym_task::TaskClient;
 use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
 use socks5_requests::{ConnectionId, NetworkData, SendRequest};
 use std::collections::{HashMap, HashSet};
-use nym_task::TaskClient;
 
 /// A generic message produced after reading from a socket/connection. It includes data that was
 /// actually read alongside boolean indicating whether the connection got closed so that

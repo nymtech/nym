@@ -10,6 +10,7 @@ use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_task::TaskClient;
 use pin_project::pin_project;
 use proxy_helpers::connection_controller::{
     ConnectionReceiver, ControllerCommand, ControllerSender,
@@ -23,7 +24,6 @@ use socks5_requests::{
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use nym_task::TaskClient;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::{self, net::TcpStream};
 

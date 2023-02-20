@@ -19,11 +19,11 @@ use log::*;
 use network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_task::TaskClient;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
-use nym_task::TaskClient;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]

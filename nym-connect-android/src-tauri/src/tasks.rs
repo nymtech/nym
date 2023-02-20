@@ -40,7 +40,7 @@ pub fn start_nym_socks5_client(
     keys: KeyManager,
 ) -> Result<(
     Socks5ControlMessageSender,
-    task::StatusReceiver,
+    nym_task::StatusReceiver,
     ExitStatusReceiver,
     GatewayEndpointConfig,
 )> {
@@ -138,7 +138,7 @@ pub fn start_connection_check(state: Arc<RwLock<State>>, window: tauri::Window<t
 pub fn start_status_listener(
     state: Arc<RwLock<State>>,
     window: tauri::Window<tauri::Wry>,
-    mut msg_receiver: task::StatusReceiver,
+    mut msg_receiver: nym_task::StatusReceiver,
 ) {
     log::info!("Starting status listener");
 

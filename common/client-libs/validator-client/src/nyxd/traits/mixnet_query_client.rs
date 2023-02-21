@@ -6,17 +6,17 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::NyxdClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use nym_mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
-use nym_mixnet_contract_common::families::Family;
-use nym_mixnet_contract_common::mixnode::{
+use mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
+use mixnet_contract_common::families::Family;
+use mixnet_contract_common::mixnode::{
     MixNodeDetails, MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse,
     PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
 };
-use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
-use nym_mixnet_contract_common::rewarding::{
+use mixnet_contract_common::reward_params::{Performance, RewardingParams};
+use mixnet_contract_common::rewarding::{
     EstimatedCurrentEpochRewardResponse, PendingRewardResponse,
 };
-use nym_mixnet_contract_common::{
+use mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
     CurrentIntervalResponse, EpochEventId, GatewayBondResponse, GatewayOwnershipResponse,
     IdentityKey, IntervalEventId, LayerDistribution, MixId, MixOwnershipResponse,
@@ -395,7 +395,7 @@ pub trait MixnetQueryClient {
 #[async_trait]
 impl<C> MixnetQueryClient for NyxdClient<C>
 where
-    C: CosmWasmClient + Sync + Send + Clone,
+    C: CosmWasmClient + Sync + Send,
 {
     async fn query_mixnet_contract<T>(&self, query: MixnetQueryMsg) -> Result<T, NyxdError>
     where
@@ -410,7 +410,7 @@ where
 #[async_trait]
 impl<C> MixnetQueryClient for crate::Client<C>
 where
-    C: CosmWasmClient + Sync + Send + Clone,
+    C: CosmWasmClient + Sync + Send,
 {
     async fn query_mixnet_contract<T>(&self, query: MixnetQueryMsg) -> Result<T, NyxdError>
     where

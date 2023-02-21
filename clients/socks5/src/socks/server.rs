@@ -86,11 +86,6 @@ impl SphinxSocksServer {
             mixnet_response_listener.run().await;
         });
 
-        // TODO:, if required, there should be another task here responsible for control requests.
-        // it should get `input_sender` to send actual requests into the mixnet
-        // and some channel that connects it from `MixnetResponseListener` to receive
-        // any control responses
-
         loop {
             tokio::select! {
                 Ok((stream, _remote)) = listener.accept() => {

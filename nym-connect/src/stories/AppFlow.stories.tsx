@@ -2,12 +2,13 @@ import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Box } from '@mui/material';
 import { DateTime } from 'luxon';
-import { Disconnected } from 'src/pages/connection/Disconnected';
-import { Connected } from 'src/pages/connection/Connected';
-import { ConnectionStatusKind } from 'src/types';
 import { AppWindowFrame } from '../components/AppWindowFrame';
 import { useClientContext } from '../context/main';
+import { ConnectionStatusKind } from '../types';
+import { DefaultLayout } from '../layouts/DefaultLayout';
+import { ConnectedLayout } from '../layouts/ConnectedLayout';
 import { Services } from '../types/directory';
+import { TestAndEarnButtonArea } from '../components/Growth/TestAndEarnButtonArea';
 
 export default {
   title: 'App/Flow',
@@ -36,15 +37,15 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
   ];
   const handleConnectClick = React.useCallback(() => {
     const oldStatus = context.connectionStatus;
-    if (oldStatus === 'connected' || oldStatus === 'disconnected') {
+    if (oldStatus === ConnectionStatusKind.connected || oldStatus === ConnectionStatusKind.disconnected) {
       setBusy(true);
 
       // eslint-disable-next-line default-case
       switch (oldStatus) {
-        case 'disconnected':
+        case ConnectionStatusKind.disconnected:
           context.setConnectionStatus(ConnectionStatusKind.connecting);
           break;
-        case 'connected':
+        case ConnectionStatusKind.connected:
           context.setConnectionStatus(ConnectionStatusKind.disconnecting);
           break;
       }
@@ -52,11 +53,11 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
       setTimeout(() => {
         // eslint-disable-next-line default-case
         switch (oldStatus) {
-          case 'disconnected':
+          case ConnectionStatusKind.disconnected:
             context.setConnectedSince(DateTime.now());
             context.setConnectionStatus(ConnectionStatusKind.connected);
             break;
-          case 'connected':
+          case ConnectionStatusKind.connected:
             context.setConnectionStatus(ConnectionStatusKind.disconnected);
             break;
         }
@@ -72,7 +73,7 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
     return (
       <Box width={width} height={height}>
         <AppWindowFrame>
-          <Disconnected
+          <DefaultLayout
             status={context.connectionStatus}
             busy={busy}
             onConnectClick={handleConnectClick}
@@ -85,32 +86,32 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
   }
 
   return (
-    <AppWindowFrame>
-      <Connected
-        clearError={() => {}}
-        gatewayPerformance="Good"
-        showInfoModal={false}
-        closeInfoModal={() => undefined}
-        status={context.connectionStatus}
-        busy={busy}
-        onConnectClick={handleConnectClick}
-        ipAddress="127.0.0.1"
-        port={1080}
-        connectedSince={context.connectedSince}
-        serviceProvider={services[0].items[0]}
-        stats={[
-          {
-            label: 'in:',
-            totalBytes: 1024,
-            rateBytesPerSecond: 1024 * 1024 * 1024 + 10,
-          },
-          {
-            label: 'out:',
-            totalBytes: 1024 * 1024 * 1024 * 1024 * 20,
-            rateBytesPerSecond: 1024 * 1024 + 10,
-          },
-        ]}
-      />
-    </AppWindowFrame>
+    <Box width={width} height={height}>
+      <AppWindowFrame>
+        <ConnectedLayout
+          showInfoModal={false}
+          handleCloseInfoModal={() => undefined}
+          status={context.connectionStatus}
+          busy={busy}
+          onConnectClick={handleConnectClick}
+          ipAddress="127.0.0.1"
+          port={1080}
+          connectedSince={context.connectedSince}
+          serviceProvider={services[0].items[0]}
+          stats={[
+            {
+              label: 'in:',
+              totalBytes: 1024,
+              rateBytesPerSecond: 1024 * 1024 * 1024 + 10,
+            },
+            {
+              label: 'out:',
+              totalBytes: 1024 * 1024 * 1024 * 1024 * 20,
+              rateBytesPerSecond: 1024 * 1024 + 10,
+            },
+          ]}
+        />
+      </AppWindowFrame>
+    </Box>
   );
 };

@@ -21,7 +21,8 @@ pub fn validate_bech32_prefix(bech32_prefix: &str, address: &str) -> Result<(), 
         Ok(())
     } else {
         Err(Bech32Error::WrongPrefix(format!(
-            "your bech32 address prefix should be {bech32_prefix}, not {prefix}"
+            "your bech32 address prefix should be {}, not {}",
+            bech32_prefix, prefix
         )))
     }
 }
@@ -69,7 +70,8 @@ mod tests {
         fn wrong_prefix_fails() {
             assert_eq!(
                 Err(Bech32Error::WrongPrefix(format!(
-                    "your bech32 address prefix should be {TEST_BECH32_PREFIX}, not punk"
+                    "your bech32 address prefix should be {}, not punk",
+                    TEST_BECH32_PREFIX
                 ))),
                 validate_bech32_prefix(
                     TEST_BECH32_PREFIX,

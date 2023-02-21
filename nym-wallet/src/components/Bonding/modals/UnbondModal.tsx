@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { useEffect } from 'react';
 import { Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { TBondedGateway, TBondedMixnode } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { isGateway, isMixnode } from 'src/types';

@@ -20,8 +20,7 @@ import {
  */
 const nymPalette: NymPalette = {
   /** emphasises important elements */
-  highlight: '#21D072',
-  cta: '#FB6E4E',
+  highlight: '#FB6E4E',
   success: '#21D073',
   info: '#60D7EF',
   warning: '#FFE600',
@@ -74,7 +73,6 @@ const lightMode: NymPaletteVariant = {
  * IMPORTANT: do not export this constant, always use the MUI `useTheme` hook to get the correct
  * colours for dark/light mode.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const nymMixnetPalette = (variant: NymPaletteVariant): NymMixnetPalette => ({
   nymMixnet: {},
 });

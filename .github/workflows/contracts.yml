@@ -2,13 +2,11 @@ name: Contracts
 
 on:
   push:
-    paths:
-      - 'contracts/**'
-      - 'common/**'
+    paths-ignore:
+      - 'explorer/**'
   pull_request:
     paths-ignore:
-      - 'contracts/**'
-      - 'common/**'
+      - 'explorer/**'
 
 jobs:
   matrix_prep:

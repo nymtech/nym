@@ -4,7 +4,7 @@
 use crate::currency::DecCoin;
 use crate::error::TypesError;
 use crate::pending_events::{PendingEpochEvent, PendingEpochEventData};
-use nym_mixnet_contract_common::{IdentityKey, MixId};
+use mixnet_contract_common::{IdentityKey, MixId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

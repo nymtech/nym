@@ -4,8 +4,8 @@
 use crate::context::SigningClient;
 use clap::Parser;
 use log::{info, warn};
+use mixnet_contract_common::Coin;
 use network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
-use nym_mixnet_contract_common::Coin;
 use validator_client::nyxd::traits::MixnetSigningClient;
 
 #[derive(Debug, Parser)]
@@ -55,7 +55,7 @@ pub async fn bond_gateway(args: Args, client: SigningClient) {
         return;
     }
 
-    let gateway = nym_mixnet_contract_common::Gateway {
+    let gateway = mixnet_contract_common::Gateway {
         host: args.host,
         mix_port: args.mix_port.unwrap_or(DEFAULT_MIX_LISTENING_PORT),
         clients_port: args.clients_port.unwrap_or(DEFAULT_CLIENT_LISTENING_PORT),

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cache::Cache;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKey};
+use mixnet_contract_common::{GatewayBond, IdentityKey};
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;

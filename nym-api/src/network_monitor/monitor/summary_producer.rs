@@ -4,7 +4,7 @@
 use crate::network_monitor::monitor::preparer::{InvalidNode, TestedNode};
 use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::test_route::TestRoute;
-use nym_mixnet_contract_common::MixId;
+use mixnet_contract_common::MixId;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 

@@ -3,11 +3,11 @@
 
 use crate::verloc::listener::PacketListener;
 use crate::verloc::sender::{PacketSender, TestedNode};
+use crypto::asymmetric::identity;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::*;
 use network_defaults::mainnet::NYM_API;
-use nym_crypto::asymmetric::identity;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -153,7 +153,7 @@ impl Default for ConfigBuilder {
     fn default() -> Self {
         ConfigBuilder(Config {
             minimum_compatible_node_version: parse_version(MINIMUM_NODE_VERSION).unwrap(),
-            listening_address: format!("[::]:{DEFAULT_VERLOC_PORT}").parse().unwrap(),
+            listening_address: format!("[::]:{}", DEFAULT_VERLOC_PORT).parse().unwrap(),
             packets_per_node: DEFAULT_PACKETS_PER_NODE,
             packet_timeout: DEFAULT_PACKET_TIMEOUT,
             connection_timeout: DEFAULT_CONNECTION_TIMEOUT,

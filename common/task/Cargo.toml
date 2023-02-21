@@ -7,12 +7,12 @@ edition = "2021"
 
 [dependencies]
 futures = "0.3"
-log = { workspace = true }
+log = "0.4"
 thiserror = "1.0.37"
-tokio = { version = "1.24.1", features = ["macros", "sync"] }
+tokio = { version = "1.21.2", features = ["macros", "sync"] }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "1.24.1"
+version = "1.21.2"
 features = ["signal", "time"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
@@ -22,4 +22,4 @@ version = "0.4"
 version = "0.2.83"
 
 [dev-dependencies]
-tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal", "test-util", "macros"] }
+tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal", "test-util", "macros"] }

@@ -1,5 +1,5 @@
 [package]
-name = "nym-mixnet-contract-common"
+name = "mixnet-contract-common"
 version = "0.1.0"
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
@@ -14,12 +14,12 @@ serde = { version = "1.0", features = ["derive"] }
 serde_repr = "0.1"
 schemars = "0.8"
 thiserror = "1.0"
-contracts-common = { path = "../contracts-common", package = "nym-contracts-common" }
+contracts-common = { path = "../contracts-common" }
 serde_json = "1.0.0"
 humantime-serde = "1.1.1"
 
 # TO CHECK WHETHER STILL NEEDED:
-log = { workspace = true }
+log = "0.4.14"
 time = { version = "0.3.6", features = ["parsing", "formatting"] }
 ts-rs = { version = "6.1.2", optional = true }
 

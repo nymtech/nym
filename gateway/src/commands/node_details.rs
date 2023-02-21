@@ -1,11 +1,10 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::OverrideConfig;
-use crate::support::config::build_config;
-use crate::OutputFormat;
+use crate::{config::Config, OutputFormat};
 use clap::Args;
-use std::error::Error;
+use config::NymConfig;
+use log::error;
 
 #[derive(Args, Clone)]
 pub struct NodeDetails {
@@ -14,13 +13,20 @@ pub struct NodeDetails {
     id: String,
 }
 
-pub async fn execute(
-    args: NodeDetails,
-    output: OutputFormat,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let config = build_config(args.id.clone(), OverrideConfig::default())?;
+pub async fn execute(args: &NodeDetails, output: OutputFormat) {
+    let config = match Config::load_from_file(Some(&args.id)) {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            error!(
+                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
+                args.id,
+                err,
+            );
+            return;
+        }
+    };
 
-    Ok(crate::node::create_gateway(config)
+    crate::node::create_gateway(config)
         .await
-        .print_node_details(output)?)
+        .print_node_details(output);
 }

@@ -4,12 +4,12 @@
 use crate::registration::handshake::shared_key::SharedKeys;
 use crate::registration::handshake::state::State;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
+use crypto::asymmetric::encryption::PUBLIC_KEY_SIZE;
+use crypto::asymmetric::identity::SIGNATURE_LENGTH;
+use crypto::asymmetric::{encryption, identity};
 use futures::future::BoxFuture;
 use futures::task::{Context, Poll};
 use futures::{Future, Sink, Stream};
-use nym_crypto::asymmetric::encryption::PUBLIC_KEY_SIZE;
-use nym_crypto::asymmetric::identity::SIGNATURE_LENGTH;
-use nym_crypto::asymmetric::{encryption, identity};
 use rand::{CryptoRng, RngCore};
 use std::pin::Pin;
 use tungstenite::Message as WsMessage;
@@ -22,7 +22,7 @@ impl<'a> ClientHandshake<'a> {
     pub(crate) fn new<S>(
         rng: &mut (impl RngCore + CryptoRng),
         ws_stream: &'a mut S,
-        identity: &'a nym_crypto::asymmetric::identity::KeyPair,
+        identity: &'a crypto::asymmetric::identity::KeyPair,
         gateway_pubkey: identity::PublicKey,
     ) -> Self
     where

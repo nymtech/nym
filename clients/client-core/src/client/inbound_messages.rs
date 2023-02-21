@@ -77,12 +77,4 @@ impl InputMessage {
             lane,
         }
     }
-
-    pub fn lane(&self) -> &TransmissionLane {
-        match self {
-            InputMessage::Regular { lane, .. }
-            | InputMessage::Anonymous { lane, .. }
-            | InputMessage::Reply { lane, .. } => lane,
-        }
-    }
 }

@@ -17,7 +17,6 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install rsync
       run: sudo apt-get install rsync
-      continue-on-error: true
     - uses: rlespinasse/github-slug-action@v3.x
     - uses: actions/setup-node@v3
       with:
@@ -57,10 +56,10 @@ jobs:
         REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
         TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/ne-sb-${{ env.GITHUB_REF_SLUG }}
         EXCLUDE: "/dist/, /node_modules/"
-    - name: Matrix - Node Install
+    - name: Keybase - Node Install
       run: npm install
       working-directory: .github/workflows/support-files
-    - name: Matrix - Send Notification
+    - name: Keybase - Send Notification
       env:
         NYM_NOTIFICATION_KIND: network-explorer
         NYM_PROJECT_NAME: "Network Explorer"
@@ -69,6 +68,10 @@ jobs:
         NYM_CI_WWW_LOCATION_STORYBOOK: "ne-sb-${{ env.GITHUB_REF_SLUG }}"
         GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
         GIT_BRANCH: "${GITHUB_REF##*/}"
+        KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
+        KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
+        KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
+        KEYBASE_NYM_CHANNEL: "ci-network-explorer"
         IS_SUCCESS: "${{ job.status == 'success' }}"
         MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
         MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"

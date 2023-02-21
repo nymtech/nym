@@ -21,7 +21,7 @@ impl From<u16> for State {
             WebSocket::OPEN => State::Open,
             WebSocket::CLOSING => State::Closing,
             WebSocket::CLOSED => State::Closed,
-            n => panic!("{n} is not a valid WebSocket state!"), // should we panic here or change it into `TryFrom` instead?
+            n => panic!("{} is not a valid WebSocket state!", n), // should we panic here or change it into `TryFrom` instead?
         }
     }
 }

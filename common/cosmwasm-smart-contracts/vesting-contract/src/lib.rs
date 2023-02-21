@@ -64,7 +64,7 @@ impl FromStr for PledgeCap {
             Ok(p) => Ok(PledgeCap::Percent(p)),
             Err(_) => match cap.parse::<u128>() {
                 Ok(i) => Ok(PledgeCap::Absolute(Uint128::from(i))),
-                Err(_e) => Err(format!("Could not parse {cap} as Percent or Uint128")),
+                Err(_e) => Err(format!("Could not parse {} as Percent or Uint128", cap)),
             },
         }
     }

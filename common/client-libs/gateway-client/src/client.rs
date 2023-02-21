@@ -9,7 +9,7 @@ pub use crate::packet_router::{
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
-use coconut_interface::Credential;
+use crypto::asymmetric::identity;
 use futures::{SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::iv::IV;
@@ -17,7 +17,6 @@ use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, PROTOCOL_VERSION};
 use log::*;
 use network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
-use nym_crypto::asymmetric::identity;
 use nymsphinx::forwarding::packet::MixPacket;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
@@ -26,23 +25,16 @@ use std::time::Duration;
 use task::TaskClient;
 use tungstenite::protocol::Message;
 
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
+
+#[cfg(not(target_arch = "wasm32"))]
+use credential_storage::PersistentStorage;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
-#[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::CosmWasmClient;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(feature = "mobile"))]
-use credential_storage::PersistentStorage;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "mobile")]
-use mobile_storage::PersistentStorage;
 
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::CosmWasmClient;
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::PersistentStorage;
+use crate::wasm_storage::PersistentStorage;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 #[cfg(target_arch = "wasm32")]
@@ -51,18 +43,19 @@ use wasm_utils::websocket::JSWebsocket;
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
-pub struct GatewayClient<C: Clone> {
+pub struct GatewayClient {
     authenticated: bool,
     disabled_credentials_mode: bool,
     bandwidth_remaining: i64,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
+    gateway_owner: String,
     local_identity: Arc<identity::KeyPair>,
     shared_key: Option<Arc<SharedKeys>>,
     connection: SocketState,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
-    bandwidth_controller: Option<BandwidthController<C, PersistentStorage>>,
+    bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
 
     // reconnection related variables
     /// Specifies whether client should try to reconnect to gateway on connection failure.
@@ -77,21 +70,19 @@ pub struct GatewayClient<C: Clone> {
     shutdown: TaskClient,
 }
 
-impl<C> GatewayClient<C>
-where
-    C: CosmWasmClient + Sync + Send + Clone,
-{
+impl GatewayClient {
     // TODO: put it all in a Config struct
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         gateway_address: String,
         local_identity: Arc<identity::KeyPair>,
         gateway_identity: identity::PublicKey,
+        gateway_owner: String,
         shared_key: Option<Arc<SharedKeys>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
-        bandwidth_controller: Option<BandwidthController<C, PersistentStorage>>,
+        bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
         shutdown: TaskClient,
     ) -> Self {
         GatewayClient {
@@ -100,6 +91,7 @@ where
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
+            gateway_owner,
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
@@ -133,6 +125,7 @@ where
     pub fn new_init(
         gateway_address: String,
         gateway_identity: identity::PublicKey,
+        gateway_owner: String,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
     ) -> Self {
@@ -145,12 +138,13 @@ where
         let shutdown = TaskClient::dummy();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
-        GatewayClient::<C> {
+        GatewayClient {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
+            gateway_owner,
             local_identity,
             shared_key: None,
             connection: SocketState::NotConnected,
@@ -441,7 +435,6 @@ where
         }
 
         debug_assert!(self.connection.is_available());
-        log::trace!("Registering gateway");
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle
@@ -541,6 +534,7 @@ where
         }
     }
 
+    #[cfg(feature = "coconut")]
     async fn claim_coconut_bandwidth(
         &mut self,
         credential: Credential,
@@ -590,21 +584,28 @@ where
             return self.try_claim_testnet_bandwidth().await;
         }
 
+        let _gateway_owner = self.gateway_owner.clone();
+
+        #[cfg(feature = "coconut")]
         let (credential, credential_id) = self
             .bandwidth_controller
             .as_ref()
             .unwrap()
             .prepare_coconut_credential()
             .await?;
+        #[cfg(not(feature = "coconut"))]
+        return self.try_claim_testnet_bandwidth().await;
 
-        self.claim_coconut_bandwidth(credential).await?;
-        self.bandwidth_controller
-            .as_ref()
-            .unwrap()
-            .consume_credential(credential_id)
-            .await?;
-
-        Ok(())
+        #[cfg(feature = "coconut")]
+        {
+            self.claim_coconut_bandwidth(credential).await?;
+            self.bandwidth_controller
+                .as_ref()
+                .unwrap()
+                .consume_credential(credential_id)
+                .await?;
+            Ok(())
+        }
     }
 
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {

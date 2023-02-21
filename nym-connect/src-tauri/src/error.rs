@@ -15,12 +15,12 @@ pub enum BackendError {
         #[from]
         source: std::io::Error,
     },
-    #[error("string formatting error: {source}")]
+    #[error("String formatting error: {source}")]
     FmtError {
         #[from]
         source: std::fmt::Error,
     },
-    #[error("tauri error: {source}")]
+    #[error("Tauri error: {source}")]
     TauriError {
         #[from]
         source: tauri::Error,
@@ -46,36 +46,28 @@ pub enum BackendError {
         source: crate::operations::growth::api_client::ApiClientError,
     },
 
-    #[error("could not send disconnect signal to the SOCKS5 client")]
+    #[error("Could not send disconnect signal to the SOCKS5 client")]
     CoundNotSendDisconnectSignal,
-    #[error("no service provider set")]
+    #[error("No service provider set")]
     NoServiceProviderSet,
-    #[error("no gateway provider set")]
+    #[error("No gateway provider set")]
     NoGatewaySet,
-    #[error("initialization failed with a panic")]
+    #[error("Initialization failed with a panic")]
     InitializationPanic,
-    #[error("could not get config id before gateway is set")]
+    #[error("Could not get config id before gateway is set")]
     CouldNotGetIdWithoutGateway,
-    #[error("could not initialize without gateway set")]
+    #[error("Could initialize without gateway set")]
     CouldNotInitWithoutGateway,
-    #[error("could not initialize without service provider set")]
+    #[error("Could initialize without service provider set")]
     CouldNotInitWithoutServiceProvider,
-    #[error("could not get file name")]
+    #[error("Could not get file name")]
     CouldNotGetFilename,
-    #[error("could not get config file location")]
+    #[error("Could not get config file location")]
     CouldNotGetConfigFilename,
-    #[error("could not load existing gateway configuration")]
+    #[error("Could not load existing gateway configuration")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
-    #[error("unable to open a new window")]
+    #[error("Unable to open a new window")]
     NewWindowError,
-    #[error("unable to parse the specified gateway")]
-    UnableToParseGateway,
-
-    #[error("HTTP get request failed: {status_code}")]
-    RequestFail {
-        url: reqwest::Url,
-        status_code: reqwest::StatusCode,
-    },
 }
 
 impl Serialize for BackendError {

@@ -12,7 +12,7 @@ export const TWITTER_LINK = 'https://twitter.com/nymproject';
 export const GITHUB_LINK = 'https://github.com/nymtech';
 export const DISCORD_LINK = 'https://discord.gg/nym';
 
-export const Socials: FCWithChildren<{ isFooter?: boolean }> = ({ isFooter }) => {
+export const Socials: React.FC<{ isFooter?: boolean }> = ({ isFooter }) => {
   const theme = useTheme();
   const color = isFooter
     ? theme.palette.nym.networkExplorer.footer.socialIcons

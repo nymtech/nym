@@ -2,7 +2,6 @@ use client_core::config::DebugConfig;
 use network_defaults::mainnet;
 use url::Url;
 
-/// Config struct for [`crate::mixnet::MixnetClient`]
 pub struct Config {
     /// If the user has explicitly specified a gateway.
     pub user_chosen_gateway: Option<String>,
@@ -27,7 +26,6 @@ impl Default for Config {
 }
 
 impl Config {
-    /// Creates a new [`Config`].
     pub fn new(user_chosen_gateway: Option<String>, nym_api_endpoints: Vec<Url>) -> Self {
         Self {
             user_chosen_gateway,

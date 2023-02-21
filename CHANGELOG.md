@@ -2,109 +2,26 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased]
-
-### Added
-
-- dkg resharing mode ([#2936])
-
-[#2936]: https://github.com/nymtech/nym/pull/2936
-
-
-# [v1.1.9] (2023-02-07)
-
-### Added
-- Remove Coconut feature flag ([#2793])
-- Separate `nym-api` endpoints with values of "total-supply" and "circulating-supply" in `nym` ([#2964])
-
-### Changed
-- native-client: is now capable of listening for requests on sockets different than `127.0.0.1` ([#2912]). This can be specified via `--host` flag during `init` or `run`. Alternatively a custom `host` can be set in `config.toml` file under `socket` section.
-- mixnode, gateway: fix unexpected shutdown on corrupted connection ([#2963])
-
-[#2793]: https://github.com/nymtech/nym/issues/2793
-[#2912]: https://github.com/nymtech/nym/issues/2912
-[#2964]: https://github.com/nymtech/nym/issues/2964
-[#2963]: https://github.com/nymtech/nym/issues/3017
-
-# [v1.1.8] (2023-01-31)
-
-### Added
-
-- Rust SDK - Support SURBS (anonymous send + storage) ([#2754])
-- dkg rerun from scratch and dkg-specific epochs ([#2810])
-- Rename `'initial_supply'` field to `'total_supply'` in the circulating supply endpoint ([#2931])
-- Circulating supply api endpoint (read the note inside before testing/deploying) ([#1902])
-
-### Changed
-
-- nym-api: an `--id` flag is now always explicitly required ([#2873])
-
-[#2754]: https://github.com/nymtech/nym/issues/2754
-[#2810]: https://github.com/nymtech/nym/issues/2810
-[#2931]: https://github.com/nymtech/nym/issues/2931
-[#1902]: https://github.com/nymtech/nym/issues/1902
-[#2873]: https://github.com/nymtech/nym/issues/2873
-
-
-# [v1.1.7] (2023-01-24)
-
-### Added
-
-- Gateways now shut down gracefully ([#2019]).
-- Rust SDK - Initial version for nym-client ([#2669]).
-- Introduce vesting contract query for addresses of all vesting accounts (required for the circulating supply calculation) ([#2778]).
-- Add threshold value to the contract storage ([#1893])
-
-### Changed
-
-- Refactor vesting account storage (and in particular, ACCOUNTS saving) ([#2795]).
-- Move from manual advancing DKG state to an automatic process ([#2670]).
-
-### Fixed
-
-- Gateways now shut down gracefully ([#2019]).
-
-[#2019]: https://github.com/nymtech/nym/issues/2019
-[#2669]: https://github.com/nymtech/nym/issues/2669
-[#2795]: https://github.com/nymtech/nym/issues/2795
-[#2778]: https://github.com/nymtech/nym/issues/2778
-[#2670]: https://github.com/nymtech/nym/issues/2670
-[#1893]: https://github.com/nymtech/nym/issues/1893
-
-## [v1.1.6] (2023-01-17)
+## [Unreleased]
 
 ### Added
 
 - nym-sdk: added initial version of a Rust client sdk
-- nym-api: added `/circulating-supply` endpoint ([#2814])
-- nym-api: add endpoint listing detailed gateway info by @octol in https://github.com/nymtech/nym/pull/2833
 
 ### Changed
 
-- streamline override_config functions -> there's a lot of duplicate if statements everywhere ([#2774])
-- clean-up nym-api startup arguments/flags to use clap 3 and its macro-derived arguments ([#2772])
 - renamed all references to validator_api to nym_api
-- renamed all references to nymd to nyxd ([#2696])
+- renamed all references to nymd to nyxd
 - all-binaries: standarised argument names (note: old names should still be accepted) ([#2762]
 
 ### Fixed
 
 - nym-api: should now correctly use `rewarding.enabled` config flag ([#2753])
 
-[#2696]: https://github.com/nymtech/nym/pull/2696
 [#2753]: https://github.com/nymtech/nym/pull/2753
 [#2762]: https://github.com/nymtech/nym/pull/2762
-[#2814]: https://github.com/nymtech/nym/pull/2814
-[#2772]: https://github.com/nymtech/nym/pull/2772
-[#2774]: https://github.com/nymtech/nym/pull/2774
 
-## [v1.1.5] (2023-01-10)
-
-### Added
-
-### Changed
-
-## [v1.1.5] (2023-01-10)
+## [v1.1.5] (2022-01-10)
 
 ### Added
 

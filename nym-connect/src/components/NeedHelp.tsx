@@ -4,7 +4,7 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 
 const HELP_URL = 'https://docs.nymtech.net';
 
-export const NeedHelp: FCWithChildren = () => (
+export const NeedHelp: React.FC = () => (
   <Box sx={{ display: 'grid', placeItems: 'center' }}>
     <Button component="a" href={HELP_URL} target="_blank" sx={{ fontSize: '12px', fontWeight: '600' }} color="info">
       <HelpOutlineIcon color="inherit" fontSize="inherit" fontWeight="inherit" />

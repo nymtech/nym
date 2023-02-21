@@ -4,7 +4,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::vesting::delegate::vesting_undelegate_from_mixnode;
-use nym_mixnet_contract_common::MixId;
+use mixnet_contract_common::MixId;
 use nym_types::currency::DecCoin;
 use nym_types::delegation::{Delegation, DelegationWithEverything, DelegationsSummaryResponse};
 use nym_types::deprecated::{

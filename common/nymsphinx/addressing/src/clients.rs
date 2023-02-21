@@ -5,7 +5,7 @@
 // it's already destructed).
 
 use crate::nodes::{NodeIdentity, NODE_IDENTITY_SIZE};
-use nym_crypto::asymmetric::{encryption, identity};
+use crypto::asymmetric::{encryption, identity};
 use nymsphinx_types::Destination;
 use serde::de::{Error as SerdeError, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

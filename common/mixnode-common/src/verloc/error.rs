@@ -53,19 +53,19 @@ impl Display for RttError {
                 write!(f, "The received reply packet had invalid signature")
             }
             RttError::UnreachableNode(id, err) => {
-                write!(f, "Could not establish connection to {id} - {err}")
+                write!(f, "Could not establish connection to {} - {err}", id)
             }
             RttError::UnexpectedConnectionFailureWrite(id, err) => {
-                write!(f, "Failed to write echo packet to {id} - {err}")
+                write!(f, "Failed to write echo packet to {} - {err}", id)
             }
             RttError::UnexpectedConnectionFailureRead(id, err) => {
-                write!(f, "Failed to read reply packet from {id} - {err}")
+                write!(f, "Failed to read reply packet from {} - {err}", id)
             }
             RttError::ConnectionReadTimeout(id) => {
-                write!(f, "Timed out while trying to read reply packet from {id}")
+                write!(f, "Timed out while trying to read reply packet from {}", id)
             }
             RttError::ConnectionWriteTimeout(id) => {
-                write!(f, "Timed out while trying to write echo packet to {id}")
+                write!(f, "Timed out while trying to write echo packet to {}", id)
             }
             RttError::UnexpectedReplySequence => write!(
                 f,

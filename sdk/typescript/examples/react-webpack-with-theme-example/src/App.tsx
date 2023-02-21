@@ -20,20 +20,19 @@ import CallReceivedIcon from '@mui/icons-material/CallReceived';
 import PersonIcon from '@mui/icons-material/Person';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 import ErrorIcon from '@mui/icons-material/Error';
+import { NymLogo } from '@nymproject/react/logo/NymLogo';
+import { NymThemeProvider } from '@nymproject/mui-theme';
 import { useTheme } from '@mui/material/styles';
 import { useClipboard } from 'use-clipboard-copy';
 import { DropzoneDialog } from 'react-mui-dropzone';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import ArticleIcon from '@mui/icons-material/Article';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
-import { NymThemeProvider } from './theme';
 import { ThemeToggle } from './ThemeToggle';
 import { AppContextProvider, useAppContext } from './context';
 import { MixnetContextProvider, parseBinaryMessageHeaders, useMixnetContext } from './context/mixnet';
-// eslint-disable-next-line import/no-relative-packages
-import Logo from '../../../../../assets/logo/logo-circle.svg';
 
-export const AppTheme: FCWithChildren = ({ children }) => {
+export const AppTheme: React.FC = ({ children }) => {
   const { mode } = useAppContext();
 
   return <NymThemeProvider mode={mode}>{children}</NymThemeProvider>;
@@ -53,7 +52,7 @@ interface UploadState {
   files: File[];
 }
 
-export const Content: FCWithChildren = () => {
+export const Content: React.FC = () => {
   const theme = useTheme();
   const { isReady, address, connect, events, sendTextMessage, sendBinaryMessage } = useMixnetContext();
   const copy = useClipboard();
@@ -70,8 +69,7 @@ export const Content: FCWithChildren = () => {
   };
 
   const log = React.useRef<Log[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [logTrigger, setLogTrigger] = React.useState(Date.now());
+  const [_logTrigger, setLogTrigger] = React.useState(Date.now());
 
   const [uploadState, setUploadState] = React.useState<UploadState>({
     dialogOpen: false,
@@ -96,8 +94,13 @@ export const Content: FCWithChildren = () => {
 
   React.useEffect(() => {
     if (isReady) {
-      const nymApiUrl = 'https://validator.nymtech.net/api';
-      const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
+      // // mixnet v1
+      // const nymApiUrl = 'https://validator.nymtech.net/api';
+      // const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
+
+      // mixnet v2
+      const nymApiUrl = 'https://qwerty-validator-api.qa.nymte.ch/api'; // "http://localhost:8081";
+      const preferredGatewayIdentityKey = undefined; // '36vfvEyBzo5cWEFbnP7fqgY39kFw9PQhvwzbispeNaxL';
 
       connect({
         clientId: 'Example Client',
@@ -140,13 +143,13 @@ export const Content: FCWithChildren = () => {
     if (events) {
       const unsubcribe = events.subscribeToBinaryMessageReceivedEvent((e) => {
         // the headers will be JSON (see the mixnet context for how they are created), so parse them
-        const headers = e.args.headers ? parseBinaryMessageHeaders(e.args.headers) : undefined;
+        const headers = parseBinaryMessageHeaders(e.args.headers);
 
-        const blob = new Blob([new Uint8Array(e.args.payload)], { type: headers?.mimeType });
+        const blob = new Blob([new Uint8Array(e.args.payload)], { type: headers.mimeType });
         log.current.push({
           kind: 'rx',
           timestamp: new Date(),
-          filename: headers?.filename,
+          filename: headers.filename,
           fileDownloadUrl: URL.createObjectURL(blob),
           filesize: e.args.payload.length,
         });
@@ -228,7 +231,7 @@ export const Content: FCWithChildren = () => {
       <Box display="flex" flexDirection="row-reverse" pb={2}>
         <ThemeToggle />
       </Box>
-      <Logo height={50} width={50} />
+      <NymLogo height={50} />
       <h1>Nym Mixnet Chat App</h1>
       <Box mb={5}>
         <Typography>
@@ -402,7 +405,7 @@ export const Content: FCWithChildren = () => {
   );
 };
 
-export const App: FCWithChildren = () => (
+export const App: React.FC = () => (
   <AppContextProvider>
     <MixnetContextProvider>
       <AppTheme>

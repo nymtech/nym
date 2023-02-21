@@ -1,6 +1,0 @@
-node_modules
-dist
-coverage/
-.DS_Store
-.idea/
-junit.xml

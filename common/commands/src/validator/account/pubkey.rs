@@ -77,12 +77,12 @@ pub async fn get_pubkey_from_chain(address: AccountId, client: &QueryClient) {
                 if let Some(pubkey) = base_account.pubkey {
                     println!("{}", pubkey.to_string());
                 } else {
-                    println!("No account associated with address {address}");
+                    println!("No account associated with address {}", address);
                 }
             }
         }
         Ok(None) => {
-            println!("No account associated with address {address}");
+            println!("No account associated with address {}", address);
         }
         Err(e) => show_error(e),
     }

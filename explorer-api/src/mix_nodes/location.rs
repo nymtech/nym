@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::geo_ip::location;
-use nym_mixnet_contract_common::MixId;
+use mixnet_contract_common::MixId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};

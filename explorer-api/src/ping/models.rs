@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use nym_mixnet_contract_common::MixId;
+use mixnet_contract_common::MixId;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::RwLock;

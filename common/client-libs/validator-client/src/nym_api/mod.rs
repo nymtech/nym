@@ -3,6 +3,8 @@
 
 use crate::nym_api::error::NymAPIError;
 use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
+use mixnet_contract_common::mixnode::MixNodeDetails;
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
@@ -13,8 +15,6 @@ use nym_api_requests::models::{
     MixnodeUptimeHistoryResponse, RequestError, RewardEstimationResponse, StakeSaturationResponse,
     UptimeResponse,
 };
-use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -442,6 +442,23 @@ impl Client {
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
                 routes::COCONUT_BLIND_SIGN,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    pub async fn partial_bandwidth_credential(
+        &self,
+        request_body: &str,
+    ) -> Result<BlindedSignatureResponse, NymAPIError> {
+        self.post_nym_api(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
             ],
             NO_PARAMS,
             request_body,

@@ -9,8 +9,8 @@ use crate::node::MixNode;
 use anyhow::{anyhow, Result};
 use clap::{ArgGroup, Args};
 use config::NymConfig;
+use crypto::asymmetric::identity;
 use log::error;
-use nym_crypto::asymmetric::identity;
 use validator_client::nyxd;
 
 use super::version_check;
@@ -63,15 +63,21 @@ fn print_signed_address(private_key: &identity::PrivateKey, wallet_address: nyxd
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
-    println!("Signing the text {text:?} using your mixnode's Ed25519 identity key...");
+    println!(
+        "Signing the text {:?} using your mixnode's Ed25519 identity key...",
+        text
+    );
 
     let signature = private_key.sign_text(text);
 
-    println!("The base58-encoded signature on '{text}' is: {signature}");
+    println!(
+        "The base58-encoded signature on '{}' is: {}",
+        text, signature
+    );
 }
 
 pub(crate) fn execute(args: &Sign) {
-    let config = match Config::load_from_file(&args.id) {
+    let config = match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!(

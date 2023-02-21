@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Alert, AlertTitle, Box, CircularProgress, Grid } from '@mui/material';
 import { useParams } from 'react-router-dom';
-import { GatewayBond } from '../../typeDefs/explorer-api';
+import { GatewayResponseItem } from '../../typeDefs/explorer-api';
 import { ColumnsType, DetailTable } from '../../components/DetailTable';
 import { gatewayEnrichedToGridRow, GatewayEnrichedRowType } from '../../components/Gateways';
 import { ComponentError } from '../../components/ComponentError';
@@ -14,7 +14,7 @@ import { Title } from '../../components/Title';
 
 const columns: ColumnsType[] = [
   {
-    field: 'identity_key',
+    field: 'identityKey',
     title: 'Identity Key',
     headerAlign: 'left',
     width: 230,
@@ -69,7 +69,7 @@ const columns: ColumnsType[] = [
 /**
  * Shows gateway details
  */
-const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: GatewayBond | undefined }) => {
+const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: GatewayResponseItem | undefined }) => {
   const [enrichGateway, setEnrichGateway] = React.useState<GatewayEnrichedRowType>();
   const [status, setStatus] = React.useState<number[] | undefined>();
   const { uptimeReport, uptimeStory } = useGatewayContext();
@@ -129,8 +129,8 @@ const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: Gat
 /**
  * Guard component to handle loading and not found states
  */
-const PageGatewayDetailGuard: FCWithChildren = () => {
-  const [selectedGateway, setSelectedGateway] = React.useState<GatewayBond | undefined>();
+const PageGatewayDetailGuard: React.FC = () => {
+  const [selectedGateway, setSelectedGateway] = React.useState<GatewayResponseItem | undefined>();
   const { gateways } = useMainContext();
   const { id } = useParams<{ id: string | undefined }>();
 
@@ -170,7 +170,7 @@ const PageGatewayDetailGuard: FCWithChildren = () => {
 /**
  * Wrapper component that adds the mixnode content based on the `id` in the address URL
  */
-export const PageGatewayDetail: FCWithChildren = () => {
+export const PageGatewayDetail: React.FC = () => {
   const { id } = useParams<{ id: string | undefined }>();
 
   if (!id) {

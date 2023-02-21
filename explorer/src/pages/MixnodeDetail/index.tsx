@@ -62,7 +62,7 @@ const columns: ColumnsType[] = [
 /**
  * Shows mix node details
  */
-const PageMixnodeDetailWithState: FCWithChildren = () => {
+const PageMixnodeDetailWithState: React.FC = () => {
   const { mixNode, mixNodeRow, description, stats, status, uptimeStory, uniqDelegations } = useMixnodeContext();
 
   return (
@@ -181,7 +181,7 @@ const PageMixnodeDetailWithState: FCWithChildren = () => {
 /**
  * Guard component to handle loading and not found states
  */
-const PageMixnodeDetailGuard: FCWithChildren = () => {
+const PageMixnodeDetailGuard: React.FC = () => {
   const { mixNode } = useMixnodeContext();
   const { id } = useParams<{ id: string | undefined }>();
 
@@ -215,7 +215,7 @@ const PageMixnodeDetailGuard: FCWithChildren = () => {
 /**
  * Wrapper component that adds the mixnode content based on the `id` in the address URL
  */
-export const PageMixnodeDetail: FCWithChildren = () => {
+export const PageMixnodeDetail: React.FC = () => {
   const { id } = useParams<{ id: string | undefined }>();
 
   if (!id) {

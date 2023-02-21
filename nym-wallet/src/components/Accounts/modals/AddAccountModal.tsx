@@ -10,6 +10,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useClipboard } from 'use-clipboard-copy';
 import { createMnemonic, validateMnemonic } from 'src/requests';
 import { Console } from 'src/utils/console';
 import { AccountsContext } from 'src/context';
@@ -29,16 +30,16 @@ const importAccountSteps = [
 ];
 
 const MnemonicStep = ({ mnemonic, onNext, onBack }: { mnemonic: string; onNext: () => void; onBack: () => void }) => {
-  const [confirmed, setConfirmed] = useState(false);
+  const { copy, copied } = useClipboard({ copiedTimeout: 5000 });
   return (
     <Box sx={{ mt: 1 }}>
       <DialogContent>
-        <Mnemonic mnemonic={mnemonic} handleConfirmed={setConfirmed} confirmed={confirmed} />
+        <Mnemonic mnemonic={mnemonic} handleCopy={copy} copied={copied} />
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
         <StyledBackButton onBack={onBack} />
-        <Button disabled={!confirmed} fullWidth disableElevation variant="contained" size="large" onClick={onNext}>
-          Continue
+        <Button disabled={!copied} fullWidth disableElevation variant="contained" size="large" onClick={onNext}>
+          I saved my mnemonic
         </Button>
       </DialogActions>
     </Box>

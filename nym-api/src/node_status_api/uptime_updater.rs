@@ -8,7 +8,7 @@ use crate::node_status_api::ONE_DAY;
 use crate::storage::NymApiStorage;
 use log::error;
 use std::time::Duration;
-use task::{TaskClient, TaskManager};
+use task::TaskClient;
 use time::{OffsetDateTime, PrimitiveDateTime, Time};
 use tokio::time::{interval, sleep};
 
@@ -116,11 +116,5 @@ impl HistoricalUptimeUpdater {
                 }
             }
         }
-    }
-
-    pub(crate) fn start(storage: &NymApiStorage, shutdown: &TaskManager) {
-        let uptime_updater = HistoricalUptimeUpdater::new(storage.to_owned());
-        let shutdown_listener = shutdown.subscribe();
-        tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
     }
 }

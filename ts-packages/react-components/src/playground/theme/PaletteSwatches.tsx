@@ -5,7 +5,7 @@ import flatten from 'flat';
 
 const SWATCH_SIZE = '40px';
 
-const PaletteSwatch: FCWithChildren<{
+const PaletteSwatch: React.FC<{
   theme: Theme;
   path: string;
   value: string;
@@ -29,7 +29,7 @@ const PaletteSwatch: FCWithChildren<{
   </>
 );
 
-export const PaletteSwatches: FCWithChildren<{
+export const PaletteSwatches: React.FC<{
   theme: Theme;
 }> = ({ theme }) => {
   const swatches = React.useMemo<any>(() => flatten(theme.palette), [theme.palette]);
@@ -46,7 +46,7 @@ export const PaletteSwatches: FCWithChildren<{
   );
 };
 
-export const PaletteSwatchesList: FCWithChildren<{
+export const PaletteSwatchesList: React.FC<{
   theme: Theme;
 }> = ({ theme }) => {
   const swatches = React.useMemo<any>(() => flatten(theme.palette), [theme.palette]);

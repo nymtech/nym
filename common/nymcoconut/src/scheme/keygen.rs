@@ -9,7 +9,7 @@ use std::convert::TryInto;
 
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use group::Curve;
-use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::error::{CoconutError, Result};
@@ -68,7 +68,8 @@ impl TryFrom<&[u8]> for SecretKey {
 
         if ys_len as usize != actual_ys_len {
             return Err(CoconutError::Deserialization(format!(
-                "Tried to deserialize secret key with inconsistent ys len (expected {ys_len}, got {actual_ys_len})"
+                "Tried to deserialize secret key with inconsistent ys len (expected {}, got {})",
+                ys_len, actual_ys_len
             )));
         }
 
@@ -91,10 +92,6 @@ impl SecretKey {
     /// outside of the normal key generation process.
     pub fn create_from_raw(x: Scalar, ys: Vec<Scalar>) -> Self {
         Self { x, ys }
-    }
-
-    pub fn into_raw(&self) -> (Scalar, Vec<Scalar>) {
-        (self.x, self.ys.clone())
     }
 
     /// Derive verification key using this secret key.
@@ -188,7 +185,8 @@ impl TryFrom<&[u8]> for VerificationKey {
         if betas_len as usize != actual_betas_len {
             return Err(
                 CoconutError::Deserialization(
-                    format!("Tried to deserialize verification key with inconsistent betas len (expected {betas_len}, got {actual_betas_len})"
+                    format!("Tried to deserialize verification key with inconsistent betas len (expected {}, got {})",
+                            betas_len, actual_betas_len
                     )));
         }
 

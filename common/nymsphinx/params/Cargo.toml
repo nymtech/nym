@@ -9,5 +9,5 @@ edition = "2021"
 [dependencies]
 thiserror = "1.0.37"
 
-nym-crypto = { path = "../../crypto", features = ["hashing", "symmetric"] }
+crypto = { path = "../../crypto", features = ["hashing", "symmetric"] }
 nymsphinx-types = { path = "../types" }

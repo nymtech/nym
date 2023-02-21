@@ -1,5 +1,5 @@
 [package]
-name = "nym-mixnet-contract"
+name = "mixnet-contract"
 version = "1.1.2"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
@@ -13,12 +13,11 @@ exclude = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "mixnet_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common" }
-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common" }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 #config = { path = "../../common/config"}
 
 cosmwasm-std = "1.0.0"
@@ -35,7 +34,7 @@ time = { version = "0.3", features = ["macros"] }
 cosmwasm-schema = "1.0.0"
 rand_chacha = "0.2"
 #rand = "0.7"
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }

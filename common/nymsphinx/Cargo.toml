@@ -22,11 +22,11 @@ nymsphinx-types = { path = "types" }
 
 # those dependencies are due to intriducing preparer and receiver. Perpaphs that indicates they should be moved
 # to separate crate?
-nym-crypto = { path = "../crypto" }
+crypto = { path = "../crypto" }
 topology = { path = "../topology" }
 
 [dev-dependencies]
-nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
+mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 
 # do not include this when compiling into wasm as it somehow when combined together with reqwest, it will require
 # net2 via tokio-util -> tokio -> mio -> net2
@@ -34,5 +34,5 @@ nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contra
 path = "framing"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "1.24.1"
+version = "1.21.2"
 features = ["sync"]

@@ -21,7 +21,7 @@ const mockValues_NotRegistered: TTestAndEarnContext = {
   ...methodDefaults,
 };
 
-export const MockTestAndEarnProvider_NotRegistered: FCWithChildren = ({ children }) => (
+export const MockTestAndEarnProvider_NotRegistered = ({ children }: { children: React.ReactNode }) => (
   <TestAndEarnContext.Provider value={mockValues_NotRegistered}>{children}</TestAndEarnContext.Provider>
 );
 
@@ -43,7 +43,7 @@ const mockValues_Registered: TTestAndEarnContext = {
   },
 };
 
-export const MockTestAndEarnProvider_Registered: FCWithChildren = ({ children }) => (
+export const MockTestAndEarnProvider_Registered = ({ children }: { children: React.ReactNode }) => (
   <TestAndEarnContext.Provider value={mockValues_Registered}>{children}</TestAndEarnContext.Provider>
 );
 
@@ -137,7 +137,7 @@ const mockValues_RegisteredWithAllDrawsAndEntry: TTestAndEarnContext = {
   },
 };
 
-export const MockTestAndEarnProvider_RegisteredWithAllDraws: FCWithChildren = ({ children }) => (
+export const MockTestAndEarnProvider_RegisteredWithAllDraws = ({ children }: { children: React.ReactNode }) => (
   <TestAndEarnContext.Provider value={mockValues_RegisteredWithAllDrawsAndEntry}>
     {children}
   </TestAndEarnContext.Provider>
@@ -150,7 +150,7 @@ const mockValues_RegisteredWithDrawsNoCurrent: TTestAndEarnContext = {
   },
 };
 
-export const MockTestAndEarnProvider_RegisteredWithDrawsNoCurrent: FCWithChildren = ({ children }) => (
+export const MockTestAndEarnProvider_RegisteredWithDrawsNoCurrent = ({ children }: { children: React.ReactNode }) => (
   <TestAndEarnContext.Provider value={mockValues_RegisteredWithDrawsNoCurrent}>{children}</TestAndEarnContext.Provider>
 );
 
@@ -162,7 +162,7 @@ const mockValues_RegisteredWithDraws: TTestAndEarnContext = {
   },
 };
 
-export const MockTestAndEarnProvider_RegisteredWithDraws: FCWithChildren = ({ children }) => (
+export const MockTestAndEarnProvider_RegisteredWithDraws = ({ children }: { children: React.ReactNode }) => (
   <TestAndEarnContext.Provider value={mockValues_RegisteredWithDraws}>{children}</TestAndEarnContext.Provider>
 );
 
@@ -177,7 +177,7 @@ const mockValues_RegisteredWithDrawsAndEntry: TTestAndEarnContext = {
   },
 };
 
-export const MockTestAndEarnProvider_RegisteredWithDrawsAndEntry: FCWithChildren = ({ children }) => (
+export const MockTestAndEarnProvider_RegisteredWithDrawsAndEntry = ({ children }: { children: React.ReactNode }) => (
   <TestAndEarnContext.Provider value={mockValues_RegisteredWithDrawsAndEntry}>{children}</TestAndEarnContext.Provider>
 );
 
@@ -257,6 +257,6 @@ const mockValues_RegisteredAndError: TTestAndEarnContext = {
   error: 'Error message text will go here',
 };
 
-export const MockTestAndEarnProvider_RegisteredAndError: FCWithChildren = ({ children }) => (
+export const MockTestAndEarnProvider_RegisteredAndError = ({ children }: { children: React.ReactNode }) => (
   <TestAndEarnContext.Provider value={mockValues_RegisteredAndError}>{children}</TestAndEarnContext.Provider>
 );

@@ -6,7 +6,7 @@ extern crate rocket;
 
 use ::config::defaults::setup_env;
 use build_information::BinaryBuildInformation;
-use clap::{crate_name, crate_version, Parser, ValueEnum};
+use clap::{crate_version, Parser, ValueEnum};
 use lazy_static::lazy_static;
 use logging::setup_logging;
 
@@ -64,12 +64,29 @@ impl Cli {
 async fn main() {
     setup_logging();
     if atty::is(atty::Stream::Stdout) {
-        println!("{}", logging::banner(crate_name!(), crate_version!()));
+        println!("{}", banner());
     }
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
     commands::execute(args).await;
+}
+
+fn banner() -> String {
+    format!(
+        r#"
+
+      _ __  _   _ _ __ ___
+     | '_ \| | | | '_ \ _ \
+     | | | | |_| | | | | | |
+     |_| |_|\__, |_| |_| |_|
+            |___/
+
+             (mixnode - version {:})
+
+    "#,
+        crate_version!()
+    )
 }
 
 #[cfg(test)]

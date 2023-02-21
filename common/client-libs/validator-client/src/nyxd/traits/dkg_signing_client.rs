@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
 use coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
 use coconut_dkg_common::verification_key::VerificationKeyShare;
-use nym_contracts_common::dealings::ContractSafeBytes;
+use contracts_common::dealings::ContractSafeBytes;
 
 #[async_trait]
 pub trait DkgSigningClient {
@@ -17,21 +17,18 @@ pub trait DkgSigningClient {
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
         announce_address: String,
-        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
 
     async fn submit_dealing_bytes(
         &self,
         commitment: ContractSafeBytes,
-        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
 
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
-        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
 }
@@ -39,7 +36,7 @@ pub trait DkgSigningClient {
 #[async_trait]
 impl<C> DkgSigningClient for NyxdClient<C>
 where
-    C: SigningCosmWasmClient + Send + Sync + Clone,
+    C: SigningCosmWasmClient + Send + Sync,
 {
     async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::AdvanceEpochState {};
@@ -60,13 +57,11 @@ where
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
         announce_address: String,
-        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::RegisterDealer {
             bte_key_with_proof: bte_key,
             announce_address,
-            resharing,
         };
 
         self.client
@@ -84,13 +79,9 @@ where
     async fn submit_dealing_bytes(
         &self,
         dealing_bytes: ContractSafeBytes,
-        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = DkgExecuteMsg::CommitDealing {
-            dealing_bytes,
-            resharing,
-        };
+        let req = DkgExecuteMsg::CommitDealing { dealing_bytes };
 
         self.client
             .execute(
@@ -107,10 +98,9 @@ where
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
-        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = DkgExecuteMsg::CommitVerificationKeyShare { share, resharing };
+        let req = DkgExecuteMsg::CommitVerificationKeyShare { share };
 
         self.client
             .execute(

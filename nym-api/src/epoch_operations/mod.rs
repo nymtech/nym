@@ -2,38 +2,40 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // there is couple of reasons for putting this in a separate module:
-// 1. I didn't feel it fit well in nym contract "cache". It seems like purpose of cache is to just keep updating local data
+// 1. I didn't feel it fit well in validator "cache". It seems like purpose of cache is to just keep updating local data
 //    rather than attempting to change global view (i.e. the active set)
 //
-// 2. However, even if it was to exist in the nym contract cache refresher, we'd have to create a different "run"
+// 2. However, even if it was to exist in the validator cache refresher, we'd have to create a different "run"
 //    method as it doesn't have access to the signing client which we need in the case of updating rewarded sets
-//    (because nym contract cache can be run by anyone regardless of whether, say, network monitor exists)
+//    (because validator cache can be run by anyone regardless of whether, say, network monitor exists)
 //
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.
 
-use crate::epoch_operations::helpers::stake_to_f64;
-use crate::node_status_api::ONE_DAY;
-use crate::nym_contract_cache::cache::NymContractCache;
-use crate::support::nyxd::Client;
-use crate::support::storage::models::RewardingReport;
-use crate::support::storage::NymApiStorage;
-use error::RewardingError;
-use nym_mixnet_contract_common::families::FamilyHead;
-use nym_mixnet_contract_common::{
+use crate::contract_cache::ValidatorCache;
+use crate::nyxd_client::Client;
+use crate::storage::models::RewardingReport;
+use crate::storage::NymApiStorage;
+use mixnet_contract_common::families::FamilyHead;
+use mixnet_contract_common::{
     reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,
 };
-use nym_mixnet_contract_common::{IdentityKey, Layer, LayerAssignment, MixNodeDetails};
+use mixnet_contract_common::{IdentityKey, Layer, LayerAssignment, MixNodeDetails};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Duration;
-use task::{TaskClient, TaskManager};
 use tokio::time::sleep;
+use validator_client::nyxd::SigningNyxdClient;
 
 pub(crate) mod error;
 mod helpers;
+
+use crate::epoch_operations::helpers::stake_to_f64;
+use crate::node_status_api::ONE_DAY;
+use error::RewardingError;
+use task::TaskClient;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MixnodeToReward {
@@ -52,8 +54,8 @@ impl From<MixnodeToReward> for ExecuteMsg {
 }
 
 pub struct RewardedSetUpdater {
-    nyxd_client: Client,
-    nym_contract_cache: NymContractCache,
+    nyxd_client: Client<SigningNyxdClient>,
+    validator_cache: ValidatorCache,
     storage: NymApiStorage,
 }
 
@@ -74,16 +76,16 @@ impl RewardedSetUpdater {
         Ok(self.nyxd_client.get_current_interval().await?)
     }
 
-    pub(crate) fn new(
-        nyxd_client: Client,
-        nym_contract_cache: NymContractCache,
+    pub(crate) async fn new(
+        nyxd_client: Client<SigningNyxdClient>,
+        validator_cache: ValidatorCache,
         storage: NymApiStorage,
-    ) -> Self {
-        RewardedSetUpdater {
+    ) -> Result<Self, RewardingError> {
+        Ok(RewardedSetUpdater {
             nyxd_client,
-            nym_contract_cache,
+            validator_cache,
             storage,
-        }
+        })
     }
 
     async fn determine_layers(
@@ -96,7 +98,7 @@ impl RewardedSetUpdater {
         let mut rng = OsRng;
         let layers = vec![Layer::One, Layer::Two, Layer::Three];
 
-        let mix_to_family = self.nym_contract_cache.mix_to_family().await.to_vec();
+        let mix_to_family = self.validator_cache.mix_to_family().await.to_vec();
 
         let mix_to_family = mix_to_family
             .into_iter()
@@ -179,8 +181,9 @@ impl RewardedSetUpdater {
             info!("There are no nodes to reward in this epoch");
         } else if let Err(err) = self.nyxd_client.send_rewarding_messages(&to_reward).await {
             error!(
-                "failed to perform mixnode rewarding for epoch {}! Error encountered: {err}",
+                "failed to perform mixnode rewarding for epoch {}! Error encountered: {}",
                 current_interval.current_epoch_absolute_id(),
+                err
             );
             return Err(err.into());
         }
@@ -206,7 +209,7 @@ impl RewardedSetUpdater {
             Ok(nodes) => nodes.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
             Err(err) => {
                 warn!("failed to obtain the current rewarded set - {err}. falling back to the cached version");
-                self.nym_contract_cache
+                self.validator_cache
                     .rewarded_set()
                     .await
                     .into_inner()
@@ -274,7 +277,7 @@ impl RewardedSetUpdater {
 
         let epoch_end = interval.current_epoch_end();
 
-        let all_mixnodes = self.nym_contract_cache.mixnodes().await;
+        let all_mixnodes = self.validator_cache.mixnodes().await;
         if all_mixnodes.is_empty() {
             log::warn!("there don't seem to be any mixnodes on the network!")
         }
@@ -287,7 +290,7 @@ impl RewardedSetUpdater {
             // next time we enter this function (i.e. within 2min or so)
             //
             // TODO: deal with the following edge case:
-            // - the nym api REWARDS all mixnodes
+            // - the validator api REWARDS all mixnodes
             // - then crashes before advancing epoch
             // - upon restart it will attempt (and fail) to re-reward the mixnodes
             return Err(err);
@@ -352,7 +355,7 @@ impl RewardedSetUpdater {
             }
         }
 
-        self.nym_contract_cache
+        self.validator_cache
             .update_mixnodes_blacklist(mix_blacklist_add, mix_blacklist_remove)
             .await;
 
@@ -364,7 +367,7 @@ impl RewardedSetUpdater {
             }
         }
 
-        self.nym_contract_cache
+        self.validator_cache
             .update_gateways_blacklist(gate_blacklist_add, gate_blacklist_remove)
             .await;
         Ok(())
@@ -376,7 +379,7 @@ impl RewardedSetUpdater {
         loop {
             let current_interval = match self.current_interval_details().await {
                 Err(err) => {
-                    error!("failed to obtain information about the current interval - {err}. Going to retry in {}s", POLL_INTERVAL.as_secs());
+                    error!("failed to obtain information about the current interval - {}. Going to retry in {}s", err, POLL_INTERVAL.as_secs());
                     tokio::select! {
                         _ = sleep(POLL_INTERVAL) => {
                             continue
@@ -419,7 +422,7 @@ impl RewardedSetUpdater {
     }
 
     pub(crate) async fn run(&mut self, mut shutdown: TaskClient) -> Result<(), RewardingError> {
-        self.nym_contract_cache.wait_for_initial_values().await;
+        self.validator_cache.wait_for_initial_values().await;
 
         while !shutdown.is_shutdown() {
             let interval_details = match self.wait_until_epoch_end(&mut shutdown).await {
@@ -437,38 +440,6 @@ impl RewardedSetUpdater {
             }
         }
 
-        Ok(())
-    }
-
-    pub(crate) fn start(
-        nyxd_client: Client,
-        nym_contract_cache: &NymContractCache,
-        storage: &NymApiStorage,
-        shutdown: &TaskManager,
-    ) {
-        let mut rewarded_set_updater = RewardedSetUpdater::new(
-            nyxd_client,
-            nym_contract_cache.to_owned(),
-            storage.to_owned(),
-        );
-        let shutdown_listener = shutdown.subscribe();
-        tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await });
-    }
-}
-
-// before going any further, let's check whether we're allowed to perform rewarding
-// (if not, let's blow up sooner rather than later)
-pub(crate) async fn ensure_rewarding_permission(
-    nyxd_client: &Client,
-) -> Result<(), RewardingError> {
-    let allowed_address = nyxd_client.get_rewarding_validator_address().await?;
-    let our_address = nyxd_client.client_address().await;
-    if allowed_address != our_address {
-        Err(RewardingError::Unauthorised {
-            our_address,
-            allowed_address,
-        })
-    } else {
         Ok(())
     }
 }

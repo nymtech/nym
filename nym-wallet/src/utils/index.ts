@@ -3,7 +3,7 @@ import bs58 from 'bs58';
 import Big from 'big.js';
 import { valid } from 'semver';
 import { add, format, fromUnixTime } from 'date-fns';
-import { DecCoin, isValidRawCoin, MixNodeCostParams } from '@nymproject/types';
+import { isValidRawCoin, DecCoin, MixNodeCostParams } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
 import {
   getCurrentInterval,
@@ -13,6 +13,8 @@ import {
   userBalance,
 } from '../requests';
 import { Console } from './console';
+
+export * from './nextEpoch';
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key

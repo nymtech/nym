@@ -5,18 +5,16 @@ use clap::Parser;
 use log::{debug, info};
 
 use cosmwasm_std::Decimal;
-use nym_mixnet_contract_common::{InitialRewardingParams, InstantiateMsg, Percent};
-use std::str::FromStr;
+use mixnet_contract_common::{InitialRewardingParams, InstantiateMsg, Percent};
 use std::time::Duration;
-use validator_client::nyxd::AccountId;
 
 #[derive(Debug, Parser)]
 pub struct Args {
     #[clap(long)]
-    pub rewarding_validator_address: Option<AccountId>,
+    pub rewarding_validator_address: Option<String>,
 
     #[clap(long)]
-    pub vesting_contract_address: Option<AccountId>,
+    pub vesting_contract_address: Option<String>,
 
     #[clap(long)]
     pub rewarding_denom: Option<String>,
@@ -79,17 +77,13 @@ pub async fn generate(args: Args) {
     debug!("initial_rewarding_params: {:?}", initial_rewarding_params);
 
     let rewarding_validator_address = args.rewarding_validator_address.unwrap_or_else(|| {
-        let address = std::env::var(network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
-            .expect("Rewarding validator address has to be set");
-        AccountId::from_str(address.as_str())
-            .expect("Failed converting rewarding validator address to AccountId")
+        std::env::var(network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
+            .expect("Rewarding validator address has to be set")
     });
 
     let vesting_contract_address = args.vesting_contract_address.unwrap_or_else(|| {
-        let address = std::env::var(network_defaults::var_names::VESTING_CONTRACT_ADDRESS)
-            .expect("Vesting contract address has to be set");
-        AccountId::from_str(address.as_str())
-            .expect("Failed converting vesting contract address to AccountId")
+        std::env::var(network_defaults::var_names::VESTING_CONTRACT_ADDRESS)
+            .expect("Vesting contract address has to be set")
     });
 
     let rewarding_denom = args.rewarding_denom.unwrap_or_else(|| {
@@ -98,8 +92,8 @@ pub async fn generate(args: Args) {
     });
 
     let instantiate_msg = InstantiateMsg {
-        rewarding_validator_address: rewarding_validator_address.to_string(),
-        vesting_contract_address: vesting_contract_address.to_string(),
+        rewarding_validator_address,
+        vesting_contract_address,
         rewarding_denom,
         epochs_in_interval: args.epochs_in_interval,
         epoch_duration: Duration::from_secs(args.epoch_duration),
@@ -111,5 +105,5 @@ pub async fn generate(args: Args) {
     let res =
         serde_json::to_string(&instantiate_msg).expect("failed to convert instantiate msg to json");
 
-    println!("{res}")
+    println!("{}", res)
 }

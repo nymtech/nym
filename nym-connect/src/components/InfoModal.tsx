@@ -18,7 +18,7 @@ const styles = {
 const ModalTitle = ({ title, withCloseIcon }: { title: string; withCloseIcon: boolean }) => (
   <Box textAlign="center" mt={withCloseIcon ? -2 : 0}>
     <ErrorOutline sx={{ color: 'warning.main' }} />
-    <Typography variant="body2" textAlign="center" sx={{ color: 'warning.main', my: 1 }}>
+    <Typography variant="body2" textAlign="center" sx={{ color: 'warning.main' }}>
       {title}
     </Typography>
   </Box>
@@ -27,7 +27,7 @@ const ModalTitle = ({ title, withCloseIcon }: { title: string; withCloseIcon: bo
 const ModalBody = ({ description, children }: { description: string; children?: React.ReactElement }) => (
   <Box textAlign="center" mt={1}>
     {children}
-    <Typography fontSize="small" sx={{ mt: 1, overflowWrap: 'anywhere', color: 'grey.400' }}>
+    <Typography fontSize="small" sx={{ mt: 1, overflowWrap: 'anywhere', color: 'grey.300' }}>
       {description}
     </Typography>
   </Box>

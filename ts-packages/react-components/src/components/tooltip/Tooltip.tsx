@@ -1,24 +1,12 @@
 import * as React from 'react';
-import { IconButton, Tooltip as MUITooltip } from '@mui/material';
+import { Tooltip as MUITooltip, TooltipProps, IconButton } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 export interface CustomTooltipProps {
   title: string;
   arrow?: boolean;
   id: string;
-  placement?:
-    | 'bottom'
-    | 'left'
-    | 'right'
-    | 'top'
-    | 'bottom-end'
-    | 'bottom-start'
-    | 'left-end'
-    | 'left-start'
-    | 'right-end'
-    | 'right-start'
-    | 'top-end'
-    | 'top-start';
+  placement?: "bottom" | "left" | "right" | "top" | "bottom-end" | "bottom-start" | "left-end" | "left-start" | "right-end" | "right-start" | "top-end" | "top-start";
   textColor?: string;
   bgColor?: string;
   maxWidth?: number;
@@ -54,7 +42,7 @@ export const Tooltip = (props: CustomTooltipProps) => {
       componentsProps={{
         tooltip: {
           sx: {
-            maxWidth,
+            maxWidth: maxWidth,
             background: bgColor,
             color: textColor,
             '& .MuiTooltip-arrow': {

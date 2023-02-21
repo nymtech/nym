@@ -4,7 +4,6 @@ use crate::{
 };
 use client_core::config::Config as BaseConfig;
 use config_common::NymConfig;
-use nym_crypto::asymmetric::identity;
 use nym_socks5::client::config::Config as Socks5Config;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -16,7 +15,7 @@ static SOCKS5_CONFIG_ID: &str = "nym-connect";
 pub fn socks5_config_id_appended_with(gateway_id: &str) -> Result<String> {
     use std::fmt::Write as _;
     let mut id = SOCKS5_CONFIG_ID.to_string();
-    write!(id, "-{gateway_id}")?;
+    write!(id, "-{}", gateway_id)?;
     Ok(id)
 }
 
@@ -93,7 +92,7 @@ impl Config {
     }
 
     pub fn config_file_location(id: &str) -> Result<PathBuf> {
-        Socks5Config::try_default_config_file_path(id)
+        Socks5Config::try_default_config_file_path(Some(id))
             .ok_or(BackendError::CouldNotGetConfigFilename)
     }
 }
@@ -110,7 +109,11 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     );
     let already_init = Config::config_file_location(&id)?.exists();
     if already_init {
-        log::info!("SOCKS5 client \"{id}\" was already initialised before");
+        log::info!(
+            "SOCKS5 client \"{}\" was already initialised before! \
+            Config information will be overwritten (but keys will be kept)!",
+            id
+        );
     }
 
     // Future proofing. This flag exists for the other clients
@@ -130,18 +133,15 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
             .set_custom_nym_apis(config_common::parse_urls(&raw_validators));
     }
 
-    let chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)
-        .map_err(|_| BackendError::UnableToParseGateway)?;
-
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let gateway = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
+    let gateway = client_core::init::setup_gateway::<Socks5Config, _>(
         register_gateway,
         Some(chosen_gateway_id),
         config.get_base(),
     )
     .await?;
 
-    config.get_base_mut().set_gateway_endpoint(gateway);
+    config.get_base_mut().with_gateway_endpoint(gateway);
 
     config.get_socks5().save_to_file(None).tap_err(|_| {
         log::error!("Failed to save the config file");

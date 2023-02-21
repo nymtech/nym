@@ -1,26 +1,23 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use gateway_client::GatewayClient;
-use nym_crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard, TryLockError};
-use validator_client::nyxd::SigningNyxdClient;
 
 pub(crate) struct GatewayClientHandle(Arc<GatewayClientHandleInner>);
 
 struct GatewayClientHandleInner {
-    client: Mutex<Option<GatewayClient<SigningNyxdClient>>>,
+    client: Mutex<Option<GatewayClient>>,
     raw_identity: [u8; PUBLIC_KEY_LENGTH],
 }
 
-pub(crate) struct UnlockedGatewayClientHandle<'a>(
-    MutexGuard<'a, Option<GatewayClient<SigningNyxdClient>>>,
-);
+pub(crate) struct UnlockedGatewayClientHandle<'a>(MutexGuard<'a, Option<GatewayClient>>);
 
 impl GatewayClientHandle {
-    pub(crate) fn new(gateway_client: GatewayClient<SigningNyxdClient>) -> Self {
+    pub(crate) fn new(gateway_client: GatewayClient) -> Self {
         GatewayClientHandle(Arc::new(GatewayClientHandleInner {
             raw_identity: gateway_client.gateway_identity().to_bytes(),
             client: Mutex::new(Some(gateway_client)),
@@ -59,11 +56,11 @@ impl GatewayClientHandle {
 }
 
 impl<'a> UnlockedGatewayClientHandle<'a> {
-    pub(crate) fn get_mut_unchecked(&mut self) -> &mut GatewayClient<SigningNyxdClient> {
+    pub(crate) fn get_mut_unchecked(&mut self) -> &mut GatewayClient {
         self.0.as_mut().unwrap()
     }
 
-    pub(crate) fn inner_mut(&mut self) -> Option<&mut GatewayClient<SigningNyxdClient>> {
+    pub(crate) fn inner_mut(&mut self) -> Option<&mut GatewayClient> {
         self.0.as_mut()
     }
 

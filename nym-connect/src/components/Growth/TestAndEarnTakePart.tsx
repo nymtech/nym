@@ -5,9 +5,9 @@ import { SxProps } from '@mui/system';
 import ArrowCircleRightIcon from '@mui/icons-material/ArrowCircleRight';
 import { invoke } from '@tauri-apps/api';
 import { useTestAndEarnContext } from './context/TestAndEarnContext';
-import { Registration } from './context/types';
+import { ClientId, Registration } from './context/types';
 
-export const TestAndEarnTakePart: FCWithChildren<{
+export const TestAndEarnTakePart: React.FC<{
   websiteLinkUrl: string;
   websiteLinkText: string;
   content: string;
@@ -41,7 +41,7 @@ export const TestAndEarnTakePart: FCWithChildren<{
   };
   return (
     <>
-      <Stack direction="row" spacing={6} alignItems="center" sx={{ ...(Array.isArray(sx) ? sx : [sx]) }}>
+      <Stack direction="row" spacing={6} alignItems="center" sx={sx}>
         <Stack alignItems="center" direction="row">
           <Checkbox onChange={(_event, checked) => setAgree(checked)} />
           <Box color="primary.light" fontWeight="bold">

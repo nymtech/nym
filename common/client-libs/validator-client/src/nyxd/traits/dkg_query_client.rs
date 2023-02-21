@@ -8,7 +8,7 @@ use coconut_dkg_common::dealer::{
     DealerDetailsResponse, PagedDealerResponse, PagedDealingsResponse,
 };
 use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use coconut_dkg_common::types::{Epoch, EpochId, InitialReplacementData};
+use coconut_dkg_common::types::Epoch;
 use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmrs::AccountId;
 
@@ -16,7 +16,6 @@ use cosmrs::AccountId;
 pub trait DkgQueryClient {
     async fn get_current_epoch(&self) -> Result<Epoch, NyxdError>;
     async fn get_current_epoch_threshold(&self) -> Result<Option<u64>, NyxdError>;
-    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>, NyxdError>;
     async fn get_dealer_details(
         &self,
         address: &AccountId,
@@ -40,7 +39,6 @@ pub trait DkgQueryClient {
     ) -> Result<PagedDealingsResponse, NyxdError>;
     async fn get_vk_shares_paged(
         &self,
-        epoch_id: EpochId,
         start_after: Option<String>,
         page_limit: Option<u32>,
     ) -> Result<PagedVKSharesResponse, NyxdError>;
@@ -49,7 +47,7 @@ pub trait DkgQueryClient {
 #[async_trait]
 impl<C> DkgQueryClient for NyxdClient<C>
 where
-    C: CosmWasmClient + Send + Sync + Clone,
+    C: CosmWasmClient + Send + Sync,
 {
     async fn get_current_epoch(&self) -> Result<Epoch, NyxdError> {
         let request = DkgQueryMsg::GetCurrentEpochState {};
@@ -63,14 +61,6 @@ where
             .query_contract_smart(self.coconut_dkg_contract_address(), &request)
             .await
     }
-
-    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>, NyxdError> {
-        let request = DkgQueryMsg::GetInitialDealers {};
-        self.client
-            .query_contract_smart(self.coconut_dkg_contract_address(), &request)
-            .await
-    }
-
     async fn get_dealer_details(
         &self,
         address: &AccountId,
@@ -129,12 +119,10 @@ where
 
     async fn get_vk_shares_paged(
         &self,
-        epoch_id: EpochId,
         start_after: Option<String>,
         page_limit: Option<u32>,
     ) -> Result<PagedVKSharesResponse, NyxdError> {
         let request = DkgQueryMsg::GetVerificationKeys {
-            epoch_id,
             limit: page_limit,
             start_after,
         };

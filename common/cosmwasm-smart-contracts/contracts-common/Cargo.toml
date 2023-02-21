@@ -1,5 +1,5 @@
 [package]
-name = "nym-contracts-common"
+name = "contracts-common"
 version = "0.1.0"
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
@@ -16,3 +16,6 @@ thiserror = "1"
 
 [dev-dependencies]
 serde_json = "1.0.0"
+
+[features]
+coconut = ["dkg"]

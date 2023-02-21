@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crypto::asymmetric::identity;
 use gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
-use nym_crypto::asymmetric::identity;
 use tokio_stream::StreamMap;
 
 pub(crate) type GatewayMessages = Vec<Vec<u8>>;

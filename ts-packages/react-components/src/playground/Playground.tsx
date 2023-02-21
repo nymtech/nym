@@ -5,7 +5,7 @@ import { PlaygroundBasicSwitches } from './switches';
 import { PlaygroundFonts } from './fonts';
 import { PlaygroundTheme } from './theme';
 
-export const Playground: FCWithChildren = () => (
+export const Playground: React.FC = () => (
   <>
     <h2>Buttons</h2>
     <PlaygroundButtons />

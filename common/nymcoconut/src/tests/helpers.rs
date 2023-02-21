@@ -89,9 +89,6 @@ pub fn theta_from_keys_and_attributes(
 }
 
 pub fn transpose_matrix<T: Debug>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
-    if matrix.is_empty() {
-        return vec![];
-    }
     let len = matrix[0].len();
     let mut iters: Vec<_> = matrix.into_iter().map(|d| d.into_iter()).collect();
     (0..len)

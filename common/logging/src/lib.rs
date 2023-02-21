@@ -23,19 +23,3 @@ pub fn setup_logging() {
         .filter_module("sled", log::LevelFilter::Warn)
         .init();
 }
-
-pub fn banner(crate_name: &str, crate_version: &str) -> String {
-    format!(
-        r#"
-
-      _ __  _   _ _ __ ___
-     | '_ \| | | | '_ \ _ \
-     | | | | |_| | | | | | |
-     |_| |_|\__, |_| |_| |_|
-            |___/
-
-             ({crate_name} - version {crate_version})
-
-    "#
-    )
-}

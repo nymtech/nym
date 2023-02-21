@@ -5,8 +5,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use nym_mixnet_contract_common::rewarding::helpers::truncate_reward;
-use nym_mixnet_contract_common::MixId;
+use mixnet_contract_common::rewarding::helpers::truncate_reward;
+use mixnet_contract_common::MixId;
 use serde::Serialize;
 use tokio::sync::{RwLock, RwLockReadGuard};
 

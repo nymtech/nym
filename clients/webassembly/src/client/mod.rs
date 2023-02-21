@@ -11,7 +11,6 @@ use client_core::client::base_client::{
 use client_core::client::replies::reply_storage::browser_backend;
 use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
 use gateway_client::bandwidth::BandwidthController;
-use gateway_client::wasm_mockups::SigningNyxdClient;
 use js_sys::Promise;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
@@ -48,7 +47,7 @@ pub struct NymClientBuilder {
     on_message: js_sys::Function,
 
     // unimplemented:
-    bandwidth_controller: Option<BandwidthController<SigningNyxdClient>>,
+    bandwidth_controller: Option<BandwidthController>,
     disabled_credentials: bool,
 }
 

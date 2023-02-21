@@ -45,8 +45,7 @@ const DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 100;
 
 const DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE: u32 = 500;
 
-const DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD: Duration = Duration::from_secs(10);
-const DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD: Duration = Duration::from_secs(5 * 60);
+const DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD: Duration = Duration::from_secs(10);
 
 // 12 hours
 const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(12 * 60 * 60);
@@ -89,7 +88,6 @@ impl<T> Config<T> {
         Config::default().with_id(id)
     }
 
-    #[must_use]
     pub fn with_id<S: Into<String>>(mut self, id: S) -> Self
     where
         T: NymConfig,
@@ -171,13 +169,8 @@ impl<T> Config<T> {
         self
     }
 
-    pub fn set_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpointConfig) {
+    pub fn with_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpointConfig) {
         self.client.gateway_endpoint = gateway_endpoint;
-    }
-
-    pub fn with_gateway_endpoint(mut self, gateway_endpoint: GatewayEndpointConfig) -> Self {
-        self.client.gateway_endpoint = gateway_endpoint;
-        self
     }
 
     pub fn with_gateway_id<S: Into<String>>(&mut self, id: S) {
@@ -378,12 +371,8 @@ impl<T> Config<T> {
         self.debug.maximum_allowed_reply_surb_request_size
     }
 
-    pub fn get_maximum_reply_surb_rerequest_waiting_period(&self) -> Duration {
-        self.debug.maximum_reply_surb_rerequest_waiting_period
-    }
-
-    pub fn get_maximum_reply_surb_drop_waiting_period(&self) -> Duration {
-        self.debug.maximum_reply_surb_drop_waiting_period
+    pub fn get_maximum_reply_surb_waiting_period(&self) -> Duration {
+        self.debug.maximum_reply_surb_waiting_period
     }
 
     pub fn get_maximum_reply_surb_age(&self) -> Duration {
@@ -551,35 +540,35 @@ impl<T: NymConfig> Default for Client<T> {
 
 impl<T: NymConfig> Client<T> {
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("private_identity.pem")
+        T::default_data_directory(Some(id)).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("public_identity.pem")
+        T::default_data_directory(Some(id)).join("public_identity.pem")
     }
 
     fn default_private_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("private_encryption.pem")
+        T::default_data_directory(Some(id)).join("private_encryption.pem")
     }
 
     fn default_public_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("public_encryption.pem")
+        T::default_data_directory(Some(id)).join("public_encryption.pem")
     }
 
     fn default_gateway_shared_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("gateway_shared.pem")
+        T::default_data_directory(Some(id)).join("gateway_shared.pem")
     }
 
     fn default_ack_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("ack_key.pem")
+        T::default_data_directory(Some(id)).join("ack_key.pem")
     }
 
     fn default_reply_surb_database_path(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("persistent_reply_store.sqlite")
+        T::default_data_directory(Some(id)).join("persistent_reply_store.sqlite")
     }
 
     fn default_database_path(id: &str) -> PathBuf {
-        T::default_data_directory(id).join(DB_FILE_NAME)
+        T::default_data_directory(Some(id)).join(DB_FILE_NAME)
     }
 }
 
@@ -673,12 +662,7 @@ pub struct DebugConfig {
     /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
     /// for more even though in theory they wouldn't need to.
     #[serde(with = "humantime_serde")]
-    pub maximum_reply_surb_rerequest_waiting_period: Duration,
-
-    /// Defines maximum amount of time the client is going to wait for reply surbs before
-    /// deciding it's never going to get them and would drop all pending messages
-    #[serde(with = "humantime_serde")]
-    pub maximum_reply_surb_drop_waiting_period: Duration,
+    pub maximum_reply_surb_waiting_period: Duration,
 
     /// Defines maximum amount of time given reply surb is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
@@ -719,9 +703,7 @@ impl Default for DebugConfig {
             minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_reply_surb_request_size: DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_allowed_reply_surb_request_size: DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
-            maximum_reply_surb_rerequest_waiting_period:
-                DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
-            maximum_reply_surb_drop_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD,
+            maximum_reply_surb_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD,
             maximum_reply_surb_age: DEFAULT_MAXIMUM_REPLY_SURB_AGE,
             maximum_reply_key_age: DEFAULT_MAXIMUM_REPLY_KEY_AGE,
         }

@@ -1,61 +1,52 @@
 /* eslint-disable no-nested-ternary */
-import React from 'react';
-import zxcvbn, { ZXCVBNScore } from 'zxcvbn';
+import React, { useEffect, useState } from 'react';
 import { LockOutlined } from '@mui/icons-material';
 import { LinearProgress, Stack, Typography, Box } from '@mui/material';
 
+type TStrength = 'weak' | 'medium' | 'strong' | 'init';
+
+const strong = /^(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
+const medium = /^(((?=.*[a-z]))|((?=.*[a-z])(?=.*[0-9]))|((?=.*[0-9])))(?=.{6,})/;
+
 const colorMap = {
-  4: 'success' as 'success',
-  3: 'success' as 'success',
-  2: 'warning' as 'warning',
-  1: 'error' as 'error',
-  0: 'error' as 'error',
+  init: 'inherit' as 'inherit',
+  weak: 'error' as 'error',
+  medium: 'warning' as 'warning',
+  strong: 'success' as 'success',
 };
 
-const getText = (score: ZXCVBNScore) => {
-  switch (score) {
-    case 4:
-      return 'Very strong password';
-    case 3:
+const getText = (strength: TStrength) => {
+  switch (strength) {
+    case 'strong':
       return 'Strong password';
-    case 2:
-      return 'Average password';
-    case 1:
+    case 'medium':
+      return 'Medium strength password';
+    case 'weak':
       return 'Weak password';
-    case 0:
-      return 'Very weak password';
     default:
-      return '';
+      return 'Password strength';
   }
 };
 
-const getColor = (score: ZXCVBNScore) => {
-  switch (score) {
-    case 4:
+const getTextColor = (strength: TStrength) => {
+  switch (strength) {
+    case 'strong':
       return 'success.main';
-    case 3:
-      return 'success.main';
-    case 2:
+    case 'medium':
       return 'warning.main';
-    case 1:
-      return 'error.main';
-    case 0:
+    case 'weak':
       return 'error.main';
     default:
       return 'grey.500';
   }
 };
 
-const getPasswordStrength = (score: ZXCVBNScore) => {
-  switch (score) {
-    case 4:
+const getPasswordStrength = (strength: TStrength) => {
+  switch (strength) {
+    case 'strong':
       return 100;
-    case 3:
-      return 75;
-    case 2:
+    case 'medium':
       return 50;
-    case 1:
-      return 25;
     default:
       return 0;
   }
@@ -63,32 +54,47 @@ const getPasswordStrength = (score: ZXCVBNScore) => {
 
 export const PasswordStrength = ({
   password,
-  withWarnings,
-  handleIsSafePassword,
+  onChange,
 }: {
   password: string;
-  withWarnings?: boolean;
-  handleIsSafePassword: (isSafe: boolean) => void;
+  onChange: (isStrong: boolean) => void;
 }) => {
-  const result = zxcvbn(password);
+  const [strength, setStrength] = useState<TStrength>('init');
 
-  handleIsSafePassword(result.score > 1);
+  useEffect(() => {
+    if (password.length === 0) {
+      setStrength('init');
+      return;
+    }
 
-  if (!password.length) return null;
+    if (password.match(strong)) {
+      setStrength('strong');
+      return;
+    }
+
+    if (password.match(medium)) {
+      setStrength('medium');
+      return;
+    }
+    setStrength('weak');
+  }, [password]);
+
+  useEffect(() => {
+    if (strength === 'strong') {
+      onChange(true);
+    } else {
+      onChange(false);
+    }
+  }, [strength]);
 
   return (
     <Stack spacing={0.5}>
-      <LinearProgress variant="determinate" color={colorMap[result.score]} value={getPasswordStrength(result.score)} />
-      <Box display="flex" alignItems="center" justifyContent="space-between">
-        <Box display="flex" alignItems="center">
-          <LockOutlined sx={{ fontSize: 15, color: getColor(result.score) }} />
-          <Typography variant="caption" sx={{ ml: 0.5, color: getColor(result.score) }}>
-            {getText(result.score)}
-          </Typography>
-        </Box>
-        {withWarnings && result.feedback.warning && (
-          <Typography variant="caption">{result.feedback.warning}</Typography>
-        )}
+      <LinearProgress variant="determinate" color={colorMap[strength]} value={getPasswordStrength(strength)} />
+      <Box display="flex" alignItems="center">
+        <LockOutlined sx={{ fontSize: 15, color: getTextColor(strength) }} />
+        <Typography variant="caption" sx={{ ml: 0.5, color: getTextColor(strength) }}>
+          {getText(strength)}
+        </Typography>
       </Box>
     </Stack>
   );

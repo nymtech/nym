@@ -24,8 +24,6 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/group-contract" }
-
 cw-utils = { version = "0.13.4" }
 cw2 = { version = "0.13.4" }
 cw4 = { version = "0.13.4" }

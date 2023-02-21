@@ -3,9 +3,9 @@
 
 use crate::cache::Cache;
 use crate::mix_nodes::location::Location;
-use nym_contracts_common::Percent;
-use nym_mixnet_contract_common::Delegation;
-use nym_mixnet_contract_common::{Addr, Coin, Layer, MixId, MixNode};
+use contracts_common::Percent;
+use mixnet_contract_common::Delegation;
+use mixnet_contract_common::{Addr, Coin, Layer, MixId, MixNode};
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;

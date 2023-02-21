@@ -1,7 +1,7 @@
 import React from 'react';
 import { SvgIcon, SvgIconProps } from '@mui/material';
 
-export const Node: FCWithChildren<SvgIconProps> = ({ color, ...props }) => (
+export const Node: React.FC<SvgIconProps> = ({ color, ...props }) => (
   <SvgIcon {...props}>
     <path
       fillRule="evenodd"

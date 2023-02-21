@@ -4,4 +4,4 @@
 mod collector;
 mod error;
 
-pub(crate) use collector::ServiceStatisticsCollector;
+pub use collector::ServiceStatisticsCollector;

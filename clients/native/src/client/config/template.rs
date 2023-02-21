@@ -93,9 +93,6 @@ socket_type = '{{ socket.socket_type }}'
 # will be listening for incoming requests
 listening_port = {{ socket.listening_port }}
 
-# if applicable (for the case of 'WebSocket'), the ip address on which the client
-# will be listening for incoming requests
-host = '{{ socket.host }}'
 
 ##### logging configuration options #####
 

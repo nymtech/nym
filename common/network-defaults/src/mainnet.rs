@@ -11,13 +11,12 @@ pub const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
 
 pub const MIXNET_CONTRACT_ADDRESS: &str =
     "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr";
-pub const VESTING_CONTRACT_ADDRESS: &str =
+pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
     "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
 pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
     "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
     "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
-pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const _ETH_CONTRACT_ADDRESS: [u8; 20] =
@@ -37,7 +36,7 @@ const DEFAULT_SUFFIX: &str = "_MAINNET_DEFAULT";
 
 fn set_var_to_default(var: &str, value: &str) {
     std::env::set_var(var, value);
-    std::env::set_var(format!("{var}{DEFAULT_SUFFIX}"), "1")
+    std::env::set_var(format!("{}{}", var, DEFAULT_SUFFIX), "1")
 }
 
 fn set_var_conditionally_to_default(var: &str, value: &str) {
@@ -47,7 +46,7 @@ fn set_var_conditionally_to_default(var: &str, value: &str) {
 }
 
 pub fn uses_default(var: &str) -> bool {
-    std::env::var(format!("{var}{DEFAULT_SUFFIX}")).is_ok()
+    std::env::var(format!("{}{}", var, DEFAULT_SUFFIX)).is_ok()
 }
 
 pub fn read_var_if_not_default(var: &str) -> Option<String> {
@@ -82,7 +81,6 @@ pub fn export_to_env() {
         var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
         COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
     );
-    set_var_to_default(var_names::GROUP_CONTRACT_ADDRESS, GROUP_CONTRACT_ADDRESS);
     set_var_to_default(
         var_names::MULTISIG_CONTRACT_ADDRESS,
         MULTISIG_CONTRACT_ADDRESS,
@@ -127,7 +125,6 @@ pub fn export_to_env_if_not_set() {
         var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
         COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
     );
-    set_var_conditionally_to_default(var_names::GROUP_CONTRACT_ADDRESS, GROUP_CONTRACT_ADDRESS);
     set_var_conditionally_to_default(
         var_names::MULTISIG_CONTRACT_ADDRESS,
         MULTISIG_CONTRACT_ADDRESS,

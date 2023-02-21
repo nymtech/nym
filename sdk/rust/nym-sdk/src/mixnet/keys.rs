@@ -1,36 +1,21 @@
 use std::sync::Arc;
 
 use client_core::client::key_manager::KeyManager;
+use crypto::asymmetric::{encryption, identity};
 use gateway_requests::registration::handshake::SharedKeys;
-use nym_crypto::asymmetric::{encryption, identity};
 use nymsphinx::acknowledgements::AckKey;
 
-/// The set of keys used by the client. Identity, encryption and ack keys are generated at creating
-/// unless specified to loaded from storage or somehow explictly specified. The gateway shared key
-/// is generated when registering with a gateway.
 pub struct Keys {
-    /// The identity key of the client.
     pub identity_keypair: identity::KeyPair,
-    /// The encryption key of the client.
     pub encryption_keypair: encryption::KeyPair,
-    /// The ack key used by the client.
     pub ack_key: AckKey,
-
-    /// The gateway shared key that is obtained after registering with a gateway.
     pub gateway_shared_key: SharedKeys,
 }
 
-/// The set of keys used by the client, but where each key is stored in an [`std::sync::Arc`] for
-/// easy cloning.
 pub struct KeysArc {
-    /// The identity key of the client.
     pub identity_keypair: Arc<identity::KeyPair>,
-    /// The encryption key of the client.
     pub encryption_keypair: Arc<encryption::KeyPair>,
-    /// The ack key used by the client.
     pub ack_key: Arc<AckKey>,
-
-    /// The gateway shared key that is obtained after registering with a gateway.
     pub gateway_shared_key: Arc<SharedKeys>,
 }
 

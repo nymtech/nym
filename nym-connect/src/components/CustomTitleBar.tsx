@@ -1,9 +1,9 @@
 import React from 'react';
-import { ArrowBack, Close, Menu, Minimize } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { ArrowBack, Close, HelpOutline, Minimize } from '@mui/icons-material';
+import { Box, IconButton } from '@mui/material';
 import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
 import { appWindow } from '@tauri-apps/api/window';
-import { useNavigate } from 'react-router-dom';
+import { useClientContext } from 'src/context/main';
 
 const customTitleBarStyles = {
   titlebar: {
@@ -24,40 +24,26 @@ const CustomButton = ({ Icon, onClick }: { Icon: React.JSXElementConstructor<any
   </IconButton>
 );
 
-const MenuIcon = () => {
-  const navigate = useNavigate();
-  return <CustomButton Icon={Menu} onClick={() => navigate('/menu')} />;
-};
+export const CustomTitleBar = () => {
+  const { showHelp, handleShowHelp } = useClientContext();
+  return (
+    <Box data-tauri-drag-region style={customTitleBarStyles.titlebar}>
+      {/* set width to keep logo centered */}
+      <Box sx={{ width: '40px' }}>
+        <CustomButton
+          Icon={!showHelp ? HelpOutline : ArrowBack}
+          onClick={() => {
+            handleShowHelp();
+          }}
+        />
+      </Box>
 
-const ArrowBackIcon = ({ onBack }: { onBack?: () => void }) => {
-  const navigate = useNavigate();
-  const handleBack = () => {
-    onBack?.();
-    navigate(-1);
-  };
-  return <CustomButton Icon={ArrowBack} onClick={handleBack} />;
-};
+      <NymWordmark width={36} />
 
-const getTitleIcon = (path: string) => {
-  if (path !== '/') {
-    const title = path.split('/').slice(-1);
-    return (
-      <Typography textTransform="capitalize" fontWeight={700}>
-        {title}
-      </Typography>
-    );
-  }
-  return <NymWordmark width={36} />;
-};
-
-export const CustomTitleBar = ({ path = '/', onBack }: { path?: string; onBack?: () => void }) => (
-  <Box data-tauri-drag-region style={customTitleBarStyles.titlebar}>
-    {/* set width to keep logo centered */}
-    <Box sx={{ width: '40px' }}>{path === '/' ? <MenuIcon /> : <ArrowBackIcon onBack={onBack} />}</Box>
-    {getTitleIcon(path)}
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <CustomButton Icon={Minimize} onClick={() => appWindow.minimize()} />
-      <CustomButton Icon={Close} onClick={() => appWindow.close()} />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <CustomButton Icon={Minimize} onClick={() => appWindow.minimize()} />
+        <CustomButton Icon={Close} onClick={() => appWindow.close()} />
+      </Box>
     </Box>
-  </Box>
-);
+  );
+};

@@ -16,7 +16,6 @@ use nymsphinx::framing::packet::FramedSphinxPacket;
 use nymsphinx::DestinationAddressBytes;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use task::TaskClient;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 
@@ -174,39 +173,26 @@ impl<St: Storage> ConnectionHandler<St> {
         self.handle_processed_packet(processed_final_hop).await
     }
 
-    pub(crate) async fn handle_connection(
-        mut self,
-        conn: TcpStream,
-        remote: SocketAddr,
-        mut shutdown: TaskClient,
-    ) {
+    pub(crate) async fn handle_connection(mut self, conn: TcpStream, remote: SocketAddr) {
         debug!("Starting connection handler for {:?}", remote);
-        shutdown.mark_as_success();
         let mut framed_conn = Framed::new(conn, SphinxCodec);
-        while !shutdown.is_shutdown() {
-            tokio::select! {
-                biased;
-                _ = shutdown.recv() => {
-                    log::trace!("ConnectionHandler: received shutdown");
-                }
-                Some(framed_sphinx_packet) = framed_conn.next() => {
-                    match framed_sphinx_packet {
-                        Ok(framed_sphinx_packet) => {
-                            // TODO: benchmark spawning tokio task with full processing vs just processing it
-                            // synchronously under higher load in single and multi-threaded situation.
+        while let Some(framed_sphinx_packet) = framed_conn.next().await {
+            match framed_sphinx_packet {
+                Ok(framed_sphinx_packet) => {
+                    // TODO: benchmark spawning tokio task with full processing vs just processing it
+                    // synchronously under higher load in single and multi-threaded situation.
 
-                            // in theory we could process multiple sphinx packet from the same connection in parallel,
-                            // but we already handle multiple concurrent connections so if anything, making
-                            // that change would only slow things down
-                            self.handle_received_packet(framed_sphinx_packet).await;
-                        }
-                        Err(err) => {
-                            error!(
-                                "The socket connection got corrupted with error: {err}. Closing the socket",
-                            );
-                            return;
-                        }
-                    }
+                    // in theory we could process multiple sphinx packet from the same connection in parallel,
+                    // but we already handle multiple concurrent connections so if anything, making
+                    // that change would only slow things down
+                    self.handle_received_packet(framed_sphinx_packet).await;
+                }
+                Err(err) => {
+                    error!(
+                        "The socket connection got corrupted with error: {:?}. Closing the socket",
+                        err
+                    );
+                    return;
                 }
             }
         }

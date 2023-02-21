@@ -1,16 +1,17 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
 import { invoke } from '@tauri-apps/api';
-import { Error } from 'src/types/error';
-import { getVersion } from '@tauri-apps/api/app';
-import { useEvents } from 'src/hooks/events';
-import { UserDefinedGateway } from 'src/types/gateway';
+import type { UnlistenFn } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event';
 import { forage } from '@tauri-apps/tauri-forage';
-import { ConnectionStatusKind, GatewayPerformance } from '../types';
+import { Error } from 'src/types/error';
+import { TauriEvent } from 'src/types/event';
+import { getVersion } from '@tauri-apps/api/app';
+import { ConnectionStatusKind } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
-import { ServiceProvider } from '../types/directory';
+import { ServiceProvider, Services } from '../types/directory';
 
-const FORAGE_KEY = 'nym-connect-user-gateway';
+const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
 
 type ModeType = 'light' | 'dark';
 
@@ -20,83 +21,46 @@ export type TClientContext = {
   connectionStatus: ConnectionStatusKind;
   connectionStats?: ConnectionStatsItem[];
   connectedSince?: DateTime;
+  services?: Services;
+  serviceProvider?: ServiceProvider;
+  showHelp: boolean;
   error?: Error;
-  gatewayPerformance: GatewayPerformance;
-  selectedProvider?: ServiceProvider;
-  showInfoModal: boolean;
-  userDefinedGateway?: UserDefinedGateway;
+
   setMode: (mode: ModeType) => void;
   clearError: () => void;
+  handleShowHelp: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
-  setShowInfoModal: (show: boolean) => void;
-  setRandomSerivceProvider: () => void;
+  setServiceProvider: (serviceProvider?: ServiceProvider) => void;
+
   startConnecting: () => Promise<void>;
   startDisconnecting: () => Promise<void>;
-  setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;
 };
 
 export const ClientContext = createContext({} as TClientContext);
 
-export const ClientContextProvider: FCWithChildren = ({ children }) => {
+export const ClientContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [mode, setMode] = useState<ModeType>('dark');
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusKind>(ConnectionStatusKind.connected);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusKind>(ConnectionStatusKind.disconnected);
   const [connectionStats, setConnectionStats] = useState<ConnectionStatsItem[]>();
   const [connectedSince, setConnectedSince] = useState<DateTime>();
-  const [selectedProvider, setSelectedProvider] = React.useState<ServiceProvider>();
-  const [serviceProviders, setServiceProviders] = React.useState<ServiceProvider[]>();
+  const [services, setServices] = React.useState<Services>([]);
+  const [serviceProvider, setRawServiceProvider] = React.useState<ServiceProvider>();
+  const [showHelp, setShowHelp] = useState(false);
   const [error, setError] = useState<Error>();
   const [appVersion, setAppVersion] = useState<string>();
-  const [gatewayPerformance, setGatewayPerformance] = useState<GatewayPerformance>('Good');
-  const [showInfoModal, setShowInfoModal] = useState(false);
-  const [userDefinedGateway, setUserDefinedGateway] = useState<UserDefinedGateway>({ isActive: false, gateway: '' });
 
   const getAppVersion = async () => {
     const version = await getVersion();
-    return version;
+    setAppVersion(version);
   };
-
-  const setUserGatewayInStorage = async (gateway: UserDefinedGateway) => {
-    try {
-      await forage.setItem({
-        key: FORAGE_KEY,
-        value: gateway,
-      } as any)();
-    } catch (e) {
-      console.warn(e);
-    }
-    return undefined;
-  };
-
-  const getUserGatewayFromStorage = async (): Promise<UserDefinedGateway | undefined> => {
-    try {
-      const gatewayFromStorage = await forage.getItem({ key: FORAGE_KEY })();
-      return gatewayFromStorage;
-    } catch (e) {
-      console.warn(e);
-    }
-    return undefined;
-  };
-
-  const initialiseApp = async () => {
-    const services = await invoke('get_services');
-    const AppVersion = await getAppVersion();
-    const storedUserDefinedGateway = await getUserGatewayFromStorage();
-
-    setAppVersion(AppVersion);
-    setServiceProviders(services as ServiceProvider[]);
-    if (storedUserDefinedGateway) setUserDefinedGateway(storedUserDefinedGateway);
-  };
-
-  useEvents({
-    onError: (e) => setError(e),
-    onGatewayPerformanceChange: (performance) => setGatewayPerformance(performance),
-    onStatusChange: (status) => setConnectionStatus(status),
-  });
 
   useEffect(() => {
-    initialiseApp();
+    invoke('get_services').then((result) => {
+      setServices(result as Services);
+    });
+    getAppVersion();
   }, []);
 
   useEffect(() => {
@@ -105,6 +69,33 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       const currentStatus: ConnectionStatusKind = await invoke('get_connection_status');
       setConnectionStatus(currentStatus);
     })();
+  }, []);
+
+  useEffect(() => {
+    const unlisten: UnlistenFn[] = [];
+
+    // TODO: fix typings
+    listen(TAURI_EVENT_STATUS_CHANGED, (event) => {
+      const { status } = event.payload as any;
+      console.log(TAURI_EVENT_STATUS_CHANGED, { status, event });
+      setConnectionStatus(status);
+    })
+      .then((result) => {
+        unlisten.push(result);
+      })
+      .catch((e) => console.log(e));
+
+    listen('socks5-event', (e: TauriEvent) => {
+      console.log(e);
+
+      setError(e.payload);
+    }).then((result) => {
+      unlisten.push(result);
+    });
+
+    return () => {
+      unlisten.forEach((unsubscribe) => unsubscribe());
+    };
   }, []);
 
   const startConnecting = useCallback(async () => {
@@ -124,33 +115,57 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     }
   }, []);
 
-  const shouldUseUserGateway = !!userDefinedGateway.gateway && userDefinedGateway.isActive;
-
-  const setServiceProvider = async (newServiceProvider: ServiceProvider) => {
-    await invoke('set_gateway', {
-      gateway: newServiceProvider.gateway,
-    });
-    await invoke('set_service_provider', { serviceProvider: newServiceProvider.address });
+  const setSpInStorage = async (sp: ServiceProvider) => {
+    await forage.setItem({
+      key: 'nym-connect-sp',
+      value: sp,
+    } as any)();
   };
 
-  const getRandomSPFromList = (services: ServiceProvider[]) => {
-    const randomSelection = services[Math.floor(Math.random() * services.length)];
-
-    if (shouldUseUserGateway) return { ...randomSelection, gateway: userDefinedGateway.gateway } as ServiceProvider;
-    return randomSelection;
-  };
-
-  const setRandomSerivceProvider = async () => {
-    if (serviceProviders) {
-      const randomServiceProvider = getRandomSPFromList(serviceProviders);
-      await setServiceProvider(randomServiceProvider);
-      await setUserGatewayInStorage(userDefinedGateway);
-      setSelectedProvider(randomServiceProvider);
+  const setServiceProvider = useCallback(async (newServiceProvider?: ServiceProvider) => {
+    await invoke('set_gateway', { gateway: newServiceProvider?.gateway });
+    await invoke('set_service_provider', { serviceProvider: newServiceProvider?.address });
+    if (newServiceProvider) {
+      await setSpInStorage(newServiceProvider);
     }
-    return undefined;
+    setRawServiceProvider(newServiceProvider);
+  }, []);
+
+  const getSpFromStorage = async () => {
+    try {
+      const spFromStorage = await forage.getItem({ key: 'nym-connect-sp' })();
+      if (spFromStorage) {
+        setRawServiceProvider(spFromStorage);
+        setServiceProvider(spFromStorage);
+      }
+    } catch (e) {
+      console.warn(e);
+    }
   };
+
+  const handleShowHelp = () => setShowHelp((show) => !show);
 
   const clearError = () => setError(undefined);
+
+  useEffect(() => {
+    const validityCheck = async () => {
+      if (services.length > 0 && serviceProvider) {
+        const isValid = services.some(({ items }) => items.some(({ id }) => id === serviceProvider.id));
+        if (!isValid) {
+          console.warn('invalid SP, cleaning local storage');
+          await forage.removeItem({
+            key: 'nym-connect-sp',
+          })();
+          setRawServiceProvider(undefined);
+        }
+      }
+    };
+    validityCheck();
+  }, [services, serviceProvider]);
+
+  useEffect(() => {
+    getSpFromStorage();
+  }, []);
 
   const contextValue = useMemo(
     () => ({
@@ -162,31 +177,29 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       connectionStatus,
       setConnectionStatus,
       connectionStats,
-      showInfoModal,
       setConnectionStats,
-      selectedProvider,
       connectedSince,
       setConnectedSince,
-      setRandomSerivceProvider,
       startConnecting,
       startDisconnecting,
-      gatewayPerformance,
-      setShowInfoModal,
-      userDefinedGateway,
-      setUserDefinedGateway,
+      services,
+      serviceProvider,
+      setServiceProvider,
+      showHelp,
+      handleShowHelp,
     }),
     [
+      appVersion,
       mode,
       appVersion,
       error,
-      showInfoModal,
       connectedSince,
+      showHelp,
       connectionStatus,
       connectionStats,
       connectedSince,
-      gatewayPerformance,
-      selectedProvider,
-      userDefinedGateway,
+      services,
+      serviceProvider,
     ],
   );
 

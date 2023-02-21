@@ -51,7 +51,7 @@ export const DarkLightSwitch = styled(Switch)(({ theme }) => ({
   },
 }));
 
-export const DarkLightSwitchMobile: FCWithChildren = () => {
+export const DarkLightSwitchMobile: React.FC = () => {
   const { toggleMode } = useMainContext();
   return (
     <Button onClick={() => toggleMode()} data-testid="switch-button">
@@ -60,7 +60,7 @@ export const DarkLightSwitchMobile: FCWithChildren = () => {
   );
 };
 
-export const DarkLightSwitchDesktop: FCWithChildren<{ defaultChecked: boolean }> = ({ defaultChecked }) => {
+export const DarkLightSwitchDesktop: React.FC<{ defaultChecked: boolean }> = ({ defaultChecked }) => {
   const { toggleMode } = useMainContext();
   return (
     <Button sx={{ paddingLeft: 0 }} onClick={() => toggleMode()} data-testid="switch-button">

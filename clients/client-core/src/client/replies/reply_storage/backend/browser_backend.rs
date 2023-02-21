@@ -5,8 +5,6 @@ use crate::client::replies::reply_storage::backend::Empty;
 use crate::client::replies::reply_storage::{CombinedReplyStorage, ReplyStorageBackend};
 use async_trait::async_trait;
 
-use std::path::PathBuf;
-
 // well, right now we don't have the browser storage : (
 // so we keep everything in memory
 #[derive(Debug)]
@@ -29,18 +27,6 @@ impl Backend {
 impl ReplyStorageBackend for Backend {
     type StorageError = <Empty as ReplyStorageBackend>::StorageError;
 
-    async fn new(
-        debug_config: &crate::config::DebugConfig,
-        _db_path: Option<PathBuf>,
-    ) -> Result<Self, Self::StorageError> {
-        Ok(Backend {
-            empty: Empty {
-                min_surb_threshold: debug_config.minimum_reply_surb_storage_threshold,
-                max_surb_threshold: debug_config.maximum_reply_surb_storage_threshold,
-            },
-        })
-    }
-
     async fn flush_surb_storage(
         &mut self,
         storage: &CombinedReplyStorage,
@@ -54,9 +40,5 @@ impl ReplyStorageBackend for Backend {
 
     async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
         self.empty.load_surb_storage().await
-    }
-
-    fn get_inactive_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
-        self.empty.get_inactive_storage()
     }
 }

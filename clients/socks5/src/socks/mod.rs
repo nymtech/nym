@@ -33,7 +33,7 @@ impl TryFrom<u8> for SocksVersion {
         match version {
             SOCKS4_VERSION => Ok(Self::V4),
             SOCKS5_VERSION => Ok(Self::V5),
-            _ => Err(SocksProxyError::UnsupportedProxyVersion { version }),
+            _ => Err(SocksProxyError::UnsupportedProxyVersion(version)),
         }
     }
 }

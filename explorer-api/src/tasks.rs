@@ -3,7 +3,7 @@
 
 use std::future::Future;
 
-use nym_mixnet_contract_common::GatewayBond;
+use mixnet_contract_common::GatewayBond;
 use task::TaskClient;
 use validator_client::models::MixNodeBondAnnotated;
 use validator_client::nyxd::error::NyxdError;

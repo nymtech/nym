@@ -37,7 +37,7 @@ pub(crate) mod test {
             CURRENT_EPOCH
                 .save(
                     deps.as_mut().storage,
-                    &Epoch::new(fixed_state, 0, TimeConfiguration::default(), env.block.time),
+                    &Epoch::new(fixed_state, TimeConfiguration::default(), env.block.time),
                 )
                 .unwrap();
             for against_state in EpochState::default().all_until(EpochState::InProgress) {

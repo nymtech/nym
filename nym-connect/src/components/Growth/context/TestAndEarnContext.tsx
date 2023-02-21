@@ -4,6 +4,7 @@ import { forage } from '@tauri-apps/tauri-forage';
 import { invoke } from '@tauri-apps/api';
 import { ClientId, DrawEntry, Draws, Registration } from './types';
 import { useClientContext } from '../../../context/main';
+import { ConnectionStatusKind } from '../../../types';
 
 export type TTestAndEarnContext = {
   loadedOnce: boolean;
@@ -43,7 +44,7 @@ export const TestAndEarnContext = createContext(defaultValue);
 const CLIENT_ID_KEY = 'tne_client_id';
 const REGISTRATION_KEY = 'tne_registration';
 
-export const TestAndEarnContextProvider: FCWithChildren = ({ children }) => {
+export const TestAndEarnContextProvider = ({ children }: { children: React.ReactNode }) => {
   const clientContext = useClientContext();
   const [loadedOnce, setLoadedOnce] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -150,7 +151,7 @@ export const TestAndEarnContextProvider: FCWithChildren = ({ children }) => {
   }, []);
 
   React.useEffect(() => {
-    if (registration && clientContext.connectionStatus === 'connected') {
+    if (registration && clientContext.connectionStatus === ConnectionStatusKind.connected) {
       setTimeout(() => {
         loadDraws().catch(console.error);
       }, 1000 * 3);

@@ -3,9 +3,9 @@
 
 use crate::network_monitor::monitor::gateway_clients_cache::ActiveGatewayClients;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
+use crypto::asymmetric::identity;
+use crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use log::{debug, info, trace, warn};
-use nym_crypto::asymmetric::identity;
-use nym_crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use std::time::Duration;
 use task::TaskClient;
 use tokio::time::{sleep, Instant};

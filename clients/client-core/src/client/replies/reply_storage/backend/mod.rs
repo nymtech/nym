@@ -3,7 +3,7 @@
 
 use crate::client::replies::reply_storage::CombinedReplyStorage;
 use async_trait::async_trait;
-use std::{error::Error, path::PathBuf};
+use std::error::Error;
 use thiserror::Error;
 
 #[cfg(target_arch = "wasm32")]
@@ -30,16 +30,6 @@ pub struct Empty {
 impl ReplyStorageBackend for Empty {
     type StorageError = UndefinedError;
 
-    async fn new(
-        debug_config: &crate::config::DebugConfig,
-        _db_path: Option<PathBuf>,
-    ) -> Result<Self, Self::StorageError> {
-        Ok(Self {
-            min_surb_threshold: debug_config.minimum_reply_surb_storage_threshold,
-            max_surb_threshold: debug_config.maximum_reply_surb_storage_threshold,
-        })
-    }
-
     async fn flush_surb_storage(
         &mut self,
         _storage: &CombinedReplyStorage,
@@ -60,27 +50,11 @@ impl ReplyStorageBackend for Empty {
             self.max_surb_threshold,
         ))
     }
-
-    fn get_inactive_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
-        Ok(CombinedReplyStorage::new(
-            self.min_surb_threshold,
-            self.max_surb_threshold,
-        ))
-    }
 }
 
 #[async_trait]
 pub trait ReplyStorageBackend: Sized {
     type StorageError: Error + 'static;
-
-    async fn new(
-        debug_config: &crate::config::DebugConfig,
-        db_path: Option<PathBuf>,
-    ) -> Result<Self, Self::StorageError>;
-
-    fn is_active(&self) -> bool {
-        true
-    }
 
     async fn start_storage_session(&self) -> Result<(), Self::StorageError> {
         Ok(())
@@ -98,11 +72,6 @@ pub trait ReplyStorageBackend: Sized {
     async fn init_fresh(&mut self, fresh: &CombinedReplyStorage) -> Result<(), Self::StorageError>;
 
     async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError>;
-
-    /// In the case the storage backend is initialized in an inactive state (persisting data is
-    /// disabled), we might still need to fetch the (in-mem) storage and the parameters it was
-    /// created with.
-    fn get_inactive_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError>;
 
     async fn stop_storage_session(self) -> Result<(), Self::StorageError> {
         Ok(())

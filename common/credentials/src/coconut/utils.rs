@@ -5,10 +5,10 @@ use coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prove_bandwidth_credential, Attribute,
     BlindedSignature, Credential, Parameters, Signature, SignatureShare, VerificationKey,
 };
+use crypto::asymmetric::encryption::PublicKey;
+use crypto::shared_key::recompute_shared_key;
+use crypto::symmetric::stream_cipher;
 use nym_api_requests::coconut::BlindSignRequestBody;
-use nym_crypto::asymmetric::encryption::PublicKey;
-use nym_crypto::shared_key::recompute_shared_key;
-use nym_crypto::symmetric::stream_cipher;
 use validator_client::client::CoconutApiClient;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
@@ -45,15 +45,21 @@ async fn obtain_partial_credential(
     let private_attributes = attributes.get_private_attributes();
     let blind_sign_request = attributes.blind_sign_request();
 
-    let blind_sign_request_body = BlindSignRequestBody::new(
-        blind_sign_request,
-        attributes.tx_hash().to_string(),
-        attributes.sign(blind_sign_request).to_base58_string(),
-        &public_attributes,
-        public_attributes_plain,
-        (public_attributes.len() + private_attributes.len()) as u32,
-    );
-    let response = client.blind_sign(&blind_sign_request_body).await?;
+    let response = if attributes.use_request() {
+        let blind_sign_request_body = BlindSignRequestBody::new(
+            blind_sign_request,
+            attributes.tx_hash().to_string(),
+            attributes.sign(blind_sign_request).to_base58_string(),
+            &public_attributes,
+            public_attributes_plain,
+            (public_attributes.len() + private_attributes.len()) as u32,
+        );
+        client.blind_sign(&blind_sign_request_body).await?
+    } else {
+        client
+            .partial_bandwidth_credential(&attributes.tx_hash().to_string())
+            .await?
+    };
     let encrypted_signature = response.encrypted_signature;
     let remote_key = PublicKey::from_bytes(&response.remote_key)?;
 
@@ -86,7 +92,6 @@ pub async fn obtain_aggregate_signature(
     params: &Parameters,
     attributes: &BandwidthVoucher,
     coconut_api_clients: &[CoconutApiClient],
-    threshold: u64,
 ) -> Result<Signature, Error> {
     if coconut_api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
@@ -103,43 +108,41 @@ pub async fn obtain_aggregate_signature(
         .iter()
         .map(|api_client| api_client.node_id)
         .collect();
-    let verification_key =
-        aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;
 
     for coconut_api_client in coconut_api_clients.iter() {
-        if let Ok(signature) = obtain_partial_credential(
+        let signature = obtain_partial_credential(
             params,
             attributes,
             &coconut_api_client.api_client,
             &coconut_api_client.verification_key,
         )
-        .await
-        {
-            let share = SignatureShare::new(signature, coconut_api_client.node_id);
-            shares.push(share)
-        }
-    }
-    if shares.len() < threshold as usize {
-        return Err(Error::NotEnoughShares);
+        .await?;
+        let share = SignatureShare::new(signature, coconut_api_client.node_id);
+        shares.push(share)
     }
 
     let mut attributes = Vec::with_capacity(private_attributes.len() + public_attributes.len());
     attributes.extend_from_slice(&private_attributes);
     attributes.extend_from_slice(&public_attributes);
 
-    aggregate_signature_shares(params, &verification_key, &attributes, &shares)
-        .map_err(Error::SignatureAggregationError)
+    let verification_key =
+        aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;
+
+    Ok(aggregate_signature_shares(
+        params,
+        &verification_key,
+        &attributes,
+        &shares,
+    )?)
 }
 
 // TODO: better type flow
-#[allow(clippy::too_many_arguments)]
 pub fn prepare_credential_for_spending(
     params: &Parameters,
     voucher_value: u64,
     voucher_info: String,
     serial_number: Attribute,
     binding_number: Attribute,
-    epoch_id: u64,
     signature: &Signature,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
@@ -156,6 +159,5 @@ pub fn prepare_credential_for_spending(
         theta,
         voucher_value,
         voucher_info,
-        epoch_id,
     ))
 }

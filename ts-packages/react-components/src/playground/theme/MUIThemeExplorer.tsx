@@ -7,7 +7,7 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import { Box } from '@mui/material';
 
-const MUIThemeExplorerItem: FCWithChildren<{
+const MUIThemeExplorerItem: React.FC<{
   path: string;
   parentKey: string;
   theme: Theme;
@@ -82,7 +82,7 @@ const MUIThemeExplorerItem: FCWithChildren<{
   return null;
 };
 
-export const MUIThemeExplorer: FCWithChildren<{
+export const MUIThemeExplorer: React.FC<{
   theme: Theme;
 }> = ({ theme }) => (
   <TreeView

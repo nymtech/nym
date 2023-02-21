@@ -1,6 +1,6 @@
 use client_core::config::GatewayEndpointConfig;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub(super) enum BuilderState {
     New,
     Registered {

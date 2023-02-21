@@ -13,12 +13,12 @@ import { Tabs } from 'src/components/Tabs';
 import { useBondingContext, BondingContextProvider, TBondedMixnode } from 'src/context';
 import { AppContext, urls } from 'src/context/main';
 
-import { isMixnode } from 'src/types';
-import { getIntervalAsDate } from 'src/utils';
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
 import { createNavItems } from './node-settings.constant';
+import { isMixnode } from 'src/types';
 import { ApyPlayground } from './apy-playground';
+import { getIntervalAsDate } from 'src/utils';
 
 export const NodeSettings = () => {
   const theme = useTheme();

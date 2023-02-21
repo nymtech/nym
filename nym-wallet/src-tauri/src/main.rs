@@ -5,7 +5,7 @@
 
 use tauri::{Manager, Menu};
 
-use nym_mixnet_contract_common::{Gateway, MixNode};
+use mixnet_contract_common::{Gateway, MixNode};
 
 use crate::menu::AddDefaultSubmenus;
 use crate::operations::help;

@@ -17,37 +17,35 @@ use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };
+use crypto::shared_key::recompute_shared_key;
+use crypto::symmetric::stream_cipher;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
-use nym_crypto::shared_key::recompute_shared_key;
-use nym_crypto::symmetric::stream_cipher;
 use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
 use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, Parameters,
 };
 use validator_client::nym_api::routes::{
-    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
+    COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
 use validator_client::nyxd::Coin;
 use validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 
 use crate::coconut::State;
-use crate::support::storage::NymApiStorage;
+use crate::NymApiStorage;
 use async_trait::async_trait;
 use coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
 };
 use coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
-use coconut_dkg_common::types::{
-    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, TOTAL_DEALINGS,
-};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, TOTAL_DEALINGS};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+use contracts_common::dealings::ContractSafeBytes;
+use crypto::asymmetric::{encryption, identity};
 use cw3::ProposalResponse;
-use cw4::MemberResponse;
 use dkg::Threshold;
-use nym_contracts_common::dealings::ContractSafeBytes;
-use nym_crypto::asymmetric::{encryption, identity};
 use rand_07::rngs::OsRng;
 use rand_07::Rng;
 use rocket::http::Status;
@@ -73,8 +71,6 @@ pub(crate) struct DummyClient {
     threshold: Arc<RwLock<Option<Threshold>>>,
     dealings: Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
     verification_share: Arc<RwLock<HashMap<String, ContractVKShare>>>,
-    group_db: Arc<RwLock<HashMap<String, MemberResponse>>>,
-    initial_dealers_db: Arc<RwLock<Option<InitialReplacementData>>>,
 }
 
 impl DummyClient {
@@ -89,8 +85,6 @@ impl DummyClient {
             threshold: Arc::new(RwLock::new(None)),
             dealings: Arc::new(RwLock::new(HashMap::new())),
             verification_share: Arc::new(RwLock::new(HashMap::new())),
-            group_db: Arc::new(RwLock::new(HashMap::new())),
-            initial_dealers_db: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -148,22 +142,6 @@ impl DummyClient {
         self.verification_share = Arc::clone(verification_share);
         self
     }
-
-    pub fn _with_group_db(
-        mut self,
-        group_db: &Arc<RwLock<HashMap<String, MemberResponse>>>,
-    ) -> Self {
-        self.group_db = Arc::clone(group_db);
-        self
-    }
-
-    pub fn with_initial_dealers_db(
-        mut self,
-        initial_dealers: &Arc<RwLock<Option<InitialReplacementData>>>,
-    ) -> Self {
-        self.initial_dealers_db = Arc::clone(initial_dealers);
-        self
-    }
 }
 
 #[async_trait]
@@ -214,22 +192,8 @@ impl super::client::Client for DummyClient {
         Ok(*self.epoch.read().unwrap())
     }
 
-    async fn group_member(&self, addr: String) -> Result<MemberResponse> {
-        Ok(self
-            .group_db
-            .read()
-            .unwrap()
-            .get(&addr)
-            .cloned()
-            .unwrap_or(MemberResponse { weight: None }))
-    }
-
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>> {
         Ok(*self.threshold.read().unwrap())
-    }
-
-    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>> {
-        Ok(self.initial_dealers_db.read().unwrap().clone())
     }
 
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
@@ -267,10 +231,7 @@ impl super::client::Client for DummyClient {
             .collect())
     }
 
-    async fn get_verification_key_shares(
-        &self,
-        _epoch_id: EpochId,
-    ) -> Result<Vec<ContractVKShare>> {
+    async fn get_verification_key_shares(&self) -> Result<Vec<ContractVKShare>> {
         Ok(self
             .verification_share
             .read()
@@ -320,25 +281,17 @@ impl super::client::Client for DummyClient {
         &self,
         bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
         announce_address: String,
-        _resharing: bool,
     ) -> Result<ExecuteResult> {
-        let mut dealer_details = self.dealer_details.write().unwrap();
-        let assigned_index =
-            if let Some(details) = dealer_details.get(self.validator_address.as_ref()) {
-                details.assigned_index
-            } else {
-                let assigned_index = OsRng.gen();
-                dealer_details.insert(
-                    self.validator_address.to_string(),
-                    DealerDetails {
-                        address: Addr::unchecked(self.validator_address.to_string()),
-                        bte_public_key_with_proof,
-                        announce_address,
-                        assigned_index,
-                    },
-                );
-                assigned_index
-            };
+        let assigned_index = OsRng.gen();
+        self.dealer_details.write().unwrap().insert(
+            self.validator_address.to_string(),
+            DealerDetails {
+                address: Addr::unchecked(self.validator_address.to_string()),
+                bte_public_key_with_proof,
+                announce_address,
+                assigned_index,
+            },
+        );
         Ok(ExecuteResult {
             logs: vec![Log {
                 msg_index: 0,
@@ -351,11 +304,7 @@ impl super::client::Client for DummyClient {
         })
     }
 
-    async fn submit_dealing(
-        &self,
-        dealing_bytes: ContractSafeBytes,
-        _resharing: bool,
-    ) -> Result<ExecuteResult> {
+    async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult> {
         self.dealings
             .write()
             .unwrap()
@@ -378,7 +327,6 @@ impl super::client::Client for DummyClient {
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
-        resharing: bool,
     ) -> Result<ExecuteResult> {
         let dealer_details = self
             .dealer_details
@@ -394,14 +342,12 @@ impl super::client::Client for DummyClient {
                 announce_address: dealer_details.announce_address.clone(),
                 node_index: dealer_details.assigned_index,
                 owner: Addr::unchecked(self.validator_address.to_string()),
-                epoch_id: 0,
                 verified: false,
             },
         );
         let proposal_id = OsRng.gen();
         let verify_vk_share_req = coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
             owner: Addr::unchecked(self.validator_address.as_ref()),
-            resharing,
         };
         let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: String::new(),
@@ -452,7 +398,7 @@ impl DummyCommunicationChannel {
 
 #[async_trait]
 impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
-    async fn aggregated_verification_key(&self, _epoch_id: EpochId) -> Result<VerificationKey> {
+    async fn aggregated_verification_key(&self) -> Result<VerificationKey> {
         Ok(self.aggregated_verification_key.clone())
     }
 }
@@ -525,7 +471,7 @@ async fn signed_before() {
             .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(Some(key_pair)).await;
+    staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nyxd_client,
@@ -593,7 +539,7 @@ async fn state_functions() {
     let storage = NymApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(Some(key_pair)).await;
+    staged_key_pair.set(key_pair).await;
     let state = State::new(
         nyxd_client,
         TEST_COIN_DENOM.to_string(),
@@ -622,7 +568,7 @@ async fn state_functions() {
         expected_response.to_bytes()
     );
 
-    let encryption_keypair = nym_crypto::asymmetric::encryption::KeyPair::new(&mut OsRng);
+    let encryption_keypair = crypto::asymmetric::encryption::KeyPair::new(&mut OsRng);
     let blinded_signature = BlindedSignature::from_bytes(&[
         183, 217, 166, 113, 40, 123, 74, 25, 72, 31, 136, 19, 125, 95, 217, 228, 96, 113, 25, 240,
         12, 102, 125, 11, 174, 20, 216, 82, 192, 71, 27, 194, 48, 20, 17, 95, 243, 179, 82, 21, 57,
@@ -656,7 +602,7 @@ async fn state_functions() {
         .await
         .unwrap();
     let remote_key =
-        nym_crypto::asymmetric::encryption::PublicKey::from_bytes(&response.remote_key).unwrap();
+        crypto::asymmetric::encryption::PublicKey::from_bytes(&response.remote_key).unwrap();
 
     let encryption_key = recompute_shared_key::<
         NymApiCredentialEncryptionAlgorithm,
@@ -762,7 +708,7 @@ async fn blind_sign_correct() {
             .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(Some(key_pair)).await;
+    staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nyxd_client,
@@ -827,6 +773,76 @@ async fn blind_sign_correct() {
 }
 
 #[tokio::test]
+async fn signature_test() {
+    let tx_hash = String::from("7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B");
+    let params = Parameters::new(4).unwrap();
+
+    let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
+    let mut db_dir = std::env::temp_dir();
+    db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
+    let storage = NymApiStorage::init(db_dir).await.unwrap();
+    let nyxd_client =
+        DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
+    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
+
+    let rocket = rocket::build().attach(InternalSignRequest::stage(
+        nyxd_client,
+        TEST_COIN_DENOM.to_string(),
+        staged_key_pair,
+        comm_channel,
+        storage.clone(),
+    ));
+    let client = Client::tracked(rocket)
+        .await
+        .expect("valid rocket instance");
+
+    let response = client
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
+        ))
+        .json(&tx_hash)
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::BadRequest);
+    assert_eq!(
+        response.into_string().await.unwrap(),
+        CoconutError::NoSignature.to_string()
+    );
+
+    let encrypted_signature = vec![1, 2, 3, 4];
+    let remote_key = [42; 32];
+    let expected_response = BlindedSignatureResponse::new(encrypted_signature, remote_key);
+    storage
+        .insert_blinded_signature_response(&tx_hash, &expected_response.to_base58_string())
+        .await
+        .unwrap();
+    let response = client
+        .post(format!(
+            "/{}/{}/{}/{}",
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
+        ))
+        .json(&tx_hash)
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::Ok);
+    // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
+    // let blinded_signature_response = response
+    //     .into_json::<BlindedSignatureResponse>()
+    //     .await
+    //     .unwrap();
+    let blinded_signature_response =
+        serde_json::from_str::<BlindedSignatureResponse>(&response.into_string().await.unwrap())
+            .unwrap();
+    assert_eq!(
+        blinded_signature_response.to_bytes(),
+        expected_response.to_bytes()
+    );
+}
+
+#[tokio::test]
 async fn verification_of_bandwidth_credential() {
     // Setup variables
     let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
@@ -856,7 +872,7 @@ async fn verification_of_bandwidth_credential() {
     let storage1 = NymApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(Some(key_pair)).await;
+    staged_key_pair.set(key_pair).await;
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nyxd_client.clone(),
         TEST_COIN_DENOM.to_string(),
@@ -869,7 +885,7 @@ async fn verification_of_bandwidth_credential() {
         .await
         .expect("valid rocket instance");
 
-    let credential = Credential::new(4, theta.clone(), voucher_value, voucher_info.to_string(), 0);
+    let credential = Credential::new(4, theta.clone(), voucher_value, voucher_info.to_string());
     let proposal_id = 42;
     // The address is not used, so we can use a duplicate
     let gateway_cosmos_addr = validator_address.clone();
@@ -1020,7 +1036,6 @@ async fn verification_of_bandwidth_credential() {
         theta.clone(),
         voucher_value,
         String::from("bad voucher info"),
-        0,
     );
     let bad_req =
         VerifyCredentialBody::new(bad_credential, proposal_id, gateway_cosmos_addr.clone());

@@ -6,8 +6,9 @@ import Content from './content/en.yaml';
 import { useClientContext } from '../../context/main';
 import { useTestAndEarnContext } from './context/TestAndEarnContext';
 import { NymShipyardTheme } from '../../theme';
+import { ConnectionStatusKind } from '../../types';
 
-export const Wrapper: FCWithChildren<{ disabled: boolean }> = ({ disabled, children }) => {
+export const Wrapper: React.FC<{ disabled: boolean }> = ({ disabled, children }) => {
   if (disabled) {
     return (
       <Badge badgeContent="!" color="warning">
@@ -17,14 +18,13 @@ export const Wrapper: FCWithChildren<{ disabled: boolean }> = ({ disabled, child
       </Badge>
     );
   }
-  // eslint-disable-next-line react/jsx-no-useless-fragment
   return <>{children}</>;
 };
 
-export const TestAndEarnButtonArea: FCWithChildren = () => {
+export const TestAndEarnButtonArea: React.FC = () => {
   const clientContext = useClientContext();
   const context = useTestAndEarnContext();
-  const disabled = clientContext.connectionStatus !== 'connected';
+  const disabled = clientContext.connectionStatus !== ConnectionStatusKind.connected;
   const pinger = React.useRef<NodeJS.Timer | null>();
 
   const doPing = async () => {

@@ -2,13 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::spawn_future;
-#[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_mockups::CosmWasmClient;
 use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
-#[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::CosmWasmClient;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
@@ -17,10 +13,10 @@ pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
 const MAX_FAILURE_COUNT: usize = 100;
 
-pub struct MixTrafficController<C: Clone> {
+pub struct MixTrafficController {
     // TODO: most likely to be replaced by some higher level construct as
     // later on gateway_client will need to be accessible by other entities
-    gateway_client: GatewayClient<C>,
+    gateway_client: GatewayClient,
     mix_rx: BatchMixMessageReceiver,
 
     // TODO: this is temporary work-around.
@@ -28,13 +24,8 @@ pub struct MixTrafficController<C: Clone> {
     consecutive_gateway_failure_count: usize,
 }
 
-impl<C> MixTrafficController<C>
-where
-    C: CosmWasmClient + Sync + Send + Clone + 'static,
-{
-    pub fn new(
-        gateway_client: GatewayClient<C>,
-    ) -> (MixTrafficController<C>, BatchMixMessageSender) {
+impl MixTrafficController {
+    pub fn new(gateway_client: GatewayClient) -> (MixTrafficController, BatchMixMessageSender) {
         let (sphinx_message_sender, sphinx_message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
         (
@@ -66,7 +57,7 @@ where
                 if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
                     // todo: in the future this should initiate a 'graceful' shutdown or try
                     // to reconnect?
-                    panic!("failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead. Can't do anything about it yet :(")
+                    panic!("failed to send sphinx packet to the gateway {} times in a row - assuming the gateway is dead. Can't do anything about it yet :(", MAX_FAILURE_COUNT)
                 }
             }
             Ok(_) => {

@@ -9,8 +9,8 @@ import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
 import { NodeTypeSelector, TokenPoolSelector } from 'src/components';
 import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
-import { AppContext } from 'src/context';
 import { amountSchema, mixnodeValidationSchema } from './mixnodeValidationSchema';
+import { AppContext } from 'src/context';
 
 const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNext: (data: any) => void }) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);

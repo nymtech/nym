@@ -4,7 +4,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::{nyxd_client, Gateway, MixNode};
-use nym_mixnet_contract_common::{MixId, MixNodeConfigUpdate};
+use mixnet_contract_common::{MixId, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::{MixNodeCostParams, MixNodeDetails};
@@ -335,7 +335,7 @@ pub async fn get_mix_node_description(
     Ok(reqwest::Client::builder()
         .timeout(Duration::from_millis(1000))
         .build()?
-        .get(format!("http://{host}:{port}/description"))
+        .get(format!("http://{}:{}/description", host, port))
         .send()
         .await?
         .json()

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { MenuItem } from '@mui/material';
 import Select from '@mui/material/Select';
-import { SelectChangeEvent } from '@mui/material/Select/SelectInput';
+import { SelectInputProps } from '@mui/material/Select/SelectInput';
 import { SxProps } from '@mui/system';
 import { MixNodeStatus } from './Status';
 import { MixnodeStatus, MixnodeStatusWithAll } from '../../typeDefs/explorer-api';
@@ -16,18 +16,14 @@ interface MixNodeStatusDropdownProps {
   onSelectionChanged?: (status?: MixnodeStatusWithAll) => void;
 }
 
-export const MixNodeStatusDropdown: FCWithChildren<MixNodeStatusDropdownProps> = ({
-  status,
-  onSelectionChanged,
-  sx,
-}) => {
+export const MixNodeStatusDropdown: React.FC<MixNodeStatusDropdownProps> = ({ status, onSelectionChanged, sx }) => {
   const isMobile = useIsMobile();
   const [statusValue, setStatusValue] = React.useState<MixnodeStatusWithAll>(status || MixnodeStatusWithAll.all);
-  const onChange = React.useCallback(
-    (event: SelectChangeEvent) => {
-      setStatusValue(event.target.value as MixnodeStatusWithAll);
+  const onChange: SelectInputProps<MixnodeStatusWithAll>['onChange'] = React.useCallback(
+    ({ target: { value } }) => {
+      setStatusValue(value);
       if (onSelectionChanged) {
-        onSelectionChanged(event.target.value as MixnodeStatusWithAll);
+        onSelectionChanged(value);
       }
     },
     [onSelectionChanged],

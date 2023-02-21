@@ -22,7 +22,7 @@ fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> !
 }
 
 fn print_start_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    eprintln!(
+    println!(
         "\n==================\nTrying to upgrade gateway from {} to {} ...",
         from, to
     );
@@ -36,7 +36,7 @@ fn print_failed_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
 }
 
 fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    eprintln!(
+    println!(
         "Upgrade from {} to {} was successful!\n==================\n",
         from, to
     );
@@ -121,7 +121,7 @@ fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
         let config_version = parse_config_version(&config);
 
         if config_version == package_version {
-            eprintln!("You're using the most recent version!");
+            println!("You're using the most recent version!");
             return;
         }
 
@@ -139,7 +139,7 @@ fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
 pub async fn execute(args: &Upgrade) {
     let package_version = parse_package_version();
 
-    let existing_config = Config::load_from_file(&args.id).unwrap_or_else(|err| {
+    let existing_config = Config::load_from_file(Some(&args.id)).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {err}");
         process::exit(1)
     });

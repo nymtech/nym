@@ -87,7 +87,7 @@ type ExpandableButtonType = {
   setToActive: (num: number) => void;
 };
 
-export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
+export const ExpandableButton: React.FC<ExpandableButtonType> = ({
   id,
   url,
   setToActive,
@@ -230,7 +230,7 @@ ExpandableButton.defaultProps = {
   closeDrawer: undefined,
 };
 
-export const Nav: FCWithChildren = ({ children }) => {
+export const Nav: React.FC = ({ children }) => {
   const { updateNavState, navState } = useMainContext();
   const [drawerIsOpen, setDrawerToOpen] = React.useState(false);
   const [fixedOpen, setFixedOpen] = React.useState(false);

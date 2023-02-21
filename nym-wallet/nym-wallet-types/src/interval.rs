@@ -1,7 +1,7 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_mixnet_contract_common::{EpochId, Interval as ContractInterval, IntervalId};
+use mixnet_contract_common::{EpochId, Interval as ContractInterval, IntervalId};
 use serde::{Deserialize, Serialize};
 
 // TODO: ask @MS why we can't just use ContractInterval directly

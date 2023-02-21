@@ -3,7 +3,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use log::info;
-use nym_mixnet_contract_common::MixId;
+use mixnet_contract_common::MixId;
 use serde::{Deserialize, Serialize};
 
 use crate::client::ThreadsafeValidatorClient;

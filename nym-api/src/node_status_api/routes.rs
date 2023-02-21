@@ -1,7 +1,6 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::helpers::_get_gateways_detailed;
 use super::NodeStatusCache;
 use crate::node_status_api::helpers::{
     _compute_mixnode_reward_estimation, _get_active_set_detailed, _get_mixnode_avg_uptime,
@@ -12,15 +11,15 @@ use crate::node_status_api::helpers::{
 };
 use crate::node_status_api::models::ErrorResponse;
 use crate::storage::NymApiStorage;
-use crate::NymContractCache;
+use crate::ValidatorCache;
+use mixnet_contract_common::MixId;
 use nym_api_requests::models::{
-    AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayBondAnnotated,
-    GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
-    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
-    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayCoreStatusResponse,
+    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
+    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
+    MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
+    StakeSaturationResponse, UptimeResponse,
 };
-use nym_mixnet_contract_common::MixId;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
@@ -105,7 +104,7 @@ pub(crate) async fn mixnode_core_status_count(
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/status")]
 pub(crate) async fn get_mixnode_status(
-    cache: &State<NymContractCache>,
+    cache: &State<ValidatorCache>,
     mix_id: MixId,
 ) -> Json<MixnodeStatusResponse> {
     Json(_get_mixnode_status(cache, mix_id).await)
@@ -115,7 +114,7 @@ pub(crate) async fn get_mixnode_status(
 #[get("/mixnode/<mix_id>/reward-estimation")]
 pub(crate) async fn get_mixnode_reward_estimation(
     cache: &State<NodeStatusCache>,
-    validator_cache: &State<NymContractCache>,
+    validator_cache: &State<ValidatorCache>,
     mix_id: MixId,
 ) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
     Ok(Json(
@@ -131,7 +130,7 @@ pub(crate) async fn get_mixnode_reward_estimation(
 pub(crate) async fn compute_mixnode_reward_estimation(
     user_reward_param: Json<ComputeRewardEstParam>,
     cache: &State<NodeStatusCache>,
-    validator_cache: &State<NymContractCache>,
+    validator_cache: &State<ValidatorCache>,
     mix_id: MixId,
 ) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
     Ok(Json(
@@ -149,7 +148,7 @@ pub(crate) async fn compute_mixnode_reward_estimation(
 #[get("/mixnode/<mix_id>/stake-saturation")]
 pub(crate) async fn get_mixnode_stake_saturation(
     cache: &State<NodeStatusCache>,
-    validator_cache: &State<NymContractCache>,
+    validator_cache: &State<ValidatorCache>,
     mix_id: MixId,
 ) -> Result<Json<StakeSaturationResponse>, ErrorResponse> {
     Ok(Json(
@@ -171,7 +170,7 @@ pub(crate) async fn get_mixnode_inclusion_probability(
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/avg_uptime")]
 pub(crate) async fn get_mixnode_avg_uptime(
-    cache: &State<NymContractCache>,
+    cache: &State<ValidatorCache>,
     storage: &State<NymApiStorage>,
     mix_id: MixId,
 ) -> Result<Json<UptimeResponse>, ErrorResponse> {
@@ -208,12 +207,4 @@ pub async fn get_active_set_detailed(
     cache: &State<NodeStatusCache>,
 ) -> Json<Vec<MixNodeBondAnnotated>> {
     Json(_get_active_set_detailed(cache).await)
-}
-
-#[openapi(tag = "status")]
-#[get("/gateways/detailed")]
-pub async fn get_gateways_detailed(
-    cache: &State<NodeStatusCache>,
-) -> Json<Vec<GatewayBondAnnotated>> {
-    Json(_get_gateways_detailed(cache).await)
 }

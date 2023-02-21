@@ -9,7 +9,7 @@ import { SimpleModal } from '../Modals/SimpleModal';
 import { FeeWarning } from '../FeeWarning';
 import { ModalListItem } from '../Modals/ModalListItem';
 
-export const RedeemModal: FCWithChildren<{
+export const RedeemModal: React.FC<{
   open: boolean;
   onClose?: () => void;
   onOk?: (mixId: number, identityKey: string, fee?: FeeDetails) => void;

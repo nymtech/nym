@@ -5,12 +5,11 @@ import { SimpleModal } from '../Modals/SimpleModal';
 import { Warning } from '../Warning';
 
 const passwordCreationSteps = [
-  'Log out from the wallet',
+  'Log out of your wallet',
   'Sign in using “Sign in with mnemonic” button',
-  'On the next screen select “Create a password"',
-  'Type in the mnemonic you want to create a password for and follow the next steps',
-  'Sign back in the wallet using your new password',
-  'Come back to this page to import or create new accounts',
+  'On the next screen select “Create a password for your account”',
+  'Sign in to the wallet with your new password',
+  'Then come back here to import or create new accounts',
 ];
 
 // TODO add the link href value

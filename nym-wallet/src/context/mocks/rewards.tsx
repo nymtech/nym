@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { DelegationWithEverything, TransactionExecuteResult } from '@nymproject/types';
 import { RewardsContext, TRewardsTransaction } from '../rewards';
 import { useDelegationContext } from '../delegations';
 import { mockSleep } from './utils';
 
-export const MockRewardsContextProvider: FCWithChildren = ({ children }) => {
+export const MockRewardsContextProvider: FC = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();

@@ -1,19 +1,21 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::error::StatsError;
-use crate::core::new_legacy_request_version;
-use crate::reply::MixnetMessage;
 use async_trait::async_trait;
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use ordered_buffer::OrderedMessageSender;
 use proxy_helpers::proxy_runner::MixProxySender;
 use rand::RngCore;
 use serde::Deserialize;
-use service_providers_common::interface::RequestVersion;
-use socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
 use sqlx::types::chrono::{DateTime, Utc};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::RwLock;
+
+use crate::core::ReturnAddress;
+use nymsphinx::addressing::clients::Recipient;
+use ordered_buffer::OrderedMessageSender;
+use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Request};
 use statistics_common::api::{
     build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
     DEFAULT_STATISTICS_SERVICE_PORT,
@@ -22,10 +24,8 @@ use statistics_common::{
     collector::StatisticsCollector, error::StatsError as CommonStatsError, StatsMessage,
     StatsServiceData,
 };
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::RwLock;
+
+use super::error::StatsError;
 
 const REMOTE_SOURCE_OF_STATS_PROVIDER_CONFIG: &str =
     "https://nymtech.net/.wellknown/network-requester/stats-provider.json";
@@ -73,19 +73,18 @@ impl OptionalStatsProviderConfig {
 }
 
 #[derive(Clone)]
-pub(crate) struct ServiceStatisticsCollector {
+pub struct ServiceStatisticsCollector {
     pub(crate) request_stats_data: Arc<RwLock<StatsData>>,
     pub(crate) response_stats_data: Arc<RwLock<StatsData>>,
     pub(crate) connected_services: Arc<RwLock<HashMap<ConnectionId, RemoteAddress>>>,
     stats_provider_addr: Recipient,
-    mix_input_sender: MixProxySender<MixnetMessage>,
-    request_version: RequestVersion<Socks5Request>,
+    mix_input_sender: MixProxySender<(Socks5Message, ReturnAddress)>,
 }
 
 impl ServiceStatisticsCollector {
-    pub(crate) async fn new(
+    pub async fn new(
         stats_provider_addr: Option<Recipient>,
-        mix_input_sender: MixProxySender<MixnetMessage>,
+        mix_input_sender: MixProxySender<(Socks5Message, ReturnAddress)>,
     ) -> Result<Self, StatsError> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(3))
@@ -111,9 +110,6 @@ impl ServiceStatisticsCollector {
             connected_services: Arc::new(RwLock::new(HashMap::new())),
             stats_provider_addr,
             mix_input_sender,
-            // for now always use legacy serialization since we'll never be sending control
-            // messages to the stats collector anyway and we can't be sure they're using the updated interfaces
-            request_version: new_legacy_request_version(),
         })
     }
 }
@@ -172,37 +168,31 @@ impl StatisticsCollector for ServiceStatisticsCollector {
         trace!("Connecting to statistics service");
         let mut rng = rand::rngs::OsRng;
         let conn_id = rng.next_u64();
-        let connect_req = Socks5RequestContent::new_connect(
+        let connect_req = Request::new_connect(
             conn_id,
-            format!("{DEFAULT_STATISTICS_SERVICE_ADDRESS}:{DEFAULT_STATISTICS_SERVICE_PORT}"),
+            format!(
+                "{}:{}",
+                DEFAULT_STATISTICS_SERVICE_ADDRESS, DEFAULT_STATISTICS_SERVICE_PORT
+            ),
             Some(self.stats_provider_addr),
         );
-        let mixnet_message = MixnetMessage::new_network_data_request(
-            self.stats_provider_addr,
-            self.request_version.clone(),
-            conn_id,
-            connect_req,
-        );
-
         self.mix_input_sender
-            .send(mixnet_message)
+            .send((
+                Socks5Message::Request(connect_req),
+                self.stats_provider_addr.into(),
+            ))
             .await
             .expect("MixProxyReader has stopped receiving!");
 
         trace!("Sending data to statistics service");
         let mut message_sender = OrderedMessageSender::new();
         let ordered_msg = message_sender.wrap_message(msg).into_bytes();
-        let send_req = Socks5RequestContent::new_send(conn_id, ordered_msg, true);
-
-        let mixnet_message = MixnetMessage::new_network_data_request(
-            self.stats_provider_addr,
-            self.request_version.clone(),
-            conn_id,
-            send_req,
-        );
-
+        let send_req = Request::new_send(conn_id, ordered_msg, true);
         self.mix_input_sender
-            .send(mixnet_message)
+            .send((
+                Socks5Message::Request(send_req),
+                self.stats_provider_addr.into(),
+            ))
             .await
             .expect("MixProxyReader has stopped receiving!");
 

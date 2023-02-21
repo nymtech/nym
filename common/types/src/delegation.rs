@@ -3,7 +3,7 @@ use crate::deprecated::DelegationEvent;
 use crate::error::TypesError;
 use crate::mixnode::MixNodeCostParams;
 use cosmwasm_std::Decimal;
-use nym_mixnet_contract_common::{Delegation as MixnetContractDelegation, MixId};
+use mixnet_contract_common::{Delegation as MixnetContractDelegation, MixId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

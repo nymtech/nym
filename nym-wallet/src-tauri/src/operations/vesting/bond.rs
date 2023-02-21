@@ -2,7 +2,7 @@ use crate::error::BackendError;
 use crate::nyxd_client;
 use crate::state::WalletState;
 use crate::{Gateway, MixNode};
-use nym_mixnet_contract_common::MixNodeConfigUpdate;
+use mixnet_contract_common::MixNodeConfigUpdate;
 
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;

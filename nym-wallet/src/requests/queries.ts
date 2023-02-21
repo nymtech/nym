@@ -1,13 +1,14 @@
 import {
-  DecCoin,
-  GatewayBond,
-  InclusionProbabilityResponse,
-  MixNodeDetails,
-  MixnodeStatusResponse,
-  PendingIntervalEvent,
-  RewardEstimationResponse,
   StakeSaturationResponse,
+  MixnodeStatusResponse,
+  InclusionProbabilityResponse,
+  DecCoin,
+  MixNodeDetails,
+  GatewayBond,
+  RewardEstimationResponse,
   WrappedDelegationEvent,
+  PendingIntervalEvent,
+  Coin,
 } from '@nymproject/types';
 import { Interval, TGatewayReport, TNodeDescription } from 'src/types';
 import { invokeWrapper } from './wrapper';
@@ -59,5 +60,9 @@ export const computeMixnodeRewardEstimation = async (args: {
   totalDelegation: number;
   profitMarginPercent: string;
   intervalOperatingCost: { denom: 'unym'; amount: string };
-}) => invokeWrapper<RewardEstimationResponse>('compute_mixnode_reward_estimation', args);
+}) => {
+  console.log(args);
+
+  return invokeWrapper<RewardEstimationResponse>('compute_mixnode_reward_estimation', args);
+};
 export const getMixnodeUptime = async (mixId: number) => invokeWrapper<number>('get_mixnode_uptime', { mixId });

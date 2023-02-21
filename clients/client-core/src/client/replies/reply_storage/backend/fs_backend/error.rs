@@ -10,12 +10,6 @@ pub enum StorageError {
     #[error("the provided database path doesn't have a filename defined")]
     DatabasePathWithoutFilename { provided_path: PathBuf },
 
-    #[error("unable to create the directory for the database")]
-    DatabasePathUnableToCreateParentDirectory {
-        provided_path: PathBuf,
-        source: io::Error,
-    },
-
     #[error("failed to rename our databse file - {source}")]
     DatabaseRenameError {
         #[source]
@@ -55,10 +49,5 @@ pub enum StorageError {
     CorruptedData {
         details: String,
         // err: Option<Box<dyn std::error::Error>>
-    },
-
-    #[error("failed to create storage")]
-    FailedToCreateStorage {
-        source: Box<dyn std::error::Error + Send + Sync>,
     },
 }

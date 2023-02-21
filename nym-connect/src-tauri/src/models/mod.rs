@@ -2,8 +2,6 @@ use core::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::state::GatewayConnectivity;
-
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct ConnectResult {
@@ -25,35 +23,6 @@ pub enum ConnectionStatusKind {
     Disconnecting,
     Connected,
     Connecting,
-}
-
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(test, ts(rename_all = "lowercase"))]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
-#[serde(rename_all = "camelCase")]
-pub enum GatewayConnectionStatusKind {
-    Good,
-    Bad,
-    VeryBad,
-}
-
-impl From<GatewayConnectivity> for GatewayConnectionStatusKind {
-    fn from(conn: GatewayConnectivity) -> Self {
-        match conn {
-            GatewayConnectivity::Good => GatewayConnectionStatusKind::Good,
-            GatewayConnectivity::Bad { .. } => GatewayConnectionStatusKind::Bad,
-            GatewayConnectivity::VeryBad { .. } => GatewayConnectionStatusKind::VeryBad,
-        }
-    }
-}
-
-#[cfg_attr(test, derive(ts_rs::TS))]
-#[cfg_attr(test, ts(rename_all = "lowercase"))]
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ConnectivityTestResult {
-    NotAvailable,
-    Success,
-    Fail,
 }
 
 impl fmt::Display for ConnectionStatusKind {

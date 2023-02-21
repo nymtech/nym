@@ -1,7 +1,3 @@
-use socks5_requests::Socks5RequestError;
-use std::string::FromUtf8Error;
-use thiserror::Error;
-
 /// SOCKS4 Response codes
 #[allow(dead_code)]
 pub(crate) enum ResponseCodeV4 {
@@ -12,8 +8,9 @@ pub(crate) enum ResponseCodeV4 {
 }
 
 /// Possible SOCKS5 Response Codes
-#[derive(Debug, Error)]
-pub enum ResponseCodeV5 {
+#[allow(dead_code)]
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum ResponseCodeV5 {
     #[error("SOCKS5 Server Success")]
     Success = 0x00,
     #[error("SOCKS5 Server Failure")]
@@ -34,55 +31,30 @@ pub enum ResponseCodeV5 {
     AddrTypeNotSupported = 0x08,
 }
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum SocksProxyError {
-    #[error("{version} of the socks protocol is not supported by this client")]
-    UnsupportedProxyVersion { version: u8 },
+    GenericError(Box<dyn std::error::Error + Send + Sync>),
+    UnsupportedProxyVersion(u8),
+}
 
-    #[error("failed to write to the socket: {source}")]
-    SocketWriteError {
-        #[source]
-        source: std::io::Error,
-    },
+impl std::fmt::Display for SocksProxyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SocksProxyError::GenericError(err) => write!(f, "GenericError - {err}"),
+            SocksProxyError::UnsupportedProxyVersion(version) => {
+                write!(f, "Unsupported proxy version {}", version)
+            }
+        }
+    }
+}
 
-    #[error("failed to read from the socket: {source}")]
-    SocketReadError {
-        #[source]
-        source: std::io::Error,
-    },
-
-    #[error("failed to shutdown underlying socket stream: {source}")]
-    SocketShutdownFailure {
-        #[source]
-        source: std::io::Error,
-    },
-
-    #[error("failed to extract ip address of the connected peer: {source}")]
-    PeerAddrExtractionFailure {
-        #[source]
-        source: std::io::Error,
-    },
-
-    #[error("failed to authenticate user due to malformed username: {source}")]
-    MalformedAuthUsername {
-        #[source]
-        source: FromUtf8Error,
-    },
-
-    #[error("failed to authenticate user due to malformed password: {source}")]
-    MalformedAuthPassword {
-        #[source]
-        source: FromUtf8Error,
-    },
-
-    #[error(transparent)]
-    Socks5ResponseFailure(#[from] ResponseCodeV5),
-
-    #[error("could not complete the provider request: {source}")]
-    ProviderRequestFailure {
-        #[from]
-        source: Socks5RequestError,
-    },
+impl<E> From<E> for SocksProxyError
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn from(err: E) -> Self {
+        SocksProxyError::GenericError(Box::new(err))
+    }
 }
 
 /// DST.addr variant types

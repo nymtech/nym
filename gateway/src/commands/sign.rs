@@ -1,17 +1,16 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::{ensure_correct_bech32_prefix, OverrideConfig};
-use crate::error::GatewayError;
-use crate::support::config::build_config;
+use crate::commands::validate_bech32_address_or_exit;
 use crate::{
-    commands::ensure_config_version_compatibility,
-    config::persistence::pathfinder::GatewayPathfinder,
+    commands::version_check,
+    config::{persistence::pathfinder::GatewayPathfinder, Config},
 };
 use anyhow::{anyhow, Result};
 use clap::{ArgGroup, Args};
-use nym_crypto::asymmetric::identity;
-use std::error::Error;
+use config::NymConfig;
+use crypto::asymmetric::identity;
+use log::error;
 use validator_client::nyxd;
 
 #[derive(Args, Clone)]
@@ -53,53 +52,66 @@ impl TryFrom<Sign> for SignedTarget {
 }
 
 pub fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
-    let identity_keypair: identity::KeyPair =
-        nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-            pathfinder.private_identity_key().to_owned(),
-            pathfinder.public_identity_key().to_owned(),
-        ))
-        .expect("Failed to read stored identity key files");
+    let identity_keypair: identity::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
+        pathfinder.private_identity_key().to_owned(),
+        pathfinder.public_identity_key().to_owned(),
+    ))
+    .expect("Failed to read stored identity key files");
     identity_keypair
 }
 
-fn print_signed_address(
-    private_key: &identity::PrivateKey,
-    wallet_address: nyxd::AccountId,
-) -> Result<(), GatewayError> {
+fn print_signed_address(private_key: &identity::PrivateKey, wallet_address: nyxd::AccountId) {
     // perform extra validation to ensure we have correct prefix
-    ensure_correct_bech32_prefix(&wallet_address)?;
+    validate_bech32_address_or_exit(wallet_address.as_ref());
 
     let signature = private_key.sign_text(wallet_address.as_ref());
-    eprintln!("The base58-encoded signature on '{wallet_address}' is: {signature}");
-    Ok(())
+    println!("The base58-encoded signature on '{wallet_address}' is: {signature}",);
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
-    eprintln!(
+    println!(
         "Signing the text {:?} using your mixnode's Ed25519 identity key...",
         text
     );
 
     let signature = private_key.sign_text(text);
 
-    eprintln!(
+    println!(
         "The base58-encoded signature on '{}' is: {}",
         text, signature
     );
 }
 
-pub fn execute(args: Sign) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let config = build_config(args.id.clone(), OverrideConfig::default())?;
-    ensure_config_version_compatibility(&config)?;
+pub fn execute(args: &Sign) {
+    let config = match Config::load_from_file(Some(&args.id)) {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            error!(
+                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
+                args.id,
+                err
+            );
+            return;
+        }
+    };
 
-    let signed_target = SignedTarget::try_from(args)?;
+    if !version_check(&config) {
+        error!("failed the local version check");
+        return;
+    }
+
+    let signed_target = match SignedTarget::try_from(args.clone()) {
+        Ok(s) => s,
+        Err(err) => {
+            error!("{err}");
+            return;
+        }
+    };
     let pathfinder = GatewayPathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);
 
     match signed_target {
         SignedTarget::Text(text) => print_signed_text(identity_keypair.private_key(), &text),
-        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), addr)?,
+        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), addr),
     }
-
-    Ok(())
 }

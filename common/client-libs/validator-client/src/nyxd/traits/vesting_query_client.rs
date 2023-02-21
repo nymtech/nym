@@ -6,16 +6,16 @@ pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::NyxdClient;
 use async_trait::async_trait;
+use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{Coin as CosmWasmCoin, Timestamp};
-use nym_contracts_common::ContractBuildInformation;
-use nym_mixnet_contract_common::MixId;
-use nym_vesting_contract_common::{
+use mixnet_contract_common::MixId;
+use serde::Deserialize;
+use vesting_contract::vesting::Account;
+use vesting_contract_common::{
     messages::QueryMsg as VestingQueryMsg, AccountVestingCoins, AccountsResponse,
     AllDelegationsResponse, BaseVestingAccountInfo, DelegationTimesResponse,
     OriginalVestingResponse, Period, PledgeData, VestingCoinsResponse, VestingDelegation,
 };
-use serde::Deserialize;
-use vesting_contract::vesting::Account;
 
 #[async_trait]
 pub trait VestingQueryClient {
@@ -269,7 +269,7 @@ pub trait VestingQueryClient {
 }
 
 #[async_trait]
-impl<C: CosmWasmClient + Sync + Send + Clone> VestingQueryClient for NyxdClient<C> {
+impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NyxdClient<C> {
     async fn query_vesting_contract<T>(&self, query: VestingQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,

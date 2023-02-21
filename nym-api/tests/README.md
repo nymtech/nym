@@ -1,5 +1,5 @@
 <!-- ABOUT THE PROJECT -->
-## nym-api-test suite
+## validator-api-test suite
 
 A Typescript test framework utilising Jest and Node to perform tests against the NYM validator-apis.
 

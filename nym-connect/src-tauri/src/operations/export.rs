@@ -7,7 +7,7 @@ use crate::{
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use nym_crypto::asymmetric::identity;
+use crypto::asymmetric::identity;
 
 pub async fn get_identity_key(
     state: &tauri::State<'_, Arc<RwLock<State>>>,

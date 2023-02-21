@@ -125,11 +125,7 @@ pub struct Debug {
 
     /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
     /// for more even though in theory they wouldn't need to.
-    pub maximum_reply_surb_rerequest_waiting_period_ms: u64,
-
-    /// Defines maximum amount of time the client is going to wait for reply surbs before
-    /// deciding it's never going to get them and would drop all pending messages
-    pub maximum_reply_surb_drop_waiting_period_ms: u64,
+    pub maximum_reply_surb_waiting_period_ms: u64,
 
     /// Defines maximum amount of time given reply surb is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
@@ -172,11 +168,8 @@ impl From<Debug> for ConfigDebug {
             minimum_reply_surb_request_size: debug.minimum_reply_surb_request_size,
             maximum_reply_surb_request_size: debug.maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: debug.maximum_allowed_reply_surb_request_size,
-            maximum_reply_surb_rerequest_waiting_period: Duration::from_millis(
-                debug.maximum_reply_surb_rerequest_waiting_period_ms,
-            ),
-            maximum_reply_surb_drop_waiting_period: Duration::from_millis(
-                debug.maximum_reply_surb_drop_waiting_period_ms,
+            maximum_reply_surb_waiting_period: Duration::from_millis(
+                debug.maximum_reply_surb_waiting_period_ms,
             ),
             maximum_reply_surb_age: Duration::from_millis(debug.maximum_reply_surb_age_ms),
             maximum_reply_key_age: Duration::from_millis(debug.maximum_reply_key_age_ms),
@@ -207,11 +200,8 @@ impl From<ConfigDebug> for Debug {
             minimum_reply_surb_request_size: debug.minimum_reply_surb_request_size,
             maximum_reply_surb_request_size: debug.maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: debug.maximum_allowed_reply_surb_request_size,
-            maximum_reply_surb_rerequest_waiting_period_ms: debug
-                .maximum_reply_surb_rerequest_waiting_period
-                .as_millis() as u64,
-            maximum_reply_surb_drop_waiting_period_ms: debug
-                .maximum_reply_surb_drop_waiting_period
+            maximum_reply_surb_waiting_period_ms: debug
+                .maximum_reply_surb_waiting_period
                 .as_millis() as u64,
             maximum_reply_surb_age_ms: debug.maximum_reply_surb_age.as_millis() as u64,
             maximum_reply_key_age_ms: debug.maximum_reply_key_age.as_millis() as u64,

@@ -3,7 +3,7 @@
 
 use crate::error::BackendError;
 use crate::state::WalletState;
-use nym_mixnet_contract_common::ContractStateParams;
+use mixnet_contract_common::ContractStateParams;
 use nym_types::transaction::TransactionExecuteResult;
 use nym_wallet_types::admin::TauriContractStateParams;
 use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};

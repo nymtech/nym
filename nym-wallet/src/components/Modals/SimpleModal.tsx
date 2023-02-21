@@ -6,7 +6,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { StyledBackButton } from 'src/components/StyledBackButton';
 import { modalStyle } from './styles';
 
-export const SimpleModal: FCWithChildren<{
+export const SimpleModal: React.FC<{
   open: boolean;
   hideCloseIcon?: boolean;
   displayErrorIcon?: boolean;
@@ -25,7 +25,6 @@ export const SimpleModal: FCWithChildren<{
   okDisabled?: boolean;
   sx?: SxProps;
   backdropProps?: object;
-  children?: React.ReactNode;
 }> = ({
   open,
   hideCloseIcon,

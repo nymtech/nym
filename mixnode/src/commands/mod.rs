@@ -8,7 +8,7 @@ use colored::Colorize;
 use completions::{fig_generate, ArgShell};
 use config::defaults::var_names::{BECH32_PREFIX, NYM_API};
 use config::OptionalSet;
-use nym_crypto::bech32_address_validation;
+use crypto::bech32_address_validation;
 use std::net::IpAddr;
 use std::process;
 use validator_client::nyxd;

@@ -3,35 +3,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::{VK_SHARES_EPOCH_ID_IDX_NAMESPACE, VK_SHARES_PK_NAMESPACE};
-use coconut_dkg_common::types::EpochId;
 use coconut_dkg_common::verification_key::ContractVKShare;
 use cosmwasm_std::Addr;
-use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
+use cw_storage_plus::Map;
 
 pub(crate) const VERIFICATION_KEY_SHARES_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const VERIFICATION_KEY_SHARES_PAGE_DEFAULT_LIMIT: u32 = 50;
 
-type VKShareKey<'a> = (&'a Addr, EpochId);
+type VKShareKey<'a> = &'a Addr;
 
-pub(crate) struct VkShareIndex<'a> {
-    pub(crate) epoch_id: MultiIndex<'a, EpochId, ContractVKShare, VKShareKey<'a>>,
-}
-
-impl<'a> IndexList<ContractVKShare> for VkShareIndex<'a> {
-    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<ContractVKShare>> + '_> {
-        let v: Vec<&dyn Index<ContractVKShare>> = vec![&self.epoch_id];
-        Box::new(v.into_iter())
-    }
-}
-
-pub(crate) fn vk_shares<'a>() -> IndexedMap<'a, VKShareKey<'a>, ContractVKShare, VkShareIndex<'a>> {
-    let indexes = VkShareIndex {
-        epoch_id: MultiIndex::new(
-            |d| d.epoch_id,
-            VK_SHARES_PK_NAMESPACE,
-            VK_SHARES_EPOCH_ID_IDX_NAMESPACE,
-        ),
-    };
-    IndexedMap::new(VK_SHARES_PK_NAMESPACE, indexes)
-}
+pub(crate) const VK_SHARES: Map<'_, VKShareKey<'_>, ContractVKShare> = Map::new("vks");

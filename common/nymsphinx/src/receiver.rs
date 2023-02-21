@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::message::{NymMessage, NymMessageError, PaddedMessage, PlainMessage};
-use nym_crypto::aes::cipher::{KeyIvInit, StreamCipher};
-use nym_crypto::asymmetric::encryption;
-use nym_crypto::shared_key::recompute_shared_key;
-use nym_crypto::symmetric::stream_cipher;
-use nym_crypto::symmetric::stream_cipher::CipherKey;
+use crypto::aes::cipher::{KeyIvInit, StreamCipher};
+use crypto::asymmetric::encryption;
+use crypto::shared_key::recompute_shared_key;
+use crypto::symmetric::stream_cipher;
+use crypto::symmetric::stream_cipher::CipherKey;
 use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx_anonymous_replies::SurbEncryptionKey;
 use nymsphinx_chunking::fragment::Fragment;
@@ -184,8 +184,8 @@ impl Default for MessageReceiver {
 #[cfg(test)]
 mod message_receiver {
     use super::*;
-    use nym_crypto::asymmetric::identity;
-    use nym_mixnet_contract_common::Layer;
+    use crypto::asymmetric::identity;
+    use mixnet_contract_common::Layer;
     use std::collections::HashMap;
     use topology::{gateway, mix, NymTopology};
 

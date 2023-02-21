@@ -5,10 +5,10 @@ use clap::Parser;
 use cosmwasm_std::Uint128;
 use log::{info, warn};
 
+use mixnet_contract_common::{Coin, MixNodeCostParams, Percent};
 use network_defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
-use nym_mixnet_contract_common::{Coin, MixNodeCostParams, Percent};
 use validator_client::nyxd::traits::MixnetSigningClient;
 use validator_client::nyxd::CosmWasmCoin;
 
@@ -70,7 +70,7 @@ pub async fn bond_mixnode(args: Args, client: SigningClient) {
         return;
     }
 
-    let mixnode = nym_mixnet_contract_common::MixNode {
+    let mixnode = mixnet_contract_common::MixNode {
         host: args.host,
         mix_port: args.mix_port.unwrap_or(DEFAULT_MIX_LISTENING_PORT),
         verloc_port: args.verloc_port.unwrap_or(DEFAULT_VERLOC_LISTENING_PORT),

@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material';
 import { MUIThemeExplorer } from './theme/MUIThemeExplorer';
 import { PaletteSwatches, PaletteSwatchesList } from './theme/PaletteSwatches';
 
-export const PlaygroundTheme: FCWithChildren = () => {
+export const PlaygroundTheme: React.FC = () => {
   const theme = useTheme();
   return (
     <>
@@ -15,7 +15,7 @@ export const PlaygroundTheme: FCWithChildren = () => {
   );
 };
 
-export const PlaygroundPalette: FCWithChildren = () => {
+export const PlaygroundPalette: React.FC = () => {
   const theme = useTheme();
   return <PaletteSwatchesList theme={theme} />;
 };

@@ -7,7 +7,7 @@ import { getContractParams, setContractParams } from '../../requests';
 import { PageLayout } from '../../layouts';
 import { AppContext } from '../../context';
 
-const AdminForm: FCWithChildren<{
+const AdminForm: React.FC<{
   params: TauriContractStateParams;
 }> = ({ params }) => {
   const {
@@ -80,7 +80,7 @@ const AdminForm: FCWithChildren<{
   );
 };
 
-export const Admin: FCWithChildren = () => {
+export const Admin: React.FC = () => {
   const { isAdminAddress, network } = useContext(AppContext);
   const [isLoading, setIsLoading] = useState(false);
   const [params, setParams] = useState<TauriContractStateParams>();

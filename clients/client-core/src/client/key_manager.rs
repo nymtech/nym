@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use crypto::asymmetric::{encryption, identity};
 use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
-use nym_crypto::asymmetric::{encryption, identity};
 use nymsphinx::acknowledgements::AckKey;
 use rand::{CryptoRng, RngCore};
 use std::io;
@@ -42,6 +42,9 @@ pub struct KeyManager {
 */
 
 impl KeyManager {
+    // this is actually **NOT** dead code
+    // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
+    #[allow(dead_code)]
     /// Creates new instance of a [`KeyManager`]
     pub fn new<R>(rng: &mut R) -> Self
     where
@@ -72,17 +75,17 @@ impl KeyManager {
     /// Loads previously stored client keys from the disk.
     fn load_client_keys(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
         let identity_keypair: identity::KeyPair =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 client_pathfinder.private_identity_key().to_owned(),
                 client_pathfinder.public_identity_key().to_owned(),
             ))?;
         let encryption_keypair: encryption::KeyPair =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 client_pathfinder.private_encryption_key().to_owned(),
                 client_pathfinder.public_encryption_key().to_owned(),
             ))?;
 
-        let ack_key: AckKey = nym_pemstore::load_key(client_pathfinder.ack_key())?;
+        let ack_key: AckKey = pemstore::load_key(client_pathfinder.ack_key())?;
 
         Ok(KeyManager {
             identity_keypair: Arc::new(identity_keypair),
@@ -98,7 +101,7 @@ impl KeyManager {
         let mut key_manager = Self::load_client_keys(client_pathfinder)?;
 
         let gateway_shared_key: SharedKeys =
-            nym_pemstore::load_key(client_pathfinder.gateway_shared_key())?;
+            pemstore::load_key(client_pathfinder.gateway_shared_key())?;
 
         key_manager.gateway_shared_key = Some(Arc::new(gateway_shared_key));
 
@@ -113,7 +116,7 @@ impl KeyManager {
         let mut key_manager = Self::load_client_keys(client_pathfinder)?;
 
         let gateway_shared_key: Result<SharedKeys, io::Error> =
-            nym_pemstore::load_key(client_pathfinder.gateway_shared_key());
+            pemstore::load_key(client_pathfinder.gateway_shared_key());
 
         // It's ok if the gateway key was not found
         let gateway_shared_key = match gateway_shared_key {
@@ -127,32 +130,35 @@ impl KeyManager {
         Ok(key_manager)
     }
 
+    // this is actually **NOT** dead code
+    // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
+    #[allow(dead_code)]
     /// Stores all available keys on the disk.
     // While perhaps there is no much point in storing the `AckKey` on the disk,
     // it is done so for the consistency sake so that you wouldn't require an rng instance
     // during `load_keys` to generate the said key.
     pub fn store_keys(&self, client_pathfinder: &ClientKeyPathfinder) -> io::Result<()> {
-        nym_pemstore::store_keypair(
+        pemstore::store_keypair(
             self.identity_keypair.as_ref(),
-            &nym_pemstore::KeyPairPath::new(
+            &pemstore::KeyPairPath::new(
                 client_pathfinder.private_identity_key().to_owned(),
                 client_pathfinder.public_identity_key().to_owned(),
             ),
         )?;
-        nym_pemstore::store_keypair(
+        pemstore::store_keypair(
             self.encryption_keypair.as_ref(),
-            &nym_pemstore::KeyPairPath::new(
+            &pemstore::KeyPairPath::new(
                 client_pathfinder.private_encryption_key().to_owned(),
                 client_pathfinder.public_encryption_key().to_owned(),
             ),
         )?;
 
-        nym_pemstore::store_key(self.ack_key.as_ref(), client_pathfinder.ack_key())?;
+        pemstore::store_key(self.ack_key.as_ref(), client_pathfinder.ack_key())?;
 
         match self.gateway_shared_key.as_ref() {
             None => debug!("No gateway shared key available to store!"),
             Some(gate_key) => {
-                nym_pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
+                pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
             }
         }
 
@@ -168,7 +174,7 @@ impl KeyManager {
                 ))
             }
             Some(gate_key) => {
-                nym_pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
+                pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
             }
         }
 
@@ -205,6 +211,9 @@ impl KeyManager {
         Arc::clone(&self.ack_key)
     }
 
+    // this is actually **NOT** dead code
+    // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
+    #[allow(dead_code)]
     /// After shared key with the gateway is derived, puts its ownership to this instance of a [`KeyManager`].
     pub fn insert_gateway_shared_key(&mut self, gateway_shared_key: Arc<SharedKeys>) {
         self.gateway_shared_key = Some(gateway_shared_key)

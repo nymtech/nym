@@ -11,8 +11,7 @@ use crate::coconut::dkg::{
     verification_key::verification_key_submission,
 };
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
-use crate::nyxd;
-use crate::support::config::Config;
+use crate::{nyxd_client, Config};
 use anyhow::Result;
 use coconut_dkg_common::types::EpochState;
 use dkg::bte::keys::KeyPair as DkgKeyPair;
@@ -20,16 +19,17 @@ use rand::rngs::OsRng;
 use rand::RngCore;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
-use task::{TaskClient, TaskManager};
+use task::TaskClient;
 use tokio::time::interval;
+use validator_client::nyxd::SigningNyxdClient;
 
 pub(crate) fn init_keypair(config: &Config) -> Result<()> {
     let mut rng = OsRng;
     let dkg_params = dkg::bte::setup();
     let kp = DkgKeyPair::new(&dkg_params, &mut rng);
-    nym_pemstore::store_keypair(
+    pemstore::store_keypair(
         &kp,
-        &nym_pemstore::KeyPairPath::new(
+        &pemstore::KeyPairPath::new(
             config.decryption_key_path(),
             config.public_key_with_proof_path(),
         ),
@@ -49,21 +49,19 @@ pub(crate) struct DkgController<R> {
 impl<R: RngCore + Clone> DkgController<R> {
     pub(crate) async fn new(
         config: &Config,
-        nyxd_client: nyxd::Client,
+        nyxd_client: nyxd_client::Client<SigningNyxdClient>,
         coconut_keypair: CoconutKeyPair,
         rng: R,
     ) -> Result<Self> {
-        let dkg_keypair = nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
+        let dkg_keypair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
             config.decryption_key_path(),
             config.public_key_with_proof_path(),
         ))?;
-        if let Ok(coconut_keypair_value) =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.secret_key_path(),
-                config.verification_key_path(),
-            ))
-        {
-            coconut_keypair.set(Some(coconut_keypair_value)).await;
+        if let Ok(coconut_keypair_value) = pemstore::load_keypair(&pemstore::KeyPairPath::new(
+            config.secret_key_path(),
+            config.verification_key_path(),
+        )) {
+            coconut_keypair.set(coconut_keypair_value).await;
         }
         let persistent_state =
             PersistentState::load_from_file(config.persistent_state_path()).unwrap_or_default();
@@ -86,37 +84,23 @@ impl<R: RngCore + Clone> DkgController<R> {
 
     pub(crate) async fn handle_epoch_state(&mut self) {
         match self.dkg_client.get_current_epoch().await {
-            Err(err) => warn!("Could not get current epoch state {err}"),
+            Err(e) => warn!("Could not get current epoch state {}", e),
             Ok(epoch) => {
-                if self
-                    .dkg_client
-                    .group_member()
-                    .await
-                    .map(|resp| resp.weight.is_none())
-                    .unwrap_or(true)
-                {
-                    debug!("Not a member of the group, DKG won't be run");
-                    return;
-                }
-                if let Err(err) = self.state.is_consistent(epoch.state).await {
-                    error!("Epoch state is corrupted - {err}, the process should be terminated");
-                    return;
+                if let Err(e) = self.state.is_consistent(epoch.state).await {
+                    error!(
+                        "Epoch state is corrupted - {}, the process should be terminated",
+                        e
+                    );
                 }
                 let ret = match epoch.state {
-                    EpochState::PublicKeySubmission { resharing } => {
-                        public_key_submission(&self.dkg_client, &mut self.state, resharing).await
+                    EpochState::PublicKeySubmission => {
+                        public_key_submission(&self.dkg_client, &mut self.state).await
                     }
-                    EpochState::DealingExchange { resharing } => {
-                        dealing_exchange(
-                            &self.dkg_client,
-                            &mut self.state,
-                            self.rng.clone(),
-                            resharing,
-                        )
-                        .await
+                    EpochState::DealingExchange => {
+                        dealing_exchange(&self.dkg_client, &mut self.state, self.rng.clone()).await
                     }
-                    EpochState::VerificationKeySubmission { resharing } => {
-                        let keypair_path = nym_pemstore::KeyPairPath::new(
+                    EpochState::VerificationKeySubmission => {
+                        let keypair_path = pemstore::KeyPairPath::new(
                             self.secret_key_path.clone(),
                             self.verification_key_path.clone(),
                         );
@@ -124,32 +108,26 @@ impl<R: RngCore + Clone> DkgController<R> {
                             &self.dkg_client,
                             &mut self.state,
                             &keypair_path,
-                            resharing,
                         )
                         .await
                     }
-                    EpochState::VerificationKeyValidation { resharing } => {
-                        verification_key_validation(&self.dkg_client, &mut self.state, resharing)
-                            .await
+                    EpochState::VerificationKeyValidation => {
+                        verification_key_validation(&self.dkg_client, &mut self.state).await
                     }
-                    EpochState::VerificationKeyFinalization { resharing } => {
-                        verification_key_finalization(&self.dkg_client, &mut self.state, resharing)
-                            .await
+                    EpochState::VerificationKeyFinalization => {
+                        verification_key_finalization(&self.dkg_client, &mut self.state).await
                     }
                     // Just wait, in case we need to redo dkg at some point
-                    EpochState::InProgress => {
-                        self.state.set_was_in_progress();
-                        Ok(())
-                    }
+                    EpochState::InProgress => Ok(()),
                 };
-                if let Err(err) = ret {
-                    warn!("Could not handle this iteration for the epoch state: {err}");
+                if let Err(e) = ret {
+                    warn!("Could not handle this iteration for the epoch state: {}", e);
                 } else if epoch.state != EpochState::InProgress {
                     let persistent_state = PersistentState::from(&self.state);
-                    if let Err(err) =
+                    if let Err(e) =
                         persistent_state.save_to_file(self.state.persistent_state_path())
                     {
-                        warn!("Could not backup the state for this iteration: {err}");
+                        warn!("Could not backup the state for this iteration: {}", e);
                     }
                 }
                 if let Ok(current_timestamp) =
@@ -157,7 +135,7 @@ impl<R: RngCore + Clone> DkgController<R> {
                 {
                     if current_timestamp.as_secs() >= epoch.finish_timestamp.seconds() {
                         // We try advancing the epoch state, on a best-effort basis
-                        info!("DKG: Trying to advance the epoch");
+                        info!("Trying to advance the epoch");
                         self.dkg_client.advance_epoch_state().await.ok();
                     }
                 }
@@ -175,23 +153,5 @@ impl<R: RngCore + Clone> DkgController<R> {
                 }
             }
         }
-    }
-
-    // TODO: can we make it non-async? it seems we'd have to modify `coconut_keypair.set(coconut_keypair_value)` in new
-    // could we do it?
-    pub(crate) async fn start(
-        config: &Config,
-        nyxd_client: nyxd::Client,
-        coconut_keypair: CoconutKeyPair,
-        rng: R,
-        shutdown: &TaskManager,
-    ) -> Result<()>
-    where
-        R: Sync + Send + 'static,
-    {
-        let shutdown_listener = shutdown.subscribe();
-        let dkg_controller = DkgController::new(config, nyxd_client, coconut_keypair, rng).await?;
-        tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
-        Ok(())
     }
 }

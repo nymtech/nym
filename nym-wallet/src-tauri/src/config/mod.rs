@@ -359,8 +359,11 @@ impl TryFrom<network_config::Validator> for ValidatorConfigEntry {
 impl fmt::Display for ValidatorConfigEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s1 = format!("nyxd_url: {}", self.nyxd_url);
-        let name = self.nyxd_name.as_ref().map(|name| format!(" ({name})"));
-        let s2 = self.api_url.as_ref().map(|url| format!(", api_url: {url}"));
+        let name = self.nyxd_name.as_ref().map(|name| format!(" ({})", name));
+        let s2 = self
+            .api_url
+            .as_ref()
+            .map(|url| format!(", api_url: {}", url));
         write!(
             f,
             "    {}{}{},",
@@ -413,7 +416,7 @@ impl fmt::Display for OptionalValidators {
             .as_ref()
             .map(|validators| format!(",\nqa: [\n{}\n]", validators.iter().format("\n")))
             .unwrap_or_default();
-        write!(f, "{s1}{s2}{s3}")
+        write!(f, "{}{}{}", s1, s2, s3)
     }
 }
 

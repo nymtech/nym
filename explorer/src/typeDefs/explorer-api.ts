@@ -116,21 +116,15 @@ export interface StatsResponse {
 
 export type MixNodeHistoryResponse = StatsResponse;
 
-export interface GatewayBond {
+export interface GatewayResponseItem {
   block_height: number;
   pledge_amount: Amount;
   total_delegation: Amount;
   owner: string;
   gateway: Gateway;
-  performance: string;
 }
 
-export interface GatewayBondAnnotated {
-  gateway_bond: GatewayBond;
-  performance: string;
-}
-
-export type GatewayResponse = GatewayBond[];
+export type GatewayResponse = GatewayResponseItem[];
 
 export interface GatewayReportResponse {
   identity: string;

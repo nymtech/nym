@@ -15,7 +15,7 @@ export default {
   title: 'Delegation/Components/Action Modals',
 };
 
-const Background: FCWithChildren<{ onOpen: () => void }> = ({ onOpen }) => {
+const Background: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
   const theme = useTheme();
   return (
     <Paper elevation={0} sx={{ px: 4, pt: 2, pb: 4 }}>

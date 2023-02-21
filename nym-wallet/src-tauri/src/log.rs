@@ -1,17 +1,12 @@
 use std::str::FromStr;
 
-use fern::colors::{Color, ColoredLevelConfig};
+use fern::colors::ColoredLevelConfig;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::Manager;
 
 pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerError> {
-    let colors = ColoredLevelConfig::new()
-        .trace(Color::Magenta)
-        .debug(Color::Blue)
-        .info(Color::Green)
-        .warn(Color::Yellow)
-        .error(Color::Red);
+    let colors = ColoredLevelConfig::new();
     let base_config = fern::Dispatch::new()
         .level(global_level())
         .filter_lowlevel_external_components()

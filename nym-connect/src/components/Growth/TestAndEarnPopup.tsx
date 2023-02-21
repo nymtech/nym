@@ -15,7 +15,7 @@ enum Stages {
   registered = 'registered',
 }
 
-export const TestAndEarnPopupContent: FCWithChildren<{
+export const TestAndEarnPopupContent: React.FC<{
   stage?: string;
   connectionStatus?: ConnectionStatusKind;
   error?: string;
@@ -28,7 +28,7 @@ export const TestAndEarnPopupContent: FCWithChildren<{
     );
   }
 
-  if (!connectionStatus || connectionStatus === 'disconnected') {
+  if (!connectionStatus || connectionStatus === ConnectionStatusKind.disconnected) {
     return (
       <Box p={4}>
         <ContentNotAvailable />
@@ -36,7 +36,7 @@ export const TestAndEarnPopupContent: FCWithChildren<{
     );
   }
 
-  if (connectionStatus === 'connecting' || connectionStatus === 'disconnecting') {
+  if (connectionStatus === ConnectionStatusKind.connecting || connectionStatus === ConnectionStatusKind.disconnecting) {
     return (
       <Box p={4} justifyContent="center" alignItems="center" display="flex">
         <CircularProgress />
@@ -72,12 +72,12 @@ export const TestAndEarnPopupContent: FCWithChildren<{
   }
 };
 
-export const TestAndEarnPopup: FCWithChildren = () => {
+export const TestAndEarnPopup: React.FC = () => {
   const clientContext = useClientContext();
   const context = useTestAndEarnContext();
 
   React.useEffect(() => {
-    if (clientContext.connectionStatus === 'connected') {
+    if (clientContext.connectionStatus === ConnectionStatusKind.connected) {
       context.refresh();
     }
   }, [clientContext.connectionStatus]);
@@ -94,7 +94,7 @@ export const TestAndEarnPopup: FCWithChildren = () => {
     return () => clearInterval(interval);
   }, []);
 
-  if (!context.loadedOnce && clientContext.connectionStatus === 'connected') {
+  if (!context.loadedOnce && clientContext.connectionStatus === ConnectionStatusKind.connected) {
     const message = 'Waiting for data to be transferred over the mixnet...';
     return (
       <Box p={4}>

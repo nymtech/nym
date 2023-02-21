@@ -10,13 +10,11 @@ You can use this example as a seed for a new project, and it uses:
 - Web Workers
 - Material UI (MUI)
 
-## Running the example
-
 Try out the chat app by running:
 
 ```
-npm install
-npm start
+yarn
+yarn start
 ```
 
 ## How does it work?

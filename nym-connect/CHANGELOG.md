@@ -1,46 +1,11 @@
-# Changelog
-
 ## UNRELEASED
-
-## [nym-connect-v1.1.9](https://github.com/nymtech/nym/tree/nym-connect-v1.1.9) (2023-02-14)
-
-- Button animations ([#2949])
-- add effect when the button is clicked ([#2947])
-- UI to select gateways based on some performance criteria by checking gateways' routing score from nym-api ([#2942])
-- client health check when connecting ([#2859])
-- allow user to select own gateway ([#2952])
-
-[#2952]: https://github.com/nymtech/nym/issues/2952
-[#2949]: https://github.com/nymtech/nym/issues/2949
-[#2947]: https://github.com/nymtech/nym/issues/2947
-[#2942]: https://github.com/nymtech/nym/issues/2942
-[#2859]: https://github.com/nymtech/nym/issues/2859
-
-## [nym-connect-v1.1.8](https://github.com/nymtech/nym/tree/nym-connect-v1.1.8) (2023-01-31)
-
-- Add supported apps in the menu + update guide ([#2868])
-- Copy changes to remove the dropdown: ([#2777])
-
-[#2868]: https://github.com/nymtech/nym/issues/2868
-[#2777]: https://github.com/nymtech/nym/issues/2777
-
-## [nym-connect-v1.1.7](https://github.com/nymtech/nym/tree/nym-connect-v1.1.7) (2023-01-24)
-
-- Remove test and earn ([#2865])
-
-[#2865]: https://github.com/nymtech/nym/issue/2865
-
-## [nym-connect-v1.1.6](https://github.com/nymtech/nym/tree/nym-connect-v1.1.6) (2023-01-17)
-
-- part (1) show gateway status on the UI if the gateway is not live, is overloaded or is slow ([#2824])
-
-[#2824]: https://github.com/nymtech/nym/pull/2824
 
 ## [nym-connect-v1.1.5](https://github.com/nymtech/nym/tree/nym-connect-v1.1.5) (2023-01-10)
 
 - get version number from tauri and display by @fmtabbara in https://github.com/nymtech/nym/pull/2684
 - Feature/nym connect experimental software text by @fmtabbara in https://github.com/nymtech/nym/pull/2692
 - NymConnect - Display service info in tooltip **1.1.5 Release** by @fmtabbara in https://github.com/nymtech/nym/pull/2704
+- Feat/2130 tables update rebase by @gala1234 in https://github.com/nymtech/nym/pull/2742
 
 ## [nym-connect-v1.1.4](https://github.com/nymtech/nym/tree/nym-connect-v1.1.4) (2022-12-20)
 
@@ -77,6 +42,7 @@ This release contains the new opt-in Test & Earn program, and it uses a stress-t
 [#1789]: https://github.com/nymtech/nym/pull/1789
 [#1805]: https://github.com/nymtech/nym/pull/1805
 
+
 ## [nym-connect-v1.1.0](https://github.com/nymtech/nym/tree/nym-connect-v1.1.0) (2022-11-09)
 
 - nym-connect: rework of rewarding changes the directory data structures that describe the mixnet topology ([#1472])
@@ -103,6 +69,7 @@ This release contains the new opt-in Test & Earn program, and it uses a stress-t
 - nym-connect: add `local-forage` for storing user settings ([#1540])
 
 [#1540]: https://github.com/nymtech/nym/pull/1540
+
 
 ## [nym-connect-v1.0.1](https://github.com/nymtech/nym/tree/nym-connect-v1.0.1) (2022-07-22)
 

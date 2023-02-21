@@ -18,7 +18,7 @@ bs58 = "0.4.0"
 sha2 = "0.9"
 
 dkg = { path = "../crypto/dkg" }
-nym-pemstore = { path = "../pemstore" }
+pemstore = { path = "../pemstore" }
 
 [dependencies.ff]
 version = "0.11"
@@ -32,6 +32,9 @@ default-features = false
 criterion = { version="0.3", features=["html_reports"] }
 doc-comment = "0.3"
 rand_chacha = "0.3"
+
+[dev-dependencies.bincode]
+version = "1"
 
 [[bench]]
 name = "benchmarks"

@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::Config;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::ReceivedProcessor;
 use crate::network_monitor::monitor::sender::PacketSender;
@@ -8,7 +9,6 @@ use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestSum
 use crate::network_monitor::test_packet::TestPacket;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
-use crate::support::config::Config;
 use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
 use std::process;

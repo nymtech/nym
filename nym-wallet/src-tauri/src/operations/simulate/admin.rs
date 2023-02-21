@@ -4,7 +4,7 @@
 use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
-use nym_mixnet_contract_common::{ContractStateParams, ExecuteMsg};
+use mixnet_contract_common::{ContractStateParams, ExecuteMsg};
 use nym_wallet_types::admin::TauriContractStateParams;
 
 #[tauri::command]

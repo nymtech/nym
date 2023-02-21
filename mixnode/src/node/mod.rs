@@ -18,17 +18,17 @@ use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crate::OutputFormat;
+use ::crypto::asymmetric::{encryption, identity};
 use colored::Colorize;
 use config::NymConfig;
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
-use nym_crypto::asymmetric::{encryption, identity};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use task::{TaskClient, TaskManager};
+use task::{wait_for_signal, TaskClient, TaskManager};
 use version_checker::parse_version;
 
 mod http;
@@ -58,14 +58,14 @@ impl MixNode {
     }
 
     fn load_node_description(config: &Config) -> NodeDescription {
-        NodeDescription::load_from_file(Config::default_config_directory(&config.get_id()))
+        NodeDescription::load_from_file(Config::default_config_directory(Some(&config.get_id())))
             .unwrap_or_default()
     }
 
     /// Loads identity keys stored on disk
     pub(crate) fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
             ))
@@ -76,7 +76,7 @@ impl MixNode {
     /// Loads Sphinx keys stored on disk
     fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
         let sphinx_keypair: encryption::KeyPair =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
             ))
@@ -122,7 +122,7 @@ impl MixNode {
                 serde_json::to_string(&node_details)
                     .unwrap_or_else(|_| "Could not serialize node details".to_string())
             ),
-            OutputFormat::Text => println!("{node_details}"),
+            OutputFormat::Text => println!("{}", node_details),
         }
     }
 
@@ -292,8 +292,15 @@ impl MixNode {
             .map(|node| node.bond_information.mix_node.identity_key.clone())
     }
 
-    async fn wait_for_interrupt(&self, shutdown: TaskManager) {
-        let _res = shutdown.catch_interrupt().await;
+    async fn wait_for_interrupt(&self, mut shutdown: TaskManager) {
+        wait_for_signal().await;
+
+        log::info!("Sending shutdown");
+        shutdown.signal_shutdown().ok();
+
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        shutdown.wait_for_shutdown().await;
+
         log::info!("Stopping nym mixnode");
     }
 

@@ -1,9 +1,9 @@
 // Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use nym_crypto::generic_array;
-use nym_crypto::hmac::HmacOutput;
-use nym_crypto::OutputSizeUser;
+pub use crypto::generic_array;
+use crypto::hmac::HmacOutput;
+use crypto::OutputSizeUser;
 use nymsphinx::params::GatewayIntegrityHmacAlgorithm;
 pub use types::*;
 

@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { Box, Collapse, Alert, IconButton, Typography, Divider } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { SxProps } from '@mui/system';

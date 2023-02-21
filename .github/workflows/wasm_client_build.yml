@@ -2,13 +2,8 @@ name: Wasm Client
 
 on:
   pull_request:
-    paths:
-      - 'clients/webassembly/**'
-      - 'clients/client-core/**'
-      - 'common/**'
-      - 'contracts/**'
-      - 'gateway/gateway-requests/**'
-      - 'nym-api/nym-api-requests/**'
+    paths-ignore:
+      - 'explorer/**'
 
 jobs:
   wasm:
@@ -28,6 +23,16 @@ jobs:
         with:
           command: build
           args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --features=coconut
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path clients/webassembly/Cargo.toml
 
       - uses: actions-rs/cargo@v1
         with:

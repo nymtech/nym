@@ -10,15 +10,15 @@ edition = "2021"
 bytes = "1.0"
 futures = "0.3"
 humantime-serde = "1.0"
-log = { workspace = true }
+log = "0.4"
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1.24.1", features = ["time", "macros", "rt", "net", "io-util"] }
-tokio-util = { version = "0.7.4", features = ["codec"] }
+tokio = { version = "1.21.2", features = ["time", "macros", "rt", "net", "io-util"] }
+tokio-util = { version = "0.7.3", features = ["codec"] }
 url = "2.2"
 thiserror = "1.0.37"
 
-nym-crypto =  { path = "../crypto" }
+crypto =  { path = "../crypto" }
 network-defaults = { path = "../network-defaults" }
 nymsphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
 nymsphinx-addressing = { path = "../nymsphinx/addressing" }

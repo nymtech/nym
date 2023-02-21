@@ -20,16 +20,6 @@ impl StorageManager {
         database_path: P,
         fresh: bool,
     ) -> Result<Self, StorageError> {
-        // ensure the whole directory structure exists
-        if let Some(parent_dir) = database_path.as_ref().parent() {
-            std::fs::create_dir_all(parent_dir).map_err(|source| {
-                StorageError::DatabasePathUnableToCreateParentDirectory {
-                    provided_path: database_path.as_ref().to_path_buf(),
-                    source,
-                }
-            })?;
-        }
-
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(fresh);

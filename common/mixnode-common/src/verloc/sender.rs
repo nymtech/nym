@@ -4,8 +4,8 @@
 use crate::verloc::error::RttError;
 use crate::verloc::measurement::Measurement;
 use crate::verloc::packet::{EchoPacket, ReplyPacket};
+use crypto::asymmetric::identity;
 use log::*;
-use nym_crypto::asymmetric::identity;
 use rand::{thread_rng, Rng};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -84,7 +84,6 @@ impl PacketSender {
         tested_node: TestedNode,
     ) -> Result<Measurement, RttError> {
         let mut shutdown_listener = self.shutdown_listener.clone();
-        shutdown_listener.mark_as_success();
 
         let mut conn = match tokio::time::timeout(
             self.connection_timeout,

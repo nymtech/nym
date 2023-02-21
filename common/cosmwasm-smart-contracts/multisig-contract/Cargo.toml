@@ -13,4 +13,3 @@ cw4 = { version = "0.13.4" }
 cosmwasm-std = "1.0.0"
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-thiserror = { version = "1.0.23" }

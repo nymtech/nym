@@ -1,67 +1,34 @@
 import React from 'react';
-import { Box, CircularProgress, Tooltip, Typography } from '@mui/material';
+import { Box, CircularProgress, Divider, Stack, Tooltip, Typography } from '@mui/material';
 import { DateTime } from 'luxon';
-import { ErrorOutline, InfoOutlined } from '@mui/icons-material';
-import { ConnectionStatusKind, GatewayPerformance } from '../types';
+import { ConnectionStatusKind } from '../types';
 import { ServiceProvider } from '../types/directory';
-import { GatwayWarningInfo, ServiceProviderInfo } from './TooltipInfo';
+import { ServiceProviderInfo } from './ServiceProviderInfo';
 
-const FONT_SIZE = '14px';
+const FONT_SIZE = '10px';
 const FONT_WEIGHT = '600';
 const FONT_STYLE = 'normal';
 
-const ConnectionStatusContent: FCWithChildren<{
+const ConnectionStatusContent: React.FC<{
   status: ConnectionStatusKind;
-  serviceProvider?: ServiceProvider;
-  gatewayError: boolean;
-}> = ({ status, serviceProvider, gatewayError }) => {
-  if (gatewayError) {
-    return (
-      <Tooltip title={serviceProvider ? <GatwayWarningInfo /> : undefined}>
-        <Box
-          display="flex"
-          alignItems="center"
-          gap={0.5}
-          justifyContent="center"
-          sx={{ cursor: 'pointer' }}
-          color="warning.main"
-        >
-          <ErrorOutline sx={{ fontSize: 14 }} />
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize={FONT_SIZE} textAlign="center">
-            Gateway has issues
-          </Typography>
-        </Box>
-      </Tooltip>
-    );
-  }
+}> = ({ status }) => {
   switch (status) {
-    case 'connected':
+    case ConnectionStatusKind.connected:
       return (
-        <Tooltip title={serviceProvider ? <ServiceProviderInfo serviceProvider={serviceProvider} /> : undefined}>
-          <Box display="flex" alignItems="center" gap={0.5} justifyContent="center" sx={{ cursor: 'pointer' }}>
-            <InfoOutlined sx={{ fontSize: 14 }} />
-            <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize={FONT_SIZE} textAlign="center">
-              Connected to Nym Mixnet
-            </Typography>
-          </Box>
-        </Tooltip>
-      );
-    case 'disconnected':
-      return (
-        <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} textAlign="center" fontSize={FONT_SIZE}>
-          Connect to the mixnet
+        <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize="14px">
+          Connected to
         </Typography>
       );
-    case 'disconnecting':
+    case ConnectionStatusKind.disconnecting:
       return (
         <Box display="flex" alignItems="center" justifyContent="center">
           <CircularProgress size={FONT_SIZE} color="inherit" />
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE}>
+          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} ml={1}>
             Disconnecting...
           </Typography>
         </Box>
       );
-    case 'connecting':
+    case ConnectionStatusKind.connecting:
       return (
         <Box display="flex" alignItems="center" justifyContent="center">
           <CircularProgress size={FONT_SIZE} color="inherit" />
@@ -70,27 +37,47 @@ const ConnectionStatusContent: FCWithChildren<{
           </Typography>
         </Box>
       );
-
+    case ConnectionStatusKind.disconnected:
+      return (
+        <Typography
+          fontWeight={FONT_WEIGHT}
+          fontStyle={FONT_STYLE}
+          ml={1}
+          textTransform="uppercase"
+          textAlign="center"
+          fontSize={FONT_SIZE}
+          sx={{ wordSpacing: 3, letterSpacing: 2 }}
+        >
+          You are not protected
+        </Typography>
+      );
     default:
       return null;
   }
 };
 
-export const ConnectionStatus: FCWithChildren<{
+export const ConnectionStatus: React.FC<{
   status: ConnectionStatusKind;
-  gatewayPerformance?: GatewayPerformance;
   connectedSince?: DateTime;
   serviceProvider?: ServiceProvider;
-}> = ({ status, serviceProvider, gatewayPerformance }) => {
-  const color = status === 'connected' || status === 'disconnecting' ? '#21D072' : 'white';
+}> = ({ status, serviceProvider }) => {
+  const color =
+    status === ConnectionStatusKind.connected || status === ConnectionStatusKind.disconnecting
+      ? '#21D072'
+      : 'warning.main';
 
   return (
-    <Box color={color} sx={{ mb: 2 }}>
-      <ConnectionStatusContent
-        status={status}
-        serviceProvider={serviceProvider}
-        gatewayError={gatewayPerformance !== 'Good'}
-      />
-    </Box>
+    <>
+      <Box color={color} fontSize={FONT_SIZE} sx={{ mb: 1 }}>
+        <ConnectionStatusContent status={status} />
+      </Box>
+      {serviceProvider ? (
+        <Tooltip title={<ServiceProviderInfo serviceProvider={serviceProvider} />}>
+          <Box sx={{ cursor: 'pointer' }}>
+            {serviceProvider && <Typography>{serviceProvider.description}</Typography>}
+          </Box>
+        </Tooltip>
+      ) : null}
+    </>
   );
 };

@@ -8,7 +8,7 @@ use crate::utils::{deserialize_g1, deserialize_g2, deserialize_scalar};
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use ff::Field;
 use group::GroupEncoding;
-use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use rand_core::RngCore;
 use zeroize::Zeroize;
 
@@ -224,7 +224,10 @@ impl DecryptionKey {
         let mut dh = Vec::with_capacity(dh_len);
         for j in 0..dh_len {
             let dh_i = deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
-                DkgError::new_deserialization_failure(format!("Node.dh_{j}"), "invalid curve point")
+                DkgError::new_deserialization_failure(
+                    format!("Node.dh_{}", j),
+                    "invalid curve point",
+                )
             })?;
 
             dh.push(dh_i);

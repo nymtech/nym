@@ -2,7 +2,7 @@ import React from 'react';
 import { Stack, Typography } from '@mui/material';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 
-export const BondOversaturatedModal: FCWithChildren<{
+export const BondOversaturatedModal: React.FC<{
   open: boolean;
   saturationPercentage: string;
   onClose?: () => void;

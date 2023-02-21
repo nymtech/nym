@@ -12,7 +12,6 @@ const getStakeSaturation = (item: DelegationWithEverything) =>
   !item.stake_saturation ? '-' : `${decimalToPercentage(item.stake_saturation)}%`;
 
 const getRewardValue = (item: DelegationWithEverything) => {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   const { unclaimed_rewards } = item;
   return !unclaimed_rewards ? '-' : `${unclaimed_rewards.amount} ${unclaimed_rewards.denom}`;
 };
@@ -33,11 +32,11 @@ export const DelegationItem = ({
   const tooltipText = () => {
     if (nodeIsUnbonded) {
       return 'This node has unbonded and it does not exist anymore. You need to undelegate from it to get your stake and outstanding rewards (if any) back.';
-    }
-    if (item.uses_vesting_contract_tokens) {
+    } else if (item.uses_vesting_contract_tokens) {
       return 'Delegation made with locked tockens';
+    } else {
+      return '';
     }
-    return '';
   };
 
   return (

@@ -106,8 +106,13 @@ export const vestingClaimOperatorReward = async (fee?: Fee) =>
 export const vestingClaimDelegatorRewards = async (mixId: number) =>
   invokeWrapper<TransactionExecuteResult>('vesting_claim_delegator_reward', { mixId });
 
-export const vestingBondMore = async ({ fee, additionalPledge }: { fee?: Fee; additionalPledge: DecCoin }) =>
-  invokeWrapper<TransactionExecuteResult>('vesting_pledge_more', {
-    fee,
-    additionalPledge,
-  });
+export const vestingBondMore = async ({
+  fee,
+  additionalPledge,
+}: {
+  fee?: Fee;
+  additionalPledge: DecCoin;
+}) => invokeWrapper<TransactionExecuteResult>('vesting_pledge_more', {
+  fee,
+  additionalPledge,
+});

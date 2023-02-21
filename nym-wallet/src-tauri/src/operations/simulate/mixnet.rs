@@ -4,8 +4,8 @@
 use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
-use nym_mixnet_contract_common::MixNodeConfigUpdate;
-use nym_mixnet_contract_common::{ExecuteMsg, Gateway, MixId, MixNode};
+use mixnet_contract_common::MixNodeConfigUpdate;
+use mixnet_contract_common::{ExecuteMsg, Gateway, MixId, MixNode};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 

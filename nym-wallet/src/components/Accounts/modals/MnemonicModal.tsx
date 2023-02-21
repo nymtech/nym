@@ -3,19 +3,24 @@ import {
   Box,
   Button,
   CircularProgress,
+  Paper,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Paper,
+  IconButton,
   Typography,
 } from '@mui/material';
+import { ArrowBackSharp } from '@mui/icons-material';
 import { AccountsContext } from 'src/context';
-import { Mnemonic, PasswordInput } from 'src/components';
+import { useClipboard } from 'use-clipboard-copy';
+import { PasswordInput, Mnemonic } from 'src/components';
 import { StyledBackButton } from 'src/components/StyledBackButton';
 
 export const MnemonicModal = () => {
   const [password, setPassword] = useState('');
+
+  const { copy, copied } = useClipboard({ copiedTimeout: 5000 });
 
   const {
     dialogToDisplay,
@@ -69,7 +74,7 @@ export const MnemonicModal = () => {
               />
             </>
           ) : (
-            <Mnemonic mnemonic={accountMnemonic.value} />
+            <Mnemonic mnemonic={accountMnemonic.value} handleCopy={copy} copied={copied} />
           )}
         </Box>
       </DialogContent>

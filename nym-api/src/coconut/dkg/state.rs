@@ -9,7 +9,6 @@ use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Addr;
 use dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
-use nymcoconut::SecretKey;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
@@ -72,18 +71,18 @@ pub(crate) trait ConsistentState {
     fn proposal_id_value(&self) -> Result<u64, CoconutError>;
     async fn is_consistent(&self, epoch_state: EpochState) -> Result<(), CoconutError> {
         match epoch_state {
-            EpochState::PublicKeySubmission { .. } => {}
-            EpochState::DealingExchange { .. } => {
+            EpochState::PublicKeySubmission => {}
+            EpochState::DealingExchange => {
                 self.node_index_value()?;
             }
-            EpochState::VerificationKeySubmission { .. } => {
+            EpochState::VerificationKeySubmission => {
                 self.receiver_index_value()?;
                 self.threshold()?;
             }
-            EpochState::VerificationKeyValidation { .. } => {
+            EpochState::VerificationKeyValidation => {
                 self.coconut_keypair_is_some().await?;
             }
-            EpochState::VerificationKeyFinalization { .. } => {
+            EpochState::VerificationKeyFinalization => {
                 self.proposal_id_value()?;
             }
             EpochState::InProgress => {}
@@ -171,7 +170,6 @@ pub(crate) struct PersistentState {
     proposal_id: Option<u64>,
     voted_vks: bool,
     executed_proposal: bool,
-    was_in_progress: bool,
 }
 
 impl From<&State> for PersistentState {
@@ -185,7 +183,6 @@ impl From<&State> for PersistentState {
             proposal_id: s.proposal_id,
             voted_vks: s.voted_vks,
             executed_proposal: s.executed_proposal,
-            was_in_progress: s.was_in_progress,
         }
     }
 }
@@ -214,7 +211,6 @@ pub(crate) struct State {
     proposal_id: Option<u64>,
     voted_vks: bool,
     executed_proposal: bool,
-    was_in_progress: bool,
 }
 
 impl State {
@@ -238,23 +234,7 @@ impl State {
             proposal_id: persistent_state.proposal_id,
             voted_vks: persistent_state.voted_vks,
             executed_proposal: persistent_state.executed_proposal,
-            was_in_progress: persistent_state.was_in_progress,
         }
-    }
-
-    pub async fn reset_persistent(&mut self, resharing: bool) {
-        if !resharing {
-            self.coconut_keypair.set(None).await;
-        }
-        self.node_index = Default::default();
-        self.dealers = Default::default();
-        self.receiver_index = Default::default();
-        self.threshold = Default::default();
-        self.recovered_vks = Default::default();
-        self.proposal_id = Default::default();
-        self.voted_vks = Default::default();
-        self.executed_proposal = Default::default();
-        self.was_in_progress = Default::default();
     }
 
     pub fn persistent_state_path(&self) -> PathBuf {
@@ -271,14 +251,6 @@ impl State {
 
     pub async fn coconut_keypair_is_some(&self) -> bool {
         self.coconut_keypair.get().await.is_some()
-    }
-
-    pub async fn coconut_secret_key(&self) -> Option<SecretKey> {
-        self.coconut_keypair
-            .get()
-            .await
-            .as_ref()
-            .map(|kp| kp.secret_key())
     }
 
     pub fn node_index(&self) -> Option<NodeIndex> {
@@ -327,18 +299,11 @@ impl State {
         self.executed_proposal
     }
 
-    pub fn was_in_progress(&self) -> bool {
-        self.was_in_progress
-    }
-
     pub fn set_recovered_vks(&mut self, recovered_vks: Vec<RecoveredVerificationKeys>) {
         self.recovered_vks = recovered_vks;
     }
 
-    pub async fn set_coconut_keypair(
-        &mut self,
-        coconut_keypair: Option<coconut_interface::KeyPair>,
-    ) {
+    pub async fn set_coconut_keypair(&mut self, coconut_keypair: coconut_interface::KeyPair) {
         self.coconut_keypair.set(coconut_keypair).await
     }
 
@@ -382,10 +347,6 @@ impl State {
 
     pub fn set_executed_proposal(&mut self) {
         self.executed_proposal = true;
-    }
-
-    pub fn set_was_in_progress(&mut self) {
-        self.was_in_progress = true;
     }
 
     #[cfg(test)]

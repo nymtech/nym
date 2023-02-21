@@ -51,7 +51,7 @@ Storybook is available in [@nymproject/react](../react-components/src/stories/In
 The [Nym theme](../mui-theme/src/theme/theme.ts) provides a theme provider that you can add as follows:
 
 ```typescript jsx
-export const App: FCWithChildren = () => (
+export const App: React.FC = () => (
   <AppContextProvider>
     <AppTheme>
       <Content />
@@ -59,13 +59,13 @@ export const App: FCWithChildren = () => (
   </AppContextProvider>
 );
 
-export const AppTheme: FCWithChildren = ({ children }) => {
+export const AppTheme: React.FC = ({ children }) => {
   const { mode } = useAppContext();
 
   return <NymThemeProvider mode={mode}>{children}</NymThemeProvider>;
 };
 
-export const Content: FCWithChildren = () => {
+export const Content: React.FC = () => {
 ...
 }
 ```

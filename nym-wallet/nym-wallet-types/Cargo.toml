@@ -16,19 +16,19 @@ cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegr
 
 config = { path = "../../common/config" }
 network-defaults = { path = "../../common/network-defaults" }
-nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }
-nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 # Used for Type conversion, can be extracted but its a lot of work
-nym-vesting-contract = { path = "../../contracts/vesting" }
+vesting-contract = { path = "../../contracts/vesting" }
 
 nym-types = { path = "../../common/types" }
 
 [features]
 default = []
-generate-ts = ["nym-mixnet-contract-common/generate-ts", "nym-types/generate-ts"]
+generate-ts = ["mixnet-contract-common/generate-ts", "nym-types/generate-ts"]
 
 
 

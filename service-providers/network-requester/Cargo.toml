@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-network-requester"
-version = "1.1.9"
+version = "1.1.5"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 rust-version = "1.65"
@@ -16,7 +16,7 @@ clap = {version = "4.0", features = ["derive"]}
 dirs = "4.0"
 futures = "0.3.24"
 ipnetwork = "0.20.0"
-log = { workspace = true }
+log = "0.4.17"
 pretty_env_logger = "0.4.0"
 publicsuffix = "1.5" # Can't update this until bip updates to support newer idna version
 rand = "0.7.3"
@@ -24,12 +24,11 @@ reqwest = { version = "0.11.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "chrono"]}
 thiserror = "1.0"
-tokio = { version = "1.24.1", features = [ "net", "rt-multi-thread", "macros" ] }
+tokio = { version = "1.21.2", features = [ "net", "rt-multi-thread", "macros" ] }
 tokio-tungstenite = "0.17.2"
 
 
 # internal
-build-information = { path = "../../common/build-information" }
 client-connections = { path = "../../common/client-connections" }
 completions = { path = "../../common/completions" }
 network-defaults = { path = "../../common/network-defaults" }
@@ -37,7 +36,6 @@ nymsphinx = { path = "../../common/nymsphinx" }
 logging = { path = "../../common/logging"}
 ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
-service-providers-common = { path = "../common" }
 socks5-requests = { path = "../../common/socks5/requests" }
 statistics-common = { path = "../../common/statistics" }
 task = { path = "../../common/task" }

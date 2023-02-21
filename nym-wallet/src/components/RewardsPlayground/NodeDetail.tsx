@@ -24,7 +24,7 @@ export const NodeDetails = ({ saturation }: { saturation?: string }) => {
         <Divider sx={{ my: 1 }} />
         <Stack direction="row" justifyContent="space-between">
           <Typography fontWeight="medium">Selection probability</Typography>
-          <InclusionProbability probability={computeSelectionProbability(parseInt(saturation, 10))} />
+          <InclusionProbability probability={computeSelectionProbability(parseInt(saturation))} />
         </Stack>
       </CardContent>
     </Card>

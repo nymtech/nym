@@ -80,7 +80,7 @@ pub fn create_signing_client(
 
     match NyxdClient::connect_with_mnemonic(client_config, nyxd_url, mnemonic, None) {
         Ok(client) => Ok(client),
-        Err(e) => Err(ContextError::NyxdError(format!("{e}"))),
+        Err(e) => Err(ContextError::NyxdError(format!("{:?}", e))),
     }
 }
 
@@ -99,7 +99,7 @@ pub fn create_query_client(
 
     match NyxdClient::connect(client_config, nyxd_url) {
         Ok(client) => Ok(client),
-        Err(e) => Err(ContextError::NyxdError(format!("{e}"))),
+        Err(e) => Err(ContextError::NyxdError(format!("{:?}", e))),
     }
 }
 
@@ -122,7 +122,7 @@ pub fn create_signing_client_with_nym_api(
 
     match validator_client::client::Client::new_signing(client_config, mnemonic) {
         Ok(client) => Ok(client),
-        Err(e) => Err(ContextError::NyxdError(format!("{e}"))),
+        Err(e) => Err(ContextError::NyxdError(format!("{:?}", e))),
     }
 }
 
@@ -134,6 +134,6 @@ pub fn create_query_client_with_nym_api(
 
     match validator_client::client::Client::new_query(client_config) {
         Ok(client) => Ok(client),
-        Err(e) => Err(ContextError::NyxdError(format!("{e}"))),
+        Err(e) => Err(ContextError::NyxdError(format!("{:?}", e))),
     }
 }

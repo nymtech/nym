@@ -5,14 +5,14 @@ use crate::registration::handshake::error::HandshakeError;
 use crate::registration::handshake::shared_key::{SharedKeySize, SharedKeys};
 use crate::registration::handshake::WsItem;
 use crate::types;
-use futures::{Sink, SinkExt, Stream, StreamExt};
-use log::*;
-use nym_crypto::{
+use crypto::{
     asymmetric::{encryption, identity},
     generic_array::typenum::Unsigned,
     hkdf,
     symmetric::stream_cipher,
 };
+use futures::{Sink, SinkExt, Stream, StreamExt};
+use log::*;
 use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{CryptoRng, RngCore};
 use std::convert::{TryFrom, TryInto};

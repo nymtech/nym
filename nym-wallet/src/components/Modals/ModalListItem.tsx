@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Stack, Typography, TypographyProps } from '@mui/material';
 import { ModalDivider } from './ModalDivider';
 
-export const ModalListItem: FCWithChildren<{
+export const ModalListItem: React.FC<{
   label: string;
   divider?: boolean;
   hidden?: boolean;

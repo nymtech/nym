@@ -2,7 +2,7 @@ import React from 'react';
 import { SxProps } from '@mui/material';
 import { SimpleModal } from '../Modals/SimpleModal';
 
-export const OverSaturatedBlockerModal: FCWithChildren<{
+export const OverSaturatedBlockerModal: React.FC<{
   open: boolean;
   onClose?: () => void;
   header?: string;

@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { Box, Button, Divider, Grid } from '@mui/material';
-import { isMixnode } from 'src/types';
 import { TBondedMixnode, TBondedGateway } from '../../../../../context/bonding';
 import { InfoSettings } from './InfoSettings';
 import { ParametersSettings } from './ParametersSettings';
+import { isMixnode } from 'src/types';
 
 const nodeGeneralNav = ['Info', 'Parameters'];
 
 export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [settingsCard, setSettingsCard] = useState<string>(nodeGeneralNav[0]);
-  // TODO: Check what happens with a gateway
+  //TODO: Check what happens with a gateway
   return (
     <Box sx={{ pl: 3, pt: 3 }}>
       <Grid container direction="row" spacing={3}>

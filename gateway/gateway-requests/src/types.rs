@@ -5,10 +5,9 @@ use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
 use crate::registration::handshake::SharedKeys;
 use crate::{GatewayMacSize, PROTOCOL_VERSION};
-use coconut_interface::Credential;
-use nym_crypto::generic_array::typenum::Unsigned;
-use nym_crypto::hmac::recompute_keyed_hmac_and_verify_tag;
-use nym_crypto::symmetric::stream_cipher;
+use crypto::generic_array::typenum::Unsigned;
+use crypto::hmac::recompute_keyed_hmac_and_verify_tag;
+use crypto::symmetric::stream_cipher;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddressError;
 use nymsphinx::forwarding::packet::{MixPacket, MixPacketFormattingError};
 use nymsphinx::params::packet_sizes::PacketSize;
@@ -20,6 +19,11 @@ use std::{
     fmt::{self, Error, Formatter},
 };
 use tungstenite::protocol::Message;
+
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
+#[cfg(not(feature = "coconut"))]
+use credentials::token::bandwidth::TokenCredential;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -153,6 +157,7 @@ impl ClientControlRequest {
         }
     }
 
+    #[cfg(feature = "coconut")]
     pub fn new_enc_coconut_bandwidth_credential(
         credential: &Credential,
         shared_key: &SharedKeys,
@@ -167,6 +172,7 @@ impl ClientControlRequest {
         }
     }
 
+    #[cfg(feature = "coconut")]
     pub fn try_from_enc_coconut_bandwidth_credential(
         enc_credential: Vec<u8>,
         shared_key: &SharedKeys,
@@ -174,6 +180,30 @@ impl ClientControlRequest {
     ) -> Result<Credential, GatewayRequestsError> {
         let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
         Credential::from_bytes(&credential_bytes)
+            .map_err(|_| GatewayRequestsError::MalformedEncryption)
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn new_enc_token_bandwidth_credential(
+        credential: &TokenCredential,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Self {
+        let enc_credential = shared_key.encrypt_and_tag(&credential.to_bytes(), Some(iv.inner()));
+        ClientControlRequest::BandwidthCredential {
+            enc_credential,
+            iv: iv.to_bytes(),
+        }
+    }
+
+    #[cfg(not(feature = "coconut"))]
+    pub fn try_from_enc_token_bandwidth_credential(
+        enc_credential: Vec<u8>,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Result<TokenCredential, GatewayRequestsError> {
+        let credential = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
+        TokenCredential::from_bytes(&credential)
             .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }

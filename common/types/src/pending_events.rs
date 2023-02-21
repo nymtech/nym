@@ -4,7 +4,7 @@
 use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
 use crate::mixnode::MixNodeCostParams;
-use nym_mixnet_contract_common::{
+use mixnet_contract_common::{
     BlockHeight, EpochEventId, IntervalEventId, IntervalRewardingParamsUpdate, MixId,
     PendingEpochEvent as MixnetContractPendingEpochEvent,
     PendingEpochEventKind as MixnetContractPendingEpochEventKind,

@@ -8,7 +8,7 @@ use crate::OutputFormat;
 use crate::{commands::override_config, config::persistence::pathfinder::MixNodePathfinder};
 use clap::Args;
 use config::NymConfig;
-use nym_crypto::asymmetric::{encryption, identity};
+use crypto::asymmetric::{encryption, identity};
 use std::net::IpAddr;
 use validator_client::nyxd;
 
@@ -66,10 +66,10 @@ impl From<Init> for OverrideConfig {
 pub(crate) fn execute(args: &Init, output: OutputFormat) {
     let override_config_fields = OverrideConfig::from(args.clone());
     let id = &override_config_fields.id;
-    eprintln!("Initialising mixnode {id}...");
+    eprintln!("Initialising mixnode {}...", id);
 
-    let already_init = if Config::default_config_file_path(id).exists() {
-        eprintln!("Mixnode \"{id}\" was already initialised before! Config information will be overwritten (but keys will be kept)!");
+    let already_init = if Config::default_config_file_path(Some(id)).exists() {
+        eprintln!("Mixnode \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
         true
     } else {
         false
@@ -85,18 +85,18 @@ pub(crate) fn execute(args: &Init, output: OutputFormat) {
         let identity_keys = identity::KeyPair::new(&mut rng);
         let sphinx_keys = encryption::KeyPair::new(&mut rng);
         let pathfinder = MixNodePathfinder::new_from_config(&config);
-        nym_pemstore::store_keypair(
+        pemstore::store_keypair(
             &identity_keys,
-            &nym_pemstore::KeyPairPath::new(
+            &pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
             ),
         )
         .expect("Failed to save identity keys");
 
-        nym_pemstore::store_keypair(
+        pemstore::store_keypair(
             &sphinx_keys,
-            &nym_pemstore::KeyPairPath::new(
+            &pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
             ),
@@ -109,7 +109,7 @@ pub(crate) fn execute(args: &Init, output: OutputFormat) {
     config
         .save_to_file(None)
         .expect("Failed to save the config file");
-    eprintln!("Saved configuration file to {config_save_location:?}");
+    eprintln!("Saved configuration file to {:?}", config_save_location);
     eprintln!("Mixnode configuration completed.\n\n\n");
 
     MixNode::new(config).print_node_details(output)

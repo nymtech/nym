@@ -20,6 +20,6 @@
     "typeRoots": ["node_modules/@types"],
     "alwaysStrict": true
   },
-  "include": ["src/**/*", "tests/functional_test/*/*"],
+  "include": ["src/**/*", "functional_test/**/*"],
   "exclude": ["unit_test/**/*"]
 }

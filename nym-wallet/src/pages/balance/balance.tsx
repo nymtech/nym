@@ -43,7 +43,7 @@ export const BalanceCard = () => {
         {network && (
           <Grid item>
             <Link
-              href={`${urls(network).mixnetExplorer}/account/${clientDetails?.client_address}`}
+              href={`${urls(network).blockExplorer}/account/${clientDetails?.client_address}`}
               target="_blank"
               text="Last transactions"
               fontSize={14}

@@ -4,16 +4,20 @@ import { AppContext } from '../context/main';
 import { CopyToClipboard } from './CopyToClipboard';
 import { splice } from '../utils';
 
-const AddressTooltip: FCWithChildren<{ visible?: boolean; address?: string }> = ({ visible, address, children }) => {
-  if (!visible || !address) {
-    // eslint-disable-next-line react/jsx-no-useless-fragment
-    return <>{children}</>;
+const AddressTooltip: FC<{ visible?: boolean; address?: string; children: React.ReactElement<any, any> }> = ({
+  visible,
+  address,
+  children,
+}) => {
+  if (!visible) {
+    return children;
   }
-
+  if (!address) {
+    return children;
+  }
   return (
     <Tooltip title={address} arrow>
-      {/* eslint-disable-next-line react/jsx-no-useless-fragment */}
-      <>{children}</>
+      {children}
     </Tooltip>
   );
 };

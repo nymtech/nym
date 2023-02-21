@@ -1,23 +1,20 @@
 import * as Comlink from 'comlink';
-import InlineWasmWebWorker from 'web-worker:./worker';
 import {
-  BinaryMessageReceivedEvent,
-  ConnectedEvent,
   EventHandlerFn,
   EventKinds,
   IWebWorker,
-  IWebWorkerAsync,
   IWebWorkerEvents,
+  ConnectedEvent,
   LoadedEvent,
-  MimeTypes,
   StringMessageReceivedEvent,
+  BinaryMessageReceivedEvent,
 } from './types';
 
 /**
  * Client for the Nym mixnet.
  */
 export interface NymMixnetClient {
-  client: IWebWorkerAsync;
+  client: Comlink.Remote<IWebWorker>;
   events: IWebWorkerEvents;
 }
 
@@ -25,9 +22,7 @@ export interface NymMixnetClient {
  * Create a client to send and receive traffic from the Nym mixnet.
  *
  */
-export const createNymMixnetClient = async (options?: {
-  autoConvertStringMimeTypes?: string[] | MimeTypes[];
-}): Promise<NymMixnetClient> => {
+export const createNymMixnetClient = async (): Promise<NymMixnetClient> => {
   // create a web worker that runs the WASM client on another thread and wait until it signals that it is ready
   // eslint-disable-next-line @typescript-eslint/no-use-before-define
   const worker = await createWorker();
@@ -92,15 +87,7 @@ export const createNymMixnetClient = async (options?: {
   };
 
   // let comlink handle interop with the web worker
-  const client: IWebWorkerAsync = Comlink.wrap<IWebWorker>(worker);
-
-  // set any options
-  if (options?.autoConvertStringMimeTypes) {
-    await client.setTextMimeTypes(options.autoConvertStringMimeTypes);
-  } else {
-    // set some sensible defaults for text mime types
-    await client.setTextMimeTypes([MimeTypes.ApplicationJson, MimeTypes.TextPlain]);
-  }
+  const client = Comlink.wrap<IWebWorker>(worker);
 
   // pass the client interop and subscription manage back to the caller
   return {
@@ -117,11 +104,9 @@ export const createNymMixnetClient = async (options?: {
  */
 const createWorker = async () =>
   new Promise<Worker>((resolve, reject) => {
-    // rollup will inline the built worker script, so that when the SDK is used in
-    // other projects, they will not need to mess around trying to bundle it
-    // however, it will make this SDK bundle bigger because of Base64 inline data
-    const worker = new InlineWasmWebWorker();
-
+    const worker = new Worker(
+      new URL('./worker.js', import.meta.url), // NB: this path is relative to the `dist` directory of this bundle
+    );
     worker.addEventListener('error', reject);
     worker.addEventListener(
       'message',

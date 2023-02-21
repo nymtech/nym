@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_mixnet_contract_common::ContractStateParams;
+use mixnet_contract_common::ContractStateParams;
 use nym_types::currency::{DecCoin, RegisteredCoins};
 use nym_types::error::TypesError;
 use serde::{Deserialize, Serialize};

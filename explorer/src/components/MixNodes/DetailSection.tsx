@@ -11,7 +11,7 @@ interface MixNodeDetailProps {
   mixnodeDescription: MixNodeDescriptionResponse;
 }
 
-export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNodeRow, mixnodeDescription }) => {
+export const MixNodeDetailSection: React.FC<MixNodeDetailProps> = ({ mixNodeRow, mixnodeDescription }) => {
   const theme = useTheme();
   const palette = [theme.palette.text.primary];
   const isMobile = useIsMobile();

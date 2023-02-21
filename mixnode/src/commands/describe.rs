@@ -41,7 +41,7 @@ fn read_user_input() -> String {
 
 pub(crate) fn execute(args: Describe) {
     // ensure that the mixnode has in fact been initialized
-    match Config::load_from_file(&args.id) {
+    match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {err})", &args.id);
@@ -83,7 +83,7 @@ pub(crate) fn execute(args: Describe) {
     // save the struct
     NodeDescription::save_to_file(
         &node_description,
-        Config::default_config_directory(&args.id),
+        Config::default_config_directory(Some(&args.id)),
     )
     .unwrap()
 }

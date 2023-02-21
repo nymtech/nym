@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_crypto::shared_key::new_ephemeral_shared_key;
-use nym_crypto::symmetric::stream_cipher;
+use crypto::shared_key::new_ephemeral_shared_key;
+use crypto::symmetric::stream_cipher;
 use nymsphinx_acknowledgements::surb_ack::SurbAck;
 use nymsphinx_acknowledgements::AckKey;
 use nymsphinx_addressing::clients::Recipient;

@@ -36,7 +36,7 @@ async fn send_text_with_reply() {
     let (mut ws_stream, _) = connect_async(uri).await.unwrap();
 
     let recipient = get_self_address(&mut ws_stream).await;
-    println!("our full address is: {recipient}");
+    println!("our full address is: {}", recipient);
 
     let send_request = json!({
         "type" : "send",
@@ -45,7 +45,10 @@ async fn send_text_with_reply() {
         "withReplySurb": true,
     });
 
-    println!("sending {message:?} (*with* reply SURB) over the mix network...");
+    println!(
+        "sending {:?} (*with* reply SURB) over the mix network...",
+        message
+    );
     let response =
         send_message_and_get_json_response(&mut ws_stream, send_request.to_string()).await;
 
@@ -56,7 +59,10 @@ async fn send_text_with_reply() {
         "replySurb": response["replySurb"]
     });
 
-    println!("sending {reply_message:?} (using reply SURB!) over the mix network...");
+    println!(
+        "sending {:?} (using reply SURB!) over the mix network...",
+        reply_message
+    );
 
     let response =
         send_message_and_get_json_response(&mut ws_stream, reply_request.to_string()).await;
@@ -70,7 +76,7 @@ async fn send_text_without_reply() {
     let (mut ws_stream, _) = connect_async(uri).await.unwrap();
 
     let recipient = get_self_address(&mut ws_stream).await;
-    println!("our full address is: {recipient}");
+    println!("our full address is: {}", recipient);
 
     let send_request = json!({
         "type" : "send",
@@ -79,7 +85,10 @@ async fn send_text_without_reply() {
         "withReplySurb": false,
     });
 
-    println!("sending {message:?} (*without* reply SURB) over the mix network...");
+    println!(
+        "sending {:?} (*without* reply SURB) over the mix network...",
+        message
+    );
     let response =
         send_message_and_get_json_response(&mut ws_stream, send_request.to_string()).await;
 

@@ -8,8 +8,7 @@ use crate::{
 };
 use clap::Args;
 use config::NymConfig;
-use nym_crypto::asymmetric::{encryption, identity};
-use std::error::Error;
+use crypto::asymmetric::{encryption, identity};
 use std::net::IpAddr;
 use std::path::PathBuf;
 use validator_client::nyxd;
@@ -51,12 +50,12 @@ pub struct Init {
     nym_apis: Option<Vec<url::Url>>,
 
     /// Comma separated list of endpoints of the validator
+    #[cfg(feature = "coconut")]
     #[clap(
         long,
         alias = "validators",
-        alias = "nyxd_validators",
-        value_delimiter = ',',
-        hide = true
+        alias = "nymd_validators",
+        value_delimiter = ','
     )]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nyxd_urls: Option<Vec<url::Url>>,
@@ -67,7 +66,8 @@ pub struct Init {
 
     /// Set this gateway to work only with coconut credentials; that would disallow clients to
     /// bypass bandwidth credential requirement
-    #[clap(long, hide = true)]
+    #[cfg(feature = "coconut")]
+    #[clap(long)]
     only_coconut_credentials: Option<bool>,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
@@ -94,17 +94,19 @@ impl From<Init> for OverrideConfig {
             enabled_statistics: init_config.enabled_statistics,
             statistics_service_url: init_config.statistics_service_url,
 
+            #[cfg(feature = "coconut")]
             nyxd_urls: init_config.nyxd_urls,
+            #[cfg(feature = "coconut")]
             only_coconut_credentials: init_config.only_coconut_credentials,
         }
     }
 }
 
-pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn execute(args: &Init, output: OutputFormat) {
     println!("Initialising gateway {}...", args.id);
 
-    let already_init = if Config::default_config_file_path(&args.id).exists() {
-        eprintln!(
+    let already_init = if Config::default_config_file_path(Some(&args.id)).exists() {
+        println!(
             "Gateway \"{}\" was already initialised before! Config information will be \
             overwritten (but keys will be kept)!",
             args.id
@@ -117,7 +119,7 @@ pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Err
     let override_config_fields = OverrideConfig::from(args.clone());
 
     // Initialising the config structure is just overriding a default constructed one
-    let config = override_config(Config::new(&args.id), override_config_fields)?;
+    let config = override_config(Config::new(&args.id), override_config_fields);
 
     // if gateway was already initialised, don't generate new keys
     if !already_init {
@@ -126,37 +128,37 @@ pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Err
         let identity_keys = identity::KeyPair::new(&mut rng);
         let sphinx_keys = encryption::KeyPair::new(&mut rng);
         let pathfinder = GatewayPathfinder::new_from_config(&config);
-        nym_pemstore::store_keypair(
+        pemstore::store_keypair(
             &sphinx_keys,
-            &nym_pemstore::KeyPairPath::new(
+            &pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
             ),
         )
         .expect("Failed to save sphinx keys");
 
-        nym_pemstore::store_keypair(
+        pemstore::store_keypair(
             &identity_keys,
-            &nym_pemstore::KeyPairPath::new(
+            &pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
             ),
         )
         .expect("Failed to save identity keys");
 
-        eprintln!("Saved identity and mixnet sphinx keypairs");
+        println!("Saved identity and mixnet sphinx keypairs");
     }
 
     let config_save_location = config.get_config_file_save_location();
     config
         .save_to_file(None)
         .expect("Failed to save the config file");
-    eprintln!("Saved configuration file to {:?}", config_save_location);
-    eprintln!("Gateway configuration completed.\n\n\n");
+    println!("Saved configuration file to {:?}", config_save_location);
+    println!("Gateway configuration completed.\n\n\n");
 
-    Ok(crate::node::create_gateway(config)
+    crate::node::create_gateway(config)
         .await
-        .print_node_details(output)?)
+        .print_node_details(output);
 }
 
 #[cfg(test)]
@@ -181,13 +183,15 @@ mod tests {
             mnemonic: None,
             statistics_service_url: None,
             enabled_statistics: None,
+            #[cfg(feature = "coconut")]
             nyxd_urls: None,
+            #[cfg(feature = "coconut")]
             only_coconut_credentials: None,
         };
         std::env::set_var(BECH32_PREFIX, "n");
 
         let config = Config::new(&args.id);
-        let config = override_config(config, OverrideConfig::from(args.clone())).unwrap();
+        let config = override_config(config, OverrideConfig::from(args.clone()));
 
         let (identity_keys, sphinx_keys) = {
             let mut rng = rand::rngs::OsRng;

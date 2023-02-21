@@ -3,8 +3,8 @@
 
 use crate::client::helpers::{get_time_now, Instant};
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
-use nym_task::connections::TransmissionLane;
 use nym_sphinx::chunking::fragment::Fragment;
+use nym_task::connections::TransmissionLane;
 use rand::{seq::SliceRandom, Rng};
 use std::{
     collections::{HashMap, HashSet, VecDeque},

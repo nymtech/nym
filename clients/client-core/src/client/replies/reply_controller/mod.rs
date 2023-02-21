@@ -4,7 +4,6 @@
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
 use crate::client::replies::reply_storage::CombinedReplyStorage;
-use nym_task::connections::{ConnectionId, TransmissionLane};
 use futures::channel::oneshot;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
@@ -12,6 +11,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::anonymous_replies::ReplySurb;
 use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
+use nym_task::connections::{ConnectionId, TransmissionLane};
 use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::btree_map::Entry;

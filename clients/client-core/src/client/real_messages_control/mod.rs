@@ -21,13 +21,13 @@ use crate::{
     },
     spawn_future,
 };
-use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketSize;
+use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;

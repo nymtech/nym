@@ -21,7 +21,6 @@ use crate::client::topology_control::{
 use crate::config::{Config, DebugConfig, GatewayEndpointConfig};
 use crate::error::ClientCoreError;
 use crate::spawn_future;
-use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 #[cfg(target_arch = "wasm32")]
@@ -36,6 +35,7 @@ use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::receiver::ReconstructedMessage;
+use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskManager};
 use std::sync::Arc;
 use std::time::Duration;

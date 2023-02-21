@@ -44,10 +44,10 @@ jobs:
         with:
           node-version: 16
 
-#      - name: Install Rust stable
-#        uses: actions-rs/toolchain@v1
-#        with:
-#          toolchain: stable
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
 
       - name: Create env file
         uses: timheuer/base64-to-file@v1.1

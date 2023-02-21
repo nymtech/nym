@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{ArgGroup, Args, Subcommand};
-use nym_bin_common::completions::ArgShell;
 use log::*;
+use nym_bin_common::completions::ArgShell;
 use rand::rngs::OsRng;
 use std::str::FromStr;
 

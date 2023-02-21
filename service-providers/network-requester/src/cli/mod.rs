@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{CommandFactory, Parser, Subcommand};
-use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::completions::{fig_generate, ArgShell};
 
 use crate::{
     config::{BaseConfig, Config},

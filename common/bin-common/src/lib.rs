@@ -2,6 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod build_information;
+pub mod completions;
 pub mod logging;
 pub mod version_checker;
-pub mod completions;

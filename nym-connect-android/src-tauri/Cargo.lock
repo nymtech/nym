@@ -778,15 +778,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "completions"
-version = "0.1.0"
-dependencies = [
- "clap",
- "clap_complete",
- "clap_complete_fig",
-]
-
-[[package]]
 name = "config"
 version = "0.1.0"
 dependencies = [
@@ -3529,6 +3520,9 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.1.0"
 dependencies = [
+ "clap",
+ "clap_complete",
+ "clap_complete_fig",
  "log",
  "pretty_env_logger",
  "semver 0.11.0",
@@ -3642,7 +3636,6 @@ dependencies = [
  "client-connections",
  "client-core",
  "coconut-interface",
- "completions",
  "config",
  "credentials",
  "dirs",

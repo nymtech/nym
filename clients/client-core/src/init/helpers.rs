@@ -16,7 +16,6 @@ use nym_topology::{filter::VersionFilterable, gateway};
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
-use topology::{filter::VersionFilterable, gateway};
 use tungstenite::Message;
 use url::Url;
 
@@ -139,11 +138,7 @@ async fn measure_latency(gateway: gateway::Node) -> Result<GatewayWithLatency, C
             _ = &mut timeout => {
                 warn!("timed out while trying to perform measurement...")
             }
-            res = measurement_future => {
-                if let Err(err) = res {
-                    return Err(err)
-                }
-            }
+            res = measurement_future => res?,
         }
     }
 

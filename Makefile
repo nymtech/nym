@@ -22,7 +22,7 @@ clippy-happy-connect:
 	cargo clippy --manifest-path nym-connect/Cargo.toml
 
 clippy-happy-connect-android:
-	cargo clippy --manifest-path nym-connect-android/src-tauri/Cargo.toml
+	cargo clippy --manifest-path mobile/nym-connect/src-tauri/Cargo.toml
 
 clippy-main:
 	cargo clippy --workspace -- -D warnings
@@ -44,7 +44,7 @@ clippy-all-connect:
 	cargo clippy --workspace --manifest-path nym-connect/Cargo.toml --all-features -- -D warnings
 
 clippy-all-connect-android:
-	cargo clippy --workspace --manifest-path nym-connect-android/src-tauri/Cargo.toml --all-features -- -D warnings
+	cargo clippy --workspace --manifest-path mobile/nym-connect/src-tauri/Cargo.toml --all-features -- -D warnings
 
 clippy-all-wasm-client:
 	cargo clippy --workspace --manifest-path clients/webassembly/Cargo.toml --all-features --target wasm32-unknown-unknown -- -D warnings
@@ -74,10 +74,10 @@ test-connect-expensive:
 	cargo test --manifest-path nym-connect/Cargo.toml --all-features -- --ignored
 
 test-connect-android:
-	cargo test --manifest-path nym-connect-android/src-tauri/Cargo.toml --all-features
+	cargo test --manifest-path mobile/nym-connect/src-tauri/Cargo.toml --all-features
 
 test-connect-android-expensive:
-	cargo test --manifest-path nym-connect-android/src-tauri/Cargo.toml --all-features -- --ignored
+	cargo test --manifest-path mobile/nym-connect/src-tauri/Cargo.toml --all-features -- --ignored
 
 build-main:
 	cargo build --workspace
@@ -95,7 +95,7 @@ build-connect:
 	cargo build --manifest-path nym-connect/Cargo.toml --workspace
 
 build-connect-android:
-	cargo build --manifest-path nym-connect-android/src-tauri/Cargo.toml --workspace
+	cargo build --manifest-path mobile/nym-connect/src-tauri/Cargo.toml --workspace
 
 build-explorer-api:
 	cargo build --manifest-path explorer-api/Cargo.toml --workspace
@@ -119,7 +119,7 @@ fmt-connect:
 	cargo fmt --manifest-path nym-connect/Cargo.toml --all
 
 fmt-connect-android:
-	cargo fmt --manifest-path nym-connect-android/src-tauri/Cargo.toml --all
+	cargo fmt --manifest-path mobile/nym-connect/src-tauri/Cargo.toml --all
 
 fmt-wasm-client:
 	cargo fmt --manifest-path clients/webassembly/Cargo.toml --all

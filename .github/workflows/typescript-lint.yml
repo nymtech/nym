@@ -7,8 +7,8 @@ on:
       - 'sdk/typescript/**'
       - 'nym-connect/src/**'
       - 'nym-connect/package.json'
-      - 'nym-connect-android/src/**'
-      - 'nym-connect-android/package.json'
+      - 'mobile/nym-connect/src/**'
+      - 'mobile/nym-connect/package.json'
       - 'nym-wallet/src/**'
       - 'nym-wallet/package.json'
 

@@ -88,14 +88,14 @@ jobs:
         run: |
           yarn install --frozen-lockfile
           yarn build
-          yarn workspace @nym/nym-connect-android webpack:prod
+          yarn workspace @nym/mobile/nym-connect webpack:prod
 
       - name: Build APK
-        working-directory: nym-connect-android
+        working-directory: mobile/nym-connect
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
-          WRY_ANDROID_PACKAGE: net.nymtech.nym_connect_android
-          WRY_ANDROID_LIBRARY: nym_connect_android
+          WRY_ANDROID_PACKAGE: net.nymtech.nym_connect
+          WRY_ANDROID_LIBRARY: nym_connect
         # TODO build with release profile (--release), it will requires
         # to sign the APK. For now build with debug profile to avoid that
         run: cargo tauri android build --debug --apk --split-per-abi -t aarch64
@@ -104,9 +104,9 @@ jobs:
       - name: Rename APK artifact
         run: |
           mkdir apk/
-          mv nym-connect-android/src-tauri/gen/android/nym_connect_android/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk \
+          mv mobile/nym-connect/src-tauri/gen/android/nym_connect/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk \
             apk/nym-connect-arm64-debug.apk
-          mv nym-connect-android/src-tauri/gen/android/nym_connect_android/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk \
+          mv mobile/nym-connect/src-tauri/gen/android/nym_connect/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk \
             apk/nym-connect-x86_64-debug.apk
 
       - name: Upload APK artifact

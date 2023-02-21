@@ -8,7 +8,7 @@
     "ts-packages/*",
     "nym-wallet",
     "nym-connect",
-    "nym-connect-android",
+    "mobile/nym-connect",
     "explorer",
     "types",
     "clients/validator"

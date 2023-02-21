@@ -3,7 +3,7 @@
     "ts-packages/*",
     "nym-wallet",
     "nym-connect",
-    "nym-connect-android",
+    "mobile/nym-connect",
     "sdk/typescript/examples/docs",
     "sdk/typescript/packages/**"
   ],

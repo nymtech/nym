@@ -24,7 +24,7 @@ use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_task::{TaskClient, TaskManager};
-use nym_version_checker::parse_version;
+use nym_bin_common::version_checker::parse_version;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;

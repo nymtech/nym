@@ -14,7 +14,7 @@ use clap::Args;
 use config::NymConfig;
 use log::*;
 use nym_crypto::asymmetric::identity;
-use nym_version_checker::is_minor_version_compatible;
+use nym_bin_common::version_checker::is_minor_version_compatible;
 
 #[derive(Args, Clone)]
 pub(crate) struct Run {

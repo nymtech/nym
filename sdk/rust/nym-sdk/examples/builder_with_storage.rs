@@ -4,7 +4,7 @@ use nym_sdk::mixnet;
 
 #[tokio::main]
 async fn main() {
-    logging::setup_logging();
+    nym_bin_common::logging::setup_logging();
 
     // Specify some config options
     let config_dir = PathBuf::from("/tmp/mixnet-client");

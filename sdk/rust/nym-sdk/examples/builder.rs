@@ -2,7 +2,7 @@ use nym_sdk::mixnet;
 
 #[tokio::main]
 async fn main() {
-    logging::setup_logging();
+    nym_bin_common::logging::setup_logging();
 
     // Create client builder, including ephemeral keys. The builder can be usable in the context
     // where you don't want to connect just yet.

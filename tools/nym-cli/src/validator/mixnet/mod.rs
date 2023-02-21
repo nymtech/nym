@@ -1,5 +1,5 @@
-use nym_network_defaults::NymNetworkDetails;
 use nym_cli_commands::context::ClientArgs;
+use nym_network_defaults::NymNetworkDetails;
 
 pub(crate) mod delegators;
 pub(crate) mod operators;

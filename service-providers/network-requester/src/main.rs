@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{crate_name, crate_version, Parser};
-use nym_network_defaults::setup_env;
 use nym_bin_common::logging::{banner, setup_logging};
+use nym_network_defaults::setup_env;
 
 use error::NetworkRequesterError;
 

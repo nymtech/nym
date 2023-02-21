@@ -1,8 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_network_defaults::NymNetworkDetails;
 use nym_cli_commands::context::create_query_client_with_nym_api;
+use nym_network_defaults::NymNetworkDetails;
 
 pub(crate) async fn execute(
     query: nym_cli_commands::validator::mixnet::query::MixnetQuery,

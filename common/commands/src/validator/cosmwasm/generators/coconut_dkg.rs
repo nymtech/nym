@@ -55,12 +55,13 @@ pub async fn generate(args: Args) {
         std::env::var(nym_network_defaults::var_names::MIX_DENOM).expect("Mix denom has to be set")
     });
 
-    let mut time_configuration =
-        if let Ok(config) = std::env::var(nym_network_defaults::var_names::DKG_TIME_CONFIGURATION) {
-            TimeConfiguration::from_str(&config).expect("Invalid env variable value")
-        } else {
-            TimeConfiguration::default()
-        };
+    let mut time_configuration = if let Ok(config) =
+        std::env::var(nym_network_defaults::var_names::DKG_TIME_CONFIGURATION)
+    {
+        TimeConfiguration::from_str(&config).expect("Invalid env variable value")
+    } else {
+        TimeConfiguration::default()
+    };
     if let Some(public_key_submission_time_secs) = args.public_key_submission_time_secs {
         time_configuration.public_key_submission_time_secs = public_key_submission_time_secs;
     }

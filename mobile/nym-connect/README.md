@@ -9,8 +9,8 @@ SPDX-License-Identifier: Apache-2.0
 
 Nym Connects sets up a SOCKS5 proxy for local applications to use.
 
-**NOTE**: Currently only Android is supported, the remaining docs
-apply for Android development only.
+**NOTE**: Currently we only focus on Android,
+the remaining docs apply for Android development only.
 
 ## Installation prerequisites - Linux / Mac
 

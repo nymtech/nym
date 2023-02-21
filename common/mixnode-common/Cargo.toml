@@ -19,7 +19,7 @@ url = "2.2"
 thiserror = "1.0.37"
 
 nym-crypto =  { path = "../crypto" }
-network-defaults = { path = "../network-defaults" }
+nym-network-defaults = { path = "../network-defaults" }
 nym-sphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
 nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
 nym-sphinx-forwarding = { path = "../nymsphinx/forwarding" }

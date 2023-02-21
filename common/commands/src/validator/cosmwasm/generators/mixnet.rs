@@ -79,21 +79,21 @@ pub async fn generate(args: Args) {
     debug!("initial_rewarding_params: {:?}", initial_rewarding_params);
 
     let rewarding_validator_address = args.rewarding_validator_address.unwrap_or_else(|| {
-        let address = std::env::var(network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
+        let address = std::env::var(nym_network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
             .expect("Rewarding validator address has to be set");
         AccountId::from_str(address.as_str())
             .expect("Failed converting rewarding validator address to AccountId")
     });
 
     let vesting_contract_address = args.vesting_contract_address.unwrap_or_else(|| {
-        let address = std::env::var(network_defaults::var_names::VESTING_CONTRACT_ADDRESS)
+        let address = std::env::var(nym_network_defaults::var_names::VESTING_CONTRACT_ADDRESS)
             .expect("Vesting contract address has to be set");
         AccountId::from_str(address.as_str())
             .expect("Failed converting vesting contract address to AccountId")
     });
 
     let rewarding_denom = args.rewarding_denom.unwrap_or_else(|| {
-        std::env::var(network_defaults::var_names::MIX_DENOM)
+        std::env::var(nym_network_defaults::var_names::MIX_DENOM)
             .expect("Rewarding (mix) denom has to be set")
     });
 

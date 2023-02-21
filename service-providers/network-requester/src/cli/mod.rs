@@ -67,13 +67,13 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         .with_optional_custom_env_ext(
             BaseConfig::with_custom_nym_apis,
             args.nym_apis,
-            network_defaults::var_names::NYM_API,
+            nym_network_defaults::var_names::NYM_API,
             config::parse_urls,
         )
         .with_optional_custom_env_ext(
             BaseConfig::with_custom_nyxd,
             args.nyxd_urls,
-            network_defaults::var_names::NYXD,
+            nym_network_defaults::var_names::NYXD,
             config::parse_urls,
         )
         .with_optional_ext(

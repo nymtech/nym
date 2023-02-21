@@ -35,7 +35,7 @@ client-core = { path = "../../clients/client-core" }
 config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
 nym-bin-common = { path = "../../common/bin-common"}
-network-defaults = { path = "../../common/network-defaults" }
+nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 ordered-buffer = {path = "../../common/socks5/ordered-buffer"}

@@ -29,7 +29,7 @@ cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegr
 cosmwasm-std = { version = "1.0.0" }
 
 validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"] }
-network-defaults = { path = "../network-defaults" }
+nym-network-defaults = { path = "../network-defaults" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../cosmwasm-smart-contracts/vesting-contract" }
 coconut-bandwidth-contract-common = { path = "../cosmwasm-smart-contracts/coconut-bandwidth-contract" }

@@ -207,7 +207,7 @@ impl DirectSecp256k1HdWalletBuilder {
 
 #[cfg(test)]
 mod tests {
-    use network_defaults::NymNetworkDetails;
+    use nym_network_defaults::NymNetworkDetails;
 
     use super::*;
 

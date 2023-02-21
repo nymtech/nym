@@ -1,5 +1,5 @@
 use client_core::config::DebugConfig;
-use network_defaults::mainnet;
+use nym_network_defaults::mainnet;
 use url::Url;
 
 /// Config struct for [`crate::mixnet::MixnetClient`]

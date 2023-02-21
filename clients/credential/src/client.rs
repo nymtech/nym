@@ -3,7 +3,7 @@
 
 use crate::error::Result;
 use bip39::Mnemonic;
-use network_defaults::{NymNetworkDetails, VOUCHER_INFO};
+use nym_network_defaults::{NymNetworkDetails, VOUCHER_INFO};
 use std::str::FromStr;
 use url::Url;
 use validator_client::nyxd;

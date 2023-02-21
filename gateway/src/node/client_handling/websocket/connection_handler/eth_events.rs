@@ -6,7 +6,7 @@ use bandwidth_claim_contract::msg::ExecuteMsg;
 use bandwidth_claim_contract::payment::LinkPaymentData;
 use credentials::token::bandwidth::TokenCredential;
 use nym_crypto::asymmetric::identity::{PublicKey, Signature, SIGNATURE_LENGTH};
-use network_defaults::{ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
+use nym_network_defaults::{ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
 use std::str::FromStr;
 use validator_client::nxmd::traits::MixnetQueryClient;
 use validator_client::nyxd::{AccountId, NyxdClient, SigningNyxdClient};

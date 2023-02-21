@@ -94,7 +94,7 @@ fn parse_optional_str(raw: &str) -> Option<String> {
 }
 
 mod sandbox {
-    use network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
+    use nym_network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
 
     use super::parse_optional_str;
 
@@ -129,8 +129,8 @@ mod sandbox {
         )]
     }
 
-    pub(crate) fn network_details() -> network_defaults::NymNetworkDetails {
-        network_defaults::NymNetworkDetails {
+    pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
+        nym_network_defaults::NymNetworkDetails {
             chain_details: ChainDetails {
                 bech32_account_prefix: BECH32_PREFIX.to_string(),
                 mix_denom: MIX_DENOM.into(),
@@ -155,7 +155,7 @@ mod sandbox {
 }
 
 mod qa {
-    use network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
+    use nym_network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
 
     use super::parse_optional_str;
 
@@ -190,8 +190,8 @@ mod qa {
         )]
     }
 
-    pub(crate) fn network_details() -> network_defaults::NymNetworkDetails {
-        network_defaults::NymNetworkDetails {
+    pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
+        nym_network_defaults::NymNetworkDetails {
             chain_details: ChainDetails {
                 bech32_account_prefix: BECH32_PREFIX.to_string(),
                 mix_denom: MIX_DENOM.into(),

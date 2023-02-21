@@ -21,6 +21,6 @@ anyhow = "1"
 tap = "1"
 
 nym-cli-commands = { path = "../../common/commands" }
-logging = { path = "../../common/logging"}
+nym-bin-common = { path = "../../common/bin-common"}
 validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }
 network-defaults = { path = "../../common/network-defaults" }

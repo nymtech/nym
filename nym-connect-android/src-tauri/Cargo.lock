@@ -406,14 +406,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "build-information"
-version = "0.1.0"
-dependencies = [
- "serde",
- "vergen 7.5.1",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -783,15 +775,6 @@ checksum = "35ed6e9d84f0b51a7f52daf1c7d71dd136fd7a3f41a8462b8cdb8c78d920fad4"
 dependencies = [
  "bytes",
  "memchr",
-]
-
-[[package]]
-name = "completions"
-version = "0.1.0"
-dependencies = [
- "clap",
- "clap_complete",
- "clap_complete_fig",
 ]
 
 [[package]]
@@ -3176,14 +3159,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "logging"
-version = "0.1.0"
-dependencies = [
- "log",
- "pretty_env_logger",
-]
-
-[[package]]
 name = "loom"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3542,6 +3517,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-bin-common"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "clap_complete",
+ "clap_complete_fig",
+ "log",
+ "pretty_env_logger",
+ "semver 0.11.0",
+ "serde",
+ "vergen 7.5.1",
+]
+
+[[package]]
 name = "nym-connect-android"
 version = "1.1.9"
 dependencies = [
@@ -3557,8 +3546,8 @@ dependencies = [
  "futures",
  "itertools",
  "log",
- "logging",
  "nym-api-requests",
+ "nym-bin-common",
  "nym-contracts-common",
  "nym-crypto",
  "nym-socks5-client",
@@ -3643,12 +3632,10 @@ dependencies = [
 name = "nym-socks5-client"
 version = "1.1.9"
 dependencies = [
- "build-information",
  "clap",
  "client-connections",
  "client-core",
  "coconut-interface",
- "completions",
  "config",
  "credentials",
  "dirs",
@@ -3657,15 +3644,14 @@ dependencies = [
  "gateway-requests",
  "lazy_static",
  "log",
- "logging",
  "mobile-storage",
  "network-defaults",
+ "nym-bin-common",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
- "nym-version-checker",
  "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
@@ -3825,20 +3811,13 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "log",
+ "nym-bin-common",
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-sphinx-addressing",
  "nym-sphinx-types",
- "nym-version-checker",
  "rand 0.7.3",
  "thiserror",
-]
-
-[[package]]
-name = "nym-version-checker"
-version = "0.1.0"
-dependencies = [
- "semver 0.11.0",
 ]
 
 [[package]]
@@ -5362,8 +5341,8 @@ name = "service-providers-common"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "build-information",
  "log",
+ "nym-bin-common",
  "nym-sphinx-anonymous-replies",
  "serde",
  "serde_json",

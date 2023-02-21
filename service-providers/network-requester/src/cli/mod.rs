@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use build_information::BinaryBuildInformation;
 use clap::{CommandFactory, Parser, Subcommand};
-use completions::{fig_generate, ArgShell};
+use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::completions::{fig_generate, ArgShell};
 
 use crate::{
     config::{BaseConfig, Config},

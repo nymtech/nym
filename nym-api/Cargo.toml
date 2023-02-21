@@ -65,7 +65,6 @@ rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
 schemars = { version = "0.8", features = ["preserve_order"] }
 
 ## internal
-build-information = { path = "../common/build-information" }
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
 coconut-interface = { path = "../common/coconut-interface" }
@@ -74,7 +73,6 @@ cosmwasm-std = "1.0.0"
 credential-storage = { path = "../common/credential-storage" }
 credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }
-logging = { path = "../common/logging"}
 cw3 = { version = "0.13.4" }
 cw4 = { version = "0.13.4" }
 dkg = { path = "../common/dkg" }
@@ -93,7 +91,7 @@ nym-api-requests = { path = "nym-api-requests" }
 validator-client = { path = "../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }
-nym-version-checker = { path = "../common/version-checker" }
+nym-bin-common = { path = "../common/bin-common" }
 
 [features]
 no-reward = []

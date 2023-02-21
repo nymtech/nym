@@ -2,12 +2,12 @@ test: clippy-all cargo-test wasm fmt
 test-all: test cargo-test-expensive
 no-clippy: build cargo-test wasm fmt
 happy: fmt clippy-happy test
-clippy-all: clippy-main clippy-all-contracts clippy-all-wallet clippy-all-connect clippy-all-wasm-client
-clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet clippy-happy-connect
-cargo-test: test-main test-contracts test-wallet test-connect
+clippy-all: clippy-main clippy-main-examples clippy-all-contracts clippy-all-wallet clippy-all-connect clippy-all-connect-android clippy-all-wasm-client
+clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet clippy-happy-connect clippy-happy-connect-android
+cargo-test: test-main test-contracts test-wallet test-connect test-connect-android
 cargo-test-expensive: test-main-expensive test-contracts-expensive test-wallet-expensive test-connect-expensive
-build: build-contracts build-wallet build-main build-connect build-wasm-client
-fmt: fmt-main fmt-contracts fmt-wallet fmt-connect fmt-wasm-client
+build: build-contracts build-wallet build-main build-main-examples build-connect build-connect-android build-wasm-client
+fmt: fmt-main fmt-contracts fmt-wallet fmt-connect fmt-connect-android fmt-wasm-client
 
 clippy-happy-main:
 	cargo clippy
@@ -21,8 +21,14 @@ clippy-happy-wallet:
 clippy-happy-connect:
 	cargo clippy --manifest-path nym-connect/Cargo.toml
 
+clippy-happy-connect-android:
+	cargo clippy --manifest-path nym-connect-android/src-tauri/Cargo.toml
+
 clippy-main:
 	cargo clippy --workspace -- -D warnings
+
+clippy-main-examples:
+	cargo clippy --workspace --examples -- -D warnings
 
 clippy-wasm:
 	cargo clippy --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --workspace -- -D warnings
@@ -36,6 +42,9 @@ clippy-all-wallet:
 
 clippy-all-connect:
 	cargo clippy --workspace --manifest-path nym-connect/Cargo.toml --all-features -- -D warnings
+
+clippy-all-connect-android:
+	cargo clippy --workspace --manifest-path nym-connect-android/src-tauri/Cargo.toml --all-features -- -D warnings
 
 clippy-all-wasm-client:
 	cargo clippy --workspace --manifest-path clients/webassembly/Cargo.toml --all-features --target wasm32-unknown-unknown -- -D warnings
@@ -64,8 +73,17 @@ test-connect:
 test-connect-expensive:
 	cargo test --manifest-path nym-connect/Cargo.toml --all-features -- --ignored
 
+test-connect-android:
+	cargo test --manifest-path nym-connect-android/src-tauri/Cargo.toml --all-features
+
+test-connect-android-expensive:
+	cargo test --manifest-path nym-connect-android/src-tauri/Cargo.toml --all-features -- --ignored
+
 build-main:
 	cargo build --workspace
+
+build-main-examples:
+	cargo build --workspace --examples
 
 build-contracts:
 	cargo build --manifest-path contracts/Cargo.toml --workspace
@@ -75,6 +93,9 @@ build-wallet:
 
 build-connect:
 	cargo build --manifest-path nym-connect/Cargo.toml --workspace
+
+build-connect-android:
+	cargo build --manifest-path nym-connect-android/src-tauri/Cargo.toml --workspace
 
 build-explorer-api:
 	cargo build --manifest-path explorer-api/Cargo.toml --workspace
@@ -96,6 +117,9 @@ fmt-wallet:
 
 fmt-connect:
 	cargo fmt --manifest-path nym-connect/Cargo.toml --all
+
+fmt-connect-android:
+	cargo fmt --manifest-path nym-connect-android/src-tauri/Cargo.toml --all
 
 fmt-wasm-client:
 	cargo fmt --manifest-path clients/webassembly/Cargo.toml --all

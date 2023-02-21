@@ -34,16 +34,14 @@ tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] } 
 tokio-tungstenite = "0.14" # websocket
 
 ## internal
-build-information = { path = "../../common/build-information" }
+nym-bin-common = { path = "../../common/bin-common" }
 client-core = { path = "../client-core", features = ["fs-surb-storage"] }
 client-connections = { path = "../../common/client-connections" }
 coconut-interface = { path = "../../common/coconut-interface" }
 config = { path = "../../common/config" }
-completions = { path = "../../common/completions" }
 credential-storage = { path = "../../common/credential-storage" }
 credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto" }
-logging = { path = "../../common/logging"}
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 network-defaults = { path = "../../common/network-defaults" }
@@ -52,7 +50,6 @@ nym-pemstore = { path = "../../common/pemstore" }
 nym-task = { path = "../../common/task" }
 nym-topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }
-nym-version-checker = { path = "../../common/version-checker" }
 websocket-requests = { path = "websocket-requests" }
 
 [dev-dependencies]

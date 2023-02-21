@@ -2,7 +2,7 @@ use nym_sdk::mixnet;
 
 #[tokio::main]
 async fn main() {
-    logging::setup_logging();
+    nym_bin_common::logging::setup_logging();
 
     let user_chosen_gateway_id = None;
     let nym_api_endpoints = vec!["https://validator.nymtech.net/api/".parse().unwrap()];

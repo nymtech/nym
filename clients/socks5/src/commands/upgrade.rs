@@ -4,7 +4,7 @@
 use crate::client::config::{Config, MISSING_VALUE};
 
 use config::NymConfig;
-use nym_version_checker::Version;
+use nym_bin_common::version_checker::Version;
 
 use clap::Args;
 use std::{fmt::Display, process};

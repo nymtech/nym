@@ -12,7 +12,7 @@ use aes_gcm::{aead::Aead, Aes256Gcm, Key, NewAead, Nonce};
 use anyhow::{anyhow, Result};
 use argon2::{Algorithm, Argon2, Params, Version};
 use clap::Parser;
-use logging::setup_logging;
+use nym_bin_common::logging::setup_logging;
 use serde_json::Value;
 
 // Mostly defaults

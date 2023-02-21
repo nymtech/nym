@@ -3,7 +3,7 @@
 
 use clap::{CommandFactory, Parser, Subcommand};
 use log::{error, warn};
-use logging::setup_logging;
+use nym_bin_common::logging::setup_logging;
 use nym_cli_commands::context::{get_network_details, ClientArgs};
 use validator_client::nyxd::AccountId;
 

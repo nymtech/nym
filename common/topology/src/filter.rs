@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_bin_common::version_checker;
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -20,7 +21,7 @@ where
     fn filter_by_version(&self, expected_version: &str) -> Self {
         self.iter()
             .filter(|node| {
-                nym_version_checker::is_minor_version_compatible(&node.version(), expected_version)
+                version_checker::is_minor_version_compatible(&node.version(), expected_version)
             })
             .cloned()
             .collect()

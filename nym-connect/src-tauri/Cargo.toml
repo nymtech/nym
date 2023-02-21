@@ -49,7 +49,7 @@ nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common"}
 config-common = { path = "../../common/config", package = "config" }
 nym-crypto = { path = "../../common/crypto" }
-logging = { path = "../../common/logging"}
+nym-bin-common = { path = "../../common/bin-common"}
 nym-socks5-client = { path = "../../clients/socks5" }
 nym-task = { path = "../../common/task" }
 

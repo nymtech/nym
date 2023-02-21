@@ -13,8 +13,8 @@ use crate::{
 use clap::Args;
 use config::NymConfig;
 use log::*;
-use nym_crypto::asymmetric::identity;
 use nym_bin_common::version_checker::is_minor_version_compatible;
+use nym_crypto::asymmetric::identity;
 
 #[derive(Args, Clone)]
 pub(crate) struct Run {

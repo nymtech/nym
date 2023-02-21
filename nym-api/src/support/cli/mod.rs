@@ -4,10 +4,10 @@
 use super::config::Config;
 use ::config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, VESTING_CONTRACT_ADDRESS};
 use anyhow::Result;
-use nym_bin_common::build_information::BinaryBuildInformation;
 use clap::Parser;
 use config::{NymConfig, OptionalSet};
 use lazy_static::lazy_static;
+use nym_bin_common::build_information::BinaryBuildInformation;
 use std::fs;
 use validator_client::nyxd;
 

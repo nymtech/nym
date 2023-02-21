@@ -7,9 +7,9 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::*;
 use network_defaults::mainnet::NYM_API;
+use nym_bin_common::version_checker::{self, parse_version};
 use nym_crypto::asymmetric::identity;
 use nym_task::TaskClient;
-use nym_bin_common::version_checker::{parse_version, self};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -89,10 +89,7 @@ impl ConfigBuilder {
         Self::default()
     }
 
-    pub fn minimum_compatible_node_version(
-        mut self,
-        version: version_checker::Version,
-    ) -> Self {
+    pub fn minimum_compatible_node_version(mut self, version: version_checker::Version) -> Self {
         self.0.minimum_compatible_node_version = version;
         self
     }

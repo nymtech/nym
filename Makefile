@@ -2,11 +2,11 @@ test: clippy-all cargo-test wasm fmt
 test-all: test cargo-test-expensive
 no-clippy: build cargo-test wasm fmt
 happy: fmt clippy-happy test
-clippy-all: clippy-main clippy-all-contracts clippy-all-wallet clippy-all-connect clippy-all-connect-android clippy-all-wasm-client
+clippy-all: clippy-main clippy-main-examples clippy-all-contracts clippy-all-wallet clippy-all-connect clippy-all-connect-android clippy-all-wasm-client
 clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet clippy-happy-connect clippy-happy-connect-android
 cargo-test: test-main test-contracts test-wallet test-connect test-connect-android
 cargo-test-expensive: test-main-expensive test-contracts-expensive test-wallet-expensive test-connect-expensive
-build: build-contracts build-wallet build-main build-connect build-connect-android build-wasm-client
+build: build-contracts build-wallet build-main build-main-examples build-connect build-connect-android build-wasm-client
 fmt: fmt-main fmt-contracts fmt-wallet fmt-connect fmt-connect-android fmt-wasm-client
 
 clippy-happy-main:
@@ -26,6 +26,9 @@ clippy-happy-connect-android:
 
 clippy-main:
 	cargo clippy --workspace -- -D warnings
+
+clippy-main-examples:
+	cargo clippy --workspace --examples -- -D warnings
 
 clippy-wasm:
 	cargo clippy --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --workspace -- -D warnings
@@ -78,6 +81,9 @@ test-connect-android-expensive:
 
 build-main:
 	cargo build --workspace
+
+build-main-examples:
+	cargo build --workspace --examples
 
 build-contracts:
 	cargo build --manifest-path contracts/Cargo.toml --workspace

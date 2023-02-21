@@ -44,10 +44,10 @@ jobs:
         with:
           node-version: 16
 
-      - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+      #- name: Install Rust stable
+      #  uses: actions-rs/toolchain@v1
+      #  with:
+      #    toolchain: stable
 
       - name: Create env file
         uses: timheuer/base64-to-file@v1.1
@@ -66,6 +66,7 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          RUST_BACKTRACE: 1
         run: yarn build
 
       - name: Upload Artifact

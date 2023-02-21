@@ -44,12 +44,10 @@ jobs:
         with:
           node-version: 16
 
-      - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            override: true
-            components: rustfmt, clippy
+      #- name: Install Rust stable
+      #  uses: actions-rs/toolchain@v1
+      #  with:
+      #    toolchain: stable
 
       - name: Create env file
         uses: timheuer/base64-to-file@v1.1
@@ -59,6 +57,13 @@ jobs:
 
       - name: Install app dependencies
         run: yarn
+        working-directory: nym-connect
+
+      - name: Check if rustc is available
+        run: rustc --version
+
+      - name: Check if cargo is available
+        run: cargo --version
 
       - name: Build and sign it
         env:
@@ -70,6 +75,7 @@ jobs:
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           RUST_BACKTRACE: 1
         run: yarn build
+        working-directory: nym-connect
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3

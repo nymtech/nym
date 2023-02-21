@@ -2,10 +2,15 @@
 
 ## [Unreleased]
 
-## [nym-wallet-v1.1.10](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.10) (2023-02-21)
+## [v1.1.10] (2023-02-20)
 
-- Remove non-zero and trailing white spaces
-- Add error description on failed send txs
+- Wallet - Fix send address bug ([#3030])
+- Wallet - [Issue] the `Operator cost` field in the Playground does not allow values above 100.0000 ([#2998])
+- nym-wallet: fix auto-updated files ([#3043])
+
+[#3030]: https://github.com/nymtech/nym/issues/3030
+[#2998]: https://github.com/nymtech/nym/issues/2998
+[#3043]: https://github.com/nymtech/nym/pull/3043
 
 ## [nym-wallet-v1.1.9](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.9) (2023-02-14)
 

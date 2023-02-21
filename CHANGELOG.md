@@ -4,12 +4,31 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-### Added
+## [v1.1.9] (2023-02-21)
 
-- dkg resharing mode ([#2936])
+- Verloc listener causing mixnode unexpected shutdown ([#3038])
+- rust-sdk - update API following implementation experience with the network-requester ([#3001])
+- Prevent coconut deposits in incompatible states ([#2991])
+- Support unavailable signer within threshold ([#2987])
+- Implement DKG re-sharing ([#2935])
+- contracts: add nym prefix to mixnet and vesting contract packages ([#2855])
+- Introduce common interface for all service providers to allow obtaining information such as whether they're online, what binary version they're running, etc. ([#2758])
+- Add client functionality to nym-network-requester ([#1900])
+- nym-api: uptime rework ([#3053])
+- ci: update typescript-lint.yml ([#3035])
+- contracts: add nym prefix to mixnet and vesting contract packages ([#2855])
 
-[#2936]: https://github.com/nymtech/nym/pull/2936
-
+[#3038]: https://github.com/nymtech/nym/issues/3038
+[#3001]: https://github.com/nymtech/nym/issues/3001
+[#2991]: https://github.com/nymtech/nym/issues/2991
+[#2987]: https://github.com/nymtech/nym/issues/2987
+[#2935]: https://github.com/nymtech/nym/issues/2935
+[#2855]: https://github.com/nymtech/nym/pull/2855
+[#2758]: https://github.com/nymtech/nym/issues/2758
+[#1900]: https://github.com/nymtech/nym/issues/1900
+[#3053]: https://github.com/nymtech/nym/pull/3053
+[#3035]: https://github.com/nymtech/nym/pull/3035
+[#2855]: https://github.com/nymtech/nym/pull/2855
 
 ## [v1.1.9] (2023-02-07)
 

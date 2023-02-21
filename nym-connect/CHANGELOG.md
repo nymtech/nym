@@ -2,9 +2,11 @@
 
 ## [Unreleased]
 
-## [nym-connect-v1.1.10](https://github.com/nymtech/nym/tree/nym-connect-v1.1.10) (2023-02-21)
+## [v1.1.10] (2023-02-21)
 
-- Allow opening and closing of logs within the app
+- NC - add logs window for troubleshooting ([#2951])
+
+[#2951]: https://github.com/nymtech/nym/issues/2951
 
 ## [nym-connect-v1.1.9](https://github.com/nymtech/nym/tree/nym-connect-v1.1.9) (2023-02-14)
 

@@ -59,6 +59,13 @@ jobs:
         run: yarn
         working-directory: nym-connect
 
+      - name: Update PATH
+        run: |
+          "C:\Users\nymtech\.cargo\bin" >> $env:GITHUB_PATH
+
+      - name: Echo PATH
+        run: echo "$PATH"
+
       - name: Check if rustc is available
         run: rustc --version
 

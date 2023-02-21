@@ -16,20 +16,35 @@ use nym_topology::{filter::VersionFilterable, gateway};
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
-use tokio_tungstenite::tungstenite::Message;
 use topology::{filter::VersionFilterable, gateway};
+use tungstenite::Message;
 use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
+use tokio::net::TcpStream;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio_tungstenite::connect_async;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+#[cfg(not(target_arch = "wasm32"))]
 use validator_client::nyxd::SigningNyxdClient;
+
+#[cfg(not(target_arch = "wasm32"))]
+type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 #[cfg(target_arch = "wasm32")]
 use gateway_client::wasm_mockups::SigningNyxdClient;
+#[cfg(target_arch = "wasm32")]
+use wasm_utils::websocket::JSWebsocket;
+
+#[cfg(target_arch = "wasm32")]
+type WsConn = JSWebsocket;
 
 const MEASUREMENTS: usize = 3;
+
+#[cfg(not(target_arch = "wasm32"))]
 const CONN_TIMEOUT: Duration = Duration::from_millis(1500);
 const PING_TIMEOUT: Duration = Duration::from_millis(1000);
-const MAX_LATENCY: Duration = Duration::from_secs(u64::MAX);
 
 struct GatewayWithLatency {
     gateway: gateway::Node,
@@ -39,13 +54,6 @@ struct GatewayWithLatency {
 impl GatewayWithLatency {
     fn new(gateway: gateway::Node, latency: Duration) -> Self {
         GatewayWithLatency { gateway, latency }
-    }
-
-    fn new_max(gateway: gateway::Node) -> Self {
-        GatewayWithLatency {
-            gateway,
-            latency: MAX_LATENCY,
-        }
     }
 }
 
@@ -71,18 +79,27 @@ async fn current_gateways<R: Rng>(
     Ok(filtered_gateways)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
+    match tokio::time::timeout(CONN_TIMEOUT, connect_async(endpoint)).await {
+        Err(_elapsed) => Err(ClientCoreError::GatewayConnectionTimeout),
+        Ok(Err(conn_failure)) => Err(conn_failure.into()),
+        Ok(Ok((stream, _))) => Ok(stream),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
+    JSWebsocket::new(endpoint).map_err(|_| ClientCoreError::GatewayJsConnectionFailure)
+}
+
 async fn measure_latency(gateway: gateway::Node) -> Result<GatewayWithLatency, ClientCoreError> {
     let addr = gateway.clients_address();
     trace!(
         "establishing connection to {} ({addr})...",
         gateway.identity_key,
     );
-    let mut stream =
-        match tokio::time::timeout(CONN_TIMEOUT, tokio_tungstenite::connect_async(&addr)).await {
-            Err(_elapsed) => return Ok(GatewayWithLatency::new_max(gateway)),
-            Ok(Err(conn_failure)) => return Err(conn_failure.into()),
-            Ok(Ok((stream, _))) => stream,
-        };
+    let mut stream = connect(&addr).await?;
 
     let mut results = Vec::new();
     for _ in 0..MEASUREMENTS {
@@ -109,10 +126,24 @@ async fn measure_latency(gateway: gateway::Node) -> Result<GatewayWithLatency, C
             Ok::<(), ClientCoreError>(())
         };
 
-        match tokio::time::timeout(PING_TIMEOUT, measurement_future).await {
-            Ok(Err(err)) => return Err(err),
-            Ok(Ok(_)) => {}
-            Err(_) => warn!("timed out while trying to perform measurement..."),
+        // thanks to wasm we can't use tokio::time::timeout : (
+        #[cfg(not(target_arch = "wasm32"))]
+        let timeout = tokio::time::sleep(PING_TIMEOUT);
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::pin!(timeout);
+
+        #[cfg(target_arch = "wasm32")]
+        let mut timeout = wasm_timer::Delay::new(PING_TIMEOUT);
+
+        tokio::select! {
+            _ = &mut timeout => {
+                warn!("timed out while trying to perform measurement...")
+            }
+            res = measurement_future => {
+                if let Err(err) = res {
+                    return Err(err)
+                }
+            }
         }
     }
 

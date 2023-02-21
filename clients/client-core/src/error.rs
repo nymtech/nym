@@ -65,11 +65,18 @@ pub enum ClientCoreError {
     #[error("failed to establish connection to gateway: {source}")]
     GatewayConnectionFailure {
         #[from]
-        source: tokio_tungstenite::tungstenite::Error,
+        source: tungstenite::Error,
     },
+
+    #[cfg(target_arch = "wasm32")]
+    #[error("failed to establish gateway connection (wasm)")]
+    GatewayJsConnectionFailure,
 
     #[error("Gateway connection was abruptly closed")]
     GatewayConnectionAbruptlyClosed,
+
+    #[error("Timed out while trying to establish gateway connection")]
+    GatewayConnectionTimeout,
 
     #[error("No ping measurements for the gateway ({identity}) performed")]
     NoGatewayMeasurements { identity: String },

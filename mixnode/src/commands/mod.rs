@@ -8,6 +8,7 @@ use colored::Colorize;
 use completions::{fig_generate, ArgShell};
 use config::defaults::var_names::{BECH32_PREFIX, NYM_API};
 use config::OptionalSet;
+use nym_bin_common::version_checker;
 use nym_crypto::bech32_address_validation;
 use std::net::IpAddr;
 use std::process;
@@ -141,7 +142,7 @@ pub(crate) fn version_check(cfg: &Config) -> bool {
         true
     } else {
         warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
-        if nym_version_checker::is_minor_version_compatible(binary_version, config_version) {
+        if version_checker::is_minor_version_compatible(binary_version, config_version) {
             info!("but they are still semver compatible. However, consider running the `upgrade` command");
             true
         } else {

@@ -4,7 +4,7 @@
 use std::error::Error;
 
 use clap::{crate_name, crate_version, Parser};
-use nym_bin_common::logging::setup_logging;
+use nym_bin_common::logging::{setup_logging, banner};
 use network_defaults::setup_env;
 
 pub mod client;
@@ -15,7 +15,7 @@ pub mod socks;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     setup_logging();
-    println!("{}", logging::banner(crate_name!(), crate_version!()));
+    println!("{}", banner(crate_name!(), crate_version!()));
 
     let args = commands::Cli::parse();
     setup_env(args.config_env_file.as_ref());

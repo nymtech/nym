@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{crate_name, crate_version, Parser};
-use nym_bin_common::logging::setup_logging;
 use network_defaults::setup_env;
+use nym_bin_common::logging::{banner, setup_logging};
 
 use error::NetworkRequesterError;
 
@@ -19,7 +19,7 @@ mod statistics;
 #[tokio::main]
 async fn main() -> Result<(), NetworkRequesterError> {
     setup_logging();
-    println!("{}", logging::banner(crate_name!(), crate_version!()));
+    println!("{}", banner(crate_name!(), crate_version!()));
 
     let args = cli::Cli::parse();
     setup_env(args.config_env_file.as_ref());

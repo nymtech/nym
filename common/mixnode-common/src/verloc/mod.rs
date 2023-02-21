@@ -9,7 +9,7 @@ use log::*;
 use network_defaults::mainnet::NYM_API;
 use nym_crypto::asymmetric::identity;
 use nym_task::TaskClient;
-use nym_bin_common::version_checker::parse_version;
+use nym_bin_common::version_checker::{parse_version, self};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -44,7 +44,7 @@ const DEFAULT_RETRY_TIMEOUT: Duration = Duration::from_secs(60 * 30);
 #[derive(Clone, Debug)]
 pub struct Config {
     /// Minimum semver version of a node (gateway or mixnode) that is capable of replying to echo packets.
-    minimum_compatible_node_version: nym_version_checker::Version,
+    minimum_compatible_node_version: version_checker::Version,
 
     /// Socket address of this node on which it will be listening for the measurement packets.
     listening_address: SocketAddr,
@@ -91,7 +91,7 @@ impl ConfigBuilder {
 
     pub fn minimum_compatible_node_version(
         mut self,
-        version: nym_version_checker::Version,
+        version: version_checker::Version,
     ) -> Self {
         self.0.minimum_compatible_node_version = version;
         self

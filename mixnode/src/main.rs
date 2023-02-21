@@ -5,7 +5,7 @@
 extern crate rocket;
 
 use ::config::defaults::setup_env;
-use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::{build_information::BinaryBuildInformation, logging::banner};
 use clap::{crate_name, crate_version, Parser, ValueEnum};
 use lazy_static::lazy_static;
 use nym_bin_common::logging::setup_logging;
@@ -64,7 +64,7 @@ impl Cli {
 async fn main() {
     setup_logging();
     if atty::is(atty::Stream::Stdout) {
-        println!("{}", logging::banner(crate_name!(), crate_version!()));
+        println!("{}", banner(crate_name!(), crate_version!()));
     }
 
     let args = Cli::parse();

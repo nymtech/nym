@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::{build_information::BinaryBuildInformation, logging::banner};
 use clap::{crate_name, crate_version, Parser, ValueEnum};
 use colored::Colorize;
 use lazy_static::lazy_static;
@@ -66,7 +66,7 @@ impl Cli {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     setup_logging();
     if atty::is(atty::Stream::Stdout) {
-        println!("{}", logging::banner(crate_name!(), crate_version!()));
+        println!("{}", banner(crate_name!(), crate_version!()));
     }
 
     let args = Cli::parse();

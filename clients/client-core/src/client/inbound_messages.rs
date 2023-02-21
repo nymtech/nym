@@ -1,4 +1,4 @@
-use client_connections::TransmissionLane;
+use nym_task::connections::TransmissionLane;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 

@@ -16,7 +16,6 @@ futures = "0.3"
 log = { workspace = true }
 
 # internal
-client-connections = { path = "../../client-connections" }
 ordered-buffer = { path = "../ordered-buffer" }
 socks5-requests = { path = "../requests" }
 nym-task = { path = "../../task" }

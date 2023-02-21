@@ -6,7 +6,7 @@ use std::error::Error;
 use crate::client::config::Config;
 use crate::error::ClientError;
 use crate::websocket;
-use client_connections::TransmissionLane;
+use nym_task::connections::TransmissionLane;
 use client_core::client::base_client::{
     non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };

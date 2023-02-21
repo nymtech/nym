@@ -31,7 +31,6 @@ tokio-tungstenite = "0.17.2"
 url = { workspace = true }
 
 # internal
-client-connections = { path = "../../common/client-connections" }
 client-core = { path = "../../clients/client-core" }
 config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }

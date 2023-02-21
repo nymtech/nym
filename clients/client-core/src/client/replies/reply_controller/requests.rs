@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
-use client_connections::{ConnectionId, TransmissionLane};
+use nym_task::connections::{ConnectionId, TransmissionLane};
 use futures::channel::{mpsc, oneshot};
 use log::error;
 use nym_sphinx::addressing::clients::Recipient;

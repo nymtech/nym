@@ -21,7 +21,7 @@ use crate::{
     },
     spawn_future,
 };
-use client_connections::{ConnectionCommandReceiver, LaneQueueLengths};
+use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;

@@ -4,7 +4,7 @@
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
 use crate::client::replies::reply_storage::CombinedReplyStorage;
-use client_connections::{ConnectionId, TransmissionLane};
+use nym_task::connections::{ConnectionId, TransmissionLane};
 use futures::channel::oneshot;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};

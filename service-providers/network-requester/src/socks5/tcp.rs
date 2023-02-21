@@ -3,7 +3,7 @@
 
 use crate::reply;
 use crate::reply::MixnetMessage;
-use client_connections::LaneQueueLengths;
+use nym_task::connections::LaneQueueLengths;
 use nym_task::TaskClient;
 use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};

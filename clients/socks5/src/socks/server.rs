@@ -4,7 +4,7 @@ use super::{
     authentication::Authenticator, client::SocksClient, mixnet_responses::MixnetResponseListener,
 };
 use crate::socks::client;
-use client_connections::{ConnectionCommandSender, LaneQueueLengths};
+use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };

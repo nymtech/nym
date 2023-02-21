@@ -9,7 +9,7 @@ use crate::reply::MixnetMessage;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::{reply, socks5};
 use async_trait::async_trait;
-use client_connections::LaneQueueLengths;
+use nym_task::connections::LaneQueueLengths;
 use futures::channel::mpsc;
 use log::warn;
 use nym_bin_common::build_information::BinaryBuildInformation;

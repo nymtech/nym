@@ -21,7 +21,7 @@ use crate::client::topology_control::{
 use crate::config::{Config, DebugConfig, GatewayEndpointConfig};
 use crate::error::ClientCoreError;
 use crate::spawn_future;
-use client_connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
+use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 #[cfg(target_arch = "wasm32")]

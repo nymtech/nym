@@ -4,7 +4,7 @@
 use self::config::Config;
 use crate::client::helpers::InputSender;
 use crate::client::response_pusher::ResponsePusher;
-use client_connections::TransmissionLane;
+use nym_task::connections::TransmissionLane;
 use client_core::client::base_client::{
     BaseClientBuilder, ClientInput, ClientOutput, CredentialsToggle,
 };

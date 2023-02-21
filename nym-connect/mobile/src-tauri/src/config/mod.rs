@@ -118,6 +118,7 @@ pub async fn init_socks5_config(
         &mut key_manager,
         nym_api_endpoints,
         Some(chosen_gateway_id),
+        false,
     )
     .await?;
 

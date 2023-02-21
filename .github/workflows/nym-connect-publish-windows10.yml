@@ -4,10 +4,6 @@ on:
   release:
     types: [created]
 
-env:
-  ACTIONS_RUNNER_DEBUG: true
-  ACTIONS_STEP_DEBUG: true
-
 defaults:
   run:
     working-directory: nym-connect
@@ -18,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows10]
+        platform: [windows-latest]
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -60,12 +56,6 @@ jobs:
       - name: Install app dependencies
         run: yarn
         working-directory: nym-connect
-
-      - name: Check if rustc is available
-        run: rustc --version
-
-      - name: Check if cargo is available
-        run: cargo --version
 
       - name: Build and sign it
         env:

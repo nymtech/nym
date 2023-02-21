@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::interface::{Serializable, ServiceProviderMessagingError};
-use build_information::BinaryBuildInformationOwned;
+use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]

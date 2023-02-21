@@ -5,7 +5,7 @@
 extern crate rocket;
 
 use ::config::defaults::setup_env;
-use build_information::BinaryBuildInformation;
+use nym_bin_common::build_information::BinaryBuildInformation;
 use clap::{crate_name, crate_version, Parser, ValueEnum};
 use lazy_static::lazy_static;
 use nym_bin_common::logging::setup_logging;

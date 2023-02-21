@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use build_information::BinaryBuildInformation;
+use nym_bin_common::build_information::BinaryBuildInformation;
 use clap::{crate_name, crate_version, Parser, ValueEnum};
 use colored::Colorize;
 use lazy_static::lazy_static;

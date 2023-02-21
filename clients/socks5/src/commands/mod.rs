@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::{BaseConfig, Config};
-use build_information::BinaryBuildInformation;
+use nym_bin_common::build_information::BinaryBuildInformation;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use completions::{fig_generate, ArgShell};

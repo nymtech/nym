@@ -1,4 +1,10 @@
+# Changelog
+
 ## Unreleased
+
+## [v1.1.4] (2023-02-21)
+
+- Problem 142 (rust-side) ([#3024])
 
 ## [nym-contracts-v1.1.3](https://github.com/nymtech/nym/tree/nym-contracts-v1.1.3) (2022-01-25)
 

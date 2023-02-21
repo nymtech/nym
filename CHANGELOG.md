@@ -6,7 +6,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [v1.1.10] (2023-02-21)
 
-- Problem 142 (rust-side) ([#3024])
 - Verloc listener causing mixnode unexpected shutdown ([#3038])
 - rust-sdk - update API following implementation experience with the network-requester ([#3001])
 - Prevent coconut deposits in incompatible states ([#2991])
@@ -19,7 +18,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - ci: update typescript-lint.yml ([#3035])
 - contracts: add nym prefix to mixnet and vesting contract packages ([#2855])
 
-[#3024]: https://github.com/nymtech/nym/issues/3024
 [#3038]: https://github.com/nymtech/nym/issues/3038
 [#3001]: https://github.com/nymtech/nym/issues/3001
 [#2991]: https://github.com/nymtech/nym/issues/2991

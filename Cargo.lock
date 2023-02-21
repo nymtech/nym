@@ -676,19 +676,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "client-connections"
-version = "0.1.0"
-dependencies = [
- "futures",
- "log",
-]
-
-[[package]]
 name = "client-core"
 version = "1.1.9"
 dependencies = [
  "async-trait",
- "client-connections",
  "config",
  "dashmap 5.4.0",
  "dirs",
@@ -3513,7 +3504,6 @@ name = "nym-client"
 version = "1.1.9"
 dependencies = [
  "clap 4.1.4",
- "client-connections",
  "client-core",
  "coconut-interface",
  "config",
@@ -3699,7 +3689,6 @@ version = "1.1.9"
 dependencies = [
  "async-trait",
  "clap 4.1.4",
- "client-connections",
  "client-core",
  "config",
  "dirs",
@@ -3775,7 +3764,6 @@ dependencies = [
 name = "nym-sdk"
 version = "0.1.0"
 dependencies = [
- "client-connections",
  "client-core",
  "futures",
  "gateway-client",
@@ -3801,7 +3789,6 @@ name = "nym-socks5-client"
 version = "1.1.9"
 dependencies = [
  "clap 4.1.4",
- "client-connections",
  "client-core",
  "coconut-interface",
  "config",
@@ -4613,7 +4600,6 @@ name = "proxy-helpers"
 version = "0.1.0"
 dependencies = [
  "bytes",
- "client-connections",
  "futures",
  "log",
  "nym-task",

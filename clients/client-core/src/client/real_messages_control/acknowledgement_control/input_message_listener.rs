@@ -4,10 +4,10 @@
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver};
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_controller::ReplyControllerSender;
-use client_connections::TransmissionLane;
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_task::connections::TransmissionLane;
 use rand::{CryptoRng, Rng};
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,

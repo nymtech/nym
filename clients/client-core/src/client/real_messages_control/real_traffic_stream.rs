@@ -6,9 +6,6 @@ use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
-use client_connections::{
-    ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
-};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
@@ -20,6 +17,9 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::preparer::PreparedFragment;
 use nym_sphinx::utils::sample_poisson_duration;
+use nym_task::connections::{
+    ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
+};
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;

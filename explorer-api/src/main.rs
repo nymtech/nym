@@ -6,7 +6,7 @@ extern crate rocket_okapi;
 use clap::Parser;
 use dotenv::dotenv;
 use log::info;
-use network_defaults::setup_env;
+use nym_network_defaults::setup_env;
 use nym_bin_common::logging::setup_logging;
 use nym_task::TaskManager;
 

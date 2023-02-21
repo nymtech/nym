@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use handlebars::Handlebars;
-use network_defaults::mainnet::read_var_if_not_default;
-use network_defaults::var_names::CONFIGURED;
+use nym_network_defaults::mainnet::read_var_if_not_default;
+use nym_network_defaults::var_names::CONFIGURED;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::any::type_name;

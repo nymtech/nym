@@ -94,7 +94,7 @@ fn parse_optional_str(raw: &str) -> Option<String> {
 }
 
 mod sandbox {
-    use network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
+    use nym_network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
 
     use super::parse_optional_str;
 
@@ -155,7 +155,7 @@ mod sandbox {
 }
 
 mod qa {
-    use network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
+    use nym_network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
 
     use super::parse_optional_str;
 

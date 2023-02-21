@@ -16,7 +16,7 @@ use crate::{commands::sign::load_identity_keys, OutputFormat};
 use colored::Colorize;
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
-use network_defaults::NymNetworkDetails;
+use nym_network_defaults::NymNetworkDetails;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_task::{TaskClient, TaskManager};
 use rand::seq::SliceRandom;

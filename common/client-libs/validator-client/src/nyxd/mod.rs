@@ -17,7 +17,7 @@ use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
 use execute::execute;
 use log::debug;
-use network_defaults::{ChainDetails, NymNetworkDetails};
+use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use nym_mixnet_contract_common::MixId;
 use nym_vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
 use nym_vesting_contract_common::PledgeCap;

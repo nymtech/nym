@@ -4,7 +4,7 @@
 use std::error::Error;
 
 use clap::{crate_name, crate_version, Parser};
-use network_defaults::setup_env;
+use nym_network_defaults::setup_env;
 use nym_bin_common::logging::{banner, setup_logging};
 
 pub mod client;

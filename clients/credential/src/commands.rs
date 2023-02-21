@@ -12,7 +12,7 @@ use credential_storage::storage::Storage;
 use credential_storage::PersistentStorage;
 use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
-use network_defaults::VOUCHER_INFO;
+use nym_network_defaults::VOUCHER_INFO;
 use nym_crypto::asymmetric::{encryption, identity};
 use validator_client::nyxd::traits::DkgQueryClient;
 use validator_client::nyxd::tx::Hash;

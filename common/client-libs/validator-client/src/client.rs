@@ -30,7 +30,7 @@ use coconut_interface::Base58;
 #[cfg(feature = "nyxd-client")]
 use cw3::ProposalResponse;
 #[cfg(feature = "nyxd-client")]
-use network_defaults::NymNetworkDetails;
+use nym_network_defaults::NymNetworkDetails;
 #[cfg(feature = "nyxd-client")]
 use nym_api_requests::models::MixNodeBondAnnotated;
 #[cfg(feature = "nyxd-client")]

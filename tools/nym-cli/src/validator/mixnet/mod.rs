@@ -1,4 +1,4 @@
-use network_defaults::NymNetworkDetails;
+use nym_network_defaults::NymNetworkDetails;
 use nym_cli_commands::context::ClientArgs;
 
 pub(crate) mod delegators;

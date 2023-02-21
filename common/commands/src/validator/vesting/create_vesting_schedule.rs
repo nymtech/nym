@@ -6,7 +6,7 @@ use std::str::FromStr;
 use clap::Parser;
 use log::info;
 
-use network_defaults::NymNetworkDetails;
+use nym_network_defaults::NymNetworkDetails;
 use nym_mixnet_contract_common::Coin;
 use nym_vesting_contract_common::messages::VestingSpecification;
 use nym_vesting_contract_common::PledgeCap;

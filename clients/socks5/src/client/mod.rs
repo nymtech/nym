@@ -72,7 +72,7 @@ impl NymClient {
 
     #[cfg(not(feature = "mobile"))]
     async fn create_bandwidth_controller(config: &Config) -> BandwidthController<QueryNyxdClient> {
-        let details = network_defaults::NymNetworkDetails::new_from_env();
+        let details = nym_network_defaults::NymNetworkDetails::new_from_env();
         let mut client_config = validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct validator client config");
         let nyxd_url = config

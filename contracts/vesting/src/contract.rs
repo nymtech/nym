@@ -533,7 +533,7 @@ fn try_undelegate_from_mixnode(
 /// Creates a new periodic vesting account, and deposits funds to vest into the contract.
 ///
 /// Callable by ADMIN only, see [instantiate].
-fn try_create_periodic_vesting_account(
+pub(crate) fn try_create_periodic_vesting_account(
     owner_address: &str,
     staking_address: Option<String>,
     vesting_spec: Option<VestingSpecification>,
@@ -660,24 +660,38 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetOriginalVesting {
             vesting_account_address,
         } => to_binary(&try_get_original_vesting(&vesting_account_address, deps)?),
-        QueryMsg::GetDelegatedFree {
-            block_time,
+        QueryMsg::GetHistoricalVestingStakingReward {
             vesting_account_address,
-        } => to_binary(&try_get_delegated_free(
-            block_time,
+        } => to_binary(&try_get_historical_vesting_staking_reward(
             &vesting_account_address,
-            env,
             deps,
         )?),
-        QueryMsg::GetDelegatedVesting {
-            block_time,
+        QueryMsg::GetSpendableVestedCoins {
             vesting_account_address,
-        } => to_binary(&try_get_delegated_vesting(
-            block_time,
+        } => to_binary(&try_get_spendable_vested_coins(
             &vesting_account_address,
-            env,
             deps,
+            env,
         )?),
+        QueryMsg::GetSpendableRewardCoins {
+            vesting_account_address,
+        } => to_binary(&try_get_spendable_reward_coins(
+            &vesting_account_address,
+            deps,
+            env,
+        )?),
+        QueryMsg::GetDelegatedCoins {
+            vesting_account_address,
+        } => to_binary(&try_get_delegated_coins(&vesting_account_address, deps)?),
+        QueryMsg::GetPledgedCoins {
+            vesting_account_address,
+        } => to_binary(&try_get_pledged_coins(&vesting_account_address, deps)?),
+        QueryMsg::GetStakedCoins {
+            vesting_account_address,
+        } => to_binary(&try_get_staked_coins(&vesting_account_address, deps)?),
+        QueryMsg::GetWithdrawnCoins {
+            vesting_account_address,
+        } => to_binary(&try_get_withdrawn_coins(&vesting_account_address, deps)?),
         QueryMsg::GetAccount { address } => to_binary(&try_get_account(&address, deps)?),
         QueryMsg::GetMixnode { address } => to_binary(&try_get_mixnode(&address, deps)?),
         QueryMsg::GetGateway { address } => to_binary(&try_get_gateway(&address, deps)?),
@@ -873,26 +887,70 @@ pub fn try_get_original_vesting(
     account.get_original_vesting()
 }
 
-/// See [crate::traits::VestingAccount::get_delegated_free]
-pub fn try_get_delegated_free(
-    block_time: Option<Timestamp>,
+pub fn try_get_historical_vesting_staking_reward(
     vesting_account_address: &str,
-    env: Env,
     deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
-    account.get_delegated_free(block_time, &env, deps.storage)
+    account.get_historical_vested_staking_rewards(deps.storage)
 }
 
-/// See [crate::traits::VestingAccount::get_delegated_vesting]
-pub fn try_get_delegated_vesting(
-    block_time: Option<Timestamp>,
+pub fn try_get_spendable_vested_coins(
     vesting_account_address: &str,
+    deps: Deps<'_>,
     env: Env,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    account.spendable_vested_coins(None, &env, deps.storage)
+}
+
+pub fn try_get_spendable_reward_coins(
+    vesting_account_address: &str,
+    deps: Deps<'_>,
+    env: Env,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    account.spendable_reward_coins(None, &env, deps.storage)
+}
+
+pub fn try_get_delegated_coins(
+    vesting_account_address: &str,
     deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
-    account.get_delegated_vesting(block_time, &env, deps.storage)
+    let denom = MIX_DENOM.load(deps.storage)?;
+    let amount = account.total_delegations(deps.storage)?;
+    Ok(Coin { denom, amount })
+}
+
+pub fn try_get_pledged_coins(
+    vesting_account_address: &str,
+    deps: Deps<'_>,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    let denom = MIX_DENOM.load(deps.storage)?;
+    let amount = account.total_pledged(deps.storage)?;
+    Ok(Coin { denom, amount })
+}
+
+pub fn try_get_staked_coins(
+    vesting_account_address: &str,
+    deps: Deps<'_>,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    let denom = MIX_DENOM.load(deps.storage)?;
+    let amount = account.total_staked(deps.storage)?;
+    Ok(Coin { denom, amount })
+}
+
+pub fn try_get_withdrawn_coins(
+    vesting_account_address: &str,
+    deps: Deps<'_>,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    let denom = MIX_DENOM.load(deps.storage)?;
+    let amount = account.load_withdrawn(deps.storage)?;
+    Ok(Coin { denom, amount })
 }
 
 /// Returns timestamps at which delegations were made

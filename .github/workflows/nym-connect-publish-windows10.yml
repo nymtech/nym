@@ -4,6 +4,10 @@ on:
   release:
     types: [created]
 
+env:
+  ACTIONS_RUNNER_DEBUG: true
+  ACTIONS_STEP_DEBUG: true
+
 defaults:
   run:
     working-directory: nym-connect
@@ -44,10 +48,10 @@ jobs:
         with:
           node-version: 16
 
-      #- name: Install Rust stable
-      #  uses: actions-rs/toolchain@v1
-      #  with:
-      #    toolchain: stable
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
 
       - name: Create env file
         uses: timheuer/base64-to-file@v1.1
@@ -58,13 +62,6 @@ jobs:
       - name: Install app dependencies
         run: yarn
         working-directory: nym-connect
-
-      - name: Update PATH
-        run: |
-          "C:\Users\nymtech\.cargo\bin" >> $env:GITHUB_PATH
-
-      - name: Echo PATH
-        run: echo "$PATH"
 
       - name: Check if rustc is available
         run: rustc --version
@@ -80,7 +77,6 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          RUST_BACKTRACE: 1
         run: yarn build
         working-directory: nym-connect
 

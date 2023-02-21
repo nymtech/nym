@@ -2,7 +2,7 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased]
+## [Unreleased]
 
 ### Added
 
@@ -11,13 +11,15 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2936]: https://github.com/nymtech/nym/pull/2936
 
 
-# [v1.1.9] (2023-02-07)
+## [v1.1.9] (2023-02-07)
 
 ### Added
+
 - Remove Coconut feature flag ([#2793])
 - Separate `nym-api` endpoints with values of "total-supply" and "circulating-supply" in `nym` ([#2964])
 
 ### Changed
+
 - native-client: is now capable of listening for requests on sockets different than `127.0.0.1` ([#2912]). This can be specified via `--host` flag during `init` or `run`. Alternatively a custom `host` can be set in `config.toml` file under `socket` section.
 - mixnode, gateway: fix unexpected shutdown on corrupted connection ([#2963])
 
@@ -26,7 +28,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2964]: https://github.com/nymtech/nym/issues/2964
 [#2963]: https://github.com/nymtech/nym/issues/3017
 
-# [v1.1.8] (2023-01-31)
+## [v1.1.8] (2023-01-31)
 
 ### Added
 
@@ -46,7 +48,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2873]: https://github.com/nymtech/nym/issues/2873
 
 
-# [v1.1.7] (2023-01-24)
+## [v1.1.7] (2023-01-24)
 
 ### Added
 
@@ -97,12 +99,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2814]: https://github.com/nymtech/nym/pull/2814
 [#2772]: https://github.com/nymtech/nym/pull/2772
 [#2774]: https://github.com/nymtech/nym/pull/2774
-
-## [v1.1.5] (2023-01-10)
-
-### Added
-
-### Changed
 
 ## [v1.1.5] (2023-01-10)
 

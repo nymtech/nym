@@ -1,6 +1,6 @@
 # Changelog
 
-## UNRELEASED
+## [Unreleased]
 
 ## [nym-connect-v1.1.10](https://github.com/nymtech/nym/tree/nym-connect-v1.1.10) (2023-02-21)
 

@@ -6,12 +6,6 @@ const {
   LocalStorageCryptoStore,
 } = require('matrix-js-sdk/lib/crypto/store/localStorage-crypto-store');
 
-const vfile = require('to-vfile');
-const unified = require('unified');
-const remarkParse = require('remark-parse');
-const remarkHtml = require('remark-html');
-const emoji = require('remark-emoji');
-
 // hide all matrix client output
 console.error = (error) => console.log('❌ error: ', error);
 process.stderr.write = () => {};
@@ -59,18 +53,8 @@ function createClient(context, room, message) {
   return client;
 }
 
-async function markdownToHtml(messageAsMarkdown) {
-  const file = await unified()
-    .use(emoji)
-    .use(remarkParse)
-    .use(remarkHtml)
-    .process(await vfile({ path: 'test.md', contents: messageAsMarkdown}));
-  return String(file);
-}
-
 async function sendMatrixMessage(contextArg, messageAsMarkdown, roomId) {
-  const messageAsHtml = await markdownToHtml(messageAsMarkdown);
-  const client = createClient(contextArg, roomId, messageAsHtml);
+  const client = createClient(contextArg, roomId, messageAsMarkdown);
   await client.initCrypto();
   await client.startClient({ initialSyncLimit: 1 });
 }

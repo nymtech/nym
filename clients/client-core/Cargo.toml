@@ -73,11 +73,6 @@ features = ["wasm-bindgen"]
 
 [dev-dependencies]
 tempfile = "3.1.0"
-## TODO: REMOVE!!!
-## TODO: REMOVE!!!
-## TODO: REMOVE!!!
-## TODO: REMOVE!!!
-tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }

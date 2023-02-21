@@ -62,6 +62,18 @@ pub enum ClientCoreError {
         source: GatewayConversionError,
     },
 
+    #[error("failed to establish connection to gateway: {source}")]
+    GatewayConnectionFailure {
+        #[from]
+        source: tokio_tungstenite::tungstenite::Error,
+    },
+
+    #[error("Gateway connection was abruptly closed")]
+    GatewayConnectionAbruptlyClosed,
+
+    #[error("No ping measurements for the gateway ({identity}) performed")]
+    NoGatewayMeasurements { identity: String },
+
     #[error("failed to register receiver for reconstructed mixnet messages")]
     FailedToRegisterReceiver,
 

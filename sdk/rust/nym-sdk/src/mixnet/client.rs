@@ -259,6 +259,8 @@ where
             &mut self.key_manager,
             self.config.nym_api_endpoints.clone(),
             user_chosen_gateway,
+            // TODO: this should probably be configurable with the config
+            false,
         )
         .await?;
 

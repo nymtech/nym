@@ -77,7 +77,7 @@ cw3 = { version = "0.13.4" }
 cw4 = { version = "0.13.4" }
 dkg = { path = "../common/dkg" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
-inclusion-probability = { path = "../common/inclusion-probability" }
+nym-inclusion-probability = { path = "../common/inclusion-probability" }
 nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["dkg"] }

@@ -2697,15 +2697,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "inclusion-probability"
-version = "0.1.0"
-dependencies = [
- "log",
- "rand 0.8.5",
- "thiserror",
-]
-
-[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3346,7 +3337,6 @@ dependencies = [
  "gateway-client",
  "getset",
  "humantime-serde",
- "inclusion-probability",
  "lazy_static",
  "log",
  "multisig-contract-common",
@@ -3354,6 +3344,7 @@ dependencies = [
  "nym-bin-common",
  "nym-contracts-common",
  "nym-crypto",
+ "nym-inclusion-probability",
  "nym-mixnet-contract-common",
  "nym-pemstore",
  "nym-sphinx",
@@ -3607,6 +3598,15 @@ dependencies = [
  "tokio-util",
  "url",
  "validator-client",
+]
+
+[[package]]
+name = "nym-inclusion-probability"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "rand 0.8.5",
+ "thiserror",
 ]
 
 [[package]]

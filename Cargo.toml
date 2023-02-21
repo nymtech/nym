@@ -68,7 +68,6 @@ members = [
     "common/topology",
     "common/types",
     "common/wasm-utils",
-    "common/completions",
     "explorer-api",
     "gateway",
     "gateway/gateway-requests",

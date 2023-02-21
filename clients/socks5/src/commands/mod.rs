@@ -4,7 +4,7 @@
 use crate::client::config::{BaseConfig, Config};
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
-use completions::{fig_generate, ArgShell};
+use nym_bin_common::completions::{fig_generate, ArgShell};
 use config::OptionalSet;
 use lazy_static::lazy_static;
 use nym_bin_common::build_information::BinaryBuildInformation;

@@ -33,7 +33,6 @@ url = { workspace = true }
 # internal
 client-connections = { path = "../../common/client-connections" }
 client-core = { path = "../../clients/client-core" }
-completions = { path = "../../common/completions" }
 config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
 nym-bin-common = { path = "../../common/bin-common"}

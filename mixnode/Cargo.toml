@@ -42,7 +42,6 @@ atty = "0.2"
 ## internal
 config = { path="../common/config" }
 nym-crypto = { path="../common/crypto" }
-completions = { path="../common/completions" }
 mixnet-client = { path="../common/client-libs/mixnet-client" }
 mixnode-common = { path="../common/mixnode-common" }
 nonexhaustive-delayqueue = { path="../common/nonexhaustive-delayqueue" }

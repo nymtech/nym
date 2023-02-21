@@ -798,15 +798,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "completions"
-version = "0.1.0"
-dependencies = [
- "clap 4.1.4",
- "clap_complete",
- "clap_complete_fig",
-]
-
-[[package]]
 name = "config"
 version = "0.1.0"
 dependencies = [
@@ -1027,7 +1018,6 @@ dependencies = [
  "bip39",
  "clap 4.1.4",
  "coconut-interface",
- "completions",
  "config",
  "credential-storage",
  "credentials",
@@ -3435,6 +3425,9 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.1.0"
 dependencies = [
+ "clap 4.1.4",
+ "clap_complete",
+ "clap_complete_fig",
  "log",
  "pretty_env_logger",
  "semver 0.11.0",
@@ -3523,7 +3516,6 @@ dependencies = [
  "client-connections",
  "client-core",
  "coconut-interface",
- "completions",
  "config",
  "credential-storage",
  "credentials",
@@ -3603,7 +3595,6 @@ dependencies = [
  "clap 4.1.4",
  "coconut-interface",
  "colored",
- "completions",
  "config",
  "credentials",
  "dashmap 4.0.2",
@@ -3669,7 +3660,6 @@ dependencies = [
  "bs58",
  "clap 4.1.4",
  "colored",
- "completions",
  "config",
  "cupid",
  "dirs",
@@ -3711,7 +3701,6 @@ dependencies = [
  "clap 4.1.4",
  "client-connections",
  "client-core",
- "completions",
  "config",
  "dirs",
  "futures",
@@ -3815,7 +3804,6 @@ dependencies = [
  "client-connections",
  "client-core",
  "coconut-interface",
- "completions",
  "config",
  "credential-storage",
  "credentials",

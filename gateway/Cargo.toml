@@ -56,7 +56,6 @@ coconut-interface = { path = "../common/coconut-interface" }
 credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto" }
-completions = { path = "../common/completions" }
 nym-bin-common = { path = "../common/bin-common" }
 gateway-requests = { path = "gateway-requests" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }

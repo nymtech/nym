@@ -8,9 +8,12 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-semver = "0.11"
+clap = { version = "4.0", features = ["derive"] }
+clap_complete = "4.0"
+clap_complete_fig = "4.0"
 log = { workspace = true }
 pretty_env_logger = "0.4.0"
+semver = "0.11"
 serde = { workspace = true, features = ["derive"], optional = true }
 
 [build-dependencies]

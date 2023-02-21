@@ -32,7 +32,6 @@ client-core = { path = "../client-core", features = ["fs-surb-storage"] }
 client-connections = { path = "../../common/client-connections" }
 coconut-interface = { path = "../../common/coconut-interface" }
 config = { path = "../../common/config" }
-completions = { path = "../../common/completions" }
 credential-storage = { path = "../../common/credential-storage", optional = true }
 mobile-storage = { path = "../../common/mobile-storage", optional = true }
 credentials = { path = "../../common/credentials" }

@@ -5,7 +5,7 @@ use crate::error::GatewayError;
 use crate::{config::Config, Cli};
 use clap::CommandFactory;
 use clap::Subcommand;
-use completions::{fig_generate, ArgShell};
+use nym_bin_common::completions::{fig_generate, ArgShell};
 use config::OptionalSet;
 use network_defaults::var_names::NYXD;
 use network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};

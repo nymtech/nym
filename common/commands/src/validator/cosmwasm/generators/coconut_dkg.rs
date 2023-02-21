@@ -45,18 +45,18 @@ pub async fn generate(args: Args) {
     debug!("Received arguments: {:?}", args);
 
     let multisig_addr = args.multisig_addr.unwrap_or_else(|| {
-        let address = std::env::var(network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
+        let address = std::env::var(nym_network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
             .expect("Multisig address has to be set");
         AccountId::from_str(address.as_str())
             .expect("Failed converting multisig address to AccountId")
     });
 
     let mix_denom = args.mix_denom.unwrap_or_else(|| {
-        std::env::var(network_defaults::var_names::MIX_DENOM).expect("Mix denom has to be set")
+        std::env::var(nym_network_defaults::var_names::MIX_DENOM).expect("Mix denom has to be set")
     });
 
     let mut time_configuration =
-        if let Ok(config) = std::env::var(network_defaults::var_names::DKG_TIME_CONFIGURATION) {
+        if let Ok(config) = std::env::var(nym_network_defaults::var_names::DKG_TIME_CONFIGURATION) {
             TimeConfiguration::from_str(&config).expect("Invalid env variable value")
         } else {
             TimeConfiguration::default()

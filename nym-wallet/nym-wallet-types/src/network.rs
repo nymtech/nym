@@ -129,8 +129,8 @@ mod sandbox {
         )]
     }
 
-    pub(crate) fn network_details() -> network_defaults::NymNetworkDetails {
-        network_defaults::NymNetworkDetails {
+    pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
+        nym_network_defaults::NymNetworkDetails {
             chain_details: ChainDetails {
                 bech32_account_prefix: BECH32_PREFIX.to_string(),
                 mix_denom: MIX_DENOM.into(),
@@ -190,8 +190,8 @@ mod qa {
         )]
     }
 
-    pub(crate) fn network_details() -> network_defaults::NymNetworkDetails {
-        network_defaults::NymNetworkDetails {
+    pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
+        nym_network_defaults::NymNetworkDetails {
             chain_details: ChainDetails {
                 bech32_account_prefix: BECH32_PREFIX.to_string(),
                 mix_denom: MIX_DENOM.into(),

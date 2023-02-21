@@ -775,7 +775,7 @@ dependencies = [
  "cfg-if",
  "handlebars",
  "log",
- "network-defaults",
+ "nym-network-defaults",
  "serde",
  "toml",
  "url",
@@ -1948,8 +1948,8 @@ dependencies = [
  "getrandom 0.2.8",
  "log",
  "mobile-storage",
- "network-defaults",
  "nym-crypto",
+ "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
@@ -3344,19 +3344,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "network-defaults"
-version = "0.1.0"
-dependencies = [
- "cfg-if",
- "dotenv",
- "hex-literal",
- "once_cell",
- "serde",
- "thiserror",
- "url",
-]
-
-[[package]]
 name = "new_debug_unreachable"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3613,6 +3600,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-network-defaults"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "dotenv",
+ "hex-literal",
+ "once_cell",
+ "serde",
+ "thiserror",
+ "url",
+]
+
+[[package]]
 name = "nym-pemstore"
 version = "0.1.0"
 dependencies = [
@@ -3635,9 +3635,9 @@ dependencies = [
  "lazy_static",
  "log",
  "mobile-storage",
- "network-defaults",
  "nym-bin-common",
  "nym-crypto",
+ "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
@@ -6779,10 +6779,10 @@ dependencies = [
  "itertools",
  "log",
  "multisig-contract-common",
- "network-defaults",
  "nym-api-requests",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
+ "nym-network-defaults",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
  "prost",

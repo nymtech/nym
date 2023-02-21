@@ -17,7 +17,7 @@ use std::process::exit;
 use std::time::{Duration, SystemTime};
 
 use clap::{CommandFactory, Parser};
-use logging::setup_logging;
+use nym_bin_common::logging::setup_logging;
 use validator_client::nyxd::traits::DkgQueryClient;
 use validator_client::nyxd::CosmWasmClient;
 use validator_client::Config;

@@ -8,7 +8,7 @@ use ::config::defaults::setup_env;
 use build_information::BinaryBuildInformation;
 use clap::{crate_name, crate_version, Parser, ValueEnum};
 use lazy_static::lazy_static;
-use logging::setup_logging;
+use nym_bin_common::logging::setup_logging;
 
 mod commands;
 mod config;

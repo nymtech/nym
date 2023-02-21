@@ -18,7 +18,7 @@ use clap::Parser;
 use coconut::dkg::controller::DkgController;
 use config::NymConfig;
 use log::info;
-use logging::setup_logging;
+use nym_bin_common::logging::setup_logging;
 use node_status_api::NodeStatusCache;
 use nym_contract_cache::cache::NymContractCache;
 use nym_task::TaskManager;

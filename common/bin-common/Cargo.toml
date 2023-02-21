@@ -1,15 +1,11 @@
 [package]
 name = "nym-bin-common"
 version = "0.1.0"
+description = "Common code for nym binaries"
 edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
-readme = { workspace = true }
-homepage = { workspace = true }
-documentation = { workspace = true }
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 semver = "0.11"

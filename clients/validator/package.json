@@ -4,15 +4,22 @@
   "description": "A TypeScript client for interacting with smart contracts in Nym validators",
   "repository": "https://github.com/nymtech/nym",
   "main": "./dist/index.js",
-  "types": "dist/index.d.ts",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "test": "ts-mocha tests/**/*.test.ts",
+    "build": "rollup -c rollup.config.mjs",
+    "build:types": "rollup-type-bundler --dist ./dist",
+    "test": "ts-mocha -p tests/tsconfig.test.json tests/**/*.test.ts",
+    "testmock": "ts-mocha tests/mock/*.test.ts",
     "coverage": "nyc npm test",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix",
+    "clean": "rm -rf ./dist",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "lint:tsc": "tsc --noEmit",
     "docs": "typedoc --out docs src/index.ts"
   },
+  "files": [
+    "./dist/*"
+  ],
   "keywords": [],
   "author": "Nym Technologies SA (https://nymtech.net)",
   "contributors": [
@@ -21,6 +28,14 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
+    "@favware/rollup-type-bundler": "^2.0.0",
+    "@nymproject/types": "^1.0.0",
+    "@rollup/plugin-commonjs": "^24.0.1",
+    "@rollup/plugin-json": "^6.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.1",
+    "rollup": "^3.17.2",
+    "rollup-plugin-dts": "^5.2.0",
     "@typescript-eslint/eslint-plugin": "^5.7.0",
     "@typescript-eslint/parser": "^5.7.0",
     "eslint": "^7.18.0",
@@ -31,21 +46,21 @@
     "eslint-plugin-import": "^2.25.4",
     "eslint-plugin-mocha": "^10.0.3",
     "eslint-plugin-prettier": "^4.0.0",
-    "expect": "^28.1.3",
     "mocha": "^10.0.0",
     "prettier": "^2.5.1",
-    "typedoc": "^0.22.13",
     "ts-mocha": "^10.0.0",
-    "typescript": "^4.6.2"
-  },
-  "dependencies": {
-    "@cosmjs/cosmwasm-stargate": "^0.28.0",
-    "@cosmjs/crypto": "^0.28.0",
-    "@cosmjs/math": "^0.28.0",
-    "@cosmjs/proto-signing": "^0.28.0",
-    "@cosmjs/stargate": "^0.28.0",
-    "@cosmjs/tendermint-rpc": "^0.28.0",
-    "axios": "^0.26.1",
-    "cosmjs-types": "^0.4.1"
+    "typedoc": "^0.22.13",
+    "typescript": "^4.6.2",
+    "cosmjs-types": "^0.4.1",
+    "dotenv": "^16.0.3",
+    "expect": "^28.1.3",
+    "moq.ts": "^7.3.4",
+    "@cosmjs/cosmwasm-stargate": "^0.29.5",
+    "@cosmjs/crypto": "^0.29.5",
+    "@cosmjs/math": "^0.29.5",
+    "@cosmjs/proto-signing": "^0.29.5",
+    "@cosmjs/stargate": "^0.29.5",
+    "@cosmjs/tendermint-rpc": "^0.29.5",
+    "axios": "^1.3.3"
   }
 }

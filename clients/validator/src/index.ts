@@ -1,6 +1,3 @@
-import { Bip39, Random } from '@cosmjs/crypto';
-import { DirectSecp256k1HdWallet, EncodeObject } from '@cosmjs/proto-signing';
-import { coin as cosmosCoin, Coin, DeliverTxResponse, isDeliverTxFailure, StdFee } from '@cosmjs/stargate';
 import {
   ExecuteResult,
   InstantiateOptions,
@@ -8,45 +5,36 @@ import {
   MigrateResult,
   UploadResult,
 } from '@cosmjs/cosmwasm-stargate';
-import SigningClient, { ISigningClient } from './signing-client';
+import { Bip39, Random } from '@cosmjs/crypto';
+import { DirectSecp256k1HdWallet, EncodeObject } from '@cosmjs/proto-signing';
+import { Coin, coin as cosmosCoin, DeliverTxResponse, isDeliverTxFailure, StdFee } from '@cosmjs/stargate';
 import {
   ContractStateParams,
   Delegation,
   Gateway,
   GatewayBond,
+  GatewayOwnershipResponse,
+  LayerDistribution,
   MixnetContractVersion,
   MixNode,
   MixNodeBond,
+  MixNodeCostParams,
+  MixNodeDetails,
+  MixNodeRewarding,
+  MixOwnershipResponse,
   PagedAllDelegationsResponse,
   PagedDelegatorDelegationsResponse,
   PagedGatewayResponse,
   PagedMixDelegationsResponse,
-  PagedMixnodeResponse,
-} from './types';
-import {
-  CoinMap,
-  displayAmountToNative,
-  MappedCoin,
-  nativeCoinToDisplay,
-  nativeToPrintable,
-  printableBalance,
-  printableCoin,
-} from './currency';
+  PagedMixNodeBondResponse,
+  PagedMixNodeDetailsResponse,
+  PagedUnbondedMixnodesResponse,
+  RewardingParams,
+  StakeSaturationResponse,
+  UnbondedMixnodeResponse,
+} from '@nymproject/types';
 import QueryClient from './query-client';
-import { nymGasPrice } from './stargate-helper';
-
-export { coins, coin } from '@cosmjs/stargate';
-export { Coin };
-export {
-  displayAmountToNative,
-  nativeCoinToDisplay,
-  printableCoin,
-  printableBalance,
-  nativeToPrintable,
-  MappedCoin,
-  CoinMap,
-};
-export { nymGasPrice };
+import SigningClient, { ISigningClient } from './signing-client';
 
 export interface INymClient {
   readonly mixnetContract: string;
@@ -147,7 +135,7 @@ export default class ValidatorClient implements INymClient {
     return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, signerOptions);
   }
 
-  getBalance(address: string): Promise<Coin> {
+  async getBalance(address: string): Promise<Coin> {
     return this.client.getBalance(address, this.denom);
   }
 
@@ -159,12 +147,36 @@ export default class ValidatorClient implements INymClient {
     return this.client.getCachedMixnodes();
   }
 
-  async getActiveMixnodes(): Promise<MixNodeBond[]> {
+  async getStakeSaturation(mixId: number): Promise<StakeSaturationResponse> {
+    return this.client.getStakeSaturation(this.mixnetContract, mixId);
+  }
+
+  async getActiveMixnodes(): Promise<MixNodeDetails[]> {
     return this.client.getActiveMixnodes();
+  }
+
+  async getUnbondedMixNodeInformation(mixId: number): Promise<UnbondedMixnodeResponse> {
+    return this.client.getUnbondedMixNodeInformation(this.mixnetContract, mixId);
   }
 
   async getRewardedMixnodes(): Promise<MixNodeBond[]> {
     return this.client.getRewardedMixnodes();
+  }
+
+  async getMixnodeRewardingDetails(mixId: number): Promise<MixNodeRewarding> {
+    return this.client.getMixnodeRewardingDetails(this.mixnetContract, mixId);
+  }
+
+  async getOwnedMixnode(address: string): Promise<MixOwnershipResponse> {
+    return this.client.getOwnedMixnode(this.mixnetContract, address);
+  }
+
+  async ownsGateway(address: string): Promise<GatewayOwnershipResponse> {
+    return this.client.ownsGateway(this.mixnetContract, address);
+  }
+
+  async getLayerDistribution(): Promise<LayerDistribution> {
+    return this.client.getLayerDistribution(this.mixnetContract);
   }
 
   public async getMixnetContractSettings(): Promise<ContractStateParams> {
@@ -175,29 +187,74 @@ export default class ValidatorClient implements INymClient {
     return this.client.getContractVersion(this.mixnetContract);
   }
 
-  public async getRewardPool(): Promise<string> {
-    return this.client.getRewardPool(this.mixnetContract);
+  public async getVestingContractVersion(): Promise<MixnetContractVersion> {
+    return this.client.getContractVersion(this.vestingContract);
   }
 
-  public async getCirculatingSupply(): Promise<string> {
-    return this.client.getCirculatingSupply(this.mixnetContract);
+  public async getSpendableCoins(vestingAccountAddress: string): Promise<MixnetContractVersion> {
+    return this.client.getSpendableCoins(this.vestingContract, vestingAccountAddress);
   }
 
-  public async getSybilResistancePercent(): Promise<number> {
-    return this.client.getSybilResistancePercent(this.mixnetContract);
+  public async getRewardParams(): Promise<RewardingParams> {
+    return this.client.getRewardParams(this.mixnetContract);
   }
 
-  public async getIntervalRewardPercent(): Promise<number> {
-    return this.client.getIntervalRewardPercent(this.mixnetContract);
+  async getUnbondedMixNodes(): Promise<UnbondedMixnodeResponse[]> {
+    let mixNodes: UnbondedMixnodeResponse[] = [];
+    const limit = 50;
+    let startAfter;
+    for (;;) {
+      // eslint-disable-next-line no-await-in-loop
+      const pagedResponse: PagedUnbondedMixnodesResponse = await this.client.getUnbondedMixNodes(
+        this.mixnetContract,
+        limit,
+        startAfter,
+      );
+
+      mixNodes = mixNodes.concat(pagedResponse.nodes);
+      startAfter = pagedResponse.start_next_after;
+      // if `start_next_after` is not set, we're done
+      if (!startAfter) {
+        break;
+      }
+    }
+
+    return mixNodes;
   }
 
-  public async getAllNyxdMixnodes(): Promise<MixNodeBond[]> {
+  public async getMixNodeBonds(): Promise<MixNodeBond[]> {
     let mixNodes: MixNodeBond[] = [];
     const limit = 50;
     let startAfter;
-    for (; ;) {
+    for (;;) {
       // eslint-disable-next-line no-await-in-loop
-      const pagedResponse: PagedMixnodeResponse = await this.client.getMixNodesPaged(this.mixnetContract, limit);
+      const pagedResponse: PagedMixNodeBondResponse = await this.client.getMixNodeBonds(
+        this.mixnetContract,
+        limit,
+        startAfter,
+      );
+      mixNodes = mixNodes.concat(pagedResponse.nodes);
+      startAfter = pagedResponse.start_next_after;
+      // if `start_next_after` is not set, we're done
+      if (!startAfter) {
+        break;
+      }
+    }
+
+    return mixNodes;
+  }
+
+  public async getMixNodesDetailed(): Promise<MixNodeDetails[]> {
+    let mixNodes: MixNodeDetails[] = [];
+    const limit = 50;
+    let startAfter;
+    for (;;) {
+      // eslint-disable-next-line no-await-in-loop
+      const pagedResponse: PagedMixNodeDetailsResponse = await this.client.getMixNodesDetailed(
+        this.mixnetContract,
+        limit,
+        startAfter,
+      );
       mixNodes = mixNodes.concat(pagedResponse.nodes);
       startAfter = pagedResponse.start_next_after;
       // if `start_next_after` is not set, we're done
@@ -210,37 +267,24 @@ export default class ValidatorClient implements INymClient {
   }
 
   public async getAllNyxdGateways(): Promise<GatewayBond[]> {
-    let gateways: GatewayBond[] = [];
-    const limit = 50;
-    let startAfter;
-    for (; ;) {
-      // eslint-disable-next-line no-await-in-loop
-      const pagedResponse: PagedGatewayResponse = await this.client.getGatewaysPaged(this.mixnetContract, limit);
-      gateways = gateways.concat(pagedResponse.nodes);
-      startAfter = pagedResponse.start_next_after;
-      // if `start_next_after` is not set, we're done
-      if (!startAfter) {
-        break;
-      }
-    }
-
-    return gateways;
+    const pagedResponse: PagedGatewayResponse = await this.client.getGatewaysPaged(this.mixnetContract);
+    return pagedResponse.nodes;
   }
 
   /**
    * Gets list of all delegations towards particular mixnode.
    *
-   * @param mixIdentity identity of the node to which the delegation was sent
+   * @param mix_id identity of the node to which the delegation was sent
    */
-  public async getAllNyxdSingleMixnodeDelegations(mixIdentity: string): Promise<Delegation[]> {
+  public async getAllNyxdSingleMixnodeDelegations(mix_id: number): Promise<Delegation[]> {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
-    for (; ;) {
+    for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedMixDelegationsResponse = await this.client.getMixNodeDelegationsPaged(
         this.mixnetContract,
-        mixIdentity,
+        mix_id,
         limit,
         startAfter,
       );
@@ -259,7 +303,7 @@ export default class ValidatorClient implements INymClient {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
-    for (; ;) {
+    for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedDelegatorDelegationsResponse = await this.client.getDelegatorDelegationsPaged(
         this.mixnetContract,
@@ -278,13 +322,13 @@ export default class ValidatorClient implements INymClient {
     return delegations;
   }
 
-  public async getAllNyxdNetworkDelegations(): Promise<Delegation[]> {
+  public async getAllNyxdDelegations(): Promise<Delegation[]> {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
-    for (; ;) {
+    for (;;) {
       // eslint-disable-next-line no-await-in-loop
-      const pagedResponse: PagedAllDelegationsResponse = await this.client.getAllNetworkDelegationsPaged(
+      const pagedResponse: PagedAllDelegationsResponse = await this.client.getAllDelegationsPaged(
         this.mixnetContract,
         limit,
         startAfter,
@@ -298,6 +342,10 @@ export default class ValidatorClient implements INymClient {
     }
 
     return delegations;
+  }
+
+  public async getDelegationDetails(mix_id: number, delegator: string): Promise<Delegation> {
+    return this.client.getDelegationDetails(this.mixnetContract, mix_id, delegator);
   }
 
   /**
@@ -393,12 +441,21 @@ export default class ValidatorClient implements INymClient {
   public async bondMixNode(
     mixNode: MixNode,
     ownerSignature: string,
+    costParams: MixNodeCostParams,
     pledge: Coin,
     fee?: StdFee | 'auto' | number,
     memo?: string,
   ): Promise<ExecuteResult> {
     this.assertSigning();
-    return (this.client as ISigningClient).bondMixNode(this.mixnetContract, mixNode, ownerSignature, pledge, fee, memo);
+    return (this.client as ISigningClient).bondMixNode(
+      this.mixnetContract,
+      mixNode,
+      costParams,
+      ownerSignature,
+      pledge,
+      fee,
+      memo,
+    );
   }
 
   public async unbondMixNode(fee?: StdFee | 'auto' | number, memo?: string): Promise<ExecuteResult> {
@@ -423,29 +480,29 @@ export default class ValidatorClient implements INymClient {
   }
 
   public async delegateToMixNode(
-    mixIdentity: string,
+    mixId: number,
     amount: Coin,
     fee?: StdFee | 'auto' | number,
     memo?: string,
   ): Promise<ExecuteResult> {
     this.assertSigning();
-    return (this.client as ISigningClient).delegateToMixNode(this.mixnetContract, mixIdentity, amount, fee, memo);
+    return (this.client as ISigningClient).delegateToMixNode(this.mixnetContract, mixId, amount, fee, memo);
   }
 
   public async undelegateFromMixNode(
-    mixIdentity: string,
+    mixId: number,
     fee?: StdFee | 'auto' | number,
     memo?: string,
   ): Promise<ExecuteResult> {
-    return (this.client as ISigningClient).undelegateFromMixNode(this.mixnetContract, mixIdentity, fee, memo);
+    return (this.client as ISigningClient).undelegateFromMixNode(this.mixnetContract, mixId, fee, memo);
   }
 
   public async updateMixnodeConfig(
-    mixIdentity: string,
+    mixId: number,
     fee: StdFee | 'auto' | number,
     profitPercentage: number,
   ): Promise<ExecuteResult> {
-    return (this.client as ISigningClient).updateMixnodeConfig(this.mixnetContract, mixIdentity, profitPercentage, fee);
+    return (this.client as ISigningClient).updateMixnodeConfig(this.mixnetContract, mixId, profitPercentage, fee);
   }
 
   public async updateContractStateParams(

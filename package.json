@@ -7,8 +7,7 @@
     "sdk/typescript/packages/**",
     "ts-packages/*",
     "nym-wallet",
-    "nym-connect",
-    "nym-connect-android",
+    "nym-connect/**",
     "explorer",
     "types",
     "clients/validator"

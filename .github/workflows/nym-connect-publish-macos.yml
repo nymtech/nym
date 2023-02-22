@@ -1,4 +1,4 @@
-name: Publish Nym Connect (MacOS)
+name: Publish Nym Connect - desktop (MacOS)
 on:
   workflow_dispatch:
   release:
@@ -6,7 +6,7 @@ on:
 
 defaults:
   run:
-    working-directory: nym-connect
+    working-directory: nym-connect/desktop
 
 jobs:
   publish-tauri:
@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nym-connect_1.0.0_x64.dmg
-          path: nym-connect/target/release/bundle/dmg/nym-connect_1.0.0_x64.dmg
+          path: nym-connect/desktop/target/release/bundle/dmg/nym-connect_1.0.0_x64.dmg
           retention-days: 30
 
       - name: Clean up keychain
@@ -86,5 +86,5 @@ jobs:
         if: github.event_name == 'release'
         with:
           files: |
-            nym-connect/target/release/bundle/dmg/*.dmg
-            nym-connect/target/release/bundle/macos/*.app.tar.gz*
+            nym-connect/desktop/target/release/bundle/dmg/*.dmg
+            nym-connect/desktop/target/release/bundle/macos/*.app.tar.gz*

@@ -94,7 +94,7 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "clients/webassembly", "nym-wallet", "nym-connect", "nym-connect-android"]
+exclude = ["explorer", "contracts", "clients/webassembly", "nym-wallet", "nym-connect/mobile/src-tauri", "nym-connect/desktop"]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]

@@ -1,22 +1,21 @@
 import expect from 'expect';
 
+export const amountDemon = {
+    amount: expect.any(String),
+    denom: expect.any(String)
+}
+
 export const delegation = {
     owner: expect.any(String),
     mix_id: expect.any(Number),
     cumulative_reward_ratio: expect.any(String),
-    amount: {
-        denom: expect.any(String),
-        amount: expect.any(String)
-    },
+    amount: amountDemon,
     height: expect.any(Number || BigInt),
     proxy: expect.any(String || null)
 }
 
 export const gateway = {
-    pledge_amount: {
-        denom: expect.any(String),
-        amount: expect.any(String)
-    },
+    pledge_amount: amountDemon,
     owner: expect.any(String),
     block_height: expect.any(Number || BigInt),
     gateway: {
@@ -111,8 +110,8 @@ export const contractVersion = {
 };
 
 export const contract = {
+    minimum_gateway_pledge: amountDemon,
     minimum_mixnode_pledge: expect.any(String),
-    minimum_gateway_pledge: expect.any(String),
     mixnode_rewarded_set_size: expect.any(Number),
     mixnode_active_set_size: expect.any(Number)
 }

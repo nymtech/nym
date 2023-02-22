@@ -1,23 +1,23 @@
 {
-    "compilerOptions": {
-        "target": "es6",
-        "module": "commonjs",
-        "esModuleInterop": true,
-        "strict": true,
-        "declaration": true,
-        "outDir": "./dist",
-        "skipLibCheck": true
-    },
-    "typedocOptions": {
-        "entryPoints": [
-            "src/index.ts"
-        ],
-        "out": "docs"
-    },
-    "exclude": [
-        "dist",
-        "examples",
-        "tests",
-        "node_modules"
-    ]
+  "compilerOptions": {
+    "outDir": "./dist",
+    "module": "ES2020",
+    "target": "es2021",
+    "allowJs": false,
+    "strict": true,
+    "lib": ["es2021", "dom", "dom.iterable", "esnext"],
+    "moduleResolution": "node",
+    "skipDefaultLibCheck": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "skipLibCheck": true,
+    "noImplicitAny": true,
+    "typeRoots": ["./types/global.d.ts"],
+    "types": ["dist/index.d.ts"]
+  },
+  "typedocOptions": {
+    "entryPoints": ["src/index.ts"],
+    "out": "docs"
+  },
+  "exclude": ["dist", "examples", "tests", "node_module", "types"]
 }

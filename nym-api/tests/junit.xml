@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="9" failures="7" errors="0" time="2.184">
+  <testsuite name="Get mixnode data" errors="0" failures="7" skipped="0" timestamp="2023-02-22T10:41:37" time="2.137" tests="9">
+    <testcase classname="Get mixnode data Get a mixnode stake saturation" name="Get mixnode data Get a mixnode stake saturation" time="0.23">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: &quot;string&quot;
+Received: &quot;undefined&quot;
+    at Object.&lt;anonymous&gt; (/Users/benedetta/nym/workspace/nym/nym-api/tests/functional_test/validator-api/status/status-mixnode.test.ts:20:35)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)</failure>
+    </testcase>
+    <testcase classname="Get mixnode data Get a mixnode average uptime" name="Get mixnode data Get a mixnode average uptime" time="0.107">
+      <failure>Error: expect(received).toStrictEqual(expected) // deep equality
+
+Expected: undefined
+Received: &quot;DLdMKLPywEy1vnu3yPrtXvzY7fw1puiiHpA9n9UQatiQ&quot;
+    at Object.&lt;anonymous&gt; (/Users/benedetta/nym/workspace/nym/nym-api/tests/functional_test/validator-api/status/status-mixnode.test.ts:31:26)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)</failure>
+    </testcase>
+    <testcase classname="Get mixnode data Get a mixnode history" name="Get mixnode data Get a mixnode history" time="0.109">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;forEach&apos;)
+    at Object.&lt;anonymous&gt; (/Users/benedetta/nym/workspace/nym/nym-api/tests/functional_test/validator-api/status/status-mixnode.test.ts:39:22)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)</failure>
+    </testcase>
+    <testcase classname="Get mixnode data Get a gateway history" name="Get mixnode data Get a gateway history" time="0.105">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;forEach&apos;)
+    at Object.&lt;anonymous&gt; (/Users/benedetta/nym/workspace/nym/nym-api/tests/functional_test/validator-api/status/status-mixnode.test.ts:54:22)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)</failure>
+    </testcase>
+    <testcase classname="Get mixnode data Get a gateway history" name="Get mixnode data Get a gateway history" time="0.115">
+      <failure>Error: expect(received).toStrictEqual(expected) // deep equality
+
+Expected: undefined
+Received: &quot;CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM&quot;
+    at Object.&lt;anonymous&gt; (/Users/benedetta/nym/workspace/nym/nym-api/tests/functional_test/validator-api/status/status-mixnode.test.ts:72:26)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)</failure>
+    </testcase>
+    <testcase classname="Get mixnode data Get a gateway history" name="Get mixnode data Get a gateway history" time="0.114">
+      <failure>Error: expect(received).toStrictEqual(expected) // deep equality
+
+Expected: undefined
+Received: &quot;DLdMKLPywEy1vnu3yPrtXvzY7fw1puiiHpA9n9UQatiQ&quot;
+    at Object.&lt;anonymous&gt; (/Users/benedetta/nym/workspace/nym/nym-api/tests/functional_test/validator-api/status/status-mixnode.test.ts:83:26)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)</failure>
+    </testcase>
+    <testcase classname="Get mixnode data Get a mixnode status" name="Get mixnode data Get a mixnode status" time="0.12">
+      <failure>Error: expect(received).toStrictEqual(expected) // deep equality
+
+Expected: &quot;active&quot;
+Received: undefined
+    at Object.&lt;anonymous&gt; (/Users/benedetta/nym/workspace/nym/nym-api/tests/functional_test/validator-api/status/status-mixnode.test.ts:93:29)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)</failure>
+    </testcase>
+    <testcase classname="Get mixnode data Get a mixnode reward estimation" name="Get mixnode data Get a mixnode reward estimation" time="0.118">
+    </testcase>
+    <testcase classname="Get mixnode data Get a mixnode inclusion probability" name="Get mixnode data Get a mixnode inclusion probability" time="0.131">
+    </testcase>
+  </testsuite>
+</testsuites>

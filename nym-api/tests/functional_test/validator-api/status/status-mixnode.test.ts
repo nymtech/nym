@@ -17,7 +17,7 @@ describe("Get mixnode data", (): void => {
     console.log(response.as_at);
     console.log(response.saturation);
 
-    expect(typeof response.as_at).toBe("number");
+    expect(typeof response.as_at).toBe("string");
     expect(typeof response.saturation).toBe("number");
   });
 

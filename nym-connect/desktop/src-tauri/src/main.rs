@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use config_common::defaults::setup_env;
+use nym_config_common::defaults::setup_env;
 use tauri::Manager;
 use tokio::sync::RwLock;
 

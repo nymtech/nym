@@ -162,7 +162,7 @@ impl NyxdClient<SigningNyxdClient> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
     pub fn connect_with_signer<U: Clone>(
         config: Config,
-        network: config::defaults::NymNetworkDetails,
+        network: nym_config::defaults::NymNetworkDetails,
         endpoint: U,
         signer: DirectSecp256k1HdWallet,
         gas_price: Option<GasPrice>,

@@ -11,7 +11,7 @@ use crate::support::cli::CliArgs;
 use crate::support::config::Config;
 use crate::support::storage;
 use crate::support::storage::NymApiStorage;
-use ::config::defaults::setup_env;
+use ::nym_config::defaults::setup_env;
 use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;

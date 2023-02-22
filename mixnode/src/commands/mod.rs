@@ -100,7 +100,7 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
             Config::with_custom_nym_apis,
             args.nym_apis,
             NYM_API,
-            config::parse_urls,
+            nym_config::parse_urls,
         )
         .with_optional(
             |cfg, wallet_address| {

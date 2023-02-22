@@ -104,7 +104,7 @@ pub(crate) fn override_config(
             Config::with_custom_nym_apis,
             args.nym_apis,
             NYM_API,
-            config::parse_urls,
+            nym_config::parse_urls,
         )
         .with_optional(Config::with_enabled_statistics, args.enabled_statistics)
         .with_optional_env(
@@ -123,7 +123,7 @@ pub(crate) fn override_config(
             Config::with_custom_validator_nyxd,
             args.nyxd_urls,
             NYXD,
-            config::parse_urls,
+            nym_config::parse_urls,
         )
         .with_optional(
             Config::with_only_coconut_credentials,

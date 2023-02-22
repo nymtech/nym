@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tap::TapFallible;
 use tokio::sync::RwLock;
 
-use config_common::NymConfig;
+use nym_config_common::NymConfig;
 use nym_socks5::client::NymClient as Socks5NymClient;
 use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSender};
 

@@ -67,5 +67,5 @@
       }
     }
   ],
-  "ignorePatterns": ["tsconfig.json", "*.d.ts"]
+  "ignorePatterns": ["tsconfig.json", "*.d.ts", "dist/**/*", "dist", "node_modules"]
 }

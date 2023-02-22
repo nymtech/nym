@@ -123,12 +123,8 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
     return this.nyxdQuerier.getOwnedMixnode(mixnetContractAddress, address);
   }
 
-  ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse> {
-    return this.ownsMixNode(mixnetContractAddress, address);
-  }
-
   ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
-    return this.ownsGateway(mixnetContractAddress, address);
+    return this.nyxdQuerier.ownsGateway(mixnetContractAddress, address);
   }
 
   getUnbondedMixNodes(
@@ -144,7 +140,7 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
   }
 
   getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
-    return this.getStateParams(mixnetContractAddress);
+    return this.nyxdQuerier.getStateParams(mixnetContractAddress);
   }
 
   getAllDelegationsPaged(

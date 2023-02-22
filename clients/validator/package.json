@@ -12,8 +12,9 @@
     "testmock": "ts-mocha tests/mock/*.test.ts",
     "coverage": "nyc npm test",
     "clean": "rm -rf ./dist",
-    "lint": "eslint tests",
-    "lint:fix": "eslint tests --fix",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "lint:tsc": "tsc --noEmit",
     "docs": "typedoc --out docs src/index.ts"
   },
   "files": [

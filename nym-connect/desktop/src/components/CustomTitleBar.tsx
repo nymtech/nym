@@ -1,7 +1,8 @@
 import React from 'react';
 import { ArrowBack, Close, Menu, Minimize } from '@mui/icons-material';
 import { Box, IconButton, Typography } from '@mui/material';
-import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
+// TODO since the structure refactor for NC this import fails
+// import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
 import { appWindow } from '@tauri-apps/api/window';
 import { useNavigate } from 'react-router-dom';
 
@@ -47,7 +48,13 @@ const getTitleIcon = (path: string) => {
       </Typography>
     );
   }
-  return <NymWordmark width={36} />;
+
+  // TODO return <NymWordmark width={36} />;
+  return (
+    <Typography fontSize="16px" fontWeight={700}>
+      NYM
+    </Typography>
+  );
 };
 
 export const CustomTitleBar = ({ path = '/', onBack }: { path?: string; onBack?: () => void }) => (

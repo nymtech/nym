@@ -3,7 +3,7 @@ Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 SPDX-License-Identifier: Apache-2.0
 -->
 
-# Nym Connect
+# Nym Connect - Desktop
 
 Nym is an open-source, decentralized and permissionless privacy system. It provides full-stack privacy, allowing other applications, services or blockchains to provide their users with strong metadata protection, at both the network level (mixnet), and the application level (anonymous credentials) without the need to build privacy from scratch.
 

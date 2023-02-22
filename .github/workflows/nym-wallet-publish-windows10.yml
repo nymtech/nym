@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows10]
+        platform: [windows-latest]
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -43,10 +43,10 @@ jobs:
         with:
           node-version: 16
 
-#      - name: Install Rust stable
-#        uses: actions-rs/toolchain@v1
-#        with:
-#          toolchain: stable
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
 
       - name: Create env file
         uses: timheuer/base64-to-file@v1.1
@@ -55,7 +55,7 @@ jobs:
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
       - name: Install app dependencies
-        run: yarn
+        run: yarn --network-timeout 100000
 
       - name: Build and sign it
         env:
@@ -66,6 +66,13 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: yarn build
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nym-wallet.0.0_x64_en-US.msi
+          path: nym-wallet/target/release/bundle/msi/nym-wallet_1.*.msi
+          retention-days: 30
 
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1

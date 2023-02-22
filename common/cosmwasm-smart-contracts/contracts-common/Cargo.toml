@@ -1,7 +1,7 @@
 [package]
 name = "nym-contracts-common"
 version = "0.1.0"
-description = "Common library for Nym coswm contracts"
+description = "Common library for Nym cosmwasm contracts"
 edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }

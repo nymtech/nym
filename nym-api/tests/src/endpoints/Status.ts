@@ -147,13 +147,13 @@ export default class Status extends APIClient {
 
   public async getAllMixnodeInclusionProbability(): Promise<InclusionProbabilities> {
     const response = await this.restClient.sendGet({
-      route: `/mixnodes/inclusion-probability`,
+      route: `/mixnodes/inclusion_probability`,
     });
 
     return response.data;
   }
 
-  public async getDetailedMixnodes(): Promise<DetailedMixnodes> {
+  public async getDetailedMixnodes(): Promise<DetailedMixnodes[]> {
     const response = await this.restClient.sendGet({
       route: `/mixnodes/detailed`,
     });
@@ -161,7 +161,7 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getDetailedRewardedMixnodes(): Promise<DetailedMixnodes> {
+  public async getDetailedRewardedMixnodes(): Promise<DetailedMixnodes[]> {
     const response = await this.restClient.sendGet({
       route: `/mixnodes/rewarded/detailed`,
     });
@@ -169,7 +169,7 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getDetailedActiveMixnodes(): Promise<DetailedMixnodes> {
+  public async getDetailedActiveMixnodes(): Promise<DetailedMixnodes[]> {
     const response = await this.restClient.sendGet({
       route: `/mixnodes/active/detailed`,
     });

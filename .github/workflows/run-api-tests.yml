@@ -16,7 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-
+      
+      - name: Install npm
+        run: npm install
+        
       - name: Node v18
         uses: actions/setup-node@v3
         with:

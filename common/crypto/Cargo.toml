@@ -1,15 +1,11 @@
 [package]
 name = "nym-crypto"
 version = "0.1.0"
+description = "Crypto library for the nym mixnet"
 edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
-readme = { workspace = true }
-homepage = { workspace = true }
-documentation = { workspace = true }
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 aes = { version = "0.8.1", optional = true }
@@ -30,7 +26,7 @@ subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
 thiserror = "1.0.37"
 
 # internal
-nym-sphinx-types = { path = "../nymsphinx/types" }
+nym-sphinx-types = { path = "../nymsphinx/types", version = "0.1.0" }
 nym-pemstore = { path = "../../common/pemstore", version = "0.1.0" }
 
 [dev-dependencies]

@@ -307,6 +307,24 @@ impl Dealing {
     }
 }
 
+#[cfg(feature = "cw-types")]
+impl<'a> From<&'a Dealing> for nym_contracts_common::dealings::ContractSafeBytes {
+    fn from(dealing: &'a Dealing) -> Self {
+        nym_contracts_common::dealings::ContractSafeBytes(dealing.to_bytes())
+    }
+}
+
+#[cfg(feature = "cw-types")]
+impl<'a> TryFrom<&'a nym_contracts_common::dealings::ContractSafeBytes> for Dealing {
+    type Error = DkgError;
+
+    fn try_from(
+        value: &'a nym_contracts_common::dealings::ContractSafeBytes,
+    ) -> Result<Self, Self::Error> {
+        Dealing::try_from_bytes(&value.0)
+    }
+}
+
 // this assumes all dealings have been verified
 pub fn try_recover_verification_keys(
     dealings: &[Dealing],

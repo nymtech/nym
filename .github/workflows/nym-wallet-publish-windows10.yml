@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest]
+        platform: [windows10]
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -71,12 +71,13 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: nym-wallet.0.0_x64_en-US.msi
+          name: nym-wallet_1.0.0_x64_en-US.msi
           path: nym-wallet/target/release/bundle/msi/nym-wallet_1.*.msi
           retention-days: 30
 
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release'
         with:
           files: |
             nym-wallet/target/release/bundle/msi/*.msi

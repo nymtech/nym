@@ -1,7 +1,11 @@
 [package]
 name = "nym-vesting-contract-common"
 version = "0.1.0"
-edition = "2021"
+description = "Common library for the Nym vesting contract"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
 cosmwasm-std = "1.0.0"

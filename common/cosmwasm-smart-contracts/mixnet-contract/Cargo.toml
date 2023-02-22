@@ -1,11 +1,12 @@
 [package]
 name = "nym-mixnet-contract-common"
 version = "0.1.0"
-authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
-edition = "2021"
+description = "Common library for the Nym mixnet contract"
 rust-version = "1.62"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
 bs58 = "0.4.0"

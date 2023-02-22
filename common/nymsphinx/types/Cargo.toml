@@ -9,8 +9,8 @@ readme = { workspace = true }
 homepage = { workspace = true }
 documentation = { workspace = true }
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="e05a1992522ed0afd3c6fcac160313ffc9bb306a" }
-#sphinx = { path = "../../../../sphinx"}
+sphinx-packet = { version = "0.1.0" }
+
+#[patch.crates-io]
+#sphinx-packet = { path = "../../../../sphinx" }

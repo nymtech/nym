@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // re-exporting types and constants available in sphinx
-pub use sphinx::{
+pub use sphinx_packet::{
     constants::{
         self, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
         PAYLOAD_KEY_SIZE,

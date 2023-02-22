@@ -3948,7 +3948,7 @@ dependencies = [
 name = "nym-sphinx-types"
 version = "0.1.0"
 dependencies = [
- "sphinx",
+ "sphinx-packet",
 ]
 
 [[package]]
@@ -5705,9 +5705,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "sphinx"
+name = "sphinx-packet"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=e05a1992522ed0afd3c6fcac160313ffc9bb306a#e05a1992522ed0afd3c6fcac160313ffc9bb306a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc43eda802856ee82a7555c7b75ceb9e07451741c7a2f5f23d036020e01189d4"
 dependencies = [
  "aes 0.7.5",
  "arrayref",

@@ -1,10 +1,11 @@
-name: Nym Connect for mobile (Rust)
+name: Nym Connect - mobile (Rust)
 
 on:
   push:
     paths:
-      - "mobile/nym-connect/src-tauri/**"
-      - "!mobile/nym-connect/src-tauri/gen/**"
+      - "nym-connect/mobile/src-tauri/**"
+      - "nym-connect/mobile/src-tauri/Cargo.toml"
+      - "!nym-connect/mobile/src-tauri/gen/**"
       - "clients/client-core/**"
       - "clients/socks5/**"
       - "common/**"
@@ -13,8 +14,9 @@ on:
       - "nym-api/nym-api-requests/**"
   pull_request:
     paths:
-      - "mobile/nym-connect/src-tauri/**"
-      - "!mobile/nym-connect/src-tauri/gen/**"
+      - "nym-connect/mobile/src-tauri/**"
+      - "nym-connect/mobile/src-tauri/Cargo.toml"
+      - "!nym-connect/mobile/src-tauri/gen/**"
       - "clients/client-core/**"
       - "clients/socks5/**"
       - "common/**"
@@ -30,7 +32,7 @@ jobs:
       #RUSTC_WRAPPER: /home/ubuntu/.cargo/bin/sccache
     #defaults:
       #run:
-        #working-directory: mobile/nym-connect/src-tauri/
+        #working-directory: nym-connect/mobile/src-tauri/
     steps:
       - name: Install Dependencies (Linux)
         run: |
@@ -59,13 +61,13 @@ jobs:
           components: clippy, rustfmt
 
       - name: Check formatting
-        run: cargo fmt --manifest-path mobile/nym-connect/src-tauri/Cargo.toml -- --check
+        run: cargo fmt --manifest-path nym-connect/mobile/src-tauri/Cargo.toml -- --check
 
       - name: Build all binaries
-        run: cargo build --manifest-path mobile/nym-connect/src-tauri/Cargo.toml
+        run: cargo build --manifest-path nym-connect/mobile/src-tauri/Cargo.toml
 
       - name: Run all tests
-        run: cargo test  --manifest-path mobile/nym-connect/src-tauri/Cargo.toml
+        run: cargo test  --manifest-path nym-connect/mobile/src-tauri/Cargo.toml
 
       - name: Clippy
-        run: cargo clippy --manifest-path mobile/nym-connect/src-tauri/Cargo.toml --all-targets -- -D warnings
+        run: cargo clippy --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all-targets -- -D warnings

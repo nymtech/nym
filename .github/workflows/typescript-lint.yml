@@ -5,20 +5,20 @@ on:
     paths:
       - 'ts-packages/**'
       - 'sdk/typescript/**'
-      - 'nym-connect/src/**'
-      - 'nym-connect/package.json'
-      - 'mobile/nym-connect/src/**'
-      - 'mobile/nym-connect/package.json'
+      - 'nym-connect/desktop/src/**'
+      - 'nym-connect/desktop/package.json'
+      - 'nym-connect/mobile/src/**'
+      - 'nym-connect/mobile/package.json'
       - 'nym-wallet/src/**'
       - 'nym-wallet/package.json'
   pull_request:
     paths:
       - 'ts-packages/**'
       - 'sdk/typescript/**'
-      - 'nym-connect/src/**'
-      - 'nym-connect/package.json'
-      - 'mobile/nym-connect/src/**'
-      - 'mobile/nym-connect/package.json'
+      - 'nym-connect/desktop/src/**'
+      - 'nym-connect/desktop/package.json'
+      - 'nym-connect/mobile/src/**'
+      - 'nym-connect/mobile/package.json'
       - 'nym-wallet/src/**'
       - 'nym-wallet/package.json'
 

@@ -1,28 +1,30 @@
-name: Nym Connect (rust)
+name: Nym Connect - desktop (Rust)
 
 on:
   push:
     paths:
-      - 'nym-connect/**'
-      - 'clients/client-core/**'
-      - 'clients/socks5/**'
-      - 'common/**'
-      - 'gateway/gateway-requests/**'
-      - 'contracts/vesting/**'
-      - 'nym-api/nym-api-requests/**'
+      - "nym-connect/desktop/src-tauri/**"
+      - "nym-connect/desktop/src-tauri/Cargo.toml"
+      - "clients/client-core/**"
+      - "clients/socks5/**"
+      - "common/**"
+      - "gateway/gateway-requests/**"
+      - "contracts/vesting/**"
+      - "nym-api/nym-api-requests/**"
   pull_request:
     paths:
-      - 'nym-connect/**'
-      - 'clients/client-core/**'
-      - 'clients/socks5/**'
-      - 'common/**'
-      - 'gateway/gateway-requests/**'
-      - 'contracts/vesting/**'
-      - 'nym-api/nym-api-requests/**'
+      - "nym-connect/desktop/src-tauri/**"
+      - "nym-connect/desktop/src-tauri/Cargo.toml"
+      - "clients/client-core/**"
+      - "clients/socks5/**"
+      - "common/**"
+      - "gateway/gateway-requests/**"
+      - "contracts/vesting/**"
+      - "nym-api/nym-api-requests/**"
 
 jobs:
   build:
-    runs-on: [ self-hosted, custom-linux ]
+    runs-on: [self-hosted, custom-linux]
     env:
       RUSTC_WRAPPER: /home/ubuntu/.cargo/bin/sccache
     steps:
@@ -45,29 +47,29 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path nym-connect/Cargo.toml --workspace
+          args: --manifest-path nym-connect/desktop/Cargo.toml --workspace
 
       - name: Run all tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path nym-connect/Cargo.toml --workspace
+          args: --manifest-path nym-connect/desktop/Cargo.toml --workspace
 
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path nym-connect/Cargo.toml --all -- --check
+          args: --manifest-path nym-connect/desktop/Cargo.toml --all -- --check
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path nym-connect/Cargo.toml --workspace --all-features
+          args: --manifest-path nym-connect/desktop/Cargo.toml --workspace --all-features
 
       - name: Run clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --manifest-path nym-connect/Cargo.toml --workspace --all-features -- -D warnings
+          args: --manifest-path nym-connect/desktop/Cargo.toml --workspace --all-features -- -D warnings

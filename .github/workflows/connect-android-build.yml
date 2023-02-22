@@ -1,4 +1,4 @@
-name: NC Android APK Release
+name: Nym Connect - Android APK Build
 
 on:
   workflow_dispatch:
@@ -88,10 +88,10 @@ jobs:
         run: |
           yarn install --frozen-lockfile
           yarn build
-          yarn workspace @nym/mobile/nym-connect webpack:prod
+          yarn workspace @nym/nym-connect-mobile webpack:prod
 
       - name: Build APK
-        working-directory: mobile/nym-connect
+        working-directory: nym-connect/mobile
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
           WRY_ANDROID_PACKAGE: net.nymtech.nym_connect
@@ -104,9 +104,9 @@ jobs:
       - name: Rename APK artifact
         run: |
           mkdir apk/
-          mv mobile/nym-connect/src-tauri/gen/android/nym_connect/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk \
+          mv nym-connect/mobile/src-tauri/gen/android/nym_connect/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk \
             apk/nym-connect-arm64-debug.apk
-          mv mobile/nym-connect/src-tauri/gen/android/nym_connect/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk \
+          mv nym-connect/mobile/src-tauri/gen/android/nym_connect/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk \
             apk/nym-connect-x86_64-debug.apk
 
       - name: Upload APK artifact

@@ -1,5 +1,6 @@
 name: Publish Nym Wallet (Windows 10)
 on:
+  workflow_dispatch:
   release:
     types: [created]
 

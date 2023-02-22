@@ -3,11 +3,11 @@ name: Tests for validator API
 on:
   push:
     paths:
-      - "validator-api/tests/**"
+      - "nym-api/tests/**"
 
 defaults:
   run:
-    working-directory: validator-api/tests
+    working-directory: nym-api/tests
 
 jobs:
   test:
@@ -28,5 +28,5 @@ jobs:
         run: yarn
 
       - name: Launch tests
-        run: yarn test
-        working-directory: validator-api/tests
+        run: yarn test:qa
+        working-directory: nym-api/tests

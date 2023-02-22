@@ -29,5 +29,5 @@ jobs:
         run: yarn
 
       - name: Run tests
-        run: yarn test
+        run: yarn test:qa
         working-directory: nym-api/tests

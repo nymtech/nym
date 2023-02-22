@@ -1,13 +1,11 @@
 [package]
 name = "nym-sphinx-types"
 version = "0.1.0"
+description = "Re-export sphinx packet types"
 edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
-readme = { workspace = true }
-homepage = { workspace = true }
-documentation = { workspace = true }
 
 [dependencies]
 sphinx-packet = { version = "0.1.0" }

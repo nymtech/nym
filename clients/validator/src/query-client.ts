@@ -23,7 +23,7 @@ import {
   MixNodeRewarding,
 } from '@nymproject/types';
 import NymApiQuerier, { INymApiQuery } from './nym-api-querier';
-import { ICosmWasmQuery } from './types';
+import { ICosmWasmQuery } from './shared';
 import { RewardingParams } from '@nymproject/types';
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
 

@@ -23,7 +23,7 @@ import {
   UnbondedMixnodeResponse,
   LayerDistribution,
 } from '@nymproject/types';
-import { SmartContractQuery } from './types';
+import { SmartContractQuery } from './shared';
 
 export default class NyxdQuerier implements INyxdQuery {
   client: SmartContractQuery;

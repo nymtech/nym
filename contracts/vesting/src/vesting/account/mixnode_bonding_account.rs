@@ -5,7 +5,6 @@ use super::Account;
 use crate::errors::ContractError;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::MixnodeBondingAccount;
-use crate::traits::VestingAccount;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::mixnode::MixNodeConfigUpdate;
 use mixnet_contract_common::mixnode::MixNodeCostParams;
@@ -38,24 +37,7 @@ impl MixnodeBondingAccount for Account {
         env: &Env,
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError> {
-        let current_balance = self.load_balance(storage)?;
-        let total_pledged_locked = self.total_pledged_locked(storage, env)?;
-        let total_pledged_after = total_pledged_locked + pledge.amount;
-        let locked_pledge_cap = self.absolute_pledge_cap()?;
-
-        if locked_pledge_cap < total_pledged_after {
-            return Err(ContractError::LockedPledgeCapReached {
-                current: total_pledged_after,
-                cap: locked_pledge_cap,
-            });
-        }
-
-        if current_balance < pledge.amount {
-            return Err(ContractError::InsufficientBalance(
-                self.owner_address().as_str().to_string(),
-                current_balance.u128(),
-            ));
-        }
+        let current_balance = self.ensure_valid_additional_stake(&pledge, storage)?;
 
         let pledge_data = if self.load_mixnode_pledge(storage)?.is_some() {
             return Err(ContractError::AlreadyBonded(
@@ -91,24 +73,7 @@ impl MixnodeBondingAccount for Account {
         env: &Env,
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError> {
-        let current_balance = self.load_balance(storage)?;
-        let total_pledged_after =
-            self.total_pledged_locked(storage, env)? + additional_pledge.amount;
-        let locked_pledge_cap = self.absolute_pledge_cap()?;
-
-        if locked_pledge_cap < total_pledged_after {
-            return Err(ContractError::LockedPledgeCapReached {
-                current: total_pledged_after,
-                cap: locked_pledge_cap,
-            });
-        }
-
-        if current_balance < additional_pledge.amount {
-            return Err(ContractError::InsufficientBalance(
-                self.owner_address().as_str().to_string(),
-                current_balance.u128(),
-            ));
-        }
+        let current_balance = self.ensure_valid_additional_stake(&additional_pledge, storage)?;
 
         let mut pledge_data = if let Some(pledge_data) = self.load_mixnode_pledge(storage)? {
             pledge_data

@@ -121,6 +121,9 @@ pub enum BackendError {
     SignatureError(String),
     #[error("Unable to open a new window")]
     NewWindowError,
+
+    #[error("This command ({name}) has been removed. Please try to use {alternative} instead.")]
+    RemovedCommand { name: String, alternative: String },
 }
 
 impl Serialize for BackendError {

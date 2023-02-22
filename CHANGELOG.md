@@ -2,22 +2,43 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased]
+## [Unreleased]
+
+## [v1.1.10] (2023-02-21)
+
+- Verloc listener causing mixnode unexpected shutdown ([#3038])
+- rust-sdk - update API following implementation experience with the network-requester ([#3001])
+- Prevent coconut deposits in incompatible states ([#2991])
+- Support unavailable signer within threshold ([#2987])
+- Implement DKG re-sharing ([#2935])
+- contracts: add nym prefix to mixnet and vesting contract packages ([#2855])
+- Introduce common interface for all service providers to allow obtaining information such as whether they're online, what binary version they're running, etc. ([#2758])
+- Add client functionality to nym-network-requester ([#1900])
+- nym-api: uptime rework ([#3053])
+- ci: update typescript-lint.yml ([#3035])
+- contracts: add nym prefix to mixnet and vesting contract packages ([#2855])
+
+[#3038]: https://github.com/nymtech/nym/issues/3038
+[#3001]: https://github.com/nymtech/nym/issues/3001
+[#2991]: https://github.com/nymtech/nym/issues/2991
+[#2987]: https://github.com/nymtech/nym/issues/2987
+[#2935]: https://github.com/nymtech/nym/issues/2935
+[#2855]: https://github.com/nymtech/nym/pull/2855
+[#2758]: https://github.com/nymtech/nym/issues/2758
+[#1900]: https://github.com/nymtech/nym/issues/1900
+[#3053]: https://github.com/nymtech/nym/pull/3053
+[#3035]: https://github.com/nymtech/nym/pull/3035
+[#2855]: https://github.com/nymtech/nym/pull/2855
+
+## [v1.1.9] (2023-02-07)
 
 ### Added
 
-- dkg resharing mode ([#2936])
-
-[#2936]: https://github.com/nymtech/nym/pull/2936
-
-
-# [v1.1.9] (2023-02-07)
-
-### Added
 - Remove Coconut feature flag ([#2793])
 - Separate `nym-api` endpoints with values of "total-supply" and "circulating-supply" in `nym` ([#2964])
 
 ### Changed
+
 - native-client: is now capable of listening for requests on sockets different than `127.0.0.1` ([#2912]). This can be specified via `--host` flag during `init` or `run`. Alternatively a custom `host` can be set in `config.toml` file under `socket` section.
 - mixnode, gateway: fix unexpected shutdown on corrupted connection ([#2963])
 
@@ -26,7 +47,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2964]: https://github.com/nymtech/nym/issues/2964
 [#2963]: https://github.com/nymtech/nym/issues/3017
 
-# [v1.1.8] (2023-01-31)
+## [v1.1.8] (2023-01-31)
 
 ### Added
 
@@ -46,7 +67,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2873]: https://github.com/nymtech/nym/issues/2873
 
 
-# [v1.1.7] (2023-01-24)
+## [v1.1.7] (2023-01-24)
 
 ### Added
 
@@ -97,12 +118,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2814]: https://github.com/nymtech/nym/pull/2814
 [#2772]: https://github.com/nymtech/nym/pull/2772
 [#2774]: https://github.com/nymtech/nym/pull/2774
-
-## [v1.1.5] (2023-01-10)
-
-### Added
-
-### Changed
 
 ## [v1.1.5] (2023-01-10)
 

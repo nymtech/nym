@@ -3,13 +3,19 @@
 
 use async_trait::async_trait;
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use ordered_buffer::OrderedMessageSender;
 use proxy_helpers::proxy_runner::MixProxySender;
 use rand::RngCore;
 use serde::Deserialize;
-use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Request};
 use sqlx::types::chrono::{DateTime, Utc};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::RwLock;
+
+use crate::core::ReturnAddress;
+use nymsphinx::addressing::clients::Recipient;
+use ordered_buffer::OrderedMessageSender;
+use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Request};
 use statistics_common::api::{
     build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
     DEFAULT_STATISTICS_SERVICE_PORT,
@@ -18,12 +24,6 @@ use statistics_common::{
     collector::StatisticsCollector, error::StatsError as CommonStatsError, StatsMessage,
     StatsServiceData,
 };
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::RwLock;
-
-use crate::reply;
 
 use super::error::StatsError;
 
@@ -78,13 +78,13 @@ pub struct ServiceStatisticsCollector {
     pub(crate) response_stats_data: Arc<RwLock<StatsData>>,
     pub(crate) connected_services: Arc<RwLock<HashMap<ConnectionId, RemoteAddress>>>,
     stats_provider_addr: Recipient,
-    mix_input_sender: MixProxySender<(Socks5Message, reply::ReturnAddress)>,
+    mix_input_sender: MixProxySender<(Socks5Message, ReturnAddress)>,
 }
 
 impl ServiceStatisticsCollector {
     pub async fn new(
         stats_provider_addr: Option<Recipient>,
-        mix_input_sender: MixProxySender<(Socks5Message, reply::ReturnAddress)>,
+        mix_input_sender: MixProxySender<(Socks5Message, ReturnAddress)>,
     ) -> Result<Self, StatsError> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(3))
@@ -170,7 +170,10 @@ impl StatisticsCollector for ServiceStatisticsCollector {
         let conn_id = rng.next_u64();
         let connect_req = Request::new_connect(
             conn_id,
-            format!("{DEFAULT_STATISTICS_SERVICE_ADDRESS}:{DEFAULT_STATISTICS_SERVICE_PORT}"),
+            format!(
+                "{}:{}",
+                DEFAULT_STATISTICS_SERVICE_ADDRESS, DEFAULT_STATISTICS_SERVICE_PORT
+            ),
             Some(self.stats_provider_addr),
         );
         self.mix_input_sender

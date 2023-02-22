@@ -395,7 +395,7 @@ pub trait MixnetQueryClient {
 #[async_trait]
 impl<C> MixnetQueryClient for NyxdClient<C>
 where
-    C: CosmWasmClient + Sync + Send + Clone,
+    C: CosmWasmClient + Sync + Send,
 {
     async fn query_mixnet_contract<T>(&self, query: MixnetQueryMsg) -> Result<T, NyxdError>
     where
@@ -410,7 +410,7 @@ where
 #[async_trait]
 impl<C> MixnetQueryClient for crate::Client<C>
 where
-    C: CosmWasmClient + Sync + Send + Clone,
+    C: CosmWasmClient + Sync + Send,
 {
     async fn query_mixnet_contract<T>(&self, query: MixnetQueryMsg) -> Result<T, NyxdError>
     where

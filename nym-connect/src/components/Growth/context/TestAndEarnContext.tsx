@@ -44,7 +44,7 @@ export const TestAndEarnContext = createContext(defaultValue);
 const CLIENT_ID_KEY = 'tne_client_id';
 const REGISTRATION_KEY = 'tne_registration';
 
-export const TestAndEarnContextProvider: FCWithChildren = ({ children }) => {
+export const TestAndEarnContextProvider = ({ children }: { children: React.ReactNode }) => {
   const clientContext = useClientContext();
   const [loadedOnce, setLoadedOnce] = useState(false);
   const [loading, setLoading] = useState(true);

@@ -14,8 +14,13 @@ async function main() {
     return;
   }
 
-  const nymApiUrl = 'https://validator.nymtech.net/api';
-  const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
+  // // mixnet v1
+  // const nymApiUrl = 'https://validator.nymtech.net/api';
+  // const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
+
+  // mixnet v2
+  const nymApiUrl = 'https://qwerty-validator-api.qa.nymte.ch/api'; // "http://localhost:8081";
+  const preferredGatewayIdentityKey = undefined; // '36vfvEyBzo5cWEFbnP7fqgY39kFw9PQhvwzbispeNaxL';
 
   // subscribe to connect event, so that we can show the client's address
   nym.events.subscribeToConnected((e) => {

@@ -10,15 +10,6 @@ You can use this example as a seed for a new project, and it uses:
 - Web Workers
 - Material UI (MUI)
 
-## Before you start
-
-You will need to have the Rust WASM toolchain installed. Please [follow the instructions here](https://rustwasm.github.io/docs/book/game-of-life/setup.html)
-to install `wasm-pack` and then run the sample.
-
-> **VERY IMPORTANT** Please note that this example will build the WASM client locally using Rust and will not use the latest published NPM package. 
-
-## Running the example
-
 Try out the chat app by running:
 
 ```

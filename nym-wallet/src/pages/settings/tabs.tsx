@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tab, Tabs as MuiTabs, Box } from '@mui/material';
 
-export const Tabs: FCWithChildren<{
+export const Tabs: React.FC<{
   tabs: string[];
   selectedTab: number;
   disabled: boolean;
@@ -24,4 +24,4 @@ export const Tabs: FCWithChildren<{
   </MuiTabs>
 );
 
-export const TabPanel: FCWithChildren = ({ children }) => <Box sx={{ p: 4 }}>{children}</Box>;
+export const TabPanel: React.FC = ({ children }) => <Box sx={{ p: 4 }}>{children}</Box>;

@@ -5,7 +5,7 @@ import { useTheme } from '@mui/material/styles';
 import { AppContext } from 'src/context';
 import { AppBar, LoadingPage, Nav } from '../components';
 
-export const ApplicationLayout: FCWithChildren = ({ children }) => {
+export const ApplicationLayout: React.FC = ({ children }) => {
   const theme = useTheme();
   const { isLoading, appVersion } = useContext(AppContext);
 

@@ -12,10 +12,10 @@ import { Title } from '../../components/Title';
 import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { unymToNym } from '../../utils/currency';
 import { Tooltip } from '../../components/Tooltip';
-import { NYM_BIG_DIPPER } from '../../api/constants';
+import { BIG_DIPPER } from '../../api/constants';
 import { splice } from '../../utils';
 
-export const PageGateways: FCWithChildren = () => {
+export const PageGateways: React.FC = () => {
   const { gateways } = useMainContext();
   const [filteredGateways, setFilteredGateways] = React.useState<GatewayResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('50');
@@ -134,7 +134,7 @@ export const PageGateways: FCWithChildren = () => {
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{ ...cellStyles }}
-          href={`${NYM_BIG_DIPPER}/account/${params.value}`}
+          href={`${BIG_DIPPER}/account/${params.value}`}
           target="_blank"
           data-testid="owner"
         >
@@ -152,7 +152,7 @@ export const PageGateways: FCWithChildren = () => {
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{ ...cellStyles }}
-          href={`${NYM_BIG_DIPPER}/account/${params.value}`}
+          href={`${BIG_DIPPER}/account/${params.value}`}
           target="_blank"
           data-testid="owner"
         >

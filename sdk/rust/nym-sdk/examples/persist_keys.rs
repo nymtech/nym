@@ -14,9 +14,7 @@ async fn main() {
     let keys = mixnet::StoragePaths::new_from_dir(mixnet::KeyMode::Keep, &config_dir).unwrap();
 
     // Provide key paths for the client to read/write keys to.
-    let client = mixnet::MixnetClientBuilder::new(None, Some(keys))
-        .await
-        .unwrap();
+    let client = mixnet::ClientBuilder::new(None, Some(keys)).unwrap();
 
     // Connect to the mixnet, now we're listening for incoming
     let mut client = client.connect_to_mixnet().await.unwrap();

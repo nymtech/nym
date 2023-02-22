@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
+import { DelegationEventKind } from '@nymproject/types';
 import { Delegate, Undelegate } from '../../svg-icons';
 import { ActionsMenu, ActionsMenuItem } from '../ActionsMenu';
 import { DelegateListItemPending } from './types';
@@ -9,7 +10,7 @@ export type DelegationListItemActions = 'delegate' | 'undelegate' | 'redeem' | '
 const BUTTON_SIZE = '32px';
 const MIN_WIDTH = '150px';
 
-export const DelegationActions: FCWithChildren<{
+export const DelegationActions: React.FC<{
   onActionClick?: (action: DelegationListItemActions) => void;
   isPending?: DelegateListItemPending;
   disableRedeemingRewards?: boolean;
@@ -63,7 +64,7 @@ export const DelegationActions: FCWithChildren<{
   );
 };
 
-export const DelegationsActionsMenu: FCWithChildren<{
+export const DelegationsActionsMenu: React.FC<{
   onActionClick?: (action: DelegationListItemActions) => void;
   disableRedeemingRewards?: boolean;
   disableDelegateMore?: boolean | null;

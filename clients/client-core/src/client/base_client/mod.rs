@@ -25,8 +25,6 @@ use client_connections::{ConnectionCommandReceiver, ConnectionCommandSender, Lan
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
-#[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_mockups::CosmWasmClient;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
@@ -41,8 +39,6 @@ use std::time::Duration;
 use tap::TapFallible;
 use task::{TaskClient, TaskManager};
 use url::Url;
-#[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::CosmWasmClient;
 
 use super::received_buffer::ReceivedBufferMessage;
 
@@ -133,7 +129,7 @@ impl From<bool> for CredentialsToggle {
     }
 }
 
-pub struct BaseClientBuilder<'a, B, C: Clone> {
+pub struct BaseClientBuilder<'a, B> {
     // due to wasm limitations I had to split it like this : (
     gateway_config: &'a GatewayEndpointConfig,
     debug_config: &'a DebugConfig,
@@ -141,21 +137,20 @@ pub struct BaseClientBuilder<'a, B, C: Clone> {
     nym_api_endpoints: Vec<Url>,
     reply_storage_backend: B,
 
-    bandwidth_controller: Option<BandwidthController<C>>,
+    bandwidth_controller: Option<BandwidthController>,
     key_manager: KeyManager,
 }
 
-impl<'a, B, C> BaseClientBuilder<'a, B, C>
+impl<'a, B> BaseClientBuilder<'a, B>
 where
     B: ReplyStorageBackend + Send + Sync + 'static,
-    C: CosmWasmClient + Sync + Send + Clone + 'static,
 {
     pub fn new_from_base_config<T>(
         base_config: &'a Config<T>,
         key_manager: KeyManager,
-        bandwidth_controller: Option<BandwidthController<C>>,
+        bandwidth_controller: Option<BandwidthController>,
         reply_storage_backend: B,
-    ) -> BaseClientBuilder<'a, B, C> {
+    ) -> BaseClientBuilder<'a, B> {
         BaseClientBuilder {
             gateway_config: base_config.get_gateway_endpoint_config(),
             debug_config: base_config.get_debug_config(),
@@ -171,11 +166,11 @@ where
         gateway_config: &'a GatewayEndpointConfig,
         debug_config: &'a DebugConfig,
         key_manager: KeyManager,
-        bandwidth_controller: Option<BandwidthController<C>>,
+        bandwidth_controller: Option<BandwidthController>,
         reply_storage_backend: B,
         credentials_toggle: CredentialsToggle,
         nym_api_endpoints: Vec<Url>,
-    ) -> BaseClientBuilder<'a, B, C> {
+    ) -> BaseClientBuilder<'a, B> {
         BaseClientBuilder {
             gateway_config,
             debug_config,
@@ -284,7 +279,7 @@ where
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         shutdown: TaskClient,
-    ) -> Result<GatewayClient<C>, ClientCoreError> {
+    ) -> Result<GatewayClient, ClientCoreError> {
         let gateway_id = self.gateway_config.gateway_id.clone();
         if gateway_id.is_empty() {
             return Err(ClientCoreError::GatewayIdUnknown);
@@ -370,7 +365,7 @@ where
     // over it. Perhaps GatewayClient needs to be thread-shareable or have some channel for
     // requests?
     fn start_mix_traffic_controller(
-        gateway_client: GatewayClient<C>,
+        gateway_client: GatewayClient,
         shutdown: TaskClient,
     ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");
@@ -386,32 +381,22 @@ where
     where
         <B as ReplyStorageBackend>::StorageError: Sync + Send,
     {
-        if backend.is_active() {
-            log::trace!("Setup persistent reply storage");
-            let persistent_storage = PersistentReplyStorage::new(backend);
-            let mem_store = persistent_storage
-                .load_state_from_backend()
+        let persistent_storage = PersistentReplyStorage::new(backend);
+        let mem_store = persistent_storage
+            .load_state_from_backend()
+            .await
+            .map_err(|err| ClientCoreError::SurbStorageError {
+                source: Box::new(err),
+            })?;
+
+        let store_clone = mem_store.clone();
+        spawn_future(async move {
+            persistent_storage
+                .flush_on_shutdown(store_clone, shutdown)
                 .await
-                .map_err(|err| ClientCoreError::SurbStorageError {
-                    source: Box::new(err),
-                })?;
+        });
 
-            let store_clone = mem_store.clone();
-            spawn_future(async move {
-                persistent_storage
-                    .flush_on_shutdown(store_clone, shutdown)
-                    .await
-            });
-
-            Ok(mem_store)
-        } else {
-            log::trace!("Setup inactive reply storage");
-            Ok(backend
-                .get_inactive_storage()
-                .map_err(|err| ClientCoreError::SurbStorageError {
-                    source: Box::new(err),
-                })?)
-        }
+        Ok(mem_store)
     }
 
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>

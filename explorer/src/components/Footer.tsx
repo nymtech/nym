@@ -4,7 +4,7 @@ import { Typography } from '@mui/material';
 import { Socials } from './Socials';
 import { useIsMobile } from '../hooks/useIsMobile';
 
-export const Footer: FCWithChildren = () => {
+export const Footer: React.FC = () => {
   const isMobile = useIsMobile();
 
   return (

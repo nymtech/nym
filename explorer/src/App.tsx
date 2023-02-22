@@ -4,7 +4,7 @@ import { MobileNav } from './components/MobileNav';
 import { Routes } from './routes/index';
 import { useIsMobile } from './hooks/useIsMobile';
 
-export const App: FCWithChildren = () => {
+export const App: React.FC = () => {
   const isMobile = useIsMobile();
 
   if (isMobile) {

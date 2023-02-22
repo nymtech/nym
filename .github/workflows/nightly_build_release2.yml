@@ -98,7 +98,6 @@ jobs:
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks
-        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
@@ -176,17 +175,12 @@ jobs:
 
   notification:
     needs: [build,get_release]
-    runs-on: custom-runner-linux
+    runs-on: ubuntu-20.04
     steps:
       - name: Collect jobs status
         uses: technote-space/workflow-conclusion-action@v2
       - name: Check out repository code
         uses: actions/checkout@v3
-      - name: install npm
-        uses: actions/setup-node@v3
-        if: env.WORKFLOW_CONCLUSION == 'failure'
-        with:
-          node-version: 16
       - name: Keybase - Node Install
         if: env.WORKFLOW_CONCLUSION == 'failure'
         run: npm install

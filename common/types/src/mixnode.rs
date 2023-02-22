@@ -194,6 +194,10 @@ impl fmt::Display for MixnodeNodeDetailsResponse {
             "Mix Port: {}, Verloc port: {}, Http Port: {}\n",
             self.mix_port, self.verloc_port, self.http_api_port
         )?;
-        writeln!(f, "You are bonding to wallet address: {wallet_address}\n\n")
+        writeln!(
+            f,
+            "You are bonding to wallet address: {}\n\n",
+            wallet_address
+        )
     }
 }

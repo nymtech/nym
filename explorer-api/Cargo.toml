@@ -11,7 +11,7 @@ clap = { version = "4.0", features = ["cargo", "derive"] }
 humantime-serde = "1.0"
 isocountry = "0.3.2"
 itertools = "0.10.3"
-log = { workspace = true }
+log = "0.4.0"
 okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
 pretty_env_logger = "0.4.0"
 reqwest = "0.11.4"

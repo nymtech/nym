@@ -6,7 +6,7 @@ import { validateWalletAddress } from '@nymproject/types';
 import DoneIcon from '@mui/icons-material/Done';
 import { SxProps } from '@mui/system';
 
-export const WalletAddressFormField: FCWithChildren<{
+export const WalletAddressFormField: React.FC<{
   showTickOnValid?: boolean;
   fullWidth?: boolean;
   required?: boolean;

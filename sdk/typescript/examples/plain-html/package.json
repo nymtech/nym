@@ -54,7 +54,6 @@
   "scripts": {
     "prestart": "yarn build:dependencies",
     "start": "webpack serve --progress --port 3000",
-    "start:only-this": "webpack serve --progress --port 3000",
     "build:dependencies": "run-s build:dependencies:nym-client-wasm build:dependencies:ts-packages build:dependencies:sdk",
     "build:dependencies:nym-client-wasm": "../../packages/nym-client-wasm/scripts/build.sh",
     "build:dependencies:ts-packages": "cd ../../../.. && yarn && yarn build",

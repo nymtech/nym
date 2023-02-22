@@ -4,7 +4,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import { useAppContext } from './context';
 
-export const ThemeToggle: FCWithChildren = () => {
+export const ThemeToggle: React.FC = () => {
   const { mode, toggleMode } = useAppContext();
   return (
     <Button variant="outlined" color="secondary" onClick={toggleMode} sx={{ display: 'flex', alignItems: 'centre' }}>

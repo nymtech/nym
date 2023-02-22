@@ -44,7 +44,8 @@ impl TryFrom<StoredSenderTag> for (RecipientBytes, AnonymousSenderTag) {
         let Ok(sender_tag_bytes) = value.tag.try_into() else {
             return Err(StorageError::CorruptedData {
                 details: format!(
-                    "the retrieved sender tag has length of {tag_len} while {SENDER_TAG_SIZE} was expected",
+                    "the retrieved sender tag has length of {tag_len} while {} was expected",
+                    SENDER_TAG_SIZE
                 ),
             });
         };
@@ -131,7 +132,8 @@ impl TryFrom<StoredSurbSender> for (AnonymousSenderTag, i64) {
         let Ok(sender_tag_bytes) = value.tag.try_into() else {
             return Err(StorageError::CorruptedData {
                 details: format!(
-                    "the retrieved sender tag has length of {tag_len} while {SENDER_TAG_SIZE} was expected",
+                    "the retrieved sender tag has length of {tag_len} while {} was expected",
+                    SENDER_TAG_SIZE
                 ),
             });
         };

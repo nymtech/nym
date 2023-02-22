@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AccountEntry } from '@nymproject/types';
 import { AccountsContext, TAccountMnemonic, TAccountsDialog } from '../accounts';
 
-export const MockAccountsProvider: FCWithChildren = ({ children }) => {
+export const MockAccountsProvider: React.FC = ({ children }) => {
   const [accounts, setAccounts] = useState<AccountEntry[]>([{ id: 'Account_1', address: 'abc123' }]);
   const [selectedAccount, setSelectedAccount] = useState<AccountEntry | undefined>({
     id: 'Account_1',

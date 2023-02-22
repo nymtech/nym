@@ -12,7 +12,7 @@ import { Services } from '../types/directory';
 import { TestAndEarnButtonArea } from '../components/Growth/TestAndEarnButtonArea';
 import { AppVersion } from '../components/AppVersion';
 
-export const DefaultLayout: FCWithChildren<{
+export const DefaultLayout: React.FC<{
   error?: Error;
   status: ConnectionStatusKind;
   services?: Services;

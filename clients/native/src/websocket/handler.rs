@@ -27,11 +27,15 @@ use tokio_tungstenite::{
 };
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
-#[derive(Default)]
 enum ReceivedResponseType {
-    #[default]
     Binary,
     Text,
+}
+
+impl Default for ReceivedResponseType {
+    fn default() -> Self {
+        ReceivedResponseType::Binary
+    }
 }
 
 pub(crate) struct HandlerBuilder {

@@ -68,8 +68,6 @@ pub enum BackendError {
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
     #[error("Unable to open a new window")]
     NewWindowError,
-    #[error("Unable to parse the specified gateway")]
-    UnableToParseGateway,
 }
 
 impl Serialize for BackendError {

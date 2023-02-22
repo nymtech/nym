@@ -17,13 +17,11 @@ use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
 use execute::execute;
 use log::debug;
-use mixnet_contract_common::MixId;
 use network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::time::SystemTime;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
-use vesting_contract_common::PledgeCap;
 
 pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nyxd::cosmwasm_client::signing_client::SigningCosmWasmClient;
@@ -45,8 +43,10 @@ pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
+use mixnet_contract_common::MixId;
 pub use signing_client::Client as SigningNyxdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
+use vesting_contract_common::PledgeCap;
 
 pub mod coin;
 pub mod cosmwasm_client;
@@ -65,7 +65,6 @@ pub struct Config {
     pub(crate) vesting_contract_address: Option<AccountId>,
     pub(crate) bandwidth_claim_contract_address: Option<AccountId>,
     pub(crate) coconut_bandwidth_contract_address: Option<AccountId>,
-    pub(crate) group_contract_address: Option<AccountId>,
     pub(crate) multisig_contract_address: Option<AccountId>,
     pub(crate) coconut_dkg_contract_address: Option<AccountId>,
     // TODO: add this in later commits
@@ -120,10 +119,6 @@ impl Config {
                     .as_ref(),
                 prefix,
             )?,
-            group_contract_address: Self::parse_optional_account(
-                details.contracts.group_contract_address.as_ref(),
-                prefix,
-            )?,
             multisig_contract_address: Self::parse_optional_account(
                 details.contracts.multisig_contract_address.as_ref(),
                 prefix,
@@ -136,8 +131,8 @@ impl Config {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct NyxdClient<C: Clone> {
+#[derive(Debug)]
+pub struct NyxdClient<C> {
     client: C,
     config: Config,
     client_address: Option<Vec<AccountId>>,
@@ -214,10 +209,7 @@ impl NyxdClient<SigningNyxdClient> {
     }
 }
 
-impl<C> NyxdClient<C>
-where
-    C: Clone,
-{
+impl<C> NyxdClient<C> {
     pub fn current_config(&self) -> &Config {
         &self.config
     }
@@ -282,10 +274,6 @@ where
             .coconut_bandwidth_contract_address
             .as_ref()
             .unwrap()
-    }
-
-    pub fn group_contract_address(&self) -> &AccountId {
-        self.config.group_contract_address.as_ref().unwrap()
     }
 
     // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits

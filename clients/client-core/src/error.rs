@@ -65,10 +65,8 @@ pub enum ClientCoreError {
 /// Set of messages that the client can send to listeners via the task manager
 #[derive(thiserror::Error, Debug)]
 pub enum ClientCoreStatusMessage {
-    // NOTE: The nym-connect frontend listens for these strings, so don't change them until we have a more robust mechanism in place
     #[error("The connected gateway is slow, or the connection to it is slow")]
     GatewayIsSlow,
-    // NOTE: The nym-connect frontend listens for these strings, so don't change them until we have a more robust mechanism in place
     #[error("The connected gateway is very slow, or the connection to it is very slow")]
     GatewayIsVerySlow,
 }

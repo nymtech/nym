@@ -12,7 +12,7 @@ import { simulateUpdateMixnodeCostParams, simulateVestingUpdateMixnodeCostParams
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { FeeDetails } from '@nymproject/types';
 
-// Now we are using the node setting page instead of this modal
+//Now we are using the node setting page instead of this modal
 export const NodeSettings = ({
   currentPm,
   isVesting,
@@ -108,7 +108,7 @@ export const NodeSettings = ({
       okLabel="Next"
       onClose={onClose}
     >
-      <Tabs tabs={['System variables']} selectedTab="System variables" disableActiveTabHighlight />
+      <Tabs tabs={['System variables']} selectedTab={'System variables'} disableActiveTabHighlight />
       <Box sx={{ p: 3 }}>
         <Typography fontWeight={600} sx={{ mb: 1 }}>
           Set profit margin

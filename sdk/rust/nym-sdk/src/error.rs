@@ -8,9 +8,6 @@ pub enum Error {
     TomlSerializationError(#[from] toml::ser::Error),
     #[error("toml deserialization error: {0}")]
     TomlDeserializationError(#[from] toml::de::Error),
-    #[error("Ed25519 error: {0}")]
-    Ed25519RecoveryError(#[from] crypto::asymmetric::identity::Ed25519RecoveryError),
-
     #[error(transparent)]
     ClientCoreError(#[from] client_core::error::ClientCoreError),
 

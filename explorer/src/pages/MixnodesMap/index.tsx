@@ -10,7 +10,7 @@ import { WorldMap } from '../../components/WorldMap';
 import { useMainContext } from '../../context/main';
 import { CountryDataRowType, countryDataToGridRow } from '../../utils';
 
-export const PageMixnodesMap: FCWithChildren = () => {
+export const PageMixnodesMap: React.FC = () => {
   const { countryData } = useMainContext();
   const [pageSize, setPageSize] = React.useState<string>('10');
   const [formattedCountries, setFormattedCountries] = React.useState<CountryDataRowType[]>([]);
@@ -115,10 +115,5 @@ export const PageMixnodesMap: FCWithChildren = () => {
       </Box>
     );
   }
-
-  if (countryData?.error) {
-    return <Alert severity="error">{countryData.error.message}</Alert>;
-  }
-
-  return null;
+  return <Alert severity="error">{countryData?.error}</Alert>;
 };

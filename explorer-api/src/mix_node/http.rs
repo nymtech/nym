@@ -30,14 +30,14 @@ pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, 
 }
 
 async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescription, ReqwestError> {
-    reqwest::get(format!("http://{host}:{port}/description"))
+    reqwest::get(format!("http://{}:{}/description", host, port))
         .await?
         .json::<NodeDescription>()
         .await
 }
 
 async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestError> {
-    reqwest::get(format!("http://{host}:{port}/stats"))
+    reqwest::get(format!("http://{}:{}/stats", host, port))
         .await?
         .json::<NodeStats>()
         .await

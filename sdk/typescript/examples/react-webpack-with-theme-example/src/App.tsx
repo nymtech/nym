@@ -32,7 +32,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { AppContextProvider, useAppContext } from './context';
 import { MixnetContextProvider, parseBinaryMessageHeaders, useMixnetContext } from './context/mixnet';
 
-export const AppTheme: FCWithChildren = ({ children }) => {
+export const AppTheme: React.FC = ({ children }) => {
   const { mode } = useAppContext();
 
   return <NymThemeProvider mode={mode}>{children}</NymThemeProvider>;
@@ -52,7 +52,7 @@ interface UploadState {
   files: File[];
 }
 
-export const Content: FCWithChildren = () => {
+export const Content: React.FC = () => {
   const theme = useTheme();
   const { isReady, address, connect, events, sendTextMessage, sendBinaryMessage } = useMixnetContext();
   const copy = useClipboard();
@@ -69,8 +69,7 @@ export const Content: FCWithChildren = () => {
   };
 
   const log = React.useRef<Log[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [logTrigger, setLogTrigger] = React.useState(Date.now());
+  const [_logTrigger, setLogTrigger] = React.useState(Date.now());
 
   const [uploadState, setUploadState] = React.useState<UploadState>({
     dialogOpen: false,
@@ -144,13 +143,13 @@ export const Content: FCWithChildren = () => {
     if (events) {
       const unsubcribe = events.subscribeToBinaryMessageReceivedEvent((e) => {
         // the headers will be JSON (see the mixnet context for how they are created), so parse them
-        const headers = e.args.headers ? parseBinaryMessageHeaders(e.args.headers) : undefined;
+        const headers = parseBinaryMessageHeaders(e.args.headers);
 
-        const blob = new Blob([new Uint8Array(e.args.payload)], { type: headers?.mimeType });
+        const blob = new Blob([new Uint8Array(e.args.payload)], { type: headers.mimeType });
         log.current.push({
           kind: 'rx',
           timestamp: new Date(),
-          filename: headers?.filename,
+          filename: headers.filename,
           fileDownloadUrl: URL.createObjectURL(blob),
           filesize: e.args.payload.length,
         });
@@ -406,7 +405,7 @@ export const Content: FCWithChildren = () => {
   );
 };
 
-export const App: FCWithChildren = () => (
+export const App: React.FC = () => (
   <AppContextProvider>
     <MixnetContextProvider>
       <AppTheme>

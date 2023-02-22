@@ -36,7 +36,7 @@ pub trait DkgSigningClient {
 #[async_trait]
 impl<C> DkgSigningClient for NyxdClient<C>
 where
-    C: SigningCosmWasmClient + Send + Sync + Clone,
+    C: SigningCosmWasmClient + Send + Sync,
 {
     async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::AdvanceEpochState {};

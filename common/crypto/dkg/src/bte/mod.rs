@@ -60,7 +60,7 @@ pub fn setup() -> Params {
     let f0 = hash_g2(b"f0", SETUP_DOMAIN);
 
     let fh = (0..HASH_SECURITY_PARAM)
-        .map(|i| hash_g2(format!("fh{i}"), SETUP_DOMAIN))
+        .map(|i| hash_g2(format!("fh{}", i), SETUP_DOMAIN))
         .collect();
 
     let h = hash_g2(b"h", SETUP_DOMAIN);

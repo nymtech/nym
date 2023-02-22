@@ -1,12 +1,12 @@
 import React, { createContext, FC, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { getDelegationSummary, undelegateFromMixnode } from 'src/requests/delegation';
+import { getDelegationSummary, undelegateAllFromMixnode, undelegateFromMixnode } from 'src/requests/delegation';
 import {
-  DecCoin,
   DelegationWithEverything,
-  Fee,
   FeeDetails,
+  DecCoin,
   TransactionExecuteResult,
   WrappedDelegationEvent,
+  Fee,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
 import {
@@ -64,7 +64,6 @@ export const DelegationContext = createContext<TDelegationContext>({
 
 export const DelegationContextProvider: FC<{
   network?: Network;
-  children: React.ReactNode;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ network, children }) => {
   const [isLoading, setIsLoading] = useState(true);

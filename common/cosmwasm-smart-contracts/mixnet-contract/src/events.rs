@@ -86,7 +86,7 @@ impl ToString for MixnetEventType {
             MixnetEventType::DelegationOnUnbonding => "delegation_on_unbonding_node",
         };
 
-        format!("{EVENT_VERSION_PREFIX}{event_name}")
+        format!("{}{}", EVENT_VERSION_PREFIX, event_name)
     }
 }
 

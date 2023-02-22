@@ -48,7 +48,6 @@ impl Listener {
         outbound_mix_sender: MixForwardingSender,
         storage: St,
         active_clients_store: ActiveClientsStore,
-        mut shutdown: task::TaskClient,
     ) where
         St: Storage + Clone + 'static,
     {
@@ -61,36 +60,26 @@ impl Listener {
             }
         };
 
-        while !shutdown.is_shutdown() {
-            tokio::select! {
-                biased;
-                _ = shutdown.recv() => {
-                    log::trace!("client_handling::Listener: received shutdown");
+        loop {
+            match tcp_listener.accept().await {
+                Ok((socket, remote_addr)) => {
+                    trace!("received a socket connection from {}", remote_addr);
+                    // TODO: I think we *REALLY* need a mechanism for having a maximum number of connected
+                    // clients or spawned tokio tasks -> perhaps a worker system?
+                    let handle = FreshHandler::new(
+                        OsRng,
+                        socket,
+                        self.only_coconut_credentials,
+                        outbound_mix_sender.clone(),
+                        Arc::clone(&self.local_identity),
+                        storage.clone(),
+                        active_clients_store.clone(),
+                        #[cfg(feature = "coconut")]
+                        Arc::clone(&self.coconut_verifier),
+                    );
+                    tokio::spawn(async move { handle.start_handling().await });
                 }
-                connection = tcp_listener.accept() => {
-                    match connection {
-                        Ok((socket, remote_addr)) => {
-                            trace!("received a socket connection from {remote_addr}");
-                            // TODO: I think we *REALLY* need a mechanism for having a maximum number of connected
-                            // clients or spawned tokio tasks -> perhaps a worker system?
-                            let handle = FreshHandler::new(
-                                OsRng,
-                                socket,
-                                self.only_coconut_credentials,
-                                outbound_mix_sender.clone(),
-                                Arc::clone(&self.local_identity),
-                                storage.clone(),
-                                active_clients_store.clone(),
-                                #[cfg(feature = "coconut")]
-                                Arc::clone(&self.coconut_verifier),
-                            );
-                            let shutdown = shutdown.clone();
-                            tokio::spawn(async move { handle.start_handling(shutdown).await });
-                        }
-                        Err(err) => warn!("failed to get client: {err}"),
-                    }
-                }
-
+                Err(err) => warn!("failed to get client: {err}"),
             }
         }
     }
@@ -100,13 +89,12 @@ impl Listener {
         outbound_mix_sender: MixForwardingSender,
         storage: St,
         active_clients_store: ActiveClientsStore,
-        shutdown: task::TaskClient,
     ) -> JoinHandle<()>
     where
         St: Storage + Clone + 'static,
     {
         tokio::spawn(async move {
-            self.run(outbound_mix_sender, storage, active_clients_store, shutdown)
+            self.run(outbound_mix_sender, storage, active_clients_store)
                 .await
         })
     }

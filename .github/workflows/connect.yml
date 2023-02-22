@@ -45,7 +45,6 @@ jobs:
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks
-        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --manifest-path nym-connect/Cargo.toml --workspace --all-features

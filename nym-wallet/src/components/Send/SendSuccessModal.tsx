@@ -1,9 +1,9 @@
 import React, { useContext } from 'react';
 import { Stack, Typography, SxProps } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
-import { AppContext } from 'src/context';
 import { TTransactionDetails } from './types';
 import { ConfirmationModal } from '../Modals/ConfirmationModal';
+import { AppContext } from 'src/context';
 
 export const SendSuccessModal = ({
   txDetails,

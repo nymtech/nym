@@ -335,7 +335,7 @@ pub async fn get_mix_node_description(
     Ok(reqwest::Client::builder()
         .timeout(Duration::from_millis(1000))
         .build()?
-        .get(format!("http://{host}:{port}/description"))
+        .get(format!("http://{}:{}/description", host, port))
         .send()
         .await?
         .json()

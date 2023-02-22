@@ -1,4 +1,4 @@
-import type { DecCoin } from '@nymproject/types';
+import type { DecCoin } from '../../../../ts-packages/types/src/types/rust/DecCoin';
 
 export interface TauriContractStateParams {
   minimum_mixnode_pledge: DecCoin;

@@ -8,7 +8,7 @@ import { ConnectedLayout } from './layouts/ConnectedLayout';
 import { HelpGuideLayout } from './layouts/HelpGuideLayout';
 import { useTauriEvents } from './utils';
 
-export const App: FCWithChildren = () => {
+export const App: React.FC = () => {
   const context = useClientContext();
   const [busy, setBusy] = React.useState<boolean>();
   const [showInfoModal, setShowInfoModal] = React.useState(false);
@@ -74,7 +74,6 @@ export const App: FCWithChildren = () => {
       onConnectClick={handleConnectClick}
       ipAddress="127.0.0.1"
       port={1080}
-      gatewayPerformance={context.gatewayPerformance}
       connectedSince={context.connectedSince}
       serviceProvider={context.serviceProvider}
       stats={[

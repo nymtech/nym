@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Box, Button, Divider, Grid, TextField, Typography } from '@mui/material';
+import { Button, Divider, Typography, TextField, Grid, CircularProgress, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { isMixnode } from 'src/types';
 import { simulateUpdateMixnodeConfig, simulateVestingUpdateMixnodeConfig, updateMixnodeConfig } from 'src/requests';
-import { TBondedGateway, TBondedMixnode } from 'src/context/bonding';
+import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedInfoParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';

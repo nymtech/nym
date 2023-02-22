@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { NymLogo } from '@nymproject/react/logo/NymLogo';
 import { useMainContext } from '../../context/main';
 
-export const Page404 = () => {
+export const Page404: React.FC = () => {
   const navigate = useNavigate();
   const { mode } = useMainContext();
   const theme = useTheme();

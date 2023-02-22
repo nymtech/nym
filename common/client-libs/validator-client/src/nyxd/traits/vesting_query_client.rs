@@ -269,7 +269,7 @@ pub trait VestingQueryClient {
 }
 
 #[async_trait]
-impl<C: CosmWasmClient + Sync + Send + Clone> VestingQueryClient for NyxdClient<C> {
+impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NyxdClient<C> {
     async fn query_vesting_contract<T>(&self, query: VestingQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,

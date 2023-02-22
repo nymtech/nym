@@ -34,10 +34,9 @@ pub enum InvalidPacketSize {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PacketSize {
     // for example instant messaging use case
-    #[default]
     RegularPacket = 1,
 
     // for sending SURB-ACKs
@@ -135,5 +134,11 @@ impl PacketSize {
         } else {
             None
         }
+    }
+}
+
+impl Default for PacketSize {
+    fn default() -> Self {
+        PacketSize::RegularPacket
     }
 }

@@ -10,24 +10,20 @@ use client_core::{
         inbound_messages::InputMessage,
         key_manager::KeyManager,
         received_buffer::ReconstructedMessagesReceiver,
-        replies::reply_storage::{self, ReplyStorageBackend},
     },
     config::{persistence::key_pathfinder::ClientKeyPathfinder, GatewayEndpointConfig},
 };
-use crypto::asymmetric::identity;
+use futures::StreamExt;
 use nymsphinx::{
     addressing::clients::{ClientIdentity, Recipient},
     receiver::ReconstructedMessage,
 };
 use task::TaskManager;
 
-use futures::StreamExt;
-use validator_client::nyxd::SigningNyxdClient;
-
 use super::{connection_state::BuilderState, Config, GatewayKeyMode, Keys, KeysArc, StoragePaths};
 use crate::error::{Error, Result};
 
-pub struct MixnetClientBuilder<B: ReplyStorageBackend> {
+pub struct ClientBuilder {
     /// Keys handled by the client
     key_manager: KeyManager,
 
@@ -40,67 +36,15 @@ pub struct MixnetClientBuilder<B: ReplyStorageBackend> {
     /// The client can be in one of multiple states, depending on how it is created and if it's
     /// connected to the mixnet.
     state: BuilderState,
-
-    /// The storage backend for reply-SURBs
-    reply_storage_backend: B,
 }
 
-impl MixnetClientBuilder<reply_storage::fs_backend::Backend> {
+impl ClientBuilder {
     /// Create a new mixnet client. If no config options are supplied, creates a new client with
     /// ephemeral keys stored in RAM, which will be discarded at application close.
     ///
     /// Callers have the option of supplying futher parameters to store persistent identities at a
     /// location on-disk, if desired.
-    pub async fn new(config: Option<Config>, paths: Option<StoragePaths>) -> Result<Self> {
-        let config = config.unwrap_or_default();
-
-        let reply_surb_database_path = paths.as_ref().map(|p| p.reply_surb_database_path.clone());
-
-        let reply_storage_backend = non_wasm_helpers::setup_fs_reply_surb_backend(
-            reply_surb_database_path,
-            &config.debug_config,
-        )
-        .await?;
-
-        MixnetClientBuilder::new_with_custom_storage(Some(config), paths, reply_storage_backend)
-    }
-}
-
-impl MixnetClientBuilder<reply_storage::Empty> {
-    /// Create a new mixnet client. If no config options are supplied, creates a new client with
-    /// ephemeral keys stored in RAM, which will be discarded at application close.
-    ///
-    /// Callers have the option of supplying futher parameters to store persistent identities at a
-    /// location on-disk, if desired.
-    pub fn new_without_storage(
-        config: Option<Config>,
-        paths: Option<StoragePaths>,
-    ) -> Result<Self> {
-        let config = config.unwrap_or_default();
-
-        let reply_storage_backend =
-            non_wasm_helpers::setup_empty_reply_surb_backend(&config.debug_config);
-
-        MixnetClientBuilder::new_with_custom_storage(Some(config), paths, reply_storage_backend)
-    }
-}
-
-impl<B> MixnetClientBuilder<B>
-where
-    B: ReplyStorageBackend + Sync + Send + 'static,
-{
-    /// Create a new mixnet client. If no config options are supplied, creates a new client with
-    /// ephemeral keys stored in RAM, which will be discarded at application close.
-    ///
-    /// Callers have the option of supplying futher parameters to store persistent identities at a
-    /// location on-disk, if desired.
-    ///
-    /// A custom storage backend can be passed in.
-    pub fn new_with_custom_storage(
-        config_option: Option<Config>,
-        paths: Option<StoragePaths>,
-        reply_storage_backend: B,
-    ) -> Result<Self> {
+    pub fn new(config_option: Option<Config>, paths: Option<StoragePaths>) -> Result<Self> {
         let config = config_option.unwrap_or_default();
 
         // If we are provided paths to keys, use them if they are available. And if they are
@@ -140,7 +84,6 @@ where
             config,
             storage_paths: paths,
             state: BuilderState::New,
-            reply_storage_backend,
         })
     }
 
@@ -181,17 +124,10 @@ where
             "can only setup gateway when in `New` connection state"
         );
 
-        let user_chosen_gateway = self
-            .config
-            .user_chosen_gateway
-            .as_ref()
-            .map(identity::PublicKey::from_base58_string)
-            .transpose()?;
-
         let gateway_config = client_core::init::register_with_gateway(
             &mut self.key_manager,
             self.config.nym_api_endpoints.clone(),
-            user_chosen_gateway,
+            self.config.user_chosen_gateway.clone(),
         )
         .await?;
 
@@ -238,10 +174,7 @@ where
     }
 
     /// Connects to the mixnet via the gateway in the client config
-    pub async fn connect_to_mixnet(mut self) -> Result<MixnetClient>
-    where
-        <B as ReplyStorageBackend>::StorageError: Sync + Send,
-    {
+    pub async fn connect_to_mixnet(mut self) -> Result<Client> {
         // For some simple cases we can figure how to setup gateway without it having to have been
         // called in advance.
         if matches!(self.state, BuilderState::New) {
@@ -278,12 +211,16 @@ where
         // TODO: we currently don't support having a bandwidth controller
         let bandwidth_controller = None;
 
-        let base_builder: BaseClientBuilder<_, SigningNyxdClient> = BaseClientBuilder::new(
+        // TODO: currently we only support in-memory reply surb storage.
+        let reply_storage_backend =
+            non_wasm_helpers::setup_empty_reply_surb_backend(&self.config.debug_config);
+
+        let base_builder = BaseClientBuilder::new(
             &gateway_endpoint_config,
             &self.config.debug_config,
             self.key_manager.clone(),
             bandwidth_controller,
-            self.reply_storage_backend,
+            reply_storage_backend,
             CredentialsToggle::Disabled,
             self.config.nym_api_endpoints.clone(),
         );
@@ -296,7 +233,7 @@ where
         // Register our receiver
         let reconstructed_receiver = client_output.register_receiver().unwrap();
 
-        Ok(MixnetClient {
+        Ok(Client {
             nym_address,
             key_manager: self.key_manager,
             client_input,
@@ -308,7 +245,7 @@ where
     }
 }
 
-pub struct MixnetClient {
+pub struct Client {
     nym_address: Recipient,
 
     /// Keys handled by the client
@@ -327,9 +264,9 @@ pub struct MixnetClient {
     task_manager: TaskManager,
 }
 
-impl MixnetClient {
+impl Client {
     pub async fn connect() -> Result<Self> {
-        let client = MixnetClientBuilder::new_without_storage(None, None)?;
+        let client = ClientBuilder::new(None, None)?;
         client.connect_to_mixnet().await
     }
 
@@ -346,30 +283,15 @@ impl MixnetClient {
 
     /// Sends stringy data to the supplied Nym address
     pub async fn send_str(&self, address: &str, message: &str) {
-        let message_bytes = message.to_string().into_bytes();
-        self.send_bytes(address, message_bytes).await;
-    }
-
-    /// Sends stringy data to the supplied Nym address, and skip sending reply-SURBs
-    pub async fn send_str_direct(&self, address: &str, message: &str) {
+        log::debug!("send_str");
         let message_bytes = message.to_string().into_bytes();
         self.send_bytes(address, message_bytes).await;
     }
 
     /// Sends bytes to the supplied Nym address
     pub async fn send_bytes(&self, address: &str, message: Vec<u8>) {
-        let lane = TransmissionLane::General;
-        let recipient = Recipient::try_from_base58_string(address).unwrap();
-        let input_msg = InputMessage::new_anonymous(recipient, message, 20, lane);
-        self.client_input
-            .input_sender
-            .send(input_msg)
-            .await
-            .unwrap();
-    }
+        log::debug!("send_bytes");
 
-    /// Sends bytes to the supplied Nym address, and skip sending reply-SURBs
-    pub async fn send_bytes_direct(&self, address: &str, message: Vec<u8>) {
         let lane = TransmissionLane::General;
         let recipient = Recipient::try_from_base58_string(address).unwrap();
         let input_msg = InputMessage::new_regular(recipient, message, lane);

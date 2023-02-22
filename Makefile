@@ -4,7 +4,7 @@ no-clippy: build cargo-test wasm fmt
 happy: fmt clippy-happy test
 clippy-all: clippy-main clippy-coconut clippy-all-contracts clippy-all-wallet clippy-all-connect clippy-all-wasm-client
 clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet clippy-happy-connect
-cargo-test: test-main test-contracts test-wallet test-connect test-coconut
+cargo-test: test-main test-contracts test-wallet test-connect test-coconut test-wasm-client
 cargo-test-expensive: test-main-expensive test-contracts-expensive test-wallet-expensive test-connect-expensive test-coconut-expensive
 build: build-contracts build-wallet build-main build-connect build-wasm-client
 fmt: fmt-main fmt-contracts fmt-wallet fmt-connect fmt-wasm-client
@@ -67,6 +67,9 @@ test-wallet:
 
 test-wallet-expensive:
 	cargo test --manifest-path nym-wallet/Cargo.toml --all-features -- --ignored
+
+test-wasm-client:
+	cargo test --workspace --manifest-path clients/webassembly/Cargo.toml --all-features
 
 test-connect:
 	cargo test --manifest-path nym-connect/Cargo.toml --all-features

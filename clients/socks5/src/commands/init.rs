@@ -124,15 +124,16 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
 
     let already_init = Config::default_config_file_path(Some(id)).exists();
     if already_init {
-        println!("SOCKS5 client \"{id}\" was already initialised before");
+        println!(
+            "SOCKS5 client \"{}\" was already initialised before! \
+            Config information will be overwritten (but keys will be kept)!",
+            id
+        );
     }
 
     // Usually you only register with the gateway on the first init, however you can force
     // re-registering if wanted.
     let user_wants_force_register = args.force_register_gateway;
-    if user_wants_force_register {
-        println!("Instructed to force registering gateway. This might overwrite keys!");
-    }
 
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
@@ -150,9 +151,9 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = client_core::init::setup_gateway_from_config::<Config, _>(
+    let gateway = client_core::init::setup_gateway::<Config, _>(
         register_gateway,
-        user_chosen_gateway_id,
+        user_chosen_gateway_id.map(|id| id.to_base58_string()),
         config.get_base(),
     )
     .await

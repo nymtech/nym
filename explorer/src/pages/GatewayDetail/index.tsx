@@ -129,7 +129,7 @@ const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: Gat
 /**
  * Guard component to handle loading and not found states
  */
-const PageGatewayDetailGuard: FCWithChildren = () => {
+const PageGatewayDetailGuard: React.FC = () => {
   const [selectedGateway, setSelectedGateway] = React.useState<GatewayResponseItem | undefined>();
   const { gateways } = useMainContext();
   const { id } = useParams<{ id: string | undefined }>();
@@ -170,7 +170,7 @@ const PageGatewayDetailGuard: FCWithChildren = () => {
 /**
  * Wrapper component that adds the mixnode content based on the `id` in the address URL
  */
-export const PageGatewayDetail: FCWithChildren = () => {
+export const PageGatewayDetail: React.FC = () => {
   const { id } = useParams<{ id: string | undefined }>();
 
   if (!id) {

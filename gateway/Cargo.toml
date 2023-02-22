@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-gateway"
-version = "1.1.6"
+version = "1.1.5"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -27,7 +27,7 @@ dotenv = "0.15.0"
 futures = "0.3"
 humantime-serde = "1.0.1"
 lazy_static = "1.4.0"
-log = { workspace = true }
+log = "0.4"
 once_cell = "1.7.2"
 pretty_env_logger = "0.4"
 rand = "0.7"
@@ -40,15 +40,15 @@ sqlx = { version = "0.5", features = [
 ] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 thiserror = "1"
-tokio = { version = "1.24.1", features = [
+tokio = { version = "1.21.2", features = [
     "rt-multi-thread",
     "net",
     "signal",
     "fs",
 ] }
-tokio-stream = { version = "0.1.11", features = ["fs"] }
+tokio-stream = { version = "0.1.9", features = ["fs"] }
 tokio-tungstenite = "0.14"
-tokio-util = { version = "0.7.4", features = ["codec"] }
+tokio-util = { version = "0.7.3", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
 
 # internal
@@ -67,7 +67,6 @@ nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 statistics-common = { path = "../common/statistics" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
-task = { path = "../common/task" }
 validator-client = { path = "../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }
@@ -85,7 +84,7 @@ coconut = [
 ]
 
 [build-dependencies]
-tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.21.2", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = [
     "runtime-tokio-rustls",
     "sqlite",

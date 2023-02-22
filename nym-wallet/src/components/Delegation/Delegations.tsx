@@ -5,7 +5,7 @@ import { Link } from '@nymproject/react/link/Link';
 import { DelegationList } from './DelegationList';
 import { DelegationListItemActions } from './DelegationActions';
 
-export const Delegations: FCWithChildren<{
+export const Delegations: React.FC<{
   isLoading?: boolean;
   items: DelegationWithEverything[];
   explorerUrl: string;

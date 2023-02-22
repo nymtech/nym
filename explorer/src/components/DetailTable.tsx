@@ -43,7 +43,7 @@ function formatCellValues(val: string | number, field: string) {
   return val;
 }
 
-export const DetailTable: FCWithChildren<{
+export const DetailTable: React.FC<{
   tableName: string;
   columnsData: ColumnsType[];
   rows: MixnodeRowType[] | GatewayEnrichedRowType[];

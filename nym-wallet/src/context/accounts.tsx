@@ -28,7 +28,7 @@ export type TAccountMnemonic = { value?: string; accountName?: string };
 
 export const AccountsContext = createContext({} as TAccounts);
 
-export const AccountsProvider: FCWithChildren = ({ children }) => {
+export const AccountsProvider: React.FC = ({ children }) => {
   const [accounts, setAccounts] = useState<AccountEntry[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<AccountEntry>();
   const [accountToEdit, setAccountToEdit] = useState<AccountEntry>();

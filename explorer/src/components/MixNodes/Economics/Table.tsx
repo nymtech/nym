@@ -66,7 +66,7 @@ const formatCellValues = (value: EconomicsRowsType, field: string) => {
   );
 };
 
-export const DelegatorsInfoTable: FCWithChildren<UniversalTableProps<EconomicsInfoRowWithIndex>> = ({
+export const DelegatorsInfoTable: React.FC<UniversalTableProps<EconomicsInfoRowWithIndex>> = ({
   tableName,
   columnsData,
   rows,

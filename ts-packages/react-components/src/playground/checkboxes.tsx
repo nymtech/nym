@@ -3,7 +3,7 @@ import Checkbox from '@mui/material/Checkbox';
 
 const label = { inputProps: { 'aria-label': 'Checkbox demo' } };
 
-export const PlaygroundCheckboxes: FCWithChildren = () => (
+export const PlaygroundCheckboxes: React.FC = () => (
   <div>
     <Checkbox {...label} defaultChecked />
     <Checkbox {...label} />

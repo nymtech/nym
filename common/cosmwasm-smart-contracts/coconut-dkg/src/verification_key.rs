@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::msg::ExecuteMsg;
-use crate::types::{EpochId, NodeIndex};
+use crate::types::NodeIndex;
 use cosmwasm_std::{from_binary, to_binary, Addr, CosmosMsg, StdResult, Timestamp, WasmMsg};
 use cw_utils::Expiration;
 use multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
@@ -16,7 +16,6 @@ pub struct ContractVKShare {
     pub announce_address: String,
     pub node_index: NodeIndex,
     pub owner: Addr,
-    pub epoch_id: EpochId,
     pub verified: bool,
 }
 

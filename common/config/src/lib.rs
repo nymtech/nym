@@ -148,25 +148,6 @@ pub trait OptionalSet {
         }
     }
 
-    fn with_validated_optional<F, T, V, E>(
-        self,
-        f: F,
-        value: Option<T>,
-        validate: V,
-    ) -> Result<Self, E>
-    where
-        F: Fn(Self, T) -> Self,
-        V: Fn(&T) -> Result<(), E>,
-        Self: Sized,
-    {
-        if let Some(val) = value {
-            validate(&val)?;
-            Ok(f(self, val))
-        } else {
-            Ok(self)
-        }
-    }
-
     fn with_optional_env<F, T>(self, f: F, val: Option<T>, env_var: &str) -> Self
     where
         F: Fn(Self, T) -> Self,

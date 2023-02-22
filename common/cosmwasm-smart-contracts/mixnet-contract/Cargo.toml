@@ -19,7 +19,7 @@ serde_json = "1.0.0"
 humantime-serde = "1.1.1"
 
 # TO CHECK WHETHER STILL NEEDED:
-log = { workspace = true }
+log = "0.4.14"
 time = { version = "0.3.6", features = ["parsing", "formatting"] }
 ts-rs = { version = "6.1.2", optional = true }
 

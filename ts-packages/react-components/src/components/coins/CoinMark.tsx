@@ -3,7 +3,7 @@ import { PaletteMode, useTheme } from '@mui/material';
 import TokenLight from '@assets/token/token-light.svg';
 import TokenDark from '@assets/token/token-dark.svg';
 
-export const CoinMark: FCWithChildren<{
+export const CoinMark: React.FC<{
   mode?: PaletteMode;
   width?: number | string;
   height?: number | string;

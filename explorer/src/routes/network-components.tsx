@@ -6,14 +6,14 @@ import { PageGatewayDetail } from '../pages/GatewayDetail';
 import { PageMixnodeDetail } from '../pages/MixnodeDetail';
 import { PageMixnodes } from '../pages/Mixnodes';
 
-const ValidatorRoute: FCWithChildren = () => {
+const ValidatorRoute: React.FC = () => {
   const navigate = useNavigate();
   window.open(`${BIG_DIPPER}/validators`);
   navigate(-1);
   return null;
 };
 
-export const NetworkComponentsRoutes: FCWithChildren = () => (
+export const NetworkComponentsRoutes: React.FC = () => (
   <ReactRouterRoutes>
     <Route path="mixnodes/:status" element={<PageMixnodes />} />
     <Route path="mixnodes" element={<PageMixnodes />} />

@@ -55,13 +55,13 @@ async fn get_pubkey_from_account_address(
         .await?
         .ok_or_else(|| {
             log::error!("No account associated with address {}", address);
-            BackendError::SignatureError(format!("No account associated with address {address}"))
+            BackendError::SignatureError(format!("No account associated with address {}", address))
         })?;
     let base_account = account.try_get_base_account()?;
 
     base_account.pubkey.ok_or_else(|| {
         log::error!("No pubkey found for address {}", address);
-        BackendError::SignatureError(format!("No pubkey found for address {address}"))
+        BackendError::SignatureError(format!("No pubkey found for address {}", address))
     })
 }
 

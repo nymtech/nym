@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "peerDependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "17",
+    "react-dom": "17",
     "@mui/material": "^5.0.1",
     "@mui/styles": "^5.0.1"
   },
@@ -30,7 +30,7 @@
     "ts-jest": "^27.0.5",
     "jest": "^27.1.0",
     "babel-plugin-root-import": "^5.1.0",
-    "@types/react": "^18.0.26",
+    "@types/react": "^17.0.34",
     "rimraf": "^3.0.2"
   },
   "scripts": {

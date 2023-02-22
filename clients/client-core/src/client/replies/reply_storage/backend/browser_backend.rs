@@ -41,8 +41,4 @@ impl ReplyStorageBackend for Backend {
     async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
         self.empty.load_surb_storage().await
     }
-
-    fn get_inactive_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
-        self.empty.get_inactive_storage()
-    }
 }

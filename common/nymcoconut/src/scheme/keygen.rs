@@ -68,7 +68,8 @@ impl TryFrom<&[u8]> for SecretKey {
 
         if ys_len as usize != actual_ys_len {
             return Err(CoconutError::Deserialization(format!(
-                "Tried to deserialize secret key with inconsistent ys len (expected {ys_len}, got {actual_ys_len})"
+                "Tried to deserialize secret key with inconsistent ys len (expected {}, got {})",
+                ys_len, actual_ys_len
             )));
         }
 
@@ -184,7 +185,8 @@ impl TryFrom<&[u8]> for VerificationKey {
         if betas_len as usize != actual_betas_len {
             return Err(
                 CoconutError::Deserialization(
-                    format!("Tried to deserialize verification key with inconsistent betas len (expected {betas_len}, got {actual_betas_len})"
+                    format!("Tried to deserialize verification key with inconsistent betas len (expected {}, got {})",
+                            betas_len, actual_betas_len
                     )));
         }
 

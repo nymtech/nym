@@ -9,7 +9,6 @@ use crate::{
 use clap::Args;
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use validator_client::nyxd;
@@ -103,11 +102,11 @@ impl From<Init> for OverrideConfig {
     }
 }
 
-pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn execute(args: &Init, output: OutputFormat) {
     println!("Initialising gateway {}...", args.id);
 
     let already_init = if Config::default_config_file_path(Some(&args.id)).exists() {
-        eprintln!(
+        println!(
             "Gateway \"{}\" was already initialised before! Config information will be \
             overwritten (but keys will be kept)!",
             args.id
@@ -120,7 +119,7 @@ pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Err
     let override_config_fields = OverrideConfig::from(args.clone());
 
     // Initialising the config structure is just overriding a default constructed one
-    let config = override_config(Config::new(&args.id), override_config_fields)?;
+    let config = override_config(Config::new(&args.id), override_config_fields);
 
     // if gateway was already initialised, don't generate new keys
     if !already_init {
@@ -147,19 +146,19 @@ pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Err
         )
         .expect("Failed to save identity keys");
 
-        eprintln!("Saved identity and mixnet sphinx keypairs");
+        println!("Saved identity and mixnet sphinx keypairs");
     }
 
     let config_save_location = config.get_config_file_save_location();
     config
         .save_to_file(None)
         .expect("Failed to save the config file");
-    eprintln!("Saved configuration file to {:?}", config_save_location);
-    eprintln!("Gateway configuration completed.\n\n\n");
+    println!("Saved configuration file to {:?}", config_save_location);
+    println!("Gateway configuration completed.\n\n\n");
 
-    Ok(crate::node::create_gateway(config)
+    crate::node::create_gateway(config)
         .await
-        .print_node_details(output)?)
+        .print_node_details(output);
 }
 
 #[cfg(test)]
@@ -192,7 +191,7 @@ mod tests {
         std::env::set_var(BECH32_PREFIX, "n");
 
         let config = Config::new(&args.id);
-        let config = override_config(config, OverrideConfig::from(args.clone())).unwrap();
+        let config = override_config(config, OverrideConfig::from(args.clone()));
 
         let (identity_keys, sphinx_keys) = {
             let mut rng = rand::rngs::OsRng;

@@ -15,7 +15,7 @@ export default {
   component: RedeemModal,
 } as ComponentMeta<typeof RedeemModal>;
 
-const Content: FCWithChildren<{
+const Content: React.FC<{
   setOpen: (value: boolean) => void;
 }> = ({ setOpen }) => (
   <Paper elevation={0} sx={{ px: 4, pt: 2, pb: 4 }}>

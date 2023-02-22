@@ -8,10 +8,10 @@ import { DrawEntry, DrawEntryStatus } from './context/types';
 import { TestAndEarnEnterWalletAddress } from './TestAndEarnEnterWalletAddress';
 import Content from './content/en.yaml';
 
-export const TestAndEarnWinner: FCWithChildren<{
+export const TestAndEarnWinner: React.FC<{
   sx?: SxProps;
   entry?: DrawEntry;
-}> = ({ entry }) => {
+}> = ({ sx, entry }) => {
   const context = useTestAndEarnContext();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string>();
@@ -100,7 +100,7 @@ export const TestAndEarnWinner: FCWithChildren<{
   );
 };
 
-export const TestAndEarnWinnerWithState: FCWithChildren<{
+export const TestAndEarnWinnerWithState: React.FC<{
   sx?: SxProps;
 }> = ({ sx }) => {
   const context = useTestAndEarnContext();

@@ -6,7 +6,7 @@ import { validateKey } from '@nymproject/types';
 import DoneIcon from '@mui/icons-material/Done';
 import { SxProps } from '@mui/system';
 
-export const IdentityKeyFormField: FCWithChildren<{
+export const IdentityKeyFormField: React.FC<{
   showTickOnValid?: boolean;
   fullWidth?: boolean;
   required?: boolean;

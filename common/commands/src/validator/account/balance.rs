@@ -57,7 +57,7 @@ pub async fn query_balance(
                 if denom.is_empty() || denom.eq_ignore_ascii_case(&coin.denom) {
                     if args.raw {
                         if !args.hide_denom {
-                            println!("{coin}");
+                            println!("{}", coin);
                         } else {
                             println!("{}", coin.amount);
                         }

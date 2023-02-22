@@ -224,7 +224,10 @@ impl DecryptionKey {
         let mut dh = Vec::with_capacity(dh_len);
         for j in 0..dh_len {
             let dh_i = deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
-                DkgError::new_deserialization_failure(format!("Node.dh_{j}"), "invalid curve point")
+                DkgError::new_deserialization_failure(
+                    format!("Node.dh_{}", j),
+                    "invalid curve point",
+                )
             })?;
 
             dh.push(dh_i);

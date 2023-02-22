@@ -6,7 +6,7 @@ import { CoinMark } from '../coins/CoinMark';
 import { CoinMarkTestnet } from '../coins/CoinMarkTestnet';
 import { CurrencyAmount } from './CurrencyAmount';
 
-export const CurrencyWithCoinMark: FCWithChildren<{
+export const CurrencyWithCoinMark: React.FC<{
   majorAmount?: DecCoin;
   fontSize?: number;
   prefix?: boolean;

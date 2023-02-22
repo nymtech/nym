@@ -15,7 +15,7 @@ import { ContentCard } from '../../components/ContentCard';
 import { StatsCard } from '../../components/StatsCard';
 import { Icons } from '../../components/Icons';
 
-export const PageOverview: FCWithChildren = () => {
+export const PageOverview: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { summaryOverview, gateways, validators, block, countryData } = useMainContext();

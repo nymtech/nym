@@ -88,7 +88,6 @@ impl<T> Config<T> {
         Config::default().with_id(id)
     }
 
-    #[must_use]
     pub fn with_id<S: Into<String>>(mut self, id: S) -> Self
     where
         T: NymConfig,

@@ -95,7 +95,7 @@ fn sanitize_and_resolve_host(host: &str, port: u16) -> Option<SocketAddr> {
     }
 
     // the host string should hopefully parse and resolve into a valid socket address
-    let parsed_host = format!("{trimmed_host}:{port}");
+    let parsed_host = format!("{}:{}", trimmed_host, port);
     match parsed_host.to_socket_addrs() {
         Ok(mut addrs) => addrs.next(),
         Err(e) => {

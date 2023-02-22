@@ -14,8 +14,9 @@ export const Default: ComponentStory<typeof ConnectedLayout> = () => (
   <Box p={2} width={242} sx={{ bgcolor: 'nym.background.dark' }}>
     <ConnectedLayout
       showInfoModal={false}
-      gatewayPerformance="Good"
-      handleCloseInfoModal={() => undefined}
+      handleCloseInfoModal={() => {
+        return undefined;
+      }}
       status={ConnectionStatusKind.connected}
       connectedSince={DateTime.now()}
       ipAddress="127.0.0.1"

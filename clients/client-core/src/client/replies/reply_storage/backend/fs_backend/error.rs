@@ -10,12 +10,6 @@ pub enum StorageError {
     #[error("the provided database path doesn't have a filename defined")]
     DatabasePathWithoutFilename { provided_path: PathBuf },
 
-    #[error("unable to create the directory for the database")]
-    DatabasePathUnableToCreateParentDirectory {
-        provided_path: PathBuf,
-        source: io::Error,
-    },
-
     #[error("failed to rename our databse file - {source}")]
     DatabaseRenameError {
         #[source]

@@ -5,7 +5,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import { Error } from './Error';
 
-export const MnemonicInput: FCWithChildren<{
+export const MnemonicInput: React.FC<{
   mnemonic: string;
   error?: string;
   onUpdateMnemonic: (mnemonic: string) => void;
@@ -37,7 +37,7 @@ export const MnemonicInput: FCWithChildren<{
   );
 };
 
-export const PasswordInput: FCWithChildren<{
+export const PasswordInput: React.FC<{
   password: string;
   error?: string;
   label?: string;

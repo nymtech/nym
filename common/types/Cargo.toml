@@ -2,13 +2,13 @@
 name = "nym-types"
 version = "1.0.0"
 description = "Nym common types"
-authors.workspace = true
+authors = ["Nym Technologies SA"]
 edition = "2021"
 rust-version = "1.58"
 
 [dependencies]
 eyre = "0.6.5"
-log = { workspace = true }
+log = "0.4"
 itertools = "0.10"
 reqwest = "0.11.9"
 schemars = "0.8"

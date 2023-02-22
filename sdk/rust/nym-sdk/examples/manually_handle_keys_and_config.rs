@@ -10,9 +10,7 @@ async fn main() {
 
     let config = mixnet::Config::new(user_chosen_gateway_id, nym_api_endpoints);
 
-    let mut client = mixnet::MixnetClientBuilder::new(Some(config), None)
-        .await
-        .unwrap();
+    let mut client = mixnet::ClientBuilder::new(Some(config), None).unwrap();
 
     // Just some plain data to pretend we have some external storage that the application
     // implementer is using.

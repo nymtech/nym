@@ -1,7 +1,7 @@
 import React from 'react';
-import { Box, CircularProgress, Tooltip, Typography } from '@mui/material';
+import { Box, CircularProgress, Divider, Stack, Tooltip, Typography } from '@mui/material';
 import { DateTime } from 'luxon';
-import { ConnectionStatusKind, GatewayPerformance } from '../types';
+import { ConnectionStatusKind } from '../types';
 import { ServiceProvider } from '../types/directory';
 import { ServiceProviderInfo } from './ServiceProviderInfo';
 
@@ -9,7 +9,7 @@ const FONT_SIZE = '10px';
 const FONT_WEIGHT = '600';
 const FONT_STYLE = 'normal';
 
-const ConnectionStatusContent: FCWithChildren<{
+const ConnectionStatusContent: React.FC<{
   status: ConnectionStatusKind;
 }> = ({ status }) => {
   switch (status) {
@@ -56,12 +56,11 @@ const ConnectionStatusContent: FCWithChildren<{
   }
 };
 
-export const ConnectionStatus: FCWithChildren<{
+export const ConnectionStatus: React.FC<{
   status: ConnectionStatusKind;
-  gatewayPerformance?: GatewayPerformance;
   connectedSince?: DateTime;
   serviceProvider?: ServiceProvider;
-}> = ({ status, serviceProvider, gatewayPerformance }) => {
+}> = ({ status, serviceProvider }) => {
   const color =
     status === ConnectionStatusKind.connected || status === ConnectionStatusKind.disconnecting
       ? '#21D072'
@@ -70,13 +69,7 @@ export const ConnectionStatus: FCWithChildren<{
   return (
     <>
       <Box color={color} fontSize={FONT_SIZE} sx={{ mb: 1 }}>
-        {status === ConnectionStatusKind.connected && gatewayPerformance !== 'Good' ? (
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} textAlign="left" color="primary">
-            Gateway has issues
-          </Typography>
-        ) : (
-          <ConnectionStatusContent status={status} />
-        )}
+        <ConnectionStatusContent status={status} />
       </Box>
       {serviceProvider ? (
         <Tooltip title={<ServiceProviderInfo serviceProvider={serviceProvider} />}>

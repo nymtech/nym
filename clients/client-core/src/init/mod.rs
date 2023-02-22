@@ -69,38 +69,12 @@ pub fn new_client_keys() -> KeyManager {
     KeyManager::new(&mut rng)
 }
 
-/// Authenticate and register with a gateway.
-/// Either pick one at random by querying the available gateways from the nym-api, or use the
-/// chosen one if it's among the available ones.
-/// The shared key is added to the supplied `KeyManager` and the endpoint details are returned.
-pub async fn register_with_gateway(
-    key_manager: &mut KeyManager,
-    nym_api_endpoints: Vec<Url>,
-    chosen_gateway_id: Option<identity::PublicKey>,
-) -> Result<GatewayEndpointConfig, ClientCoreError> {
-    // Get the gateway details of the gateway we will use
-    let gateway = helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id).await?;
-    log::debug!("Querying gateway gives: {}", gateway);
-
-    let our_identity = key_manager.identity_keypair();
-
-    // Establish connection, authenticate and generate keys for talking with the gateway
-    let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
-    key_manager.insert_gateway_shared_key(shared_keys);
-
-    Ok(gateway.into())
-}
-
-/// Convenience function for setting up the gateway for a client given a `Config`. Depending on the
-/// arguments given it will do the sensible thing. Either it will
-///
-/// a. Reuse existing gateway configuration from storage.
-/// b. Create a new gateway configuration but keep existing keys. This assumes that the caller
-///    knows what they are doing and that the keys match the requested gateway.
-/// c. Create a new gateway configuration with a newly registered gateway and keys.
-pub async fn setup_gateway_from_config<C, T>(
+/// Convenience function for setting up the gateway for a client. Depending on the arguments given
+/// it will do the sensible thing.
+pub async fn setup_gateway<C, T>(
     register_gateway: bool,
-    user_chosen_gateway_id: Option<identity::PublicKey>,
+    // TODO: this should get refactored to instead take Option<identity::PublicKey>
+    user_chosen_gateway_id: Option<String>,
     config: &Config<T>,
 ) -> Result<GatewayEndpointConfig, ClientCoreError>
 where
@@ -108,47 +82,89 @@ where
     T: NymConfig,
 {
     let id = config.get_id();
-
-    // If we are not going to register gateway, and an explicitly chosed gateway is not passed in,
-    // load the existing configuration file
-    if !register_gateway && user_chosen_gateway_id.is_none() {
-        println!("Not registering gateway, will reuse existing config and keys");
-        return load_existing_gateway_config::<C>(&id);
+    if register_gateway {
+        register_with_gateway_and_store(user_chosen_gateway_id, config).await
+    } else if let Some(user_chosen_gateway_id) = user_chosen_gateway_id {
+        config_gateway_with_existing_keys(user_chosen_gateway_id, config).await
+    } else {
+        reuse_existing_gateway_config::<C>(&id)
     }
+}
 
-    // Else, we preceed by querying the nym-api
-    let gateway =
-        helpers::query_gateway_details(config.get_nym_api_endpoints(), user_chosen_gateway_id)
-            .await?;
-    log::debug!("Querying gateway gives: {}", gateway);
-
-    // If we are not registering, just return this and assume the caller has the keys already and
-    // wants to keep the,
-    if !register_gateway && user_chosen_gateway_id.is_some() {
-        println!("Using gateway provided by user, keeping existing keys");
-        return Ok(gateway.into());
-    }
-
-    // Create new keys and derive our identity
-    let mut key_manager = new_client_keys();
+/// Get the gateway details by querying the validator-api. Either pick one at random or use
+/// the chosen one if it's among the available ones.
+pub async fn register_with_gateway(
+    key_manager: &mut KeyManager,
+    nym_api_endpoints: Vec<Url>,
+    chosen_gateway_id: Option<String>,
+) -> Result<GatewayEndpointConfig, ClientCoreError> {
+    // Our identity is derived from our key
     let our_identity = key_manager.identity_keypair();
 
+    // Get the gateway details of the gateway we will use
+    let gateway = helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id).await?;
+    log::debug!("Querying gateway gives: {}", gateway);
+
     // Establish connection, authenticate and generate keys for talking with the gateway
-    println!("Registering with new gateway");
     let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
     key_manager.insert_gateway_shared_key(shared_keys);
 
-    // Write all keys to storage and just return the gateway endpoint config. It is assumed that we
-    // will load keys from storage when actually connecting.
+    Ok(gateway.into())
+}
+
+/// Get the gateway details by querying the validator-api. Either pick one at random or use
+/// the chosen one if it's among the available ones.
+/// Saves keys to disk, specified by the paths in `config`.
+pub async fn register_with_gateway_and_store<T>(
+    chosen_gateway_id: Option<String>,
+    config: &Config<T>,
+) -> Result<GatewayEndpointConfig, ClientCoreError>
+where
+    T: NymConfig,
+{
+    println!("Configuring gateway");
+    let mut key_manager = new_client_keys();
+
+    let gateway = register_with_gateway(
+        &mut key_manager,
+        config.get_nym_api_endpoints(),
+        chosen_gateway_id,
+    )
+    .await?;
+
     helpers::store_keys(&key_manager, config)?;
+    println!("Saved all generated keys");
+
+    Ok(gateway)
+}
+
+/// Set the gateway using the usual procedue of querying the validator-api, but don't register or
+/// create any keys.
+/// This assumes that the user knows what they are doing, and that the existing keys are valid for
+/// the gateway being used
+pub async fn config_gateway_with_existing_keys<T>(
+    user_chosen_gateway_id: String,
+    config: &Config<T>,
+) -> Result<GatewayEndpointConfig, ClientCoreError>
+where
+    T: NymConfig,
+{
+    println!("Using gateway provided by user, keeping existing keys");
+    let gateway = helpers::query_gateway_details(
+        config.get_nym_api_endpoints(),
+        Some(user_chosen_gateway_id),
+    )
+    .await?;
+    log::debug!("Querying gateway gives: {}", gateway);
     Ok(gateway.into())
 }
 
 /// Read and reuse the existing gateway configuration from a file that was generate earlier.
-pub fn load_existing_gateway_config<T>(id: &str) -> Result<GatewayEndpointConfig, ClientCoreError>
+pub fn reuse_existing_gateway_config<T>(id: &str) -> Result<GatewayEndpointConfig, ClientCoreError>
 where
     T: NymConfig + ClientCoreConfigTrait,
 {
+    println!("Not registering gateway, will reuse existing config and keys");
     T::load_from_file(Some(id))
         .map(|existing_config| existing_config.get_gateway_endpoint().clone())
         .map_err(|err| {
@@ -226,9 +242,9 @@ where
 pub fn output_to_json<T: Serialize>(init_results: &T, output_file: &str) {
     match std::fs::File::create(output_file) {
         Ok(file) => match serde_json::to_writer_pretty(file, init_results) {
-            Ok(_) => println!("Saved: {output_file}"),
-            Err(err) => eprintln!("Could not save {output_file}: {err}"),
+            Ok(_) => println!("Saved: {}", output_file),
+            Err(err) => eprintln!("Could not save {}: {err}", output_file),
         },
-        Err(err) => eprintln!("Could not save {output_file}: {err}"),
+        Err(err) => eprintln!("Could not save {}: {err}", output_file),
     }
 }

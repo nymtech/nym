@@ -11,14 +11,7 @@ interface StatsCardProps {
   onClick?: () => void;
   color?: string;
 }
-export const StatsCard: FCWithChildren<StatsCardProps> = ({
-  icon,
-  title,
-  count,
-  onClick,
-  errorMsg,
-  color: colorProp,
-}) => {
+export const StatsCard: React.FC<StatsCardProps> = ({ icon, title, count, onClick, errorMsg, color: colorProp }) => {
   const theme = useTheme();
   const color = colorProp || theme.palette.text.primary;
   return (

@@ -42,6 +42,9 @@ pub struct KeyManager {
 */
 
 impl KeyManager {
+    // this is actually **NOT** dead code
+    // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
+    #[allow(dead_code)]
     /// Creates new instance of a [`KeyManager`]
     pub fn new<R>(rng: &mut R) -> Self
     where
@@ -127,6 +130,9 @@ impl KeyManager {
         Ok(key_manager)
     }
 
+    // this is actually **NOT** dead code
+    // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
+    #[allow(dead_code)]
     /// Stores all available keys on the disk.
     // While perhaps there is no much point in storing the `AckKey` on the disk,
     // it is done so for the consistency sake so that you wouldn't require an rng instance
@@ -205,6 +211,9 @@ impl KeyManager {
         Arc::clone(&self.ack_key)
     }
 
+    // this is actually **NOT** dead code
+    // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
+    #[allow(dead_code)]
     /// After shared key with the gateway is derived, puts its ownership to this instance of a [`KeyManager`].
     pub fn insert_gateway_shared_key(&mut self, gateway_shared_key: Arc<SharedKeys>) {
         self.gateway_shared_key = Some(gateway_shared_key)

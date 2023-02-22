@@ -10,9 +10,8 @@ import { AppContext } from '../../context/main';
 import { NymCard } from '../../components';
 import { getCurrentInterval, getAllPendingDelegations, getMixNodeDelegationsForCurrentAccount } from '../../requests';
 
-const TerminalSection: FCWithChildren<{
+const TerminalSection: React.FC<{
   heading: React.ReactNode;
-  children: React.ReactNode;
 }> = ({ heading, children }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
 
@@ -33,7 +32,7 @@ const TerminalSection: FCWithChildren<{
   );
 };
 
-const TerminalInner: FCWithChildren = () => {
+const TerminalInner: React.FC = () => {
   const { network, userBalance, clientDetails, handleShowTerminal, appEnv } = useContext(AppContext);
   const [mixnodeDelegations, setMixnodeDelegations] = useState<any>();
   const [pendingEvents, setPendingEvents] = useState<any>();
@@ -185,7 +184,7 @@ const TerminalInner: FCWithChildren = () => {
   );
 };
 
-export const Terminal: FCWithChildren = () => {
+export const Terminal: React.FC = () => {
   const { showTerminal } = useContext(AppContext);
 
   // this is a guard component, that only mounts the terminal component when shown

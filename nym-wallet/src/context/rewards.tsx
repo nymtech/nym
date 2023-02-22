@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, FC, useContext, useEffect, useMemo, useState } from 'react';
 import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import { useDelegationContext } from './delegations';
 import { claimDelegatorRewards } from '../requests';
@@ -24,7 +24,7 @@ export const RewardsContext = createContext<TRewardsContext>({
   },
 });
 
-export const RewardsContextProvider: FCWithChildren = ({ children }) => {
+export const RewardsContextProvider: FC<{}> = ({ children }) => {
   const { isLoading, totalRewards, refresh } = useDelegationContext();
   const [error, setError] = useState<string>();
 

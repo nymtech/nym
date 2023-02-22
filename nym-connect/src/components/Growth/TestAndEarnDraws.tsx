@@ -1,4 +1,3 @@
-/* eslint-disable react/jsx-no-useless-fragment */
 import React from 'react';
 import LoadingButton from '@mui/lab/LoadingButton';
 import {
@@ -40,7 +39,7 @@ const statusToColor = (status: string): 'info' | 'success' | 'warning' | undefin
   }
 };
 
-const StatusText: FCWithChildren<{ entry: DrawEntry }> = ({ entry }) => {
+const StatusText: React.FC<{ entry: DrawEntry }> = ({ entry }) => {
   const context = useTestAndEarnContext();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string>();
@@ -133,9 +132,9 @@ const StatusText: FCWithChildren<{ entry: DrawEntry }> = ({ entry }) => {
   }
 };
 
-export const TestAndEarnDraws: FCWithChildren<{
+export const TestAndEarnDraws: React.FC<{
   sx?: SxProps;
-}> = () => {
+}> = ({ sx }) => {
   const context = useTestAndEarnContext();
 
   const draws = React.useMemo<DrawEntry[]>(
@@ -182,7 +181,7 @@ export const TestAndEarnDraws: FCWithChildren<{
   );
 };
 
-export const TestAndEarnDrawsWithState: FCWithChildren<{
+export const TestAndEarnDrawsWithState: React.FC<{
   sx?: SxProps;
 }> = ({ sx }) => {
   const context = useTestAndEarnContext();

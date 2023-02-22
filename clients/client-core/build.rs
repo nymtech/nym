@@ -9,9 +9,9 @@ async fn main() {
         use std::env;
 
         let out_dir = env::var("OUT_DIR").unwrap();
-        let database_path = format!("{out_dir}/fs-surbs-example.sqlite");
+        let database_path = format!("{}/fs-surbs-example.sqlite", out_dir);
 
-        let mut conn = SqliteConnection::connect(&format!("sqlite://{database_path}?mode=rwc"))
+        let mut conn = SqliteConnection::connect(&format!("sqlite://{}?mode=rwc", database_path))
             .await
             .expect("Failed to create SQLx database connection");
 

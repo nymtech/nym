@@ -13,5 +13,5 @@ pub use nymsphinx::{
 pub use keys::{Keys, KeysArc};
 pub use paths::{GatewayKeyMode, KeyMode, StoragePaths};
 
-pub use client::{MixnetClient, MixnetClientBuilder};
+pub use client::{Client, ClientBuilder};
 pub use config::Config;

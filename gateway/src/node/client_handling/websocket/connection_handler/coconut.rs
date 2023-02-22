@@ -1,10 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_interface::Credential;
-use log::*;
 use std::time::{Duration, SystemTime};
-use validator_client::nyxd::traits::DkgQueryClient;
+
+use log::*;
+
+use coconut_interface::{Credential, VerificationKey};
 use validator_client::{
     nyxd::{
         cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
@@ -20,44 +21,38 @@ const ONE_HOUR_SEC: u64 = 3600;
 const MAX_FEEGRANT_UNYM: u128 = 10000;
 
 pub(crate) struct CoconutVerifier {
+    nym_api_clients: Vec<CoconutApiClient>,
     nyxd_client: Client<SigningNyxdClient>,
     mix_denom_base: String,
+    aggregated_verification_key: VerificationKey,
 }
 
 impl CoconutVerifier {
-    pub fn new(nyxd_client: Client<SigningNyxdClient>) -> Self {
-        let mix_denom_base = nyxd_client
-            .nyxd
-            .current_chain_details()
-            .mix_denom
-            .base
-            .clone();
-
-        CoconutVerifier {
+    pub fn new(
+        api_clients: Vec<CoconutApiClient>,
+        nyxd_client: Client<SigningNyxdClient>,
+        mix_denom_base: String,
+        aggregated_verification_key: VerificationKey,
+    ) -> Result<Self, RequestHandlingError> {
+        if api_clients.is_empty() {
+            return Err(RequestHandlingError::NotEnoughNymAPIs {
+                received: 0,
+                needed: 1,
+            });
+        }
+        Ok(CoconutVerifier {
+            nym_api_clients: api_clients,
             nyxd_client,
             mix_denom_base,
-        }
+            aggregated_verification_key,
+        })
     }
 
-    pub async fn all_current_coconut_api_clients(
-        &self,
-    ) -> Result<Vec<CoconutApiClient>, RequestHandlingError> {
-        let epoch_id = self.nyxd_client.nyxd.get_current_epoch().await?.epoch_id;
-        self.all_coconut_api_clients(epoch_id).await
+    pub fn aggregated_verification_key(&self) -> &VerificationKey {
+        &self.aggregated_verification_key
     }
 
-    pub async fn all_coconut_api_clients(
-        &self,
-        epoch_id: u64,
-    ) -> Result<Vec<CoconutApiClient>, RequestHandlingError> {
-        Ok(CoconutApiClient::all_coconut_api_clients(&self.nyxd_client, epoch_id).await?)
-    }
-
-    pub async fn release_funds(
-        &self,
-        api_clients: Vec<CoconutApiClient>,
-        credential: &Credential,
-    ) -> Result<(), RequestHandlingError> {
+    pub async fn release_funds(&self, credential: &Credential) -> Result<(), RequestHandlingError> {
         // Use a custom multiplier for revoke, as the default one (1.3)
         // isn't enough
         let revoke_fee = Some(Fee::Auto(Some(1.5)));
@@ -97,7 +92,7 @@ impl CoconutVerifier {
             proposal_id,
             self.nyxd_client.nyxd.address().clone(),
         );
-        for client in api_clients {
+        for client in self.nym_api_clients.iter() {
             self.nyxd_client
                 .nyxd
                 .grant_allowance(

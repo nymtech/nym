@@ -10,12 +10,12 @@ edition = "2021"
 # TODO: (for this and other crates), similarly to 'tokio', import only required "futures" modules rather than
 # the entire crate
 futures = "0.3"
-log = { workspace = true }
+log = "0.4"
 thiserror = "1.0"
 url = "2.2"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 async-trait = { version = "0.1.51" }
-tokio = { version = "1.24.1", features = ["macros"] }
+tokio = { version = "1.21.2", features = ["macros"] }
 
 # internal
 coconut-interface = { path = "../../coconut-interface", optional = true }
@@ -25,7 +25,7 @@ gateway-requests = { path = "../../../gateway/gateway-requests" }
 network-defaults = { path = "../../network-defaults" }
 nymsphinx = { path = "../../nymsphinx" }
 pemstore = { path = "../../pemstore" }
-validator-client = { path = "../validator-client" }
+validator-client = { path = "../validator-client", optional = true }
 task = { path = "../../task" }
 serde = { version = "1.0", features = ["derive"]}
 
@@ -36,11 +36,11 @@ default-features = false
 
 # non-wasm-only dependencies
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "1.24.1"
+version = "1.21.2"
 features = ["macros", "rt", "net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
-version = "0.1.11"
+version = "0.1.9"
 features = ["net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
@@ -79,5 +79,5 @@ features = ["js"]
 #url = "2.1"
 
 [features]
-coconut = ["gateway-requests/coconut", "coconut-interface", "credentials/coconut"]
+coconut = ["gateway-requests/coconut", "coconut-interface", "validator-client", "credentials/coconut"]
 wasm = []

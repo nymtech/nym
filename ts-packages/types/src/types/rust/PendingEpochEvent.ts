@@ -1,7 +1,7 @@
-import type { PendingEpochEventData } from './PendingEpochEventData';
+import type {PendingEpochEventData} from "./PendingEpochEventData";
 
 export interface PendingEpochEvent {
-  id: number;
-  created_at: bigint;
-  event: PendingEpochEventData;
+  id: number,
+  created_at: bigint,
+  event: PendingEpochEventData,
 }

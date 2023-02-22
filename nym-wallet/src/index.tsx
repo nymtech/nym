@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
+import ReactDOM from 'react-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { SnackbarProvider } from 'notistack';
@@ -38,9 +38,6 @@ const App = () => {
   );
 };
 
-const elem = document.getElementById('root');
+const root = document.getElementById('root');
 
-if (elem) {
-  const root = createRoot(elem);
-  root.render(<App />);
-}
+ReactDOM.render(<App />, root);

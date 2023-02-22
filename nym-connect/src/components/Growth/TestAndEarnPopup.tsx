@@ -15,7 +15,7 @@ enum Stages {
   registered = 'registered',
 }
 
-export const TestAndEarnPopupContent: FCWithChildren<{
+export const TestAndEarnPopupContent: React.FC<{
   stage?: string;
   connectionStatus?: ConnectionStatusKind;
   error?: string;
@@ -72,7 +72,7 @@ export const TestAndEarnPopupContent: FCWithChildren<{
   }
 };
 
-export const TestAndEarnPopup: FCWithChildren = () => {
+export const TestAndEarnPopup: React.FC = () => {
   const clientContext = useClientContext();
   const context = useTestAndEarnContext();
 

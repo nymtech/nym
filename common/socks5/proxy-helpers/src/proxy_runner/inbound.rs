@@ -54,7 +54,7 @@ where
         Some(data) => match data {
             Ok(data) => (data, false),
             Err(err) => {
-                error!(target: &*format!("({connection_id}) socks5 inbound"), "failed to read request from the socket - {err}");
+                error!(target: &*format!("({}) socks5 inbound", connection_id), "failed to read request from the socket - {err}");
                 (Default::default(), true)
             }
         },
@@ -62,7 +62,7 @@ where
     };
 
     debug!(
-        target: &*format!("({connection_id}) socks5 inbound"),
+        target: &*format!("({}) socks5 inbound", connection_id),
         "[{} bytes]\t{} → local → mixnet → remote → {}. Local closed: {}",
         read_data.len(),
         local_destination_address,
@@ -103,7 +103,7 @@ where
 
         // Technically we already informed it when we sent the message to mixnet above
         debug!(
-            target: &*format!("({connection_id}) socks5 inbound"),
+            target: &*format!("({}) socks5 inbound", connection_id),
             "The local socket is closed - won't receive any more data. Informing remote about that..."
         );
     }

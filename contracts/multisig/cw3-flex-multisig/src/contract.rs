@@ -502,7 +502,7 @@ mod tests {
     // uploads code and returns address of group contract
     fn instantiate_group(app: &mut App, members: Vec<Member>) -> Addr {
         let group_id = app.store_code(contract_group());
-        let msg = group_contract_common::msg::InstantiateMsg {
+        let msg = cw4_group::msg::InstantiateMsg {
             admin: Some(OWNER.into()),
             members,
         };
@@ -1410,7 +1410,7 @@ mod tests {
         // adds NEWBIE with 2 power -> with snapshot, invalid vote
         // removes VOTER3 -> with snapshot, can vote on proposal
         let newbie: &str = "newbie";
-        let update_msg = group_contract_common::msg::ExecuteMsg::UpdateMembers {
+        let update_msg = cw4_group::msg::ExecuteMsg::UpdateMembers {
             remove: vec![VOTER3.into()],
             add: vec![member(VOTER2, 21), member(newbie, 2)],
         };
@@ -1623,7 +1623,7 @@ mod tests {
 
         // admin changes the group (3 -> 0, 2 -> 9, 0 -> 29) - total = 56, require 29 to pass
         let newbie: &str = "newbie";
-        let update_msg = group_contract_common::msg::ExecuteMsg::UpdateMembers {
+        let update_msg = cw4_group::msg::ExecuteMsg::UpdateMembers {
             remove: vec![VOTER3.into()],
             add: vec![member(VOTER2, 9), member(newbie, 29)],
         };
@@ -1702,7 +1702,7 @@ mod tests {
 
         // admin changes the group (3 -> 0, 2 -> 9, 0 -> 28) - total = 55, require 28 to pass
         let newbie: &str = "newbie";
-        let update_msg = group_contract_common::msg::ExecuteMsg::UpdateMembers {
+        let update_msg = cw4_group::msg::ExecuteMsg::UpdateMembers {
             remove: vec![VOTER3.into()],
             add: vec![member(VOTER2, 9), member(newbie, 29)],
         };

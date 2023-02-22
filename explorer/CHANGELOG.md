@@ -1,11 +1,5 @@
 ## UNRELEASED
 
-## [nym-explorer-v1.0.2](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.2) (2023-01-17)
-
-- changing the explorers guru link ([#2820]) 
-
-[#2820]: https://github.com/nymtech/nym/pull/2820
-
 ## [nym-explorer-v1.0.1](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.1) (2023-01-10)
 
 - Feat/2161 ne gate version by @gala1234 in https://github.com/nymtech/nym/pull/2743

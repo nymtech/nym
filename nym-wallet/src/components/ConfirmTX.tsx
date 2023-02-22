@@ -15,7 +15,7 @@ const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: ob
       }
     : {};
 
-export const ConfirmTx: FCWithChildren<{
+export const ConfirmTx: React.FC<{
   open: boolean;
   header: string;
   subheader?: string;
@@ -24,7 +24,6 @@ export const ConfirmTx: FCWithChildren<{
   onClose?: () => void;
   onPrev: () => void;
   isStorybook?: boolean;
-  children?: React.ReactNode;
 }> = ({ open, fee, onConfirm, onClose, header, subheader, onPrev, children, isStorybook }) => {
   const theme = useTheme();
   return (

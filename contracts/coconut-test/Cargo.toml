@@ -10,7 +10,6 @@ bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
 coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
 multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract" }
 
 cosmwasm-std = "1.0.0"
 cosmwasm-storage = "1.0.0"

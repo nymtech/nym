@@ -4,7 +4,7 @@ import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { Tooltip } from '@nymproject/react/tooltip/Tooltip';
 
-export const CustomColumnHeading: FCWithChildren<{ headingTitle: string; tooltipInfo?: string }> = ({
+export const CustomColumnHeading: React.FC<{ headingTitle: string; tooltipInfo?: string }> = ({
   headingTitle,
   tooltipInfo,
 }) => {

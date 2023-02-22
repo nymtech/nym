@@ -13,7 +13,6 @@ use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
 use network_defaults::{NymNetworkDetails, VOUCHER_INFO};
-use validator_client::nyxd::traits::DkgQueryClient;
 use validator_client::nyxd::tx::Hash;
 use validator_client::{CoconutApiClient, Config};
 
@@ -81,8 +80,7 @@ pub(crate) async fn get_credential(state: &State, shared_storage: PersistentStor
     let network_details = NymNetworkDetails::new_from_env();
     let config = Config::try_from_nym_network_details(&network_details)?;
     let client = validator_client::Client::new_query(config)?;
-    let epoch_id = client.nyxd.get_current_epoch().await?.epoch_id;
-    let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client, epoch_id).await?;
+    let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client).await?;
 
     let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
     let bandwidth_credential_attributes = BandwidthVoucher::new(
@@ -108,7 +106,6 @@ pub(crate) async fn get_credential(state: &State, shared_storage: PersistentStor
             bandwidth_credential_attributes.get_private_attributes()[0].to_bs58(),
             bandwidth_credential_attributes.get_private_attributes()[1].to_bs58(),
             signature.to_bs58(),
-            epoch_id.to_string(),
         )
         .await?;
 

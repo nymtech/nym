@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Box, Card, CardContent, CardHeader, Grid, Typography } from '@mui/material';
+import { decimalToPercentage, percentToDecimal } from '@nymproject/types';
 import { ResultsTable } from 'src/components/RewardsPlayground/ResultsTable';
 import { getDelegationSummary } from 'src/requests';
 import { NodeDetails } from 'src/components/RewardsPlayground/NodeDetail';
-import { CalculateArgs, Inputs } from 'src/components/RewardsPlayground/Inputs';
-import { TBondedMixnode } from 'src/context';
+import { Inputs, CalculateArgs } from 'src/components/RewardsPlayground/Inputs';
+import { AppContext, TBondedMixnode } from 'src/context';
+import { computeEstimate, computeStakeSaturation, handleCalculatePeriodRewards } from './utils';
 import { useSnackbar } from 'notistack';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
-import { computeEstimate, computeStakeSaturation, handleCalculatePeriodRewards } from './utils';
 
 export type DefaultInputValues = {
   profitMargin: string;
@@ -75,12 +76,11 @@ export const ApyPlayground = ({ bondedNode }: { bondedNode: TBondedMixnode }) =>
 
   const handleCalculateEstimate = async ({ bond, delegations, uptime, profitMargin, operatorCost }: CalculateArgs) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       const { estimation, reward_params } = await computeEstimate({
         mixId: bondedNode.mixId,
-        uptime,
-        profitMargin,
-        operatorCost,
+        uptime: uptime,
+        profitMargin: profitMargin,
+        operatorCost: operatorCost,
         totalDelegation: delegations,
         pledgeAmount: bond,
       });

@@ -19,8 +19,8 @@
     "eslint-plugin-react": ">= 7",
     "eslint-plugin-react-hooks": ">= 4",
     "eslint-plugin-storybook": "*",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "17",
+    "react-dom": "17"
   },
   "devDependencies": {
     "eslint": "^8.10.0",

@@ -4,5 +4,3 @@ export enum ConnectionStatusKind {
   connected = 'connected',
   connecting = 'connecting',
 }
-
-export type GatewayPerformance = 'Good' | 'Poor' | 'VeryPoor';

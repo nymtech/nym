@@ -153,7 +153,7 @@ impl Default for ConfigBuilder {
     fn default() -> Self {
         ConfigBuilder(Config {
             minimum_compatible_node_version: parse_version(MINIMUM_NODE_VERSION).unwrap(),
-            listening_address: format!("[::]:{DEFAULT_VERLOC_PORT}").parse().unwrap(),
+            listening_address: format!("[::]:{}", DEFAULT_VERLOC_PORT).parse().unwrap(),
             packets_per_node: DEFAULT_PACKETS_PER_NODE,
             packet_timeout: DEFAULT_PACKET_TIMEOUT,
             connection_timeout: DEFAULT_CONNECTION_TIMEOUT,

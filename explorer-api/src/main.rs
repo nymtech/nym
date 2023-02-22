@@ -8,7 +8,7 @@ use dotenv::dotenv;
 use log::info;
 use logging::setup_logging;
 use network_defaults::setup_env;
-use task::TaskManager;
+use task::{wait_for_signal, TaskManager};
 
 pub(crate) mod cache;
 mod client;
@@ -77,8 +77,13 @@ impl ExplorerApi {
         self.wait_for_interrupt(shutdown).await
     }
 
-    async fn wait_for_interrupt(&self, shutdown: TaskManager) {
-        let _res = shutdown.catch_interrupt().await;
+    async fn wait_for_interrupt(&self, mut shutdown: TaskManager) {
+        wait_for_signal().await;
+
+        log::info!("Sending shutdown");
+        shutdown.signal_shutdown().ok();
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        shutdown.wait_for_shutdown().await;
         log::info!("Stopping explorer API");
     }
 }

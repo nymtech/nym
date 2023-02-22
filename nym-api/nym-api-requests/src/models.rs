@@ -7,7 +7,7 @@ use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::rewarding::RewardEstimate;
 use mixnet_contract_common::{
-    GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
+    IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -112,12 +112,6 @@ impl MixNodeBondAnnotated {
     pub fn mix_id(&self) -> MixId {
         self.mixnode_details.mix_id()
     }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct GatewayBondAnnotated {
-    pub gateway_bond: GatewayBond,
-    pub performance: Performance,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -287,12 +281,4 @@ pub struct GatewayUptimeHistoryResponse {
     pub identity: String,
     pub owner: String,
     pub history: Vec<HistoricalUptimeResponse>,
-}
-
-#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct CirculatingSupplyResponse {
-    pub initial_supply: Coin,
-    pub mixmining_reserve: Coin,
-    pub vesting_tokens: Coin,
-    pub circulating_supply: Coin,
 }

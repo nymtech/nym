@@ -4,7 +4,7 @@ import { Alert, AlertTitle, Container } from '@mui/material';
 import { NymThemeProvider } from '@nymproject/mui-theme';
 import { NymLogo } from '@nymproject/react/logo/NymLogo';
 
-export const ErrorBoundaryContent: FCWithChildren<FallbackProps> = ({ error }) => (
+export const ErrorBoundaryContent: React.FC<FallbackProps> = ({ error }) => (
   <NymThemeProvider mode="dark">
     <Container sx={{ py: 4 }}>
       <NymLogo height="75px" width="75px" />

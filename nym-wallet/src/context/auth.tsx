@@ -21,7 +21,7 @@ const mnemonicToArray = (mnemonic: string): TMnemonicWords =>
     .split(' ')
     .reduce((a, c: string, index) => [...a, { name: c, index: index + 1, disabled: false }], [] as TMnemonicWords);
 
-export const AuthProvider: FCWithChildren = ({ children }) => {
+export const AuthProvider: React.FC = ({ children }) => {
   const [password, setPassword] = useState('');
   const [mnemonic, setMnemonic] = useState('');
   const [mnemonicWords, setMnemonicWords] = useState<TMnemonicWords>([]);

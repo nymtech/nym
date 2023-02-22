@@ -63,11 +63,8 @@ jobs:
         run: yarn
         working-directory: nym-connect
 
-      - name: Check if rustc is available
-        run: rustc --version
-
-      - name: Check if cargo is available
-        run: cargo --version
+      - name: Add safe directory
+        run: git config --global --add safe.directory "*"
 
       - name: Build and sign it
         env:

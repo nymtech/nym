@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest]
+        platform: [windows10]
 
     runs-on: ${{ matrix.platform }}
     steps:

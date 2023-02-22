@@ -1,8 +1,8 @@
 name: CI for Nym API Tests
-'on':
+on:
   push:
     paths:
-      - nym-api/**
+      - 'nym-api/**'
 defaults:
   run:
     working-directory: nym-api/tests
@@ -12,12 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Use correct nvm version
-        run: nvm use v18.1.0
+      - name: Use node v18
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.1.0
       - name: Install yarn
         run: yarn install
       - name: Run yarn
         run: yarn
       - name: Run tests
-        run: 'yarn test:qa'
+        run: yarn test:qa
         working-directory: nym-api/tests

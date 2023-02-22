@@ -44,7 +44,7 @@ config = { path="../common/config" }
 nym-crypto = { path="../common/crypto" }
 mixnet-client = { path="../common/client-libs/mixnet-client" }
 mixnode-common = { path="../common/mixnode-common" }
-nonexhaustive-delayqueue = { path="../common/nonexhaustive-delayqueue" }
+nym-nonexhaustive-delayqueue = { path="../common/nonexhaustive-delayqueue" }
 nym-sphinx = { path="../common/nymsphinx" }
 nym-pemstore = { path = "../common/pemstore", version = "0.1.0" }
 nym-task = { path = "../common/task" }

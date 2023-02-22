@@ -689,8 +689,8 @@ dependencies = [
  "gloo-timers",
  "humantime-serde",
  "log",
- "nonexhaustive-delayqueue",
  "nym-crypto",
+ "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
@@ -3231,18 +3231,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nonexhaustive-delayqueue"
-version = "0.1.0"
-dependencies = [
- "futures-core",
- "slab",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "wasm-timer",
-]
-
-[[package]]
 name = "ntapi"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3647,9 +3635,9 @@ dependencies = [
  "log",
  "mixnet-client",
  "mixnode-common",
- "nonexhaustive-delayqueue",
  "nym-bin-common",
  "nym-crypto",
+ "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
  "nym-sphinx-params",
@@ -3735,6 +3723,18 @@ dependencies = [
  "statistics-common",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "nym-nonexhaustive-delayqueue"
+version = "0.1.0"
+dependencies = [
+ "futures-core",
+ "slab",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "wasm-timer",
 ]
 
 [[package]]

@@ -4,7 +4,7 @@
 use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
+use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx::forwarding::packet::MixPacket;
 use std::io;
 use tokio::time::Instant;

@@ -11,7 +11,7 @@ use coconut_bandwidth_contract_common::spend_credential::{
     SpendCredential, SpendCredentialResponse,
 };
 use coconut_interface::{hash_to_scalar, Credential, VerificationKey};
-use config::defaults::VOUCHER_INFO;
+use nym_config::defaults::VOUCHER_INFO;
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{

@@ -10,7 +10,7 @@ use rand::rngs::OsRng;
 use serde::Serialize;
 use tap::TapFallible;
 
-use config::NymConfig;
+use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use url::Url;
 

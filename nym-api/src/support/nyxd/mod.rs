@@ -13,7 +13,7 @@ use coconut_dkg_common::{
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
-use config::defaults::{ChainDetails, NymNetworkDetails, DEFAULT_NYM_API_PORT};
+use nym_config::defaults::{ChainDetails, NymNetworkDetails, DEFAULT_NYM_API_PORT};
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use nym_contracts_common::dealings::ContractSafeBytes;

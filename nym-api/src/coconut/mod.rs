@@ -15,7 +15,7 @@ use coconut_interface::KeyPair as CoconutKeyPair;
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
 };
-use config::defaults::NYM_API_VERSION;
+use nym_config::defaults::NYM_API_VERSION;
 use credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };

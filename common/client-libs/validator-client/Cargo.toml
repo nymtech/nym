@@ -55,7 +55,7 @@ ts-rs = "6.1.2"
 nyxd-client = [
     "async-trait",
     "bip39",
-    "config",
+    "nym-config",
     "cosmrs",
     "cw3",
     "cw4",

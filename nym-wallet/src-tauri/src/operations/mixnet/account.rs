@@ -4,7 +4,7 @@ use crate::network_config;
 use crate::state::{WalletAccountIds, WalletState};
 use crate::wallet_storage::{self, DEFAULT_LOGIN_ID};
 use bip39::{Language, Mnemonic};
-use config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
+use nym_config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
 use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use nym_types::account::{Account, AccountEntry, Balance};

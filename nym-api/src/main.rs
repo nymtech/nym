@@ -16,7 +16,7 @@ use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;
 use coconut::dkg::controller::DkgController;
-use config::NymConfig;
+use nym_config::NymConfig;
 use log::info;
 use node_status_api::NodeStatusCache;
 use nym_bin_common::logging::setup_logging;

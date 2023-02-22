@@ -680,7 +680,6 @@ name = "client-core"
 version = "1.1.10"
 dependencies = [
  "async-trait",
- "config",
  "dashmap 5.4.0",
  "dirs",
  "futures",
@@ -689,6 +688,7 @@ dependencies = [
  "gloo-timers",
  "humantime-serde",
  "log",
+ "nym-config",
  "nym-crypto",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
@@ -786,19 +786,6 @@ dependencies = [
  "strum 0.24.1",
  "strum_macros 0.24.3",
  "unicode-width",
-]
-
-[[package]]
-name = "config"
-version = "0.1.0"
-dependencies = [
- "cfg-if",
- "handlebars",
- "log",
- "nym-network-defaults",
- "serde",
- "toml",
- "url",
 ]
 
 [[package]]
@@ -1009,11 +996,11 @@ dependencies = [
  "bip39",
  "clap 4.1.4",
  "coconut-interface",
- "config",
  "credential-storage",
  "credentials",
  "log",
  "nym-bin-common",
+ "nym-config",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -3303,7 +3290,6 @@ dependencies = [
  "coconut-bandwidth-contract-common",
  "coconut-dkg-common",
  "coconut-interface",
- "config",
  "console-subscriber",
  "cosmwasm-std",
  "credential-storage",
@@ -3323,6 +3309,7 @@ dependencies = [
  "multisig-contract-common",
  "nym-api-requests",
  "nym-bin-common",
+ "nym-config",
  "nym-contracts-common",
  "nym-crypto",
  "nym-inclusion-probability",
@@ -3465,7 +3452,6 @@ dependencies = [
  "clap 4.1.4",
  "client-core",
  "coconut-interface",
- "config",
  "credential-storage",
  "credentials",
  "dirs",
@@ -3475,6 +3461,7 @@ dependencies = [
  "lazy_static",
  "log",
  "nym-bin-common",
+ "nym-config",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -3492,6 +3479,19 @@ dependencies = [
  "url",
  "validator-client",
  "websocket-requests",
+]
+
+[[package]]
+name = "nym-config"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "handlebars",
+ "log",
+ "nym-network-defaults",
+ "serde",
+ "toml",
+ "url",
 ]
 
 [[package]]
@@ -3551,7 +3551,6 @@ dependencies = [
  "clap 4.1.4",
  "coconut-interface",
  "colored",
- "config",
  "credentials",
  "dashmap 4.0.2",
  "dirs",
@@ -3565,6 +3564,7 @@ dependencies = [
  "mixnode-common",
  "nym-api-requests",
  "nym-bin-common",
+ "nym-config",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -3625,7 +3625,6 @@ dependencies = [
  "bs58",
  "clap 4.1.4",
  "colored",
- "config",
  "cupid",
  "dirs",
  "dotenv",
@@ -3636,6 +3635,7 @@ dependencies = [
  "mixnet-client",
  "mixnode-common",
  "nym-bin-common",
+ "nym-config",
  "nym-crypto",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
@@ -3678,13 +3678,13 @@ dependencies = [
  "async-trait",
  "clap 4.1.4",
  "client-core",
- "config",
  "dirs",
  "futures",
  "ipnetwork 0.20.0",
  "lazy_static",
  "log",
  "nym-bin-common",
+ "nym-config",
  "nym-crypto",
  "nym-network-defaults",
  "nym-sdk",
@@ -3791,7 +3791,6 @@ dependencies = [
  "clap 4.1.4",
  "client-core",
  "coconut-interface",
- "config",
  "credential-storage",
  "credentials",
  "dirs",
@@ -3802,6 +3801,7 @@ dependencies = [
  "log",
  "mobile-storage",
  "nym-bin-common",
+ "nym-config",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -3983,12 +3983,12 @@ name = "nym-types"
 version = "1.0.0"
 dependencies = [
  "coconut-interface",
- "config",
  "cosmrs",
  "cosmwasm-std",
  "eyre",
  "itertools",
  "log",
+ "nym-config",
  "nym-mixnet-contract-common",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
@@ -4035,10 +4035,10 @@ dependencies = [
 name = "nym-wallet-types"
 version = "1.0.0"
 dependencies = [
- "config",
  "cosmrs",
  "cosmwasm-std",
  "hex-literal",
+ "nym-config",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-types",
@@ -6871,7 +6871,6 @@ dependencies = [
  "coconut-dkg-common",
  "coconut-interface",
  "colored",
- "config",
  "cosmrs",
  "cosmwasm-std",
  "cw3",
@@ -6883,6 +6882,7 @@ dependencies = [
  "log",
  "multisig-contract-common",
  "nym-api-requests",
+ "nym-config",
  "nym-contracts-common",
  "nym-execute",
  "nym-mixnet-contract-common",

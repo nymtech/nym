@@ -392,7 +392,7 @@ mod tests {
     use crate::wallet_storage::account_data::{MnemonicAccount, WalletAccount};
 
     use super::*;
-    use config::defaults::COSMOS_DERIVATION_PATH;
+    use nym_config::defaults::COSMOS_DERIVATION_PATH;
     use std::str::FromStr;
     use tempfile::tempdir;
 

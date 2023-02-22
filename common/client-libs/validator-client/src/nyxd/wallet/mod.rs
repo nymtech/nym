@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::error::NyxdError;
-use config::defaults;
+use nym_config::defaults;
 use cosmrs::bip32::{DerivationPath, XPrv};
 use cosmrs::crypto::secp256k1::{Signature, SigningKey};
 use cosmrs::crypto::PublicKey;

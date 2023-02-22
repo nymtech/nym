@@ -8,7 +8,7 @@ use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use crate::node::MixNode;
 use anyhow::{anyhow, Result};
 use clap::{ArgGroup, Args};
-use config::NymConfig;
+use nym_config::NymConfig;
 use log::error;
 use nym_crypto::asymmetric::identity;
 use validator_client::nyxd;

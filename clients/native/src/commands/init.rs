@@ -7,7 +7,7 @@ use crate::{
     error::ClientError,
 };
 use clap::Args;
-use config::NymConfig;
+use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;

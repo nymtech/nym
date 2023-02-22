@@ -1,5 +1,5 @@
 use crate::error::TypesError;
-use config::defaults::{DenomDetails, DenomDetailsOwned, NymNetworkDetails};
+use nym_config::defaults::{DenomDetails, DenomDetailsOwned, NymNetworkDetails};
 use cosmwasm_std::Fraction;
 use cosmwasm_std::{Decimal, Uint128};
 use schemars::JsonSchema;

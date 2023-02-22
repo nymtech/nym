@@ -46,7 +46,7 @@ pub use client_core::{
     },
     config::GatewayEndpointConfig,
 };
-pub use config::Config;
+pub use nym_config::Config;
 pub use keys::{Keys, KeysArc};
 pub use nym_sphinx::{
     addressing::clients::{ClientIdentity, Recipient},

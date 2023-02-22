@@ -8,7 +8,7 @@ mod recovery_storage;
 mod state;
 
 use commands::*;
-use config::{DATA_DIR, DB_FILE_NAME};
+use nym_config::{DATA_DIR, DB_FILE_NAME};
 use error::Result;
 use log::*;
 use nym_bin_common::completions::fig_generate;

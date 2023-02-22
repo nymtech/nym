@@ -5,7 +5,7 @@ use crate::error::GatewayError;
 use crate::{config::Config, Cli};
 use clap::CommandFactory;
 use clap::Subcommand;
-use config::OptionalSet;
+use nym_config::OptionalSet;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
 use nym_network_defaults::var_names::NYXD;

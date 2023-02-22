@@ -7,7 +7,7 @@ use crate::{
     error::NetworkRequesterError,
 };
 use clap::Args;
-use config::NymConfig;
+use nym_config::NymConfig;
 use nym_bin_common::version_checker;
 use nym_sphinx::addressing::clients::Recipient;
 

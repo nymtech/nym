@@ -19,7 +19,7 @@ use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crate::OutputFormat;
 use colored::Colorize;
-use config::NymConfig;
+use nym_config::NymConfig;
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_bin_common::version_checker::parse_version;

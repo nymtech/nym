@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::error::NyxdError;
-use config::defaults;
+use nym_config::defaults;
 use cosmrs::tx::Gas;
 use cosmrs::Coin;
 use cosmwasm_std::{Decimal, Fraction, Uint128};

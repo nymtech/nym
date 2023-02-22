@@ -7,7 +7,7 @@ use crate::{
     OutputFormat,
 };
 use clap::Args;
-use config::NymConfig;
+use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use std::error::Error;
 use std::net::IpAddr;

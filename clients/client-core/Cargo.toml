@@ -24,7 +24,7 @@ tokio = { version = "1.24.1", features = ["macros"]}
 time = "0.3.17"
 
 # internal
-config = { path = "../../common/config" }
+nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 #gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }

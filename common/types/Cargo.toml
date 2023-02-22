@@ -27,7 +27,7 @@ validator-client = { path = "../../common/client-libs/validator-client", feature
 ] }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
-config = { path = "../../common/config" }
+nym-config = { path = "../../common/config" }
 coconut-interface = { path = "../../common/coconut-interface" }
 # Used for Type conversion, can be extracted but its a lot of work
 nym-vesting-contract = { path = "../../contracts/vesting" }

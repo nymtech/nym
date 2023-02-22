@@ -37,7 +37,7 @@ tokio-tungstenite = "0.14" # websocket
 nym-bin-common = { path = "../../common/bin-common" }
 client-core = { path = "../client-core", features = ["fs-surb-storage"] }
 coconut-interface = { path = "../../common/coconut-interface" }
-config = { path = "../../common/config" }
+nym-config = { path = "../../common/config" }
 credential-storage = { path = "../../common/credential-storage" }
 credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto" }

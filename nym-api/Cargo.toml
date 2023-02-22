@@ -68,7 +68,7 @@ schemars = { version = "0.8", features = ["preserve_order"] }
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
 coconut-interface = { path = "../common/coconut-interface" }
-config = { path = "../common/config" }
+nym-config = { path = "../common/config" }
 cosmwasm-std = "1.0.0"
 credential-storage = { path = "../common/credential-storage" }
 credentials = { path = "../common/credentials" }

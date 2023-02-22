@@ -1812,14 +1812,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
-name = "execute"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn",
-]
-
-[[package]]
 name = "explorer-api"
 version = "1.1.10"
 dependencies = [
@@ -3549,6 +3541,14 @@ dependencies = [
  "subtle-encoding",
  "thiserror",
  "x25519-dalek",
+]
+
+[[package]]
+name = "nym-execute"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -6876,7 +6876,6 @@ dependencies = [
  "cosmwasm-std",
  "cw3",
  "cw4",
- "execute",
  "flate2",
  "futures",
  "group-contract-common",
@@ -6885,6 +6884,7 @@ dependencies = [
  "multisig-contract-common",
  "nym-api-requests",
  "nym-contracts-common",
+ "nym-execute",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-vesting-contract",

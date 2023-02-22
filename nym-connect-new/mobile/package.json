@@ -22,7 +22,11 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "clean:dist": "rm -rf dist",
+    "clean:node": "rm -rf node_modules",
+    "clean:rust": "cargo clean --manifest-path src-tauri/Cargo.toml",
+    "clean:": "run-p clean:node clean:rust"
   },
   "dependencies": {
     "@emotion/react": "^11.7.0",

@@ -2,8 +2,7 @@
   "packages": [
     "ts-packages/*",
     "nym-wallet",
-    "nym-connect",
-    "mobile/nym-connect",
+    "nym-connect/**",
     "sdk/typescript/examples/docs",
     "sdk/typescript/packages/**"
   ],

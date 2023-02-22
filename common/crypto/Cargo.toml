@@ -30,7 +30,7 @@ subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
 thiserror = "1.0.37"
 
 # internal
-nym-sphinx-types = { path = "../nymsphinx/types" }
+nym-sphinx-types = { path = "../nymsphinx/types", version = "0.1.0" }
 nym-pemstore = { path = "../../common/pemstore", version = "0.1.0" }
 
 [dev-dependencies]

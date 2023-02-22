@@ -4,5 +4,6 @@
 use vergen::{vergen, Config};
 
 fn main() {
+    #[cfg(not(target_family = "windows"))]
     vergen(Config::default()).expect("failed to extract build metadata")
 }

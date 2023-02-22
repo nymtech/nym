@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowBack, Menu } from '@mui/icons-material';
 import { Box, IconButton, Typography } from '@mui/material';
+// TODO since the structure refactor for NC this import fails
 // import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
 import { useNavigate } from 'react-router-dom';
 
@@ -46,6 +47,8 @@ const getTitleIcon = (path: string) => {
       </Typography>
     );
   }
+
+  // TODO return <NymWordmark width={36} />;
   return (
     <Typography fontSize="18px" fontWeight={700}>
       NYM

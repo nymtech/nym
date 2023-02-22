@@ -63,9 +63,6 @@ jobs:
         run: yarn --network-timeout 100000
         working-directory: nym-connect
 
-      - name: Add safe directory
-        run: git config --global --add safe.directory "*"
-
       - name: Build and sign it
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

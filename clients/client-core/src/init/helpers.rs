@@ -22,6 +22,8 @@ use url::Url;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
+use tokio::time::Instant;
+#[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
@@ -33,6 +35,8 @@ type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 #[cfg(target_arch = "wasm32")]
 use gateway_client::wasm_mockups::SigningNyxdClient;
+#[cfg(target_arch = "wasm32")]
+use wasm_timer::Instant;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 
@@ -104,13 +108,13 @@ async fn measure_latency(gateway: gateway::Node) -> Result<GatewayWithLatency, C
     for _ in 0..MEASUREMENTS {
         let measurement_future = async {
             let ping_content = vec![1, 2, 3];
-            let start = tokio::time::Instant::now();
+            let start = Instant::now();
             stream.send(Message::Ping(ping_content.clone())).await?;
 
             match stream.next().await {
                 Some(Ok(Message::Pong(content))) => {
                     if content == ping_content {
-                        let elapsed = tokio::time::Instant::now().duration_since(start);
+                        let elapsed = Instant::now().duration_since(start);
                         trace!("current ping time: {elapsed:?}");
                         results.push(elapsed);
                     } else {

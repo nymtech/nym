@@ -1,6 +1,7 @@
 name: CI for Nym API Tests
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - "nym-api/**"

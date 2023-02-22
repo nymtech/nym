@@ -1,4 +1,4 @@
-name: CI for nym-connect
+name: CI for nym-connect - Desktop
 
 on:
   push:

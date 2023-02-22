@@ -1,5 +1,5 @@
 export type Detailed = {
-  initial_supply: InitialSupply;
+  total_supply: InitialSupply;
   mixmining_reserve: MixminingReserve;
   vesting_tokens: VestingTokens;
   circulating_supply: CirculatingSupply;

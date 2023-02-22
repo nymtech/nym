@@ -46,5 +46,4 @@ describe("Get gateway data", (): void => {
     expect(typeof response.last_hour).toBe("number");
     expect(typeof response.last_day).toBe("number");
   });
-
 });

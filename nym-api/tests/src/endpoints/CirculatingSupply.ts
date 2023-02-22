@@ -12,4 +12,18 @@ export default class ContractCache extends APIClient {
     });
     return response.data;
   }
+
+  public async getTotalSupplyValue(): Promise<number> {
+    const response = await this.restClient.sendGet({
+      route: `circulating-supply/total-supply-value`,
+    });
+    return response.data;
+  }
+
+  public async getCirculatingSupplyValue(): Promise<number> {
+    const response = await this.restClient.sendGet({
+      route: `circulating-supply/circulating-supply-value`,
+    });
+    return response.data;
+  }
 }

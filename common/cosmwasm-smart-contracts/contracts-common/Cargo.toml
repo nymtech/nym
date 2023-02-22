@@ -9,7 +9,6 @@ edition = "2021"
 [dependencies]
 bs58 = "0.4.0"
 cosmwasm-std = "1.0.0"
-dkg = { path = "../../../common/dkg", optional = true }
 schemars = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1"

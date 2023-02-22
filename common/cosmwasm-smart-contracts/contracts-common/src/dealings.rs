@@ -69,19 +69,3 @@ impl<'de> Deserialize<'de> for ContractSafeBytes {
         Ok(ContractSafeBytes(bytes))
     }
 }
-
-#[cfg(feature = "dkg")]
-impl<'a> From<&'a Dealing> for ContractSafeBytes {
-    fn from(dealing: &'a Dealing) -> Self {
-        ContractSafeBytes(dealing.to_bytes())
-    }
-}
-
-#[cfg(feature = "dkg")]
-impl<'a> TryFrom<&'a ContractSafeBytes> for Dealing {
-    type Error = DkgError;
-
-    fn try_from(value: &'a ContractSafeBytes) -> Result<Self, Self::Error> {
-        Dealing::try_from_bytes(&value.0)
-    }
-}

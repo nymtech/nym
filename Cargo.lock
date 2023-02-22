@@ -1601,6 +1601,7 @@ dependencies = [
  "ff 0.11.1",
  "group 0.11.0",
  "lazy_static",
+ "nym-contracts-common",
  "nym-pemstore",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -3519,7 +3520,6 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
- "dkg",
  "schemars",
  "serde",
  "serde_json",

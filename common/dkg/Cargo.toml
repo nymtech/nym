@@ -12,8 +12,9 @@ bitvec = "1.0.0"
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
 bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", branch ="gt-serialisation", default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
-
+nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common", optional = true }
 bs58 = "0.4"
+
 
 lazy_static = "1.4.0"
 rand = { version = "0.8.5", default-features = false}
@@ -41,3 +42,7 @@ criterion = "0.3"
 [[bench]]
 name = "benchmarks"
 harness = false
+
+[features]
+default = []
+cw-types = ["nym-contracts-common"]

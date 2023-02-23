@@ -17,6 +17,7 @@ mod msg;
 pub mod pending_events;
 pub mod reward_params;
 pub mod rewarding;
+pub mod signing_types;
 mod types;
 
 pub use contracts_common::types::*;
@@ -43,4 +44,5 @@ pub use pending_events::{
     PendingIntervalEventData, PendingIntervalEventKind,
 };
 pub use reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate, RewardingParams};
+pub use signing_types::*;
 pub use types::*;

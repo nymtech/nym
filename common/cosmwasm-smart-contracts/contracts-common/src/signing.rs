@@ -3,13 +3,89 @@
 
 use cosmwasm_std::{from_slice, to_vec, Addr, Coin, MessageInfo, StdResult};
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use std::fmt::{Display, Formatter};
 
 pub type Nonce = u32;
+
+// define this type explicitly for [hopefully] better usability
+// (so you wouldn't need to worry about whether you should use bytes, bs58, etc.)
+#[derive(Clone)]
+pub struct MessageSignature(Vec<u8>);
+
+impl MessageSignature {
+    pub fn as_bs58_string(&self) -> String {
+        bs58::encode(&self.0).into_string()
+    }
+}
+
+impl<'a> From<&'a [u8]> for MessageSignature {
+    fn from(value: &'a [u8]) -> Self {
+        MessageSignature(value.to_vec())
+    }
+}
+
+impl From<Vec<u8>> for MessageSignature {
+    fn from(value: Vec<u8>) -> Self {
+        MessageSignature(value)
+    }
+}
+
+impl TryFrom<String> for MessageSignature {
+    type Error = bs58::decode::Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Ok(MessageSignature(bs58::decode(value).into_vec()?))
+    }
+}
+
+impl AsRef<[u8]> for MessageSignature {
+    #[inline]
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for MessageSignature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let inner = String::deserialize(deserializer)?;
+        let bytes = bs58::decode(inner).into_vec().map_err(de::Error::custom)?;
+        Ok(MessageSignature(bytes))
+    }
+}
+
+impl Serialize for MessageSignature {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let bs58_encoded = self.as_bs58_string();
+        bs58_encoded.serialize(serializer)
+    }
+}
+
+impl Display for MessageSignature {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_bs58_string())
+    }
+}
+
+pub trait SigningPurpose {
+    fn message_type() -> MessageType;
+}
 
 #[derive(Serialize)]
 #[serde(transparent)]
 pub struct MessageType(String);
+
+impl MessageType {
+    pub fn new<S: Into<String>>(typ: S) -> Self {
+        MessageType(typ.into())
+    }
+}
 
 impl<T> From<T> for MessageType
 where
@@ -20,7 +96,7 @@ where
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize, Copy, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum SigningAlgorithm {
     #[default]
@@ -28,12 +104,20 @@ pub enum SigningAlgorithm {
     Secp256k1,
 }
 
+impl SigningAlgorithm {
+    pub fn is_ed25519(&self) -> bool {
+        matches!(self, SigningAlgorithm::Ed25519)
+    }
+}
+
 // TODO: maybe move this one to repo-wide common?
+// TODO: should it perhaps also include the public key itself?
 #[derive(Serialize, Deserialize)]
 pub struct SignableMessage<T> {
-    nonce: u32,
-    algorithm: SigningAlgorithm,
-    content: T,
+    pub nonce: u32,
+    pub algorithm: SigningAlgorithm,
+
+    pub content: T,
 }
 
 impl<T> SignableMessage<T> {
@@ -83,24 +167,21 @@ impl<T> SignableMessage<T> {
 }
 
 #[derive(Serialize)]
-struct ContractMessageContent<T> {
-    message_type: MessageType,
-    signer: Addr,
-    proxy: Option<Addr>,
-    funds: Vec<Coin>,
-    data: T,
+pub struct ContractMessageContent<T> {
+    pub message_type: MessageType,
+    pub signer: Addr,
+    pub proxy: Option<Addr>,
+    pub funds: Vec<Coin>,
+    pub data: T,
 }
 
-impl<T> ContractMessageContent<T> {
-    pub fn new(
-        message_type: MessageType,
-        signer: Addr,
-        proxy: Option<Addr>,
-        funds: Vec<Coin>,
-        data: T,
-    ) -> Self {
+impl<T> ContractMessageContent<T>
+where
+    T: SigningPurpose,
+{
+    pub fn new(signer: Addr, proxy: Option<Addr>, funds: Vec<Coin>, data: T) -> Self {
         ContractMessageContent {
-            message_type,
+            message_type: T::message_type(),
             signer,
             proxy,
             funds,
@@ -108,12 +189,7 @@ impl<T> ContractMessageContent<T> {
         }
     }
 
-    pub fn new_with_info(
-        message_type: MessageType,
-        info: MessageInfo,
-        signer: Addr,
-        data: T,
-    ) -> Self {
+    pub fn new_with_info(info: MessageInfo, signer: Addr, data: T) -> Self {
         let proxy = if info.sender == signer {
             None
         } else {
@@ -121,7 +197,7 @@ impl<T> ContractMessageContent<T> {
         };
 
         ContractMessageContent {
-            message_type,
+            message_type: T::message_type(),
             signer,
             proxy,
             funds: info.funds,

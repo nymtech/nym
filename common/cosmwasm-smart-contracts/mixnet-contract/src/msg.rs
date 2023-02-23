@@ -10,7 +10,6 @@ use crate::reward_params::{
 };
 use crate::{delegation, ContractStateParams, Layer, LayerAssignment, MixId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
-use contracts_common::signing::MessageType;
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -241,54 +240,6 @@ pub enum ExecuteMsg {
 }
 
 impl ExecuteMsg {
-    pub fn message_type(&self) -> MessageType {
-        match self {
-            ExecuteMsg::AssignNodeLayer { .. } => {}
-            ExecuteMsg::CreateFamily { .. } => {}
-            ExecuteMsg::JoinFamily { .. } => {}
-            ExecuteMsg::LeaveFamily { .. } => {}
-            ExecuteMsg::KickFamilyMember { .. } => {}
-            ExecuteMsg::CreateFamilyOnBehalf { .. } => {}
-            ExecuteMsg::JoinFamilyOnBehalf { .. } => {}
-            ExecuteMsg::LeaveFamilyOnBehalf { .. } => {}
-            ExecuteMsg::KickFamilyMemberOnBehalf { .. } => {}
-            ExecuteMsg::UpdateRewardingValidatorAddress { .. } => {}
-            ExecuteMsg::UpdateContractStateParams { .. } => {}
-            ExecuteMsg::UpdateActiveSetSize { .. } => {}
-            ExecuteMsg::UpdateRewardingParams { .. } => {}
-            ExecuteMsg::UpdateIntervalConfig { .. } => {}
-            ExecuteMsg::BeginEpochTransition => {}
-            ExecuteMsg::AdvanceCurrentEpoch { .. } => {}
-            ExecuteMsg::ReconcileEpochEvents { .. } => {}
-            ExecuteMsg::BondMixnode { .. } => {}
-            ExecuteMsg::BondMixnodeOnBehalf { .. } => {}
-            ExecuteMsg::PledgeMore { .. } => {}
-            ExecuteMsg::PledgeMoreOnBehalf { .. } => {}
-            ExecuteMsg::UnbondMixnode { .. } => {}
-            ExecuteMsg::UnbondMixnodeOnBehalf { .. } => {}
-            ExecuteMsg::UpdateMixnodeCostParams { .. } => {}
-            ExecuteMsg::UpdateMixnodeCostParamsOnBehalf { .. } => {}
-            ExecuteMsg::UpdateMixnodeConfig { .. } => {}
-            ExecuteMsg::UpdateMixnodeConfigOnBehalf { .. } => {}
-            ExecuteMsg::BondGateway { .. } => {}
-            ExecuteMsg::BondGatewayOnBehalf { .. } => {}
-            ExecuteMsg::UnbondGateway { .. } => {}
-            ExecuteMsg::UnbondGatewayOnBehalf { .. } => {}
-            ExecuteMsg::DelegateToMixnode { .. } => {}
-            ExecuteMsg::DelegateToMixnodeOnBehalf { .. } => {}
-            ExecuteMsg::UndelegateFromMixnode { .. } => {}
-            ExecuteMsg::UndelegateFromMixnodeOnBehalf { .. } => {}
-            ExecuteMsg::RewardMixnode { .. } => {}
-            ExecuteMsg::WithdrawOperatorReward { .. } => {}
-            ExecuteMsg::WithdrawOperatorRewardOnBehalf { .. } => {}
-            ExecuteMsg::WithdrawDelegatorReward { .. } => {}
-            ExecuteMsg::WithdrawDelegatorRewardOnBehalf { .. } => {}
-            #[cfg(feature = "contract-testing")]
-            ExecuteMsg::TestingResolveAllPendingEvents { .. } => {}
-        }
-        todo!()
-    }
-
     pub fn default_memo(&self) -> String {
         match self {
             ExecuteMsg::AssignNodeLayer { mix_id, layer } => {
@@ -549,6 +500,11 @@ pub enum QueryMsg {
         start_after: Option<u32>,
     },
     GetNumberOfPendingEvents {},
+
+    // signing-related
+    GetSigningNonce {
+        address: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

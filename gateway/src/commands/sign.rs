@@ -16,7 +16,7 @@ use validator_client::nyxd;
 
 #[derive(Args, Clone)]
 #[clap(group(ArgGroup::new("sign").required(true).args(&["wallet_address", "text", "contract_msg"])))]
-pub(crate) struct Sign {
+pub struct Sign {
     /// The id of the mixnode you want to sign with
     #[clap(long)]
     id: String,

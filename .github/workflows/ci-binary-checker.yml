@@ -50,7 +50,7 @@ jobs:
         run: echo running on branch ${GITHUB_REF##*/}
                     
       - name: Run tests against binaries
-        run: ./build_and_run.sh ${GITHUB_REF##*/} "v1.1.10"
+        run: ./build_and_run.sh release/v1.1.11 "v1.1.10"
         working-directory: tests/
         
       

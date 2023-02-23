@@ -8,7 +8,7 @@ import { UserDefinedGateway } from 'src/types/gateway';
 import { forage } from '@tauri-apps/tauri-forage';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
-import { ServiceProvider, Services } from '../types/directory';
+import { ServiceProvider } from '../types/directory';
 
 const FORAGE_KEY = 'nym-connect-user-gateway';
 

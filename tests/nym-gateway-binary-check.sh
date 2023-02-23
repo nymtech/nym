@@ -17,13 +17,6 @@ echo "the version number is ${VERSION_NUMBER} to be installed from github"
 
 cd ${PWD}${RELEASE_DIRECTORY}
 
-# steps
-# we curl the existing binary from the release page of github
-# we init the binary to check successful init
-# then in our testing branch, we build the binary locally
-# re run the init based upon the configuration injected
-# we validate that no errors are return from upgrading the binary against the test
-
 # install the current release binary
 # so this is dependant on running on a linux machine for the time being
 

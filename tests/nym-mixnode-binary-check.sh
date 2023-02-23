@@ -7,8 +7,8 @@ RELEASE_DIRECTORY="target/release"
 RELEASE_VERSION_NUMBER=$1
 WALLET_ADDRESS_CONST=n1435n84se65tn7yv536am0sfvng4yyrwj7thhxr
 MOCK_HOST="1.2.3.4"
-OUTPUT=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
-ID="test-${OUTPUT}"
+RANDOM_ID=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
+ID="test-${RANDOM_ID}"
 BINARY_NAME="nym-mixnode"
 
 echo "the version number is ${VERSION_NUMBER} to be installed from github"

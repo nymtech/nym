@@ -46,7 +46,7 @@ check_nym_client_binary_build() if [ -f $BINARY_NAME ]; then
 
     # do asserts here based upon the output on init
 
-    assert $(echo ${VALUE}) $(echo ${ID})
+    assert "echo ${VALUE}" $(echo ${ID})
     assert_end nym-client-tests
   else
     echo "exting test no binary found"

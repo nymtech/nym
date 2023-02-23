@@ -45,7 +45,7 @@ check_nym_network_requester_binary_build() if [ -f $BINARY_NAME ]; then
 
     # do asserts here based upon the output on init
 
-    assert $(echo ${VALUE}) $(echo ${ID})
+    assert "echo ${VALUE}" $(echo ${ID})
     assert_end nym-network-requester-tests
   else
     echo "exting test no binary found"

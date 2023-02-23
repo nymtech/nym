@@ -48,7 +48,7 @@ check_mixnode_binary_build() {
 check_mixnode_binary_build
 # whoami
 # this is dependant on where it runs on ci potentially, will need to tweak this in the future
-first_init=$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")
+first_init=$(cat ${HOME}/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")
 
 #lets remove the binary then navigate to the target/release directory for checking the latest version
 if [ -f "$BINARY_NAME" ]; then
@@ -74,7 +74,7 @@ check_mixnode_binary_build
 echo "diff the config files after each init"
 echo "-------------------------------------"
 
-second_init=$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")
+second_init=$(cat ${HOME}/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")
 
 diff -w <(echo "$first_init") <(echo "$second_init")
 

@@ -56,7 +56,7 @@ fi
 
 check_nym_network_requester_binary_build
 
-first_init=$(cat /root/.nym/service-providers/network-requester/${ID}/config/config.toml | grep -v "^version =")
+first_init=$(cat ${HOME}/.nym/service-providers/network-requester/${ID}/config/config.toml | grep -v "^version =")
 
 #----------------------------------------------------------------------------------------------------------
 # lets remove the binary then navigate to the target/release directory for checking the latest version
@@ -85,7 +85,7 @@ echo "-------------------------------------"
 
 check_nym_network_requester_binary_build
 
-second_init=$(cat /root/.nym/service-providers/network-requester/${ID}/config/config.toml | grep -v "^version =")
+second_init=$(cat ${HOME}/.nym/service-providers/network-requester/${ID}/config/config.toml | grep -v "^version =")
 
 diff -w <(echo "$first_init") <(echo "$second_init")
 

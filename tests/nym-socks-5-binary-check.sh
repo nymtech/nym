@@ -58,7 +58,7 @@ fi
 
 check_nym_socks5_client_binary_build
 
-first_init=$(cat /root/.nym/socks5-clients/${ID}/config/config.toml | grep -v "^version =")
+first_init=$(cat ${HOME}/.nym/socks5-clients/${ID}/config/config.toml | grep -v "^version =")
 
 #----------------------------------------------------------------------------------------------------------
 # lets remove the binary then navigate to the target/release directory for checking the latest version
@@ -87,7 +87,7 @@ echo "-------------------------------------"
 
 check_nym_socks5_client_binary_build
 
-second_init=$(cat /root/.nym/socks5-clients/${ID}/config/config.toml | grep -v "^version =")
+second_init=$(cat ${HOME}/.nym/socks5-clients/${ID}/config/config.toml | grep -v "^version =")
 
 diff -w <(echo "$first_init") <(echo "$second_init")
 

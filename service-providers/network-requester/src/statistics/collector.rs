@@ -14,11 +14,11 @@ use serde::Deserialize;
 use service_providers_common::interface::RequestVersion;
 use socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
 use sqlx::types::chrono::{DateTime, Utc};
-use statistics_common::api::{
+use nym_statistics_common::api::{
     build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
     DEFAULT_STATISTICS_SERVICE_PORT,
 };
-use statistics_common::{
+use nym_statistics_common::{
     collector::StatisticsCollector, error::StatsError as CommonStatsError, StatsMessage,
     StatsServiceData,
 };

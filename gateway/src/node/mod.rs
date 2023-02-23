@@ -21,7 +21,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_task::{TaskClient, TaskManager};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use statistics_common::collector::StatisticsSender;
+use nym_statistics_common::collector::StatisticsSender;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::process;

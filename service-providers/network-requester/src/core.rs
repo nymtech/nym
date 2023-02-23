@@ -26,7 +26,7 @@ use socks5_requests::{
     ConnectRequest, ConnectionId, NetworkData, SendRequest, Socks5ProtocolVersion,
     Socks5ProviderRequest, Socks5Request, Socks5RequestContent, Socks5Response,
 };
-use statistics_common::collector::StatisticsSender;
+use nym_statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 

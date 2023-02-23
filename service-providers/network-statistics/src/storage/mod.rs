@@ -6,7 +6,7 @@ use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::ConnectOptions;
 use std::path::PathBuf;
 
-use statistics_common::StatsMessage;
+use nym_statistics_common::StatsMessage;
 
 use crate::storage::error::NetworkStatisticsStorageError;
 use crate::storage::manager::StorageManager;

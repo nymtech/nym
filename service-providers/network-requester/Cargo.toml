@@ -42,6 +42,6 @@ ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 service-providers-common = { path = "../common" }
 socks5-requests = { path = "../../common/socks5/requests" }
-statistics-common = { path = "../../common/statistics" }
+nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
 websocket-requests = { path = "../../clients/native/websocket-requests" }

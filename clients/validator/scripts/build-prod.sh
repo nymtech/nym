@@ -19,6 +19,9 @@ yarn build:types
 
 node ./scripts/buildPackageJson.mjs
 
+# Copy README
+
+cp README.md dist
 
 # move the output outside of the yarn/npm workspaces
 

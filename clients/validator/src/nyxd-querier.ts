@@ -2,12 +2,12 @@
  * Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
  * SPDX-License-Identifier: Apache-2.0
  */
-
 // eslint-disable-next-line import/no-cycle
 import { INyxdQuery } from './query-client';
+import { Delegation, RewardingParams, StakeSaturationResponse } from '@nymproject/types';
 import {
   ContractStateParams,
-  Delegation,
+  UnbondedMixnodeResponse,
   GatewayOwnershipResponse,
   MixnetContractVersion,
   MixOwnershipResponse,
@@ -18,12 +18,9 @@ import {
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
-  RewardingParams,
-  StakeSaturationResponse,
-  UnbondedMixnodeResponse,
   LayerDistribution,
 } from '@nymproject/types';
-import { SmartContractQuery } from './shared';
+import { SmartContractQuery } from './shared-types';
 
 export default class NyxdQuerier implements INyxdQuery {
   client: SmartContractQuery;

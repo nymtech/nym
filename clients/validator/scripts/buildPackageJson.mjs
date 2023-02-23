@@ -7,17 +7,6 @@ const json = JSON.parse(fs.readFileSync('./package.json').toString());
 const main = 'index.js';
 const types = 'index.d.ts';
 
-// make a package.json for the CommonJS bundle
-const packageJsonCommonJS = {
-  name: `${json.name}-commonjs`,
-  version: json.version,
-  license: json.license,
-  author: json.author,
-  type: 'commonjs',
-  main,
-  types,
-};
-
 // make a package.json for the bundle
 const packageJson = {
   name: json.name,

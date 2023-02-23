@@ -1,5 +1,5 @@
 import expect from 'expect';
-import ValidatorClient from '../../dist';
+import ValidatorClient from '../../src';
 
 const dotenv = require('dotenv');
 

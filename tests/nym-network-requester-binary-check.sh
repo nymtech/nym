@@ -11,7 +11,7 @@ RANDOM_ID=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
 ID="test-${RANDOM_ID}"
 BINARY_NAME="nym-network-requester"
 
-echo "the version number is ${VERSION_NUMBER} to be installed from github"
+echo "the version number is ${RELEASE_VERSION_NUMBER} to be installed from github"
 
 # we have now the bundled the client into the network requester, more a less the same output as the client
 

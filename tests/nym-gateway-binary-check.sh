@@ -27,11 +27,11 @@ chmod u+x $BINARY_NAME
 # functions
 #--------------------------------------
 
-check_gateway_binary_build() if [ -f nym-gateway ]; then
+check_gateway_binary_build() if [ -f "$BINARY_NAME" ]; then
   echo "running init tests"
   # we wont use config env files for now
   # unless we want to use a specific environment
-  OUTPUT=$(./nym-gateway --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST}) >/dev/null 2>&1
+  OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST}) >/dev/null 2>&1
 
   # get jq values for things we can assert against
   VALUE=$(echo ${OUTPUT} | jq .wallet_address)

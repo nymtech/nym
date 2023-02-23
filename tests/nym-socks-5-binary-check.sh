@@ -6,7 +6,6 @@ set -e
 
 PWD="../"
 RELEASE_DIRECTORY="target/release"
-RELEASE_VERSION_NUMBER=$1
 MOCK_SERVICE_PROVIDER="36cUqdggtdXixZhmXfyZm3Dep3Q5QsKVPotMrVSmS4oY.ZCCAdFPwPNSTtUMYveA62ttEFe8FDiB3cdheWHtCytX@6Lnxj9vD2YMtSmfe8zp5RBtj1uZLYQAFRxY9q7ANwrZz"
 RANDOM_ID=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
 ID="test-${RANDOM_ID}"
@@ -17,7 +16,7 @@ echo "the version number is ${RELEASE_VERSION_NUMBER} to be installed from githu
 # install the current release binary
 # so this is dependant on running on a linux machine for the time being
 
-curl -L "https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/${BINARY_NAME}" -o $BINARY_NAME
+curl -L "https://builds.ci.nymte.ch/master/${BINARY_NAME}" -o $BINARY_NAME
 chmod u+x $BINARY_NAME
 
 #----------------------------------------------------------------------------------------------------------

@@ -20,7 +20,7 @@ cd ${PWD}${RELEASE_DIRECTORY}
 # install the current release binary
 # so this is dependant on running on a linux machine for the time being
 
-curl -L https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/${BINARY_NAME} -o $BINARY_NAME
+curl -L "https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/${BINARY_NAME}" -o $BINARY_NAME
 chmod u+x $BINARY_NAME
 
 #--------------------------------------

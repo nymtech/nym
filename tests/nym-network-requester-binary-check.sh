@@ -7,24 +7,15 @@ set -e
 PWD="../"
 RELEASE_DIRECTORY="target/release"
 VERSION_NUMBER=$1
-MOCK_SERVICE_PROVIDER="36cUqdggtdXixZhmXfyZm3Dep3Q5QsKVPotMrVSmS4oY.ZCCAdFPwPNSTtUMYveA62ttEFe8FDiB3cdheWHtCytX@6Lnxj9vD2YMtSmfe8zp5RBtj1uZLYQAFRxY9q7ANwrZz"
 RANDOM_ID=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
 ID="test-${RANDOM_ID}"
-BINARY_NAME="nym-socks5-client"
+BINARY_NAME="nym-network-requester"
 
 echo "the version number is ${VERSION_NUMBER} to be installed from github"
 
 cd ${PWD}${RELEASE_DIRECTORY}
 
-# steps
-# we curl the existing binary from the release page of github
-# we init the binary to check successful init
-# then in our testing branch, we build the binary locally
-# re run the init based upon the configuration injected
-# we validate that no errors are return from upgrading the binary against the test
-
-# install the current release binary
-# so this is dependant on running on a linux machine for the time being
+# we have now the bundled the client into the network requester, more a less the same output as the client
 
 curl -L https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/$BINARY_NAME -o $BINARY_NAME
 chmod u+x $BINARY_NAME
@@ -33,15 +24,15 @@ chmod u+x $BINARY_NAME
 # functions
 #----------------------------------------------------------------------------------------------------------
 
-check_nym_socks5_client_binary_build() if [ -f $BINARY_NAME ]; then
+check_nym_network_requester_binary_build() if [ -f $BINARY_NAME ]; then
   echo "running init tests"
-  ./${BINARY_NAME} init --id ${ID} --provider ${MOCK_SERVICE_PROVIDER} --output-json >/dev/null 2>&1
+  ./${BINARY_NAME} init --id ${ID} --output-json >/dev/null 2>&1
 
   # currently this outputs to a file name name
   # we currently store the output in a file in the same directory
 
-  if [ -f "socks5_client_init_results.json" ]; then
-    OUTPUT=$(cat socks5_client_init_results.json)
+  if [ -f "client_init_results.json" ]; then
+    OUTPUT=$(cat client_init_results.json)
 
     # get jq values for things we can assert against
     # until the service provider is provided in the output we can validate the id is correct on init
@@ -55,7 +46,7 @@ check_nym_socks5_client_binary_build() if [ -f $BINARY_NAME ]; then
     # do asserts here based upon the output on init
 
     assert $(echo ${VALUE}) $(echo ${ID})
-    assert_end nym-socks-5-client-tests
+    assert_end nym-network-requester-tests
   else
     echo "exting test no binary found"
   fi
@@ -68,9 +59,9 @@ fi
 #----------------------------------------------------------------------------------------------------------
 # we run the release version first
 
-check_nym_socks5_client_binary_build
+check_nym_network_requester_binary_build
 
-first_init=$(cat /root/.nym/socks5-clients/${ID}/config/config.toml | grep -v "^version =")
+first_init=$(cat /root/.nym/service-providers/network-requester/${ID}/config/config.toml | grep -v "^version =")
 
 #----------------------------------------------------------------------------------------------------------
 # lets remove the binary then navigate to the target/release directory for checking the latest version
@@ -78,7 +69,7 @@ first_init=$(cat /root/.nym/socks5-clients/${ID}/config/config.toml | grep -v "^
 #----------------------------------------------------------------------------------------------------------
 
 if [ -f $BINARY_NAME ]; then
-  echo "removing socks-5-client binary"
+  echo "removing nym-network-requester binary"
   rm -rf $BINARY_NAME
 else
   echo "no binary found exiting"
@@ -97,9 +88,9 @@ cd ${PWD}${RELEASE_DIRECTORY}
 echo "diff the config files after each init"
 echo "-------------------------------------"
 
-check_nym_socks5_client_binary_build
+check_nym_network_requester_binary_build
 
-second_init=$(cat /root/.nym/socks5-clients/${ID}/config/config.toml | grep -v "^version =")
+second_init=$(cat /root/.nym/service-providers/network-requester/${ID}/config/config.toml | grep -v "^version =")
 
 diff -w <(echo "$first_init") <(echo "$second_init")
 

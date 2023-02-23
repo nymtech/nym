@@ -19,10 +19,27 @@ echo "working directory ${PWD}"
 cargo build --release --all
 
 #here there should be the applicable binaries to test inits
-
+echo "running mixnode binary check"
 ./nym-mixnode-binary-check.sh "$VERSION_NUMBER"
 
 sleep 2 
 
 echo "running gateway binary check"
-#./nym-gateway-binary-check.sh "$VERSION_NUMBER"
+./nym-gateway-binary-check.sh "$VERSION_NUMBER"
+
+sleep 2 
+
+echo "running socks-5 binary check"
+./nym-socks-5-binary-check.sh "$VERSION_NUMBER"
+
+sleep 2 
+
+echo "running network-requester binary check"
+./nym-network-requester-binary-check.sh "$VERSION_NUMBER"
+
+sleep 2 
+
+echo "running client binary check"
+./nym-client-binary-check.sh "$VERSION_NUMBER"
+
+

@@ -72,7 +72,7 @@ fi
 # this should be caught at testing stage - navigate to latest binary build
 #----------------------------------------------------------------------------------------------------------
 
-cd $PWD$RELEASE_DIRECTORY
+cd ${PWD}${RELEASE_DIRECTORY}
 
 #re run against the current binary built locally
 

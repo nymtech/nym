@@ -6,11 +6,11 @@ use crate::{
     config::{persistence::key_pathfinder::ClientKeyPathfinder, Config},
     error::ClientCoreError,
 };
-use config::NymConfig;
 #[cfg(target_arch = "wasm32")]
 use gateway_client::wasm_mockups::SigningNyxdClient;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
+use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_topology::{filter::VersionFilterable, gateway};
 use rand::{seq::SliceRandom, thread_rng};

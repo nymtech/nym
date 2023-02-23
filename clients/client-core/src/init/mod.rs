@@ -10,7 +10,7 @@ use rand::rngs::OsRng;
 use serde::Serialize;
 use tap::TapFallible;
 
-use config::NymConfig;
+use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use url::Url;
 
@@ -182,7 +182,7 @@ pub fn get_client_address_from_stored_keys<T>(
     config: &Config<T>,
 ) -> Result<Recipient, ClientCoreError>
 where
-    T: config::NymConfig,
+    T: nym_config::NymConfig,
 {
     fn load_identity_keys(
         pathfinder: &ClientKeyPathfinder,

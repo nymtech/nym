@@ -11,9 +11,9 @@ use crate::{
 };
 
 use clap::Args;
-use config::NymConfig;
 use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
+use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 
 #[derive(Args, Clone)]

@@ -3,8 +3,8 @@
 
 use crate::client::config::template::config_template;
 use client_core::config::ClientCoreConfigTrait;
-use config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
-use config::{NymConfig, OptionalSet};
+use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
+use nym_config::{NymConfig, OptionalSet};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr};

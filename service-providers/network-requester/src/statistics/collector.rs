@@ -7,6 +7,14 @@ use crate::reply::MixnetMessage;
 use async_trait::async_trait;
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_statistics_common::api::{
+    build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
+    DEFAULT_STATISTICS_SERVICE_PORT,
+};
+use nym_statistics_common::{
+    collector::StatisticsCollector, error::StatsError as CommonStatsError, StatsMessage,
+    StatsServiceData,
+};
 use ordered_buffer::OrderedMessageSender;
 use proxy_helpers::proxy_runner::MixProxySender;
 use rand::RngCore;
@@ -14,14 +22,6 @@ use serde::Deserialize;
 use service_providers_common::interface::RequestVersion;
 use socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
 use sqlx::types::chrono::{DateTime, Utc};
-use statistics_common::api::{
-    build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
-    DEFAULT_STATISTICS_SERVICE_PORT,
-};
-use statistics_common::{
-    collector::StatisticsCollector, error::StatsError as CommonStatsError, StatsMessage,
-    StatsServiceData,
-};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
@@ -147,7 +147,7 @@ impl StatisticsCollector for ServiceStatisticsCollector {
                         .get(&requested_service)
                         .copied()
                         .unwrap_or(0);
-                    statistics_common::StatsData::Service(StatsServiceData::new(
+                    nym_statistics_common::StatsData::Service(StatsServiceData::new(
                         requested_service,
                         request_bytes,
                         response_bytes,

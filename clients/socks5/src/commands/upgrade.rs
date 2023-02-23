@@ -3,8 +3,8 @@
 
 use crate::client::config::{Config, MISSING_VALUE};
 
-use config::NymConfig;
 use nym_bin_common::version_checker::Version;
+use nym_config::NymConfig;
 
 use clap::Args;
 use std::{fmt::Display, process};

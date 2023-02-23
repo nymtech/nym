@@ -8,10 +8,10 @@ mod recovery_storage;
 mod state;
 
 use commands::*;
-use config::{DATA_DIR, DB_FILE_NAME};
 use error::Result;
 use log::*;
 use nym_bin_common::completions::fig_generate;
+use nym_config::{DATA_DIR, DB_FILE_NAME};
 use nym_network_defaults::{setup_env, NymNetworkDetails};
 use std::process::exit;
 use std::time::{Duration, SystemTime};

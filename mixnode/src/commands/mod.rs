@@ -5,10 +5,10 @@ use crate::{config::Config, Cli};
 use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
-use config::defaults::var_names::{BECH32_PREFIX, NYM_API};
-use config::OptionalSet;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
+use nym_config::defaults::var_names::{BECH32_PREFIX, NYM_API};
+use nym_config::OptionalSet;
 use nym_crypto::bech32_address_validation;
 use std::net::IpAddr;
 use std::process;
@@ -100,7 +100,7 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
             Config::with_custom_nym_apis,
             args.nym_apis,
             NYM_API,
-            config::parse_urls,
+            nym_config::parse_urls,
         )
         .with_optional(
             |cfg, wallet_address| {

@@ -15,7 +15,7 @@ sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros"
 thiserror = "1"
 tokio = { version = "1.4", features = [ "net", "rt-multi-thread", "macros", "time" ] }
 nym-bin-common = { path = "../../common/bin-common"}
-statistics-common = { path = "../../common/statistics" }
+nym-statistics-common = { path = "../../common/statistics" }
 
 [build-dependencies]
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }

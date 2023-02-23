@@ -4,8 +4,8 @@
 use crate::commands::{override_config, OverrideConfig};
 use crate::config::Config;
 use crate::error::GatewayError;
-use config::NymConfig;
 use log::error;
+use nym_config::NymConfig;
 
 pub(crate) fn build_config<O: Into<OverrideConfig>>(
     id: String,

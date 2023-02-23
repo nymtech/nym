@@ -4,7 +4,7 @@
 #[macro_use]
 extern crate rocket;
 
-use ::config::defaults::setup_env;
+use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser, ValueEnum};
 use lazy_static::lazy_static;
 use nym_bin_common::logging::setup_logging;

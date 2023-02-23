@@ -6,7 +6,7 @@ use crate::client::real_messages_control::acknowledgement_control::Retransmissio
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey};
+use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey};
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_sphinx::Delay as SphinxDelay;
 use std::collections::HashMap;

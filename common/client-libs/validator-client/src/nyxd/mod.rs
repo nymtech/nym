@@ -15,8 +15,8 @@ use cosmrs::rpc::query::Query;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
-use execute::execute;
 use log::debug;
+use nym_execute::execute;
 use nym_mixnet_contract_common::MixId;
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use nym_vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
@@ -162,7 +162,7 @@ impl NyxdClient<SigningNyxdClient> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
     pub fn connect_with_signer<U: Clone>(
         config: Config,
-        network: config::defaults::NymNetworkDetails,
+        network: nym_config::defaults::NymNetworkDetails,
         endpoint: U,
         signer: DirectSecp256k1HdWallet,
         gas_price: Option<GasPrice>,

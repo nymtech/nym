@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use ::config_common::NymConfig;
+use ::nym_config_common::NymConfig;
 use client_core::client::key_manager::KeyManager;
 use client_core::error::ClientCoreStatusMessage;
 use futures::SinkExt;

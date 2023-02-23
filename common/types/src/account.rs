@@ -1,5 +1,5 @@
 use crate::currency::{CurrencyDenom, DecCoin};
-use config::defaults::DenomDetails;
+use nym_config::defaults::DenomDetails;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

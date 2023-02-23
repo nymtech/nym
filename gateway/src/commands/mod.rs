@@ -5,9 +5,9 @@ use crate::error::GatewayError;
 use crate::{config::Config, Cli};
 use clap::CommandFactory;
 use clap::Subcommand;
-use config::OptionalSet;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
+use nym_config::OptionalSet;
 use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use std::error::Error;
@@ -104,7 +104,7 @@ pub(crate) fn override_config(
             Config::with_custom_nym_apis,
             args.nym_apis,
             NYM_API,
-            config::parse_urls,
+            nym_config::parse_urls,
         )
         .with_optional(Config::with_enabled_statistics, args.enabled_statistics)
         .with_optional_env(
@@ -123,7 +123,7 @@ pub(crate) fn override_config(
             Config::with_custom_validator_nyxd,
             args.nyxd_urls,
             NYXD,
-            config::parse_urls,
+            nym_config::parse_urls,
         )
         .with_optional(
             Config::with_only_coconut_credentials,

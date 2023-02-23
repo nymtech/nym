@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::{mainnet, DenomDetails, NymNetworkDetails};
+use nym_config::defaults::{mainnet, DenomDetails, NymNetworkDetails};
 use nym_types::{currency::DecCoin, error::TypesError};
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Not, str::FromStr};

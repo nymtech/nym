@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::NymNetworkDetails;
-use config::{NymConfig, OptionalSet, DB_FILE_NAME};
+use nym_config::defaults::NymNetworkDetails;
+use nym_config::{NymConfig, OptionalSet, DB_FILE_NAME};
 use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;

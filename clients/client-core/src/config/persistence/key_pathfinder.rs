@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use config::NymConfig;
+use nym_config::NymConfig;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]

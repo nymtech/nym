@@ -3,7 +3,7 @@
 
 use crate::config::template::config_template;
 use client_core::config::ClientCoreConfigTrait;
-use config::{NymConfig, OptionalSet};
+use nym_config::{NymConfig, OptionalSet};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::path::PathBuf;

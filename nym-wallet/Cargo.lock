@@ -680,19 +680,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "config"
-version = "0.1.0"
-dependencies = [
- "cfg-if",
- "handlebars",
- "log",
- "nym-network-defaults",
- "serde",
- "toml",
- "url",
-]
-
-[[package]]
 name = "const-oid"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1421,14 +1408,6 @@ checksum = "aa68f1b12764fab894d2755d2518754e71b4fd80ecfb822714a1206c2aab39bf"
 dependencies = [
  "cc",
  "libc",
-]
-
-[[package]]
-name = "execute"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -2940,6 +2919,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-config"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "handlebars",
+ "log",
+ "nym-network-defaults",
+ "serde",
+ "toml",
+ "url",
+]
+
+[[package]]
 name = "nym-contracts-common"
 version = "0.1.0"
 dependencies = [
@@ -2948,6 +2940,14 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "nym-execute"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -2993,12 +2993,12 @@ name = "nym-types"
 version = "1.0.0"
 dependencies = [
  "coconut-interface",
- "config",
  "cosmrs",
  "cosmwasm-std",
  "eyre",
  "itertools",
  "log",
+ "nym-config",
  "nym-mixnet-contract-common",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
@@ -3059,10 +3059,10 @@ dependencies = [
 name = "nym-wallet-types"
 version = "1.0.0"
 dependencies = [
- "config",
  "cosmrs",
  "cosmwasm-std",
  "hex-literal",
+ "nym-config",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-types",
@@ -3087,7 +3087,6 @@ dependencies = [
  "chrono",
  "coconut-interface",
  "colored 2.0.0",
- "config",
  "cosmrs",
  "cosmwasm-std",
  "dirs",
@@ -3098,6 +3097,7 @@ dependencies = [
  "itertools",
  "k256",
  "log",
+ "nym-config",
  "nym-mixnet-contract-common",
  "nym-types",
  "nym-vesting-contract",
@@ -5564,12 +5564,10 @@ dependencies = [
  "coconut-dkg-common",
  "coconut-interface",
  "colored 2.0.0",
- "config",
  "cosmrs",
  "cosmwasm-std",
  "cw3",
  "cw4",
- "execute",
  "flate2",
  "futures",
  "group-contract-common",
@@ -5577,7 +5575,9 @@ dependencies = [
  "log",
  "multisig-contract-common",
  "nym-api-requests",
+ "nym-config",
  "nym-contracts-common",
+ "nym-execute",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-vesting-contract",

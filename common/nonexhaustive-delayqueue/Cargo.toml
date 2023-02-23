@@ -1,5 +1,5 @@
 [package]
-name = "nonexhaustive-delayqueue"
+name = "nym-nonexhaustive-delayqueue"
 version = "0.1.0"
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"

@@ -13,7 +13,7 @@ use strum::IntoEnumIterator;
 use url::Url;
 use validator_client::nyxd::AccountId as CosmosAccountId;
 
-use config::defaults::{DenomDetailsOwned, NymNetworkDetails, ValidatorDetails};
+use nym_config::defaults::{DenomDetailsOwned, NymNetworkDetails, ValidatorDetails};
 use nym_wallet_types::network::Network as WalletNetwork;
 use nym_wallet_types::network_config;
 

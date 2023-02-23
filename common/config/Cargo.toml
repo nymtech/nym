@@ -1,5 +1,5 @@
 [package]
-name = "config"
+name = "nym-config"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"

@@ -32,7 +32,7 @@ url = { workspace = true }
 
 # internal
 client-core = { path = "../../clients/client-core" }
-config = { path = "../../common/config" }
+nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
 nym-bin-common = { path = "../../common/bin-common"}
 nym-network-defaults = { path = "../../common/network-defaults" }
@@ -42,6 +42,6 @@ ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 service-providers-common = { path = "../common" }
 socks5-requests = { path = "../../common/socks5/requests" }
-statistics-common = { path = "../../common/statistics" }
+nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
 websocket-requests = { path = "../../clients/native/websocket-requests" }

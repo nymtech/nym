@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::defaults::mainnet::NYM_API;
-use config::defaults::{
+use nym_config::defaults::mainnet::NYM_API;
+use nym_config::defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
-use config::NymConfig;
+use nym_config::NymConfig;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;

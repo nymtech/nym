@@ -1,7 +1,7 @@
 use crate::config;
 use crate::error::BackendError;
 use crate::simulate::SimulateResult;
-use ::config::defaults::NymNetworkDetails;
+use ::nym_config::defaults::NymNetworkDetails;
 use cosmwasm_std::Decimal;
 use itertools::Itertools;
 use log::warn;

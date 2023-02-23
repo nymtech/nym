@@ -24,12 +24,12 @@ tokio = { version = "1.24.1", features = ["macros"]}
 time = "0.3.17"
 
 # internal
-config = { path = "../../common/config" }
+nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 #gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
 gateway-requests = { path = "../../gateway/gateway-requests" }
-nonexhaustive-delayqueue = { path = "../../common/nonexhaustive-delayqueue" }
+nym-nonexhaustive-delayqueue = { path = "../../common/nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 nym-pemstore = { path = "../../common/pemstore" }
 nym-topology = { path = "../../common/topology" }

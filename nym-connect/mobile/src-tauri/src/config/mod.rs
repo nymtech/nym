@@ -3,7 +3,7 @@ use crate::{
     state::State,
 };
 use client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
-use config_common::NymConfig;
+use nym_config_common::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_socks5::client::config::Config as Socks5Config;
 use std::path::PathBuf;
@@ -100,10 +100,10 @@ pub async fn init_socks5_config(
     log::trace!("Initialising client...");
     let mut config = Config::new(SOCKS5_CONFIG_ID, &provider_address);
 
-    if let Ok(raw_validators) = std::env::var(config_common::defaults::var_names::NYM_API) {
+    if let Ok(raw_validators) = std::env::var(nym_config_common::defaults::var_names::NYM_API) {
         config
             .get_base_mut()
-            .set_custom_nym_apis(config_common::parse_urls(&raw_validators));
+            .set_custom_nym_apis(nym_config_common::parse_urls(&raw_validators));
     }
 
     let nym_api_endpoints = config.get_base().get_nym_api_endpoints();

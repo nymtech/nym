@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::template::config_template;
-use config::defaults::mainnet::{MIXNET_CONTRACT_ADDRESS, VESTING_CONTRACT_ADDRESS};
-use config::defaults::DEFAULT_NYM_API_PORT;
-use config::NymConfig;
+use nym_config::defaults::mainnet::{MIXNET_CONTRACT_ADDRESS, VESTING_CONTRACT_ADDRESS};
+use nym_config::defaults::DEFAULT_NYM_API_PORT;
+use nym_config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;

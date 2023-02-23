@@ -615,7 +615,6 @@ name = "client-core"
 version = "1.1.10"
 dependencies = [
  "async-trait",
- "config",
  "dashmap",
  "dirs",
  "futures",
@@ -624,8 +623,9 @@ dependencies = [
  "gloo-timers",
  "humantime-serde",
  "log",
- "nonexhaustive-delayqueue",
+ "nym-config",
  "nym-crypto",
+ "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
@@ -766,19 +766,6 @@ checksum = "35ed6e9d84f0b51a7f52daf1c7d71dd136fd7a3f41a8462b8cdb8c78d920fad4"
 dependencies = [
  "bytes",
  "memchr",
-]
-
-[[package]]
-name = "config"
-version = "0.1.0"
-dependencies = [
- "cfg-if",
- "handlebars",
- "log",
- "nym-network-defaults",
- "serde",
- "toml",
- "url",
 ]
 
 [[package]]
@@ -1647,14 +1634,6 @@ name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
-
-[[package]]
-name = "execute"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn",
-]
 
 [[package]]
 name = "eyre"
@@ -3375,18 +3354,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nonexhaustive-delayqueue"
-version = "0.1.0"
-dependencies = [
- "futures-core",
- "slab",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "wasm-timer",
-]
-
-[[package]]
 name = "notify-rust"
 version = "4.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3509,6 +3476,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-config"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "handlebars",
+ "log",
+ "nym-network-defaults",
+ "serde",
+ "toml",
+ "url",
+]
+
+[[package]]
 name = "nym-connect"
 version = "1.1.9"
 dependencies = [
@@ -3516,7 +3496,6 @@ dependencies = [
  "bip39",
  "chrono",
  "client-core",
- "config",
  "dirs",
  "eyre",
  "fern",
@@ -3526,6 +3505,7 @@ dependencies = [
  "log",
  "nym-api-requests",
  "nym-bin-common",
+ "nym-config",
  "nym-contracts-common",
  "nym-crypto",
  "nym-socks5-client",
@@ -3583,6 +3563,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-execute"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "nym-mixnet-contract-common"
 version = "0.1.0"
 dependencies = [
@@ -3613,6 +3601,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-nonexhaustive-delayqueue"
+version = "0.1.0"
+dependencies = [
+ "futures-core",
+ "slab",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "wasm-timer",
+]
+
+[[package]]
 name = "nym-pemstore"
 version = "0.1.0"
 dependencies = [
@@ -3626,7 +3626,6 @@ dependencies = [
  "clap",
  "client-core",
  "coconut-interface",
- "config",
  "credentials",
  "dirs",
  "futures",
@@ -3636,6 +3635,7 @@ dependencies = [
  "log",
  "mobile-storage",
  "nym-bin-common",
+ "nym-config",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -6768,12 +6768,10 @@ dependencies = [
  "coconut-dkg-common",
  "coconut-interface",
  "colored 2.0.0",
- "config",
  "cosmrs",
  "cosmwasm-std",
  "cw3",
  "cw4",
- "execute",
  "flate2",
  "futures",
  "group-contract-common",
@@ -6781,7 +6779,9 @@ dependencies = [
  "log",
  "multisig-contract-common",
  "nym-api-requests",
+ "nym-config",
  "nym-contracts-common",
+ "nym-execute",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-vesting-contract",

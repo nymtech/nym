@@ -7,7 +7,7 @@ use crate::node::MixNode;
 use crate::OutputFormat;
 use crate::{commands::override_config, config::persistence::pathfinder::MixNodePathfinder};
 use clap::Args;
-use config::NymConfig;
+use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use std::net::IpAddr;
 use validator_client::nyxd;

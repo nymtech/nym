@@ -1,4 +1,4 @@
-use network_defaults::{
+use nym_network_defaults::{
     var_names::{NYM_API, NYXD},
     NymNetworkDetails,
 };

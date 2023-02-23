@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use network_defaults::{
+use nym_network_defaults::{
     setup_env,
     var_names::{MIXNET_CONTRACT_ADDRESS, NYM_API, NYXD, VESTING_CONTRACT_ADDRESS},
     NymNetworkDetails,

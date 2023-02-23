@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
-use mixnet_contract_common::{ExecuteMsg, InstantiateMsg, MixNodeBond, QueryMsg};
+use mixnet_contract_common::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
@@ -15,5 +15,5 @@ fn main() {
     export_schema(&schema_for!(InstantiateMsg), &out_dir);
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
-    export_schema(&schema_for!(MixNodeBond), &out_dir);
+    export_schema(&schema_for!(MigrateMsg), &out_dir);
 }

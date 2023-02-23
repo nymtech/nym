@@ -1,10 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::{ConnectionCommand, ConnectionCommandSender};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nym_task::connections::{ConnectionCommand, ConnectionCommandSender};
 use nym_task::TaskClient;
 use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
 use socks5_requests::{ConnectionId, NetworkData, SendRequest};

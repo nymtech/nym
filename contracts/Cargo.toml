@@ -9,6 +9,14 @@ members = [
     "coconut-dkg"
 ]
 
+[workspace.package]
+authors = ["Nym Technologies SA"]
+repository = "https://github.com/nymtech/nym"
+homepage = "https://nymtech.net"
+documentation = "https://nymtech.net"
+edition = "2021"
+license = "Apache-2.0"
+
 [profile.release]
 opt-level = 3
 debug = false

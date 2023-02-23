@@ -6,9 +6,6 @@ edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
-readme = { workspace = true }
-homepage = { workspace = true }
-documentation = { workspace = true }
 
 [dependencies]
 pem = "0.8"

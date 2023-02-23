@@ -4,7 +4,7 @@
 use crate::config::template::config_template;
 use config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use config::NymConfig;
-use network_defaults::mainnet::{NYM_API, NYXD_URL, STATISTICS_SERVICE_DOMAIN_ADDRESS};
+use nym_network_defaults::mainnet::{NYM_API, NYXD_URL, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::path::PathBuf;

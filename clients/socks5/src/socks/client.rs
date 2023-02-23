@@ -4,12 +4,12 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCodeV4, ResponseCodeV5, SocksProxyError};
 use super::{SocksVersion, RESERVED, SOCKS4_VERSION, SOCKS5_VERSION};
-use client_connections::{LaneQueueLengths, TransmissionLane};
 use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_task::connections::{LaneQueueLengths, TransmissionLane};
 use nym_task::TaskClient;
 use pin_project::pin_project;
 use proxy_helpers::connection_controller::{

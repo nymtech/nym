@@ -101,7 +101,7 @@ impl From<Init> for OverrideConfig {
 }
 
 pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
-    println!("Initialising gateway {}...", args.id);
+    eprintln!("Initialising gateway {}...", args.id);
 
     let already_init = if Config::default_config_file_path(&args.id).exists() {
         eprintln!(
@@ -161,7 +161,7 @@ pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Err
 
 #[cfg(test)]
 mod tests {
-    use network_defaults::var_names::BECH32_PREFIX;
+    use nym_network_defaults::var_names::BECH32_PREFIX;
 
     use crate::node::{storage::InMemStorage, Gateway};
 

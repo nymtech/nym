@@ -1,10 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use network_defaults::NymNetworkDetails;
 use nym_cli_commands::context::{
     create_signing_client, create_signing_client_with_nym_api, ClientArgs,
 };
+use nym_network_defaults::NymNetworkDetails;
 
 pub(crate) mod rewards;
 

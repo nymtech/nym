@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-api"
-version = "1.1.10"
+version = "1.1.11"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -75,12 +75,12 @@ credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }
 cw3 = { version = "0.13.4" }
 cw4 = { version = "0.13.4" }
-dkg = { path = "../common/dkg" }
+dkg = { path = "../common/dkg", features = ["cw-types"] }
 gateway-client = { path = "../common/client-libs/gateway-client" }
-inclusion-probability = { path = "../common/inclusion-probability" }
+nym-inclusion-probability = { path = "../common/inclusion-probability" }
 nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
-nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["dkg"] }
+nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nymcoconut = { path = "../common/nymcoconut" }
 nym-sphinx = { path = "../common/nymsphinx" }

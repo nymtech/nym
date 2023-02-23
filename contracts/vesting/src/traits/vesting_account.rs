@@ -3,11 +3,7 @@ use cosmwasm_std::{Addr, Coin, Env, Storage, Timestamp, Uint128};
 use vesting_contract_common::OriginalVestingResponse;
 
 pub trait VestingAccount {
-    fn total_pledged_locked(
-        &self,
-        storage: &dyn Storage,
-        env: &Env,
-    ) -> Result<Uint128, ContractError>;
+    fn total_staked(&self, storage: &dyn Storage) -> Result<Uint128, ContractError>;
 
     /// Returns the set of coins that are not spendable (can still be delegated tough) (i.e. locked),
     /// defined as vesting coins that are not delegated or pledged.
@@ -26,6 +22,20 @@ pub trait VestingAccount {
     /// Calculated as current_balance minus [crate::traits::VestingAccount::locked_coins]
     /// See [/vesting-contract/struct.Account.html/method.spendable_coins] for impl
     fn spendable_coins(
+        &self,
+        block_time: Option<Timestamp>,
+        env: &Env,
+        storage: &dyn Storage,
+    ) -> Result<Coin, ContractError>;
+
+    fn spendable_vested_coins(
+        &self,
+        block_time: Option<Timestamp>,
+        env: &Env,
+        storage: &dyn Storage,
+    ) -> Result<Coin, ContractError>;
+
+    fn spendable_reward_coins(
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
@@ -57,36 +67,6 @@ pub trait VestingAccount {
     /// See [/vesting-contract/struct.Account.html/method.get_original_vesting] for impl
     fn get_original_vesting(&self) -> Result<OriginalVestingResponse, ContractError>;
 
-    /// See [/vesting-contract/struct.Account.html/method.get_delegated_free] for impl
-    fn get_delegated_free(
-        &self,
-        block_time: Option<Timestamp>,
-        env: &Env,
-        storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
-
-    /// See [/vesting-contract/struct.Account.html/method.get_delegated_vesting] for impl
-    fn get_delegated_vesting(
-        &self,
-        block_time: Option<Timestamp>,
-        env: &Env,
-        storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
-
-    /// See [/vesting-contract/struct.Account.html/method.get_pledged_free] for impl
-    fn get_pledged_free(
-        &self,
-        block_time: Option<Timestamp>,
-        env: &Env,
-        storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
-    /// See [/vesting-contract/struct.Account.html/method.get_pledged_vesting] for impl
-    fn get_pledged_vesting(
-        &self,
-        block_time: Option<Timestamp>,
-        env: &Env,
-        storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
     /// See [/vesting-contract/struct.Account.html/method.transfer_ownership] for impl
     fn transfer_ownership(
         &mut self,
@@ -100,4 +80,8 @@ pub trait VestingAccount {
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError>;
     fn track_reward(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError>;
+    fn get_historical_vested_staking_rewards(
+        &self,
+        storage: &dyn Storage,
+    ) -> Result<Coin, ContractError>;
 }

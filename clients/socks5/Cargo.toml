@@ -1,6 +1,6 @@
 [package]
 name = "nym-socks5-client"
-version = "1.1.9"
+version = "1.1.10"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 description = "A SOCKS5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address"
 edition = "2021"
@@ -29,7 +29,6 @@ url = "2.2"
 # internal
 nym-bin-common = { path = "../../common/bin-common" }
 client-core = { path = "../client-core", features = ["fs-surb-storage"] }
-client-connections = { path = "../../common/client-connections" }
 coconut-interface = { path = "../../common/coconut-interface" }
 config = { path = "../../common/config" }
 credential-storage = { path = "../../common/credential-storage", optional = true }
@@ -38,7 +37,7 @@ credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
-network-defaults = { path = "../../common/network-defaults" }
+nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-pemstore = { path = "../../common/pemstore" }

@@ -6,7 +6,6 @@ use std::error::Error;
 use crate::client::config::Config;
 use crate::error::ClientError;
 use crate::websocket;
-use client_connections::TransmissionLane;
 use client_core::client::base_client::{
     non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
@@ -19,6 +18,7 @@ use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
 use tokio::sync::watch::error::SendError;
 use validator_client::nyxd::QueryNyxdClient;
@@ -56,7 +56,7 @@ impl SocketClient {
     }
 
     async fn create_bandwidth_controller(config: &Config) -> BandwidthController<QueryNyxdClient> {
-        let details = network_defaults::NymNetworkDetails::new_from_env();
+        let details = nym_network_defaults::NymNetworkDetails::new_from_env();
         let mut client_config = validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct validator client config");
         let nyxd_url = config

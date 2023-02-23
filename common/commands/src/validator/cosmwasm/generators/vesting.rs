@@ -24,14 +24,14 @@ pub async fn generate(args: Args) {
     debug!("Received arguments: {:?}", args);
 
     let mixnet_contract_address = args.mixnet_contract_address.unwrap_or_else(|| {
-        let address = std::env::var(network_defaults::var_names::MIXNET_CONTRACT_ADDRESS)
+        let address = std::env::var(nym_network_defaults::var_names::MIXNET_CONTRACT_ADDRESS)
             .expect("Mixnet contract address has to be set");
         AccountId::from_str(address.as_str())
             .expect("Failed converting mixnet address to AccountId")
     });
 
     let mix_denom = args.mix_denom.unwrap_or_else(|| {
-        std::env::var(network_defaults::var_names::MIX_DENOM).expect("Mix denom has to be set")
+        std::env::var(nym_network_defaults::var_names::MIX_DENOM).expect("Mix denom has to be set")
     });
 
     let instantiate_msg = InitMsg {

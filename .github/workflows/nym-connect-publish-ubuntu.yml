@@ -1,4 +1,4 @@
-name: Publish Nym Connect (Ubuntu)
+name: Publish Nym Connect - desktop (Ubuntu)
 on:
   workflow_dispatch:
   release:
@@ -6,7 +6,7 @@ on:
 
 defaults:
   run:
-    working-directory: nym-connect
+    working-directory: nym-connect/desktop
 
 jobs:
   publish-tauri:
@@ -53,7 +53,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nym-connect.AppImage.tar.gz
-          path: nym-connect/target/release/bundle/appimage/nym-connect_1.0.0_amd64.AppImage
+          path: nym-connect/desktop/target/release/bundle/appimage/nym-connect_1.0.0_amd64.AppImage
           retention-days: 30
 
       - name: Upload to release based on tag name
@@ -61,5 +61,5 @@ jobs:
         if: github.event_name == 'release'
         with:
           files: |
-            nym-connect/target/release/bundle/appimage/*.AppImage
-            nym-connect/target/release/bundle/appimage/*.AppImage.tar.gz*
+            nym-connect/desktop/target/release/bundle/appimage/*.AppImage
+            nym-connect/desktop/target/release/bundle/appimage/*.AppImage.tar.gz*

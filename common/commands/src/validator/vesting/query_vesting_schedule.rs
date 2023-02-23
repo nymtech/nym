@@ -53,8 +53,10 @@ pub async fn query(args: Args, client: QueryClient, address_from_mnemonic: Optio
 
     // TODO: get better copy text for what these are
     let vesting_coins = client.vesting_coins(&vesting_address, None).await;
-    let delegated_vesting = client.delegated_vesting(&vesting_address, None).await;
-    let delegated_free = client.delegated_free(&vesting_address, None).await;
+    let delegated = client.get_delegated_coins(&vesting_address).await;
+    let pledged = client.get_pledged_coins(&vesting_address).await;
+    let withdrawn = client.get_withdrawn_coins(&vesting_address).await;
+    let staked = client.get_staked_coins(&vesting_address).await;
 
     original_vesting.as_ref().map_or_else(show_error, |res| {
         println!(
@@ -139,11 +141,17 @@ pub async fn query(args: Args, client: QueryClient, address_from_mnemonic: Optio
     vesting_coins.map_or_else(show_error, |res| {
         println!("Vesting coins:     {}   ({})", pretty_coin(&res), res);
     });
-    delegated_vesting.map_or_else(show_error, |res| {
-        println!("Delegated vesting: {}   ({})", pretty_coin(&res), res);
+    withdrawn.map_or_else(show_error, |res| {
+        println!("Withdrawn:         {}   ({})", pretty_coin(&res), res);
     });
-    delegated_free.map_or_else(show_error, |res| {
-        println!("Delegation free:   {}   ({})", pretty_coin(&res), res);
+    delegated.map_or_else(show_error, |res| {
+        println!("Delegated:         {}   ({})", pretty_coin(&res), res);
+    });
+    pledged.map_or_else(show_error, |res| {
+        println!("Pledged:           {}   ({})", pretty_coin(&res), res);
+    });
+    staked.map_or_else(show_error, |res| {
+        println!("Staked:            {}   ({})", pretty_coin(&res), res);
     });
 
     println!();

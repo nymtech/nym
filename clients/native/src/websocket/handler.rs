@@ -1,9 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::{
-    ConnectionCommand, ConnectionCommandSender, ConnectionId, LaneQueueLengths, TransmissionLane,
-};
 use client_core::client::replies::reply_controller::requests::ReplyControllerSender;
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
@@ -17,6 +14,9 @@ use log::*;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::receiver::ReconstructedMessage;
+use nym_task::connections::{
+    ConnectionCommand, ConnectionCommandSender, ConnectionId, LaneQueueLengths, TransmissionLane,
+};
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::Instant;

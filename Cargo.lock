@@ -676,19 +676,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "client-connections"
-version = "0.1.0"
-dependencies = [
- "futures",
- "log",
-]
-
-[[package]]
 name = "client-core"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "async-trait",
- "client-connections",
  "config",
  "dashmap 5.4.0",
  "dirs",
@@ -804,7 +795,7 @@ dependencies = [
  "cfg-if",
  "handlebars",
  "log",
- "network-defaults",
+ "nym-network-defaults",
  "serde",
  "toml",
  "url",
@@ -1022,9 +1013,9 @@ dependencies = [
  "credential-storage",
  "credentials",
  "log",
- "network-defaults",
  "nym-bin-common",
  "nym-crypto",
+ "nym-network-defaults",
  "nym-pemstore",
  "rand 0.7.3",
  "serde",
@@ -1610,6 +1601,7 @@ dependencies = [
  "ff 0.11.1",
  "group 0.11.0",
  "lazy_static",
+ "nym-contracts-common",
  "nym-pemstore",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -1829,7 +1821,7 @@ dependencies = [
 
 [[package]]
 name = "explorer-api"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "chrono",
  "clap 4.1.4",
@@ -1839,10 +1831,10 @@ dependencies = [
  "itertools",
  "log",
  "maxminddb",
- "network-defaults",
  "nym-bin-common",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
+ "nym-network-defaults",
  "nym-task",
  "okapi",
  "pretty_env_logger",
@@ -2107,8 +2099,8 @@ dependencies = [
  "getrandom 0.2.8",
  "log",
  "mobile-storage",
- "network-defaults",
  "nym-crypto",
+ "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
@@ -2706,15 +2698,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "inclusion-probability"
-version = "0.1.0"
-dependencies = [
- "log",
- "rand 0.8.5",
- "thiserror",
-]
-
-[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3160,9 +3143,9 @@ dependencies = [
  "futures",
  "humantime-serde",
  "log",
- "network-defaults",
  "nym-bin-common",
  "nym-crypto",
+ "nym-network-defaults",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
  "nym-sphinx-forwarding",
@@ -3237,19 +3220,6 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
-]
-
-[[package]]
-name = "network-defaults"
-version = "0.1.0"
-dependencies = [
- "cfg-if",
- "dotenv",
- "hex-literal",
- "once_cell",
- "serde",
- "thiserror",
- "url",
 ]
 
 [[package]]
@@ -3342,7 +3312,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3368,7 +3338,6 @@ dependencies = [
  "gateway-client",
  "getset",
  "humantime-serde",
- "inclusion-probability",
  "lazy_static",
  "log",
  "multisig-contract-common",
@@ -3376,6 +3345,7 @@ dependencies = [
  "nym-bin-common",
  "nym-contracts-common",
  "nym-crypto",
+ "nym-inclusion-probability",
  "nym-mixnet-contract-common",
  "nym-pemstore",
  "nym-sphinx",
@@ -3452,7 +3422,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -3463,9 +3433,9 @@ dependencies = [
  "clap_complete_fig",
  "dotenv",
  "log",
- "network-defaults",
  "nym-bin-common",
  "nym-cli-commands",
+ "nym-network-defaults",
  "pretty_env_logger",
  "serde",
  "serde_json",
@@ -3494,8 +3464,8 @@ dependencies = [
  "k256",
  "log",
  "multisig-contract-common",
- "network-defaults",
  "nym-mixnet-contract-common",
+ "nym-network-defaults",
  "nym-vesting-contract-common",
  "rand 0.6.5",
  "serde",
@@ -3510,10 +3480,9 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "clap 4.1.4",
- "client-connections",
  "client-core",
  "coconut-interface",
  "config",
@@ -3525,9 +3494,9 @@ dependencies = [
  "gateway-requests",
  "lazy_static",
  "log",
- "network-defaults",
  "nym-bin-common",
  "nym-crypto",
+ "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
@@ -3551,7 +3520,6 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
- "dkg",
  "schemars",
  "serde",
  "serde_json",
@@ -3585,7 +3553,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3607,10 +3575,10 @@ dependencies = [
  "log",
  "mixnet-client",
  "mixnode-common",
- "network-defaults",
  "nym-api-requests",
  "nym-bin-common",
  "nym-crypto",
+ "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
@@ -3630,6 +3598,15 @@ dependencies = [
  "tokio-util",
  "url",
  "validator-client",
+]
+
+[[package]]
+name = "nym-inclusion-probability"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "rand 0.8.5",
+ "thiserror",
 ]
 
 [[package]]
@@ -3653,7 +3630,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "anyhow",
  "atty",
@@ -3694,12 +3671,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-network-defaults"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "dotenv",
+ "hex-literal",
+ "once_cell",
+ "serde",
+ "thiserror",
+ "url",
+]
+
+[[package]]
 name = "nym-network-requester"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "async-trait",
  "clap 4.1.4",
- "client-connections",
  "client-core",
  "config",
  "dirs",
@@ -3707,9 +3696,9 @@ dependencies = [
  "ipnetwork 0.20.0",
  "lazy_static",
  "log",
- "network-defaults",
  "nym-bin-common",
  "nym-crypto",
+ "nym-network-defaults",
  "nym-sdk",
  "nym-sphinx",
  "nym-task",
@@ -3734,7 +3723,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "dirs",
  "log",
@@ -3775,15 +3764,14 @@ dependencies = [
 name = "nym-sdk"
 version = "0.1.0"
 dependencies = [
- "client-connections",
  "client-core",
  "futures",
  "gateway-client",
  "gateway-requests",
  "log",
- "network-defaults",
  "nym-bin-common",
  "nym-crypto",
+ "nym-network-defaults",
  "nym-sphinx",
  "nym-task",
  "pretty_env_logger",
@@ -3798,10 +3786,9 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "clap 4.1.4",
- "client-connections",
  "client-core",
  "coconut-interface",
  "config",
@@ -3814,9 +3801,9 @@ dependencies = [
  "lazy_static",
  "log",
  "mobile-storage",
- "network-defaults",
  "nym-bin-common",
  "nym-crypto",
+ "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
@@ -3961,7 +3948,7 @@ dependencies = [
 name = "nym-sphinx-types"
 version = "0.1.0"
 dependencies = [
- "sphinx",
+ "sphinx-packet",
 ]
 
 [[package]]
@@ -4019,7 +4006,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract"
-version = "1.1.3"
+version = "1.1.4"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
@@ -4052,8 +4039,8 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "hex-literal",
- "network-defaults",
  "nym-mixnet-contract-common",
+ "nym-network-defaults",
  "nym-types",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
@@ -4613,7 +4600,6 @@ name = "proxy-helpers"
 version = "0.1.0"
 dependencies = [
  "bytes",
- "client-connections",
  "futures",
  "log",
  "nym-task",
@@ -5719,9 +5705,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "sphinx"
+name = "sphinx-packet"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=e05a1992522ed0afd3c6fcac160313ffc9bb306a#e05a1992522ed0afd3c6fcac160313ffc9bb306a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc43eda802856ee82a7555c7b75ceb9e07451741c7a2f5f23d036020e01189d4"
 dependencies = [
  "aes 0.7.5",
  "arrayref",
@@ -6896,10 +6883,10 @@ dependencies = [
  "itertools",
  "log",
  "multisig-contract-common",
- "network-defaults",
  "nym-api-requests",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
+ "nym-network-defaults",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
  "prost 0.10.4",

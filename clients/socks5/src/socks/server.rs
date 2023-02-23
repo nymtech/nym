@@ -4,12 +4,12 @@ use super::{
     authentication::Authenticator, client::SocksClient, mixnet_responses::MixnetResponseListener,
 };
 use crate::socks::client;
-use client_connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
 use nym_task::TaskClient;
 use proxy_helpers::connection_controller::Controller;
 use std::net::SocketAddr;

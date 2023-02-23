@@ -1,6 +1,5 @@
 use std::{path::Path, sync::Arc};
 
-use client_connections::TransmissionLane;
 use client_core::{
     client::{
         base_client::{
@@ -18,7 +17,10 @@ use nym_sphinx::{
     addressing::clients::{ClientIdentity, Recipient},
     receiver::ReconstructedMessage,
 };
-use nym_task::TaskManager;
+use nym_task::{
+    connections::{ConnectionCommandSender, LaneQueueLengths, TransmissionLane},
+    TaskManager,
+};
 
 use futures::StreamExt;
 use validator_client::nyxd::SigningNyxdClient;
@@ -500,13 +502,13 @@ impl MixnetClient {
     /// Get a shallow clone of [`ConnectionCommandSender`]. This is useful if you want to e.g
     /// explictly close a transmission lane that is still sending data even though it should
     /// cancel.
-    pub fn connection_command_sender(&self) -> client_connections::ConnectionCommandSender {
+    pub fn connection_command_sender(&self) -> ConnectionCommandSender {
         self.client_input.connection_command_sender.clone()
     }
 
     /// Get a shallow clone of [`LaneQueueLengths`]. This is useful to manually implement some form
     /// of backpressure logic.
-    pub fn shared_lane_queue_lengths(&self) -> client_connections::LaneQueueLengths {
+    pub fn shared_lane_queue_lengths(&self) -> LaneQueueLengths {
         self.client_state.shared_lane_queue_lengths.clone()
     }
 

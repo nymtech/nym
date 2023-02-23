@@ -6,7 +6,7 @@ use crate::nyxd::traits::MixnetQueryClient;
 use colored::Colorize;
 use core::fmt;
 use itertools::Itertools;
-use network_defaults::NymNetworkDetails;
+use nym_network_defaults::NymNetworkDetails;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::time::Duration;

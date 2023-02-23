@@ -30,8 +30,6 @@ use coconut_interface::Base58;
 #[cfg(feature = "nyxd-client")]
 use cw3::ProposalResponse;
 #[cfg(feature = "nyxd-client")]
-use network_defaults::NymNetworkDetails;
-#[cfg(feature = "nyxd-client")]
 use nym_api_requests::models::MixNodeBondAnnotated;
 #[cfg(feature = "nyxd-client")]
 use nym_mixnet_contract_common::{
@@ -40,6 +38,8 @@ use nym_mixnet_contract_common::{
     pending_events::{PendingEpochEvent, PendingIntervalEvent},
     Delegation, IdentityKey, RewardedSetNodeStatus, UnbondedMixnode,
 };
+#[cfg(feature = "nyxd-client")]
+use nym_network_defaults::NymNetworkDetails;
 #[cfg(feature = "nyxd-client")]
 use std::str::FromStr;
 use url::Url;

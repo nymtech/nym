@@ -705,6 +705,8 @@ dependencies = [
  "time 0.3.17",
  "tokio",
  "tokio-stream",
+ "tokio-tungstenite 0.14.0",
+ "tungstenite 0.13.0",
  "url",
  "validator-client",
  "wasm-bindgen",

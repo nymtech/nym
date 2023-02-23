@@ -304,7 +304,7 @@ where
         }
         let gateway_address = self.gateway_config.gateway_listener.clone();
         if gateway_address.is_empty() {
-            return Err(ClientCoreError::GatwayAddressUnknown);
+            return Err(ClientCoreError::GatewayAddressUnknown);
         }
 
         let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)

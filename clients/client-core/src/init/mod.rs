@@ -77,9 +77,11 @@ pub async fn register_with_gateway(
     key_manager: &mut KeyManager,
     nym_api_endpoints: Vec<Url>,
     chosen_gateway_id: Option<identity::PublicKey>,
+    by_latency: bool,
 ) -> Result<GatewayEndpointConfig, ClientCoreError> {
     // Get the gateway details of the gateway we will use
-    let gateway = helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id).await?;
+    let gateway =
+        helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id, by_latency).await?;
     log::debug!("Querying gateway gives: {}", gateway);
 
     let our_identity = key_manager.identity_keypair();
@@ -102,6 +104,7 @@ pub async fn setup_gateway_from_config<C, T>(
     register_gateway: bool,
     user_chosen_gateway_id: Option<identity::PublicKey>,
     config: &Config<T>,
+    by_latency: bool,
 ) -> Result<GatewayEndpointConfig, ClientCoreError>
 where
     C: NymConfig + ClientCoreConfigTrait,
@@ -117,9 +120,12 @@ where
     }
 
     // Else, we preceed by querying the nym-api
-    let gateway =
-        helpers::query_gateway_details(config.get_nym_api_endpoints(), user_chosen_gateway_id)
-            .await?;
+    let gateway = helpers::query_gateway_details(
+        config.get_nym_api_endpoints(),
+        user_chosen_gateway_id,
+        by_latency,
+    )
+    .await?;
     log::debug!("Querying gateway gives: {}", gateway);
 
     // If we are not registering, just return this and assume the caller has the keys already and

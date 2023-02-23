@@ -24,6 +24,11 @@ pub(crate) struct Init {
     #[clap(long)]
     gateway: Option<identity::PublicKey>,
 
+    /// Specifies whether the new gateway should be determined based by latency as opposed to being chosen
+    /// uniformly.
+    #[clap(long, conflicts_with = "gateway")]
+    latency_based_selection: bool,
+
     /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
     /// potentially causing loss of access.
     #[clap(long)]
@@ -115,6 +120,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
         register_gateway,
         user_chosen_gateway_id,
         config.get_base(),
+        args.latency_based_selection,
     )
     .await
     .map_err(|source| {

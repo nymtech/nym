@@ -17,7 +17,7 @@ cd ${PWD}${RELEASE_DIRECTORY}
 
 # we have now the bundled the client into the network requester, more a less the same output as the client
 
-curl -L https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/$BINARY_NAME -o $BINARY_NAME
+curl -L https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/${BINARY_NAME} -o $BINARY_NAME
 chmod u+x $BINARY_NAME
 
 #----------------------------------------------------------------------------------------------------------

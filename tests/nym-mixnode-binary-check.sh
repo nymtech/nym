@@ -12,6 +12,7 @@ BINARY_NAME="nym-mixnode"
 
 # install the current release binary
 # so this is dependant on running on a linux machine for the time being
+
 curl -L "https://builds.ci.nymte.ch/master/${BINARY_NAME}" -o $BINARY_NAME
 chmod u+x $BINARY_NAME
 

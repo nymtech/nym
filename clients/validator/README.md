@@ -1,40 +1,39 @@
-Nym Validator Client
-====================
+# Nym Validator Client (Typescript)
 
-A TypeScript client for interacting with CosmWasm smart contracts in Nym validators. 
+A TypeScript client for interacting with CosmWasm smart contracts in Nym validators.
 
-Running examples
------------------
-
-With the code checked out, `cd examples`. This folder contains runnable example code that will set up a blockchain and allow you to interact with it through the client. 
-
-Running tests
--------------
+Include the SDK in your project:
 
 ```
-npm test
+yarn add @nymproject/nym-validator-client
 ```
 
-You can also trigger test execution with a test watcher. I don't have the centuries of life left to me that are needed to fight through the arcana of wiring up a working TypeScript mocha triggered execution setup, so for now my Cargo-based hack is:
-
+Connect to validator and make queries
 
 ```
-cargo watch -s "cd clients/validator && npm test"
+import Validator from '@nymproject/nym-validator-client'
+
+const main = async () => {
+
+ const client = await Validator.connectForQuery(rpcAddress, validatorAddress, prefix, mixnetContractAddress, vestingContractAddress, denom)
+
+ client.getBalance(address)
+
+}
+
 ```
 
-It's ugly but works fine if you have Cargo installed. TypeScript setup help happily accepted here. 
+Connect to validator for performing actions
 
-Generating Documentation
-------------------------
+```
+import Validator from '@nymproject/nym-validator-client'
 
-You can generate docs by running `npm run docs`. Generated output will appear in the `docs` directory. 
+const main = async () => {
 
-Packaging
-------------------------
+ const client = await Validator.connect(mnemonic, rpcAddress, validatorAddress, prefix, mixnetContractAddress, vestingContractAddress, denom)
 
-If you're a Nym platform developer who's made changes to the client and wants to re-publish the package to NPM, here's how you do it: 
+ const res = await client.send(address, [{ amount: '10000000', denom: 'unym' }]);
 
-1. Bump the version number (use SemVer)
-1. `npm run build`
-1. `npm login` (if you haven't already)
-1. `npm publish`
+}
+
+```

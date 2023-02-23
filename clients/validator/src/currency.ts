@@ -1,6 +1,6 @@
 import { Decimal } from '@cosmjs/math';
 import { Coin } from '@cosmjs/stargate';
-import { CoinMap } from './shared';
+import { CoinMap } from './shared-types';
 
 // NARROW NO-BREAK SPACE (U+202F)
 const thinSpace = '\u202F';

@@ -1,7 +1,7 @@
 use crate::error::TypesError;
-use nym_config::defaults::{DenomDetails, DenomDetailsOwned, NymNetworkDetails};
 use cosmwasm_std::Fraction;
 use cosmwasm_std::{Decimal, Uint128};
+use nym_config::defaults::{DenomDetails, DenomDetailsOwned, NymNetworkDetails};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;

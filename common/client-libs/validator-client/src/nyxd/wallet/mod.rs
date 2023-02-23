@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::error::NyxdError;
-use nym_config::defaults;
 use cosmrs::bip32::{DerivationPath, XPrv};
 use cosmrs::crypto::secp256k1::{Signature, SigningKey};
 use cosmrs::crypto::PublicKey;
 use cosmrs::tx::SignDoc;
 use cosmrs::{tx, AccountId};
+use nym_config::defaults;
 
 /// Derivation information required to derive a keypair and an address from a mnemonic.
 #[derive(Debug, Clone)]

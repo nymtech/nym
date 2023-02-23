@@ -5,9 +5,9 @@ use super::config::Config;
 use ::nym_config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, VESTING_CONTRACT_ADDRESS};
 use anyhow::Result;
 use clap::Parser;
-use nym_config::{NymConfig, OptionalSet};
 use lazy_static::lazy_static;
 use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_config::{NymConfig, OptionalSet};
 use std::fs;
 use validator_client::nyxd;
 

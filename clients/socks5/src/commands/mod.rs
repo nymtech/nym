@@ -4,10 +4,10 @@
 use crate::client::config::{BaseConfig, Config};
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
-use nym_config::OptionalSet;
 use lazy_static::lazy_static;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
+use nym_config::OptionalSet;
 use std::error::Error;
 
 pub mod init;

@@ -3,8 +3,8 @@
 
 use crate::config::{missing_string_value, Config};
 use clap::Args;
-use nym_config::NymConfig;
 use nym_bin_common::version_checker::Version;
+use nym_config::NymConfig;
 use std::fmt::Display;
 use std::process;
 

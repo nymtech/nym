@@ -6,7 +6,6 @@ set -e
 
 PWD="../"
 RELEASE_DIRECTORY="target/release"
-RELEASE_VERSION_NUMBER=$1
 RANDOM_ID=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
 ID="test-${RANDOM_ID}"
 BINARY_NAME="nym-network-requester"
@@ -15,7 +14,7 @@ echo "the version number is ${RELEASE_VERSION_NUMBER} to be installed from githu
 
 # we have now the bundled the client into the network requester, more a less the same output as the client
 
-curl -L "https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/${BINARY_NAME}" -o $BINARY_NAME
+curl -L "https://builds.ci.nymte.ch/master/${BINARY_NAME}" -o $BINARY_NAME
 chmod u+x $BINARY_NAME
 
 #----------------------------------------------------------------------------------------------------------

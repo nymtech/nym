@@ -37,7 +37,7 @@ export const ServiceProviderSettings = () => {
             Select your Service Provider
           </Typography>
           <Typography color="grey.300" variant="body2" mb={2}>
-            Pick a service provider form the list or enter your own
+            Pick a service provider from the list or enter your own
           </Typography>
           <FormControl fullWidth>
             <FormControlLabel
@@ -59,7 +59,7 @@ export const ServiceProviderSettings = () => {
               <Autocomplete
                 clearOnEscape
                 sx={{ mt: 1 }}
-                options={serviceProviders.map((sp) => sp.address)}
+                options={serviceProviders.map((sp) => `${sp.address.substring(0, 20)}...`)}
                 freeSolo
                 onChange={(e, value) => handleSelectFromList(value)}
                 value={spAddress}
@@ -73,6 +73,7 @@ export const ServiceProviderSettings = () => {
                     placeholder="Service provider"
                   />
                 )}
+                ListboxProps={{ style: { background: 'unset', fontSize: '14px' } }}
               />
             )}
           </FormControl>

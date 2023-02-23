@@ -58,6 +58,7 @@ export const GatewaySettings = () => {
                 onValidate={handleIsValidGatewayKey}
                 sx={{ mt: 1 }}
                 disabled={connectionStatus === 'connected' || !userDefinedGateway?.isActive}
+                autoFocus
               />
             )}
           </FormControl>

@@ -26,14 +26,14 @@ check_mixnode_binary_build() {
   if [ -f "$BINARY_NAME" ]; then
     echo "running init tests"
     # we wont use config env files for now
-    OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST} >/dev/null)
+    OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST}) >/dev/null
     # get jq values for things we can assert against
     # tidy this bit up - okay for first push
 
     VALUE="$(echo ${OUTPUT} | jq .wallet_address | tr -d '"')"
 
     # do asserts here based upon the output on init
-    assert "echo ${VALUE}" $(echo ${WALLET_ADDRESS_CONST})
+    assert $(echo ${VALUE}) $(echo ${WALLET_ADDRESS_CONST})
     assert_end nym-mixnode-tests
   else
     echo "exiting test no binary found"

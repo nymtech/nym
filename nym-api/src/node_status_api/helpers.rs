@@ -332,7 +332,7 @@ pub(crate) async fn _get_mixnode_avg_uptime(
     Ok(UptimeResponse {
         mix_id,
         avg_uptime: mixnode.node_performance.last_24h.round_to_integer(),
-        performance_last_24h: mixnode.node_performance.last_24h,
+        node_performance: mixnode.node_performance,
     })
 }
 

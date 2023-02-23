@@ -51,8 +51,11 @@ async fn block_until_coconut_is_available<C: Clone + CosmWasmClient + Send + Syn
 
             break;
         } else {
-            // Use 20 additional seconds to avoid the exact moment of going into the final epoch state
-            let secs_until_final = epoch.final_timestamp_secs() + 20 - current_timestamp_secs;
+            // Use 1 additional second to not start the next iteration immediately and spam get_current_epoch queries
+            let secs_until_final = epoch
+                .final_timestamp_secs()
+                .saturating_sub(current_timestamp_secs)
+                + 1;
             info!("Approximately {} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment.", secs_until_final);
             std::thread::sleep(Duration::from_secs(secs_until_final));
         }

@@ -6,7 +6,7 @@ set -e
 
 PWD="../"
 RELEASE_DIRECTORY="target/release"
-VERSION_NUMBER=$1
+RELEASE_VERSION_NUMBER=$1
 RANDOM_ID=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
 ID="test-${RANDOM_ID}"
 BINARY_NAME="nym-network-requester"

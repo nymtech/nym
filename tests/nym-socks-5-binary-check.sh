@@ -6,7 +6,7 @@ set -e
 
 PWD="../"
 RELEASE_DIRECTORY="target/release"
-VERSION_NUMBER=$1
+RELEASE_VERSION_NUMBER=$1
 MOCK_SERVICE_PROVIDER="36cUqdggtdXixZhmXfyZm3Dep3Q5QsKVPotMrVSmS4oY.ZCCAdFPwPNSTtUMYveA62ttEFe8FDiB3cdheWHtCytX@6Lnxj9vD2YMtSmfe8zp5RBtj1uZLYQAFRxY9q7ANwrZz"
 RANDOM_ID=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
 ID="test-${RANDOM_ID}"

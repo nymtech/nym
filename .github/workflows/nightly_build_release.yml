@@ -66,9 +66,9 @@ jobs:
           command: build
           args: --workspace
 
-      - name: Reclaim some disk space (because Windows is being annoying)
+      - name: Reclaim some disk space
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'ubuntu-20.04' }}
         with:
           command: clean
 
@@ -78,9 +78,9 @@ jobs:
           command: build
           args: --workspace --examples
 
-      - name: Reclaim some disk space (because Windows is being annoying)
+      - name: Reclaim some disk space
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'ubuntu-20.04' }}
         with:
           command: clean
 
@@ -90,7 +90,7 @@ jobs:
           command: test
           args: --workspace
 
-      - name: Reclaim some disk space (because Windows is being annoying)
+      - name: Reclaim some disk space
         uses: actions-rs/cargo@v1
         if: ${{ matrix.os == 'windows-latest' || matrix.os == 'ubuntu-20.04' }}
         with:
@@ -103,9 +103,9 @@ jobs:
           command: test
           args: --workspace -- --ignored
 
-      - name: Reclaim some disk space (because Windows is being annoying)
+      - name: Reclaim some disk space
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'ubuntu-20.04' }}
         with:
           command: clean
 

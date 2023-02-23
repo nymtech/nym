@@ -91,7 +91,7 @@ mod tests {
     use super::*;
     use crate::epoch_state::transactions::advance_epoch_state;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::MULTISIG_CONTRACT;
+    use crate::support::tests::helpers::{add_fixture_dealer, MULTISIG_CONTRACT};
     use coconut_dkg_common::dealer::DealerDetails;
     use coconut_dkg_common::types::{EpochState, TimeConfiguration};
     use cosmwasm_std::testing::{mock_env, mock_info};
@@ -104,6 +104,7 @@ mod tests {
         let info = mock_info("requester", &[]);
         let share = "share".to_string();
 
+        add_fixture_dealer(deps.as_mut());
         env.block.time = env
             .block
             .time
@@ -171,6 +172,7 @@ mod tests {
                     .to_string()
             }
         );
+        add_fixture_dealer(deps.as_mut());
         env.block.time = env
             .block
             .time
@@ -247,6 +249,7 @@ mod tests {
             }
         );
 
+        add_fixture_dealer(deps.as_mut());
         env.block.time = env
             .block
             .time
@@ -292,6 +295,7 @@ mod tests {
         let share = "share".to_string();
         let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
 
+        add_fixture_dealer(deps.as_mut());
         env.block.time = env
             .block
             .time

@@ -147,7 +147,7 @@ impl StatisticsCollector for ServiceStatisticsCollector {
                         .get(&requested_service)
                         .copied()
                         .unwrap_or(0);
-                    statistics_common::StatsData::Service(StatsServiceData::new(
+                    nym_statistics_common::StatsData::Service(StatsServiceData::new(
                         requested_service,
                         request_bytes,
                         response_bytes,

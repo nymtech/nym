@@ -4,7 +4,10 @@ import { Link, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/
 import { AppVersion } from 'src/components/AppVersion';
 import { toggleLogViewer } from 'src/utils';
 
-const menuSchema = [{ title: 'Select your gateway', path: 'gateway' }];
+const menuSchema = [
+  { title: 'Select your gateway', path: 'gateway' },
+  { title: 'Select a service provider', path: 'service-provider' },
+];
 
 export const SettingsMenu = () => (
   <Stack justifyContent="space-between" height="100%">

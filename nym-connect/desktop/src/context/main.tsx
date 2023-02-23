@@ -8,7 +8,7 @@ import { UserDefinedGateway } from 'src/types/gateway';
 import { forage } from '@tauri-apps/tauri-forage';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
-import { ServiceProvider } from '../types/directory';
+import { ServiceProvider, Services } from '../types/directory';
 
 const FORAGE_KEY = 'nym-connect-user-gateway';
 
@@ -25,6 +25,7 @@ export type TClientContext = {
   selectedProvider?: ServiceProvider;
   showInfoModal: boolean;
   userDefinedGateway?: UserDefinedGateway;
+  serviceProviders?: ServiceProvider[];
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
@@ -165,6 +166,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       showInfoModal,
       setConnectionStats,
       selectedProvider,
+      serviceProviders,
       connectedSince,
       setConnectedSince,
       setRandomSerivceProvider,
@@ -180,6 +182,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       appVersion,
       error,
       showInfoModal,
+      serviceProviders,
       connectedSince,
       connectionStatus,
       connectionStats,

@@ -4,6 +4,13 @@ PWD="../"
 GIT_BRANCH=$1
 VERSION_NUMBER=$2
 
+# run the script from the correct location 
+
+if [[ $(pwd) != */tests ]]; then
+    echo "Please run the script from the 'tests' directory."
+    exit 1
+fi
+
 # lets make sure the branch is up to date
 # ---------------------------------------
 git checkout develop 

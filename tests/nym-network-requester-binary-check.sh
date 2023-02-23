@@ -6,18 +6,16 @@ set -e
 
 PWD="../"
 RELEASE_DIRECTORY="target/release"
-VERSION_NUMBER=$1
+RELEASE_VERSION_NUMBER=$1
 RANDOM_ID=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
 ID="test-${RANDOM_ID}"
 BINARY_NAME="nym-network-requester"
 
-echo "the version number is ${VERSION_NUMBER} to be installed from github"
-
-cd ${PWD}${RELEASE_DIRECTORY}
+echo "the version number is ${RELEASE_VERSION_NUMBER} to be installed from github"
 
 # we have now the bundled the client into the network requester, more a less the same output as the client
 
-curl -L https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/$BINARY_NAME -o $BINARY_NAME
+curl -L "https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/${BINARY_NAME}" -o $BINARY_NAME
 chmod u+x $BINARY_NAME
 
 #----------------------------------------------------------------------------------------------------------
@@ -40,12 +38,9 @@ check_nym_network_requester_binary_build() if [ -f $BINARY_NAME ]; then
     VALUE=${VALUE#\"}
     VALUE=${VALUE%\"}
 
-    echo "${OUTPUT}"
-    sleep 2
-
     # do asserts here based upon the output on init
 
-    assert $(echo ${VALUE}) $(echo ${ID})
+    assert "echo ${VALUE}" $(echo ${ID})
     assert_end nym-network-requester-tests
   else
     echo "exting test no binary found"
@@ -61,7 +56,7 @@ fi
 
 check_nym_network_requester_binary_build
 
-first_init=$(cat /root/.nym/service-providers/network-requester/${ID}/config/config.toml | grep -v "^version =")
+first_init=$(cat ${HOME}/.nym/service-providers/network-requester/${ID}/config/config.toml | grep -v "^version =")
 
 #----------------------------------------------------------------------------------------------------------
 # lets remove the binary then navigate to the target/release directory for checking the latest version
@@ -90,7 +85,7 @@ echo "-------------------------------------"
 
 check_nym_network_requester_binary_build
 
-second_init=$(cat /root/.nym/service-providers/network-requester/${ID}/config/config.toml | grep -v "^version =")
+second_init=$(cat ${HOME}/.nym/service-providers/network-requester/${ID}/config/config.toml | grep -v "^version =")
 
 diff -w <(echo "$first_init") <(echo "$second_init")
 

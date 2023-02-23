@@ -8,8 +8,9 @@
   "scripts": {
     "build": "rollup -c rollup.config.mjs",
     "build:types": "rollup-type-bundler --dist ./dist",
-    "test": "ts-mocha -p tests/tsconfig.test.json tests/**/*.test.ts",
-    "testmock": "ts-mocha tests/mock/*.test.ts",
+    "build:prod": "sh ./scripts/build-prod.sh",
+    "test": "ts-mocha -p ./tests/tsconfig.test.json tests/**/*.test.ts",
+    "testmock": "ts-mocha -p ./tests/tsconfig.test.json tests/mock/*.test.ts",
     "coverage": "nyc npm test",
     "clean": "rm -rf ./dist",
     "lint": "eslint",

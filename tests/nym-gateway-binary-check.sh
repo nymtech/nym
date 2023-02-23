@@ -43,7 +43,7 @@ check_gateway_binary_build() if [ -f nym-gateway ]; then
 
   # do asserts here based upon the output on init
 
-  assert $(echo ${VALUE}) $(echo ${WALLET_ADDRESS_CONST})
+  assert "echo ${VALUE}" $(echo ${WALLET_ADDRESS_CONST})
   assert_end nym-gateway-tests
 else
   echo "exting test no binary found"

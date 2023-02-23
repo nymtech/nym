@@ -22,6 +22,7 @@ export const IdentityKeyFormField: FCWithChildren<{
   size?: 'small' | 'medium';
   sx?: SxProps;
   disabled?: boolean;
+  autoFocus?: boolean;
 }> = ({
   required,
   fullWidth,
@@ -37,6 +38,7 @@ export const IdentityKeyFormField: FCWithChildren<{
   showTickOnValid = true,
   size,
   disabled,
+  autoFocus,
 }) => {
   const [value, setValue] = React.useState<string | undefined>(initialValue);
   const [validationError, setValidationError] = React.useState<string | undefined>();
@@ -106,6 +108,7 @@ export const IdentityKeyFormField: FCWithChildren<{
       InputLabelProps={{ shrink: true }}
       size={size}
       disabled={disabled}
+      autoFocus={autoFocus}
     />
   );
 };

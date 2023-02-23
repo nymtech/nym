@@ -34,16 +34,20 @@ check_gateway_binary_build() if [ -f "$BINARY_NAME" ]; then
   OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST}) >/dev/null 2>&1
 
   # get jq values for things we can assert against
-  VALUE=$(echo ${OUTPUT} | jq .wallet_address)
+  VALUE=$(echo ${OUTPUT} | jq .data_store)
   VALUE=${VALUE#\"}
   VALUE=${VALUE%\"}
 
   echo $OUTPUT
-  sleep 2
+  #------------------------------------------------------
+  USER=$(whoami)
+  DATA_STORE="/${USER}/.nym/gateways/${ID}/data/db.sqlite"
+  #------------------------------------------------------
 
-  # do asserts here based upon the output on init
+  # do asserts here based upon the output
+  # check the data store path
 
-  assert "echo ${VALUE}" $(echo ${WALLET_ADDRESS_CONST})
+  assert "echo ${VALUE}" $(echo ${DATA_STORE})
   assert_end nym-gateway-tests
 else
   echo "exting test no binary found"

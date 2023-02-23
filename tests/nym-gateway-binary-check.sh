@@ -15,8 +15,6 @@ BINARY_NAME="nym-gateway"
 
 echo "the version number is ${VERSION_NUMBER} to be installed from github"
 
-cd ${PWD}${RELEASE_DIRECTORY}
-
 # install the current release binary
 # so this is dependant on running on a linux machine for the time being
 

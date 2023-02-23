@@ -13,8 +13,6 @@ BINARY_NAME="nym-network-requester"
 
 echo "the version number is ${VERSION_NUMBER} to be installed from github"
 
-cd ${PWD}${RELEASE_DIRECTORY}
-
 # we have now the bundled the client into the network requester, more a less the same output as the client
 
 curl -L "https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/${BINARY_NAME}" -o $BINARY_NAME

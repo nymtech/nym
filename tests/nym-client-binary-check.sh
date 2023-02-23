@@ -39,9 +39,6 @@ check_nym_client_binary_build() if [ -f $BINARY_NAME ]; then
     VALUE=${VALUE#\"}
     VALUE=${VALUE%\"}
 
-    echo "${OUTPUT}"
-    sleep 2
-
     # do asserts here based upon the output on init
 
     assert "echo ${VALUE}" $(echo ${ID})

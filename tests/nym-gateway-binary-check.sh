@@ -36,7 +36,6 @@ check_gateway_binary_build() if [ -f "$BINARY_NAME" ]; then
   VALUE=${VALUE#\"}
   VALUE=${VALUE%\"}
 
-  echo $OUTPUT
   #------------------------------------------------------
   USER=$(whoami)
   DATA_STORE="/${USER}/.nym/gateways/${ID}/data/db.sqlite"
@@ -59,7 +58,7 @@ fi
 check_gateway_binary_build
 # whoami
 # this is dependant on where it runs on ci potentially, will need to tweak this in the future
-first_init=$(cat /root/.nym/gateways/${ID}/config/config.toml | grep -v "^\[gateway\]$" | grep -v "^version =")
+first_init=$(cat /root/.nym/gateways/${ID}/config/config.toml | grep -v "^\[gateway\]$" | grep -v "^version =" | grep -v "^cosmos_mnemonic =")
 
 #lets remove the binary then navigate to the target/release directory for checking the latest version
 if [ -f "$BINARY_NAME" ]; then
@@ -85,7 +84,7 @@ check_gateway_binary_build
 echo "diff the config files after each init"
 echo "-------------------------------------"
 
-second_init=$(cat /root/.nym/gateways/${ID}/config/config.toml | grep -v "^\[gateway\]$" | grep -v "^version =")
+second_init=$(cat /root/.nym/gateways/${ID}/config/config.toml | grep -v "^\[gateway\]$" | grep -v "^version =" | grep -v "^cosmos_mnemonic =")
 
 diff -w <(echo "$first_init") <(echo "$second_init")
 

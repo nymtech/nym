@@ -10,6 +10,7 @@ jobs:
   build:
     name: Build APK
     runs-on: custom-runner-linux
+    # runs-on: ubuntu-latest
     env:
       ANDROID_HOME: ${{ github.workspace }}/android-sdk
       NDK_VERSION: 25.1.8937393
@@ -23,15 +24,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get -y install \
-          libwebkit2gtk-4.0-dev \
           build-essential \
           unzip \
           curl \
           wget \
           libssl-dev \
-          libgtk-3-dev \
           squashfs-tools \
-          libayatana-appindicator3-dev \
           librsvg2-dev
 
       - name: Checkout

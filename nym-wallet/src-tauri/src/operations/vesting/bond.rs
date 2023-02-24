@@ -2,8 +2,12 @@ use crate::error::BackendError;
 use crate::nyxd_client;
 use crate::state::WalletState;
 use crate::{Gateway, MixNode};
+use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::MixNodeConfigUpdate;
 
+use crate::operations::helpers::{
+    verify_gateway_bonding_sign_payload, verify_mixnode_bonding_sign_payload,
+};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::transaction::TransactionExecuteResult;
@@ -13,7 +17,7 @@ use validator_client::nyxd::{Fee, VestingSigningClient};
 pub async fn vesting_bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
-    owner_signature: String,
+    msg_signature: MessageSignature,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
@@ -28,10 +32,20 @@ pub async fn vesting_bond_gateway(
         pledge_base,
         fee,
     );
+
+    let client = guard.current_client()?;
+    // check the signature to make sure the user copied it correctly
+    if let Err(err) =
+        verify_gateway_bonding_sign_payload(client, &gateway, &pledge_base, true, &msg_signature)
+            .await
+    {
+        log::warn!("failed to verify provided gateway bonding signature: {err}");
+        return Err(err);
+    }
     let res = guard
         .current_client()?
         .nyxd
-        .vesting_bond_gateway(gateway, &owner_signature, pledge_base, fee)
+        .vesting_bond_gateway(gateway, msg_signature.as_bs58_string(), pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -63,7 +77,7 @@ pub async fn vesting_unbond_gateway(
 pub async fn vesting_bond_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
-    owner_signature: String,
+    msg_signature: MessageSignature,
     pledge: DecCoin,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
@@ -81,10 +95,33 @@ pub async fn vesting_bond_mixnode(
       pledge_base,
       fee
     );
+
+    let client = guard.current_client()?;
+    // check the signature to make sure the user copied it correctly
+    if let Err(err) = verify_mixnode_bonding_sign_payload(
+        client,
+        &mixnode,
+        &cost_params,
+        &pledge_base,
+        true,
+        &msg_signature,
+    )
+    .await
+    {
+        log::warn!("failed to verify provided mixnode bonding signature: {err}");
+        return Err(err);
+    }
+
     let res = guard
         .current_client()?
         .nyxd
-        .vesting_bond_mixnode(mixnode, cost_params, &owner_signature, pledge_base, fee)
+        .vesting_bond_mixnode(
+            mixnode,
+            cost_params,
+            msg_signature.as_bs58_string(),
+            pledge_base,
+            fee,
+        )
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);

@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BackendError;
-use crate::operations::helpers::verify_mixnode_bonding_sign_payload;
+use crate::operations::helpers::{
+    verify_gateway_bonding_sign_payload, verify_mixnode_bonding_sign_payload,
+};
 use crate::state::WalletState;
 use crate::{nyxd_client, Gateway, MixNode};
 use nym_contracts_common::signing::MessageSignature;
@@ -28,7 +30,7 @@ pub struct NodeDescription {
 pub async fn bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
-    owner_signature: String,
+    msg_signature: MessageSignature,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
@@ -43,10 +45,20 @@ pub async fn bond_gateway(
         pledge_base,
         fee,
     );
-    let res = guard
-        .current_client()?
+
+    let client = guard.current_client()?;
+    // check the signature to make sure the user copied it correctly
+    if let Err(err) =
+        verify_gateway_bonding_sign_payload(client, &gateway, &pledge_base, false, &msg_signature)
+            .await
+    {
+        log::warn!("failed to verify provided gateway bonding signature: {err}");
+        return Err(err);
+    }
+
+    let res = client
         .nyxd
-        .bond_gateway(gateway, owner_signature, pledge_base, fee)
+        .bond_gateway(gateway, msg_signature.as_bs58_string(), pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -105,7 +117,8 @@ pub async fn bond_mixnode(
     )
     .await
     {
-        todo!()
+        log::warn!("failed to verify provided mixnode bonding signature: {err}");
+        return Err(err);
     }
 
     let res = client

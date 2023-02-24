@@ -1,6 +1,5 @@
 use nym_contracts_common::signing::SigningAlgorithm;
-use nym_crypto::asymmetric::identity;
-use nym_crypto::asymmetric::identity::{Ed25519RecoveryError, SignatureError};
+use nym_crypto::asymmetric::identity::{self, Ed25519RecoveryError, SignatureError};
 use nym_types::error::TypesError;
 use nym_wallet_types::network::Network;
 use serde::{Serialize, Serializer};

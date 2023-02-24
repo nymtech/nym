@@ -43,7 +43,7 @@ pub trait VestingSigningClient {
     async fn vesting_bond_gateway(
         &self,
         gateway: Gateway,
-        owner_signature: &str,
+        owner_signature: String,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
@@ -61,7 +61,7 @@ pub trait VestingSigningClient {
         &self,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: &str,
+        owner_signature: String,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
@@ -208,14 +208,14 @@ impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for Ny
     async fn vesting_bond_gateway(
         &self,
         gateway: Gateway,
-        owner_signature: &str,
+        owner_signature: String,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::BondGateway {
             gateway,
-            owner_signature: owner_signature.to_string(),
+            owner_signature,
             amount: pledge.into(),
         };
         self.client
@@ -272,7 +272,7 @@ impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for Ny
         &self,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: &str,
+        owner_signature: String,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -281,7 +281,7 @@ impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for Ny
             VestingExecuteMsg::BondMixnode {
                 mix_node,
                 cost_params,
-                owner_signature: owner_signature.to_string(),
+                owner_signature,
                 amount: pledge.into(),
             },
             vec![],

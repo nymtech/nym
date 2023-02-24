@@ -3,7 +3,6 @@
 
 use crate::error::BackendError;
 use async_trait::async_trait;
-use cosmrs::AccountId;
 use cosmwasm_std::Addr;
 use nym_contracts_common::signing::{
     ContractMessageContent, MessageSignature, Nonce, SignableMessage, SigningAlgorithm,

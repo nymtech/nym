@@ -9,9 +9,10 @@ use cosmwasm_std::Decimal;
 use nym_api_requests::models::{
     AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayBondAnnotated,
     GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
-    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
-    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    GatewayUptimeResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
+    MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse,
+    MixnodeUptimeHistoryResponse, RewardEstimationResponse, StakeSaturationResponse,
+    UptimeResponse,
 };
 use nym_mixnet_contract_common::{MixId, RewardedSetNodeStatus};
 use rocket::http::Status;
@@ -333,6 +334,19 @@ pub(crate) async fn _get_mixnode_avg_uptime(
         mix_id,
         avg_uptime: mixnode.node_performance.last_24h.round_to_integer(),
         node_performance: mixnode.node_performance,
+    })
+}
+
+pub(crate) async fn _get_gateway_avg_uptime(
+    cache: &NodeStatusCache,
+    identity: &str,
+) -> Result<GatewayUptimeResponse, ErrorResponse> {
+    let gateway = get_gateway_bond_annotated(cache, identity).await?;
+
+    Ok(GatewayUptimeResponse {
+        identity: identity.to_string(),
+        avg_uptime: gateway.node_performance.last_24h.round_to_integer(),
+        node_performance: gateway.node_performance,
     })
 }
 

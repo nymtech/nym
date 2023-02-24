@@ -5,11 +5,12 @@ use super::helpers::_get_gateways_detailed;
 use super::NodeStatusCache;
 use crate::node_status_api::helpers::{
     _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
-    _gateway_uptime_history, _get_active_set_detailed, _get_mixnode_avg_uptime,
-    _get_mixnode_inclusion_probabilities, _get_mixnode_inclusion_probability,
-    _get_mixnode_reward_estimation, _get_mixnode_stake_saturation, _get_mixnode_status,
-    _get_mixnodes_detailed, _get_rewarded_set_detailed, _mixnode_core_status_count,
-    _mixnode_report, _mixnode_uptime_history,
+    _gateway_uptime_history, _get_active_set_detailed, _get_gateway_avg_uptime,
+    _get_mixnode_avg_uptime, _get_mixnode_inclusion_probabilities,
+    _get_mixnode_inclusion_probability, _get_mixnode_reward_estimation,
+    _get_mixnode_stake_saturation, _get_mixnode_status, _get_mixnodes_detailed,
+    _get_rewarded_set_detailed, _mixnode_core_status_count, _mixnode_report,
+    _mixnode_uptime_history,
 };
 use crate::node_status_api::models::ErrorResponse;
 use crate::storage::NymApiStorage;
@@ -17,9 +18,10 @@ use crate::NymContractCache;
 use nym_api_requests::models::{
     AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayBondAnnotated,
     GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
-    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
-    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    GatewayUptimeResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
+    MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse,
+    MixnodeUptimeHistoryResponse, RewardEstimationResponse, StakeSaturationResponse,
+    UptimeResponse,
 };
 use nym_mixnet_contract_common::MixId;
 use rocket::serde::json::Json;
@@ -159,6 +161,15 @@ pub(crate) async fn get_mixnode_avg_uptime(
     mix_id: MixId,
 ) -> Result<Json<UptimeResponse>, ErrorResponse> {
     Ok(Json(_get_mixnode_avg_uptime(cache, mix_id).await?))
+}
+
+#[openapi(tag = "status")]
+#[get("/gateway/<identity>/avg_uptime")]
+pub(crate) async fn get_gateway_avg_uptime(
+    cache: &State<NodeStatusCache>,
+    identity: &str,
+) -> Result<Json<GatewayUptimeResponse>, ErrorResponse> {
+    Ok(Json(_get_gateway_avg_uptime(cache, identity).await?))
 }
 
 #[openapi(tag = "status")]

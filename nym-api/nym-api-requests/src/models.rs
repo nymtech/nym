@@ -176,7 +176,13 @@ pub struct RewardEstimationResponse {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UptimeResponse {
     pub mix_id: MixId,
-    // Deprecated in favour of `node_performance`
+    pub avg_uptime: u8,
+    pub node_performance: NodePerformance,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct GatewayUptimeResponse {
+    pub identity: String,
     pub avg_uptime: u8,
     pub node_performance: NodePerformance,
 }
@@ -285,26 +291,18 @@ pub struct MixnodeStatusReportResponse {
     pub mix_id: MixId,
     pub identity: IdentityKey,
     pub owner: String,
-    // Deprecated in favour of `node_performance`
     pub most_recent: Uptime,
-    // Deprecated in favour of `node_performance`
     pub last_hour: Uptime,
-    // Deprecated in favour of `node_performance`
     pub last_day: Uptime,
-    pub node_performance: NodePerformance,
 }
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct GatewayStatusReportResponse {
     pub identity: String,
     pub owner: String,
-    // Deprecated in favour of `node_performance`
     pub most_recent: Uptime,
-    // Deprecated in favour of `node_performance`
     pub last_hour: Uptime,
-    // Deprecated in favour of `node_performance`
     pub last_day: Uptime,
-    pub node_performance: NodePerformance,
 }
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]

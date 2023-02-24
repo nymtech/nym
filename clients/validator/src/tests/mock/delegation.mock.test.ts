@@ -1,5 +1,6 @@
 import expect from 'expect';
-import { Delegation, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse } from '@nymproject/types';
+import { Delegation } from '@nymproject/types';
+import { PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse } from '../../types/shared-types';
 import { TestHelper } from './client';
 import { mixnet, mixnodeowneraddress, mix_id } from './testData';
 

@@ -1,5 +1,5 @@
 import expect from 'expect';
-import ValidatorClient from '../../src';
+import ValidatorClient from '../../index';
 
 import {
   allunbondednodes,
@@ -14,7 +14,7 @@ import {
   rewardingnode,
   saturation,
   unbondednode,
-} from '../../types/expectedResponses';
+} from '../expectedResponses';
 import { gatewayowneraddress } from '../mock/testData';
 
 const dotenv = require('dotenv');

@@ -1,5 +1,5 @@
 import expect from 'expect';
-import { GatewayOwnershipResponse, PagedGatewayResponse } from '@nymproject/types';
+import { GatewayOwnershipResponse, PagedGatewayResponse } from '../../types/shared-types';
 import { TestHelper } from './client';
 import { gatewayowneraddress, mixnet } from './testData';
 

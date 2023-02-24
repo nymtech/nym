@@ -212,7 +212,7 @@ export interface INymdQuery {
   getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse>;
   getOwnedMixnode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse>;
   ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
-  getStateParams(mixnetContractAddress: string): Promise<ContractStateParams>;
+  getStateParams(mixnetContractAddress: string): Promise<ContractState>;
   getAllNetworkDelegationsPaged(
     mixnetContractAddress: string,
     limit?: number,
@@ -248,4 +248,12 @@ export interface MappedCoin {
 
 export interface CoinMap {
   readonly [key: string]: MappedCoin;
+}
+
+export interface ContractState {
+  owner: string;
+  rewarding_validator_address: string;
+  vesting_contract_address: string;
+  rewarding_denom: string;
+  params: ContractStateParams;
 }

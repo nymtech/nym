@@ -1,13 +1,9 @@
 import expect from 'expect';
-import {
-  ContractStateParams,
-  LayerDistribution,
-  MixnetContractVersion,
-  StakeSaturationResponse,
-} from '@nymproject/types';
+import { LayerDistribution, MixnetContractVersion, StakeSaturationResponse } from '@nymproject/types';
 import { TestHelper } from './client';
 import { mixnet, mix_id } from './testData';
 import { RewardingParams } from '@nymproject/types';
+import { ContractState } from '../../types/shared';
 
 describe('Mixnet mock tests', () => {
   const testHelper = new TestHelper();
@@ -40,11 +36,17 @@ describe('Mixnet mock tests', () => {
   });
 
   it('get State Params', () => {
-    const execute = testHelper.buildMethod('getStateParams', [mixnet], <ContractStateParams>{
-      minimum_mixnode_pledge: '',
-      minimum_gateway_pledge: '',
-      mixnode_rewarded_set_size: 240,
-      mixnode_active_set_size: 240,
+    const execute = testHelper.buildMethod('getStateParams', [mixnet], <ContractState>{
+      owner: '',
+      rewarding_validator_address: '',
+      vesting_contract_address: '',
+      rewarding_denom: 'unym',
+      params: {
+        minimum_mixnode_pledge: '',
+        minimum_gateway_pledge: '',
+        mixnode_rewarded_set_size: 240,
+        mixnode_active_set_size: 240,
+      },
     });
     expect(execute).toBeTruthy();
   });

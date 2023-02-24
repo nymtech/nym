@@ -12,12 +12,11 @@
     "declaration": true,
     "skipLibCheck": true,
     "noImplicitAny": true,
-    "typeRoots": ["./types/global.d.ts"]
+    "typeRoots": ["./src/types/global.d.ts"]
   },
   "typedocOptions": {
-    "entryPoints": ["src/index.ts"],
+    "entryPoints": ["./src/index.ts"],
     "out": "docs"
   },
-  "include": ["src/**/*"],
-  "exclude": ["dist", "examples", "tests/**/*", "node_module", "types"]
+  "exclude": ["dist", "./src/tests/**/*", "node_module"]
 }

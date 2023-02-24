@@ -37,10 +37,10 @@ import {
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
   RewardingParams,
-  RewardingStatus,
   UnbondedMixnodeResponse,
 } from '@nymproject/types';
 import NymApiQuerier from './nym-api-querier';
+import { ContractState } from './types/shared';
 
 // methods exposed by `SigningCosmWasmClient`
 export interface ICosmWasmSigning {
@@ -286,7 +286,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nyxdQuerier.ownsGateway(mixnetContractAddress, address);
   }
 
-  getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
+  getStateParams(mixnetContractAddress: string): Promise<ContractState> {
     return this.nyxdQuerier.getStateParams(mixnetContractAddress);
   }
 

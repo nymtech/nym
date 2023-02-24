@@ -7,7 +7,7 @@ export default [
   {
     input: './src/index.ts',
     output: {
-      dir: 'dist',
+      dir: 'dist/nym-validator-client',
       format: 'cjs',
     },
     plugins: [resolve(), typescript(), commonjs(), json()],

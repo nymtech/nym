@@ -7,7 +7,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "rollup -c ./rollup.config.mjs",
-    "build:types": "rollup-type-bundler --dist ./dist",
+    "build:types": "rollup-type-bundler --dist ./dist/nym-validator-client",
     "build:prod": "sh ./scripts/build-prod.sh",
     "test": "ts-mocha -p ./tsconfig.test.json ./src/tests/**/*.test.ts",
     "testmock": "ts-mocha -p ./tsconfig.test.json ./src/tests/mock/*.test.ts",

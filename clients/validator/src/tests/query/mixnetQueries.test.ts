@@ -56,8 +56,7 @@ describe('Mixnet queries', () => {
     expect(contractV).toBeTruthy();
   });
 
-  // TODO Needs fixing
-  it.skip('can query for mixnet contract settings', async () => {
+  it('can query for mixnet contract settings', async () => {
     const settings = await client.getMixnetContractSettings();
     expect(Object.keys(settings)).toEqual(Object.keys(contract));
     expect(settings).toBeTruthy();

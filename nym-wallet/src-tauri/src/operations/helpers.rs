@@ -24,7 +24,7 @@ type SignableGatewayBondingMsg = SignableMessage<ContractMessageContent<GatewayB
 #[async_trait]
 pub(crate) trait AddressAndNonceProvider {
     async fn get_signing_nonce(&self) -> Result<Nonce, NyxdError>;
-    fn vesting_contract_address(&self) -> &AccountId;
+    fn vesting_contract_address(&self) -> Addr;
     fn cw_address(&self) -> Addr;
 }
 
@@ -34,8 +34,10 @@ impl AddressAndNonceProvider for Client<SigningNyxdClient> {
         self.nyxd.get_signing_nonce(self.nyxd.address()).await
     }
 
-    fn vesting_contract_address(&self) -> &AccountId {
-        self.nyxd.vesting_contract_address()
+    fn vesting_contract_address(&self) -> Addr {
+        // the call to unchecked is fine here as we're converting directly from `AccountId`
+        // which must have been a valid bech32 address
+        Addr::unchecked(self.nyxd.vesting_contract_address().as_ref())
     }
 
     fn cw_address(&self) -> Addr {
@@ -45,9 +47,7 @@ impl AddressAndNonceProvider for Client<SigningNyxdClient> {
 
 fn proxy<P: AddressAndNonceProvider>(client: &P, vesting: bool) -> Option<Addr> {
     if vesting {
-        // the call to unchecked is fine here as we're converting directly from `AccountId`
-        // which must have been a valid bech32 address
-        Some(Addr::unchecked(client.vesting_contract_address().as_ref()))
+        Some(client.vesting_contract_address())
     } else {
         None
     }
@@ -163,7 +163,7 @@ mod tests {
 
     struct MockClient {
         address: Addr,
-        vesting_contract: AccountId,
+        vesting_contract: Addr,
         signing_nonce: Nonce,
     }
 
@@ -173,8 +173,8 @@ mod tests {
             Ok(self.signing_nonce)
         }
 
-        fn vesting_contract_address(&self) -> &AccountId {
-            &self.vesting_contract
+        fn vesting_contract_address(&self) -> Addr {
+            self.vesting_contract.clone()
         }
 
         fn cw_address(&self) -> Addr {
@@ -204,7 +204,7 @@ mod tests {
         let dummy_account = Addr::unchecked("n16t2umcd83zjpl5puyuuq6lgmy4p3qedjd8ynn6");
         let dummy_client = MockClient {
             address: dummy_account,
-            vesting_contract: "n17tj0a0w6v7r2dc54rnkzfza6s8hxs87rj273a5".parse().unwrap(),
+            vesting_contract: Addr::unchecked("n17tj0a0w6v7r2dc54rnkzfza6s8hxs87rj273a5"),
             signing_nonce: 42,
         };
 
@@ -308,7 +308,7 @@ mod tests {
         let dummy_account = Addr::unchecked("n16t2umcd83zjpl5puyuuq6lgmy4p3qedjd8ynn6");
         let dummy_client = MockClient {
             address: dummy_account,
-            vesting_contract: "n17tj0a0w6v7r2dc54rnkzfza6s8hxs87rj273a5".parse().unwrap(),
+            vesting_contract: Addr::unchecked("n17tj0a0w6v7r2dc54rnkzfza6s8hxs87rj273a5"),
             signing_nonce: 42,
         };
 

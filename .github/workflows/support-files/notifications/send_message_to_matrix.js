@@ -5,6 +5,7 @@ const localStorage = new LocalStorage('./scratch');
 const {
   LocalStorageCryptoStore,
 } = require('matrix-js-sdk/lib/crypto/store/localStorage-crypto-store');
+var showdown  = require('showdown');
 
 // hide all matrix client output
 console.error = (error) => console.log('❌ error: ', error);
@@ -54,7 +55,9 @@ function createClient(context, room, message) {
 }
 
 async function sendMatrixMessage(contextArg, messageAsMarkdown, roomId) {
-  const client = createClient(contextArg, roomId, messageAsMarkdown);
+  const converter = new showdown.Converter();
+  const messageAsHtml = converter.makeHtml(messageAsMarkdown);
+  const client = createClient(contextArg, roomId, messageAsHtml);
   await client.initCrypto();
   await client.startClient({ initialSyncLimit: 1 });
 }

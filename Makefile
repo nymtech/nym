@@ -4,7 +4,7 @@ no-clippy: build cargo-test wasm fmt
 happy: fmt clippy-happy test
 clippy-all: clippy-main clippy-main-examples clippy-all-contracts clippy-all-wallet clippy-all-connect clippy-all-connect-mobile clippy-all-wasm-client
 clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet clippy-happy-connect clippy-happy-connect-mobile
-cargo-test: test-main test-contracts test-wallet test-connect test-connect-mobile
+cargo-test: test-main test-contracts test-contracts-integration test-wallet test-connect test-connect-mobile
 cargo-test-expensive: test-main-expensive test-contracts-expensive test-wallet-expensive test-connect-expensive
 build: build-contracts build-wallet build-main build-main-examples build-connect build-connect-mobile build-wasm-client
 fmt: fmt-main fmt-contracts fmt-wallet fmt-connect fmt-connect-mobile fmt-wasm-client
@@ -33,9 +33,8 @@ clippy-main-examples:
 clippy-wasm:
 	cargo clippy --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --workspace -- -D warnings
 
-
 clippy-all-contracts:
-	cargo clippy --workspace --manifest-path contracts/Cargo.toml --all-features --target wasm32-unknown-unknown -- -D warnings
+	cargo clippy --workspace --manifest-path contracts/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
 
 clippy-all-wallet:
 	cargo clippy --workspace --manifest-path nym-wallet/Cargo.toml --all-features -- -D warnings
@@ -60,6 +59,9 @@ test-contracts:
 
 test-contracts-expensive:
 	cargo test --manifest-path contracts/Cargo.toml --all-features -- --ignored
+
+test-contracts-integration:
+	cargo test --manifest-path contracts/integration-tests/Cargo.toml
 
 test-wallet:
 	cargo test --manifest-path nym-wallet/Cargo.toml --all-features

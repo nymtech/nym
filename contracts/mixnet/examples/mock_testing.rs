@@ -172,6 +172,7 @@ fn writing_to_raw_storage() {
     );
 }
 
+// run with `cargo run --example mock_testing --features="testing-mocks"`
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     normal_queries();

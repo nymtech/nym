@@ -35,6 +35,7 @@ import {
 } from '@nymproject/types';
 import QueryClient from './query-client';
 import SigningClient, { ISigningClient } from './signing-client';
+import { ContractState } from './types/shared';
 
 export interface INymClient {
   readonly mixnetContract: string;
@@ -179,7 +180,7 @@ export default class ValidatorClient implements INymClient {
     return this.client.getLayerDistribution(this.mixnetContract);
   }
 
-  public async getMixnetContractSettings(): Promise<ContractStateParams> {
+  public async getMixnetContractSettings(): Promise<ContractState> {
     return this.client.getStateParams(this.mixnetContract);
   }
 
@@ -356,7 +357,7 @@ export default class ValidatorClient implements INymClient {
   public async minimumMixnodePledge(): Promise<Coin> {
     const stateParams = await this.getMixnetContractSettings();
     // we trust the contract to return a valid number
-    return cosmosCoin(stateParams.minimum_mixnode_pledge, this.prefix);
+    return cosmosCoin(stateParams.params.minimum_mixnode_pledge, this.prefix);
   }
 
   /**
@@ -367,7 +368,7 @@ export default class ValidatorClient implements INymClient {
   public async minimumGatewayPledge(): Promise<Coin> {
     const stateParams = await this.getMixnetContractSettings();
     // we trust the contract to return a valid number
-    return cosmosCoin(stateParams.minimum_gateway_pledge, this.prefix);
+    return cosmosCoin(stateParams.params.minimum_gateway_pledge, this.prefix);
   }
 
   public async send(

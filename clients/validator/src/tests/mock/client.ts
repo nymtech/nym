@@ -1,6 +1,6 @@
 import { Mock, Times } from 'moq.ts';
 import expect from 'expect';
-import { INyxdQuery } from '../../src/query-client';
+import { INyxdQuery } from '../../query-client';
 
 export class TestHelper {
   buildMethod = async <T>(methodName: string, args: any[], expectedResult: any): Promise<T> => {

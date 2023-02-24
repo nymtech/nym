@@ -6,7 +6,6 @@
 import { INyxdQuery } from './query-client';
 import { Delegation, RewardingParams, StakeSaturationResponse } from '@nymproject/types';
 import {
-  ContractStateParams,
   UnbondedMixnodeResponse,
   GatewayOwnershipResponse,
   MixnetContractVersion,
@@ -20,7 +19,7 @@ import {
   PagedUnbondedMixnodesResponse,
   LayerDistribution,
 } from '@nymproject/types';
-import { SmartContractQuery } from './shared-types';
+import { ContractState, SmartContractQuery } from './types/shared';
 
 export default class NyxdQuerier implements INyxdQuery {
   client: SmartContractQuery;
@@ -114,7 +113,7 @@ export default class NyxdQuerier implements INyxdQuery {
     });
   }
 
-  getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
+  getStateParams(mixnetContractAddress: string): Promise<ContractState> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_state: {},
     });

@@ -2,7 +2,6 @@ import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 // eslint-disable-next-line import/no-cycle
 import NyxdQuerier from './nyxd-querier';
 import {
-  ContractStateParams,
   Delegation,
   GatewayBond,
   GatewayOwnershipResponse,
@@ -23,7 +22,7 @@ import {
   MixNodeRewarding,
 } from '@nymproject/types';
 import NymApiQuerier, { INymApiQuery } from './nym-api-querier';
-import { ICosmWasmQuery } from './shared-types';
+import { ContractState, ICosmWasmQuery } from './types/shared';
 import { RewardingParams } from '@nymproject/types';
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
 
@@ -43,7 +42,7 @@ export interface INyxdQuery {
   getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse>;
   getOwnedMixnode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse>;
   ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
-  getStateParams(mixnetContractAddress: string): Promise<ContractStateParams>;
+  getStateParams(mixnetContractAddress: string): Promise<ContractState>;
   getAllDelegationsPaged(
     mixnetContractAddress: string,
     limit?: number,
@@ -139,7 +138,7 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
     return this.nyxdQuerier.getUnbondedMixNodeInformation(mixnetContractAddress, mixId);
   }
 
-  getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
+  getStateParams(mixnetContractAddress: string): Promise<ContractState> {
     return this.nyxdQuerier.getStateParams(mixnetContractAddress);
   }
 

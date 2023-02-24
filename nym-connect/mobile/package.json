@@ -26,7 +26,8 @@
     "clean:dist": "rm -rf dist",
     "clean:node": "rm -rf node_modules",
     "clean:rust": "cargo clean --manifest-path src-tauri/Cargo.toml",
-    "clean:": "run-p clean:node clean:rust"
+    "clean:android": "cd src-tauri/gen/android/nym_connect/ && gradlew clean",
+    "clean:": "run-p clean:node clean:rust clean:android"
   },
   "dependencies": {
     "@emotion/react": "^11.7.0",

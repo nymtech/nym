@@ -16,7 +16,7 @@ use mixnet_contract_common::rewarding::{
 };
 use mixnet_contract_common::{Delegation, MixId};
 
-pub(crate) fn query_rewarding_params(deps: Deps<'_>) -> StdResult<RewardingParams> {
+pub fn query_rewarding_params(deps: Deps<'_>) -> StdResult<RewardingParams> {
     storage::REWARDING_PARAMS.load(deps.storage)
 }
 
@@ -104,7 +104,7 @@ fn zero_reward(
     }
 }
 
-pub(crate) fn query_estimated_current_epoch_operator_reward(
+pub fn query_estimated_current_epoch_operator_reward(
     deps: Deps<'_>,
     mix_id: MixId,
     estimated_performance: Performance,
@@ -157,7 +157,7 @@ pub(crate) fn query_estimated_current_epoch_operator_reward(
     })
 }
 
-pub(crate) fn query_estimated_current_epoch_delegator_reward(
+pub fn query_estimated_current_epoch_delegator_reward(
     deps: Deps<'_>,
     owner: String,
     mix_id: MixId,

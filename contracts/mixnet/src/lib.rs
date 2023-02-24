@@ -4,19 +4,19 @@
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
 
-mod constants;
+pub mod constants;
 pub mod contract;
-mod delegations;
-mod families;
-mod gateways;
-mod interval;
-mod mixnet_contract_settings;
-mod mixnodes;
-mod rewards;
-mod support;
+pub mod delegations;
+pub mod families;
+pub mod gateways;
+pub mod interval;
+pub mod mixnet_contract_settings;
+pub mod mixnodes;
+pub mod rewards;
+pub mod support;
 
 #[cfg(feature = "contract-testing")]
 mod testing;
 
-#[cfg(feature = "testing_mocks")]
+#[cfg(feature = "testing-mocks")]
 pub use testing::mock_helpers::MixnetContract;

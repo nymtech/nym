@@ -9,7 +9,7 @@ use cw_storage_plus::Bound;
 
 use crate::storage::{self, SPEND_CREDENTIAL_PAGE_DEFAULT_LIMIT, SPEND_CREDENTIAL_PAGE_MAX_LIMIT};
 
-pub(crate) fn query_all_spent_credentials_paged(
+pub fn query_all_spent_credentials_paged(
     deps: Deps<'_>,
     start_after: Option<String>,
     limit: Option<u32>,
@@ -37,7 +37,7 @@ pub(crate) fn query_all_spent_credentials_paged(
     ))
 }
 
-pub(crate) fn query_spent_credential(
+pub fn query_spent_credential(
     deps: Deps<'_>,
     blinded_serial_number: String,
 ) -> StdResult<SpendCredentialResponse> {

@@ -6,19 +6,17 @@ use crate::error::ContractError;
 use coconut_dkg_common::types::{Epoch, InitialReplacementData};
 use cosmwasm_std::Storage;
 
-pub(crate) fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
+pub fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
     CURRENT_EPOCH
         .load(storage)
         .map_err(|_| ContractError::EpochNotInitialised)
 }
 
-pub(crate) fn query_current_epoch_threshold(
-    storage: &dyn Storage,
-) -> Result<Option<u64>, ContractError> {
+pub fn query_current_epoch_threshold(storage: &dyn Storage) -> Result<Option<u64>, ContractError> {
     Ok(THRESHOLD.may_load(storage)?)
 }
 
-pub(crate) fn query_initial_dealers(
+pub fn query_initial_dealers(
     storage: &dyn Storage,
 ) -> Result<Option<InitialReplacementData>, ContractError> {
     Ok(INITIAL_REPLACEMENT_DATA.may_load(storage)?)

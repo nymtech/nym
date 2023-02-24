@@ -3,5 +3,5 @@
 
 pub(crate) mod transactions;
 
-#[cfg(feature = "testing_mocks")]
+#[cfg(feature = "testing-mocks")]
 pub mod mock_helpers;

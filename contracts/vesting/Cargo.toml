@@ -38,4 +38,4 @@ vergen = { version = "5", default-features = false, features = ["build", "git", 
 
 [features]
 default = []
-testing_mocks = ["cosmwasm-contract-testing"]
+testing-mocks = ["cosmwasm-contract-testing"]

@@ -8,7 +8,7 @@ use cw_storage_plus::Item;
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::ContractState;
 
-pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new(CONTRACT_STATE_KEY);
+pub const CONTRACT_STATE: Item<'_, ContractState> = Item::new(CONTRACT_STATE_KEY);
 
 pub fn rewarding_validator_address(storage: &dyn Storage) -> Result<Addr, MixnetContractError> {
     Ok(CONTRACT_STATE

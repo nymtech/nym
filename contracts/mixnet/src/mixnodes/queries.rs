@@ -256,7 +256,7 @@ pub fn query_stake_saturation(deps: Deps<'_>, mix_id: MixId) -> StdResult<StakeS
     })
 }
 
-pub(crate) fn query_layer_distribution(deps: Deps<'_>) -> StdResult<LayerDistribution> {
+pub fn query_layer_distribution(deps: Deps<'_>) -> StdResult<LayerDistribution> {
     storage::LAYERS.load(deps.storage)
 }
 

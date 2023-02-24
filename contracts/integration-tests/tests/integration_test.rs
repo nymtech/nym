@@ -57,7 +57,7 @@ fn claiming_vesting_delegator_rewards() {
 
     // do some queries to verify state is updated correctly for both contracts
     let pending_reward: PendingRewardResponse = multi_mock
-        .query::<MixnetContract, _>(
+        .query_de::<MixnetContract, _>(
             MIXNET_CONTRACT_ADDRESS,
             nym_mixnet_contract_common::QueryMsg::GetPendingDelegatorReward {
                 address: dummy_account.to_string(),

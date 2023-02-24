@@ -5,23 +5,23 @@ use super::storage;
 use cosmwasm_std::{Deps, StdResult};
 use mixnet_contract_common::{ContractBuildInformation, ContractState, ContractStateParams};
 
-pub(crate) fn query_contract_state(deps: Deps<'_>) -> StdResult<ContractState> {
+pub fn query_contract_state(deps: Deps<'_>) -> StdResult<ContractState> {
     storage::CONTRACT_STATE.load(deps.storage)
 }
 
-pub(crate) fn query_contract_settings_params(deps: Deps<'_>) -> StdResult<ContractStateParams> {
+pub fn query_contract_settings_params(deps: Deps<'_>) -> StdResult<ContractStateParams> {
     storage::CONTRACT_STATE
         .load(deps.storage)
         .map(|settings| settings.params)
 }
 
-pub(crate) fn query_rewarding_validator_address(deps: Deps<'_>) -> StdResult<String> {
+pub fn query_rewarding_validator_address(deps: Deps<'_>) -> StdResult<String> {
     storage::CONTRACT_STATE
         .load(deps.storage)
         .map(|settings| settings.rewarding_validator_address.to_string())
 }
 
-pub(crate) fn query_contract_version() -> ContractBuildInformation {
+pub fn query_contract_version() -> ContractBuildInformation {
     // as per docs
     // env! macro will expand to the value of the named environment variable at
     // compile time, yielding an expression of type `&'static str`

@@ -48,7 +48,11 @@ nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }
 
+[[example]]
+name = "mock_testing"
+required-features = ["testing-mocks"]
+
 [features]
 default = []
 contract-testing = ["mixnet-contract-common/contract-testing"]
-testing_mocks = ["cosmwasm-contract-testing", "contract-testing"]
+testing-mocks = ["cosmwasm-contract-testing", "contract-testing"]

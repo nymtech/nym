@@ -9,7 +9,7 @@ use mixnet_contract_common::{
     GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse,
 };
 
-pub(crate) fn query_gateways_paged(
+pub fn query_gateways_paged(
     deps: Deps<'_>,
     start_after: Option<IdentityKey>,
     limit: Option<u32>,
@@ -31,10 +31,7 @@ pub(crate) fn query_gateways_paged(
     Ok(PagedGatewayResponse::new(nodes, limit, start_next_after))
 }
 
-pub(crate) fn query_owned_gateway(
-    deps: Deps<'_>,
-    address: String,
-) -> StdResult<GatewayOwnershipResponse> {
+pub fn query_owned_gateway(deps: Deps<'_>, address: String) -> StdResult<GatewayOwnershipResponse> {
     let validated_addr = deps.api.addr_validate(&address)?;
 
     let gateway = storage::gateways()

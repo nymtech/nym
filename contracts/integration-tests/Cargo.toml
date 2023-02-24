@@ -11,5 +11,5 @@ cw-storage-plus = "0.13.4"
 cosmwasm-contract-testing = { path = "../../common/cosmwasm-smart-contracts/testing" }
 nym-mixnet-contract-common = { path= "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path= "../../common/cosmwasm-smart-contracts/vesting-contract" }
-nym-vesting-contract = { path = "../vesting", features = ["testing_mocks"] }
-nym-mixnet-contract = { path = "../mixnet", features = ["testing_mocks"] }
+nym-vesting-contract = { path = "../vesting", features = ["testing-mocks"] }
+nym-mixnet-contract = { path = "../mixnet", features = ["testing-mocks"] }

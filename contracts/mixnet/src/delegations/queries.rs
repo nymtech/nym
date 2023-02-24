@@ -16,7 +16,7 @@ use mixnet_contract_common::{
     PagedMixNodeDelegationsResponse,
 };
 
-pub(crate) fn query_mixnode_delegations_paged(
+pub fn query_mixnode_delegations_paged(
     deps: Deps<'_>,
     mix_id: MixId,
     start_after: Option<String>,
@@ -47,7 +47,7 @@ pub(crate) fn query_mixnode_delegations_paged(
     ))
 }
 
-pub(crate) fn query_delegator_delegations_paged(
+pub fn query_delegator_delegations_paged(
     deps: Deps<'_>,
     delegation_owner: String,
     start_after: Option<(MixId, OwnerProxySubKey)>,
@@ -83,7 +83,7 @@ pub(crate) fn query_delegator_delegations_paged(
 }
 
 // queries for delegation value of given address for particular node
-pub(crate) fn query_mixnode_delegation(
+pub fn query_mixnode_delegation(
     deps: Deps<'_>,
     mix_id: MixId,
     delegation_owner: String,
@@ -109,7 +109,7 @@ pub(crate) fn query_mixnode_delegation(
     ))
 }
 
-pub(crate) fn query_all_delegations_paged(
+pub fn query_all_delegations_paged(
     deps: Deps<'_>,
     start_after: Option<delegation::StorageKey>,
     limit: Option<u32>,

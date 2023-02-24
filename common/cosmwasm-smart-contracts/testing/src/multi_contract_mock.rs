@@ -7,7 +7,9 @@ use crate::execution::{
 };
 use crate::{raw_msg_to_string, sealed, serialize_msg, test_rng, MockingError, TestableContract};
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{Addr, Binary, CosmosMsg, Env, MessageInfo, ReplyOn, Response, WasmMsg};
+use cosmwasm_std::{
+    Addr, Binary, CosmosMsg, Env, MessageInfo, QueryResponse, ReplyOn, Response, WasmMsg,
+};
 use rand_chacha::rand_core::RngCore;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -328,15 +330,14 @@ impl MultiContractMock {
         C::query(deps, env, msg).map(|res| serde_json::from_slice(&res).unwrap())
     }
 
-    pub fn query<C, T>(
+    pub fn query<C>(
         &self,
         contract_address: impl Into<String>,
         msg: C::QueryMsg,
-    ) -> Result<T, MockingError>
+    ) -> Result<QueryResponse, MockingError>
     where
         C: TestableContract + 'static,
         C::QueryMsg: Serialize,
-        T: DeserializeOwned,
     {
         let addr = Addr::unchecked(contract_address.into());
         let contract =
@@ -350,13 +351,25 @@ impl MultiContractMock {
         let deps = contract.state.deps();
 
         let serialized_msg = serialize_msg(&msg)?;
-        C::query(deps, env, msg)
+        C::query(deps, env, msg).map_err(|err| MockingError::ContractQueryError {
+            message: raw_msg_to_string(&serialized_msg),
+            contract: addr,
+            error: err.to_string(),
+        })
+    }
+
+    pub fn query_de<C, T>(
+        &self,
+        contract_address: impl Into<String>,
+        msg: C::QueryMsg,
+    ) -> Result<T, MockingError>
+    where
+        C: TestableContract + 'static,
+        C::QueryMsg: Serialize,
+        T: DeserializeOwned,
+    {
+        self.query::<C>(contract_address, msg)
             .map(|res| serde_json::from_slice(&res).unwrap())
-            .map_err(|err| MockingError::ContractQueryError {
-                message: raw_msg_to_string(&serialized_msg),
-                contract: addr,
-                error: err.to_string(),
-            })
     }
 }
 

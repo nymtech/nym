@@ -48,10 +48,10 @@ pub(crate) fn unbonded_mixnodes<'a>(
     IndexedMap::new(UNBONDED_MIXNODES_PK_NAMESPACE, indexes)
 }
 
-pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new(LAYER_DISTRIBUTION_KEY);
+pub const LAYERS: Item<'_, LayerDistribution> = Item::new(LAYER_DISTRIBUTION_KEY);
 pub const MIXNODE_ID_COUNTER: Item<MixId> = Item::new(NODE_ID_COUNTER_KEY);
 
-pub(crate) struct MixnodeBondIndex<'a> {
+pub struct MixnodeBondIndex<'a> {
     pub(crate) owner: UniqueIndex<'a, Addr, MixNodeBond>,
 
     pub(crate) identity_key: UniqueIndex<'a, IdentityKey, MixNodeBond>,
@@ -70,7 +70,7 @@ impl<'a> IndexList<MixNodeBond> for MixnodeBondIndex<'a> {
 }
 
 // mixnode_bonds() is the storage access function.
-pub(crate) fn mixnode_bonds<'a>() -> IndexedMap<'a, MixId, MixNodeBond, MixnodeBondIndex<'a>> {
+pub fn mixnode_bonds<'a>() -> IndexedMap<'a, MixId, MixNodeBond, MixnodeBondIndex<'a>> {
     let indexes = MixnodeBondIndex {
         owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
         identity_key: UniqueIndex::new(

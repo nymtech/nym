@@ -299,7 +299,7 @@ pub fn try_withdraw_vested_coins(
 }
 
 /// Transfer ownership of the entire vesting account.
-fn try_transfer_ownership(
+pub fn try_transfer_ownership(
     to_address: String,
     info: MessageInfo,
     deps: DepsMut<'_>,
@@ -316,7 +316,7 @@ fn try_transfer_ownership(
 }
 
 /// Set or update staking address for a vesting account.
-fn try_update_staking_address(
+pub fn try_update_staking_address(
     to_address: Option<String>,
     info: MessageInfo,
     deps: DepsMut<'_>,
@@ -434,7 +434,7 @@ pub fn try_track_unbond_mixnode(
 }
 
 /// Track reward collection, invoked by the mixnert contract after sucessful reward compounding or claiming
-fn try_track_reward(
+pub fn try_track_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
     amount: Coin,
@@ -449,7 +449,7 @@ fn try_track_reward(
 }
 
 /// Track undelegation, invoked by the mixnet contract after sucessful undelegation, message contains coins returned with any accrued rewards.
-fn try_track_undelegation(
+pub fn try_track_undelegation(
     address: &str,
     mix_id: MixId,
     amount: Coin,
@@ -466,7 +466,7 @@ fn try_track_undelegation(
 }
 
 /// Delegate to mixnode, sends [mixnet_contract_common::ExecuteMsg::DelegateToMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS]..
-fn try_delegate_to_mixnode(
+pub fn try_delegate_to_mixnode(
     mix_id: MixId,
     amount: Coin,
     on_behalf_of: Option<String>,
@@ -491,7 +491,7 @@ fn try_delegate_to_mixnode(
 }
 
 /// Claims operator reward, sends [mixnet_contract_common::ExecuteMsg::ClaimOperatorRewardOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
-fn try_claim_operator_reward(
+pub fn try_claim_operator_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
@@ -500,7 +500,7 @@ fn try_claim_operator_reward(
 }
 
 /// Claims delegator reward, sends [mixnet_contract_common::ExecuteMsg::ClaimDelegatorRewardOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
-fn try_claim_delegator_reward(
+pub fn try_claim_delegator_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
     mix_id: MixId,
@@ -511,7 +511,7 @@ fn try_claim_delegator_reward(
 }
 
 /// Undelegates from a mixnode, sends [mixnet_contract_common::ExecuteMsg::UndelegateFromMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
-fn try_undelegate_from_mixnode(
+pub fn try_undelegate_from_mixnode(
     mix_id: MixId,
     on_behalf_of: Option<String>,
     info: MessageInfo,
@@ -533,7 +533,7 @@ fn try_undelegate_from_mixnode(
 /// Creates a new periodic vesting account, and deposits funds to vest into the contract.
 ///
 /// Callable by ADMIN only, see [instantiate].
-pub(crate) fn try_create_periodic_vesting_account(
+pub fn try_create_periodic_vesting_account(
     owner_address: &str,
     staking_address: Option<String>,
     vesting_spec: Option<VestingSpecification>,

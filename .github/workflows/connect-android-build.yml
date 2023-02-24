@@ -10,7 +10,6 @@ jobs:
   build:
     name: Build APK
     runs-on: custom-runner-linux
-    # runs-on: ubuntu-latest
     env:
       ANDROID_HOME: ${{ github.workspace }}/android-sdk
       NDK_VERSION: 25.1.8937393
@@ -62,6 +61,11 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      # TODO this step takes a considerable amount of time
+      # We could avoid to compile from source tauri-cli and use instead
+      # pre-compiled binary provided by the node package `@tauri-apps/cli`
+      # But when using the later the build fails for some reason
+      # so keep installing and using tauri-cli
       - name: Install tauri cli
         run: cargo install tauri-cli --version "^2.0.0-alpha.2"
 
@@ -91,11 +95,13 @@ jobs:
       - name: Build APK
         working-directory: nym-connect/mobile
         env:
+          # NODE_TAURI_CLI=${{ github.workspace }}/nym-connect/mobile/node_modules/.bin/tauri
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
           WRY_ANDROID_PACKAGE: net.nymtech.nym_connect
           WRY_ANDROID_LIBRARY: nym_connect
         # TODO build with release profile (--release), it will requires
         # to sign the APK. For now build with debug profile to avoid that
+        # TODO build using `yarn tauri`, provide NODE_TAURI_CLI, see TODO notes above
         run: cargo tauri android build --debug --apk --split-per-abi -t aarch64
 
       # TODO add the version number to APK name

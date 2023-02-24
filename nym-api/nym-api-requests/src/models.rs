@@ -176,6 +176,7 @@ pub struct RewardEstimationResponse {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UptimeResponse {
     pub mix_id: MixId,
+    // The same as node_performance.last_24h. Legacy
     pub avg_uptime: u8,
     pub node_performance: NodePerformance,
 }
@@ -183,6 +184,7 @@ pub struct UptimeResponse {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GatewayUptimeResponse {
     pub identity: String,
+    // The same as node_performance.last_24h. Legacy
     pub avg_uptime: u8,
     pub node_performance: NodePerformance,
 }

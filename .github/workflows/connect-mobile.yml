@@ -38,13 +38,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get -y install \
+          libwebkit2gtk-4.1-dev \
           build-essential \
           curl \
           wget \
           libssl-dev \
+          libgtk-3-dev \
           squashfs-tools \
-          librsvg2-dev
-        #continue-on-error: true
+          libayatana-appindicator3-dev \
+          librsvg2-dev \
+          libsoup-3.0-dev \
+          libjavascriptcoregtk-4.1-dev
 
       - name: Checkout
         uses: actions/checkout@v3

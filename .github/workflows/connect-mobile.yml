@@ -26,7 +26,8 @@ on:
 
 jobs:
   build:
-    runs-on: custom-runner-linux
+    #runs-on: [self-hosted, custom-linux]
+    runs-on: ubuntu-22.04
     #env:
       #RUSTC_WRAPPER: /home/ubuntu/.cargo/bin/sccache
     #defaults:
@@ -43,6 +44,7 @@ jobs:
           libssl-dev \
           squashfs-tools \
           librsvg2-dev
+        #continue-on-error: true
 
       - name: Checkout
         uses: actions/checkout@v3

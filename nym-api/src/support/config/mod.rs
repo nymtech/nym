@@ -26,7 +26,8 @@ const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 // bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
 // bandwidth bridging protocol, we can come back to a smaller timeout value
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
-const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
+// This timeout value should be big enough to accommodate an initial bandwidth acquirement
+const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_secs(2 * 60);
 
 const DEFAULT_TEST_ROUTES: usize = 3;
 const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;

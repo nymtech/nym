@@ -232,6 +232,7 @@ impl ContractState {
         self
     }
 
+    #[cfg(feature = "state-importing")]
     pub(crate) fn from_state_dump(state: ImportedContractState, custom_env: Option<Env>) -> Self {
         let env = custom_env.unwrap_or_else(|| {
             // this is not ideal, but we're making an assumption here that block time is approximately 5s
@@ -256,6 +257,7 @@ impl ContractState {
         ContractState { deps, env }
     }
 
+    #[cfg(feature = "state-importing")]
     pub fn try_from_state_dump<P: AsRef<Path>>(
         path: P,
         custom_env: Option<Env>,
@@ -263,6 +265,7 @@ impl ContractState {
         Ok(ImportedContractState::try_load_from_file(path)?.into_test_mock(custom_env))
     }
 
+    #[cfg(feature = "state-importing")]
     pub fn dump_state<P: AsRef<Path>>(&self, output_path: P) -> Result<(), EncodingError> {
         let mut data = Vec::new();
         for (key, value) in self.deps.storage.range(None, None, Order::Ascending) {

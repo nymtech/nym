@@ -3,7 +3,7 @@
 
 use crate::{ContractState, TestableContract};
 use cosmwasm_std::testing::mock_env;
-use cosmwasm_std::{Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
+use cosmwasm_std::{from_slice, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
@@ -79,7 +79,6 @@ impl<C: TestableContract> SingleContractMock<C> {
     }
 
     pub fn query_de<T: DeserializeOwned>(&self, msg: C::QueryMsg) -> Result<T, C::ContractError> {
-        self.query(msg)
-            .map(|res| serde_json::from_slice(&res).unwrap())
+        self.query(msg).map(|res| from_slice(&res).unwrap())
     }
 }

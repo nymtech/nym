@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::raw_msg_to_string;
+use crate::helpers::raw_msg_to_string;
 use cosmwasm_std::{Addr, BankMsg, Binary, Coin, Event};
 
 fn format_coins(coins: &[Coin]) -> String {

@@ -172,6 +172,7 @@ fn writing_to_raw_storage() {
     );
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     normal_queries();
     queries_with_native_functions();

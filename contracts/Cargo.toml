@@ -7,8 +7,9 @@ members = [
     "multisig/cw4-group",
     "coconut-test",
     "coconut-dkg",
-    "integration-tests",
 ]
+
+exclude = ["integration-tests"]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]

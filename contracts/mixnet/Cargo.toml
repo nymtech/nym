@@ -36,13 +36,13 @@ serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
 time = { version = "0.3", features = ["macros"] }
 
-cosmwasm-contract-testing = { path = "../../common/cosmwasm-smart-contracts/testing", optional = true }
+cosmwasm-contract-testing = { path = "../../common/cosmwasm-smart-contracts/testing", default-features = false, features = ["testable-trait"], optional = true }
 
 [dev-dependencies]
 cosmwasm-schema = "1.0.0"
 rand_chacha = "0.2"
-#rand = "0.7"
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+cosmwasm-contract-testing = { path = "../../common/cosmwasm-smart-contracts/testing" }
 
 
 [build-dependencies]
@@ -55,4 +55,4 @@ required-features = ["testing-mocks"]
 [features]
 default = []
 contract-testing = ["mixnet-contract-common/contract-testing"]
-testing-mocks = ["cosmwasm-contract-testing", "contract-testing"]
+testing-mocks = ["contract-testing", "cosmwasm-contract-testing"]

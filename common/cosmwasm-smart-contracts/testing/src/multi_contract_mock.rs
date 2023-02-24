@@ -5,12 +5,13 @@ use crate::contract_mock::ContractState;
 use crate::execution::{
     CrossContractTokenMove, ExecutionResult, ExecutionStepResult, FurtherExecution,
 };
-use crate::{raw_msg_to_string, sealed, serialize_msg, test_rng, MockingError, TestableContract};
+use crate::helpers::raw_msg_to_string;
+use crate::traits::sealed;
+use crate::{serialize_msg, MockingError, TestableContract};
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
     Addr, Binary, CosmosMsg, Env, MessageInfo, QueryResponse, ReplyOn, Response, WasmMsg,
 };
-use rand_chacha::rand_core::RngCore;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -35,8 +36,11 @@ pub struct MultiContractMock {
 }
 
 impl MultiContractMock {
+    #[cfg(feature = "rand")]
     fn generate_new_contract_address(&self) -> Addr {
-        let mut rng = test_rng();
+        use rand_chacha::rand_core::RngCore;
+
+        let mut rng = crate::helpers::test_rng();
         loop {
             // for the testing purposes u64 contains enough entropy
             // (I could even argue u8 would be sufficient)

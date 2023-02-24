@@ -31,7 +31,10 @@ schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
 
-cosmwasm-contract-testing = { path = "../../common/cosmwasm-smart-contracts/testing", optional = true }
+cosmwasm-contract-testing = { path = "../../common/cosmwasm-smart-contracts/testing", default-features = false, features = ["testable-trait"], optional = true }
+
+[dev-dependencies]
+cosmwasm-contract-testing = { path = "../../common/cosmwasm-smart-contracts/testing" }
 
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }

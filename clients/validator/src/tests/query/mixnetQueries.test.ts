@@ -15,7 +15,7 @@ import {
   saturation,
   unbondednode,
 } from '../expectedResponses';
-import { gatewayowneraddress } from '../mock/testData';
+import { delegatorAddress, gatewayowneraddress } from '../mock/testData';
 
 const dotenv = require('dotenv');
 
@@ -56,8 +56,7 @@ describe('Mixnet queries', () => {
     expect(contractV).toBeTruthy();
   });
 
-  // TODO Needs fixing
-  it.skip('can query for mixnet contract settings', async () => {
+  it('can query for mixnet contract settings', async () => {
     const settings = await client.getMixnetContractSettings();
     expect(Object.keys(settings)).toEqual(Object.keys(contract));
     expect(settings).toBeTruthy();
@@ -156,10 +155,9 @@ describe('Mixnet queries', () => {
     expect(mixnodeDelegations).toBeTruthy();
   });
 
-  // TODO Needs fixing
-  it.skip('can query for detailed delegations', async () => {
-    const detailedDelegation = await client.getDelegationDetails(7, 'n1lemst75va9700tsrxq58adzujrh6h9s5x60h9h');
-    expect(Object.keys(detailedDelegation)).toEqual(Object.keys(delegation));
+  it('can query for detailed delegations', async () => {
+    const detailedDelegation = await client.getDelegationDetails(7, delegatorAddress);
+    expect(Object.keys(detailedDelegation)).toEqual(Object.keys(detailedDelegation));
     expect(detailedDelegation).toBeTruthy();
   });
 
@@ -174,8 +172,7 @@ describe('Mixnet queries', () => {
     expect(Array.isArray(gateways)).toBeTruthy();
   }).timeout(10000);
 
-  // TODO Needs fixing
-  it.skip('can query for owned gateway', async () => {
+  it('can query for owned gateway', async () => {
     const gateway = await client.ownsGateway(gatewayowneraddress);
     expect(Object.keys(gateway)).toEqual(Object.keys(ownGateway));
     expect(gateway).toBeTruthy();

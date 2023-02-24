@@ -14,6 +14,11 @@ export const delegation = {
     proxy: expect.any(String || null)
 }
 
+export const detailedDelegation = {
+    delegation: delegation,
+    mixnode_still_bonded: expect.any(Boolean)
+}
+
 export const gateway = {
     pledge_amount: amountDemon,
     owner: expect.any(String),
@@ -109,11 +114,19 @@ export const contractVersion = {
     rustc_version: expect.any(String)
 };
 
-export const contract = {
+export const stateParams = {
     minimum_gateway_pledge: amountDemon,
     minimum_mixnode_pledge: expect.any(String),
     mixnode_rewarded_set_size: expect.any(Number),
     mixnode_active_set_size: expect.any(Number)
+}
+
+export const contract = {
+    owner: expect.any(Number),
+    rewarding_validator_address: expect.any(Number),
+    vesting_contract_address: expect.any(Number),
+    rewarding_denom: expect.any(String),
+    params: stateParams
 }
 
 export const rewardingnode = {

@@ -107,7 +107,7 @@ export default class NyxdQuerier implements INyxdQuery {
 
   ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
     return this.client.queryContractSmart(mixnetContractAddress, {
-      owns_gateway: {
+      get_owned_gateway: {
         address,
       },
     });
@@ -165,7 +165,7 @@ export default class NyxdQuerier implements INyxdQuery {
   getDelegationDetails(mixnetContractAddress: string, mix_id: number, delegator: string): Promise<Delegation> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_delegation_details: {
-        mix_identity: mix_id,
+        mix_id: mix_id,
         delegator,
       },
     });

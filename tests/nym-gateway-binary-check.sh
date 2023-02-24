@@ -6,44 +6,41 @@ set -e
 
 PWD="../"
 RELEASE_DIRECTORY="target/release"
-VERSION_NUMBER=$1
 WALLET_ADDRESS_CONST=n1435n84se65tn7yv536am0sfvng4yyrwj7thhxr
 MOCK_HOST="1.2.3.4"
 RANDOM_ID=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
 ID="test-${RANDOM_ID}"
 BINARY_NAME="nym-gateway"
 
-echo "the version number is ${VERSION_NUMBER} to be installed from github"
-
-cd ${PWD}${RELEASE_DIRECTORY}
-
 # install the current release binary
 # so this is dependant on running on a linux machine for the time being
 
-curl -L https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/$BINARY_NAME -o $BINARY_NAME
+curl -L "https://builds.ci.nymte.ch/master/${BINARY_NAME}" -o $BINARY_NAME
 chmod u+x $BINARY_NAME
 
 #--------------------------------------
 # functions
 #--------------------------------------
 
-check_gateway_binary_build() if [ -f nym-gateway ]; then
+check_gateway_binary_build() if [ -f "$BINARY_NAME" ]; then
   echo "running init tests"
   # we wont use config env files for now
   # unless we want to use a specific environment
-  OUTPUT=$(./nym-gateway --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST}) >/dev/null 2>&1
+  OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST}) >/dev/null 2>&1
 
   # get jq values for things we can assert against
-  VALUE=$(echo ${OUTPUT} | jq .wallet_address)
+  VALUE=$(echo ${OUTPUT} | jq .data_store)
   VALUE=${VALUE#\"}
   VALUE=${VALUE%\"}
 
-  echo $OUTPUT
-  sleep 2
+  #------------------------------------------------------
+  DATA_STORE="${HOME}/.nym/gateways/${ID}/data/db.sqlite"
+  #------------------------------------------------------
 
-  # do asserts here based upon the output on init
+  # do asserts here based upon the output
+  # check the data store path
 
-  assert $(echo ${VALUE}) $(echo ${WALLET_ADDRESS_CONST})
+  assert "echo ${VALUE}" $(echo ${DATA_STORE})
   assert_end nym-gateway-tests
 else
   echo "exting test no binary found"
@@ -57,7 +54,7 @@ fi
 check_gateway_binary_build
 # whoami
 # this is dependant on where it runs on ci potentially, will need to tweak this in the future
-first_init=$(cat /root/.nym/gateways/${ID}/config/config.toml | grep -v "^\[gateway\]$" | grep -v "^version =")
+first_init=$(cat ${HOME}/.nym/gateways/${ID}/config/config.toml | grep -v "^\[gateway\]$" | grep -v "^version =" | grep -v "^cosmos_mnemonic =")
 
 #lets remove the binary then navigate to the target/release directory for checking the latest version
 if [ -f "$BINARY_NAME" ]; then
@@ -83,7 +80,7 @@ check_gateway_binary_build
 echo "diff the config files after each init"
 echo "-------------------------------------"
 
-second_init=$(cat /root/.nym/gateways/${ID}/config/config.toml | grep -v "^\[gateway\]$" | grep -v "^version =")
+second_init=$(cat ${HOME}/.nym/gateways/${ID}/config/config.toml | grep -v "^\[gateway\]$" | grep -v "^version =" | grep -v "^cosmos_mnemonic =")
 
 diff -w <(echo "$first_init") <(echo "$second_init")
 

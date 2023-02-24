@@ -21,7 +21,7 @@ node ./scripts/buildPackageJson.mjs
 
 # Copy README
 
-cp README.md dist
+cp README.md dist/nym-validator-client
 
 # move the output outside of the yarn/npm workspaces
 

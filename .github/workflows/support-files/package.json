@@ -17,6 +17,7 @@
     "remark-emoji": "^2.2.0",
     "remark-html": "^13.0.2",
     "remark-parse": "^9.0.0",
+    "showdown": "^2.1.0",
     "to-vfile": "^6.1.0",
     "unified": "^9.2.2"
   },

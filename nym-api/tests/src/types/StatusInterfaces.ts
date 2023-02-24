@@ -27,18 +27,18 @@ export interface Node {
   in_active_set: boolean;
 }
 
-export interface RewardEstimation {
-  estimation: Estimation;
-  reward_params: RewardParams;
-  epoch: Epoch;
-  as_at: number;
-}
-
 export interface Estimation {
   total_node_reward: string;
   operator: string;
   delegates: string;
   operating_cost: string;
+}
+
+export interface RewardEstimation {
+  estimation: Estimation;
+  reward_params: RewardParams;
+  epoch: Epoch;
+  as_at: number;
 }
 
 export interface RewardParams {
@@ -129,6 +129,10 @@ export interface NodeHistory {
   history: History[];
 }
 
+export interface NoUptime {
+  message: string;
+}
+
 export interface CoreCount {
   mix_id: number;
   identity: string;
@@ -162,9 +166,16 @@ export interface GatewayBond {
   proxy?: any;
 }
 
+export interface nodePerformance {
+  most_recent: string;
+  last_hour: string;
+  last_24h: string;
+}
+
 export interface DetailedGateway {
   gateway_bond: GatewayBond;
   performance: string;
+  node_performance: nodePerformance;
 }
 
 export interface OriginalPledge {

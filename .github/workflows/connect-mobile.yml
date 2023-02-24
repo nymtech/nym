@@ -49,7 +49,6 @@ jobs:
           librsvg2-dev \
           libsoup-3.0-dev \
           libjavascriptcoregtk-4.1-dev
-        #continue-on-error: true
 
       - name: Checkout
         uses: actions/checkout@v3

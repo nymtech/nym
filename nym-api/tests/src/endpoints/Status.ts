@@ -7,6 +7,7 @@ import {
   InclusionProbabilities,
   InclusionProbability,
   NodeHistory,
+  NoUptime,
   Report,
   RewardEstimation,
   StakeSaturation,
@@ -36,7 +37,7 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getGatewayHistory(identity_key: string): Promise<NodeHistory> {
+  public async getGatewayHistory(identity_key: string): Promise<NodeHistory | NoUptime> {
     const response = await this.restClient.sendGet({
       route: `/gateway/${identity_key}/history`,
     });
@@ -111,7 +112,7 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getMixnodeHistory(mix_id: number): Promise<NodeHistory> {
+  public async getMixnodeHistory(mix_id: number): Promise<NodeHistory | NoUptime> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${mix_id}/history`,
     });

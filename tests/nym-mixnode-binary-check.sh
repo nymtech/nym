@@ -4,19 +4,17 @@
 
 PWD="../"
 RELEASE_DIRECTORY="target/release"
-RELEASE_VERSION_NUMBER=$1
 WALLET_ADDRESS_CONST=n1435n84se65tn7yv536am0sfvng4yyrwj7thhxr
 MOCK_HOST="1.2.3.4"
-OUTPUT=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
-ID="test-${OUTPUT}"
+RANDOM_ID=$(for i in {1..8}; do echo -n $(($RANDOM % 10)); done)
+ID="test-${RANDOM_ID}"
 BINARY_NAME="nym-mixnode"
-
-echo "the version number is ${VERSION_NUMBER} to be installed from github"
 
 # install the current release binary
 # so this is dependant on running on a linux machine for the time being
-curl -L "https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/${BINARY_NAME}" -o nym-mixnode
-chmod u+x "$BINARY_NAME"
+
+curl -L "https://builds.ci.nymte.ch/master/${BINARY_NAME}" -o $BINARY_NAME
+chmod u+x $BINARY_NAME
 
 #----------------------------------------------------------------------------------------------------------
 # functions
@@ -26,7 +24,7 @@ check_mixnode_binary_build() {
   if [ -f "$BINARY_NAME" ]; then
     echo "running init tests"
     # we wont use config env files for now
-    OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST} >/dev/null)
+    OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST}) >/dev/null
     # get jq values for things we can assert against
     # tidy this bit up - okay for first push
 
@@ -48,7 +46,7 @@ check_mixnode_binary_build() {
 check_mixnode_binary_build
 # whoami
 # this is dependant on where it runs on ci potentially, will need to tweak this in the future
-first_init=$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")
+first_init=$(cat ${HOME}/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")
 
 #lets remove the binary then navigate to the target/release directory for checking the latest version
 if [ -f "$BINARY_NAME" ]; then
@@ -74,7 +72,7 @@ check_mixnode_binary_build
 echo "diff the config files after each init"
 echo "-------------------------------------"
 
-second_init=$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")
+second_init=$(cat ${HOME}/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")
 
 diff -w <(echo "$first_init") <(echo "$second_init")
 

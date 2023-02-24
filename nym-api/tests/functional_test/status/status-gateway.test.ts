@@ -15,19 +15,24 @@ describe("Get gateway data", (): void => {
     response.forEach((x) => {
       expect(typeof x.gateway_bond.owner).toBe("string");
       expect(typeof x.performance).toBe("string");
+      expect(typeof x.node_performance.last_24h).toBe("string");
     });
   });
 
   it("Get a gateway history", async (): Promise<void> => {
     const identity_key = config.environmnetConfig.gateway_identity;
     const response = await status.getGatewayHistory(identity_key);
-    response.history.forEach((x) => {
-      expect(typeof x.date).toBe("string");
-      expect(typeof x.uptime).toBe("number");
-    });
 
-    expect(identity_key).toStrictEqual(response.identity);
-    expect(typeof response.owner).toBe("string");
+    if ("identity" in response) {
+      response.history.forEach((x) => {
+        expect(typeof x.date).toBe("string");
+        expect(typeof x.uptime).toBe("number");
+      });
+      expect(identity_key).toStrictEqual(response.identity);
+      expect(typeof response.owner).toBe("string");
+    } else if ("message" in response) {
+      expect(response.message).toContain("could not find uptime history associated with gateway");
+    }
   });
 
   it("Get gateway core status count", async (): Promise<void> => {

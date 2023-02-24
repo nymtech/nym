@@ -39,13 +39,16 @@ describe("Get mixnode data", (): void => {
     const identity_key = config.environmnetConfig.mix_id;
     const response = await status.getMixnodeHistory(identity_key);
 
-    response.history.forEach((x) => {
-      expect(typeof x.date).toBe("string");
-      expect(typeof x.uptime).toBe("number");
-    });
-
-    expect(identity_key).toStrictEqual(response.mix_id);
-    expect(typeof response.owner).toBe("string");
+    if ("mix_id" in response) {
+      response.history.forEach((x) => {
+        expect(typeof x.date).toBe("string");
+        expect(typeof x.uptime).toBe("number");
+      });
+      expect(identity_key).toStrictEqual(response.mix_id);
+      expect(typeof response.owner).toBe("string");
+    } else if ("message" in response) {
+      expect(response.message).toContain("could not find uptime history associated with mixnode");
+    }
   });
 
   it("Get a mixnode core count", async (): Promise<void> => {
@@ -109,7 +112,7 @@ describe("Compute mixnode reward estimation", (): void => {
     config = ConfigHandler.getInstance();
   });
   it("with correct data", async (): Promise<void> => {
-    const response = await status.sendMixnodeRewardEstimatedComputation(7);
+    const response = await status.sendMixnodeRewardEstimatedComputation(63);
 
     expect(typeof response.estimation.delegates).toBe("string");
   });

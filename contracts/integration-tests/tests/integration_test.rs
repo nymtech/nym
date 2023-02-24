@@ -1,98 +1,19 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_contract_testing::{
-    env_with_block_info, ContractState, MultiContractMock, TestableContract,
-};
+use cosmwasm_contract_testing::{env_with_block_info, ContractState, MultiContractMock};
 use cosmwasm_std::testing::mock_info;
-use cosmwasm_std::{
-    Addr, BankMsg, BlockInfo, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Timestamp,
-};
+use cosmwasm_std::{Addr, BankMsg, BlockInfo, Timestamp};
 use cw_storage_plus::Map;
+use mixnet_contract::MixnetContract;
 use nym_mixnet_contract_common::rewarding::PendingRewardResponse;
 use vesting_contract::vesting::Account;
-
-struct VestingContract;
-
-impl TestableContract for VestingContract {
-    type ContractError = vesting_contract::errors::ContractError;
-    type InstantiateMsg = nym_vesting_contract_common::InitMsg;
-    type ExecuteMsg = nym_vesting_contract_common::ExecuteMsg;
-    type QueryMsg = nym_vesting_contract_common::QueryMsg;
-
-    fn new() -> Self {
-        VestingContract
-    }
-
-    fn instantiate(
-        deps: DepsMut<'_>,
-        env: Env,
-        info: MessageInfo,
-        msg: Self::InstantiateMsg,
-    ) -> Result<Response, Self::ContractError> {
-        vesting_contract::contract::instantiate(deps, env, info, msg)
-    }
-
-    fn execute(
-        deps: DepsMut<'_>,
-        env: Env,
-        info: MessageInfo,
-        msg: Self::ExecuteMsg,
-    ) -> Result<Response, Self::ContractError> {
-        vesting_contract::contract::execute(deps, env, info, msg)
-    }
-
-    fn query(
-        deps: Deps<'_>,
-        env: Env,
-        msg: Self::QueryMsg,
-    ) -> Result<QueryResponse, Self::ContractError> {
-        vesting_contract::contract::query(deps, env, msg)
-    }
-}
-
-struct MixnetContract;
-
-impl TestableContract for MixnetContract {
-    type ContractError = nym_mixnet_contract_common::error::MixnetContractError;
-    type InstantiateMsg = nym_mixnet_contract_common::InstantiateMsg;
-    type ExecuteMsg = nym_mixnet_contract_common::ExecuteMsg;
-    type QueryMsg = nym_mixnet_contract_common::QueryMsg;
-
-    fn new() -> Self {
-        MixnetContract
-    }
-
-    fn instantiate(
-        deps: DepsMut<'_>,
-        env: Env,
-        info: MessageInfo,
-        msg: Self::InstantiateMsg,
-    ) -> Result<Response, Self::ContractError> {
-        mixnet_contract::contract::instantiate(deps, env, info, msg)
-    }
-
-    fn execute(
-        deps: DepsMut<'_>,
-        env: Env,
-        info: MessageInfo,
-        msg: Self::ExecuteMsg,
-    ) -> Result<Response, Self::ContractError> {
-        mixnet_contract::contract::execute(deps, env, info, msg)
-    }
-
-    fn query(
-        deps: Deps<'_>,
-        env: Env,
-        msg: Self::QueryMsg,
-    ) -> Result<QueryResponse, Self::ContractError> {
-        mixnet_contract::contract::query(deps, env, msg)
-    }
-}
+use vesting_contract::VestingContract;
 
 // this is not directly exported by the vesting contract, but we can easily recreate it
 const VESTING_ACCOUNTS: Map<'_, Addr, Account> = Map::new("acc");
 
+// hardcoded values from the data dump sources
 const MIXNET_CONTRACT_ADDRESS: &str =
     "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g";
 const VESTING_CONTRACT_ADDRESS: &str =

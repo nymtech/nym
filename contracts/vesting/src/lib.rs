@@ -11,3 +11,6 @@ mod storage;
 mod support;
 mod traits;
 pub mod vesting;
+
+#[cfg(feature = "testing_mocks")]
+pub use support::mock_helpers::VestingContract;

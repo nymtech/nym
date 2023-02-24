@@ -17,3 +17,6 @@ mod support;
 
 #[cfg(feature = "contract-testing")]
 mod testing;
+
+#[cfg(feature = "testing_mocks")]
+pub use testing::mock_helpers::MixnetContract;

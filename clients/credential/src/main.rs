@@ -11,7 +11,7 @@ use commands::*;
 use error::Result;
 use log::*;
 use nym_bin_common::completions::fig_generate;
-use nym_config::{DATA_DIR, DB_FILE_NAME};
+use nym_config::{CRED_DB_FILE_NAME, DATA_DIR};
 use nym_network_defaults::{setup_env, NymNetworkDetails};
 use std::process::exit;
 use std::time::{Duration, SystemTime};
@@ -73,7 +73,10 @@ async fn main() -> Result<()> {
 
     match args.command {
         Command::Run(r) => {
-            let db_path = r.client_home_directory.join(DATA_DIR).join(DB_FILE_NAME);
+            let db_path = r
+                .client_home_directory
+                .join(DATA_DIR)
+                .join(CRED_DB_FILE_NAME);
             let shared_storage = credential_storage::initialise_storage(db_path).await;
             let recovery_storage = recovery_storage::RecoveryStorage::new(r.recovery_dir)?;
 

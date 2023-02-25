@@ -29,7 +29,6 @@ import {
   GatewayBondAnnotated,
   GatewayBond,
 } from '../typeDefs/explorer-api';
-import { toPercentIntegerString } from '../utils';
 
 function getFromCache(key: string) {
   const ts = Number(localStorage.getItem('ts'));

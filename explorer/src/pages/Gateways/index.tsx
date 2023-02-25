@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link as RRDLink } from 'react-router-dom';
-import { Box, Button, Card, Grid, Link as MuiLink } from '@mui/material';
+import { Box, Card, Grid, Link as MuiLink } from '@mui/material';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
@@ -24,8 +24,6 @@ export const PageGateways: FCWithChildren = () => {
   const [pageSize, setPageSize] = React.useState<string>('50');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
   const [versionFilter, setVersionFilter] = React.useState<VersionSelectOptions>(VersionSelectOptions.latestVersion);
-
-  console.log(gateways);
 
   const handleSearch = (str: string) => {
     setSearchTerm(str.toLowerCase());

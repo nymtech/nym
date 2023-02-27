@@ -34,6 +34,7 @@ import type {
   LoadedEvent,
   NymClientConfig,
   OnRawPayloadFn,
+  RawMessageReceivedEvent,
   StringMessageReceivedEvent,
 } from './types';
 import { EventKinds, MimeTypes } from './types';
@@ -136,8 +137,8 @@ class ClientWrapper {
     recipient,
     replySurbs = 0,
   }: {
-    recipient: string;
     payload: Uint8Array;
+    recipient: string;
     replySurbs?: number;
   }) => {
     if (!this.client) {
@@ -170,7 +171,14 @@ init(wasmBytes())
       wrapper.init(
         new Config(config.clientId, config.nymApiUrl, gatewayEndpoint, config.debug || default_debug()),
         async (message) => {
+          // fire an event with the raw message
+          postMessageWithType<RawMessageReceivedEvent>({
+            kind: EventKinds.RawMessageReceived,
+            args: { payload: message },
+          });
+
           try {
+            // try to decode the payload to extract the mime-type, headers and payload body
             const decodedPayload = decode_payload(message);
             const { payload, headers } = decodedPayload;
             const mimeType = decodedPayload.mimeType as MimeTypes;
@@ -178,6 +186,8 @@ init(wasmBytes())
             if (wrapper.getTextMimeTypes().includes(mimeType)) {
               const stringMessage = parse_utf8_string(payload);
 
+              // the payload is a string type (in the options at creation time, string mime-types are set, or fall back
+              // to defaults, such as `text/plain`, `application/json`, etc)
               postMessageWithType<StringMessageReceivedEvent>({
                 kind: EventKinds.StringMessageReceived,
                 args: { mimeType, payload: stringMessage, payloadRaw: payload, headers },
@@ -185,6 +195,7 @@ init(wasmBytes())
               return;
             }
 
+            // the payload is a binary type
             postMessageWithType<BinaryMessageReceivedEvent>({
               kind: EventKinds.BinaryMessageReceived,
               args: { mimeType, payload, headers },
@@ -245,6 +256,12 @@ init(wasmBytes())
         );
         wrapper
           .send({ payload, recipient, replySurbs })
+          .catch((e) => console.error('[Nym WASM client] Failed to send message', e));
+      },
+      rawSend(args) {
+        const { recipient, payload, replySurbs } = args;
+        wrapper
+          .send({ payload, replySurbs, recipient })
           .catch((e) => console.error('[Nym WASM client] Failed to send message', e));
       },
     };

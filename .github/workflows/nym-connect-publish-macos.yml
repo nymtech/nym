@@ -24,10 +24,15 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16
+
+      - name: Setup yarn
+        run: npm install -g yarn
+
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
       - name: Install the Apple developer certificate for code signing
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}

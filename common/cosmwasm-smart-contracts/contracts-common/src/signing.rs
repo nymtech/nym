@@ -169,7 +169,7 @@ impl<T> SignableMessage<T> {
 #[derive(Serialize)]
 pub struct ContractMessageContent<T> {
     pub message_type: MessageType,
-    pub signer: Addr,
+    pub sender: Addr,
     pub proxy: Option<Addr>,
     pub funds: Vec<Coin>,
     pub data: T,
@@ -179,10 +179,10 @@ impl<T> ContractMessageContent<T>
 where
     T: SigningPurpose,
 {
-    pub fn new(signer: Addr, proxy: Option<Addr>, funds: Vec<Coin>, data: T) -> Self {
+    pub fn new(sender: Addr, proxy: Option<Addr>, funds: Vec<Coin>, data: T) -> Self {
         ContractMessageContent {
             message_type: T::message_type(),
-            signer,
+            sender,
             proxy,
             funds,
             data,
@@ -198,7 +198,7 @@ where
 
         ContractMessageContent {
             message_type: T::message_type(),
-            signer,
+            sender: signer,
             proxy,
             funds: info.funds,
             data,

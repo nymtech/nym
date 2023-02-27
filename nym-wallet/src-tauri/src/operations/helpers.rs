@@ -61,9 +61,9 @@ pub(crate) async fn create_mixnode_bonding_sign_payload<P: AddressAndNonceProvid
     vesting: bool,
 ) -> Result<SignableMixNodeBondingMsg, BackendError> {
     let payload = MixnodeBondingPayload::new(mix_node, cost_params);
-    let signer = client.cw_address();
+    let sender = client.cw_address();
     let proxy = proxy(client, vesting);
-    let content = ContractMessageContent::new(signer, proxy, vec![pledge.into()], payload);
+    let content = ContractMessageContent::new(sender, proxy, vec![pledge.into()], payload);
     let nonce = client.get_signing_nonce().await?;
 
     Ok(SignableMessage::new(nonce, content))
@@ -111,9 +111,9 @@ pub(crate) async fn create_gateway_bonding_sign_payload<P: AddressAndNonceProvid
     vesting: bool,
 ) -> Result<SignableGatewayBondingMsg, BackendError> {
     let payload = GatewayBondingPayload::new(gateway);
-    let signer = client.cw_address();
+    let sender = client.cw_address();
     let proxy = proxy(client, vesting);
-    let content = ContractMessageContent::new(signer, proxy, vec![pledge.into()], payload);
+    let content = ContractMessageContent::new(sender, proxy, vec![pledge.into()], payload);
     let nonce = client.get_signing_nonce().await?;
 
     Ok(SignableMessage::new(nonce, content))

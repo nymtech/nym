@@ -11,7 +11,7 @@ export const AppWindowFrame: FCWithChildren = ({ children }) => {
   // defined functions to be used when moving away from pages
   const onBack = () => {
     switch (location.pathname) {
-      case '/menu/settings':
+      case '/menu/settings/gateway':
         return () => {
           // when the user moves away from the settings page and the gateway is not valid
           // set isActive to false

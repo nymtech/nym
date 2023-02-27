@@ -22,7 +22,7 @@ export const AppWindowFrame: FCWithChildren = ({ children }) => {
         };
       case '/menu/settings/service-provider':
         return () => {
-          // when the user moves away from the settings page and the gateway is not valid
+          // when the user moves away from the settings page and the sp is not valid
           // set isActive to false
           if (!userDefinedSPAddress?.address) {
             setUserDefinedSPAddress((current) => ({ ...current, isActive: false }));

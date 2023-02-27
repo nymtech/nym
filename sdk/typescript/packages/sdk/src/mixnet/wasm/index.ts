@@ -11,6 +11,7 @@ import {
   LoadedEvent,
   MimeTypes,
   StringMessageReceivedEvent,
+  RawMessageReceivedEvent,
 } from './types';
 
 /**
@@ -87,6 +88,12 @@ export const createNymMixnetClient = async (options?: {
       getSubscriptions<BinaryMessageReceivedEvent>(EventKinds.BinaryMessageReceived).push(handler);
       return () => {
         getSubscriptions<BinaryMessageReceivedEvent>(EventKinds.BinaryMessageReceived).unshift(handler);
+      };
+    },
+    subscribeToRawMessageReceivedEvent: (handler) => {
+      getSubscriptions<RawMessageReceivedEvent>(EventKinds.RawMessageReceived).push(handler);
+      return () => {
+        getSubscriptions<RawMessageReceivedEvent>(EventKinds.RawMessageReceived).unshift(handler);
       };
     },
   };

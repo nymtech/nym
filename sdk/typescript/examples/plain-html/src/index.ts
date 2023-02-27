@@ -9,6 +9,9 @@ let nym: NymMixnetClient | null = null;
 async function main() {
   nym = await createNymMixnetClient();
 
+  // add nym client to the Window globally, so that it can be used from the dev tools console
+  (window as any).nym = nym;
+
   if (!nym) {
     console.error('Oh no! Could not create client');
     return;
@@ -37,6 +40,8 @@ async function main() {
       }
     };
   }
+
+  nym.events.subscribeToRawMessageReceivedEvent((e) => console.log('Received: ', e.args.payload));
 
   // start up the client
   await nym.client.start({

@@ -61,18 +61,23 @@ export interface Debug {
    */
   maximum_reply_surb_age_ms: bigint;
   /**
+   * Defines maximum amount of time the client is going to wait for reply surbs before
+   * deciding it's never going to get them and would drop all pending messages
+   */
+  maximum_reply_surb_drop_waiting_period_ms: bigint;
+  /**
    * Defines the maximum number of reply surbs the client would request.
    */
   maximum_reply_surb_request_size: number;
   /**
-   * Defines the maximum number of reply surbs the client wants to keep in its storage at any times.
-   */
-  maximum_reply_surb_storage_threshold: number;
-  /**
    * Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
    * for more even though in theory they wouldn't need to.
    */
-  maximum_reply_surb_waiting_period_ms: bigint;
+  maximum_reply_surb_rerequest_waiting_period_ms: bigint;
+  /**
+   * Defines the maximum number of reply surbs the client wants to keep in its storage at any times.
+   */
+  maximum_reply_surb_storage_threshold: number;
   /**
    * The parameter of Poisson distribution determining how long, on average,
    * it is going to take another 'real traffic stream' message to be sent.
@@ -167,6 +172,7 @@ export interface IWebWorker {
   setTextMimeTypes: (mimeTypes: string[]) => void;
   getTextMimeTypes: () => string[];
   send: (args: { payload: Payload; recipient: string; replySurbs?: number }) => void;
+  rawSend: (args: { payload: Uint8Array; recipient: string; replySurbs?: number }) => void;
 }
 
 export interface IWebWorkerAsync {
@@ -176,6 +182,7 @@ export interface IWebWorkerAsync {
   setTextMimeTypes: (mimeTypes: string[]) => void;
   getTextMimeTypes: () => Promise<string[]>;
   send: (args: { payload: Payload; recipient: string; replySurbs?: number }) => Promise<void>;
+  rawSend: (args: { payload: Uint8Array; recipient: string; replySurbs?: number }) => Promise<void>;
 }
 
 export enum EventKinds {
@@ -183,6 +190,7 @@ export enum EventKinds {
   Connected = 'Connected',
   StringMessageReceived = 'StringMessageReceived',
   BinaryMessageReceived = 'BinaryMessageReceived',
+  RawMessageReceived = 'RawMessageReceived',
 }
 
 export interface LoadedEvent {
@@ -218,9 +226,17 @@ export interface BinaryMessageReceivedEvent {
   };
 }
 
+export interface RawMessageReceivedEvent {
+  kind: EventKinds.RawMessageReceived;
+  args: {
+    payload: Uint8Array;
+  };
+}
+
 export interface IWebWorkerEvents {
   subscribeToLoaded: EventHandlerSubscribeFn<LoadedEvent>;
   subscribeToConnected: EventHandlerSubscribeFn<ConnectedEvent>;
   subscribeToTextMessageReceivedEvent: EventHandlerSubscribeFn<StringMessageReceivedEvent>;
   subscribeToBinaryMessageReceivedEvent: EventHandlerSubscribeFn<BinaryMessageReceivedEvent>;
+  subscribeToRawMessageReceivedEvent: EventHandlerSubscribeFn<RawMessageReceivedEvent>;
 }

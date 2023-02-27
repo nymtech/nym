@@ -91,7 +91,7 @@ pub enum CoconutError {
     #[error("Failed to recover assigned node index: {reason}")]
     NodeIndexRecoveryError { reason: String },
 
-    #[error("Unrecoverable state: {reason}. Process should be restarted")]
+    #[error("Unrecoverable state: {reason}")]
     UnrecoverableState { reason: String },
 
     #[error("DKG has not finished yet in order to derive the coconut key")]

@@ -114,6 +114,12 @@ export interface StatsResponse {
   packets_explicitly_dropped_since_last_update: number;
 }
 
+export interface NodePerformance {
+  most_recent: string;
+  last_hour: string;
+  last_24h: string;
+}
+
 export type MixNodeHistoryResponse = StatsResponse;
 
 export interface GatewayBond {
@@ -122,12 +128,12 @@ export interface GatewayBond {
   total_delegation: Amount;
   owner: string;
   gateway: Gateway;
-  performance: string;
+  node_performance: NodePerformance;
 }
 
 export interface GatewayBondAnnotated {
   gateway_bond: GatewayBond;
-  performance: string;
+  node_performance: NodePerformance;
 }
 
 export type GatewayResponse = GatewayBond[];

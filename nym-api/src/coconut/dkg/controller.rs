@@ -100,56 +100,65 @@ impl<R: RngCore + Clone> DkgController<R> {
                 }
                 if let Err(err) = self.state.is_consistent(epoch.state).await {
                     debug!("Epoch state is corrupted - {err}. Awaiting for a DKG restart.");
-                    return;
-                }
-                let ret = match epoch.state {
-                    EpochState::PublicKeySubmission { resharing } => {
-                        public_key_submission(&self.dkg_client, &mut self.state, resharing).await
-                    }
-                    EpochState::DealingExchange { resharing } => {
-                        dealing_exchange(
-                            &self.dkg_client,
-                            &mut self.state,
-                            self.rng.clone(),
-                            resharing,
-                        )
-                        .await
-                    }
-                    EpochState::VerificationKeySubmission { resharing } => {
-                        let keypair_path = nym_pemstore::KeyPairPath::new(
-                            self.secret_key_path.clone(),
-                            self.verification_key_path.clone(),
-                        );
-                        verification_key_submission(
-                            &self.dkg_client,
-                            &mut self.state,
-                            &keypair_path,
-                            resharing,
-                        )
-                        .await
-                    }
-                    EpochState::VerificationKeyValidation { resharing } => {
-                        verification_key_validation(&self.dkg_client, &mut self.state, resharing)
+                } else {
+                    let ret = match epoch.state {
+                        EpochState::PublicKeySubmission { resharing } => {
+                            public_key_submission(&self.dkg_client, &mut self.state, resharing)
+                                .await
+                        }
+                        EpochState::DealingExchange { resharing } => {
+                            dealing_exchange(
+                                &self.dkg_client,
+                                &mut self.state,
+                                self.rng.clone(),
+                                resharing,
+                            )
                             .await
-                    }
-                    EpochState::VerificationKeyFinalization { resharing } => {
-                        verification_key_finalization(&self.dkg_client, &mut self.state, resharing)
+                        }
+                        EpochState::VerificationKeySubmission { resharing } => {
+                            let keypair_path = nym_pemstore::KeyPairPath::new(
+                                self.secret_key_path.clone(),
+                                self.verification_key_path.clone(),
+                            );
+                            verification_key_submission(
+                                &self.dkg_client,
+                                &mut self.state,
+                                &keypair_path,
+                                resharing,
+                            )
                             .await
-                    }
-                    // Just wait, in case we need to redo dkg at some point
-                    EpochState::InProgress => {
-                        self.state.set_was_in_progress();
-                        Ok(())
-                    }
-                };
-                if let Err(err) = ret {
-                    warn!("Could not handle this iteration for the epoch state: {err}");
-                } else if epoch.state != EpochState::InProgress {
-                    let persistent_state = PersistentState::from(&self.state);
-                    if let Err(err) =
-                        persistent_state.save_to_file(self.state.persistent_state_path())
-                    {
-                        warn!("Could not backup the state for this iteration: {err}");
+                        }
+                        EpochState::VerificationKeyValidation { resharing } => {
+                            verification_key_validation(
+                                &self.dkg_client,
+                                &mut self.state,
+                                resharing,
+                            )
+                            .await
+                        }
+                        EpochState::VerificationKeyFinalization { resharing } => {
+                            verification_key_finalization(
+                                &self.dkg_client,
+                                &mut self.state,
+                                resharing,
+                            )
+                            .await
+                        }
+                        // Just wait, in case we need to redo dkg at some point
+                        EpochState::InProgress => {
+                            self.state.set_was_in_progress();
+                            Ok(())
+                        }
+                    };
+                    if let Err(err) = ret {
+                        warn!("Could not handle this iteration for the epoch state: {err}");
+                    } else if epoch.state != EpochState::InProgress {
+                        let persistent_state = PersistentState::from(&self.state);
+                        if let Err(err) =
+                            persistent_state.save_to_file(self.state.persistent_state_path())
+                        {
+                            warn!("Could not backup the state for this iteration: {err}");
+                        }
                     }
                 }
                 if let Ok(current_timestamp) =

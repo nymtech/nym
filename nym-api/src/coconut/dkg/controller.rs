@@ -99,7 +99,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                     return;
                 }
                 if let Err(err) = self.state.is_consistent(epoch.state).await {
-                    error!("Epoch state is corrupted - {err}, the process should be terminated");
+                    debug!("Epoch state is corrupted - {err}. Awaiting for a DKG restart.");
                     return;
                 }
                 let ret = match epoch.state {

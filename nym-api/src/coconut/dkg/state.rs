@@ -133,7 +133,7 @@ impl ConsistentState for State {
 
     fn proposal_id_value(&self) -> Result<u64, CoconutError> {
         self.proposal_id.ok_or(CoconutError::UnrecoverableState {
-            reason: String::from("Proposal id should have benn set"),
+            reason: String::from("Proposal id should have been set"),
         })
     }
 }

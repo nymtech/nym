@@ -25,6 +25,7 @@ export type TClientContext = {
   selectedProvider?: ServiceProvider;
   showInfoModal: boolean;
   userDefinedGateway?: UserDefinedGateway;
+  serviceProviders?: ServiceProvider[];
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
@@ -165,6 +166,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       showInfoModal,
       setConnectionStats,
       selectedProvider,
+      serviceProviders,
       connectedSince,
       setConnectedSince,
       setRandomSerivceProvider,
@@ -180,6 +182,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       appVersion,
       error,
       showInfoModal,
+      serviceProviders,
       connectedSince,
       connectionStatus,
       connectionStats,

@@ -6,6 +6,7 @@ import { CompatibleApps } from 'src/pages/menu/Apps';
 import { HelpGuide } from 'src/pages/menu/Guide';
 import { SettingsMenu } from 'src/pages/menu/settings';
 import { GatewaySettings } from 'src/pages/menu/settings/GatewaySettings';
+import { ServiceProviderSettings } from 'src/pages/menu/settings/ServiceProviderSettings';
 
 export const AppRoutes = () => (
   <Routes>
@@ -17,6 +18,7 @@ export const AppRoutes = () => (
       <Route path="settings">
         <Route index element={<SettingsMenu />} />
         <Route path="gateway" element={<GatewaySettings />} />
+        <Route path="service-provider" element={<ServiceProviderSettings />} />
       </Route>
     </Route>
   </Routes>

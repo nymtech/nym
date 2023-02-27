@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useState } from 'react';
+import React, { ChangeEvent } from 'react';
 import {
   Autocomplete,
   Box,
@@ -15,18 +15,26 @@ import { ConnectionStatusKind } from 'src/types';
 import { useClientContext } from 'src/context/main';
 
 export const ServiceProviderSettings = () => {
-  const [spAddress, setSPAddress] = useState<string>();
-  const [isOn, setIsOn] = useState(false);
-
-  const { connectionStatus, serviceProviders } = useClientContext();
+  const { connectionStatus, serviceProviders, userDefinedSPAddress, setUserDefinedSPAddress } = useClientContext();
 
   const toggleOnOff = (e: ChangeEvent<HTMLInputElement>) => {
-    if (!isOn) setSPAddress(undefined);
-    setIsOn(e.target.checked);
+    setUserDefinedSPAddress((current) => ({ ...current, isActive: e.target.checked }));
   };
 
   const handleSelectFromList = (value: string | null) => {
-    setSPAddress(value ?? undefined);
+    setUserDefinedSPAddress((current) => ({ ...current, address: value ?? undefined }));
+  };
+
+  const getSPDescription = (spAddress: string) => {
+    const match = serviceProviders?.find((sp) => sp.address === spAddress);
+
+    if (match) return match.description;
+
+    return 'The service provider specified is not in our known list.';
+  };
+
+  const validateInput = (value: string) => {
+    setUserDefinedSPAddress((current) => ({ ...current, address: !value.length ? undefined : value }));
   };
 
   return (
@@ -43,40 +51,43 @@ export const ServiceProviderSettings = () => {
             <FormControlLabel
               control={
                 <Switch
-                  checked={isOn}
+                  checked={userDefinedSPAddress.isActive}
                   onChange={toggleOnOff}
                   disabled={connectionStatus === ConnectionStatusKind.connected}
                   size="small"
                   sx={{ ml: 1 }}
                 />
               }
-              label={isOn ? 'On' : 'Off'}
+              label={userDefinedSPAddress.isActive ? 'On' : 'Off'}
             />
             {connectionStatus === ConnectionStatusKind.connected && (
               <FormHelperText sx={{ m: 0, my: 1 }}>This setting is disabled during an active connection</FormHelperText>
             )}
-            {isOn && serviceProviders && (
+            {userDefinedSPAddress.isActive && serviceProviders && (
               <Autocomplete
                 clearOnEscape
+                disabled={connectionStatus === 'connected'}
                 sx={{ mt: 1 }}
-                options={serviceProviders.map((sp) => `${sp.address.substring(0, 20)}...`)}
+                options={serviceProviders.map((sp) => sp.address)}
                 freeSolo
+                value={userDefinedSPAddress.address || ''}
                 onChange={(e, value) => handleSelectFromList(value)}
-                value={spAddress}
                 size="small"
                 renderInput={(params) => (
                   <TextField
                     autoFocus
                     {...params}
-                    value={spAddress}
-                    onChange={(e) => console.log(e.target.value)}
                     placeholder="Service provider"
+                    onChange={(e) => validateInput(e.target.value)}
                   />
                 )}
                 ListboxProps={{ style: { background: 'unset', fontSize: '14px' } }}
               />
             )}
           </FormControl>
+          {userDefinedSPAddress.address && userDefinedSPAddress.isActive && (
+            <Typography sx={{ mt: 1 }}>{getSPDescription(userDefinedSPAddress.address)}</Typography>
+          )}
         </Box>
         <AppVersion />
       </Stack>

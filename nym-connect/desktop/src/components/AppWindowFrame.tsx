@@ -6,17 +6,26 @@ import { CustomTitleBar } from './CustomTitleBar';
 
 export const AppWindowFrame: FCWithChildren = ({ children }) => {
   const location = useLocation();
-  const { userDefinedGateway, setUserDefinedGateway } = useClientContext();
+  const { userDefinedGateway, setUserDefinedGateway, userDefinedSPAddress, setUserDefinedSPAddress } =
+    useClientContext();
 
   // defined functions to be used when moving away from pages
   const onBack = () => {
     switch (location.pathname) {
-      case '/menu/settings':
+      case '/menu/settings/gateway':
         return () => {
           // when the user moves away from the settings page and the gateway is not valid
           // set isActive to false
           if (!userDefinedGateway?.gateway) {
             setUserDefinedGateway((current) => ({ ...current, isActive: false }));
+          }
+        };
+      case '/menu/settings/service-provider':
+        return () => {
+          // when the user moves away from the settings page and the sp is not valid
+          // set isActive to false
+          if (!userDefinedSPAddress?.address) {
+            setUserDefinedSPAddress((current) => ({ ...current, isActive: false }));
           }
         };
       default:

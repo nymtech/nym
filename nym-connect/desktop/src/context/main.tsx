@@ -5,10 +5,10 @@ import { Error } from 'src/types/error';
 import { getVersion } from '@tauri-apps/api/app';
 import { useEvents } from 'src/hooks/events';
 import { UserDefinedGateway, UserDefinedSPAddress } from 'src/types/service-provider';
+import { getItemFromStorage, setItemInStorage } from 'src/utils';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider } from '../types/directory';
-import { getItemFromStorage, setItemInStorage } from 'src/utils';
 
 const FORAGE_GATEWAY_KEY = 'nym-connect-user-gateway';
 const FORAGE_SP_KEY = 'nym-connect-user-sp';
@@ -142,7 +142,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   };
 
   const buildServiceProvider = async (serviceProvider: ServiceProvider) => {
-    let sp = { ...serviceProvider };
+    const sp = { ...serviceProvider };
 
     if (shouldUseUserGateway) sp.gateway = userDefinedGateway.gateway as string;
     if (shouldUseUserSP) sp.address = userDefinedSPAddress.address as string;

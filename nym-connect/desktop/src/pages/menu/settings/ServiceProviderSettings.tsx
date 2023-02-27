@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useEffect, useState } from 'react';
+import React, { ChangeEvent } from 'react';
 import {
   Autocomplete,
   Box,
@@ -62,6 +62,7 @@ export const ServiceProviderSettings = () => {
             {userDefinedSPAddress.isActive && serviceProviders && (
               <Autocomplete
                 clearOnEscape
+                disabled={connectionStatus === 'connected'}
                 value={userDefinedSPAddress.address}
                 sx={{ mt: 1 }}
                 options={serviceProviders.map((sp) => sp.address)}

@@ -7,6 +7,7 @@ use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA, THRES
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::STATE;
+use crate::verification_key_shares::storage::vk_shares;
 use coconut_dkg_common::types::{Epoch, EpochState, InitialReplacementData};
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, Response, Storage};
 
@@ -158,9 +159,16 @@ pub(crate) fn try_surpassed_threshold(
     check_epoch_state(deps.storage, EpochState::InProgress)?;
 
     let threshold = THRESHOLD.load(deps.storage)?;
-    let dealers = current_dealers()
-        .keys(deps.storage, None, None, Order::Ascending)
-        .flatten();
+    let dealers = vk_shares()
+        .range(deps.storage, None, None, Order::Ascending)
+        .flatten()
+        .filter_map(|(_, share)| {
+            if share.verified {
+                Some(share.owner)
+            } else {
+                None
+            }
+        });
     if dealers_still_active(&deps.as_ref(), dealers)? < threshold as usize {
         reset_epoch_state(deps.storage)?;
         CURRENT_EPOCH.update::<_, ContractError>(deps.storage, |epoch| {
@@ -180,7 +188,7 @@ pub(crate) fn try_surpassed_threshold(
 pub(crate) mod tests {
     use super::*;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
-    use crate::support::tests::fixtures::dealer_details_fixture;
+    use crate::support::tests::fixtures::{dealer_details_fixture, vk_share_fixture};
     use crate::support::tests::helpers::{init_contract, GROUP_MEMBERS};
     use coconut_dkg_common::types::{
         ContractSafeBytes, DealerDetails, EpochState, TimeConfiguration,
@@ -676,6 +684,12 @@ pub(crate) mod tests {
             for details in all_details.iter() {
                 current_dealers()
                     .save(deps.as_mut().storage, &details.address, details)
+                    .unwrap();
+            }
+            let all_shares: [_; 3] = std::array::from_fn(|i| vk_share_fixture(&format!("owner{}", i + 1), 0));
+            for share in all_shares.iter() {
+                vk_shares()
+                    .save(deps.as_mut().storage, (&share.owner, share.epoch_id), share)
                     .unwrap();
             }
 

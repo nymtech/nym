@@ -10,11 +10,11 @@ defaults:
 
 jobs:
   publish-tauri:
-    if: ${{ startsWith(github.ref, 'refs/tags/nym-connect-') && github.event_name == 'release' }}
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-connect-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest]
+        platform: [custom-runner-mac-m1]
 
     runs-on: ${{ matrix.platform }}
     steps:

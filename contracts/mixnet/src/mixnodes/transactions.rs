@@ -9,10 +9,11 @@ use crate::mixnet_contract_settings::storage::rewarding_denom;
 use crate::mixnodes::helpers::{
     get_mixnode_details_by_owner, must_get_mixnode_bond_by_owner, save_new_mixnode,
 };
+use crate::mixnodes::signature_helpers::verify_mixnode_bonding_signature;
+use crate::signing::storage as signing_storage;
 use crate::support::helpers::{
     ensure_bonded, ensure_epoch_in_progress_state, ensure_is_authorized, ensure_no_existing_bond,
-    ensure_proxy_match, ensure_sent_by_vesting_contract, validate_node_identity_signature,
-    validate_pledge,
+    ensure_proxy_match, ensure_sent_by_vesting_contract, validate_pledge,
 };
 use cosmwasm_std::{coin, Addr, Coin, DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
@@ -24,6 +25,7 @@ use mixnet_contract_common::events::{
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
 use mixnet_contract_common::{Layer, MixId, MixNode};
+use nym_contracts_common::signing::MessageSignature;
 
 pub(crate) fn update_mixnode_layer(
     mix_id: MixId,
@@ -61,7 +63,7 @@ pub fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
     cost_params: MixNodeCostParams,
-    owner_signature: String,
+    owner_signature: MessageSignature,
 ) -> Result<Response, MixnetContractError> {
     _try_add_mixnode(
         deps,
@@ -82,7 +84,7 @@ pub fn try_add_mixnode_on_behalf(
     mix_node: MixNode,
     cost_params: MixNodeCostParams,
     owner: String,
-    owner_signature: String,
+    owner_signature: MessageSignature,
 ) -> Result<Response, MixnetContractError> {
     ensure_sent_by_vesting_contract(&info, deps.storage)?;
 
@@ -101,6 +103,9 @@ pub fn try_add_mixnode_on_behalf(
 }
 
 // I'm not entirely sure how to deal with this warning at the current moment
+//
+// TODO: perhaps also require the user to explicitly provide what it thinks is the current nonce
+// so that we could return a better error message if it doesn't match?
 #[allow(clippy::too_many_arguments)]
 fn _try_add_mixnode(
     deps: DepsMut<'_>,
@@ -109,7 +114,7 @@ fn _try_add_mixnode(
     cost_params: MixNodeCostParams,
     pledge: Vec<Coin>,
     owner: Addr,
-    owner_signature: String,
+    owner_signature: MessageSignature,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     // check if the pledge contains any funds of the appropriate denomination
@@ -126,12 +131,18 @@ fn _try_add_mixnode(
     // the bond information due to `UniqueIndex` constraint defined on those fields.
 
     // check if this sender actually owns the mixnode by checking the signature
-    validate_node_identity_signature(
+    verify_mixnode_bonding_signature(
         deps.as_ref(),
-        &owner,
-        &owner_signature,
-        &mixnode.identity_key,
+        owner.clone(),
+        proxy.clone(),
+        pledge.clone(),
+        mixnode.clone(),
+        cost_params.clone(),
+        owner_signature,
     )?;
+
+    // update the signing nonce associated with this sender so that the future signature would be made on the new value
+    signing_storage::increment_signing_nonce(deps.storage, owner.clone())?;
 
     let node_identity = mixnode.identity_key.clone();
     let (node_id, layer) = save_new_mixnode(

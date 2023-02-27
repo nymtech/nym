@@ -10,6 +10,7 @@ use crate::reward_params::{
 };
 use crate::{delegation, ContractStateParams, Layer, LayerAssignment, MixId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -153,12 +154,12 @@ pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     BondMixnodeOnBehalf {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         owner: String,
     },
     PledgeMore {},
@@ -187,12 +188,12 @@ pub enum ExecuteMsg {
     // gateway-related:
     BondGateway {
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     BondGatewayOnBehalf {
         gateway: Gateway,
         owner: String,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     UnbondGateway {},
     UnbondGatewayOnBehalf {

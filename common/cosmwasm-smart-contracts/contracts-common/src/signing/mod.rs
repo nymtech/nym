@@ -2,15 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{from_slice, to_vec, Addr, Coin, MessageInfo, StdResult};
+use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
+pub use verifier::Verifier;
+
+pub mod verifier;
 
 pub type Nonce = u32;
 
 // define this type explicitly for [hopefully] better usability
 // (so you wouldn't need to worry about whether you should use bytes, bs58, etc.)
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, JsonSchema)]
 pub struct MessageSignature(Vec<u8>);
 
 impl MessageSignature {
@@ -139,6 +143,10 @@ impl<T> SignableMessage<T> {
         T: Serialize,
     {
         to_vec(self)
+    }
+
+    pub fn to_sha256_plaintext_digest(&self) -> StdResult<Vec<u8>> {
+        unimplemented!()
     }
 
     pub fn to_string(&self) -> StdResult<String>

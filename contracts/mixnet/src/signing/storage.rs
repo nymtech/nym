@@ -21,12 +21,10 @@ pub fn update_signing_nonce(
     NONCES.save(storage, address, &value)
 }
 
-pub fn get_and_update_signing_nonce(storage: &mut dyn Storage, address: Addr) -> StdResult<Nonce> {
+pub fn increment_signing_nonce(storage: &mut dyn Storage, address: Addr) -> StdResult<()> {
     // get the current nonce
     let nonce = get_signing_nonce(storage, address.clone())?;
-    
+
     // increment it for the next use
-    update_signing_nonce(storage, address, nonce + 1)?;
-    
-    Ok(nonce)
+    update_signing_nonce(storage, address, nonce + 1)
 }

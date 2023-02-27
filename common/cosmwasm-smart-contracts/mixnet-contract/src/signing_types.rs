@@ -2,8 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{Gateway, MixNode, MixNodeCostParams};
-use contracts_common::signing::{MessageType, SigningPurpose};
+use contracts_common::signing::{
+    ContractMessageContent, MessageType, Nonce, SignableMessage, SigningPurpose,
+};
+use cosmwasm_std::{Addr, Coin};
 use serde::Serialize;
+
+pub type SignableMixNodeBondingMsg = SignableMessage<ContractMessageContent<MixnodeBondingPayload>>;
+pub type SignableGatewayBondingMsg = SignableMessage<ContractMessageContent<GatewayBondingPayload>>;
 
 #[derive(Serialize)]
 pub struct MixnodeBondingPayload {
@@ -26,6 +32,20 @@ impl SigningPurpose for MixnodeBondingPayload {
     }
 }
 
+pub fn construct_mixnode_bonding_sign_payload(
+    nonce: Nonce,
+    sender: Addr,
+    proxy: Option<Addr>,
+    pledge: Coin,
+    mix_node: MixNode,
+    cost_params: MixNodeCostParams,
+) -> SignableMixNodeBondingMsg {
+    let payload = MixnodeBondingPayload::new(mix_node, cost_params);
+    let content = ContractMessageContent::new(sender, proxy, vec![pledge], payload);
+
+    SignableMessage::new(nonce, content)
+}
+
 #[derive(Serialize)]
 pub struct GatewayBondingPayload {
     gateway: Gateway,
@@ -41,6 +61,19 @@ impl SigningPurpose for GatewayBondingPayload {
     fn message_type() -> MessageType {
         MessageType::new("gateway-bonding")
     }
+}
+
+pub fn construct_gateway_bonding_sign_payload(
+    nonce: Nonce,
+    sender: Addr,
+    proxy: Option<Addr>,
+    pledge: Coin,
+    gateway: Gateway,
+) -> SignableGatewayBondingMsg {
+    let payload = GatewayBondingPayload::new(gateway);
+    let content = ContractMessageContent::new(sender, proxy, vec![pledge], payload);
+
+    SignableMessage::new(nonce, content)
 }
 
 #[derive(Serialize)]

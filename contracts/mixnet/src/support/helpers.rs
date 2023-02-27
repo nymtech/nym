@@ -377,7 +377,7 @@ pub fn validate_node_identity_signature(
     signature: &str,
     identity: IdentityKeyRef<'_>,
 ) -> Result<(), MixnetContractError> {
-    validate_signature(deps, owner.as_bytes(), signature, identity)
+    validate_ed25519_signature(deps, owner.as_bytes(), signature, identity)
 }
 
 pub fn validate_family_signature(
@@ -386,10 +386,10 @@ pub fn validate_family_signature(
     signature: &str,
     family_head: IdentityKeyRef<'_>,
 ) -> Result<(), MixnetContractError> {
-    validate_signature(deps, family_member.as_bytes(), signature, family_head)
+    validate_ed25519_signature(deps, family_member.as_bytes(), signature, family_head)
 }
 
-pub(crate) fn validate_signature(
+pub(crate) fn validate_ed25519_signature(
     deps: Deps<'_>,
     signed_bytes: &[u8],
     signature: &str,

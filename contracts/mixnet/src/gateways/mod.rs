@@ -4,3 +4,4 @@
 pub mod queries;
 pub mod storage;
 pub mod transactions;
+pub mod signature_helpers;

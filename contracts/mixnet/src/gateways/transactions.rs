@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::gateways::signature_helpers::verify_gateway_bonding_signature;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::signing::storage as signing_storage;
 use crate::support::helpers::{
-    ensure_no_existing_bond, ensure_sent_by_vesting_contract, validate_node_identity_signature,
-    validate_pledge,
+    ensure_no_existing_bond, ensure_sent_by_vesting_contract, validate_pledge,
 };
 use cosmwasm_std::{wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{new_gateway_bonding_event, new_gateway_unbonding_event};
 use mixnet_contract_common::{Gateway, GatewayBond};
+use nym_contracts_common::signing::MessageSignature;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub fn try_add_gateway(
@@ -18,7 +20,7 @@ pub fn try_add_gateway(
     env: Env,
     info: MessageInfo,
     gateway: Gateway,
-    owner_signature: String,
+    owner_signature: MessageSignature,
 ) -> Result<Response, MixnetContractError> {
     _try_add_gateway(
         deps,
@@ -37,7 +39,7 @@ pub fn try_add_gateway_on_behalf(
     info: MessageInfo,
     gateway: Gateway,
     owner: String,
-    owner_signature: String,
+    owner_signature: MessageSignature,
 ) -> Result<Response, MixnetContractError> {
     ensure_sent_by_vesting_contract(&info, deps.storage)?;
 
@@ -54,13 +56,15 @@ pub fn try_add_gateway_on_behalf(
     )
 }
 
+// TODO: perhaps also require the user to explicitly provide what it thinks is the current nonce
+// so that we could return a better error message if it doesn't match?
 pub(crate) fn _try_add_gateway(
     deps: DepsMut<'_>,
     env: Env,
     gateway: Gateway,
     pledge: Vec<Coin>,
     owner: Addr,
-    owner_signature: String,
+    owner_signature: MessageSignature,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     // check if the pledge contains any funds of the appropriate denomination
@@ -82,12 +86,17 @@ pub(crate) fn _try_add_gateway(
     }
 
     // check if this sender actually owns the gateway by checking the signature
-    validate_node_identity_signature(
+    verify_gateway_bonding_signature(
         deps.as_ref(),
-        &owner,
-        &owner_signature,
-        &gateway.identity_key,
+        owner.clone(),
+        proxy.clone(),
+        pledge.clone(),
+        gateway.clone(),
+        owner_signature,
     )?;
+
+    // update the signing nonce associated with this sender so that the future signature would be made on the new value
+    signing_storage::increment_signing_nonce(deps.storage, owner.clone())?;
 
     let gateway_identity = gateway.identity_key.clone();
     let bond = GatewayBond::new(

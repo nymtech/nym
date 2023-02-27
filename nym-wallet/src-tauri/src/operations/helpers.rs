@@ -9,15 +9,13 @@ use nym_contracts_common::signing::{
 };
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::{
-    Gateway, GatewayBondingPayload, MixNode, MixNodeCostParams, MixnodeBondingPayload,
+    construct_mixnode_bonding_sign_payload, Gateway, GatewayBondingPayload, MixNode,
+    MixNodeCostParams, MixnodeBondingPayload, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
 };
 use validator_client::nyxd::error::NyxdError;
 use validator_client::nyxd::traits::MixnetQueryClient;
 use validator_client::nyxd::{Coin, SigningNyxdClient};
 use validator_client::Client;
-
-type SignableMixNodeBondingMsg = SignableMessage<ContractMessageContent<MixnodeBondingPayload>>;
-type SignableGatewayBondingMsg = SignableMessage<ContractMessageContent<GatewayBondingPayload>>;
 
 // define this as a separate trait for mocking purposes
 #[async_trait]
@@ -60,13 +58,18 @@ pub(crate) async fn create_mixnode_bonding_sign_payload<P: AddressAndNonceProvid
     pledge: Coin,
     vesting: bool,
 ) -> Result<SignableMixNodeBondingMsg, BackendError> {
-    let payload = MixnodeBondingPayload::new(mix_node, cost_params);
     let sender = client.cw_address();
     let proxy = proxy(client, vesting);
-    let content = ContractMessageContent::new(sender, proxy, vec![pledge.into()], payload);
     let nonce = client.get_signing_nonce().await?;
 
-    Ok(SignableMessage::new(nonce, content))
+    Ok(construct_mixnode_bonding_sign_payload(
+        nonce,
+        sender,
+        proxy,
+        pledge.into(),
+        mix_node,
+        cost_params,
+    ))
 }
 
 pub(crate) async fn verify_mixnode_bonding_sign_payload<P: AddressAndNonceProvider>(

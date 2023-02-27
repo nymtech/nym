@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{EpochState, IdentityKey, MixId};
+use contracts_common::signing::verifier::ApiVerifierError;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use thiserror::Error;
 
@@ -217,5 +218,11 @@ pub enum MixnetContractError {
     SemVerFailure {
         value: String,
         error_message: String,
+    },
+
+    #[error("failed to verify message signature: {source}")]
+    SignatureVerificationFailure {
+        #[from]
+        source: ApiVerifierError,
     },
 }

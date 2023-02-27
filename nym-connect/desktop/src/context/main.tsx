@@ -74,7 +74,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   useEffect(() => {
     setItemInStorage({ key: FORAGE_SP_KEY, value: userDefinedSPAddress });
-  }, [userDefinedGateway]);
+  }, [userDefinedSPAddress]);
 
   const initialiseApp = async () => {
     const services = await invoke('get_services');

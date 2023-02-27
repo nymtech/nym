@@ -33,6 +33,10 @@ export const ServiceProviderSettings = () => {
     return 'The service provider specified is not in our known list.';
   };
 
+  const validateInput = (value: string) => {
+    setUserDefinedSPAddress((current) => ({ ...current, address: !value.length ? undefined : value }));
+  };
+
   return (
     <Box height="100%">
       <Stack justifyContent="space-between" height="100%">
@@ -63,11 +67,10 @@ export const ServiceProviderSettings = () => {
               <Autocomplete
                 clearOnEscape
                 disabled={connectionStatus === 'connected'}
-                value={userDefinedSPAddress.address}
                 sx={{ mt: 1 }}
                 options={serviceProviders.map((sp) => sp.address)}
-                getOptionLabel={(address) => `${address.substring(0, 18)}...`}
                 freeSolo
+                value={userDefinedSPAddress.address || ''}
                 onChange={(e, value) => handleSelectFromList(value)}
                 size="small"
                 renderInput={(params) => (
@@ -75,7 +78,7 @@ export const ServiceProviderSettings = () => {
                     autoFocus
                     {...params}
                     placeholder="Service provider"
-                    onChange={(e) => setUserDefinedSPAddress((current) => ({ ...current, address: e.target.value }))}
+                    onChange={(e) => validateInput(e.target.value)}
                   />
                 )}
                 ListboxProps={{ style: { background: 'unset', fontSize: '14px' } }}

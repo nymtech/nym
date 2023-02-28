@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [v1.0.11] (2023-02-28)
+## [v1.1.11] (2023-02-28)
 
 - NC - add the option to manually select and use a specific Service Provider ([#2953])
 

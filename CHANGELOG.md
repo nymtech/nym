@@ -4,7 +4,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-## [v1.0.11] (2023-02-28)
+## [v1.1.11] (2023-02-28)
 
 - Fix empty dealer set loop ([#3105])
 - The nym-api db.sqlite is broken when trying to run against it it in `enabled-credentials-mode true` there is an ordering issue with migrations when using the credential binary to purchase bandwidth ([#3100])

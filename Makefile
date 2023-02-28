@@ -1,13 +1,22 @@
 test: clippy-all cargo-test wasm fmt
+test-no-mobile: clippy-all-no-mobile cargo-test-no-mobile wasm fmt-no-mobile
 test-all: test cargo-test-expensive
+test-all-no-mobile: test-no-mobile cargo-test-expensive
 no-clippy: build cargo-test wasm fmt
+no-clippy-no-mobile: build-no-mobile cargo-test-no-mobile wasm fmt-no-mobile
 happy: fmt clippy-happy test
-clippy-all: clippy-main clippy-main-examples clippy-all-contracts clippy-all-wallet clippy-all-connect clippy-all-connect-mobile clippy-all-wasm-client
-clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet clippy-happy-connect clippy-happy-connect-mobile
-cargo-test: test-main test-contracts test-wallet test-connect test-connect-mobile
+happy-no-mobile: fmt-no-mobile clippy-happy-no-mobile test-no-mobile
+clippy-all: clippy-all-no-mobile clippy-all-connect-mobile
+clippy-all-no-mobile: clippy-main clippy-main-examples clippy-all-contracts clippy-all-wallet clippy-all-connect clippy-all-wasm-client
+clippy-happy: clippy-happy-no-mobile clippy-happy-connect-mobile
+clippy-happy-no-mobile: clippy-happy-main clippy-happy-contracts clippy-happy-wallet clippy-happy-connect
+cargo-test: cargo-test-no-mobile test-connect-mobile
+cargo-test-no-mobile: test-main test-contracts test-wallet test-connect 
 cargo-test-expensive: test-main-expensive test-contracts-expensive test-wallet-expensive test-connect-expensive
-build: build-contracts build-wallet build-main build-main-examples build-connect build-connect-mobile build-wasm-client
-fmt: fmt-main fmt-contracts fmt-wallet fmt-connect fmt-connect-mobile fmt-wasm-client
+build: build-no-mobile build-connect-mobile 
+build-no-mobile: build-contracts build-wallet build-main build-main-examples build-connect build-wasm-client 
+fmt: fmt-no-mobile fmt-connect-mobile
+fmt-no-mobile: fmt-main fmt-contracts fmt-wallet fmt-connect fmt-wasm-client
 
 clippy-happy-main:
 	cargo clippy

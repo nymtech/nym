@@ -58,7 +58,7 @@ pub async fn bond_gateway(
 
     let res = client
         .nyxd
-        .bond_gateway(gateway, msg_signature.as_bs58_string(), pledge_base, fee)
+        .bond_gateway(gateway, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -123,13 +123,7 @@ pub async fn bond_mixnode(
 
     let res = client
         .nyxd
-        .bond_mixnode(
-            mixnode,
-            cost_params,
-            msg_signature.as_bs58_string(),
-            pledge_base,
-            fee,
-        )
+        .bond_mixnode(mixnode, cost_params, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);

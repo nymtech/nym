@@ -35,7 +35,7 @@ async fn mixnode_bonding_msg_payload(
     let msg =
         create_mixnode_bonding_sign_payload(client, mixnode, cost_params, pledge_base, vesting)
             .await?;
-    Ok(msg.to_string()?)
+    Ok(msg.to_json_string()?)
 }
 
 async fn gateway_bonding_msg_payload(
@@ -58,7 +58,7 @@ async fn gateway_bonding_msg_payload(
     // TODO: decide on exact structure here. Json? base58? some hash?
     // to be determined
     let msg = create_gateway_bonding_sign_payload(client, gateway, pledge_base, vesting).await?;
-    Ok(msg.to_string()?)
+    Ok(msg.to_json_string()?)
 }
 
 #[tauri::command]

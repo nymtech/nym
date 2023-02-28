@@ -8,6 +8,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Fee, NyxdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
 use cosmrs::AccountId;
+use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use nym_mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
 use nym_mixnet_contract_common::{
@@ -290,7 +291,7 @@ pub trait MixnetSigningClient {
         &self,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -311,7 +312,7 @@ pub trait MixnetSigningClient {
         owner: AccountId,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -442,7 +443,7 @@ pub trait MixnetSigningClient {
     async fn bond_gateway(
         &self,
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -461,7 +462,7 @@ pub trait MixnetSigningClient {
         &self,
         owner: AccountId,
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {

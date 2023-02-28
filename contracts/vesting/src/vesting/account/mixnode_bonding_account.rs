@@ -5,6 +5,7 @@ use super::Account;
 use crate::errors::ContractError;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::MixnodeBondingAccount;
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::mixnode::MixNodeConfigUpdate;
 use mixnet_contract_common::mixnode::MixNodeCostParams;
@@ -32,7 +33,7 @@ impl MixnodeBondingAccount for Account {
         &self,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         env: &Env,
         storage: &mut dyn Storage,

@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 pub use verifier::Verifier;
 
 pub mod verifier;
@@ -35,11 +36,19 @@ impl From<Vec<u8>> for MessageSignature {
     }
 }
 
+impl<'a> TryFrom<&'a str> for MessageSignature {
+    type Error = bs58::decode::Error;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        Ok(MessageSignature(bs58::decode(value).into_vec()?))
+    }
+}
+
 impl TryFrom<String> for MessageSignature {
     type Error = bs58::decode::Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        Ok(MessageSignature(bs58::decode(value).into_vec()?))
+        Self::try_from(value.as_str())
     }
 }
 
@@ -74,6 +83,14 @@ impl Serialize for MessageSignature {
 impl Display for MessageSignature {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_bs58_string())
+    }
+}
+
+impl FromStr for MessageSignature {
+    type Err = bs58::decode::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
     }
 }
 
@@ -149,7 +166,7 @@ impl<T> SignableMessage<T> {
         unimplemented!()
     }
 
-    pub fn to_string(&self) -> StdResult<String>
+    pub fn to_json_string(&self) -> StdResult<String>
     where
         T: Serialize,
     {
@@ -157,6 +174,13 @@ impl<T> SignableMessage<T> {
         // CAN'T fail, but let's avoid this unnecessary unwrap either way
         self.to_plaintext()
             .map(|s| String::from_utf8(s).unwrap_or(String::from("SERIALIZATION FAILURE")))
+    }
+
+    pub fn to_base58_string(&self) -> StdResult<String>
+    where
+        T: Serialize,
+    {
+        self.to_plaintext().map(|s| bs58::encode(s).into_string())
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> StdResult<SignableMessage<T>>
@@ -171,6 +195,15 @@ impl<T> SignableMessage<T> {
         T: DeserializeOwned,
     {
         Self::try_from_bytes(raw.as_bytes())
+    }
+
+    pub fn try_from_base58_string(raw: &str) -> bs58::decode::Result<StdResult<SignableMessage<T>>>
+    where
+        T: DeserializeOwned,
+    {
+        bs58::decode(raw)
+            .into_vec()
+            .map(|d| Self::try_from_bytes(&d))
     }
 }
 

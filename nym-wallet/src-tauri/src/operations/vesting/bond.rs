@@ -45,7 +45,7 @@ pub async fn vesting_bond_gateway(
     let res = guard
         .current_client()?
         .nyxd
-        .vesting_bond_gateway(gateway, msg_signature.as_bs58_string(), pledge_base, fee)
+        .vesting_bond_gateway(gateway, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -115,13 +115,7 @@ pub async fn vesting_bond_mixnode(
     let res = guard
         .current_client()?
         .nyxd
-        .vesting_bond_mixnode(
-            mixnode,
-            cost_params,
-            msg_signature.as_bs58_string(),
-            pledge_base,
-            fee,
-        )
+        .vesting_bond_mixnode(mixnode, cost_params, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);

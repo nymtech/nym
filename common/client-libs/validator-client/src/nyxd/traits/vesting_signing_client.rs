@@ -6,6 +6,7 @@ use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, NyxdClient};
 use async_trait::async_trait;
+use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
 use nym_vesting_contract_common::messages::{
@@ -43,7 +44,7 @@ pub trait VestingSigningClient {
     async fn vesting_bond_gateway(
         &self,
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
@@ -61,7 +62,7 @@ pub trait VestingSigningClient {
         &self,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
@@ -208,7 +209,7 @@ impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for Ny
     async fn vesting_bond_gateway(
         &self,
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -272,7 +273,7 @@ impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for Ny
         &self,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {

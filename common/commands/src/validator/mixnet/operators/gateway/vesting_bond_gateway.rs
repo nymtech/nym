@@ -4,6 +4,7 @@
 use crate::context::SigningClient;
 use clap::Parser;
 use log::{info, warn};
+use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::{Coin, Gateway};
 use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use validator_client::nyxd::VestingSigningClient;
@@ -14,7 +15,7 @@ pub struct Args {
     pub host: String,
 
     #[clap(long)]
-    pub signature: String,
+    pub signature: MessageSignature,
 
     #[clap(long)]
     pub mix_port: Option<u16>,
@@ -68,7 +69,7 @@ pub async fn vesting_bond_gateway(client: SigningClient, args: Args, denom: &str
     let coin = Coin::new(args.amount, denom);
 
     let res = client
-        .vesting_bond_gateway(gateway, &args.signature, coin.into(), None)
+        .vesting_bond_gateway(gateway, args.signature, coin.into(), None)
         .await
         .expect("failed to bond gateway!");
 

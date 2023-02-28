@@ -430,7 +430,7 @@ pub mod tests {
         // unbond fred's node
         let info = mock_info("fred", &[]);
         let msg = ExecuteMsg::UnbondGateway {};
-        let remove_fred = execute(test.deps_mut(), env.clone(), info.clone(), msg).unwrap();
+        let remove_fred = execute(test.deps_mut(), env, info.clone(), msg).unwrap();
 
         // we should see a funds transfer from the contract back to fred
         let expected_message = BankMsg::Send {

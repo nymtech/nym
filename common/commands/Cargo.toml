@@ -30,6 +30,7 @@ cosmwasm-std = { version = "1.0.0" }
 
 validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"] }
 nym-network-defaults = { path = "../network-defaults" }
+nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../cosmwasm-smart-contracts/vesting-contract" }
 nym-coconut-bandwidth-contract-common = { path = "../cosmwasm-smart-contracts/coconut-bandwidth-contract" }

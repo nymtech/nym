@@ -4,6 +4,7 @@
 use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
+use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::MixNodeConfigUpdate;
 use nym_mixnet_contract_common::{ExecuteMsg, Gateway, MixId, MixNode};
 use nym_types::currency::DecCoin;
@@ -39,7 +40,7 @@ async fn simulate_mixnet_operation(
 pub async fn simulate_bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
-    owner_signature: String,
+    owner_signature: MessageSignature,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     simulate_mixnet_operation(
@@ -64,7 +65,7 @@ pub async fn simulate_unbond_gateway(
 pub async fn simulate_bond_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
-    owner_signature: String,
+    owner_signature: MessageSignature,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {

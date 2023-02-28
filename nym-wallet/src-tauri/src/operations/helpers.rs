@@ -10,7 +10,7 @@ use nym_contracts_common::signing::{
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::{
     construct_mixnode_bonding_sign_payload, Gateway, GatewayBondingPayload, MixNode,
-    MixNodeCostParams, MixnodeBondingPayload, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
+    MixNodeCostParams, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
 };
 use validator_client::nyxd::error::NyxdError;
 use validator_client::nyxd::traits::MixnetQueryClient;

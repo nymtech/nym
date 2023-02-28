@@ -14,8 +14,8 @@ mod mixnet_contract_settings;
 mod mixnodes;
 mod queued_migrations;
 mod rewards;
-mod support;
 mod signing;
+mod support;
 
 #[cfg(feature = "contract-testing")]
 mod testing;

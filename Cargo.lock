@@ -3212,6 +3212,7 @@ dependencies = [
  "log",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
+ "nym-contracts-common",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",

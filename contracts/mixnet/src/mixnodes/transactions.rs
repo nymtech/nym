@@ -504,7 +504,79 @@ pub mod tests {
 
     #[test]
     fn adding_mixnode_with_invalid_signatures() {
-        todo!()
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        let sender = "alice";
+        let pledge = good_mixnode_pledge();
+        let info = mock_info(sender, pledge.as_ref());
+
+        let (mixnode, signature, _) = test.mixnode_with_signature(sender, Some(pledge.clone()));
+        // the above using cost params fixture
+        let cost_params = fixtures::mix_node_cost_params_fixture();
+
+        // using different parameters than what the signature was made on
+        let mut modified_mixnode = mixnode.clone();
+        modified_mixnode.mix_port += 1;
+        let res = try_add_mixnode(
+            test.deps_mut(),
+            env.clone(),
+            info,
+            modified_mixnode,
+            cost_params.clone(),
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        // even stake amount is protected
+        let mut different_pledge = pledge.clone();
+        different_pledge[0].amount += Uint128::new(12345);
+
+        let info = mock_info(sender, different_pledge.as_ref());
+        let res = try_add_mixnode(
+            test.deps_mut(),
+            env.clone(),
+            info.clone(),
+            mixnode.clone(),
+            cost_params.clone(),
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        let other_sender = mock_info("another-sender", pledge.as_ref());
+        let res = try_add_mixnode(
+            test.deps_mut(),
+            env.clone(),
+            other_sender,
+            mixnode.clone(),
+            cost_params.clone(),
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        // trying to reuse the same signature for another bonding fails (because nonce doesn't match!)
+        let info = mock_info(sender, pledge.as_ref());
+        let current_nonce =
+            signing_storage::get_signing_nonce(test.deps().storage, Addr::unchecked(sender))
+                .unwrap();
+        assert_eq!(0, current_nonce);
+        let res = try_add_mixnode(
+            test.deps_mut(),
+            env.clone(),
+            info.clone(),
+            mixnode.clone(),
+            cost_params.clone(),
+            signature.clone(),
+        );
+        assert!(res.is_ok());
+        let updated_nonce =
+            signing_storage::get_signing_nonce(test.deps().storage, Addr::unchecked(sender))
+                .unwrap();
+        assert_eq!(1, updated_nonce);
+
+        test.immediately_unbond_mixnode(1);
+        let res = try_add_mixnode(test.deps_mut(), env, info, mixnode, cost_params, signature);
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
     }
 
     #[test]

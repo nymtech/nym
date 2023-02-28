@@ -1144,58 +1144,6 @@ pub mod test_helpers {
         SignableGatewayBondingMsg::new(nonce, content)
     }
 
-    // // note to whoever wants to refactor this function, you dont want to grab rng here directly
-    // // via `let rng = test_rng()`
-    // // because it's extremely likely you might end up calling `add_mixnode()` multiple times
-    // // in the same test and thus you're going to get mixnodes with the same keys and that's
-    // // not what you want (presumably)
-    // pub fn add_mixnode(
-    //     rng: impl RngCore + CryptoRng,
-    //     deps: DepsMut<'_>,
-    //     env: Env,
-    //     sender: &str,
-    //     stake: Vec<Coin>,
-    // ) -> MixId {
-    //     let (mixnode, owner_signature, keypair) =
-    //         mixnode_with_signature(rng, deps.as_ref(), sender, Some(stake));
-    //
-    //     let info = mock_info(sender, stake.as_ref());
-    //     let current_id_counter = mixnodes_storage::MIXNODE_ID_COUNTER
-    //         .may_load(deps.storage)
-    //         .unwrap()
-    //         .unwrap_or_default();
-    //
-    //     try_add_mixnode(
-    //         deps,
-    //         env,
-    //         info,
-    //         mixnode,
-    //         tests::fixtures::mix_node_cost_params_fixture(),
-    //         owner_signature,
-    //     )
-    //     .unwrap();
-    //
-    //     // newly added mixnode gets assigned the current counter + 1
-    //     current_id_counter + 1
-    // }
-    //
-    // // same note as with `add_mixnode`
-    // pub fn add_gateway(
-    //     rng: impl RngCore + CryptoRng,
-    //     deps: DepsMut<'_>,
-    //     env: Env,
-    //     sender: &str,
-    //     stake: Vec<Coin>,
-    // ) -> String {
-    //     let (gateway, owner_signature) =
-    //         gateway_with_signature(rng, deps.as_ref(), sender, Some(stake.clone()));
-    //
-    //     let info = mock_info(sender, &stake);
-    //     let key = gateway.identity_key.clone();
-    //     try_add_gateway(deps, env, info, gateway, owner_signature).unwrap();
-    //     key
-    // }
-
     fn initial_rewarding_params() -> InitialRewardingParams {
         let reward_pool = 250_000_000_000_000u128;
         let staking_supply = 100_000_000_000_000u128;

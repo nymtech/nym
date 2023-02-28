@@ -191,6 +191,7 @@ pub(crate) fn _try_remove_gateway(
 
 #[cfg(test)]
 pub mod tests {
+    use super::*;
     use crate::contract::execute;
     use crate::gateways::queries;
     use crate::gateways::transactions::{
@@ -200,7 +201,7 @@ pub mod tests {
     use crate::mixnet_contract_settings::storage::minimum_gateway_pledge;
     use crate::support::tests;
     use crate::support::tests::fixtures;
-    use crate::support::tests::fixtures::good_gateway_pledge;
+    use crate::support::tests::fixtures::{good_gateway_pledge, good_mixnode_pledge};
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::{Addr, BankMsg, Response, Uint128};
@@ -276,7 +277,74 @@ pub mod tests {
 
     #[test]
     fn adding_gateway_with_invalid_signatures() {
-        todo!()
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        let sender = "alice";
+        let pledge = good_mixnode_pledge();
+        let info = mock_info(sender, pledge.as_ref());
+
+        let (gateway, signature) = test.gateway_with_signature(sender, Some(pledge.clone()));
+
+        // using different parameters than what the signature was made on
+        let mut modified_gateway = gateway.clone();
+        modified_gateway.mix_port += 1;
+        let res = try_add_gateway(
+            test.deps_mut(),
+            env.clone(),
+            info,
+            modified_gateway,
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        // even stake amount is protected
+        let mut different_pledge = pledge.clone();
+        different_pledge[0].amount += Uint128::new(12345);
+
+        let info = mock_info(sender, different_pledge.as_ref());
+        let res = try_add_gateway(
+            test.deps_mut(),
+            env.clone(),
+            info.clone(),
+            gateway.clone(),
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        let other_sender = mock_info("another-sender", pledge.as_ref());
+        let res = try_add_gateway(
+            test.deps_mut(),
+            env.clone(),
+            other_sender,
+            gateway.clone(),
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        // trying to reuse the same signature for another bonding fails (because nonce doesn't match!)
+        let info = mock_info(sender, pledge.as_ref());
+        let current_nonce =
+            signing_storage::get_signing_nonce(test.deps().storage, Addr::unchecked(sender))
+                .unwrap();
+        assert_eq!(0, current_nonce);
+        let res = try_add_gateway(
+            test.deps_mut(),
+            env.clone(),
+            info.clone(),
+            gateway.clone(),
+            signature.clone(),
+        );
+        assert!(res.is_ok());
+        let updated_nonce =
+            signing_storage::get_signing_nonce(test.deps().storage, Addr::unchecked(sender))
+                .unwrap();
+        assert_eq!(1, updated_nonce);
+
+        _try_remove_gateway(test.deps_mut(), Addr::unchecked(sender), None).unwrap();
+
+        let res = try_add_gateway(test.deps_mut(), env, info, gateway, signature);
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
     }
 
     #[test]

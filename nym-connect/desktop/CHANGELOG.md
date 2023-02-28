@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v1.0.11] (2023-02-28)
+
+- NC - add the option to manually select and use a specific Service Provider ([#2953])
+
+[#2953]: https://github.com/nymtech/nym/issues/2953
+
 ## [v1.1.10] (2023-02-21)
 
 - NC - add logs window for troubleshooting ([#2951])

@@ -4,6 +4,26 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.0.11] (2023-02-28)
+
+- Fix empty dealer set loop ([#3105])
+- The nym-api db.sqlite is broken when trying to run against it it in `enabled-credentials-mode true` there is an ordering issue with migrations when using the credential binary to purchase bandwidth ([#3100])
+- Feature/latency based gateway selection ([#3081])
+- Fix the credential binary to handle transactions to sleep when in non-inProgress epochs ([#3057])
+- Publish mixnet contract to crates.io ([#1919])
+- Publish vesting contract to crates.io ([#1920])
+- Feature/update checker to use master ([#3097])
+- Feature/improve binary checks ([#3094])
+
+[#3105]: https://github.com/nymtech/nym/issues/3105
+[#3100]: https://github.com/nymtech/nym/issues/3100
+[#3081]: https://github.com/nymtech/nym/pull/3081
+[#3057]: https://github.com/nymtech/nym/issues/3057
+[#1919]: https://github.com/nymtech/nym/issues/1919
+[#1920]: https://github.com/nymtech/nym/issues/1920
+[#3097]: https://github.com/nymtech/nym/pull/3097
+[#3094]: https://github.com/nymtech/nym/pull/3094
+
 ## [v1.1.10] (2023-02-21)
 
 - Verloc listener causing mixnode unexpected shutdown ([#3038])

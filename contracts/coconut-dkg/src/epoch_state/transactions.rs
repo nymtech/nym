@@ -89,23 +89,29 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
     let current_epoch = CURRENT_EPOCH.load(deps.storage)?;
     let next_epoch = if let Some(state) = current_epoch.state.next() {
         // We are during DKG process
+        let mut new_state = state;
         if let EpochState::DealingExchange { resharing } = state {
             let current_dealers = current_dealers()
                 .keys(deps.storage, None, None, Order::Ascending)
                 .collect::<Result<Vec<Addr>, _>>()?;
-            // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
-            let threshold = (2 * current_dealers.len() as u64 + 3 - 1) / 3;
-            THRESHOLD.save(deps.storage, &threshold)?;
-            if !resharing {
-                let replacement_data = InitialReplacementData {
-                    initial_dealers: current_dealers,
-                    initial_height: None,
-                };
-                INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
+            if current_dealers.is_empty() {
+                // If no dealer registered yet, we just stay in the same state until there's at least one
+                new_state = current_epoch.state;
+            } else {
+                // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
+                let threshold = (2 * current_dealers.len() as u64 + 3 - 1) / 3;
+                THRESHOLD.save(deps.storage, &threshold)?;
+                if !resharing {
+                    let replacement_data = InitialReplacementData {
+                        initial_dealers: current_dealers,
+                        initial_height: None,
+                    };
+                    INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
+                }
             }
-        }
+        };
         Epoch::new(
-            state,
+            new_state,
             current_epoch.epoch_id,
             current_epoch.time_configuration,
             env.block.time,
@@ -392,6 +398,14 @@ pub(crate) mod tests {
                 EarlyEpochStateAdvancement(1)
             );
 
+            env.block.time = env.block.time.plus_seconds(1);
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            assert_eq!(
+                epoch.state,
+                EpochState::PublicKeySubmission { resharing: false }
+            );
+
             // setup dealer details
             let all_details: [_; 4] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
             for details in all_details.iter() {
@@ -404,7 +418,7 @@ pub(crate) mod tests {
                 .may_load(&deps.storage)
                 .unwrap()
                 .is_none());
-            env.block.time = env.block.time.plus_seconds(1);
+            env.block.time = env.block.time.plus_seconds(epoch.time_configuration.public_key_submission_time_secs);
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
             assert_eq!(

@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract::instantiate;
+use crate::dealers::storage::current_dealers;
 use coconut_dkg_common::msg::InstantiateMsg;
+use coconut_dkg_common::types::DealerDetails;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
 use cosmwasm_std::{
-    from_binary, to_binary, ContractResult, Empty, MemoryStorage, OwnedDeps, QuerierResult,
-    SystemResult, WasmQuery,
+    from_binary, to_binary, Addr, ContractResult, DepsMut, Empty, MemoryStorage, OwnedDeps,
+    QuerierResult, SystemResult, WasmQuery,
 };
 use cw4::{Cw4QueryMsg, Member, MemberListResponse, MemberResponse};
 use lazy_static::lazy_static;
@@ -20,6 +22,22 @@ pub const MULTISIG_CONTRACT: &str = "multisig contract address";
 
 lazy_static! {
     pub static ref GROUP_MEMBERS: Mutex<Vec<(Member, u64)>> = Mutex::new(vec![]);
+}
+
+pub fn add_fixture_dealer(deps: DepsMut<'_>) {
+    let owner = Addr::unchecked("owner");
+    current_dealers()
+        .save(
+            deps.storage,
+            &owner,
+            &DealerDetails {
+                address: owner.clone(),
+                bte_public_key_with_proof: String::new(),
+                announce_address: String::new(),
+                assigned_index: 100,
+            },
+        )
+        .unwrap();
 }
 
 fn querier_handler(query: &WasmQuery) -> QuerierResult {

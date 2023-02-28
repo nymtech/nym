@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_config::defaults::NymNetworkDetails;
-use nym_config::{NymConfig, OptionalSet, DB_FILE_NAME};
+use nym_config::{NymConfig, OptionalSet, CRED_DB_FILE_NAME};
 use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -579,7 +579,7 @@ impl<T: NymConfig> Client<T> {
     }
 
     fn default_database_path(id: &str) -> PathBuf {
-        T::default_data_directory(id).join(DB_FILE_NAME)
+        T::default_data_directory(id).join(CRED_DB_FILE_NAME)
     }
 }
 

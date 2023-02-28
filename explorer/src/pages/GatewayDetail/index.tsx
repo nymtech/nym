@@ -26,7 +26,7 @@ const columns: ColumnsType[] = [
     headerAlign: 'left',
   },
   {
-    field: 'routingScore',
+    field: 'node_performance',
     title: 'Routing Score',
     flex: 1,
     headerAlign: 'left',
@@ -130,13 +130,13 @@ const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: Gat
  * Guard component to handle loading and not found states
  */
 const PageGatewayDetailGuard: FCWithChildren = () => {
-  const [selectedGateway, setSelectedGateway] = React.useState<GatewayBond | undefined>();
+  const [selectedGateway, setSelectedGateway] = React.useState<GatewayBond>();
   const { gateways } = useMainContext();
   const { id } = useParams<{ id: string | undefined }>();
 
   React.useEffect(() => {
     if (gateways?.data) {
-      setSelectedGateway(gateways.data.find((gateway) => gateway.gateway.identity_key === id));
+      setSelectedGateway(gateways.data.find((g) => g.gateway.identity_key === id));
     }
   }, [gateways, id]);
 

@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Coin, Decimal};
+use cosmwasm_std::{Addr, Coin, Decimal};
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
@@ -93,12 +93,21 @@ pub struct MixnodeStatusResponse {
     pub status: MixnodeStatus,
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct NodePerformance {
+    pub most_recent: Performance,
+    pub last_hour: Performance,
+    pub last_24h: Performance,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct MixNodeBondAnnotated {
     pub mixnode_details: MixNodeDetails,
     pub stake_saturation: StakeSaturation,
     pub uncapped_stake_saturation: StakeSaturation,
+    // NOTE: the performance field is deprecated in favour of node_performance
     pub performance: Performance,
+    pub node_performance: NodePerformance,
     pub estimated_operator_apy: Decimal,
     pub estimated_delegators_apy: Decimal,
     pub family: Option<FamilyHead>,
@@ -112,12 +121,32 @@ impl MixNodeBondAnnotated {
     pub fn mix_id(&self) -> MixId {
         self.mixnode_details.mix_id()
     }
+
+    pub fn identity_key(&self) -> &str {
+        self.mixnode_details.bond_information.identity()
+    }
+
+    pub fn owner(&self) -> &Addr {
+        self.mixnode_details.bond_information.owner()
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GatewayBondAnnotated {
     pub gateway_bond: GatewayBond,
+    // NOTE: the performance field is deprecated in favour of node_performance
     pub performance: Performance,
+    pub node_performance: NodePerformance,
+}
+
+impl GatewayBondAnnotated {
+    pub fn identity(&self) -> &String {
+        self.gateway_bond.identity()
+    }
+
+    pub fn owner(&self) -> &Addr {
+        self.gateway_bond.owner()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -147,7 +176,17 @@ pub struct RewardEstimationResponse {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UptimeResponse {
     pub mix_id: MixId,
+    // The same as node_performance.last_24h. Legacy
     pub avg_uptime: u8,
+    pub node_performance: NodePerformance,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct GatewayUptimeResponse {
+    pub identity: String,
+    // The same as node_performance.last_24h. Legacy
+    pub avg_uptime: u8,
+    pub node_performance: NodePerformance,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]

@@ -3,6 +3,7 @@
 
 use gateway_client::error::GatewayClientError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
+use nym_topology::gateway::GatewayConversionError;
 use nym_topology::NymTopologyError;
 use validator_client::ValidatorClientError;
 
@@ -53,7 +54,32 @@ pub enum ClientCoreError {
     GatewayOwnerUnknown,
 
     #[error("The address of the gateway is unknown - did you run init?")]
-    GatwayAddressUnknown,
+    GatewayAddressUnknown,
+
+    #[error("The gateway is malformed: {source}")]
+    MalformedGateway {
+        #[from]
+        source: GatewayConversionError,
+    },
+
+    #[error("failed to establish connection to gateway: {source}")]
+    GatewayConnectionFailure {
+        #[from]
+        source: tungstenite::Error,
+    },
+
+    #[cfg(target_arch = "wasm32")]
+    #[error("failed to establish gateway connection (wasm)")]
+    GatewayJsConnectionFailure,
+
+    #[error("Gateway connection was abruptly closed")]
+    GatewayConnectionAbruptlyClosed,
+
+    #[error("Timed out while trying to establish gateway connection")]
+    GatewayConnectionTimeout,
+
+    #[error("No ping measurements for the gateway ({identity}) performed")]
+    NoGatewayMeasurements { identity: String },
 
     #[error("failed to register receiver for reconstructed mixnet messages")]
     FailedToRegisterReceiver,

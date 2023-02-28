@@ -6,7 +6,7 @@ import { ConnectionStatusKind } from 'src/types';
 import { AppVersion } from 'src/components/AppVersion';
 
 export const GatewaySettings = () => {
-  const { userDefinedGateway, setUserDefinedGateway } = useClientContext();
+  const { userDefinedGateway, setUserDefinedGateway, connectionStatus } = useClientContext();
   const [gatewayKey, setGatewayKey] = useState<string | undefined>(userDefinedGateway?.gateway);
 
   const handleIsValidGatewayKey = (isValid: boolean) => {
@@ -22,8 +22,6 @@ export const GatewaySettings = () => {
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setUserDefinedGateway((current) => ({ ...current, isActive: e.target.checked }));
   };
-
-  const { connectionStatus } = useClientContext();
 
   return (
     <Box height="100%">
@@ -60,6 +58,7 @@ export const GatewaySettings = () => {
                 onValidate={handleIsValidGatewayKey}
                 sx={{ mt: 1 }}
                 disabled={connectionStatus === 'connected' || !userDefinedGateway?.isActive}
+                autoFocus
               />
             )}
           </FormControl>

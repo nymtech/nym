@@ -11,7 +11,7 @@ use commands::*;
 use error::Result;
 use log::*;
 use nym_bin_common::completions::fig_generate;
-use nym_config::{DATA_DIR, DB_FILE_NAME};
+use nym_config::{CRED_DB_FILE_NAME, DATA_DIR};
 use nym_network_defaults::{setup_env, NymNetworkDetails};
 use std::process::exit;
 use std::time::{Duration, SystemTime};
@@ -51,8 +51,11 @@ async fn block_until_coconut_is_available<C: Clone + CosmWasmClient + Send + Syn
 
             break;
         } else {
-            // Use 20 additional seconds to avoid the exact moment of going into the final epoch state
-            let secs_until_final = epoch.final_timestamp_secs() + 20 - current_timestamp_secs;
+            // Use 1 additional second to not start the next iteration immediately and spam get_current_epoch queries
+            let secs_until_final = epoch
+                .final_timestamp_secs()
+                .saturating_sub(current_timestamp_secs)
+                + 1;
             info!("Approximately {} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment.", secs_until_final);
             std::thread::sleep(Duration::from_secs(secs_until_final));
         }
@@ -70,7 +73,10 @@ async fn main() -> Result<()> {
 
     match args.command {
         Command::Run(r) => {
-            let db_path = r.client_home_directory.join(DATA_DIR).join(DB_FILE_NAME);
+            let db_path = r
+                .client_home_directory
+                .join(DATA_DIR)
+                .join(CRED_DB_FILE_NAME);
             let shared_storage = credential_storage::initialise_storage(db_path).await;
             let recovery_storage = recovery_storage::RecoveryStorage::new(r.recovery_dir)?;
 

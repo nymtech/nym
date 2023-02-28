@@ -8,26 +8,112 @@ use crate::{NodeStatusCache, NymContractCache};
 use cosmwasm_std::Decimal;
 use nym_api_requests::models::{
     AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayBondAnnotated,
-    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
-    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
+    GatewayUptimeResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
+    MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse,
+    MixnodeUptimeHistoryResponse, RewardEstimationResponse, StakeSaturationResponse,
+    UptimeResponse,
 };
-use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::{Interval, MixId, RewardedSetNodeStatus};
+use nym_mixnet_contract_common::{MixId, RewardedSetNodeStatus};
 use rocket::http::Status;
 use rocket::State;
 
 use super::reward_estimate::compute_reward_estimate;
 
-pub(crate) async fn _mixnode_report(
+async fn get_gateway_bond_annotated(
+    cache: &NodeStatusCache,
+    identity: &str,
+) -> Result<GatewayBondAnnotated, ErrorResponse> {
+    let gateways = cache.gateways_annotated().await.ok_or(ErrorResponse::new(
+        "no data available",
+        Status::ServiceUnavailable,
+    ))?;
+
+    gateways
+        .into_inner()
+        .into_iter()
+        .find(|gateway| gateway.identity() == identity)
+        .ok_or(ErrorResponse::new(
+            "mixnode bond not found",
+            Status::NotFound,
+        ))
+}
+
+async fn get_mixnode_bond_annotated(
+    cache: &NodeStatusCache,
+    mix_id: MixId,
+) -> Result<MixNodeBondAnnotated, ErrorResponse> {
+    let mixnodes = cache.mixnodes_annotated().await.ok_or(ErrorResponse::new(
+        "no data available",
+        Status::ServiceUnavailable,
+    ))?;
+
+    mixnodes
+        .into_inner()
+        .into_iter()
+        .find(|mixnode| mixnode.mix_id() == mix_id)
+        .ok_or(ErrorResponse::new(
+            "mixnode bond not found",
+            Status::NotFound,
+        ))
+}
+
+pub(crate) async fn _gateway_report(
+    cache: &NodeStatusCache,
+    identity: &str,
+) -> Result<GatewayStatusReportResponse, ErrorResponse> {
+    let gateway = get_gateway_bond_annotated(cache, identity).await?;
+
+    Ok(GatewayStatusReportResponse {
+        identity: gateway.identity().to_owned(),
+        owner: gateway.owner().to_string(),
+        most_recent: gateway.node_performance.most_recent.round_to_integer(),
+        last_hour: gateway.node_performance.last_hour.round_to_integer(),
+        last_day: gateway.node_performance.last_24h.round_to_integer(),
+    })
+}
+
+pub(crate) async fn _gateway_uptime_history(
     storage: &NymApiStorage,
+    identity: &str,
+) -> Result<GatewayUptimeHistoryResponse, ErrorResponse> {
+    storage
+        .get_gateway_uptime_history(identity)
+        .await
+        .map(GatewayUptimeHistoryResponse::from)
+        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
+}
+
+pub(crate) async fn _gateway_core_status_count(
+    storage: &State<NymApiStorage>,
+    identity: &str,
+    since: Option<i64>,
+) -> Result<GatewayCoreStatusResponse, ErrorResponse> {
+    let count = storage
+        .get_core_gateway_status_count(identity, since)
+        .await
+        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?;
+
+    Ok(GatewayCoreStatusResponse {
+        identity: identity.to_string(),
+        count,
+    })
+}
+
+pub(crate) async fn _mixnode_report(
+    cache: &NodeStatusCache,
     mix_id: MixId,
 ) -> Result<MixnodeStatusReportResponse, ErrorResponse> {
-    storage
-        .construct_mixnode_report(mix_id)
-        .await
-        .map(MixnodeStatusReportResponse::from)
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
+    let mixnode = get_mixnode_bond_annotated(cache, mix_id).await?;
+
+    Ok(MixnodeStatusReportResponse {
+        mix_id,
+        identity: mixnode.identity_key().to_owned(),
+        owner: mixnode.owner().to_string(),
+        most_recent: mixnode.node_performance.most_recent.round_to_integer(),
+        last_hour: mixnode.node_performance.last_hour.round_to_integer(),
+        last_day: mixnode.node_performance.last_24h.round_to_integer(),
+    })
 }
 
 pub(crate) async fn _mixnode_uptime_history(
@@ -101,21 +187,6 @@ pub(crate) async fn _get_mixnode_reward_estimation(
             Status::NotFound,
         ))
     }
-}
-
-async fn average_mixnode_performance(
-    mix_id: MixId,
-    current_interval: Interval,
-    storage: &NymApiStorage,
-) -> Result<Performance, ErrorResponse> {
-    storage
-        .get_average_mixnode_uptime_in_the_last_24hrs(
-            mix_id,
-            current_interval.current_epoch_end_unix_timestamp(),
-        )
-        .await
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
-        .map(Into::into)
 }
 
 pub(crate) async fn _compute_mixnode_reward_estimation(
@@ -254,21 +325,28 @@ pub(crate) async fn _get_mixnode_inclusion_probability(
 }
 
 pub(crate) async fn _get_mixnode_avg_uptime(
-    cache: &NymContractCache,
-    storage: &NymApiStorage,
+    cache: &NodeStatusCache,
     mix_id: MixId,
 ) -> Result<UptimeResponse, ErrorResponse> {
-    let current_interval = cache
-        .current_interval()
-        .await
-        .into_inner()
-        .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
-
-    let performance = average_mixnode_performance(mix_id, current_interval, storage).await?;
+    let mixnode = get_mixnode_bond_annotated(cache, mix_id).await?;
 
     Ok(UptimeResponse {
         mix_id,
-        avg_uptime: performance.round_to_integer(),
+        avg_uptime: mixnode.node_performance.last_24h.round_to_integer(),
+        node_performance: mixnode.node_performance,
+    })
+}
+
+pub(crate) async fn _get_gateway_avg_uptime(
+    cache: &NodeStatusCache,
+    identity: &str,
+) -> Result<GatewayUptimeResponse, ErrorResponse> {
+    let gateway = get_gateway_bond_annotated(cache, identity).await?;
+
+    Ok(GatewayUptimeResponse {
+        identity: identity.to_string(),
+        avg_uptime: gateway.node_performance.last_24h.round_to_integer(),
+        node_performance: gateway.node_performance,
     })
 }
 
@@ -288,7 +366,7 @@ pub(crate) async fn _get_mixnode_inclusion_probabilities(
         })
     } else {
         Err(ErrorResponse::new(
-            "No data available".to_string(),
+            "No data available",
             Status::ServiceUnavailable,
         ))
     }

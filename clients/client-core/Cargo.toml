@@ -1,6 +1,6 @@
 [package]
 name = "client-core"
-version = "1.1.10"
+version = "1.1.11"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
 rust-version = "1.66"
@@ -20,6 +20,7 @@ serde_json = "1.0.89"
 tap = "1.0.1"
 thiserror = "1.0.34"
 url = { version ="2.2", features = ["serde"] }
+tungstenite = { version = "0.13.0", default-features = false }
 tokio = { version = "1.24.1", features = ["macros"]}
 time = "0.3.17"
 
@@ -44,6 +45,9 @@ features = ["time"]
 version = "1.24.1"
 features = ["time"]
 
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
+version = "0.14"
+
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 version = "0.6.2"
 features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
@@ -65,6 +69,7 @@ features = ["futures"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
 path = "../../common/wasm-utils"
+features = ["websocket"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.time]
 version = "0.3.17"

@@ -138,6 +138,8 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         register_gateway,
         Some(chosen_gateway_id),
         config.get_base(),
+        // TODO: another instance where this setting should probably get used
+        false,
     )
     .await?;
 

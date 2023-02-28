@@ -11,9 +11,7 @@ use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
 };
-use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::MixId;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef};
+pub use nym_mixnet_contract_common::{mixnode::MixNodeDetails, GatewayBond, IdentityKeyRef, MixId};
 
 #[cfg(feature = "nyxd-client")]
 use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient};

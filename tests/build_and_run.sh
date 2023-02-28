@@ -2,7 +2,6 @@
 
 PWD="../"
 GIT_BRANCH=$1
-VERSION_NUMBER=$2
 
 # run the script from the correct location 
 

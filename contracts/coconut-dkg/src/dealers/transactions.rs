@@ -80,7 +80,7 @@ pub(crate) mod tests {
     use crate::epoch_state::transactions::advance_epoch_state;
     use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::GROUP_MEMBERS;
+    use crate::support::tests::helpers::{add_fixture_dealer, GROUP_MEMBERS};
     use coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cw4::Member;
@@ -147,6 +147,8 @@ pub(crate) mod tests {
             .block
             .time
             .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
+
+        add_fixture_dealer(deps.as_mut());
         advance_epoch_state(deps.as_mut(), env).unwrap();
 
         let ret = try_add_dealer(

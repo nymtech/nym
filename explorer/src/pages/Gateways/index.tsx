@@ -5,7 +5,8 @@ import { useTheme } from '@mui/material/styles';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
-import { diff, rcompare } from 'semver';
+import { diff, gte, rcompare } from 'semver';
+import { Tooltip as InfoTooltip } from '@nymproject/react/tooltip/Tooltip';
 import { useMainContext } from '../../context/main';
 import { gatewayToGridRow } from '../../components/Gateways';
 import { GatewayResponse } from '../../typeDefs/explorer-api';
@@ -15,7 +16,6 @@ import { Title } from '../../components/Title';
 import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { unymToNym } from '../../utils/currency';
 import { Tooltip } from '../../components/Tooltip';
-import { Tooltip as InfoTooltip } from '@nymproject/react/tooltip/Tooltip';
 import { NYM_BIG_DIPPER } from '../../api/constants';
 import { splice } from '../../utils';
 import { VersionDisplaySelector, VersionSelectOptions } from '../../components/Gateways/VersionDisplaySelector';
@@ -93,6 +93,7 @@ export const PageGateways: FCWithChildren = () => {
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 380,
+      disableColumnMenu: true,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <>
@@ -124,10 +125,11 @@ export const PageGateways: FCWithChildren = () => {
             maxWidth={230}
             arrow
           />
-          <CustomColumnHeading headingTitle="Routing Score" />,
+          <CustomColumnHeading headingTitle="Routing Score" />
         </>
       ),
-      width: 150,
+      width: 175,
+      disableColumnMenu: true,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -145,6 +147,7 @@ export const PageGateways: FCWithChildren = () => {
       field: 'version',
       renderHeader: () => <CustomColumnHeading headingTitle="Version" />,
       width: 150,
+      disableColumnMenu: true,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -157,11 +160,16 @@ export const PageGateways: FCWithChildren = () => {
           {params.value}
         </MuiLink>
       ),
+      sortComparator: (a, b) => {
+        if (gte(a, b)) return 1;
+        return -1;
+      },
     },
     {
       field: 'location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
       width: 180,
+      disableColumnMenu: true,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -188,6 +196,7 @@ export const PageGateways: FCWithChildren = () => {
       field: 'host',
       renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
       width: 180,
+      disableColumnMenu: true,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -206,6 +215,7 @@ export const PageGateways: FCWithChildren = () => {
       headerName: 'Owner',
       renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
       width: 180,
+      disableColumnMenu: true,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -222,6 +232,7 @@ export const PageGateways: FCWithChildren = () => {
     {
       field: 'bond',
       width: 150,
+      disableColumnMenu: true,
       type: 'number',
       renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
       headerClassName: 'MuiDataGrid-header-override',

@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{VK_SHARES_EPOCH_ID_IDX_NAMESPACE, VK_SHARES_PK_NAMESPACE};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Order, Storage};
 use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
@@ -34,4 +34,18 @@ pub(crate) fn vk_shares<'a>() -> IndexedMap<'a, VKShareKey<'a>, ContractVKShare,
         ),
     };
     IndexedMap::new(VK_SHARES_PK_NAMESPACE, indexes)
+}
+
+pub(crate) fn verified_dealers(storage: &dyn Storage) -> Vec<Addr> {
+    vk_shares()
+        .range(storage, None, None, Order::Ascending)
+        .flatten()
+        .filter_map(|(_, share)| {
+            if share.verified {
+                Some(share.owner)
+            } else {
+                None
+            }
+        })
+        .collect()
 }

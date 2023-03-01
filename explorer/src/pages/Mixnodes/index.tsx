@@ -85,6 +85,7 @@ export const PageMixnodes: FCWithChildren = () => {
     {
       field: 'mix_id',
       headerName: 'Mix ID',
+      disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Mix ID" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 100,
@@ -103,6 +104,7 @@ export const PageMixnodes: FCWithChildren = () => {
     {
       field: 'identity_key',
       headerName: 'Identity Key',
+      disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 170,
@@ -128,6 +130,7 @@ export const PageMixnodes: FCWithChildren = () => {
     {
       field: 'bond',
       headerName: 'Stake',
+      disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Stake" />,
       type: 'number',
       headerClassName: 'MuiDataGrid-header-override',
@@ -146,6 +149,7 @@ export const PageMixnodes: FCWithChildren = () => {
     {
       field: 'stake_saturation',
       headerName: 'Stake Saturation',
+      disableColumnMenu: true,
       renderHeader: () => (
         <CustomColumnHeading
           headingTitle="Stake Saturation"
@@ -171,6 +175,7 @@ export const PageMixnodes: FCWithChildren = () => {
     {
       field: 'pledge_amount',
       headerName: 'Bond',
+      disableColumnMenu: true,
       width: 175,
       headerClassName: 'MuiDataGrid-header-override',
       renderHeader: () => <CustomColumnHeading headingTitle="Bond" tooltipInfo="Node operator's share of stake." />,
@@ -189,6 +194,7 @@ export const PageMixnodes: FCWithChildren = () => {
     {
       field: 'profit_percentage',
       headerName: 'Profit Margin',
+      disableColumnMenu: true,
       renderHeader: () => (
         <CustomColumnHeading
           headingTitle="Profit Margin"
@@ -220,6 +226,7 @@ export const PageMixnodes: FCWithChildren = () => {
       headerClassName: 'MuiDataGrid-header-override',
       width: 170,
       headerAlign: 'left',
+      disableColumnMenu: true,
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
@@ -233,6 +240,7 @@ export const PageMixnodes: FCWithChildren = () => {
     {
       field: 'avg_uptime',
       headerName: 'Routing Score',
+      disableColumnMenu: true,
       renderHeader: () => (
         <CustomColumnHeading
           headingTitle="Routing Score"
@@ -255,6 +263,7 @@ export const PageMixnodes: FCWithChildren = () => {
     {
       field: 'owner',
       headerName: 'Owner',
+      disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
       width: 120,
       headerAlign: 'left',
@@ -274,6 +283,7 @@ export const PageMixnodes: FCWithChildren = () => {
       field: 'location',
       headerName: 'Location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
+      disableColumnMenu: true,
       width: 120,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
@@ -303,6 +313,7 @@ export const PageMixnodes: FCWithChildren = () => {
       field: 'host',
       headerName: 'Host',
       renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
+      disableColumnMenu: true,
       headerClassName: 'MuiDataGrid-header-override',
       width: 130,
       headerAlign: 'left',

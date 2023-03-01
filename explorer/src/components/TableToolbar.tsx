@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, TextField, MenuItem } from '@mui/material';
+import { Box, TextField, MenuItem, FormControl } from '@mui/material';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { Filters } from './Filters/Filters';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -39,36 +39,36 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
       <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column-reverse' : 'row', alignItems: 'middle' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', height: fieldsHeight }}>
           {childrenBefore}
-          <Select
-            value={pageSize}
-            onChange={onChangePageSize}
-            sx={{
-              width: isMobile ? '50%' : 200,
-              marginRight: isMobile ? 0 : 2,
-            }}
-          >
-            <MenuItem value={10} data-testid="ten">
-              10
-            </MenuItem>
-            <MenuItem value={30} data-testid="thirty">
-              30
-            </MenuItem>
-            <MenuItem value={50} data-testid="fifty">
-              50
-            </MenuItem>
-            <MenuItem value={100} data-testid="hundred">
-              100
-            </MenuItem>
-          </Select>
+          <FormControl size="small">
+            <Select
+              value={pageSize}
+              onChange={onChangePageSize}
+              sx={{
+                width: isMobile ? '50%' : 200,
+                marginRight: isMobile ? 0 : 2,
+              }}
+            >
+              <MenuItem value={10} data-testid="ten">
+                10
+              </MenuItem>
+              <MenuItem value={30} data-testid="thirty">
+                30
+              </MenuItem>
+              <MenuItem value={50} data-testid="fifty">
+                50
+              </MenuItem>
+              <MenuItem value={100} data-testid="hundred">
+                100
+              </MenuItem>
+            </Select>
+          </FormControl>
         </Box>
         <TextField
           sx={{
             width: isMobile ? '100%' : 200,
             marginBottom: isMobile ? 2 : 0,
-            '& > :not(style)': {
-              height: fieldsHeight,
-            },
           }}
+          size="small"
           value={searchTerm}
           data-testid="search-box"
           placeholder="search"

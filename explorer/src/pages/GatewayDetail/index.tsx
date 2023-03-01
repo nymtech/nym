@@ -31,14 +31,14 @@ const columns: ColumnsType[] = [
     flex: 1,
     headerAlign: 'left',
     tooltipInfo:
-      'Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test.',
+      "Gateway's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test",
   },
   {
     field: 'avgUptime',
     title: 'Avg. Score',
     flex: 1,
     headerAlign: 'left',
-    tooltipInfo: 'Is the average routing score in the last 24 hours',
+    tooltipInfo: "Gateway's average routing score in the last 24 hours",
   },
   {
     field: 'host',

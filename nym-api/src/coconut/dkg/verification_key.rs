@@ -471,7 +471,7 @@ pub(crate) mod tests {
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
             *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
                 initial_dealers: vec![Addr::unchecked(TEST_VALIDATORS_ADDRESS[0])],
-                initial_height: None,
+                initial_height: 1,
             });
             let filtered = deterministic_filter_dealers(dkg_client, state, 2, true)
                 .await
@@ -504,7 +504,7 @@ pub(crate) mod tests {
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
             *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
                 initial_dealers: vec![],
-                initial_height: None,
+                initial_height: 1,
             });
             let filtered = deterministic_filter_dealers(dkg_client, state, 2, true)
                 .await
@@ -851,7 +851,7 @@ pub(crate) mod tests {
                 Addr::unchecked(clients_and_states[1].0.get_address().await.as_ref()),
                 Addr::unchecked(clients_and_states[2].0.get_address().await.as_ref()),
             ],
-            initial_height: None,
+            initial_height: 1,
         });
         *clients_and_states.first_mut().unwrap() = (new_dkg_client, state);
         clients_and_states[1].1.set_was_in_progress();

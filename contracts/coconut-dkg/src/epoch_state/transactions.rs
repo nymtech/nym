@@ -86,7 +86,7 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
     let next_epoch = if let Some(state) = current_epoch.state.next() {
         // We are during DKG process
         let mut new_state = state;
-        if let EpochState::DealingExchange { resharing } = state {
+        if let EpochState::DealingExchange { .. } = state {
             let current_dealers = current_dealers()
                 .keys(deps.storage, None, None, Order::Ascending)
                 .collect::<Result<Vec<Addr>, _>>()?;
@@ -97,13 +97,6 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
                 // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
                 let threshold = (2 * current_dealers.len() as u64 + 3 - 1) / 3;
                 THRESHOLD.save(deps.storage, &threshold)?;
-                if !resharing {
-                    let replacement_data = InitialReplacementData {
-                        initial_dealers: current_dealers,
-                        initial_height: None,
-                    };
-                    INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
-                }
             }
         };
         Epoch::new(
@@ -122,16 +115,17 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
             env.block.time,
         )
     } else {
+        let replacement_data = InitialReplacementData {
+            initial_dealers: verified_dealers(deps.storage),
+            initial_height: env.block.height,
+        };
+        INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
         // Dealer set changed, we need to redo DKG...
         let state = if replacement_threshold_surpassed(&deps)? {
             // ... in reset mode
             EpochState::default()
         } else {
             // ... in reshare mode
-            INITIAL_REPLACEMENT_DATA.update::<_, ContractError>(deps.storage, |mut data| {
-                data.initial_height = Some(env.block.height);
-                Ok(data)
-            })?;
             EpochState::PublicKeySubmission { resharing: true }
         };
         reset_epoch_state(deps.storage)?;
@@ -202,7 +196,7 @@ pub(crate) mod tests {
                 let initial_dealers = dealers.iter().map(|d| d.address.clone()).collect();
                 let data = InitialReplacementData {
                     initial_dealers,
-                    initial_height: None,
+                    initial_height: 1,
                 };
                 for f in [two_thirds, three_fourths, ninty_pc] {
                     let threshold = f(n);
@@ -432,12 +426,6 @@ pub(crate) mod tests {
                     .time
                     .plus_seconds(epoch.time_configuration.dealing_exchange_time_secs)
             );
-            let replacement_data = INITIAL_REPLACEMENT_DATA.load(&deps.storage).unwrap();
-            let expected_replacement_data = InitialReplacementData {
-                initial_dealers: all_details.iter().map(|d| d.address.clone()).collect(),
-                initial_height: None,
-            };
-            assert_eq!(replacement_data, expected_replacement_data);
 
             env.block.time = env
                 .block
@@ -589,6 +577,12 @@ pub(crate) mod tests {
             );
             assert_eq!(curr_epoch, expected_epoch);
             assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+            let replacement_data = INITIAL_REPLACEMENT_DATA.load(&deps.storage).unwrap();
+            let expected_replacement_data = InitialReplacementData {
+                initial_dealers: all_details.iter().map(|d| d.address.clone()).collect(),
+                initial_height: 12345,
+            };
+            assert_eq!(replacement_data, expected_replacement_data);
 
             let all_details: [_; 2] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 2));
             for details in all_details.iter() {

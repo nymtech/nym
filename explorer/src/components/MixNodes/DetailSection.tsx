@@ -18,8 +18,8 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
   const statusText = React.useMemo(() => getMixNodeStatusText(mixNodeRow.status), [mixNodeRow.status]);
   return (
     <Grid container>
-      <Grid item xs={12} sm={6}>
-        <Box display="flex" flexDirection="row" width="100%">
+      <Grid item xs={12} md={6}>
+        <Box display="flex" flexDirection={isMobile ? 'column' : 'row'} width="100%">
           <Box
             width={72}
             height={72}
@@ -36,14 +36,14 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
           >
             <Identicon size={43} string={mixNodeRow.identity_key} palette={palette} />
           </Box>
-          <Box ml={2}>
+          <Box ml={isMobile ? 0 : 2} mt={isMobile ? 2 : 0}>
             <Typography fontSize={21}>{mixnodeDescription.name}</Typography>
             <Typography>{(mixnodeDescription.description || '').slice(0, 1000)}</Typography>
             <Button
               component="a"
               variant="text"
               sx={{
-                mt: 4,
+                mt: isMobile ? 2 : 4,
                 borderRadius: '30px',
                 fontWeight: 600,
                 padding: 0,
@@ -64,15 +64,27 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
           </Box>
         </Box>
       </Grid>
-      <Grid item xs={12} sm={6} display="flex" justifyContent="end" mt={isMobile ? 5 : undefined}>
+      <Grid
+        item
+        xs={12}
+        md={6}
+        display="flex"
+        justifyContent={isMobile ? 'start' : 'end'}
+        mt={isMobile ? 3 : undefined}
+      >
         <Box display="flex" flexDirection="column">
-          <Typography fontWeight="600" alignSelf="self-end">
+          <Typography fontWeight="600" alignSelf={isMobile ? 'start' : 'self-end'}>
             Node status:
           </Typography>
-          <Box mt={2} alignSelf="self-end">
+          <Box mt={2} alignSelf={isMobile ? 'start' : 'self-end'}>
             <MixNodeStatus status={mixNodeRow.status} />
           </Box>
-          <Typography mt={1} alignSelf="self-end" color={theme.palette.text.secondary} fontSize="smaller">
+          <Typography
+            mt={1}
+            alignSelf={isMobile ? 'start' : 'self-end'}
+            color={theme.palette.text.secondary}
+            fontSize="smaller"
+          >
             This node is {statusText} in this epoch
           </Typography>
         </Box>

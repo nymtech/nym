@@ -108,24 +108,6 @@ export const PageGateways: FCWithChildren = () => {
       ),
     },
     {
-      field: 'bond',
-      width: 150,
-      type: 'number',
-      renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
-      headerClassName: 'MuiDataGrid-header-override',
-      headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...cellStyles }}
-          component={RRDLink}
-          to={`/network-components/gateway/${params.row.identity_key}`}
-          data-testid="pledge-amount"
-        >
-          {unymToNym(params.value, 6)}
-        </MuiLink>
-      ),
-    },
-    {
       field: 'node_performance',
       renderHeader: () => <CustomColumnHeading headingTitle="Routing Score" />,
       width: 150,
@@ -143,17 +125,17 @@ export const PageGateways: FCWithChildren = () => {
       ),
     },
     {
-      field: 'host',
-      renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
-      width: 180,
+      field: 'version',
+      renderHeader: () => <CustomColumnHeading headingTitle="Version" />,
+      width: 150,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{ ...cellStyles }}
-          component={RRDLink}
-          to={`/network-components/gateway/${params.row.identity_key}`}
-          data-testid="host"
+          href={`${NYM_BIG_DIPPER}/account/${params.value}`}
+          target="_blank"
+          data-testid="owner"
         >
           {params.value}
         </MuiLink>
@@ -186,6 +168,23 @@ export const PageGateways: FCWithChildren = () => {
       ),
     },
     {
+      field: 'host',
+      renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
+      width: 180,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{ ...cellStyles }}
+          component={RRDLink}
+          to={`/network-components/gateway/${params.row.identity_key}`}
+          data-testid="host"
+        >
+          {params.value}
+        </MuiLink>
+      ),
+    },
+    {
       field: 'owner',
       headerName: 'Owner',
       renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
@@ -204,19 +203,20 @@ export const PageGateways: FCWithChildren = () => {
       ),
     },
     {
-      field: 'version',
-      renderHeader: () => <CustomColumnHeading headingTitle="Version" />,
+      field: 'bond',
       width: 150,
-      headerAlign: 'left',
+      type: 'number',
+      renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
       headerClassName: 'MuiDataGrid-header-override',
+      headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{ ...cellStyles }}
-          href={`${NYM_BIG_DIPPER}/account/${params.value}`}
-          target="_blank"
-          data-testid="owner"
+          component={RRDLink}
+          to={`/network-components/gateway/${params.row.identity_key}`}
+          data-testid="pledge-amount"
         >
-          {params.value}
+          {unymToNym(params.value, 6)}
         </MuiLink>
       ),
     },

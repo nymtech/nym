@@ -97,15 +97,29 @@ fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
 }
 
 fn print_signed_contract_msg(private_key: &identity::PrivateKey, raw_msg: &str) {
+    let trimmed = raw_msg.trim();
+    println!(">>> attempting to sign {trimmed}");
+
+    let Ok(decoded) = bs58::decode(trimmed).into_vec() else {
+        println!("it seems you have incorrectly copied the message to sign. Make sure you didn't accidentally skip any characters");
+        return;
+    };
+
+    println!(">>> decoding the message...");
+
     // we don't really care about what particular information is embedded inside of it,
-    // we just want to know if user correctly copied the string, i.e. whether it's a valid json
-    if serde_json::from_str::<serde_json::Value>(raw_msg).is_err() {
-        println!("it seems you have incorrectly copied the message to sign. Make sure you didn't accidentally skip any characters")
-    } else {
-        let msg = raw_msg.trim();
-        let signature = private_key.sign(msg.trim().as_bytes()).to_base58_string();
-        println!("The base58-encoded signature on\n{msg}\nis:\n{signature}");
-    }
+    // we just want to know if user correctly copied the string, i.e. whether it's a valid bs58 encoded json
+    if serde_json::from_slice::<serde_json::Value>(&decoded).is_err() {
+        println!("it seems you have incorrectly copied the message to sign. Make sure you didn't accidentally skip any characters");
+        return;
+    };
+
+    // if this is a valid json, it MUST be a valid string
+    let decoded_string = String::from_utf8(decoded.clone()).unwrap();
+    println!(">>> message to sign: {decoded_string}");
+
+    let signature = private_key.sign(&decoded).to_base58_string();
+    println!(">>> The base58-encoded signature is:\n{signature}");
 }
 
 pub fn execute(args: Sign) -> Result<(), Box<dyn Error + Send + Sync>> {

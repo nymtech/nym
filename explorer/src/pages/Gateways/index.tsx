@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Link as RRDLink } from 'react-router-dom';
 import { Box, Card, Grid, Link as MuiLink } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
@@ -14,6 +15,7 @@ import { Title } from '../../components/Title';
 import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { unymToNym } from '../../utils/currency';
 import { Tooltip } from '../../components/Tooltip';
+import { Tooltip as InfoTooltip } from '@nymproject/react/tooltip/Tooltip';
 import { NYM_BIG_DIPPER } from '../../api/constants';
 import { splice } from '../../utils';
 import { VersionDisplaySelector, VersionSelectOptions } from '../../components/Gateways/VersionDisplaySelector';
@@ -24,6 +26,8 @@ export const PageGateways: FCWithChildren = () => {
   const [pageSize, setPageSize] = React.useState<string>('50');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
   const [versionFilter, setVersionFilter] = React.useState<VersionSelectOptions>(VersionSelectOptions.latestVersion);
+
+  const theme = useTheme();
 
   const handleSearch = (str: string) => {
     setSearchTerm(str.toLowerCase());
@@ -109,7 +113,20 @@ export const PageGateways: FCWithChildren = () => {
     },
     {
       field: 'node_performance',
-      renderHeader: () => <CustomColumnHeading headingTitle="Routing Score" />,
+      renderHeader: () => (
+        <>
+          <InfoTooltip
+            id="gateways-list-routing-score"
+            title="Gateway's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test"
+            placement="top-start"
+            textColor={theme.palette.nym.networkExplorer.tooltip.color}
+            bgColor={theme.palette.nym.networkExplorer.tooltip.background}
+            maxWidth={230}
+            arrow
+          />
+          <CustomColumnHeading headingTitle="Routing Score" />,
+        </>
+      ),
       width: 150,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',

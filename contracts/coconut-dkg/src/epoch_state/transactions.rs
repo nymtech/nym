@@ -90,8 +90,14 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
             let current_dealers = current_dealers()
                 .keys(deps.storage, None, None, Order::Ascending)
                 .collect::<Result<Vec<Addr>, _>>()?;
-            if current_dealers.is_empty() {
-                // If no dealer registered yet, we just stay in the same state until there's at least one
+            let group_members =
+                STATE
+                    .load(deps.storage)?
+                    .group_addr
+                    .list_members(&deps.querier, None, None)?;
+            if current_dealers.len() < group_members.len() {
+                // If not all group members registered yet, we just stay in the same state until
+                // they either register or they get kicked out of the group
                 new_state = current_epoch.state;
             } else {
                 // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
@@ -584,7 +590,7 @@ pub(crate) mod tests {
             };
             assert_eq!(replacement_data, expected_replacement_data);
 
-            let all_details: [_; 2] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 2));
+            let all_details: [_; 4] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 2));
             for details in all_details.iter() {
                 past_dealers().remove(deps.as_mut().storage, &details.address).unwrap();
                 current_dealers()

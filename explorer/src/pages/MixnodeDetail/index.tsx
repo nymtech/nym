@@ -54,8 +54,16 @@ const columns: ColumnsType[] = [
   {
     field: 'layer',
     title: 'Layer',
-    headerAlign: 'left',
+    headerAlign: 'right',
     flex: 1,
+  },
+  {
+    field: 'avg_uptime',
+    title: 'Routing Score',
+    flex: 1,
+    headerAlign: 'left',
+    tooltipInfo:
+      "Mixnode's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test.",
   },
 ];
 
@@ -64,11 +72,11 @@ const columns: ColumnsType[] = [
  */
 const PageMixnodeDetailWithState: FCWithChildren = () => {
   const { mixNode, mixNodeRow, description, stats, status, uptimeStory, uniqDelegations } = useMixnodeContext();
+  console.log(mixNodeRow);
 
   return (
     <Box component="main">
       <Title text="Mixnode Detail" />
-
       <Grid container spacing={2} mt={1} mb={6}>
         <Grid item xs={12}>
           {mixNodeRow && description?.data && (
@@ -76,13 +84,11 @@ const PageMixnodeDetailWithState: FCWithChildren = () => {
           )}
         </Grid>
       </Grid>
-
       <Grid container>
         <Grid item xs={12}>
           <DetailTable columnsData={columns} tableName="Mixnode detail table" rows={mixNodeRow ? [mixNodeRow] : []} />
         </Grid>
       </Grid>
-
       <Grid container spacing={2} mt={0}>
         <Grid item xs={12}>
           <DelegatorsInfoTable
@@ -92,7 +98,6 @@ const PageMixnodeDetailWithState: FCWithChildren = () => {
           />
         </Grid>
       </Grid>
-
       <Grid container spacing={2} mt={0}>
         <Grid item xs={12}>
           <ContentCard title={`Stake Breakdown (${uniqDelegations?.data?.length} delegators)`}>
@@ -100,7 +105,6 @@ const PageMixnodeDetailWithState: FCWithChildren = () => {
           </ContentCard>
         </Grid>
       </Grid>
-
       <Grid container spacing={2} mt={0}>
         <Grid item xs={12} md={4}>
           <ContentCard title="Mixnode Stats">
@@ -144,7 +148,6 @@ const PageMixnodeDetailWithState: FCWithChildren = () => {
           )}
         </Grid>
       </Grid>
-
       <Grid container spacing={2} mt={0}>
         <Grid item xs={12} md={4}>
           {status && (

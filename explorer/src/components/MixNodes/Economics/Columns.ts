@@ -51,7 +51,7 @@ export const EconomicsInfoColumns: ColumnsType[] = [
   },
   {
     field: 'avgUptime',
-    title: 'Routing Score',
+    title: 'Average uptime',
     flex: 1,
     headerAlign: 'left',
     tooltipInfo:

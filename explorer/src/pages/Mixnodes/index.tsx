@@ -244,7 +244,7 @@ export const PageMixnodes: FCWithChildren = () => {
       renderHeader: () => (
         <CustomColumnHeading
           headingTitle="Routing Score"
-          tooltipInfo="Node’s routing score is relative to that of the network. Each time a node is tested, the test packets have to go through the full path of the network (a gateway + 3 nodes). If a node in the path drop packets it will affect the score of other nodes in the test."
+          tooltipInfo="Mixnode's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test."
         />
       ),
       headerClassName: 'MuiDataGrid-header-override',

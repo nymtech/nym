@@ -213,7 +213,7 @@ pub fn execute(
             epoch_duration_secs,
             force_immediately,
         ),
-        ExecuteMsg::BeginEpochTransition => {
+        ExecuteMsg::BeginEpochTransition {} => {
             crate::interval::transactions::try_begin_epoch_transition(deps, env, info)
         }
         ExecuteMsg::AdvanceCurrentEpoch {

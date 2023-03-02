@@ -88,6 +88,17 @@ pub(crate) struct WalletAccountIds {
 }
 
 impl WalletStateInner {
+    pub fn attempt_convert_to_fixed_fee(&self, coin: DecCoin) -> Result<Fee, BackendError> {
+        // first we have to convert the coin to its base denomination
+        let base_coin = self.attempt_convert_to_base_coin(coin)?;
+
+        // then we get the gas price for the current network
+        let current_client = self.current_client()?;
+        let gas_price = current_client.nyxd.gas_price();
+
+        Ok(Fee::manual_with_gas_price(base_coin, gas_price.clone()))
+    }
+
     // note that `Coin` is ALWAYS the base coin
     pub fn attempt_convert_to_base_coin(&self, coin: DecCoin) -> Result<Coin, BackendError> {
         let registered_coins = self

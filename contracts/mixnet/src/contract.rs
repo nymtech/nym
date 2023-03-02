@@ -8,6 +8,7 @@ use crate::mixnodes::storage as mixnode_storage;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    StdError,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
@@ -591,6 +592,17 @@ pub fn migrate(
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
+    // this is the first migration that uses cw2 standard and thus the value in the storage doesn't yet exist
+    // set it instead.
+    if matches!(
+        cw2::get_contract_version(deps.storage),
+        Err(StdError::NotFound { .. })
+    ) {
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+        crate::queued_migrations::create_epoch_status(deps.storage)?;
+        return Ok(Response::new());
+    }
+
     // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
     let version: Version = CONTRACT_VERSION.parse().map_err(|error: semver::Error| {
         MixnetContractError::SemVerFailure {

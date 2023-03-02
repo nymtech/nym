@@ -238,7 +238,7 @@ export const PageMixnodes: FCWithChildren = () => {
       ),
     },
     {
-      field: 'avg_uptime',
+      field: 'node_performance',
       headerName: 'Routing Score',
       disableColumnMenu: true,
       renderHeader: () => (
@@ -332,7 +332,6 @@ export const PageMixnodes: FCWithChildren = () => {
   const handlePageSize = (event: SelectChangeEvent<string>) => {
     setPageSize(event.target.value);
   };
-
   return (
     <>
       <Title text="Mixnodes" />

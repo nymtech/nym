@@ -62,6 +62,7 @@ export class Api {
     if (cachedMixnodes) {
       return cachedMixnodes;
     }
+
     const res = await fetch(MIXNODES_API);
     const json = await res.json();
     storeInCache('mixnodes', JSON.stringify(json));

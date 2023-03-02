@@ -59,8 +59,6 @@ const columns: ColumnsType[] = [
  */
 const PageMixnodeDetailWithState: FCWithChildren = () => {
   const { mixNode, mixNodeRow, description, stats, status, uptimeStory, uniqDelegations } = useMixnodeContext();
-  console.log(mixNodeRow);
-
   return (
     <Box component="main">
       <Title text="Mixnode Detail" />

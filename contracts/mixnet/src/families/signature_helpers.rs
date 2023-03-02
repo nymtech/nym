@@ -3,28 +3,25 @@
 
 use crate::signing::storage as signing_storage;
 use crate::support::helpers::decode_ed25519_identity_key;
-use cosmwasm_std::{Addr, Coin, Deps};
+use cosmwasm_std::{Addr, Deps};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{construct_mixnode_bonding_sign_payload, MixNode, MixNodeCostParams};
-use nym_contracts_common::signing::MessageSignature;
-use nym_contracts_common::signing::Verifier;
+use mixnet_contract_common::{construct_family_creation_sign_payload, IdentityKeyRef};
+use nym_contracts_common::signing::{MessageSignature, Verifier};
 
-pub(crate) fn verify_mixnode_bonding_signature(
+pub(crate) fn verify_family_creation_signature(
     deps: Deps<'_>,
     sender: Addr,
     proxy: Option<Addr>,
-    pledge: Coin,
-    mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    label: String,
+    public_key: IdentityKeyRef,
     signature: MessageSignature,
 ) -> Result<(), MixnetContractError> {
     // recover the public key
-    let public_key = decode_ed25519_identity_key(&mixnode.identity_key)?;
+    let public_key = decode_ed25519_identity_key(public_key)?;
 
     // reconstruct the payload
     let nonce = signing_storage::get_signing_nonce(deps.storage, sender.clone())?;
-    let msg =
-        construct_mixnode_bonding_sign_payload(nonce, sender, proxy, pledge, mixnode, cost_params);
+    let msg = construct_family_creation_sign_payload(nonce, sender, proxy, label);
 
     if deps.api.verify_message(msg, signature, &public_key)? {
         Ok(())

@@ -226,7 +226,7 @@ pub fn execute(
 pub fn try_create_family(
     info: MessageInfo,
     deps: DepsMut,
-    owner_signature: String,
+    owner_signature: MessageSignature,
     label: String,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;

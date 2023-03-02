@@ -146,7 +146,7 @@ pub trait MixnetSigningClient {
     // family related
     async fn create_family(
         &self,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         label: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -164,7 +164,7 @@ pub trait MixnetSigningClient {
     async fn create_family_on_behalf(
         &self,
         owner_address: String,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         label: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {

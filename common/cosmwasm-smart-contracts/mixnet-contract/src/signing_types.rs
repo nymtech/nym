@@ -10,6 +10,10 @@ use serde::Serialize;
 
 pub type SignableMixNodeBondingMsg = SignableMessage<ContractMessageContent<MixnodeBondingPayload>>;
 pub type SignableGatewayBondingMsg = SignableMessage<ContractMessageContent<GatewayBondingPayload>>;
+pub type SignableFamilyCreationMsg = SignableMessage<ContractMessageContent<FamilyCreationPayload>>;
+pub type SignableFamilyJoinMsg = SignableMessage<ContractMessageContent<FamilyJoinPayload>>;
+pub type SignableFamilyLeaveMsg = SignableMessage<ContractMessageContent<FamilyLeavePayload>>;
+pub type SignableFamilyKickMsg = SignableMessage<ContractMessageContent<FamilyKickPayload>>;
 
 #[derive(Serialize)]
 pub struct MixnodeBondingPayload {
@@ -77,72 +81,84 @@ pub fn construct_gateway_bonding_sign_payload(
 }
 
 #[derive(Serialize)]
-pub struct FamilyCreationSignature {
+pub struct FamilyCreationPayload {
     label: String,
     // TODO: add any extra fields?
 }
 
-impl FamilyCreationSignature {
+impl FamilyCreationPayload {
     pub fn new(label: String) -> Self {
         Self { label }
     }
 }
 
-impl SigningPurpose for FamilyCreationSignature {
+impl SigningPurpose for FamilyCreationPayload {
     fn message_type() -> MessageType {
         MessageType::new("family-creation")
     }
 }
 
+pub fn construct_family_creation_sign_payload(
+    nonce: Nonce,
+    sender: Addr,
+    proxy: Option<Addr>,
+    label: String,
+) -> SignableFamilyCreationMsg {
+    let payload = FamilyCreationPayload::new(label);
+    let content = ContractMessageContent::new(sender, proxy, Vec::new(), payload);
+
+    SignableMessage::new(nonce, content)
+}
+
 #[derive(Serialize)]
-pub struct FamilyJoinSignature {
+pub struct FamilyJoinPayload {
     family_head: String,
     // TODO: add any extra fields?
 }
 
-impl FamilyJoinSignature {
+impl FamilyJoinPayload {
     pub fn new(family_head: String) -> Self {
         Self { family_head }
     }
 }
 
-impl SigningPurpose for FamilyJoinSignature {
+impl SigningPurpose for FamilyJoinPayload {
     fn message_type() -> MessageType {
         MessageType::new("family-join")
     }
 }
 
 #[derive(Serialize)]
-pub struct FamilyLeaveSignature {
+pub struct FamilyLeavePayload {
     family_head: String,
     // TODO: add any extra fields?
 }
 
-impl FamilyLeaveSignature {
+impl FamilyLeavePayload {
     pub fn new(family_head: String) -> Self {
         Self { family_head }
     }
 }
 
-impl SigningPurpose for FamilyLeaveSignature {
+impl SigningPurpose for FamilyLeavePayload {
     fn message_type() -> MessageType {
         MessageType::new("family-leave")
     }
 }
 
 #[derive(Serialize)]
-pub struct FamilyKickSignature {
+pub struct FamilyKickPayload {
     member: String,
     // TODO: add any extra fields?
 }
 
-impl FamilyKickSignature {
+impl FamilyKickPayload {
     pub fn new(member: String) -> Self {
         Self { member }
     }
 }
 
-impl SigningPurpose for FamilyKickSignature {
+impl SigningPurpose for FamilyKickPayload {
     fn message_type() -> MessageType {
         MessageType::new("family-member-removal")
     }

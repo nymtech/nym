@@ -1,5 +1,6 @@
 use super::Account;
 use crate::{errors::ContractError, storage::MIXNET_CONTRACT_ADDRESS, traits::NodeFamilies};
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{wasm_execute, Response, Storage};
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, IdentityKeyRef};
 
@@ -7,7 +8,7 @@ impl NodeFamilies for Account {
     fn try_create_family(
         &self,
         storage: &dyn Storage,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         label: String,
     ) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::CreateFamilyOnBehalf {

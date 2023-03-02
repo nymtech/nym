@@ -245,12 +245,7 @@ pub(crate) fn _try_remove_mixnode(
     owner: Addr,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
-    let existing_bond = storage::mixnode_bonds()
-        .idx
-        .owner
-        .item(deps.storage, owner.clone())?
-        .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?
-        .1;
+    let existing_bond = must_get_mixnode_bond_by_owner(deps.storage, &owner)?;
 
     // unbonding is only allowed if the epoch is currently not in the process of being advanced
     ensure_epoch_in_progress_state(deps.storage)?;

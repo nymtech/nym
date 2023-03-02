@@ -136,6 +136,23 @@ pub trait VestingSigningClient {
         cap: Option<PledgeCap>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
+
+    async fn vesting_create_family(
+        &self,
+        owner_signature: MessageSignature,
+        label: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::CreateFamily {
+                owner_signature,
+                label,
+            },
+            vec![],
+        )
+        .await
+    }
 }
 
 #[async_trait]

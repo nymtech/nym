@@ -371,6 +371,23 @@ pub(crate) fn ensure_no_existing_bond(
     Ok(())
 }
 
+pub(crate) fn decode_ed25519_identity_key(
+    encoded: IdentityKeyRef,
+) -> Result<[u8; 32], MixnetContractError> {
+    let mut public_key = [0u8; 32];
+    let used = bs58::decode(encoded)
+        .into(&mut public_key)
+        .map_err(|err| MixnetContractError::MalformedEd25519IdentityKey(err.to_string()))?;
+
+    if used != 32 {
+        return Err(MixnetContractError::MalformedEd25519IdentityKey(
+            "Too few bytes provided for the public key".into(),
+        ));
+    }
+
+    Ok(public_key)
+}
+
 pub fn validate_node_identity_signature(
     deps: Deps<'_>,
     owner: &Addr,

@@ -10,14 +10,10 @@ use mixnet_contract_common::{error::MixnetContractError, IdentityKeyRef};
 use mixnet_contract_common::{IdentityKey, PagedFamiliesResponse, PagedMembersResponse};
 
 pub fn get_family_by_label(
-    label: &str,
+    label: String,
     storage: &dyn Storage,
 ) -> Result<Option<Family>, MixnetContractError> {
-    Ok(families()
-        .idx
-        .label
-        .item(storage, label.to_string())?
-        .map(|o| o.1))
+    Ok(families().idx.label.item(storage, label)?.map(|o| o.1))
 }
 
 pub fn get_family_by_head(
@@ -38,15 +34,10 @@ pub fn get_family_members_by_head(
 }
 
 pub fn get_family_members_by_label(
-    label: &str,
+    label: String,
     storage: &dyn Storage,
 ) -> Result<Option<HashSet<String>>, MixnetContractError> {
-    if let Some(family) = families()
-        .idx
-        .label
-        .item(storage, label.to_string())?
-        .map(|o| o.1)
-    {
+    if let Some(family) = families().idx.label.item(storage, label)?.map(|o| o.1) {
         Ok(Some(get_members(&family, storage)?))
     } else {
         Ok(None)

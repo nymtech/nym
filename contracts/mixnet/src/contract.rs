@@ -107,7 +107,7 @@ pub fn execute(
         ExecuteMsg::CreateFamily {
             owner_signature,
             label,
-        } => crate::families::transactions::try_create_family(deps, info, owner_signature, &label),
+        } => crate::families::transactions::try_create_family(deps, info, owner_signature, label),
         ExecuteMsg::JoinFamily {
             signature,
             family_head,
@@ -130,7 +130,7 @@ pub fn execute(
             info,
             owner_address,
             owner_signature,
-            &label,
+            label,
         ),
         ExecuteMsg::JoinFamilyOnBehalf {
             member_address,
@@ -392,13 +392,13 @@ pub fn query(
             &crate::families::queries::get_family_by_head(&head, deps.storage)?,
         ),
         QueryMsg::GetFamilyByLabel { label } => to_binary(
-            &crate::families::queries::get_family_by_label(&label, deps.storage)?,
+            &crate::families::queries::get_family_by_label(label, deps.storage)?,
         ),
         QueryMsg::GetFamilyMembersByHead { head } => to_binary(
             &crate::families::queries::get_family_members_by_head(&head, deps.storage)?,
         ),
         QueryMsg::GetFamilyMembersByLabel { label } => to_binary(
-            &crate::families::queries::get_family_members_by_label(&label, deps.storage)?,
+            &crate::families::queries::get_family_members_by_label(label, deps.storage)?,
         ),
         QueryMsg::GetContractVersion {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())

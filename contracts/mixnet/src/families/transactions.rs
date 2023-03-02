@@ -3,9 +3,11 @@ use crate::support::helpers::{
     validate_node_identity_signature,
 };
 
+use crate::families::signature_helpers::verify_family_creation_signature;
 use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::{error::MixnetContractError, IdentityKey, IdentityKeyRef};
+use nym_contracts_common::signing::MessageSignature;
 
 use super::storage::{
     add_family_member, create_family, get_family, is_any_member, is_family_member,
@@ -16,8 +18,8 @@ use super::storage::{
 pub fn try_create_family(
     deps: DepsMut,
     info: MessageInfo,
-    owner_signature: String,
-    label: &str,
+    owner_signature: MessageSignature,
+    label: String,
 ) -> Result<Response, MixnetContractError> {
     _try_create_family(deps, &info.sender, owner_signature, label, None)
 }
@@ -26,8 +28,8 @@ pub fn try_create_family_on_behalf(
     deps: DepsMut,
     info: MessageInfo,
     owner_address: String,
-    owner_signature: String,
-    label: &str,
+    owner_signature: MessageSignature,
+    label: String,
 ) -> Result<Response, MixnetContractError> {
     ensure_sent_by_vesting_contract(&info, deps.storage)?;
 
@@ -44,26 +46,22 @@ pub fn try_create_family_on_behalf(
 fn _try_create_family(
     deps: DepsMut,
     owner: &Addr,
-    owner_signature: String,
-    label: &str,
+    owner_signature: MessageSignature,
+    label: String,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
-    let existing_bond = crate::mixnodes::storage::mixnode_bonds()
-        .idx
-        .owner
-        .item(deps.storage, owner.clone())?
-        .ok_or(MixnetContractError::NoAssociatedMixNodeBond {
-            owner: owner.clone(),
-        })?
-        .1;
+    let existing_bond =
+        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, &owner)?;
 
     ensure_bonded(&existing_bond)?;
 
-    validate_node_identity_signature(
+    verify_family_creation_signature(
         deps.as_ref(),
-        owner,
-        &owner_signature,
+        owner.clone(),
+        proxy.clone(),
+        label.clone(),
         existing_bond.identity(),
+        owner_signature,
     )?;
 
     let family_head = FamilyHead::new(existing_bond.identity());
@@ -123,14 +121,8 @@ fn _try_join_family(
     family_signature: String,
     family_head: FamilyHead,
 ) -> Result<Response, MixnetContractError> {
-    let existing_bond = crate::mixnodes::storage::mixnode_bonds()
-        .idx
-        .owner
-        .item(deps.storage, owner.clone())?
-        .ok_or(MixnetContractError::NoAssociatedMixNodeBond {
-            owner: owner.clone(),
-        })?
-        .1;
+    let existing_bond =
+        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, &owner)?;
 
     ensure_bonded(&existing_bond)?;
 
@@ -200,14 +192,8 @@ fn _try_leave_family(
     node_family_signature: String,
     family_head: FamilyHead,
 ) -> Result<Response, MixnetContractError> {
-    let existing_bond = crate::mixnodes::storage::mixnode_bonds()
-        .idx
-        .owner
-        .item(deps.storage, owner.clone())?
-        .ok_or(MixnetContractError::NoAssociatedMixNodeBond {
-            owner: owner.clone(),
-        })?
-        .1;
+    let existing_bond =
+        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, &owner)?;
 
     ensure_bonded(&existing_bond)?;
 
@@ -366,7 +352,7 @@ mod test {
             test.deps_mut(),
             mock_info(head, &[]),
             old_style_head_sig,
-            "test",
+            "test".to_string(),
         )
         .unwrap();
         let family_head = FamilyHead::new(&head_mixnode.identity_key);
@@ -376,7 +362,7 @@ mod test {
             test.deps_mut(),
             mock_info(malicious_head, &[]),
             old_style_malicious_head_sig,
-            "test",
+            "test".to_string(),
         );
 
         match nope {
@@ -387,7 +373,7 @@ mod test {
             },
         }
 
-        let family = get_family_by_label("test", test.deps().storage).unwrap();
+        let family = get_family_by_label("test".to_string(), test.deps().storage).unwrap();
         assert!(family.is_some());
         assert_eq!(family.unwrap().head_identity(), family_head.identity());
 
@@ -476,7 +462,7 @@ mod test {
                 mock_info(illegal_proxy.as_ref(), &[]),
                 head.to_string(),
                 sig,
-                "label",
+                "label".to_string(),
             )
             .unwrap_err();
 

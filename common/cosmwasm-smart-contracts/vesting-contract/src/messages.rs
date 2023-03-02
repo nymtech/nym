@@ -60,7 +60,7 @@ pub enum ExecuteMsg {
     // Families
     /// Only owner of the node can crate the family with node as head
     CreateFamily {
-        owner_signature: String,
+        owner_signature: MessageSignature,
         label: String,
     },
     /// Family head needs to sign the joining node IdentityKey, the Node provides its signature signaling consent to join the family

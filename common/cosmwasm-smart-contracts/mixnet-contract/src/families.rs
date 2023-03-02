@@ -34,11 +34,11 @@ impl FamilyHead {
 }
 
 impl Family {
-    pub fn new(head: FamilyHead, proxy: Option<Addr>, label: &str) -> Self {
+    pub fn new(head: FamilyHead, proxy: Option<Addr>, label: String) -> Self {
         Family {
             head,
             proxy: proxy.map(|p| p.to_string()),
-            label: label.to_string(),
+            label: label,
         }
     }
 

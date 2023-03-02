@@ -1,4 +1,5 @@
 use crate::errors::ContractError;
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{Response, Storage};
 use mixnet_contract_common::IdentityKeyRef;
 
@@ -6,7 +7,7 @@ pub trait NodeFamilies {
     fn try_create_family(
         &self,
         storage: &dyn Storage,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         label: String,
     ) -> Result<Response, ContractError>;
 

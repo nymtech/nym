@@ -17,53 +17,40 @@ const columns: ColumnsType[] = [
   {
     field: 'owner',
     title: 'Owner',
-    headerAlign: 'left',
-    width: 230,
+    width: 240,
   },
   {
     field: 'identity_key',
     title: 'Identity Key',
-    headerAlign: 'left',
-    width: 230,
+    width: 240,
   },
 
   {
     field: 'bond',
     title: 'Stake',
-    flex: 1,
-    headerAlign: 'left',
   },
   {
     field: 'self_percentage',
     title: 'Bond %',
-    headerAlign: 'left',
     width: 99,
   },
   {
     field: 'host',
     title: 'Host',
-    headerAlign: 'left',
-    flex: 1,
   },
   {
     field: 'location',
     title: 'Location',
-    headerAlign: 'left',
-    flex: 1,
-  },
-  {
-    field: 'layer',
-    title: 'Layer',
-    headerAlign: 'right',
-    flex: 1,
   },
   {
     field: 'avg_uptime',
     title: 'Routing Score',
-    flex: 1,
-    headerAlign: 'left',
     tooltipInfo:
       "Mixnode's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test.",
+  },
+  {
+    field: 'layer',
+    title: 'Layer',
   },
 ];
 

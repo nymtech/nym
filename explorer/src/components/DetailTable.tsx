@@ -1,5 +1,15 @@
 import * as React from 'react';
-import { Link, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import {
+  Link,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableCellProps,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Tooltip } from '@nymproject/react/tooltip/Tooltip';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
@@ -12,8 +22,7 @@ import { MixnodeRowType } from './MixNodes';
 export type ColumnsType = {
   field: string;
   title: string;
-  headerAlign: string;
-  flex?: number;
+  headerAlign?: TableCellProps['align'];
   width?: number;
   tooltipInfo?: string;
 };
@@ -61,27 +70,23 @@ export const DetailTable: FCWithChildren<{
   const theme = useTheme();
   return (
     <TableContainer component={Paper}>
-      <Table sx={{ minWidth: 650 }} aria-label={tableName}>
+      <Table sx={{ minWidth: 1080 }} aria-label={tableName}>
         <TableHead>
           <TableRow>
-            {columnsData?.map(({ field, title, flex, tooltipInfo }) => (
-              <TableCell key={field} sx={{ fontSize: 14, fontWeight: 600, flex }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  {tooltipInfo && (
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Tooltip
-                        title={tooltipInfo}
-                        id={field}
-                        placement="top-start"
-                        textColor={theme.palette.nym.networkExplorer.tooltip.color}
-                        bgColor={theme.palette.nym.networkExplorer.tooltip.background}
-                        maxWidth={230}
-                        arrow
-                      />
-                    </Box>
-                  )}
-                  {title}
-                </Box>
+            {columnsData?.map(({ headerAlign, field, title, tooltipInfo, width }) => (
+              <TableCell align={headerAlign} key={field} sx={{ fontSize: 14, fontWeight: 600, width }}>
+                {tooltipInfo && (
+                  <Tooltip
+                    title={tooltipInfo}
+                    id={field}
+                    placement="top-start"
+                    textColor={theme.palette.nym.networkExplorer.tooltip.color}
+                    bgColor={theme.palette.nym.networkExplorer.tooltip.background}
+                    maxWidth={230}
+                    arrow
+                  />
+                )}
+                {title}
               </TableCell>
             ))}
           </TableRow>

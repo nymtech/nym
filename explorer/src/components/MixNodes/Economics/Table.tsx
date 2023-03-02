@@ -5,7 +5,6 @@ import { useTheme, Theme } from '@mui/material/styles';
 import { Tooltip } from '@nymproject/react/tooltip/Tooltip';
 import { EconomicsRowsType, EconomicsInfoRowWithIndex } from './types';
 import { EconomicsProgress } from './EconomicsProgress';
-import { cellStyles } from '../../Universal-DataGrid';
 import { UniversalTableProps } from '../../DetailTable';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 
@@ -78,21 +77,19 @@ export const DelegatorsInfoTable: FCWithChildren<UniversalTableProps<EconomicsIn
       <Table sx={{ minWidth: 650 }} aria-label={tableName}>
         <TableHead>
           <TableRow>
-            {columnsData?.map(({ field, title, flex, tooltipInfo }) => (
-              <TableCell key={field} sx={{ fontSize: 14, fontWeight: 600, flex }}>
+            {columnsData?.map(({ field, title, tooltipInfo, width }) => (
+              <TableCell key={field} sx={{ fontSize: 14, fontWeight: 600, width }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   {tooltipInfo && (
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Tooltip
-                        title={tooltipInfo}
-                        id={field}
-                        placement="top-start"
-                        textColor={theme.palette.nym.networkExplorer.tooltip.color}
-                        bgColor={theme.palette.nym.networkExplorer.tooltip.background}
-                        maxWidth={230}
-                        arrow
-                      />
-                    </Box>
+                    <Tooltip
+                      title={tooltipInfo}
+                      id={field}
+                      placement="top-start"
+                      textColor={theme.palette.nym.networkExplorer.tooltip.color}
+                      bgColor={theme.palette.nym.networkExplorer.tooltip.background}
+                      maxWidth={230}
+                      arrow
+                    />
                   )}
                   {title}
                 </Box>
@@ -106,19 +103,10 @@ export const DelegatorsInfoTable: FCWithChildren<UniversalTableProps<EconomicsIn
               {columnsData?.map((_, index: number) => {
                 const { field } = columnsData[index];
                 const value: EconomicsRowsType = (eachRow as any)[field];
-
                 return (
                   <TableCell
                     key={_.title}
-                    component="th"
-                    scope="row"
-                    variant="body"
                     sx={{
-                      ...cellStyles,
-                      padding: 2,
-                      width: 200,
-                      fontSize: 12,
-                      fontWeight: 600,
                       color: textColour(value, field, theme),
                     }}
                     data-testid={`${_.title.replace(/ /g, '-')}-value`}

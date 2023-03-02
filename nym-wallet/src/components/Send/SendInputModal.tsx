@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Stack, TextField, Typography, SxProps, FormControlLabel, Checkbox } from '@mui/material';
+import Big from 'big.js';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, DecCoin } from '@nymproject/types';
+import { CurrencyDenom, DecCoin, isValidRawCoin } from '@nymproject/types';
 import { validateAmount } from 'src/utils';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
+
+const maxUserFees = '10.0';
+const minUserFees = '0.000001'; // aka 1 unym
 
 export const SendInputModal = ({
   fromAddress,
@@ -47,10 +51,24 @@ export const SendInputModal = ({
 }) => {
   const [isValid, setIsValid] = useState(false);
   const [memoIsValid, setMemoIsValid] = useState(true);
+  const [feeAmountIsValid, setFeeAmountIsValid] = useState(true);
 
   const validate = async (value: DecCoin) => {
     const isValidAmount = await validateAmount(value.amount, '0');
     setIsValid(isValidAmount);
+  };
+
+  const validateUserFees = (fees: DecCoin) => {
+    if (!isValidRawCoin(fees.amount) || !Number(fees.amount)) {
+      setFeeAmountIsValid(false);
+      return;
+    }
+    const f = Big(fees.amount);
+    if (f.gt(maxUserFees) || f.lt(minUserFees)) {
+      setFeeAmountIsValid(false);
+      return;
+    }
+    setFeeAmountIsValid(true);
   };
 
   useEffect(() => {
@@ -65,6 +83,14 @@ export const SendInputModal = ({
     setMemoIsValid(true);
   }, [memo]);
 
+  useEffect(() => {
+    if (userFees) {
+      validateUserFees(userFees);
+    } else {
+      setFeeAmountIsValid(true);
+    }
+  }, [userFees]);
+
   return (
     <SimpleModal
       header="Send"
@@ -72,7 +98,7 @@ export const SendInputModal = ({
       onClose={onClose}
       okLabel="Next"
       onOk={async () => onNext()}
-      okDisabled={!isValid || !memoIsValid}
+      okDisabled={!isValid || !memoIsValid || !feeAmountIsValid}
       sx={sx}
       backdropProps={backdropProps}
     >

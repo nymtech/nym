@@ -16,12 +16,14 @@ import {
   GatewayOwnershipResponse,
   LayerDistribution,
   MixnetContractVersion,
+  Mixnode,
   MixNode,
   MixNodeBond,
   MixNodeCostParams,
   MixNodeDetails,
   MixNodeRewarding,
   MixOwnershipResponse,
+  OriginalVestingResponse,
   PagedAllDelegationsResponse,
   PagedDelegatorDelegationsResponse,
   PagedGatewayResponse,
@@ -32,10 +34,11 @@ import {
   RewardingParams,
   StakeSaturationResponse,
   UnbondedMixnodeResponse,
+  VestingAccountInfo,
+  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations
 } from '@nymproject/types';
 import QueryClient from './query-client';
 import SigningClient, { ISigningClient } from './signing-client';
-import { ContractState } from './types/shared';
 
 export interface INymClient {
   readonly mixnetContract: string;
@@ -204,7 +207,7 @@ export default class ValidatorClient implements INymClient {
     let mixNodes: UnbondedMixnodeResponse[] = [];
     const limit = 50;
     let startAfter;
-    for (;;) {
+    for (; ;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedUnbondedMixnodesResponse = await this.client.getUnbondedMixNodes(
         this.mixnetContract,
@@ -227,7 +230,7 @@ export default class ValidatorClient implements INymClient {
     let mixNodes: MixNodeBond[] = [];
     const limit = 50;
     let startAfter;
-    for (;;) {
+    for (; ;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedMixNodeBondResponse = await this.client.getMixNodeBonds(
         this.mixnetContract,
@@ -249,7 +252,7 @@ export default class ValidatorClient implements INymClient {
     let mixNodes: MixNodeDetails[] = [];
     const limit = 50;
     let startAfter;
-    for (;;) {
+    for (; ;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedMixNodeDetailsResponse = await this.client.getMixNodesDetailed(
         this.mixnetContract,
@@ -281,7 +284,7 @@ export default class ValidatorClient implements INymClient {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
-    for (;;) {
+    for (; ;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedMixDelegationsResponse = await this.client.getMixNodeDelegationsPaged(
         this.mixnetContract,
@@ -304,7 +307,7 @@ export default class ValidatorClient implements INymClient {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
-    for (;;) {
+    for (; ;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedDelegatorDelegationsResponse = await this.client.getDelegatorDelegationsPaged(
         this.mixnetContract,
@@ -327,7 +330,7 @@ export default class ValidatorClient implements INymClient {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
-    for (;;) {
+    for (; ;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedAllDelegationsResponse = await this.client.getAllDelegationsPaged(
         this.mixnetContract,
@@ -513,5 +516,62 @@ export default class ValidatorClient implements INymClient {
   ): Promise<ExecuteResult> {
     this.assertSigning();
     return (this.client as ISigningClient).updateContractStateParams(this.mixnetContract, newParams, fee, memo);
+  }
+
+
+  // VESTING 
+  // TODO - MOVE TO A DIFFERENT FILE
+
+
+  public async getVestingAccountsPaged(): Promise<VestingAccountsPaged> {
+    return this.client.getVestingAccountsPaged(this.vestingContract);
+  }
+
+  public async getVestingAmountsAccountsPaged(): Promise<VestingAccountsCoinPaged> {
+    return this.client.getVestingAmountsAccountsPaged(this.vestingContract);
+  }
+
+  public async getLockedTokens(vestingAccountAddress: string): Promise<Coin> {
+    return this.client.getLockedTokens(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getSpendableTokens(vestingAccountAddress: string): Promise<Coin> {
+    return this.client.getSpendableTokens(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getVestedTokens(vestingAccountAddress: string): Promise<Coin> {
+    return this.client.getVestedTokens(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getVestingTokens(vestingAccountAddress: string): Promise<Coin> {
+    return this.client.getVestingTokens(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getStartTime(vestingAccountAddress: string): Promise<string> {
+    return this.client.getStartTime(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getOriginalVestingDetails(vestingAccountAddress: string): Promise<OriginalVestingResponse> {
+    return this.client.getOriginalVestingDetails(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getHistoricStakingRewards(vestingAccountAddress: string): Promise<Coin> {
+    return this.client.getHistoricStakingRewards(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getAccountDetails(address: string): Promise<VestingAccountInfo> {
+    return this.client.getAccountDetails(this.vestingContract, address);
+  }
+
+  public async getMixnode(address: string): Promise<Mixnode> {
+    return this.client.getMixnode(this.vestingContract, address);
+  }
+
+  public async getDelegationTimes(mix_id: number, delegatorAddress: string): Promise<DelegationTimes> {
+    return this.client.getDelegationTimes(this.vestingContract, mix_id, delegatorAddress);
+  }
+
+  public async getAllDelegations(): Promise<Delegations> {
+    return this.client.getAllDelegations(this.vestingContract);
   }
 }

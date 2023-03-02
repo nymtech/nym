@@ -10,26 +10,14 @@ use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 
-// Weight of a layer being chose is reciprocal to current count in layer
-fn layer_weight(l: &Layer, layer_assignments: &HashMap<Layer, f32>) -> f32 {
-    let total = layer_assignments.values().fold(0., |acc, i| acc + i);
-    if total == 0. {
-        1.
-    } else {
-        1. - (layer_assignments.get(l).unwrap_or(&0.) / total)
-    }
-}
-
 impl RewardedSetUpdater {
+    // Needs to run for active and reserve sets separatley, as it does not preserve order
     async fn determine_layers(
         &self,
-        rewarded_set: &[MixNodeDetails],
-    ) -> Result<(Vec<LayerAssignment>, HashMap<String, Layer>), RewardingError> {
-        let mut families_in_layer: HashMap<String, Layer> = HashMap::new();
-        let mut assignments = vec![];
-        let mut layer_assignments: HashMap<Layer, f32> = HashMap::new();
-        let mut rng = OsRng;
-        let layers = vec![Layer::One, Layer::Two, Layer::Three];
+        set: &[MixNodeDetails],
+    ) -> Result<Vec<LayerAssignment>, RewardingError> {
+        let mut assignments = Vec::with_capacity(set.len());
+        let target_layer_count = set.len() / 3;
 
         let mix_to_family = self.nym_contract_cache.mix_to_family().await.to_vec();
 
@@ -37,31 +25,59 @@ impl RewardedSetUpdater {
             .into_iter()
             .collect::<HashMap<IdentityKey, FamilyHead>>();
 
-        for mix in rewarded_set {
-            let family = mix_to_family.get(&mix.bond_information.identity().to_owned());
-            // Get layer already assigned to nodes family, if any
-            let family_layer = family.and_then(|h| families_in_layer.get(h.identity()));
+        let mut regular_nodes = Vec::with_capacity(set.len());
 
-            // Same node families are always assigned to the same layer, otherwise layer selected by a random weighted choice
-            let layer = if let Some(layer) = family_layer {
-                layer.to_owned()
+        let mut families = HashMap::new();
+
+        for node in set.iter() {
+            if let Some(fh) = mix_to_family.get(node.bond_information.identity()) {
+                let family: &mut Vec<u32> = families.entry(fh.identity()).or_default();
+                family.push(node.mix_id())
             } else {
-                layers
-                    .choose_weighted(&mut rng, |l| layer_weight(l, &layer_assignments))?
-                    .to_owned()
-            };
-
-            assignments.push(LayerAssignment::new(mix.mix_id(), layer));
-
-            // layer accounting
-            let layer_entry = layer_assignments.entry(layer).or_insert(0.);
-            *layer_entry += 1.;
-            if let Some(family) = family {
-                families_in_layer.insert(family.identity().to_string(), layer);
+                regular_nodes.push(node.mix_id())
             }
         }
 
-        Ok((assignments, families_in_layer))
+        let mut layers = HashMap::new();
+        layers.insert(Layer::One, Vec::with_capacity(target_layer_count));
+        layers.insert(Layer::Two, Vec::with_capacity(target_layer_count));
+        layers.insert(Layer::Three, Vec::with_capacity(target_layer_count));
+
+        // Assign all members of a family to same layer
+        for (_head, members) in families.iter_mut() {
+            let smallest_layer = layers
+                .iter()
+                .min_by_key(|(_layer, members)| members.len())
+                .map(|(layer, _members)| *layer)
+                .unwrap_or(Layer::One);
+
+            let entry = layers.entry(smallest_layer).or_default();
+            if entry.len() + members.len() <= target_layer_count {
+                entry.extend_from_slice(members)
+            }
+        }
+
+        // Assign nodes with no families into layers
+        for mix_id in regular_nodes.drain(..) {
+            let smallest_layer = layers
+                .iter()
+                .min_by_key(|(_layer, members)| members.len())
+                .map(|(layer, _members)| *layer)
+                .unwrap_or(Layer::One);
+
+            let entry = layers.entry(smallest_layer).or_default();
+            if entry.len() < target_layer_count {
+                entry.push(mix_id)
+            }
+        }
+
+        for (layer, members) in layers {
+            let layer_assignments = members
+                .into_iter()
+                .map(|mix_id| LayerAssignment::new(mix_id, layer));
+            assignments.extend(layer_assignments);
+        }
+        Ok(assignments)
     }
 
     fn determine_rewarded_set(
@@ -132,14 +148,47 @@ impl RewardedSetUpdater {
         // we grab rewarding parameters here as they might have gotten updated when performing epoch actions
         let rewarding_parameters = self.nyxd_client.get_current_rewarding_parameters().await?;
 
+        debug!("Rewarding paremeters: {:?}", rewarding_parameters);
+
         let new_rewarded_set =
             self.determine_rewarded_set(all_mixnodes, rewarding_parameters.rewarded_set_size)?;
 
-        let (layer_assignments, _families_in_layer) =
-            self.determine_layers(&new_rewarded_set).await?;
+        debug!("New rewarded set: {:?}", new_rewarded_set);
+
+        let empty = vec![];
+
+        let (active_set, reserve_set) = if new_rewarded_set.len()
+            <= rewarding_parameters.active_set_size as usize
+        {
+            warn!("Active set size ({}) is greater then rewarded set len ({}), there will be no reserve set", rewarding_parameters.active_set_size, new_rewarded_set.len());
+            (new_rewarded_set.as_slice(), empty.as_slice())
+        } else {
+            new_rewarded_set.split_at(rewarding_parameters.active_set_size as usize)
+        };
+
+        let mut active_set_layer_assignments = self.determine_layers(active_set).await?;
+        debug!(
+            "Active set layer assignments: {:?}",
+            active_set_layer_assignments
+        );
+        let reserve_set_layer_assignments = self.determine_layers(reserve_set).await?;
+        debug!(
+            "Reserve set layer assignments: {:?}",
+            reserve_set_layer_assignments
+        );
+
+        active_set_layer_assignments.extend(reserve_set_layer_assignments);
+
+        debug!(
+            "Rewarded set layer assignments: {:?}",
+            active_set_layer_assignments
+        );
 
         self.nyxd_client
-            .advance_current_epoch(layer_assignments, rewarding_parameters.active_set_size)
+            .advance_current_epoch(
+                active_set_layer_assignments,
+                rewarding_parameters.active_set_size,
+            )
             .await?;
 
         Ok(())

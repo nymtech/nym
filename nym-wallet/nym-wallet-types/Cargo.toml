@@ -12,7 +12,7 @@ strum = { version = "0.23", features = ["derive"] }
 ts-rs = "6.1.2"
 
 cosmwasm-std = "1.0.0-beta8"
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
+cosmrs = "0.8.0"
 
 nym-config = { path = "../../common/config" }
 nym-network-defaults = { path = "../../common/network-defaults" }

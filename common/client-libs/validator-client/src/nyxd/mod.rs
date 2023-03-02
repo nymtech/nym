@@ -42,7 +42,7 @@ pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
-pub use cosmrs::{bip32, AccountId, Decimal, Denom};
+pub use cosmrs::{bip32, AccountId, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 pub use signing_client::Client as SigningNyxdClient;

@@ -25,7 +25,7 @@ toml = "0.5.6"
 url = "2.2"
 tap = "1"
 
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
+cosmrs = "0.8.0"
 cosmwasm-std = { version = "1.0.0" }
 
 validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"] }

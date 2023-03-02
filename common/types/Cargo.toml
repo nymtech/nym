@@ -20,7 +20,7 @@ url = "2.2"
 ts-rs = "6.1.2"
 
 cosmwasm-std = "1.0.0"
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
+cosmrs = "0.8.0"
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nyxd-client",

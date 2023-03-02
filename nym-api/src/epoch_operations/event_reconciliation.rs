@@ -4,6 +4,7 @@
 use crate::epoch_operations::error::RewardingError;
 use crate::RewardedSetUpdater;
 use nym_mixnet_contract_common::EpochState;
+use std::cmp::max;
 
 impl RewardedSetUpdater {
     pub(super) async fn reconcile_epoch_events(&self) -> Result<(), RewardingError> {
@@ -36,10 +37,6 @@ impl RewardedSetUpdater {
 
     async fn _reconcile_epoch_events(&self) -> Result<(), RewardingError> {
         let pending_events = self.nyxd_client.get_pending_events_count().await?;
-        // if there's no pending events, job's done.
-        if pending_events == 0 {
-            return Ok(());
-        }
 
         // be conservative about number of events we resolve at once.
         // contract should be able to handle few hundred at once
@@ -51,7 +48,9 @@ impl RewardedSetUpdater {
             required_calls += 1;
         }
 
-        for _ in 0..required_calls {
+        // make sure to at least call it once so that if there are no pending events,
+        // the epoch would get advanced into the next phase
+        for _ in 0..max(required_calls, 1) {
             self.nyxd_client.reconcile_epoch_events(Some(limit)).await?;
         }
 

@@ -153,6 +153,7 @@ impl ThreadsafeMixNodesCache {
             layer: node.mixnode_details.bond_information.layer,
             mix_node: node.mixnode_details.bond_information.mix_node.clone(),
             avg_uptime: node.performance.round_to_integer(),
+            node_performance: node.node_performance.clone(),
             stake_saturation: best_effort_small_dec_to_f64(node.stake_saturation) as f32,
             uncapped_saturation: best_effort_small_dec_to_f64(node.uncapped_stake_saturation)
                 as f32,

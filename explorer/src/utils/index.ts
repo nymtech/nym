@@ -1,7 +1,9 @@
 /* eslint-disable camelcase */
 import { MutableRefObject } from 'react';
+import { Theme } from '@mui/material/styles';
 import { registerLocale, getName } from 'i18n-iso-countries';
 import { CountryData } from '../typeDefs/explorer-api';
+import { EconomicsRowsType } from '../components/MixNodes/Economics/types';
 
 registerLocale(require('i18n-iso-countries/langs/en.json'));
 
@@ -53,3 +55,29 @@ export const splice = (start: number, deleteCount: number, address?: string): st
  * @returns A stringified integer
  */
 export const toPercentIntegerString = (value: string) => Math.round(Number(value) * 100).toString();
+
+export const textColour = (value: EconomicsRowsType, field: string, theme: Theme) => {
+  const progressBarValue = value?.progressBarValue || 0;
+  const fieldValue = value.value;
+
+  if (progressBarValue > 100) {
+    return theme.palette.warning.main;
+  }
+  if (field === 'selectionChance') {
+    // TODO: when v2 will be deployed, remove cases: VeryHigh, Moderate and VeryLow
+    switch (fieldValue) {
+      case 'High':
+      case 'VeryHigh':
+        return theme.palette.nym.networkExplorer.selectionChance.overModerate;
+      case 'Good':
+      case 'Moderate':
+        return theme.palette.nym.networkExplorer.selectionChance.moderate;
+      case 'Low':
+      case 'VeryLow':
+        return theme.palette.nym.networkExplorer.selectionChance.underModerate;
+      default:
+        return theme.palette.nym.wallet.fee;
+    }
+  }
+  return theme.palette.nym.wallet.fee;
+};

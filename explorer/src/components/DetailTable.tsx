@@ -18,12 +18,13 @@ import { cellStyles } from './Universal-DataGrid';
 import { unymToNym } from '../utils/currency';
 import { GatewayEnrichedRowType } from './Gateways';
 import { MixnodeRowType } from './MixNodes';
+import { StakeSaturationProgressBar } from './MixNodes/Economics/StakeSaturationProgressBar';
 
 export type ColumnsType = {
   field: string;
   title: string;
   headerAlign?: TableCellProps['align'];
-  width?: number;
+  width?: string | number;
   tooltipInfo?: string;
 };
 
@@ -59,6 +60,10 @@ function formatCellValues(val: string | number, field: string) {
     );
   }
 
+  if (field === 'stake_saturation') {
+    return <StakeSaturationProgressBar value={Number(val)} threshold={100} />;
+  }
+
   return val;
 }
 
@@ -73,20 +78,24 @@ export const DetailTable: FCWithChildren<{
       <Table sx={{ minWidth: 1080 }} aria-label={tableName}>
         <TableHead>
           <TableRow>
-            {columnsData?.map(({ headerAlign, field, title, tooltipInfo, width }) => (
-              <TableCell align={headerAlign} key={field} sx={{ fontSize: 14, fontWeight: 600, width }}>
-                {tooltipInfo && (
-                  <Tooltip
-                    title={tooltipInfo}
-                    id={field}
-                    placement="top-start"
-                    textColor={theme.palette.nym.networkExplorer.tooltip.color}
-                    bgColor={theme.palette.nym.networkExplorer.tooltip.background}
-                    maxWidth={230}
-                    arrow
-                  />
-                )}
-                {title}
+            {columnsData?.map(({ field, title, width, tooltipInfo }) => (
+              <TableCell key={field} sx={{ fontSize: 14, fontWeight: 600, width }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  {tooltipInfo && (
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Tooltip
+                        title={tooltipInfo}
+                        id={field}
+                        placement="top-start"
+                        textColor={theme.palette.nym.networkExplorer.tooltip.color}
+                        bgColor={theme.palette.nym.networkExplorer.tooltip.background}
+                        maxWidth={230}
+                        arrow
+                      />
+                    </Box>
+                  )}
+                  {title}
+                </Box>
               </TableCell>
             ))}
           </TableRow>

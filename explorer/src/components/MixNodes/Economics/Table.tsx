@@ -1,69 +1,19 @@
 import * as React from 'react';
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { Box } from '@mui/system';
-import { useTheme, Theme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { Tooltip } from '@nymproject/react/tooltip/Tooltip';
 import { EconomicsRowsType, EconomicsInfoRowWithIndex } from './types';
-import { EconomicsProgress } from './EconomicsProgress';
 import { UniversalTableProps } from '../../DetailTable';
-import { useIsMobile } from '../../../hooks/useIsMobile';
+import { textColour } from '../../../utils';
 
-const threshold = 100;
-
-const textColour = (value: EconomicsRowsType, field: string, theme: Theme) => {
-  const progressBarValue = value?.progressBarValue || 0;
-  const fieldValue = value.value;
-
-  if (progressBarValue > 100) {
-    return theme.palette.warning.main;
-  }
-  if (field === 'selectionChance') {
-    // TODO: when v2 will be deployed, remove cases: VeryHigh, Moderate and VeryLow
-    switch (fieldValue) {
-      case 'High':
-      case 'VeryHigh':
-        return theme.palette.nym.networkExplorer.selectionChance.overModerate;
-      case 'Good':
-      case 'Moderate':
-        return theme.palette.nym.networkExplorer.selectionChance.moderate;
-      case 'Low':
-      case 'VeryLow':
-        return theme.palette.nym.networkExplorer.selectionChance.underModerate;
-      default:
-        return theme.palette.nym.wallet.fee;
-    }
-  }
-  return theme.palette.nym.wallet.fee;
-};
-
-const formatCellValues = (value: EconomicsRowsType, field: string) => {
-  const isTablet = useIsMobile('lg');
-  if (value.progressBarValue) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: isTablet ? 'column' : 'row' }} id="field">
-        <Typography
-          sx={{
-            mr: isTablet ? 0 : 1,
-            mb: isTablet ? 1 : 0,
-            fontWeight: '600',
-            fontSize: '12px',
-          }}
-          id={field}
-        >
-          {value.value}
-        </Typography>
-        <EconomicsProgress threshold={threshold} value={value.progressBarValue} />
-      </Box>
-    );
-  }
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }} id="field">
-      <Typography sx={{ mr: 1, fontWeight: '600', fontSize: '12px' }} id={field}>
-        {value.value}
-      </Typography>
-    </Box>
-  );
-};
+const formatCellValues = (value: EconomicsRowsType, field: string) => (
+  <Box sx={{ display: 'flex', alignItems: 'center' }} id="field">
+    <Typography sx={{ mr: 1, fontWeight: '600', fontSize: '12px' }} id={field}>
+      {value.value}
+    </Typography>
+  </Box>
+);
 
 export const DelegatorsInfoTable: FCWithChildren<UniversalTableProps<EconomicsInfoRowWithIndex>> = ({
   tableName,
@@ -103,6 +53,7 @@ export const DelegatorsInfoTable: FCWithChildren<UniversalTableProps<EconomicsIn
               {columnsData?.map((_, index: number) => {
                 const { field } = columnsData[index];
                 const value: EconomicsRowsType = (eachRow as any)[field];
+                console.log(value);
                 return (
                   <TableCell
                     key={_.title}

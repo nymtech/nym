@@ -17,37 +17,42 @@ const columns: ColumnsType[] = [
   {
     field: 'owner',
     title: 'Owner',
-    width: 240,
+    width: '15%',
   },
   {
     field: 'identity_key',
     title: 'Identity Key',
-    width: 240,
+    width: '15%',
   },
 
   {
     field: 'bond',
     title: 'Stake',
+    width: '12.5%',
+  },
+  {
+    field: 'stake_saturation',
+    title: 'Stake Saturation',
+    width: '12.5%',
+    tooltipInfo:
+      'Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is 730k NYM, computed as S/K where S is target amount of tokens staked in the network and K is the number of nodes in the reward set.',
   },
   {
     field: 'self_percentage',
+    width: '10%',
     title: 'Bond %',
-    width: 99,
   },
+
   {
     field: 'host',
+    width: '10%',
     title: 'Host',
   },
   {
     field: 'location',
     title: 'Location',
   },
-  {
-    field: 'avg_uptime',
-    title: 'Routing Score',
-    tooltipInfo:
-      "Mixnode's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test.",
-  },
+
   {
     field: 'layer',
     title: 'Layer',
@@ -59,6 +64,7 @@ const columns: ColumnsType[] = [
  */
 const PageMixnodeDetailWithState: FCWithChildren = () => {
   const { mixNode, mixNodeRow, description, stats, status, uptimeStory, uniqDelegations } = useMixnodeContext();
+  console.log(mixNodeRow);
   return (
     <Box component="main">
       <Title text="Mixnode Detail" />

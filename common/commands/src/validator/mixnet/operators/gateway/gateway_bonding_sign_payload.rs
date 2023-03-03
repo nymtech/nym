@@ -5,7 +5,6 @@ use crate::context::SigningClient;
 use crate::utils::account_id_to_cw_addr;
 use clap::Parser;
 use cosmwasm_std::Coin;
-use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::construct_gateway_bonding_sign_payload;
 use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use validator_client::nyxd::traits::MixnetQueryClient;
@@ -14,9 +13,6 @@ use validator_client::nyxd::traits::MixnetQueryClient;
 pub struct Args {
     #[clap(long)]
     pub host: String,
-
-    #[clap(long)]
-    pub signature: MessageSignature,
 
     #[clap(long)]
     pub mix_port: Option<u16>,

@@ -62,7 +62,7 @@ fn dealers_eq_members(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
 
 fn replacement_threshold_surpassed(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
     let threshold = THRESHOLD.load(deps.storage)? as usize;
-    let initial_dealers = INITIAL_REPLACEMENT_DATA.load(deps.storage)?.initial_dealers;
+    let initial_dealers = verified_dealers(deps.storage)?;
     let initial_dealer_count = initial_dealers.len();
     let replacement_threshold = threshold - (initial_dealers.len() + 2 - 1) / 2 + 1;
     let removed_dealer_count =
@@ -121,17 +121,18 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
             env.block.time,
         )
     } else {
-        let replacement_data = InitialReplacementData {
-            initial_dealers: verified_dealers(deps.storage)?,
-            initial_height: env.block.height,
-        };
-        INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
         // Dealer set changed, we need to redo DKG...
         let state = if replacement_threshold_surpassed(&deps)? {
             // ... in reset mode
+            INITIAL_REPLACEMENT_DATA.remove(deps.storage);
             EpochState::default()
         } else {
             // ... in reshare mode
+            let replacement_data = InitialReplacementData {
+                initial_dealers: verified_dealers(deps.storage)?,
+                initial_height: env.block.height,
+            };
+            INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
             EpochState::PublicKeySubmission { resharing: true }
         };
         reset_epoch_state(deps.storage)?;

@@ -370,6 +370,7 @@ pub enum QueryMsg {
     },
     // state/sys-params-related
     GetContractVersion {},
+    #[serde(rename = "get_cw2_contract_version")]
     GetCW2ContractVersion {},
     GetRewardingValidatorAddress {},
     GetStateParams {},

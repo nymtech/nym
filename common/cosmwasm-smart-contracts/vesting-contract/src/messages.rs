@@ -189,6 +189,7 @@ impl ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetContractVersion {},
+    #[serde(rename = "get_cw2_contract_version")]
     GetCW2ContractVersion {},
     GetAccountsPaged {
         start_next_after: Option<String>,

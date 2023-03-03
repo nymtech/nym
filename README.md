@@ -21,8 +21,8 @@ The platform is composed of multiple Rust crates. Top-level executable binary cr
 
 ### Building
 
-Platform build instructions are available on [our docs site](https://nymtech.net/docs/stable/run-nym-nodes/build-nym).
-Wallet build instructions are also available on [our docs site](https://nymtech.net/docs/stable/nym-apps/wallet#for-developers).
+Platform build instructions are available on [our docs site](https://nymtech.net/docs/binaries/build-nym.html).
+Wallet build instructions are also available on [our docs site](https://nymtech.net/docs/wallet/desktop-wallet.html).
 
 ### Developing
 
@@ -32,7 +32,11 @@ For Typescript components, please see [ts-packages](./ts-packages).
 
 ### Developer chat
 
-You can chat to us in [Keybase](https://keybase.io). Download their chat app, then click **Teams -> Join a team**. Type **nymtech.friends** into the team name and hit **continue**. For general chat, hang out in the **#general** channel. Our development takes places in the **#dev** channel. Node operators should be in the **#node-operators** channel.
+> We used to use Keybase for developer chats, but we have since migrated to Matrix and Discord. We no longer check the old **nymtech.friends** Keybase team. 
+
+You can chat to us in two places: 
+* The #dev channel on [Matrix](https://matrix.to/#/#dev:nymtech.chat)
+* The various developer channels on [Discord](https://discord.gg/nym)
 
 ### Rewards
 

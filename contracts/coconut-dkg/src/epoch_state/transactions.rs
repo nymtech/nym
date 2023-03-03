@@ -48,7 +48,7 @@ fn dealers_still_active(
 }
 
 fn dealers_eq_members(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
-    let verified_dealers = verified_dealers(deps.storage);
+    let verified_dealers = verified_dealers(deps.storage)?;
     let all_dealers = verified_dealers.len();
     let dealers_still_active = dealers_still_active(&deps.as_ref(), verified_dealers.into_iter())?;
     let group_members = STATE
@@ -122,7 +122,7 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
         )
     } else {
         let replacement_data = InitialReplacementData {
-            initial_dealers: verified_dealers(deps.storage),
+            initial_dealers: verified_dealers(deps.storage)?,
             initial_height: env.block.height,
         };
         INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
@@ -154,7 +154,7 @@ pub(crate) fn try_surpassed_threshold(
     check_epoch_state(deps.storage, EpochState::InProgress)?;
 
     let threshold = THRESHOLD.load(deps.storage)?;
-    let dealers = verified_dealers(deps.storage);
+    let dealers = verified_dealers(deps.storage)?;
     if dealers_still_active(&deps.as_ref(), dealers.into_iter())? < threshold as usize {
         reset_epoch_state(deps.storage)?;
         CURRENT_EPOCH.update::<_, ContractError>(deps.storage, |epoch| {

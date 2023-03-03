@@ -6,7 +6,8 @@ import { EconomicsProgress } from './EconomicsProgress';
 export const StakeSaturationProgressBar = ({ value, threshold }: { value: number; threshold: number }) => {
   const isTablet = useIsMobile('lg');
   const percentageColor = value > (threshold || 100) ? 'warning' : 'inherit';
-  const textColor = percentageColor === 'warning' ? 'warning.main' : 'palette.nym.fee';
+  const textColor = percentageColor === 'warning' ? 'warning.main' : 'nym.wallet.fee';
+
   return (
     <Box
       sx={{ display: 'flex', alignItems: 'center', flexDirection: isTablet ? 'column' : 'row' }}
@@ -19,8 +20,8 @@ export const StakeSaturationProgressBar = ({ value, threshold }: { value: number
           mb: isTablet ? 1 : 0,
           fontWeight: '600',
           fontSize: '12px',
+          color: textColor,
         }}
-        color={textColor}
         id="stake-saturation-progress-bar"
       >
         {value}%

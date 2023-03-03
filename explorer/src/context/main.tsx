@@ -4,6 +4,7 @@ import {
   ApiState,
   BlockResponse,
   CountryDataResponse,
+  DirectoryService,
   GatewayResponse,
   MixNodeResponse,
   MixnodeStatus,
@@ -24,6 +25,7 @@ interface StateData {
   mode: PaletteMode;
   navState: NavOptionType[];
   validators?: ApiState<ValidatorsResponse>;
+  serviceProviders?: ApiState<DirectoryService>;
 }
 
 interface StateApi {
@@ -63,6 +65,7 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
   const [validators, setValidators] = React.useState<ApiState<ValidatorsResponse>>();
   const [block, setBlock] = React.useState<ApiState<BlockResponse>>();
   const [countryData, setCountryData] = React.useState<ApiState<CountryDataResponse>>();
+  const [serviceProviders, setServiceProviders] = React.useState<ApiState<DirectoryService>>();
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
@@ -156,6 +159,20 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
       });
     }
   };
+
+  const fetchServiceProviders = async () => {
+    setServiceProviders({ data: undefined, isLoading: true });
+    try {
+      const [res] = await Api.fetchServiceProviders();
+      setServiceProviders({ data: res, isLoading: false });
+    } catch (error) {
+      setServiceProviders({
+        error: error instanceof Error ? error : new Error('Service provider api fail'),
+        isLoading: false,
+      });
+    }
+  };
+
   const updateNavState = (id: number) => {
     const updated = navState.map((option) => ({
       ...option,
@@ -165,7 +182,14 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
   };
 
   React.useEffect(() => {
-    Promise.all([fetchOverviewSummary(), fetchGateways(), fetchValidators(), fetchBlock(), fetchCountryData()]);
+    Promise.all([
+      fetchOverviewSummary(),
+      fetchGateways(),
+      fetchValidators(),
+      fetchBlock(),
+      fetchCountryData(),
+      fetchServiceProviders(),
+    ]);
   }, []);
 
   const state = React.useMemo<State>(
@@ -183,8 +207,20 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
       toggleMode,
       updateNavState,
       validators,
+      serviceProviders,
     }),
-    [block, countryData, gateways, globalError, mixnodes, mode, navState, summaryOverview, validators],
+    [
+      block,
+      countryData,
+      gateways,
+      globalError,
+      mixnodes,
+      mode,
+      navState,
+      summaryOverview,
+      validators,
+      serviceProviders,
+    ],
   );
 
   return <MainContext.Provider value={state}>{children}</MainContext.Provider>;

@@ -257,7 +257,7 @@ pub(crate) mod tests {
         let threshold_db = Arc::new(RwLock::new(Some(3)));
         let initial_dealers_db = Arc::new(RwLock::new(Some(InitialReplacementData {
             initial_dealers: vec![Addr::unchecked(TEST_VALIDATORS_ADDRESS[0])],
-            initial_height: Some(100),
+            initial_height: 100,
         })));
         let dkg_client = DkgClient::new(
             DummyClient::new(

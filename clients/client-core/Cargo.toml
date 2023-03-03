@@ -37,6 +37,10 @@ nym-topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 nym-task = { path = "../../common/task" }
 
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.validator-client]
+path = "../../common/client-libs/validator-client"
+features = ["nyxd-client"]
+
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
 version = "0.1.11"
 features = ["time"]

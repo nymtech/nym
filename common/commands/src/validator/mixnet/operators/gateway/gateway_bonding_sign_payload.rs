@@ -1,0 +1,87 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::context::SigningClient;
+use crate::utils::account_id_to_cw_addr;
+use clap::Parser;
+use cosmwasm_std::Coin;
+use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::construct_gateway_bonding_sign_payload;
+use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
+use validator_client::nyxd::traits::MixnetQueryClient;
+
+#[derive(Debug, Parser)]
+pub struct Args {
+    #[clap(long)]
+    pub host: String,
+
+    #[clap(long)]
+    pub signature: MessageSignature,
+
+    #[clap(long)]
+    pub mix_port: Option<u16>,
+
+    #[clap(long)]
+    pub clients_port: Option<u16>,
+
+    #[clap(long)]
+    pub location: Option<String>,
+
+    #[clap(long)]
+    pub sphinx_key: String,
+
+    #[clap(long)]
+    pub identity_key: String,
+
+    #[clap(long)]
+    pub version: String,
+
+    #[clap(
+        long,
+        help = "bonding amount in current DENOMINATION (so it would be 'unym', rather than 'nym')"
+    )]
+    pub amount: u128,
+
+    /// Indicates whether the gateway is going to get bonded via a vesting account
+    #[arg(long)]
+    pub with_vesting_account: bool,
+}
+
+pub async fn create_payload(args: Args, client: SigningClient) {
+    let denom = client.current_chain_details().mix_denom.base.as_str();
+
+    let gateway = nym_mixnet_contract_common::Gateway {
+        host: args.host,
+        mix_port: args.mix_port.unwrap_or(DEFAULT_MIX_LISTENING_PORT),
+        clients_port: args.clients_port.unwrap_or(DEFAULT_CLIENT_LISTENING_PORT),
+        location: args
+            .location
+            .unwrap_or_else(|| "secret gateway location".to_owned()),
+        sphinx_key: args.sphinx_key,
+        identity_key: args.identity_key,
+        version: args.version,
+    };
+
+    let coin = Coin::new(args.amount, denom);
+
+    let nonce = match client.get_signing_nonce(client.address()).await {
+        Ok(nonce) => nonce,
+        Err(err) => {
+            eprint!(
+                "failed to query for the signing nonce of {}: {err}",
+                client.address()
+            );
+            return;
+        }
+    };
+
+    let address = account_id_to_cw_addr(client.address());
+    let proxy = if args.with_vesting_account {
+        Some(account_id_to_cw_addr(client.vesting_contract_address()))
+    } else {
+        None
+    };
+
+    let payload = construct_gateway_bonding_sign_payload(nonce, address, proxy, coin, gateway);
+    println!("{}", payload.to_base58_string().unwrap())
+}

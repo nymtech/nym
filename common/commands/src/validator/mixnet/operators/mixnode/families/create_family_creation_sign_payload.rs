@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::context::QueryClient;
-use crate::validator::mixnet::operators::mixnode::families::account_id_to_cw_addr;
+use crate::utils::account_id_to_cw_addr;
 use clap::Parser;
 use cosmrs::AccountId;
 use log::info;

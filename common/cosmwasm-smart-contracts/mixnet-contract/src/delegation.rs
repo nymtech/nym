@@ -16,12 +16,19 @@ use serde::{Deserialize, Serialize};
 pub type OwnerProxySubKey = String;
 pub type StorageKey = (MixId, OwnerProxySubKey);
 
-pub fn generate_owner_storage_subkey(address: &Addr, proxy: Option<&Addr>) -> String {
-    if let Some(proxy) = &proxy {
+// throughout the contract we ensure that our proxy can ONLY ever be the vesting contract
+// thus this method is equivalent to either using the existing address (for when there's no proxy)
+// or to XORing with a constant (vesting contract address) since the vesting contract address never changes.
+// Thus there should be no collisions in here.
+pub fn generate_owner_storage_subkey(
+    address: &Addr,
+    maybe_vesting_contract: Option<&Addr>,
+) -> String {
+    if let Some(vesting_contract) = &maybe_vesting_contract {
         let key_bytes = address
             .as_bytes()
             .iter()
-            .zip(proxy.as_bytes())
+            .zip(vesting_contract.as_bytes())
             .map(|(x, y)| x ^ y)
             .collect::<Vec<_>>();
         bs58::encode(key_bytes).into_string()

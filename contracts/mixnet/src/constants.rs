@@ -47,6 +47,7 @@ pub(crate) const GATEWAYS_PK_NAMESPACE: &str = "gt";
 pub(crate) const GATEWAYS_OWNER_IDX_NAMESPACE: &str = "gto";
 
 pub(crate) const REWARDED_SET_KEY: &str = "rs";
+pub(crate) const CURRENT_EPOCH_STATUS_KEY: &str = "ces";
 pub(crate) const CURRENT_INTERVAL_KEY: &str = "ci";
 pub(crate) const EPOCH_EVENT_ID_COUNTER_KEY: &str = "eic";
 pub(crate) const INTERVAL_EVENT_ID_COUNTER_KEY: &str = "iic";

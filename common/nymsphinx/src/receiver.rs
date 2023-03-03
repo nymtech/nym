@@ -59,6 +59,9 @@ impl From<PlainMessage> for ReconstructedMessage {
 
 #[derive(Debug, Error)]
 pub enum MessageRecoveryError {
+    #[error("The received message did not contain enough bytes to recover the ephemeral public key. Got {provided}. required: {required}")]
+    NotEnoughBytesForEphemeralKey { provided: usize, required: usize },
+
     #[error("Recovered remote x25519 public key is invalid - {0}")]
     InvalidRemoteEphemeralKey(#[from] encryption::KeyRecoveryError),
 
@@ -123,6 +126,13 @@ impl MessageReceiver {
         local_key: &encryption::PrivateKey,
         raw_enc_frag: &'a mut [u8],
     ) -> Result<&'a mut [u8], MessageRecoveryError> {
+        if raw_enc_frag.len() < encryption::PUBLIC_KEY_SIZE {
+            return Err(MessageRecoveryError::NotEnoughBytesForEphemeralKey {
+                provided: raw_enc_frag.len(),
+                required: encryption::PUBLIC_KEY_SIZE,
+            });
+        }
+
         // 1. recover remote encryption key
         let remote_key_bytes = &raw_enc_frag[..encryption::PUBLIC_KEY_SIZE];
         let remote_ephemeral_key = encryption::PublicKey::from_bytes(remote_key_bytes)?;

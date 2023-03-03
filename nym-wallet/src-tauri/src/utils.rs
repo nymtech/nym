@@ -4,14 +4,16 @@
 use crate::error::BackendError;
 use crate::nyxd_client;
 use crate::state::WalletState;
+use bip39::Mnemonic;
 use cosmwasm_std::Decimal;
 use nym_mixnet_contract_common::{IdentityKey, MixId, Percent};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_wallet_types::app::AppEnv;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use validator_client::nyxd::traits::MixnetQueryClient;
 use validator_client::nyxd::{tx, Coin, CosmosCoin, Gas, GasPrice};
+use zeroize::Zeroize;
 
 fn get_env_as_option(key: &str) -> Option<String> {
     match ::std::env::var(key) {
@@ -191,4 +193,95 @@ pub async fn get_old_and_incorrect_hardcoded_fee(
     let coin: Coin = approximate_fee.amount.pop().unwrap().into();
     log::info!("hardcoded fee for {:?} is {:?}", operation, coin);
     guard.attempt_convert_to_display_dec_coin(coin)
+}
+
+#[derive(Zeroize)]
+#[zeroize(drop)]
+pub struct SensitiveStringWrapper(String);
+
+impl<'de> Deserialize<'de> for SensitiveStringWrapper {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(SensitiveStringWrapper(String::deserialize(deserializer)?))
+    }
+}
+
+impl Serialize for SensitiveStringWrapper {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // unfortunately this serialized value will live on...
+        self.0.serialize(serializer)
+    }
+}
+
+impl From<String> for SensitiveStringWrapper {
+    fn from(value: String) -> Self {
+        SensitiveStringWrapper(value)
+    }
+}
+
+impl AsRef<str> for SensitiveStringWrapper {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+#[derive(Clone)]
+// can't do it natively until https://github.com/rust-bitcoin/rust-bip39/pull/32 gets merged and released...
+pub(crate) struct ZeroizeMnemonicWrapper(bip39::Mnemonic);
+
+impl From<bip39::Mnemonic> for ZeroizeMnemonicWrapper {
+    fn from(value: Mnemonic) -> Self {
+        ZeroizeMnemonicWrapper(value)
+    }
+}
+
+impl Zeroize for ZeroizeMnemonicWrapper {
+    fn zeroize(&mut self) {
+        // overwrite the mnemonic value with a completely random one
+        // (a poor man's zeroize until bip39 crate does it properly...)
+        self.0 = Mnemonic::generate(self.0.word_count()).unwrap();
+    }
+}
+
+impl Drop for ZeroizeMnemonicWrapper {
+    fn drop(&mut self) {
+        self.zeroize()
+    }
+}
+
+impl AsRef<bip39::Mnemonic> for ZeroizeMnemonicWrapper {
+    fn as_ref(&self) -> &Mnemonic {
+        &self.0
+    }
+}
+
+impl ZeroizeMnemonicWrapper {
+    pub(crate) fn into_string(self) -> SensitiveStringWrapper {
+        SensitiveStringWrapper(self.0.to_string())
+    }
+
+    pub(crate) fn try_from_string(string: SensitiveStringWrapper) -> Result<Self, bip39::Error> {
+        let res = string.as_ref().parse()?;
+        Ok(ZeroizeMnemonicWrapper(res))
+    }
+
+    // special care must be taken when calling this method as the mnemonic will no longer get zeroized!
+    pub(crate) fn into_cloned_inner(self) -> bip39::Mnemonic {
+        self.0.clone()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn unchecked_clone_inner(&self) -> bip39::Mnemonic {
+        self.0.clone()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn generate_random() -> Self {
+        ZeroizeMnemonicWrapper(Mnemonic::generate(24).unwrap())
+    }
 }

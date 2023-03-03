@@ -25,11 +25,13 @@ contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-com
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.1.0" }
 
 cosmwasm-std = { version = "1.0.0 "}
+cw2 = { version = "0.13.4" }
 cw-storage-plus = { version = "0.13.4", features = ["iterator"] }
 
 schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
+semver = { version = "1.0.16", default-features = false }
 
 [dev-dependencies]
 rand_chacha = "0.3.1"
@@ -38,4 +40,7 @@ hex = "0.4.3"
 serde_json = "1.0.66"
 
 [build-dependencies]
-vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }
+vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc"] }
+
+[profile.release]
+overflow-checks = true

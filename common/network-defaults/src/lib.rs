@@ -320,7 +320,7 @@ pub fn setup_env(config_env_file: Option<&PathBuf>) {
         // if the configuration is not already set in the env vars
         Err(std::env::VarError::NotPresent) => {
             if let Some(config_env_file) = config_env_file {
-                dotenv::from_path(config_env_file)
+                dotenvy::from_path(config_env_file)
                     .expect("Invalid path to environment configuration file");
                 fix_deprecated_environmental_variables();
             } else {

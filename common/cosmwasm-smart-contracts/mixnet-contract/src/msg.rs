@@ -101,15 +101,16 @@ pub enum ExecuteMsg {
         owner_signature: String,
         label: String,
     },
-    /// Family head needs to sign the joining node IdentityKey
+    /// Family head needs to sign the joining node IdentityKey, MixNode needs to provide its signature proving that it wants to join the family
     JoinFamilyOnBehalf {
         member_address: String,
-        signature: String,
+        node_identity_signature: String,
+        family_signature: String,
         family_head: IdentityKey,
     },
     LeaveFamilyOnBehalf {
         member_address: String,
-        signature: String,
+        node_identity_signature: String,
         family_head: IdentityKey,
     },
     KickFamilyMemberOnBehalf {
@@ -138,6 +139,7 @@ pub enum ExecuteMsg {
         epoch_duration_secs: u64,
         force_immediately: bool,
     },
+    BeginEpochTransition {},
     AdvanceCurrentEpoch {
         new_rewarded_set: Vec<LayerAssignment>,
         // families_in_layer: HashMap<String, Layer>,
@@ -281,6 +283,7 @@ impl ExecuteMsg {
             ExecuteMsg::UpdateIntervalConfig {
                 force_immediately, ..
             } => format!("updating mixnet interval configuration. forced: {force_immediately}"),
+            ExecuteMsg::BeginEpochTransition {} => "beginning epoch transition".into(),
             ExecuteMsg::AdvanceCurrentEpoch { .. } => "advancing current epoch".into(),
             ExecuteMsg::ReconcileEpochEvents { .. } => "reconciling epoch events".into(),
             ExecuteMsg::BondMixnode { mix_node, .. } => {
@@ -367,10 +370,12 @@ pub enum QueryMsg {
     },
     // state/sys-params-related
     GetContractVersion {},
+    GetCW2ContractVersion {},
     GetRewardingValidatorAddress {},
     GetStateParams {},
     GetState {},
     GetRewardingParams {},
+    GetEpochStatus {},
     GetCurrentIntervalDetails {},
     GetRewardedSet {
         limit: Option<u32>,
@@ -493,6 +498,7 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<u32>,
     },
+    GetNumberOfPendingEvents {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

@@ -3,7 +3,7 @@
 
 use std::fmt;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use zeroize::Zeroize;
 
 // The `LoginId` is the top level id in the wallet file, and is not stored encrypted
@@ -83,11 +83,12 @@ impl fmt::Display for AccountId {
 // simple wrapper for String that will get zeroized on drop
 #[derive(Zeroize)]
 #[zeroize(drop)]
-pub(crate) struct UserPassword(String);
+pub struct UserPassword(String);
 
 impl UserPassword {
-    pub(crate) fn new(pass: String) -> UserPassword {
-        UserPassword(pass)
+    #[cfg(test)]
+    pub(crate) fn new(inner: String) -> Self {
+        UserPassword(inner)
     }
 
     pub(crate) fn as_bytes(&self) -> &[u8] {
@@ -95,8 +96,11 @@ impl UserPassword {
     }
 }
 
-impl AsRef<str> for UserPassword {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
+impl<'de> Deserialize<'de> for UserPassword {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(UserPassword(String::deserialize(deserializer)?))
     }
 }

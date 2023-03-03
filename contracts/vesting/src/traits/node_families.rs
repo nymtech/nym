@@ -13,7 +13,8 @@ pub trait NodeFamilies {
     fn try_join_family(
         &self,
         storage: &dyn Storage,
-        signature: String,
+        node_identity_signature: String,
+        family_signature: String,
         family_head: IdentityKeyRef,
     ) -> Result<Response, ContractError>;
 

@@ -29,7 +29,7 @@ version = "0.11"
 default-features = false
 
 [dev-dependencies]
-criterion = { version="0.3", features=["html_reports"] }
+criterion = { version="0.4", features=["html_reports"] }
 doc-comment = "0.3"
 rand_chacha = "0.3"
 

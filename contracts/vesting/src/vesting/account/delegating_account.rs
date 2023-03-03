@@ -1,3 +1,4 @@
+use crate::contract::MAX_PER_MIX_DELEGATIONS;
 use crate::errors::ContractError;
 use crate::storage::save_delegation;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
@@ -36,6 +37,17 @@ impl DelegatingAccount for Account {
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError> {
         let current_balance = self.ensure_valid_additional_stake(&coin, storage)?;
+        let num_subdelegations = self.num_subdelegations_for_mix(mix_id, storage);
+
+        if num_subdelegations >= MAX_PER_MIX_DELEGATIONS {
+            return Err(ContractError::TooManyDelegations {
+                address: self.owner_address.clone(),
+                acc_id: self.storage_key(),
+                mix_id,
+                num: num_subdelegations,
+                cap: MAX_PER_MIX_DELEGATIONS,
+            });
+        }
 
         let msg = MixnetExecuteMsg::DelegateToMixnodeOnBehalf {
             mix_id,

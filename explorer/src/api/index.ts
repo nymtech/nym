@@ -9,6 +9,7 @@ import {
   OVERVIEW_API,
   UPTIME_STORY_API,
   VALIDATORS_API,
+  SERVICE_PROVIDERS,
 } from './constants';
 
 import {
@@ -28,6 +29,7 @@ import {
   ValidatorsResponse,
   GatewayBondAnnotated,
   GatewayBond,
+  DirectoryService,
 } from '../typeDefs/explorer-api';
 
 function getFromCache(key: string) {
@@ -147,4 +149,10 @@ export class Api {
 
   static fetchUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>
     (await fetch(`${UPTIME_STORY_API}/${id}/history`)).json();
+
+  static fetchServiceProviders = async (): Promise<DirectoryService[]> => {
+    const res = await fetch(SERVICE_PROVIDERS);
+    const json = await res.json();
+    return json;
+  };
 }

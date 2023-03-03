@@ -7,10 +7,10 @@ import { useIsMobile } from '../hooks/useIsMobile';
 const fieldsHeight = '42.25px';
 
 type TableToolBarProps = {
-  onChangeSearch: (arg: string) => void;
+  onChangeSearch?: (arg: string) => void;
   onChangePageSize: (event: SelectChangeEvent<string>) => void;
   pageSize: string;
-  searchTerm: string;
+  searchTerm?: string;
   withFilters?: boolean;
   childrenBefore?: React.ReactNode;
   childrenAfter?: React.ReactNode;
@@ -44,7 +44,7 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
               value={pageSize}
               onChange={onChangePageSize}
               sx={{
-                width: isMobile ? '50%' : 200,
+                width: isMobile ? '100%' : 200,
                 marginRight: isMobile ? 0 : 2,
               }}
             >
@@ -63,17 +63,19 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
             </Select>
           </FormControl>
         </Box>
-        <TextField
-          sx={{
-            width: isMobile ? '100%' : 200,
-            marginBottom: isMobile ? 2 : 0,
-          }}
-          size="small"
-          value={searchTerm}
-          data-testid="search-box"
-          placeholder="search"
-          onChange={(event) => onChangeSearch(event.target.value)}
-        />
+        {!!onChangeSearch && (
+          <TextField
+            sx={{
+              width: isMobile ? '100%' : 200,
+              marginBottom: isMobile ? 2 : 0,
+            }}
+            size="small"
+            value={searchTerm}
+            data-testid="search-box"
+            placeholder="search"
+            onChange={(event) => onChangeSearch(event.target.value)}
+          />
+        )}
       </Box>
       <Box
         sx={{

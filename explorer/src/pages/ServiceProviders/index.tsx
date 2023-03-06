@@ -10,8 +10,8 @@ const columns = [
   {
     headerName: 'Client ID',
     field: 'address',
-    width: 1000,
     disableColumnMenu: true,
+    flex: 1,
   },
 ];
 

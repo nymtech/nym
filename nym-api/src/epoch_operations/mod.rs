@@ -102,7 +102,7 @@ impl RewardedSetUpdater {
 
         let epoch_end = interval.current_epoch_end();
 
-        let all_mixnodes = self.nym_contract_cache.mixnodes().await;
+        let all_mixnodes = self.nym_contract_cache.mixnodes_filtered().await;
         if all_mixnodes.is_empty() {
             // that's a bit weird, but
             log::warn!("there don't seem to be any mixnodes on the network!")

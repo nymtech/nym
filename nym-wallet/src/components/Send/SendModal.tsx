@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { DecCoin } from '@nymproject/types';
 import { AppContext, urls } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
@@ -18,11 +18,28 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
   const [modal, setModal] = useState<'send' | 'send details'>('send');
   const [error, setError] = useState<string>();
   const [sendError, setSendError] = useState(false);
+  const [gasError, setGasError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
+  const [userFees, setUserFees] = useState<DecCoin>();
+  const [memo, setMemo] = useState<string>();
   const [txDetails, setTxDetails] = useState<TTransactionDetails>();
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
 
   const { clientDetails, userBalance, network } = useContext(AppContext);
-  const { fee, getFee, feeError } = useGetFee();
+  const { fee, getFee, feeError, setFeeManually } = useGetFee();
+
+  useEffect(() => {
+    if (userFees?.amount.length === 0) {
+      setUserFees(undefined);
+    }
+  }, [userFees]);
+
+  useEffect(() => {
+    if (!showMoreOptions) {
+      setUserFees(undefined);
+      setMemo(undefined);
+    }
+  }, [showMoreOptions]);
 
   // removes any zero-width spaces and trailing white space
   const sanitizeAddress = (address: string) => address.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
@@ -32,7 +49,11 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
       setIsLoading(true);
       setError(undefined);
       try {
-        await getFee(simulateSend, { address: toAddress, amount });
+        if (userFees) {
+          await setFeeManually(userFees);
+        } else {
+          await getFee(simulateSend, { address: toAddress, amount });
+        }
         setModal('send details');
       } catch (e) {
         setError(e as string);
@@ -48,14 +69,18 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
     setIsLoading(true);
     setError(undefined);
     try {
-      const txResponse = await send({ amount: val, address: to, memo: '', fee: fee?.fee });
+      const txResponse = await send({ amount: val, address: to, memo: memo || '', fee: fee?.fee });
       setTxDetails({
         amount: `${amount?.amount} ${clientDetails?.display_mix_denom.toUpperCase()}`,
         txUrl: `${urls(network).blockExplorer}/transaction/${txResponse.tx_hash}`,
       });
     } catch (e) {
       Console.error(e as string);
-      setSendError(true);
+      if (/Raw log: out of gas/.test(e as string)) {
+        setGasError('Out of gas, please increase the amount of fees');
+      } else {
+        setSendError(true);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -64,6 +89,10 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
   if (isLoading) return <LoadingModal />;
 
   if (sendError) return <SendErrorModal onClose={onClose} error={feeError} />;
+
+  if (gasError) {
+    return <SendErrorModal onClose={onClose} error={gasError} />;
+  }
 
   if (txDetails) return <SendSuccessModal txDetails={txDetails} onClose={onClose} />;
 
@@ -78,6 +107,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
         onPrev={() => setModal('send')}
         onSend={handleSend}
         denom={clientDetails?.display_mix_denom || 'nym'}
+        memo={memo}
         {...hasStorybookStyles}
       />
     );
@@ -92,8 +122,14 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
       onNext={handleOnNext}
       error={error}
       denom={clientDetails?.display_mix_denom}
+      userFees={userFees}
+      memo={memo}
+      showMore={showMoreOptions}
       onAmountChange={(value) => setAmount(value)}
       onAddressChange={(value) => setToAddress(sanitizeAddress(value))}
+      onUserFeesChange={(value) => setUserFees(value)}
+      onMemoChange={(value) => setMemo(value)}
+      setShowMore={setShowMoreOptions}
       {...hasStorybookStyles}
     />
   );

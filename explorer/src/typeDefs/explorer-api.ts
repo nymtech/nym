@@ -237,3 +237,16 @@ export type MixNodeEconomicDynamicsStatsResponse = {
   estimated_delegators_reward: number;
   current_interval_uptime: number;
 };
+
+export type DirectoryServiceProvider = {
+  id: string;
+  description: string;
+  address: string;
+  gateway: string;
+};
+
+export type DirectoryService = {
+  id: string;
+  descrtiption: string;
+  items: DirectoryServiceProvider[];
+};

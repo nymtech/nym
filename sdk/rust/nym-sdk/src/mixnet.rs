@@ -52,4 +52,5 @@ pub use nym_sphinx::{
     addressing::clients::{ClientIdentity, Recipient},
     receiver::ReconstructedMessage,
 };
+pub use nym_topology::{provider_trait::TopologyProvider, NymTopology};
 pub use paths::{GatewayKeyMode, KeyMode, StoragePaths};

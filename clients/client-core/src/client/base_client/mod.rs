@@ -15,6 +15,7 @@ use crate::client::replies::reply_controller::{ReplyControllerReceiver, ReplyCon
 use crate::client::replies::reply_storage::{
     CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
 };
+use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -37,10 +38,12 @@ use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskManager};
+use nym_topology::provider_trait::TopologyProvider;
 use std::sync::Arc;
 use std::time::Duration;
 use tap::TapFallible;
 use url::Url;
+
 #[cfg(not(target_arch = "wasm32"))]
 use validator_client::nyxd::CosmWasmClient;
 
@@ -90,6 +93,7 @@ impl ClientOutput {
 pub struct ClientState {
     pub shared_lane_queue_lengths: LaneQueueLengths,
     pub reply_controller_sender: ReplyControllerSender,
+    pub topology_accessor: TopologyAccessor,
 }
 
 pub enum ClientInputStatus {
@@ -154,6 +158,7 @@ pub struct BaseClientBuilder<'a, B, C: Clone> {
     nym_api_endpoints: Vec<Url>,
     reply_storage_backend: B,
 
+    custom_topology_provider: Option<Box<dyn TopologyProvider>>,
     bandwidth_controller: Option<BandwidthController<C>>,
     key_manager: KeyManager,
 }
@@ -177,6 +182,7 @@ where
             bandwidth_controller,
             reply_storage_backend,
             key_manager,
+            custom_topology_provider: None,
         }
     }
 
@@ -195,9 +201,15 @@ where
             disabled_credentials: credentials_toggle.is_disabled(),
             nym_api_endpoints,
             reply_storage_backend,
+            custom_topology_provider: None,
             bandwidth_controller,
             key_manager,
         }
+    }
+
+    pub fn with_topology_provider(mut self, provider: Box<dyn TopologyProvider>) -> Self {
+        self.custom_topology_provider = Some(provider);
+        self
     }
 
     pub fn as_mix_recipient(&self) -> Recipient {
@@ -341,25 +353,38 @@ where
         Ok(gateway_client)
     }
 
+    fn setup_topology_provider(
+        custom_provider: Option<Box<dyn TopologyProvider>>,
+        nym_api_urls: Vec<Url>,
+    ) -> Box<dyn TopologyProvider> {
+        // if no custom provider was ... provided ..., create one using nym-api
+        custom_provider.unwrap_or_else(|| {
+            Box::new(NymApiTopologyProvider::new(
+                nym_api_urls,
+                env!("CARGO_PKG_VERSION").to_string(),
+            ))
+        })
+    }
+
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
     async fn start_topology_refresher(
-        nym_api_urls: Vec<Url>,
+        topology_provider: Box<dyn TopologyProvider>,
         refresh_rate: Duration,
         topology_accessor: TopologyAccessor,
         shutdown: TaskClient,
     ) -> Result<(), ClientCoreError> {
-        let topology_refresher_config = TopologyRefresherConfig::new(
-            nym_api_urls,
-            refresh_rate,
-            env!("CARGO_PKG_VERSION").to_string(),
+        let topology_refresher_config = TopologyRefresherConfig::new(refresh_rate);
+
+        let mut topology_refresher = TopologyRefresher::new(
+            topology_refresher_config,
+            topology_accessor,
+            topology_provider,
         );
-        let mut topology_refresher =
-            TopologyRefresher::new(topology_refresher_config, topology_accessor);
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
         info!("Obtaining initial network topology");
-        topology_refresher.refresh().await;
+        topology_refresher.try_refresh().await;
 
         if let Err(err) = topology_refresher.ensure_topology_is_routable().await {
             log::error!(
@@ -468,8 +493,12 @@ where
         )
         .await?;
 
+        let topology_provider = Self::setup_topology_provider(
+            self.custom_topology_provider.take(),
+            self.nym_api_endpoints,
+        );
         Self::start_topology_refresher(
-            self.nym_api_endpoints.clone(),
+            topology_provider,
             self.debug_config.topology_refresh_rate,
             shared_topology_accessor.clone(),
             task_manager.subscribe(),
@@ -530,7 +559,7 @@ where
                 self.debug_config,
                 self.key_manager.ack_key(),
                 self_address,
-                shared_topology_accessor,
+                shared_topology_accessor.clone(),
                 sphinx_message_sender,
                 task_manager.subscribe(),
             );
@@ -554,6 +583,7 @@ where
             client_state: ClientState {
                 shared_lane_queue_lengths,
                 reply_controller_sender,
+                topology_accessor: shared_topology_accessor,
             },
             task_manager,
         })

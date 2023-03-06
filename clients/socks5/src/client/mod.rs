@@ -123,7 +123,7 @@ impl NymClient {
 
         let ClientState {
             shared_lane_queue_lengths,
-            reply_controller_sender: _,
+            ..
         } = client_status;
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);

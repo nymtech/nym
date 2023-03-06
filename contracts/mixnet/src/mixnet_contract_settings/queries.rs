@@ -28,9 +28,13 @@ pub(crate) fn query_contract_version() -> ContractBuildInformation {
     ContractBuildInformation {
         build_timestamp: env!("VERGEN_BUILD_TIMESTAMP").to_string(),
         build_version: env!("VERGEN_BUILD_SEMVER").to_string(),
-        commit_sha: env!("VERGEN_GIT_SHA").to_string(),
-        commit_timestamp: env!("VERGEN_GIT_COMMIT_TIMESTAMP").to_string(),
-        commit_branch: env!("VERGEN_GIT_BRANCH").to_string(),
+        commit_sha: option_env!("VERGEN_GIT_SHA").unwrap_or("NONE").to_string(),
+        commit_timestamp: option_env!("VERGEN_GIT_COMMIT_TIMESTAMP")
+            .unwrap_or("NONE")
+            .to_string(),
+        commit_branch: option_env!("VERGEN_GIT_BRANCH")
+            .unwrap_or("NONE")
+            .to_string(),
         rustc_version: env!("VERGEN_RUSTC_SEMVER").to_string(),
     }
 }

@@ -242,8 +242,8 @@ impl State {
         }
     }
 
-    pub async fn reset_persistent(&mut self, resharing: bool) {
-        if !resharing {
+    pub async fn reset_persistent(&mut self, reset_coconut_keypair: bool) {
+        if reset_coconut_keypair {
             self.coconut_keypair.set(None).await;
         }
         self.node_index = Default::default();

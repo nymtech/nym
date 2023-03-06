@@ -12,7 +12,14 @@ pub(crate) async fn public_key_submission(
     resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.was_in_progress() {
-        state.reset_persistent(resharing).await;
+        let own_address = dkg_client.get_address().await.as_ref().to_string();
+        let is_initial_dealer = dkg_client
+            .get_initial_dealers()
+            .await?
+            .map(|data| data.initial_dealers.iter().any(|d| *d == own_address))
+            .unwrap_or(false);
+        let reset_coconut_keypair = !resharing || !is_initial_dealer;
+        state.reset_persistent(reset_coconut_keypair).await;
     }
     if state.node_index().is_some() {
         return Ok(());

@@ -5,7 +5,7 @@
 // eslint-disable-next-line import/no-cycle
 import { INyxdQuery } from './query-client';
 import {
-  Delegation, Mixnode, OriginalVestingResponse, RewardingParams, StakeSaturationResponse, VestingAccountInfo,
+  Delegation, OriginalVestingResponse, RewardingParams, StakeSaturationResponse, VestingAccountInfo,
   UnbondedMixnodeResponse,
   GatewayOwnershipResponse,
   MixnetContractVersion,
@@ -18,7 +18,7 @@ import {
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
   LayerDistribution,
-  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations
+  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode
 } from '@nymproject/types';
 import { SmartContractQuery } from './types/shared';
 import { Coin } from 'cosmjs-types/cosmos/base/v1beta1/coin';
@@ -227,9 +227,51 @@ export default class NyxdQuerier implements INyxdQuery {
     });
   }
 
+  getSpendableVestedTokens(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_spendable_vested_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getSpendableRewards(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_spendable_reward_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getDelegatedCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_delegated_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getPledgedCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_pledged_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getStakedCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_staked_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getWithdrawnCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_withdrawn_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
   getStartTime(vestingContractAddress: string, vestingAccountAddress: string): Promise<string> {
     return this.client.queryContractSmart(vestingContractAddress, {
       get_start_time: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getEndTime(vestingContractAddress: string, vestingAccountAddress: string): Promise<string> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_end_time: { vesting_account_address: vestingAccountAddress }
     });
   }
 
@@ -251,9 +293,15 @@ export default class NyxdQuerier implements INyxdQuery {
     });
   }
 
-  getMixnode(vestingContractAddress: string, address: string): Promise<Mixnode> {
+  getMixnode(vestingContractAddress: string, address: string): Promise<VestingAccountNode> {
     return this.client.queryContractSmart(vestingContractAddress, {
       get_mixnode: { address: address }
+    });
+  }
+
+  getGateway(vestingContractAddress: string, address: string): Promise<VestingAccountNode> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_gateway: { address: address }
     });
   }
 
@@ -266,6 +314,12 @@ export default class NyxdQuerier implements INyxdQuery {
   getAllDelegations(vestingContractAddress: string): Promise<Delegations> {
     return this.client.queryContractSmart(vestingContractAddress, {
       get_all_delegations: {}
+    });
+  }
+
+  getCurrentVestingPeriod(vestingContractAddress: string, address: string): Promise<Period> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_current_vesting_period: { address: address }
     });
   }
 }

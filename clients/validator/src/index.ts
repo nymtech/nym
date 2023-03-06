@@ -16,7 +16,6 @@ import {
   GatewayOwnershipResponse,
   LayerDistribution,
   MixnetContractVersion,
-  Mixnode,
   MixNode,
   MixNodeBond,
   MixNodeCostParams,
@@ -35,7 +34,7 @@ import {
   StakeSaturationResponse,
   UnbondedMixnodeResponse,
   VestingAccountInfo,
-  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations
+  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode
 } from '@nymproject/types';
 import QueryClient from './query-client';
 import SigningClient, { ISigningClient } from './signing-client';
@@ -547,8 +546,36 @@ export default class ValidatorClient implements INymClient {
     return this.client.getVestingTokens(this.vestingContract, vestingAccountAddress);
   }
 
+  public async getSpendableVestedTokens(vestingAccountAddress: string): Promise<Coin> {
+    return this.client.getSpendableVestedTokens(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getSpendableRewards(vestingAccountAddress: string): Promise<Coin> {
+    return this.client.getSpendableRewards(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getDelegatedCoins(vestingAccountAddress: string): Promise<Coin> {
+    return this.client.getDelegatedCoins(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getPledgedCoins(vestingAccountAddress: string): Promise<Coin> {
+    return this.client.getPledgedCoins(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getStakedCoins(vestingAccountAddress: string): Promise<Coin> {
+    return this.client.getStakedCoins(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getWithdrawnCoins(vestingAccountAddress: string): Promise<Coin> {
+    return this.client.getWithdrawnCoins(this.vestingContract, vestingAccountAddress);
+  }
+
   public async getStartTime(vestingAccountAddress: string): Promise<string> {
     return this.client.getStartTime(this.vestingContract, vestingAccountAddress);
+  }
+
+  public async getEndTime(vestingAccountAddress: string): Promise<string> {
+    return this.client.getEndTime(this.vestingContract, vestingAccountAddress);
   }
 
   public async getOriginalVestingDetails(vestingAccountAddress: string): Promise<OriginalVestingResponse> {
@@ -563,8 +590,12 @@ export default class ValidatorClient implements INymClient {
     return this.client.getAccountDetails(this.vestingContract, address);
   }
 
-  public async getMixnode(address: string): Promise<Mixnode> {
+  public async getMixnode(address: string): Promise<VestingAccountNode> {
     return this.client.getMixnode(this.vestingContract, address);
+  }
+
+  public async getGateway(address: string): Promise<VestingAccountNode> {
+    return this.client.getGateway(this.vestingContract, address);
   }
 
   public async getDelegationTimes(mix_id: number, delegatorAddress: string): Promise<DelegationTimes> {
@@ -573,5 +604,9 @@ export default class ValidatorClient implements INymClient {
 
   public async getAllDelegations(): Promise<Delegations> {
     return this.client.getAllDelegations(this.vestingContract);
+  }
+
+  public async getCurrentVestingPeriod(address: string): Promise<Period> {
+    return this.client.getCurrentVestingPeriod(this.vestingContract, address);
   }
 }

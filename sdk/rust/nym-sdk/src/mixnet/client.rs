@@ -549,6 +549,11 @@ impl MixnetClient {
             .await
     }
 
+    /// Gets the value of the currently used network topology.
+    pub async fn read_current_topology(&self) -> Option<NymTopology> {
+        self.client_state.topology_accessor.current_topology().await
+    }
+
     /// Restore default topology refreshing behaviour of this client.
     pub fn restore_automatic_topology_refreshing(&self) {
         self.client_state.topology_accessor.release_manual_control()

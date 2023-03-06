@@ -3,6 +3,7 @@
 
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Display, Formatter};
+use std::str::FromStr;
 use thiserror::Error;
 
 #[cfg(feature = "rand")]
@@ -128,6 +129,14 @@ impl PublicKey {
             .into_vec()
             .map_err(|source| KeyRecoveryError::MalformedPublicKeyString { source })?;
         Self::from_bytes(&bytes)
+    }
+}
+
+impl FromStr for PublicKey {
+    type Err = KeyRecoveryError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PublicKey::from_base58_string(s)
     }
 }
 

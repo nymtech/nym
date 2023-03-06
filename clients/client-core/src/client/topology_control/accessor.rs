@@ -121,6 +121,10 @@ impl TopologyAccessor {
         self.inner.released_manual_control.notified().await
     }
 
+    pub async fn current_topology(&self) -> Option<NymTopology> {
+        self.inner.topology.read().await.clone()
+    }
+
     pub async fn manually_change_topology(&self, new_topology: NymTopology) {
         self.inner.controlled_manually.store(true, Ordering::SeqCst);
         self.inner.update(Some(new_topology)).await;

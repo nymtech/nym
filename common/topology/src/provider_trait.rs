@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::NymTopology;
-use async_trait::async_trait;
+pub use async_trait::async_trait;
 
 // hehe, wasm
 #[cfg(not(target_arch = "wasm32"))]

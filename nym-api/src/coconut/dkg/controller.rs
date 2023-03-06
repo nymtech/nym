@@ -84,6 +84,13 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         })
     }
 
+    fn dump_persistent_state(&self) {
+        let persistent_state = PersistentState::from(&self.state);
+        if let Err(err) = persistent_state.save_to_file(self.state.persistent_state_path()) {
+            warn!("Could not backup the state for this iteration: {err}");
+        }
+    }
+
     pub(crate) async fn handle_epoch_state(&mut self) {
         match self.dkg_client.get_current_epoch().await {
             Err(err) => warn!("Could not get current epoch state {err}"),
@@ -147,18 +154,16 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                         // Just wait, in case we need to redo dkg at some point
                         EpochState::InProgress => {
                             self.state.set_was_in_progress();
+                            // We're dumping state here so that we don't do it uselessly during the
+                            // long InProgress state
+                            self.dump_persistent_state();
                             Ok(())
                         }
                     };
                     if let Err(err) = ret {
                         warn!("Could not handle this iteration for the epoch state: {err}");
                     } else if epoch.state != EpochState::InProgress {
-                        let persistent_state = PersistentState::from(&self.state);
-                        if let Err(err) =
-                            persistent_state.save_to_file(self.state.persistent_state_path())
-                        {
-                            warn!("Could not backup the state for this iteration: {err}");
-                        }
+                        self.dump_persistent_state();
                     }
                 }
                 if let Ok(current_timestamp) =

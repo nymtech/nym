@@ -200,11 +200,15 @@ pub(crate) mod tests {
 
             for n in [10, 25, 50, 100] {
                 let dealers: Vec<_> = (0..n).map(dealer_details_fixture).collect();
+                let shares: Vec<_> = (0..n).map(|idx| vk_share_fixture(&format!("owner{}", idx), 0)).collect();
                 let initial_dealers = dealers.iter().map(|d| d.address.clone()).collect();
                 let data = InitialReplacementData {
                     initial_dealers,
                     initial_height: 1,
                 };
+                for share in shares {
+                    vk_shares().save(deps.as_mut().storage, (&share.owner, 0), &share).unwrap();
+                }
                 for f in [two_thirds, three_fourths, ninty_pc] {
                     let threshold = f(n);
                     THRESHOLD.save(deps.as_mut().storage, &threshold).unwrap();
@@ -625,7 +629,7 @@ pub(crate) mod tests {
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let curr_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
             let expected_epoch = Epoch::new(
-                EpochState::PublicKeySubmission { resharing: false },
+                EpochState::PublicKeySubmission { resharing: true },
                 prev_epoch.epoch_id + 1,
                 prev_epoch.time_configuration,
                 env.block.time,

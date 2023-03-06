@@ -748,7 +748,7 @@ mod tests {
         assert!(matches!(
             store_login_with_multiple_accounts_at_file(
                 &wallet_file,
-                account2.into(),
+                account2,
                 hd_path,
                 id2,
                 &bad_password

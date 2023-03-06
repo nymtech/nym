@@ -1,7 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Gateway, MixNode, MixNodeCostParams};
+use crate::families::FamilyHead;
+use crate::{Gateway, IdentityKey, MixNode, MixNodeCostParams};
 use contracts_common::signing::{
     ContractMessageContent, MessageType, Nonce, SignableMessage, SigningPurpose,
 };
@@ -10,10 +11,15 @@ use serde::Serialize;
 
 pub type SignableMixNodeBondingMsg = SignableMessage<ContractMessageContent<MixnodeBondingPayload>>;
 pub type SignableGatewayBondingMsg = SignableMessage<ContractMessageContent<GatewayBondingPayload>>;
+// we might not need it after all?
+#[deprecated]
 pub type SignableFamilyCreationMsg = SignableMessage<ContractMessageContent<FamilyCreationPayload>>;
-pub type SignableFamilyJoinMsg = SignableMessage<ContractMessageContent<FamilyJoinPayload>>;
-pub type SignableFamilyLeaveMsg = SignableMessage<ContractMessageContent<FamilyLeavePayload>>;
-pub type SignableFamilyKickMsg = SignableMessage<ContractMessageContent<FamilyKickPayload>>;
+
+pub type SignableFamilyJoinPermitMsg = SignableMessage<FamilyJoinPermit>;
+
+// pub type SignableFamilyJoinMsg = SignableMessage<ContractMessageContent<FamilyJoinPayload>>;
+// pub type SignableFamilyLeaveMsg = SignableMessage<ContractMessageContent<FamilyLeavePayload>>;
+// pub type SignableFamilyKickMsg = SignableMessage<ContractMessageContent<FamilyKickPayload>>;
 
 #[derive(Serialize)]
 pub struct MixnodeBondingPayload {
@@ -111,57 +117,97 @@ pub fn construct_family_creation_sign_payload(
 }
 
 #[derive(Serialize)]
-pub struct FamilyJoinPayload {
-    family_head: String,
-    // TODO: add any extra fields?
+pub struct FamilyJoinPermit {
+    // the granter of this permit
+    family_head: FamilyHead,
+    // whether the **member** will want to join via the proxy (i.e. vesting contract)
+    proxy: Option<Addr>,
+    // the actual member we want to permit to join
+    member_node: IdentityKey,
 }
 
-impl FamilyJoinPayload {
-    pub fn new(family_head: String) -> Self {
-        Self { family_head }
+impl FamilyJoinPermit {
+    pub fn new(family_head: FamilyHead, proxy: Option<Addr>, member_node: IdentityKey) -> Self {
+        Self {
+            family_head,
+            proxy,
+            member_node,
+        }
     }
 }
 
-impl SigningPurpose for FamilyJoinPayload {
+impl SigningPurpose for FamilyJoinPermit {
     fn message_type() -> MessageType {
-        MessageType::new("family-join")
+        MessageType::new("family-join-permit")
     }
 }
 
-#[derive(Serialize)]
-pub struct FamilyLeavePayload {
-    family_head: String,
-    // TODO: add any extra fields?
+pub fn construct_family_join_permit(
+    nonce: Nonce,
+    family_head: FamilyHead,
+    proxy: Option<Addr>,
+    member_node: IdentityKey,
+) -> SignableFamilyJoinPermitMsg {
+    let payload = FamilyJoinPermit::new(family_head, proxy, member_node);
+
+    // note: we're NOT wrapping it in `ContractMessageContent` because the family head is not going to be the one
+    // sending the message to the contract
+    SignableMessage::new(nonce, payload)
 }
 
-impl FamilyLeavePayload {
-    pub fn new(family_head: String) -> Self {
-        Self { family_head }
-    }
-}
-
-impl SigningPurpose for FamilyLeavePayload {
-    fn message_type() -> MessageType {
-        MessageType::new("family-leave")
-    }
-}
-
-#[derive(Serialize)]
-pub struct FamilyKickPayload {
-    member: String,
-    // TODO: add any extra fields?
-}
-
-impl FamilyKickPayload {
-    pub fn new(member: String) -> Self {
-        Self { member }
-    }
-}
-
-impl SigningPurpose for FamilyKickPayload {
-    fn message_type() -> MessageType {
-        MessageType::new("family-member-removal")
-    }
-}
-
-// TODO: depending on our threat model, we should perhaps extend it to include all _on_behalf methods
+//
+// #[derive(Serialize)]
+// pub struct FamilyJoinPayload {
+//     family_head: String,
+//     // TODO: add any extra fields?
+// }
+//
+// impl FamilyJoinPayload {
+//     pub fn new(family_head: String) -> Self {
+//         Self { family_head }
+//     }
+// }
+//
+// impl SigningPurpose for FamilyJoinPayload {
+//     fn message_type() -> MessageType {
+//         MessageType::new("family-join")
+//     }
+// }
+//
+// #[derive(Serialize)]
+// pub struct FamilyLeavePayload {
+//     family_head: String,
+//     // TODO: add any extra fields?
+// }
+//
+// impl FamilyLeavePayload {
+//     pub fn new(family_head: String) -> Self {
+//         Self { family_head }
+//     }
+// }
+//
+// impl SigningPurpose for FamilyLeavePayload {
+//     fn message_type() -> MessageType {
+//         MessageType::new("family-leave")
+//     }
+// }
+//
+// #[derive(Serialize)]
+// pub struct FamilyKickPayload {
+//     member: String,
+//     // TODO: add any extra fields?
+// }
+//
+// impl FamilyKickPayload {
+//     pub fn new(member: String) -> Self {
+//         Self { member }
+//     }
+// }
+//
+// impl SigningPurpose for FamilyKickPayload {
+//     fn message_type() -> MessageType {
+//         MessageType::new("family-member-removal")
+//     }
+// }
+//
+// // TODO: depending on our threat model, we should perhaps extend it to include all _on_behalf methods

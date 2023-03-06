@@ -3,7 +3,9 @@ use crate::support::helpers::{
     validate_node_identity_signature,
 };
 
-use crate::families::signature_helpers::verify_family_creation_signature;
+use crate::families::signature_helpers::{
+    verify_family_creation_signature, verify_family_join_permit,
+};
 use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::{error::MixnetContractError, IdentityKey, IdentityKeyRef};
@@ -78,48 +80,34 @@ fn _try_create_family(
 pub fn try_join_family(
     deps: DepsMut,
     info: MessageInfo,
-    // Required for proxy joining
-    node_identity_signature: Option<String>,
-    family_signature: String,
+    join_permit: MessageSignature,
     family_head: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
     let family_head = FamilyHead::new(&family_head);
-    _try_join_family(
-        deps,
-        &info.sender,
-        node_identity_signature,
-        family_signature,
-        family_head,
-    )
+    _try_join_family(deps, &info.sender, join_permit, family_head, None)
 }
 
 pub fn try_join_family_on_behalf(
     deps: DepsMut,
     info: MessageInfo,
     member_address: String,
-    node_identity_signature: Option<String>,
-    family_signature: String,
+    join_permit: MessageSignature,
     family_head: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
     ensure_sent_by_vesting_contract(&info, deps.storage)?;
 
     let member_address = deps.api.addr_validate(&member_address)?;
     let family_head = FamilyHead::new(&family_head);
-    _try_join_family(
-        deps,
-        &member_address,
-        node_identity_signature,
-        family_signature,
-        family_head,
-    )
+    let proxy = Some(info.sender);
+    _try_join_family(deps, &member_address, join_permit, family_head, proxy)
 }
 
 fn _try_join_family(
     deps: DepsMut,
     owner: &Addr,
-    node_identity_signature: Option<String>,
-    family_signature: String,
+    join_permit: MessageSignature,
     family_head: FamilyHead,
+    proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond =
         crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, &owner)?;
@@ -139,20 +127,12 @@ fn _try_join_family(
         ));
     }
 
-    if let Some(node_identity_signature) = node_identity_signature {
-        validate_node_identity_signature(
-            deps.as_ref(),
-            owner,
-            &node_identity_signature,
-            existing_bond.identity(),
-        )?;
-    }
-
-    validate_family_signature(
+    verify_family_join_permit(
         deps.as_ref(),
+        family_head.clone(),
+        proxy,
         existing_bond.identity(),
-        &family_signature,
-        family_head.identity(),
+        join_permit,
     )?;
 
     let family = get_family(&family_head, deps.storage)?;

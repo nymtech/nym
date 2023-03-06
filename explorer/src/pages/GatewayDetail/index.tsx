@@ -22,13 +22,11 @@ const columns: ColumnsType[] = [
   {
     field: 'bond',
     title: 'Bond',
-    flex: 1,
     headerAlign: 'left',
   },
   {
     field: 'node_performance',
     title: 'Routing Score',
-    flex: 1,
     headerAlign: 'left',
     tooltipInfo:
       "Gateway's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test",
@@ -36,7 +34,6 @@ const columns: ColumnsType[] = [
   {
     field: 'avgUptime',
     title: 'Avg. Score',
-    flex: 1,
     headerAlign: 'left',
     tooltipInfo: "Gateway's average routing score in the last 24 hours",
   },
@@ -50,19 +47,16 @@ const columns: ColumnsType[] = [
     field: 'location',
     title: 'Location',
     headerAlign: 'left',
-    flex: 1,
   },
   {
     field: 'owner',
     title: 'Owner',
     headerAlign: 'left',
-    flex: 1,
   },
   {
     field: 'version',
     title: 'Version',
     headerAlign: 'left',
-    flex: 1,
   },
 ];
 

@@ -84,6 +84,7 @@ export interface MixNodeResponseItem {
   };
   mix_node: MixNode;
   avg_uptime: number;
+  node_performance: NodePerformance;
   stake_saturation: number;
   uncapped_saturation: number;
   operating_cost: Amount;

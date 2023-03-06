@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import { MixNodeResponse, MixNodeResponseItem, MixnodeStatus } from '../../typeDefs/explorer-api';
+import { MixNodeResponse, MixNodeResponseItem, MixnodeStatus, NodePerformance } from '../../typeDefs/explorer-api';
 import { toPercentIntegerString } from '../../utils';
 import { unymToNym } from '../../utils/currency';
 
@@ -17,8 +17,9 @@ export type MixnodeRowType = {
   layer: string;
   profit_percentage: string;
   avg_uptime: string;
-  stake_saturation: number;
+  stake_saturation: React.ReactNode;
   operating_cost: string;
+  node_performance: NodePerformance['most_recent'];
 };
 
 export function mixnodeToGridRow(arrayOfMixnodes?: MixNodeResponse): MixnodeRowType[] {
@@ -46,8 +47,9 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     host: item?.mix_node?.host || '',
     layer: item?.layer || '',
     profit_percentage: `${profitPercentage}%`,
-    avg_uptime: `${item.avg_uptime}%` || '-',
-    stake_saturation: uncappedSaturation,
+    avg_uptime: `${toPercentIntegerString(item.node_performance.last_24h)}%`,
+    stake_saturation: uncappedSaturation.toFixed(2),
     operating_cost: `${unymToNym(item.operating_cost?.amount, 6)} NYM`,
+    node_performance: `${toPercentIntegerString(item.node_performance.most_recent)}%`,
   };
 }

@@ -11,7 +11,7 @@ use serde::Serialize;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::sync::RwLock;
-use validator_client::models::SelectionChance;
+use validator_client::models::{NodePerformance, SelectionChance};
 
 #[derive(Clone, Debug, Serialize, JsonSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -36,6 +36,7 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub stake_saturation: f32,
     pub uncapped_saturation: f32,
     pub avg_uptime: u8,
+    pub node_performance: NodePerformance,
     pub estimated_operator_apy: f64,
     pub estimated_delegators_apy: f64,
     pub operating_cost: Coin,

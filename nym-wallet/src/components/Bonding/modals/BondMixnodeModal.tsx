@@ -9,7 +9,7 @@ import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
 import { TBondMixNodeArgs } from 'src/types';
 import { BondMixnodeForm } from '../forms/BondMixnodeForm';
-import { toPercentFloatString } from '../../../utils';
+import { costParamsToTauri, mixnodeToTauri } from '../utils';
 
 const defaultMixnodeValues: MixnodeData = {
   identityKey: '',
@@ -44,9 +44,10 @@ export const BondMixnodeModal = ({
   onClose: () => void;
   onError: (e: string) => void;
 }) => {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [mixnodeData, setMixnodeData] = useState<MixnodeData>(defaultMixnodeValues);
   const [amountData, setAmountData] = useState<MixnodeAmount>(defaultAmountValues(denom));
+  const [signature, setSignature] = useState<string>();
 
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
 
@@ -72,28 +73,20 @@ export const BondMixnodeModal = ({
 
   const handleUpdateAmountData = async (data: MixnodeAmount) => {
     setAmountData({ ...data });
+    setStep(3);
+  };
+
+  const handleSignatureChange = async (sig: string) => {
+    setSignature(sig);
 
     const payload = {
-      pledge: data.amount,
-      ownerSignature: mixnodeData.ownerSignature,
-      mixnode: {
-        ...mixnodeData,
-        mix_port: mixnodeData.mixPort,
-        http_api_port: mixnodeData.httpApiPort,
-        verloc_port: mixnodeData.verlocPort,
-        sphinx_key: mixnodeData.sphinxKey,
-        identity_key: mixnodeData.identityKey,
-      },
-      costParams: {
-        profit_margin_percent: toPercentFloatString(data.profitMargin),
-        interval_operating_cost: {
-          amount: data.operatorCost.amount.toString(),
-          denom: data.operatorCost.denom,
-        },
-      },
+      pledge: amountData.amount,
+      msgSignature: sig,
+      mixnode: mixnodeToTauri(mixnodeData),
+      costParams: costParamsToTauri(amountData),
     };
 
-    if (data.tokenPool === 'balance') {
+    if (amountData.tokenPool === 'balance') {
       await getFee<TBondMixNodeArgs>(simulateBondMixnode, payload);
     } else {
       await getFee<TBondMixNodeArgs>(simulateVestingBondMixnode, payload);
@@ -104,22 +97,9 @@ export const BondMixnodeModal = ({
     await onBondMixnode(
       {
         pledge: amountData.amount,
-        ownerSignature: mixnodeData.ownerSignature,
-        mixnode: {
-          ...mixnodeData,
-          mix_port: mixnodeData.mixPort,
-          http_api_port: mixnodeData.httpApiPort,
-          verloc_port: mixnodeData.verlocPort,
-          sphinx_key: mixnodeData.sphinxKey,
-          identity_key: mixnodeData.identityKey,
-        },
-        costParams: {
-          profit_margin_percent: toPercentFloatString(amountData.profitMargin),
-          interval_operating_cost: {
-            amount: amountData.operatorCost.amount,
-            denom: amountData.operatorCost.denom,
-          },
-        },
+        msgSignature: signature as string,
+        mixnode: mixnodeToTauri(mixnodeData),
+        costParams: costParamsToTauri(amountData),
       },
       amountData.tokenPool as TPoolOption,
     );
@@ -151,10 +131,10 @@ export const BondMixnodeModal = ({
       onOk={async () => {
         await validateStep(step);
       }}
-      onBack={step === 2 ? handleBack : undefined}
+      onBack={step === 2 || step === 3 ? handleBack : undefined}
       onClose={onClose}
       header="Bond mixnode"
-      subHeader={`Step ${step}/2`}
+      subHeader={`Step ${step}/3`}
       okLabel="Next"
     >
       <BondMixnodeForm
@@ -165,6 +145,7 @@ export const BondMixnodeModal = ({
         hasVestingTokens={hasVestingTokens}
         onValidateMixnodeData={handleUpdateMixnodeData}
         onValidateAmountData={handleUpdateAmountData}
+        onSignatureChange={handleSignatureChange}
         onSelectNodeType={onSelectNodeType}
       />
     </SimpleModal>

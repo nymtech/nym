@@ -33,7 +33,7 @@ export const simulateVestingClaimDelegatorReward = async (mixId: number) =>
 export const simulateVestingUndelegateFromMixnode = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_undelegate_from_mixnode', args);
 
-export const simulateVestingBondGateway = async (args: { gateway: Gateway; pledge: DecCoin; ownerSignature: string }) =>
+export const simulateVestingBondGateway = async (args: { gateway: Gateway; pledge: DecCoin; msgSignature: string }) =>
   invokeWrapper<FeeDetails>('simulate_vesting_bond_gateway', args);
 
 export const simulateVestingUnbondGateway = async (args: any) =>

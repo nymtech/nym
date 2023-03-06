@@ -159,7 +159,7 @@ export interface ContractState {
   params: ContractStateParams;
 };
 
-export type Mixnode = {
+export type VestingAccountNode = {
   amount: Coin;
   block_time: string;
 };
@@ -180,12 +180,9 @@ export interface VestingAccountsCoinPaged {
   still_vesting: Coin;
 };
 
-export interface DelegationTimestamps {
-};
-
 export interface DelegationTimes {
   account_id: number;
-  delegation_timestamps: DelegationTimestamps[];
+  delegation_timestamps: [];
   mix_id: number;
   owner: string;
 };
@@ -195,10 +192,9 @@ export interface DelegationBlock {
   amount: string;
   block_timestamp: number;
   mix_id: number;
-}
+};
 
 export interface Delegations {
   delegations: DelegationBlock[];
   start_next_after: string | null;
-
-}
+};

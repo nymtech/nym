@@ -160,7 +160,6 @@ export const layerDistribution = {
     layer3: expect.any(Number)
 }
 
-
 export const intervalRewardParams = {
     reward_pool: expect.any(Number),
     staking_supply: expect.any(Number),
@@ -199,9 +198,6 @@ export const VestingCoinAccounts = {
     start_next_after: expect.any(String)
 }
 
-export const startTime = {
-}
-
 export const OriginalVestingDetails = {
     amount: Coin,
     number_of_periods: expect.any(Number),
@@ -209,7 +205,7 @@ export const OriginalVestingDetails = {
 }
 
 export const PledgeCap = {
-    percent: expect.any(String),
+    percent: expect.any(String) || null,
 };
 
 export const Periods = [{
@@ -218,27 +214,31 @@ export const Periods = [{
 }]
 
 export const VestingAccountDetails = {
-    coin: Coin,
     owner_address: expect.any(String),
-    periods: Periods,
-    pledge_cap: PledgeCap,
     staking_address: expect.any(String) || null,
     start_time: expect.any(String),
-    storage_key: expect.any(Number)
+    periods: Periods,
+    coin: Coin,
+    storage_key: expect.any(Number),
+    pledge_cap: PledgeCap
 }
 
-export const Mixnode = {
+export const Node = {
     amount: Coin,
     block_time: expect.any(String)
 }
 
-export const DelegationTimestamps = [{}]
+export type VestingPeriod = 'Before' | { In: number } | 'After';
+
+export const DelegationTimestamps = [
+    expect.any(Number)
+]
 
 export const DelegatorTimes = {
-    account_id: expect.any(Number),
-    delegation_timestamps: DelegationTimestamps,
-    mix_id: expect.any(Number),
     owner: expect.any(String),
+    account_id: expect.any(Number),
+    mix_id: expect.any(Number),
+    delegation_timestamps: DelegationTimestamps
 }
 
 export const DelegationBlock = [{

@@ -42,6 +42,7 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub operating_cost: Coin,
     pub profit_margin_percent: Percent,
     pub family_id: Option<u16>,
+    pub blacklisted: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]

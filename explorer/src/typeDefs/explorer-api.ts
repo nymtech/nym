@@ -89,6 +89,7 @@ export interface MixNodeResponseItem {
   uncapped_saturation: number;
   operating_cost: Amount;
   profit_margin_percent: string;
+  blacklisted: boolean;
 }
 
 export type MixNodeResponse = MixNodeResponseItem[];

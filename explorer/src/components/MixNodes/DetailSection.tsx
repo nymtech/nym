@@ -87,6 +87,9 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
           >
             This node is {statusText} in this epoch
           </Typography>
+          <Typography alignSelf={isMobile ? 'start' : 'self-end'} fontSize="smaller" sx={{ color: 'error.main' }}>
+            This node is having a poor performance
+          </Typography>
         </Box>
       </Grid>
     </Grid>

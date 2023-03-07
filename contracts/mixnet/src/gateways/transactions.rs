@@ -1,16 +1,20 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::helpers::must_get_gateway_bond_by_owner;
 use super::storage;
 use crate::gateways::signature_helpers::verify_gateway_bonding_signature;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::signing::storage as signing_storage;
 use crate::support::helpers::{
-    ensure_no_existing_bond, ensure_sent_by_vesting_contract, validate_pledge,
+    ensure_no_existing_bond, ensure_proxy_match, ensure_sent_by_vesting_contract, validate_pledge,
 };
 use cosmwasm_std::{wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{new_gateway_bonding_event, new_gateway_unbonding_event};
+use mixnet_contract_common::events::{
+    new_gateway_bonding_event, new_gateway_config_update_event, new_gateway_unbonding_event,
+};
+use mixnet_contract_common::gateway::GatewayConfigUpdate;
 use mixnet_contract_common::{Gateway, GatewayBond};
 use nym_contracts_common::signing::MessageSignature;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
@@ -189,6 +193,59 @@ pub(crate) fn _try_remove_gateway(
     )))
 }
 
+pub(crate) fn try_update_gateway_config(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    new_config: GatewayConfigUpdate,
+) -> Result<Response, MixnetContractError> {
+    let owner = info.sender;
+    _try_update_gateway_config(deps, new_config, owner, None)
+}
+
+pub(crate) fn try_update_gateway_config_on_behalf(
+    deps: DepsMut,
+    info: MessageInfo,
+    new_config: GatewayConfigUpdate,
+    owner: String,
+) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
+    let owner = deps.api.addr_validate(&owner)?;
+    let proxy = info.sender;
+    _try_update_gateway_config(deps, new_config, owner, Some(proxy))
+}
+
+pub(crate) fn _try_update_gateway_config(
+    deps: DepsMut,
+    new_config: GatewayConfigUpdate,
+    owner: Addr,
+    proxy: Option<Addr>,
+) -> Result<Response, MixnetContractError> {
+    let existing_bond = must_get_gateway_bond_by_owner(deps.storage, &owner)?;
+
+    // WIP(JON): do we need this?
+    //ensure_bonded(&existing_bond)?;
+    ensure_proxy_match(&proxy, &existing_bond.proxy)?;
+
+    let cfg_update_event = new_gateway_config_update_event(&owner, &proxy, &new_config);
+
+    let mut updated_bond = existing_bond.clone();
+    updated_bond.gateway.host = new_config.host;
+    updated_bond.gateway.mix_port = new_config.mix_port;
+    updated_bond.gateway.clients_port = new_config.clients_port;
+    updated_bond.gateway.location = new_config.location;
+    updated_bond.gateway.version = new_config.version;
+
+    storage::gateways().replace(
+        deps.storage,
+        existing_bond.identity(),
+        Some(&updated_bond),
+        Some(&existing_bond),
+    )?;
+
+    Ok(Response::new().add_event(cfg_update_event))
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -196,6 +253,7 @@ pub mod tests {
     use crate::gateways::queries;
     use crate::gateways::transactions::{
         try_add_gateway, try_add_gateway_on_behalf, try_remove_gateway_on_behalf,
+        try_update_gateway_config,
     };
     use crate::interval::pending_events;
     use crate::mixnet_contract_settings::storage::minimum_gateway_pledge;
@@ -207,6 +265,7 @@ pub mod tests {
     use cosmwasm_std::{Addr, BankMsg, Response, Uint128};
     use mixnet_contract_common::error::MixnetContractError;
     use mixnet_contract_common::events::new_gateway_unbonding_event;
+    use mixnet_contract_common::gateway::GatewayConfigUpdate;
     use mixnet_contract_common::ExecuteMsg;
 
     #[test]
@@ -484,5 +543,70 @@ pub mod tests {
                 vesting_contract
             }
         )
+    }
+
+    #[test]
+    fn update_gateway_config() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        let owner = "alice";
+        let info = mock_info(owner, &[]);
+        let update = GatewayConfigUpdate {
+            host: "1.1.1.1:1234".to_string(),
+            mix_port: 1234,
+            clients_port: 1234,
+            location: "home".to_string(),
+            version: "v1.2.3".to_string(),
+        };
+
+        // try updating a non existing gateway bond
+        let res = try_update_gateway_config(test.deps_mut(), info.clone(), update.clone());
+        assert_eq!(
+            res,
+            Err(MixnetContractError::NoAssociatedGatewayBond {
+                owner: Addr::unchecked(owner)
+            })
+        );
+
+        //let mix_id = test.add_dummy_mixnode(owner, None);
+        //let vesting_contract = test.vesting_contract();
+
+        //// attempted to remove on behalf with invalid proxy (current is `None`)
+        //let res = try_update_mixnode_config_on_behalf(
+        //    test.deps_mut(),
+        //    mock_info(vesting_contract.as_ref(), &[]),
+        //    update.clone(),
+        //    owner.to_string(),
+        //);
+        //assert_eq!(
+        //    res,
+        //    Err(MixnetContractError::ProxyMismatch {
+        //        existing: "None".to_string(),
+        //        incoming: vesting_contract.into_string()
+        //    })
+        //);
+        // "normal" update succeeds
+        let res = try_update_gateway_config(test.deps_mut(), info.clone(), update.clone());
+        assert!(res.is_ok());
+
+        //// and the config has actually been updated
+        //let mix =
+        //    must_get_mixnode_bond_by_owner(test.deps().storage, &Addr::unchecked(owner)).unwrap();
+        //assert_eq!(mix.mix_node.host, update.host);
+        //assert_eq!(mix.mix_node.mix_port, update.mix_port);
+        //assert_eq!(mix.mix_node.verloc_port, update.verloc_port);
+        //assert_eq!(mix.mix_node.http_api_port, update.http_api_port);
+        //assert_eq!(mix.mix_node.version, update.version);
+
+        //// but we cannot perform any updates whilst the mixnode is already unbonding
+        //try_remove_mixnode(test.deps_mut(), env, info.clone()).unwrap();
+        //let res = try_update_mixnode_config(test.deps_mut(), info, update);
+        //assert_eq!(res, Err(MixnetContractError::MixnodeIsUnbonding { mix_id }))
+    }
+
+    #[test]
+    fn updating_gateway_config_with_illegal_proxy() {
+        todo!();
     }
 }

@@ -3,6 +3,7 @@
 
 use crate::delegation::OwnerProxySubKey;
 use crate::error::MixnetContractError;
+use crate::gateway::GatewayConfigUpdate;
 use crate::helpers::IntoBaseDecimal;
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
@@ -199,6 +200,13 @@ pub enum ExecuteMsg {
     UnbondGatewayOnBehalf {
         owner: String,
     },
+    UpdateGatewayConfig {
+        new_config: GatewayConfigUpdate,
+    },
+    UpdateGatewayConfigOnBehalf {
+        new_config: GatewayConfigUpdate,
+        owner: String,
+    },
 
     // delegation-related:
     DelegateToMixnode {
@@ -313,6 +321,10 @@ impl ExecuteMsg {
             }
             ExecuteMsg::UnbondGateway { .. } => "unbonding gateway".into(),
             ExecuteMsg::UnbondGatewayOnBehalf { .. } => "unbonding gateway on behalf".into(),
+            ExecuteMsg::UpdateGatewayConfig { .. } => "updating gateway configuration".into(),
+            ExecuteMsg::UpdateGatewayConfigOnBehalf { .. } => {
+                "updating gateway configuration on behalf".into()
+            }
             ExecuteMsg::DelegateToMixnode { mix_id } => format!("delegating to mixnode {mix_id}"),
             ExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, .. } => {
                 format!("delegating to mixnode {mix_id} on behalf")

@@ -295,7 +295,7 @@ pub(crate) fn try_update_mixnode_config(
 }
 
 pub(crate) fn try_update_mixnode_config_on_behalf(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     info: MessageInfo,
     new_config: MixNodeConfigUpdate,
     owner: String,
@@ -308,7 +308,7 @@ pub(crate) fn try_update_mixnode_config_on_behalf(
 }
 
 pub(crate) fn _try_update_mixnode_config(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     new_config: MixNodeConfigUpdate,
     owner: Addr,
     proxy: Option<Addr>,

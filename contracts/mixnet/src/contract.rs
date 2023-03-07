@@ -318,6 +318,14 @@ pub fn execute(
         ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
             crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
         }
+        ExecuteMsg::UpdateGatewayConfig { new_config } => {
+            crate::gateways::transactions::try_update_gateway_config(deps, info, new_config)
+        }
+        ExecuteMsg::UpdateGatewayConfigOnBehalf { new_config, owner } => {
+            crate::gateways::transactions::try_update_gateway_config_on_behalf(
+                deps, info, new_config, owner,
+            )
+        }
 
         // delegation-related:
         ExecuteMsg::DelegateToMixnode { mix_id } => {

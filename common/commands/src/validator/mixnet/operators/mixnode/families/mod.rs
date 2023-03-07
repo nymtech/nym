@@ -6,6 +6,8 @@ use clap::{Args, Subcommand};
 pub mod create_family;
 pub mod create_family_join_permit_sign_payload;
 pub mod join_family;
+pub mod kick_family_member;
+pub mod leave_family;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -22,13 +24,11 @@ pub enum MixnetOperatorsMixnodeFamiliesCommands {
     /// Join family
     JoinFamily(join_family::Args),
 
-    // TODO:
     /// Leave family,
-    LeaveFamily,
+    LeaveFamily(leave_family::Args),
 
-    // TODO:
     /// Kick family member
-    KickFamilyMember,
+    KickFamilyMember(kick_family_member::Args),
 
     /// Create a message payload that is required to get signed in order to obtain a permit for joining family
     CreateFamilyJoinPermitSignPayload(create_family_join_permit_sign_payload::Args),

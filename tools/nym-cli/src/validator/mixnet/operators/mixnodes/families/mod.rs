@@ -25,8 +25,20 @@ pub(crate) async fn execute(
             )
                 .await
         }
-        MixnetOperatorsMixnodeFamiliesCommands::LeaveFamily | MixnetOperatorsMixnodeFamiliesCommands::KickFamilyMember => todo!(),
-
+        MixnetOperatorsMixnodeFamiliesCommands::LeaveFamily(args) => {
+            nym_cli_commands::validator::mixnet::operators::mixnode::families::leave_family::leave_family(
+                args,
+                create_signing_client(global_args, network_details)?,
+            )
+                .await
+        }
+        MixnetOperatorsMixnodeFamiliesCommands::KickFamilyMember(args) => {
+            nym_cli_commands::validator::mixnet::operators::mixnode::families::kick_family_member::kick_family_member(
+                args,
+                create_signing_client(global_args, network_details)?,
+            )
+                .await
+        }
         MixnetOperatorsMixnodeFamiliesCommands::CreateFamilyJoinPermitSignPayload(args) => {
             nym_cli_commands::validator::mixnet::operators::mixnode::families::create_family_join_permit_sign_payload::create_family_join_permit_sign_payload(args, create_query_client(network_details)?).await
         }

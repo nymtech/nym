@@ -24,6 +24,7 @@ pub struct Args {
     pub with_vesting_account: bool,
 }
 
+#[deprecated]
 pub async fn create_family_creation_sign_payload(args: Args, client: QueryClient) {
     info!("Create family creation sign payload");
 

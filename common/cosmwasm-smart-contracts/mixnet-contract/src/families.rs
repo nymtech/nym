@@ -38,7 +38,7 @@ impl Family {
         Family {
             head,
             proxy: proxy.map(|p| p.to_string()),
-            label: label,
+            label,
         }
     }
 

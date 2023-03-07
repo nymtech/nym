@@ -1,13 +1,14 @@
-use std::collections::HashSet;
-
-use crate::constants::{FAMILIES_DEFAULT_RETRIEVAL_LIMIT, FAMILIES_MAX_RETRIEVAL_LIMIT};
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use super::storage::{families, get_family, get_members, MEMBERS};
+use crate::constants::{FAMILIES_DEFAULT_RETRIEVAL_LIMIT, FAMILIES_MAX_RETRIEVAL_LIMIT};
 use cosmwasm_std::{Order, Storage};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::{error::MixnetContractError, IdentityKeyRef};
 use mixnet_contract_common::{IdentityKey, PagedFamiliesResponse, PagedMembersResponse};
+use std::collections::HashSet;
 
 pub fn get_family_by_label(
     label: String,
@@ -19,9 +20,8 @@ pub fn get_family_by_label(
 pub fn get_family_by_head(
     head: IdentityKeyRef<'_>,
     storage: &dyn Storage,
-) -> Result<Family, MixnetContractError> {
-    let family_head = FamilyHead::new(head);
-    get_family(&family_head, storage)
+) -> Result<Option<Family>, MixnetContractError> {
+    Ok(families().may_load(storage, head.to_string())?)
 }
 
 pub fn get_family_members_by_head(

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v1.1.11] (2023-03-07)
+
+- Wallet: optional gas and memo fields ([#2222])
+
+[#2222]: https://github.com/nymtech/nym/issues/2222
+
 ## [v1.1.10] (2023-02-20)
 
 - Wallet - Fix send address bug ([#3030])

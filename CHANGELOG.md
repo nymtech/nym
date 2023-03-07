@@ -4,7 +4,21 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-## [v1.0.11] (2023-02-28)
+## [v1.1.12] (2023-03-07)
+
+- Fix generated docs for mixnet and vesting contract on docs.rs ([#3093])
+- Introduce a way of injecting topology into the client ([#3044])
+- Update mixnet TypeScript client methods #1 ([#2783])
+- Update tooltips for routing and average score ([#3133])
+- update selected service provider description style ([#3128])
+
+[#3093]: https://github.com/nymtech/nym/issues/3093
+[#3044]: https://github.com/nymtech/nym/issues/3044
+[#2783]: https://github.com/nymtech/nym/issues/2783
+[#3133]: https://github.com/nymtech/nym/pull/3133
+[#3128]: https://github.com/nymtech/nym/pull/3128
+
+## [v1.1.11] (2023-02-28)
 
 - Fix empty dealer set loop ([#3105])
 - The nym-api db.sqlite is broken when trying to run against it it in `enabled-credentials-mode true` there is an ordering issue with migrations when using the credential binary to purchase bandwidth ([#3100])

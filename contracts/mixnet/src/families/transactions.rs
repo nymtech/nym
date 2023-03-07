@@ -1,20 +1,17 @@
-use crate::support::helpers::{
-    ensure_bonded, ensure_sent_by_vesting_contract, validate_family_signature,
-    validate_node_identity_signature,
-};
-
-use crate::families::signature_helpers::{
-    verify_family_creation_signature, verify_family_join_permit,
-};
-use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
-use mixnet_contract_common::families::{Family, FamilyHead};
-use mixnet_contract_common::{error::MixnetContractError, IdentityKey, IdentityKeyRef};
-use nym_contracts_common::signing::MessageSignature;
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use super::storage::{
-    add_family_member, create_family, get_family, is_any_member, is_family_member,
-    remove_family_member,
+    add_family_member, get_family, is_any_member, is_family_member, remove_family_member,
+    save_family,
 };
+use crate::families::queries::get_family_by_label;
+use crate::families::signature_helpers::verify_family_join_permit;
+use crate::support::helpers::{ensure_bonded, ensure_sent_by_vesting_contract};
+use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
+use mixnet_contract_common::families::{Family, FamilyHead};
+use mixnet_contract_common::{error::MixnetContractError, IdentityKeyRef};
+use nym_contracts_common::signing::MessageSignature;
 
 /// Creates a new MixNode family with senders node as head
 pub fn try_create_family(
@@ -44,29 +41,25 @@ fn _try_create_family(
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond =
-        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, &owner)?;
+        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, owner)?;
 
     ensure_bonded(&existing_bond)?;
 
-    todo!()
-    // verify_family_creation_signature(
-    //     deps.as_ref(),
-    //     owner.clone(),
-    //     proxy.clone(),
-    //     label.clone(),
-    //     existing_bond.identity(),
-    //     owner_signature,
-    // )?;
-    //
-    // let family_head = FamilyHead::new(existing_bond.identity());
-    //
-    // if let Ok(_family) = get_family(&family_head, deps.storage) {
-    //     return Err(MixnetContractError::FamilyCanHaveOnlyOne);
-    // }
-    //
-    // let family = Family::new(family_head, proxy, label);
-    // create_family(&family, deps.storage)?;
-    // Ok(Response::default())
+    let family_head = FamilyHead::new(existing_bond.identity());
+
+    // can't overwrite existing family
+    if get_family(&family_head, deps.storage).is_ok() {
+        return Err(MixnetContractError::FamilyCanHaveOnlyOne);
+    }
+
+    // the label must be unique
+    if get_family_by_label(label.clone(), deps.storage)?.is_some() {
+        return Err(MixnetContractError::FamilyWithLabelExists(label));
+    }
+
+    let family = Family::new(family_head, proxy, label);
+    save_family(&family, deps.storage)?;
+    Ok(Response::default())
 }
 
 pub fn try_join_family(
@@ -158,7 +151,7 @@ fn _try_leave_family(
     family_head: FamilyHead,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond =
-        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, &owner)?;
+        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, owner)?;
 
     ensure_bonded(&existing_bond)?;
 
@@ -177,18 +170,9 @@ fn _try_leave_family(
         });
     }
 
-    todo!()
-    //
-    // validate_node_identity_signature(
-    //     deps.as_ref(),
-    //     owner,
-    //     &node_family_signature,
-    //     existing_bond.identity(),
-    // )?;
-    //
-    // remove_family_member(deps.storage, existing_bond.identity());
-    //
-    // Ok(Response::default())
+    remove_family_member(deps.storage, existing_bond.identity());
+
+    Ok(Response::default())
 }
 
 pub fn try_head_kick_member(

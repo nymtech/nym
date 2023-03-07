@@ -14,9 +14,10 @@ use cosmwasm_std::{
     QueryResponse, Response, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
+use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::gateway::GatewayConfigUpdate;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use mixnet_contract_common::{Gateway, IdentityKey, MixId, MixNode};
+use mixnet_contract_common::{Gateway, MixId, MixNode};
 use semver::Version;
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
@@ -229,19 +230,19 @@ pub fn try_join_family(
     info: MessageInfo,
     deps: DepsMut,
     join_permit: MessageSignature,
-    family_head: IdentityKey,
+    family_head: FamilyHead,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_join_family(deps.storage, join_permit, &family_head)
+    account.try_join_family(deps.storage, join_permit, family_head)
 }
 pub fn try_leave_family(
     info: MessageInfo,
     deps: DepsMut,
     node_identity_signature: String,
-    family_head: String,
+    family_head: FamilyHead,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_leave_family(deps.storage, node_identity_signature, &family_head)
+    account.try_leave_family(deps.storage, node_identity_signature, family_head)
 }
 pub fn try_kick_family_member(
     info: MessageInfo,

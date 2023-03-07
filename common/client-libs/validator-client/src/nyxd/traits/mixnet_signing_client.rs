@@ -9,12 +9,12 @@ use crate::nyxd::{Fee, NyxdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use nym_mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
 use nym_mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, IdentityKey, LayerAssignment,
-    MixId, MixNode,
+    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, LayerAssignment, MixId, MixNode,
 };
 
 #[async_trait]
@@ -184,7 +184,7 @@ pub trait MixnetSigningClient {
     async fn join_family(
         &self,
         join_permit: MessageSignature,
-        family_head: IdentityKey,
+        family_head: FamilyHead,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
@@ -202,7 +202,7 @@ pub trait MixnetSigningClient {
         &self,
         member_address: String,
         join_permit: MessageSignature,
-        family_head: String,
+        family_head: FamilyHead,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
@@ -220,7 +220,7 @@ pub trait MixnetSigningClient {
     async fn leave_family(
         &self,
         signature: String,
-        family_head: String,
+        family_head: FamilyHead,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
@@ -238,7 +238,7 @@ pub trait MixnetSigningClient {
         &self,
         member_address: String,
         node_identity_signature: String,
-        family_head: String,
+        family_head: FamilyHead,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(

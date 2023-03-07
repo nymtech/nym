@@ -7,9 +7,10 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, NyxdClient};
 use async_trait::async_trait;
 use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use nym_mixnet_contract_common::{Gateway, IdentityKey, MixId, MixNode};
+use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
 use nym_vesting_contract_common::messages::{
     ExecuteMsg as VestingExecuteMsg, VestingSpecification,
 };
@@ -157,7 +158,7 @@ pub trait VestingSigningClient {
     async fn vesting_join_family(
         &self,
         join_permit: MessageSignature,
-        family_head: IdentityKey,
+        family_head: FamilyHead,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_vesting_contract(

@@ -2,6 +2,7 @@ use super::Account;
 use crate::{errors::ContractError, storage::MIXNET_CONTRACT_ADDRESS, traits::NodeFamilies};
 use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{wasm_execute, Response, Storage};
+use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, IdentityKeyRef};
 
 impl NodeFamilies for Account {
@@ -26,12 +27,12 @@ impl NodeFamilies for Account {
         &self,
         storage: &dyn Storage,
         join_permit: MessageSignature,
-        family_head: IdentityKeyRef,
+        family_head: FamilyHead,
     ) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::JoinFamilyOnBehalf {
             member_address: self.owner_address().to_string(),
             join_permit,
-            family_head: family_head.to_string(),
+            family_head,
         };
 
         let msg = wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
@@ -43,12 +44,12 @@ impl NodeFamilies for Account {
         &self,
         storage: &dyn Storage,
         node_identity_signature: String,
-        family_head: IdentityKeyRef,
+        family_head: FamilyHead,
     ) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::LeaveFamilyOnBehalf {
             member_address: self.owner_address().to_string(),
             node_identity_signature,
-            family_head: family_head.to_string(),
+            family_head,
         };
 
         let msg = wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;

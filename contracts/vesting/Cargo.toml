@@ -20,9 +20,9 @@ name = "vesting_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.1.0" }
-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common", version = "0.1.0" }
-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.1.0" }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.2.0" }
+contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common", version = "0.2.0" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.2.0" }
 
 cosmwasm-std = { version = "1.0.0 "}
 cw-storage-plus = { version = "0.13.4", features = ["iterator"] }

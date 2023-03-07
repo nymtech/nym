@@ -3478,7 +3478,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3490,7 +3490,7 @@ dependencies = [
 
 [[package]]
 name = "nym-crypto"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aes 0.8.2",
  "blake3",
@@ -3581,7 +3581,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3737,7 +3737,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pemstore"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pem",
 ]
@@ -3929,7 +3929,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-types"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "sphinx-packet",
 ]
@@ -4019,7 +4019,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",

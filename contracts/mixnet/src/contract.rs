@@ -115,7 +115,7 @@ pub fn execute(
             crate::families::transactions::try_leave_family(deps, info, family_head)
         }
         ExecuteMsg::KickFamilyMember { member } => {
-            crate::families::transactions::try_head_kick_member(deps, info, &member)
+            crate::families::transactions::try_head_kick_member(deps, info, member)
         }
         ExecuteMsg::CreateFamilyOnBehalf {
             owner_address,
@@ -153,7 +153,7 @@ pub fn execute(
             deps,
             info,
             head_address,
-            &member,
+            member,
         ),
         // state/sys-params-related
         ExecuteMsg::UpdateRewardingValidatorAddress { address } => {

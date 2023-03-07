@@ -10,7 +10,7 @@ use crate::families::signature_helpers::verify_family_join_permit;
 use crate::support::helpers::{ensure_bonded, ensure_sent_by_vesting_contract};
 use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
 use mixnet_contract_common::families::{Family, FamilyHead};
-use mixnet_contract_common::{error::MixnetContractError, IdentityKeyRef};
+use mixnet_contract_common::{error::MixnetContractError, IdentityKey};
 use nym_contracts_common::signing::MessageSignature;
 
 /// Creates a new MixNode family with senders node as head
@@ -178,7 +178,7 @@ fn _try_leave_family(
 pub fn try_head_kick_member(
     deps: DepsMut,
     info: MessageInfo,
-    member: IdentityKeyRef,
+    member: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
     _try_head_kick_member(deps, &info.sender, member)
 }
@@ -187,7 +187,7 @@ pub fn try_head_kick_member_on_behalf(
     deps: DepsMut,
     info: MessageInfo,
     head_address: String,
-    member: IdentityKeyRef,
+    member: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
     ensure_sent_by_vesting_contract(&info, deps.storage)?;
 
@@ -195,43 +195,39 @@ pub fn try_head_kick_member_on_behalf(
     _try_head_kick_member(deps, &head_address, member)
 }
 
-#[allow(unused_variables)]
 fn _try_head_kick_member(
     deps: DepsMut,
     owner: &Addr,
-    member: IdentityKeyRef<'_>,
+    member: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
-    todo!()
-    // Err(MixnetContractError::NotImplemented)
-    // let existing_bond = crate::mixnodes::storage::mixnode_bonds()
-    //     .idx
-    //     .owner
-    //     .item(deps.storage, owner.clone())?
-    //     .ok_or(MixnetContractError::NoAssociatedMixNodeBond {
-    //         owner: owner.clone(),
-    //     })?
-    //     .1;
+    let head_bond = crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, owner)?;
 
-    // ensure_bonded(&existing_bond)?;
+    // make sure we're still in the mixnet
+    ensure_bonded(&head_bond)?;
 
-    // validate_node_identity_signature(
-    //     deps.as_ref(),
-    //     owner,
-    //     &owner_signature,
-    //     existing_bond.identity(),
-    // )?;
+    // make sure we're not trying to kick ourselves...
+    if member == head_bond.identity() {
+        return Err(MixnetContractError::CantLeaveOwnFamily {
+            head: head_bond.identity().to_string(),
+            member,
+        });
+    }
 
-    // let family_head = FamilyHead::new(existing_bond.identity());
-    // let family = get_family(&family_head, deps.storage)?;
-    // if !is_family_member(deps.storage, &family, member)? {
-    //     return Err(MixnetContractError::NotAMember {
-    //         head: family_head.identity().to_string(),
-    //         member: existing_bond.identity().to_string(),
-    //     });
-    // }
+    // get the family details
+    let family_head = FamilyHead::new(head_bond.identity());
+    let family = get_family(&family_head, deps.storage)?;
 
-    // remove_family_member(deps.storage, member);
-    // Ok(Response::default())
+    // make sure the member we're trying to kick is an actual member
+    if !is_family_member(deps.storage, &family, &member)? {
+        return Err(MixnetContractError::NotAMember {
+            head: family_head.identity().to_string(),
+            member,
+        });
+    }
+
+    // finally get rid of the member
+    remove_family_member(deps.storage, &member);
+    Ok(Response::default())
 }
 
 #[cfg(test)]
@@ -360,16 +356,17 @@ mod test {
             is_family_member(test.deps().storage, &family, &member_mixnode.identity_key).unwrap()
         );
 
-        // try_head_kick_member(
-        //     deps.as_mut(),
-        //     mock_info(&head, &[]),
-        //     head_sig.clone(),
-        //     &member_mixnode.identity_key.clone(),
-        // )
-        // .unwrap();
+        try_head_kick_member(
+            test.deps_mut(),
+            mock_info(head, &[]),
+            member_mixnode.identity_key.clone(),
+        )
+        .unwrap();
 
-        // let family = get_family(&family_head, test.deps().storage).unwrap();
-        // assert!(!is_family_member(test.deps().storage, &family, &member_mixnode.identity_key).unwrap());
+        let family = get_family(&family_head, test.deps().storage).unwrap();
+        assert!(
+            !is_family_member(test.deps().storage, &family, &member_mixnode.identity_key).unwrap()
+        );
     }
 
     #[cfg(test)]
@@ -547,7 +544,7 @@ mod test {
                 test.deps_mut(),
                 mock_info(illegal_proxy.as_ref(), &[]),
                 head.to_string(),
-                &member_keys.public_key().to_base58_string(),
+                member_keys.public_key().to_base58_string(),
             )
             .unwrap_err();
 

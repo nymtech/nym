@@ -7,10 +7,8 @@ use clap::Parser;
 use cosmrs::AccountId;
 use log::info;
 use nym_crypto::asymmetric::identity;
+use nym_mixnet_contract_common::construct_family_join_permit;
 use nym_mixnet_contract_common::families::FamilyHead;
-use nym_mixnet_contract_common::{
-    construct_family_creation_sign_payload, construct_family_join_permit,
-};
 use validator_client::nyxd::traits::MixnetQueryClient;
 
 #[derive(Debug, Parser)]

@@ -4,7 +4,6 @@
 use crate::context::SigningClient;
 use clap::Parser;
 use log::info;
-use nym_contracts_common::signing::MessageSignature;
 use validator_client::nyxd::traits::MixnetSigningClient;
 use validator_client::nyxd::VestingSigningClient;
 
@@ -17,10 +16,6 @@ pub struct Args {
     /// Indicates whether the family is going to get created via a vesting account
     #[arg(long)]
     pub with_vesting_account: bool,
-
-    /// Signature proving intention of creating the family with provided arguments.
-    #[arg(long)]
-    pub signature: MessageSignature,
 }
 
 pub async fn create_family(args: Args, client: SigningClient) {
@@ -28,12 +23,12 @@ pub async fn create_family(args: Args, client: SigningClient) {
 
     let res = if args.with_vesting_account {
         client
-            .vesting_create_family(args.signature, args.family_label, None)
+            .vesting_create_family(args.family_label, None)
             .await
             .expect("failed to create family with vesting account")
     } else {
         client
-            .create_family(args.signature, args.family_label, None)
+            .create_family(args.family_label, None)
             .await
             .expect("failed to create family")
     };

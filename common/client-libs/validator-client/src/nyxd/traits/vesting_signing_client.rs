@@ -140,19 +140,11 @@ pub trait VestingSigningClient {
 
     async fn vesting_create_family(
         &self,
-        owner_signature: MessageSignature,
         label: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_vesting_contract(
-            fee,
-            VestingExecuteMsg::CreateFamily {
-                owner_signature,
-                label,
-            },
-            vec![],
-        )
-        .await
+        self.execute_vesting_contract(fee, VestingExecuteMsg::CreateFamily { label }, vec![])
+            .await
     }
 
     async fn vesting_join_family(
@@ -170,6 +162,24 @@ pub trait VestingSigningClient {
             vec![],
         )
         .await
+    }
+
+    async fn vesting_leave_family(
+        &self,
+        family_head: FamilyHead,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(fee, VestingExecuteMsg::LeaveFamily { family_head }, vec![])
+            .await
+    }
+
+    async fn vesting_kick_family_member(
+        &self,
+        member: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(fee, VestingExecuteMsg::KickFamilyMember { member }, vec![])
+            .await
     }
 }
 

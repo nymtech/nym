@@ -257,9 +257,9 @@ mod test {
         let cost_params = fixtures::mix_node_cost_params_fixture();
 
         let (head_mixnode, head_bond_sig, head_keypair) = test.mixnode_with_signature(head, None);
-        let (malicious_mixnode, malicious_bond_sig, malicious_keypair) =
+        let (malicious_mixnode, malicious_bond_sig, _malicious_keypair) =
             test.mixnode_with_signature(malicious_head, None);
-        let (member_mixnode, member_bond_sig, member_keypair) =
+        let (member_mixnode, member_bond_sig, _member_keypair) =
             test.mixnode_with_signature(member, None);
 
         crate::mixnodes::transactions::try_add_mixnode(
@@ -292,25 +292,13 @@ mod test {
         )
         .unwrap();
 
-        let old_style_head_sig = head_keypair.private_key().sign_text(head);
-        let old_style_malicious_head_sig =
-            malicious_keypair.private_key().sign_text(malicious_head);
-        let old_style_member_sig = member_keypair.private_key().sign_text(member);
-
-        try_create_family(
-            test.deps_mut(),
-            mock_info(head, &[]),
-            old_style_head_sig,
-            "test".to_string(),
-        )
-        .unwrap();
+        try_create_family(test.deps_mut(), mock_info(head, &[]), "test".to_string()).unwrap();
         let family_head = FamilyHead::new(&head_mixnode.identity_key);
         assert!(get_family(&family_head, test.deps().storage).is_ok());
 
         let nope = try_create_family(
             test.deps_mut(),
             mock_info(malicious_head, &[]),
-            old_style_malicious_head_sig,
             "test".to_string(),
         );
 
@@ -326,20 +314,19 @@ mod test {
         assert!(family.is_some());
         assert_eq!(family.unwrap().head_identity(), family_head.identity());
 
-        let family = get_family_by_head(family_head.identity(), test.deps().storage).unwrap();
+        let family = get_family_by_head(family_head.identity(), test.deps().storage)
+            .unwrap()
+            .unwrap();
         assert_eq!(family.head_identity(), family_head.identity());
 
-        let join_signature = head_keypair
-            .private_key()
-            .sign(member_mixnode.identity_key.as_bytes())
-            .to_base58_string();
+        let join_permit =
+            test.generate_family_join_permit(&head_keypair, &member_mixnode.identity_key, false);
 
         try_join_family(
             test.deps_mut(),
             mock_info(member, &[]),
-            Some(old_style_member_sig.clone()),
-            join_signature.clone(),
-            head_mixnode.identity_key.clone(),
+            join_permit,
+            family_head.clone(),
         )
         .unwrap();
 
@@ -349,25 +336,21 @@ mod test {
             is_family_member(test.deps().storage, &family, &member_mixnode.identity_key).unwrap()
         );
 
-        try_leave_family(
-            test.deps_mut(),
-            mock_info(member, &[]),
-            old_style_member_sig.clone(),
-            head_mixnode.identity_key.clone(),
-        )
-        .unwrap();
+        try_leave_family(test.deps_mut(), mock_info(member, &[]), family_head.clone()).unwrap();
 
         let family = get_family(&family_head, test.deps().storage).unwrap();
         assert!(
             !is_family_member(test.deps().storage, &family, &member_mixnode.identity_key).unwrap()
         );
 
+        let new_join_permit =
+            test.generate_family_join_permit(&head_keypair, &member_mixnode.identity_key, false);
+
         try_join_family(
             test.deps_mut(),
             mock_info(member, &[]),
-            Some(old_style_member_sig),
-            join_signature,
-            head_mixnode.identity_key,
+            new_join_permit,
+            family_head.clone(),
         )
         .unwrap();
 
@@ -403,14 +386,12 @@ mod test {
 
             let head = "alice";
 
-            let (_, keypair) = test.add_dummy_mixnode_with_proxy_and_keypair(head, None);
-            let sig = keypair.private_key().sign_text(head);
+            test.add_dummy_mixnode(head, None);
 
             let res = try_create_family_on_behalf(
                 test.deps_mut(),
                 mock_info(illegal_proxy.as_ref(), &[]),
                 head.to_string(),
-                sig,
                 "label".to_string(),
             )
             .unwrap_err();
@@ -442,23 +423,22 @@ mod test {
             let new_member = "vin-diesel";
 
             let (_, head_keys) = test.create_dummy_mixnode_with_new_family(head, label);
-            let (_, member_keys) = test.add_dummy_mixnode_with_proxy_and_keypair(new_member, None);
+            let (_, member_keys) = test.add_dummy_mixnode_with_keypair(new_member, None);
 
-            // TODO: those signatures are WRONG and have to be c hanged
-            let join_signature = head_keys
-                .private_key()
-                .sign_text(&member_keys.public_key().to_base58_string());
-
-            let member_sig = member_keys.private_key().sign_text(new_member);
+            let join_permit = test.generate_family_join_permit(
+                &head_keys,
+                &member_keys.public_key().to_base58_string(),
+                false,
+            );
 
             let head_identity = head_keys.public_key().to_base58_string();
+            let family_head = FamilyHead::new(&head_identity);
             let res = try_join_family_on_behalf(
                 test.deps_mut(),
                 mock_info(illegal_proxy.as_ref(), &[]),
                 new_member.to_string(),
-                Some(member_sig),
-                join_signature,
-                head_identity,
+                join_permit,
+                family_head,
             )
             .unwrap_err();
 
@@ -489,33 +469,30 @@ mod test {
             let new_member = "vin-diesel";
 
             let (_, head_keys) = test.create_dummy_mixnode_with_new_family(head, label);
-            let (_, member_keys) = test.add_dummy_mixnode_with_proxy_and_keypair(new_member, None);
+            let (_, member_keys) = test.add_dummy_mixnode_with_keypair(new_member, None);
 
-            // TODO: those signatures are WRONG and have to be changed
-            let join_signature = head_keys
-                .private_key()
-                .sign_text(&member_keys.public_key().to_base58_string());
-
-            let member_sig = member_keys.private_key().sign_text(new_member);
+            let join_permit = test.generate_family_join_permit(
+                &head_keys,
+                &member_keys.public_key().to_base58_string(),
+                true,
+            );
 
             let head_identity = head_keys.public_key().to_base58_string();
+            let family_head = FamilyHead::new(&head_identity);
             try_join_family_on_behalf(
                 test.deps_mut(),
                 mock_info(vesting_contract.as_ref(), &[]),
                 new_member.to_string(),
-                Some(member_sig.clone()),
-                join_signature,
-                head_identity,
+                join_permit,
+                family_head.clone(),
             )
             .unwrap();
 
-            let leave_signature = member_sig;
             let res = try_leave_family_on_behalf(
                 test.deps_mut(),
                 mock_info(illegal_proxy.as_ref(), &[]),
                 new_member.to_string(),
-                leave_signature,
-                head_keys.public_key().to_base58_string(),
+                family_head.clone(),
             )
             .unwrap_err();
 
@@ -546,32 +523,30 @@ mod test {
             let new_member = "vin-diesel";
 
             let (_, head_keys) = test.create_dummy_mixnode_with_new_family(head, label);
-            let (_, member_keys) = test.add_dummy_mixnode_with_proxy_and_keypair(new_member, None);
+            let (_, member_keys) = test.add_dummy_mixnode_with_keypair(new_member, None);
 
-            // TODO: those signatures are WRONG and have to be c hanged
-            let join_signature = head_keys
-                .private_key()
-                .sign_text(&member_keys.public_key().to_base58_string());
-
-            let member_sig = member_keys.private_key().sign_text(new_member);
+            let join_permit = test.generate_family_join_permit(
+                &head_keys,
+                &member_keys.public_key().to_base58_string(),
+                true,
+            );
 
             let head_identity = head_keys.public_key().to_base58_string();
+            let family_head = FamilyHead::new(&head_identity);
+
             try_join_family_on_behalf(
                 test.deps_mut(),
                 mock_info(vesting_contract.as_ref(), &[]),
                 new_member.to_string(),
-                Some(member_sig),
-                join_signature,
-                head_identity,
+                join_permit,
+                family_head,
             )
             .unwrap();
 
-            // TODO: a completely wrong signature is being used
             let res = try_head_kick_member_on_behalf(
                 test.deps_mut(),
                 mock_info(illegal_proxy.as_ref(), &[]),
                 head.to_string(),
-                head_keys.private_key().sign_text(head),
                 &member_keys.public_key().to_base58_string(),
             )
             .unwrap_err();

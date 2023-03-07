@@ -54,6 +54,7 @@ pub mod test_helpers {
     use mixnet_contract_common::events::{
         may_find_attribute, MixnetEventType, DELEGATES_REWARD_KEY, OPERATOR_REWARD_KEY,
     };
+    use mixnet_contract_common::families::FamilyHead;
     use mixnet_contract_common::mixnode::{MixNodeRewarding, UnbondedMixnode};
     use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
     use mixnet_contract_common::reward_params::{Performance, RewardingParams};
@@ -61,10 +62,10 @@ pub mod test_helpers {
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
-        Delegation, EpochState, EpochStatus, Gateway, GatewayBondingPayload, IdentityKey,
-        InitialRewardingParams, InstantiateMsg, Interval, MixId, MixNode, MixNodeBond,
-        MixnodeBondingPayload, Percent, RewardedSetNodeStatus, SignableGatewayBondingMsg,
-        SignableMixNodeBondingMsg,
+        construct_family_join_permit, Delegation, EpochState, EpochStatus, Gateway,
+        GatewayBondingPayload, IdentityKey, IdentityKeyRef, InitialRewardingParams, InstantiateMsg,
+        Interval, MixId, MixNode, MixNodeBond, MixnodeBondingPayload, Percent,
+        RewardedSetNodeStatus, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
     };
     use nym_contracts_common::signing::{
         ContractMessageContent, MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose,
@@ -169,26 +170,64 @@ pub mod test_helpers {
                 .collect::<Vec<_>>()
         }
 
+        pub fn generate_family_join_permit(
+            &mut self,
+            family_owner_keys: &identity::KeyPair,
+            member_node: IdentityKeyRef,
+            vesting: bool,
+        ) -> MessageSignature {
+            let identity = family_owner_keys.public_key().to_base58_string();
+
+            let head_mixnode = mixnodes_storage::mixnode_bonds()
+                .idx
+                .identity_key
+                .item(self.deps().storage, identity.clone())
+                .unwrap()
+                .map(|record| record.1)
+                .unwrap();
+
+            let family_head = FamilyHead::new(&identity);
+            let owner = head_mixnode.owner;
+
+            let nonce =
+                signing_storage::get_signing_nonce(self.deps().storage, owner.clone()).unwrap();
+
+            let proxy = if vesting {
+                Some(self.vesting_contract())
+            } else {
+                None
+            };
+
+            let msg =
+                construct_family_join_permit(nonce, family_head, proxy, member_node.to_owned());
+
+            let sig_bytes = family_owner_keys
+                .private_key()
+                .sign(&msg.to_plaintext().unwrap())
+                .to_bytes();
+            MessageSignature::from(sig_bytes.as_ref())
+        }
+
         #[allow(unused)]
         pub fn join_family(
             &mut self,
             member: &str,
             member_keys: &identity::KeyPair,
             head_keys: &identity::KeyPair,
+            vesting: bool,
         ) {
-            let identity_signature = member_keys.private_key().sign_text(member);
-            let join_signature = head_keys
-                .private_key()
-                .sign(&member_keys.public_key().to_bytes())
-                .to_base58_string();
+            let member_identity = member_keys.public_key().to_base58_string();
             let head_identity = head_keys.public_key().to_base58_string();
+
+            let join_permit =
+                self.generate_family_join_permit(head_keys, &member_identity, vesting);
+            let family_head = FamilyHead::new(&head_identity);
 
             try_join_family(
                 self.deps_mut(),
                 mock_info(member, &[]),
-                Some(identity_signature),
-                join_signature,
-                head_identity,
+                join_permit,
+                family_head,
             )
             .unwrap();
         }
@@ -199,9 +238,8 @@ pub mod test_helpers {
             label: &str,
         ) -> (MixId, identity::KeyPair) {
             let (mix_id, keys) = self.add_dummy_mixnode_with_proxy_and_keypair(head, None);
-            let sig = keys.private_key().sign_text(head);
 
-            try_create_family(self.deps_mut(), mock_info(head, &[]), sig, label).unwrap();
+            try_create_family(self.deps_mut(), mock_info(head, &[]), label.to_string()).unwrap();
             (mix_id, keys)
         }
 
@@ -288,6 +326,53 @@ pub mod test_helpers {
             let stake = self.make_mix_pledge(stake);
             let msg = mixnode_bonding_sign_payload(self.deps(), owner, None, mixnode, stake);
             ed25519_sign_message(msg, key)
+        }
+
+        pub fn add_dummy_mixnode_with_keypair(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> (MixId, identity::KeyPair) {
+            let stake = self.make_mix_pledge(stake);
+
+            let keypair = identity::KeyPair::new(&mut self.rng);
+            let identity_key = keypair.public_key().to_base58_string();
+            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+
+            let mixnode = MixNode {
+                identity_key,
+                sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
+                ..tests::fixtures::mix_node_fixture()
+            };
+
+            let msg = mixnode_bonding_sign_payload(
+                self.deps(),
+                owner,
+                None,
+                mixnode.clone(),
+                stake.clone(),
+            );
+            let owner_signature = ed25519_sign_message(msg, keypair.private_key());
+
+            let info = mock_info(owner, &stake);
+            let current_id_counter = mixnodes_storage::MIXNODE_ID_COUNTER
+                .may_load(self.deps().storage)
+                .unwrap()
+                .unwrap_or_default();
+
+            let env = self.env();
+            try_add_mixnode(
+                self.deps_mut(),
+                env,
+                info,
+                mixnode,
+                tests::fixtures::mix_node_cost_params_fixture(),
+                owner_signature,
+            )
+            .unwrap();
+
+            // newly added mixnode gets assigned the current counter + 1
+            (current_id_counter + 1, keypair)
         }
 
         pub fn add_dummy_mixnode_with_proxy_and_keypair(

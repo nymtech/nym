@@ -14,8 +14,7 @@ pub trait NodeFamilies {
     fn try_join_family(
         &self,
         storage: &dyn Storage,
-        node_identity_signature: String,
-        family_signature: String,
+        join_permit: MessageSignature,
         family_head: IdentityKeyRef,
     ) -> Result<Response, ContractError>;
 

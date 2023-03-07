@@ -65,8 +65,7 @@ pub enum ExecuteMsg {
     },
     /// Family head needs to sign the joining node IdentityKey, the Node provides its signature signaling consent to join the family
     JoinFamily {
-        node_identity_signature: String,
-        family_signature: String,
+        join_permit: MessageSignature,
         family_head: IdentityKey,
     },
     LeaveFamily {

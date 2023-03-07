@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
+use nym_mixnet_contract_common::{Gateway, IdentityKey, MixId, MixNode};
 use nym_vesting_contract_common::messages::{
     ExecuteMsg as VestingExecuteMsg, VestingSpecification,
 };
@@ -148,6 +148,23 @@ pub trait VestingSigningClient {
             VestingExecuteMsg::CreateFamily {
                 owner_signature,
                 label,
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn vesting_join_family(
+        &self,
+        join_permit: MessageSignature,
+        family_head: IdentityKey,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::JoinFamily {
+                join_permit,
+                family_head,
             },
             vec![],
         )

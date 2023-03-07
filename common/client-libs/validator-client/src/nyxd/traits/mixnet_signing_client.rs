@@ -13,7 +13,8 @@ use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use nym_mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
 use nym_mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, LayerAssignment, MixId, MixNode,
+    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, IdentityKey, LayerAssignment,
+    MixId, MixNode,
 };
 
 #[async_trait]
@@ -182,14 +183,14 @@ pub trait MixnetSigningClient {
 
     async fn join_family(
         &self,
-        signature: String,
-        family_head: String,
+        join_permit: MessageSignature,
+        family_head: IdentityKey,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::JoinFamily {
-                signature,
+                join_permit,
                 family_head,
             },
             vec![],
@@ -200,8 +201,7 @@ pub trait MixnetSigningClient {
     async fn join_family_on_behalf(
         &self,
         member_address: String,
-        node_identity_signature: String,
-        family_signature: String,
+        join_permit: MessageSignature,
         family_head: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -209,8 +209,7 @@ pub trait MixnetSigningClient {
             fee,
             MixnetExecuteMsg::JoinFamilyOnBehalf {
                 member_address,
-                node_identity_signature,
-                family_signature,
+                join_permit,
                 family_head,
             },
             vec![],

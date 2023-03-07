@@ -25,14 +25,12 @@ impl NodeFamilies for Account {
     fn try_join_family(
         &self,
         storage: &dyn Storage,
-        node_identity_signature: String,
-        family_signature: String,
+        join_permit: MessageSignature,
         family_head: IdentityKeyRef,
     ) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::JoinFamilyOnBehalf {
             member_address: self.owner_address().to_string(),
-            node_identity_signature,
-            family_signature,
+            join_permit,
             family_head: family_head.to_string(),
         };
 

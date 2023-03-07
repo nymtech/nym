@@ -109,12 +109,9 @@ pub fn execute(
             label,
         } => crate::families::transactions::try_create_family(deps, info, owner_signature, label),
         ExecuteMsg::JoinFamily {
-            signature,
+            join_permit,
             family_head,
-        } => {
-            todo!()
-            // crate::families::transactions::try_join_family(deps, info, None, signature, family_head)
-        }
+        } => crate::families::transactions::try_join_family(deps, info, join_permit, family_head),
         ExecuteMsg::LeaveFamily {
             signature,
             family_head,
@@ -135,20 +132,15 @@ pub fn execute(
         ),
         ExecuteMsg::JoinFamilyOnBehalf {
             member_address,
-            node_identity_signature,
-            family_signature,
+            join_permit,
             family_head,
-        } => {
-            todo!()
-            // crate::families::transactions::try_join_family_on_behalf(
-            //     deps,
-            //     info,
-            //     member_address,
-            //     Some(node_identity_signature),
-            //     family_signature,
-            //     family_head,
-            // )
-        }
+        } => crate::families::transactions::try_join_family_on_behalf(
+            deps,
+            info,
+            member_address,
+            join_permit,
+            family_head,
+        ),
         ExecuteMsg::LeaveFamilyOnBehalf {
             member_address,
             node_identity_signature,

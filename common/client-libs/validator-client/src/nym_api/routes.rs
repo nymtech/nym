@@ -8,6 +8,7 @@ pub const MIXNODES: &str = "mixnodes";
 pub const GATEWAYS: &str = "gateways";
 
 pub const DETAILED: &str = "detailed";
+pub const DETAILED_UNFILTERED: &str = "detailed-unfiltered";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
 pub const COCONUT_ROUTES: &str = "coconut";

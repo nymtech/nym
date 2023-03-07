@@ -8,7 +8,6 @@ pub trait NodeFamilies {
     fn try_create_family(
         &self,
         storage: &dyn Storage,
-        owner_signature: MessageSignature,
         label: String,
     ) -> Result<Response, ContractError>;
 
@@ -22,14 +21,12 @@ pub trait NodeFamilies {
     fn try_leave_family(
         &self,
         storage: &dyn Storage,
-        signature: String,
         family_head: FamilyHead,
     ) -> Result<Response, ContractError>;
 
     fn try_head_kick_member(
         &self,
         storage: &dyn Storage,
-        signature: String,
         member: IdentityKeyRef<'_>,
     ) -> Result<Response, ContractError>;
 }

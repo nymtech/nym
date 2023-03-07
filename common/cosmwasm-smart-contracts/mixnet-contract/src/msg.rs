@@ -83,7 +83,6 @@ pub enum ExecuteMsg {
     // Families
     /// Only owner of the node can crate the family with node as head
     CreateFamily {
-        owner_signature: MessageSignature,
         label: String,
     },
     /// Family head needs to sign the joining node IdentityKey
@@ -92,16 +91,13 @@ pub enum ExecuteMsg {
         family_head: FamilyHead,
     },
     LeaveFamily {
-        signature: String,
         family_head: FamilyHead,
     },
     KickFamilyMember {
-        signature: String,
         member: IdentityKey,
     },
     CreateFamilyOnBehalf {
         owner_address: String,
-        owner_signature: MessageSignature,
         label: String,
     },
     /// Family head needs to sign the joining node IdentityKey, MixNode needs to provide its signature proving that it wants to join the family
@@ -112,12 +108,10 @@ pub enum ExecuteMsg {
     },
     LeaveFamilyOnBehalf {
         member_address: String,
-        node_identity_signature: String,
         family_head: FamilyHead,
     },
     KickFamilyMemberOnBehalf {
         head_address: String,
-        signature: String,
         member: IdentityKey,
     },
 

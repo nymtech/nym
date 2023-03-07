@@ -20,35 +20,26 @@ use super::storage::{
 pub fn try_create_family(
     deps: DepsMut,
     info: MessageInfo,
-    owner_signature: MessageSignature,
     label: String,
 ) -> Result<Response, MixnetContractError> {
-    _try_create_family(deps, &info.sender, owner_signature, label, None)
+    _try_create_family(deps, &info.sender, label, None)
 }
 
 pub fn try_create_family_on_behalf(
     deps: DepsMut,
     info: MessageInfo,
     owner_address: String,
-    owner_signature: MessageSignature,
     label: String,
 ) -> Result<Response, MixnetContractError> {
     ensure_sent_by_vesting_contract(&info, deps.storage)?;
 
     let owner_address = deps.api.addr_validate(&owner_address)?;
-    _try_create_family(
-        deps,
-        &owner_address,
-        owner_signature,
-        label,
-        Some(info.sender),
-    )
+    _try_create_family(deps, &owner_address, label, Some(info.sender))
 }
 
 fn _try_create_family(
     deps: DepsMut,
     owner: &Addr,
-    owner_signature: MessageSignature,
     label: String,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
@@ -57,33 +48,33 @@ fn _try_create_family(
 
     ensure_bonded(&existing_bond)?;
 
-    verify_family_creation_signature(
-        deps.as_ref(),
-        owner.clone(),
-        proxy.clone(),
-        label.clone(),
-        existing_bond.identity(),
-        owner_signature,
-    )?;
-
-    let family_head = FamilyHead::new(existing_bond.identity());
-
-    if let Ok(_family) = get_family(&family_head, deps.storage) {
-        return Err(MixnetContractError::FamilyCanHaveOnlyOne);
-    }
-
-    let family = Family::new(family_head, proxy, label);
-    create_family(&family, deps.storage)?;
-    Ok(Response::default())
+    todo!()
+    // verify_family_creation_signature(
+    //     deps.as_ref(),
+    //     owner.clone(),
+    //     proxy.clone(),
+    //     label.clone(),
+    //     existing_bond.identity(),
+    //     owner_signature,
+    // )?;
+    //
+    // let family_head = FamilyHead::new(existing_bond.identity());
+    //
+    // if let Ok(_family) = get_family(&family_head, deps.storage) {
+    //     return Err(MixnetContractError::FamilyCanHaveOnlyOne);
+    // }
+    //
+    // let family = Family::new(family_head, proxy, label);
+    // create_family(&family, deps.storage)?;
+    // Ok(Response::default())
 }
 
 pub fn try_join_family(
     deps: DepsMut,
     info: MessageInfo,
     join_permit: MessageSignature,
-    family_head: IdentityKey,
+    family_head: FamilyHead,
 ) -> Result<Response, MixnetContractError> {
-    let family_head = FamilyHead::new(&family_head);
     _try_join_family(deps, &info.sender, join_permit, family_head, None)
 }
 
@@ -92,12 +83,11 @@ pub fn try_join_family_on_behalf(
     info: MessageInfo,
     member_address: String,
     join_permit: MessageSignature,
-    family_head: IdentityKey,
+    family_head: FamilyHead,
 ) -> Result<Response, MixnetContractError> {
     ensure_sent_by_vesting_contract(&info, deps.storage)?;
 
     let member_address = deps.api.addr_validate(&member_address)?;
-    let family_head = FamilyHead::new(&family_head);
     let proxy = Some(info.sender);
     _try_join_family(deps, &member_address, join_permit, family_head, proxy)
 }
@@ -145,31 +135,26 @@ fn _try_join_family(
 pub fn try_leave_family(
     deps: DepsMut,
     info: MessageInfo,
-    signature: String,
-    family_head: IdentityKey,
+    family_head: FamilyHead,
 ) -> Result<Response, MixnetContractError> {
-    let family_head = FamilyHead::new(&family_head);
-    _try_leave_family(deps, &info.sender, signature, family_head)
+    _try_leave_family(deps, &info.sender, family_head)
 }
 
 pub fn try_leave_family_on_behalf(
     deps: DepsMut,
     info: MessageInfo,
     member_address: String,
-    node_family_signature: String,
-    family_head: IdentityKey,
+    family_head: FamilyHead,
 ) -> Result<Response, MixnetContractError> {
     ensure_sent_by_vesting_contract(&info, deps.storage)?;
 
-    let family_head = FamilyHead::new(&family_head);
     let member_address = deps.api.addr_validate(&member_address)?;
-    _try_leave_family(deps, &member_address, node_family_signature, family_head)
+    _try_leave_family(deps, &member_address, family_head)
 }
 
 fn _try_leave_family(
     deps: DepsMut,
     owner: &Addr,
-    node_family_signature: String,
     family_head: FamilyHead,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond =
@@ -192,48 +177,48 @@ fn _try_leave_family(
         });
     }
 
-    validate_node_identity_signature(
-        deps.as_ref(),
-        owner,
-        &node_family_signature,
-        existing_bond.identity(),
-    )?;
-
-    remove_family_member(deps.storage, existing_bond.identity());
-
-    Ok(Response::default())
+    todo!()
+    //
+    // validate_node_identity_signature(
+    //     deps.as_ref(),
+    //     owner,
+    //     &node_family_signature,
+    //     existing_bond.identity(),
+    // )?;
+    //
+    // remove_family_member(deps.storage, existing_bond.identity());
+    //
+    // Ok(Response::default())
 }
 
 pub fn try_head_kick_member(
     deps: DepsMut,
     info: MessageInfo,
-    owner_signature: String,
     member: IdentityKeyRef,
 ) -> Result<Response, MixnetContractError> {
-    _try_head_kick_member(deps, &info.sender, owner_signature, member)
+    _try_head_kick_member(deps, &info.sender, member)
 }
 
 pub fn try_head_kick_member_on_behalf(
     deps: DepsMut,
     info: MessageInfo,
     head_address: String,
-    owner_signature: String,
     member: IdentityKeyRef,
 ) -> Result<Response, MixnetContractError> {
     ensure_sent_by_vesting_contract(&info, deps.storage)?;
 
     let head_address = deps.api.addr_validate(&head_address)?;
-    _try_head_kick_member(deps, &head_address, owner_signature, member)
+    _try_head_kick_member(deps, &head_address, member)
 }
 
 #[allow(unused_variables)]
 fn _try_head_kick_member(
     deps: DepsMut,
     owner: &Addr,
-    owner_signature: String,
     member: IdentityKeyRef<'_>,
 ) -> Result<Response, MixnetContractError> {
-    Err(MixnetContractError::NotImplemented)
+    todo!()
+    // Err(MixnetContractError::NotImplemented)
     // let existing_bond = crate::mixnodes::storage::mixnode_bonds()
     //     .idx
     //     .owner

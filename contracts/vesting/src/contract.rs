@@ -112,21 +112,13 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::CreateFamily {
-            owner_signature,
-            label,
-        } => try_create_family(info, deps, owner_signature, label),
+        ExecuteMsg::CreateFamily { label } => try_create_family(info, deps, label),
         ExecuteMsg::JoinFamily {
             join_permit,
             family_head,
         } => try_join_family(info, deps, join_permit, family_head),
-        ExecuteMsg::LeaveFamily {
-            node_identity_signature,
-            family_head,
-        } => try_leave_family(info, deps, node_identity_signature, family_head),
-        ExecuteMsg::KickFamilyMember { signature, member } => {
-            try_kick_family_member(info, deps, signature, member)
-        }
+        ExecuteMsg::LeaveFamily { family_head } => try_leave_family(info, deps, family_head),
+        ExecuteMsg::KickFamilyMember { member } => try_kick_family_member(info, deps, member),
         ExecuteMsg::UpdateLockedPledgeCap { address, cap } => {
             try_update_locked_pledge_cap(address, cap, info, deps)
         }
@@ -220,11 +212,10 @@ pub fn execute(
 pub fn try_create_family(
     info: MessageInfo,
     deps: DepsMut,
-    owner_signature: MessageSignature,
     label: String,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_create_family(deps.storage, owner_signature, label)
+    account.try_create_family(deps.storage, label)
 }
 pub fn try_join_family(
     info: MessageInfo,
@@ -238,20 +229,18 @@ pub fn try_join_family(
 pub fn try_leave_family(
     info: MessageInfo,
     deps: DepsMut,
-    node_identity_signature: String,
     family_head: FamilyHead,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_leave_family(deps.storage, node_identity_signature, family_head)
+    account.try_leave_family(deps.storage, family_head)
 }
 pub fn try_kick_family_member(
     info: MessageInfo,
     deps: DepsMut,
-    signature: String,
     member: String,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_head_kick_member(deps.storage, signature, &member)
+    account.try_head_kick_member(deps.storage, &member)
 }
 
 /// Update locked_pledge_cap, the hard cap for staking/bonding with unvested tokens.

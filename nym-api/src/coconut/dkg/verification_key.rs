@@ -294,7 +294,7 @@ pub(crate) mod tests {
     use validator_client::nyxd::AccountId;
 
     struct MockContractDb {
-        dealer_details_db: Arc<RwLock<HashMap<String, DealerDetails>>>,
+        dealer_details_db: Arc<RwLock<HashMap<String, (DealerDetails, bool)>>>,
         dealings_db: Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
         proposal_db: Arc<RwLock<HashMap<u64, ProposalResponse>>>,
         verification_share_db: Arc<RwLock<HashMap<String, ContractVKShare>>>,
@@ -315,10 +315,11 @@ pub(crate) mod tests {
         }
     }
 
-    const TEST_VALIDATORS_ADDRESS: [&str; 3] = [
+    const TEST_VALIDATORS_ADDRESS: [&str; 4] = [
         "n1aq9kakfgwqcufr23lsv644apavcntrsqsk4yus",
         "n1s9l3xr4g0rglvk4yctktmck3h4eq0gp6z2e20v",
         "n19kl4py32vsk297dm93ezem992cdyzdy4zuc2x6",
+        "n1jfrs6cmw9t7dv0x8cgny6geunzjh56n2s89fkv",
     ];
 
     async fn prepare_clients_and_states(db: &MockContractDb) -> Vec<(DkgClient, State)> {
@@ -418,7 +419,7 @@ pub(crate) mod tests {
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
             for mapping in filtered.iter() {
-                assert_eq!(mapping.len(), 3);
+                assert_eq!(mapping.len(), 4);
             }
         }
     }
@@ -542,7 +543,7 @@ pub(crate) mod tests {
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
             for mapping in filtered.iter() {
-                assert_eq!(mapping.len(), 2);
+                assert_eq!(mapping.len(), 3);
             }
             let corrupted_status = state
                 .all_dealers()
@@ -803,6 +804,9 @@ pub(crate) mod tests {
     async fn reshare_preserves_keys() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
+        for (_, state) in clients_and_states.iter_mut() {
+            state.set_was_in_progress();
+        }
         let params = Parameters::new(4).unwrap();
 
         let mut vks = vec![];
@@ -839,23 +843,21 @@ pub(crate) mod tests {
             KeyPair::new(),
         );
 
-        let removed_dealer = clients_and_states.first().unwrap().0.get_address().await;
-        db.dealer_details_db
-            .write()
-            .unwrap()
-            .remove(removed_dealer.as_ref());
+        for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
+            *active = false;
+        }
+
         *db.dealings_db.write().unwrap() = Default::default();
         *db.verification_share_db.write().unwrap() = Default::default();
         *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
             initial_dealers: vec![
                 Addr::unchecked(clients_and_states[1].0.get_address().await.as_ref()),
                 Addr::unchecked(clients_and_states[2].0.get_address().await.as_ref()),
+                Addr::unchecked(clients_and_states[3].0.get_address().await.as_ref()),
             ],
             initial_height: 1,
         });
         *clients_and_states.first_mut().unwrap() = (new_dkg_client, state);
-        clients_and_states[1].1.set_was_in_progress();
-        clients_and_states[2].1.set_was_in_progress();
 
         for (dkg_client, state) in clients_and_states.iter_mut() {
             public_key_submission(dkg_client, state, true)
@@ -880,6 +882,192 @@ pub(crate) mod tests {
             std::fs::remove_file(private_key_path).unwrap();
             std::fs::remove_file(public_key_path).unwrap();
         }
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            verification_key_validation(dkg_client, state, true)
+                .await
+                .unwrap();
+        }
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            verification_key_finalization(dkg_client, state, true)
+                .await
+                .unwrap();
+        }
+        assert!(db
+            .proposal_db
+            .read()
+            .unwrap()
+            .values()
+            .all(|proposal| { proposal.status == Status::Executed }));
+
+        let mut vks = vec![];
+        let mut indices = vec![];
+        for (_, state) in clients_and_states.iter() {
+            let vk = state
+                .coconut_secret_key()
+                .await
+                .unwrap()
+                .verification_key(&params);
+            let index = state.node_index().unwrap();
+            vks.push(vk);
+            indices.push(index);
+        }
+        let reshared_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
+        assert_eq!(initial_master_vk, reshared_master_vk);
+    }
+
+    #[tokio::test]
+    #[ignore] // expensive test
+    async fn reshare_after_reset() {
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
+        for (_, state) in clients_and_states.iter_mut() {
+            state.set_was_in_progress();
+        }
+
+        let new_dkg_client = DkgClient::new(
+            DummyClient::new(
+                AccountId::from_str("n1sqkxzh7nl6kgndr4ew9795t2nkwmd8tpql67q7").unwrap(),
+            )
+            .with_dealer_details(&db.dealer_details_db)
+            .with_dealings(&db.dealings_db)
+            .with_proposal_db(&db.proposal_db)
+            .with_verification_share(&db.verification_share_db)
+            .with_threshold(&db.threshold_db)
+            .with_initial_dealers_db(&db.initial_dealers_db),
+        );
+        let keypair = DkgKeyPair::new(&setup(), OsRng);
+        let state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
+            Url::parse("localhost:8000").unwrap(),
+            keypair,
+            KeyPair::new(),
+        );
+
+        for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
+            *active = false;
+        }
+
+        *db.dealings_db.write().unwrap() = Default::default();
+        *db.verification_share_db.write().unwrap() = Default::default();
+        let (initial_client, initial_state) = clients_and_states.pop().unwrap();
+        clients_and_states.push((new_dkg_client, state));
+
+        // DKG in reset mode
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            public_key_submission(dkg_client, state, false)
+                .await
+                .unwrap();
+        }
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            dealing_exchange(dkg_client, state, OsRng, false)
+                .await
+                .unwrap();
+        }
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            let random_file: usize = OsRng.gen();
+            let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
+            let public_key_path = temp_dir().join(format!("public{}.pem", random_file));
+            let keypair_path = KeyPairPath::new(private_key_path.clone(), public_key_path.clone());
+            verification_key_submission(dkg_client, state, &keypair_path, false)
+                .await
+                .unwrap();
+            std::fs::remove_file(private_key_path).unwrap();
+            std::fs::remove_file(public_key_path).unwrap();
+        }
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            verification_key_validation(dkg_client, state, false)
+                .await
+                .unwrap();
+        }
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            verification_key_finalization(dkg_client, state, false)
+                .await
+                .unwrap();
+        }
+        assert!(db
+            .proposal_db
+            .read()
+            .unwrap()
+            .values()
+            .all(|proposal| { proposal.status == Status::Executed }));
+        for (_, state) in clients_and_states.iter_mut() {
+            state.set_was_in_progress();
+        }
+
+        // DKG in reshare mode
+        let params = Parameters::new(4).unwrap();
+
+        let mut vks = vec![];
+        let mut indices = vec![];
+        for (_, state) in clients_and_states.iter() {
+            let vk = state
+                .coconut_secret_key()
+                .await
+                .unwrap()
+                .verification_key(&params);
+            let index = state.node_index().unwrap();
+            vks.push(vk);
+            indices.push(index);
+        }
+        let initial_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
+
+        for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
+            *active = false;
+        }
+        *db.dealings_db.write().unwrap() = Default::default();
+        *db.verification_share_db.write().unwrap() = Default::default();
+        *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
+            initial_dealers: vec![
+                Addr::unchecked(clients_and_states[0].0.get_address().await.as_ref()),
+                Addr::unchecked(clients_and_states[1].0.get_address().await.as_ref()),
+                Addr::unchecked(clients_and_states[2].0.get_address().await.as_ref()),
+            ],
+            initial_height: 1,
+        });
+        *clients_and_states.last_mut().unwrap() = (initial_client, initial_state);
+
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            public_key_submission(dkg_client, state, true)
+                .await
+                .unwrap();
+        }
+
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            dealing_exchange(dkg_client, state, OsRng, true)
+                .await
+                .unwrap();
+        }
+
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            let random_file: usize = OsRng.gen();
+            let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
+            let public_key_path = temp_dir().join(format!("public{}.pem", random_file));
+            let keypair_path = KeyPairPath::new(private_key_path.clone(), public_key_path.clone());
+            verification_key_submission(dkg_client, state, &keypair_path, true)
+                .await
+                .unwrap();
+            std::fs::remove_file(private_key_path).unwrap();
+            std::fs::remove_file(public_key_path).unwrap();
+        }
+
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            verification_key_validation(dkg_client, state, true)
+                .await
+                .unwrap();
+        }
+        for (dkg_client, state) in clients_and_states.iter_mut() {
+            verification_key_finalization(dkg_client, state, false)
+                .await
+                .unwrap();
+        }
+        assert!(db
+            .proposal_db
+            .read()
+            .unwrap()
+            .values()
+            .all(|proposal| { proposal.status == Status::Executed }));
+
         let mut vks = vec![];
         let mut indices = vec![];
         for (_, state) in clients_and_states.iter() {

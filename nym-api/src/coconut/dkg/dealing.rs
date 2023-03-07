@@ -109,7 +109,7 @@ pub(crate) mod tests {
 
     fn insert_dealers(
         params: &Params,
-        dealer_details_db: &Arc<RwLock<HashMap<String, DealerDetails>>>,
+        dealer_details_db: &Arc<RwLock<HashMap<String, (DealerDetails, bool)>>>,
     ) -> Vec<DkgKeyPair> {
         let mut keypairs = vec![];
         for (idx, addr) in TEST_VALIDATORS_ADDRESS.iter().enumerate() {
@@ -119,12 +119,15 @@ pub(crate) mod tests {
             keypairs.push(keypair);
             dealer_details_db.write().unwrap().insert(
                 addr.to_string(),
-                DealerDetails {
-                    address: Addr::unchecked(*addr),
-                    bte_public_key_with_proof,
-                    announce_address: format!("localhost:80{}", idx),
-                    assigned_index: (idx + 1) as u64,
-                },
+                (
+                    DealerDetails {
+                        address: Addr::unchecked(*addr),
+                        bte_public_key_with_proof,
+                        announce_address: format!("localhost:80{}", idx),
+                        assigned_index: (idx + 1) as u64,
+                    },
+                    true,
+                ),
             );
         }
         keypairs
@@ -216,7 +219,7 @@ pub(crate) mod tests {
             .unwrap()
             .entry(TEST_VALIDATORS_ADDRESS[1].to_string())
             .and_modify(|details| {
-                let mut bytes = bs58::decode(details.bte_public_key_with_proof.clone())
+                let mut bytes = bs58::decode(details.0.bte_public_key_with_proof.clone())
                     .into_vec()
                     .unwrap();
                 // Find another value for last byte that still deserializes to a public key with proof
@@ -231,7 +234,7 @@ pub(crate) mod tests {
                         break;
                     }
                 }
-                details.bte_public_key_with_proof = bs58::encode(&bytes).into_string();
+                details.0.bte_public_key_with_proof = bs58::encode(&bytes).into_string();
             });
 
         dealing_exchange(&dkg_client, &mut state, OsRng, false)

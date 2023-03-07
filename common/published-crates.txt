@@ -1,0 +1,8 @@
+# List of published common crates
+nym-bin-common
+nym-contracts-common
+nym-crypto
+nym-mixnet-contract-common
+nym-pemstore
+nym-sphinx-types
+nym-vesting-contract-common

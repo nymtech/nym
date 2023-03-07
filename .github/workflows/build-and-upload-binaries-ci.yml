@@ -69,7 +69,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release
+          args: --workspace --release --all
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -78,6 +78,9 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy
+
+      - name: Install wasm-opt
+        run: cargo install wasm-opt
 
       - name: Build release contracts
         run: make wasm
@@ -95,7 +98,8 @@ jobs:
           cp target/release/nym-network-requester $OUTPUT_DIR
           cp target/release/nym-network-statistics $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
-
+          cp target/release/credential $OUTPUT_DIR
+          
           cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm $OUTPUT_DIR
 

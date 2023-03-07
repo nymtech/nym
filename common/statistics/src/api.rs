@@ -5,7 +5,7 @@ use crate::error::StatsError;
 use crate::StatsMessage;
 
 pub const DEFAULT_STATISTICS_SERVICE_ADDRESS: &str = "127.0.0.1";
-pub const DEFAULT_STATISTICS_SERVICE_PORT: u16 = 8090;
+pub const DEFAULT_STATISTICS_SERVICE_PORT: u16 = 8091;
 
 pub const STATISTICS_SERVICE_VERSION: &str = "/v1";
 pub const STATISTICS_SERVICE_API_STATISTICS: &str = "statistic";

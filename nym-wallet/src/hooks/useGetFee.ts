@@ -1,6 +1,7 @@
-import { FeeDetails } from '@nymproject/types';
+import { DecCoin, FeeDetails } from '@nymproject/types';
 import { useState } from 'react';
 import { Console } from 'src/utils/console';
+import { getCustomFees } from '../requests';
 
 export function useGetFee() {
   const [fee, setFee] = useState<FeeDetails>();
@@ -19,6 +20,18 @@ export function useGetFee() {
     setIsFeeLoading(false);
   }
 
+  async function setFeeManually(amount: DecCoin) {
+    try {
+      setIsFeeLoading(true);
+      const fees = await getCustomFees({ feesAmount: amount });
+      setFee(fees);
+    } catch (e) {
+      Console.error(e);
+      setFeeError(e as string);
+    }
+    setIsFeeLoading(false);
+  }
+
   const resetFeeState = () => {
     setFee(undefined);
     setIsFeeLoading(false);
@@ -30,6 +43,7 @@ export function useGetFee() {
     isFeeLoading,
     feeError,
     getFee,
+    setFeeManually,
     resetFeeState,
   };
 }

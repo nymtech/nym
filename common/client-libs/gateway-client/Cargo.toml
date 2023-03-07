@@ -14,7 +14,7 @@ log = { workspace = true }
 thiserror = "1.0"
 url = "2.2"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-async-trait = { version = "0.1.51" }
+async-trait = { workspace = true }
 tokio = { version = "1.24.1", features = ["macros"] }
 
 # internal

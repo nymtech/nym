@@ -14,11 +14,15 @@ export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
     currencyToString((economicDynamicsStats?.data?.estimated_total_node_reward || '').toString()) || '-';
   const estimatedOperatorRewards =
     currencyToString((economicDynamicsStats?.data?.estimated_operator_reward || '').toString()) || '-';
-  const stakeSaturation = economicDynamicsStats?.data?.uncapped_saturation || '-';
   const profitMargin = mixNode?.data?.profit_margin_percent
     ? toPercentIntegerString(mixNode?.data?.profit_margin_percent)
     : '-';
-  const avgUptime = economicDynamicsStats?.data?.current_interval_uptime;
+  const avgUptime = mixNode?.data?.node_performance
+    ? toPercentIntegerString(mixNode?.data?.node_performance.last_24h)
+    : '-';
+  const nodePerformance = mixNode?.data?.node_performance
+    ? toPercentIntegerString(mixNode?.data?.node_performance.most_recent)
+    : '-';
 
   const opCost = mixNode?.data?.operating_cost;
 
@@ -33,10 +37,6 @@ export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
     selectionChance: {
       value: selectionChance(economicDynamicsStats),
     },
-    stakeSaturation: {
-      progressBarValue: typeof stakeSaturation === 'number' ? stakeSaturation * 100 : 0,
-      value: typeof stakeSaturation === 'number' ? `${(stakeSaturation * 100).toFixed(2)} %` : '-',
-    },
     profitMargin: {
       value: profitMargin ? `${profitMargin} %` : '-',
     },
@@ -45,6 +45,9 @@ export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
     },
     avgUptime: {
       value: avgUptime ? `${avgUptime} %` : '-',
+    },
+    nodePerformance: {
+      value: nodePerformance,
     },
   };
 };

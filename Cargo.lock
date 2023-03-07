@@ -677,7 +677,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "async-trait",
  "dashmap 5.4.0",
@@ -1713,31 +1713,11 @@ dependencies = [
 
 [[package]]
 name = "enum-iterator"
-version = "0.8.1"
+version = "1.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2953d1df47ac0eb70086ccabf0275aa8da8591a28bd358ee2b52bd9f9e3ff9e9"
+checksum = "45a0ac4aeb3a18f92eaf09c6bb9b3ac30ff61ca95514fc58cbead1c9a6bf5401"
 dependencies = [
- "enum-iterator-derive 0.8.1",
-]
-
-[[package]]
-name = "enum-iterator"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91a4ec26efacf4aeff80887a175a419493cb6f8b5480d26387eb0bd038976187"
-dependencies = [
- "enum-iterator-derive 1.1.0",
-]
-
-[[package]]
-name = "enum-iterator-derive"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8958699f9359f0b04e691a13850d48b7de329138023876d07cbd024c2c820598"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
+ "enum-iterator-derive",
 ]
 
 [[package]]
@@ -1802,7 +1782,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "explorer-api"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "chrono",
  "clap 4.1.4",
@@ -2207,9 +2187,9 @@ dependencies = [
 
 [[package]]
 name = "git2"
-version = "0.16.1"
+version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccf7f68c2995f392c49fffb4f95ae2c873297830eb25c6bc4c114ce8f4562acc"
+checksum = "d0155506aab710a86160ddb504a480d2964d7ab5b9e62419be69e0032bc5931c"
 dependencies = [
  "bitflags",
  "libc",
@@ -2917,9 +2897,9 @@ checksum = "201de327520df007757c1f0adce6e827fe8562fbc28bfd9c15571c66ca1f5f79"
 
 [[package]]
 name = "libgit2-sys"
-version = "0.14.2+1.5.1"
+version = "0.13.5+1.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f3d95f6b51075fe9810a7ae22c7095f12b98005ab364d8544797a825ce946a4"
+checksum = "51e5ea06c26926f1002dd553fded6cfcdc9784c1f60feeb58368b4d9b07b6dba"
 dependencies = [
  "cc",
  "libc",
@@ -3281,7 +3261,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.11"
+version = "1.1.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3362,7 +3342,7 @@ dependencies = [
 
 [[package]]
 name = "nym-bin-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap 4.1.4",
  "clap_complete",
@@ -3371,7 +3351,7 @@ dependencies = [
  "pretty_env_logger",
  "semver 0.11.0",
  "serde",
- "vergen 7.5.1",
+ "vergen",
 ]
 
 [[package]]
@@ -3391,7 +3371,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -3449,7 +3429,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "clap 4.1.4",
  "client-core",
@@ -3498,7 +3478,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3510,7 +3490,7 @@ dependencies = [
 
 [[package]]
 name = "nym-crypto"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aes 0.8.2",
  "blake3",
@@ -3543,7 +3523,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3601,7 +3581,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3620,7 +3600,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.11"
+version = "1.1.12"
 dependencies = [
  "anyhow",
  "atty",
@@ -3675,7 +3655,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "async-trait",
  "clap 4.1.4",
@@ -3713,7 +3693,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "dirs",
  "log",
@@ -3757,7 +3737,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pemstore"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pem",
 ]
@@ -3776,6 +3756,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-sphinx",
  "nym-task",
+ "nym-topology",
  "pretty_env_logger",
  "rand 0.7.3",
  "tap",
@@ -3788,7 +3769,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "clap 4.1.4",
  "client-core",
@@ -3948,7 +3929,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-types"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "sphinx-packet",
 ]
@@ -3983,6 +3964,7 @@ dependencies = [
 name = "nym-topology"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bs58",
  "log",
  "nym-bin-common",
@@ -4032,12 +4014,12 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
- "vergen 5.1.17",
+ "vergen",
 ]
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",
@@ -6916,30 +6898,13 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "vergen"
-version = "5.1.17"
+version = "7.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cf88d94e969e7956d924ba70741316796177fa0c79a2c9f4ab04998d96e966e"
+checksum = "447f9238a4553957277b3ee09d80babeae0811f1b3baefb093de1c0448437a37"
 dependencies = [
  "anyhow",
  "cfg-if",
- "chrono",
- "enum-iterator 0.8.1",
- "getset",
- "git2",
- "rustc_version 0.4.0",
- "rustversion",
- "thiserror",
-]
-
-[[package]]
-name = "vergen"
-version = "7.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f21b881cd6636ece9735721cf03c1fe1e774fe258683d084bb2812ab67435749"
-dependencies = [
- "anyhow",
- "cfg-if",
- "enum-iterator 1.2.0",
+ "enum-iterator",
  "getset",
  "git2",
  "rustc_version 0.4.0",

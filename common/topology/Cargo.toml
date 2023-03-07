@@ -16,6 +16,7 @@ bs58 = "0.4"
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 thiserror = "1.0.37"
+async-trait = { workspace = true, optional = true }
 
 ## internal
 nym-crypto = { path = "../crypto" }
@@ -23,3 +24,7 @@ nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contra
 nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
 nym-sphinx-types = { path = "../nymsphinx/types" }
 nym-bin-common = { path = "../bin-common" }
+
+[features]
+default = ["provider-trait"]
+provider-trait = ["async-trait"]

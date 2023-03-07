@@ -23,7 +23,7 @@ nym-sphinx-types = { path = "types" }
 
 # those dependencies are due to intriducing preparer and receiver. Perpaphs that indicates they should be moved
 # to separate crate?
-nym-crypto = { path = "../crypto", version = "0.1.0" }
+nym-crypto = { path = "../crypto", version = "0.2.0" }
 nym-topology = { path = "../topology" }
 
 [dev-dependencies]

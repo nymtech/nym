@@ -143,6 +143,7 @@ fn main() {
             vesting::queries::vesting_start_time,
             simulate::admin::simulate_update_contract_settings,
             simulate::cosmos::simulate_send,
+            simulate::cosmos::get_custom_fees,
             simulate::mixnet::simulate_bond_gateway,
             simulate::mixnet::simulate_unbond_gateway,
             simulate::mixnet::simulate_bond_mixnode,

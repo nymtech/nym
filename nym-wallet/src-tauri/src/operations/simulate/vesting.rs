@@ -41,7 +41,7 @@ async fn simulate_vesting_operation(
 pub async fn simulate_vesting_bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
-    owner_signature: MessageSignature,
+    msg_signature: MessageSignature,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
@@ -50,7 +50,7 @@ pub async fn simulate_vesting_bond_gateway(
     simulate_vesting_operation(
         ExecuteMsg::BondGateway {
             gateway,
-            owner_signature,
+            owner_signature: msg_signature,
             amount,
         },
         None,
@@ -70,7 +70,7 @@ pub async fn simulate_vesting_unbond_gateway(
 pub async fn simulate_vesting_bond_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
-    owner_signature: MessageSignature,
+    msg_signature: MessageSignature,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -83,7 +83,7 @@ pub async fn simulate_vesting_bond_mixnode(
         ExecuteMsg::BondMixnode {
             mix_node: mixnode,
             cost_params,
-            owner_signature,
+            owner_signature: msg_signature,
             amount,
         },
         None,

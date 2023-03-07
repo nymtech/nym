@@ -40,13 +40,13 @@ async fn simulate_mixnet_operation(
 pub async fn simulate_bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
-    owner_signature: MessageSignature,
+    msg_signature: MessageSignature,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     simulate_mixnet_operation(
         ExecuteMsg::BondGateway {
             gateway,
-            owner_signature,
+            owner_signature: msg_signature,
         },
         Some(pledge),
         &state,
@@ -65,7 +65,7 @@ pub async fn simulate_unbond_gateway(
 pub async fn simulate_bond_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
-    owner_signature: MessageSignature,
+    msg_signature: MessageSignature,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -77,7 +77,7 @@ pub async fn simulate_bond_mixnode(
         ExecuteMsg::BondMixnode {
             mix_node: mixnode,
             cost_params,
-            owner_signature,
+            owner_signature: msg_signature,
         },
         Some(pledge),
         &state,

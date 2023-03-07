@@ -327,6 +327,14 @@ pub(crate) fn try_update_interval_config(
 ) -> Result<Response, MixnetContractError> {
     ensure_is_owner(info.sender, deps.storage)?;
 
+    if epochs_in_interval == 0 {
+        return Err(MixnetContractError::EpochsInIntervalZero);
+    }
+
+    if epoch_duration_secs == 0 {
+        return Err(MixnetContractError::EpochDurationZero);
+    }
+
     let interval = storage::current_interval(deps.storage)?;
     if force_immediately || interval.is_current_interval_over(&env) {
         change_interval_config(

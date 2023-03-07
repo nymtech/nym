@@ -9,14 +9,14 @@ const parseToNumber = (value: number | undefined | string) =>
 export const EconomicsProgress: FCWithChildren<
   LinearProgressProps & {
     threshold?: number;
+    color: string;
   }
-> = ({ threshold, ...props }) => {
+> = ({ threshold, color, ...props }) => {
   const theme = useTheme();
   const { value } = props;
 
   const valueNumber: number = parseToNumber(value);
   const thresholdNumber: number = parseToNumber(threshold);
-  const percentageColor = valueNumber > (threshold || 100) ? 'warning' : 'inherit';
   const percentageToDisplay = Math.min(valueNumber, thresholdNumber);
 
   return (
@@ -29,9 +29,9 @@ export const EconomicsProgress: FCWithChildren<
       <LinearProgress
         {...props}
         variant="determinate"
-        color={percentageColor}
+        color={color}
         value={percentageToDisplay}
-        sx={{ width: '100%', borderRadius: '5px', backgroundColor: theme.palette.common.white }}
+        sx={{ width: '100%', borderRadius: '5px' }}
       />
     </Box>
   );

@@ -23,6 +23,7 @@ mod mix_node;
 pub(crate) mod mix_nodes;
 mod overview;
 mod ping;
+pub(crate) mod service_providers;
 mod state;
 mod tasks;
 mod validators;

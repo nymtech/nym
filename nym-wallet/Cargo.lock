@@ -2785,7 +2785,7 @@ dependencies = [
 
 [[package]]
 name = "nym-bin-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
  "clap_complete",
@@ -2811,7 +2811,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -2830,7 +2830,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -2861,7 +2861,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pemstore"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pem",
 ]
@@ -2893,7 +2893,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract"
-version = "1.1.4"
+version = "1.2.0-pre.0"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
@@ -2910,7 +2910,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",
@@ -2957,7 +2957,7 @@ dependencies = [
 
 [[package]]
 name = "nym_wallet"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "aes-gcm",
  "argon2 0.3.4",

@@ -59,6 +59,9 @@ export const simulateWithdrawVestedCoins = async (args: any) =>
 export const simulateSend = async ({ address, amount }: { address: string; amount: DecCoin }) =>
   invokeWrapper<FeeDetails>('simulate_send', { address, amount });
 
+export const getCustomFees = async ({ feesAmount }: { feesAmount: DecCoin }) =>
+  invokeWrapper<FeeDetails>('get_custom_fees', { feesAmount });
+
 export const simulateClaimOperatorReward = async () => invokeWrapper<FeeDetails>('simulate_claim_operator_reward');
 
 export const simulateVestingClaimOperatorReward = async () =>

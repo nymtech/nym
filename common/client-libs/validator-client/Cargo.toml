@@ -36,7 +36,7 @@ nym-execute = { path = "../../execute" }
 # required for nyxd-client
 # at some point it might be possible to make it wasm-compatible
 # perhaps after https://github.com/cosmos/cosmos-rust/pull/97 is resolved (and tendermint-rs is updated)
-async-trait = { version = "0.1.51", optional = true }
+async-trait = { workspace = true, optional = true }
 bip39 = { version = "1", features = ["rand"], optional = true }
 nym-config = { path = "../../config", optional = true }
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"], optional = true}

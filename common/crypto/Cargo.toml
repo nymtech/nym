@@ -1,6 +1,6 @@
 [package]
 name = "nym-crypto"
-version = "0.1.0"
+version = "0.2.0"
 description = "Crypto library for the nym mixnet"
 edition = { workspace = true }
 authors = { workspace = true }
@@ -26,8 +26,8 @@ subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
 thiserror = "1.0.37"
 
 # internal
-nym-sphinx-types = { path = "../nymsphinx/types", version = "0.1.0" }
-nym-pemstore = { path = "../../common/pemstore", version = "0.1.0" }
+nym-sphinx-types = { path = "../nymsphinx/types", version = "0.2.0" }
+nym-pemstore = { path = "../../common/pemstore", version = "0.2.0" }
 
 [dev-dependencies]
 rand_chacha = "0.2"

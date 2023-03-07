@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v1.1.12] (2023-03-07)
+
+- NymConnect - Update display for selected Service Provider ([#3116])
+
+[#3116]: https://github.com/nymtech/nym/issues/3116
+
 ## [v1.1.11] (2023-02-28)
 
 - NC - add the option to manually select and use a specific Service Provider ([#2953])

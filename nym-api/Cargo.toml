@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-api"
-version = "1.1.12"
+version = "1.1.13"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -15,7 +15,7 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.52"
+async-trait = { workspace = true }
 bs58 = {version = "0.4.0" }
 bip39 = "1"
 cfg-if = "1.0"

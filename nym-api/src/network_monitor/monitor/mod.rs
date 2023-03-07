@@ -88,10 +88,7 @@ impl Monitor {
             )
             .await
         {
-            error!(
-                "Failed to submit monitor run information to the database - {}",
-                err
-            );
+            error!("Failed to submit monitor run information to the database - {err}",);
 
             // TODO: slightly more graceful shutdown here
             process::exit(1);
@@ -124,12 +121,8 @@ impl Monitor {
         for route in routes {
             let mut packet_preparer = self.packet_preparer.clone();
             let route = route.clone();
-            let route_test_packets = self.route_test_packets;
-            let gateway_packets = tokio::spawn(async move {
-                packet_preparer.prepare_test_route_viability_packets(&route, route_test_packets)
-            })
-            .await
-            .unwrap();
+            let gateway_packets = packet_preparer
+                .prepare_test_route_viability_packets(&route, self.route_test_packets);
             packets.push(gateway_packets);
         }
 

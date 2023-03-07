@@ -101,6 +101,7 @@ impl SocketClient {
         let ClientState {
             shared_lane_queue_lengths,
             reply_controller_sender,
+            ..
         } = client_state;
 
         let websocket_handler = websocket::HandlerBuilder::new(

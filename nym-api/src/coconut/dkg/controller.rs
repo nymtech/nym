@@ -14,7 +14,7 @@ use crate::coconut::keypair::KeyPair as CoconutKeyPair;
 use crate::nyxd;
 use crate::support::config::Config;
 use anyhow::Result;
-use coconut_dkg_common::types::EpochState;
+use nym_coconut_dkg_common::types::EpochState;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
 use rand::rngs::OsRng;

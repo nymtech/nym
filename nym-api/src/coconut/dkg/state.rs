@@ -4,9 +4,9 @@
 use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
-use coconut_dkg_common::dealer::DealerDetails;
-use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Addr;
+use nym_coconut_dkg_common::dealer::DealerDetails;
+use nym_coconut_dkg_common::types::EpochState;
 use nym_dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use nym_dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
 use nymcoconut::SecretKey;

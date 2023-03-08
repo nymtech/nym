@@ -5,9 +5,9 @@ use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Fee, NyxdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
-use coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
-use coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
-use coconut_dkg_common::verification_key::VerificationKeyShare;
+use nym_coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
+use nym_coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
+use nym_coconut_dkg_common::verification_key::VerificationKeyShare;
 use nym_contracts_common::dealings::ContractSafeBytes;
 
 #[async_trait]

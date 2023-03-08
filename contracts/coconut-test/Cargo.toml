@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 nym-bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
 nym-coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
 multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
 group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract" }
 

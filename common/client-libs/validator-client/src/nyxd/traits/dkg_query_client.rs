@@ -4,13 +4,13 @@
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, NyxdClient};
 use async_trait::async_trait;
-use coconut_dkg_common::dealer::{
+use cosmrs::AccountId;
+use nym_coconut_dkg_common::dealer::{
     DealerDetailsResponse, PagedDealerResponse, PagedDealingsResponse,
 };
-use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use coconut_dkg_common::types::{Epoch, EpochId, InitialReplacementData};
-use coconut_dkg_common::verification_key::PagedVKSharesResponse;
-use cosmrs::AccountId;
+use nym_coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
+use nym_coconut_dkg_common::types::{Epoch, EpochId, InitialReplacementData};
+use nym_coconut_dkg_common::verification_key::PagedVKSharesResponse;
 
 #[async_trait]
 pub trait DkgQueryClient {

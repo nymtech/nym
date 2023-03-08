@@ -7,8 +7,8 @@ use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA, THRES
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::STATE;
-use coconut_dkg_common::types::{Epoch, EpochState, InitialReplacementData};
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, Response, Storage};
+use nym_coconut_dkg_common::types::{Epoch, EpochState, InitialReplacementData};
 
 fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
     THRESHOLD.remove(storage);
@@ -182,12 +182,12 @@ pub(crate) mod tests {
     use crate::error::ContractError::EarlyEpochStateAdvancement;
     use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers::{init_contract, GROUP_MEMBERS};
-    use coconut_dkg_common::types::{
-        ContractSafeBytes, DealerDetails, EpochState, TimeConfiguration,
-    };
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Addr;
     use cw4::Member;
+    use nym_coconut_dkg_common::types::{
+        ContractSafeBytes, DealerDetails, EpochState, TimeConfiguration,
+    };
     use rusty_fork::rusty_fork_test;
 
     // Because of the global variable handling group, we need individual process for each test

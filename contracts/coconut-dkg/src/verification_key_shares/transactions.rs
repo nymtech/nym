@@ -8,9 +8,11 @@ use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::{MULTISIG, STATE};
 use crate::verification_key_shares::storage::vk_shares;
-use coconut_dkg_common::types::EpochState;
-use coconut_dkg_common::verification_key::{to_cosmos_msg, ContractVKShare, VerificationKeyShare};
 use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response};
+use nym_coconut_dkg_common::types::EpochState;
+use nym_coconut_dkg_common::verification_key::{
+    to_cosmos_msg, ContractVKShare, VerificationKeyShare,
+};
 
 pub fn try_commit_verification_key_share(
     deps: DepsMut<'_>,
@@ -92,10 +94,10 @@ mod tests {
     use crate::epoch_state::transactions::advance_epoch_state;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_fixture_dealer, MULTISIG_CONTRACT};
-    use coconut_dkg_common::dealer::DealerDetails;
-    use coconut_dkg_common::types::{EpochState, TimeConfiguration};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cw_controllers::AdminError;
+    use nym_coconut_dkg_common::dealer::DealerDetails;
+    use nym_coconut_dkg_common::types::{EpochState, TimeConfiguration};
 
     #[test]
     fn current_epoch_id() {

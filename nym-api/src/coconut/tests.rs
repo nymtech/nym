@@ -35,16 +35,16 @@ use validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, Tx
 use crate::coconut::State;
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
-use coconut_dkg_common::dealer::{
-    ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
-};
-use coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
-use coconut_dkg_common::types::{
-    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, TOTAL_DEALINGS,
-};
-use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
+use nym_coconut_dkg_common::dealer::{
+    ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
+};
+use nym_coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
+use nym_coconut_dkg_common::types::{
+    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, TOTAL_DEALINGS,
+};
+use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_dkg::Threshold;

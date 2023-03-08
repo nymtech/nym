@@ -694,18 +694,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "coconut-dkg-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "cw-utils",
- "multisig-contract-common",
- "nym-contracts-common",
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "coconut-interface"
 version = "0.1.0"
 dependencies = [
@@ -3127,7 +3115,6 @@ dependencies = [
  "bs58",
  "cfg-if",
  "clap 4.1.4",
- "coconut-dkg-common",
  "coconut-interface",
  "console-subscriber",
  "cosmwasm-std",
@@ -3146,6 +3133,7 @@ dependencies = [
  "nym-api-requests",
  "nym-bin-common",
  "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
  "nym-config",
  "nym-contracts-common",
  "nym-credentials",
@@ -3267,7 +3255,6 @@ dependencies = [
  "bs58",
  "cfg-if",
  "clap 4.1.4",
- "coconut-dkg-common",
  "comfy-table",
  "cosmrs",
  "cosmwasm-std",
@@ -3278,6 +3265,7 @@ dependencies = [
  "log",
  "multisig-contract-common",
  "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-vesting-contract-common",
@@ -3334,6 +3322,18 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
  "multisig-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "nym-coconut-dkg-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "multisig-contract-common",
+ "nym-contracts-common",
  "schemars",
  "serde",
 ]
@@ -6745,7 +6745,6 @@ dependencies = [
  "async-trait",
  "base64 0.13.1",
  "bip39",
- "coconut-dkg-common",
  "coconut-interface",
  "colored",
  "cosmrs",
@@ -6760,6 +6759,7 @@ dependencies = [
  "multisig-contract-common",
  "nym-api-requests",
  "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
  "nym-config",
  "nym-contracts-common",
  "nym-execute",

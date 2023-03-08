@@ -6,8 +6,8 @@ use cosmrs::tendermint::abci;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-pub use coconut_dkg_common::event_attributes::*;
 pub use nym_coconut_bandwidth_contract_common::event_attributes::*;
+pub use nym_coconut_dkg_common::event_attributes::*;
 
 // it seems that currently validators just emit stringified events (which are also returned as part of deliverTx response)
 // as theirs logs

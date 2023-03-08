@@ -4,7 +4,7 @@
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
-use coconut_dkg_common::types::TOTAL_DEALINGS;
+use nym_coconut_dkg_common::types::TOTAL_DEALINGS;
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_dkg::bte::setup;
 use nym_dkg::Dealing;
@@ -86,9 +86,9 @@ pub(crate) mod tests {
     use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
-    use coconut_dkg_common::dealer::DealerDetails;
-    use coconut_dkg_common::types::InitialReplacementData;
     use cosmwasm_std::Addr;
+    use nym_coconut_dkg_common::dealer::DealerDetails;
+    use nym_coconut_dkg_common::types::InitialReplacementData;
     use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
     use nym_dkg::bte::{Params, PublicKeyWithProof};
     use nymcoconut::{ttp_keygen, Parameters};

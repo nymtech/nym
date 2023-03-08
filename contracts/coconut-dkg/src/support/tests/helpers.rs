@@ -3,8 +3,6 @@
 
 use crate::contract::instantiate;
 use crate::dealers::storage::current_dealers;
-use coconut_dkg_common::msg::InstantiateMsg;
-use coconut_dkg_common::types::DealerDetails;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
 use cosmwasm_std::{
     from_binary, to_binary, Addr, ContractResult, DepsMut, Empty, MemoryStorage, OwnedDeps,
@@ -12,6 +10,8 @@ use cosmwasm_std::{
 };
 use cw4::{Cw4QueryMsg, Member, MemberListResponse, MemberResponse};
 use lazy_static::lazy_static;
+use nym_coconut_dkg_common::msg::InstantiateMsg;
+use nym_coconut_dkg_common::types::DealerDetails;
 use std::sync::Mutex;
 
 use super::fixtures::TEST_MIX_DENOM;

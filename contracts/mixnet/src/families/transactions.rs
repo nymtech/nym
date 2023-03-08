@@ -93,7 +93,7 @@ fn _try_join_family(
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond =
-        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, &owner)?;
+        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, owner)?;
 
     ensure_bonded(&existing_bond)?;
 

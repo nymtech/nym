@@ -8,7 +8,8 @@ use validator_client::nyxd::error::NyxdError::AbciError;
 // thus the transaction might fail
 pub(crate) fn accepted_vote_err(ret: Result<(), CoconutError>) -> Result<(), CoconutError> {
     if let Err(CoconutError::NyxdError(AbciError { ref log, .. })) = ret {
-        let accepted_err = nym_multisig_contract_common::error::ContractError::NotOpen {}.to_string();
+        let accepted_err =
+            nym_multisig_contract_common::error::ContractError::NotOpen {}.to_string();
         // If redundant voting is not the case, error out on all other error variants
         if !log.value().contains(&accepted_err) {
             ret?;

@@ -31,7 +31,7 @@ wasm-bindgen-futures = "0.4"
 
 # internal
 client-core = { path = "../client-core", default-features = false, features = ["wasm"] }
-coconut-interface = { path = "../../common/coconut-interface" }
+nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto" }
 nym-sphinx = { path = "../../common/nymsphinx" }

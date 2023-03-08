@@ -3,14 +3,14 @@ use coconut_bandwidth::error::ContractError;
 use cosmwasm_std::{coins, Addr, Coin, Decimal};
 use cw_multi_test::Executor;
 use cw_utils::{Duration, Threshold};
-use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
-use nym_multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
 use nym_coconut_bandwidth_contract_common::{
     msg::{
         ExecuteMsg as CoconutBandwidthExecuteMsg, InstantiateMsg as CoconutBandwidthInstantiateMsg,
     },
     spend_credential::SpendCredentialData,
 };
+use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
+use nym_multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
 
 pub const TEST_COIN_DENOM: &str = "unym";
 pub const TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =

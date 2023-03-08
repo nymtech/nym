@@ -71,7 +71,7 @@ pub enum CoconutError {
     DifferentPublicAttributes(String, String),
 
     #[error("Error in coconut interface - {0}")]
-    CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
+    CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
     #[error("Storage error - {0}")]
     StorageError(#[from] NymApiStorageError),

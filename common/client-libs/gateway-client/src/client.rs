@@ -9,13 +9,13 @@ pub use crate::packet_router::{
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
-use coconut_interface::Credential;
 use futures::{SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, PROTOCOL_VERSION};
 use log::*;
+use nym_coconut_interface::Credential;
 use nym_crypto::asymmetric::identity;
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_sphinx::forwarding::packet::MixPacket;

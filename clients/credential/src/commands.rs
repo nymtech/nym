@@ -7,9 +7,9 @@ use nym_bin_common::completions::ArgShell;
 use rand::rngs::OsRng;
 use std::str::FromStr;
 
-use coconut_interface::{Base58, Parameters};
 use credential_storage::storage::Storage;
 use credential_storage::PersistentStorage;
+use nym_coconut_interface::{Base58, Parameters};
 use nym_credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use nym_credentials::coconut::utils::obtain_aggregate_signature;
 use nym_crypto::asymmetric::{encryption, identity};

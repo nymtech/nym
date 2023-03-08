@@ -28,7 +28,7 @@ url = { version = "2.2", features = ["serde"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
 futures = "0.3"
 
-coconut-interface = { path = "../../coconut-interface" }
+nym-coconut-interface = { path = "../../coconut-interface" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 nym-execute = { path = "../../execute" }

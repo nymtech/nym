@@ -18,7 +18,7 @@ async-trait = { workspace = true }
 tokio = { version = "1.24.1", features = ["macros"] }
 
 # internal
-coconut-interface = { path = "../../coconut-interface" }
+nym-coconut-interface = { path = "../../coconut-interface" }
 nym-credentials = { path = "../../credentials" }
 nym-crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }

@@ -66,7 +66,7 @@ schemars = { version = "0.8", features = ["preserve_order"] }
 ## internal
 nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
-coconut-interface = { path = "../common/coconut-interface" }
+nym-coconut-interface = { path = "../common/coconut-interface" }
 nym-config = { path = "../common/config" }
 cosmwasm-std = "1.0.0"
 credential-storage = { path = "../common/credential-storage" }

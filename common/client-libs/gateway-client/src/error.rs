@@ -31,7 +31,7 @@ pub enum GatewayClientError {
     CredentialStorageError(#[from] StorageError),
 
     #[error("Coconut error - {0}")]
-    CoconutError(#[from] coconut_interface::CoconutError),
+    CoconutError(#[from] nym_coconut_interface::CoconutError),
 
     // TODO: see if `JsValue` is a reasonable type for this
     #[cfg(target_arch = "wasm32")]

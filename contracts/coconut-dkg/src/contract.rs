@@ -140,9 +140,9 @@ mod tests {
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
-    use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
     use nym_coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
     use nym_coconut_dkg_common::types::NodeIndex;
+    use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
 
     fn instantiate_with_group(app: &mut App, members: &[Addr]) -> Addr {
         let group_code_id = app.store_code(Box::new(ContractWrapper::new(

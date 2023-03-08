@@ -337,7 +337,7 @@ impl State {
 
     pub async fn set_coconut_keypair(
         &mut self,
-        coconut_keypair: Option<coconut_interface::KeyPair>,
+        coconut_keypair: Option<nym_coconut_interface::KeyPair>,
     ) {
         self.coconut_keypair.set(coconut_keypair).await
     }

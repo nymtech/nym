@@ -14,7 +14,7 @@ schemars = { version = "0.8", features = ["preserve_order"] }
 serde = { version = "1.0", features = ["derive"] }
 ts-rs = { version = "6.1.2", optional = true }
 
-coconut-interface = { path = "../../common/coconut-interface" }
+nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-mixnet-contract-common = { path= "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 
 [features]

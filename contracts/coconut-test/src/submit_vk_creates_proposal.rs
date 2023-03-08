@@ -11,15 +11,15 @@ use cosmwasm_std::{coins, Addr, Decimal};
 use cw4::Member;
 use cw_multi_test::Executor;
 use cw_utils::{Duration, Threshold};
-use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
-use nym_multisig_contract_common::msg::ExecuteMsg::{Execute, Vote};
-use nym_multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
 use nym_coconut_dkg_common::msg::ExecuteMsg::{
     AdvanceEpochState, CommitVerificationKeyShare, RegisterDealer,
 };
 use nym_coconut_dkg_common::msg::InstantiateMsg as DkgInstantiateMsg;
 use nym_coconut_dkg_common::msg::QueryMsg::GetVerificationKeys;
 use nym_coconut_dkg_common::verification_key::PagedVKSharesResponse;
+use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
+use nym_multisig_contract_common::msg::ExecuteMsg::{Execute, Vote};
+use nym_multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
 
 #[test]
 fn dkg_proposal() {

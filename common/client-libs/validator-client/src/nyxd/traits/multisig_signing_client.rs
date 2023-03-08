@@ -7,8 +7,8 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Fee, NyxdClient};
 
 use cw3::Vote;
-use nym_multisig_contract_common::msg::ExecuteMsg;
 use nym_coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
+use nym_multisig_contract_common::msg::ExecuteMsg;
 
 use async_trait::async_trait;
 use cosmwasm_std::{to_binary, Coin, CosmosMsg, WasmMsg};

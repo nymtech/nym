@@ -575,17 +575,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "coconut-interface"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "getset",
- "nymcoconut",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2708,10 +2697,10 @@ name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "coconut-interface",
  "cosmrs",
  "cosmwasm-std",
  "getset",
+ "nym-coconut-interface",
  "nym-mixnet-contract-common",
  "schemars",
  "serde",
@@ -2750,6 +2739,17 @@ dependencies = [
  "nym-multisig-contract-common",
  "schemars",
  "serde",
+]
+
+[[package]]
+name = "nym-coconut-interface"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "getset",
+ "nymcoconut",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -2870,12 +2870,12 @@ dependencies = [
 name = "nym-types"
 version = "1.0.0"
 dependencies = [
- "coconut-interface",
  "cosmrs",
  "cosmwasm-std",
  "eyre",
  "itertools",
  "log",
+ "nym-coconut-interface",
  "nym-config",
  "nym-mixnet-contract-common",
  "nym-vesting-contract",
@@ -2964,7 +2964,6 @@ dependencies = [
  "base64 0.13.1",
  "bip39",
  "cfg-if",
- "coconut-interface",
  "colored 2.0.0",
  "cosmrs",
  "cosmwasm-std",
@@ -2976,6 +2975,7 @@ dependencies = [
  "itertools",
  "k256",
  "log",
+ "nym-coconut-interface",
  "nym-config",
  "nym-mixnet-contract-common",
  "nym-types",
@@ -5419,7 +5419,6 @@ dependencies = [
  "async-trait",
  "base64 0.13.1",
  "bip39",
- "coconut-interface",
  "colored 2.0.0",
  "cosmrs",
  "cosmwasm-std",
@@ -5432,6 +5431,7 @@ dependencies = [
  "nym-api-requests",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
+ "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
  "nym-execute",

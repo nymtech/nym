@@ -247,14 +247,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bandwidth-claim-contract"
-version = "0.1.0"
-dependencies = [
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "base16ct"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3213,6 +3205,14 @@ dependencies = [
  "schemars",
  "serde",
  "ts-rs",
+]
+
+[[package]]
+name = "nym-bandwidth-claim-contract"
+version = "0.1.0"
+dependencies = [
+ "schemars",
+ "serde",
 ]
 
 [[package]]

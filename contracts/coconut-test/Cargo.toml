@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
+nym-bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
 coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
 multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }

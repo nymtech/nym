@@ -6,15 +6,15 @@ use crate::helpers::answer_bytes;
 use bip32::{PublicKey, PublicKeyBytes};
 use ledger_transport::APDUAnswer;
 
-/// SECP265K1 address of the device.
-pub struct AddrSecp265k1Response {
-    /// SECP265K1 public key.
+/// SECP256K1 address of the device.
+pub struct AddrSecp256k1Response {
+    /// SECP256K1 public key.
     pub public_key: k256::PublicKey,
     /// String representation of the Cosmos address.
     pub address: String,
 }
 
-impl TryFrom<APDUAnswer<Vec<u8>>> for AddrSecp265k1Response {
+impl TryFrom<APDUAnswer<Vec<u8>>> for AddrSecp256k1Response {
     type Error = LedgerError;
 
     fn try_from(answer: APDUAnswer<Vec<u8>>) -> Result<Self, Self::Error> {
@@ -32,7 +32,7 @@ impl TryFrom<APDUAnswer<Vec<u8>>> for AddrSecp265k1Response {
         )?;
         let address = String::from_utf8(addr.to_vec()).unwrap();
 
-        Ok(AddrSecp265k1Response {
+        Ok(AddrSecp256k1Response {
             public_key,
             address,
         })

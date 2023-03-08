@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::signing::{MessageSignature, SignableMessage, SigningAlgorithm};
+use crate::signing::{MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose};
 use cosmwasm_std::{Api, StdError, VerificationError};
 use serde::Serialize;
 use thiserror::Error;
@@ -9,7 +9,7 @@ use thiserror::Error;
 pub trait Verifier {
     type Error: From<StdError>;
 
-    fn verify_message<T: Serialize>(
+    fn verify_message<T: Serialize + SigningPurpose>(
         &self,
         message: SignableMessage<T>,
         signature: MessageSignature,

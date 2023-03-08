@@ -98,7 +98,7 @@ pub trait SigningPurpose {
     fn message_type() -> MessageType;
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct MessageType(String);
 
@@ -137,15 +137,20 @@ impl SigningAlgorithm {
 pub struct SignableMessage<T> {
     pub nonce: u32,
     pub algorithm: SigningAlgorithm,
+    pub message_type: MessageType,
 
     pub content: T,
 }
 
-impl<T> SignableMessage<T> {
+impl<T> SignableMessage<T>
+where
+    T: SigningPurpose,
+{
     pub fn new(nonce: u32, content: T) -> Self {
         SignableMessage {
             nonce,
             algorithm: SigningAlgorithm::Ed25519,
+            message_type: T::message_type(),
             content,
         }
     }
@@ -162,7 +167,10 @@ impl<T> SignableMessage<T> {
         to_vec(self)
     }
 
-    pub fn to_sha256_plaintext_digest(&self) -> StdResult<Vec<u8>> {
+    pub fn to_sha256_plaintext_digest(&self) -> StdResult<Vec<u8>>
+    where
+        T: Serialize,
+    {
         unimplemented!()
     }
 
@@ -209,20 +217,24 @@ impl<T> SignableMessage<T> {
 
 #[derive(Serialize)]
 pub struct ContractMessageContent<T> {
-    pub message_type: MessageType,
     pub sender: Addr,
     pub proxy: Option<Addr>,
     pub funds: Vec<Coin>,
     pub data: T,
 }
 
-impl<T> ContractMessageContent<T>
+impl<T> SigningPurpose for ContractMessageContent<T>
 where
     T: SigningPurpose,
 {
+    fn message_type() -> MessageType {
+        T::message_type()
+    }
+}
+
+impl<T> ContractMessageContent<T> {
     pub fn new(sender: Addr, proxy: Option<Addr>, funds: Vec<Coin>, data: T) -> Self {
         ContractMessageContent {
-            message_type: T::message_type(),
             sender,
             proxy,
             funds,
@@ -238,7 +250,6 @@ where
         };
 
         ContractMessageContent {
-            message_type: T::message_type(),
             sender: signer,
             proxy,
             funds: info.funds,

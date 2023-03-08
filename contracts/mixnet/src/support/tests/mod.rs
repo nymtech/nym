@@ -67,7 +67,7 @@ pub mod test_helpers {
         SignableMixNodeBondingMsg,
     };
     use nym_contracts_common::signing::{
-        ContractMessageContent, MessageSignature, SignableMessage, SigningAlgorithm,
+        ContractMessageContent, MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose,
     };
     use nym_crypto::asymmetric::identity;
     use nym_crypto::asymmetric::identity::KeyPair;
@@ -860,7 +860,7 @@ pub mod test_helpers {
         }
     }
 
-    pub fn ed25519_sign_message<T: Serialize>(
+    pub fn ed25519_sign_message<T: Serialize + SigningPurpose>(
         message: SignableMessage<T>,
         private_key: &identity::PrivateKey,
     ) -> MessageSignature {

@@ -3141,14 +3141,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-bandwidth-claim-contract"
-version = "0.1.0"
-dependencies = [
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "nym-bin-common"
 version = "0.2.0"
 dependencies = [

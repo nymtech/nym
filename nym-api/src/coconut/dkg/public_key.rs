@@ -65,7 +65,7 @@ pub(crate) mod tests {
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
-            DkgKeyPair::new(&dkg::bte::setup(), OsRng),
+            DkgKeyPair::new(&nym_dkg::bte::setup(), OsRng),
             KeyPair::new(),
         );
 

@@ -399,10 +399,11 @@ impl super::client::Client for DummyClient {
             },
         );
         let proposal_id = OsRng.gen();
-        let verify_vk_share_req = nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
-            owner: Addr::unchecked(self.validator_address.as_ref()),
-            resharing,
-        };
+        let verify_vk_share_req =
+            nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
+                owner: Addr::unchecked(self.validator_address.as_ref()),
+                resharing,
+            };
         let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: String::new(),
             msg: to_binary(&verify_vk_share_req).unwrap(),

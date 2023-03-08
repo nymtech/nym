@@ -8,6 +8,7 @@ use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
+use nym_service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
 use nym_socks5_proxy_helpers::connection_controller::{
     ConnectionReceiver, ControllerCommand, ControllerSender,
 };
@@ -20,7 +21,6 @@ use nym_task::connections::{LaneQueueLengths, TransmissionLane};
 use nym_task::TaskClient;
 use pin_project::pin_project;
 use rand::RngCore;
-use nym_service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;

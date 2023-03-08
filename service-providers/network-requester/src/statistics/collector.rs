@@ -7,6 +7,7 @@ use crate::reply::MixnetMessage;
 use async_trait::async_trait;
 use log::*;
 use nym_ordered_buffer::OrderedMessageSender;
+use nym_service_providers_common::interface::RequestVersion;
 use nym_socks5_proxy_helpers::proxy_runner::MixProxySender;
 use nym_socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
 use nym_sphinx::addressing::clients::Recipient;
@@ -20,7 +21,6 @@ use nym_statistics_common::{
 };
 use rand::RngCore;
 use serde::Deserialize;
-use nym_service_providers_common::interface::RequestVersion;
 use sqlx::types::chrono::{DateTime, Utc};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

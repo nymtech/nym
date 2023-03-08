@@ -8,10 +8,10 @@ use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
 use log::*;
+use nym_socks5_proxy_helpers::connection_controller::Controller;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
 use nym_task::TaskClient;
-use proxy_helpers::connection_controller::Controller;
 use std::net::SocketAddr;
 use tap::TapFallible;
 use tokio::net::TcpListener;

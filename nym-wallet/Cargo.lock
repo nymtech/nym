@@ -1118,27 +1118,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
 
 [[package]]
-name = "dkg"
-version = "0.1.0"
-dependencies = [
- "bitvec",
- "bls12_381",
- "bs58",
- "ff",
- "group",
- "lazy_static",
- "nym-pemstore",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rand_core 0.6.4",
- "serde",
- "serde_derive",
- "sha2 0.9.9",
- "thiserror",
- "zeroize",
-]
-
-[[package]]
 name = "dotenvy"
 version = "0.15.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2821,6 +2800,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-dkg"
+version = "0.1.0"
+dependencies = [
+ "bitvec",
+ "bls12_381",
+ "bs58",
+ "ff",
+ "group",
+ "lazy_static",
+ "nym-pemstore",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_derive",
+ "sha2 0.9.9",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-execute"
 version = "0.1.0"
 dependencies = [
@@ -2893,7 +2893,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract"
-version = "1.2.0-pre.0"
+version = "1.2.0-pre.1"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
@@ -3013,11 +3013,11 @@ dependencies = [
  "bls12_381",
  "bs58",
  "digest 0.9.0",
- "dkg",
  "ff",
  "getrandom 0.2.8",
  "group",
  "itertools",
+ "nym-dkg",
  "nym-pemstore",
  "rand 0.8.5",
  "serde",

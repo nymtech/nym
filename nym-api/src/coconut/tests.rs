@@ -12,14 +12,14 @@ use coconut_bandwidth_contract_common::spend_credential::{
 };
 use coconut_interface::{hash_to_scalar, Credential, VerificationKey};
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
-use credentials::coconut::bandwidth::BandwidthVoucher;
-use credentials::coconut::params::{
-    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
-};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use nym_config::defaults::VOUCHER_INFO;
+use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::params::{
+    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
+};
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
@@ -45,9 +45,9 @@ use coconut_dkg_common::types::{
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
-use dkg::Threshold;
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_dkg::Threshold;
 use rand_07::rngs::OsRng;
 use rand_07::Rng;
 use rocket::http::Status;

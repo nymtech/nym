@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use coconut_interface::Parameters;
-use credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 
 use nym_crypto::asymmetric::{encryption, identity};
 

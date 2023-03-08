@@ -6,6 +6,10 @@ use crate::core::new_legacy_request_version;
 use crate::reply::MixnetMessage;
 use async_trait::async_trait;
 use log::*;
+use nym_ordered_buffer::OrderedMessageSender;
+use nym_service_providers_common::interface::RequestVersion;
+use nym_socks5_proxy_helpers::proxy_runner::MixProxySender;
+use nym_socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_statistics_common::api::{
     build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
@@ -15,12 +19,8 @@ use nym_statistics_common::{
     collector::StatisticsCollector, error::StatsError as CommonStatsError, StatsMessage,
     StatsServiceData,
 };
-use ordered_buffer::OrderedMessageSender;
-use proxy_helpers::proxy_runner::MixProxySender;
 use rand::RngCore;
 use serde::Deserialize;
-use service_providers_common::interface::RequestVersion;
-use socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
 use sqlx::types::chrono::{DateTime, Utc};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

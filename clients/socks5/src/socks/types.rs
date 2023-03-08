@@ -1,4 +1,4 @@
-use socks5_requests::Socks5RequestError;
+use nym_socks5_requests::Socks5RequestError;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 

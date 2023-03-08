@@ -1,8 +1,8 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use service_providers_common::interface;
-use service_providers_common::interface::ServiceProviderMessagingError;
+use nym_service_providers_common::interface;
+use nym_service_providers_common::interface::ServiceProviderMessagingError;
 use thiserror::Error;
 
 pub use request::*;
@@ -37,12 +37,12 @@ pub enum Socks5RequestError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use service_providers_common::interface::RequestContent;
+    use nym_service_providers_common::interface::RequestContent;
 
     #[cfg(test)]
     mod interface_backwards_compatibility {
         use super::*;
-        use service_providers_common::interface::ProviderInterfaceVersion;
+        use nym_service_providers_common::interface::ProviderInterfaceVersion;
 
         #[test]
         fn old_client_vs_new_service_provider() {

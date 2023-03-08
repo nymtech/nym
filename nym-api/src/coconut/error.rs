@@ -7,11 +7,11 @@ use rocket::{response, Request, Response};
 use std::io::Cursor;
 use thiserror::Error;
 
-use dkg::error::DkgError;
 use nym_crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
 };
+use nym_dkg::error::DkgError;
 use validator_client::nyxd::error::NyxdError;
 
 use crate::node_status_api::models::NymApiStorageError;
@@ -77,7 +77,7 @@ pub enum CoconutError {
     StorageError(#[from] NymApiStorageError),
 
     #[error("Credentials error - {0}")]
-    CredentialsError(#[from] credentials::error::Error),
+    CredentialsError(#[from] nym_credentials::error::Error),
 
     #[error("Incorrect credential proposal description: {reason}")]
     IncorrectProposal { reason: String },

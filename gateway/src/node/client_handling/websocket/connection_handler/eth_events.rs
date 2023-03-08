@@ -4,7 +4,7 @@
 use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use bandwidth_claim_contract::msg::ExecuteMsg;
 use bandwidth_claim_contract::payment::LinkPaymentData;
-use credentials::token::bandwidth::TokenCredential;
+use nym_credentials::token::bandwidth::TokenCredential;
 use nym_crypto::asymmetric::identity::{PublicKey, Signature, SIGNATURE_LENGTH};
 use nym_network_defaults::{ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
 use std::str::FromStr;

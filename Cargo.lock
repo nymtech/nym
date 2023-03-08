@@ -3580,13 +3580,13 @@ dependencies = [
  "nym-config",
  "nym-crypto",
  "nym-network-defaults",
+ "nym-ordered-buffer",
  "nym-sdk",
  "nym-socks5-proxy-helpers",
  "nym-socks5-requests",
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
- "ordered-buffer",
  "pretty_env_logger",
  "publicsuffix",
  "rand 0.7.3",
@@ -3628,6 +3628,14 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "wasm-timer",
+]
+
+[[package]]
+name = "nym-ordered-buffer"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "thiserror",
 ]
 
 [[package]]
@@ -3698,13 +3706,13 @@ dependencies = [
  "nym-config",
  "nym-crypto",
  "nym-network-defaults",
+ "nym-ordered-buffer",
  "nym-pemstore",
  "nym-socks5-proxy-helpers",
  "nym-socks5-requests",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
- "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3725,9 +3733,9 @@ dependencies = [
  "bytes",
  "futures",
  "log",
+ "nym-ordered-buffer",
  "nym-socks5-requests",
  "nym-task",
- "ordered-buffer",
  "tokio",
  "tokio-test",
  "tokio-util",
@@ -4090,14 +4098,6 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
-]
-
-[[package]]
-name = "ordered-buffer"
-version = "0.1.0"
-dependencies = [
- "log",
- "thiserror",
 ]
 
 [[package]]

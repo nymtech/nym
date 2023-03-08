@@ -38,7 +38,7 @@ nym-bin-common = { path = "../../common/bin-common"}
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../../common/nymsphinx" }
-ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
+nym-ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 nym-socks5-proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 service-providers-common = { path = "../common" }
 nym-socks5-requests = { path = "../../common/socks5/requests" }

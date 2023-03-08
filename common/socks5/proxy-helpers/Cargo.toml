@@ -16,7 +16,7 @@ futures = "0.3"
 log = { workspace = true }
 
 # internal
-ordered-buffer = { path = "../ordered-buffer" }
+nym-ordered-buffer = { path = "../ordered-buffer" }
 nym-socks5-requests = { path = "../requests" }
 nym-task = { path = "../../task" }
 

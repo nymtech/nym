@@ -17,7 +17,7 @@ use nym_statistics_common::{
     collector::StatisticsCollector, error::StatsError as CommonStatsError, StatsMessage,
     StatsServiceData,
 };
-use ordered_buffer::OrderedMessageSender;
+use nym_ordered_buffer::OrderedMessageSender;
 use rand::RngCore;
 use serde::Deserialize;
 use service_providers_common::interface::RequestVersion;

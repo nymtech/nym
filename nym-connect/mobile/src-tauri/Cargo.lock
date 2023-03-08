@@ -3596,6 +3596,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ordered-buffer"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-pemstore"
 version = "0.2.0"
 dependencies = [
@@ -3621,13 +3629,13 @@ dependencies = [
  "nym-config",
  "nym-crypto",
  "nym-network-defaults",
+ "nym-ordered-buffer",
  "nym-pemstore",
  "nym-socks5-proxy-helpers",
  "nym-socks5-requests",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
- "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3648,9 +3656,9 @@ dependencies = [
  "bytes",
  "futures",
  "log",
+ "nym-ordered-buffer",
  "nym-socks5-requests",
  "nym-task",
- "ordered-buffer",
  "tokio",
  "tokio-util",
 ]
@@ -3987,14 +3995,6 @@ dependencies = [
  "openssl-src",
  "pkg-config",
  "vcpkg",
-]
-
-[[package]]
-name = "ordered-buffer"
-version = "0.1.0"
-dependencies = [
- "log",
- "thiserror",
 ]
 
 [[package]]

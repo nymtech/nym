@@ -1,5 +1,5 @@
 use crate::helpers::*;
-use coconut_bandwidth::error::ContractError;
+use nym_coconut_bandwidth::error::ContractError;
 use cosmwasm_std::{coins, Addr, Coin, Decimal};
 use cw_multi_test::Executor;
 use cw_utils::{Duration, Threshold};

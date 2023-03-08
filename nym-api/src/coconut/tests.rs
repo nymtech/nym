@@ -399,7 +399,7 @@ impl super::client::Client for DummyClient {
             },
         );
         let proposal_id = OsRng.gen();
-        let verify_vk_share_req = coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
+        let verify_vk_share_req = nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
             owner: Addr::unchecked(self.validator_address.as_ref()),
             resharing,
         };
@@ -954,7 +954,7 @@ async fn verification_of_bandwidth_credential() {
 
     // Test the endpoint without any credential recorded in the Coconut Bandwidth Contract
     let funds = Coin::new(voucher_value as u128, TEST_COIN_DENOM);
-    let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+    let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
         funds: funds.clone().into(),
     };
     let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -1050,7 +1050,7 @@ async fn verification_of_bandwidth_credential() {
     // Test the endpoint with a proposal that has a different value for the funds to be released
     // then what's in the credential
     let funds = Coin::new((voucher_value + 10) as u128, TEST_COIN_DENOM);
-    let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+    let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
         funds: funds.clone().into(),
     };
     let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -1088,7 +1088,7 @@ async fn verification_of_bandwidth_credential() {
 
     // Test the endpoint with every dependency met
     let funds = Coin::new(voucher_value as u128, TEST_COIN_DENOM);
-    let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+    let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
         funds: funds.clone().into(),
     };
     let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {

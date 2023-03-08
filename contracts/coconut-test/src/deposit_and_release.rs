@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::*;
-use coconut_bandwidth::error::ContractError;
+use nym_coconut_bandwidth::error::ContractError;
 use cosmwasm_std::{coins, Addr};
 use cw_controllers::AdminError;
 use cw_multi_test::Executor;

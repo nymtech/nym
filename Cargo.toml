@@ -22,7 +22,6 @@ members = [
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
-    "common/bandwidth-claim-contract",
     "common/bin-common",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",

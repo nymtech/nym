@@ -6,6 +6,7 @@ use crate::core::new_legacy_request_version;
 use crate::reply::MixnetMessage;
 use async_trait::async_trait;
 use log::*;
+use nym_socks5_proxy_helpers::proxy_runner::MixProxySender;
 use nym_socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_statistics_common::api::{
@@ -17,7 +18,6 @@ use nym_statistics_common::{
     StatsServiceData,
 };
 use ordered_buffer::OrderedMessageSender;
-use nym_socks5_proxy_helpers::proxy_runner::MixProxySender;
 use rand::RngCore;
 use serde::Deserialize;
 use service_providers_common::interface::RequestVersion;

@@ -916,17 +916,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "credential-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "log",
- "sqlx 0.5.13",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "crossbeam-channel"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1834,13 +1823,13 @@ name = "gateway-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "credential-storage",
  "futures",
  "gateway-requests",
  "getrandom 0.2.8",
  "log",
  "mobile-storage",
  "nym-coconut-interface",
+ "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
@@ -3464,6 +3453,17 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "nym-credential-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "sqlx 0.5.13",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

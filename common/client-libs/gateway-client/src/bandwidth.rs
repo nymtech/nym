@@ -7,7 +7,7 @@ use crate::error::GatewayClientError;
 use crate::wasm_mockups::Storage;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "mobile"))]
-use credential_storage::storage::Storage;
+use nym_credential_storage::storage::Storage;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "mobile")]
@@ -22,7 +22,7 @@ use crate::wasm_mockups::StorageError;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "mobile"))]
-use credential_storage::error::StorageError;
+use nym_credential_storage::error::StorageError;
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::{Client, CosmWasmClient};
@@ -42,7 +42,7 @@ use crate::wasm_mockups::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "mobile"))]
-use credential_storage::PersistentStorage;
+use nym_credential_storage::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "mobile")]

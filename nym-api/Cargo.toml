@@ -69,7 +69,7 @@ nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dk
 nym-coconut-interface = { path = "../common/coconut-interface" }
 nym-config = { path = "../common/config" }
 cosmwasm-std = "1.0.0"
-credential-storage = { path = "../common/credential-storage" }
+nym-credential-storage = { path = "../common/credential-storage" }
 nym-credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }
 cw3 = { version = "0.13.4" }

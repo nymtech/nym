@@ -5,7 +5,7 @@
 use crate::wasm_mockups::StorageError;
 #[cfg(not(feature = "mobile"))]
 #[cfg(not(target_arch = "wasm32"))]
-use credential_storage::error::StorageError;
+use nym_credential_storage::error::StorageError;
 use gateway_requests::registration::handshake::error::HandshakeError;
 #[cfg(feature = "mobile")]
 #[cfg(not(target_arch = "wasm32"))]

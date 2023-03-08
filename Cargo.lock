@@ -933,11 +933,11 @@ version = "0.1.0"
 dependencies = [
  "bip39",
  "clap 4.1.4",
- "credential-storage",
  "log",
  "nym-bin-common",
  "nym-coconut-interface",
  "nym-config",
+ "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
@@ -948,17 +948,6 @@ dependencies = [
  "tokio",
  "url",
  "validator-client",
-]
-
-[[package]]
-name = "credential-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "log",
- "sqlx 0.5.13",
- "thiserror",
- "tokio",
 ]
 
 [[package]]
@@ -1893,13 +1882,13 @@ name = "gateway-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "credential-storage",
  "futures",
  "gateway-requests",
  "getrandom 0.2.8",
  "log",
  "mobile-storage",
  "nym-coconut-interface",
+ "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
@@ -3083,7 +3072,6 @@ dependencies = [
  "clap 4.1.4",
  "console-subscriber",
  "cosmwasm-std",
- "credential-storage",
  "cw-utils",
  "cw3",
  "cw4",
@@ -3101,6 +3089,7 @@ dependencies = [
  "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
+ "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
  "nym-dkg",
@@ -3252,7 +3241,6 @@ version = "1.1.12"
 dependencies = [
  "clap 4.1.4",
  "client-core",
- "credential-storage",
  "dirs",
  "futures",
  "gateway-client",
@@ -3262,6 +3250,7 @@ dependencies = [
  "nym-bin-common",
  "nym-coconut-interface",
  "nym-config",
+ "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
@@ -3338,6 +3327,17 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "nym-credential-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "sqlx 0.5.13",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -3708,7 +3708,6 @@ version = "1.1.12"
 dependencies = [
  "clap 4.1.4",
  "client-core",
- "credential-storage",
  "dirs",
  "futures",
  "gateway-client",
@@ -3719,6 +3718,7 @@ dependencies = [
  "nym-bin-common",
  "nym-coconut-interface",
  "nym-config",
+ "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",

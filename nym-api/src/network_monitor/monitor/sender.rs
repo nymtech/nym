@@ -6,7 +6,7 @@ use crate::network_monitor::monitor::gateway_clients_cache::{
 };
 use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
-use credential_storage::PersistentStorage;
+use nym_credential_storage::PersistentStorage;
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
 use futures::task::Context;

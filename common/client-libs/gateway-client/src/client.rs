@@ -33,7 +33,7 @@ use validator_client::nyxd::CosmWasmClient;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "mobile"))]
-use credential_storage::PersistentStorage;
+use nym_credential_storage::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "mobile")]

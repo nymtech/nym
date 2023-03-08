@@ -6,15 +6,15 @@ use crate::epoch_operations::MixnodeToReward;
 use crate::support::config::Config;
 use anyhow::Result;
 use async_trait::async_trait;
-use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
-use coconut_dkg_common::types::InitialReplacementData;
-use coconut_dkg_common::{
+use cw3::ProposalResponse;
+use cw4::MemberResponse;
+use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use nym_coconut_dkg_common::types::InitialReplacementData;
+use nym_coconut_dkg_common::{
     dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
-use cw3::ProposalResponse;
-use cw4::MemberResponse;
 use nym_config::defaults::{ChainDetails, NymNetworkDetails, DEFAULT_NYM_API_PORT};
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_mixnet_contract_common::families::{Family, FamilyHead};

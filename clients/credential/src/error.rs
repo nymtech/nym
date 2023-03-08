@@ -4,7 +4,7 @@
 use std::time::SystemTimeError;
 use thiserror::Error;
 
-use credential_storage::error::StorageError;
+use nym_credential_storage::error::StorageError;
 use nym_credentials::error::Error as CredentialError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;

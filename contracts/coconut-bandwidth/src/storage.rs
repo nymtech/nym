@@ -1,8 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_bandwidth_contract_common::spend_credential::SpendCredential;
 use cw_storage_plus::{Index, IndexList, IndexedMap, UniqueIndex};
+use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredential;
 
 // storage prefixes
 const SPEND_CREDENTIAL_PK_NAMESPACE: &str = "sc";
@@ -44,10 +44,10 @@ mod tests {
     use crate::storage::SpendCredential;
     use crate::support::tests::fixtures;
     use crate::support::tests::fixtures::TEST_MIX_DENOM;
-    use coconut_bandwidth_contract_common::spend_credential::SpendCredentialStatus;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::Addr;
     use cosmwasm_std::Coin;
+    use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialStatus;
 
     #[test]
     fn spend_credential_single_read_retrieval() {

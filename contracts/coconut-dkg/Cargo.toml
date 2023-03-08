@@ -1,5 +1,5 @@
 [package]
-name = "coconut-dkg"
+name = "nym-coconut-dkg"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,7 +9,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
 
 cosmwasm-std = "1.0.0"
 cosmwasm-storage = "1.0.0"
@@ -24,6 +24,6 @@ thiserror = "1.0.23"
 [dev-dependencies]
 cw-multi-test = { version = "0.13.4" }
 cw4-group = { path = "../multisig/cw4-group" }
-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract" }
+nym-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract" }
 lazy_static = "1.4"
 rusty-fork = "0.3"

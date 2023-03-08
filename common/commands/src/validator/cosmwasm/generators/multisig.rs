@@ -7,7 +7,7 @@ use clap::Parser;
 use cosmwasm_std::Decimal;
 use cw_utils::{Duration, Threshold};
 use log::{debug, info};
-use multisig_contract_common::msg::InstantiateMsg;
+use nym_multisig_contract_common::msg::InstantiateMsg;
 use validator_client::nyxd::AccountId;
 
 #[derive(Debug, Parser)]

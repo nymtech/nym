@@ -1,5 +1,5 @@
 [package]
-name = "coconut-bandwidth"
+name = "nym-coconut-bandwidth"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,9 +9,9 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
-coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
+nym-coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
 
 cosmwasm-std = "1.0.0"
 cosmwasm-storage = "1.0.0"

@@ -11,13 +11,13 @@ rust-version = "1.56"
 base64 = "0.13"
 colored = "2.0"
 
-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
+nym-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
 nym-contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
 nym-mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
-coconut-bandwidth-contract-common = { path= "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
+nym-coconut-bandwidth-contract-common = { path= "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
+nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
 nym-vesting-contract = { path = "../../../contracts/vesting" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -28,7 +28,7 @@ url = { version = "2.2", features = ["serde"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
 futures = "0.3"
 
-coconut-interface = { path = "../../coconut-interface" }
+nym-coconut-interface = { path = "../../coconut-interface" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 nym-execute = { path = "../../execute" }

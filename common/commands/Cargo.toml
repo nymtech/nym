@@ -32,6 +32,6 @@ validator-client = { path = "../client-libs/validator-client", features = ["nyxd
 nym-network-defaults = { path = "../network-defaults" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../cosmwasm-smart-contracts/vesting-contract" }
-coconut-bandwidth-contract-common = { path = "../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
-coconut-dkg-common = { path = "../cosmwasm-smart-contracts/coconut-dkg" }
-multisig-contract-common = { path = "../cosmwasm-smart-contracts/multisig-contract" }
+nym-coconut-bandwidth-contract-common = { path = "../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-coconut-dkg-common = { path = "../cosmwasm-smart-contracts/coconut-dkg" }
+nym-multisig-contract-common = { path = "../cosmwasm-smart-contracts/multisig-contract" }

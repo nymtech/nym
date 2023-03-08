@@ -52,7 +52,7 @@ tokio-util = { version = "0.7.4", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
 
 # internal
-coconut-interface = { path = "../common/coconut-interface" }
+nym-coconut-interface = { path = "../common/coconut-interface" }
 nym-credentials = { path = "../common/credentials" }
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto" }

@@ -6,8 +6,8 @@ use crate::dealings::storage::DEALINGS_BYTES;
 use crate::epoch_state::storage::INITIAL_REPLACEMENT_DATA;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
-use coconut_dkg_common::types::{ContractSafeBytes, EpochState};
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
+use nym_coconut_dkg_common::types::{ContractSafeBytes, EpochState};
 
 pub fn try_commit_dealings(
     deps: DepsMut<'_>,
@@ -54,10 +54,10 @@ pub(crate) mod tests {
     use crate::support::tests::fixtures::{dealer_details_fixture, dealing_bytes_fixture};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::add_fixture_dealer;
-    use coconut_dkg_common::dealer::DealerDetails;
-    use coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
+    use nym_coconut_dkg_common::dealer::DealerDetails;
+    use nym_coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
 
     #[test]
     fn invalid_commit_dealing() {

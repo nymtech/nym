@@ -7,7 +7,7 @@ use crate::error::GatewayClientError;
 use crate::wasm_mockups::Storage;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "mobile"))]
-use credential_storage::storage::Storage;
+use nym_credential_storage::storage::Storage;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "mobile")]
@@ -22,7 +22,7 @@ use crate::wasm_mockups::StorageError;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "mobile"))]
-use credential_storage::error::StorageError;
+use nym_credential_storage::error::StorageError;
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::{Client, CosmWasmClient};
@@ -30,7 +30,7 @@ use std::str::FromStr;
 #[cfg(not(target_arch = "wasm32"))]
 use validator_client::{nyxd::CosmWasmClient, Client};
 use {
-    coconut_interface::Base58,
+    nym_coconut_interface::Base58,
     nym_credentials::coconut::{
         bandwidth::prepare_for_spending, utils::obtain_aggregate_verification_key,
     },
@@ -42,7 +42,7 @@ use crate::wasm_mockups::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "mobile"))]
-use credential_storage::PersistentStorage;
+use nym_credential_storage::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "mobile")]
@@ -69,17 +69,17 @@ where
 
     pub async fn prepare_coconut_credential(
         &self,
-    ) -> Result<(coconut_interface::Credential, i64), GatewayClientError> {
+    ) -> Result<(nym_coconut_interface::Credential, i64), GatewayClientError> {
         let bandwidth_credential = self.storage.get_next_coconut_credential().await?;
         let voucher_value = u64::from_str(&bandwidth_credential.voucher_value)
             .map_err(|_| StorageError::InconsistentData)?;
         let voucher_info = bandwidth_credential.voucher_info.clone();
         let serial_number =
-            coconut_interface::Attribute::try_from_bs58(bandwidth_credential.serial_number)?;
+            nym_coconut_interface::Attribute::try_from_bs58(bandwidth_credential.serial_number)?;
         let binding_number =
-            coconut_interface::Attribute::try_from_bs58(bandwidth_credential.binding_number)?;
+            nym_coconut_interface::Attribute::try_from_bs58(bandwidth_credential.binding_number)?;
         let signature =
-            coconut_interface::Signature::try_from_bs58(bandwidth_credential.signature)?;
+            nym_coconut_interface::Signature::try_from_bs58(bandwidth_credential.signature)?;
         let epoch_id = u64::from_str(&bandwidth_credential.epoch_id)
             .map_err(|_| StorageError::InconsistentData)?;
 

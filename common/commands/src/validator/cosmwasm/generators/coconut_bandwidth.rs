@@ -6,7 +6,7 @@ use std::str::FromStr;
 use clap::Parser;
 use log::{debug, info};
 
-use coconut_bandwidth_contract_common::msg::InstantiateMsg;
+use nym_coconut_bandwidth_contract_common::msg::InstantiateMsg;
 use validator_client::nyxd::AccountId;
 
 #[derive(Debug, Parser)]

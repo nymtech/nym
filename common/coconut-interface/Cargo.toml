@@ -1,5 +1,5 @@
 [package]
-name = "coconut-interface"
+name = "nym-coconut-interface"
 version = "0.1.0"
 edition = "2021"
 description = "Crutch library until there is proper SerDe support for coconut structs"

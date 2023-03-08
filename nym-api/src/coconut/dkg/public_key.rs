@@ -4,7 +4,7 @@
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::State;
 use crate::coconut::error::CoconutError;
-use coconut_dkg_common::dealer::DealerType;
+use nym_coconut_dkg_common::dealer::DealerType;
 
 pub(crate) async fn public_key_submission(
     dkg_client: &DkgClient,

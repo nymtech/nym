@@ -575,39 +575,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "coconut-bandwidth-contract-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "multisig-contract-common",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "coconut-dkg-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "cw-utils",
- "multisig-contract-common",
- "nym-contracts-common",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "coconut-interface"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "getset",
- "nymcoconut",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1800,15 +1767,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "group-contract-common"
-version = "0.1.0"
-dependencies = [
- "cw4",
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "gtk"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2577,20 +2535,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "multisig-contract-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "cw-utils",
- "cw3",
- "cw3-fixed-multisig",
- "cw4",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2753,10 +2697,10 @@ name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "coconut-interface",
  "cosmrs",
  "cosmwasm-std",
  "getset",
+ "nym-coconut-interface",
  "nym-mixnet-contract-common",
  "schemars",
  "serde",
@@ -2773,6 +2717,39 @@ dependencies = [
  "pretty_env_logger",
  "semver 0.11.0",
  "vergen",
+]
+
+[[package]]
+name = "nym-coconut-bandwidth-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "nym-multisig-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "nym-coconut-dkg-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "nym-contracts-common",
+ "nym-multisig-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "nym-coconut-interface"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "getset",
+ "nymcoconut",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -2829,6 +2806,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-group-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cw4",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "nym-mixnet-contract-common"
 version = "0.2.0"
 dependencies = [
@@ -2844,6 +2830,20 @@ dependencies = [
  "thiserror",
  "time",
  "ts-rs",
+]
+
+[[package]]
+name = "nym-multisig-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "cw3",
+ "cw3-fixed-multisig",
+ "cw4",
+ "schemars",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -2870,12 +2870,12 @@ dependencies = [
 name = "nym-types"
 version = "1.0.0"
 dependencies = [
- "coconut-interface",
  "cosmrs",
  "cosmwasm-std",
  "eyre",
  "itertools",
  "log",
+ "nym-coconut-interface",
  "nym-config",
  "nym-mixnet-contract-common",
  "nym-vesting-contract",
@@ -2964,7 +2964,6 @@ dependencies = [
  "base64 0.13.1",
  "bip39",
  "cfg-if",
- "coconut-interface",
  "colored 2.0.0",
  "cosmrs",
  "cosmwasm-std",
@@ -2976,6 +2975,7 @@ dependencies = [
  "itertools",
  "k256",
  "log",
+ "nym-coconut-interface",
  "nym-config",
  "nym-mixnet-contract-common",
  "nym-types",
@@ -5419,9 +5419,6 @@ dependencies = [
  "async-trait",
  "base64 0.13.1",
  "bip39",
- "coconut-bandwidth-contract-common",
- "coconut-dkg-common",
- "coconut-interface",
  "colored 2.0.0",
  "cosmrs",
  "cosmwasm-std",
@@ -5429,15 +5426,18 @@ dependencies = [
  "cw4",
  "flate2",
  "futures",
- "group-contract-common",
  "itertools",
  "log",
- "multisig-contract-common",
  "nym-api-requests",
+ "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
+ "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
  "nym-execute",
+ "nym-group-contract-common",
  "nym-mixnet-contract-common",
+ "nym-multisig-contract-common",
  "nym-network-defaults",
  "nym-vesting-contract",
  "nym-vesting-contract-common",

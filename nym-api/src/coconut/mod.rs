@@ -7,18 +7,18 @@ use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::helpers::accepted_vote_err;
 use crate::support::storage::NymApiStorage;
-use coconut_bandwidth_contract_common::spend_credential::{
-    funds_from_cosmos_msgs, SpendCredentialStatus,
-};
-use coconut_dkg_common::types::EpochId;
-use coconut_interface::KeyPair as CoconutKeyPair;
-use coconut_interface::{
-    Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
-};
 use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+};
+use nym_coconut_bandwidth_contract_common::spend_credential::{
+    funds_from_cosmos_msgs, SpendCredentialStatus,
+};
+use nym_coconut_dkg_common::types::EpochId;
+use nym_coconut_interface::KeyPair as CoconutKeyPair;
+use nym_coconut_interface::{
+    Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
 };
 use nym_config::defaults::NYM_API_VERSION;
 use nym_credentials::coconut::params::{
@@ -190,7 +190,7 @@ impl InternalSignRequest {
 
 fn blind_sign(request: InternalSignRequest, key_pair: &CoconutKeyPair) -> Result<BlindedSignature> {
     let params = Parameters::new(request.total_params())?;
-    Ok(coconut_interface::blind_sign(
+    Ok(nym_coconut_interface::blind_sign(
         &params,
         &key_pair.secret_key(),
         request.blind_sign_request(),

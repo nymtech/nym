@@ -353,7 +353,7 @@ impl crate::coconut::client::Client for Client {
 
     async fn get_current_epoch_threshold(
         &self,
-    ) -> crate::coconut::error::Result<Option<dkg::Threshold>> {
+    ) -> crate::coconut::error::Result<Option<nym_dkg::Threshold>> {
         Ok(self
             .0
             .read()

@@ -15,7 +15,7 @@ use crate::nyxd;
 use crate::support::config::Config;
 use anyhow::Result;
 use coconut_dkg_common::types::EpochState;
-use dkg::bte::keys::KeyPair as DkgKeyPair;
+use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
@@ -25,7 +25,7 @@ use tokio::time::interval;
 
 pub(crate) fn init_keypair(config: &Config) -> Result<()> {
     let mut rng = OsRng;
-    let dkg_params = dkg::bte::setup();
+    let dkg_params = nym_dkg::bte::setup();
     let kp = DkgKeyPair::new(&dkg_params, &mut rng);
     nym_pemstore::store_keypair(
         &kp,

@@ -5,9 +5,9 @@ use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
 use coconut_dkg_common::types::TOTAL_DEALINGS;
-use dkg::bte::setup;
-use dkg::Dealing;
 use nym_contracts_common::dealings::ContractSafeBytes;
+use nym_dkg::bte::setup;
+use nym_dkg::Dealing;
 use rand::RngCore;
 use std::collections::VecDeque;
 
@@ -89,8 +89,8 @@ pub(crate) mod tests {
     use coconut_dkg_common::dealer::DealerDetails;
     use coconut_dkg_common::types::InitialReplacementData;
     use cosmwasm_std::Addr;
-    use dkg::bte::keys::KeyPair as DkgKeyPair;
-    use dkg::bte::{Params, PublicKeyWithProof};
+    use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
+    use nym_dkg::bte::{Params, PublicKeyWithProof};
     use nymcoconut::{ttp_keygen, Parameters};
     use rand::rngs::OsRng;
     use std::collections::HashMap;

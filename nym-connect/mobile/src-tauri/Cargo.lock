@@ -1409,27 +1409,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
 
 [[package]]
-name = "dkg"
-version = "0.1.0"
-dependencies = [
- "bitvec",
- "bls12_381 0.6.0",
- "bs58",
- "ff 0.11.1",
- "group 0.11.0",
- "lazy_static",
- "nym-pemstore",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rand_core 0.6.4",
- "serde",
- "serde_derive",
- "sha2 0.9.9",
- "thiserror",
- "zeroize",
-]
-
-[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3546,6 +3525,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-dkg"
+version = "0.1.0"
+dependencies = [
+ "bitvec",
+ "bls12_381 0.6.0",
+ "bs58",
+ "ff 0.11.1",
+ "group 0.11.0",
+ "lazy_static",
+ "nym-pemstore",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_derive",
+ "sha2 0.9.9",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-execute"
 version = "0.1.0"
 dependencies = [
@@ -3875,11 +3875,11 @@ dependencies = [
  "bls12_381 0.6.0",
  "bs58",
  "digest 0.9.0",
- "dkg",
  "ff 0.11.1",
  "getrandom 0.2.8",
  "group 0.11.0",
  "itertools",
+ "nym-dkg",
  "nym-pemstore",
  "rand 0.8.5",
  "serde",

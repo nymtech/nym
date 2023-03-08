@@ -74,7 +74,7 @@ credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }
 cw3 = { version = "0.13.4" }
 cw4 = { version = "0.13.4" }
-dkg = { path = "../common/dkg", features = ["cw-types"] }
+nym-dkg = { path = "../common/dkg", features = ["cw-types"] }
 gateway-client = { path = "../common/client-libs/gateway-client" }
 nym-inclusion-probability = { path = "../common/inclusion-probability" }
 nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }

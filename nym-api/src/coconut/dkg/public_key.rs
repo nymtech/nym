@@ -46,7 +46,7 @@ pub(crate) mod tests {
     use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
-    use dkg::bte::keys::KeyPair as DkgKeyPair;
+    use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
     use rand::rngs::OsRng;
     use std::path::PathBuf;
     use std::str::FromStr;

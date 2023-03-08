@@ -45,9 +45,9 @@ use coconut_dkg_common::types::{
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
-use dkg::Threshold;
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_dkg::Threshold;
 use rand_07::rngs::OsRng;
 use rand_07::Rng;
 use rocket::http::Status;

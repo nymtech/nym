@@ -109,7 +109,7 @@ pub mod tests {
     use super::*;
     use crate::{KeyPair, Parameters, SecretKey};
     use bls12_381::Scalar;
-    use dkg::{bte::decrypt_share, combine_shares, Dealing, NodeIndex};
+    use nym_dkg::{bte::decrypt_share, combine_shares, Dealing, NodeIndex};
     use rand_chacha::rand_core::SeedableRng;
 
     pub fn generate_dkg_secrets(node_indices: &[NodeIndex]) -> Vec<Scalar> {

@@ -21,8 +21,8 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::{TaskClient, TaskManager};
-use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
-use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
+use nym_socks5_proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
+use nym_socks5_proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };

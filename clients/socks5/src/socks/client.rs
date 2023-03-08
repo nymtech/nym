@@ -15,10 +15,10 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_task::connections::{LaneQueueLengths, TransmissionLane};
 use nym_task::TaskClient;
 use pin_project::pin_project;
-use proxy_helpers::connection_controller::{
+use nym_socks5_proxy_helpers::connection_controller::{
     ConnectionReceiver, ControllerCommand, ControllerSender,
 };
-use proxy_helpers::proxy_runner::ProxyRunner;
+use nym_socks5_proxy_helpers::proxy_runner::ProxyRunner;
 use rand::RngCore;
 use service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
 use std::io;

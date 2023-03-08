@@ -1,5 +1,5 @@
 [package]
-name = "proxy-helpers"
+name = "nym-socks5-proxy-helpers"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"

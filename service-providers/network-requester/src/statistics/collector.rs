@@ -17,7 +17,7 @@ use nym_statistics_common::{
     StatsServiceData,
 };
 use ordered_buffer::OrderedMessageSender;
-use proxy_helpers::proxy_runner::MixProxySender;
+use nym_socks5_proxy_helpers::proxy_runner::MixProxySender;
 use rand::RngCore;
 use serde::Deserialize;
 use service_providers_common::interface::RequestVersion;

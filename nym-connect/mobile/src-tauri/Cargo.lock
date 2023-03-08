@@ -3622,6 +3622,7 @@ dependencies = [
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
+ "nym-socks5-proxy-helpers",
  "nym-socks5-requests",
  "nym-sphinx",
  "nym-task",
@@ -3629,7 +3630,6 @@ dependencies = [
  "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
- "proxy-helpers",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -3639,6 +3639,20 @@ dependencies = [
  "tokio",
  "url",
  "validator-client",
+]
+
+[[package]]
+name = "nym-socks5-proxy-helpers"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "futures",
+ "log",
+ "nym-socks5-requests",
+ "nym-task",
+ "ordered-buffer",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -4471,20 +4485,6 @@ checksum = "2d0a014229361011dc8e69c8a1ec6c2e8d0f2af7c91e3ea3f5b2170298461e68"
 dependencies = [
  "bytes",
  "prost",
-]
-
-[[package]]
-name = "proxy-helpers"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "futures",
- "log",
- "nym-socks5-requests",
- "nym-task",
- "ordered-buffer",
- "tokio",
- "tokio-util",
 ]
 
 [[package]]

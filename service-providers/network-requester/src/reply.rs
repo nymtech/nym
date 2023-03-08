@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_sdk::mixnet::InputMessage;
+use nym_socks5_requests::{
+    ConnectionId, NetworkData, Socks5ProviderRequest, Socks5ProviderResponse, Socks5Request,
+    Socks5RequestContent, Socks5Response, Socks5ResponseContent,
+};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
 use service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, RequestVersion,
-};
-use nym_socks5_requests::{
-    ConnectionId, NetworkData, Socks5ProviderRequest, Socks5ProviderResponse, Socks5Request,
-    Socks5RequestContent, Socks5Response, Socks5ResponseContent,
 };
 use std::fmt::{Debug, Formatter};
 

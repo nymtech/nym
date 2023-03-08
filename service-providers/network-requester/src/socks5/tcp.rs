@@ -3,12 +3,12 @@
 
 use crate::reply;
 use crate::reply::MixnetMessage;
+use nym_socks5_requests::{ConnectionId, RemoteAddress, Socks5Request};
 use nym_task::connections::LaneQueueLengths;
 use nym_task::TaskClient;
 use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
 use service_providers_common::interface::RequestVersion;
-use nym_socks5_requests::{ConnectionId, RemoteAddress, Socks5Request};
 use std::io;
 use tokio::net::TcpStream;
 

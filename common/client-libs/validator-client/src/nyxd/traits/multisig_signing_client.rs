@@ -7,7 +7,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Fee, NyxdClient};
 
 use cw3::Vote;
-use multisig_contract_common::msg::ExecuteMsg;
+use nym_multisig_contract_common::msg::ExecuteMsg;
 use nym_coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
 
 use async_trait::async_trait;

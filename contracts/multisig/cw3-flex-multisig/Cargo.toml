@@ -28,7 +28,7 @@ schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 
 nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/group-contract" }
-multisig-contract-common = { path= "../../../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-multisig-contract-common = { path= "../../../common/cosmwasm-smart-contracts/multisig-contract" }
 
 [dev-dependencies]
 cosmwasm-schema = { version = "1.0.0" }

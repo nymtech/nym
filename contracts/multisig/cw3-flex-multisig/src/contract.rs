@@ -18,8 +18,8 @@ use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration, ThresholdResponse};
 
 use crate::state::{Config, CONFIG};
-use multisig_contract_common::error::ContractError;
-use multisig_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use nym_multisig_contract_common::error::ContractError;
+use nym_multisig_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:cw3-flex-multisig";

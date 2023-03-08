@@ -116,7 +116,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{from_binary, Coin, CosmosMsg, WasmMsg};
     use cw_controllers::AdminError;
-    use multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
+    use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
     use nym_coconut_bandwidth_contract_common::msg::ExecuteMsg;
 
     #[test]

@@ -3180,20 +3180,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "multisig-contract-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "cw-utils",
- "cw3",
- "cw3-fixed-multisig",
- "cw4",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3398,7 +3384,7 @@ name = "nym-coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
- "multisig-contract-common",
+ "nym-multisig-contract-common",
  "schemars",
  "serde",
 ]
@@ -3409,8 +3395,8 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
  "cw-utils",
- "multisig-contract-common",
  "nym-contracts-common",
+ "nym-multisig-contract-common",
  "schemars",
  "serde",
 ]
@@ -3568,6 +3554,20 @@ dependencies = [
  "serde_repr",
  "thiserror",
  "time 0.3.19",
+]
+
+[[package]]
+name = "nym-multisig-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "cw3",
+ "cw3-fixed-multisig",
+ "cw4",
+ "schemars",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -6760,7 +6760,6 @@ dependencies = [
  "futures",
  "itertools",
  "log",
- "multisig-contract-common",
  "nym-api-requests",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
@@ -6769,6 +6768,7 @@ dependencies = [
  "nym-execute",
  "nym-group-contract-common",
  "nym-mixnet-contract-common",
+ "nym-multisig-contract-common",
  "nym-network-defaults",
  "nym-vesting-contract",
  "nym-vesting-contract-common",

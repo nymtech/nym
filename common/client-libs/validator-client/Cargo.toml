@@ -16,7 +16,7 @@ nym-contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common
 nym-mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
 nym-coconut-bandwidth-contract-common = { path= "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
+nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
 nym-vesting-contract = { path = "../../../contracts/vesting" }
 serde = { version = "1", features = ["derive"] }

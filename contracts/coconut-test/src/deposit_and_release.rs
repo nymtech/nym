@@ -3,13 +3,13 @@
 
 use crate::helpers::*;
 use coconut_bandwidth::error::ContractError;
-use coconut_bandwidth_contract_common::{
-    deposit::DepositData,
-    msg::{ExecuteMsg, InstantiateMsg},
-};
 use cosmwasm_std::{coins, Addr};
 use cw_controllers::AdminError;
 use cw_multi_test::Executor;
+use nym_coconut_bandwidth_contract_common::{
+    deposit::DepositData,
+    msg::{ExecuteMsg, InstantiateMsg},
+};
 
 const TEST_MIX_DENOM: &str = "unym";
 

@@ -15,7 +15,7 @@ coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
 nym-contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
 nym-mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
-coconut-bandwidth-contract-common = { path= "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-coconut-bandwidth-contract-common = { path= "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
 group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
 nym-vesting-contract = { path = "../../../contracts/vesting" }

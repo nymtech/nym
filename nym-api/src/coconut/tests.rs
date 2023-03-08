@@ -3,17 +3,17 @@
 
 use super::InternalSignRequest;
 use crate::coconut::error::{CoconutError, Result};
-use coconut_bandwidth_contract_common::events::{
-    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
-    DEPOSIT_VALUE,
-};
-use coconut_bandwidth_contract_common::spend_credential::{
-    SpendCredential, SpendCredentialResponse,
-};
 use coconut_interface::{hash_to_scalar, Credential, VerificationKey};
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+};
+use nym_coconut_bandwidth_contract_common::events::{
+    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
+    DEPOSIT_VALUE,
+};
+use nym_coconut_bandwidth_contract_common::spend_credential::{
+    SpendCredential, SpendCredentialResponse,
 };
 use nym_config::defaults::VOUCHER_INFO;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;

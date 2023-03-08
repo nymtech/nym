@@ -64,7 +64,7 @@ rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
 schemars = { version = "0.8", features = ["preserve_order"] }
 
 ## internal
-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
 coconut-interface = { path = "../common/coconut-interface" }
 nym-config = { path = "../common/config" }

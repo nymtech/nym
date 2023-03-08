@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 nym-bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
-coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
 
 cosmwasm-std = "1.0.0"

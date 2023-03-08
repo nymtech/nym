@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::error::Result;
-use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
 use coconut_dkg_common::types::{
     EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData,
@@ -10,6 +9,7 @@ use coconut_dkg_common::types::{
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
+use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_dkg::Threshold;
 use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;

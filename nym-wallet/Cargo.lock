@@ -575,16 +575,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "coconut-bandwidth-contract-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "multisig-contract-common",
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "coconut-dkg-common"
 version = "0.1.0"
 dependencies = [
@@ -2773,6 +2763,16 @@ dependencies = [
  "pretty_env_logger",
  "semver 0.11.0",
  "vergen",
+]
+
+[[package]]
+name = "nym-coconut-bandwidth-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "multisig-contract-common",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -5419,7 +5419,6 @@ dependencies = [
  "async-trait",
  "base64 0.13.1",
  "bip39",
- "coconut-bandwidth-contract-common",
  "coconut-dkg-common",
  "coconut-interface",
  "colored 2.0.0",
@@ -5434,6 +5433,7 @@ dependencies = [
  "log",
  "multisig-contract-common",
  "nym-api-requests",
+ "nym-coconut-bandwidth-contract-common",
  "nym-config",
  "nym-contracts-common",
  "nym-execute",

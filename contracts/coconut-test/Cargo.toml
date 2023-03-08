@@ -25,7 +25,7 @@ serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = "1.0.23"
 
 coconut-bandwidth = { path = "../coconut-bandwidth" }
-coconut-dkg = { path = "../coconut-dkg" }
+nym-coconut-dkg = { path = "../coconut-dkg" }
 cw-multi-test = { version = "0.13.4" }
 cw3-flex-multisig = { path = "../multisig/cw3-flex-multisig" }
 cw4-group = { path = "../multisig/cw4-group" }

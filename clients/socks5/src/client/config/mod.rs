@@ -10,7 +10,7 @@ use nym_config::{NymConfig, OptionalSet};
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use service_providers_common::interface::ProviderInterfaceVersion;
-use socks5_requests::Socks5ProtocolVersion;
+use nym_socks5_requests::Socks5ProtocolVersion;
 use std::fmt::Debug;
 use std::path::PathBuf;
 use std::str::FromStr;

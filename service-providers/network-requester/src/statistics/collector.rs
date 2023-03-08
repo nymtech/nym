@@ -20,7 +20,7 @@ use proxy_helpers::proxy_runner::MixProxySender;
 use rand::RngCore;
 use serde::Deserialize;
 use service_providers_common::interface::RequestVersion;
-use socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
+use nym_socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
 use sqlx::types::chrono::{DateTime, Utc};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

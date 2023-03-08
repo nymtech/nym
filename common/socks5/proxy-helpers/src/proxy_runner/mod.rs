@@ -4,7 +4,7 @@
 use crate::connection_controller::ConnectionReceiver;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::TaskClient;
-use socks5_requests::ConnectionId;
+use nym_socks5_requests::ConnectionId;
 use std::fmt::Debug;
 use std::{sync::Arc, time::Duration};
 use tokio::{net::TcpStream, sync::Notify};

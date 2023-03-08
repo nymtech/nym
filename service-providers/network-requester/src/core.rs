@@ -23,7 +23,7 @@ use service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };
 use service_providers_common::ServiceProvider;
-use socks5_requests::{
+use nym_socks5_requests::{
     ConnectRequest, ConnectionId, NetworkData, SendRequest, Socks5ProtocolVersion,
     Socks5ProviderRequest, Socks5Request, Socks5RequestContent, Socks5Response,
 };

@@ -12,7 +12,7 @@ use nym_task::connections::LaneQueueLengths;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskClient;
 use ordered_buffer::OrderedMessageSender;
-use socks5_requests::ConnectionId;
+use nym_socks5_requests::ConnectionId;
 use std::fmt::Debug;
 use std::time::Duration;
 use std::{io, sync::Arc};

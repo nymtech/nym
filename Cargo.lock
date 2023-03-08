@@ -3581,6 +3581,7 @@ dependencies = [
  "nym-crypto",
  "nym-network-defaults",
  "nym-sdk",
+ "nym-socks5-requests",
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
@@ -3592,7 +3593,6 @@ dependencies = [
  "reqwest",
  "serde",
  "service-providers-common",
- "socks5-requests",
  "sqlx 0.6.2",
  "tap",
  "thiserror",
@@ -3699,6 +3699,7 @@ dependencies = [
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
+ "nym-socks5-requests",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
@@ -3710,12 +3711,22 @@ dependencies = [
  "serde",
  "serde_json",
  "service-providers-common",
- "socks5-requests",
  "tap",
  "thiserror",
  "tokio",
  "url",
  "validator-client",
+]
+
+[[package]]
+name = "nym-socks5-requests"
+version = "0.1.0"
+dependencies = [
+ "nym-sphinx-addressing",
+ "serde",
+ "serde_json",
+ "service-providers-common",
+ "thiserror",
 ]
 
 [[package]]
@@ -4513,9 +4524,9 @@ dependencies = [
  "bytes",
  "futures",
  "log",
+ "nym-socks5-requests",
  "nym-task",
  "ordered-buffer",
- "socks5-requests",
  "tokio",
  "tokio-test",
  "tokio-util",
@@ -5592,17 +5603,6 @@ checksum = "02e2d2db9033d13a1567121ddd7a095ee144db4e1ca1b1bda3419bc0da294ebd"
 dependencies = [
  "libc",
  "winapi",
-]
-
-[[package]]
-name = "socks5-requests"
-version = "0.1.0"
-dependencies = [
- "nym-sphinx-addressing",
- "serde",
- "serde_json",
- "service-providers-common",
- "thiserror",
 ]
 
 [[package]]

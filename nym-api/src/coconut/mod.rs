@@ -15,15 +15,15 @@ use coconut_interface::KeyPair as CoconutKeyPair;
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
 };
-use nym_credentials::coconut::params::{
-    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
-};
 use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use nym_config::defaults::NYM_API_VERSION;
+use nym_credentials::coconut::params::{
+    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
+};
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;

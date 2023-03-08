@@ -8,6 +8,7 @@ use crate::coconut::error::CoconutError;
 use crate::coconut::helpers::accepted_vote_err;
 use cosmwasm_std::Addr;
 use cw3::{ProposalResponse, Status};
+use log::debug;
 use nym_coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
 use nym_coconut_dkg_common::types::{NodeIndex, TOTAL_DEALINGS};
 use nym_coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
@@ -116,6 +117,11 @@ fn derive_partial_keypair(
                 }
             })
             .unzip();
+        debug!(
+            "Recovering verification keys from dealings of dealers {:?} with receivers {:?}",
+            filtered_dealings,
+            filtered_receivers_by_idx.keys().collect::<Vec<_>>()
+        );
         let recovered = try_recover_verification_keys(
             &filtered_dealings,
             threshold,
@@ -152,6 +158,7 @@ pub(crate) async fn verification_key_submission(
     resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.coconut_keypair_is_some().await {
+        debug!("Coconut keypair was set previously, nothing to do");
         return Ok(());
     }
 
@@ -159,6 +166,7 @@ pub(crate) async fn verification_key_submission(
     let dealings_maps =
         deterministic_filter_dealers(dkg_client, state, threshold, resharing).await?;
     let coconut_keypair = derive_partial_keypair(state, threshold, dealings_maps)?;
+    debug!("Derived own coconut keypair");
     let vk_share = coconut_keypair.verification_key().to_bs58();
     nym_pemstore::store_keypair(&coconut_keypair, keypair_path)?;
     let res = dkg_client
@@ -173,6 +181,10 @@ pub(crate) async fn verification_key_submission(
         .map_err(|_| CoconutError::ProposalIdError {
             reason: String::from("proposal id could not be parsed to u64"),
         })?;
+    debug!(
+        "Submitted own verification key share, proposal id {} is attached to it",
+        proposal_id
+    );
     state.set_proposal_id(proposal_id);
     state.set_coconut_keypair(Some(coconut_keypair)).await;
     info!("DKG: Submitted own verification key");
@@ -195,6 +207,7 @@ pub(crate) async fn verification_key_validation(
     _resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.voted_vks() {
+        debug!("Already voted on the verification keys, nothing to do");
         return Ok(());
     }
 
@@ -225,10 +238,15 @@ pub(crate) async fn verification_key_validation(
                         .position(|node_index| contract_share.node_index == *node_index)
                     {
                         let ret = if !check_vk_pairing(&params, &recovered_partials[idx], &vk) {
+                            debug!(
+                                "Voting NO to proposal {} because of failed VK pairing",
+                                proposal_id
+                            );
                             dkg_client
                                 .vote_verification_key_share(proposal_id, false)
                                 .await
                         } else {
+                            debug!("Voting YES to proposal {}", proposal_id);
                             dkg_client
                                 .vote_verification_key_share(proposal_id, true)
                                 .await
@@ -237,6 +255,10 @@ pub(crate) async fn verification_key_validation(
                     }
                 }
                 Err(_) => {
+                    debug!(
+                        "Voting NO to proposal {} because of failed base 58 deserialization",
+                        proposal_id
+                    );
                     let ret = dkg_client
                         .vote_verification_key_share(proposal_id, false)
                         .await;
@@ -256,6 +278,7 @@ pub(crate) async fn verification_key_finalization(
     _resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.executed_proposal() {
+        debug!("Already executed the proposal, nothing to do");
         return Ok(());
     }
 

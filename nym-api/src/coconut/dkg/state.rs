@@ -5,6 +5,7 @@ use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
 use cosmwasm_std::Addr;
+use log::debug;
 use nym_coconut_dkg_common::dealer::DealerDetails;
 use nym_coconut_dkg_common::types::EpochState;
 use nym_dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
@@ -360,6 +361,10 @@ impl State {
             .iter_mut()
             .find(|(addr, _)| *addr == dealer_addr)
         {
+            debug!(
+                "Dealer {} misbehaved: {:?}. It will be marked locally as bad dealer and ignored",
+                dealer_addr, reason
+            );
             *value = Err(reason);
         }
     }

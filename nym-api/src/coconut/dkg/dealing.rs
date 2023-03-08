@@ -4,6 +4,7 @@
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
+use log::debug;
 use nym_coconut_dkg_common::types::TOTAL_DEALINGS;
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_dkg::bte::setup;
@@ -18,6 +19,7 @@ pub(crate) async fn dealing_exchange(
     resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.receiver_index().is_some() {
+        debug!("Receiver index was set previously, nothing to do");
         return Ok(());
     }
 
@@ -45,6 +47,7 @@ pub(crate) async fn dealing_exchange(
                 return Err(CoconutError::CorruptedCoconutKeyPair);
             }
             // We can now erase the keypair from memory
+            debug!("Removing coconut keypair from memory");
             state.set_coconut_keypair(None).await;
             scalars.push(x);
             scalars
@@ -59,6 +62,11 @@ pub(crate) async fn dealing_exchange(
     if !resharing || initial_dealers.iter().any(|d| *d == own_address) {
         let params = setup();
         for _ in 0..TOTAL_DEALINGS {
+            debug!(
+                "Submitting dealing for indexes {:?} with resharing: {}",
+                receivers.keys().collect::<Vec<_>>(),
+                prior_resharing_secrets.front().is_some()
+            );
             let (dealing, _) = Dealing::create(
                 rng.clone(),
                 &params,
@@ -71,9 +79,11 @@ pub(crate) async fn dealing_exchange(
                 .submit_dealing(ContractSafeBytes::from(&dealing), resharing)
                 .await?;
         }
+    } else {
+        debug!("Nothing to do, waiting for initial dealers to submit dealings");
     }
 
-    info!("DKG: Finished submitting dealing");
+    info!("DKG: Finished dealing exchange");
     state.set_receiver_index(receiver_index);
 
     Ok(())

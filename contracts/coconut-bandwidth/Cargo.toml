@@ -1,5 +1,5 @@
 [package]
-name = "coconut-bandwidth"
+name = "nym-coconut-bandwidth"
 version = "0.1.0"
 edition = "2021"
 

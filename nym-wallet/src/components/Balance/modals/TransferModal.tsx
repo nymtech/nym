@@ -8,36 +8,22 @@ import { FeeWarning } from 'src/components/FeeWarning';
 import { withdrawVestedCoins } from 'src/requests';
 import { Console } from 'src/utils/console';
 import { simulateWithdrawVestedCoins } from 'src/requests/simulate';
-import { SuccessModal } from './TransferModalSuccess';
-import { TResponseState, TTransactionDetails } from '../types';
+import { useGetFee } from 'src/hooks/useGetFee';
+import { SuccessModal, TTransactionDetails } from './TransferModalSuccess';
+import { TResponseState } from '../../../pages/balance/types';
 
 export const TransferModal = ({ onClose }: { onClose: () => void }) => {
   const [state, setState] = useState<TResponseState>();
-  const [fee, setFee] = useState<FeeDetails>();
+
   const [tx, setTx] = useState<TTransactionDetails>();
 
   const { userBalance, clientDetails, network } = useContext(AppContext);
-
-  const getFee = async () => {
-    if (userBalance.tokenAllocation?.spendable && clientDetails?.display_mix_denom) {
-      try {
-        const simulatedFee = await simulateWithdrawVestedCoins({
-          amount: { amount: userBalance.tokenAllocation?.spendable, denom: clientDetails?.display_mix_denom },
-        });
-        setFee(simulatedFee);
-        await userBalance.refreshBalances();
-      } catch (e) {
-        setFee({
-          amount: { amount: 'n/a', denom: clientDetails?.display_mix_denom.toUpperCase() as CurrencyDenom },
-          fee: { Auto: null },
-        });
-        Console.error(e);
-      }
-    }
-  };
+  const { fee, getFee } = useGetFee();
 
   useEffect(() => {
-    getFee();
+    getFee(simulateWithdrawVestedCoins, {
+      amount: { amount: userBalance.tokenAllocation?.spendable, denom: clientDetails?.display_mix_denom },
+    });
   }, []);
 
   const handleTransfer = async () => {

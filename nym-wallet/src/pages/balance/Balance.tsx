@@ -3,14 +3,20 @@ import { Alert, Grid, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { NymCard, ClientAddress } from '../../components';
 import { AppContext, urls } from '../../context/main';
+import { Network } from 'src/types';
+import { Balance } from '@nymproject/types';
 
-export const BalanceCard = () => {
-  const { userBalance, clientDetails, network } = useContext(AppContext);
-
-  useEffect(() => {
-    userBalance.fetchBalance();
-  }, []);
-
+export const BalanceCard = ({
+  userBalance,
+  userBalanceError,
+  network,
+  clientAddress,
+}: {
+  userBalance?: Balance;
+  userBalanceError?: string;
+  network?: Network;
+  clientAddress?: string;
+}) => {
   return (
     <NymCard
       title="Balance"
@@ -20,12 +26,12 @@ export const BalanceCard = () => {
     >
       <Grid container direction="column" spacing={2}>
         <Grid item>
-          {userBalance.error && (
+          {userBalanceError && (
             <Alert severity="error" data-testid="error-refresh" sx={{ p: 2 }}>
-              {userBalance.error}
+              {userBalanceError}
             </Alert>
           )}
-          {!userBalance.error && (
+          {!userBalanceError && (
             <Typography
               data-testid="refresh-success"
               sx={{
@@ -36,14 +42,14 @@ export const BalanceCard = () => {
               }}
               variant="h5"
             >
-              {userBalance.balance?.printable_balance}
+              {userBalance?.printable_balance}
             </Typography>
           )}
         </Grid>
         {network && (
           <Grid item>
             <Link
-              href={`${urls(network).mixnetExplorer}/account/${clientDetails?.client_address}`}
+              href={`${urls(network).mixnetExplorer}/account/${clientAddress}`}
               target="_blank"
               text="Last transactions"
               fontSize={14}

@@ -140,7 +140,7 @@ mod tests {
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
-    use group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
+    use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
     use nym_coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
     use nym_coconut_dkg_common::types::NodeIndex;
 

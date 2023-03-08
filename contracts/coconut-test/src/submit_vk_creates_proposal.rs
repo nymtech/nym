@@ -11,7 +11,7 @@ use cosmwasm_std::{coins, Addr, Decimal};
 use cw4::Member;
 use cw_multi_test::Executor;
 use cw_utils::{Duration, Threshold};
-use group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
+use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
 use multisig_contract_common::msg::ExecuteMsg::{Execute, Vote};
 use multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
 use nym_coconut_dkg_common::msg::ExecuteMsg::{

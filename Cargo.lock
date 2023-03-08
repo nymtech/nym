@@ -2093,15 +2093,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "group-contract-common"
-version = "0.1.0"
-dependencies = [
- "cw4",
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "h2"
 version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3480,6 +3471,15 @@ dependencies = [
  "tokio-util",
  "url",
  "validator-client",
+]
+
+[[package]]
+name = "nym-group-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cw4",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -6753,7 +6753,6 @@ dependencies = [
  "cw4",
  "flate2",
  "futures",
- "group-contract-common",
  "itertools",
  "log",
  "multisig-contract-common",
@@ -6763,6 +6762,7 @@ dependencies = [
  "nym-config",
  "nym-contracts-common",
  "nym-execute",
+ "nym-group-contract-common",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-vesting-contract",

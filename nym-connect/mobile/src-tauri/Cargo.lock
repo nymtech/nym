@@ -2194,15 +2194,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "group-contract-common"
-version = "0.1.0"
-dependencies = [
- "cw4",
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "gtk"
 version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3551,6 +3542,15 @@ version = "0.1.0"
 dependencies = [
  "quote",
  "syn",
+]
+
+[[package]]
+name = "nym-group-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cw4",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -6758,7 +6758,6 @@ dependencies = [
  "cw4",
  "flate2",
  "futures",
- "group-contract-common",
  "itertools",
  "log",
  "multisig-contract-common",
@@ -6768,6 +6767,7 @@ dependencies = [
  "nym-config",
  "nym-contracts-common",
  "nym-execute",
+ "nym-group-contract-common",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-vesting-contract",

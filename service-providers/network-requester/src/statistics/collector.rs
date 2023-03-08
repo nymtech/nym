@@ -20,7 +20,7 @@ use nym_statistics_common::{
 };
 use rand::RngCore;
 use serde::Deserialize;
-use service_providers_common::interface::RequestVersion;
+use nym_service_providers_common::interface::RequestVersion;
 use sqlx::types::chrono::{DateTime, Utc};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

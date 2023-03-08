@@ -40,7 +40,7 @@ nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 nym-ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 nym-socks5-proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
-service-providers-common = { path = "../common" }
+nym-service-providers-common = { path = "../common" }
 nym-socks5-requests = { path = "../../common/socks5/requests" }
 nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }

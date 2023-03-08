@@ -9,7 +9,7 @@ use nym_socks5_requests::{
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
-use service_providers_common::interface::{
+use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, RequestVersion,
 };
 use std::fmt::{Debug, Formatter};

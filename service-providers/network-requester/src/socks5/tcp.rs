@@ -8,7 +8,7 @@ use nym_socks5_proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
 use nym_socks5_requests::{ConnectionId, RemoteAddress, Socks5Request};
 use nym_task::connections::LaneQueueLengths;
 use nym_task::TaskClient;
-use service_providers_common::interface::RequestVersion;
+use nym_service_providers_common::interface::RequestVersion;
 use std::io;
 use tokio::net::TcpStream;
 

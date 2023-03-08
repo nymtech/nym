@@ -3582,6 +3582,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-sdk",
+ "nym-service-providers-common",
  "nym-socks5-proxy-helpers",
  "nym-socks5-requests",
  "nym-sphinx",
@@ -3592,7 +3593,6 @@ dependencies = [
  "rand 0.7.3",
  "reqwest",
  "serde",
- "service-providers-common",
  "sqlx 0.6.2",
  "tap",
  "thiserror",
@@ -3687,6 +3687,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-service-providers-common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "log",
+ "nym-bin-common",
+ "nym-sdk",
+ "nym-sphinx-anonymous-replies",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "nym-socks5-client"
 version = "1.1.12"
 dependencies = [
@@ -3708,6 +3724,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-pemstore",
+ "nym-service-providers-common",
  "nym-socks5-proxy-helpers",
  "nym-socks5-requests",
  "nym-sphinx",
@@ -3718,7 +3735,6 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
- "service-providers-common",
  "tap",
  "thiserror",
  "tokio",
@@ -3745,10 +3761,10 @@ dependencies = [
 name = "nym-socks5-requests"
 version = "0.1.0"
 dependencies = [
+ "nym-service-providers-common",
  "nym-sphinx-addressing",
  "serde",
  "serde_json",
- "service-providers-common",
  "thiserror",
 ]
 
@@ -5411,22 +5427,6 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "service-providers-common"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "log",
- "nym-bin-common",
- "nym-sdk",
- "nym-sphinx-anonymous-replies",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
 ]
 
 [[package]]

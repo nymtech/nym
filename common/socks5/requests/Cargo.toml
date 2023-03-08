@@ -12,4 +12,4 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
 nym-sphinx-addressing = { path = "../../../common/nymsphinx/addressing" }
-service-providers-common = { path = "../../../service-providers/common" }
+nym-service-providers-common = { path = "../../../service-providers/common" }

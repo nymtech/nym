@@ -20,7 +20,7 @@ use nym_task::connections::{LaneQueueLengths, TransmissionLane};
 use nym_task::TaskClient;
 use pin_project::pin_project;
 use rand::RngCore;
-use service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
+use nym_service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;

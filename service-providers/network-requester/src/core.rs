@@ -25,10 +25,10 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::{TaskClient, TaskManager};
-use service_providers_common::interface::{
+use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };
-use service_providers_common::ServiceProvider;
+use nym_service_providers_common::ServiceProvider;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 

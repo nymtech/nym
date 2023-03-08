@@ -12,6 +12,7 @@ import { WorldMap } from '../../components/WorldMap';
 import { MixNodeDetailSection } from '../../components/MixNodes/DetailSection';
 import { MixnodeContextProvider, useMixnodeContext } from '../../context/mixnode';
 import { Title } from '../../components/Title';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 const columns: ColumnsType[] = [
   {
@@ -64,7 +65,7 @@ const columns: ColumnsType[] = [
  */
 const PageMixnodeDetailWithState: FCWithChildren = () => {
   const { mixNode, mixNodeRow, description, stats, status, uptimeStory, uniqDelegations } = useMixnodeContext();
-  console.log(mixNodeRow);
+  const isMobile = useIsMobile();
   return (
     <Box component="main">
       <Title text="Mixnode Detail" />
@@ -72,6 +73,11 @@ const PageMixnodeDetailWithState: FCWithChildren = () => {
         <Grid item xs={12}>
           {mixNodeRow && description?.data && (
             <MixNodeDetailSection mixNodeRow={mixNodeRow} mixnodeDescription={description.data} />
+          )}
+          {mixNodeRow?.blacklisted && (
+            <Typography textAlign={isMobile ? 'left' : 'right'} fontSize="smaller" sx={{ color: 'error.main' }}>
+              This node is having a poor performance
+            </Typography>
           )}
         </Grid>
       </Grid>

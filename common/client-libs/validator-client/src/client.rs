@@ -749,6 +749,12 @@ where
         Ok(self.nym_api.get_mixnodes_detailed().await?)
     }
 
+    pub async fn get_cached_mixnodes_detailed_unfiltered(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
+        Ok(self.nym_api.get_mixnodes_detailed_unfiltered().await?)
+    }
+
     pub async fn get_cached_rewarded_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {

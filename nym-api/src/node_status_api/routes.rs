@@ -6,11 +6,11 @@ use super::NodeStatusCache;
 use crate::node_status_api::helpers::{
     _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
     _gateway_uptime_history, _get_active_set_detailed, _get_gateway_avg_uptime,
-    _get_mixnode_avg_uptime, _get_mixnode_inclusion_probabilities,
-    _get_mixnode_inclusion_probability, _get_mixnode_reward_estimation,
-    _get_mixnode_stake_saturation, _get_mixnode_status, _get_mixnodes_detailed,
-    _get_rewarded_set_detailed, _mixnode_core_status_count, _mixnode_report,
-    _mixnode_uptime_history,
+    _get_gateways_detailed_unfiltered, _get_mixnode_avg_uptime,
+    _get_mixnode_inclusion_probabilities, _get_mixnode_inclusion_probability,
+    _get_mixnode_reward_estimation, _get_mixnode_stake_saturation, _get_mixnode_status,
+    _get_mixnodes_detailed, _get_mixnodes_detailed_unfiltered, _get_rewarded_set_detailed,
+    _mixnode_core_status_count, _mixnode_report, _mixnode_uptime_history,
 };
 use crate::node_status_api::models::ErrorResponse;
 use crate::storage::NymApiStorage;
@@ -189,6 +189,14 @@ pub async fn get_mixnodes_detailed(
 }
 
 #[openapi(tag = "status")]
+#[get("/mixnodes/detailed-unfiltered")]
+pub async fn get_mixnodes_detailed_unfiltered(
+    cache: &State<NodeStatusCache>,
+) -> Json<Vec<MixNodeBondAnnotated>> {
+    Json(_get_mixnodes_detailed_unfiltered(cache).await)
+}
+
+#[openapi(tag = "status")]
 #[get("/mixnodes/rewarded/detailed")]
 pub async fn get_rewarded_set_detailed(
     cache: &State<NodeStatusCache>,
@@ -210,4 +218,12 @@ pub async fn get_gateways_detailed(
     cache: &State<NodeStatusCache>,
 ) -> Json<Vec<GatewayBondAnnotated>> {
     Json(_get_gateways_detailed(cache).await)
+}
+
+#[openapi(tag = "status")]
+#[get("/gateways/detailed-unfiltered")]
+pub async fn get_gateways_detailed_unfiltered(
+    cache: &State<NodeStatusCache>,
+) -> Json<Vec<GatewayBondAnnotated>> {
+    Json(_get_gateways_detailed_unfiltered(cache).await)
 }

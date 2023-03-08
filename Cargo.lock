@@ -976,10 +976,10 @@ dependencies = [
  "clap 4.1.4",
  "coconut-interface",
  "credential-storage",
- "credentials",
  "log",
  "nym-bin-common",
  "nym-config",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -1000,20 +1000,6 @@ dependencies = [
  "sqlx 0.5.13",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "credentials"
-version = "0.1.0"
-dependencies = [
- "bls12_381 0.5.0",
- "coconut-interface",
- "cosmrs",
- "nym-api-requests",
- "nym-crypto",
- "rand 0.7.3",
- "thiserror",
- "validator-client",
 ]
 
 [[package]]
@@ -1950,12 +1936,12 @@ dependencies = [
  "async-trait",
  "coconut-interface",
  "credential-storage",
- "credentials",
  "futures",
  "gateway-requests",
  "getrandom 0.2.8",
  "log",
  "mobile-storage",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -1982,9 +1968,9 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "coconut-interface",
- "credentials",
  "futures",
  "log",
+ "nym-credentials",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
@@ -3165,7 +3151,6 @@ dependencies = [
  "console-subscriber",
  "cosmwasm-std",
  "credential-storage",
- "credentials",
  "cw-utils",
  "cw3",
  "cw4",
@@ -3181,6 +3166,7 @@ dependencies = [
  "nym-bin-common",
  "nym-config",
  "nym-contracts-common",
+ "nym-credentials",
  "nym-crypto",
  "nym-dkg",
  "nym-inclusion-probability",
@@ -3324,7 +3310,6 @@ dependencies = [
  "client-core",
  "coconut-interface",
  "credential-storage",
- "credentials",
  "dirs",
  "futures",
  "gateway-client",
@@ -3333,6 +3318,7 @@ dependencies = [
  "log",
  "nym-bin-common",
  "nym-config",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -3375,6 +3361,20 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "nym-credentials"
+version = "0.1.0"
+dependencies = [
+ "bls12_381 0.5.0",
+ "coconut-interface",
+ "cosmrs",
+ "nym-api-requests",
+ "nym-crypto",
+ "rand 0.7.3",
+ "thiserror",
+ "validator-client",
 ]
 
 [[package]]
@@ -3445,7 +3445,6 @@ dependencies = [
  "clap 4.1.4",
  "coconut-interface",
  "colored",
- "credentials",
  "dashmap 4.0.2",
  "dirs",
  "dotenvy",
@@ -3459,6 +3458,7 @@ dependencies = [
  "nym-api-requests",
  "nym-bin-common",
  "nym-config",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -3710,7 +3710,6 @@ dependencies = [
  "client-core",
  "coconut-interface",
  "credential-storage",
- "credentials",
  "dirs",
  "futures",
  "gateway-client",
@@ -3720,6 +3719,7 @@ dependencies = [
  "mobile-storage",
  "nym-bin-common",
  "nym-config",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-ordered-buffer",

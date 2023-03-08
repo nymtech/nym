@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use std::fs::{create_dir_all, read_dir, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;

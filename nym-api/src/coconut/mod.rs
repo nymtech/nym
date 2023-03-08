@@ -15,7 +15,7 @@ use coconut_interface::KeyPair as CoconutKeyPair;
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
 };
-use credentials::coconut::params::{
+use nym_credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };
 use getset::{CopyGetters, Getters};

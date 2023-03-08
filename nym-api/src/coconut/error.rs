@@ -77,7 +77,7 @@ pub enum CoconutError {
     StorageError(#[from] NymApiStorageError),
 
     #[error("Credentials error - {0}")]
-    CredentialsError(#[from] credentials::error::Error),
+    CredentialsError(#[from] nym_credentials::error::Error),
 
     #[error("Incorrect credential proposal description: {reason}")]
     IncorrectProposal { reason: String },

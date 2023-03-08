@@ -53,7 +53,7 @@ url = { version = "2.2", features = ["serde"] }
 
 # internal
 coconut-interface = { path = "../common/coconut-interface" }
-credentials = { path = "../common/credentials" }
+nym-credentials = { path = "../common/credentials" }
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto" }
 nym-bin-common = { path = "../common/bin-common" }

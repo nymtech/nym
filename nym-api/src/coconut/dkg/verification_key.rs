@@ -11,7 +11,7 @@ use coconut_dkg_common::types::{NodeIndex, TOTAL_DEALINGS};
 use coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 use coconut_interface::KeyPair as CoconutKeyPair;
 use cosmwasm_std::Addr;
-use credentials::coconut::bandwidth::{PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
+use nym_credentials::coconut::bandwidth::{PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use cw3::{ProposalResponse, Status};
 use nym_dkg::bte::{decrypt_share, setup};
 use nym_dkg::error::DkgError;

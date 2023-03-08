@@ -12,8 +12,8 @@ use coconut_bandwidth_contract_common::spend_credential::{
 };
 use coconut_interface::{hash_to_scalar, Credential, VerificationKey};
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
-use credentials::coconut::bandwidth::BandwidthVoucher;
-use credentials::coconut::params::{
+use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };
 use nym_api_requests::coconut::{

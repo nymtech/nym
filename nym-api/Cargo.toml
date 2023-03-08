@@ -70,7 +70,7 @@ coconut-interface = { path = "../common/coconut-interface" }
 nym-config = { path = "../common/config" }
 cosmwasm-std = "1.0.0"
 credential-storage = { path = "../common/credential-storage" }
-credentials = { path = "../common/credentials" }
+nym-credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }
 cw3 = { version = "0.13.4" }
 cw4 = { version = "0.13.4" }

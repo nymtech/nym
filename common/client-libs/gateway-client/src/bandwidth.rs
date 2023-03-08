@@ -31,7 +31,7 @@ use std::str::FromStr;
 use validator_client::{nyxd::CosmWasmClient, Client};
 use {
     coconut_interface::Base58,
-    credentials::coconut::{
+    nym_credentials::coconut::{
         bandwidth::prepare_for_spending, utils::obtain_aggregate_verification_key,
     },
 };

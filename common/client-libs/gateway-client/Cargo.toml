@@ -19,7 +19,7 @@ tokio = { version = "1.24.1", features = ["macros"] }
 
 # internal
 coconut-interface = { path = "../../coconut-interface" }
-credentials = { path = "../../credentials" }
+nym-credentials = { path = "../../credentials" }
 nym-crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 nym-network-defaults = { path = "../../network-defaults" }

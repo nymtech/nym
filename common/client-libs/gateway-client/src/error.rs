@@ -48,7 +48,7 @@ pub enum GatewayClientError {
     NoBandwidthControllerAvailable,
 
     #[error("Credential error - {0}")]
-    CredentialError(#[from] credentials::error::Error),
+    CredentialError(#[from] nym_credentials::error::Error),
 
     #[error("Connection was abruptly closed")]
     ConnectionAbruptlyClosed,

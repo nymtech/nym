@@ -960,19 +960,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "credentials"
-version = "0.1.0"
-dependencies = [
- "bls12_381 0.5.0",
- "coconut-interface",
- "cosmrs",
- "nym-api-requests",
- "nym-crypto",
- "thiserror",
- "validator-client",
-]
-
-[[package]]
 name = "crossbeam-channel"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1882,12 +1869,12 @@ dependencies = [
  "async-trait",
  "coconut-interface",
  "credential-storage",
- "credentials",
  "futures",
  "gateway-requests",
  "getrandom 0.2.8",
  "log",
  "mobile-storage",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -1914,9 +1901,9 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "coconut-interface",
- "credentials",
  "futures",
  "log",
+ "nym-credentials",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
@@ -3503,6 +3490,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-credentials"
+version = "0.1.0"
+dependencies = [
+ "bls12_381 0.5.0",
+ "coconut-interface",
+ "cosmrs",
+ "nym-api-requests",
+ "nym-crypto",
+ "thiserror",
+ "validator-client",
+]
+
+[[package]]
 name = "nym-crypto"
 version = "0.2.0"
 dependencies = [
@@ -3630,7 +3630,6 @@ dependencies = [
  "clap",
  "client-core",
  "coconut-interface",
- "credentials",
  "dirs",
  "futures",
  "gateway-client",
@@ -3640,6 +3639,7 @@ dependencies = [
  "mobile-storage",
  "nym-bin-common",
  "nym-config",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-ordered-buffer",

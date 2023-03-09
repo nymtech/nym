@@ -596,6 +596,28 @@ pub struct SignerData {
     pub chain_id: chain::Id,
 }
 
+impl SignerData {
+    pub fn new(
+        account_number: AccountNumber,
+        sequence: SequenceNumber,
+        chain_id: chain::Id,
+    ) -> Self {
+        SignerData {
+            account_number,
+            sequence,
+            chain_id,
+        }
+    }
+
+    pub fn new_from_sequence_response(response: SequenceResponse, chain_id: chain::Id) -> Self {
+        SignerData {
+            account_number: response.account_number,
+            sequence: response.sequence,
+            chain_id,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct UploadResult {
     /// Size of the original wasm code in bytes

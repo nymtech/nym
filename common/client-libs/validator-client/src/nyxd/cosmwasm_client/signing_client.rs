@@ -597,7 +597,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let fee = self
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = self.sign(signer_address, messages, fee, memo, None).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
@@ -617,7 +617,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let fee = self
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = self.sign(signer_address, messages, fee, memo, None).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
@@ -638,7 +638,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
 
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = self.sign(signer_address, messages, fee, memo, None).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
@@ -659,7 +659,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
 
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = self.sign(signer_address, messages, fee, memo, None).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
@@ -711,16 +711,18 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         messages: Vec<Any>,
         fee: tx::Fee,
         memo: impl Into<String> + Send + 'static,
+        explicit_signer_data: Option<SignerData>,
     ) -> Result<tx::Raw, NyxdError> {
-        // TODO: Future optimisation: rather than grabbing current account_number and sequence
-        // on every sign request -> just keep them cached on the struct and increment as required
-        let sequence_response = self.get_sequence(signer_address).await?;
-        let chain_id = self.get_chain_id().await?;
+        let signer_data = match explicit_signer_data {
+            Some(signer_data) => signer_data,
+            None => {
+                // TODO: Future optimisation: rather than grabbing current account_number and sequence
+                // on every sign request -> just keep them cached on the struct and increment as required
+                let sequence_response = self.get_sequence(signer_address).await?;
+                let chain_id = self.get_chain_id().await?;
 
-        let signer_data = SignerData {
-            account_number: sequence_response.account_number,
-            sequence: sequence_response.sequence,
-            chain_id,
+                SignerData::new_from_sequence_response(sequence_response, chain_id)
+            }
         };
 
         self.sign_direct(signer_address, messages, fee, memo, signer_data)
@@ -729,7 +731,13 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
 
 #[derive(Debug, Clone)]
 pub struct Client {
+    // TODO: somehow nicely hide this guy if we decide to use our client in offline mode,
+    // maybe just convert it into an option?
+    // or maybe we need another level of indirection. tbd.
     rpc_client: HttpClient,
+
+    // TODO: once we properly try to get ledger up and running, this field should be made generic
+    // with either `signer: S where S OfflineSigner` or maybe `signer: Box<dyn OfflineSigner>`
     signer: DirectSecp256k1HdWallet,
     gas_price: GasPrice,
 

@@ -14,6 +14,7 @@ use cosmwasm_std::{
     QueryResponse, Response, StdError, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
+use mixnet_contract_common::gateway::GatewayConfigUpdate;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::{Gateway, MixId, MixNode};
 use semver::Version;
@@ -219,6 +220,9 @@ pub fn execute(
         ExecuteMsg::TrackUnbondGateway { owner, amount } => {
             try_track_unbond_gateway(&owner, amount, info, deps)
         }
+        ExecuteMsg::UpdateGatewayConfig { new_config } => {
+            try_update_gateway_config(new_config, info, deps)
+        }
         ExecuteMsg::TransferOwnership { to_address } => {
             try_transfer_ownership(to_address, info, deps)
         }
@@ -298,6 +302,15 @@ pub fn try_update_mixnode_config(
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
     account.try_update_mixnode_config(new_config, deps.storage)
+}
+
+pub fn try_update_gateway_config(
+    new_config: GatewayConfigUpdate,
+    info: MessageInfo,
+    deps: DepsMut,
+) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_update_gateway_config(new_config, deps.storage)
 }
 
 pub fn try_update_mixnode_cost_params(

@@ -58,23 +58,23 @@ const GatewaySignatureForm = ({
 
   return (
     <Stack gap={3} mb={3}>
-      <Typography variant="body2">
+      <Typography variant="body1">
         Copy below message and sign it with your gateway using the following command
         <br />
         <code>nym-gateway sign --id &lt;your-node-id&gt; --contract-msg &lt;payload-generated-by-the-wallet&gt;</code>
         <br />
         Then paste the signature in the next field.
       </Typography>
-      <TextField id="outlined-multiline-static" multiline rows={6} value={message} fullWidth disabled />
+      <TextField id="outlined-multiline-static" multiline rows={7} value={message} fullWidth disabled />
       <Stack direction="row" alignItems="center" gap={1} justifyContent="end">
-        <Typography>Copy Message</Typography>
+        <Typography fontWeight={600}>Copy Message</Typography>
         {message && <CopyToClipboard text={message} iconButton />}
       </Stack>
       <TextField
         {...register('signature')}
         id="outlined-multiline-static"
         name="signature"
-        rows={8}
+        rows={3}
         placeholder="Paste Signature"
         multiline
         fullWidth

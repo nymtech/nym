@@ -872,12 +872,13 @@ pub(crate) mod tests {
 
         *db.dealings_db.write().unwrap() = Default::default();
         *db.verification_share_db.write().unwrap() = Default::default();
+        let mut initial_dealers = vec![];
+        for (dkg_client, _) in clients_and_states.iter() {
+            let client_address = Addr::unchecked(dkg_client.get_address().await.as_ref());
+            initial_dealers.push(client_address);
+        }
         *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
-            initial_dealers: vec![
-                Addr::unchecked(clients_and_states[1].0.get_address().await.as_ref()),
-                Addr::unchecked(clients_and_states[2].0.get_address().await.as_ref()),
-                Addr::unchecked(clients_and_states[3].0.get_address().await.as_ref()),
-            ],
+            initial_dealers,
             initial_height: 1,
         });
         *clients_and_states.first_mut().unwrap() = (new_dkg_client, state);
@@ -949,7 +950,7 @@ pub(crate) mod tests {
 
         let new_dkg_client = DkgClient::new(
             DummyClient::new(
-                AccountId::from_str("n1sqkxzh7nl6kgndr4ew9795t2nkwmd8tpql67q7").unwrap(),
+                AccountId::from_str("n1vxkywf9g4cg0k2dehanzwzz64jw782qm0kuynf").unwrap(),
             )
             .with_dealer_details(&db.dealer_details_db)
             .with_dealings(&db.dealings_db)
@@ -966,6 +967,25 @@ pub(crate) mod tests {
             keypair,
             KeyPair::new(),
         );
+        let new_dkg_client2 = DkgClient::new(
+            DummyClient::new(
+                AccountId::from_str("n1sqkxzh7nl6kgndr4ew9795t2nkwmd8tpql67q7").unwrap(),
+            )
+            .with_dealer_details(&db.dealer_details_db)
+            .with_dealings(&db.dealings_db)
+            .with_proposal_db(&db.proposal_db)
+            .with_verification_share(&db.verification_share_db)
+            .with_threshold(&db.threshold_db)
+            .with_initial_dealers_db(&db.initial_dealers_db),
+        );
+        let keypair = DkgKeyPair::new(&setup(), OsRng);
+        let state2 = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
+            Url::parse("localhost:8000").unwrap(),
+            keypair,
+            KeyPair::new(),
+        );
 
         for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
             *active = false;
@@ -973,8 +993,10 @@ pub(crate) mod tests {
 
         *db.dealings_db.write().unwrap() = Default::default();
         *db.verification_share_db.write().unwrap() = Default::default();
-        let (initial_client, initial_state) = clients_and_states.pop().unwrap();
+        clients_and_states.pop().unwrap();
+        let (initial_client2, initial_state2) = clients_and_states.pop().unwrap();
         clients_and_states.push((new_dkg_client, state));
+        clients_and_states.push((new_dkg_client2, state2));
 
         // DKG in reset mode
         for (dkg_client, state) in clients_and_states.iter_mut() {
@@ -1040,15 +1062,16 @@ pub(crate) mod tests {
         }
         *db.dealings_db.write().unwrap() = Default::default();
         *db.verification_share_db.write().unwrap() = Default::default();
+        let mut initial_dealers = vec![];
+        for (dkg_client, _) in clients_and_states.iter() {
+            let client_address = Addr::unchecked(dkg_client.get_address().await.as_ref());
+            initial_dealers.push(client_address);
+        }
         *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
-            initial_dealers: vec![
-                Addr::unchecked(clients_and_states[0].0.get_address().await.as_ref()),
-                Addr::unchecked(clients_and_states[1].0.get_address().await.as_ref()),
-                Addr::unchecked(clients_and_states[2].0.get_address().await.as_ref()),
-            ],
+            initial_dealers,
             initial_height: 1,
         });
-        *clients_and_states.last_mut().unwrap() = (initial_client, initial_state);
+        *clients_and_states.last_mut().unwrap() = (initial_client2, initial_state2);
 
         for (dkg_client, state) in clients_and_states.iter_mut() {
             public_key_submission(dkg_client, state, true)
@@ -1080,7 +1103,7 @@ pub(crate) mod tests {
                 .unwrap();
         }
         for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_finalization(dkg_client, state, false)
+            verification_key_finalization(dkg_client, state, true)
                 .await
                 .unwrap();
         }

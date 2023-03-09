@@ -55,6 +55,42 @@ pub(crate) async fn spendable_coins(
 }
 
 #[tauri::command]
+pub(crate) async fn spendable_vested_coins(
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query spendable vested coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nyxd
+        .get_spendable_vested_coins(client.nyxd.address().as_ref())
+        .await?;
+
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< spendable vested coins = {}", display);
+    Ok(display)
+}
+
+#[tauri::command]
+pub(crate) async fn spendable_reward_coins(
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query spendable reward coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nyxd
+        .get_spendable_reward_coins(client.nyxd.address().as_ref())
+        .await?;
+
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< spendable reward coins = {}", display);
+    Ok(display)
+}
+
+#[tauri::command]
 pub(crate) async fn vested_coins(
     vesting_account_address: &str,
     block_time: Option<u64>,

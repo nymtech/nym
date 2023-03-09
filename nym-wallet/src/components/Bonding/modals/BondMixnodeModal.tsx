@@ -5,7 +5,7 @@ import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { TPoolOption } from 'src/components/TokenPoolSelector';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
+import { MixnodeAmount, MixnodeData, Signature } from 'src/pages/bonding/types';
 import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
 import { TBondMixNodeArgs } from 'src/types';
 import { BondMixnodeForm } from '../forms/BondMixnodeForm';
@@ -63,7 +63,11 @@ export const BondMixnodeModal = ({
   };
 
   const handleBack = () => {
-    setStep(1);
+    if (step === 2) {
+      setStep(1);
+    } else if (step === 3) {
+      setStep(2);
+    }
   };
 
   const handleUpdateMixnodeData = (data: MixnodeData) => {
@@ -76,12 +80,12 @@ export const BondMixnodeModal = ({
     setStep(3);
   };
 
-  const handleSignatureChange = async (sig: string) => {
-    setSignature(sig);
+  const handleUpdateSignature = async (data: Signature) => {
+    setSignature(data.signature);
 
     const payload = {
       pledge: amountData.amount,
-      msgSignature: sig,
+      msgSignature: data.signature,
       mixnode: mixnodeToTauri(mixnodeData),
       costParams: costParamsToTauri(amountData),
     };
@@ -145,7 +149,7 @@ export const BondMixnodeModal = ({
         hasVestingTokens={hasVestingTokens}
         onValidateMixnodeData={handleUpdateMixnodeData}
         onValidateAmountData={handleUpdateAmountData}
-        onSignatureChange={handleSignatureChange}
+        onValidateSignature={handleUpdateSignature}
         onSelectNodeType={onSelectNodeType}
       />
     </SimpleModal>

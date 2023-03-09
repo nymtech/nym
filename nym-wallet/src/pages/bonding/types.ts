@@ -45,6 +45,10 @@ export type MixnodeAmount = Amount & {
   profitMargin: string;
 };
 
+export type Signature = {
+  signature: string;
+};
+
 export type GatewayData = NodeIdentity & {
   location: string;
   clientsPort: number;

@@ -6,7 +6,7 @@ import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { TPoolOption } from 'src/components/TokenPoolSelector';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { GatewayAmount, GatewayData } from 'src/pages/bonding/types';
+import { GatewayAmount, GatewayData, Signature } from 'src/pages/bonding/types';
 import { simulateBondGateway, simulateVestingBondGateway } from 'src/requests';
 import { TBondGatewayArgs } from 'src/types';
 import { BondGatewayForm } from '../forms/BondGatewayForm';
@@ -63,7 +63,11 @@ export const BondGatewayModal = ({
   };
 
   const handleBack = () => {
-    setStep(1);
+    if (step === 2) {
+      setStep(1);
+    } else if (step === 3) {
+      setStep(2);
+    }
   };
 
   const handleUpdateGatwayData = (data: GatewayData) => {
@@ -76,12 +80,12 @@ export const BondGatewayModal = ({
     setStep(3);
   };
 
-  const handleSignatureChange = async (sig: string) => {
-    setSignature(sig);
+  const handleUpdateSignature = async (data: Signature) => {
+    setSignature(data.signature);
 
     const payload = {
       pledge: amountData.amount,
-      msgSignature: sig,
+      msgSignature: data.signature,
       gateway: gatewayToTauri(gatewayData),
     };
 
@@ -144,7 +148,7 @@ export const BondGatewayModal = ({
           hasVestingTokens={hasVestingTokens}
           onValidateGatewayData={handleUpdateGatwayData}
           onValidateAmountData={handleUpdateAmountData}
-          onSignatureChange={handleSignatureChange}
+          onValidateSignature={handleUpdateSignature}
           onSelectNodeType={onSelectNodeType}
         />
       </Box>

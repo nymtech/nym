@@ -1,30 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { Stack, TextField, Typography } from '@mui/material';
+import { useForm } from 'react-hook-form';
 import { costParamsToTauri, mixnodeToTauri } from '../utils';
 import { CopyToClipboard } from '../../CopyToClipboard';
 import { useBondingContext } from '../../../context';
 import { Console } from '../../../utils/console';
 import { ErrorModal } from '../../Modals/ErrorModal';
-import { MixnodeAmount, MixnodeData } from '../../../pages/bonding/types';
+import { MixnodeAmount, MixnodeData, Signature } from '../../../pages/bonding/types';
 
 const MixnodeSignatureForm = ({
   mixnode,
   amount,
-  onSignatureChange,
   onNext,
 }: {
   mixnode: MixnodeData;
   amount: MixnodeAmount;
-  onNext: () => void;
-  onSignatureChange: (signature: string) => void;
+  onNext: (data: Signature) => void;
 }) => {
-  const [message, setMessage] = useState<string>();
-  const [signature, setSignature] = useState<string>();
+  const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>();
   const { generateMixnodeMsgPayload } = useBondingContext();
 
-  const handleOnNext = () => {
-    onNext();
+  const { register, handleSubmit } = useForm<Signature>();
+
+  const handleOnNext = (event: { detail: { step: number } }) => {
+    if (event.detail.step === 3) {
+      handleSubmit(onNext)();
+    }
   };
 
   useEffect(() => {
@@ -32,20 +34,14 @@ const MixnodeSignatureForm = ({
     return () => window.removeEventListener('validate_bond_mixnode_step' as any, handleOnNext);
   }, []);
 
-  useEffect(() => {
-    if (signature) {
-      onSignatureChange(signature);
-    }
-  }, [signature]);
-
   const generateMessage = async () => {
     try {
       setMessage(
-        await generateMixnodeMsgPayload({
+        (await generateMixnodeMsgPayload({
           pledge: amount.amount,
           mixnode: mixnodeToTauri(mixnode),
           costParams: costParamsToTauri(amount),
-        }),
+        })) as string,
       );
     } catch (e) {
       Console.error(e);
@@ -64,21 +60,26 @@ const MixnodeSignatureForm = ({
   return (
     <Stack gap={3} mb={3}>
       <Typography variant="body2">
-        Copy below message and sign it with your mix node using `` command. Then paste the signature in the next field.
+        Copy below message and sign it with your mix node using the following command
+        <br />
+        <code>nym-mixnode sign --id &lt;your-node-id&gt; --contract-msg &lt;payload-generated-by-the-wallet&gt;</code>
+        <br />
+        Then paste the signature in the next field.
       </Typography>
       <TextField id="outlined-multiline-static" multiline rows={6} value={message} fullWidth disabled />
       <Stack direction="row" alignItems="center" gap={1} justifyContent="end">
         <Typography>Copy Message</Typography>
-        <CopyToClipboard text={message} iconButton />
+        {message && <CopyToClipboard text={message} iconButton />}
       </Stack>
       <TextField
+        {...register('signature')}
         id="outlined-multiline-static"
-        multiline
+        name="signature"
         rows={8}
         placeholder="Paste Signature"
+        multiline
         fullWidth
-        value={signature}
-        onChange={(e) => setSignature(e.target.value)}
+        required
       />
     </Stack>
   );

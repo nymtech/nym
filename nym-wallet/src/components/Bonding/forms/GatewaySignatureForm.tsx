@@ -1,42 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { Stack, TextField, Typography } from '@mui/material';
+import { useForm } from 'react-hook-form';
 import { gatewayToTauri } from '../utils';
 import { CopyToClipboard } from '../../CopyToClipboard';
 import { useBondingContext } from '../../../context';
 import { Console } from '../../../utils/console';
 import { ErrorModal } from '../../Modals/ErrorModal';
-import { GatewayData, GatewayAmount } from '../../../pages/bonding/types';
+import { GatewayData, GatewayAmount, Signature } from '../../../pages/bonding/types';
 
 const GatewaySignatureForm = ({
   gateway,
   amount,
-  onSignatureChange,
   onNext,
 }: {
   gateway: GatewayData;
   amount: GatewayAmount;
-  onNext: () => void;
-  onSignatureChange: (signature: string) => void;
+  onNext: (data: Signature) => void;
 }) => {
   const [message, setMessage] = useState<string>();
-  const [signature, setSignature] = useState<string>();
   const [error, setError] = useState<string>();
   const { generateGatewayMsgPayload } = useBondingContext();
 
-  const handleOnNext = () => {
-    onNext();
+  const { register, handleSubmit } = useForm<Signature>();
+
+  const handleOnNext = (event: { detail: { step: number } }) => {
+    if (event.detail.step === 3) {
+      handleSubmit(onNext)();
+    }
   };
 
   useEffect(() => {
     window.addEventListener('validate_bond_gateway_step' as any, handleOnNext);
     return () => window.removeEventListener('validate_bond_gateway_step' as any, handleOnNext);
   }, []);
-
-  useEffect(() => {
-    if (signature) {
-      onSignatureChange(signature);
-    }
-  }, [signature]);
 
   const generateMessage = async () => {
     try {
@@ -63,21 +59,26 @@ const GatewaySignatureForm = ({
   return (
     <Stack gap={3} mb={3}>
       <Typography variant="body2">
-        Copy below message and sign it with your gateway using `` command. Then paste the signature in the next field.
+        Copy below message and sign it with your gateway using the following command
+        <br />
+        <code>nym-gateway sign --id &lt;your-node-id&gt; --contract-msg &lt;payload-generated-by-the-wallet&gt;</code>
+        <br />
+        Then paste the signature in the next field.
       </Typography>
       <TextField id="outlined-multiline-static" multiline rows={6} value={message} fullWidth disabled />
       <Stack direction="row" alignItems="center" gap={1} justifyContent="end">
         <Typography>Copy Message</Typography>
-        <CopyToClipboard text={message} iconButton />
+        {message && <CopyToClipboard text={message} iconButton />}
       </Stack>
       <TextField
+        {...register('signature')}
         id="outlined-multiline-static"
-        multiline
+        name="signature"
         rows={8}
         placeholder="Paste Signature"
+        multiline
         fullWidth
-        value={signature}
-        onChange={(e) => setSignature(e.target.value)}
+        required
       />
     </Stack>
   );

@@ -2,7 +2,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { NodeTypeSelector } from 'src/components';
-import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
+import { MixnodeAmount, MixnodeData, Signature } from 'src/pages/bonding/types';
 import MixnodeInitForm from './MixnodeInitForm';
 import MixnodeAmountForm from './MixnodeAmountForm';
 import MixnodeSignatureForm from './MixnodeSignatureForm';
@@ -13,20 +13,20 @@ export const BondMixnodeForm = ({
   mixnodeData,
   amountData,
   hasVestingTokens,
+  onSelectNodeType,
   onValidateMixnodeData,
   onValidateAmountData,
-  onSelectNodeType,
-  onSignatureChange,
+  onValidateSignature,
 }: {
   step: 1 | 2 | 3 | 4;
   mixnodeData: MixnodeData;
   amountData: MixnodeAmount;
   denom: CurrencyDenom;
   hasVestingTokens: boolean;
+  onSelectNodeType: (nodeType: TNodeType) => void;
   onValidateMixnodeData: (data: MixnodeData) => void;
   onValidateAmountData: (data: MixnodeAmount) => Promise<void>;
-  onSelectNodeType: (nodeType: TNodeType) => void;
-  onSignatureChange: (signature: string) => void;
+  onValidateSignature: (signature: Signature) => void;
 }) => (
   <>
     {step === 1 && (
@@ -45,13 +45,6 @@ export const BondMixnodeForm = ({
         onNext={onValidateAmountData}
       />
     )}
-    {step === 3 && (
-      <MixnodeSignatureForm
-        mixnode={mixnodeData}
-        amount={amountData}
-        onSignatureChange={onSignatureChange}
-        onNext={() => {}}
-      />
-    )}
+    {step === 3 && <MixnodeSignatureForm mixnode={mixnodeData} amount={amountData} onNext={onValidateSignature} />}
   </>
 );

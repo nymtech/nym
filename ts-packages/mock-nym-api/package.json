@@ -43,7 +43,7 @@
     "run:caddy": "caddy run",
     "build": "tsc --noEmit false",
     "watch": "tsc --noEmit false -w",
-    "lint": "eslint src .storybook",
-    "lint:fix": "eslint src .storybook --fix"
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix"
   }
 }

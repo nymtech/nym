@@ -84,7 +84,12 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         })
     }
 
-    fn dump_persistent_state(&self) {
+    async fn dump_persistent_state(&self) {
+        if !self.state.coconut_keypair_is_some().await {
+            // Delete the files just in case the process is killed before the new keys are generated
+            std::fs::remove_file(&self.secret_key_path).ok();
+            std::fs::remove_file(&self.verification_key_path).ok();
+        }
         let persistent_state = PersistentState::from(&self.state);
         if let Err(err) = persistent_state.save_to_file(self.state.persistent_state_path()) {
             warn!("Could not backup the state for this iteration: {err}");
@@ -156,14 +161,14 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                             self.state.set_was_in_progress();
                             // We're dumping state here so that we don't do it uselessly during the
                             // long InProgress state
-                            self.dump_persistent_state();
+                            self.dump_persistent_state().await;
                             Ok(())
                         }
                     };
                     if let Err(err) = ret {
                         warn!("Could not handle this iteration for the epoch state: {err}");
                     } else if epoch.state != EpochState::InProgress {
-                        self.dump_persistent_state();
+                        self.dump_persistent_state().await;
                     }
                 }
                 if let Ok(current_timestamp) =

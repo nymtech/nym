@@ -119,7 +119,7 @@ fn derive_partial_keypair(
             .unzip();
         debug!(
             "Recovering verification keys from dealings of dealers {:?} with receivers {:?}",
-            filtered_dealings,
+            filtered_dealers,
             filtered_receivers_by_idx.keys().collect::<Vec<_>>()
         );
         let recovered = try_recover_verification_keys(

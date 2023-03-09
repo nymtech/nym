@@ -140,7 +140,12 @@ const PageMixnodeDetailWithState: FCWithChildren = () => {
           {uptimeStory && (
             <ContentCard title="Routing Score">
               {uptimeStory.error && <ComponentError text="There was a problem retrieving routing score." />}
-              <UptimeChart loading={uptimeStory.isLoading} xLabel="date" uptimeStory={uptimeStory} />
+              <UptimeChart
+                loading={uptimeStory.isLoading}
+                xLabel="Date"
+                yLabel="Daily average"
+                uptimeStory={uptimeStory}
+              />
             </ContentCard>
           )}
         </Grid>

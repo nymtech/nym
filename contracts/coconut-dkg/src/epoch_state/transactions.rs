@@ -21,7 +21,13 @@ fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
     for dealer_addr in dealers {
         let details = current_dealers().load(storage, &dealer_addr)?;
         for dealings in DEALINGS_BYTES {
-            dealings.remove(storage, &details.address);
+            let dealing_keys: Vec<_> = dealings
+                .keys(storage, None, None, Order::Ascending)
+                .flatten()
+                .collect();
+            for key in dealing_keys {
+                dealings.remove(storage, &key);
+            }
         }
         current_dealers().remove(storage, &dealer_addr)?;
         past_dealers().save(storage, &dealer_addr, &details)?;

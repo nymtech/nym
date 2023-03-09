@@ -7,6 +7,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, NyxdClient};
 use async_trait::async_trait;
 use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
 use nym_vesting_contract_common::messages::{
@@ -32,6 +33,12 @@ pub trait VestingSigningClient {
     async fn vesting_update_mixnode_config(
         &self,
         new_config: MixNodeConfigUpdate,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError>;
+
+    async fn vesting_update_gateway_config(
+        &self,
+        new_config: GatewayConfigUpdate,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
 
@@ -180,6 +187,25 @@ impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for Ny
                 &req,
                 fee,
                 "VestingContract::UpdateMixnetConfig",
+                vec![],
+            )
+            .await
+    }
+
+    async fn vesting_update_gateway_config(
+        &self,
+        new_config: GatewayConfigUpdate,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = VestingExecuteMsg::UpdateGatewayConfig { new_config };
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address(),
+                &req,
+                fee,
+                "VestingContract::UpdateGatewayConfig",
                 vec![],
             )
             .await

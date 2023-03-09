@@ -9,6 +9,7 @@ use crate::nyxd::{Fee, NyxdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use nym_mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
 use nym_mixnet_contract_common::{
@@ -491,6 +492,36 @@ pub trait MixnetSigningClient {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UnbondGatewayOnBehalf {
+                owner: owner.to_string(),
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn update_gateway_config(
+        &self,
+        new_config: GatewayConfigUpdate,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::UpdateGatewayConfig { new_config },
+            vec![],
+        )
+        .await
+    }
+
+    async fn update_gateway_config_on_behalf(
+        &self,
+        owner: AccountId,
+        new_config: GatewayConfigUpdate,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::UpdateGatewayConfigOnBehalf {
+                new_config,
                 owner: owner.to_string(),
             },
             vec![],

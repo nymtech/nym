@@ -99,9 +99,14 @@ jobs:
           cp target/release/nym-network-statistics $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
           cp target/release/credential $OUTPUT_DIR
+          cp target/release/explorer-api $OUTPUT_DIR
           
           cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm $OUTPUT_DIR
+          cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_bandwidth.wasm $OUTPUT_DIR
+          cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_dkg.wasm $OUTPUT_DIR
+          cp contracts/target/wasm32-unknown-unknown/release/cw3_flex_multisig.wasm $OUTPUT_DIR
+          cp contracts/target/wasm32-unknown-unknown/release/cw4_group.wasm $OUTPUT_DIR
 
       - name: Deploy branch to CI www
         continue-on-error: true

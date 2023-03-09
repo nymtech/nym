@@ -42,6 +42,7 @@ const columns: ColumnsType[] = [
     field: 'self_percentage',
     width: '10%',
     title: 'Bond %',
+    tooltipInfo: "Percentage of the operator's bond to the total stake on the node",
   },
 
   {

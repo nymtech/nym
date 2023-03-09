@@ -239,6 +239,8 @@ export type MixNodeEconomicDynamicsStatsResponse = {
   current_interval_uptime: number;
 };
 
+export type Environment = 'mainnet' | 'sandbox' | 'qa';
+
 export type DirectoryServiceProvider = {
   id: string;
   description: string;

@@ -1,9 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::{
-    ConnectionCommand, ConnectionCommandSender, ConnectionId, LaneQueueLengths, TransmissionLane,
-};
 use client_core::client::replies::reply_controller::requests::ReplyControllerSender;
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
@@ -14,9 +11,12 @@ use client_core::client::{
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::receiver::ReconstructedMessage;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::receiver::ReconstructedMessage;
+use nym_task::connections::{
+    ConnectionCommand, ConnectionCommandSender, ConnectionId, LaneQueueLengths, TransmissionLane,
+};
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
@@ -27,15 +27,11 @@ use tokio_tungstenite::{
 };
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
+#[derive(Default)]
 enum ReceivedResponseType {
+    #[default]
     Binary,
     Text,
-}
-
-impl Default for ReceivedResponseType {
-    fn default() -> Self {
-        ReceivedResponseType::Binary
-    }
 }
 
 pub(crate) struct HandlerBuilder {
@@ -361,7 +357,7 @@ impl Handler {
     async fn listen_for_requests(
         &mut self,
         mut msg_receiver: ReconstructedMessagesReceiver,
-        mut task_client: task::TaskClient,
+        mut task_client: nym_task::TaskClient,
     ) {
         while !task_client.is_shutdown() {
             tokio::select! {
@@ -414,7 +410,7 @@ impl Handler {
     pub(crate) async fn handle_connection(
         mut self,
         socket: TcpStream,
-        mut task_client: task::TaskClient,
+        mut task_client: nym_task::TaskClient,
     ) {
         // We don't want a crash in the connection handler to trigger a shutdown of the whole
         // process.

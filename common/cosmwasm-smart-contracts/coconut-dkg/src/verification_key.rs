@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::msg::ExecuteMsg;
-use crate::types::NodeIndex;
+use crate::types::{EpochId, NodeIndex};
 use cosmwasm_std::{from_binary, to_binary, Addr, CosmosMsg, StdResult, Timestamp, WasmMsg};
 use cw_utils::Expiration;
-use multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
+use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 use serde::{Deserialize, Serialize};
 
 pub type VerificationKeyShare = String;
@@ -16,6 +16,7 @@ pub struct ContractVKShare {
     pub announce_address: String,
     pub node_index: NodeIndex,
     pub owner: Addr,
+    pub epoch_id: EpochId,
     pub verified: bool,
 }
 
@@ -29,11 +30,12 @@ pub struct PagedVKSharesResponse {
 
 pub fn to_cosmos_msg(
     owner: Addr,
+    resharing: bool,
     coconut_dkg_addr: String,
     multisig_addr: String,
     expiration_time: Timestamp,
 ) -> StdResult<CosmosMsg> {
-    let verify_vk_share_req = ExecuteMsg::VerifyVerificationKeyShare { owner };
+    let verify_vk_share_req = ExecuteMsg::VerifyVerificationKeyShare { owner, resharing };
     let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: coconut_dkg_addr,
         msg: to_binary(&verify_vk_share_req)?,
@@ -61,7 +63,8 @@ pub fn owner_from_cosmos_msgs(msgs: &[CosmosMsg]) -> Option<Addr> {
         funds: _,
     })) = msgs.get(0)
     {
-        if let Ok(ExecuteMsg::VerifyVerificationKeyShare { owner }) = from_binary::<ExecuteMsg>(msg)
+        if let Ok(ExecuteMsg::VerifyVerificationKeyShare { owner, .. }) =
+            from_binary::<ExecuteMsg>(msg)
         {
             return Some(owner);
         }

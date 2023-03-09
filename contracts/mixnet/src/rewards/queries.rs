@@ -297,10 +297,13 @@ mod tests {
             let mix_id = test.add_dummy_mixnode(owner, Some(initial_stake));
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             total_earned += dist.operator;
 
             let res = query_pending_operator_reward(test.deps(), owner.into()).unwrap();
@@ -317,7 +320,10 @@ mod tests {
             // reward it few more times for good measure
             for _ in 0..10 {
                 test.skip_to_next_epoch_end();
-                let dist = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+                let dist = test.reward_with_distribution_with_state_bypass(
+                    mix_id,
+                    test_helpers::performance(100.0),
+                );
                 total_earned += dist.operator;
 
                 let res = query_pending_operator_reward(test.deps(), owner.into()).unwrap();
@@ -341,10 +347,13 @@ mod tests {
             let mix_id = test.add_dummy_mixnode(owner, Some(initial_stake));
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             total_earned += dist.operator;
 
             let sender = mock_info(owner, &[]);
@@ -370,9 +379,12 @@ mod tests {
             let mix_id = test.add_dummy_mixnode(owner, Some(initial_stake));
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
 
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let sender = mock_info(owner, &[]);
             let env = test.env();
@@ -447,10 +459,13 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             total_earned += dist.delegates;
 
             let res =
@@ -466,7 +481,10 @@ mod tests {
             // reward it few more times for good measure
             for _ in 0..10 {
                 test.skip_to_next_epoch_end();
-                let dist = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+                let dist = test.reward_with_distribution_with_state_bypass(
+                    mix_id,
+                    test_helpers::performance(100.0),
+                );
                 total_earned += dist.delegates;
 
                 let res = query_pending_delegator_reward(test.deps(), owner.into(), mix_id, None)
@@ -491,10 +509,13 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             total_earned += dist.delegates;
 
             let sender = mock_info("mix-owner", &[]);
@@ -521,10 +542,13 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             total_earned += dist.delegates;
 
             let sender = mock_info("mix-owner", &[]);
@@ -557,34 +581,58 @@ mod tests {
             test.add_immediate_delegation(del2, 150_000_000u32, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
 
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             test.add_immediate_delegation(del3, 500_000_000u32, mix_id);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(85.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(85.0),
+            );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(5.0));
+            test.reward_with_distribution_with_state_bypass(mix_id, test_helpers::performance(5.0));
 
             test.add_immediate_delegation(del4, 5_000_000u32, mix_id);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             test.add_immediate_delegation(del2, 250_000_000u32, mix_id);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(98.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(98.0),
+            );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             test.remove_immediate_delegation(del3, mix_id);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(98.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(98.0),
+            );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let pending1 =
                 query_pending_delegator_reward(test.deps(), del1.into(), mix_id, None).unwrap();
@@ -660,8 +708,11 @@ mod tests {
             let mix_id = test.add_dummy_mixnode(owner, Some(initial_stake));
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let sender = mock_info(owner, &[]);
             let env = test.env();
@@ -686,8 +737,11 @@ mod tests {
             let mix_id = test.add_dummy_mixnode(owner, Some(initial_stake));
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let sender = mock_info(owner, &[]);
             let env = test.env();
@@ -710,9 +764,12 @@ mod tests {
             let mix_id = test.add_dummy_mixnode("mix-owner", Some(initial_stake));
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
-            test.update_rewarded_set(vec![]);
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
+            test.force_change_rewarded_set(vec![]);
 
             let res = query_estimated_current_epoch_operator_reward(
                 test.deps(),
@@ -732,8 +789,11 @@ mod tests {
             let mix_id = test.add_dummy_mixnode("mix-owner", Some(initial_stake));
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let res = query_estimated_current_epoch_operator_reward(
                 test.deps(),
@@ -753,8 +813,11 @@ mod tests {
             let mix_id = test.add_dummy_mixnode("mix-owner", Some(initial_stake));
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let mix_rewarding = test.mix_rewarding(mix_id);
             let res = query_estimated_current_epoch_operator_reward(
@@ -765,7 +828,10 @@ mod tests {
             .unwrap();
 
             test.skip_to_next_epoch_end();
-            let dist = test.reward_with_distribution(mix_id, test_helpers::performance(95.0));
+            let dist = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(95.0),
+            );
 
             let expected = EstimatedCurrentEpochRewardResponse {
                 original_stake: Some(coin(initial_stake.u128(), TEST_COIN_DENOM)),
@@ -816,8 +882,11 @@ mod tests {
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let res = query_estimated_current_epoch_delegator_reward(
                 test.deps(),
@@ -841,8 +910,11 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let sender = mock_info("mix-owner", &[]);
             let env = test.env();
@@ -871,8 +943,11 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let sender = mock_info("mix-owner", &[]);
             let env = test.env();
@@ -902,9 +977,12 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
-            test.update_rewarded_set(vec![]);
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
+            test.force_change_rewarded_set(vec![]);
 
             let res = query_estimated_current_epoch_delegator_reward(
                 test.deps(),
@@ -929,8 +1007,11 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let res = query_estimated_current_epoch_delegator_reward(
                 test.deps(),
@@ -955,7 +1036,7 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
 
             let mix_rewarding = test.mix_rewarding(mix_id);
             let res = query_estimated_current_epoch_delegator_reward(
@@ -968,7 +1049,10 @@ mod tests {
             .unwrap();
 
             test.skip_to_next_epoch_end();
-            let dist = test.reward_with_distribution(mix_id, test_helpers::performance(95.0));
+            let dist = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(95.0),
+            );
 
             let expected = EstimatedCurrentEpochRewardResponse {
                 original_stake: Some(coin(initial_stake.u128(), TEST_COIN_DENOM)),
@@ -1003,12 +1087,18 @@ mod tests {
             test.add_immediate_delegation(del2, initial_stake2, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution(mix_id, test_helpers::performance(95.0));
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(95.0),
+            );
 
             test.add_immediate_delegation(del3, initial_stake3, mix_id);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(85.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(85.0),
+            );
 
             let mix_rewarding = test.mix_rewarding(mix_id);
 
@@ -1045,7 +1135,10 @@ mod tests {
             let cur3 = initial_stake3_dec + est3;
 
             test.skip_to_next_epoch_end();
-            let dist = test.reward_with_distribution(mix_id, test_helpers::performance(95.0));
+            let dist = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(95.0),
+            );
 
             let share1 = cur1 / mix_rewarding.delegates * dist.delegates;
             let share2 = cur2 / mix_rewarding.delegates * dist.delegates;

@@ -12,7 +12,7 @@ use aes_gcm::{aead::Aead, Aes256Gcm, Key, NewAead, Nonce};
 use anyhow::{anyhow, Result};
 use argon2::{Algorithm, Argon2, Params, Version};
 use clap::Parser;
-use logging::setup_logging;
+use nym_bin_common::logging::setup_logging;
 use serde_json::Value;
 
 // Mostly defaults
@@ -112,7 +112,7 @@ fn decrypt_login(login: &Value, passwords: &[String], parse: &ParseMode) -> Resu
         match result {
             Ok(DecryptedData::Raw(raw_decrypt)) => {
                 println!(" success!");
-                println!("{}", raw_decrypt);
+                println!("{raw_decrypt}");
                 return Ok(true);
             }
             Ok(DecryptedData::Json(json_decrypt)) => match parse_results(&json_decrypt) {

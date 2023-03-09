@@ -1,29 +1,46 @@
 [package]
-name = "vesting-contract"
-version = "1.1.2"
-authors = ["Drazen Urch <durch@users.noreply.github.com>"]
-edition = "2021"
+name = "nym-vesting-contract"
+version = "1.2.0-pre.1"
+description = "Nym vesting contract"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+readme = "README.md"
 
 exclude = [
   # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
   "contract.wasm",
   "hash.txt",
+  "artifacts",
 ]
 
 [lib]
+name = "vesting_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.2.0" }
+contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common", version = "0.2.0" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.2.0" }
 
 cosmwasm-std = { version = "1.0.0 "}
+cw2 = { version = "0.13.4" }
 cw-storage-plus = { version = "0.13.4", features = ["iterator"] }
 
 schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
+semver = { version = "1.0.16", default-features = false }
+
+[dev-dependencies]
+rand_chacha = "0.3.1"
+base64 = "0.21.0"
+hex = "0.4.3"
+serde_json = "1.0.66"
 
 [build-dependencies]
-vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }
+vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc"] }
+
+[profile.release]
+overflow-checks = true

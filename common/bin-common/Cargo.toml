@@ -1,0 +1,23 @@
+[package]
+name = "nym-bin-common"
+version = "0.2.0"
+description = "Common code for nym binaries"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+clap_complete = "4.0"
+clap_complete_fig = "4.0"
+log = { workspace = true }
+pretty_env_logger = "0.4.0"
+semver = "0.11"
+serde = { workspace = true, features = ["derive"], optional = true }
+
+[build-dependencies]
+vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc", "cargo"] }
+
+[features]
+default = []

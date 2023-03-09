@@ -4,18 +4,172 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.12] (2023-03-07)
+
+- Fix generated docs for mixnet and vesting contract on docs.rs ([#3093])
+- Introduce a way of injecting topology into the client ([#3044])
+- Update mixnet TypeScript client methods #1 ([#2783])
+- Update tooltips for routing and average score ([#3133])
+- update selected service provider description style ([#3128])
+
+[#3093]: https://github.com/nymtech/nym/issues/3093
+[#3044]: https://github.com/nymtech/nym/issues/3044
+[#2783]: https://github.com/nymtech/nym/issues/2783
+[#3133]: https://github.com/nymtech/nym/pull/3133
+[#3128]: https://github.com/nymtech/nym/pull/3128
+
+## [v1.1.11] (2023-02-28)
+
+- Fix empty dealer set loop ([#3105])
+- The nym-api db.sqlite is broken when trying to run against it it in `enabled-credentials-mode true` there is an ordering issue with migrations when using the credential binary to purchase bandwidth ([#3100])
+- Feature/latency based gateway selection ([#3081])
+- Fix the credential binary to handle transactions to sleep when in non-inProgress epochs ([#3057])
+- Publish mixnet contract to crates.io ([#1919])
+- Publish vesting contract to crates.io ([#1920])
+- Feature/update checker to use master ([#3097])
+- Feature/improve binary checks ([#3094])
+
+[#3105]: https://github.com/nymtech/nym/issues/3105
+[#3100]: https://github.com/nymtech/nym/issues/3100
+[#3081]: https://github.com/nymtech/nym/pull/3081
+[#3057]: https://github.com/nymtech/nym/issues/3057
+[#1919]: https://github.com/nymtech/nym/issues/1919
+[#1920]: https://github.com/nymtech/nym/issues/1920
+[#3097]: https://github.com/nymtech/nym/pull/3097
+[#3094]: https://github.com/nymtech/nym/pull/3094
+
+## [v1.1.10] (2023-02-21)
+
+- Verloc listener causing mixnode unexpected shutdown ([#3038])
+- rust-sdk - update API following implementation experience with the network-requester ([#3001])
+- Prevent coconut deposits in incompatible states ([#2991])
+- Support unavailable signer within threshold ([#2987])
+- Implement DKG re-sharing ([#2935])
+- contracts: add nym prefix to mixnet and vesting contract packages ([#2855])
+- Introduce common interface for all service providers to allow obtaining information such as whether they're online, what binary version they're running, etc. ([#2758])
+- Add client functionality to nym-network-requester ([#1900])
+- nym-api: uptime rework ([#3053])
+- ci: update typescript-lint.yml ([#3035])
+- contracts: add nym prefix to mixnet and vesting contract packages ([#2855])
+
+[#3038]: https://github.com/nymtech/nym/issues/3038
+[#3001]: https://github.com/nymtech/nym/issues/3001
+[#2991]: https://github.com/nymtech/nym/issues/2991
+[#2987]: https://github.com/nymtech/nym/issues/2987
+[#2935]: https://github.com/nymtech/nym/issues/2935
+[#2855]: https://github.com/nymtech/nym/pull/2855
+[#2758]: https://github.com/nymtech/nym/issues/2758
+[#1900]: https://github.com/nymtech/nym/issues/1900
+[#3053]: https://github.com/nymtech/nym/pull/3053
+[#3035]: https://github.com/nymtech/nym/pull/3035
+[#2855]: https://github.com/nymtech/nym/pull/2855
+
+## [v1.1.9] (2023-02-07)
+
 ### Added
 
-- socks5: send status message for service ready, and network-requester error response
+- Remove Coconut feature flag ([#2793])
+- Separate `nym-api` endpoints with values of "total-supply" and "circulating-supply" in `nym` ([#2964])
 
 ### Changed
 
-- all-binaries: improved error logging ([#2686])
-- native client: bring shutdown logic up to the same level as socks5-client
-- nym-api, coconut-dkg contract: automatic, time-based dkg epoch state advancement ([#2670])
+- native-client: is now capable of listening for requests on sockets different than `127.0.0.1` ([#2912]). This can be specified via `--host` flag during `init` or `run`. Alternatively a custom `host` can be set in `config.toml` file under `socket` section.
+- mixnode, gateway: fix unexpected shutdown on corrupted connection ([#2963])
 
-[#2686]: https://github.com/nymtech/nym/pull/2686
-[#2670]: https://github.com/nymtech/nym/pull/2670
+[#2793]: https://github.com/nymtech/nym/issues/2793
+[#2912]: https://github.com/nymtech/nym/issues/2912
+[#2964]: https://github.com/nymtech/nym/issues/2964
+[#2963]: https://github.com/nymtech/nym/issues/3017
+
+## [v1.1.8] (2023-01-31)
+
+### Added
+
+- Rust SDK - Support SURBS (anonymous send + storage) ([#2754])
+- dkg rerun from scratch and dkg-specific epochs ([#2810])
+- Rename `'initial_supply'` field to `'total_supply'` in the circulating supply endpoint ([#2931])
+- Circulating supply api endpoint (read the note inside before testing/deploying) ([#1902])
+
+### Changed
+
+- nym-api: an `--id` flag is now always explicitly required ([#2873])
+
+[#2754]: https://github.com/nymtech/nym/issues/2754
+[#2810]: https://github.com/nymtech/nym/issues/2810
+[#2931]: https://github.com/nymtech/nym/issues/2931
+[#1902]: https://github.com/nymtech/nym/issues/1902
+[#2873]: https://github.com/nymtech/nym/issues/2873
+
+
+## [v1.1.7] (2023-01-24)
+
+### Added
+
+- Gateways now shut down gracefully ([#2019]).
+- Rust SDK - Initial version for nym-client ([#2669]).
+- Introduce vesting contract query for addresses of all vesting accounts (required for the circulating supply calculation) ([#2778]).
+- Add threshold value to the contract storage ([#1893])
+
+### Changed
+
+- Refactor vesting account storage (and in particular, ACCOUNTS saving) ([#2795]).
+- Move from manual advancing DKG state to an automatic process ([#2670]).
+
+### Fixed
+
+- Gateways now shut down gracefully ([#2019]).
+
+[#2019]: https://github.com/nymtech/nym/issues/2019
+[#2669]: https://github.com/nymtech/nym/issues/2669
+[#2795]: https://github.com/nymtech/nym/issues/2795
+[#2778]: https://github.com/nymtech/nym/issues/2778
+[#2670]: https://github.com/nymtech/nym/issues/2670
+[#1893]: https://github.com/nymtech/nym/issues/1893
+
+## [v1.1.6] (2023-01-17)
+
+### Added
+
+- nym-sdk: added initial version of a Rust client sdk
+- nym-api: added `/circulating-supply` endpoint ([#2814])
+- nym-api: add endpoint listing detailed gateway info by @octol in https://github.com/nymtech/nym/pull/2833
+
+### Changed
+
+- streamline override_config functions -> there's a lot of duplicate if statements everywhere ([#2774])
+- clean-up nym-api startup arguments/flags to use clap 3 and its macro-derived arguments ([#2772])
+- renamed all references to validator_api to nym_api
+- renamed all references to nymd to nyxd ([#2696])
+- all-binaries: standarised argument names (note: old names should still be accepted) ([#2762]
+
+### Fixed
+
+- nym-api: should now correctly use `rewarding.enabled` config flag ([#2753])
+
+[#2696]: https://github.com/nymtech/nym/pull/2696
+[#2753]: https://github.com/nymtech/nym/pull/2753
+[#2762]: https://github.com/nymtech/nym/pull/2762
+[#2814]: https://github.com/nymtech/nym/pull/2814
+[#2772]: https://github.com/nymtech/nym/pull/2772
+[#2774]: https://github.com/nymtech/nym/pull/2774
+
+## [v1.1.5] (2023-01-10)
+
+### Added
+
+- socks5: send status message for service ready, and network-requester error response in https://github.com/nymtech/nym/pull/2715
+
+### Changed
+
+- all-binaries: improved error logging in https://github.com/nymtech/nym/pull/2686
+- native client: bring shutdown logic up to the same level as socks5-client in https://github.com/nymtech/nym/pull/2695
+- nym-api, coconut-dkg contract: automatic, time-based dkg epoch state advancement in https://github.com/nymtech/nym/pull/2670
+- DKG resharing unit test by @neacsu in https://github.com/nymtech/nym/pull/2668
+- Renaming validator-api to nym-api by @futurechimp in https://github.com/nymtech/nym/pull/1863
+- Modify wasm specific make targets by @neacsu in https://github.com/nymtech/nym/pull/2693
+- client: create websocket handler builder by @octol in https://github.com/nymtech/nym/pull/2700
+- Outfox and Lion by @durch in https://github.com/nymtech/nym/pull/2730
+- Feature/multi surb transmission lanes by @jstuczyn in https://github.com/nymtech/nym/pull/2723
 
 ## [v1.1.4] (2022-12-20)
 
@@ -38,7 +192,7 @@ The release also include some additional work for distributed key generation in 
 ### Changed
 
 - validator-api: can recover from shutdown during DKG process ([#1872])
-- clients: deduplicate gateway inititialization, part of work towards a rust-sdk
+- clients: deduplicate gateway initialization, part of work towards a rust-sdk
 - clients: keep all transmission lanes going at all times by making priority probabilistic
 - clients: ability to use multi-reply SURBs to send arbitrarily long messages fully anonymously whilst requesting additional reply blocks whenever they're about to run out ([#1796], [#1801], [#1804], [#1835], [#1858], [#1883]))
 
@@ -113,7 +267,7 @@ The release also include some additional work for distributed key generation in 
 - native-client/socks5-client/wasm-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
 - network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611])
 - validator-api: add `interval_operating_cost` and `profit_margin_percent` to compute reward estimation endpoint
-- validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
+- validator-client: added `query_contract_smart` and `query_contract_raw` on `NyxdClient` ([#1558])
 - wasm-client: uses updated wasm-compatible `client-core` so that it's now capable of packet retransmission, cover traffic and poisson delay (among other things!) ([#1673])
 
 ### Fixed
@@ -208,7 +362,7 @@ The release also include some additional work for distributed key generation in 
 - All binaries and cosmwasm blobs are configured at runtime now; binaries are configured using environment variables or .env files and contracts keep the configuration parameters in storage ([#1463])
 - gateway, network-statistics: include gateway id in the sent statistical data ([#1478])
 - network explorer: tweak how active set probability is shown ([#1503])
-- validator-api: rewarder set update fails without panicking on possible nymd queries ([#1520])
+- validator-api: rewarder set update fails without panicking on possible nyxd queries ([#1520])
 - network-requester, socks5 client (nym-connect): send and receive respectively a message error to be displayed about filter check failure ([#1576])
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
@@ -581,14 +735,14 @@ The release also include some additional work for distributed key generation in 
 - Feature/update wallet with stake rates [\#739](https://github.com/nymtech/nym/pull/739) ([neacsu](https://github.com/neacsu))
 - Add stake reward rates and bump version of client [\#738](https://github.com/nymtech/nym/pull/738) ([neacsu](https://github.com/neacsu))
 - Bump next from 10.1.3 to 11.1.0 in /wallet-web [\#737](https://github.com/nymtech/nym/pull/737) ([dependabot[bot]](https://github.com/apps/dependabot))
-- Feature/nymd client integration [\#736](https://github.com/nymtech/nym/pull/736) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/nyxd client integration [\#736](https://github.com/nymtech/nym/pull/736) ([jstuczyn](https://github.com/jstuczyn))
 - Bug/fix parking lot on wasm [\#735](https://github.com/nymtech/nym/pull/735) ([neacsu](https://github.com/neacsu))
 - Explorer API: add new HTTP resource to decorate mix nodes with geoip locations [\#734](https://github.com/nymtech/nym/pull/734) ([mmsinclair](https://github.com/mmsinclair))
-- Feature/completing nymd client api [\#732](https://github.com/nymtech/nym/pull/732) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/completing nyxd client api [\#732](https://github.com/nymtech/nym/pull/732) ([jstuczyn](https://github.com/jstuczyn))
 - Explorer API - add port check and node description/stats proxy [\#731](https://github.com/nymtech/nym/pull/731) ([mmsinclair](https://github.com/mmsinclair))
-- Feature/nymd client fee handling [\#730](https://github.com/nymtech/nym/pull/730) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/nyxd client fee handling [\#730](https://github.com/nymtech/nym/pull/730) ([jstuczyn](https://github.com/jstuczyn))
 - Update DelegationCheck.tsx [\#725](https://github.com/nymtech/nym/pull/725) ([jessgess](https://github.com/jessgess))
-- Rust nymd/cosmwasm client [\#724](https://github.com/nymtech/nym/pull/724) ([jstuczyn](https://github.com/jstuczyn))
+- Rust nyxd/cosmwasm client [\#724](https://github.com/nymtech/nym/pull/724) ([jstuczyn](https://github.com/jstuczyn))
 - Removed wasm feature bypassing cyclic dependencies [\#723](https://github.com/nymtech/nym/pull/723) ([jstuczyn](https://github.com/jstuczyn))
 - Updated used sphinx dependency to the most recent revision [\#722](https://github.com/nymtech/nym/pull/722) ([jstuczyn](https://github.com/jstuczyn))
 - update state management and validation [\#721](https://github.com/nymtech/nym/pull/721) ([fmtabbara](https://github.com/fmtabbara))
@@ -607,7 +761,7 @@ The release also include some additional work for distributed key generation in 
 - Bond and delegation alerts [\#698](https://github.com/nymtech/nym/pull/698) ([fmtabbara](https://github.com/fmtabbara))
 - Bugfix/network monitor version check [\#697](https://github.com/nymtech/nym/pull/697) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/other containers [\#692](https://github.com/nymtech/nym/pull/692) ([neacsu](https://github.com/neacsu))
-- Using validator API instead of nymd [\#690](https://github.com/nymtech/nym/pull/690) ([futurechimp](https://github.com/futurechimp))
+- Using validator API instead of nyxd [\#690](https://github.com/nymtech/nym/pull/690) ([futurechimp](https://github.com/futurechimp))
 - Hang coconut issuance off the validator-api [\#679](https://github.com/nymtech/nym/pull/679) ([durch](https://github.com/durch))
 - Update hmac and blake3 [\#673](https://github.com/nymtech/nym/pull/673) ([durch](https://github.com/durch))
 

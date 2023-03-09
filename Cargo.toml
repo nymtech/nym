@@ -23,27 +23,28 @@ members = [
     "clients/native/websocket-requests",
     "clients/socks5",
     "common/bandwidth-claim-contract",
+    "common/bin-common",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
-    "common/client-connections",
     "common/coconut-interface",
     "common/commands",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
+    "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
     "common/cosmwasm-smart-contracts/multisig-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
+    "common/mobile-storage",
     "common/credential-storage",
     "common/credentials",
     "common/crypto",
-    "common/crypto/dkg",
+    "common/dkg",
     "common/execute",
     "common/inclusion-probability",
     "common/ledger",
-    "common/logging",
     "common/mixnode-common",
     "common/network-defaults",
     "common/nonexhaustive-delayqueue",
@@ -66,12 +67,13 @@ members = [
     "common/topology",
     "common/types",
     "common/wasm-utils",
-    "common/completions",
     "explorer-api",
     "gateway",
     "gateway/gateway-requests",
     "integrations/bity",
     "mixnode",
+    "sdk/rust/nym-sdk",
+    "service-providers/common",
     "service-providers/network-requester",
     "service-providers/network-statistics",
     "nym-api",
@@ -92,4 +94,27 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "clients/webassembly", "nym-wallet", "nym-connect"]
+exclude = ["explorer", "contracts", "clients/webassembly", "nym-wallet", "nym-connect/mobile/src-tauri", "nym-connect/desktop"]
+
+[workspace.package]
+authors = ["Nym Technologies SA"]
+repository = "https://github.com/nymtech/nym"
+homepage = "https://nymtech.net"
+documentation = "https://nymtech.net"
+edition = "2021"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+async-trait = "0.1.64"
+cfg-if = "1.0.0"
+dotenvy = "0.15.6"
+lazy_static = "1.4.0"
+log = "0.4"
+once_cell = "1.7.2"
+rand = "0.8.5"
+serde = "1.0.152"
+serde_json = "1.0.91"
+tap = "1.0.1"
+thiserror = "1.0.38"
+tokio = "1.24.1"
+url = "2.2"

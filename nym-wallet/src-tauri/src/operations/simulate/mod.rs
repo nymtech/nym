@@ -4,8 +4,8 @@
 use cosmrs::tx;
 use cosmrs::tx::Gas;
 use nym_types::fees::FeeDetails;
-use validator_client::nymd::cosmwasm_client::types::GasInfo;
-use validator_client::nymd::{CosmosCoin, Fee, GasAdjustable, GasAdjustment, GasPrice};
+use validator_client::nyxd::cosmwasm_client::types::GasInfo;
+use validator_client::nyxd::{CosmosCoin, Fee, GasAdjustable, GasAdjustment, GasPrice};
 
 pub mod admin;
 pub mod cosmos;

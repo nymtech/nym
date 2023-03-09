@@ -3,15 +3,18 @@
 
 use crate::coconut::client::Client;
 use crate::coconut::error::CoconutError;
-use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, NodeIndex};
-use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
-use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
-use dkg::Threshold;
-use validator_client::nymd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
-use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
-use validator_client::nymd::AccountId;
+use cw4::MemberResponse;
+use nym_coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
+use nym_coconut_dkg_common::types::{
+    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, NodeIndex,
+};
+use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+use nym_contracts_common::dealings::ContractSafeBytes;
+use nym_dkg::Threshold;
+use validator_client::nyxd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
+use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
+use validator_client::nyxd::AccountId;
 
 pub(crate) struct DkgClient {
     inner: Box<dyn Client + Send + Sync>,
@@ -22,16 +25,16 @@ impl DkgClient {
     // Until we determine why that is, retry the query a few more times
     const RETRIES: usize = 3;
 
-    pub(crate) fn new<C>(nymd_client: C) -> Self
+    pub(crate) fn new<C>(nyxd_client: C) -> Self
     where
         C: Client + Send + Sync + 'static,
     {
         DkgClient {
-            inner: Box::new(nymd_client),
+            inner: Box::new(nyxd_client),
         }
     }
 
-    pub(crate) async fn _get_address(&self) -> AccountId {
+    pub(crate) async fn get_address(&self) -> AccountId {
         self.inner.address().await
     }
 
@@ -46,10 +49,22 @@ impl DkgClient {
         ret
     }
 
+    pub(crate) async fn group_member(&self) -> Result<MemberResponse, CoconutError> {
+        self.inner
+            .group_member(self.get_address().await.to_string())
+            .await
+    }
+
     pub(crate) async fn get_current_epoch_threshold(
         &self,
     ) -> Result<Option<Threshold>, CoconutError> {
         self.inner.get_current_epoch_threshold().await
+    }
+
+    pub(crate) async fn get_initial_dealers(
+        &self,
+    ) -> Result<Option<InitialReplacementData>, CoconutError> {
+        self.inner.get_initial_dealers().await
     }
 
     pub(crate) async fn get_self_registered_dealer_details(
@@ -78,8 +93,9 @@ impl DkgClient {
 
     pub(crate) async fn get_verification_key_shares(
         &self,
+        epoch_id: EpochId,
     ) -> Result<Vec<ContractVKShare>, CoconutError> {
-        self.inner.get_verification_key_shares().await
+        self.inner.get_verification_key_shares(epoch_id).await
     }
 
     pub(crate) async fn list_proposals(&self) -> Result<Vec<ProposalResponse>, CoconutError> {
@@ -94,10 +110,11 @@ impl DkgClient {
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
         announce_address: String,
+        resharing: bool,
     ) -> Result<NodeIndex, CoconutError> {
         let res = self
             .inner
-            .register_dealer(bte_key, announce_address)
+            .register_dealer(bte_key, announce_address, resharing)
             .await?;
         let node_index = find_attribute(&res.logs, "wasm", NODE_INDEX)
             .ok_or(CoconutError::NodeIndexRecoveryError {
@@ -115,18 +132,20 @@ impl DkgClient {
     pub(crate) async fn submit_dealing(
         &self,
         dealing_bytes: ContractSafeBytes,
+        resharing: bool,
     ) -> Result<(), CoconutError> {
-        self.inner.submit_dealing(dealing_bytes).await?;
+        self.inner.submit_dealing(dealing_bytes, resharing).await?;
         Ok(())
     }
 
     pub(crate) async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
+        resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         let mut ret = self
             .inner
-            .submit_verification_key_share(share.clone())
+            .submit_verification_key_share(share.clone(), resharing)
             .await;
         for _ in 0..Self::RETRIES {
             if let Ok(res) = ret {
@@ -134,7 +153,7 @@ impl DkgClient {
             }
             ret = self
                 .inner
-                .submit_verification_key_share(share.clone())
+                .submit_verification_key_share(share.clone(), resharing)
                 .await;
         }
         ret

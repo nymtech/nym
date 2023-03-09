@@ -8,9 +8,11 @@ use crate::{
 };
 
 use clap::Args;
-use config::NymConfig;
 use log::*;
-use version_checker::is_minor_version_compatible;
+use nym_bin_common::version_checker::is_minor_version_compatible;
+use nym_config::NymConfig;
+use nym_crypto::asymmetric::identity;
+use nym_sphinx::addressing::clients::Recipient;
 
 #[derive(Args, Clone)]
 pub(crate) struct Run {
@@ -27,25 +29,26 @@ pub(crate) struct Run {
     /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
     ///
     /// Note that some service providers might not support this.
-    #[clap(long)]
-    use_anonymous_sender_tag: bool,
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    #[clap(long, alias = "use_anonymous_sender_tag")]
+    use_anonymous_replies: Option<bool>,
 
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
-    provider: Option<String>,
+    provider: Option<Recipient>,
 
     /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
     /// ensure prior registration happened
     #[clap(long)]
-    gateway: Option<String>,
+    gateway: Option<identity::PublicKey>,
 
-    /// Comma separated list of rest endpoints of the nymd validators
-    #[clap(long)]
-    nymd_validators: Option<String>,
+    /// Comma separated list of rest endpoints of the nyxd validators
+    #[clap(long, alias = "nyxd_validators", value_delimiter = ',', hide = true)]
+    nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the Nym APIs
-    #[clap(long)]
-    nym_apis: Option<String>,
+    #[clap(long, value_delimiter = ',')]
+    nym_apis: Option<Vec<url::Url>>,
 
     /// Port for the socket to listen on
     #[clap(short, long)]
@@ -53,30 +56,28 @@ pub(crate) struct Run {
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     no_cover: bool,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
-    #[cfg(feature = "coconut")]
-    #[clap(long)]
-    enabled_credentials_mode: bool,
+    #[clap(long, hide = true)]
+    enabled_credentials_mode: Option<bool>,
 }
 
 impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
-            nymd_validators: run_config.nymd_validators,
-            api_validators: run_config.nym_apis,
+            nym_apis: run_config.nym_apis,
             port: run_config.port,
-            use_anonymous_sender_tag: run_config.use_anonymous_sender_tag,
+            use_anonymous_replies: run_config.use_anonymous_replies,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
-            #[cfg(feature = "coconut")]
+            nyxd_urls: run_config.nyxd_urls,
             enabled_credentials_mode: run_config.enabled_credentials_mode,
         }
     }
@@ -107,7 +108,7 @@ fn version_check(cfg: &Config) -> bool {
 pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let id = &args.id;
 
-    let mut config = match Config::load_from_file(Some(id)) {
+    let mut config = match Config::load_from_file(id) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {err})", id);

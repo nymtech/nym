@@ -13,5 +13,5 @@ pub fn decode_mixnode_key(args: Args) {
     let b64_decoded = base64::decode(args.key).expect("failed to decode base64 string");
     let b58_encoded = bs58::encode(&b64_decoded).into_string();
 
-    println!("{}", b58_encoded)
+    println!("{b58_encoded}")
 }

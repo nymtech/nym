@@ -1,6 +1,57 @@
 # Changelog
 
-## UNRELEASED
+## [Unreleased]
+
+## [v1.1.11] (2023-03-07)
+
+- Wallet: optional gas and memo fields ([#2222])
+
+[#2222]: https://github.com/nymtech/nym/issues/2222
+
+## [v1.1.10] (2023-02-20)
+
+- Wallet - Fix send address bug ([#3030])
+- Wallet - [Issue] the `Operator cost` field in the Playground does not allow values above 100.0000 ([#2998])
+- nym-wallet: fix auto-updated files ([#3043])
+
+[#3030]: https://github.com/nymtech/nym/issues/3030
+[#2998]: https://github.com/nymtech/nym/issues/2998
+[#3043]: https://github.com/nymtech/nym/pull/3043
+
+## [nym-wallet-v1.1.9](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.9) (2023-02-14)
+
+- Allow more flexibility for user when setting passwords ([#2993])
+- User feedback on weak passwords ([#2993])
+- User no longer has to copy mnemonic to continune account creation ([#2948])
+- Updated instructional steps for creating accounts with a password ([#2962])
+
+[#2948]: https://github.com/nymtech/nym/issues/2948
+[#2993]: https://github.com/nymtech/nym/issues/2993
+[#2962]: https://github.com/nymtech/nym/issues/2962
+
+## [nym-wallet-v1.1.8](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.8) (2023-01-24)
+
+- Fix delegations sorting ([#2885])
+
+[#2885]: https://github.com/nymtech/nym/issues/2885
+
+## [nym-wallet-v1.1.7](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.7) (2023-01-17)
+
+- link to the ng mixnet explorer for account info ([#2823])
+- Fix delegations sorting ([#2885]) (2023-01-23)
+
+[#2823]: https://github.com/nymtech/nym/pull/2823
+
+## [nym-wallet-v1.1.6](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.6) (2023-01-10)
+
+- Fix param input layout **1.1.5 Release** by @fmtabbara in https://github.com/nymtech/nym/pull/2720
+- Add epoch info to unbond modal **1.1.5 Release** by @fmtabbara in https://github.com/nymtech/nym/pull/2718
+- Feat/2130 tables update rebase by @gala1234 https://github.com/nymtech/nym/pull/2742
+- pass wallet address as url param by @doums in https://github.com/nymtech/nym/pull/2780
+
+## [nym-wallet-v1.1.5](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.5) (2022-12-22)
+
+This release contains the APY calculator feature.
 
 ## [nym-wallet-v1.1.5](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.5) (2022-12-22)
 
@@ -8,7 +59,7 @@ This release contains the APY calculator feature.
 
 ## [nym-wallet-v1.1.4](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.4) (2022-12-20)
 
-This release contains a bugfix for hiding and displaying the mnemonic, and displays the Bity wallet address in the buy page, as well as better error handling. 
+This release contains a bugfix for hiding and displaying the mnemonic, and displays the Bity wallet address in the buy page, as well as better error handling.
 
 - wallet: present some cases of the more technical errors (abci, ..) in a more human readable form.
 - Bug fix/hide display mnemonic by @fmtabbara in https://github.com/nymtech/nym/pull/1874
@@ -28,13 +79,12 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 
 - wallet: compatibility with nym-binaries-1.1.1
 
-
 ## [nym-wallet-v1.1.0](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.0) (2022-11-09)
 
 - wallet: Add window for showing logs for when the terminal is not available.
 - wallet: Rework of rewarding ([#1472])
 - wallet: Highlight delegations on an unbonded node to notify the delegator to undelegate stake
-- wallet: Group delegations on unbonded nodes at the top of the list 
+- wallet: Group delegations on unbonded nodes at the top of the list
 - wallet: Simplified delegation screen when user has no delegations
 - wallet: Update "create password" howto guide
 - wallet: Allow setting of operating cost when node is bonded
@@ -48,13 +98,13 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 
 ## [nym-wallet-v1.0.9](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.0.8) (2022-09-08)
 
-- wallet: change default `nymd` URL to https://rpc.nymtech.net
+- wallet: change default `nyxd` URL to https://rpc.nymtech.net
 
 ## [nym-wallet-v1.0.8](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.0.8) (2022-08-11)
 
 - wallet: new bonding flow and screen for bonded node
 - wallet: compound and redeem functionalities for operator rewards
-- wallet: a few minor touch ups and bug fixes 
+- wallet: a few minor touch ups and bug fixes
 
 ## [nym-wallet-v1.0.7](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.7) (2022-07-11)
 
@@ -62,7 +112,6 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 - wallet: when simulating gas costs, an automatic adjustment is being used ([#1388]).
 
 [#1388]: https://github.com/nymtech/nym/pull/1388
-
 
 ## [nym-wallet-v1.0.6](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.6) (2022-06-21)
 
@@ -124,7 +173,7 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 - Type safe bounds [\#1179](https://github.com/nymtech/nym/pull/1179) ([durch](https://github.com/durch))
 - Fix delegation paging [\#1174](https://github.com/nymtech/nym/pull/1174) ([durch](https://github.com/durch))
 - Update binaries to rc version [\#1172](https://github.com/nymtech/nym/pull/1172) ([tommyv1987](https://github.com/tommyv1987))
-- Bump ansi-regex from 4.1.0 to 4.1.1 in /docker/typescript\_client/upload\_contract [\#1171](https://github.com/nymtech/nym/pull/1171) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump ansi-regex from 4.1.0 to 4.1.1 in /docker/typescript_client/upload_contract [\#1171](https://github.com/nymtech/nym/pull/1171) ([dependabot[bot]](https://github.com/apps/dependabot))
 
 ## [nym-wallet-v1.0.2](https://github.com/nymtech/nym/tree/nym-wallet-v1.0.2) (2022-04-05)
 
@@ -140,12 +189,12 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 - wallet: add test for decrypting stored wallet file [\#1189](https://github.com/nymtech/nym/pull/1189) ([octol](https://github.com/octol))
 - Fix clippy warnings [\#1188](https://github.com/nymtech/nym/pull/1188) ([octol](https://github.com/octol))
 - Password for wallet with routes [\#1187](https://github.com/nymtech/nym/pull/1187) ([mmsinclair](https://github.com/mmsinclair))
-- wallet: add validate\_mnemonic [\#1186](https://github.com/nymtech/nym/pull/1186) ([octol](https://github.com/octol))
+- wallet: add validate_mnemonic [\#1186](https://github.com/nymtech/nym/pull/1186) ([octol](https://github.com/octol))
 - wallet: support removing accounts from the wallet file [\#1185](https://github.com/nymtech/nym/pull/1185) ([octol](https://github.com/octol))
 - Feature/adding discord [\#1184](https://github.com/nymtech/nym/pull/1184) ([gala1234](https://github.com/gala1234))
 - wallet: config backend for validator selection [\#1183](https://github.com/nymtech/nym/pull/1183) ([octol](https://github.com/octol))
 - Add storybook to wallet [\#1178](https://github.com/nymtech/nym/pull/1178) ([mmsinclair](https://github.com/mmsinclair))
-- wallet: connection test nymd and api urls independently [\#1170](https://github.com/nymtech/nym/pull/1170) ([octol](https://github.com/octol))
+- wallet: connection test nyxd and api urls independently [\#1170](https://github.com/nymtech/nym/pull/1170) ([octol](https://github.com/octol))
 - wallet: wire up account storage [\#1153](https://github.com/nymtech/nym/pull/1153) ([octol](https://github.com/octol))
 - Feature/signature on deposit [\#1151](https://github.com/nymtech/nym/pull/1151) ([neacsu](https://github.com/neacsu))
 
@@ -179,7 +228,7 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 **Closed issues:**
 
 - Rewarded set inclusion probability API endpoint [\#1037](https://github.com/nymtech/nym/issues/1037)
-- Update cw-storage-plus to 0.11  [\#1032](https://github.com/nymtech/nym/issues/1032)
+- Update cw-storage-plus to 0.11 [\#1032](https://github.com/nymtech/nym/issues/1032)
 - Change `u128` fields in `RewardEstimationResponse` to `u64` [\#1029](https://github.com/nymtech/nym/issues/1029)
 - Test out the mainnet Gravity Bridge [\#1006](https://github.com/nymtech/nym/issues/1006)
 - Add vesting contract interface to nym-wallet [\#959](https://github.com/nymtech/nym/issues/959)
@@ -201,7 +250,7 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 - Bump follow-redirects from 1.14.1 to 1.14.7 in /clients/native/examples/js-examples/websocket [\#1079](https://github.com/nymtech/nym/pull/1079) ([dependabot[bot]](https://github.com/apps/dependabot))
 - Bump nanoid from 3.1.23 to 3.2.0 in /clients/native/examples/js-examples/websocket [\#1078](https://github.com/nymtech/nym/pull/1078) ([dependabot[bot]](https://github.com/apps/dependabot))
 - Setup basic test for mixnode stats reporting [\#1077](https://github.com/nymtech/nym/pull/1077) ([octol](https://github.com/octol))
-- Make wallet\_address mandatory for mixnode init [\#1076](https://github.com/nymtech/nym/pull/1076) ([octol](https://github.com/octol))
+- Make wallet_address mandatory for mixnode init [\#1076](https://github.com/nymtech/nym/pull/1076) ([octol](https://github.com/octol))
 - Tidy nym-mixnode module visibility [\#1075](https://github.com/nymtech/nym/pull/1075) ([octol](https://github.com/octol))
 - Feature/wallet login with password [\#1074](https://github.com/nymtech/nym/pull/1074) ([fmtabbara](https://github.com/fmtabbara))
 - Add trait to mock client dependency in DelayForwarder [\#1073](https://github.com/nymtech/nym/pull/1073) ([octol](https://github.com/octol))
@@ -210,7 +259,7 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 - Add @octol as codeowner [\#1068](https://github.com/nymtech/nym/pull/1068) ([octol](https://github.com/octol))
 - set-up inclusion probability [\#1067](https://github.com/nymtech/nym/pull/1067) ([fmtabbara](https://github.com/fmtabbara))
 - Feature/wasm client [\#1066](https://github.com/nymtech/nym/pull/1066) ([neacsu](https://github.com/neacsu))
-- Changed bech32\_prefix from punk to nymt [\#1064](https://github.com/nymtech/nym/pull/1064) ([jstuczyn](https://github.com/jstuczyn))
+- Changed bech32_prefix from punk to nymt [\#1064](https://github.com/nymtech/nym/pull/1064) ([jstuczyn](https://github.com/jstuczyn))
 - Bump nanoid from 3.1.30 to 3.2.0 in /testnet-faucet [\#1063](https://github.com/nymtech/nym/pull/1063) ([dependabot[bot]](https://github.com/apps/dependabot))
 - Bump nanoid from 3.1.30 to 3.2.0 in /nym-wallet [\#1062](https://github.com/nymtech/nym/pull/1062) ([dependabot[bot]](https://github.com/apps/dependabot))
 - Rework vesting contract storage [\#1061](https://github.com/nymtech/nym/pull/1061) ([durch](https://github.com/durch))
@@ -218,7 +267,7 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 - fix: make explorer footer year dynamic [\#1059](https://github.com/nymtech/nym/pull/1059) ([martinyung](https://github.com/martinyung))
 - Add mnemonic just on creation, to display it [\#1057](https://github.com/nymtech/nym/pull/1057) ([neacsu](https://github.com/neacsu))
 - Network Explorer: updates to API and UI to show the active set [\#1056](https://github.com/nymtech/nym/pull/1056) ([mmsinclair](https://github.com/mmsinclair))
-- Made contract addresses for query NymdClient construction optional [\#1055](https://github.com/nymtech/nym/pull/1055) ([jstuczyn](https://github.com/jstuczyn))
+- Made contract addresses for query NyxdClient construction optional [\#1055](https://github.com/nymtech/nym/pull/1055) ([jstuczyn](https://github.com/jstuczyn))
 - Introduced RPC query for total token supply [\#1053](https://github.com/nymtech/nym/pull/1053) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/tokio console [\#1052](https://github.com/nymtech/nym/pull/1052) ([durch](https://github.com/durch))
 - Implemented beta clippy lint recommendations [\#1051](https://github.com/nymtech/nym/pull/1051) ([jstuczyn](https://github.com/jstuczyn))

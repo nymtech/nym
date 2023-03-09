@@ -1,5 +1,21 @@
 [workspace]
-members = ["coconut-bandwidth", "mixnet", "vesting", "multisig/cw3-flex-multisig", "multisig/cw4-group", "coconut-test", "coconut-dkg"]
+members = [
+    "coconut-bandwidth",
+    "mixnet",
+    "vesting",
+    "multisig/cw3-flex-multisig",
+    "multisig/cw4-group",
+    "coconut-test",
+    "coconut-dkg"
+]
+
+[workspace.package]
+authors = ["Nym Technologies SA"]
+repository = "https://github.com/nymtech/nym"
+homepage = "https://nymtech.net"
+documentation = "https://nymtech.net"
+edition = "2021"
+license = "Apache-2.0"
 
 [profile.release]
 opt-level = 3

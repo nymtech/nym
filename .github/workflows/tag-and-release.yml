@@ -1,0 +1,46 @@
+name: tag-and-release
+
+on:
+  workflow_dispatch:
+    inputs:  
+      nym_binaries_version:
+        description: 'Version of the nym-binaries tag'
+        required: false
+        type: string 
+      nym_wallet_version:
+        description: 'Version of the nym-wallet tag'
+        required: false
+        type: string 
+      nym_connect_version:
+        description: 'Version of the nym-connect tag'
+        required: false
+        type: string 
+
+jobs:
+  tag-components:
+    uses: nymtech/reusable-workflows/.github/workflows/tag-components.yml@master
+    with:
+      nym_binaries_version: ${{ input.nym_binaries_version }}
+      nym_wallet_version: ${{ input.nym_wallet_version }}
+      nym_connect_version: ${{ input.nym_connect_version }}
+
+  create-nym-binaries-release:
+    if: ${{ input.nym_binaries_version }}
+    uses: nymtech/reusable-workflows/.github/workflows/create-binaries-release.yml@master
+    with:
+      version: ${{ input.nym_binaries_version }}
+    needs: ["tag-components"]
+
+  create-nym-wallet-release:
+    if: ${{ input.nym_wallet_version }}
+    uses: nymtech/reusable-workflows/.github/workflows/create-wallet-release.yml@master
+    with:
+      version: ${{ input.nym_wallet_version }}
+    needs: ["tag-components"]
+
+  create-nym-connect-release:
+    if: ${{ input.nym_connect_version }}
+    uses: nymtech/reusable-workflows/.github/workflows/create-connect-release.yml@master
+    with:
+      version: ${{ input.nym_connect_version }}
+    needs: ["tag-components"]

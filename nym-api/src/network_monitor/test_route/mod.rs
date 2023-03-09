@@ -3,9 +3,9 @@
 
 use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
-use crypto::asymmetric::identity;
+use nym_crypto::asymmetric::identity;
+use nym_topology::{gateway, mix, NymTopology};
 use std::fmt::{Debug, Formatter};
-use topology::{gateway, mix, NymTopology};
 
 #[derive(Clone)]
 pub(crate) struct TestRoute {
@@ -64,10 +64,6 @@ impl TestRoute {
 
     pub(crate) fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway().identity_key
-    }
-
-    pub(crate) fn gateway_owner(&self) -> String {
-        self.gateway().owner.clone()
     }
 
     pub(crate) fn topology(&self) -> &NymTopology {

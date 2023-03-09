@@ -1,13 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::utils::show_error;
 use clap::Parser;
 use cosmrs::crypto::PublicKey;
 use log::error;
 use serde::Serialize;
 use serde_json::json;
-use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
+use validator_client::nyxd::wallet::DirectSecp256k1HdWallet;
 
 #[derive(Debug, Serialize)]
 pub struct SignatureOutputJson {
@@ -36,33 +35,32 @@ pub fn sign(args: Args, prefix: &str, mnemonic: Option<bip39::Mnemonic>) {
         return;
     }
 
-    match DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.expect("mnemonic not set")) {
-        Ok(wallet) => match wallet.try_derive_accounts() {
-            Ok(accounts) => match accounts.first() {
-                Some(account) => {
-                    let msg = args.message.into_bytes();
-                    match wallet.sign_raw_with_account(account, &msg) {
-                        Ok(signature) => {
-                            let output = SignatureOutputJson {
-                                account_id: account.address().to_string(),
-                                public_key: account.public_key(),
-                                signature_as_hex: signature.to_string(),
-                            };
-                            println!("{}", json!(output));
-                        }
-                        Err(e) => {
-                            error!("Failed to sign message. {}", e);
-                        }
+    let wallet =
+        DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.expect("mnemonic not set"));
+    match wallet.try_derive_accounts() {
+        Ok(accounts) => match accounts.first() {
+            Some(account) => {
+                let msg = args.message.into_bytes();
+                match wallet.sign_raw_with_account(account, &msg) {
+                    Ok(signature) => {
+                        let output = SignatureOutputJson {
+                            account_id: account.address().to_string(),
+                            public_key: account.public_key(),
+                            signature_as_hex: signature.to_string(),
+                        };
+                        println!("{}", json!(output));
+                    }
+                    Err(e) => {
+                        error!("Failed to sign message. {}", e);
                     }
                 }
-                None => {
-                    error!("Could not derive an account key from the mnemonic",)
-                }
-            },
-            Err(e) => {
-                error!("Failed to derive accounts. {}", e);
+            }
+            None => {
+                error!("Could not derive an account key from the mnemonic",)
             }
         },
-        Err(e) => show_error(e),
+        Err(e) => {
+            error!("Failed to derive accounts. {}", e);
+        }
     }
 }

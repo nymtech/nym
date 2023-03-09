@@ -1,5 +1,5 @@
 [package]
-name = "bandwidth-claim-contract"
+name = "nym-bandwidth-claim-contract"
 version = "0.1.0"
 edition = "2021"
 

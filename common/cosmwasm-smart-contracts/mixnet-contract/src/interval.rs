@@ -1,9 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::MixnetContractError;
 use crate::pending_events::{PendingEpochEvent, PendingIntervalEvent};
-use crate::{EpochId, IntervalId};
-use cosmwasm_std::Env;
+use crate::{EpochId, IntervalId, MixId};
+use cosmwasm_std::{Addr, Env};
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
@@ -57,6 +58,133 @@ pub(crate) mod string_rfc3339_offset_date_time {
             .format(&Rfc3339)
             .map_err(S::Error::custom)?
             .serialize(serializer)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+pub struct EpochStatus {
+    // TODO: introduce mechanism to allow another validator to take over if no progress has been made in X blocks / Y seconds
+    /// Specifies either, which validator is currently performing progression into the following epoch (if the epoch is currently being progressed),
+    /// or which validator was responsible for progressing into the current epoch (if the epoch is currently in progress)
+    pub being_advanced_by: Addr,
+    pub state: EpochState,
+}
+
+impl EpochStatus {
+    pub fn new(being_advanced_by: Addr) -> Self {
+        EpochStatus {
+            being_advanced_by,
+            state: EpochState::InProgress,
+        }
+    }
+
+    pub fn update_last_rewarded(
+        &mut self,
+        new_last_rewarded: MixId,
+    ) -> Result<bool, MixnetContractError> {
+        match &mut self.state {
+            EpochState::Rewarding {
+                ref mut last_rewarded,
+                final_node_id,
+            } => {
+                if new_last_rewarded <= *last_rewarded {
+                    return Err(MixnetContractError::RewardingOutOfOrder {
+                        last_rewarded: *last_rewarded,
+                        attempted_to_reward: new_last_rewarded,
+                    });
+                }
+
+                *last_rewarded = new_last_rewarded;
+                Ok(new_last_rewarded == *final_node_id)
+            }
+            state => Err(MixnetContractError::UnexpectedNonRewardingEpochState {
+                current_state: *state,
+            }),
+        }
+    }
+
+    pub fn last_rewarded(&self) -> Result<MixId, MixnetContractError> {
+        match self.state {
+            EpochState::Rewarding { last_rewarded, .. } => Ok(last_rewarded),
+            state => Err(MixnetContractError::UnexpectedNonRewardingEpochState {
+                current_state: state,
+            }),
+        }
+    }
+
+    pub fn ensure_is_in_event_reconciliation_state(&self) -> Result<(), MixnetContractError> {
+        if !matches!(self.state, EpochState::ReconcilingEvents) {
+            return Err(MixnetContractError::EpochNotInEventReconciliationState {
+                current_state: self.state,
+            });
+        }
+        Ok(())
+    }
+
+    pub fn ensure_is_in_advancement_state(&self) -> Result<(), MixnetContractError> {
+        if !matches!(self.state, EpochState::AdvancingEpoch) {
+            return Err(MixnetContractError::EpochNotInAdvancementState {
+                current_state: self.state,
+            });
+        }
+        Ok(())
+    }
+
+    pub fn is_in_progress(&self) -> bool {
+        matches!(self.state, EpochState::InProgress)
+    }
+
+    pub fn is_rewarding(&self) -> bool {
+        matches!(self.state, EpochState::Rewarding { .. })
+    }
+
+    pub fn is_reconciling(&self) -> bool {
+        matches!(self.state, EpochState::ReconcilingEvents)
+    }
+
+    pub fn is_advancing(&self) -> bool {
+        matches!(self.state, EpochState::AdvancingEpoch)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
+pub enum EpochState {
+    /// Represents the state of an epoch that's in progress (well, duh.)
+    /// All actions are allowed to be issued.
+    InProgress,
+
+    /// Represents the state of an epoch when the rewarding entity has been decided on,
+    /// and the mixnodes are in the process of being rewarded for their work in this epoch.
+    Rewarding {
+        last_rewarded: MixId,
+
+        final_node_id: MixId,
+        // total_rewarded: u32,
+    },
+
+    /// Represents the state of an epoch when all mixnodes have already been rewarded for their work in this epoch
+    /// and all issued actions should now get resolved before being allowed to advance into the next epoch.
+    ReconcilingEvents,
+
+    /// Represents the state of an epoch when all mixnodes have already been rewarded for their work in this epoch,
+    /// all issued actions got resolved and the epoch should now be advanced whilst assigning new rewarded set.
+    AdvancingEpoch,
+}
+
+impl Display for EpochState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EpochState::InProgress => write!(f, "in progress"),
+            EpochState::Rewarding {
+                last_rewarded,
+                final_node_id,
+            } => write!(
+                f,
+                "mix rewarding (last rewarded: {last_rewarded}, final node: {final_node_id})"
+            ),
+            EpochState::ReconcilingEvents => write!(f, "event reconciliation"),
+            EpochState::AdvancingEpoch => write!(f, "advancing epoch"),
+        }
     }
 }
 
@@ -396,6 +524,21 @@ impl PendingIntervalEventsResponse {
             seconds_until_executable,
             events,
             start_next_after,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct NumberOfPendingEventsResponse {
+    pub epoch_events: u32,
+    pub interval_events: u32,
+}
+
+impl NumberOfPendingEventsResponse {
+    pub fn new(epoch_events: u32, interval_events: u32) -> Self {
+        Self {
+            epoch_events,
+            interval_events,
         }
     }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "config"
+name = "nym-config"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
@@ -9,9 +9,9 @@ edition = "2021"
 [dependencies]
 cfg-if = "1.0.0"
 handlebars = "3.0.1"
-log = "0.4"
+log = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.5.6"
 url = "2.2"
 
-network-defaults = { path = "../network-defaults" }
+nym-network-defaults = { path = "../network-defaults" }

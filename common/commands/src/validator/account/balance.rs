@@ -4,7 +4,7 @@
 use clap::Parser;
 use log::{error, info};
 
-use validator_client::nymd::AccountId;
+use validator_client::nyxd::AccountId;
 
 use crate::context::QueryClient;
 use crate::utils::{pretty_coin, show_error};
@@ -57,7 +57,7 @@ pub async fn query_balance(
                 if denom.is_empty() || denom.eq_ignore_ascii_case(&coin.denom) {
                     if args.raw {
                         if !args.hide_denom {
-                            println!("{}", coin);
+                            println!("{coin}");
                         } else {
                             println!("{}", coin.amount);
                         }

@@ -3,13 +3,13 @@
 
 use crate::client::replies::reply_storage::backend::fs_backend::error::StorageError;
 use crate::client::replies::reply_storage::key_storage::UsedReplyKey;
-use crypto::generic_array::typenum::Unsigned;
-use crypto::Digest;
-use nymsphinx::addressing::clients::{Recipient, RecipientBytes};
-use nymsphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
-use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
-use nymsphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey, SurbEncryptionKeySize};
-use nymsphinx::params::ReplySurbKeyDigestAlgorithm;
+use nym_crypto::generic_array::typenum::Unsigned;
+use nym_crypto::Digest;
+use nym_sphinx::addressing::clients::{Recipient, RecipientBytes};
+use nym_sphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
+use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
+use nym_sphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey, SurbEncryptionKeySize};
+use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
 
 #[derive(Debug, Clone)]
 pub(crate) struct StoredSenderTag {
@@ -44,8 +44,7 @@ impl TryFrom<StoredSenderTag> for (RecipientBytes, AnonymousSenderTag) {
         let Ok(sender_tag_bytes) = value.tag.try_into() else {
             return Err(StorageError::CorruptedData {
                 details: format!(
-                    "the retrieved sender tag has length of {tag_len} while {} was expected",
-                    SENDER_TAG_SIZE
+                    "the retrieved sender tag has length of {tag_len} while {SENDER_TAG_SIZE} was expected",
                 ),
             });
         };
@@ -132,8 +131,7 @@ impl TryFrom<StoredSurbSender> for (AnonymousSenderTag, i64) {
         let Ok(sender_tag_bytes) = value.tag.try_into() else {
             return Err(StorageError::CorruptedData {
                 details: format!(
-                    "the retrieved sender tag has length of {tag_len} while {} was expected",
-                    SENDER_TAG_SIZE
+                    "the retrieved sender tag has length of {tag_len} while {SENDER_TAG_SIZE} was expected",
                 ),
             });
         };

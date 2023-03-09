@@ -1,5 +1,5 @@
 [package]
-name = "proxy-helpers"
+name = "nym-socks5-proxy-helpers"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
@@ -8,18 +8,17 @@ edition = "2021"
 
 [dependencies]
 bytes = "1.0"
-tokio = { version = "1.21.2", features = [ "net", "io-util", "sync", "macros", "time", "rt-multi-thread" ] }
-tokio-util = { version = "0.7.3", features = [ "io" ] } # reason for getting this guy is to to able to port to tokio 1.X more quickly by being able to use
+tokio = { version = "1.24.1", features = [ "net", "io-util", "sync", "macros", "time", "rt-multi-thread" ] }
+tokio-util = { version = "0.7.4", features = [ "io" ] } # reason for getting this guy is to to able to port to tokio 1.X more quickly by being able to use
 # their `read_buf` [from the util crate] replacement rather than having to rethink/reimplement `AvailableReader` with the new AsyncRead trait definition.
 # In the long run, the dependency should probably get removed in favour of pure-tokio implementation, but for time being it's fine.
 futures = "0.3"
-log = "0.4"
+log = { workspace = true }
 
 # internal
-client-connections = { path = "../../client-connections" }
-ordered-buffer = { path = "../ordered-buffer" }
-socks5-requests = { path = "../requests" }
-task = { path = "../../task" }
+nym-ordered-buffer = { path = "../ordered-buffer" }
+nym-socks5-requests = { path = "../requests" }
+nym-task = { path = "../../task" }
 
 [dev-dependencies]
 tokio-test = "0.4.2"

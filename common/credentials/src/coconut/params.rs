@@ -1,9 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crypto::aes::Aes128;
-use crypto::blake3;
-use crypto::ctr;
+use nym_crypto::aes::Aes128;
+use nym_crypto::blake3;
+use nym_crypto::ctr;
 
 type Aes128Ctr = ctr::Ctr64LE<Aes128>;
 

@@ -15,10 +15,11 @@
 // instead treating as muliple accounts with one entry.
 
 use serde::{Deserialize, Serialize};
-use validator_client::nymd::bip32::DerivationPath;
+use validator_client::nyxd::bip32::DerivationPath;
 use zeroize::Zeroize;
 
 use crate::error::BackendError;
+use crate::utils::ZeroizeMnemonicWrapper;
 
 use super::encryption::EncryptedData;
 use super::password::{AccountId, LoginId};
@@ -193,6 +194,7 @@ impl StoredLogin {
 
 /// Multiple stored accounts, each entry having an id and a data field.
 #[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
+#[zeroize(drop)]
 pub(crate) struct MultipleAccounts {
     accounts: Vec<WalletAccount>,
 }
@@ -220,8 +222,8 @@ impl MultipleAccounts {
             .find(|account| account.mnemonic() == mnemonic)
     }
 
-    pub(crate) fn into_accounts(self) -> impl Iterator<Item = WalletAccount> {
-        self.accounts.into_iter()
+    pub(crate) fn inner(&self) -> &[WalletAccount] {
+        &self.accounts
     }
 
     #[allow(unused)]
@@ -236,17 +238,19 @@ impl MultipleAccounts {
     pub(crate) fn add(
         &mut self,
         id: AccountId,
-        mnemonic: bip39::Mnemonic,
+        mnemonic: ZeroizeMnemonicWrapper,
         hd_path: DerivationPath,
     ) -> Result<(), BackendError> {
         if self.get_account(&id).is_some() {
             Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin)
-        } else if self.get_account_with_mnemonic(&mnemonic).is_some() {
+        } else if self.get_account_with_mnemonic(mnemonic.as_ref()).is_some() {
             Err(BackendError::WalletMnemonicAlreadyExistsInWalletLogin)
         } else {
             self.accounts.push(WalletAccount::new(
                 id,
-                MnemonicAccount::new(mnemonic, hd_path),
+                // safety: the call to `clone_inner` is fine here as the raw mnemonic will get immediately
+                // passed to `MnemonicAccount` which will zeroize it on drop
+                MnemonicAccount::new(mnemonic.into_cloned_inner(), hd_path),
             ));
             Ok(())
         }
@@ -269,6 +273,7 @@ impl From<Vec<WalletAccount>> for MultipleAccounts {
 
 /// An entry in the list of stored accounts
 #[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
+#[zeroize(drop)]
 pub(crate) struct WalletAccount {
     id: AccountId,
     account: AccountData,
@@ -356,7 +361,7 @@ impl Drop for MnemonicAccount {
 
 mod display_hd_path {
     use serde::{Deserialize, Deserializer, Serializer};
-    use validator_client::nymd::bip32::DerivationPath;
+    use validator_client::nyxd::bip32::DerivationPath;
 
     pub fn serialize<S: Serializer>(
         hd_path: &DerivationPath,

@@ -1,12 +1,13 @@
 [package]
-name = "nymsphinx-forwarding"
+name = "nym-sphinx-forwarding"
 version = "0.1.0"
-authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Sphinx packet forwarding as Nym mix packets"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
-nymsphinx-addressing = { path = "../addressing" }
-nymsphinx-params = { path = "../params" }
-nymsphinx-types = { path = "../types" }
+nym-sphinx-addressing = { path = "../addressing" }
+nym-sphinx-params = { path = "../params" }
+nym-sphinx-types = { path = "../types" }

@@ -2,27 +2,27 @@ use crate::config::{Config, CUSTOM_SIMULATED_GAS_MULTIPLIER};
 use crate::error::BackendError;
 use crate::network_config;
 use crate::state::{WalletAccountIds, WalletState};
-use crate::wallet_storage::{self, DEFAULT_LOGIN_ID};
+use crate::utils::{SensitiveStringWrapper, ZeroizeMnemonicWrapper};
+use crate::wallet_storage::{self, UserPassword, DEFAULT_LOGIN_ID};
 use bip39::{Language, Mnemonic};
-use config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
 use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
+use nym_config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
 use nym_types::account::{Account, AccountEntry, Balance};
 use nym_wallet_types::network::Network as WalletNetwork;
 use rand::seq::SliceRandom;
 use std::collections::HashMap;
-use std::str::FromStr;
 use strum::IntoEnumIterator;
 use url::Url;
-use validator_client::nymd::wallet::{AccountData, DirectSecp256k1HdWallet};
-use validator_client::{nymd::SigningNymdClient, Client};
+use validator_client::nyxd::wallet::{AccountData, DirectSecp256k1HdWallet};
+use validator_client::{nyxd::SigningNyxdClient, Client};
 
 #[tauri::command]
 pub async fn connect_with_mnemonic(
-    mnemonic: String,
+    mnemonic: SensitiveStringWrapper,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Account, BackendError> {
-    let mnemonic = Mnemonic::from_str(&mnemonic)?;
+    let mnemonic = ZeroizeMnemonicWrapper::try_from_string(mnemonic)?;
     _connect_with_mnemonic(mnemonic, state).await
 }
 
@@ -30,12 +30,12 @@ pub async fn connect_with_mnemonic(
 pub async fn get_balance(state: tauri::State<'_, WalletState>) -> Result<Balance, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let address = client.nymd.address();
+    let address = client.nyxd.address();
     let network = guard.current_network();
     let base_mix_denom = network.base_mix_denom();
 
     match client
-        .nymd
+        .nyxd
         .get_balance(address, base_mix_denom.to_string())
         .await?
     {
@@ -48,13 +48,13 @@ pub async fn get_balance(state: tauri::State<'_, WalletState>) -> Result<Balance
 }
 
 #[tauri::command]
-pub fn create_new_mnemonic() -> String {
-    random_mnemonic().to_string()
+pub fn create_new_mnemonic() -> SensitiveStringWrapper {
+    random_mnemonic().into_string()
 }
 
 #[tauri::command]
-pub fn validate_mnemonic(mnemonic: &str) -> bool {
-    Mnemonic::from_str(mnemonic).is_ok()
+pub fn validate_mnemonic(mnemonic: SensitiveStringWrapper) -> bool {
+    ZeroizeMnemonicWrapper::try_from_string(mnemonic).is_ok()
 }
 
 #[tauri::command]
@@ -67,7 +67,7 @@ pub async fn switch_network(
         let client = r_state.client(network)?;
         let denom = network.mix_denom();
 
-        Account::new(client.nymd.address().to_string(), denom)
+        Account::new(client.nyxd.address().to_string(), denom)
     };
 
     let mut w_state = state.write().await;
@@ -82,13 +82,15 @@ pub async fn logout(state: tauri::State<'_, WalletState>) -> Result<(), BackendE
     Ok(())
 }
 
-fn random_mnemonic() -> Mnemonic {
+fn random_mnemonic() -> ZeroizeMnemonicWrapper {
     let mut rng = rand::thread_rng();
-    Mnemonic::generate_in_with(&mut rng, Language::English, 24).unwrap()
+    Mnemonic::generate_in_with(&mut rng, Language::English, 24)
+        .unwrap()
+        .into()
 }
 
 async fn _connect_with_mnemonic(
-    mnemonic: Mnemonic,
+    mnemonic: ZeroizeMnemonicWrapper,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Account, BackendError> {
     {
@@ -96,7 +98,7 @@ async fn _connect_with_mnemonic(
         w_state.load_config_files();
     }
 
-    network_config::update_validator_urls(state.clone()).await?;
+    network_config::update_nyxd_urls(state.clone()).await?;
 
     let config = {
         let state = state.read().await;
@@ -115,11 +117,11 @@ async fn _connect_with_mnemonic(
     };
 
     // Get all the urls needed for the connection test
-    let (untested_nymd_urls, untested_api_urls) = {
+    let (untested_nyxd_urls, untested_api_urls) = {
         let state = state.read().await;
-        (state.get_all_nymd_urls(), state.get_all_api_urls())
+        (state.get_all_nyxd_urls(), state.get_all_api_urls())
     };
-    let default_nymd_urls: HashMap<WalletNetwork, Url> = untested_nymd_urls
+    let default_nyxd_urls: HashMap<WalletNetwork, Url> = untested_nyxd_urls
         .iter()
         .map(|(network, urls)| (*network, urls.iter().next().unwrap().clone()))
         .collect();
@@ -128,18 +130,18 @@ async fn _connect_with_mnemonic(
         .map(|(network, urls)| (*network, urls.iter().next().unwrap().clone()))
         .collect();
 
-    // Run connection tests on all nymd and nym-api endpoints
-    let (nymd_urls, api_urls) =
-        run_connection_test(untested_nymd_urls, untested_api_urls, &config).await;
+    // Run connection tests on all nyxd and nym-api endpoints
+    let (nyxd_urls, api_urls) =
+        run_connection_test(untested_nyxd_urls, untested_api_urls, &config).await;
 
     // Create clients for all networks
     let clients = create_clients(
-        &nymd_urls,
+        &nyxd_urls,
         &api_urls,
-        &default_nymd_urls,
+        &default_nyxd_urls,
         &default_api_urls,
         &config,
-        &mnemonic,
+        mnemonic.as_ref(),
     )?;
 
     // Set the default account
@@ -149,7 +151,7 @@ async fn _connect_with_mnemonic(
         .find(|(network, _)| *network == default_network);
     let account_for_default_network = match client_for_default_network {
         Some((_, client)) => Ok(Account::new(
-            client.nymd.address().to_string(),
+            client.nyxd.address().to_string(),
             default_network.mix_denom(),
         )),
         None => Err(BackendError::NetworkNotSupported),
@@ -170,7 +172,7 @@ async fn _connect_with_mnemonic(
 }
 
 async fn run_connection_test(
-    untested_nymd_urls: HashMap<WalletNetwork, Vec<Url>>,
+    untested_nyxd_urls: HashMap<WalletNetwork, Vec<Url>>,
     untested_api_urls: HashMap<WalletNetwork, Vec<Url>>,
     config: &Config,
 ) -> (
@@ -181,7 +183,7 @@ async fn run_connection_test(
         .map(|network| (network.into(), config.get_mixnet_contract_address(network)))
         .collect::<HashMap<_, _>>();
 
-    let untested_nymd_urls = untested_nymd_urls
+    let untested_nyxd_urls = untested_nyxd_urls
         .into_iter()
         .flat_map(|(net, urls)| urls.into_iter().map(move |url| (net.into(), url)));
 
@@ -190,7 +192,7 @@ async fn run_connection_test(
         .flat_map(|(net, urls)| urls.into_iter().map(move |url| (net.into(), url)));
 
     validator_client::connection_tester::run_validator_connection_test(
-        untested_nymd_urls,
+        untested_nyxd_urls,
         untested_api_urls,
         mixnet_contract_address,
     )
@@ -198,27 +200,27 @@ async fn run_connection_test(
 }
 
 fn create_clients(
-    nymd_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
+    nyxd_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
     api_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
-    default_nymd_urls: &HashMap<WalletNetwork, Url>,
+    default_nyxd_urls: &HashMap<WalletNetwork, Url>,
     default_api_urls: &HashMap<WalletNetwork, Url>,
     config: &Config,
     mnemonic: &Mnemonic,
-) -> Result<Vec<(WalletNetwork, Client<SigningNymdClient>)>, BackendError> {
+) -> Result<Vec<(WalletNetwork, Client<SigningNyxdClient>)>, BackendError> {
     let mut clients = Vec::new();
     for network in WalletNetwork::iter() {
-        let nymd_url = if let Some(url) = config.get_selected_validator_nymd_url(network) {
-            log::debug!("Using selected nymd_url for {network}: {url}");
+        let nyxd_url = if let Some(url) = config.get_selected_validator_nyxd_url(network) {
+            log::debug!("Using selected nyxd_url for {network}: {url}");
             url.clone()
         } else {
-            let default_nymd_url = default_nymd_urls
+            let default_nyxd_url = default_nyxd_urls
                 .get(&network)
-                .expect("Expected at least one nymd_url");
-            select_random_responding_url(nymd_urls, network).unwrap_or_else(|| {
+                .expect("Expected at least one nyxd_url");
+            select_random_responding_url(nyxd_urls, network).unwrap_or_else(|| {
                 log::debug!(
-                    "No successful nymd_urls for {network}: using default: {default_nymd_url}"
+                    "No successful nyxd_urls for {network}: using default: {default_nyxd_url}"
                 );
-                default_nymd_url.clone()
+                default_nyxd_url.clone()
             })
         };
 
@@ -235,7 +237,7 @@ fn create_clients(
             })
         };
 
-        log::info!("Connecting to: nymd_url: {nymd_url} for {network}");
+        log::info!("Connecting to: nyxd_url: {nyxd_url} for {network}");
         log::info!("Connecting to: api_url: {api_url} for {network}");
 
         let network_details = NymNetworkDetails::from(network)
@@ -249,10 +251,10 @@ fn create_clients(
             ));
 
         let config = validator_client::Config::try_from_nym_network_details(&network_details)?
-            .with_urls(nymd_url, api_url);
+            .with_urls(nyxd_url, api_url);
 
         let mut client = validator_client::Client::new_signing(config, mnemonic.clone())?;
-        client.set_nymd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
+        client.set_nyxd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
         clients.push((network, client));
     }
     Ok(clients)
@@ -296,30 +298,31 @@ pub fn does_password_file_exist() -> Result<bool, BackendError> {
 }
 
 #[tauri::command]
-pub fn create_password(mnemonic: &str, password: String) -> Result<(), BackendError> {
+pub fn create_password(
+    mnemonic: SensitiveStringWrapper,
+    password: UserPassword,
+) -> Result<(), BackendError> {
     if does_password_file_exist()? {
         return Err(BackendError::WalletFileAlreadyExists);
     }
     log::info!("Creating password");
 
-    let mnemonic = Mnemonic::from_str(mnemonic)?;
+    let mnemonic = ZeroizeMnemonicWrapper::try_from_string(mnemonic)?;
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     // Currently we only support a single, default, login id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
-    let password = wallet_storage::UserPassword::new(password);
     wallet_storage::store_login_with_multiple_accounts(mnemonic, hd_path, login_id, &password)
 }
 
 #[tauri::command]
 pub async fn sign_in_with_password(
-    password: String,
+    password: UserPassword,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Account, BackendError> {
     log::info!("Signing in with password");
 
     // Currently we only support a single, default, id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
-    let password = wallet_storage::UserPassword::new(password);
     let stored_login = wallet_storage::load_existing_login(&login_id, &password)?;
 
     let mnemonic = extract_first_mnemonic(&stored_login)?;
@@ -327,7 +330,7 @@ pub async fn sign_in_with_password(
     set_state_with_all_accounts(stored_login, first_login_id_when_converting, state.clone())
         .await?;
 
-    _connect_with_mnemonic(mnemonic, state).await
+    _connect_with_mnemonic(mnemonic.into(), state).await
 }
 
 fn extract_first_mnemonic(
@@ -352,7 +355,7 @@ fn extract_first_mnemonic(
 #[tauri::command]
 pub async fn sign_in_with_password_and_account_id(
     account_id: &str,
-    password: &str,
+    password: UserPassword,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Account, BackendError> {
     log::info!("Signing in with password");
@@ -360,7 +363,6 @@ pub async fn sign_in_with_password_and_account_id(
     // Currently we only support a single, default, id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     let account_id = wallet_storage::AccountId::new(account_id.to_string());
-    let password = wallet_storage::UserPassword::new(password.to_string());
     let stored_login = wallet_storage::load_existing_login(&login_id, &password)?;
 
     let mnemonic = extract_mnemonic(&stored_login, &account_id)?;
@@ -368,7 +370,7 @@ pub async fn sign_in_with_password_and_account_id(
     set_state_with_all_accounts(stored_login, first_login_id_when_converting, state.clone())
         .await?;
 
-    _connect_with_mnemonic(mnemonic, state).await
+    _connect_with_mnemonic(mnemonic.into(), state).await
 }
 
 fn extract_mnemonic(
@@ -402,18 +404,17 @@ pub fn archive_wallet_file() -> Result<(), BackendError> {
 
 #[tauri::command]
 pub async fn add_account_for_password(
-    mnemonic: &str,
-    password: &str,
+    mnemonic: SensitiveStringWrapper,
+    password: UserPassword,
     account_id: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<AccountEntry, BackendError> {
     log::info!("Adding account for the current password: {account_id}");
-    let mnemonic = Mnemonic::from_str(mnemonic)?;
+    let mnemonic = ZeroizeMnemonicWrapper::try_from_string(mnemonic)?;
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     // Currently we only support a single, default, login id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     let account_id = wallet_storage::AccountId::new(account_id.to_string());
-    let password = wallet_storage::UserPassword::new(password.to_string());
 
     wallet_storage::append_account_to_login(
         mnemonic.clone(),
@@ -426,7 +427,13 @@ pub async fn add_account_for_password(
     let address = {
         let state = state.read().await;
         let network: NymNetworkDetails = state.current_network().into();
-        derive_address(mnemonic, &network.chain_details.bech32_account_prefix)?.to_string()
+        // safety: the call to `clone_inner` is fine here as the raw mnemonic will get immediately
+        // passed to `DirectSecp256k1HdWallet` which will zeroize it on drop
+        derive_address(
+            mnemonic.into_cloned_inner(),
+            &network.chain_details.bech32_account_prefix,
+        )?
+        .to_string()
     };
 
     // Re-read all the acccounts from the  wallet to reset the state, rather than updating it
@@ -450,12 +457,10 @@ async fn set_state_with_all_accounts(
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     log::trace!("Set state with accounts:");
-    let all_accounts: Vec<_> = stored_login
-        .unwrap_into_multiple_accounts(first_id_when_converting)
-        .into_accounts()
-        .collect();
+    let stored = stored_login.unwrap_into_multiple_accounts(first_id_when_converting);
+    let all_accounts = stored.inner();
 
-    for account in &all_accounts {
+    for account in all_accounts {
         log::trace!("account: {:?}", account.id());
     }
 
@@ -490,7 +495,7 @@ async fn set_state_with_all_accounts(
 
 #[tauri::command]
 pub async fn remove_account_for_password(
-    password: &str,
+    password: UserPassword,
     account_id: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
@@ -498,7 +503,6 @@ pub async fn remove_account_for_password(
     // Currently we only support a single, default, id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     let account_id = wallet_storage::AccountId::new(account_id.to_string());
-    let password = wallet_storage::UserPassword::new(password.to_string());
     wallet_storage::remove_account_from_login(&login_id, &account_id, &password)?;
 
     // Load to reset the internal state
@@ -513,7 +517,8 @@ fn derive_address(
     mnemonic: bip39::Mnemonic,
     prefix: &str,
 ) -> Result<cosmrs::AccountId, BackendError> {
-    DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?
+    // note: the ephemeral wallet will zeroize the mnemonic on drop
+    DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)
         .try_derive_accounts()?
         .first()
         .map(AccountData::address)
@@ -547,21 +552,20 @@ pub async fn list_accounts(
 #[tauri::command]
 pub fn show_mnemonic_for_account_in_password(
     account_id: String,
-    password: String,
-) -> Result<String, BackendError> {
+    password: UserPassword,
+) -> Result<SensitiveStringWrapper, BackendError> {
     log::info!("Getting mnemonic for: {account_id}");
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     let account_id = wallet_storage::AccountId::new(account_id);
-    let password = wallet_storage::UserPassword::new(password);
     let mnemonic = _show_mnemonic_for_account_in_password(&login_id, &account_id, &password)?;
-    Ok(mnemonic.to_string())
+    Ok(mnemonic.into_string())
 }
 
 fn _show_mnemonic_for_account_in_password(
     login_id: &wallet_storage::LoginId,
     account_id: &wallet_storage::AccountId,
     password: &wallet_storage::UserPassword,
-) -> Result<bip39::Mnemonic, BackendError> {
+) -> Result<ZeroizeMnemonicWrapper, BackendError> {
     let stored_account = wallet_storage::load_existing_login(login_id, password)?;
     let mnemonic = match stored_account {
         wallet_storage::StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
@@ -571,12 +575,13 @@ fn _show_mnemonic_for_account_in_password(
             .mnemonic()
             .clone(),
     };
-    Ok(mnemonic)
+    Ok(mnemonic.into())
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+    use std::str::FromStr;
 
     use crate::wallet_storage::{
         self,
@@ -606,8 +611,8 @@ mod tests {
 
         let all_accounts: Vec<_> = stored_login
             .unwrap_into_multiple_accounts(account_id.clone())
-            .into_accounts()
-            .collect();
+            .inner()
+            .to_vec();
 
         assert_eq!(
             all_accounts,
@@ -639,8 +644,8 @@ mod tests {
 
         let all_accounts: Vec<_> = stored_login
             .unwrap_into_multiple_accounts(account_id)
-            .into_accounts()
-            .collect();
+            .inner()
+            .to_vec();
 
         let expected_mn2 = bip39::Mnemonic::from_str("border hurt skull lunar goddess second danger game dismiss exhaust oven thumb dog drama onion false orchard spice tent next predict invite cherry green").unwrap();
         let expected_mn3 = bip39::Mnemonic::from_str("gentle crowd rule snap girl urge flat jump winner cluster night sand museum stock grunt quick tree acquire traffic major awake tag rack peasant").unwrap();

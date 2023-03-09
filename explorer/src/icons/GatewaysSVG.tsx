@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useTheme } from '@mui/material/styles';
 
-export const GatewaysSVG: React.FC = () => {
+export const GatewaysSVG: FCWithChildren = () => {
   const theme = useTheme();
   const color = theme.palette.text.primary;
   return (

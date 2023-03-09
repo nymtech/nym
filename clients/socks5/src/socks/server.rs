@@ -4,16 +4,16 @@ use super::{
     authentication::Authenticator, client::SocksClient, mixnet_responses::MixnetResponseListener,
 };
 use crate::socks::client;
-use client_connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use proxy_helpers::connection_controller::{BroadcastActiveConnections, Controller};
+use nym_socks5_proxy_helpers::connection_controller::Controller;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
+use nym_task::TaskClient;
 use std::net::SocketAddr;
 use tap::TapFallible;
-use task::TaskClient;
 use tokio::net::TcpListener;
 
 /// A Socks5 server that listens for connections.
@@ -69,7 +69,7 @@ impl SphinxSocksServer {
         // controller for managing all active connections
         let (mut active_streams_controller, controller_sender) = Controller::new(
             client_connection_tx,
-            BroadcastActiveConnections::Off,
+            //BroadcastActiveConnections::Off,
             self.shutdown.clone(),
         );
         tokio::spawn(async move {
@@ -85,6 +85,11 @@ impl SphinxSocksServer {
         tokio::spawn(async move {
             mixnet_response_listener.run().await;
         });
+
+        // TODO:, if required, there should be another task here responsible for control requests.
+        // it should get `input_sender` to send actual requests into the mixnet
+        // and some channel that connects it from `MixnetResponseListener` to receive
+        // any control responses
 
         loop {
             tokio::select! {

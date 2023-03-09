@@ -9,7 +9,7 @@ use crate::node::storage::shared_keys::SharedKeysManager;
 use async_trait::async_trait;
 use gateway_requests::registration::handshake::SharedKeys;
 use log::{debug, error};
-use nymsphinx::DestinationAddressBytes;
+use nym_sphinx::DestinationAddressBytes;
 use sqlx::ConnectOptions;
 use std::path::Path;
 

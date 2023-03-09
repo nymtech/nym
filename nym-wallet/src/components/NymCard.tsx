@@ -10,7 +10,7 @@ const CardContentNoPadding = styled(CardContent)(() => ({
   },
 }));
 
-export const NymCard: React.FC<{
+export const NymCard: FCWithChildren<{
   title: string | React.ReactElement;
   subheader?: string | React.ReactChild;
   Action?: React.ReactNode;
@@ -20,6 +20,7 @@ export const NymCard: React.FC<{
   dataTestid?: string;
   sx?: SxProps;
   sxTitle?: SxProps;
+  children: React.ReactNode;
 }> = ({ title, subheader, Action, Icon, noPadding, borderless, children, dataTestid, sx, sxTitle }) => (
   <Card variant="outlined" sx={{ overflow: 'auto', ...(borderless && { border: 'none', dropShadow: 'none' }), ...sx }}>
     <CardHeader

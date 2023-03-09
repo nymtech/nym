@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::{mainnet, DenomDetails, NymNetworkDetails};
+use nym_config::defaults::{mainnet, DenomDetails, NymNetworkDetails};
 use nym_types::{currency::DecCoin, error::TypesError};
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Not, str::FromStr};
@@ -62,7 +62,7 @@ impl Default for Network {
 
 impl fmt::Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -94,7 +94,7 @@ fn parse_optional_str(raw: &str) -> Option<String> {
 }
 
 mod sandbox {
-    use network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
+    use nym_network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
 
     use super::parse_optional_str;
 
@@ -109,6 +109,7 @@ mod sandbox {
         "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
     pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
         "nymt1nz0r0au8aj6dc00wmm3ufy4g4k86rjzlgq608r";
+    pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "nymt1k8re7jwz6rnnwrktnejdwkwnncte7ek7kk6fvg";
     pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str =
         "nymt1k8re7jwz6rnnwrktnejdwkwnncte7ek7kk6fvg";
     pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
@@ -128,8 +129,8 @@ mod sandbox {
         )]
     }
 
-    pub(crate) fn network_details() -> network_defaults::NymNetworkDetails {
-        network_defaults::NymNetworkDetails {
+    pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
+        nym_network_defaults::NymNetworkDetails {
             chain_details: ChainDetails {
                 bech32_account_prefix: BECH32_PREFIX.to_string(),
                 mix_denom: MIX_DENOM.into(),
@@ -145,6 +146,7 @@ mod sandbox {
                 coconut_bandwidth_contract_address: parse_optional_str(
                     COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
                 ),
+                group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
                 multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
                 coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
             },
@@ -153,7 +155,7 @@ mod sandbox {
 }
 
 mod qa {
-    use network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
+    use nym_network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
 
     use super::parse_optional_str;
 
@@ -170,6 +172,7 @@ mod qa {
         "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
     pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
         "n1ghd753shjuwexxywmgs4xz7x2q732vcn7ty4yw";
+    pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "n17p9rzwnnfxcjp32un9ug7yhhzgtkhvl988qccs";
     pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str = "n17p9rzwnnfxcjp32un9ug7yhhzgtkhvl988qccs";
     pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
         "n17p9rzwnnfxcjp32un9ug7yhhzgtkhvl988qccs";
@@ -187,8 +190,8 @@ mod qa {
         )]
     }
 
-    pub(crate) fn network_details() -> network_defaults::NymNetworkDetails {
-        network_defaults::NymNetworkDetails {
+    pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
+        nym_network_defaults::NymNetworkDetails {
             chain_details: ChainDetails {
                 bech32_account_prefix: BECH32_PREFIX.to_string(),
                 mix_denom: MIX_DENOM.into(),
@@ -204,6 +207,7 @@ mod qa {
                 coconut_bandwidth_contract_address: parse_optional_str(
                     COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
                 ),
+                group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
                 multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
                 coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
             },

@@ -15,7 +15,7 @@ cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegr
 
 nym-cli-commands = { path = "../../common/commands" }
 validator-client = { path = "../../common/client-libs/validator-client", features = [
-    "nymd-client",
+    "nyxd-client",
 ] }
 
 [dev-dependencies]

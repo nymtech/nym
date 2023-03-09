@@ -3,8 +3,8 @@
 
 use crate::client::config::{Config, MISSING_VALUE};
 
-use config::NymConfig;
-use version_checker::Version;
+use nym_bin_common::version_checker::Version;
+use nym_config::NymConfig;
 
 use clap::Args;
 use std::fmt::Display;
@@ -17,36 +17,26 @@ fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> !
 }
 
 fn print_start_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    println!(
-        "\n==================\nTrying to upgrade client from {} to {} ...",
-        from, to
-    );
+    println!("\n==================\nTrying to upgrade client from {from} to {to} ...");
 }
 
 fn print_failed_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    eprintln!(
-        "Upgrade from {} to {} failed!\n==================\n",
-        from, to
-    );
+    eprintln!("Upgrade from {from} to {to} failed!\n==================\n");
 }
 
 fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    println!(
-        "Upgrade from {} to {} was successful!\n==================\n",
-        from, to
-    );
+    println!("Upgrade from {from} to {to} was successful!\n==================\n");
 }
 
 fn outdated_upgrade(config_version: &Version, package_version: &Version) -> ! {
     eprintln!(
-        "Cannot perform upgrade from {} to {}. Your version is too old to perform the upgrade.!",
-        config_version, package_version
+        "Cannot perform upgrade from {config_version} to {package_version}. Your version is too old to perform the upgrade.!"
     );
     process::exit(1)
 }
 
 fn unsupported_upgrade(current_version: &Version, config_version: &Version) -> ! {
-    eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue if you expected it to work!", config_version, current_version);
+    eprintln!("Cannot perform upgrade from {config_version} to {current_version}. Please let the developers know about this issue if you expected it to work!");
     process::exit(1)
 }
 
@@ -65,8 +55,7 @@ fn parse_config_version(config: &Config) -> Version {
 
     if version.is_prerelease() || !version.build.is_empty() {
         eprintln!(
-            "Trying to upgrade from a non-released version {}. This is not supported!",
-            version
+            "Trying to upgrade from a non-released version {version}. This is not supported!"
         );
         process::exit(1)
     }
@@ -81,10 +70,7 @@ fn parse_package_version() -> Version {
     // however, we are not using them ourselves at the moment and hence it should be fine.
     // if we change our mind, we could easily tweak this code
     if version.is_prerelease() || !version.build.is_empty() {
-        eprintln!(
-            "Trying to upgrade to a non-released version {}. This is not supported!",
-            version
-        );
+        eprintln!("Trying to upgrade to a non-released version {version}. This is not supported!");
         process::exit(1)
     }
 
@@ -145,7 +131,7 @@ pub(crate) fn execute(args: &Upgrade) {
 
     let id = &args.id;
 
-    let existing_config = Config::load_from_file(Some(id)).unwrap_or_else(|err| {
+    let existing_config = Config::load_from_file(id).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {err}");
         process::exit(1)
     });

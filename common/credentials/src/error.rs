@@ -1,22 +1,23 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(feature = "coconut")]
-use coconut_interface::CoconutError;
-use crypto::asymmetric::encryption::KeyRecoveryError;
+use nym_coconut_interface::CoconutError;
+use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use validator_client::ValidatorClientError;
 
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("IO error")]
+    IOError(#[from] std::io::Error),
+
     #[error("The detailed description is yet to be determined")]
     BandwidthCredentialError,
 
     #[error("Could not contact any validator")]
     NoValidatorsAvailable,
 
-    #[cfg(feature = "coconut")]
     #[error("Ran into a coconut error - {0}")]
     CoconutError(#[from] CoconutError),
 
@@ -31,4 +32,13 @@ pub enum Error {
 
     #[error("Could not parse the key - {0}")]
     ParsePublicKey(#[from] KeyRecoveryError),
+
+    #[error("Could not gather enough signature shares. Try again using the recovery command")]
+    NotEnoughShares,
+
+    #[error("Could not aggregate signature shares - {0}. Try again using the recovery command")]
+    SignatureAggregationError(CoconutError),
+
+    #[error("Could not deserialize bandwidth voucher - {0}")]
+    BandwidthVoucherDeserializationError(String),
 }

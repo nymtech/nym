@@ -1,52 +1,61 @@
 /* eslint-disable no-nested-ternary */
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import zxcvbn, { ZXCVBNScore } from 'zxcvbn';
 import { LockOutlined } from '@mui/icons-material';
 import { LinearProgress, Stack, Typography, Box } from '@mui/material';
 
-type TStrength = 'weak' | 'medium' | 'strong' | 'init';
-
-const strong = /^(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
-const medium = /^(((?=.*[a-z]))|((?=.*[a-z])(?=.*[0-9]))|((?=.*[0-9])))(?=.{6,})/;
-
 const colorMap = {
-  init: 'inherit' as 'inherit',
-  weak: 'error' as 'error',
-  medium: 'warning' as 'warning',
-  strong: 'success' as 'success',
+  4: 'success' as 'success',
+  3: 'success' as 'success',
+  2: 'warning' as 'warning',
+  1: 'error' as 'error',
+  0: 'error' as 'error',
 };
 
-const getText = (strength: TStrength) => {
-  switch (strength) {
-    case 'strong':
+const getText = (score: ZXCVBNScore) => {
+  switch (score) {
+    case 4:
+      return 'Very strong password';
+    case 3:
       return 'Strong password';
-    case 'medium':
-      return 'Medium strength password';
-    case 'weak':
+    case 2:
+      return 'Average password';
+    case 1:
       return 'Weak password';
+    case 0:
+      return 'Very weak password';
     default:
-      return 'Password strength';
+      return '';
   }
 };
 
-const getTextColor = (strength: TStrength) => {
-  switch (strength) {
-    case 'strong':
+const getColor = (score: ZXCVBNScore) => {
+  switch (score) {
+    case 4:
       return 'success.main';
-    case 'medium':
+    case 3:
+      return 'success.main';
+    case 2:
       return 'warning.main';
-    case 'weak':
+    case 1:
+      return 'error.main';
+    case 0:
       return 'error.main';
     default:
       return 'grey.500';
   }
 };
 
-const getPasswordStrength = (strength: TStrength) => {
-  switch (strength) {
-    case 'strong':
+const getPasswordStrength = (score: ZXCVBNScore) => {
+  switch (score) {
+    case 4:
       return 100;
-    case 'medium':
+    case 3:
+      return 75;
+    case 2:
       return 50;
+    case 1:
+      return 25;
     default:
       return 0;
   }
@@ -54,47 +63,32 @@ const getPasswordStrength = (strength: TStrength) => {
 
 export const PasswordStrength = ({
   password,
-  onChange,
+  withWarnings,
+  handleIsSafePassword,
 }: {
   password: string;
-  onChange: (isStrong: boolean) => void;
+  withWarnings?: boolean;
+  handleIsSafePassword: (isSafe: boolean) => void;
 }) => {
-  const [strength, setStrength] = useState<TStrength>('init');
+  const result = zxcvbn(password);
 
-  useEffect(() => {
-    if (password.length === 0) {
-      setStrength('init');
-      return;
-    }
+  handleIsSafePassword(result.score > 1);
 
-    if (password.match(strong)) {
-      setStrength('strong');
-      return;
-    }
-
-    if (password.match(medium)) {
-      setStrength('medium');
-      return;
-    }
-    setStrength('weak');
-  }, [password]);
-
-  useEffect(() => {
-    if (strength === 'strong') {
-      onChange(true);
-    } else {
-      onChange(false);
-    }
-  }, [strength]);
+  if (!password.length) return null;
 
   return (
     <Stack spacing={0.5}>
-      <LinearProgress variant="determinate" color={colorMap[strength]} value={getPasswordStrength(strength)} />
-      <Box display="flex" alignItems="center">
-        <LockOutlined sx={{ fontSize: 15, color: getTextColor(strength) }} />
-        <Typography variant="caption" sx={{ ml: 0.5, color: getTextColor(strength) }}>
-          {getText(strength)}
-        </Typography>
+      <LinearProgress variant="determinate" color={colorMap[result.score]} value={getPasswordStrength(result.score)} />
+      <Box display="flex" alignItems="center" justifyContent="space-between">
+        <Box display="flex" alignItems="center">
+          <LockOutlined sx={{ fontSize: 15, color: getColor(result.score) }} />
+          <Typography variant="caption" sx={{ ml: 0.5, color: getColor(result.score) }}>
+            {getText(result.score)}
+          </Typography>
+        </Box>
+        {withWarnings && result.feedback.warning && (
+          <Typography variant="caption">{result.feedback.warning}</Typography>
+        )}
       </Box>
     </Stack>
   );

@@ -8,10 +8,10 @@ use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use futures::StreamExt;
 use log::{error, info};
-use nymsphinx::forwarding::packet::MixPacket;
-use nymsphinx::framing::codec::SphinxCodec;
-use nymsphinx::framing::packet::FramedSphinxPacket;
-use nymsphinx::Delay as SphinxDelay;
+use nym_sphinx::forwarding::packet::MixPacket;
+use nym_sphinx::framing::codec::SphinxCodec;
+use nym_sphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::Delay as SphinxDelay;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
@@ -77,9 +77,14 @@ impl ConnectionHandler {
         mut shutdown: TaskClient,
     ) {
         debug!("Starting connection handler for {:?}", remote);
+        shutdown.mark_as_success();
         let mut framed_conn = Framed::new(conn, SphinxCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("ConnectionHandler: received shutdown");
+                }
                 Some(framed_sphinx_packet) = framed_conn.next() => {
                     match framed_sphinx_packet {
                         Ok(framed_sphinx_packet) => {
@@ -95,16 +100,12 @@ impl ConnectionHandler {
                         }
                         Err(err) => {
                             error!(
-                                "The socket connection got corrupted with error: {:?}. Closing the socket",
-                                err
+                                "The socket connection got corrupted with error: {err}. Closing the socket",
                             );
                             return;
                         }
                     }
                 },
-                _ = shutdown.recv() => {
-                    log::trace!("ConnectionHandler: received shutdown");
-                }
             }
         }
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import {
   FeeDetails,
   DecCoin,
@@ -136,7 +137,7 @@ export const BondingContext = createContext<TBondingContext>({
   },
 });
 
-export const BondingContextProvider = ({ children }: { children?: React.ReactNode }): JSX.Element => {
+export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Element => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [bondedNode, setBondedNode] = useState<TBondedMixnode | TBondedGateway>();

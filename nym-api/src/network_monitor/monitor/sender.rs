@@ -6,9 +6,6 @@ use crate::network_monitor::monitor::gateway_clients_cache::{
 };
 use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
-use config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
-use credential_storage::PersistentStorage;
-use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
 use futures::task::Context;
@@ -16,7 +13,11 @@ use futures::{Future, Stream};
 use gateway_client::error::GatewayClientError;
 use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
 use log::{debug, info, trace, warn};
-use nymsphinx::forwarding::packet::MixPacket;
+use nym_config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
+use nym_credential_storage::PersistentStorage;
+use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
+use nym_sphinx::forwarding::packet::MixPacket;
+use nym_task::TaskClient;
 use pin_project::pin_project;
 use std::mem;
 use std::num::NonZeroUsize;
@@ -24,9 +25,9 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
-use task::TaskClient;
 
 use gateway_client::bandwidth::BandwidthController;
+use validator_client::nyxd::SigningNyxdClient;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
@@ -38,9 +39,6 @@ pub(crate) struct GatewayPackets {
     /// Public key of the target gateway.
     pub(crate) pub_key: identity::PublicKey,
 
-    /// The address of the gateway owner.
-    pub(crate) gateway_owner: String,
-
     /// All the packets that are going to get sent to the gateway.
     pub(crate) packets: Vec<MixPacket>,
 }
@@ -49,26 +47,19 @@ impl GatewayPackets {
     pub(crate) fn new(
         clients_address: String,
         pub_key: identity::PublicKey,
-        gateway_owner: String,
         packets: Vec<MixPacket>,
     ) -> Self {
         GatewayPackets {
             clients_address,
             pub_key,
-            gateway_owner,
             packets,
         }
     }
 
-    pub(crate) fn empty(
-        clients_address: String,
-        pub_key: identity::PublicKey,
-        gateway_owner: String,
-    ) -> Self {
+    pub(crate) fn empty(clients_address: String, pub_key: identity::PublicKey) -> Self {
         GatewayPackets {
             clients_address,
             pub_key,
-            gateway_owner,
             packets: Vec::new(),
         }
     }
@@ -90,7 +81,7 @@ struct FreshGatewayClientData {
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     gateway_response_timeout: Duration,
-    bandwidth_controller: BandwidthController<PersistentStorage>,
+    bandwidth_controller: BandwidthController<SigningNyxdClient, PersistentStorage>,
     disabled_credentials_mode: bool,
 }
 
@@ -148,7 +139,7 @@ impl PacketSender {
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
         max_sending_rate: usize,
-        bandwidth_controller: BandwidthController<PersistentStorage>,
+        bandwidth_controller: BandwidthController<SigningNyxdClient, PersistentStorage>,
         disabled_credentials_mode: bool,
     ) -> Self {
         PacketSender {
@@ -181,7 +172,6 @@ impl PacketSender {
     fn new_gateway_client_handle(
         address: String,
         identity: identity::PublicKey,
-        owner: String,
         fresh_gateway_client_data: &FreshGatewayClientData,
     ) -> (
         GatewayClientHandle,
@@ -199,13 +189,12 @@ impl PacketSender {
             address,
             Arc::clone(&fresh_gateway_client_data.local_identity),
             identity,
-            owner,
             None,
             message_sender,
             ack_sender,
             fresh_gateway_client_data.gateway_response_timeout,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
-            task::TaskClient::dummy(),
+            nym_task::TaskClient::dummy(),
         );
 
         gateway_client
@@ -218,7 +207,7 @@ impl PacketSender {
     }
 
     async fn attempt_to_send_packets(
-        client: &mut GatewayClient,
+        client: &mut GatewayClient<SigningNyxdClient>,
         mut mix_packets: Vec<MixPacket>,
         max_sending_rate: usize,
     ) -> Result<(), GatewayClientError> {
@@ -279,7 +268,6 @@ impl PacketSender {
     async fn create_new_gateway_client_handle_and_authenticate(
         address: String,
         identity: identity::PublicKey,
-        owner: String,
         fresh_gateway_client_data: &FreshGatewayClientData,
         gateway_connection_timeout: Duration,
     ) -> Option<(
@@ -287,7 +275,7 @@ impl PacketSender {
         (MixnetMessageReceiver, AcknowledgementReceiver),
     )> {
         let (new_client, (message_receiver, ack_receiver)) =
-            Self::new_gateway_client_handle(address, identity, owner, fresh_gateway_client_data);
+            Self::new_gateway_client_handle(address, identity, fresh_gateway_client_data);
 
         // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
         // gets stuck in their TCP queue and just hangs on our end but does not terminate
@@ -327,7 +315,7 @@ impl PacketSender {
     }
 
     async fn check_remaining_bandwidth(
-        client: &mut GatewayClient,
+        client: &mut GatewayClient<SigningNyxdClient>,
     ) -> Result<(), GatewayClientError> {
         if client.remaining_bandwidth() < REMAINING_BANDWIDTH_THRESHOLD {
             Err(GatewayClientError::NotEnoughBandwidth(
@@ -364,7 +352,6 @@ impl PacketSender {
                 Self::create_new_gateway_client_handle_and_authenticate(
                     packets.clients_address,
                     packets.pub_key,
-                    packets.gateway_owner,
                     &fresh_gateway_client_data,
                     gateway_connection_timeout,
                 )

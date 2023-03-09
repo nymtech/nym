@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::Config;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::ReceivedProcessor;
 use crate::network_monitor::monitor::sender::PacketSender;
@@ -9,10 +8,11 @@ use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestSum
 use crate::network_monitor::test_packet::TestPacket;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
+use crate::support::config::Config;
 use log::{debug, error, info};
+use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
 use std::process;
-use task::TaskClient;
 use tokio::time::{sleep, Duration, Instant};
 
 pub(crate) mod gateway_clients_cache;
@@ -88,10 +88,7 @@ impl Monitor {
             )
             .await
         {
-            error!(
-                "Failed to submit monitor run information to the database - {}",
-                err
-            );
+            error!("Failed to submit monitor run information to the database - {err}",);
 
             // TODO: slightly more graceful shutdown here
             process::exit(1);
@@ -124,12 +121,8 @@ impl Monitor {
         for route in routes {
             let mut packet_preparer = self.packet_preparer.clone();
             let route = route.clone();
-            let route_test_packets = self.route_test_packets;
-            let gateway_packets = tokio::spawn(async move {
-                packet_preparer.prepare_test_route_viability_packets(&route, route_test_packets)
-            })
-            .await
-            .unwrap();
+            let gateway_packets = packet_preparer
+                .prepare_test_route_viability_packets(&route, self.route_test_packets);
             packets.push(gateway_packets);
         }
 

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{entry_point, Addr, Coin, DepsMut, Empty, Env, Response};
-use cw3_flex_multisig::{state::CONFIG, ContractError};
+use cw3_flex_multisig::state::CONFIG;
 use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper};
+use nym_multisig_contract_common::error::ContractError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -42,18 +43,18 @@ pub fn mock_app(init_funds: &[Coin]) -> App {
 }
 pub fn contract_dkg() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
-        coconut_dkg::contract::execute,
-        coconut_dkg::contract::instantiate,
-        coconut_dkg::contract::query,
+        nym_coconut_dkg::contract::execute,
+        nym_coconut_dkg::contract::instantiate,
+        nym_coconut_dkg::contract::query,
     );
     Box::new(contract)
 }
 
 pub fn contract_bandwidth() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
-        coconut_bandwidth::contract::execute,
-        coconut_bandwidth::contract::instantiate,
-        coconut_bandwidth::contract::query,
+        nym_coconut_bandwidth::contract::execute,
+        nym_coconut_bandwidth::contract::instantiate,
+        nym_coconut_bandwidth::contract::query,
     );
     Box::new(contract)
 }

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{GatewayMacSize, GatewayRequestsError};
-use crypto::generic_array::{
+use nym_crypto::generic_array::{
     typenum::{Sum, Unsigned, U16},
     GenericArray,
 };
-use crypto::hmac::{compute_keyed_hmac, recompute_keyed_hmac_and_verify_tag};
-use crypto::symmetric::stream_cipher::{self, CipherKey, KeySizeUser, IV};
-use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
-use pemstore::traits::PemStorableKey;
+use nym_crypto::hmac::{compute_keyed_hmac, recompute_keyed_hmac_and_verify_tag};
+use nym_crypto::symmetric::stream_cipher::{self, CipherKey, KeySizeUser, IV};
+use nym_pemstore::traits::PemStorableKey;
+use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
 use thiserror::Error;
 
 // shared key is as long as the encryption key and the MAC key combined.

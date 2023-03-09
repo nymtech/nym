@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{
@@ -9,11 +9,17 @@ use crate::constants::{
 use crate::interval::storage;
 use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_storage_plus::Bound;
+use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::{
-    CurrentIntervalResponse, EpochEventId, IntervalEventId, MixId, PagedRewardedSetResponse,
-    PendingEpochEventsResponse, PendingIntervalEventsResponse,
+    CurrentIntervalResponse, EpochEventId, EpochStatus, IntervalEventId, MixId,
+    NumberOfPendingEventsResponse, PagedRewardedSetResponse, PendingEpochEventsResponse,
+    PendingIntervalEventsResponse,
 };
+
+pub fn query_epoch_status(deps: Deps<'_>) -> StdResult<EpochStatus> {
+    storage::current_epoch_status(deps.storage)
+}
 
 pub fn query_current_interval_details(
     deps: Deps<'_>,
@@ -106,10 +112,60 @@ pub fn query_pending_interval_events_paged(
     })
 }
 
+pub fn query_number_of_pending_events(
+    deps: Deps<'_>,
+) -> Result<NumberOfPendingEventsResponse, MixnetContractError> {
+    let last_executed_epoch_id = storage::LAST_PROCESSED_EPOCH_EVENT.load(deps.storage)?;
+    let last_inserted_epoch_id = storage::EPOCH_EVENT_ID_COUNTER.load(deps.storage)?;
+
+    let last_executed_interval_id = storage::LAST_PROCESSED_INTERVAL_EVENT.load(deps.storage)?;
+    let last_inserted_interval_id = storage::INTERVAL_EVENT_ID_COUNTER.load(deps.storage)?;
+
+    Ok(NumberOfPendingEventsResponse {
+        epoch_events: last_inserted_epoch_id - last_executed_epoch_id,
+        interval_events: last_inserted_interval_id - last_executed_interval_id,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::support::tests::fixtures;
     use crate::support::tests::test_helpers::TestSetup;
+    use cosmwasm_std::Addr;
+    use mixnet_contract_common::{PendingEpochEventKind, PendingIntervalEventKind};
+    use rand_chacha::rand_core::RngCore;
+
+    fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {
+        for _ in 0..n {
+            push_dummy_epoch_action(test)
+        }
+    }
+
+    fn push_dummy_epoch_action(test: &mut TestSetup) {
+        let dummy_action = PendingEpochEventKind::Undelegate {
+            owner: Addr::unchecked("foomp"),
+            mix_id: test.rng.next_u32(),
+            proxy: None,
+        };
+        let env = test.env();
+        storage::push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
+    }
+
+    fn push_n_dummy_interval_actions(test: &mut TestSetup, n: usize) {
+        for _ in 0..n {
+            push_dummy_interval_action(test)
+        }
+    }
+
+    fn push_dummy_interval_action(test: &mut TestSetup) {
+        let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
+            mix_id: test.rng.next_u32(),
+            new_costs: fixtures::mix_node_cost_params_fixture(),
+        };
+        let env = test.env();
+        storage::push_new_interval_event(test.deps_mut().storage, &env, dummy_action).unwrap();
+    }
 
     #[test]
     fn querying_for_current_interval_details() {
@@ -151,7 +207,7 @@ mod tests {
 
         fn set_rewarded_set_to_n_nodes(test: &mut TestSetup, n: usize) {
             let set = (1u32..).take(n).collect::<Vec<_>>();
-            test.update_rewarded_set(set)
+            test.force_change_rewarded_set(set)
         }
 
         #[test]
@@ -237,25 +293,6 @@ mod tests {
     #[cfg(test)]
     mod pending_epoch_events {
         use super::*;
-        use cosmwasm_std::Addr;
-        use mixnet_contract_common::pending_events::PendingEpochEventKind;
-        use rand_chacha::rand_core::RngCore;
-
-        fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {
-            for _ in 0..n {
-                push_dummy_epoch_action(test)
-            }
-        }
-
-        fn push_dummy_epoch_action(test: &mut TestSetup) {
-            let dummy_action = PendingEpochEventKind::Undelegate {
-                owner: Addr::unchecked("foomp"),
-                mix_id: test.rng.next_u32(),
-                proxy: None,
-            };
-            let env = test.env();
-            storage::push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
-        }
 
         #[test]
         fn obeys_limits() {
@@ -379,24 +416,6 @@ mod tests {
     #[cfg(test)]
     mod pending_interval_events {
         use super::*;
-        use crate::support::tests::fixtures;
-        use mixnet_contract_common::pending_events::PendingIntervalEventKind;
-        use rand_chacha::rand_core::RngCore;
-
-        fn push_n_dummy_interval_actions(test: &mut TestSetup, n: usize) {
-            for _ in 0..n {
-                push_dummy_interval_action(test)
-            }
-        }
-
-        fn push_dummy_interval_action(test: &mut TestSetup) {
-            let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
-                mix_id: test.rng.next_u32(),
-                new_costs: fixtures::mix_node_cost_params_fixture(),
-            };
-            let env = test.env();
-            storage::push_new_interval_event(test.deps_mut().storage, &env, dummy_action).unwrap();
-        }
 
         #[test]
         fn obeys_limits() {
@@ -519,5 +538,60 @@ mod tests {
                 interval.secs_until_current_interval_end(&env)
             )
         }
+    }
+
+    #[test]
+    fn querying_for_number_of_pending_events() {
+        let mut test = TestSetup::new();
+
+        // no events
+        assert_eq!(
+            Ok(NumberOfPendingEventsResponse {
+                epoch_events: 0,
+                interval_events: 0
+            }),
+            query_number_of_pending_events(test.deps())
+        );
+
+        // add epoch event
+        push_dummy_epoch_action(&mut test);
+        assert_eq!(
+            Ok(NumberOfPendingEventsResponse {
+                epoch_events: 1,
+                interval_events: 0
+            }),
+            query_number_of_pending_events(test.deps())
+        );
+
+        // add more epoch events
+        push_n_dummy_epoch_actions(&mut test, 42);
+        assert_eq!(
+            Ok(NumberOfPendingEventsResponse {
+                epoch_events: 43,
+                interval_events: 0
+            }),
+            query_number_of_pending_events(test.deps())
+        );
+
+        // and now for interval...
+        // add interval event
+        push_dummy_interval_action(&mut test);
+        assert_eq!(
+            Ok(NumberOfPendingEventsResponse {
+                epoch_events: 43,
+                interval_events: 1
+            }),
+            query_number_of_pending_events(test.deps())
+        );
+
+        // add more epoch events
+        push_n_dummy_interval_actions(&mut test, 42);
+        assert_eq!(
+            Ok(NumberOfPendingEventsResponse {
+                epoch_events: 43,
+                interval_events: 43
+            }),
+            query_number_of_pending_events(test.deps())
+        );
     }
 }

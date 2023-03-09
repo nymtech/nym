@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::connection_controller::ConnectionReceiver;
-use client_connections::LaneQueueLengths;
-use socks5_requests::ConnectionId;
+use nym_socks5_requests::ConnectionId;
+use nym_task::connections::LaneQueueLengths;
+use nym_task::TaskClient;
 use std::fmt::Debug;
 use std::{sync::Arc, time::Duration};
-use task::TaskClient;
 use tokio::{net::TcpStream, sync::Notify};
 
 mod inbound;

@@ -3,30 +3,30 @@
 
 use crate::error::Result;
 use bip39::Mnemonic;
-use network_defaults::{NymNetworkDetails, VOUCHER_INFO};
+use nym_network_defaults::{NymNetworkDetails, VOUCHER_INFO};
 use std::str::FromStr;
 use url::Url;
-use validator_client::nymd;
-use validator_client::nymd::traits::CoconutBandwidthSigningClient;
-use validator_client::nymd::{Coin, Fee, NymdClient, SigningNymdClient};
+use validator_client::nyxd;
+use validator_client::nyxd::traits::CoconutBandwidthSigningClient;
+use validator_client::nyxd::{Coin, Fee, NyxdClient, SigningNyxdClient};
 
 pub(crate) struct Client {
-    nymd_client: NymdClient<SigningNymdClient>,
+    nyxd_client: NyxdClient<SigningNyxdClient>,
     mix_denom_base: String,
 }
 
 impl Client {
-    pub fn new(nymd_url: &str, mnemonic: &str) -> Self {
-        let nymd_url = Url::from_str(nymd_url).unwrap();
+    pub fn new(nyxd_url: &str, mnemonic: &str) -> Self {
+        let nyxd_url = Url::from_str(nyxd_url).unwrap();
         let mnemonic = Mnemonic::from_str(mnemonic).unwrap();
         let network_details = NymNetworkDetails::new_from_env();
-        let config = nymd::Config::try_from_nym_network_details(&network_details)
+        let config = nyxd::Config::try_from_nym_network_details(&network_details)
             .expect("failed to construct valid validator client config with the provided network");
-        let nymd_client =
-            NymdClient::connect_with_mnemonic(config, nymd_url.as_ref(), mnemonic, None).unwrap();
+        let nyxd_client =
+            NyxdClient::connect_with_mnemonic(config, nyxd_url.as_ref(), mnemonic, None).unwrap();
 
         Client {
-            nymd_client,
+            nyxd_client,
             mix_denom_base: network_details.chain_details.mix_denom.base,
         }
     }
@@ -40,7 +40,7 @@ impl Client {
     ) -> Result<String> {
         let amount = Coin::new(amount as u128, self.mix_denom_base.clone());
         Ok(self
-            .nymd_client
+            .nyxd_client
             .deposit(
                 amount,
                 String::from(VOUCHER_INFO),

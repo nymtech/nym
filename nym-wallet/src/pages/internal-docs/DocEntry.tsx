@@ -34,7 +34,7 @@ function collectArgs(functionName: string, args: ArgDef[]) {
   return invokeArgs;
 }
 
-export const DocEntry: React.FC<DocEntryProps> = (props) => {
+export const DocEntry: FCWithChildren<DocEntryProps> = (props) => {
   const [card, setCard] = React.useState(<Card />);
 
   const onClick = () => {

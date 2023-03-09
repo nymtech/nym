@@ -1,5 +1,4 @@
 import { Box, SxProps } from '@mui/material';
-import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import React, { useEffect } from 'react';
 import { FeeDetails } from '@nymproject/types';
 import { useGetFee } from 'src/hooks/useGetFee';
@@ -8,7 +7,7 @@ import { ModalFee } from '../Modals/ModalFee';
 import { ModalListItem } from '../Modals/ModalListItem';
 import { SimpleModal } from '../Modals/SimpleModal';
 
-export const UndelegateModal: React.FC<{
+export const UndelegateModal: FCWithChildren<{
   open: boolean;
   onClose?: () => void;
   onOk?: (mixId: number, identityKey: string, usesVestingContractTokens: boolean, fee?: FeeDetails) => void;

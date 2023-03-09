@@ -7,12 +7,12 @@ use rocket::{response, Request, Response};
 use std::io::Cursor;
 use thiserror::Error;
 
-use crypto::asymmetric::{
+use nym_crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
 };
-use dkg::error::DkgError;
-use validator_client::nymd::error::NymdError;
+use nym_dkg::error::DkgError;
+use validator_client::nyxd::error::NyxdError;
 
 use crate::node_status_api::models::NymApiStorageError;
 
@@ -35,8 +35,8 @@ pub enum CoconutError {
     #[error("Could not parse tx hash in request body")]
     TxHashParseError,
 
-    #[error("Nymd error - {0}")]
-    NymdError(#[from] NymdError),
+    #[error("Nyxd error - {0}")]
+    NyxdError(#[from] NyxdError),
 
     #[error("Validator client error - {0}")]
     ValidatorClientError(#[from] validator_client::ValidatorClientError),
@@ -70,17 +70,14 @@ pub enum CoconutError {
     )]
     DifferentPublicAttributes(String, String),
 
-    #[error("No signature found")]
-    NoSignature,
-
     #[error("Error in coconut interface - {0}")]
-    CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
+    CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
     #[error("Storage error - {0}")]
     StorageError(#[from] NymApiStorageError),
 
     #[error("Credentials error - {0}")]
-    CredentialsError(#[from] credentials::error::Error),
+    CredentialsError(#[from] nym_credentials::error::Error),
 
     #[error("Incorrect credential proposal description: {reason}")]
     IncorrectProposal { reason: String },
@@ -99,6 +96,9 @@ pub enum CoconutError {
 
     #[error("DKG has not finished yet in order to derive the coconut key")]
     KeyPairNotDerivedYet,
+
+    #[error("The coconut keypair is corrupted")]
+    CorruptedCoconutKeyPair,
 
     #[error("There was a problem with the proposal id: {reason}")]
     ProposalIdError { reason: String },

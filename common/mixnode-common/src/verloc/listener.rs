@@ -4,14 +4,14 @@
 use crate::verloc::error::RttError;
 use crate::verloc::packet::{EchoPacket, ReplyPacket};
 use bytes::{BufMut, BytesMut};
-use crypto::asymmetric::identity;
 use futures::StreamExt;
 use log::*;
+use nym_crypto::asymmetric::identity;
+use nym_task::TaskClient;
 use std::fmt::{Display, Formatter};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::{fmt, io, process};
-use task::TaskClient;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::{Decoder, Encoder, Framed};
@@ -56,7 +56,8 @@ impl PacketListener {
         while !shutdown_listener.is_shutdown() {
             // cloning the arc as each accepted socket is handled in separate task
             let connection_handler = Arc::clone(&self.connection_handler);
-            let handler_shutdown_listener = self.shutdown.clone();
+            let mut handler_shutdown_listener = self.shutdown.clone();
+            handler_shutdown_listener.mark_as_success();
 
             tokio::select! {
                 socket = listener.accept() => {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::NetworkStatisticsAPI;
-use logging::setup_logging;
+use nym_bin_common::logging::setup_logging;
 use std::path::PathBuf;
 
 mod api;

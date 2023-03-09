@@ -12,77 +12,80 @@ import { WorldMap } from '../../components/WorldMap';
 import { MixNodeDetailSection } from '../../components/MixNodes/DetailSection';
 import { MixnodeContextProvider, useMixnodeContext } from '../../context/mixnode';
 import { Title } from '../../components/Title';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 const columns: ColumnsType[] = [
   {
     field: 'owner',
     title: 'Owner',
-    headerAlign: 'left',
-    width: 230,
+    width: '15%',
   },
   {
     field: 'identity_key',
     title: 'Identity Key',
-    headerAlign: 'left',
-    width: 230,
+    width: '15%',
   },
 
   {
     field: 'bond',
     title: 'Stake',
-    flex: 1,
-    headerAlign: 'left',
+    width: '12.5%',
+  },
+  {
+    field: 'stake_saturation',
+    title: 'Stake Saturation',
+    width: '12.5%',
+    tooltipInfo:
+      'Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is 730k NYM, computed as S/K where S is target amount of tokens staked in the network and K is the number of nodes in the reward set.',
   },
   {
     field: 'self_percentage',
+    width: '10%',
     title: 'Bond %',
-    headerAlign: 'left',
-    width: 99,
   },
+
   {
     field: 'host',
+    width: '10%',
     title: 'Host',
-    headerAlign: 'left',
-    flex: 1,
   },
   {
     field: 'location',
     title: 'Location',
-    headerAlign: 'left',
-    flex: 1,
   },
+
   {
     field: 'layer',
     title: 'Layer',
-    headerAlign: 'left',
-    flex: 1,
   },
 ];
 
 /**
  * Shows mix node details
  */
-const PageMixnodeDetailWithState: React.FC = () => {
+const PageMixnodeDetailWithState: FCWithChildren = () => {
   const { mixNode, mixNodeRow, description, stats, status, uptimeStory, uniqDelegations } = useMixnodeContext();
-
+  const isMobile = useIsMobile();
   return (
     <Box component="main">
       <Title text="Mixnode Detail" />
-
       <Grid container spacing={2} mt={1} mb={6}>
         <Grid item xs={12}>
           {mixNodeRow && description?.data && (
             <MixNodeDetailSection mixNodeRow={mixNodeRow} mixnodeDescription={description.data} />
           )}
+          {mixNodeRow?.blacklisted && (
+            <Typography textAlign={isMobile ? 'left' : 'right'} fontSize="smaller" sx={{ color: 'error.main' }}>
+              This node is having a poor performance
+            </Typography>
+          )}
         </Grid>
       </Grid>
-
       <Grid container>
         <Grid item xs={12}>
           <DetailTable columnsData={columns} tableName="Mixnode detail table" rows={mixNodeRow ? [mixNodeRow] : []} />
         </Grid>
       </Grid>
-
       <Grid container spacing={2} mt={0}>
         <Grid item xs={12}>
           <DelegatorsInfoTable
@@ -92,7 +95,6 @@ const PageMixnodeDetailWithState: React.FC = () => {
           />
         </Grid>
       </Grid>
-
       <Grid container spacing={2} mt={0}>
         <Grid item xs={12}>
           <ContentCard title={`Stake Breakdown (${uniqDelegations?.data?.length} delegators)`}>
@@ -100,7 +102,6 @@ const PageMixnodeDetailWithState: React.FC = () => {
           </ContentCard>
         </Grid>
       </Grid>
-
       <Grid container spacing={2} mt={0}>
         <Grid item xs={12} md={4}>
           <ContentCard title="Mixnode Stats">
@@ -144,7 +145,6 @@ const PageMixnodeDetailWithState: React.FC = () => {
           )}
         </Grid>
       </Grid>
-
       <Grid container spacing={2} mt={0}>
         <Grid item xs={12} md={4}>
           {status && (
@@ -164,10 +164,10 @@ const PageMixnodeDetailWithState: React.FC = () => {
           {mixNode && (
             <ContentCard title="Location">
               {mixNode?.error && <ComponentError text="There was a problem retrieving this mixnode location" />}
-              {mixNode.data && mixNode?.data?.location && (
+              {mixNode?.data?.location?.latitude && mixNode?.data?.location?.longitude && (
                 <WorldMap
                   loading={mixNode.isLoading}
-                  userLocation={[mixNode?.data?.location?.lng, mixNode?.data?.location?.lat]}
+                  userLocation={[mixNode.data.location.longitude, mixNode.data.location.latitude]}
                 />
               )}
             </ContentCard>
@@ -181,7 +181,7 @@ const PageMixnodeDetailWithState: React.FC = () => {
 /**
  * Guard component to handle loading and not found states
  */
-const PageMixnodeDetailGuard: React.FC = () => {
+const PageMixnodeDetailGuard: FCWithChildren = () => {
   const { mixNode } = useMixnodeContext();
   const { id } = useParams<{ id: string | undefined }>();
 
@@ -215,7 +215,7 @@ const PageMixnodeDetailGuard: React.FC = () => {
 /**
  * Wrapper component that adds the mixnode content based on the `id` in the address URL
  */
-export const PageMixnodeDetail: React.FC = () => {
+export const PageMixnodeDetail: FCWithChildren = () => {
   const { id } = useParams<{ id: string | undefined }>();
 
   if (!id) {

@@ -1,15 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_bandwidth_contract_common::events::{
+use nym_api_requests::coconut::BlindSignRequestBody;
+use nym_coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
-use credentials::coconut::bandwidth::BandwidthVoucher;
-use crypto::asymmetric::encryption;
-use crypto::asymmetric::identity::{self, Signature};
-use nym_api_requests::coconut::BlindSignRequestBody;
-use validator_client::nymd::TxResponse;
+use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::identity::{self, Signature};
+use validator_client::nyxd::TxResponse;
 
 use super::error::{CoconutError, Result};
 
@@ -95,12 +95,12 @@ pub async fn extract_encryption_key(
 mod test {
     use super::*;
     use crate::coconut::tests::tx_entry_fixture;
-    use config::defaults::VOUCHER_INFO;
+    use nym_config::defaults::VOUCHER_INFO;
     use nymcoconut::{prepare_blind_sign, BlindSignRequest, Parameters};
     use rand_07::rngs::OsRng;
     use std::str::FromStr;
-    use validator_client::nymd::tx::Hash;
-    use validator_client::nymd::{Event, Tag};
+    use validator_client::nyxd::tx::Hash;
+    use validator_client::nyxd::{Event, Tag};
 
     #[tokio::test]
     async fn extract_encryption_key_test() {
@@ -168,7 +168,7 @@ mod test {
         assert!(matches!(
             err,
             CoconutError::Ed25519ParseError(
-                crypto::asymmetric::identity::Ed25519RecoveryError::MalformedSignatureString { .. }
+                nym_crypto::asymmetric::identity::Ed25519RecoveryError::MalformedSignatureString { .. }
             )
         ));
 
@@ -279,7 +279,7 @@ mod test {
         assert!(matches!(
             err,
             CoconutError::Ed25519ParseError(
-                crypto::asymmetric::identity::Ed25519RecoveryError::MalformedPublicKeyString { .. }
+                nym_crypto::asymmetric::identity::Ed25519RecoveryError::MalformedPublicKeyString { .. }
             )
         ));
 
@@ -334,7 +334,7 @@ mod test {
         assert!(matches!(
             err,
             CoconutError::X25519ParseError(
-                crypto::asymmetric::encryption::KeyRecoveryError::MalformedPublicKeyString { .. }
+                nym_crypto::asymmetric::encryption::KeyRecoveryError::MalformedPublicKeyString { .. }
             )
         ));
 
@@ -365,7 +365,7 @@ mod test {
         assert_eq!(
             err.to_string(),
             CoconutError::SignatureVerificationError(
-                crypto::asymmetric::identity::SignatureError::default(),
+                nym_crypto::asymmetric::identity::SignatureError::default(),
             )
             .to_string(),
         );

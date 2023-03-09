@@ -2,7 +2,7 @@ import React, { createContext, useEffect, useMemo, useState } from 'react';
 import { forage } from '@tauri-apps/tauri-forage';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { Account, AccountEntry, MixNodeBond, MixNodeDetails } from '@nymproject/types';
+import { Account, AccountEntry, MixNodeDetails } from '@nymproject/types';
 import { getVersion } from '@tauri-apps/api/app';
 import { AppEnv, Network } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
@@ -21,6 +21,7 @@ import { Console } from '../utils/console';
 export const urls = (networkName?: Network) =>
   networkName === 'MAINNET'
     ? {
+        mixnetExplorer: 'https://mixnet.explorers.guru/',
         blockExplorer: 'https://blocks.nymtech.net',
         networkExplorer: 'https://explorer.nymtech.net',
       }
@@ -65,7 +66,7 @@ export type TAppContext = {
 
 export const AppContext = createContext({} as TAppContext);
 
-export const AppProvider = ({ children }: { children: React.ReactNode }) => {
+export const AppProvider: FCWithChildren = ({ children }) => {
   const [clientDetails, setClientDetails] = useState<Account>();
   const [storedAccounts, setStoredAccounts] = useState<AccountEntry[]>();
   const [mixnodeDetails, setMixnodeDetails] = useState<MixNodeDetails | null>(null);

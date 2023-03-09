@@ -38,7 +38,7 @@ const CustomPagination = () => {
       color="primary"
       count={state.pagination.pageCount}
       page={state.pagination.page + 1}
-      onChange={(event, value) => apiRef.current.setPage(value - 1)}
+      onChange={(_, value) => apiRef.current.setPage(value - 1)}
     />
   );
 };
@@ -50,7 +50,7 @@ type DataGridProps = {
   rows: any;
   loading?: boolean;
 };
-export const UniversalDataGrid: React.FC<DataGridProps> = ({ rows, columns, loading, pagination, pageSize }) => {
+export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({ rows, columns, loading, pagination, pageSize }) => {
   if (loading) return <LinearProgress />;
   if (!loading)
     return (
@@ -62,7 +62,6 @@ export const UniversalDataGrid: React.FC<DataGridProps> = ({ rows, columns, load
         }}
         columns={columns}
         pageSize={Number(pageSize)}
-        rowsPerPageOptions={[5]}
         disableSelectionOnClick
         autoHeight
         hideFooter={!pagination}

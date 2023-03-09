@@ -16,10 +16,11 @@ env:
 
 jobs:
   publish-nym:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-20.04]
+        platform: [custom-runner-linux]
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -27,13 +28,7 @@ jobs:
 
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get -y install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools
-
-      - name: Check the release tag starts with `nym-binaries-`
-        if: startsWith(github.ref, 'refs/tags/nym-binaries-') == false && github.event_name != 'workflow_dispatch'
-        uses: actions/github-script@v3
-        with:
-          script: |
-            core.setFailed('Release tag did not start with nym-binaries-...')
+        continue-on-error: true
             
       - name: Sets env vars for tokio if set in manual dispatch inputs
         run: |
@@ -56,11 +51,12 @@ jobs:
         with:
           name: my-artifact
           path: |
+            target/release/explorer-api
             target/release/nym-client
             target/release/nym-gateway
             target/release/nym-mixnode
             target/release/nym-socks5-client
-            target/release/nym-validator-api
+            target/release/nym-api
             target/release/nym-network-requester
             target/release/nym-network-statistics
             target/release/nym-cli
@@ -71,11 +67,12 @@ jobs:
         if: github.event_name == 'release'
         with:
           files: |
+            target/release/explorer-api
             target/release/nym-client
             target/release/nym-gateway
             target/release/nym-mixnode
             target/release/nym-socks5-client
-            target/release/nym-validator-api
+            target/release/nym-api
             target/release/nym-network-requester
             target/release/nym-network-statistics
             target/release/nym-cli

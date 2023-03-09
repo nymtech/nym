@@ -3,8 +3,9 @@
 
 use crate::config::Config;
 use crate::node::MixNode;
+use crate::OutputFormat;
 use clap::Args;
-use config::NymConfig;
+use nym_config::NymConfig;
 
 #[derive(Args)]
 pub(crate) struct NodeDetails {
@@ -13,8 +14,8 @@ pub(crate) struct NodeDetails {
     id: String,
 }
 
-pub(crate) fn execute(args: &NodeDetails) {
-    let config = match Config::load_from_file(Some(&args.id)) {
+pub(crate) fn execute(args: &NodeDetails, output: OutputFormat) {
+    let config = match Config::load_from_file(&args.id) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!(
@@ -26,5 +27,5 @@ pub(crate) fn execute(args: &NodeDetails) {
         }
     };
 
-    MixNode::new(config).print_node_details()
+    MixNode::new(config).print_node_details(output)
 }

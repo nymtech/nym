@@ -7,7 +7,7 @@ import { AppContext } from '../../../context';
 
 const calculateMarkerPosition = (arrLength: number, index: number) => (1 / arrLength) * 100 * index;
 
-const Marker: React.FC<{ tooltipText: string; color: string; position: string }> = ({
+const Marker: FCWithChildren<{ tooltipText: string; color: string; position: string }> = ({
   tooltipText,
   color,
   position,
@@ -17,7 +17,7 @@ const Marker: React.FC<{ tooltipText: string; color: string; position: string }>
   </Tooltip>
 );
 
-export const VestingTimeline: React.FC<{ percentageComplete: number }> = ({ percentageComplete }) => {
+export const VestingTimeline: FCWithChildren<{ percentageComplete: number }> = ({ percentageComplete }) => {
   const {
     userBalance: { currentVestingPeriod, vestingAccountInfo },
   } = useContext(AppContext);

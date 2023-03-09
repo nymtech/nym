@@ -11,10 +11,11 @@ pub struct InvalidPacketMode {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum PacketMode {
     /// Represents 'normal' packet sent through the network that should be delayed by an appropriate
     /// value at each hop.
+    #[default]
     Mix = 0,
 
     /// Represents a VPN packet that should not be delayed and ideally cached pre-computed keys
@@ -41,11 +42,5 @@ impl TryFrom<u8> for PacketMode {
             _ if value == (PacketMode::Vpn as u8) => Ok(Self::Vpn),
             v => Err(InvalidPacketMode { received: v }),
         }
-    }
-}
-
-impl Default for PacketMode {
-    fn default() -> Self {
-        PacketMode::Mix
     }
 }

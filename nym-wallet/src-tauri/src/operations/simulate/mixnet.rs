@@ -4,8 +4,8 @@
 use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
-use mixnet_contract_common::MixNodeConfigUpdate;
-use mixnet_contract_common::{ExecuteMsg, Gateway, MixId, MixNode};
+use nym_mixnet_contract_common::MixNodeConfigUpdate;
+use nym_mixnet_contract_common::{ExecuteMsg, Gateway, MixId, MixNode};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 
@@ -25,13 +25,13 @@ async fn simulate_mixnet_operation(
     };
 
     let client = guard.current_client()?;
-    let mixnet_contract = client.nymd.mixnet_contract_address();
+    let mixnet_contract = client.nyxd.mixnet_contract_address();
 
     let msg = client
-        .nymd
+        .nyxd
         .wrap_contract_execute_message(mixnet_contract, &msg, funds)?;
 
-    let result = client.nymd.simulate(vec![msg]).await?;
+    let result = client.nyxd.simulate(vec![msg]).await?;
     guard.create_detailed_fee(result)
 }
 

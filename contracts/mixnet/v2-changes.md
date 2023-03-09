@@ -898,6 +898,6 @@ As with everything in this module, storage was also completely revamped. The cha
 
 ## Final remarks
 
-As mentioned during multiple chats, I think the migration the rest of our codebase is going to be a huge undertaking mostly because of how many aspects of the system this change is affecting. From the top of my head, we'd need to definitely change our `nymd client` (and as a result `validator-api`, `clients`, etc.) and also the vesting contract.
+As mentioned during multiple chats, I think the migration the rest of our codebase is going to be a huge undertaking mostly because of how many aspects of the system this change is affecting. From the top of my head, we'd need to definitely change our `nyxd client` (and as a result `validator-api`, `clients`, etc.) and also the vesting contract.
 
 With the latter case (and with the current mixnet contract), it's going to be even trickier given that the current contract is already live. We will need to adjust how the values are stored, i.e. mixnodes are now indexed by `NodeId` as opposed to `IdentityKey`. My recommendation would be to create a migration such that it would "cancel" / "return" (you name it) all existing delegations and bonds so that the users would have to make new ones under the new contract.

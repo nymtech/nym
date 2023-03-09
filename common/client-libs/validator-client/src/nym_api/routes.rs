@@ -1,20 +1,20 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use network_defaults::NYM_API_VERSION;
+use nym_network_defaults::NYM_API_VERSION;
 
 pub const API_VERSION: &str = NYM_API_VERSION;
 pub const MIXNODES: &str = "mixnodes";
 pub const GATEWAYS: &str = "gateways";
 
 pub const DETAILED: &str = "detailed";
+pub const DETAILED_UNFILTERED: &str = "detailed-unfiltered";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
 pub const COCONUT_ROUTES: &str = "coconut";
 pub const BANDWIDTH: &str = "bandwidth";
 
 pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
-pub const COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL: &str = "partial-bandwidth-credential";
 pub const COCONUT_VERIFY_BANDWIDTH_CREDENTIAL: &str = "verify-bandwidth-credential";
 
 pub const STATUS_ROUTES: &str = "status";

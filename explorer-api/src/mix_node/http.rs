@@ -9,7 +9,7 @@ use crate::mix_node::models::{
     EconomicDynamicsStats, NodeDescription, NodeStats, PrettyDetailedMixNodeBond, SummedDelegations,
 };
 use crate::state::ExplorerApiStateContext;
-use mixnet_contract_common::{Delegation, MixId};
+use nym_mixnet_contract_common::{Delegation, MixId};
 use reqwest::Error as ReqwestError;
 use rocket::response::status::NotFound;
 use rocket::serde::json::Json;
@@ -30,14 +30,14 @@ pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, 
 }
 
 async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescription, ReqwestError> {
-    reqwest::get(format!("http://{}:{}/description", host, port))
+    reqwest::get(format!("http://{host}:{port}/description"))
         .await?
         .json::<NodeDescription>()
         .await
 }
 
 async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestError> {
-    reqwest::get(format!("http://{}:{}/stats", host, port))
+    reqwest::get(format!("http://{host}:{port}/stats"))
         .await?
         .json::<NodeStats>()
         .await

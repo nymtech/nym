@@ -10,8 +10,9 @@ use crate::mixnodes::helpers::{
     get_mixnode_details_by_owner, must_get_mixnode_bond_by_owner, save_new_mixnode,
 };
 use crate::support::helpers::{
-    ensure_bonded, ensure_is_authorized, ensure_no_existing_bond, ensure_proxy_match,
-    validate_node_identity_signature, validate_pledge,
+    ensure_bonded, ensure_epoch_in_progress_state, ensure_is_authorized, ensure_no_existing_bond,
+    ensure_proxy_match, ensure_sent_by_vesting_contract, validate_node_identity_signature,
+    validate_pledge,
 };
 use cosmwasm_std::{coin, Addr, Coin, DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
@@ -47,7 +48,7 @@ pub fn assign_mixnode_layer(
     mix_id: MixId,
     layer: Layer,
 ) -> Result<Response, MixnetContractError> {
-    ensure_is_authorized(info.sender, deps.storage)?;
+    ensure_is_authorized(&info.sender, deps.storage)?;
 
     update_mixnode_layer(mix_id, layer, deps.storage)?;
 
@@ -83,6 +84,8 @@ pub fn try_add_mixnode_on_behalf(
     owner: String,
     owner_signature: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
     _try_add_mixnode(
@@ -116,7 +119,7 @@ fn _try_add_mixnode(
     // if the client has an active bonded mixnode or gateway, don't allow bonding
     // note that this has to be done explicitly as `UniqueIndex` constraint would not protect us
     // against attempting to use different node types (i.e. gateways and mixnodes)
-    ensure_no_existing_bond(deps.storage, &owner)?;
+    ensure_no_existing_bond(&owner, deps.storage)?;
 
     // there's no need to explicitly check whether there already exists mixnode with the same
     // identity or sphinx keys as this is going to be done implicitly when attempting to save
@@ -165,6 +168,8 @@ pub fn try_increase_pledge_on_behalf(
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
     _try_increase_pledge(deps, env, info.funds, owner, Some(proxy))
@@ -180,6 +185,9 @@ pub fn _try_increase_pledge(
     let mix_details = get_mixnode_details_by_owner(deps.storage, owner.clone())?
         .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?;
     let mix_id = mix_details.mix_id();
+
+    // increasing pledge is only allowed if the epoch is currently not in the process of being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
 
     ensure_proxy_match(&proxy, &mix_details.bond_information.proxy)?;
     ensure_bonded(&mix_details.bond_information)?;
@@ -205,6 +213,8 @@ pub fn try_remove_mixnode_on_behalf(
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
     _try_remove_mixnode(deps, env, owner, Some(proxy))
@@ -230,6 +240,9 @@ pub(crate) fn _try_remove_mixnode(
         .item(deps.storage, owner.clone())?
         .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?
         .1;
+
+    // unbonding is only allowed if the epoch is currently not in the process of being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
 
     // see if the proxy matches
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
@@ -276,6 +289,8 @@ pub(crate) fn try_update_mixnode_config_on_behalf(
     new_config: MixNodeConfigUpdate,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let owner = deps.api.addr_validate(&owner)?;
     let proxy = info.sender;
     _try_update_mixnode_config(deps, new_config, owner, Some(proxy))
@@ -329,6 +344,8 @@ pub(crate) fn try_update_mixnode_cost_params_on_behalf(
     new_costs: MixNodeCostParams,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let owner = deps.api.addr_validate(&owner)?;
     let proxy = info.sender;
     _try_update_mixnode_cost_params(deps, env, new_costs, owner, Some(proxy))
@@ -343,6 +360,9 @@ pub(crate) fn _try_update_mixnode_cost_params(
 ) -> Result<Response, MixnetContractError> {
     // see if the node still exists
     let existing_bond = must_get_mixnode_bond_by_owner(deps.storage, &owner)?;
+
+    // changing cost params is only allowed if the epoch is currently not in the process of being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
 
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
     ensure_bonded(&existing_bond)?;
@@ -371,10 +391,13 @@ pub mod tests {
     use crate::mixnet_contract_settings::storage::minimum_mixnode_pledge;
     use crate::mixnodes::helpers::get_mixnode_details_by_id;
     use crate::support::tests::fixtures::{good_mixnode_pledge, TEST_COIN_DENOM};
+    use crate::support::tests::test_helpers::TestSetup;
     use crate::support::tests::{fixtures, test_helpers};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Order, StdResult, Uint128};
-    use mixnet_contract_common::{ExecuteMsg, Layer, LayerDistribution, Percent};
+    use mixnet_contract_common::{
+        EpochState, EpochStatus, ExecuteMsg, Layer, LayerDistribution, Percent,
+    };
 
     #[test]
     fn mixnode_add() {
@@ -497,51 +520,110 @@ pub mod tests {
     }
 
     #[test]
-    fn mixnode_remove() {
-        let mut deps = test_helpers::init_contract();
-        let env = mock_env();
-        let mut rng = test_helpers::test_rng();
+    fn mixnode_add_with_illegal_proxy() {
+        let mut test = TestSetup::new();
+        let env = test.env();
 
-        let sender = "alice";
-        let info = mock_info(sender, &[]);
+        let illegal_proxy = Addr::unchecked("not-vesting-contract");
+        let vesting_contract = test.vesting_contract();
+
+        let owner = "alice";
+        let (mixnode, sig, _) = test_helpers::mixnode_with_signature(&mut test.rng, owner);
+        let cost_params = fixtures::mix_node_cost_params_fixture();
+
+        // we are informed that we didn't send enough funds
+        let res = try_add_mixnode_on_behalf(
+            test.deps_mut(),
+            env,
+            mock_info(illegal_proxy.as_ref(), &good_mixnode_pledge()),
+            mixnode,
+            cost_params,
+            owner.to_string(),
+            sig,
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            res,
+            MixnetContractError::SenderIsNotVestingContract {
+                received: illegal_proxy,
+                vesting_contract
+            }
+        )
+    }
+
+    #[test]
+    fn removing_mixnode_cant_be_performed_if_epoch_transition_is_in_progress() {
+        let bad_states = vec![
+            EpochState::Rewarding {
+                last_rewarded: 0,
+                final_node_id: 0,
+            },
+            EpochState::ReconcilingEvents,
+            EpochState::AdvancingEpoch,
+        ];
+
+        for bad_state in bad_states {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let owner = "alice";
+            let info = mock_info(owner, &[]);
+
+            test.add_dummy_mixnode(owner, None);
+
+            let mut status = EpochStatus::new(test.rewarding_validator().sender);
+            status.state = bad_state;
+            interval_storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
+
+            let res = try_remove_mixnode(test.deps_mut(), env.clone(), info);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::EpochAdvancementInProgress { .. })
+            ));
+        }
+    }
+
+    #[test]
+    fn mixnode_remove() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        let owner = "alice";
+        let info = mock_info(owner, &[]);
 
         // trying to remove your mixnode fails if you never had one in the first place
-        let res = try_remove_mixnode(deps.as_mut(), env.clone(), info.clone());
+        let res = try_remove_mixnode(test.deps_mut(), env.clone(), info.clone());
         assert_eq!(
             res,
             Err(MixnetContractError::NoAssociatedMixNodeBond {
-                owner: Addr::unchecked(sender)
+                owner: Addr::unchecked(owner)
             })
         );
 
-        let mix_id = test_helpers::add_mixnode(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            sender,
-            good_mixnode_pledge(),
-        );
+        let mix_id = test.add_dummy_mixnode(owner, None);
+        let vesting_contract = test.vesting_contract();
 
         // attempted to remove on behalf with invalid proxy (current is `None`)
         let res = try_remove_mixnode_on_behalf(
-            deps.as_mut(),
+            test.deps_mut(),
             env.clone(),
-            mock_info("proxy", &[]),
-            sender.to_string(),
+            mock_info(vesting_contract.as_ref(), &[]),
+            owner.to_string(),
         );
+
         assert_eq!(
             res,
             Err(MixnetContractError::ProxyMismatch {
                 existing: "None".to_string(),
-                incoming: "proxy".to_string()
+                incoming: vesting_contract.into_string()
             })
         );
 
         // "normal" unbonding succeeds and unbonding event is pushed to the pending epoch events
-        let res = try_remove_mixnode(deps.as_mut(), env.clone(), info.clone());
+        let res = try_remove_mixnode(test.deps_mut(), env.clone(), info.clone());
         assert!(res.is_ok());
         let mut pending_events = interval_storage::PENDING_EPOCH_EVENTS
-            .range(deps.as_ref().storage, None, None, Order::Ascending)
+            .range(test.deps().storage, None, None, Order::Ascending)
             .collect::<StdResult<Vec<_>>>()
             .unwrap();
         assert_eq!(pending_events.len(), 1);
@@ -553,18 +635,46 @@ pub mod tests {
         );
 
         // but fails if repeated (since the node is already in the "unbonding" state)(
-        let res = try_remove_mixnode(deps.as_mut(), env, info);
+        let res = try_remove_mixnode(test.deps_mut(), env, info);
         assert_eq!(res, Err(MixnetContractError::MixnodeIsUnbonding { mix_id }))
     }
 
     #[test]
-    fn updating_mixnode_config() {
-        let mut deps = test_helpers::init_contract();
-        let env = mock_env();
-        let mut rng = test_helpers::test_rng();
+    fn mixnode_remove_with_illegal_proxy() {
+        let mut test = TestSetup::new();
+        let env = test.env();
 
-        let sender = "alice";
-        let info = mock_info(sender, &[]);
+        let illegal_proxy = Addr::unchecked("not-vesting-contract");
+        let vesting_contract = test.vesting_contract();
+
+        let owner = "alice";
+
+        test.add_dummy_mixnode_with_illegal_proxy(owner, None, illegal_proxy.clone());
+
+        let res = try_remove_mixnode_on_behalf(
+            test.deps_mut(),
+            env,
+            mock_info(illegal_proxy.as_ref(), &[]),
+            owner.to_string(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            res,
+            MixnetContractError::SenderIsNotVestingContract {
+                received: illegal_proxy,
+                vesting_contract
+            }
+        )
+    }
+
+    #[test]
+    fn updating_mixnode_config() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        let owner = "alice";
+        let info = mock_info(owner, &[]);
         let update = MixNodeConfigUpdate {
             host: "1.1.1.1:1234".to_string(),
             mix_port: 1234,
@@ -574,43 +684,38 @@ pub mod tests {
         };
 
         // try updating a non existing mixnode bond
-        let res = try_update_mixnode_config(deps.as_mut(), info.clone(), update.clone());
+        let res = try_update_mixnode_config(test.deps_mut(), info.clone(), update.clone());
         assert_eq!(
             res,
             Err(MixnetContractError::NoAssociatedMixNodeBond {
-                owner: Addr::unchecked(sender)
+                owner: Addr::unchecked(owner)
             })
         );
 
-        let mix_id = test_helpers::add_mixnode(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            sender,
-            tests::fixtures::good_mixnode_pledge(),
-        );
+        let mix_id = test.add_dummy_mixnode(owner, None);
+        let vesting_contract = test.vesting_contract();
 
         // attempted to remove on behalf with invalid proxy (current is `None`)
         let res = try_update_mixnode_config_on_behalf(
-            deps.as_mut(),
-            mock_info("proxy", &[]),
+            test.deps_mut(),
+            mock_info(vesting_contract.as_ref(), &[]),
             update.clone(),
-            sender.to_string(),
+            owner.to_string(),
         );
         assert_eq!(
             res,
             Err(MixnetContractError::ProxyMismatch {
                 existing: "None".to_string(),
-                incoming: "proxy".to_string()
+                incoming: vesting_contract.into_string()
             })
         );
         // "normal" update succeeds
-        let res = try_update_mixnode_config(deps.as_mut(), info.clone(), update.clone());
+        let res = try_update_mixnode_config(test.deps_mut(), info.clone(), update.clone());
         assert!(res.is_ok());
 
         // and the config has actually been updated
-        let mix = must_get_mixnode_bond_by_owner(deps.as_ref().storage, &Addr::unchecked(sender))
-            .unwrap();
+        let mix =
+            must_get_mixnode_bond_by_owner(test.deps().storage, &Addr::unchecked(owner)).unwrap();
         assert_eq!(mix.mix_node.host, update.host);
         assert_eq!(mix.mix_node.mix_port, update.mix_port);
         assert_eq!(mix.mix_node.verloc_port, update.verloc_port);
@@ -618,19 +723,90 @@ pub mod tests {
         assert_eq!(mix.mix_node.version, update.version);
 
         // but we cannot perform any updates whilst the mixnode is already unbonding
-        try_remove_mixnode(deps.as_mut(), env, info.clone()).unwrap();
-        let res = try_update_mixnode_config(deps.as_mut(), info, update);
+        try_remove_mixnode(test.deps_mut(), env, info.clone()).unwrap();
+        let res = try_update_mixnode_config(test.deps_mut(), info, update);
         assert_eq!(res, Err(MixnetContractError::MixnodeIsUnbonding { mix_id }))
     }
 
     #[test]
-    fn updating_mixnode_cost_params() {
-        let mut deps = test_helpers::init_contract();
-        let env = mock_env();
-        let mut rng = test_helpers::test_rng();
+    fn updating_mixnode_config_with_illegal_proxy() {
+        let mut test = TestSetup::new();
 
-        let sender = "alice";
-        let info = mock_info(sender, &[]);
+        let illegal_proxy = Addr::unchecked("not-vesting-contract");
+        let vesting_contract = test.vesting_contract();
+
+        let owner = "alice";
+
+        test.add_dummy_mixnode_with_illegal_proxy(owner, None, illegal_proxy.clone());
+        let update = MixNodeConfigUpdate {
+            host: "1.1.1.1:1234".to_string(),
+            mix_port: 1234,
+            verloc_port: 1235,
+            http_api_port: 1236,
+            version: "v1.2.3".to_string(),
+        };
+
+        let res = try_update_mixnode_config_on_behalf(
+            test.deps_mut(),
+            mock_info(illegal_proxy.as_ref(), &[]),
+            update,
+            owner.to_string(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            res,
+            MixnetContractError::SenderIsNotVestingContract {
+                received: illegal_proxy,
+                vesting_contract
+            }
+        )
+    }
+
+    #[test]
+    fn mixnode_cost_params_cant_be_updated_when_epoch_transition_is_in_progress() {
+        let bad_states = vec![
+            EpochState::Rewarding {
+                last_rewarded: 0,
+                final_node_id: 0,
+            },
+            EpochState::ReconcilingEvents,
+            EpochState::AdvancingEpoch,
+        ];
+
+        let update = MixNodeCostParams {
+            profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
+            interval_operating_cost: Coin::new(12345678, TEST_COIN_DENOM),
+        };
+
+        for bad_state in bad_states {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let owner = "alice";
+            let info = mock_info(owner, &[]);
+
+            test.add_dummy_mixnode(owner, None);
+
+            let mut status = EpochStatus::new(test.rewarding_validator().sender);
+            status.state = bad_state;
+            interval_storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
+
+            let res =
+                try_update_mixnode_cost_params(test.deps_mut(), env.clone(), info, update.clone());
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::EpochAdvancementInProgress { .. })
+            ));
+        }
+    }
+
+    #[test]
+    fn updating_mixnode_cost_params() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        let owner = "alice";
+        let info = mock_info(owner, &[]);
         let update = MixNodeCostParams {
             profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
             interval_operating_cost: Coin::new(12345678, TEST_COIN_DENOM),
@@ -638,7 +814,7 @@ pub mod tests {
 
         // try updating a non existing mixnode bond
         let res = try_update_mixnode_cost_params(
-            deps.as_mut(),
+            test.deps_mut(),
             env.clone(),
             info.clone(),
             update.clone(),
@@ -646,36 +822,31 @@ pub mod tests {
         assert_eq!(
             res,
             Err(MixnetContractError::NoAssociatedMixNodeBond {
-                owner: Addr::unchecked(sender)
+                owner: Addr::unchecked(owner)
             })
         );
 
-        let mix_id = test_helpers::add_mixnode(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            sender,
-            tests::fixtures::good_mixnode_pledge(),
-        );
+        let mix_id = test.add_dummy_mixnode(owner, None);
+        let vesting_contract = test.vesting_contract();
 
         // attempted to remove on behalf with invalid proxy (current is `None`)
         let res = try_update_mixnode_cost_params_on_behalf(
-            deps.as_mut(),
+            test.deps_mut(),
             env.clone(),
-            mock_info("proxy", &[]),
+            mock_info(vesting_contract.as_ref(), &[]),
             update.clone(),
-            sender.to_string(),
+            owner.to_string(),
         );
         assert_eq!(
             res,
             Err(MixnetContractError::ProxyMismatch {
                 existing: "None".to_string(),
-                incoming: "proxy".to_string()
+                incoming: vesting_contract.into_string()
             })
         );
         // "normal" update succeeds
         let res = try_update_mixnode_cost_params(
-            deps.as_mut(),
+            test.deps_mut(),
             env.clone(),
             info.clone(),
             update.clone(),
@@ -684,7 +855,7 @@ pub mod tests {
 
         // see if the event has been pushed onto the queue
         let mut pending_events = interval_storage::PENDING_INTERVAL_EVENTS
-            .range(deps.as_ref().storage, None, None, Order::Ascending)
+            .range(test.deps().storage, None, None, Order::Ascending)
             .collect::<StdResult<Vec<_>>>()
             .unwrap();
         assert_eq!(pending_events.len(), 1);
@@ -699,18 +870,52 @@ pub mod tests {
         );
 
         // execute the event
-        test_helpers::execute_all_pending_events(deps.as_mut(), env.clone());
+        test_helpers::execute_all_pending_events(test.deps_mut(), env.clone());
 
         // and see if the config has actually been updated
-        let mix = get_mixnode_details_by_id(deps.as_ref().storage, mix_id)
+        let mix = get_mixnode_details_by_id(test.deps().storage, mix_id)
             .unwrap()
             .unwrap();
         assert_eq!(mix.rewarding_details.cost_params, update);
 
         // but we cannot perform any updates whilst the mixnode is already unbonding
-        try_remove_mixnode(deps.as_mut(), env.clone(), info.clone()).unwrap();
-        let res = try_update_mixnode_cost_params(deps.as_mut(), env, info, update);
+        try_remove_mixnode(test.deps_mut(), env.clone(), info.clone()).unwrap();
+        let res = try_update_mixnode_cost_params(test.deps_mut(), env, info, update);
         assert_eq!(res, Err(MixnetContractError::MixnodeIsUnbonding { mix_id }))
+    }
+
+    #[test]
+    fn updating_mixnode_cost_params_with_illegal_proxy() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        let illegal_proxy = Addr::unchecked("not-vesting-contract");
+        let vesting_contract = test.vesting_contract();
+
+        let owner = "alice";
+
+        test.add_dummy_mixnode_with_illegal_proxy(owner, None, illegal_proxy.clone());
+        let update = MixNodeCostParams {
+            profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
+            interval_operating_cost: Coin::new(12345678, TEST_COIN_DENOM),
+        };
+
+        let res = try_update_mixnode_cost_params_on_behalf(
+            test.deps_mut(),
+            env,
+            mock_info(illegal_proxy.as_ref(), &[]),
+            update,
+            owner.to_string(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            res,
+            MixnetContractError::SenderIsNotVestingContract {
+                received: illegal_proxy,
+                vesting_contract
+            }
+        )
     }
 
     #[test]
@@ -718,8 +923,8 @@ pub mod tests {
         let mut deps = test_helpers::init_contract();
         let mut rng = test_helpers::test_rng();
 
-        let keypair1 = crypto::asymmetric::identity::KeyPair::new(&mut rng);
-        let keypair2 = crypto::asymmetric::identity::KeyPair::new(&mut rng);
+        let keypair1 = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
+        let keypair2 = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
         let sig1 = keypair1.private_key().sign_text("alice");
         let sig2 = keypair1.private_key().sign_text("bob");
 
@@ -731,7 +936,7 @@ pub mod tests {
             mix_port: 1234,
             verloc_port: 1234,
             http_api_port: 1234,
-            sphinx_key: crypto::asymmetric::encryption::KeyPair::new(&mut rng)
+            sphinx_key: nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng)
                 .public_key()
                 .to_base58_string(),
             identity_key: keypair1.public_key().to_base58_string(),
@@ -770,6 +975,40 @@ pub mod tests {
             setup_mix_combinations, OWNER_UNBONDED, OWNER_UNBONDED_LEFTOVER, OWNER_UNBONDING,
         };
         use crate::support::tests::test_helpers::TestSetup;
+        use mixnet_contract_common::{EpochState, EpochStatus};
+
+        #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress() {
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let env = test.env();
+                let owner = "mix-owner";
+
+                test.add_dummy_mixnode(owner, None);
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
+                    .unwrap();
+
+                let sender = mock_info(owner, &[test.coin(1000)]);
+                let res = try_increase_pledge(test.deps_mut(), env, sender);
+
+                assert!(matches!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress { .. })
+                ));
+            }
+        }
 
         #[test]
         fn is_not_allowed_if_account_doesnt_own_mixnode() {
@@ -797,7 +1036,11 @@ pub mod tests {
             let wrong_proxy = Addr::unchecked("unrelated-proxy");
 
             test.add_dummy_mixnode(owner_without_proxy.as_str(), None);
-            test.add_dummy_mixnode_with_proxy(owner_with_proxy.as_str(), None, proxy.clone());
+            test.add_dummy_mixnode_with_illegal_proxy(
+                owner_with_proxy.as_str(),
+                None,
+                proxy.clone(),
+            );
 
             let res = _try_increase_pledge(
                 test.deps_mut(),
@@ -944,5 +1187,34 @@ pub mod tests {
                 }
             );
         }
+    }
+
+    #[test]
+    fn fails_for_illegal_proxy() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        let illegal_proxy = Addr::unchecked("not-vesting-contract");
+        let vesting_contract = test.vesting_contract();
+
+        let owner = "alice";
+
+        test.add_dummy_mixnode_with_illegal_proxy(owner, None, illegal_proxy.clone());
+
+        let res = try_increase_pledge_on_behalf(
+            test.deps_mut(),
+            env,
+            mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
+            owner.to_string(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            res,
+            MixnetContractError::SenderIsNotVestingContract {
+                received: illegal_proxy,
+                vesting_contract
+            }
+        )
     }
 }

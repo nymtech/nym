@@ -7,20 +7,22 @@ use crate::dealers::queries::{
 use crate::dealers::transactions::try_add_dealer;
 use crate::dealings::queries::query_dealings_paged;
 use crate::dealings::transactions::try_commit_dealings;
-use crate::epoch_state::queries::{query_current_epoch, query_current_epoch_threshold};
+use crate::epoch_state::queries::{
+    query_current_epoch, query_current_epoch_threshold, query_initial_dealers,
+};
 use crate::epoch_state::storage::CURRENT_EPOCH;
-use crate::epoch_state::transactions::advance_epoch_state;
+use crate::epoch_state::transactions::{advance_epoch_state, try_surpassed_threshold};
 use crate::error::ContractError;
 use crate::state::{State, MULTISIG, STATE};
 use crate::verification_key_shares::queries::query_vk_shares_paged;
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
-use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use coconut_dkg_common::types::{Epoch, EpochState};
 use cosmwasm_std::{
     entry_point, to_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use cw4::Cw4Contract;
+use nym_coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use nym_coconut_dkg_common::types::{Epoch, EpochState};
 
 /// Instantiate the contract.
 ///
@@ -52,7 +54,12 @@ pub fn instantiate(
 
     CURRENT_EPOCH.save(
         deps.storage,
-        &Epoch::new(EpochState::default(), env.block.time),
+        &Epoch::new(
+            EpochState::default(),
+            0,
+            msg.time_configuration.unwrap_or_default(),
+            env.block.time,
+        ),
     )?;
 
     Ok(Response::default())
@@ -70,16 +77,19 @@ pub fn execute(
         ExecuteMsg::RegisterDealer {
             bte_key_with_proof,
             announce_address,
-        } => try_add_dealer(deps, info, bte_key_with_proof, announce_address),
-        ExecuteMsg::CommitDealing { dealing_bytes } => {
-            try_commit_dealings(deps, info, dealing_bytes)
+            resharing,
+        } => try_add_dealer(deps, info, bte_key_with_proof, announce_address, resharing),
+        ExecuteMsg::CommitDealing {
+            dealing_bytes,
+            resharing,
+        } => try_commit_dealings(deps, info, dealing_bytes, resharing),
+        ExecuteMsg::CommitVerificationKeyShare { share, resharing } => {
+            try_commit_verification_key_share(deps, env, info, share, resharing)
         }
-        ExecuteMsg::CommitVerificationKeyShare { share } => {
-            try_commit_verification_key_share(deps, env, info, share)
+        ExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => {
+            try_verify_verification_key_share(deps, info, owner, resharing)
         }
-        ExecuteMsg::VerifyVerificationKeyShare { owner } => {
-            try_verify_verification_key_share(deps, info, owner)
-        }
+        ExecuteMsg::SurpassedThreshold {} => try_surpassed_threshold(deps, env),
         ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, env),
     }
 }
@@ -91,6 +101,7 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
+        QueryMsg::GetInitialDealers {} => to_binary(&query_initial_dealers(deps.storage)?)?,
         QueryMsg::GetDealerDetails { dealer_address } => {
             to_binary(&query_dealer_details(deps, dealer_address)?)?
         }
@@ -105,9 +116,11 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             limit,
             start_after,
         } => to_binary(&query_dealings_paged(deps, idx, start_after, limit)?)?,
-        QueryMsg::GetVerificationKeys { limit, start_after } => {
-            to_binary(&query_vk_shares_paged(deps, start_after, limit)?)?
-        }
+        QueryMsg::GetVerificationKeys {
+            epoch_id,
+            limit,
+            start_after,
+        } => to_binary(&query_vk_shares_paged(deps, epoch_id, start_after, limit)?)?,
     };
 
     Ok(response)
@@ -123,13 +136,13 @@ mod tests {
     use super::*;
     use crate::support::tests::fixtures::TEST_MIX_DENOM;
     use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
-    use coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
-    use coconut_dkg_common::types::NodeIndex;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
-    use cw4_group::msg::InstantiateMsg as GroupInstantiateMsg;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
+    use nym_coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
+    use nym_coconut_dkg_common::types::NodeIndex;
+    use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
 
     fn instantiate_with_group(app: &mut App, members: &[Addr]) -> Addr {
         let group_code_id = app.store_code(Box::new(ContractWrapper::new(
@@ -163,6 +176,7 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: group_contract_addr.to_string(),
             multisig_addr: MULTISIG_CONTRACT.to_string(),
+            time_configuration: None,
             mix_denom: TEST_MIX_DENOM.to_string(),
         };
         app.instantiate_contract(
@@ -197,6 +211,7 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: "group_addr".to_string(),
             multisig_addr: "multisig_addr".to_string(),
+            time_configuration: None,
             mix_denom: "nym".to_string(),
         };
         let info = mock_info("creator", &[]);
@@ -228,6 +243,7 @@ mod tests {
                     &RegisterDealer {
                         bte_key_with_proof: "bte_key_with_proof".to_string(),
                         announce_address: "127.0.0.1:8000".to_string(),
+                        resharing: false,
                     },
                     &vec![],
                 )
@@ -241,6 +257,7 @@ mod tests {
                     &RegisterDealer {
                         bte_key_with_proof: "bte_key_with_proof".to_string(),
                         announce_address: "127.0.0.1:8000".to_string(),
+                        resharing: false,
                     },
                     &vec![],
                 )
@@ -256,6 +273,7 @@ mod tests {
                 &RegisterDealer {
                     bte_key_with_proof: "bte_key_with_proof".to_string(),
                     announce_address: "127.0.0.1:8000".to_string(),
+                    resharing: false,
                 },
                 &vec![],
             )

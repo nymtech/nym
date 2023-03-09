@@ -3,7 +3,7 @@ import { Card, Grid, Typography } from '@mui/material';
 
 export type TTransactionDetails = Array<{ primary: string; secondary: string }>;
 
-export const TransactionDetails: React.FC<{ details: TTransactionDetails }> = ({ details }) => (
+export const TransactionDetails: FCWithChildren<{ details: TTransactionDetails }> = ({ details }) => (
   <Card variant="outlined" sx={{ width: '100%', p: 2 }}>
     {details.map(({ primary, secondary }, i) => (
       <Grid container sx={{ mt: i !== 0 ? 1 : 0 }} key={primary}>

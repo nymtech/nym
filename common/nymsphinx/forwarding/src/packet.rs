@@ -1,9 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
-use nymsphinx_params::{PacketMode, PacketSize};
-use nymsphinx_types::SphinxPacket;
+use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
+use nym_sphinx_params::{PacketMode, PacketSize};
+use nym_sphinx_types::SphinxPacket;
 use std::convert::TryFrom;
 use std::fmt::{self, Debug, Display, Formatter};
 

@@ -3,8 +3,8 @@
 
 use crate::client::config::{Config, MISSING_VALUE};
 
-use config::NymConfig;
-use version_checker::Version;
+use nym_bin_common::version_checker::Version;
+use nym_config::NymConfig;
 
 use clap::Args;
 use std::{fmt::Display, process};
@@ -144,7 +144,7 @@ pub(crate) fn execute(args: &Upgrade) {
 
     let id = &args.id;
 
-    let existing_config = Config::load_from_file(Some(id)).unwrap_or_else(|err| {
+    let existing_config = Config::load_from_file(id).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {err}");
         process::exit(1)
     });

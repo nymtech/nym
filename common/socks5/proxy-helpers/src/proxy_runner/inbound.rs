@@ -5,17 +5,17 @@ use super::MixProxySender;
 use super::SHUTDOWN_TIMEOUT;
 use crate::available_reader::AvailableReader;
 use bytes::Bytes;
-use client_connections::LaneQueueLengths;
-use client_connections::TransmissionLane;
 use futures::FutureExt;
 use futures::StreamExt;
 use log::*;
-use ordered_buffer::OrderedMessageSender;
-use socks5_requests::ConnectionId;
+use nym_ordered_buffer::OrderedMessageSender;
+use nym_socks5_requests::ConnectionId;
+use nym_task::connections::LaneQueueLengths;
+use nym_task::connections::TransmissionLane;
+use nym_task::TaskClient;
 use std::fmt::Debug;
 use std::time::Duration;
 use std::{io, sync::Arc};
-use task::TaskClient;
 use tokio::select;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
@@ -54,7 +54,7 @@ where
         Some(data) => match data {
             Ok(data) => (data, false),
             Err(err) => {
-                error!(target: &*format!("({}) socks5 inbound", connection_id), "failed to read request from the socket - {err}");
+                error!(target: &*format!("({connection_id}) socks5 inbound"), "failed to read request from the socket - {err}");
                 (Default::default(), true)
             }
         },
@@ -62,7 +62,7 @@ where
     };
 
     debug!(
-        target: &*format!("({}) socks5 inbound", connection_id),
+        target: &*format!("({connection_id}) socks5 inbound"),
         "[{} bytes]\t{} → local → mixnet → remote → {}. Local closed: {}",
         read_data.len(),
         local_destination_address,
@@ -103,7 +103,7 @@ where
 
         // Technically we already informed it when we sent the message to mixnet above
         debug!(
-            target: &*format!("({}) socks5 inbound", connection_id),
+            target: &*format!("({connection_id}) socks5 inbound"),
             "The local socket is closed - won't receive any more data. Informing remote about that..."
         );
     }

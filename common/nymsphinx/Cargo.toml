@@ -1,38 +1,39 @@
 [package]
-name = "nymsphinx"
+name = "nym-sphinx"
 version = "0.1.0"
-authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Top-level crate for sphinx packets as used by the Nym mixnet"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 rand_distr = "0.3"
 thiserror = "1.0.37"
 
-nymsphinx-acknowledgements = { path = "acknowledgements" }
-nymsphinx-addressing = { path = "addressing" }
-nymsphinx-anonymous-replies = { path = "anonymous-replies" }
-nymsphinx-chunking = { path = "chunking" }
-nymsphinx-cover = { path = "cover" }
-nymsphinx-forwarding = { path = "forwarding" }
-nymsphinx-params = { path = "params" }
-nymsphinx-types = { path = "types" }
+nym-sphinx-acknowledgements = { path = "acknowledgements" }
+nym-sphinx-addressing = { path = "addressing" }
+nym-sphinx-anonymous-replies = { path = "anonymous-replies" }
+nym-sphinx-chunking = { path = "chunking" }
+nym-sphinx-cover = { path = "cover" }
+nym-sphinx-forwarding = { path = "forwarding" }
+nym-sphinx-params = { path = "params" }
+nym-sphinx-types = { path = "types" }
 
 # those dependencies are due to intriducing preparer and receiver. Perpaphs that indicates they should be moved
 # to separate crate?
-crypto = { path = "../crypto" }
-topology = { path = "../topology" }
+nym-crypto = { path = "../crypto", version = "0.2.0" }
+nym-topology = { path = "../topology" }
 
 [dev-dependencies]
-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
+nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 
 # do not include this when compiling into wasm as it somehow when combined together with reqwest, it will require
 # net2 via tokio-util -> tokio -> mio -> net2
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nymsphinx-framing]
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-sphinx-framing]
 path = "framing"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "1.21.2"
+version = "1.24.1"
 features = ["sync"]

@@ -4,8 +4,8 @@
 use clap::Parser;
 use log::{error, info};
 
-use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
-use validator_client::nymd::AccountId;
+use validator_client::nyxd::wallet::DirectSecp256k1HdWallet;
+use validator_client::nyxd::AccountId;
 
 use crate::context::QueryClient;
 use crate::utils::show_error;
@@ -51,21 +51,19 @@ pub async fn get_pubkey(
 }
 
 pub fn get_pubkey_from_mnemonic(address: AccountId, prefix: &str, mnemonic: bip39::Mnemonic) {
-    match DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic) {
-        Ok(wallet) => match wallet.try_derive_accounts() {
-            Ok(accounts) => match accounts.iter().find(|a| *a.address() == address) {
-                Some(account) => {
-                    println!("{}", account.public_key().to_string());
-                }
-                None => {
-                    error!("Could not derive key that matches {}", address)
-                }
-            },
-            Err(e) => {
-                error!("Failed to derive accounts. {}", e);
+    let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
+    match wallet.try_derive_accounts() {
+        Ok(accounts) => match accounts.iter().find(|a| *a.address() == address) {
+            Some(account) => {
+                println!("{}", account.public_key().to_string());
+            }
+            None => {
+                error!("Could not derive key that matches {}", address)
             }
         },
-        Err(e) => show_error(e),
+        Err(e) => {
+            error!("Failed to derive accounts. {}", e);
+        }
     }
 }
 
@@ -77,12 +75,12 @@ pub async fn get_pubkey_from_chain(address: AccountId, client: &QueryClient) {
                 if let Some(pubkey) = base_account.pubkey {
                     println!("{}", pubkey.to_string());
                 } else {
-                    println!("No account associated with address {}", address);
+                    println!("No account associated with address {address}");
                 }
             }
         }
         Ok(None) => {
-            println!("No account associated with address {}", address);
+            println!("No account associated with address {address}");
         }
         Err(e) => show_error(e),
     }

@@ -1,15 +1,17 @@
 import React from 'react';
-import { SxProps } from '@mui/material';
+import { SxProps, Typography } from '@mui/material';
 import { SimpleModal } from '../Modals/SimpleModal';
 
 export const SendErrorModal = ({
   onClose,
   sx,
   backdropProps,
+  error,
 }: {
   onClose: () => void;
   sx?: SxProps;
   backdropProps?: {};
+  error?: string;
 }) => (
   <SimpleModal
     open
@@ -30,5 +32,7 @@ export const SendErrorModal = ({
     }}
     subHeaderStyles={{ textAlign: 'center', color: 'text.primary', fontSize: 14, fontWeight: 400 }}
     backdropProps={backdropProps}
-  />
+  >
+    <Typography variant="body2">{error}</Typography>
+  </SimpleModal>
 );

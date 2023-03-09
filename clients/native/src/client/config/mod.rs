@@ -2,12 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::config_template;
-pub use client_core::config::MISSING_VALUE;
-use client_core::config::{ClientCoreConfigTrait, Config as BaseConfig, DebugConfig};
-use config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
-use config::NymConfig;
+use client_core::config::ClientCoreConfigTrait;
+use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
+use nym_config::{NymConfig, OptionalSet};
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
+use std::str::FromStr;
+
+pub use client_core::config::Config as BaseConfig;
+pub use client_core::config::MISSING_VALUE;
+pub use client_core::config::{DebugConfig, GatewayEndpointConfig};
 
 mod template;
 
@@ -92,6 +98,20 @@ impl Config {
         self
     }
 
+    pub fn with_disabled_socket(mut self, disabled: bool) -> Self {
+        if disabled {
+            self.socket.socket_type = SocketType::None;
+        } else {
+            self.socket.socket_type = SocketType::WebSocket;
+        }
+        self
+    }
+
+    pub fn with_host(mut self, host: IpAddr) -> Self {
+        self.socket.host = host;
+        self
+    }
+
     pub fn with_port(mut self, port: u16) -> Self {
         self.socket.listening_port = port;
         self
@@ -118,15 +138,64 @@ impl Config {
         self.socket.socket_type
     }
 
+    pub fn get_listening_ip(&self) -> IpAddr {
+        self.socket.host
+    }
+
     pub fn get_listening_port(&self) -> u16 {
         self.socket.listening_port
+    }
+
+    // poor man's 'builder' method
+    pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+    {
+        self.base = f(self.base, val);
+        self
+    }
+
+    // helper methods to use `OptionalSet` trait. Those are defined due to very... ehm. 'specific' structure of this config
+    // (plz, lets refactor it)
+    pub fn with_optional_ext<F, T>(mut self, f: F, val: Option<T>) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+    {
+        self.base = self.base.with_optional(f, val);
+        self
+    }
+
+    pub fn with_optional_env_ext<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+        T: FromStr,
+        <T as FromStr>::Err: Debug,
+    {
+        self.base = self.base.with_optional_env(f, val, env_var);
+        self
+    }
+
+    pub fn with_optional_custom_env_ext<F, T, G>(
+        mut self,
+        f: F,
+        val: Option<T>,
+        env_var: &str,
+        parser: G,
+    ) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+        G: Fn(&str) -> T,
+    {
+        self.base = self.base.with_optional_custom_env(f, val, env_var, parser);
+        self
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(default, deny_unknown_fields)]
 pub struct Socket {
     socket_type: SocketType,
+    host: IpAddr,
     listening_port: u16,
 }
 
@@ -134,6 +203,7 @@ impl Default for Socket {
     fn default() -> Self {
         Socket {
             socket_type: SocketType::WebSocket,
+            host: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             listening_port: DEFAULT_WEBSOCKET_LISTENING_PORT,
         }
     }

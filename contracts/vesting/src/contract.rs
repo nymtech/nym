@@ -1,7 +1,6 @@
 use crate::errors::ContractError;
-use crate::queued_migrations::migrate_to_v2_mixnet_contract;
 use crate::storage::{
-    account_from_address, save_account, BlockTimestampSecs, ADMIN, DELEGATIONS,
+    account_from_address, save_account, BlockTimestampSecs, ACCOUNTS, ADMIN, DELEGATIONS,
     MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
 };
 use crate::traits::{
@@ -10,12 +9,13 @@ use crate::traits::{
 use crate::vesting::{populate_vesting_periods, Account};
 use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{
-    coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
-    QueryResponse, Response, StdResult, Timestamp, Uint128,
+    coin, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
+    QueryResponse, Response, StdError, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::{Gateway, MixId, MixNode};
+use semver::Version;
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
@@ -26,11 +26,29 @@ use vesting_contract_common::messages::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
 };
 use vesting_contract_common::{
-    AllDelegationsResponse, DelegationTimesResponse, OriginalVestingResponse, Period, PledgeCap,
-    PledgeData, VestingDelegation,
+    AccountVestingCoins, AccountsResponse, AllDelegationsResponse, BaseVestingAccountInfo,
+    DelegationTimesResponse, OriginalVestingResponse, Period, PledgeCap, PledgeData,
+    VestingCoinsResponse, VestingDelegation,
 };
 
+// version info for migration info
+const CONTRACT_NAME: &str = "crate:nym-vesting-contract";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub const INITIAL_LOCKED_PLEDGE_CAP: Uint128 = Uint128::new(100_000_000_000);
+
+// as of 01.02.23 the maximum number of delegations anyone has made towards particular mixnode is 12.
+// thus restricting it to 25, which is more than double of that, doesn't seem too unreasonable.
+// and is going to alleviate the issue of unbounded iteration in `remove_delegations_for_mix`
+// that happens upon advancing the current epoch.
+//
+// However, do note it doesn't necessarily mean that upon reaching this limit it's impossible to perform
+// further delegations (towards the same node)
+// while this might not be the best workaround, you could remove the existing delegation
+// (thus removing all separate entries from the storage, i.e. the `DELEGATIONS` map)
+// and re-delegate it with the reclaimed amount (which will include all rewards)
+// which will only result in a single key-value being stored.
+pub const MAX_PER_MIX_DELEGATIONS: u32 = 25;
 
 /// Instantiate the contract
 #[entry_point]
@@ -40,16 +58,56 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InitMsg,
 ) -> Result<Response, ContractError> {
-    //! ADMIN is set to the address that instantiated the contract
-    ADMIN.save(deps.storage, &info.sender.to_string())?;
-    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &msg.mixnet_contract_address)?;
+    // validate the received mixnet contract address
+    let mixnet_contract_address = deps.api.addr_validate(&msg.mixnet_contract_address)?;
+
+    // ADMIN is set to the address that instantiated the contract
+    ADMIN.save(deps.storage, &info.sender)?;
+    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &mixnet_contract_address)?;
     MIX_DENOM.save(deps.storage, &msg.mix_denom)?;
+
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     Ok(Response::default())
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    migrate_to_v2_mixnet_contract(deps, msg)
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    // this is the first migration that uses cw2 standard and thus the value in the storage doesn't yet exist
+    // set it instead.
+    if matches!(
+        cw2::get_contract_version(deps.storage),
+        Err(StdError::NotFound { .. })
+    ) {
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    }
+
+    // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
+    let version: Version =
+        CONTRACT_VERSION
+            .parse()
+            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+                value: CONTRACT_VERSION.to_string(),
+                error_message: error.to_string(),
+            })?;
+
+    let storage_version_raw = cw2::get_contract_version(deps.storage)?.version;
+    let storage_version: Version =
+        storage_version_raw
+            .parse()
+            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+                value: storage_version_raw,
+                error_message: error.to_string(),
+            })?;
+
+    if storage_version < version {
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+        // If state structure changed in any contract version in the way migration is needed, it
+        // should occur here
+    }
+
+    Ok(Response::new())
 }
 
 #[entry_point]
@@ -65,13 +123,20 @@ pub fn execute(
             label,
         } => try_create_family(info, deps, owner_signature, label),
         ExecuteMsg::JoinFamily {
-            signature,
+            node_identity_signature,
+            family_signature,
             family_head,
-        } => try_join_family(info, deps, signature, family_head),
+        } => try_join_family(
+            info,
+            deps,
+            node_identity_signature,
+            family_signature,
+            family_head,
+        ),
         ExecuteMsg::LeaveFamily {
-            signature,
+            node_identity_signature,
             family_head,
-        } => try_leave_family(info, deps, signature, family_head),
+        } => try_leave_family(info, deps, node_identity_signature, family_head),
         ExecuteMsg::KickFamilyMember { signature, member } => {
             try_kick_family_member(info, deps, signature, member)
         }
@@ -94,12 +159,15 @@ pub fn execute(
         ExecuteMsg::UpdateMixnetAddress { address } => {
             try_update_mixnet_address(address, info, deps)
         }
-        ExecuteMsg::DelegateToMixnode { mix_id, amount } => {
-            try_delegate_to_mixnode(mix_id, amount, info, env, deps)
-        }
-        ExecuteMsg::UndelegateFromMixnode { mix_id } => {
-            try_undelegate_from_mixnode(mix_id, info, deps)
-        }
+        ExecuteMsg::DelegateToMixnode {
+            mix_id,
+            amount,
+            on_behalf_of,
+        } => try_delegate_to_mixnode(mix_id, amount, on_behalf_of, info, env, deps),
+        ExecuteMsg::UndelegateFromMixnode {
+            mix_id,
+            on_behalf_of,
+        } => try_undelegate_from_mixnode(mix_id, on_behalf_of, info, deps),
         ExecuteMsg::CreateAccount {
             owner_address,
             staking_address,
@@ -171,20 +239,26 @@ pub fn try_create_family(
 pub fn try_join_family(
     info: MessageInfo,
     deps: DepsMut,
-    signature: String,
+    node_identity_signature: String,
+    family_signature: String,
     family_head: String,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_join_family(deps.storage, signature, &family_head)
+    account.try_join_family(
+        deps.storage,
+        node_identity_signature,
+        family_signature,
+        &family_head,
+    )
 }
 pub fn try_leave_family(
     info: MessageInfo,
     deps: DepsMut,
-    signature: String,
+    node_identity_signature: String,
     family_head: String,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_leave_family(deps.storage, signature, &family_head)
+    account.try_leave_family(deps.storage, node_identity_signature, &family_head)
 }
 pub fn try_kick_family_member(
     info: MessageInfo,
@@ -245,7 +319,9 @@ pub fn try_update_mixnet_address(
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
-    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &address)?;
+    let mixnet_contract_address = deps.api.addr_validate(&address)?;
+
+    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &mixnet_contract_address)?;
     Ok(Response::default())
 }
 
@@ -313,6 +389,13 @@ fn try_update_staking_address(
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
+    if let Some(ref to_address) = to_address {
+        if account_from_address(to_address, deps.storage, deps.api).is_ok() {
+            // do not allow setting staking address to an existing account's address
+            return Err(ContractError::StakingAccountExists(to_address.to_string()));
+        }
+    }
+
     let address = info.sender.clone();
     let to_address = to_address.and_then(|x| deps.api.addr_validate(&x).ok());
     let mut account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
@@ -454,13 +537,31 @@ fn try_track_undelegation(
 fn try_delegate_to_mixnode(
     mix_id: MixId,
     amount: Coin,
+    on_behalf_of: Option<String>,
     info: MessageInfo,
     env: Env,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
+    // TODO
+    // as of 01.02.23
+    // thus restricting it to 25, which is more than double of that, doesn't seem too unreasonable.
+
+    // while this might not be the best workaround, if user wishes to delegate more tokens towards the same node
+    // they could remove the existing delegation (thus removing all separate entries from the storage)
+    // and re-delegate it with the reclaimed amount (which will include all rewards).
+
     let mix_denom = MIX_DENOM.load(deps.storage)?;
     let amount = validate_funds(&[amount], mix_denom)?;
-    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+
+    let account = match on_behalf_of {
+        Some(account_owner) => {
+            let account = account_from_address(&account_owner, deps.storage, deps.api)?;
+            ensure_staking_permission(&info.sender, &account)?;
+            account
+        }
+        // you're the owner, you can do what you want
+        None => account_from_address(info.sender.as_str(), deps.storage, deps.api)?,
+    };
 
     account.try_delegate_to_mixnode(mix_id, amount, &env, deps.storage)
 }
@@ -488,10 +589,19 @@ fn try_claim_delegator_reward(
 /// Undelegates from a mixnode, sends [mixnet_contract_common::ExecuteMsg::UndelegateFromMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
 fn try_undelegate_from_mixnode(
     mix_id: MixId,
+    on_behalf_of: Option<String>,
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
-    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    let account = match on_behalf_of {
+        Some(account_owner) => {
+            let account = account_from_address(&account_owner, deps.storage, deps.api)?;
+            ensure_staking_permission(&info.sender, &account)?;
+            account
+        }
+        // you're the owner, you can do what you want
+        None => account_from_address(info.sender.as_str(), deps.storage, deps.api)?,
+    };
 
     account.try_undelegate_from_mixnode(mix_id, deps.storage)
 }
@@ -499,7 +609,7 @@ fn try_undelegate_from_mixnode(
 /// Creates a new periodic vesting account, and deposits funds to vest into the contract.
 ///
 /// Callable by ADMIN only, see [instantiate].
-fn try_create_periodic_vesting_account(
+pub(crate) fn try_create_periodic_vesting_account(
     owner_address: &str,
     staking_address: Option<String>,
     vesting_spec: Option<VestingSpecification>,
@@ -568,6 +678,20 @@ fn try_create_periodic_vesting_account(
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetContractVersion {} => to_binary(&get_contract_version()),
+        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
+        QueryMsg::GetAccountsPaged {
+            start_next_after,
+            limit,
+        } => to_binary(&try_get_all_accounts(deps, start_next_after, limit)?),
+        QueryMsg::GetAccountsVestingCoinsPaged {
+            start_next_after,
+            limit,
+        } => to_binary(&try_get_all_accounts_vesting_coins(
+            deps,
+            env,
+            start_next_after,
+            limit,
+        )?),
         QueryMsg::LockedCoins {
             vesting_account_address,
             block_time,
@@ -613,24 +737,38 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetOriginalVesting {
             vesting_account_address,
         } => to_binary(&try_get_original_vesting(&vesting_account_address, deps)?),
-        QueryMsg::GetDelegatedFree {
-            block_time,
+        QueryMsg::GetHistoricalVestingStakingReward {
             vesting_account_address,
-        } => to_binary(&try_get_delegated_free(
-            block_time,
+        } => to_binary(&try_get_historical_vesting_staking_reward(
             &vesting_account_address,
-            env,
             deps,
         )?),
-        QueryMsg::GetDelegatedVesting {
-            block_time,
+        QueryMsg::GetSpendableVestedCoins {
             vesting_account_address,
-        } => to_binary(&try_get_delegated_vesting(
-            block_time,
+        } => to_binary(&try_get_spendable_vested_coins(
             &vesting_account_address,
-            env,
             deps,
+            env,
         )?),
+        QueryMsg::GetSpendableRewardCoins {
+            vesting_account_address,
+        } => to_binary(&try_get_spendable_reward_coins(
+            &vesting_account_address,
+            deps,
+            env,
+        )?),
+        QueryMsg::GetDelegatedCoins {
+            vesting_account_address,
+        } => to_binary(&try_get_delegated_coins(&vesting_account_address, deps)?),
+        QueryMsg::GetPledgedCoins {
+            vesting_account_address,
+        } => to_binary(&try_get_pledged_coins(&vesting_account_address, deps)?),
+        QueryMsg::GetStakedCoins {
+            vesting_account_address,
+        } => to_binary(&try_get_staked_coins(&vesting_account_address, deps)?),
+        QueryMsg::GetWithdrawnCoins {
+            vesting_account_address,
+        } => to_binary(&try_get_withdrawn_coins(&vesting_account_address, deps)?),
         QueryMsg::GetAccount { address } => to_binary(&try_get_account(&address, deps)?),
         QueryMsg::GetMixnode { address } => to_binary(&try_get_mixnode(&address, deps)?),
         QueryMsg::GetGateway { address } => to_binary(&try_get_gateway(&address, deps)?),
@@ -682,11 +820,81 @@ pub fn get_contract_version() -> ContractBuildInformation {
     ContractBuildInformation {
         build_timestamp: env!("VERGEN_BUILD_TIMESTAMP").to_string(),
         build_version: env!("VERGEN_BUILD_SEMVER").to_string(),
-        commit_sha: env!("VERGEN_GIT_SHA").to_string(),
-        commit_timestamp: env!("VERGEN_GIT_COMMIT_TIMESTAMP").to_string(),
-        commit_branch: env!("VERGEN_GIT_BRANCH").to_string(),
+        commit_sha: option_env!("VERGEN_GIT_SHA").unwrap_or("NONE").to_string(),
+        commit_timestamp: option_env!("VERGEN_GIT_COMMIT_TIMESTAMP")
+            .unwrap_or("NONE")
+            .to_string(),
+        commit_branch: option_env!("VERGEN_GIT_BRANCH")
+            .unwrap_or("NONE")
+            .to_string(),
         rustc_version: env!("VERGEN_RUSTC_SEMVER").to_string(),
     }
+}
+
+pub fn try_get_all_accounts(
+    deps: Deps<'_>,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> Result<AccountsResponse, ContractError> {
+    let limit = limit.unwrap_or(150).min(250) as usize;
+
+    let start = start_after
+        .map(|raw| deps.api.addr_validate(&raw).map(Bound::exclusive))
+        .transpose()?;
+
+    let accounts = ACCOUNTS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| {
+            res.map(|(_, account)| BaseVestingAccountInfo {
+                account_id: account.storage_key(),
+                owner: account.owner_address,
+            })
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = accounts.last().map(|acc| acc.owner.clone());
+
+    Ok(AccountsResponse {
+        accounts,
+        start_next_after,
+    })
+}
+
+pub fn try_get_all_accounts_vesting_coins(
+    deps: Deps<'_>,
+    env: Env,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> Result<VestingCoinsResponse, ContractError> {
+    let limit = limit.unwrap_or(150).min(250) as usize;
+
+    let start = start_after
+        .map(|raw| deps.api.addr_validate(&raw).map(Bound::exclusive))
+        .transpose()?;
+
+    let accounts = ACCOUNTS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| {
+            res.map(|(_, account)| {
+                account
+                    .get_vesting_coins(None, &env, deps.storage)
+                    .map(|still_vesting| AccountVestingCoins {
+                        account_id: account.storage_key(),
+                        owner: account.owner_address,
+                        still_vesting,
+                    })
+            })
+        })
+        .collect::<StdResult<Result<Vec<_>, _>>>()??;
+
+    let start_next_after = accounts.last().map(|acc| acc.owner.clone());
+
+    Ok(VestingCoinsResponse {
+        accounts,
+        start_next_after,
+    })
 }
 
 /// Gets currently locked coins, see [crate::traits::VestingAccount::locked_coins]
@@ -760,26 +968,70 @@ pub fn try_get_original_vesting(
     account.get_original_vesting()
 }
 
-/// See [crate::traits::VestingAccount::get_delegated_free]
-pub fn try_get_delegated_free(
-    block_time: Option<Timestamp>,
+pub fn try_get_historical_vesting_staking_reward(
     vesting_account_address: &str,
-    env: Env,
     deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
-    account.get_delegated_free(block_time, &env, deps.storage)
+    account.get_historical_vested_staking_rewards(deps.storage)
 }
 
-/// See [crate::traits::VestingAccount::get_delegated_vesting]
-pub fn try_get_delegated_vesting(
-    block_time: Option<Timestamp>,
+pub fn try_get_spendable_vested_coins(
     vesting_account_address: &str,
+    deps: Deps<'_>,
     env: Env,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    account.spendable_vested_coins(None, &env, deps.storage)
+}
+
+pub fn try_get_spendable_reward_coins(
+    vesting_account_address: &str,
+    deps: Deps<'_>,
+    env: Env,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    account.spendable_reward_coins(None, &env, deps.storage)
+}
+
+pub fn try_get_delegated_coins(
+    vesting_account_address: &str,
     deps: Deps<'_>,
 ) -> Result<Coin, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
-    account.get_delegated_vesting(block_time, &env, deps.storage)
+    let denom = MIX_DENOM.load(deps.storage)?;
+    let amount = account.total_delegations(deps.storage)?;
+    Ok(Coin { denom, amount })
+}
+
+pub fn try_get_pledged_coins(
+    vesting_account_address: &str,
+    deps: Deps<'_>,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    let denom = MIX_DENOM.load(deps.storage)?;
+    let amount = account.total_pledged(deps.storage)?;
+    Ok(Coin { denom, amount })
+}
+
+pub fn try_get_staked_coins(
+    vesting_account_address: &str,
+    deps: Deps<'_>,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    let denom = MIX_DENOM.load(deps.storage)?;
+    let amount = account.total_staked(deps.storage)?;
+    Ok(Coin { denom, amount })
+}
+
+pub fn try_get_withdrawn_coins(
+    vesting_account_address: &str,
+    deps: Deps<'_>,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    let denom = MIX_DENOM.load(deps.storage)?;
+    let amount = account.load_withdrawn(deps.storage)?;
+    Ok(Coin { denom, amount })
 }
 
 /// Returns timestamps at which delegations were made
@@ -854,4 +1106,16 @@ fn validate_funds(funds: &[Coin], mix_denom: String) -> Result<Coin, ContractErr
     }
 
     Ok(funds[0].clone())
+}
+
+fn ensure_staking_permission(addr: &Addr, account: &Account) -> Result<(), ContractError> {
+    if let Some(staking_address) = account.staking_address() {
+        if staking_address == addr {
+            return Ok(());
+        }
+    }
+    Err(ContractError::InvalidStakingAccount {
+        address: addr.clone(),
+        for_account: account.owner_address(),
+    })
 }

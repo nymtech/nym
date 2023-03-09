@@ -8,23 +8,23 @@ use crate::client::real_messages_control::real_traffic_stream::{
 use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
 use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
-use client_connections::TransmissionLane;
 use log::{debug, error, info, trace, warn};
-use nymsphinx::acknowledgements::AckKey;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
-use nymsphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
-use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
-use nymsphinx::message::NymMessage;
-use nymsphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
-use nymsphinx::preparer::{MessagePreparer, PreparedFragment};
-use nymsphinx::Delay;
+use nym_sphinx::acknowledgements::AckKey;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
+use nym_sphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
+use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
+use nym_sphinx::message::NymMessage;
+use nym_sphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
+use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
+use nym_sphinx::Delay;
+use nym_task::connections::TransmissionLane;
+use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
-use topology::{NymTopology, NymTopologyError};
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
 #[derive(Debug, Clone, Error)]

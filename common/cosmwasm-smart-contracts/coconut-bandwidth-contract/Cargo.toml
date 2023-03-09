@@ -1,5 +1,5 @@
 [package]
-name = "coconut-bandwidth-contract-common"
+name = "nym-coconut-bandwidth-contract-common"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,4 +9,4 @@ edition = "2021"
 cosmwasm-std = "1.0.0"
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-multisig-contract-common = { path = "../multisig-contract" }
+nym-multisig-contract-common = { path = "../multisig-contract" }

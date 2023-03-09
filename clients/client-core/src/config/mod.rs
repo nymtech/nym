@@ -1,8 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::{NymConfig, DB_FILE_NAME};
-use nymsphinx::params::PacketSize;
+use nym_config::defaults::NymNetworkDetails;
+use nym_config::{NymConfig, OptionalSet, CRED_DB_FILE_NAME};
+use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::path::PathBuf;
@@ -44,7 +45,8 @@ const DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 100;
 
 const DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE: u32 = 500;
 
-const DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD: Duration = Duration::from_secs(10);
+const DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD: Duration = Duration::from_secs(10);
+const DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD: Duration = Duration::from_secs(5 * 60);
 
 // 12 hours
 const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(12 * 60 * 60);
@@ -70,11 +72,14 @@ pub struct Config<T> {
     #[serde(default)]
     debug: DebugConfig,
 }
+
 impl<T> ClientCoreConfigTrait for Config<T> {
     fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
         &self.client.gateway_endpoint
     }
 }
+
+impl<T> OptionalSet for Config<T> where T: NymConfig {}
 
 impl<T> Config<T> {
     pub fn new<S: Into<String>>(id: S) -> Self
@@ -84,6 +89,7 @@ impl<T> Config<T> {
         Config::default().with_id(id)
     }
 
+    #[must_use]
     pub fn with_id<S: Into<String>>(mut self, id: S) -> Self
     where
         T: NymConfig,
@@ -160,24 +166,47 @@ impl<T> Config<T> {
         changes_made
     }
 
-    pub fn with_disabled_credentials(&mut self, disabled_credentials_mode: bool) {
+    pub fn with_disabled_credentials(mut self, disabled_credentials_mode: bool) -> Self {
         self.client.disabled_credentials_mode = disabled_credentials_mode;
+        self
     }
 
-    pub fn with_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpointConfig) {
+    pub fn set_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpointConfig) {
         self.client.gateway_endpoint = gateway_endpoint;
+    }
+
+    pub fn with_gateway_endpoint(mut self, gateway_endpoint: GatewayEndpointConfig) -> Self {
+        self.client.gateway_endpoint = gateway_endpoint;
+        self
     }
 
     pub fn with_gateway_id<S: Into<String>>(&mut self, id: S) {
         self.client.gateway_endpoint.gateway_id = id.into();
     }
 
-    pub fn set_custom_validators(&mut self, validator_urls: Vec<Url>) {
-        self.client.validator_urls = validator_urls;
+    pub fn with_custom_nyxd(mut self, urls: Vec<Url>) -> Self {
+        self.client.nyxd_urls = urls;
+        self
+    }
+
+    pub fn set_custom_nyxd(&mut self, nyxd_urls: Vec<Url>) {
+        self.client.nyxd_urls = nyxd_urls;
+    }
+
+    pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
+        self.client.nym_api_urls = nym_api_urls;
+        self
     }
 
     pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {
         self.client.nym_api_urls = nym_api_urls;
+    }
+
+    pub fn with_high_default_traffic_volume(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.set_high_default_traffic_volume();
+        }
+        self
     }
 
     pub fn set_high_default_traffic_volume(&mut self) {
@@ -186,6 +215,13 @@ impl<T> Config<T> {
         self.debug.loop_cover_traffic_average_delay = Duration::from_millis(2_000_000);
         // 250 "real" messages / s
         self.debug.message_sending_average_delay = Duration::from_millis(4);
+    }
+
+    pub fn with_disabled_cover_traffic(mut self, disabled: bool) -> Self {
+        if disabled {
+            self.set_no_cover_traffic()
+        }
+        self
     }
 
     pub fn set_no_cover_traffic(&mut self) {
@@ -234,7 +270,7 @@ impl<T> Config<T> {
     }
 
     pub fn get_validator_endpoints(&self) -> Vec<Url> {
-        self.client.validator_urls.clone()
+        self.client.nyxd_urls.clone()
     }
 
     pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
@@ -342,8 +378,12 @@ impl<T> Config<T> {
         self.debug.maximum_allowed_reply_surb_request_size
     }
 
-    pub fn get_maximum_reply_surb_waiting_period(&self) -> Duration {
-        self.debug.maximum_reply_surb_waiting_period
+    pub fn get_maximum_reply_surb_rerequest_waiting_period(&self) -> Duration {
+        self.debug.maximum_reply_surb_rerequest_waiting_period
+    }
+
+    pub fn get_maximum_reply_surb_drop_waiting_period(&self) -> Duration {
+        self.debug.maximum_reply_surb_drop_waiting_period
     }
 
     pub fn get_maximum_reply_surb_age(&self) -> Duration {
@@ -395,8 +435,8 @@ impl GatewayEndpointConfig {
     }
 }
 
-impl From<topology::gateway::Node> for GatewayEndpointConfig {
-    fn from(node: topology::gateway::Node) -> GatewayEndpointConfig {
+impl From<nym_topology::gateway::Node> for GatewayEndpointConfig {
+    fn from(node: nym_topology::gateway::Node) -> GatewayEndpointConfig {
         let gateway_listener = node.clients_address();
         GatewayEndpointConfig {
             gateway_id: node.identity_key.to_base58_string(),
@@ -420,9 +460,9 @@ pub struct Client<T> {
     #[serde(default)]
     disabled_credentials_mode: bool,
 
-    /// Addresses to nymd validators via which the client can communicate with the chain.
-    #[serde(default)]
-    validator_urls: Vec<Url>,
+    /// Addresses to nyxd validators via which the client can communicate with the chain.
+    #[serde(alias = "validator_urls")]
+    nyxd_urls: Vec<Url>,
 
     /// Addresses to APIs running on validator from which the client gets the view of the network.
     #[serde(alias = "validator_api_urls")]
@@ -471,13 +511,29 @@ pub struct Client<T> {
 
 impl<T: NymConfig> Default for Client<T> {
     fn default() -> Self {
+        let network = NymNetworkDetails::new_mainnet();
+        let nyxd_urls = network
+            .endpoints
+            .iter()
+            .map(|validator| validator.nyxd_url())
+            .collect();
+        let nym_api_urls = network
+            .endpoints
+            .iter()
+            .filter_map(|validator| validator.api_url())
+            .collect::<Vec<_>>();
+
+        if nym_api_urls.is_empty() {
+            panic!("we do not have any default nym-api urls available!")
+        }
+
         // there must be explicit checks for whether id is not empty later
         Client {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             disabled_credentials_mode: true,
-            validator_urls: vec![],
-            nym_api_urls: vec![],
+            nyxd_urls,
+            nym_api_urls,
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_encryption_key_file: Default::default(),
@@ -495,35 +551,35 @@ impl<T: NymConfig> Default for Client<T> {
 
 impl<T: NymConfig> Client<T> {
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("private_identity.pem")
+        T::default_data_directory(id).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("public_identity.pem")
+        T::default_data_directory(id).join("public_identity.pem")
     }
 
     fn default_private_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("private_encryption.pem")
+        T::default_data_directory(id).join("private_encryption.pem")
     }
 
     fn default_public_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("public_encryption.pem")
+        T::default_data_directory(id).join("public_encryption.pem")
     }
 
     fn default_gateway_shared_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("gateway_shared.pem")
+        T::default_data_directory(id).join("gateway_shared.pem")
     }
 
     fn default_ack_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("ack_key.pem")
+        T::default_data_directory(id).join("ack_key.pem")
     }
 
     fn default_reply_surb_database_path(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("persistent_reply_store.sqlite")
+        T::default_data_directory(id).join("persistent_reply_store.sqlite")
     }
 
     fn default_database_path(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join(DB_FILE_NAME)
+        T::default_data_directory(id).join(CRED_DB_FILE_NAME)
     }
 }
 
@@ -617,7 +673,12 @@ pub struct DebugConfig {
     /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
     /// for more even though in theory they wouldn't need to.
     #[serde(with = "humantime_serde")]
-    pub maximum_reply_surb_waiting_period: Duration,
+    pub maximum_reply_surb_rerequest_waiting_period: Duration,
+
+    /// Defines maximum amount of time the client is going to wait for reply surbs before
+    /// deciding it's never going to get them and would drop all pending messages
+    #[serde(with = "humantime_serde")]
+    pub maximum_reply_surb_drop_waiting_period: Duration,
 
     /// Defines maximum amount of time given reply surb is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
@@ -658,7 +719,9 @@ impl Default for DebugConfig {
             minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_reply_surb_request_size: DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_allowed_reply_surb_request_size: DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
-            maximum_reply_surb_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD,
+            maximum_reply_surb_rerequest_waiting_period:
+                DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
+            maximum_reply_surb_drop_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD,
             maximum_reply_surb_age: DEFAULT_MAXIMUM_REPLY_SURB_AGE,
             maximum_reply_key_age: DEFAULT_MAXIMUM_REPLY_KEY_AGE,
         }

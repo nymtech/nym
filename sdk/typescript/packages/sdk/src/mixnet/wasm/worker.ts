@@ -1,68 +1,97 @@
-/* eslint-disable no-console,no-restricted-globals */
-/// <reference path="../../../../nym-client-wasm/nym_client_wasm.d.ts" />
 /**
  * NB: URL syntax is used so that bundlers like webpack can load this package's code when inside the final bundle
  * the files from ../../../../nym-client-wasm will be copied into the dist directory of this package, so all import
  * paths are _relative to the output directory_ of this package (`dist`) - don't get confused!
  */
 import * as Comlink from 'comlink';
+
+//
+// Rollup will replace wasmBytes with a function that loads the WASM bundle from a base64 string embedded in the output.
+//
+// Doing it this way, saves having to support a large variety of bundlers and their quirks.
+//
+// @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
+import wasmBytes from '@nymproject/nym-client-wasm/nym_client_wasm_bg.wasm';
+
+// eslint-disable-next-line import/no-extraneous-dependencies
+import init, {
+  NymClient,
+  NymClientBuilder,
+  Config,
+  get_gateway,
+  default_debug,
+  decode_payload,
+  parse_utf8_string,
+  utf8_string_to_byte_array,
+  encode_payload_with_headers,
+} from '@nymproject/nym-client-wasm';
+
 import type {
+  BinaryMessageReceivedEvent,
   ConnectedEvent,
   IWebWorker,
   LoadedEvent,
-  OnStringMessageFn,
-  OnBinaryMessageFn,
-  OnConnectFn,
-  StringMessageReceivedEvent,
-  BinaryMessageReceivedEvent,
   NymClientConfig,
+  OnRawPayloadFn,
+  RawMessageReceivedEvent,
+  StringMessageReceivedEvent,
 } from './types';
-import { EventKinds } from './types';
+import { EventKinds, MimeTypes } from './types';
 
 // web workers are only allowed to load external scripts as the load
-importScripts(new URL('./nym_client_wasm.js', import.meta.url));
+// importScripts(new URL('./nym_client_wasm.js', import.meta.url));
+// eslint-disable-next-line import/extensions
 
 console.log('[Nym WASM client] Starting Nym WASM web worker...');
-
-// again, construct a URL that can be used by a bundler to repackage the WASM binary
-const wasmUrl = new URL('./nym_client_wasm_bg.wasm', import.meta.url);
 
 /**
  * Helper method to send typed messages.
  * @param event   The strongly typed message to send back to the calling thread.
  */
+// eslint-disable-next-line no-restricted-globals
 const postMessageWithType = <E>(event: E) => self.postMessage(event);
-
-// ------------ the 1st byte of messages is the kind from the list below ------------
-const PAYLOAD_KIND_TEXT = 0;
-const PAYLOAD_KIND_BINARY = 1;
 
 /**
  * This class holds the state of the Nym WASM client and provides any interop needed.
  */
 class ClientWrapper {
-  client: wasm_bindgen.NymClient | null = null;
+  client: NymClient | null = null;
+
+  builder: NymClientBuilder | null = null;
+
+  mimeTypes: string[] = [MimeTypes.TextPlain, MimeTypes.ApplicationJson];
 
   /**
    * Creates the WASM client and initialises it.
    */
-  init = (
-    config: wasm_bindgen.Config,
-    onConnectHandler: OnConnectFn,
-    onStringMessageHandler?: OnStringMessageFn,
-    onBinaryMessageHandler?: OnBinaryMessageFn,
-  ) => {
-    this.client = new wasm_bindgen.NymClient(config);
-    if (onBinaryMessageHandler) {
-      this.client.set_on_binary_message(onBinaryMessageHandler);
-    }
+  init = (config: Config, onRawPayloadHandler?: OnRawPayloadFn) => {
+    const onMessageHandler = (message: Uint8Array) => {
+      try {
+        if (onRawPayloadHandler) {
+          onRawPayloadHandler(message);
+        }
+      } catch (e) {
+        console.error('Unhandled exception in `ClientWrapper.onRawPayloadHandler`: ', e);
+      }
+    };
 
-    // NB: because we set the `kind` byte in the message payload first, we don't need to bother to try to parse
-    // all messages as string
-    // if (onStringMessageHandler) {
-    //   this.client.set_on_message(onStringMessageHandler);
-    // }
+    this.builder = new NymClientBuilder(config, onMessageHandler);
   };
+
+  /**
+   * Sets the mime-types that will be parsed for UTF-8 string content.
+   *
+   * @param mimeTypes An array of mime-types to treat as having string content.
+   */
+  setTextMimeTypes = (mimeTypes: string[]) => {
+    this.mimeTypes = mimeTypes;
+  };
+
+  /**
+   * Gest the mime-types that are considered as string and will be automatically converted to byte arrays.
+   */
+  getTextMimeTypes = () => this.mimeTypes;
 
   /**
    * Returns the address of this client.
@@ -80,47 +109,51 @@ class ClientWrapper {
    * Connects to the gateway and starts the client sending traffic.
    */
   start = async () => {
-    if (!this.client) {
-      console.error('Client has not been initialised. Please call `init` first.');
+    if (!this.builder) {
+      console.error('Client config has not been initialised. Please call `init` first.');
       return;
     }
 
     // this is current limitation of wasm in rust - for async methods you can't take self by reference...
     // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
     // the object (it's the same one)
-    this.client = await this.client.start();
+    this.client = await this.builder.start_client();
   };
 
-  sendMessage = async ({ payload, recipient }: { recipient: string; payload: string }) => {
+  /**
+   * Stops the client and cleans up.
+   */
+  stop = () => {
     if (!this.client) {
       console.error('Client has not been initialised. Please call `init` first.');
       return;
     }
-    const message = wasm_bindgen.create_binary_message_from_string(PAYLOAD_KIND_TEXT, payload);
-    this.client = await this.client.send_binary_message(message, recipient);
+    this.client.free();
+    this.client = null;
   };
 
-  sendBinaryMessage = async ({
+  send = async ({
     payload,
     recipient,
-    headers,
+    replySurbs = 0,
   }: {
-    recipient: string;
     payload: Uint8Array;
-    headers?: string;
+    recipient: string;
+    replySurbs?: number;
   }) => {
     if (!this.client) {
       console.error('Client has not been initialised. Please call `init` first.');
       return;
     }
-    const message = wasm_bindgen.create_binary_message_with_headers(PAYLOAD_KIND_BINARY, payload, headers || '');
-    this.client = await this.client.send_binary_message(message, recipient);
+    // TODO: currently we don't do anything with the result, it needs some typing and exposed back on the main thread
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const res = await this.client.send_anonymous_message(payload, recipient, replySurbs);
   };
 }
 
 // load WASM binary
-wasm_bindgen(wasmUrl)
-  .then((importResult) => {
+init(wasmBytes())
+  .then((importResult: any) => {
     // sets up better stack traces in case of in-rust panics
     importResult.set_panic_hook();
 
@@ -129,48 +162,44 @@ wasm_bindgen(wasmUrl)
 
     const startHandler = async (config: NymClientConfig) => {
       // fetch the gateway details (randomly chosen if no preferred gateway is set)
-      const gatewayEndpoint = await wasm_bindgen.get_gateway(
-        config.nymApiUrl,
-        config.preferredGatewayIdentityKey,
-      );
+      const gatewayEndpoint = await get_gateway(config.nymApiUrl, config.preferredGatewayIdentityKey);
 
       // set a different gatewayListener in order to avoid workaround ws over https error
-      if (config.gatewayListener)
-        gatewayEndpoint.gateway_listener = config.gatewayListener;
+      if (config.gatewayListener) gatewayEndpoint.gateway_listener = config.gatewayListener;
 
       // create the client, passing handlers for events
       wrapper.init(
-        new wasm_bindgen.Config(
-          config.clientId,
-          config.nymApiUrl,
-          gatewayEndpoint,
-          config.debug || wasm_bindgen.default_debug(),
-        ),
-        () => {
-          console.log();
-        },
-        undefined,
+        new Config(config.clientId, config.nymApiUrl, gatewayEndpoint, config.debug || default_debug()),
         async (message) => {
+          // fire an event with the raw message
+          postMessageWithType<RawMessageReceivedEvent>({
+            kind: EventKinds.RawMessageReceived,
+            args: { payload: message },
+          });
+
           try {
-            const { kind, payload, headers } = await wasm_bindgen.parse_binary_message_with_headers(message);
-            switch (kind) {
-              case PAYLOAD_KIND_TEXT: {
-                const stringMessage = await wasm_bindgen.parse_string_message_with_headers(message);
-                postMessageWithType<StringMessageReceivedEvent>({
-                  kind: EventKinds.StringMessageReceived,
-                  args: { kind, payload: stringMessage.payload },
-                });
-                break;
-              }
-              case PAYLOAD_KIND_BINARY:
-                postMessageWithType<BinaryMessageReceivedEvent>({
-                  kind: EventKinds.BinaryMessageReceived,
-                  args: { kind, payload, headers: headers || '' },
-                });
-                break;
-              default:
-                console.error('Could not determine message kind from 1st byte of message', { message, kind, payload });
+            // try to decode the payload to extract the mime-type, headers and payload body
+            const decodedPayload = decode_payload(message);
+            const { payload, headers } = decodedPayload;
+            const mimeType = decodedPayload.mimeType as MimeTypes;
+
+            if (wrapper.getTextMimeTypes().includes(mimeType)) {
+              const stringMessage = parse_utf8_string(payload);
+
+              // the payload is a string type (in the options at creation time, string mime-types are set, or fall back
+              // to defaults, such as `text/plain`, `application/json`, etc)
+              postMessageWithType<StringMessageReceivedEvent>({
+                kind: EventKinds.StringMessageReceived,
+                args: { mimeType, payload: stringMessage, payloadRaw: payload, headers },
+              });
+              return;
             }
+
+            // the payload is a binary type
+            postMessageWithType<BinaryMessageReceivedEvent>({
+              kind: EventKinds.BinaryMessageReceived,
+              args: { mimeType, payload, headers },
+            });
           } catch (e) {
             console.error('Failed to parse binary message', e);
           }
@@ -191,14 +220,49 @@ wasm_bindgen(wasmUrl)
         console.log('[Nym WASM client] Starting...', { config });
         startHandler(config).catch((e) => console.error('[Nym WASM client] Failed to start', e));
       },
+      stop() {
+        wrapper.stop();
+      },
       selfAddress() {
         return wrapper.selfAddress();
       },
-      sendMessage(args) {
-        wrapper.sendMessage(args).catch((e) => console.error('[Nym WASM client] Failed to send message', e));
+      setTextMimeTypes(mimeTypes) {
+        wrapper.setTextMimeTypes(mimeTypes);
       },
-      sendBinaryMessage(args) {
-        wrapper.sendBinaryMessage(args).catch((e) => console.error('[Nym WASM client] Failed to send message', e));
+      getTextMimeTypes() {
+        return wrapper.getTextMimeTypes();
+      },
+      send(args) {
+        const {
+          recipient,
+          replySurbs,
+          payload: { mimeType, headers },
+        } = args;
+        let payloadBytes = new Uint8Array();
+        if (mimeType && wrapper.getTextMimeTypes().includes(mimeType) && typeof args.payload.message === 'string') {
+          payloadBytes = utf8_string_to_byte_array(args.payload.message);
+        } else if (typeof args.payload.message !== 'string') {
+          payloadBytes = args.payload.message;
+        } else {
+          console.error(
+            "[Nym WASM client] Payload is a string. It should be a UintArray, or the mime-type should be set with `setTextMimeTypes` or in the options for `init({ autoConvertStringMimeTypes: ['text/plain', 'application/json'] })` for auto-conversion",
+          );
+          return;
+        }
+        const payload = encode_payload_with_headers(
+          mimeType || MimeTypes.ApplicationOctetStream,
+          payloadBytes,
+          headers,
+        );
+        wrapper
+          .send({ payload, recipient, replySurbs })
+          .catch((e) => console.error('[Nym WASM client] Failed to send message', e));
+      },
+      rawSend(args) {
+        const { recipient, payload, replySurbs } = args;
+        wrapper
+          .send({ payload, replySurbs, recipient })
+          .catch((e) => console.error('[Nym WASM client] Failed to send message', e));
       },
     };
 

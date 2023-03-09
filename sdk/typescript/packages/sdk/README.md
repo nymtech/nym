@@ -34,7 +34,7 @@ const main = async () => {
   // send a message to yourself
   const payload = 'Hello mixnet';
   const recipient = nym.client.selfAddress();
-  nym.client.sendMessage({ payload, recipient });
+  nym.client.send({ payload, recipient });
   
 };
 ```
@@ -46,13 +46,5 @@ Send a message to another user (you will need to know their address at a Gateway
 ```ts
   const payload = 'Hello mixnet';
   const recipient = '<< RECIPIENT ADDRESS GOES HERE >>';
-  await nym.client.sendMessage({ payload, recipient });
+  await nym.client.send({ payload, recipient });
 ```
-
-### Packaging
-
-If you're a Nym platform developer who's made changes to the Rust (or JS) files and wants to re-publish the package to NPM, here's how you do it: 
-
-1. bump version numbers as necessary for SemVer
-2. `yarn build` builds the release directory
-3. `npm publish --access=public` will publish your changed package to NPM

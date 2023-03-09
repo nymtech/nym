@@ -137,8 +137,8 @@ pub fn number_of_required_fragments(
 mod tests {
     use super::*;
     use crate::set::{max_one_way_linked_set_payload_length, two_way_linked_set_payload_length};
-    use nymsphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
-    use nymsphinx_params::packet_sizes::PacketSize;
+    use nym_sphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
+    use nym_sphinx_params::packet_sizes::PacketSize;
 
     #[test]
     fn calculating_number_of_required_fragments() {

@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crypto::asymmetric::identity;
-use nymsphinx_types::{NodeAddressBytes, NODE_ADDRESS_LENGTH};
+use nym_crypto::asymmetric::identity;
+use nym_sphinx_types::{NodeAddressBytes, NODE_ADDRESS_LENGTH};
 use std::convert::{TryFrom, TryInto};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use thiserror::Error;

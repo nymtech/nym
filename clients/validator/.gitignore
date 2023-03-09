@@ -5,3 +5,4 @@ dist
 docs
 examples/accounts
 node_modules
+.env

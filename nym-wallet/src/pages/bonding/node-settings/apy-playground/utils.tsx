@@ -24,7 +24,7 @@ export const computeEstimate = async ({
   operatorCost: string;
 }) => {
   const computedEstimate = await computeMixnodeRewardEstimation({
-    mixId: mixId,
+    mixId,
     performance: percentToDecimal(uptime),
     pledgeAmount: Math.round(+pledgeAmount * SCALE_FACTOR),
     totalDelegation: Math.round(+totalDelegation * SCALE_FACTOR),

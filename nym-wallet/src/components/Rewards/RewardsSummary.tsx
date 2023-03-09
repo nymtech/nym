@@ -3,7 +3,7 @@ import { CircularProgress, Stack, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { InfoTooltip } from '../InfoToolTip';
 
-export const RewardsSummary: React.FC<{
+export const RewardsSummary: FCWithChildren<{
   isLoading?: boolean;
   totalDelegation?: string;
   totalRewards?: string;

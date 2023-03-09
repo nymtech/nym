@@ -253,7 +253,7 @@ pub mod tests {
     use crate::gateways::queries;
     use crate::gateways::transactions::{
         try_add_gateway, try_add_gateway_on_behalf, try_remove_gateway_on_behalf,
-        try_update_gateway_config,
+        try_update_gateway_config, try_update_gateway_config_on_behalf,
     };
     use crate::interval::pending_events;
     use crate::mixnet_contract_settings::storage::minimum_gateway_pledge;
@@ -548,14 +548,14 @@ pub mod tests {
     #[test]
     fn update_gateway_config() {
         let mut test = TestSetup::new();
-        let env = test.env();
+        //let env = test.env();
 
         let owner = "alice";
         let info = mock_info(owner, &[]);
         let update = GatewayConfigUpdate {
             host: "1.1.1.1:1234".to_string(),
             mix_port: 1234,
-            clients_port: 1234,
+            clients_port: 1235,
             location: "home".to_string(),
             version: "v1.2.3".to_string(),
         };
@@ -569,35 +569,38 @@ pub mod tests {
             })
         );
 
-        //let mix_id = test.add_dummy_mixnode(owner, None);
-        //let vesting_contract = test.vesting_contract();
+        test.add_dummy_gateway(owner, None);
+        let vesting_contract = test.vesting_contract();
 
-        //// attempted to remove on behalf with invalid proxy (current is `None`)
-        //let res = try_update_mixnode_config_on_behalf(
-        //    test.deps_mut(),
-        //    mock_info(vesting_contract.as_ref(), &[]),
-        //    update.clone(),
-        //    owner.to_string(),
-        //);
-        //assert_eq!(
-        //    res,
-        //    Err(MixnetContractError::ProxyMismatch {
-        //        existing: "None".to_string(),
-        //        incoming: vesting_contract.into_string()
-        //    })
-        //);
+        // attempted to remove on behalf with invalid proxy (current is `None`)
+        let res = try_update_gateway_config_on_behalf(
+            test.deps_mut(),
+            mock_info(vesting_contract.as_ref(), &[]),
+            update.clone(),
+            owner.to_string(),
+        );
+        assert_eq!(
+            res,
+            Err(MixnetContractError::ProxyMismatch {
+                existing: "None".to_string(),
+                incoming: vesting_contract.into_string()
+            })
+        );
+
         // "normal" update succeeds
-        let res = try_update_gateway_config(test.deps_mut(), info.clone(), update.clone());
+        let res = try_update_gateway_config(test.deps_mut(), info, update.clone());
         assert!(res.is_ok());
 
-        //// and the config has actually been updated
-        //let mix =
-        //    must_get_mixnode_bond_by_owner(test.deps().storage, &Addr::unchecked(owner)).unwrap();
-        //assert_eq!(mix.mix_node.host, update.host);
-        //assert_eq!(mix.mix_node.mix_port, update.mix_port);
-        //assert_eq!(mix.mix_node.verloc_port, update.verloc_port);
-        //assert_eq!(mix.mix_node.http_api_port, update.http_api_port);
-        //assert_eq!(mix.mix_node.version, update.version);
+        // and the config has actually been updated
+        let bond =
+            must_get_gateway_bond_by_owner(test.deps().storage, &Addr::unchecked(owner)).unwrap();
+        assert_eq!(bond.gateway.host, update.host);
+        assert_eq!(bond.gateway.mix_port, update.mix_port);
+        assert_eq!(bond.gateway.clients_port, update.clients_port);
+        assert_eq!(bond.gateway.location, update.location);
+        assert_eq!(bond.gateway.version, update.version);
+
+        // WIP(JON): double check that this is not relevant for gateways ...
 
         //// but we cannot perform any updates whilst the mixnode is already unbonding
         //try_remove_mixnode(test.deps_mut(), env, info.clone()).unwrap();
@@ -607,6 +610,36 @@ pub mod tests {
 
     #[test]
     fn updating_gateway_config_with_illegal_proxy() {
-        todo!();
+        let mut test = TestSetup::new();
+
+        let illegal_proxy = Addr::unchecked("not-vesting-contract");
+        let vesting_contract = test.vesting_contract();
+
+        let owner = "alice";
+
+        test.add_dummy_gateway_with_illegal_proxy(owner, None, illegal_proxy.clone());
+        let update = GatewayConfigUpdate {
+            host: "1.1.1.1:1234".to_string(),
+            mix_port: 1234,
+            clients_port: 1235,
+            location: "at home".to_string(),
+            version: "v1.2.3".to_string(),
+        };
+
+        let res = try_update_gateway_config_on_behalf(
+            test.deps_mut(),
+            mock_info(illegal_proxy.as_ref(), &[]),
+            update,
+            owner.to_string(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            res,
+            MixnetContractError::SenderIsNotVestingContract {
+                received: illegal_proxy,
+                vesting_contract
+            }
+        )
     }
 }

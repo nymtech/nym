@@ -153,9 +153,9 @@ export const PageGateways: FCWithChildren = () => {
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{ ...cellStyles }}
-          href={`${NYM_BIG_DIPPER}/account/${params.value}`}
-          target="_blank"
-          data-testid="owner"
+          component={RRDLink}
+          to={`/network-components/gateway/${params.row.identity_key}`}
+          data-testid="version"
         >
           {params.value}
         </MuiLink>

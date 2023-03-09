@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Alert, Box, CircularProgress } from '@mui/material';
-import { CurrencyDenom, FeeDetails } from '@nymproject/types';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { AppContext, urls } from 'src/context';

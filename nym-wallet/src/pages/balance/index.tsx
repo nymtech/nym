@@ -33,9 +33,9 @@ export const Balance = () => {
           network={network}
         />
         <VestingCard
-          userBalance={appendDenom(userBalance.balance?.printable_balance)}
-          unlockedTokens={appendDenom(userBalance.tokenAllocation?.spendable)}
-          unlockedRewards={appendDenom(userBalance.tokenAllocation?.spendable)}
+          unlockedTokens={appendDenom(userBalance.tokenAllocation?.spendableVestedCoins)}
+          unlockedRewards={appendDenom(userBalance.tokenAllocation?.spendableRewardCoins)}
+          unlockedTransferable={appendDenom(userBalance.tokenAllocation?.spendable)}
           originalVesting={userBalance.originalVesting}
           onTransfer={handleShowTransferModal}
           fetchBalance={userBalance.fetchBalance}

@@ -2,6 +2,7 @@ import React from 'react';
 import { Chip, IconButton, TableCell, TableRow, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { decimalToPercentage, DelegationWithEverything } from '@nymproject/types';
+import { LockOutlined } from '@mui/icons-material';
 import { isDelegation } from 'src/context/delegations';
 import { toPercentIntegerString } from 'src/utils';
 import { format } from 'date-fns';
@@ -33,9 +34,6 @@ export const DelegationItem = ({
   const tooltipText = () => {
     if (nodeIsUnbonded) {
       return 'This node has unbonded and it does not exist anymore. You need to undelegate from it to get your stake and outstanding rewards (if any) back.';
-    }
-    if (item.uses_vesting_contract_tokens) {
-      return 'Delegation made with locked tockens';
     }
     return '';
   };
@@ -80,6 +78,13 @@ export const DelegationItem = ({
           </Typography>
         </TableCell>
         <TableCell sx={{ textTransform: 'uppercase', color: 'inherit' }}>{getRewardValue(item)}</TableCell>
+        <TableCell>
+          {item.uses_vesting_contract_tokens && (
+            <Tooltip title="Delegation uses locked tokens">
+              <LockOutlined sx={{ color: 'grey.800' }} fontSize="small" />
+            </Tooltip>
+          )}
+        </TableCell>
         <TableCell align="right" sx={{ color: 'inherit' }}>
           {!item.pending_events.length && !nodeIsUnbonded && (
             <DelegationsActionsMenu

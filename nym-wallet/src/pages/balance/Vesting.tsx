@@ -1,17 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Refresh } from '@mui/icons-material';
 import { Grid, IconButton, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { useEffect } from 'react';
 import { NymCard } from 'src/components';
 import { TokenTransfer } from 'src/components/Balance/cards/TokenTransfer';
 import { OriginalVestingResponse } from '@nymproject/types';
 import { VestingSchedule } from 'src/components/Balance/cards/VestingSchedule';
 
 export const VestingCard = ({
-  userBalance,
   unlockedTokens,
   unlockedRewards,
+  unlockedTransferable,
   originalVesting,
   onTransfer,
   fetchBalance,
@@ -19,7 +18,7 @@ export const VestingCard = ({
 }: {
   unlockedTokens?: string;
   unlockedRewards?: string;
-  userBalance?: string;
+  unlockedTransferable?: string;
   originalVesting?: OriginalVestingResponse;
   fetchTokenAllocation: () => Promise<void>;
   fetchBalance: () => Promise<void>;
@@ -69,8 +68,7 @@ export const VestingCard = ({
             onTransfer={onTransfer}
             unlockedTokens={unlockedTokens}
             unlockedRewards={unlockedRewards}
-            unlockedTransferable={unlockedTokens}
-            userBalance={userBalance}
+            unlockedTransferable={unlockedTransferable}
           />
         </Grid>
       </Grid>

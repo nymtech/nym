@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import {
   TableContainer,
   Table,
@@ -6,7 +6,6 @@ import {
   TableRow,
   TableCell,
   TableBody,
-  Box,
   Typography,
   TableCellProps,
   Card,
@@ -14,7 +13,6 @@ import {
 import { Period } from '@nymproject/types';
 import { AppContext } from 'src/context';
 import { VestingTimeline } from '../VestingTimeline';
-import { Stack } from '@mui/system';
 
 const columnsHeaders: Array<{ title: string; align: TableCellProps['align'] }> = [
   { title: 'Locked', align: 'left' },
@@ -56,7 +54,11 @@ export const VestingSchedule = () => {
           <TableHead>
             <TableRow>
               {columnsHeaders.map((header) => (
-                <TableCell key={header.title} sx={{ color: 'nym.text.muted', pt: 0 }} align={header.align}>
+                <TableCell
+                  key={header.title}
+                  sx={{ color: 'nym.text.muted', pt: 0, border: 'none', pb: 0 }}
+                  align={header.align}
+                >
                   {header.title}
                 </TableCell>
               ))}
@@ -101,10 +103,7 @@ export const VestingSchedule = () => {
       <Typography variant="body2" sx={{ color: 'nym.text.muted', mb: 3 }}>
         Percentage
       </Typography>
-      <Stack direction="row" alignItems="center" gap={2}>
-        <Typography variant="body2">{vestedPercentage}%</Typography>
-        <VestingTimeline percentageComplete={vestedPercentage} />
-      </Stack>
+      <VestingTimeline percentageComplete={vestedPercentage} />
     </Card>
   );
 };

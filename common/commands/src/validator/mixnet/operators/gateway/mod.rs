@@ -5,6 +5,7 @@ use clap::{Args, Subcommand};
 
 pub mod bond_gateway;
 pub mod gateway_bonding_sign_payload;
+pub mod settings;
 pub mod unbond_gateway;
 pub mod vesting_bond_gateway;
 pub mod vesting_unbond_gateway;
@@ -18,6 +19,8 @@ pub struct MixnetOperatorsGateway {
 
 #[derive(Debug, Subcommand)]
 pub enum MixnetOperatorsGatewayCommands {
+    /// Manage your gateway settings stored in the directory
+    Settings(settings::MixnetOperatorsGatewaySettings),
     /// Bond to a gateway
     Bond(bond_gateway::Args),
     /// Unbond from a gateway

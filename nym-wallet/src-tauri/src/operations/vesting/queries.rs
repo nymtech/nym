@@ -28,7 +28,7 @@ pub(crate) async fn locked_coins(
         )
         .await?;
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< locked coins = {}", display);
+    log::info!("<<< locked coins = {display}");
     Ok(display)
 }
 
@@ -50,7 +50,7 @@ pub(crate) async fn spendable_coins(
         .await?;
 
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< spendable coins = {}", display);
+    log::info!("<<< spendable coins = {display}");
     Ok(display)
 }
 
@@ -68,7 +68,7 @@ pub(crate) async fn spendable_vested_coins(
         .await?;
 
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< spendable vested coins = {}", display);
+    log::info!("<<< spendable vested coins = {display}");
     Ok(display)
 }
 
@@ -86,7 +86,7 @@ pub(crate) async fn spendable_reward_coins(
         .await?;
 
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< spendable reward coins = {}", display);
+    log::info!("<<< spendable reward coins = {display}");
     Ok(display)
 }
 
@@ -109,7 +109,7 @@ pub(crate) async fn vested_coins(
         .await?;
 
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< vested coins = {}", display);
+    log::info!("<<< vested coins = {display}");
     Ok(display)
 }
 
@@ -132,7 +132,7 @@ pub(crate) async fn vesting_coins(
         .await?;
 
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< vesting coins = {}", display);
+    log::info!("<<< vesting coins = {display}");
     Ok(display)
 }
 
@@ -197,7 +197,7 @@ pub(crate) async fn get_historical_vesting_staking_reward(
         .get_historical_vesting_staking_reward(client.nyxd.address().as_ref())
         .await?;
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< historical vesting staking reward coins = {}", display);
+    log::info!("<<< historical vesting staking reward coins = {display}");
     Ok(display)
 }
 
@@ -214,7 +214,7 @@ pub(crate) async fn get_spendable_vested_coins(
         .get_spendable_vested_coins(client.nyxd.address().as_ref())
         .await?;
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< spendable vested coins = {}", display);
+    log::info!("<<< spendable vested coins = {display}");
     Ok(display)
 }
 
@@ -231,7 +231,7 @@ pub(crate) async fn get_spendable_reward_coins(
         .get_spendable_reward_coins(client.nyxd.address().as_ref())
         .await?;
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< spendable reward coins = {}", display);
+    log::info!("<<< spendable reward coins = {display}");
     Ok(display)
 }
 
@@ -248,7 +248,7 @@ pub(crate) async fn get_delegated_coins(
         .get_delegated_coins(client.nyxd.address().as_ref())
         .await?;
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< delegated coins = {}", display);
+    log::info!("<<< delegated coins = {display}");
     Ok(display)
 }
 
@@ -265,7 +265,7 @@ pub(crate) async fn get_pledged_coins(
         .get_pledged_coins(client.nyxd.address().as_ref())
         .await?;
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< pledged coins = {}", display);
+    log::info!("<<< pledged coins = {display}");
     Ok(display)
 }
 
@@ -282,7 +282,7 @@ pub(crate) async fn get_staked_coins(
         .get_staked_coins(client.nyxd.address().as_ref())
         .await?;
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< staked coins = {}", display);
+    log::info!("<<< staked coins = {display}");
     Ok(display)
 }
 
@@ -299,7 +299,7 @@ pub(crate) async fn get_withdrawn_coins(
         .get_withdrawn_coins(client.nyxd.address().as_ref())
         .await?;
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< pledged coins = {}", display);
+    log::info!("<<< pledged coins = {display}");
     Ok(display)
 }
 

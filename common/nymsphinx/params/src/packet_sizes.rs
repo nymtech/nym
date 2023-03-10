@@ -20,6 +20,16 @@ const ACK_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + ACK_IV_SIZE
 const EXTENDED_PACKET_SIZE_8: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 8 * 1024;
 const EXTENDED_PACKET_SIZE_16: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 16 * 1024;
 const EXTENDED_PACKET_SIZE_32: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 32 * 1024;
+const EXTENDED_PACKET_SIZE_10: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 10 * 1024;
+const EXTENDED_PACKET_SIZE_15: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 15 * 1024;
+const EXTENDED_PACKET_SIZE_20: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 20 * 1024;
+const EXTENDED_PACKET_SIZE_25: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 25 * 1024;
+const EXTENDED_PACKET_SIZE_50: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 50 * 1024;
+const EXTENDED_PACKET_SIZE_100: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 100 * 1024;
+const EXTENDED_PACKET_SIZE_150: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 150 * 1024;
+const EXTENDED_PACKET_SIZE_200: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 200 * 1024;
+const EXTENDED_PACKET_SIZE_250: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 250 * 1024;
+const EXTENDED_PACKET_SIZE_500: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 500 * 1024;
 
 #[derive(Debug, Error)]
 pub enum InvalidPacketSize {
@@ -51,6 +61,18 @@ pub enum PacketSize {
 
     // for example for streaming fast and furious in compressed XviD quality
     ExtendedPacket16 = 5,
+
+    ExtendedPacket10 = 6,
+    ExtendedPacket15 = 7,
+    ExtendedPacket20 = 8,
+
+    ExtendedPacket25 = 9,
+    ExtendedPacket50 = 10,
+    ExtendedPacket100 = 11,
+    ExtendedPacket150 = 12,
+    ExtendedPacket200 = 13,
+    ExtendedPacket250 = 14,
+    ExtendedPacket500 = 15,
 }
 
 impl FromStr for PacketSize {
@@ -63,6 +85,16 @@ impl FromStr for PacketSize {
             "extended8" => Ok(Self::ExtendedPacket8),
             "extended16" => Ok(Self::ExtendedPacket16),
             "extended32" => Ok(Self::ExtendedPacket32),
+            "extended10" => Ok(Self::ExtendedPacket10),
+            "extended15" => Ok(Self::ExtendedPacket15),
+            "extended20" => Ok(Self::ExtendedPacket20),
+            "extended25" => Ok(Self::ExtendedPacket25),
+            "extended50" => Ok(Self::ExtendedPacket50),
+            "extended100" => Ok(Self::ExtendedPacket100),
+            "extended150" => Ok(Self::ExtendedPacket150),
+            "extended200" => Ok(Self::ExtendedPacket200),
+            "extended250" => Ok(Self::ExtendedPacket250),
+            "extended500" => Ok(Self::ExtendedPacket500),
             s => Err(InvalidPacketSize::UnknownExtendedPacketVariant {
                 received: s.to_string(),
             }),
@@ -80,6 +112,16 @@ impl TryFrom<u8> for PacketSize {
             _ if value == (PacketSize::ExtendedPacket8 as u8) => Ok(Self::ExtendedPacket8),
             _ if value == (PacketSize::ExtendedPacket16 as u8) => Ok(Self::ExtendedPacket16),
             _ if value == (PacketSize::ExtendedPacket32 as u8) => Ok(Self::ExtendedPacket32),
+            _ if value == (PacketSize::ExtendedPacket10 as u8) => Ok(Self::ExtendedPacket10),
+            _ if value == (PacketSize::ExtendedPacket15 as u8) => Ok(Self::ExtendedPacket15),
+            _ if value == (PacketSize::ExtendedPacket20 as u8) => Ok(Self::ExtendedPacket20),
+            _ if value == (PacketSize::ExtendedPacket25 as u8) => Ok(Self::ExtendedPacket25),
+            _ if value == (PacketSize::ExtendedPacket50 as u8) => Ok(Self::ExtendedPacket50),
+            _ if value == (PacketSize::ExtendedPacket100 as u8) => Ok(Self::ExtendedPacket100),
+            _ if value == (PacketSize::ExtendedPacket150 as u8) => Ok(Self::ExtendedPacket150),
+            _ if value == (PacketSize::ExtendedPacket200 as u8) => Ok(Self::ExtendedPacket200),
+            _ if value == (PacketSize::ExtendedPacket250 as u8) => Ok(Self::ExtendedPacket250),
+            _ if value == (PacketSize::ExtendedPacket500 as u8) => Ok(Self::ExtendedPacket500),
             v => Err(InvalidPacketSize::UnknownPacketTag { received: v }),
         }
     }
@@ -93,6 +135,16 @@ impl PacketSize {
             PacketSize::ExtendedPacket8 => EXTENDED_PACKET_SIZE_8,
             PacketSize::ExtendedPacket16 => EXTENDED_PACKET_SIZE_16,
             PacketSize::ExtendedPacket32 => EXTENDED_PACKET_SIZE_32,
+            PacketSize::ExtendedPacket10 => EXTENDED_PACKET_SIZE_10,
+            PacketSize::ExtendedPacket15 => EXTENDED_PACKET_SIZE_15,
+            PacketSize::ExtendedPacket20 => EXTENDED_PACKET_SIZE_20,
+            PacketSize::ExtendedPacket25 => EXTENDED_PACKET_SIZE_25,
+            PacketSize::ExtendedPacket50 => EXTENDED_PACKET_SIZE_50,
+            PacketSize::ExtendedPacket100 => EXTENDED_PACKET_SIZE_100,
+            PacketSize::ExtendedPacket150 => EXTENDED_PACKET_SIZE_150,
+            PacketSize::ExtendedPacket200 => EXTENDED_PACKET_SIZE_200,
+            PacketSize::ExtendedPacket250 => EXTENDED_PACKET_SIZE_250,
+            PacketSize::ExtendedPacket500 => EXTENDED_PACKET_SIZE_500,
         }
     }
 
@@ -115,6 +167,26 @@ impl PacketSize {
             Ok(PacketSize::ExtendedPacket16)
         } else if PacketSize::ExtendedPacket32.size() == size {
             Ok(PacketSize::ExtendedPacket32)
+        } else if PacketSize::ExtendedPacket10.size() == size {
+            Ok(PacketSize::ExtendedPacket10)
+        } else if PacketSize::ExtendedPacket15.size() == size {
+            Ok(PacketSize::ExtendedPacket15)
+        } else if PacketSize::ExtendedPacket20.size() == size {
+            Ok(PacketSize::ExtendedPacket20)
+        } else if PacketSize::ExtendedPacket25.size() == size {
+            Ok(PacketSize::ExtendedPacket25)
+        } else if PacketSize::ExtendedPacket50.size() == size {
+            Ok(PacketSize::ExtendedPacket50)
+        } else if PacketSize::ExtendedPacket100.size() == size {
+            Ok(PacketSize::ExtendedPacket100)
+        } else if PacketSize::ExtendedPacket150.size() == size {
+            Ok(PacketSize::ExtendedPacket150)
+        } else if PacketSize::ExtendedPacket200.size() == size {
+            Ok(PacketSize::ExtendedPacket200)
+        } else if PacketSize::ExtendedPacket250.size() == size {
+            Ok(PacketSize::ExtendedPacket250)
+        } else if PacketSize::ExtendedPacket500.size() == size {
+            Ok(PacketSize::ExtendedPacket500)
         } else {
             Err(InvalidPacketSize::UnknownPacketSize { received: size })
         }
@@ -125,7 +197,17 @@ impl PacketSize {
             PacketSize::RegularPacket | PacketSize::AckPacket => false,
             PacketSize::ExtendedPacket8
             | PacketSize::ExtendedPacket16
-            | PacketSize::ExtendedPacket32 => true,
+            | PacketSize::ExtendedPacket32
+            | PacketSize::ExtendedPacket10
+            | PacketSize::ExtendedPacket15
+            | PacketSize::ExtendedPacket20
+            | PacketSize::ExtendedPacket25
+            | PacketSize::ExtendedPacket50
+            | PacketSize::ExtendedPacket100
+            | PacketSize::ExtendedPacket150
+            | PacketSize::ExtendedPacket200
+            | PacketSize::ExtendedPacket250
+            | PacketSize::ExtendedPacket500 => true,
         }
     }
 

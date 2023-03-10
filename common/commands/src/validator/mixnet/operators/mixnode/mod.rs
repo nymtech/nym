@@ -28,10 +28,10 @@ pub enum MixnetOperatorsMixnodeCommands {
     Settings(settings::MixnetOperatorsMixnodeSettings),
     /// Bond to a mixnode
     Bond(bond_mixnode::Args),
-    /// Unbound from a mixnode
-    Unbound(unbond_mixnode::Args),
+    /// Unbond from a mixnode
+    Unbond(unbond_mixnode::Args),
     /// Bond to a mixnode with locked tokens
     BondVesting(vesting_bond_mixnode::Args),
-    /// Unbound from a mixnode (when originally using locked tokens)
-    UnboundVesting(vesting_unbond_mixnode::Args),
+    /// Unbond from a mixnode (when originally using locked tokens)
+    UnbondVesting(vesting_unbond_mixnode::Args),
 }

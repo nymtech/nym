@@ -26,7 +26,7 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::mixnet::operators::mixnode::MixnetOperatorsMixnodeCommands::Bond(args) => {
             nym_cli_commands::validator::mixnet::operators::mixnode::bond_mixnode::bond_mixnode(args, create_signing_client(global_args, network_details)?).await
         }
-        nym_cli_commands::validator::mixnet::operators::mixnode::MixnetOperatorsMixnodeCommands::Unbound(args) => {
+        nym_cli_commands::validator::mixnet::operators::mixnode::MixnetOperatorsMixnodeCommands::Unbond(args) => {
             nym_cli_commands::validator::mixnet::operators::mixnode::unbond_mixnode::unbond_mixnode(args, create_signing_client(global_args, network_details)?).await
         }
         _ => unreachable!(),

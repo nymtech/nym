@@ -112,6 +112,11 @@ impl Display for GatewayBond {
     }
 }
 
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/GatewayConfigUpdate.ts")
+)]
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct GatewayConfigUpdate {
     pub host: String,

@@ -42,6 +42,7 @@ const columns: ColumnsType[] = [
     field: 'self_percentage',
     width: '10%',
     title: 'Bond %',
+    tooltipInfo: "Percentage of the operator's bond to the total stake on the node",
   },
 
   {
@@ -140,7 +141,12 @@ const PageMixnodeDetailWithState: FCWithChildren = () => {
           {uptimeStory && (
             <ContentCard title="Routing Score">
               {uptimeStory.error && <ComponentError text="There was a problem retrieving routing score." />}
-              <UptimeChart loading={uptimeStory.isLoading} xLabel="date" uptimeStory={uptimeStory} />
+              <UptimeChart
+                loading={uptimeStory.isLoading}
+                xLabel="Date"
+                yLabel="Daily average"
+                uptimeStory={uptimeStory}
+              />
             </ContentCard>
           )}
         </Grid>

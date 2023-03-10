@@ -37,15 +37,15 @@ export const EconomicsInfoColumns: ColumnsType[] = [
       'Monthly operational cost of running this node. This cost is set by the operator and it influences how the rewards are split between the operator and delegators.',
   },
   {
-    field: 'avgUptime',
-    title: 'Avg. Score',
-    width: '10%',
-    tooltipInfo: "Mixnode's average routing score in the last 24 hour",
-  },
-  {
     field: 'nodePerformance',
     title: 'Routing Score',
+    width: '10%',
     tooltipInfo:
       "Mixnode's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test.",
+  },
+  {
+    field: 'avgUptime',
+    title: 'Avg. Score',
+    tooltipInfo: "Mixnode's average routing score in the last 24 hour",
   },
 ];

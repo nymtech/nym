@@ -548,7 +548,6 @@ pub mod tests {
     #[test]
     fn update_gateway_config() {
         let mut test = TestSetup::new();
-        //let env = test.env();
 
         let owner = "alice";
         let info = mock_info(owner, &[]);

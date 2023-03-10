@@ -1,18 +1,39 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nyxd::error::NyxdError;
-use crate::nyxd::signing::signer::{OfflineSigner, SigningError};
-use crate::nyxd::signing::{AccountData, Secp256k1Derivation};
+use crate::signing::signer::{OfflineSigner, SigningError};
+use crate::signing::{AccountData, Secp256k1Derivation};
 use cosmrs::bip32::{DerivationPath, XPrv};
-use cosmrs::crypto::secp256k1::{Signature, SigningKey};
+use cosmrs::crypto::secp256k1::SigningKey;
 use cosmrs::crypto::PublicKey;
 use cosmrs::tx::SignDoc;
-use cosmrs::{tx, AccountId};
+use cosmrs::{bip32, tx};
 use nym_config::defaults;
+use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 type Secp256k1Keypair = (SigningKey, PublicKey);
+
+#[derive(Debug, Error)]
+pub enum DirectSecp256k1HdWalletError {
+    #[error(transparent)]
+    SigningFailure(#[from] SigningError),
+
+    #[error("failed to derive child key: {source}")]
+    Bip32KeyDerivationFailure {
+        #[from]
+        source: bip32::Error,
+    },
+
+    #[error("There was an issue with bip39: {source}")]
+    Bip39Error {
+        #[from]
+        source: bip39::Error,
+    },
+
+    #[error("failed to derive accounts: {source}")]
+    AccountDerivationError { source: eyre::Report },
+}
 
 #[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
 pub struct DirectSecp256k1HdWallet {
@@ -32,7 +53,7 @@ pub struct DirectSecp256k1HdWallet {
 }
 
 impl OfflineSigner for DirectSecp256k1HdWallet {
-    type Error = NyxdError;
+    type Error = DirectSecp256k1HdWalletError;
 
     fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
         self.try_derive_accounts()
@@ -59,12 +80,15 @@ impl DirectSecp256k1HdWallet {
         DirectSecp256k1HdWalletBuilder::new(prefix).build(mnemonic)
     }
 
-    pub fn generate(prefix: &str, word_count: usize) -> Result<Self, NyxdError> {
+    pub fn generate(prefix: &str, word_count: usize) -> Result<Self, DirectSecp256k1HdWalletError> {
         let mneomonic = bip39::Mnemonic::generate(word_count)?;
         Ok(Self::from_mnemonic(prefix, mneomonic))
     }
 
-    fn derive_keypair(&self, hd_path: &DerivationPath) -> Result<Secp256k1Keypair, NyxdError> {
+    fn derive_keypair(
+        &self,
+        hd_path: &DerivationPath,
+    ) -> Result<Secp256k1Keypair, DirectSecp256k1HdWalletError> {
         let extended_private_key = XPrv::derive_from_path(self.seed, hd_path)?;
 
         let private_key: SigningKey = extended_private_key.into();
@@ -73,7 +97,7 @@ impl DirectSecp256k1HdWallet {
         Ok((private_key, public_key))
     }
 
-    pub fn try_derive_accounts(&self) -> Result<Vec<AccountData>, NyxdError> {
+    pub fn try_derive_accounts(&self) -> Result<Vec<AccountData>, DirectSecp256k1HdWalletError> {
         let mut accounts = Vec::with_capacity(self.accounts.len());
         for derivation_info in &self.accounts {
             let keypair = self.derive_keypair(&derivation_info.hd_path)?;
@@ -82,7 +106,9 @@ impl DirectSecp256k1HdWallet {
             let address = keypair
                 .1
                 .account_id(&derivation_info.prefix)
-                .map_err(|_| NyxdError::AccountDerivationError)?;
+                .map_err(
+                    |source| DirectSecp256k1HdWalletError::AccountDerivationError { source },
+                )?;
 
             accounts.push(AccountData {
                 address,
@@ -96,44 +122,6 @@ impl DirectSecp256k1HdWallet {
 
     pub fn mnemonic(&self) -> String {
         self.secret.to_string()
-    }
-
-    pub fn sign_raw_with_account(
-        &self,
-        signer: &AccountData,
-        message: &[u8],
-    ) -> Result<Signature, NyxdError> {
-        signer
-            .private_key
-            .sign(message)
-            .map_err(|_| NyxdError::SigningFailure)
-    }
-
-    pub fn sign_direct_with_account(
-        &self,
-        signer: &AccountData,
-        sign_doc: SignDoc,
-    ) -> Result<tx::Raw, NyxdError> {
-        // ideally I'd prefer to have the entire error put into the NyxdError::SigningFailure
-        // but I'm super hesitant to trying to downcast the eyre::Report to cosmrs::error::Error
-        sign_doc
-            .sign(&signer.private_key)
-            .map_err(|_| NyxdError::SigningFailure)
-    }
-
-    pub fn sign_direct(
-        &self,
-        signer_address: &AccountId,
-        sign_doc: SignDoc,
-    ) -> Result<tx::Raw, NyxdError> {
-        // I hate deriving accounts at every sign here so much : (
-        let accounts = self.try_derive_accounts()?;
-        let account = accounts
-            .iter()
-            .find(|account| &account.address == signer_address)
-            .ok_or_else(|| NyxdError::SigningAccountNotFound(signer_address.clone()))?;
-
-        self.sign_direct_with_account(account, sign_doc)
     }
 }
 

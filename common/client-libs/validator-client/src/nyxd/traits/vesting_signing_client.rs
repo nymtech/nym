@@ -178,7 +178,7 @@ pub trait VestingSigningClient {
 }
 
 #[async_trait]
-impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for NyxdClient<C> {
+impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NyxdClient<C> {
     async fn execute_vesting_contract(
         &self,
         fee: Option<Fee>,

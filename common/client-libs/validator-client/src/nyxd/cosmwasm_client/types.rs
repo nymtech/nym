@@ -25,8 +25,8 @@ use cosmrs::proto::cosmwasm::wasm::v1::{
     CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
 };
+use cosmrs::tendermint::abci;
 use cosmrs::tendermint::abci::Data;
-use cosmrs::tendermint::{abci, chain};
 use cosmrs::tx::{AccountNumber, Gas, SequenceNumber};
 use cosmrs::{tx, AccountId, Any, Coin as CosmosCoin};
 use prost::Message;
@@ -587,36 +587,6 @@ impl TryFrom<ProtoSimulateResponse> for SimulateResponse {
 // ##############################################################################
 // types specific to the signing client (perhaps they should go to separate file)
 // ##############################################################################
-
-/// Signing information for a single signer that is not included in the transaction.
-#[derive(Debug)]
-pub struct SignerData {
-    pub account_number: AccountNumber,
-    pub sequence: SequenceNumber,
-    pub chain_id: chain::Id,
-}
-
-impl SignerData {
-    pub fn new(
-        account_number: AccountNumber,
-        sequence: SequenceNumber,
-        chain_id: chain::Id,
-    ) -> Self {
-        SignerData {
-            account_number,
-            sequence,
-            chain_id,
-        }
-    }
-
-    pub fn new_from_sequence_response(response: SequenceResponse, chain_id: chain::Id) -> Self {
-        SignerData {
-            account_number: response.account_number,
-            sequence: response.sequence,
-            chain_id,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct UploadResult {

@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nyxd::signing::AccountData;
+use crate::signing::AccountData;
 pub use cosmrs::crypto::secp256k1::Signature;
 use cosmrs::tx::SignDoc;
 use cosmrs::{tx, AccountId};

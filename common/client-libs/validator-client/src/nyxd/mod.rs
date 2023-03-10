@@ -8,8 +8,8 @@ use crate::nyxd::cosmwasm_client::types::{
 };
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
-use crate::nyxd::signing::signer::OfflineSigner;
-use crate::nyxd::signing::wallet::DirectSecp256k1HdWallet;
+use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
+use crate::signing::signer::OfflineSigner;
 use cosmrs::cosmwasm;
 use cosmrs::rpc::endpoint::block::Response as BlockResponse;
 use cosmrs::rpc::query::Query;
@@ -52,7 +52,6 @@ pub mod coin;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
-pub mod signing;
 pub mod traits;
 
 #[derive(Debug, Clone)]
@@ -177,7 +176,9 @@ impl NyxdClient<SigningNyxdClient<DirectSecp256k1HdWallet>> {
 
 impl<S> NyxdClient<SigningNyxdClient<S>>
 where
-    S: OfflineSigner<Error = NyxdError>,
+    S: OfflineSigner,
+    // I have no idea why S::Error: Into<NyxdError> bound wouldn't do the trick
+    NyxdError: From<S::Error>,
 {
     pub fn connect_with_signer<U: Clone>(
         config: Config,

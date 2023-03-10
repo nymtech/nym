@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nyxd::cosmwasm_client::types::SignerData;
-use crate::nyxd::signing::signer::{OfflineSigner, SigningError};
+use crate::signing::signer::{OfflineSigner, SigningError};
+use crate::signing::SignerData;
 use cosmrs::tx::{SignDoc, SignerInfo};
 use cosmrs::{tx, AccountId, Any};
 
@@ -18,11 +18,11 @@ impl<S> TxSigner<S> {
         TxSigner { signer }
     }
 
-    pub(crate) fn signer(&self) -> &S {
+    pub fn signer(&self) -> &S {
         &self.signer
     }
 
-    pub(crate) fn into_inner_signer(self) -> S {
+    pub fn into_inner_signer(self) -> S {
         self.signer
     }
 

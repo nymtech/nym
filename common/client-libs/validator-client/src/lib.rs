@@ -9,6 +9,9 @@ pub mod nym_api;
 #[cfg(feature = "nyxd-client")]
 pub mod nyxd;
 
+#[cfg(feature = "signing")]
+pub mod signing;
+
 pub use crate::error::ValidatorClientError;
 pub use nym_api_requests::*;
 

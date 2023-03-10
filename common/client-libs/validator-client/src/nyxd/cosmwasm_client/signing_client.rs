@@ -7,9 +7,10 @@ use crate::nyxd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nyxd::cosmwasm_client::types::*;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
-use crate::nyxd::signing::client::TxSigner;
-use crate::nyxd::signing::signer::OfflineSigner;
 use crate::nyxd::{Coin, GasAdjustable, GasPrice, TxResponse};
+use crate::signing::signer::OfflineSigner;
+use crate::signing::tx_signer::TxSigner;
+use crate::signing::SignerData;
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
@@ -20,7 +21,7 @@ use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
-use cosmrs::tx::{self, Msg, Raw, SignDoc, SignerInfo};
+use cosmrs::tx::{self, Msg, Raw};
 use cosmrs::{cosmwasm, rpc, AccountId, Any, Tx};
 use log::debug;
 use serde::Serialize;
@@ -57,9 +58,7 @@ fn single_unspecified_signer_auth(
 
 #[async_trait]
 pub trait SigningCosmWasmClient: CosmWasmClient {
-    // this `Error` restriction is (well, should be)
-    // only temporary because I don't want to change the entire trait just yet
-    type Signer: OfflineSigner<Error = NyxdError> + Send + Sync;
+    type Signer: OfflineSigner + Send + Sync;
 
     fn signer(&self) -> &Self::Signer;
 
@@ -801,7 +800,8 @@ where
 #[async_trait]
 impl<S> SigningCosmWasmClient for Client<S>
 where
-    S: OfflineSigner<Error = NyxdError> + Send + Sync,
+    S: OfflineSigner + Send + Sync,
+    NyxdError: From<S::Error>,
 {
     type Signer = S;
 
@@ -821,8 +821,9 @@ where
         memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
     ) -> Result<Raw, NyxdError> {
-        self.tx_signer
-            .sign_amino(signer_address, messages, fee, memo, signer_data)
+        Ok(self
+            .tx_signer
+            .sign_amino(signer_address, messages, fee, memo, signer_data)?)
     }
 
     fn sign_direct(
@@ -833,35 +834,8 @@ where
         memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
     ) -> Result<Raw, NyxdError> {
-        self.tx_signer
-            .sign_direct(signer_address, messages, fee, memo, signer_data)
+        Ok(self
+            .tx_signer
+            .sign_direct(signer_address, messages, fee, memo, signer_data)?)
     }
 }
-
-// TODO: think whether this makes sense
-// impl<S> OfflineSigner for Client<S>
-// where
-//     S: OfflineSigner,
-// {
-//     type Error = S::Error;
-//
-//     fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
-//         self.signer().get_accounts()
-//     }
-//
-//     fn sign_raw_with_account<M: AsRef<[u8]>>(
-//         &self,
-//         signer: &AccountData,
-//         message: M,
-//     ) -> Result<Signature, Self::Error> {
-//         self.signer().sign_raw_with_account(signer, message)
-//     }
-//
-//     fn sign_direct_with_account(
-//         &self,
-//         signer: &AccountData,
-//         sign_doc: SignDoc,
-//     ) -> Result<Raw, Self::Error> {
-//         self.signer().sign_direct_with_account(signer, sign_doc)
-//     }
-// }

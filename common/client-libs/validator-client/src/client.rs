@@ -15,11 +15,11 @@ pub use nym_mixnet_contract_common::{mixnode::MixNodeDetails, GatewayBond, Ident
 use url::Url;
 
 #[cfg(feature = "nyxd-client")]
-use crate::nyxd::signing::wallet::DirectSecp256k1HdWallet;
-#[cfg(feature = "nyxd-client")]
 use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient};
 #[cfg(feature = "nyxd-client")]
 use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient, SigningNyxdClient};
+#[cfg(feature = "nyxd-client")]
+use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 #[cfg(feature = "nyxd-client")]
 use nym_api_requests::models::MixNodeBondAnnotated;
 #[cfg(feature = "nyxd-client")]
@@ -571,10 +571,7 @@ impl<C> Client<C> {
 
 // validator-api wrappers
 #[cfg(feature = "nyxd-client")]
-impl<C> Client<C>
-where
-    C: Clone,
-{
+impl<C> Client<C> {
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
         self.nym_api.change_url(new_endpoint)
     }

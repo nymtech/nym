@@ -13,9 +13,9 @@ colored = "2.0"
 
 nym-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
 nym-contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
-nym-mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
-nym-vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
-nym-coconut-bandwidth-contract-common = { path= "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-mixnet-contract-common = { path = "../../cosmwasm-smart-contracts/mixnet-contract" }
+nym-vesting-contract-common = { path = "../../cosmwasm-smart-contracts/vesting-contract" }
+nym-coconut-bandwidth-contract-common = { path = "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
 nym-vesting-contract = { path = "../../../contracts/vesting" }
@@ -38,7 +38,7 @@ nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 async-trait = { workspace = true, optional = true }
 bip39 = { workspace = true, features = ["rand"], optional = true }
 nym-config = { path = "../../config", optional = true }
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"], optional = true}
+cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"], optional = true }
 # note that this has the same version as used by cosmrs
 eyre = { version = "0.6", optional = true }
 cw3 = { workspace = true, optional = true }
@@ -56,9 +56,6 @@ ts-rs = "6.1.2"
 [features]
 nyxd-client = [
     "async-trait",
-    "bip39",
-    "eyre",
-    "nym-config",
     "cosmrs",
     "cw3",
     "cw4",
@@ -67,6 +64,13 @@ nyxd-client = [
     "sha2",
     "itertools",
     "cosmwasm-std",
+    "signing"
+]
+signing = [
+    "bip39",
+    "cosmrs",
+    "eyre",
+    "nym-config",
     "zeroize"
 ]
 generate-ts = []

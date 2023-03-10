@@ -18,10 +18,6 @@ export const gatewayValidationSchema = Yup.object().shape({
     .required('A sphinx key is required')
     .test('valid-sphinx-key', 'A valid sphinx key is required', (value) => validateKey(value || '', 32)),
 
-  ownerSignature: Yup.string()
-    .required('Signature is required')
-    .test('valid-signature', 'A valid signature is required', (value) => validateKey(value || '', 64)),
-
   host: Yup.string()
     .required('A host is required')
     .test('valid-host', 'A valid host is required', (value) => (value ? isValidHostname(value) : false)),

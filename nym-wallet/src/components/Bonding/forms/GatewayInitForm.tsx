@@ -52,14 +52,6 @@ const GatewayInitForm = ({
         InputLabelProps={{ shrink: true }}
       />
       <TextField
-        {...register('ownerSignature')}
-        name="ownerSignature"
-        label="Owner signature"
-        error={Boolean(errors.ownerSignature)}
-        helperText={errors.ownerSignature?.message}
-        InputLabelProps={{ shrink: true }}
-      />
-      <TextField
         {...register('location')}
         name="location"
         label="Location"

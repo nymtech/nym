@@ -697,6 +697,17 @@ pub enum ExtendedPacketSize {
     Extended8,
     Extended16,
     Extended32,
+    Extended10,
+    Extended15,
+    Extended20,
+    Extended25,
+    Extended50,
+    Extended100,
+    Extended150,
+    Extended200,
+    Extended250,
+    Extended500,
+
 }
 
 impl Default for DebugConfig {
@@ -734,6 +745,17 @@ impl From<ExtendedPacketSize> for PacketSize {
             ExtendedPacketSize::Extended8 => PacketSize::ExtendedPacket8,
             ExtendedPacketSize::Extended16 => PacketSize::ExtendedPacket16,
             ExtendedPacketSize::Extended32 => PacketSize::ExtendedPacket32,
+            ExtendedPacketSize::Extended10 => PacketSize::ExtendedPacket10,
+            ExtendedPacketSize::Extended15 => PacketSize::ExtendedPacket15,
+            ExtendedPacketSize::Extended20 => PacketSize::ExtendedPacket20,
+            ExtendedPacketSize::Extended25 => PacketSize::ExtendedPacket25,
+            ExtendedPacketSize::Extended50 => PacketSize::ExtendedPacket50,
+            ExtendedPacketSize::Extended100 => PacketSize::ExtendedPacket100,
+            ExtendedPacketSize::Extended150 => PacketSize::ExtendedPacket150,
+            ExtendedPacketSize::Extended200 => PacketSize::ExtendedPacket200,
+            ExtendedPacketSize::Extended250 => PacketSize::ExtendedPacket250,
+            ExtendedPacketSize::Extended500 => PacketSize::ExtendedPacket500,
         }
     }
 }
+

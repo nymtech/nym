@@ -10,6 +10,8 @@ pub mod query_for_delegations;
 pub mod undelegate_from_mixnode;
 pub mod vesting_delegate_to_mixnode;
 pub mod vesting_undelegate_from_mixnode;
+pub mod pledge_more;
+pub mod vesting_pledge_more;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -32,4 +34,8 @@ pub enum MixnetDelegatorsCommands {
     DelegateVesting(vesting_delegate_to_mixnode::Args),
     /// Undelegate from a mixnode (when originally using locked tokens)
     UndelegateVesting(vesting_undelegate_from_mixnode::Args),
+    /// Pledge more
+    PledgeMore(pledge_more::Args),
+    /// Pledge more with locked tokens
+    PledgeMoreVesting(vesting_pledge_more::Args),
 }

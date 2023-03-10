@@ -197,18 +197,12 @@ impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for Ny
         new_config: GatewayConfigUpdate,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
-        let req = VestingExecuteMsg::UpdateGatewayConfig { new_config };
-        self.client
-            .execute(
-                self.address(),
-                self.vesting_contract_address(),
-                &req,
-                fee,
-                "VestingContract::UpdateGatewayConfig",
-                vec![],
-            )
-            .await
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::UpdateGatewayConfig { new_config },
+            vec![],
+        )
+        .await
     }
 
     async fn update_mixnet_address(

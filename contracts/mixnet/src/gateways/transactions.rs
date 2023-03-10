@@ -222,9 +222,6 @@ pub(crate) fn _try_update_gateway_config(
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond = must_get_gateway_bond_by_owner(deps.storage, &owner)?;
-
-    // WIP(JON): do we need this?
-    //ensure_bonded(&existing_bond)?;
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
 
     let cfg_update_event = new_gateway_config_update_event(&owner, &proxy, &new_config);
@@ -598,13 +595,6 @@ pub mod tests {
         assert_eq!(bond.gateway.clients_port, update.clients_port);
         assert_eq!(bond.gateway.location, update.location);
         assert_eq!(bond.gateway.version, update.version);
-
-        // WIP(JON): double check that this is not relevant for gateways ...
-
-        //// but we cannot perform any updates whilst the mixnode is already unbonding
-        //try_remove_mixnode(test.deps_mut(), env, info.clone()).unwrap();
-        //let res = try_update_mixnode_config(test.deps_mut(), info, update);
-        //assert_eq!(res, Err(MixnetContractError::MixnodeIsUnbonding { mix_id }))
     }
 
     #[test]

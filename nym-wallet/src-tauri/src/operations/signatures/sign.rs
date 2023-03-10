@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::error::BackendError;
 use crate::state::WalletState;
 use cosmrs::crypto::secp256k1::{Signature, VerifyingKey};
@@ -8,6 +6,8 @@ use cosmrs::AccountId;
 use k256::ecdsa::signature::Verifier;
 use serde::Serialize;
 use serde_json::json;
+use std::str::FromStr;
+use validator_client::signing::signer::OfflineSigner;
 
 #[derive(Debug, Serialize)]
 pub struct SignatureOutputJson {

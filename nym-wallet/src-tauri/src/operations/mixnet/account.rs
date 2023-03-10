@@ -13,8 +13,8 @@ use nym_wallet_types::network::Network as WalletNetwork;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 use url::Url;
-use validator_client::nyxd::signing::wallet::DirectSecp256k1HdWallet;
-use validator_client::nyxd::signing::AccountData;
+use validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
+use validator_client::signing::AccountData;
 use validator_client::{nyxd::DirectSigningNyxdClient, Client};
 
 #[tauri::command]

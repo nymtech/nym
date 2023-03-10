@@ -7,6 +7,7 @@ use std::io;
 use std::num::ParseIntError;
 use thiserror::Error;
 use validator_client::nym_api::error::NymAPIError;
+use validator_client::signing::direct_wallet::DirectSecp256k1HdWalletError;
 use validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 
 #[derive(Error, Debug)]
@@ -123,6 +124,12 @@ pub enum BackendError {
     SignatureError(String),
     #[error("Unable to open a new window")]
     NewWindowError,
+
+    #[error(transparent)]
+    WalletError {
+        #[from]
+        source: DirectSecp256k1HdWalletError,
+    },
 
     #[error("received unexpected signing algorithm: {received:?}. Expected to get {expected:?}")]
     UnexpectedSigningAlgorithm {

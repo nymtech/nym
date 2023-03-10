@@ -19,6 +19,7 @@ tauri-codegen = "=1.2.1"
 tauri-macros = "=1.2.1"
 
 [dependencies]
+async-trait = "0.1.64"
 bip39 = "1.0"
 cfg-if = "1.0.0"
 colored = "2.0"
@@ -57,6 +58,8 @@ cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegr
 validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 nym-config = { path = "../../common/config" }
@@ -67,6 +70,8 @@ nym-types = { path = "../../common/types" }
 nym-wallet-types = { path = "../nym-wallet-types" }
 
 [dev-dependencies]
+nym-crypto = { path = "../../common/crypto", features = ["rand"] }
+rand_chacha = "0.2"
 tempfile = "3.3.0"
 ts-rs = "6.1.2"
 

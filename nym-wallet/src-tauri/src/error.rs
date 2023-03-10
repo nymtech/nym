@@ -1,3 +1,5 @@
+use nym_contracts_common::signing::SigningAlgorithm;
+use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_types::error::TypesError;
 use nym_wallet_types::network::Network;
 use serde::{Serialize, Serializer};
@@ -121,6 +123,14 @@ pub enum BackendError {
     SignatureError(String),
     #[error("Unable to open a new window")]
     NewWindowError,
+
+    #[error("received unexpected signing algorithm: {received:?}. Expected to get {expected:?}")]
+    UnexpectedSigningAlgorithm {
+        received: SigningAlgorithm,
+        expected: SigningAlgorithm,
+    },
+    #[error(transparent)]
+    Ed25519Recovery(#[from] Ed25519RecoveryError),
 
     #[error("This command ({name}) has been removed. Please try to use {alternative} instead.")]
     RemovedCommand { name: String, alternative: String },

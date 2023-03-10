@@ -7,6 +7,7 @@ use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, NodeFamilies, VestingAccount,
 };
 use crate::vesting::{populate_vesting_periods, Account};
+use contracts_common::signing::MessageSignature;
 use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{
     coin, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
@@ -411,7 +412,7 @@ fn try_update_staking_address(
 /// Bond a gateway, sends [mixnet_contract_common::ExecuteMsg::BondGatewayOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
 pub fn try_bond_gateway(
     gateway: Gateway,
-    owner_signature: String,
+    owner_signature: MessageSignature,
     amount: Coin,
     info: MessageInfo,
     env: Env,
@@ -448,7 +449,7 @@ pub fn try_track_unbond_gateway(
 pub fn try_bond_mixnode(
     mix_node: MixNode,
     cost_params: MixNodeCostParams,
-    owner_signature: String,
+    owner_signature: MessageSignature,
     amount: Coin,
     info: MessageInfo,
     env: Env,

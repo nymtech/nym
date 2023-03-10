@@ -1,7 +1,6 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::validate_bech32_address_or_exit;
 use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::http::{
@@ -18,7 +17,6 @@ use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crate::OutputFormat;
-use colored::Colorize;
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_bin_common::version_checker::parse_version;
@@ -84,29 +82,11 @@ impl MixNode {
         sphinx_keypair
     }
 
-    /// Signs the node config's bech32 address to produce a verification code for use in the wallet.
-    /// Exits if the address isn't valid (which should protect against manual edits).
-    fn generate_owner_signature(&self) -> String {
-        let pathfinder = MixNodePathfinder::new_from_config(&self.config);
-        let identity_keypair = Self::load_identity_keys(&pathfinder);
-        let Some(address) = self.config.get_wallet_address() else {
-            let error_message = "Error: mixnode hasn't set its wallet address".red();
-            println!("{error_message}");
-            println!("Exiting...");
-            process::exit(1);
-        };
-        // perform extra validation to ensure we have correct prefix
-        validate_bech32_address_or_exit(address.as_ref());
-        let verification_code = identity_keypair.private_key().sign_text(address.as_ref());
-        verification_code
-    }
-
     /// Prints relevant node details to the console
     pub(crate) fn print_node_details(&self, output: OutputFormat) {
         let node_details = nym_types::mixnode::MixnodeNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
-            owner_signature: self.generate_owner_signature(),
             announce_address: self.config.get_announce_address(),
             bind_address: self.config.get_listening_address().to_string(),
             version: self.config.get_version().to_string(),

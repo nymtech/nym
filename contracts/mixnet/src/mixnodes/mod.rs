@@ -3,5 +3,6 @@
 
 pub mod helpers;
 pub mod queries;
+pub mod signature_helpers;
 pub mod storage;
 pub mod transactions;

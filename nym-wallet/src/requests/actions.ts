@@ -6,16 +6,29 @@ import {
   MixNodeConfigUpdate,
   MixNodeCostParams,
 } from '@nymproject/types';
-import { EnumNodeType, TBondGatewayArgs, TBondMixNodeArgs, TBondMoreArgs } from '../types';
+import {
+  EnumNodeType,
+  TBondGatewayArgs,
+  TBondGatewaySignatureArgs,
+  TBondMixNodeArgs,
+  TBondMixnodeSignatureArgs,
+  TBondMoreArgs,
+} from '../types';
 import { invokeWrapper } from './wrapper';
 
 export const bondGateway = async (args: TBondGatewayArgs) =>
   invokeWrapper<TransactionExecuteResult>('bond_gateway', args);
 
+export const generateGatewayMsgPayload = async (args: TBondGatewaySignatureArgs) =>
+  invokeWrapper<string>('generate_gateway_bonding_msg_payload', args);
+
 export const unbondGateway = async (fee?: Fee) => invokeWrapper<TransactionExecuteResult>('unbond_gateway', { fee });
 
 export const bondMixNode = async (args: TBondMixNodeArgs) =>
   invokeWrapper<TransactionExecuteResult>('bond_mixnode', args);
+
+export const generateMixnodeMsgPayload = async (args: TBondMixnodeSignatureArgs) =>
+  invokeWrapper<string>('generate_mixnode_bonding_msg_payload', args);
 
 export const unbondMixNode = async (fee?: Fee) => invokeWrapper<TransactionExecuteResult>('unbond_mixnode', { fee });
 

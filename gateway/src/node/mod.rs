@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::storage::PersistentStorage;
-use crate::commands::ensure_correct_bech32_prefix;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
 use crate::error::GatewayError;
@@ -12,8 +11,7 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
-use crate::{commands::sign::load_identity_keys, OutputFormat};
-use colored::Colorize;
+use crate::OutputFormat;
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_crypto::asymmetric::{encryption, identity};
@@ -24,7 +22,6 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
 use std::net::SocketAddr;
-use std::process;
 use std::sync::Arc;
 use validator_client::Client;
 
@@ -109,28 +106,10 @@ where
         sphinx_keypair
     }
 
-    /// Signs the node config's bech32 address to produce a verification code for use in the wallet.
-    /// Exits if the address isn't valid (which should protect against manual edits).
-    fn generate_owner_signature(&self) -> Result<String, GatewayError> {
-        let pathfinder = GatewayPathfinder::new_from_config(&self.config);
-        let identity_keypair = load_identity_keys(&pathfinder);
-        let Some(address) = self.config.get_wallet_address() else {
-            let error_message = "Error: gateway hasn't set its wallet address".red();
-            eprintln!("{error_message}");
-            eprintln!("Exiting...");
-            process::exit(1);
-        };
-        // perform extra validation to ensure we have correct prefix
-        ensure_correct_bech32_prefix(&address)?;
-        let verification_code = identity_keypair.private_key().sign_text(address.as_ref());
-        Ok(verification_code)
-    }
-
     pub(crate) fn print_node_details(&self, output: OutputFormat) -> Result<(), GatewayError> {
         let node_details = nym_types::gateway::GatewayNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
-            owner_signature: self.generate_owner_signature()?,
             announce_address: self.config.get_announce_address(),
             bind_address: self.config.get_listening_address().to_string(),
             version: self.config.get_version().to_string(),

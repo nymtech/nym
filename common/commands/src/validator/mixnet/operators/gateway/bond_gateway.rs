@@ -4,6 +4,7 @@
 use crate::context::SigningClient;
 use clap::Parser;
 use log::{info, warn};
+use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::Coin;
 use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use validator_client::nyxd::traits::MixnetSigningClient;
@@ -14,7 +15,7 @@ pub struct Args {
     pub host: String,
 
     #[clap(long)]
-    pub signature: String,
+    pub signature: MessageSignature,
 
     #[clap(long)]
     pub mix_port: Option<u16>,
@@ -23,7 +24,7 @@ pub struct Args {
     pub clients_port: Option<u16>,
 
     #[clap(long)]
-    pub location: Option<String>,
+    pub location: String,
 
     #[clap(long)]
     pub sphinx_key: String,
@@ -59,9 +60,7 @@ pub async fn bond_gateway(args: Args, client: SigningClient) {
         host: args.host,
         mix_port: args.mix_port.unwrap_or(DEFAULT_MIX_LISTENING_PORT),
         clients_port: args.clients_port.unwrap_or(DEFAULT_CLIENT_LISTENING_PORT),
-        location: args
-            .location
-            .unwrap_or_else(|| "secret gateway location".to_owned()),
+        location: args.location,
         sphinx_key: args.sphinx_key,
         identity_key: args.identity_key,
         version: args.version,

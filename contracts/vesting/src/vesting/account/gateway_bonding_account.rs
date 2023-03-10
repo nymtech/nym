@@ -2,6 +2,7 @@ use super::PledgeData;
 use crate::errors::ContractError;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::GatewayBondingAccount;
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, Gateway};
 use vesting_contract_common::events::{
@@ -14,7 +15,7 @@ impl GatewayBondingAccount for Account {
     fn try_bond_gateway(
         &self,
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         env: &Env,
         storage: &mut dyn Storage,

@@ -6,6 +6,7 @@ use cosmrs::crypto::secp256k1::SigningKey;
 use cosmrs::crypto::PublicKey;
 use cosmrs::AccountId;
 
+pub mod client;
 pub mod signer;
 pub mod wallet;
 

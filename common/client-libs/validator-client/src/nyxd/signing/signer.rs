@@ -17,6 +17,9 @@ pub enum SigningError {
 
     #[error("failed to sign the requested message: {source}")]
     SigningFailure { source: eyre::Report },
+
+    #[error("failed to construct the sign doc: {source}")]
+    SignDocFailure { source: eyre::Report },
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]

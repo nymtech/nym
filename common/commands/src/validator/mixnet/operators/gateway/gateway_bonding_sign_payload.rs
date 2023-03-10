@@ -21,7 +21,7 @@ pub struct Args {
     pub clients_port: Option<u16>,
 
     #[clap(long)]
-    pub location: Option<String>,
+    pub location: String,
 
     #[clap(long)]
     pub sphinx_key: String,
@@ -50,9 +50,7 @@ pub async fn create_payload(args: Args, client: SigningClient) {
         host: args.host,
         mix_port: args.mix_port.unwrap_or(DEFAULT_MIX_LISTENING_PORT),
         clients_port: args.clients_port.unwrap_or(DEFAULT_CLIENT_LISTENING_PORT),
-        location: args
-            .location
-            .unwrap_or_else(|| "secret gateway location".to_owned()),
+        location: args.location,
         sphinx_key: args.sphinx_key,
         identity_key: args.identity_key,
         version: args.version,

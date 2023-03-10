@@ -4,9 +4,6 @@
 use clap::{ArgGroup, Args, Subcommand};
 use log::*;
 use nym_bin_common::completions::ArgShell;
-use rand::rngs::OsRng;
-use std::str::FromStr;
-
 use nym_coconut_interface::{Base58, Parameters};
 use nym_credential_storage::storage::Storage;
 use nym_credential_storage::PersistentStorage;
@@ -14,9 +11,10 @@ use nym_credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use nym_credentials::coconut::utils::obtain_aggregate_signature;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_defaults::VOUCHER_INFO;
+use rand::rngs::OsRng;
+use std::str::FromStr;
 use validator_client::nyxd::traits::DkgQueryClient;
 use validator_client::nyxd::tx::Hash;
-use validator_client::nyxd::CosmWasmClient;
 use validator_client::CoconutApiClient;
 
 use crate::client::Client;
@@ -99,18 +97,17 @@ pub(crate) async fn deposit(nyxd_url: &str, mnemonic: &str, amount: u64) -> Resu
     Ok(state)
 }
 
-pub(crate) async fn get_credential<C: Clone + CosmWasmClient + Send + Sync>(
+pub(crate) async fn get_credential<C: DkgQueryClient + Send + Sync>(
     state: &State,
-    client: validator_client::Client<C>,
+    client: &C,
     shared_storage: PersistentStorage,
 ) -> Result<()> {
-    let epoch_id = client.nyxd.get_current_epoch().await?.epoch_id;
+    let epoch_id = client.get_current_epoch().await?.epoch_id;
     let threshold = client
-        .nyxd
         .get_current_epoch_threshold()
         .await?
         .ok_or(CredentialClientError::NoThreshold)?;
-    let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client, epoch_id).await?;
+    let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(client, epoch_id).await?;
 
     let signature = obtain_aggregate_signature(
         &state.params,
@@ -134,8 +131,8 @@ pub(crate) async fn get_credential<C: Clone + CosmWasmClient + Send + Sync>(
     Ok(())
 }
 
-pub(crate) async fn recover_credentials<C: Clone + CosmWasmClient + Send + Sync>(
-    client: validator_client::Client<C>,
+pub(crate) async fn recover_credentials<C: DkgQueryClient + Send + Sync>(
+    client: &C,
     recovery_storage: &RecoveryStorage,
     shared_storage: PersistentStorage,
 ) -> Result<()> {
@@ -144,7 +141,7 @@ pub(crate) async fn recover_credentials<C: Clone + CosmWasmClient + Send + Sync>
             voucher,
             params: Parameters::new(TOTAL_ATTRIBUTES).unwrap(),
         };
-        if let Err(e) = get_credential(&state, client.clone(), shared_storage.clone()).await {
+        if let Err(e) = get_credential(&state, client, shared_storage.clone()).await {
             error!(
                 "Could not recover deposit {} due to {:?}, try again later",
                 state.voucher.tx_hash(),

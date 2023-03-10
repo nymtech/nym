@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::context::errors::ContextError;
 use nym_network_defaults::{
     setup_env,
     var_names::{MIXNET_CONTRACT_ADDRESS, NYM_API, NYXD, VESTING_CONTRACT_ADDRESS},
@@ -8,15 +9,15 @@ use nym_network_defaults::{
 };
 use tap::prelude::*;
 pub use validator_client::nym_api::Client as NymApiClient;
-use validator_client::nyxd::{self, AccountId, NyxdClient, QueryNyxdClient, SigningNyxdClient};
-
-use crate::context::errors::ContextError;
+use validator_client::nyxd::{
+    self, AccountId, DirectSigningNyxdClient, NyxdClient, QueryNyxdClient,
+};
 
 pub mod errors;
 
-pub type SigningClient = validator_client::nyxd::NyxdClient<SigningNyxdClient>;
+pub type SigningClient = validator_client::nyxd::NyxdClient<DirectSigningNyxdClient>;
 pub type QueryClient = validator_client::nyxd::NyxdClient<QueryNyxdClient>;
-pub type SigningClientWithNyxd = validator_client::Client<SigningNyxdClient>;
+pub type SigningClientWithNyxd = validator_client::Client<DirectSigningNyxdClient>;
 pub type QueryClientWithNyxd = validator_client::Client<QueryNyxdClient>;
 
 #[derive(Debug)]

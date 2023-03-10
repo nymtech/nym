@@ -89,7 +89,7 @@ async fn main() -> Result<()> {
 
             if !r.recovery_mode {
                 let state = deposit(&r.nyxd_url, &r.mnemonic, r.amount).await?;
-                if get_credential(&state, client, shared_storage)
+                if get_credential(&state, &client.nyxd, shared_storage)
                     .await
                     .is_err()
                 {
@@ -104,7 +104,7 @@ async fn main() -> Result<()> {
                     }
                 }
             } else {
-                recover_credentials(client, &recovery_storage, shared_storage).await?;
+                recover_credentials(&client.nyxd, &recovery_storage, shared_storage).await?;
             }
         }
         Command::Completions(c) => c.generate(&mut crate::Cli::command(), bin_name),

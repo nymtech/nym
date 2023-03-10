@@ -68,7 +68,7 @@ impl<S> TxSigner<S> {
             &signer_data.chain_id,
             signer_data.account_number,
         )
-        .map_err(|source| SigningError::SignDocFailure { source }.into())?;
+        .map_err(|source| SigningError::SignDocFailure { source })?;
 
         self.signer
             .sign_direct_with_account(&account_from_signer, sign_doc)

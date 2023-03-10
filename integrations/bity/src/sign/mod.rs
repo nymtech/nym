@@ -14,7 +14,7 @@ pub fn sign_order(
         account_id: signer.address().clone(),
         public_key: signer.public_key(),
         signature_as_hex: wallet
-            .sign_raw_with_account(signer, &message.into_bytes())?
+            .sign_raw_with_account(signer, message.into_bytes())?
             .to_string(),
     })
 }

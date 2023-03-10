@@ -68,7 +68,7 @@ pub async fn get_rewarded_set_detailed(
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/active")]
 pub async fn get_active_set(cache: &State<NymContractCache>) -> Json<Vec<MixNodeDetails>> {
-    Json(cache.active_set().await.value)
+    Json(cache.mixnodes().await)
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,

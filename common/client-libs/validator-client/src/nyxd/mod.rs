@@ -359,8 +359,8 @@ impl<C> NyxdClient<C> {
     }
 
     pub fn cw_address(&self) -> Addr
-        where
-            C: SigningCosmWasmClient,
+    where
+        C: SigningCosmWasmClient,
     {
         // the call to unchecked is fine here as we're converting directly from `AccountId`
         // which must have been a valid bech32 address
@@ -368,8 +368,8 @@ impl<C> NyxdClient<C> {
     }
 
     pub fn signer(&self) -> &<C as SigningCosmWasmClient>::Signer
-        where
-            C: SigningCosmWasmClient,
+    where
+        C: SigningCosmWasmClient,
     {
         self.client.signer()
     }

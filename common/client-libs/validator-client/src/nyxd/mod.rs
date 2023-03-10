@@ -8,7 +8,8 @@ use crate::nyxd::cosmwasm_client::types::{
 };
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
-use crate::nyxd::wallet::DirectSecp256k1HdWallet;
+use crate::nyxd::signing::signer::OfflineSigner;
+use crate::nyxd::signing::wallet::DirectSecp256k1HdWallet;
 use cosmrs::cosmwasm;
 use cosmrs::rpc::endpoint::block::Response as BlockResponse;
 use cosmrs::rpc::query::Query;
@@ -16,11 +17,7 @@ use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
 use log::debug;
-use nym_execute::execute;
-use nym_mixnet_contract_common::MixId;
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
-use nym_vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
-use nym_vesting_contract_common::PledgeCap;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::time::SystemTime;
@@ -49,12 +46,14 @@ pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 pub use signing_client::Client as SigningNyxdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
 
+pub type DirectSigningNyxdClient = SigningNyxdClient<DirectSecp256k1HdWallet>;
+
 pub mod coin;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
+pub mod signing;
 pub mod traits;
-pub mod wallet;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -137,8 +136,8 @@ impl Config {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct NyxdClient<C: Clone> {
+#[derive(Debug)]
+pub struct NyxdClient<C> {
     client: C,
     config: Config,
     client_address: Option<Vec<AccountId>>,
@@ -159,55 +158,46 @@ impl NyxdClient<QueryNyxdClient> {
     }
 }
 
-impl NyxdClient<SigningNyxdClient> {
-    // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
-    pub fn connect_with_signer<U: Clone>(
-        config: Config,
-        network: nym_config::defaults::NymNetworkDetails,
-        endpoint: U,
-        signer: DirectSecp256k1HdWallet,
-        gas_price: Option<GasPrice>,
-    ) -> Result<NyxdClient<SigningNyxdClient>, NyxdError>
-    where
-        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
-    {
-        let denom = network.chain_details.mix_denom.base;
-        let client_address = signer
-            .try_derive_accounts()?
-            .into_iter()
-            .map(|account| account.address)
-            .collect();
-        let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(&denom)?);
-
-        Ok(NyxdClient {
-            client: SigningNyxdClient::connect_with_signer(endpoint, signer, gas_price)?,
-            config,
-            client_address: Some(client_address),
-            simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
-        })
-    }
-
+impl NyxdClient<SigningNyxdClient<DirectSecp256k1HdWallet>> {
+    // TODO: rename this one
     pub fn connect_with_mnemonic<U: Clone>(
         config: Config,
         endpoint: U,
         mnemonic: bip39::Mnemonic,
         gas_price: Option<GasPrice>,
-    ) -> Result<NyxdClient<SigningNyxdClient>, NyxdError>
+    ) -> Result<NyxdClient<SigningNyxdClient<DirectSecp256k1HdWallet>>, NyxdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         let prefix = &config.chain_details.bech32_account_prefix;
-        let denom = &config.chain_details.mix_denom.base;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
-        let client_address = wallet
-            .try_derive_accounts()?
+        Self::connect_with_signer(config, endpoint, wallet, gas_price)
+    }
+}
+
+impl<S> NyxdClient<SigningNyxdClient<S>>
+where
+    S: OfflineSigner<Error = NyxdError>,
+{
+    pub fn connect_with_signer<U: Clone>(
+        config: Config,
+        endpoint: U,
+        signer: S,
+        gas_price: Option<GasPrice>,
+    ) -> Result<NyxdClient<SigningNyxdClient<S>>, NyxdError>
+    where
+        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+    {
+        let denom = &config.chain_details.mix_denom.base;
+        let client_address = signer
+            .get_accounts()?
             .into_iter()
             .map(|account| account.address)
             .collect();
         let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(denom)?);
 
         Ok(NyxdClient {
-            client: SigningNyxdClient::connect_with_signer(endpoint, wallet, gas_price)?,
+            client: SigningNyxdClient::connect_with_signer(endpoint, signer, gas_price)?,
             config,
             client_address: Some(client_address),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
@@ -221,15 +211,12 @@ impl NyxdClient<SigningNyxdClient> {
         self.client.change_endpoint(new_endpoint)
     }
 
-    pub fn into_signer(self) -> DirectSecp256k1HdWallet {
+    pub fn into_signer(self) -> S {
         self.client.into_signer()
     }
 }
 
-impl<C> NyxdClient<C>
-where
-    C: Clone,
-{
+impl<C> NyxdClient<C> {
     pub fn current_config(&self) -> &Config {
         &self.config
     }
@@ -371,17 +358,17 @@ where
     }
 
     pub fn cw_address(&self) -> Addr
-    where
-        C: SigningCosmWasmClient,
+        where
+            C: SigningCosmWasmClient,
     {
         // the call to unchecked is fine here as we're converting directly from `AccountId`
         // which must have been a valid bech32 address
         Addr::unchecked(self.address().as_ref())
     }
 
-    pub fn signer(&self) -> &DirectSecp256k1HdWallet
-    where
-        C: SigningCosmWasmClient,
+    pub fn signer(&self) -> &<C as SigningCosmWasmClient>::Signer
+        where
+            C: SigningCosmWasmClient,
     {
         self.client.signer()
     }
@@ -745,47 +732,5 @@ where
         self.client
             .migrate(self.address(), contract_address, code_id, fee, msg, memo)
             .await
-    }
-
-    // @DU: I don't want to touch them now, but for consistency sake those should be moved to
-    // `VestingSigningClient`
-
-    #[execute("vesting")]
-    fn _vesting_withdraw_operator_reward(
-        &self,
-        fee: Option<Fee>,
-    ) -> (VestingExecuteMsg, Option<Fee>)
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        (VestingExecuteMsg::ClaimOperatorReward {}, fee)
-    }
-
-    #[execute("vesting")]
-    fn _vesting_withdraw_delegator_reward(
-        &self,
-        mix_id: MixId,
-        fee: Option<Fee>,
-    ) -> (VestingExecuteMsg, Option<Fee>)
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        (VestingExecuteMsg::ClaimDelegatorReward { mix_id }, fee)
-    }
-
-    #[execute("vesting")]
-    fn _vesting_update_locked_pledge_cap(
-        &self,
-        address: String,
-        cap: PledgeCap,
-        fee: Option<Fee>,
-    ) -> (VestingExecuteMsg, Option<Fee>)
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        (
-            VestingExecuteMsg::UpdateLockedPledgeCap { address, cap },
-            fee,
-        )
     }
 }

@@ -23,7 +23,6 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskManager;
 use std::sync::Arc;
-use validator_client::nyxd::SigningNyxdClient;
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
@@ -37,12 +36,12 @@ pub(crate) fn setup<'a, R: MessageReceiver>(
     config: &'a Config,
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
-    _nyxd_client: nyxd::Client,
+    nyxd_client: nyxd::Client,
     system_version: &str,
 ) -> NetworkMonitorBuilder<'a> {
     NetworkMonitorBuilder::new(
         config,
-        _nyxd_client,
+        nyxd_client,
         system_version,
         storage.to_owned(),
         nym_contract_cache_state.to_owned(),
@@ -51,7 +50,7 @@ pub(crate) fn setup<'a, R: MessageReceiver>(
 
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
-    _nyxd_client: nyxd::Client,
+    nyxd_client: nyxd::Client,
     system_version: String,
     node_status_storage: NymApiStorage,
     validator_cache: NymContractCache,
@@ -60,14 +59,14 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
 impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
-        _nyxd_client: nyxd::Client,
+        nyxd_client: nyxd::Client,
         system_version: &str,
         node_status_storage: NymApiStorage,
         validator_cache: NymContractCache,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
-            _nyxd_client,
+            nyxd_client,
             system_version: system_version.to_string(),
             node_status_storage,
             validator_cache,
@@ -98,13 +97,12 @@ impl<'a> NetworkMonitorBuilder<'a> {
         );
 
         let bandwidth_controller = {
-            let client = self._nyxd_client.0.read().await;
             BandwidthController::new(
                 nym_credential_storage::initialise_storage(
                     self.config.get_credentials_database_path(),
                 )
                 .await,
-                client.clone(),
+                self.nyxd_client.clone(),
             )
         };
 
@@ -183,7 +181,7 @@ fn new_packet_sender(
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     max_sending_rate: usize,
-    bandwidth_controller: BandwidthController<SigningNyxdClient, PersistentStorage>,
+    bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
     disabled_credentials_mode: bool,
 ) -> PacketSender {
     PacketSender::new(

@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use nym_coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
 use nym_coconut_dkg_common::types::InitialReplacementData;
 use nym_coconut_dkg_common::{
     dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
@@ -25,6 +26,7 @@ use nym_mixnet_contract_common::{
     MixId, RewardedSetNodeStatus,
 };
 use nym_vesting_contract_common::AccountVestingCoins;
+use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use validator_client::nyxd::error::NyxdError;
@@ -39,11 +41,11 @@ use validator_client::nyxd::{
 };
 use validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    AccountId, Coin, SigningNyxdClient, TendermintTime, VestingQueryClient,
+    AccountId, Coin, DirectSigningNyxdClient, TendermintTime, VestingQueryClient,
 };
 use validator_client::ValidatorClientError;
 
-pub(crate) struct Client(pub(crate) Arc<RwLock<validator_client::Client<SigningNyxdClient>>>);
+pub(crate) struct Client(pub(crate) Arc<RwLock<validator_client::Client<DirectSigningNyxdClient>>>);
 
 impl Clone for Client {
     fn clone(&self) -> Self {
@@ -327,7 +329,7 @@ impl crate::coconut::client::Client for Client {
     }
 
     async fn list_proposals(&self) -> crate::coconut::error::Result<Vec<ProposalResponse>> {
-        Ok(self.0.read().await.get_all_nyxd_proposals().await?)
+        Ok(self.0.read().await.nyxd.get_all_proposals().await?)
     }
 
     async fn get_spent_credential(
@@ -383,14 +385,14 @@ impl crate::coconut::client::Client for Client {
     }
 
     async fn get_current_dealers(&self) -> crate::coconut::error::Result<Vec<DealerDetails>> {
-        Ok(self.0.read().await.get_all_nyxd_current_dealers().await?)
+        Ok(self.0.read().await.get_all_current_dealers().await?)
     }
 
     async fn get_dealings(
         &self,
         idx: usize,
     ) -> crate::coconut::error::Result<Vec<ContractDealing>> {
-        Ok(self.0.read().await.get_all_nyxd_epoch_dealings(idx).await?)
+        Ok(self.0.read().await.get_all_epoch_dealings(idx).await?)
     }
 
     async fn get_verification_key_shares(
@@ -401,7 +403,7 @@ impl crate::coconut::client::Client for Client {
             .0
             .read()
             .await
-            .get_all_nyxd_verification_key_shares(epoch_id)
+            .get_all_verification_key_shares(epoch_id)
             .await?)
     }
 
@@ -481,5 +483,15 @@ impl crate::coconut::client::Client for Client {
             .nyxd
             .submit_verification_key_share(share, resharing, None)
             .await?)
+    }
+}
+
+#[async_trait]
+impl DkgQueryClient for Client {
+    async fn query_dkg_contract<T>(&self, query: DkgQueryMsg) -> std::result::Result<T, NyxdError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        self.0.read().await.nyxd.query_dkg_contract(query).await
     }
 }

@@ -6,6 +6,7 @@ use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, NyxdClient};
 use async_trait::async_trait;
+use cosmrs::AccountId;
 use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
@@ -136,6 +137,44 @@ pub trait VestingSigningClient {
         cap: Option<PledgeCap>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
+
+    async fn vesting_withdraw_operator_reward(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(fee, VestingExecuteMsg::ClaimOperatorReward {}, Vec::new())
+            .await
+    }
+
+    async fn vesting_withdraw_delegator_reward(
+        &self,
+        mix_id: MixId,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::ClaimDelegatorReward { mix_id },
+            Vec::new(),
+        )
+        .await
+    }
+
+    async fn update_locked_pledge_cap(
+        &self,
+        address: AccountId,
+        cap: PledgeCap,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::UpdateLockedPledgeCap {
+                address: address.to_string(),
+                cap,
+            },
+            Vec::new(),
+        )
+        .await
+    }
 }
 
 #[async_trait]

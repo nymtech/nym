@@ -15,6 +15,7 @@ use thiserror::Error;
 
 use std::{io, time::Duration};
 
+use crate::nyxd::signing;
 pub use cosmrs::rpc::{
     error::{Error as TendermintRpcError, ErrorDetail as TendermintRpcErrorDetail},
     response_error::{Code, ResponseError},
@@ -144,6 +145,9 @@ pub enum NyxdError {
 
     #[error("Account had an unexpected bech32 prefix. Expected: {expected}, got: {got}")]
     UnexpectedBech32Prefix { got: String, expected: String },
+
+    #[error(transparent)]
+    SigningError(#[from] signing::signer::SigningError),
 }
 
 // The purpose of parsing the abci query result is that we want to generate the `pretty_log` if

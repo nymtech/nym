@@ -1,8 +1,6 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::error::Error;
-
 use crate::client::config::Config;
 use crate::error::ClientError;
 use crate::websocket;
@@ -20,12 +18,15 @@ use log::*;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
+use std::error::Error;
 use tokio::sync::watch::error::SendError;
 use validator_client::nyxd::QueryNyxdClient;
 
 pub use client_core::client::key_manager::KeyManager;
 pub use nym_sphinx::addressing::clients::Recipient;
 pub use nym_sphinx::receiver::ReconstructedMessage;
+use validator_client::Client;
+
 pub mod config;
 
 pub struct SocketClient {
@@ -55,7 +56,9 @@ impl SocketClient {
         }
     }
 
-    async fn create_bandwidth_controller(config: &Config) -> BandwidthController<QueryNyxdClient> {
+    async fn create_bandwidth_controller(
+        config: &Config,
+    ) -> BandwidthController<Client<QueryNyxdClient>> {
         let details = nym_network_defaults::NymNetworkDetails::new_from_env();
         let mut client_config = validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct validator client config");

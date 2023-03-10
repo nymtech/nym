@@ -15,17 +15,18 @@ pub enum StorageError {
     InconsistentData,
 }
 
-pub trait CosmWasmClient {}
+pub struct DirectSigningNyxdClient {}
 
-#[derive(Clone)]
-pub struct SigningNyxdClient {}
+pub trait DkgQueryClient {}
 
-impl CosmWasmClient for SigningNyxdClient {}
+// impl CosmWasmClient for DirectSigningNyxdClient {}
 
 #[derive(Clone)]
 pub struct Client<C> {
     _phantom: PhantomData<C>,
 }
+
+impl<C> DkgQueryClient for Client<C> {}
 
 #[derive(Clone)]
 pub struct PersistentStorage {}

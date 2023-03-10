@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
@@ -7,7 +7,7 @@ use crate::nyxd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nyxd::cosmwasm_client::types::*;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
-use crate::nyxd::wallet::DirectSecp256k1HdWallet;
+use crate::nyxd::signing::signer::OfflineSigner;
 use crate::nyxd::{Coin, GasAdjustable, GasPrice, TxResponse};
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
@@ -56,17 +56,17 @@ fn single_unspecified_signer_auth(
 
 #[async_trait]
 pub trait SigningCosmWasmClient: CosmWasmClient {
-    fn signer(&self) -> &DirectSecp256k1HdWallet;
+    // this `Error` restriction is (well, should be)
+    // only temporary because I don't want to change the entire trait just yet
+    type Signer: OfflineSigner<Error = NyxdError> + Send + Sync;
+
+    fn signer(&self) -> &Self::Signer;
 
     fn gas_price(&self) -> &GasPrice;
 
     fn signer_public_key(&self, signer_address: &AccountId) -> Option<tx::SignerPublicKey> {
-        let signer_accounts = self.signer().try_derive_accounts().ok()?;
-        let account_from_signer = signer_accounts
-            .iter()
-            .find(|account| &account.address == signer_address)?;
-        let public_key = account_from_signer.public_key;
-        Some(public_key.into())
+        let account = self.signer().find_account(signer_address).ok()?;
+        Some(account.public_key().into())
     }
 
     async fn simulate(
@@ -667,44 +667,6 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         self.broadcast_tx(tx_bytes.into()).await
     }
 
-    fn sign_direct(
-        &self,
-        signer_address: &AccountId,
-        messages: Vec<Any>,
-        fee: tx::Fee,
-        memo: impl Into<String> + Send + 'static,
-        signer_data: SignerData,
-    ) -> Result<tx::Raw, NyxdError> {
-        let signer_accounts = self.signer().try_derive_accounts()?;
-        let account_from_signer = signer_accounts
-            .iter()
-            .find(|account| &account.address == signer_address)
-            .ok_or_else(|| NyxdError::SigningAccountNotFound(signer_address.clone()))?;
-
-        // TODO: WTF HOW IS TIMEOUT_HEIGHT SUPPOSED TO GET DETERMINED?
-        // IT DOESNT EXIST IN COSMJS!!
-        // try to set to 0
-        let timeout_height = 0u32;
-
-        let tx_body = tx::Body::new(messages, memo, timeout_height);
-        let signer_info =
-            SignerInfo::single_direct(Some(account_from_signer.public_key), signer_data.sequence);
-        let auth_info = signer_info.auth_info(fee);
-
-        // ideally I'd prefer to have the entire error put into the NyxdError::SigningFailure
-        // but I'm super hesitant to trying to downcast the eyre::Report to cosmrs::error::Error
-        let sign_doc = SignDoc::new(
-            &tx_body,
-            &auth_info,
-            &signer_data.chain_id,
-            signer_data.account_number,
-        )
-        .map_err(|_| NyxdError::SigningFailure)?;
-
-        self.signer()
-            .sign_direct_with_account(account_from_signer, sign_doc)
-    }
-
     async fn sign(
         &self,
         signer_address: &AccountId,
@@ -727,10 +689,56 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
 
         self.sign_direct(signer_address, messages, fee, memo, signer_data)
     }
+
+    fn sign_amino(
+        &self,
+        _signer_address: &AccountId,
+        _messages: Vec<Any>,
+        _fee: tx::Fee,
+        _memo: impl Into<String> + Send + 'static,
+        _signer_data: SignerData,
+    ) -> Result<tx::Raw, NyxdError> {
+        unimplemented!()
+    }
+
+    // TODO: change this sucker to use the trait better
+    fn sign_direct(
+        &self,
+        signer_address: &AccountId,
+        messages: Vec<Any>,
+        fee: tx::Fee,
+        memo: impl Into<String> + Send + 'static,
+        signer_data: SignerData,
+    ) -> Result<tx::Raw, NyxdError> {
+        let account_from_signer = self.signer().find_account(&signer_address)?;
+
+        // TODO: WTF HOW IS TIMEOUT_HEIGHT SUPPOSED TO GET DETERMINED?
+        // IT DOESNT EXIST IN COSMJS!!
+        // try to set to 0
+        let timeout_height = 0u32;
+
+        let tx_body = tx::Body::new(messages, memo, timeout_height);
+        let signer_info =
+            SignerInfo::single_direct(Some(account_from_signer.public_key), signer_data.sequence);
+        let auth_info = signer_info.auth_info(fee);
+
+        // ideally I'd prefer to have the entire error put into the NyxdError::SigningFailure
+        // but I'm super hesitant to trying to downcast the eyre::Report to cosmrs::error::Error
+        let sign_doc = SignDoc::new(
+            &tx_body,
+            &auth_info,
+            &signer_data.chain_id,
+            signer_data.account_number,
+        )
+        .map_err(|_| NyxdError::SigningFailure)?;
+
+        self.signer()
+            .sign_direct_with_account(&account_from_signer, sign_doc)
+    }
 }
 
 #[derive(Debug, Clone)]
-pub struct Client {
+pub struct Client<S> {
     // TODO: somehow nicely hide this guy if we decide to use our client in offline mode,
     // maybe just convert it into an option?
     // or maybe we need another level of indirection. tbd.
@@ -738,17 +746,17 @@ pub struct Client {
 
     // TODO: once we properly try to get ledger up and running, this field should be made generic
     // with either `signer: S where S OfflineSigner` or maybe `signer: Box<dyn OfflineSigner>`
-    signer: DirectSecp256k1HdWallet,
+    signer: S,
     gas_price: GasPrice,
 
     broadcast_polling_rate: Duration,
     broadcast_timeout: Duration,
 }
 
-impl Client {
+impl<S> Client<S> {
     pub fn connect_with_signer<U: Clone>(
         endpoint: U,
-        signer: DirectSecp256k1HdWallet,
+        signer: S,
         gas_price: GasPrice,
     ) -> Result<Self, NyxdError>
     where
@@ -773,7 +781,7 @@ impl Client {
         Ok(())
     }
 
-    pub fn into_signer(self) -> DirectSecp256k1HdWallet {
+    pub fn into_signer(self) -> S {
         self.signer
     }
 
@@ -787,7 +795,10 @@ impl Client {
 }
 
 #[async_trait]
-impl rpc::Client for Client {
+impl<S> rpc::Client for Client<S>
+where
+    S: Send + Sync,
+{
     async fn perform<R>(&self, request: R) -> Result<R::Response, rpc::Error>
     where
         R: SimpleRequest,
@@ -797,7 +808,10 @@ impl rpc::Client for Client {
 }
 
 #[async_trait]
-impl CosmWasmClient for Client {
+impl<S> CosmWasmClient for Client<S>
+where
+    S: Send + Sync,
+{
     fn broadcast_polling_rate(&self) -> Duration {
         self.broadcast_polling_rate
     }
@@ -808,8 +822,13 @@ impl CosmWasmClient for Client {
 }
 
 #[async_trait]
-impl SigningCosmWasmClient for Client {
-    fn signer(&self) -> &DirectSecp256k1HdWallet {
+impl<S> SigningCosmWasmClient for Client<S>
+where
+    S: OfflineSigner<Error = NyxdError> + Send + Sync,
+{
+    type Signer = S;
+
+    fn signer(&self) -> &S {
         &self.signer
     }
 
@@ -817,3 +836,31 @@ impl SigningCosmWasmClient for Client {
         &self.gas_price
     }
 }
+
+// TODO: think whether this makes sense
+// impl<S> OfflineSigner for Client<S>
+// where
+//     S: OfflineSigner,
+// {
+//     type Error = S::Error;
+//
+//     fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
+//         self.signer().get_accounts()
+//     }
+//
+//     fn sign_raw_with_account<M: AsRef<[u8]>>(
+//         &self,
+//         signer: &AccountData,
+//         message: M,
+//     ) -> Result<Signature, Self::Error> {
+//         self.signer().sign_raw_with_account(signer, message)
+//     }
+//
+//     fn sign_direct_with_account(
+//         &self,
+//         signer: &AccountData,
+//         sign_doc: SignDoc,
+//     ) -> Result<Raw, Self::Error> {
+//         self.signer().sign_direct_with_account(signer, sign_doc)
+//     }
+// }

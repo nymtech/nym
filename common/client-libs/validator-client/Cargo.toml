@@ -31,7 +31,6 @@ futures = "0.3"
 nym-coconut-interface = { path = "../../coconut-interface" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
-nym-execute = { path = "../../execute" }
 
 # required for nyxd-client
 # at some point it might be possible to make it wasm-compatible
@@ -40,6 +39,8 @@ async-trait = { workspace = true, optional = true }
 bip39 = { workspace = true, features = ["rand"], optional = true }
 nym-config = { path = "../../config", optional = true }
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"], optional = true}
+# note that this has the same version as used by cosmrs
+eyre = { version = "0.6", optional = true }
 cw3 = { workspace = true, optional = true }
 cw4 = { workspace = true, optional = true }
 prost = { version = "0.10", default-features = false, optional = true }
@@ -56,6 +57,7 @@ ts-rs = "6.1.2"
 nyxd-client = [
     "async-trait",
     "bip39",
+    "eyre",
     "nym-config",
     "cosmrs",
     "cw3",

@@ -1,7 +1,9 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::error::NyxdError;
+use crate::nyxd::signing::signer::{OfflineSigner, SigningError};
+use crate::nyxd::signing::{AccountData, Secp256k1Derivation};
 use cosmrs::bip32::{DerivationPath, XPrv};
 use cosmrs::crypto::secp256k1::{Signature, SigningKey};
 use cosmrs::crypto::PublicKey;
@@ -9,35 +11,6 @@ use cosmrs::tx::SignDoc;
 use cosmrs::{tx, AccountId};
 use nym_config::defaults;
 use zeroize::{Zeroize, ZeroizeOnDrop};
-
-/// Derivation information required to derive a keypair and an address from a mnemonic.
-#[derive(Debug, Clone)]
-struct Secp256k1Derivation {
-    hd_path: DerivationPath,
-    prefix: String,
-}
-
-pub struct AccountData {
-    pub(crate) address: AccountId,
-
-    pub(crate) public_key: PublicKey,
-
-    pub(crate) private_key: SigningKey,
-}
-
-impl AccountData {
-    pub fn address(&self) -> &AccountId {
-        &self.address
-    }
-
-    pub fn public_key(&self) -> PublicKey {
-        self.public_key
-    }
-
-    pub fn private_key(&self) -> &SigningKey {
-        &self.private_key
-    }
-}
 
 type Secp256k1Keypair = (SigningKey, PublicKey);
 
@@ -56,6 +29,24 @@ pub struct DirectSecp256k1HdWallet {
     /// Derivation instructions
     #[zeroize(skip)]
     accounts: Vec<Secp256k1Derivation>,
+}
+
+impl OfflineSigner for DirectSecp256k1HdWallet {
+    type Error = NyxdError;
+
+    fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
+        self.try_derive_accounts()
+    }
+
+    fn sign_direct_with_account(
+        &self,
+        signer: &AccountData,
+        sign_doc: SignDoc,
+    ) -> Result<tx::Raw, Self::Error> {
+        sign_doc
+            .sign(&signer.private_key)
+            .map_err(|source| SigningError::SigningFailure { source }.into())
+    }
 }
 
 impl DirectSecp256k1HdWallet {

@@ -13,8 +13,9 @@ use nym_wallet_types::network::Network as WalletNetwork;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 use url::Url;
-use validator_client::nyxd::wallet::{AccountData, DirectSecp256k1HdWallet};
-use validator_client::{nyxd::SigningNyxdClient, Client};
+use validator_client::nyxd::signing::wallet::DirectSecp256k1HdWallet;
+use validator_client::nyxd::signing::AccountData;
+use validator_client::{nyxd::DirectSigningNyxdClient, Client};
 
 #[tauri::command]
 pub async fn connect_with_mnemonic(
@@ -202,7 +203,7 @@ fn create_clients(
     default_api_urls: &HashMap<WalletNetwork, Url>,
     config: &Config,
     mnemonic: &Mnemonic,
-) -> Result<Vec<(WalletNetwork, Client<SigningNyxdClient>)>, BackendError> {
+) -> Result<Vec<(WalletNetwork, Client<DirectSigningNyxdClient>)>, BackendError> {
     let mut clients = Vec::new();
     for network in WalletNetwork::iter() {
         let nyxd_url = if let Some(url) = config.get_selected_validator_nyxd_url(network) {

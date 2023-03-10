@@ -28,13 +28,13 @@ use tokio_tungstenite::connect_async;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 #[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::SigningNyxdClient;
+use validator_client::nyxd::DirectSigningNyxdClient;
 
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 #[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_mockups::SigningNyxdClient;
+use gateway_client::wasm_mockups::DirectSigningNyxdClient;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer::Instant;
 #[cfg(target_arch = "wasm32")]
@@ -231,7 +231,7 @@ pub(super) async fn register_with_gateway(
     our_identity: Arc<identity::KeyPair>,
 ) -> Result<Arc<SharedKeys>, ClientCoreError> {
     let timeout = Duration::from_millis(1500);
-    let mut gateway_client: GatewayClient<SigningNyxdClient> = GatewayClient::new_init(
+    let mut gateway_client: GatewayClient<DirectSigningNyxdClient> = GatewayClient::new_init(
         gateway.clients_address(),
         gateway.identity_key,
         our_identity.clone(),

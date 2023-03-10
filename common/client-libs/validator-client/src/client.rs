@@ -12,21 +12,18 @@ use nym_api_requests::models::{
 use nym_coconut_dkg_common::types::NodeIndex;
 use nym_coconut_interface::VerificationKey;
 pub use nym_mixnet_contract_common::{mixnode::MixNodeDetails, GatewayBond, IdentityKeyRef, MixId};
+use url::Url;
 
 #[cfg(feature = "nyxd-client")]
-use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient};
+use crate::nyxd::signing::wallet::DirectSecp256k1HdWallet;
+#[cfg(feature = "nyxd-client")]
+use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient};
 #[cfg(feature = "nyxd-client")]
 use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient, SigningNyxdClient};
 #[cfg(feature = "nyxd-client")]
-use cw3::ProposalResponse;
-#[cfg(feature = "nyxd-client")]
 use nym_api_requests::models::MixNodeBondAnnotated;
 #[cfg(feature = "nyxd-client")]
-use nym_coconut_dkg_common::{
-    dealer::ContractDealing,
-    types::{DealerDetails, EpochId},
-    verification_key::ContractVKShare,
-};
+use nym_coconut_dkg_common::{types::EpochId, verification_key::ContractVKShare};
 #[cfg(feature = "nyxd-client")]
 use nym_coconut_interface::Base58;
 #[cfg(feature = "nyxd-client")]
@@ -40,7 +37,6 @@ use nym_mixnet_contract_common::{
 use nym_network_defaults::NymNetworkDetails;
 #[cfg(feature = "nyxd-client")]
 use std::str::FromStr;
-use url::Url;
 
 #[cfg(feature = "nyxd-client")]
 #[must_use]
@@ -55,9 +51,6 @@ pub struct Config {
     gateway_page_limit: Option<u32>,
     mixnode_delegations_page_limit: Option<u32>,
     rewarded_set_page_limit: Option<u32>,
-    dealers_page_limit: Option<u32>,
-    verification_key_page_limit: Option<u32>,
-    proposals_page_limit: Option<u32>,
 }
 
 #[cfg(feature = "nyxd-client")]
@@ -87,9 +80,6 @@ impl Config {
             gateway_page_limit: None,
             mixnode_delegations_page_limit: None,
             rewarded_set_page_limit: None,
-            dealers_page_limit: None,
-            verification_key_page_limit: None,
-            proposals_page_limit: None,
         })
     }
 
@@ -128,18 +118,11 @@ impl Config {
 }
 
 #[cfg(feature = "nyxd-client")]
-#[derive(Clone)]
-pub struct Client<C: Clone> {
-    // // TODO: we really shouldn't be storing a mnemonic here, but removing it would be
-    // // non-trivial amount of work and it's out of scope of the current branch
-    // mnemonic: Option<bip39::Mnemonic>,
+pub struct Client<C> {
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
     mixnode_delegations_page_limit: Option<u32>,
     rewarded_set_page_limit: Option<u32>,
-    dealers_page_limit: Option<u32>,
-    verification_key_page_limit: Option<u32>,
-    proposals_page_limit: Option<u32>,
 
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
     pub nym_api: nym_api::Client,
@@ -147,11 +130,11 @@ pub struct Client<C: Clone> {
 }
 
 #[cfg(feature = "nyxd-client")]
-impl Client<SigningNyxdClient> {
+impl Client<SigningNyxdClient<DirectSecp256k1HdWallet>> {
     pub fn new_signing(
         config: Config,
         mnemonic: bip39::Mnemonic,
-    ) -> Result<Client<SigningNyxdClient>, ValidatorClientError> {
+    ) -> Result<Client<SigningNyxdClient<DirectSecp256k1HdWallet>>, ValidatorClientError> {
         let nym_api_client = nym_api::Client::new(config.api_url.clone());
         let nyxd_client = NyxdClient::connect_with_mnemonic(
             config.nyxd_config.clone(),
@@ -165,9 +148,6 @@ impl Client<SigningNyxdClient> {
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
             rewarded_set_page_limit: config.rewarded_set_page_limit,
-            dealers_page_limit: config.dealers_page_limit,
-            verification_key_page_limit: config.verification_key_page_limit,
-            proposals_page_limit: config.proposals_page_limit,
             nym_api: nym_api_client,
             nyxd: nyxd_client,
         })
@@ -195,9 +175,6 @@ impl Client<QueryNyxdClient> {
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
             rewarded_set_page_limit: config.rewarded_set_page_limit,
-            dealers_page_limit: config.dealers_page_limit,
-            verification_key_page_limit: config.verification_key_page_limit,
-            proposals_page_limit: config.proposals_page_limit,
             nym_api: nym_api_client,
             nyxd: nyxd_client,
         })
@@ -211,10 +188,7 @@ impl Client<QueryNyxdClient> {
 
 // nyxd wrappers
 #[cfg(feature = "nyxd-client")]
-impl<C> Client<C>
-where
-    C: Clone,
-{
+impl<C> Client<C> {
     // use case: somebody initialised client without a contract in order to upload and initialise one
     // and now they want to actually use it without making new client
 
@@ -593,140 +567,6 @@ where
 
         Ok(events)
     }
-
-    pub async fn get_all_nyxd_current_dealers(
-        &self,
-    ) -> Result<Vec<DealerDetails>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
-        let mut dealers = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .nyxd
-                .get_current_dealers_paged(start_after.take(), self.dealers_page_limit)
-                .await?;
-            dealers.append(&mut paged_response.dealers);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res.into_string())
-            } else {
-                break;
-            }
-        }
-
-        Ok(dealers)
-    }
-
-    pub async fn get_all_nyxd_past_dealers(
-        &self,
-    ) -> Result<Vec<DealerDetails>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
-        let mut dealers = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .nyxd
-                .get_past_dealers_paged(start_after.take(), self.dealers_page_limit)
-                .await?;
-            dealers.append(&mut paged_response.dealers);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res.into_string())
-            } else {
-                break;
-            }
-        }
-
-        Ok(dealers)
-    }
-
-    pub async fn get_all_nyxd_epoch_dealings(
-        &self,
-        idx: usize,
-    ) -> Result<Vec<ContractDealing>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
-        let mut dealings = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .nyxd
-                .get_dealings_paged(idx, start_after.take(), self.dealers_page_limit)
-                .await?;
-            dealings.append(&mut paged_response.dealings);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res.into_string())
-            } else {
-                break;
-            }
-        }
-
-        Ok(dealings)
-    }
-
-    pub async fn get_all_nyxd_verification_key_shares(
-        &self,
-        epoch_id: EpochId,
-    ) -> Result<Vec<ContractVKShare>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
-        let mut shares = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .nyxd
-                .get_vk_shares_paged(
-                    epoch_id,
-                    start_after.take(),
-                    self.verification_key_page_limit,
-                )
-                .await?;
-            shares.append(&mut paged_response.shares);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res.into_string())
-            } else {
-                break;
-            }
-        }
-
-        Ok(shares)
-    }
-
-    pub async fn get_all_nyxd_proposals(
-        &self,
-    ) -> Result<Vec<ProposalResponse>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
-        let mut proposals = Vec::new();
-        let mut start_after = None;
-
-        loop {
-            let mut paged_response = self
-                .nyxd
-                .list_proposals(start_after.take(), self.proposals_page_limit)
-                .await?;
-
-            let last_id = paged_response.proposals.last().map(|prop| prop.id);
-            proposals.append(&mut paged_response.proposals);
-
-            if let Some(start_after_res) = last_id {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
-        }
-
-        Ok(proposals)
-    }
 }
 
 // validator-api wrappers
@@ -802,15 +642,15 @@ pub struct CoconutApiClient {
 
 #[cfg(feature = "nyxd-client")]
 impl CoconutApiClient {
-    pub async fn all_coconut_api_clients<C: Clone>(
-        nyxd_client: &Client<C>,
+    pub async fn all_coconut_api_clients<C>(
+        client: &C,
         epoch_id: EpochId,
     ) -> Result<Vec<Self>, ValidatorClientError>
     where
-        C: CosmWasmClient + Sync + Send,
+        C: DkgQueryClient + Sync + Send,
     {
-        Ok(nyxd_client
-            .get_all_nyxd_verification_key_shares(epoch_id)
+        Ok(client
+            .get_all_verification_key_shares(epoch_id)
             .await?
             .into_iter()
             .filter_map(Self::try_from)

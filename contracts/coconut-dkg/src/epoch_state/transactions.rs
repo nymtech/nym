@@ -134,11 +134,19 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
             EpochState::default()
         } else {
             // ... in reshare mode
-            let replacement_data = InitialReplacementData {
-                initial_dealers: verified_dealers(deps.storage)?,
-                initial_height: env.block.height,
-            };
-            INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
+            if INITIAL_REPLACEMENT_DATA.may_load(deps.storage)?.is_some() {
+                INITIAL_REPLACEMENT_DATA.update::<_, ContractError>(deps.storage, |mut data| {
+                    data.initial_height = env.block.height;
+                    Ok(data)
+                })?;
+            } else {
+                let replacement_data = InitialReplacementData {
+                    initial_dealers: verified_dealers(deps.storage)?,
+                    initial_height: env.block.height,
+                };
+                INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
+            }
+
             EpochState::PublicKeySubmission { resharing: true }
         };
         reset_epoch_state(deps.storage)?;

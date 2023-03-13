@@ -1,5 +1,15 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { FormControl, InputLabel, ListItemText, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
+import {
+  FormControl,
+  InputLabel,
+  ListItemText,
+  MenuItem,
+  Select,
+  SelectChangeEvent,
+  Stack,
+  Typography,
+} from '@mui/material';
+import { Check as CheckIcon } from '@mui/icons-material';
 import { AppContext } from '../context/main';
 
 export type TPoolOption = 'balance' | 'locked';
@@ -40,20 +50,29 @@ export const TokenPoolSelector: FCWithChildren<{ disabled: boolean; onSelect: (p
         renderValue={(val) => <Typography sx={{ textTransform: 'capitalize' }}>{val}</Typography>}
       >
         <MenuItem value="balance">
-          <ListItemText
-            primary="Balance"
-            secondary={`${balance?.printable_balance}`}
-            secondaryTypographyProps={{ sx: { textTransform: 'uppercase' } }}
-          />
+          <Stack direction="row" alignItems="center" gap={2} width="100%">
+            <ListItemText
+              primary="Balance"
+              secondary={`${balance?.printable_balance}`}
+              secondaryTypographyProps={{ sx: { textTransform: 'uppercase', color: (t) => t.palette.nym.text.muted } }}
+            />
+            {value === 'balance' && <CheckIcon fontSize="small" />}
+          </Stack>
         </MenuItem>
         <MenuItem value="locked">
           {tokenAllocation && (
-            <ListItemText
-              primary="Locked"
-              secondary={`${
-                +tokenAllocation.locked + +tokenAllocation.spendable
-              } ${clientDetails?.display_mix_denom.toUpperCase()}`}
-            />
+            <Stack direction="row" alignItems="center" gap={2} width="100%">
+              <ListItemText
+                primary="Locked"
+                secondary={`${
+                  +tokenAllocation.locked + +tokenAllocation.spendable
+                } ${clientDetails?.display_mix_denom.toUpperCase()}`}
+                secondaryTypographyProps={{
+                  sx: { textTransform: 'uppercase', color: (t) => t.palette.nym.text.muted },
+                }}
+              />
+              {value === 'locked' && <CheckIcon fontSize="small" />}
+            </Stack>
           )}
         </MenuItem>
       </Select>

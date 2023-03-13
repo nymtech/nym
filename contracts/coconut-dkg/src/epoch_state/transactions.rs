@@ -69,6 +69,10 @@ fn dealers_eq_members(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
 fn replacement_threshold_surpassed(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
     let threshold = THRESHOLD.load(deps.storage)? as usize;
     let initial_dealers = verified_dealers(deps.storage)?;
+    if initial_dealers.is_empty() {
+        // possibly failed DKG, just reset and start again
+        return Ok(true);
+    }
     let initial_dealer_count = initial_dealers.len();
     let replacement_threshold = threshold - (initial_dealers.len() + 2 - 1) / 2 + 1;
     let removed_dealer_count =
@@ -625,6 +629,17 @@ pub(crate) mod tests {
             ] {
                 env.block.time = env.block.time.plus_seconds(times);
                 advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            }
+
+            let all_shares: [_; 4] = std::array::from_fn(|i| {
+                let mut share = vk_share_fixture(&format!("owner{}", i + 1), 1);
+                share.verified = i % 2 == 0;
+                share
+                });
+            for share in all_shares.iter() {
+                vk_shares()
+                    .save(deps.as_mut().storage, (&share.owner, 0), share)
+                    .unwrap();
             }
 
             // Group changed even more, surpassing threshold, so re-run dkg in reset mode

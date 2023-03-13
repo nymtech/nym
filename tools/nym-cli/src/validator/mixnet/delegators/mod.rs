@@ -20,6 +20,9 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::mixnet::delegators::MixnetDelegatorsCommands::Delegate(args) => {
             nym_cli_commands::validator::mixnet::delegators::delegate_to_mixnode::delegate_to_mixnode(args, create_signing_client(global_args, network_details)?).await
         }
+        nym_cli_commands::validator::mixnet::delegators::MixnetDelegatorsCommands::DelegateVesting(args) => {
+            nym_cli_commands::validator::mixnet::delegators::vesting_delegate_to_mixnode::vesting_delegate_to_mixnode(args, create_signing_client(global_args, network_details)?).await
+        }
         nym_cli_commands::validator::mixnet::delegators::MixnetDelegatorsCommands::PledgeMore(args) => {
             nym_cli_commands::validator::mixnet::delegators::pledge_more::pledge_more(args, create_signing_client(global_args, network_details)?).await
         }
@@ -28,6 +31,9 @@ pub(crate) async fn execute(
         }
         nym_cli_commands::validator::mixnet::delegators::MixnetDelegatorsCommands::Undelegate(args) => {
             nym_cli_commands::validator::mixnet::delegators::undelegate_from_mixnode::undelegate_from_mixnode(args, create_signing_client(global_args, network_details)?).await
+        }
+        nym_cli_commands::validator::mixnet::delegators::MixnetDelegatorsCommands::UndelegateVesting(args) => {
+            nym_cli_commands::validator::mixnet::delegators::vesting_undelegate_from_mixnode::vesting_undelegate_from_mixnode(args, create_signing_client(global_args, network_details)?).await
         }
         nym_cli_commands::validator::mixnet::delegators::MixnetDelegatorsCommands::List(args) => {
             nym_cli_commands::validator::mixnet::delegators::query_for_delegations::execute(args, create_signing_client_with_nym_api(global_args, network_details)?).await

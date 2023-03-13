@@ -14,16 +14,14 @@
 // In the future we might want to simplify by dropping the support for a single account entry,
 // instead treating as muliple accounts with one entry.
 
-use serde::{Deserialize, Serialize};
-use validator_client::nyxd::bip32::DerivationPath;
-use zeroize::Zeroize;
-
-use crate::error::BackendError;
-use crate::utils::ZeroizeMnemonicWrapper;
-
 use super::encryption::EncryptedData;
 use super::password::{AccountId, LoginId};
 use super::UserPassword;
+use crate::error::BackendError;
+use bip39::Mnemonic;
+use serde::{Deserialize, Serialize};
+use validator_client::nyxd::bip32::DerivationPath;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 const CURRENT_WALLET_FILE_VERSION: u32 = 1;
 
@@ -153,9 +151,8 @@ impl EncryptedLogin {
 
 /// A stored login is either a account, such as a mnemonic, or a list of multiple accounts where
 /// each has an inner id. Future proofed for having private key backed accounts.
-#[derive(Serialize, Deserialize, Debug, Zeroize)]
+#[derive(Serialize, Deserialize, Debug, Zeroize, ZeroizeOnDrop)]
 #[serde(untagged)]
-#[zeroize(drop)]
 pub(crate) enum StoredLogin {
     Mnemonic(MnemonicAccount),
     // PrivateKey(PrivateKeyAccount)
@@ -193,8 +190,7 @@ impl StoredLogin {
 }
 
 /// Multiple stored accounts, each entry having an id and a data field.
-#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
-#[zeroize(drop)]
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 pub(crate) struct MultipleAccounts {
     accounts: Vec<WalletAccount>,
 }
@@ -238,19 +234,17 @@ impl MultipleAccounts {
     pub(crate) fn add(
         &mut self,
         id: AccountId,
-        mnemonic: ZeroizeMnemonicWrapper,
+        mnemonic: Mnemonic,
         hd_path: DerivationPath,
     ) -> Result<(), BackendError> {
         if self.get_account(&id).is_some() {
             Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin)
-        } else if self.get_account_with_mnemonic(mnemonic.as_ref()).is_some() {
+        } else if self.get_account_with_mnemonic(&mnemonic).is_some() {
             Err(BackendError::WalletMnemonicAlreadyExistsInWalletLogin)
         } else {
             self.accounts.push(WalletAccount::new(
                 id,
-                // safety: the call to `clone_inner` is fine here as the raw mnemonic will get immediately
-                // passed to `MnemonicAccount` which will zeroize it on drop
-                MnemonicAccount::new(mnemonic.into_cloned_inner(), hd_path),
+                MnemonicAccount::new(mnemonic, hd_path),
             ));
             Ok(())
         }
@@ -272,8 +266,7 @@ impl From<Vec<WalletAccount>> for MultipleAccounts {
 }
 
 /// An entry in the list of stored accounts
-#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
-#[zeroize(drop)]
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 pub(crate) struct WalletAccount {
     id: AccountId,
     account: AccountData,
@@ -307,19 +300,20 @@ impl WalletAccount {
 
 /// An account usually is a mnemonic account, but in the future it might be backed by a private
 /// key.
-#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 #[serde(untagged)]
-#[zeroize(drop)]
 enum AccountData {
     Mnemonic(MnemonicAccount),
     // PrivateKey(PrivateKeyAccount)
 }
 
 /// An account backed by a unique mnemonic.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 pub(crate) struct MnemonicAccount {
     mnemonic: bip39::Mnemonic,
     #[serde(with = "display_hd_path")]
+    // there's nothing secret about our derivation path
+    #[zeroize(skip)]
     hd_path: DerivationPath,
 }
 
@@ -335,27 +329,6 @@ impl MnemonicAccount {
     #[cfg(test)]
     pub(crate) fn hd_path(&self) -> &DerivationPath {
         &self.hd_path
-    }
-}
-
-impl Zeroize for MnemonicAccount {
-    fn zeroize(&mut self) {
-        // in ideal world, Mnemonic would have had zeroize defined on it (there's an almost year old PR that introduces it)
-        // and the memory would have been filled with zeroes.
-        //
-        // we really don't want to keep our real mnemonic in memory, so let's do the semi-nasty thing
-        // of overwriting it with a fresh mnemonic that was never used before
-        //
-        // note: this function can only fail on an invalid word count, which clearly is not the case here
-        self.mnemonic = bip39::Mnemonic::generate(self.mnemonic.word_count()).unwrap();
-
-        // further note: we don't really care about the hd_path, there's nothing secret about it.
-    }
-}
-
-impl Drop for MnemonicAccount {
-    fn drop(&mut self) {
-        self.zeroize()
     }
 }
 

@@ -4,6 +4,7 @@
 use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
+use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::MixNodeConfigUpdate;
 use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
 use nym_types::currency::DecCoin;
@@ -40,7 +41,7 @@ async fn simulate_vesting_operation(
 pub async fn simulate_vesting_bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
-    owner_signature: String,
+    msg_signature: MessageSignature,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
@@ -49,7 +50,7 @@ pub async fn simulate_vesting_bond_gateway(
     simulate_vesting_operation(
         ExecuteMsg::BondGateway {
             gateway,
-            owner_signature,
+            owner_signature: msg_signature,
             amount,
         },
         None,
@@ -69,7 +70,7 @@ pub async fn simulate_vesting_unbond_gateway(
 pub async fn simulate_vesting_bond_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
-    owner_signature: String,
+    msg_signature: MessageSignature,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -82,7 +83,7 @@ pub async fn simulate_vesting_bond_mixnode(
         ExecuteMsg::BondMixnode {
             mix_node: mixnode,
             cost_params,
-            owner_signature,
+            owner_signature: msg_signature,
             amount,
         },
         None,

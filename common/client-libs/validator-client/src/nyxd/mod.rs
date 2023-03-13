@@ -43,6 +43,7 @@ pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{self, Gas};
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{bip32, AccountId, Decimal, Denom};
+use cosmwasm_std::Addr;
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 pub use signing_client::Client as SigningNyxdClient;
@@ -367,6 +368,15 @@ where
     {
         // if this is a signing client (as required by the trait bound), it must have the address set
         &self.client_address.as_ref().unwrap()[0]
+    }
+
+    pub fn cw_address(&self) -> Addr
+    where
+        C: SigningCosmWasmClient,
+    {
+        // the call to unchecked is fine here as we're converting directly from `AccountId`
+        // which must have been a valid bech32 address
+        Addr::unchecked(self.address().as_ref())
     }
 
     pub fn signer(&self) -> &DirectSecp256k1HdWallet

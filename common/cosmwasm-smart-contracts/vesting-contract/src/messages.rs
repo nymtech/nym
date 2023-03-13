@@ -1,3 +1,4 @@
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{Coin, Timestamp};
 use mixnet_contract_common::{
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
@@ -118,7 +119,7 @@ pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         amount: Coin,
     },
     PledgeMore {
@@ -131,7 +132,7 @@ pub enum ExecuteMsg {
     },
     BondGateway {
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         amount: Coin,
     },
     UnbondGateway {},

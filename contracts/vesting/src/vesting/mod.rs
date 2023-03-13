@@ -47,6 +47,7 @@ mod tests {
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
     use crate::vesting::{populate_vesting_periods, Account};
+    use contracts_common::signing::MessageSignature;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::mixnode::MixNodeCostParams;
@@ -674,7 +675,7 @@ mod tests {
         let err = account.try_bond_mixnode(
             mix_node.clone(),
             cost_params.clone(),
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -687,7 +688,7 @@ mod tests {
         let ok = account.try_bond_mixnode(
             mix_node.clone(),
             cost_params.clone(),
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(90_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -704,7 +705,7 @@ mod tests {
         let err = account.try_bond_mixnode(
             mix_node,
             cost_params,
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(10_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -738,7 +739,7 @@ mod tests {
         // Try delegating too much
         let err = account.try_bond_gateway(
             gateway.clone(),
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -750,7 +751,7 @@ mod tests {
 
         let ok = account.try_bond_gateway(
             gateway.clone(),
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(90_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -766,7 +767,7 @@ mod tests {
         // Try delegating too much again
         let err = account.try_bond_gateway(
             gateway,
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(500_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),

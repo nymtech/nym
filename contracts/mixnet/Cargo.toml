@@ -24,7 +24,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.2.0" }
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.2.0" }
-#nym-config = { path = "../../common/config"}
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", version = "0.2.0" }
 
 cosmwasm-std = "1.0.0"
 cosmwasm-storage = "1.0.0"
@@ -41,7 +41,6 @@ semver = { version = "1.0.16", default-features = false }
 [dev-dependencies]
 cosmwasm-schema = "1.0.0"
 rand_chacha = "0.2"
-#rand = "0.7"
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 
 [build-dependencies]

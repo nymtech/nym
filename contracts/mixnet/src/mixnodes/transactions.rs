@@ -9,10 +9,11 @@ use crate::mixnet_contract_settings::storage::rewarding_denom;
 use crate::mixnodes::helpers::{
     get_mixnode_details_by_owner, must_get_mixnode_bond_by_owner, save_new_mixnode,
 };
+use crate::mixnodes::signature_helpers::verify_mixnode_bonding_signature;
+use crate::signing::storage as signing_storage;
 use crate::support::helpers::{
     ensure_bonded, ensure_epoch_in_progress_state, ensure_is_authorized, ensure_no_existing_bond,
-    ensure_proxy_match, ensure_sent_by_vesting_contract, validate_node_identity_signature,
-    validate_pledge,
+    ensure_proxy_match, ensure_sent_by_vesting_contract, validate_pledge,
 };
 use cosmwasm_std::{coin, Addr, Coin, DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
@@ -24,6 +25,7 @@ use mixnet_contract_common::events::{
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
 use mixnet_contract_common::{Layer, MixId, MixNode};
+use nym_contracts_common::signing::MessageSignature;
 
 pub(crate) fn update_mixnode_layer(
     mix_id: MixId,
@@ -61,7 +63,7 @@ pub fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
     cost_params: MixNodeCostParams,
-    owner_signature: String,
+    owner_signature: MessageSignature,
 ) -> Result<Response, MixnetContractError> {
     _try_add_mixnode(
         deps,
@@ -82,7 +84,7 @@ pub fn try_add_mixnode_on_behalf(
     mix_node: MixNode,
     cost_params: MixNodeCostParams,
     owner: String,
-    owner_signature: String,
+    owner_signature: MessageSignature,
 ) -> Result<Response, MixnetContractError> {
     ensure_sent_by_vesting_contract(&info, deps.storage)?;
 
@@ -101,6 +103,9 @@ pub fn try_add_mixnode_on_behalf(
 }
 
 // I'm not entirely sure how to deal with this warning at the current moment
+//
+// TODO: perhaps also require the user to explicitly provide what it thinks is the current nonce
+// so that we could return a better error message if it doesn't match?
 #[allow(clippy::too_many_arguments)]
 fn _try_add_mixnode(
     deps: DepsMut<'_>,
@@ -109,7 +114,7 @@ fn _try_add_mixnode(
     cost_params: MixNodeCostParams,
     pledge: Vec<Coin>,
     owner: Addr,
-    owner_signature: String,
+    owner_signature: MessageSignature,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     // check if the pledge contains any funds of the appropriate denomination
@@ -126,12 +131,18 @@ fn _try_add_mixnode(
     // the bond information due to `UniqueIndex` constraint defined on those fields.
 
     // check if this sender actually owns the mixnode by checking the signature
-    validate_node_identity_signature(
+    verify_mixnode_bonding_signature(
         deps.as_ref(),
-        &owner,
-        &owner_signature,
-        &mixnode.identity_key,
+        owner.clone(),
+        proxy.clone(),
+        pledge.clone(),
+        mixnode.clone(),
+        cost_params.clone(),
+        owner_signature,
     )?;
+
+    // update the signing nonce associated with this sender so that the future signature would be made on the new value
+    signing_storage::increment_signing_nonce(deps.storage, owner.clone())?;
 
     let node_identity = mixnode.identity_key.clone();
     let (node_id, layer) = save_new_mixnode(
@@ -393,7 +404,7 @@ pub mod tests {
     use crate::support::tests::fixtures::{good_mixnode_pledge, TEST_COIN_DENOM};
     use crate::support::tests::test_helpers::TestSetup;
     use crate::support::tests::{fixtures, test_helpers};
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::{Order, StdResult, Uint128};
     use mixnet_contract_common::{
         EpochState, EpochStatus, ExecuteMsg, Layer, LayerDistribution, Percent,
@@ -401,23 +412,23 @@ pub mod tests {
 
     #[test]
     fn mixnode_add() {
-        let mut deps = test_helpers::init_contract();
-        let env = mock_env();
-        let mut rng = test_helpers::test_rng();
+        let mut test = TestSetup::new();
+        let env = test.env();
 
         let sender = "alice";
-        let minimum_pledge = minimum_mixnode_pledge(deps.as_ref().storage).unwrap();
+        let minimum_pledge = minimum_mixnode_pledge(test.deps().storage).unwrap();
         let mut insufficient_pledge = minimum_pledge.clone();
         insufficient_pledge.amount -= Uint128::new(1000);
 
         // if we don't send enough funds
         let info = mock_info(sender, &[insufficient_pledge.clone()]);
-        let (mixnode, sig, _) = test_helpers::mixnode_with_signature(&mut rng, sender);
+        let (mixnode, sig, _) =
+            test.mixnode_with_signature(sender, Some(vec![insufficient_pledge.clone()]));
         let cost_params = fixtures::mix_node_cost_params_fixture();
 
         // we are informed that we didn't send enough funds
         let result = try_add_mixnode(
-            deps.as_mut(),
+            test.deps_mut(),
             env.clone(),
             info,
             mixnode.clone(),
@@ -435,31 +446,12 @@ pub mod tests {
         // if the signature provided is invalid, the bonding also fails
         let info = mock_info(sender, &[minimum_pledge]);
 
-        let result = try_add_mixnode(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            mixnode.clone(),
-            cost_params.clone(),
-            "bad-signature".into(),
-        );
-        assert!(matches!(
-            result,
-            Err(MixnetContractError::MalformedEd25519Signature(..))
-        ));
-
         // if there was already a mixnode bonded by particular user
-        test_helpers::add_mixnode(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            sender,
-            fixtures::good_mixnode_pledge(),
-        );
+        test.add_dummy_mixnode(sender, None);
 
         // it fails
         let result = try_add_mixnode(
-            deps.as_mut(),
+            test.deps_mut(),
             env.clone(),
             info,
             mixnode,
@@ -471,19 +463,13 @@ pub mod tests {
         // the same holds if the user already owns a gateway
         let sender2 = "gateway-owner";
 
-        test_helpers::add_gateway(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            sender2,
-            tests::fixtures::good_gateway_pledge(),
-        );
+        test.add_dummy_gateway(sender2, None);
 
         let info = mock_info(sender2, &tests::fixtures::good_mixnode_pledge());
-        let (mixnode, sig, _) = test_helpers::mixnode_with_signature(&mut rng, sender2);
+        let (mixnode, sig, _) = test.mixnode_with_signature(sender2, None);
 
         let result = try_add_mixnode(
-            deps.as_mut(),
+            test.deps_mut(),
             env.clone(),
             info.clone(),
             mixnode.clone(),
@@ -494,14 +480,14 @@ pub mod tests {
 
         // but after he unbonds it, it's all fine again
         let msg = ExecuteMsg::UnbondGateway {};
-        execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+        execute(test.deps_mut(), env.clone(), info.clone(), msg).unwrap();
 
-        let result = try_add_mixnode(deps.as_mut(), env, info, mixnode, cost_params, sig);
+        let result = try_add_mixnode(test.deps_mut(), env, info, mixnode, cost_params, sig);
         assert!(result.is_ok());
 
         // make sure we got assigned the next id (note: we have already bonded a mixnode before in this test)
-        let bond = must_get_mixnode_bond_by_owner(deps.as_ref().storage, &Addr::unchecked(sender2))
-            .unwrap();
+        let bond =
+            must_get_mixnode_bond_by_owner(test.deps().storage, &Addr::unchecked(sender2)).unwrap();
         assert_eq!(2, bond.mix_id);
 
         // and make sure we're on layer 2 (because it was the next empty one)
@@ -513,10 +499,84 @@ pub mod tests {
             layer2: 1,
             layer3: 0,
         };
-        assert_eq!(
-            expected,
-            storage::LAYERS.load(deps.as_ref().storage).unwrap()
-        )
+        assert_eq!(expected, storage::LAYERS.load(test.deps().storage).unwrap())
+    }
+
+    #[test]
+    fn adding_mixnode_with_invalid_signatures() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        let sender = "alice";
+        let pledge = good_mixnode_pledge();
+        let info = mock_info(sender, pledge.as_ref());
+
+        let (mixnode, signature, _) = test.mixnode_with_signature(sender, Some(pledge.clone()));
+        // the above using cost params fixture
+        let cost_params = fixtures::mix_node_cost_params_fixture();
+
+        // using different parameters than what the signature was made on
+        let mut modified_mixnode = mixnode.clone();
+        modified_mixnode.mix_port += 1;
+        let res = try_add_mixnode(
+            test.deps_mut(),
+            env.clone(),
+            info,
+            modified_mixnode,
+            cost_params.clone(),
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        // even stake amount is protected
+        let mut different_pledge = pledge.clone();
+        different_pledge[0].amount += Uint128::new(12345);
+
+        let info = mock_info(sender, different_pledge.as_ref());
+        let res = try_add_mixnode(
+            test.deps_mut(),
+            env.clone(),
+            info.clone(),
+            mixnode.clone(),
+            cost_params.clone(),
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        let other_sender = mock_info("another-sender", pledge.as_ref());
+        let res = try_add_mixnode(
+            test.deps_mut(),
+            env.clone(),
+            other_sender,
+            mixnode.clone(),
+            cost_params.clone(),
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        // trying to reuse the same signature for another bonding fails (because nonce doesn't match!)
+        let info = mock_info(sender, pledge.as_ref());
+        let current_nonce =
+            signing_storage::get_signing_nonce(test.deps().storage, Addr::unchecked(sender))
+                .unwrap();
+        assert_eq!(0, current_nonce);
+        let res = try_add_mixnode(
+            test.deps_mut(),
+            env.clone(),
+            info.clone(),
+            mixnode.clone(),
+            cost_params.clone(),
+            signature.clone(),
+        );
+        assert!(res.is_ok());
+        let updated_nonce =
+            signing_storage::get_signing_nonce(test.deps().storage, Addr::unchecked(sender))
+                .unwrap();
+        assert_eq!(1, updated_nonce);
+
+        test.immediately_unbond_mixnode(1);
+        let res = try_add_mixnode(test.deps_mut(), env, info, mixnode, cost_params, signature);
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
     }
 
     #[test]
@@ -528,10 +588,9 @@ pub mod tests {
         let vesting_contract = test.vesting_contract();
 
         let owner = "alice";
-        let (mixnode, sig, _) = test_helpers::mixnode_with_signature(&mut test.rng, owner);
+        let (mixnode, sig, _) = test.mixnode_with_signature(owner, None);
         let cost_params = fixtures::mix_node_cost_params_fixture();
 
-        // we are informed that we didn't send enough funds
         let res = try_add_mixnode_on_behalf(
             test.deps_mut(),
             env,
@@ -920,52 +979,53 @@ pub mod tests {
 
     #[test]
     fn adding_mixnode_with_duplicate_sphinx_key_errors_out() {
-        let mut deps = test_helpers::init_contract();
-        let mut rng = test_helpers::test_rng();
+        let mut test = TestSetup::new();
+        let env = test.env();
 
-        let keypair1 = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
-        let keypair2 = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
-        let sig1 = keypair1.private_key().sign_text("alice");
-        let sig2 = keypair1.private_key().sign_text("bob");
+        let keypair1 = nym_crypto::asymmetric::identity::KeyPair::new(&mut test.rng);
+        let keypair2 = nym_crypto::asymmetric::identity::KeyPair::new(&mut test.rng);
 
-        let info_alice = mock_info("alice", &tests::fixtures::good_mixnode_pledge());
-        let info_bob = mock_info("bob", &tests::fixtures::good_mixnode_pledge());
-
-        let mut mixnode = MixNode {
+        let cost_params = fixtures::mix_node_cost_params_fixture();
+        let mixnode1 = MixNode {
             host: "1.2.3.4".to_string(),
             mix_port: 1234,
             verloc_port: 1234,
             http_api_port: 1234,
-            sphinx_key: nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng)
+            sphinx_key: nym_crypto::asymmetric::encryption::KeyPair::new(&mut test.rng)
                 .public_key()
                 .to_base58_string(),
             identity_key: keypair1.public_key().to_base58_string(),
             version: "v0.1.2.3".to_string(),
         };
-        let cost_params = fixtures::mix_node_cost_params_fixture();
+
+        // change identity but reuse sphinx key
+        let mut mixnode2 = mixnode1.clone();
+        mixnode2.sphinx_key = nym_crypto::asymmetric::encryption::KeyPair::new(&mut test.rng)
+            .public_key()
+            .to_base58_string();
+
+        let sig1 =
+            test.mixnode_bonding_signature(keypair1.private_key(), "alice", mixnode1.clone(), None);
+        let sig2 =
+            test.mixnode_bonding_signature(keypair2.private_key(), "bob", mixnode2.clone(), None);
+
+        let info_alice = mock_info("alice", &tests::fixtures::good_mixnode_pledge());
+        let info_bob = mock_info("bob", &tests::fixtures::good_mixnode_pledge());
 
         assert!(try_add_mixnode(
-            deps.as_mut(),
-            mock_env(),
+            test.deps_mut(),
+            env.clone(),
             info_alice,
-            mixnode.clone(),
+            mixnode1,
             cost_params.clone(),
             sig1
         )
         .is_ok());
 
-        mixnode.identity_key = keypair2.public_key().to_base58_string();
-
         // change identity but reuse sphinx key
-        assert!(try_add_mixnode(
-            deps.as_mut(),
-            mock_env(),
-            info_bob,
-            mixnode,
-            cost_params,
-            sig2
-        )
-        .is_err());
+        assert!(
+            try_add_mixnode(test.deps_mut(), env, info_bob, mixnode2, cost_params, sig2).is_err()
+        );
     }
 
     #[cfg(test)]

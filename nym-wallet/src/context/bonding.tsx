@@ -9,7 +9,15 @@ import {
 } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Big from 'big.js';
-import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs, TBondMoreArgs } from 'src/types';
+import {
+  isGateway,
+  isMixnode,
+  TBondGatewayArgs,
+  TBondGatewaySignatureArgs,
+  TBondMixNodeArgs,
+  TBondMixnodeSignatureArgs,
+  TBondMoreArgs,
+} from 'src/types';
 import { Console } from 'src/utils/console';
 import {
   bondGateway as bondGatewayRequest,
@@ -37,6 +45,10 @@ import {
   getMixnodeRewardEstimation,
   getGatewayReport,
   getMixnodeUptime,
+  vestingGenerateMixnodeMsgPayload as vestingGenerateMixnodeMsgPayloadReq,
+  generateMixnodeMsgPayload as generateMixnodeMsgPayloadReq,
+  vestingGenerateGatewayMsgPayload as vestingGenerateGatewayMsgPayloadReq,
+  generateGatewayMsgPayload as generateGatewayMsgPayloadReq,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
@@ -109,6 +121,8 @@ export type TBondingContext = {
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
+  generateMixnodeMsgPayload: (data: TBondMixnodeSignatureArgs) => Promise<string | undefined>;
+  generateGatewayMsgPayload: (data: TBondGatewaySignatureArgs) => Promise<string | undefined>;
 };
 
 export const BondingContext = createContext<TBondingContext>({
@@ -133,6 +147,12 @@ export const BondingContext = createContext<TBondingContext>({
     throw new Error('Not implemented');
   },
   checkOwnership(): Promise<void> {
+    throw new Error('Not implemented');
+  },
+  generateMixnodeMsgPayload: async () => {
+    throw new Error('Not implemented');
+  },
+  generateGatewayMsgPayload: async () => {
     throw new Error('Not implemented');
   },
 });
@@ -465,6 +485,42 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return undefined;
   };
 
+  const generateMixnodeMsgPayload = async (data: TBondMixnodeSignatureArgs) => {
+    let message;
+    setIsLoading(true);
+    try {
+      if (isVesting) {
+        message = await vestingGenerateMixnodeMsgPayloadReq(data);
+      } else {
+        message = await generateMixnodeMsgPayloadReq(data);
+      }
+    } catch (e) {
+      Console.warn(e);
+      setError(`an error occurred: ${e}`);
+    } finally {
+      setIsLoading(false);
+    }
+    return message;
+  };
+
+  const generateGatewayMsgPayload = async (data: TBondGatewaySignatureArgs) => {
+    let message;
+    setIsLoading(true);
+    try {
+      if (isVesting) {
+        message = await vestingGenerateGatewayMsgPayloadReq(data);
+      } else {
+        message = await generateGatewayMsgPayloadReq(data);
+      }
+    } catch (e) {
+      Console.warn(e);
+      setError(`an error occurred: ${e}`);
+    } finally {
+      setIsLoading(false);
+    }
+    return message;
+  };
+
   const memoizedValue = useMemo(
     () => ({
       isLoading: isLoading || isOwnershipLoading,
@@ -478,6 +534,8 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       redeemRewards,
       bondMore,
       checkOwnership,
+      generateMixnodeMsgPayload,
+      generateGatewayMsgPayload,
     }),
     [isLoading, isOwnershipLoading, error, bondedNode, isVesting],
   );

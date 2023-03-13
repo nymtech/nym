@@ -581,6 +581,9 @@ pub fn query(
         QueryMsg::GetNumberOfPendingEvents {} => to_binary(
             &crate::interval::queries::query_number_of_pending_events(deps)?,
         ),
+        QueryMsg::GetSigningNonce { address } => to_binary(
+            &crate::signing::queries::query_current_signing_nonce(deps, address)?,
+        ),
     };
 
     Ok(query_res?)

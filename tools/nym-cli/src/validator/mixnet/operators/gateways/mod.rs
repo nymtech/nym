@@ -16,6 +16,9 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::mixnet::operators::gateway::MixnetOperatorsGatewayCommands::Unbond(_args) => {
             nym_cli_commands::validator::mixnet::operators::gateway::unbond_gateway::unbond_gateway(create_signing_client(global_args, network_details)?).await
         },
+        nym_cli_commands::validator::mixnet::operators::gateway::MixnetOperatorsGatewayCommands::CreateGatewayBondingSignPayload(args) => {
+            nym_cli_commands::validator::mixnet::operators::gateway::gateway_bonding_sign_payload::create_payload(args,create_signing_client(global_args, network_details)?).await
+        }
         _ => unreachable!(),
     }
     Ok(())

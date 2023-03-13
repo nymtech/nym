@@ -169,6 +169,10 @@ fn main() {
             simulate::mixnet::simulate_claim_operator_reward,
             signatures::sign::sign,
             signatures::sign::verify,
+            signatures::ed25519_signing_payload::generate_mixnode_bonding_msg_payload,
+            signatures::ed25519_signing_payload::vesting_generate_mixnode_bonding_msg_payload,
+            signatures::ed25519_signing_payload::generate_gateway_bonding_msg_payload,
+            signatures::ed25519_signing_payload::vesting_generate_gateway_bonding_msg_payload,
             help::log::help_log_toggle_window,
         ])
         .menu(Menu::os_default(&context.package_info().name).add_default_app_submenus())

@@ -6,12 +6,12 @@ use clap::{Args, Subcommand};
 pub mod rewards;
 
 pub mod delegate_to_mixnode;
+pub mod pledge_more;
 pub mod query_for_delegations;
 pub mod undelegate_from_mixnode;
 pub mod vesting_delegate_to_mixnode;
-pub mod vesting_undelegate_from_mixnode;
-pub mod pledge_more;
 pub mod vesting_pledge_more;
+pub mod vesting_undelegate_from_mixnode;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]

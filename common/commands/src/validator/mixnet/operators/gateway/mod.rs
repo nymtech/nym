@@ -20,12 +20,12 @@ pub struct MixnetOperatorsGateway {
 pub enum MixnetOperatorsGatewayCommands {
     /// Bond to a gateway
     Bond(bond_gateway::Args),
-    /// Unbound from a gateway
-    Unbound(unbond_gateway::Args),
+    /// Unbond from a gateway
+    Unbond(unbond_gateway::Args),
     /// Bond to a gateway with locked tokens
     VestingBond(vesting_bond_gateway::Args),
-    /// Unbound from a gateway (when originally using locked tokens)
-    VestingUnbound(vesting_unbond_gateway::Args),
+    /// Unbond from a gateway (when originally using locked tokens)
+    VestingUnbond(vesting_unbond_gateway::Args),
     /// Create base58-encoded payload required for producing valid bonding signature.
     CreateGatewayBondingSignPayload(gateway_bonding_sign_payload::Args),
 }

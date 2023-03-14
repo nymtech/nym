@@ -91,6 +91,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
             <Typography>Remember to change your node’s config file with the same values too.</Typography>
           </Stack>
         }
+        bgColor={`${theme.palette.nym.nymWallet.text.blue}0D !important`}
         dismissable
       />
       <Grid container mt={2}>

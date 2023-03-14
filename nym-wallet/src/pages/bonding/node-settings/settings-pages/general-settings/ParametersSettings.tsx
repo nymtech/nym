@@ -153,6 +153,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       {isSubmitting && <LoadingModal />}
       <Alert
         title={<Typography sx={{ fontWeight: 600 }}>{`Next interval: ${intervalTime}`}</Typography>}
+        bgColor={`${theme.palette.nym.nymWallet.text.blue}0D !important`}
         sxAlert={{
           icon: false as unknown as number,
           '& .MuiAlert-message': {

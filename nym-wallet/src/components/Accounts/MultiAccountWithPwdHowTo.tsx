@@ -27,7 +27,7 @@ export const MultiAccountWithPwdHowTo = ({ show, handleClose }: { show: boolean;
         </Typography>
         <Typography fontSize={12}>
           In order to import or create account(s) you need to log in with your password or create a new one. Creating a
-          new password will overwrite any old one. Make sure your menonics are all wirtten down before creating a new
+          new password will overwrite any old one. Make sure your mnemonics are all written down before creating a new
           password.
         </Typography>
       </Warning>

@@ -2879,6 +2879,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-crypto"
+version = "0.2.0"
+dependencies = [
+ "bs58",
+ "ed25519-dalek",
+ "nym-pemstore",
+ "nym-sphinx-types",
+ "rand 0.7.3",
+ "subtle-encoding",
+ "thiserror",
+ "x25519-dalek",
+]
+
+[[package]]
 name = "nym-dkg"
 version = "0.1.0"
 dependencies = [
@@ -2897,20 +2911,6 @@ dependencies = [
  "sha2 0.9.9",
  "thiserror",
  "zeroize",
-]
-
-[[package]]
-name = "nym-crypto"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "ed25519-dalek",
- "nym-pemstore",
- "nym-sphinx-types",
- "rand 0.7.3",
- "subtle-encoding",
- "thiserror",
- "x25519-dalek",
 ]
 
 [[package]]
@@ -2984,7 +2984,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-types"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "sphinx-packet",
 ]

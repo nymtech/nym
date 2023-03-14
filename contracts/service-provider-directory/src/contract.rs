@@ -55,7 +55,7 @@ mod exec {
 
     pub fn announce(
         deps: DepsMut,
-        info: MessageInfo,
+        _info: MessageInfo,
         client_address: String,
         standard_whitelist: bool,
         owner: Addr,
@@ -77,9 +77,9 @@ mod exec {
      */
     pub fn update_score(
         deps: DepsMut,
-        info: MessageInfo,
+        _info: MessageInfo,
         client_address: String,
-        new_score: i8,
+        _new_score: i8,
     ) -> Result<Response, ContractError> {
         let to_update = SERVICES.load(deps.storage, client_address.clone())?;
 
@@ -144,8 +144,26 @@ mod query {
 mod tests {
     use super::*;
     use crate::msg::ServicesInfo;
-    use cosmwasm_std::Addr;
+    use cosmwasm_std::{
+        testing::{mock_dependencies, mock_env, mock_info},
+        Addr,
+    };
     use cw_multi_test::{App, ContractWrapper, Executor};
+
+    #[test]
+    fn instantiate_contract() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+
+        let info = mock_info("hello", &[]);
+
+        let msg = InstantiateMsg {
+            updater_role: Addr::unchecked("test"),
+            admin: Addr::unchecked("test2"),
+        };
+
+        instantiate(deps.as_mut(), env, info, msg).unwrap();
+    }
 
     #[test]
     fn set_config() {

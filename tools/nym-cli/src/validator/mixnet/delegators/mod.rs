@@ -38,7 +38,6 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::mixnet::delegators::MixnetDelegatorsCommands::List(args) => {
             nym_cli_commands::validator::mixnet::delegators::query_for_delegations::execute(args, create_signing_client_with_nym_api(global_args, network_details)?).await
         }
-        _ => unreachable!(),
     }
     Ok(())
 }

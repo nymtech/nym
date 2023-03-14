@@ -8,7 +8,6 @@ use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::STATE;
 use crate::verification_key_shares::storage::verified_dealers;
-use crate::verification_key_shares::storage::vk_shares;
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, Response, Storage};
 use nym_coconut_dkg_common::types::{Epoch, EpochState, InitialReplacementData};
 

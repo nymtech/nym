@@ -1,8 +1,7 @@
 import React from 'react';
+import { Link } from '@nymproject/react/link/Link';
 import { Box, Button, Typography } from '@mui/material';
 import { NymCard } from '../NymCard';
-import { urls } from '../../context';
-import { Link } from '@nymproject/react/link/Link';
 
 export const Bond = ({
   onBond,

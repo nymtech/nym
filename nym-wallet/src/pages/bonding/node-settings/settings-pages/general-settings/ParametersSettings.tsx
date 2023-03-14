@@ -1,7 +1,18 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Box, Button, Divider, FormHelperText, Grid, InputAdornment, TextField, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Divider,
+  FormHelperText,
+  Grid,
+  InputAdornment,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { CurrencyDenom, MixNodeCostParams } from '@nymproject/types';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
@@ -24,6 +35,12 @@ import { AppContext } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
+import { InfoOutlined } from '@mui/icons-material';
+
+const operatorCostHint = `This is your (operator) rewards including the PM and cost. Rewards are automatically compounded every epoch.You can redeem your rewards at any time.
+`;
+const profitMarginHint =
+  'PM is the percentage of the node rewards that you as the node operator take before rewards are distributed to the delegators.';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode }): JSX.Element => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
@@ -116,8 +133,10 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       xs
       item
       sx={{
+        pt: '0 !important',
+        pl: '0 !important',
         '& .MuiGrid-item': {
-          pl: 0,
+          pl: 3,
         },
       }}
     >
@@ -132,13 +151,28 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         />
       )}
       {isSubmitting && <LoadingModal />}
-      <Alert title={<Box component="span" sx={{ fontWeight: 600 }}>{`Next interval: ${intervalTime}`}</Box>} />
-      <Grid container direction="column">
+      <Alert
+        title={<Typography sx={{ fontWeight: 600 }}>{`Next interval: ${intervalTime}`}</Typography>}
+        sxAlert={{
+          icon: false as unknown as number,
+          '& .MuiAlert-message': {
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          },
+        }}
+      />
+      <Grid container direction="column" mt={2}>
         <Grid item container alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
           <Grid item xl={6}>
-            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
-              Profit Margin
-            </Typography>
+            <Tooltip title={profitMarginHint} placement="top-end">
+              <Stack flexDirection="row" gap={0.5}>
+                <InfoOutlined fontSize="inherit" />
+                <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                  Profit Margin
+                </Typography>
+              </Stack>
+            </Tooltip>
             <Typography
               variant="body1"
               sx={{
@@ -180,12 +214,17 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             </Grid>
           )}
         </Grid>
-        <Divider flexItem sx={{ position: 'relative', left: '-24px', width: 'calc(100% + 24px)' }} />
+        <Divider sx={{ width: '100%' }} />
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
           <Grid item>
-            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
-              Operating cost
-            </Typography>
+            <Tooltip title={operatorCostHint} placement="top-end">
+              <Stack flexDirection="row" gap={0.5}>
+                <InfoOutlined fontSize="inherit" />
+                <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                  Operator cost
+                </Typography>
+              </Stack>
+            </Tooltip>
             <Typography
               variant="body1"
               sx={{
@@ -201,7 +240,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             <CurrencyFormField
               required
               fullWidth
-              label="Operating cost"
+              label="Operator cost"
               onChanged={(newValue) => {
                 setValue('operatorCost', newValue, { shouldValidate: true, shouldDirty: true });
               }}
@@ -221,23 +260,27 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             )}
           </Grid>
         </Grid>
-        <Divider flexItem sx={{ position: 'relative', left: '-24px', width: 'calc(100% + 24px)' }} />
-        <Grid container justifyContent="end">
-          <Button
-            size="large"
-            variant="contained"
-            disabled={isSubmitting || !isDirty || !isValid}
-            onClick={handleSubmit((data) => {
-              getFee(bondedNode.proxy ? simulateVestingUpdateMixnodeCostParams : simulateUpdateMixnodeCostParams, {
-                profit_margin_percent: (+data.profitMargin / 100).toString(),
-                interval_operating_cost: data.operatorCost,
-              });
-            })}
-            type="submit"
-            sx={{ m: 3 }}
-          >
-            Submit changes to the blockchain
-          </Button>
+        <Divider sx={{ width: '100%' }} />
+        <Grid item container direction="row" justifyContent="space-between" padding={3}>
+          <Grid item />
+          <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
+            <Button
+              size="large"
+              variant="contained"
+              disabled={isSubmitting || !isDirty || !isValid}
+              onClick={handleSubmit((data) => {
+                getFee(bondedNode.proxy ? simulateVestingUpdateMixnodeCostParams : simulateUpdateMixnodeCostParams, {
+                  profit_margin_percent: (+data.profitMargin / 100).toString(),
+                  interval_operating_cost: data.operatorCost,
+                });
+              })}
+              type="submit"
+              sx={{ m: 3, mr: 0, ml: 0 }}
+              fullWidth
+            >
+              Save changes
+            </Button>
+          </Grid>
         </Grid>
       </Grid>
       <SimpleModal

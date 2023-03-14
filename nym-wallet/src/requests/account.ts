@@ -1,8 +1,9 @@
 import { Account, Balance, AccountEntry } from '@nymproject/types';
+import { invoke } from '@tauri-apps/api';
 import { invokeWrapper } from './wrapper';
 
 export const signInWithMnemonic = async (mnemonic: string): Promise<Account> =>
-  invokeWrapper<Account>('connect_with_mnemonic', { mnemonic });
+  invoke('connect_with_mnemonic', { mnemonic });
 
 export const userBalance = async () => invokeWrapper<Balance>('get_balance');
 

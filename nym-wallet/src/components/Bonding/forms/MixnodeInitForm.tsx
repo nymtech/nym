@@ -36,6 +36,7 @@ const MixnodeInitForm = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; on
         initialValue={mixnodeData?.identityKey}
         errorText={errors.identityKey?.message}
         onChanged={(value) => setValue('identityKey', value)}
+        showTickOnValid={false}
       />
       <TextField
         {...register('sphinxKey')}

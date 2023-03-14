@@ -257,6 +257,7 @@ export const DelegateModal: FCWithChildren<{
           textFieldProps={{
             autoFocus: !initialIdentityKey,
           }}
+          showTickOnValid={false}
         />
       </Box>
       <Typography

@@ -22,10 +22,10 @@ export const MultiAccountWithPwdHowTo = ({ show, handleClose }: { show: boolean;
   >
     <Stack spacing={2}>
       <Warning sx={{ textAlign: 'center' }}>
-        <Typography fontWeight={600} sx={{ mb: 1 }}>
+        <Typography fontWeight={600} fontSize={14} sx={{ mb: 1 }}>
           This machine already has a password set on it
         </Typography>
-        <Typography>
+        <Typography fontSize={12}>
           In order to import or create account(s) you need to log in with your password or create a new one. Creating a
           new password will overwrite any old one. Make sure your menonics are all wirtten down before creating a new
           password.
@@ -35,7 +35,7 @@ export const MultiAccountWithPwdHowTo = ({ show, handleClose }: { show: boolean;
       {passwordCreationSteps.map((step, index) => (
         <Stack key={step} direction="row" spacing={1}>
           <Typography fontWeight={600}>{`${index + 1}.`}</Typography>
-          <Typography>{`${step}`}</Typography>
+          <Typography fontSize={14}>{`${step}`}</Typography>
         </Stack>
       ))}
       <Link
@@ -43,6 +43,7 @@ export const MultiAccountWithPwdHowTo = ({ show, handleClose }: { show: boolean;
         target="_blank"
         text="Open Nym docs for this guide in a browser window"
         fontWeight={600}
+        fontSize={14}
       />
     </Stack>
   </SimpleModal>

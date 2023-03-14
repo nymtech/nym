@@ -278,16 +278,9 @@ export const DelegateModal: FCWithChildren<{
           autoFocus={Boolean(initialIdentityKey)}
           onChanged={handleAmountChanged}
           denom={denom}
+          validationError={errorAmount}
         />
       </Box>
-      <Typography
-        component="div"
-        textAlign="left"
-        variant="caption"
-        sx={{ color: 'error.main', mx: 2, mt: errorAmount && 1 }}
-      >
-        {errorAmount}
-      </Typography>
       <Box sx={{ mt: 3 }}>
         <ModalListItem label="Account balance" value={accountBalance?.toUpperCase()} divider fontWeight={600} />
       </Box>

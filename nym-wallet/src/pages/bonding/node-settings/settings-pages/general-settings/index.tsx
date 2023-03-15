@@ -5,7 +5,7 @@ import { TBondedMixnode, TBondedGateway } from '../../../../../context/bonding';
 import { InfoSettings } from './InfoSettings';
 import { ParametersSettings } from './ParametersSettings';
 
-const nodeGeneralNav = ['Info', 'Parameters'];
+const nodeGeneralNav = ['Node info', 'Parameters'];
 
 export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [settingsCard, setSettingsCard] = useState<string>(nodeGeneralNav[0]);

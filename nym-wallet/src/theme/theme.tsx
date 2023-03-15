@@ -303,6 +303,24 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
           },
         },
       },
+      MuiSelect: {
+        defaultProps: {
+          MenuProps: {
+            PaperProps: {
+              sx: {
+                '&& .Mui-selected': {
+                  color: nymPalette.highlight,
+                  backgroundColor: (t) =>
+                    t.palette.mode === 'dark' ? `${t.palette.background.default} !important` : '#FFFFFF !important',
+                },
+                '&& .Mui-selected:hover': {
+                  backgroundColor: 'rgba(251, 110, 78, 0.08) !important',
+                },
+              },
+            },
+          },
+        },
+      },
       MuiMenu: {
         styleOverrides: {
           list: ({ _, theme }) => ({

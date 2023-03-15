@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Box, Button, Divider, Grid, TextField, Typography } from '@mui/material';
+import { Button, Divider, Grid, Stack, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { isMixnode } from 'src/types';
 import { simulateUpdateMixnodeConfig, simulateVestingUpdateMixnodeConfig, updateMixnodeConfig } from 'src/requests';
@@ -62,7 +62,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
   };
 
   return (
-    <Grid container xs item>
+    <Grid container xs>
       {fee && (
         <ConfirmTx
           open
@@ -76,14 +76,17 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
       {isSubmitting && <LoadingModal />}
       <Alert
         title={
-          <Box sx={{ fontWeight: 600 }}>
-            Changing these values will ONLY change the data about your node on the blockchain. Remember to change your
-            node’s config file with the same values too
-          </Box>
+          <Stack>
+            <Typography fontWeight={600}>
+              Changing these values will ONLY change the data about your node on the blockchain.
+            </Typography>
+            <Typography>Remember to change your node’s config file with the same values too.</Typography>
+          </Stack>
         }
+        bgColor={`${theme.palette.nym.nymWallet.text.blue}0D !important`}
         dismissable
       />
-      <Grid container>
+      <Grid container mt={2}>
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
           <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
@@ -126,7 +129,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
             </Grid>
           </Grid>
         </Grid>
-        <Divider flexItem />
+        <Divider sx={{ width: '100%' }} />
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
           <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
@@ -147,7 +150,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
             </Grid>
           </Grid>
         </Grid>
-        <Divider flexItem />
+        <Divider sx={{ width: '100%' }} />
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
           <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
@@ -168,31 +171,35 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
             </Grid>
           </Grid>
         </Grid>
-        <Divider flexItem />
-        <Grid container justifyContent="end">
-          <Button
-            size="large"
-            variant="contained"
-            disabled={isSubmitting || !isDirty || !isValid}
-            onClick={handleSubmit((data) =>
-              getFee(bondedNode.proxy ? simulateVestingUpdateMixnodeConfig : simulateUpdateMixnodeConfig, {
-                host: data.host,
-                mix_port: data.mixPort,
-                verloc_port: data.verlocPort,
-                http_api_port: data.httpApiPort,
-                version: data.version,
-              }),
-            )}
-            sx={{ m: 3 }}
-          >
-            Submit changes to the blockchain
-          </Button>
+        <Divider sx={{ width: '100%' }} />
+        <Grid item container direction="row" justifyContent="space-between" padding={3}>
+          <Grid item />
+          <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
+            <Button
+              size="large"
+              variant="contained"
+              disabled={isSubmitting || !isDirty || !isValid}
+              onClick={handleSubmit((data) =>
+                getFee(bondedNode.proxy ? simulateVestingUpdateMixnodeConfig : simulateUpdateMixnodeConfig, {
+                  host: data.host,
+                  mix_port: data.mixPort,
+                  verloc_port: data.verlocPort,
+                  http_api_port: data.httpApiPort,
+                  version: data.version,
+                }),
+              )}
+              sx={{ m: 3, mr: 0 }}
+              fullWidth
+            >
+              Submit changes to the blockchain
+            </Button>
+          </Grid>
         </Grid>
       </Grid>
       <SimpleModal
         open={openConfirmationModal}
         header="Your changes are submitted to the blockchain"
-        subHeader="Remember to change the values 
+        subHeader="Remember to change the values
         on your node’s config file too."
         okLabel="close"
         hideCloseIcon

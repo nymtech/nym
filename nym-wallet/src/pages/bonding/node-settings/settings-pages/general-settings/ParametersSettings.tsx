@@ -131,10 +131,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     <Grid
       container
       xs
-      item
       sx={{
-        pt: '0 !important',
-        pl: '0 !important',
         '& .MuiGrid-item': {
           pl: 3,
         },
@@ -264,7 +261,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         <Divider sx={{ width: '100%' }} />
         <Grid item container direction="row" justifyContent="space-between" padding={3}>
           <Grid item />
-          <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
+          <Grid item xs={12} md={6}>
             <Button
               size="large"
               variant="contained"

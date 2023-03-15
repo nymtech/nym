@@ -54,7 +54,7 @@ export const TokenPoolSelector: FCWithChildren<{ disabled: boolean; onSelect: (p
             <ListItemText
               primary="Balance"
               secondary={`${balance?.printable_balance}`}
-              secondaryTypographyProps={{ sx: { textTransform: 'uppercase', color: (t) => t.palette.nym.text.muted } }}
+              secondaryTypographyProps={{ sx: { textTransform: 'uppercase', color: 'nym.text.muted' } }}
             />
             {value === 'balance' && <CheckIcon fontSize="small" />}
           </Stack>
@@ -68,7 +68,7 @@ export const TokenPoolSelector: FCWithChildren<{ disabled: boolean; onSelect: (p
                   +tokenAllocation.locked + +tokenAllocation.spendable
                 } ${clientDetails?.display_mix_denom.toUpperCase()}`}
                 secondaryTypographyProps={{
-                  sx: { textTransform: 'uppercase', color: (t) => t.palette.nym.text.muted },
+                  sx: { textTransform: 'uppercase', color: 'nym.text.muted' },
                 }}
               />
               {value === 'locked' && <CheckIcon fontSize="small" />}

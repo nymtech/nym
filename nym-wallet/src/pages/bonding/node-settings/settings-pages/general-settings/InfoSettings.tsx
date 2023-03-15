@@ -62,15 +62,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
   };
 
   return (
-    <Grid
-      container
-      xs
-      item
-      sx={{
-        paddingTop: '0 !important',
-        paddingLeft: '0 !important',
-      }}
-    >
+    <Grid container xs>
       {fee && (
         <ConfirmTx
           open

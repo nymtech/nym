@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v1.1.13] (2023-03-15)
+
+- Wallet - in the vesting section separate the "Unlocked transferable tokens" into "Unlocked vesting tokens" and "Transferable rewards" for better clarity ([#3132])
+- Wallet - change the Bonding flow to include an additional step for the user to provide a unique signature when they bond their node ([#3109])
+
+[#3132]: https://github.com/nymtech/nym/issues/3132
+[#3109]: https://github.com/nymtech/nym/issues/3109
+
 ## [v1.1.11] (2023-03-07)
 
 - Wallet: optional gas and memo fields ([#2222])

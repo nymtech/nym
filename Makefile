@@ -19,12 +19,8 @@ clippy-all-no-mobile: clippy-main clippy-main-examples clippy-all-contracts clip
 clippy-happy: clippy-happy-no-mobile clippy-happy-connect-mobile
 clippy-happy-no-mobile: clippy-happy-main clippy-happy-contracts clippy-happy-wallet clippy-happy-connect
 
-cargo-test: cargo-test-no-mobile test-connect-mobile
-cargo-test-no-mobile: test-main test-contracts test-wallet test-connect
-cargo-test-expensive: test-main-expensive test-contracts-expensive test-wallet-expensive test-connect-expensive
-
-build: build-no-mobile build-connect-mobile
-build-no-mobile: build-contracts build-wallet build-main build-main-examples build-connect build-wasm-client
+cargo-test: cargo-test-no-mobile
+build: build-no-mobile
 
 #
 # Main workspace
@@ -54,6 +50,9 @@ build-main-examples:
 fmt-main:
 	cargo fmt --all
 
+cargo-test-no-mobile: test-main
+cargo-test-expensive: test-main-expensive
+build-no-mobile: build-main build-main-examples
 fmt: fmt-main
 
 #
@@ -78,6 +77,9 @@ build-contracts:
 fmt-contracts:
 	cargo fmt --manifest-path contracts/Cargo.toml --all
 
+cargo-test-no-mobile: test-contracts
+cargo-test-expensive: test-contracts-expensive
+build-no-mobile: build-contracts
 fmt: fmt-contracts
 
 #
@@ -102,8 +104,10 @@ build-wallet:
 fmt-wallet:
 	cargo fmt --manifest-path nym-wallet/Cargo.toml --all
 
+cargo-test-no-mobile: test-wallet
+cargo-test-expensive: test-wallet-expensive
+build-no-mobile: build-wallet
 fmt: fmt-wallet
-
 
 #
 # nym-connect desktop
@@ -127,8 +131,10 @@ build-connect:
 fmt-connect:
 	cargo fmt --manifest-path nym-connect/desktop/Cargo.toml --all
 
+cargo-test-no-mobile: test-connect
+cargo-test-expensive: test-connect-expensive
+build-no-mobile: build-connect
 fmt: fmt-connect
-
 
 #
 # nym-connect mobile
@@ -152,8 +158,9 @@ build-connect-mobile:
 fmt-connect-mobile:
 	cargo fmt --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all
 
+cargo-test: test-connect-mobile
+build: build-connect-mobile
 fmt: fmt-connect-mobile
-
 
 #
 # nym-client-wasm
@@ -171,6 +178,7 @@ build-wasm-client:
 fmt-wasm-client:
 	cargo fmt --manifest-path clients/webassembly/Cargo.toml --all
 
+build-no-mobile: build-wasm-client
 fmt: fmt-wasm-client
 
 #
@@ -178,10 +186,10 @@ fmt: fmt-wasm-client
 #
 
 build-explorer-api:
-	cargo build --manifest-path explorer-api/Cargo.toml
+	cargo build -p explorer-api
 
 build-nym-cli:
-	cargo build --release --manifest-path tools/nym-cli/Cargo.toml
+	cargo build -p nym-cli --release
 
 #
 # Misc

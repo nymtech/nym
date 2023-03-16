@@ -13,12 +13,8 @@ no-clippy-no-mobile: build-no-mobile cargo-test-no-mobile wasm fmt-no-mobile
 happy: fmt clippy-happy test
 happy-no-mobile: fmt-no-mobile clippy-happy-no-mobile test-no-mobile
 
-clippy-all: clippy-all-no-mobile clippy-all-connect-mobile
-clippy-all-no-mobile: clippy-main clippy-main-examples clippy-all-contracts clippy-all-wallet clippy-all-connect clippy-all-wasm-client
-
-clippy-happy: clippy-happy-no-mobile clippy-happy-connect-mobile
-clippy-happy-no-mobile: clippy-happy-main clippy-happy-contracts clippy-happy-wallet clippy-happy-connect
-
+clippy-all: clippy-all-no-mobile
+clippy-happy: clippy-happy-no-mobile
 cargo-test: cargo-test-no-mobile
 build: build-no-mobile
 
@@ -50,6 +46,8 @@ build-main-examples:
 fmt-main:
 	cargo fmt --all
 
+clippy-happy-no-mobile: clippy-happy-main
+clippy-all-no-mobile: clippy-main clippy-main-examples
 cargo-test-no-mobile: test-main
 cargo-test-expensive: test-main-expensive
 build-no-mobile: build-main build-main-examples
@@ -77,6 +75,8 @@ build-contracts:
 fmt-contracts:
 	cargo fmt --manifest-path contracts/Cargo.toml --all
 
+clippy-happy-no-mobile: clippy-happy-contracts
+clippy-all-no-mobile: clippy-all-contracts
 cargo-test-no-mobile: test-contracts
 cargo-test-expensive: test-contracts-expensive
 build-no-mobile: build-contracts
@@ -104,6 +104,8 @@ build-wallet:
 fmt-wallet:
 	cargo fmt --manifest-path nym-wallet/Cargo.toml --all
 
+clippy-happy-no-mobile: clippy-happy-wallet
+clippy-all-no-mobile: clippy-all-wallet
 cargo-test-no-mobile: test-wallet
 cargo-test-expensive: test-wallet-expensive
 build-no-mobile: build-wallet
@@ -131,6 +133,8 @@ build-connect:
 fmt-connect:
 	cargo fmt --manifest-path nym-connect/desktop/Cargo.toml --all
 
+clippy-happy-no-mobile: clippy-happy-connect
+clippy-all-no-mobile: clippy-all-connect
 cargo-test-no-mobile: test-connect
 cargo-test-expensive: test-connect-expensive
 build-no-mobile: build-connect
@@ -158,6 +162,8 @@ build-connect-mobile:
 fmt-connect-mobile:
 	cargo fmt --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all
 
+clippy-happy: clippy-happy-connect-mobile
+clippy-all: clippy-all-connect-mobile
 cargo-test: test-connect-mobile
 build: build-connect-mobile
 fmt: fmt-connect-mobile
@@ -178,6 +184,7 @@ build-wasm-client:
 fmt-wasm-client:
 	cargo fmt --manifest-path clients/webassembly/Cargo.toml --all
 
+clippy-all-no-mobile: clippy-all-wasm-client
 build-no-mobile: build-wasm-client
 fmt: fmt-wasm-client
 

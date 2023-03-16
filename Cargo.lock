@@ -3477,7 +3477,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "schemars",
  "serde",
- "serde_json",
+ "serde-json-wasm",
  "serde_repr",
  "thiserror",
  "time 0.3.17",

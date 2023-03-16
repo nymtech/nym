@@ -110,7 +110,7 @@ pub(crate) mod tests {
                 deps.as_mut().storage,
                 &InitialReplacementData {
                     initial_dealers: vec![],
-                    initial_height: None,
+                    initial_height: 1,
                 },
             )
             .unwrap();

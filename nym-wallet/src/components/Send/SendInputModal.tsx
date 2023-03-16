@@ -128,7 +128,7 @@ export const SendInputModal = ({
       <Stack gap={0.5} sx={{ mt: 1 }}>
         <ModalListItem label="Account balance" value={balance?.toUpperCase()} divider fontWeight={600} />
         <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
-          Est. fee for this transaction will be show on the next page
+          Est. fee for this transaction will be shown on the next page
         </Typography>
       </Stack>
       <FormControlLabel
@@ -139,7 +139,7 @@ export const SendInputModal = ({
       {showMore && (
         <Stack direction="column" gap={3} mt={2} mb={3}>
           <CurrencyFormField
-            label="Fees"
+            label="Fee"
             onChanged={(v) => onUserFeesChange(v)}
             initialValue={userFees?.amount}
             fullWidth

@@ -20,7 +20,7 @@ pub mod test_helpers {
         perform_pending_epoch_actions, perform_pending_interval_actions, try_begin_epoch_transition,
     };
     use crate::interval::{pending_events, storage as interval_storage};
-    use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+    use crate::mixnet_contract_settings::storage::{self as mixnet_params_storage};
     use crate::mixnet_contract_settings::storage::{
         minimum_gateway_pledge, minimum_mixnode_pledge, rewarding_denom,
         rewarding_validator_address,

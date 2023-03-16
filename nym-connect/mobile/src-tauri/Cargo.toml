@@ -19,9 +19,13 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.0.0-alpha.1", features = [] }
 # tauri-build = {  git = "https://github.com/tauri-apps/tauri", branch = "next", features = [] }
 
+# TODO untill new tauri version includes https://github.com/tauri-apps/tauri-mobile/pull/111
+[patch.crates-io]
+tauri-mobile = {  git = "https://github.com/tauri-apps/tauri-mobile", branch = "dev" }
+
 [dependencies]
 anyhow = "1.0"
-bip39 = "1.0"
+bip39 = { version = "2.0.0", features = ["zeroize"] }
 chrono = "0.4"
 dirs = "4.0"
 eyre = "0.6.5"

@@ -1,0 +1,7 @@
+{
+  "sender": "#sender",
+  "recipient": "#recipient",
+  "id": "#message",
+  "send_button": "#send-button",
+  "output": "#output"
+}

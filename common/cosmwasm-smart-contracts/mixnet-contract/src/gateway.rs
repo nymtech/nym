@@ -112,6 +112,26 @@ impl Display for GatewayBond {
     }
 }
 
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/GatewayConfigUpdate.ts")
+)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct GatewayConfigUpdate {
+    pub host: String,
+    pub mix_port: u16,
+    pub clients_port: u16,
+    pub location: String,
+    pub version: String,
+}
+
+impl GatewayConfigUpdate {
+    pub fn to_inline_json(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedGatewayResponse {
     pub nodes: Vec<GatewayBond>,

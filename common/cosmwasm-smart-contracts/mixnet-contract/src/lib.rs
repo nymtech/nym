@@ -27,7 +27,8 @@ pub use delegation::{
     PagedMixNodeDelegationsResponse,
 };
 pub use gateway::{
-    Gateway, GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse,
+    Gateway, GatewayBond, GatewayBondResponse, GatewayConfigUpdate, GatewayOwnershipResponse,
+    PagedGatewayResponse,
 };
 pub use interval::{
     CurrentIntervalResponse, EpochState, EpochStatus, Interval, NumberOfPendingEventsResponse,

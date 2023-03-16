@@ -13,6 +13,7 @@ no-clippy-no-mobile: build-no-mobile cargo-test-no-mobile wasm fmt-no-mobile
 happy: fmt clippy-happy test
 happy-no-mobile: fmt-no-mobile clippy-happy-no-mobile test-no-mobile
 
+# Merge no-mobile with mobile targets
 clippy-all: clippy-all-no-mobile
 clippy-happy: clippy-happy-no-mobile
 cargo-test: cargo-test-no-mobile

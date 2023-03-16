@@ -26,9 +26,6 @@ cargo-test-expensive: test-main-expensive test-contracts-expensive test-wallet-e
 build: build-no-mobile build-connect-mobile
 build-no-mobile: build-contracts build-wallet build-main build-main-examples build-connect build-wasm-client
 
-fmt: fmt-no-mobile fmt-connect-mobile
-fmt-no-mobile: fmt-main fmt-contracts fmt-wallet fmt-connect fmt-wasm-client
-
 #
 # Main workspace
 #
@@ -57,14 +54,17 @@ build-main-examples:
 fmt-main:
 	cargo fmt --all
 
+fmt: fmt-main
+
 #
 # Contracts
 #
+
 clippy-happy-contracts:
-	cargo clippy --manifest-path contracts/Cargo.toml --target wasm32-unknown-unknown
+	cargo clippy --manifest-path contracts/Cargo.toml --workspace --target wasm32-unknown-unknown
 
 clippy-all-contracts:
-	cargo clippy --workspace --manifest-path contracts/Cargo.toml --all-features --target wasm32-unknown-unknown -- -D warnings
+	cargo clippy --manifest-path contracts/Cargo.toml --workspace --all-features --target wasm32-unknown-unknown -- -D warnings
 
 test-contracts:
 	cargo test --manifest-path contracts/Cargo.toml --all-features
@@ -77,6 +77,8 @@ build-contracts:
 
 fmt-contracts:
 	cargo fmt --manifest-path contracts/Cargo.toml --all
+
+fmt: fmt-contracts
 
 #
 # nym-wallet
@@ -100,6 +102,9 @@ build-wallet:
 fmt-wallet:
 	cargo fmt --manifest-path nym-wallet/Cargo.toml --all
 
+fmt: fmt-wallet
+
+
 #
 # nym-connect desktop
 #
@@ -122,8 +127,12 @@ build-connect:
 fmt-connect:
 	cargo fmt --manifest-path nym-connect/desktop/Cargo.toml --all
 
+fmt: fmt-connect
 
+
+#
 # nym-connect mobile
+#
 
 clippy-happy-connect-mobile:
 	cargo clippy --manifest-path nym-connect/mobile/src-tauri/Cargo.toml
@@ -143,6 +152,9 @@ build-connect-mobile:
 fmt-connect-mobile:
 	cargo fmt --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all
 
+fmt: fmt-connect-mobile
+
+
 #
 # nym-client-wasm
 #
@@ -159,16 +171,14 @@ build-wasm-client:
 fmt-wasm-client:
 	cargo fmt --manifest-path clients/webassembly/Cargo.toml --all
 
+fmt: fmt-wasm-client
+
 #
-# nym-explorer-api
+# Convenience targets for crates that are already part of the main workspace
 #
 
 build-explorer-api:
-	cargo build --manifest-path explorer-api/Cargo.toml --workspace
-
-#
-# nym-api
-#
+	cargo build --manifest-path explorer-api/Cargo.toml
 
 build-nym-cli:
 	cargo build --release --manifest-path tools/nym-cli/Cargo.toml

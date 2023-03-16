@@ -1,5 +1,5 @@
 [package]
-name = "storage2"
+name = "nym-service-provider-directory"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,9 +7,10 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-cosmwasm-std = { version = "1.0.0", features = ["staking"] }
-cw-storage-plus = "1.0.0"
-cw2 = { version = "1.0.0" }
+#cosmwasm-std = { version = "1.0.0", features = ["staking"] }
+cosmwasm-std = { version = "1.0.0" }
+cw-storage-plus = "0.13.4"
+cw2 = { version = "0.13.4" }
 serde = { version = "1.0.155", default-features = false, features = ["derive"] }
 thiserror = "1.0.39"
 

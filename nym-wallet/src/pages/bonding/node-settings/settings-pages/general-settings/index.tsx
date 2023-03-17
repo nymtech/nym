@@ -18,6 +18,23 @@ const makeGeneralNav = (bondedNode: TBondedMixnode | TBondedGateway) => {
 export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [navSelection, setNavSelection] = useState<number>(0);
 
+  const getSettings = () => {
+    switch (navSelection) {
+      case 0: {
+        if (isMixnode(bondedNode)) return <GeneralMixnodeSettings bondedNode={bondedNode} />;
+        if (isGateway(bondedNode)) return <GeneralGatewaySettings bondedNode={bondedNode} />;
+        break;
+      }
+      case 1: {
+        if (isMixnode(bondedNode)) return <ParametersSettings bondedNode={bondedNode} />;
+        break;
+      }
+      default:
+        return null;
+    }
+    return undefined;
+  };
+
   return (
     <Box sx={{ pl: 3, pt: 3 }}>
       <Grid container direction="row" spacing={3}>
@@ -42,12 +59,7 @@ export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedMixnode
           ))}
         </Grid>
         <Divider orientation="vertical" flexItem />
-        {navSelection === 0 && isMixnode(bondedNode) ? (
-          <GeneralMixnodeSettings bondedNode={bondedNode} />
-        ) : navSelection === 0 && isGateway(bondedNode) ? (
-          <GeneralGatewaySettings bondedNode={bondedNode} />
-        ) : null}
-        {navSelection === 1 && isMixnode(bondedNode) && <ParametersSettings bondedNode={bondedNode} />}
+        {getSettings()}
       </Grid>
     </Box>
   );

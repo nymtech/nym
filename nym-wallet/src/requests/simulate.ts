@@ -25,9 +25,8 @@ export const simulateUpdateMixnodeCostParams = async (newCosts: MixNodeCostParam
 export const simulateUpdateMixnodeConfig = async (update: MixNodeConfigUpdate) =>
   invokeWrapper<FeeDetails>('simulate_update_mixnode_config', { update });
 
-export const simulateUpdateGatewayConfig = async (update: GatewayConfigUpdate) => {
-  return invokeWrapper<FeeDetails>('simulate_update_gateway_config', { update });
-};
+export const simulateUpdateGatewayConfig = async (update: GatewayConfigUpdate) =>
+  invokeWrapper<FeeDetails>('simulate_update_gateway_config', { update });
 
 export const simulateDelegateToMixnode = async (args: { mixId: number; amount: DecCoin }) =>
   invokeWrapper<FeeDetails>('simulate_delegate_to_mixnode', args);

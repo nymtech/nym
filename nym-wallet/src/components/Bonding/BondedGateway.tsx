@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { TBondedGateway, urls } from 'src/context';
 import { NymCard } from 'src/components';

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button, Divider, Typography, TextField, Grid, CircularProgress, Box } from '@mui/material';
+import { Button, Divider, Typography, TextField, Grid, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   simulateUpdateGatewayConfig,
@@ -45,7 +45,7 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
 
     try {
       const GatewayConfigParams = {
-        host: host,
+        host,
         mix_port: mixPort,
         clients_port: httpApiPort,
         location: bondedNode.location!,

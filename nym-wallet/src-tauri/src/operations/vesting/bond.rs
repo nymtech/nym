@@ -3,7 +3,7 @@ use crate::nyxd_client;
 use crate::state::WalletState;
 use crate::{Gateway, MixNode};
 use nym_contracts_common::signing::MessageSignature;
-use nym_mixnet_contract_common::{MixNodeConfigUpdate, GatewayConfigUpdate};
+use nym_mixnet_contract_common::{GatewayConfigUpdate, MixNodeConfigUpdate};
 
 use crate::operations::helpers::{
     verify_gateway_bonding_sign_payload, verify_mixnode_bonding_sign_payload,
@@ -254,7 +254,6 @@ pub async fn vesting_update_mixnode_config(
         res, fee_amount,
     )?)
 }
-
 
 #[tauri::command]
 pub async fn vesting_update_gateway_config(

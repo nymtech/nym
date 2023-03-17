@@ -5,7 +5,7 @@ use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
 use nym_contracts_common::signing::MessageSignature;
-use nym_mixnet_contract_common::MixNodeConfigUpdate;
+use nym_mixnet_contract_common::{MixNodeConfigUpdate, GatewayConfigUpdate};
 use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
@@ -136,6 +136,19 @@ pub async fn simulate_vesting_update_mixnode_config(
 ) -> Result<FeeDetails, BackendError> {
     simulate_vesting_operation(
         ExecuteMsg::UpdateMixnodeConfig { new_config: update },
+        None,
+        &state,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn simulate_vesting_update_gateway_config(
+    update: GatewayConfigUpdate,
+    state: tauri::State<'_, WalletState>,
+) -> Result<FeeDetails, BackendError> {
+    simulate_vesting_operation(
+        ExecuteMsg::UpdateGatewayConfig { new_config: update },
         None,
         &state,
     )

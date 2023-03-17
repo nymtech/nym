@@ -267,7 +267,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
-    if (ownership.hasOwnership && clientDetails) {
+    if (ownership.hasOwnership && ownership.nodeType === EnumNodeType.mixnode && clientDetails) {
       try {
         const data = await getMixnodeBondDetails();
         let operatorRewards;
@@ -346,8 +346,9 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
             ip: gateway.host,
             location: gateway.location,
             bond: decCoinToDisplay(data.pledge_amount),
-            proxy: proxy,
+            proxy,
             routingScore,
+            version: gateway.version,
           } as TBondedGateway);
         }
       } catch (e: any) {

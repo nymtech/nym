@@ -3,8 +3,13 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Button, Divider, Typography, TextField, Grid, CircularProgress, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { simulateUpdateGatewayConfig, updateGatewayConfig } from 'src/requests';
-import { TBondedGateway } from 'src/context/bonding';
+import {
+  simulateUpdateGatewayConfig,
+  simulateVestingUpdateGatewayConfig,
+  updateGatewayConfig,
+  vestingUpdateGatewayConfig,
+} from 'src/requests';
+import { TBondedGateway, useBondingContext } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { Console } from 'src/utils/console';
 import { Alert } from 'src/components/Alert';
@@ -16,6 +21,7 @@ import { updateGatewayValidationSchema } from 'src/components/Bonding/forms/gate
 export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGateway }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const { getFee, fee, resetFeeState } = useGetFee();
+  const { refresh } = useBondingContext();
 
   const theme = useTheme();
 
@@ -33,17 +39,25 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
     },
   });
 
-  const onSubmit = async (data: { mixPort?: number; httpApiPort?: number; host?: string }) => {
+  const onSubmit = async (data: any) => {
     resetFeeState();
     const { host, mixPort, httpApiPort } = data;
+
     try {
       const GatewayConfigParams = {
-        host,
+        host: host,
         mix_port: mixPort,
-        http_api_port: httpApiPort,
+        clients_port: httpApiPort,
+        location: bondedNode.location!,
+        version: bondedNode.version,
+        verloc_port: bondedNode.verlocPort,
       };
 
-      await updateGatewayConfig(GatewayConfigParams);
+      if (bondedNode.proxy) {
+        await vestingUpdateGatewayConfig(GatewayConfigParams, fee?.fee);
+      } else {
+        await updateGatewayConfig(GatewayConfigParams, fee?.fee);
+      }
 
       setOpenConfirmationModal(true);
     } catch (error) {
@@ -134,10 +148,13 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
             variant="contained"
             disabled={isSubmitting || !isDirty || !isValid}
             onClick={handleSubmit((data) =>
-              getFee(simulateUpdateGatewayConfig, {
+              getFee(bondedNode.proxy ? simulateVestingUpdateGatewayConfig : simulateUpdateGatewayConfig, {
                 host: data.host,
                 mix_port: data.mixPort,
-                http_api_port: data.httpApiPort,
+                clients_port: data.httpApiPort,
+                location: bondedNode.location!,
+                version: bondedNode.version,
+                verloc_port: bondedNode.verlocPort,
               }),
             )}
             sx={{ m: 3 }}
@@ -155,7 +172,8 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
         hideCloseIcon
         displayInfoIcon
         onOk={async () => {
-          await setOpenConfirmationModal(false);
+          setOpenConfirmationModal(false);
+          await refresh();
         }}
         buttonFullWidth
         sx={{

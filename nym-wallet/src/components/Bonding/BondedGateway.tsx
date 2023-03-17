@@ -5,10 +5,10 @@ import { TBondedGateway, urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { Network } from 'src/types';
 import { IdentityKey } from 'src/components/IdentityKey';
+import { useNavigate } from 'react-router-dom';
 import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedGatewayActions, TBondedGatwayActions } from './BondedGatewayAction';
-import { useNavigate } from 'react-router-dom';
 
 const headers: Header[] = [
   {

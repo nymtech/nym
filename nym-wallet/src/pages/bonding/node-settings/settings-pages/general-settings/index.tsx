@@ -17,7 +17,7 @@ const makeGeneralNav = (bondedNode: TBondedMixnode | TBondedGateway) => {
 
 export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [navSelection, setNavSelection] = useState<number>(0);
-  //TODO: Check what happens with a gateway
+
   return (
     <Box sx={{ pl: 3, pt: 3 }}>
       <Grid container direction="row" spacing={3}>

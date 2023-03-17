@@ -3,6 +3,7 @@
 
 use crate::verloc::listener::PacketListener;
 use crate::verloc::sender::{PacketSender, TestedNode};
+use chitchat::Chitchat;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::*;
@@ -16,6 +17,7 @@ use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use url::Url;
@@ -293,7 +295,7 @@ impl VerlocMeasurer {
         MeasurementOutcome::Done
     }
 
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self, chitchat_handle: Arc<Mutex<Chitchat>>) {
         self.start_listening();
 
         while !self.shutdown_listener.is_shutdown() {
@@ -344,6 +346,17 @@ impl VerlocMeasurer {
                     Some(TestedNode::new(verloc_host, node_identity))
                 })
                 .collect::<Vec<_>>();
+
+            let mut chitchat_guard = chitchat_handle.lock().await;
+            let cc_state = chitchat_guard.self_node_state();
+            let tested_nodes_cc = tested_nodes
+                .iter()
+                .map(|node| node.identity.to_string())
+                .collect::<Vec<String>>();
+            cc_state.set(
+                "tested_nodes",
+                serde_json::to_value(tested_nodes_cc).expect("Could not serialize"),
+            );
 
             // on start of each run remove old results
             self.results.reset_results(tested_nodes.len()).await;

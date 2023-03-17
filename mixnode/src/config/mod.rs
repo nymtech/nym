@@ -4,7 +4,8 @@
 use crate::config::template::config_template;
 use nym_config::defaults::mainnet::NYM_API;
 use nym_config::defaults::{
-    DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
+    DEFAULT_GOSSIP_PORT, DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT,
+    DEFAULT_VERLOC_LISTENING_PORT,
 };
 use nym_config::NymConfig;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -258,6 +259,10 @@ impl Config {
         self.mixnode.http_api_port
     }
 
+    pub fn get_gossip_port(&self) -> u16 {
+        self.mixnode.gossip_port
+    }
+
     pub fn get_packet_forwarding_initial_backoff(&self) -> Duration {
         self.debug.packet_forwarding_initial_backoff
     }
@@ -348,6 +353,10 @@ struct MixNode {
     #[serde(default = "default_http_api_port")]
     http_api_port: u16,
 
+    /// Port used for the gossip protocol
+    #[serde(default = "default_http_api_port")]
+    gossip_port: u16,
+
     /// Path to file containing private identity key.
     #[serde(default = "missing_string_value")]
     private_identity_key_file: PathBuf,
@@ -402,6 +411,7 @@ impl Default for MixNode {
             mix_port: DEFAULT_MIX_LISTENING_PORT,
             verloc_port: DEFAULT_VERLOC_LISTENING_PORT,
             http_api_port: DEFAULT_HTTP_API_LISTENING_PORT,
+            gossip_port: DEFAULT_GOSSIP_PORT,
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),

@@ -5,6 +5,7 @@ use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::http::{
     description::description,
+    gossip,
     hardware::hardware,
     not_found,
     stats::stats,
@@ -17,6 +18,10 @@ use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crate::OutputFormat;
+use chitchat::transport::UdpTransport;
+use chitchat::{
+    spawn_chitchat, Chitchat, ChitchatConfig, ChitchatHandle, FailureDetectorConfig, NodeId,
+};
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_bin_common::version_checker::parse_version;
@@ -28,6 +33,8 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Mutex;
 
 mod http;
 mod listener;
@@ -110,6 +117,7 @@ impl MixNode {
         &self,
         atomic_verloc_result: AtomicVerlocResult,
         node_stats_pointer: SharedNodeStats,
+        chitchat: Arc<Mutex<Chitchat>>,
     ) {
         info!("Starting HTTP API on http://localhost:8000");
 
@@ -125,11 +133,15 @@ impl MixNode {
         tokio::spawn(async move {
             rocket::build()
                 .configure(config)
-                .mount("/", routes![verlocRoute, description, stats, hardware])
+                .mount(
+                    "/",
+                    routes![verlocRoute, description, stats, hardware, gossip::state],
+                )
                 .register("/", catchers![not_found])
                 .manage(verloc_state)
                 .manage(descriptor)
                 .manage(node_stats_pointer)
+                .manage(chitchat)
                 .launch()
                 .await
         });
@@ -199,7 +211,11 @@ impl MixNode {
         packet_sender
     }
 
-    fn start_verloc_measurements(&self, shutdown: TaskClient) -> AtomicVerlocResult {
+    fn start_verloc_measurements(
+        &self,
+        chitchat: Arc<Mutex<Chitchat>>,
+        shutdown: TaskClient,
+    ) -> AtomicVerlocResult {
         info!("Starting the round-trip-time measurer...");
 
         // this is a sanity check to make sure we didn't mess up with the minimum version at some point
@@ -235,7 +251,7 @@ impl MixNode {
         let mut verloc_measurer =
             VerlocMeasurer::new(config, Arc::clone(&self.identity_keypair), shutdown);
         let atomic_verloc_results = verloc_measurer.get_verloc_results_pointer();
-        tokio::spawn(async move { verloc_measurer.run().await });
+        tokio::spawn(async move { verloc_measurer.run(chitchat).await });
         atomic_verloc_results
     }
 
@@ -277,18 +293,53 @@ impl MixNode {
         log::info!("Stopping nym mixnode");
     }
 
-    pub async fn run(&mut self) {
+    fn gossip_node_id(&self) -> NodeId {
+        NodeId::new(
+            self.identity_keypair.public_key().to_string(),
+            (
+                self.config.get_listening_address(),
+                self.config.get_gossip_port(),
+            )
+                .into(),
+        )
+    }
+
+    fn gossip_config(&self) -> ChitchatConfig {
+        ChitchatConfig {
+            node_id: self.gossip_node_id(),
+            cluster_id: "hive_mind".to_string(),
+            gossip_interval: Duration::from_millis(500),
+            listen_addr: (
+                self.config.get_listening_address(),
+                self.config.get_gossip_port(),
+            )
+                .into(),
+            // We'd probably wanna get this from the nym_api, or have a few known good nodes, the ones we run probably
+            seed_nodes: vec![],
+            failure_detector_config: FailureDetectorConfig::default(),
+            is_ready_predicate: None,
+        }
+    }
+
+    pub async fn init_chitchat(&self) -> Result<ChitchatHandle, String> {
+        let chitchat_handler = spawn_chitchat(self.gossip_config(), Vec::new(), &UdpTransport)
+            .await
+            .map_err(|_| "Could not spawn chitchat")?;
+
+        Ok(chitchat_handler)
+    }
+
+    pub async fn run(&mut self) -> Result<(), String> {
         info!("Starting nym mixnode");
 
         if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
             if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
                 warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
             } else {
-                log::error!(
-                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
-                    duplicate_node_key
-                );
-                return;
+                let err = format!("Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
+                duplicate_node_key);
+                log::error!("{err}");
+                return Err(err);
             }
         }
 
@@ -303,14 +354,18 @@ impl MixNode {
             delay_forwarding_channel,
             shutdown.subscribe(),
         );
-        let atomic_verloc_results = self.start_verloc_measurements(shutdown.subscribe());
+        let chitchat_handler = self.init_chitchat().await?;
+        let chitchat = chitchat_handler.chitchat();
+        let atomic_verloc_results =
+            self.start_verloc_measurements(chitchat.clone(), shutdown.subscribe());
 
         // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
         // with that of the rest of the tasks.
         // Currently it's runtime is forcefully terminated once the mixnode exits.
-        self.start_http_api(atomic_verloc_results, node_stats_pointer);
+        self.start_http_api(atomic_verloc_results, node_stats_pointer, chitchat);
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
-        self.wait_for_interrupt(shutdown).await
+        self.wait_for_interrupt(shutdown).await;
+        Ok(())
     }
 }

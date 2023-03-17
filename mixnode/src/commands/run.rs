@@ -109,5 +109,5 @@ pub(crate) async fn execute(args: &Run, output: OutputFormat) {
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
     mixnode.print_node_details(output);
 
-    mixnode.run().await
+    mixnode.run().await.expect("Could not run mixnode")
 }

@@ -2912,7 +2912,7 @@ dependencies = [
  "nym-contracts-common",
  "schemars",
  "serde",
- "serde_json",
+ "serde-json-wasm",
  "serde_repr",
  "thiserror",
  "time",

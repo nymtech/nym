@@ -128,7 +128,7 @@ pub struct GatewayConfigUpdate {
 
 impl GatewayConfigUpdate {
     pub fn to_inline_json(&self) -> String {
-        serde_json::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+        serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 

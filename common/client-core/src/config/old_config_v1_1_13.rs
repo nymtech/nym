@@ -105,10 +105,12 @@ impl From<OldDebugConfigV1_1_13> for DebugConfig {
                 disable_main_poisson_packet_distribution: value
                     .disable_main_poisson_packet_distribution,
                 use_extended_packet_size: value.use_extended_packet_size,
+                ..Traffic::default()
             },
             cover_traffic: CoverTraffic {
                 loop_cover_traffic_average_delay: value.loop_cover_traffic_average_delay,
                 disable_loop_cover_traffic_stream: value.disable_loop_cover_traffic_stream,
+                ..CoverTraffic::default()
             },
             gateway_connection: GatewayConnection {
                 gateway_response_timeout: value.gateway_response_timeout,

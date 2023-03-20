@@ -32,6 +32,8 @@ const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_00
 // bandwidth bridging protocol, we can come back to a smaller timeout value
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
+const DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO: f32 = 0.70;
+
 // reply-surbs related:
 
 // define when to request
@@ -88,6 +90,11 @@ impl<T> Config<T> {
         T: NymConfig,
     {
         Config::default().with_id(id)
+    }
+
+    pub fn validate(&self) -> bool {
+        // no other sections have explicit requirements (yet)
+        self.debug.validate()
     }
 
     #[must_use]
@@ -616,8 +623,31 @@ pub struct Traffic {
     /// poisson distribution.
     pub disable_main_poisson_packet_distribution: bool,
 
+    /// Specifies the packet size used for sent messages.
+    /// Do not override it unless you understand the consequences of that change.
+    pub primary_packet_size: PacketSize,
+
+    /// Specifies the optional auxiliary packet size for optimizing message streams.
+    /// Note that its use decreases overall anonymity.
+    /// Do not set it it unless you understand the consequences of that change.
+    pub secondary_packet_size: Option<PacketSize>,
+
     /// Controls whether the sent sphinx packet use a NON-DEFAULT bigger size.
+    #[deprecated]
     pub use_extended_packet_size: Option<ExtendedPacketSize>,
+}
+
+impl Traffic {
+    pub fn validate(&self) -> bool {
+        if let Some(secondary_packet_size) = self.secondary_packet_size {
+            if secondary_packet_size == PacketSize::AckPacket
+                || secondary_packet_size == self.primary_packet_size
+            {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 impl Default for Traffic {
@@ -626,6 +656,8 @@ impl Default for Traffic {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
             disable_main_poisson_packet_distribution: false,
+            primary_packet_size: PacketSize::RegularPacket,
+            secondary_packet_size: None,
             use_extended_packet_size: None,
         }
     }
@@ -639,6 +671,10 @@ pub struct CoverTraffic {
     #[serde(with = "humantime_serde")]
     pub loop_cover_traffic_average_delay: Duration,
 
+    /// Specifies the ratio of `primary_packet_size` to `secondary_packet_size` used in cover traffic.
+    /// Only applicable if `secondary_packet_size` is enabled.
+    pub cover_traffic_primary_size_ratio: f32,
+
     /// Controls whether the dedicated loop cover traffic stream should be enabled.
     /// (and sending packets, on average, every [Self::loop_cover_traffic_average_delay])
     pub disable_loop_cover_traffic_stream: bool,
@@ -648,6 +684,7 @@ impl Default for CoverTraffic {
     fn default() -> Self {
         CoverTraffic {
             loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
+            cover_traffic_primary_size_ratio: DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO,
             disable_loop_cover_traffic_stream: false,
         }
     }
@@ -803,6 +840,13 @@ pub struct DebugConfig {
 
     /// Defines all configuration options related to reply SURBs.
     pub reply_surbs: ReplySurbs,
+}
+
+impl DebugConfig {
+    pub fn validate(&self) -> bool {
+        // no other sections have explicit requirements (yet)
+        self.traffic.validate()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]

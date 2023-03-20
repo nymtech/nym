@@ -1,9 +1,10 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::FRAG_ID_LEN;
 use nym_sphinx_types::header::HEADER_SIZE;
 use nym_sphinx_types::PAYLOAD_OVERHEAD_SIZE;
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::str::FromStr;
 use thiserror::Error;
@@ -34,22 +35,27 @@ pub enum InvalidPacketSize {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum PacketSize {
     // for example instant messaging use case
     #[default]
+    #[serde(rename = "regular")]
     RegularPacket = 1,
 
     // for sending SURB-ACKs
+    #[serde(rename = "ack")]
     AckPacket = 2,
 
     // for example for streaming fast and furious in uncompressed 10bit 4K HDR quality
+    #[serde(rename = "extended32")]
     ExtendedPacket32 = 3,
 
     // for example for streaming fast and furious in heavily compressed lossy RealPlayer quality
+    #[serde(rename = "extended8")]
     ExtendedPacket8 = 4,
 
     // for example for streaming fast and furious in compressed XviD quality
+    #[serde(rename = "extended16")]
     ExtendedPacket16 = 5,
 }
 

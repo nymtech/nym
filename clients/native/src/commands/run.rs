@@ -112,6 +112,10 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn Error + Send + Syn
         }
     };
 
+    if !config.validate() {
+        return Err(Box::new(ClientError::ConfigValidationFailure))
+    }
+
     let override_config_fields = OverrideConfig::from(args.clone());
     config = override_config(config, override_config_fields);
 

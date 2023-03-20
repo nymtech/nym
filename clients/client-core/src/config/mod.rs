@@ -210,11 +210,12 @@ impl<T> Config<T> {
     }
 
     pub fn set_high_default_traffic_volume(&mut self) {
-        self.debug.average_packet_delay = Duration::from_millis(10);
+        self.debug.traffic.average_packet_delay = Duration::from_millis(10);
         // basically don't really send cover messages
-        self.debug.loop_cover_traffic_average_delay = Duration::from_millis(2_000_000);
+        self.debug.cover_traffic.loop_cover_traffic_average_delay =
+            Duration::from_millis(2_000_000);
         // 250 "real" messages / s
-        self.debug.message_sending_average_delay = Duration::from_millis(4);
+        self.debug.traffic.message_sending_average_delay = Duration::from_millis(4);
     }
 
     pub fn with_disabled_cover_traffic(mut self, disabled: bool) -> Self {
@@ -225,8 +226,8 @@ impl<T> Config<T> {
     }
 
     pub fn set_no_cover_traffic(&mut self) {
-        self.debug.disable_loop_cover_traffic_stream = true;
-        self.debug.disable_main_poisson_packet_distribution = true;
+        self.debug.cover_traffic.disable_loop_cover_traffic_stream = true;
+        self.debug.traffic.disable_main_poisson_packet_distribution = true;
     }
 
     pub fn set_custom_version(&mut self, version: &str) {
@@ -311,87 +312,93 @@ impl<T> Config<T> {
     }
 
     pub fn get_average_packet_delay(&self) -> Duration {
-        self.debug.average_packet_delay
+        self.debug.traffic.average_packet_delay
     }
 
     pub fn get_average_ack_delay(&self) -> Duration {
-        self.debug.average_ack_delay
+        self.debug.acknowledgements.average_ack_delay
     }
 
     pub fn get_ack_wait_multiplier(&self) -> f64 {
-        self.debug.ack_wait_multiplier
+        self.debug.acknowledgements.ack_wait_multiplier
     }
 
     pub fn get_ack_wait_addition(&self) -> Duration {
-        self.debug.ack_wait_addition
+        self.debug.acknowledgements.ack_wait_addition
     }
 
     pub fn get_loop_cover_traffic_average_delay(&self) -> Duration {
-        self.debug.loop_cover_traffic_average_delay
+        self.debug.cover_traffic.loop_cover_traffic_average_delay
     }
 
     pub fn get_message_sending_average_delay(&self) -> Duration {
-        self.debug.message_sending_average_delay
+        self.debug.traffic.message_sending_average_delay
     }
 
     pub fn get_gateway_response_timeout(&self) -> Duration {
-        self.debug.gateway_response_timeout
+        self.debug.gateway_connection.gateway_response_timeout
     }
 
     pub fn get_topology_refresh_rate(&self) -> Duration {
-        self.debug.topology_refresh_rate
+        self.debug.topology.topology_refresh_rate
     }
 
     pub fn get_topology_resolution_timeout(&self) -> Duration {
-        self.debug.topology_resolution_timeout
+        self.debug.topology.topology_resolution_timeout
     }
 
     pub fn get_disabled_loop_cover_traffic_stream(&self) -> bool {
-        self.debug.disable_loop_cover_traffic_stream
+        self.debug.cover_traffic.disable_loop_cover_traffic_stream
     }
 
     pub fn get_disabled_main_poisson_packet_distribution(&self) -> bool {
-        self.debug.disable_main_poisson_packet_distribution
+        self.debug.traffic.disable_main_poisson_packet_distribution
     }
 
     pub fn get_use_extended_packet_size(&self) -> Option<ExtendedPacketSize> {
-        self.debug.use_extended_packet_size
+        self.debug.traffic.use_extended_packet_size
     }
 
     pub fn get_minimum_reply_surb_storage_threshold(&self) -> usize {
-        self.debug.minimum_reply_surb_storage_threshold
+        self.debug.reply_surbs.minimum_reply_surb_storage_threshold
     }
 
     pub fn get_maximum_reply_surb_storage_threshold(&self) -> usize {
-        self.debug.maximum_reply_surb_storage_threshold
+        self.debug.reply_surbs.maximum_reply_surb_storage_threshold
     }
 
     pub fn get_minimum_reply_surb_request_size(&self) -> u32 {
-        self.debug.minimum_reply_surb_request_size
+        self.debug.reply_surbs.minimum_reply_surb_request_size
     }
 
     pub fn get_maximum_reply_surb_request_size(&self) -> u32 {
-        self.debug.maximum_reply_surb_request_size
+        self.debug.reply_surbs.maximum_reply_surb_request_size
     }
 
     pub fn get_maximum_allowed_reply_surb_request_size(&self) -> u32 {
-        self.debug.maximum_allowed_reply_surb_request_size
+        self.debug
+            .reply_surbs
+            .maximum_allowed_reply_surb_request_size
     }
 
     pub fn get_maximum_reply_surb_rerequest_waiting_period(&self) -> Duration {
-        self.debug.maximum_reply_surb_rerequest_waiting_period
+        self.debug
+            .reply_surbs
+            .maximum_reply_surb_rerequest_waiting_period
     }
 
     pub fn get_maximum_reply_surb_drop_waiting_period(&self) -> Duration {
-        self.debug.maximum_reply_surb_drop_waiting_period
+        self.debug
+            .reply_surbs
+            .maximum_reply_surb_drop_waiting_period
     }
 
     pub fn get_maximum_reply_surb_age(&self) -> Duration {
-        self.debug.maximum_reply_surb_age
+        self.debug.reply_surbs.maximum_reply_surb_age
     }
 
     pub fn get_maximum_reply_key_age(&self) -> Duration {
-        self.debug.maximum_reply_key_age
+        self.debug.reply_surbs.maximum_reply_key_age
     }
 }
 
@@ -587,9 +594,9 @@ impl<T: NymConfig> Client<T> {
 #[serde(deny_unknown_fields)]
 pub struct Logging {}
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct DebugConfig {
+pub struct Traffic {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
@@ -597,6 +604,74 @@ pub struct DebugConfig {
     #[serde(with = "humantime_serde")]
     pub average_packet_delay: Duration,
 
+    /// The parameter of Poisson distribution determining how long, on average,
+    /// it is going to take another 'real traffic stream' message to be sent.
+    /// If no real packets are available and cover traffic is enabled,
+    /// a loop cover message is sent instead in order to preserve the rate.
+    #[serde(with = "humantime_serde")]
+    pub message_sending_average_delay: Duration,
+
+    /// Controls whether the main packet stream constantly produces packets according to the predefined
+    /// poisson distribution.
+    pub disable_main_poisson_packet_distribution: bool,
+
+    /// Controls whether the sent sphinx packet use a NON-DEFAULT bigger size.
+    pub use_extended_packet_size: Option<ExtendedPacketSize>,
+}
+
+impl Default for Traffic {
+    fn default() -> Self {
+        Traffic {
+            average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
+            message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
+            disable_main_poisson_packet_distribution: false,
+            use_extended_packet_size: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct CoverTraffic {
+    /// The parameter of Poisson distribution determining how long, on average,
+    /// it is going to take for another loop cover traffic message to be sent.
+    #[serde(with = "humantime_serde")]
+    pub loop_cover_traffic_average_delay: Duration,
+
+    /// Controls whether the dedicated loop cover traffic stream should be enabled.
+    /// (and sending packets, on average, every [Self::loop_cover_traffic_average_delay])
+    pub disable_loop_cover_traffic_stream: bool,
+}
+
+impl Default for CoverTraffic {
+    fn default() -> Self {
+        CoverTraffic {
+            loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
+            disable_loop_cover_traffic_stream: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct GatewayConnection {
+    /// How long we're willing to wait for a response to a message sent to the gateway,
+    /// before giving up on it.
+    #[serde(with = "humantime_serde")]
+    pub gateway_response_timeout: Duration,
+}
+
+impl Default for GatewayConnection {
+    fn default() -> Self {
+        GatewayConnection {
+            gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Acknowledgements {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
@@ -614,24 +689,21 @@ pub struct DebugConfig {
     /// In an ideal network with 0 latency, this value would have been 0.
     #[serde(with = "humantime_serde")]
     pub ack_wait_addition: Duration,
+}
 
-    /// The parameter of Poisson distribution determining how long, on average,
-    /// it is going to take for another loop cover traffic message to be sent.
-    #[serde(with = "humantime_serde")]
-    pub loop_cover_traffic_average_delay: Duration,
+impl Default for Acknowledgements {
+    fn default() -> Self {
+        Acknowledgements {
+            average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
+            ack_wait_multiplier: DEFAULT_ACK_WAIT_MULTIPLIER,
+            ack_wait_addition: DEFAULT_ACK_WAIT_ADDITION,
+        }
+    }
+}
 
-    /// The parameter of Poisson distribution determining how long, on average,
-    /// it is going to take another 'real traffic stream' message to be sent.
-    /// If no real packets are available and cover traffic is enabled,
-    /// a loop cover message is sent instead in order to preserve the rate.
-    #[serde(with = "humantime_serde")]
-    pub message_sending_average_delay: Duration,
-
-    /// How long we're willing to wait for a response to a message sent to the gateway,
-    /// before giving up on it.
-    #[serde(with = "humantime_serde")]
-    pub gateway_response_timeout: Duration,
-
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Topology {
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
     #[serde(with = "humantime_serde")]
@@ -642,18 +714,20 @@ pub struct DebugConfig {
     /// did not reach its destination.
     #[serde(with = "humantime_serde")]
     pub topology_resolution_timeout: Duration,
+}
 
-    /// Controls whether the dedicated loop cover traffic stream should be enabled.
-    /// (and sending packets, on average, every [Self::loop_cover_traffic_average_delay])
-    pub disable_loop_cover_traffic_stream: bool,
+impl Default for Topology {
+    fn default() -> Self {
+        Topology {
+            topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
+            topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
+        }
+    }
+}
 
-    /// Controls whether the main packet stream constantly produces packets according to the predefined
-    /// poisson distribution.
-    pub disable_main_poisson_packet_distribution: bool,
-
-    /// Controls whether the sent sphinx packet use a NON-DEFAULT bigger size.
-    pub use_extended_packet_size: Option<ExtendedPacketSize>,
-
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ReplySurbs {
     /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
     /// It can only allow to go below that value if its to request additional reply surbs.
     pub minimum_reply_surb_storage_threshold: usize,
@@ -691,6 +765,45 @@ pub struct DebugConfig {
     pub maximum_reply_key_age: Duration,
 }
 
+impl Default for ReplySurbs {
+    fn default() -> Self {
+        ReplySurbs {
+            minimum_reply_surb_storage_threshold: DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
+            maximum_reply_surb_storage_threshold: DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD,
+            minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
+            maximum_reply_surb_request_size: DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
+            maximum_allowed_reply_surb_request_size: DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
+            maximum_reply_surb_rerequest_waiting_period:
+                DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
+            maximum_reply_surb_drop_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD,
+            maximum_reply_surb_age: DEFAULT_MAXIMUM_REPLY_SURB_AGE,
+            maximum_reply_key_age: DEFAULT_MAXIMUM_REPLY_KEY_AGE,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DebugConfig {
+    /// Defines all configuration options related to traffic streams.
+    pub traffic: Traffic,
+
+    /// Defines all configuration options related to cover traffic stream(s).
+    pub cover_traffic: CoverTraffic,
+
+    /// Defines all configuration options related to the gateway connection.
+    pub gateway_connection: GatewayConnection,
+
+    /// Defines all configuration options related to acknowledgements, such as delays or wait timeouts.
+    pub acknowledgements: Acknowledgements,
+
+    /// Defines all configuration options related topology, such as refresh rates or timeouts.
+    pub topology: Topology,
+
+    /// Defines all configuration options related to reply SURBs.
+    pub reply_surbs: ReplySurbs,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ExtendedPacketSize {
@@ -702,28 +815,12 @@ pub enum ExtendedPacketSize {
 impl Default for DebugConfig {
     fn default() -> Self {
         DebugConfig {
-            average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
-            average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
-            ack_wait_multiplier: DEFAULT_ACK_WAIT_MULTIPLIER,
-            ack_wait_addition: DEFAULT_ACK_WAIT_ADDITION,
-            loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
-            message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
-            gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
-            topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
-            topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
-            disable_loop_cover_traffic_stream: false,
-            disable_main_poisson_packet_distribution: false,
-            use_extended_packet_size: None,
-            minimum_reply_surb_storage_threshold: DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
-            maximum_reply_surb_storage_threshold: DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD,
-            minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
-            maximum_reply_surb_request_size: DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
-            maximum_allowed_reply_surb_request_size: DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
-            maximum_reply_surb_rerequest_waiting_period:
-                DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
-            maximum_reply_surb_drop_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD,
-            maximum_reply_surb_age: DEFAULT_MAXIMUM_REPLY_SURB_AGE,
-            maximum_reply_key_age: DEFAULT_MAXIMUM_REPLY_KEY_AGE,
+            traffic: Default::default(),
+            cover_traffic: Default::default(),
+            gateway_connection: Default::default(),
+            acknowledgements: Default::default(),
+            topology: Default::default(),
+            reply_surbs: Default::default(),
         }
     }
 }

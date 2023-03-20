@@ -102,6 +102,7 @@ wasm:
 	wasm-opt -Os contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm -o contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm
 	wasm-opt -Os contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm -o contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm
 
+# NOTE: this seems deprecated an not needed anymore?
 mixnet-opt: wasm
 	cd contracts/mixnet && make opt
 

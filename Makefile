@@ -2,26 +2,16 @@
 all: test
 
 test: clippy-all cargo-test wasm fmt
-test-no-mobile: clippy-all-no-mobile cargo-test-no-mobile wasm fmt-no-mobile
 
 test-all: test cargo-test-expensive
-test-all-no-mobile: test-no-mobile cargo-test-expensive
 
 no-clippy: build cargo-test wasm fmt
-no-clippy-no-mobile: build-no-mobile cargo-test-no-mobile wasm fmt-no-mobile
 
 happy: fmt clippy-happy test
-happy-no-mobile: fmt-no-mobile clippy-happy-no-mobile test-no-mobile
 
-# Merge no-mobile with mobile targets
-clippy-all: clippy-all-no-mobile
-clippy-happy: clippy-happy-no-mobile
-cargo-test: cargo-test-no-mobile
-build: build-no-mobile
-
-#
+# -----------------------------------------------------------------------------
 # Main workspace
-#
+# -----------------------------------------------------------------------------
 
 clippy-happy-main:
 	cargo clippy
@@ -47,16 +37,16 @@ build-main-examples:
 fmt-main:
 	cargo fmt --all
 
-clippy-happy-no-mobile: clippy-happy-main
-clippy-all-no-mobile: clippy-main clippy-main-examples
-cargo-test-no-mobile: test-main
+clippy-happy: clippy-happy-main
+clippy-all: clippy-main clippy-main-examples
+cargo-test: test-main
 cargo-test-expensive: test-main-expensive
-build-no-mobile: build-main build-main-examples
+build: build-main build-main-examples
 fmt: fmt-main
 
-#
+# -----------------------------------------------------------------------------
 # Contracts
-#
+# -----------------------------------------------------------------------------
 
 clippy-happy-contracts:
 	cargo clippy --manifest-path contracts/Cargo.toml --workspace --target wasm32-unknown-unknown
@@ -76,16 +66,16 @@ build-contracts:
 fmt-contracts:
 	cargo fmt --manifest-path contracts/Cargo.toml --all
 
-clippy-happy-no-mobile: clippy-happy-contracts
-clippy-all-no-mobile: clippy-all-contracts
-cargo-test-no-mobile: test-contracts
+clippy-happy: clippy-happy-contracts
+clippy-all: clippy-all-contracts
+cargo-test: test-contracts
 cargo-test-expensive: test-contracts-expensive
-build-no-mobile: build-contracts
+build: build-contracts
 fmt: fmt-contracts
 
-#
+# -----------------------------------------------------------------------------
 # nym-wallet
-#
+# -----------------------------------------------------------------------------
 
 clippy-happy-wallet:
 	cargo clippy --manifest-path nym-wallet/Cargo.toml
@@ -105,16 +95,16 @@ build-wallet:
 fmt-wallet:
 	cargo fmt --manifest-path nym-wallet/Cargo.toml --all
 
-clippy-happy-no-mobile: clippy-happy-wallet
-clippy-all-no-mobile: clippy-all-wallet
-cargo-test-no-mobile: test-wallet
+clippy-happy: clippy-happy-wallet
+clippy-all: clippy-all-wallet
+cargo-test: test-wallet
 cargo-test-expensive: test-wallet-expensive
-build-no-mobile: build-wallet
+build: build-wallet
 fmt: fmt-wallet
 
-#
+# -----------------------------------------------------------------------------
 # nym-connect desktop
-#
+# -----------------------------------------------------------------------------
 
 clippy-happy-connect:
 	cargo clippy --manifest-path nym-connect/desktop/Cargo.toml
@@ -134,16 +124,16 @@ build-connect:
 fmt-connect:
 	cargo fmt --manifest-path nym-connect/desktop/Cargo.toml --all
 
-clippy-happy-no-mobile: clippy-happy-connect
-clippy-all-no-mobile: clippy-all-connect
-cargo-test-no-mobile: test-connect
+clippy-happy: clippy-happy-connect
+clippy-all: clippy-all-connect
+cargo-test: test-connect
 cargo-test-expensive: test-connect-expensive
-build-no-mobile: build-connect
+build: build-connect
 fmt: fmt-connect
 
-#
+# -----------------------------------------------------------------------------
 # nym-connect mobile
-#
+# -----------------------------------------------------------------------------
 
 clippy-happy-connect-mobile:
 	cargo clippy --manifest-path nym-connect/mobile/src-tauri/Cargo.toml
@@ -163,21 +153,24 @@ build-connect-mobile:
 fmt-connect-mobile:
 	cargo fmt --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all
 
+ifndef NYM_NO_MOBILE
 clippy-happy: clippy-happy-connect-mobile
 clippy-all: clippy-all-connect-mobile
 cargo-test: test-connect-mobile
+cargo-test-expensive: test-connect-mobile-expensive
 build: build-connect-mobile
 fmt: fmt-connect-mobile
+endif
 
-#
+# -----------------------------------------------------------------------------
 # nym-client-wasm
-#
+# -----------------------------------------------------------------------------
 
-clippy-wasm:
+clippy-happy-wasm-client:
 	cargo clippy --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --workspace -- -D warnings
 
 clippy-all-wasm-client:
-	cargo clippy --workspace --manifest-path clients/webassembly/Cargo.toml --all-features --target wasm32-unknown-unknown -- -D warnings
+	cargo clippy --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --workspace --all-features -- -D warnings
 
 build-wasm-client:
 	cargo build --manifest-path clients/webassembly/Cargo.toml --workspace --target wasm32-unknown-unknown
@@ -185,13 +178,14 @@ build-wasm-client:
 fmt-wasm-client:
 	cargo fmt --manifest-path clients/webassembly/Cargo.toml --all
 
-clippy-all-no-mobile: clippy-all-wasm-client
-build-no-mobile: build-wasm-client
+clippy-happy: clippy-happy-wasm-client
+clippy-all: clippy-all-wasm-client
+build: build-wasm-client
 fmt: fmt-wasm-client
 
-#
+# -----------------------------------------------------------------------------
 # Convenience targets for crates that are already part of the main workspace
-#
+# -----------------------------------------------------------------------------
 
 build-explorer-api:
 	cargo build -p explorer-api
@@ -199,9 +193,9 @@ build-explorer-api:
 build-nym-cli:
 	cargo build -p nym-cli --release
 
-#
+# -----------------------------------------------------------------------------
 # Misc
-#
+# -----------------------------------------------------------------------------
 
 wasm:
 	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown

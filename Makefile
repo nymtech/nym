@@ -10,178 +10,232 @@ no-clippy: build cargo-test wasm fmt
 happy: fmt clippy-happy test
 
 # -----------------------------------------------------------------------------
+# Define targets for a given workspace
+#  $(1): name
+#  $(2): path to workspace
+#  $(3): extra arguments to cargo
+# -----------------------------------------------------------------------------
+define generate_targets_workspace
+
+clippy-happy-$(1):
+	cargo clippy --manifest-path $(2)/Cargo.toml $(3)
+
+clippy-$(1):
+	cargo clippy --manifest-path $(2)/Cargo.toml --workspace $(3) -- -D warnings
+
+clippy-$(1)-examples:
+	cargo clippy --manifest-path $(2)/Cargo.toml --workspace --examples $(3) -- -D warnings
+
+test-$(1):
+	cargo test --manifest-path $(2)/Cargo.toml --workspace
+
+test-$(1)-expensive:
+	cargo test --manifest-path $(2)/Cargo.toml --workspace -- --ignored
+
+build-$(1):
+	cargo build --manifest-path $(2)/Cargo.toml --workspace $(3)
+
+build-$(1)-examples:
+	cargo build --manifest-path $(2)/Cargo.toml --workspace --examples
+
+fmt-$(1):
+	cargo fmt --manifest-path $(2)/Cargo.toml --all
+
+clippy-happy: clippy-happy-$(1)
+clippy-all: clippy-$(1) clippy-$(1)-examples
+cargo-test: test-$(1)
+cargo-test-expensive: test-$(1)-expensive
+build: build-$(1) build-$(1)-examples
+fmt: fmt-$(1)
+endef
+
+# -----------------------------------------------------------------------------
 # Main workspace
 # -----------------------------------------------------------------------------
 
-clippy-happy-main:
-	cargo clippy
+#clippy-happy-main:
+#	cargo clippy --manifest-path ./Cargo.toml
+#
+#clippy-main:
+#	cargo clippy --workspace -- -D warnings
+#
+#clippy-main-examples:
+#	cargo clippy --workspace --examples -- -D warnings
+#
+#test-main:
+#	cargo test --workspace
+#
+#test-main-expensive:
+#	cargo test --workspace -- --ignored
+#
+#build-main:
+#	cargo build --workspace
+#
+#build-main-examples:
+#	cargo build --workspace --examples
+#
+#fmt-main:
+#	cargo fmt --manifest-path ./Cargo.toml --all
 
-clippy-main:
-	cargo clippy --workspace -- -D warnings
+#clippy-happy: clippy-happy-main
+#clippy-all: clippy-main clippy-main-examples
+#cargo-test: test-main
+#cargo-test-expensive: test-main-expensive
+#build: build-main build-main-examples
+#fmt: fmt-main
 
-clippy-main-examples:
-	cargo clippy --workspace --examples -- -D warnings
-
-test-main:
-	cargo test --workspace
-
-test-main-expensive:
-	cargo test --workspace -- --ignored
-
-build-main:
-	cargo build --workspace
-
-build-main-examples:
-	cargo build --workspace --examples
-
-fmt-main:
-	cargo fmt --all
-
-clippy-happy: clippy-happy-main
-clippy-all: clippy-main clippy-main-examples
-cargo-test: test-main
-cargo-test-expensive: test-main-expensive
-build: build-main build-main-examples
-fmt: fmt-main
+$(eval $(call generate_targets_workspace,main,.))
 
 # -----------------------------------------------------------------------------
 # Contracts
 # -----------------------------------------------------------------------------
 
-clippy-happy-contracts:
-	cargo clippy --manifest-path contracts/Cargo.toml --workspace --target wasm32-unknown-unknown
+#clippy-happy-contracts:
+#	cargo clippy --manifest-path contracts/Cargo.toml --workspace --target wasm32-unknown-unknown
+#
+#clippy-all-contracts:
+#	cargo clippy --manifest-path contracts/Cargo.toml --workspace --all-features --target wasm32-unknown-unknown -- -D warnings
+#
+#test-contracts:
+#	cargo test --manifest-path contracts/Cargo.toml --all-features
+#
+#test-contracts-expensive:
+#	cargo test --manifest-path contracts/Cargo.toml --all-features -- --ignored
+#
+#build-contracts:
+#	cargo build --manifest-path contracts/Cargo.toml --workspace
+#
+#fmt-contracts:
+#	cargo fmt --manifest-path contracts/Cargo.toml --all
+#
+#clippy-happy: clippy-happy-contracts
+#clippy-all: clippy-all-contracts
+#cargo-test: test-contracts
+#cargo-test-expensive: test-contracts-expensive
+#build: build-contracts
+#fmt: fmt-contracts
 
-clippy-all-contracts:
-	cargo clippy --manifest-path contracts/Cargo.toml --workspace --all-features --target wasm32-unknown-unknown -- -D warnings
-
-test-contracts:
-	cargo test --manifest-path contracts/Cargo.toml --all-features
-
-test-contracts-expensive:
-	cargo test --manifest-path contracts/Cargo.toml --all-features -- --ignored
-
-build-contracts:
-	cargo build --manifest-path contracts/Cargo.toml --workspace
-
-fmt-contracts:
-	cargo fmt --manifest-path contracts/Cargo.toml --all
-
-clippy-happy: clippy-happy-contracts
-clippy-all: clippy-all-contracts
-cargo-test: test-contracts
-cargo-test-expensive: test-contracts-expensive
-build: build-contracts
-fmt: fmt-contracts
+$(eval $(call generate_targets_workspace,contracts,contracts,--target wasm32-unknown-unknown))
 
 # -----------------------------------------------------------------------------
 # nym-wallet
 # -----------------------------------------------------------------------------
 
-clippy-happy-wallet:
-	cargo clippy --manifest-path nym-wallet/Cargo.toml
+#clippy-happy-wallet:
+#	cargo clippy --manifest-path nym-wallet/Cargo.toml
+#
+#clippy-all-wallet:
+#	cargo clippy --workspace --manifest-path nym-wallet/Cargo.toml --all-features -- -D warnings
+#
+#test-wallet:
+#	cargo test --manifest-path nym-wallet/Cargo.toml --all-features
+#
+#test-wallet-expensive:
+#	cargo test --manifest-path nym-wallet/Cargo.toml --all-features -- --ignored
+#
+#build-wallet:
+#	cargo build --manifest-path nym-wallet/Cargo.toml --workspace
+#
+#fmt-wallet:
+#	cargo fmt --manifest-path nym-wallet/Cargo.toml --all
+#
+#clippy-happy: clippy-happy-wallet
+#clippy-all: clippy-all-wallet
+#cargo-test: test-wallet
+#cargo-test-expensive: test-wallet-expensive
+#build: build-wallet
+#fmt: fmt-wallet
 
-clippy-all-wallet:
-	cargo clippy --workspace --manifest-path nym-wallet/Cargo.toml --all-features -- -D warnings
-
-test-wallet:
-	cargo test --manifest-path nym-wallet/Cargo.toml --all-features
-
-test-wallet-expensive:
-	cargo test --manifest-path nym-wallet/Cargo.toml --all-features -- --ignored
-
-build-wallet:
-	cargo build --manifest-path nym-wallet/Cargo.toml --workspace
-
-fmt-wallet:
-	cargo fmt --manifest-path nym-wallet/Cargo.toml --all
-
-clippy-happy: clippy-happy-wallet
-clippy-all: clippy-all-wallet
-cargo-test: test-wallet
-cargo-test-expensive: test-wallet-expensive
-build: build-wallet
-fmt: fmt-wallet
+$(eval $(call generate_targets_workspace,wallet,nym-wallet,))
 
 # -----------------------------------------------------------------------------
 # nym-connect desktop
 # -----------------------------------------------------------------------------
 
-clippy-happy-connect:
-	cargo clippy --manifest-path nym-connect/desktop/Cargo.toml
+#clippy-happy-connect:
+#	cargo clippy --manifest-path nym-connect/desktop/Cargo.toml
+#
+#clippy-all-connect:
+#	cargo clippy --workspace --manifest-path nym-connect/desktop/Cargo.toml --all-features -- -D warnings
+#
+#test-connect:
+#	cargo test --manifest-path nym-connect/desktop/Cargo.toml --all-features
+#
+#test-connect-expensive:
+#	cargo test --manifest-path nym-connect/desktop/Cargo.toml --all-features -- --ignored
+#
+#build-connect:
+#	cargo build --manifest-path nym-connect/desktop/Cargo.toml --workspace
+#
+#fmt-connect:
+#	cargo fmt --manifest-path nym-connect/desktop/Cargo.toml --all
+#
+#clippy-happy: clippy-happy-connect
+#clippy-all: clippy-all-connect
+#cargo-test: test-connect
+#cargo-test-expensive: test-connect-expensive
+#build: build-connect
+#fmt: fmt-connect
 
-clippy-all-connect:
-	cargo clippy --workspace --manifest-path nym-connect/desktop/Cargo.toml --all-features -- -D warnings
-
-test-connect:
-	cargo test --manifest-path nym-connect/desktop/Cargo.toml --all-features
-
-test-connect-expensive:
-	cargo test --manifest-path nym-connect/desktop/Cargo.toml --all-features -- --ignored
-
-build-connect:
-	cargo build --manifest-path nym-connect/desktop/Cargo.toml --workspace
-
-fmt-connect:
-	cargo fmt --manifest-path nym-connect/desktop/Cargo.toml --all
-
-clippy-happy: clippy-happy-connect
-clippy-all: clippy-all-connect
-cargo-test: test-connect
-cargo-test-expensive: test-connect-expensive
-build: build-connect
-fmt: fmt-connect
+$(eval $(call generate_targets_workspace,connect,nym-connect/desktop))
 
 # -----------------------------------------------------------------------------
 # nym-connect mobile
 # -----------------------------------------------------------------------------
 
-clippy-happy-connect-mobile:
-	cargo clippy --manifest-path nym-connect/mobile/src-tauri/Cargo.toml
-
-clippy-all-connect-mobile:
-	cargo clippy --workspace --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all-features -- -D warnings
-
-test-connect-mobile:
-	cargo test --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all-features
-
-test-connect-mobile-expensive:
-	cargo test --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all-features -- --ignored
-
-build-connect-mobile:
-	cargo build --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --workspace
-
-fmt-connect-mobile:
-	cargo fmt --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all
+#clippy-happy-connect-mobile:
+#	cargo clippy --manifest-path nym-connect/mobile/src-tauri/Cargo.toml
+#
+#clippy-all-connect-mobile:
+#	cargo clippy --workspace --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all-features -- -D warnings
+#
+#test-connect-mobile:
+#	cargo test --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all-features
+#
+#test-connect-mobile-expensive:
+#	cargo test --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all-features -- --ignored
+#
+#build-connect-mobile:
+#	cargo build --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --workspace
+#
+#fmt-connect-mobile:
+#	cargo fmt --manifest-path nym-connect/mobile/src-tauri/Cargo.toml --all
+#
+#ifndef NYM_NO_MOBILE
+#clippy-happy: clippy-happy-connect-mobile
+#clippy-all: clippy-all-connect-mobile
+#cargo-test: test-connect-mobile
+#cargo-test-expensive: test-connect-mobile-expensive
+#build: build-connect-mobile
+#fmt: fmt-connect-mobile
+#endif
 
 ifndef NYM_NO_MOBILE
-clippy-happy: clippy-happy-connect-mobile
-clippy-all: clippy-all-connect-mobile
-cargo-test: test-connect-mobile
-cargo-test-expensive: test-connect-mobile-expensive
-build: build-connect-mobile
-fmt: fmt-connect-mobile
+$(eval $(call generate_targets_workspace,connect-mobile,nym-connect/mobile/src-tauri))
 endif
 
 # -----------------------------------------------------------------------------
 # nym-client-wasm
 # -----------------------------------------------------------------------------
 
-clippy-happy-wasm-client:
-	cargo clippy --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --workspace -- -D warnings
+#clippy-happy-wasm-client:
+#	cargo clippy --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --workspace -- -D warnings
+#
+#clippy-all-wasm-client:
+#	cargo clippy --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --workspace --all-features -- -D warnings
+#
+#build-wasm-client:
+#	cargo build --manifest-path clients/webassembly/Cargo.toml --workspace --target wasm32-unknown-unknown
+#
+#fmt-wasm-client:
+#	cargo fmt --manifest-path clients/webassembly/Cargo.toml --all
+#
+#clippy-happy: clippy-happy-wasm-client
+#clippy-all: clippy-all-wasm-client
+#build: build-wasm-client
+#fmt: fmt-wasm-client
 
-clippy-all-wasm-client:
-	cargo clippy --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --workspace --all-features -- -D warnings
-
-build-wasm-client:
-	cargo build --manifest-path clients/webassembly/Cargo.toml --workspace --target wasm32-unknown-unknown
-
-fmt-wasm-client:
-	cargo fmt --manifest-path clients/webassembly/Cargo.toml --all
-
-clippy-happy: clippy-happy-wasm-client
-clippy-all: clippy-all-wasm-client
-build: build-wasm-client
-fmt: fmt-wasm-client
+$(eval $(call generate_targets_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
 
 # -----------------------------------------------------------------------------
 # Convenience targets for crates that are already part of the main workspace

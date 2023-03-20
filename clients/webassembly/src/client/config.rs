@@ -3,6 +3,8 @@
 
 // due to expansion of #[wasm_bindgen] macro on `Debug` Config struct
 #![allow(clippy::drop_non_drop)]
+// another issue due to #[wasm_bindgen] and `Copy` trait
+#![allow(clippy::drop_copy)]
 
 use client_core::config::{
     Acknowledgements as ConfigAcknowledgements, CoverTraffic as ConfigCoverTraffic,
@@ -54,7 +56,7 @@ impl Config {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Traffic {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
@@ -108,7 +110,7 @@ impl From<ConfigTraffic> for Traffic {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct CoverTraffic {
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
@@ -142,7 +144,7 @@ impl From<ConfigCoverTraffic> for CoverTraffic {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct GatewayConnection {
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
@@ -169,7 +171,7 @@ impl From<ConfigGatewayConnection> for GatewayConnection {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Acknowledgements {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
@@ -209,7 +211,7 @@ impl From<ConfigAcknowledgements> for Acknowledgements {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Topology {
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
@@ -242,7 +244,7 @@ impl From<ConfigTopology> for Topology {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct ReplySurbs {
     /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
     /// It can only allow to go below that value if its to request additional reply surbs.
@@ -321,6 +323,7 @@ impl From<ConfigReplySurbs> for ReplySurbs {
 
 // just a helper structure to more easily pass through the JS boundary
 #[wasm_bindgen]
+#[derive(Debug, Copy, Clone)]
 pub struct Debug {
     /// Defines all configuration options related to traffic streams.
     pub traffic: Traffic,

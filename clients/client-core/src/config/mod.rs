@@ -812,6 +812,9 @@ pub enum ExtendedPacketSize {
     Extended32,
 }
 
+// it could be derived, sure, but I'd rather have an explicit implementation in case we had to change
+// something manually at some point
+#[allow(clippy::derivable_impls)]
 impl Default for DebugConfig {
     fn default() -> Self {
         DebugConfig {

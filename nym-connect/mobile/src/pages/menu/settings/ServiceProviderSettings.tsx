@@ -40,11 +40,11 @@ export const ServiceProviderSettings = () => {
   return (
     <Box height="100%">
       <Stack justifyContent="space-between" height="100%">
-        <Box>
+        <Box mt={3}>
           <Typography fontWeight="bold" variant="body2" mb={1}>
             Select your Service Provider
           </Typography>
-          <Typography color="grey.300" variant="body2" mb={2}>
+          <Typography color="grey.300" variant="body2" mb={3}>
             Pick a service provider from the list or enter your own
           </Typography>
           <FormControl fullWidth>
@@ -67,7 +67,7 @@ export const ServiceProviderSettings = () => {
               <Autocomplete
                 clearOnEscape
                 disabled={connectionStatus === 'connected'}
-                sx={{ mt: 1 }}
+                sx={{ mt: 3 }}
                 options={serviceProviders.map((sp) => sp.address)}
                 freeSolo
                 value={userDefinedSPAddress.address || ''}
@@ -86,9 +86,9 @@ export const ServiceProviderSettings = () => {
             )}
           </FormControl>
           {userDefinedSPAddress.address && userDefinedSPAddress.isActive && (
-            <Box sx={{ mt: 2 }}>
+            <Box sx={{ mt: 3 }}>
               <Typography variant="body2">Name of Service Provider</Typography>
-              <Typography variant="body2" sx={{ mt: 0.5 }} color="grey.400">
+              <Typography variant="body2" sx={{ mt: 1 }} color="grey.400">
                 {getSPDescription(userDefinedSPAddress.address)}
               </Typography>
             </Box>

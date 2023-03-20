@@ -1,6 +1,6 @@
 import React, { ChangeEvent, useState } from 'react';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import { Box, FormControl, FormControlLabel, FormHelperText, Link, Stack, Switch, Typography } from '@mui/material';
+import { Box, FormControl, FormControlLabel, FormHelperText, Stack, Switch, Typography } from '@mui/material';
 import { useClientContext } from 'src/context/main';
 import { ConnectionStatusKind } from 'src/types';
 import { AppVersion } from 'src/components/AppVersion';
@@ -26,11 +26,11 @@ export const GatewaySettings = () => {
   return (
     <Box height="100%">
       <Stack justifyContent="space-between" height="100%">
-        <Box>
+        <Box mt={3}>
           <Typography fontWeight="bold" variant="body2" mb={1}>
             Select your Gateway
           </Typography>
-          <Typography color="grey.300" variant="body2" mb={2}>
+          <Typography color="grey.300" variant="body2" mb={3}>
             Use a gateway of your choice
           </Typography>
           <FormControl fullWidth>
@@ -56,7 +56,7 @@ export const GatewaySettings = () => {
                 onChanged={setGatewayKey}
                 initialValue={gatewayKey}
                 onValidate={handleIsValidGatewayKey}
-                sx={{ mt: 1 }}
+                sx={{ mt: 3 }}
                 disabled={connectionStatus === 'connected' || !userDefinedGateway?.isActive}
                 autoFocus
               />
@@ -64,17 +64,11 @@ export const GatewaySettings = () => {
           </FormControl>
         </Box>
         <Box>
-          <Typography variant="body2" mb={3}>
-            To find a gateway go to the{' '}
-            <Link
-              underline="none"
-              target="_blank"
-              href="https://explorer.nymtech.net/network-components/gateways"
-              sx={{ cursor: 'pointer' }}
-              color="nym.cta"
-            >
-              Network Explorer
-            </Link>
+          <Typography variant="body2" mb={4}>
+            To find a gateway go to{' '}
+            <Typography variant="body2" color="nym.cta">
+              explorer.nymtech.net/network-components/gateways
+            </Typography>
           </Typography>
           <AppVersion />
         </Box>

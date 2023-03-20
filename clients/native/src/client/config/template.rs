@@ -110,10 +110,15 @@ host = '{{ socket.host }}'
 
 [debug]
 
+[[debug.traffic]]
 average_packet_delay = '{{ debug.average_packet_delay }}'
-average_ack_delay = '{{ debug.average_ack_delay }}'
-loop_cover_traffic_average_delay = '{{ debug.loop_cover_traffic_average_delay }}'
 message_sending_average_delay = '{{ debug.message_sending_average_delay }}'
+
+[[debug.acknowledgements]]
+average_ack_delay = '{{ debug.average_ack_delay }}'
+
+[[debug.cover_traffic]]
+loop_cover_traffic_average_delay = '{{ debug.loop_cover_traffic_average_delay }}'
 
 "#
 }

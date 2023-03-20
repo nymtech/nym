@@ -10,6 +10,7 @@ use crate::{
     error::ClientError,
 };
 
+use crate::client::config::old_config::OldConfig;
 use clap::Args;
 use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
@@ -97,16 +98,38 @@ fn version_check(cfg: &Config) -> bool {
     }
 }
 
+fn load_config(id: &str) -> Result<Config, Box<dyn Error + Send + Sync>> {
+    // try to load the current config
+    match Config::load_from_file(id) {
+        Ok(config) => Ok(config),
+        Err(err) => {
+            warn!("Failed to load config for {id} - {err}...\nAttempting to use the old config template...");
+
+            // if this failed, try to use the old template
+            let old_config = match OldConfig::load_from_file(id) {
+                Ok(cfg) => {
+                    info!("Managed to load config for {id} using old template");
+                    cfg
+                }
+                Err(err) => {
+                    error!("Failed to load config for {id} with the old template. Are you sure you have run `init` before? (Error was: {err})");
+                    return Err(Box::new(ClientError::FailedToLoadConfig(id.to_string())));
+                }
+            };
+
+            info!("Updating the client config template...");
+            let updated: Config = old_config.into();
+            updated.save_to_file(None)?;
+
+            Ok(updated)
+        }
+    }
+}
+
 pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn Error + Send + Sync>> {
     let id = &args.id;
 
-    let mut config = match Config::load_from_file(id) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {err})", id);
-            return Err(Box::new(ClientError::FailedToLoadConfig(id.to_string())));
-        }
-    };
+    let mut config = load_config(id)?;
 
     let override_config_fields = OverrideConfig::from(args.clone());
     config = override_config(config, override_config_fields);

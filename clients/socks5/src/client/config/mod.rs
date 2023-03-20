@@ -15,6 +15,7 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+pub mod old_config;
 mod template;
 
 const DEFAULT_CONNECTION_START_SURBS: u32 = 20;

@@ -15,6 +15,7 @@ pub use client_core::config::Config as BaseConfig;
 pub use client_core::config::MISSING_VALUE;
 pub use client_core::config::{DebugConfig, GatewayEndpointConfig};
 
+pub mod old_config;
 mod template;
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone, Copy)]

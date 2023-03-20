@@ -13,6 +13,7 @@ use url::Url;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+pub mod old_config;
 pub mod persistence;
 
 pub const MISSING_VALUE: &str = "MISSING VALUE";
@@ -457,63 +458,63 @@ impl From<nym_topology::gateway::Node> for GatewayEndpointConfig {
 pub struct Client<T> {
     /// Version of the client for which this configuration was created.
     #[serde(default = "missing_string_value")]
-    version: String,
+    pub version: String,
 
     /// ID specifies the human readable ID of this particular client.
-    id: String,
+    pub id: String,
 
     /// Indicates whether this client is running in a disabled credentials mode, thus attempting
     /// to claim bandwidth without presenting bandwidth credentials.
     #[serde(default)]
-    disabled_credentials_mode: bool,
+    pub disabled_credentials_mode: bool,
 
     /// Addresses to nyxd validators via which the client can communicate with the chain.
     #[serde(alias = "validator_urls")]
-    nyxd_urls: Vec<Url>,
+    pub nyxd_urls: Vec<Url>,
 
     /// Addresses to APIs running on validator from which the client gets the view of the network.
     #[serde(alias = "validator_api_urls")]
-    nym_api_urls: Vec<Url>,
+    pub nym_api_urls: Vec<Url>,
 
     /// Path to file containing private identity key.
-    private_identity_key_file: PathBuf,
+    pub private_identity_key_file: PathBuf,
 
     /// Path to file containing public identity key.
-    public_identity_key_file: PathBuf,
+    pub public_identity_key_file: PathBuf,
 
     /// Path to file containing private encryption key.
-    private_encryption_key_file: PathBuf,
+    pub private_encryption_key_file: PathBuf,
 
     /// Path to file containing public encryption key.
-    public_encryption_key_file: PathBuf,
+    pub public_encryption_key_file: PathBuf,
 
     /// Path to file containing shared key derived with the specified gateway that is used
     /// for all communication with it.
-    gateway_shared_key_file: PathBuf,
+    pub gateway_shared_key_file: PathBuf,
 
     /// Path to file containing key used for encrypting and decrypting the content of an
     /// acknowledgement so that nobody besides the client knows which packet it refers to.
-    ack_key_file: PathBuf,
+    pub ack_key_file: PathBuf,
 
     /// Information regarding how the client should send data to gateway.
-    gateway_endpoint: GatewayEndpointConfig,
+    pub gateway_endpoint: GatewayEndpointConfig,
 
     /// Path to the database containing bandwidth credentials of this client.
-    database_path: PathBuf,
+    pub database_path: PathBuf,
 
     /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
     // this was set to use #[serde(default)] for the purposes of compatibility for multi-surbs introduced in 1.1.4.
     // if you're reading this message and we have already introduced some breaking changes, feel free
     // to remove that attribute since at this point the client configs should have gotten regenerated
     #[serde(default)]
-    reply_surb_database_path: PathBuf,
+    pub reply_surb_database_path: PathBuf,
 
     /// nym_home_directory specifies absolute path to the home nym Clients directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
-    nym_root_directory: PathBuf,
+    pub nym_root_directory: PathBuf,
 
     #[serde(skip)]
-    super_struct: PhantomData<T>,
+    pub super_struct: PhantomData<T>,
 }
 
 impl<T: NymConfig> Default for Client<T> {

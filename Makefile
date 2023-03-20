@@ -15,7 +15,7 @@ happy: fmt clippy-happy test
 #  $(2): path to workspace
 #  $(3): extra arguments to cargo
 # -----------------------------------------------------------------------------
-define generate_targets_workspace
+define add_cargo_workspace
 
 clippy-happy-$(1):
 	cargo clippy --manifest-path $(2)/Cargo.toml $(3)
@@ -47,41 +47,23 @@ cargo-test: test-$(1)
 cargo-test-expensive: test-$(1)-expensive
 build: build-$(1) build-$(1)-examples
 fmt: fmt-$(1)
+
 endef
 
 # -----------------------------------------------------------------------------
-# Main workspace
+# Rust workspaces
 # -----------------------------------------------------------------------------
 
-$(eval $(call generate_targets_workspace,main,.))
+# Generate targets for the various cargo workspaces
 
-# -----------------------------------------------------------------------------
-# Contracts
-# -----------------------------------------------------------------------------
-
-$(eval $(call generate_targets_workspace,contracts,contracts,--target wasm32-unknown-unknown))
-
-# -----------------------------------------------------------------------------
-# nym-wallet
-# -----------------------------------------------------------------------------
-
-$(eval $(call generate_targets_workspace,wallet,nym-wallet,))
-
-# -----------------------------------------------------------------------------
-# nym-connect
-# -----------------------------------------------------------------------------
-
-$(eval $(call generate_targets_workspace,connect,nym-connect/desktop))
-
+$(eval $(call add_cargo_workspace,main,.))
+$(eval $(call add_cargo_workspace,contracts,contracts,--target wasm32-unknown-unknown))
+$(eval $(call add_cargo_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
+$(eval $(call add_cargo_workspace,wallet,nym-wallet,))
+$(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
 ifndef NYM_NO_MOBILE
-$(eval $(call generate_targets_workspace,connect-mobile,nym-connect/mobile/src-tauri))
+$(eval $(call add_cargo_workspace,connect-mobile,nym-connect/mobile/src-tauri))
 endif
-
-# -----------------------------------------------------------------------------
-# nym-client-wasm
-# -----------------------------------------------------------------------------
-
-$(eval $(call generate_targets_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
 
 # -----------------------------------------------------------------------------
 # Convenience targets for crates that are already part of the main workspace

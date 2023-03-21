@@ -29,6 +29,7 @@ incremental = false
 overflow-checks = true
 
 [workspace.dependencies]
+cosmwasm-crypto = "=1.0.0"
 cosmwasm-derive = "=1.0.0"
 cosmwasm-schema = "=1.0.0"
 cosmwasm-std = "=1.0.0"

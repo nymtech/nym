@@ -9,7 +9,7 @@ const appsSchema = {
 
 export const CompatibleApps = () => (
   <Box>
-    <Typography fontWeight={600} sx={{ mb: 3 }}>
+    <Typography fontWeight={600} color="grey.600" sx={{ mb: 3 }}>
       Supported apps
     </Typography>
     <Typography color="nym.highlight" fontWeight={400} sx={{ mb: 2 }}>

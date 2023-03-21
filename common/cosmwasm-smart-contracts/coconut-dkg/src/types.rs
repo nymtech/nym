@@ -21,7 +21,7 @@ pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
 pub struct InitialReplacementData {
     pub initial_dealers: Vec<Addr>,
-    pub initial_height: Option<u64>,
+    pub initial_height: u64,
 }
 
 #[derive(

@@ -7,6 +7,7 @@ use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA, THRES
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::STATE;
+use crate::verification_key_shares::storage::verified_dealers;
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, Response, Storage};
 use nym_coconut_dkg_common::types::{Epoch, EpochState, InitialReplacementData};
 
@@ -19,7 +20,13 @@ fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
     for dealer_addr in dealers {
         let details = current_dealers().load(storage, &dealer_addr)?;
         for dealings in DEALINGS_BYTES {
-            dealings.remove(storage, &details.address);
+            let dealing_keys: Vec<_> = dealings
+                .keys(storage, None, None, Order::Ascending)
+                .flatten()
+                .collect();
+            for key in dealing_keys {
+                dealings.remove(storage, &key);
+            }
         }
         current_dealers().remove(storage, &dealer_addr)?;
         past_dealers().save(storage, &dealer_addr, &details)?;
@@ -46,15 +53,9 @@ fn dealers_still_active(
 }
 
 fn dealers_eq_members(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
-    let dealers_still_active = dealers_still_active(
-        &deps.as_ref(),
-        current_dealers()
-            .keys(deps.storage, None, None, Order::Ascending)
-            .flatten(),
-    )?;
-    let all_dealers = current_dealers()
-        .keys(deps.storage, None, None, Order::Ascending)
-        .count();
+    let verified_dealers = verified_dealers(deps.storage)?;
+    let all_dealers = verified_dealers.len();
+    let dealers_still_active = dealers_still_active(&deps.as_ref(), verified_dealers.into_iter())?;
     let group_members = STATE
         .load(deps.storage)?
         .group_addr
@@ -66,7 +67,11 @@ fn dealers_eq_members(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
 
 fn replacement_threshold_surpassed(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
     let threshold = THRESHOLD.load(deps.storage)? as usize;
-    let initial_dealers = INITIAL_REPLACEMENT_DATA.load(deps.storage)?.initial_dealers;
+    let initial_dealers = verified_dealers(deps.storage)?;
+    if initial_dealers.is_empty() {
+        // possibly failed DKG, just reset and start again
+        return Ok(true);
+    }
     let initial_dealer_count = initial_dealers.len();
     let replacement_threshold = threshold - (initial_dealers.len() + 2 - 1) / 2 + 1;
     let removed_dealer_count =
@@ -90,24 +95,23 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
     let next_epoch = if let Some(state) = current_epoch.state.next() {
         // We are during DKG process
         let mut new_state = state;
-        if let EpochState::DealingExchange { resharing } = state {
+        if let EpochState::DealingExchange { .. } = state {
             let current_dealers = current_dealers()
                 .keys(deps.storage, None, None, Order::Ascending)
                 .collect::<Result<Vec<Addr>, _>>()?;
-            if current_dealers.is_empty() {
-                // If no dealer registered yet, we just stay in the same state until there's at least one
+            let group_members =
+                STATE
+                    .load(deps.storage)?
+                    .group_addr
+                    .list_members(&deps.querier, None, None)?;
+            if current_dealers.len() < group_members.len() {
+                // If not all group members registered yet, we just stay in the same state until
+                // they either register or they get kicked out of the group
                 new_state = current_epoch.state;
             } else {
                 // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
                 let threshold = (2 * current_dealers.len() as u64 + 3 - 1) / 3;
                 THRESHOLD.save(deps.storage, &threshold)?;
-                if !resharing {
-                    let replacement_data = InitialReplacementData {
-                        initial_dealers: current_dealers,
-                        initial_height: None,
-                    };
-                    INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
-                }
             }
         };
         Epoch::new(
@@ -129,13 +133,23 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
         // Dealer set changed, we need to redo DKG...
         let state = if replacement_threshold_surpassed(&deps)? {
             // ... in reset mode
+            INITIAL_REPLACEMENT_DATA.remove(deps.storage);
             EpochState::default()
         } else {
             // ... in reshare mode
-            INITIAL_REPLACEMENT_DATA.update::<_, ContractError>(deps.storage, |mut data| {
-                data.initial_height = Some(env.block.height);
-                Ok(data)
-            })?;
+            if INITIAL_REPLACEMENT_DATA.may_load(deps.storage)?.is_some() {
+                INITIAL_REPLACEMENT_DATA.update::<_, ContractError>(deps.storage, |mut data| {
+                    data.initial_height = env.block.height;
+                    Ok(data)
+                })?;
+            } else {
+                let replacement_data = InitialReplacementData {
+                    initial_dealers: verified_dealers(deps.storage)?,
+                    initial_height: env.block.height,
+                };
+                INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
+            }
+
             EpochState::PublicKeySubmission { resharing: true }
         };
         reset_epoch_state(deps.storage)?;
@@ -158,10 +172,8 @@ pub(crate) fn try_surpassed_threshold(
     check_epoch_state(deps.storage, EpochState::InProgress)?;
 
     let threshold = THRESHOLD.load(deps.storage)?;
-    let dealers = current_dealers()
-        .keys(deps.storage, None, None, Order::Ascending)
-        .flatten();
-    if dealers_still_active(&deps.as_ref(), dealers)? < threshold as usize {
+    let dealers = verified_dealers(deps.storage)?;
+    if dealers_still_active(&deps.as_ref(), dealers.into_iter())? < threshold as usize {
         reset_epoch_state(deps.storage)?;
         CURRENT_EPOCH.update::<_, ContractError>(deps.storage, |epoch| {
             Ok(Epoch::new(
@@ -180,8 +192,9 @@ pub(crate) fn try_surpassed_threshold(
 pub(crate) mod tests {
     use super::*;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
-    use crate::support::tests::fixtures::dealer_details_fixture;
+    use crate::support::tests::fixtures::{dealer_details_fixture, vk_share_fixture};
     use crate::support::tests::helpers::{init_contract, GROUP_MEMBERS};
+    use crate::verification_key_shares::storage::vk_shares;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Addr;
     use cw4::Member;
@@ -204,11 +217,15 @@ pub(crate) mod tests {
 
             for n in [10, 25, 50, 100] {
                 let dealers: Vec<_> = (0..n).map(dealer_details_fixture).collect();
+                let shares: Vec<_> = (0..n).map(|idx| vk_share_fixture(&format!("owner{}", idx), 0)).collect();
                 let initial_dealers = dealers.iter().map(|d| d.address.clone()).collect();
                 let data = InitialReplacementData {
                     initial_dealers,
-                    initial_height: None,
+                    initial_height: 1,
                 };
+                for share in shares {
+                    vk_shares().save(deps.as_mut().storage, (&share.owner, 0), &share).unwrap();
+                }
                 for f in [two_thirds, three_fourths, ninty_pc] {
                     let threshold = f(n);
                     THRESHOLD.save(deps.as_mut().storage, &threshold).unwrap();
@@ -247,39 +264,39 @@ pub(crate) mod tests {
 
             assert!(dealers_eq_members(&deps.as_mut()).unwrap());
 
-            let details = dealer_details_fixture(1);
-            let different_details = dealer_details_fixture(2);
-            current_dealers()
-                .save(deps.as_mut().storage, &details.address, &details)
+            let share = vk_share_fixture("owner2", 0);
+            let different_share = vk_share_fixture("owner4", 0);
+            vk_shares()
+                .save(deps.as_mut().storage, (&share.owner, 0), &share)
                 .unwrap();
             assert!(!dealers_eq_members(&deps.as_mut()).unwrap());
 
-            current_dealers()
-                .remove(deps.as_mut().storage, &details.address)
+            vk_shares()
+                .remove(deps.as_mut().storage, (&share.owner, 0))
                 .unwrap();
             GROUP_MEMBERS.lock().unwrap().push((
                 Member {
-                    addr: "owner1".to_string(),
+                    addr: "owner2".to_string(),
                     weight: 10,
                 },
                 1,
             ));
             assert!(!dealers_eq_members(&deps.as_mut()).unwrap());
 
-            current_dealers()
+            vk_shares()
                 .save(
                     deps.as_mut().storage,
-                    &different_details.address,
-                    &different_details,
+                    (&different_share.owner, 0),
+                    &different_share,
                 )
                 .unwrap();
             assert!(!dealers_eq_members(&deps.as_mut()).unwrap());
 
-            current_dealers()
-                .remove(deps.as_mut().storage, &different_details.address)
+            vk_shares()
+                .remove(deps.as_mut().storage, (&different_share.owner, 0))
                 .unwrap();
-            current_dealers()
-                .save(deps.as_mut().storage, &details.address, &details)
+            vk_shares()
+                .save(deps.as_mut().storage, (&share.owner, 0), &share)
                 .unwrap();
             assert!(dealers_eq_members(&deps.as_mut()).unwrap());
         }
@@ -407,6 +424,12 @@ pub(crate) mod tests {
             );
 
             // setup dealer details
+            let all_shares: [_; 4] = std::array::from_fn(|i| vk_share_fixture(&format!("owner{}", i + 1), 0));
+            for share in all_shares.iter() {
+                vk_shares()
+                    .save(deps.as_mut().storage, (&share.owner, 0), share)
+                    .unwrap();
+            }
             let all_details: [_; 4] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
             for details in all_details.iter() {
                 current_dealers()
@@ -431,12 +454,6 @@ pub(crate) mod tests {
                     .time
                     .plus_seconds(epoch.time_configuration.dealing_exchange_time_secs)
             );
-            let replacement_data = INITIAL_REPLACEMENT_DATA.load(&deps.storage).unwrap();
-            let expected_replacement_data = InitialReplacementData {
-                initial_dealers: all_details.iter().map(|d| d.address.clone()).collect(),
-                initial_height: None,
-            };
-            assert_eq!(replacement_data, expected_replacement_data);
 
             env.block.time = env
                 .block
@@ -588,8 +605,14 @@ pub(crate) mod tests {
             );
             assert_eq!(curr_epoch, expected_epoch);
             assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+            let replacement_data = INITIAL_REPLACEMENT_DATA.load(&deps.storage).unwrap();
+            let expected_replacement_data = InitialReplacementData {
+                initial_dealers: all_details.iter().map(|d| d.address.clone()).collect(),
+                initial_height: 12345,
+            };
+            assert_eq!(replacement_data, expected_replacement_data);
 
-            let all_details: [_; 2] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 2));
+            let all_details: [_; 4] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 2));
             for details in all_details.iter() {
                 past_dealers().remove(deps.as_mut().storage, &details.address).unwrap();
                 current_dealers()
@@ -605,6 +628,17 @@ pub(crate) mod tests {
             ] {
                 env.block.time = env.block.time.plus_seconds(times);
                 advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            }
+
+            let all_shares: [_; 4] = std::array::from_fn(|i| {
+                let mut share = vk_share_fixture(&format!("owner{}", i + 1), 1);
+                share.verified = i % 2 == 0;
+                share
+                });
+            for share in all_shares.iter() {
+                vk_shares()
+                    .save(deps.as_mut().storage, (&share.owner, 0), share)
+                    .unwrap();
             }
 
             // Group changed even more, surpassing threshold, so re-run dkg in reset mode
@@ -623,7 +657,7 @@ pub(crate) mod tests {
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let curr_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
             let expected_epoch = Epoch::new(
-                EpochState::PublicKeySubmission { resharing: false },
+                EpochState::PublicKeySubmission { resharing: true },
                 prev_epoch.epoch_id + 1,
                 prev_epoch.time_configuration,
                 env.block.time,
@@ -672,10 +706,23 @@ pub(crate) mod tests {
                 }
             );
 
+
+            let all_shares: [_; 3] = std::array::from_fn(|i| vk_share_fixture(&format!("owner{}", i + 1), 0));
+            for share in all_shares.iter() {
+                vk_shares()
+                    .save(deps.as_mut().storage, (&share.owner, 0), share)
+                    .unwrap();
+            }
             let all_details: [_; 3] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
             for details in all_details.iter() {
                 current_dealers()
                     .save(deps.as_mut().storage, &details.address, details)
+                    .unwrap();
+            }
+            let all_shares: [_; 3] = std::array::from_fn(|i| vk_share_fixture(&format!("owner{}", i + 1), 0));
+            for share in all_shares.iter() {
+                vk_shares()
+                    .save(deps.as_mut().storage, (&share.owner, share.epoch_id), share)
                     .unwrap();
             }
 

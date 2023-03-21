@@ -63,6 +63,7 @@ fn main() {
             mixnet::bond::unbond_mixnode,
             mixnet::bond::update_mixnode_cost_params,
             mixnet::bond::update_mixnode_config,
+            mixnet::bond::update_gateway_config,
             mixnet::bond::get_number_of_mixnode_delegators,
             mixnet::bond::get_mix_node_description,
             mixnet::bond::get_mixnode_avg_uptime,

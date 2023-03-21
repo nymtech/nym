@@ -5,8 +5,8 @@ import { useClientContext } from 'src/context/main';
 import { ConnectionStatusKind } from 'src/types';
 import { AppVersion } from 'src/components/AppVersion';
 
-export const Settings = () => {
-  const { userDefinedGateway, setUserDefinedGateway } = useClientContext();
+export const GatewaySettings = () => {
+  const { userDefinedGateway, setUserDefinedGateway, connectionStatus } = useClientContext();
   const [gatewayKey, setGatewayKey] = useState<string | undefined>(userDefinedGateway?.gateway);
 
   const handleIsValidGatewayKey = (isValid: boolean) => {
@@ -20,17 +20,14 @@ export const Settings = () => {
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    console.warn('HANERE***');
     setUserDefinedGateway((current) => ({ ...current, isActive: e.target.checked }));
   };
-
-  const { connectionStatus } = useClientContext();
 
   return (
     <Box height="100%">
       <Stack justifyContent="space-between" height="100%">
-        <Box>
-          <Typography fontWeight="bold" variant="body2" mb={1} fontSize="14px">
+        <Box mt={3}>
+          <Typography fontWeight="bold" variant="body2" mb={1}>
             Select your Gateway
           </Typography>
           <Typography color="grey.300" variant="body2" mb={3}>
@@ -61,6 +58,7 @@ export const Settings = () => {
                 onValidate={handleIsValidGatewayKey}
                 sx={{ mt: 3 }}
                 disabled={connectionStatus === 'connected' || !userDefinedGateway?.isActive}
+                autoFocus
               />
             )}
           </FormControl>

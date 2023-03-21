@@ -4,6 +4,7 @@
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
+use log::debug;
 use nym_coconut_dkg_common::types::TOTAL_DEALINGS;
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_dkg::bte::setup;
@@ -18,6 +19,7 @@ pub(crate) async fn dealing_exchange(
     resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.receiver_index().is_some() {
+        debug!("Receiver index was set previously, nothing to do");
         return Ok(());
     }
 
@@ -45,6 +47,7 @@ pub(crate) async fn dealing_exchange(
                 return Err(CoconutError::CorruptedCoconutKeyPair);
             }
             // We can now erase the keypair from memory
+            debug!("Removing coconut keypair from memory");
             state.set_coconut_keypair(None).await;
             scalars.push(x);
             scalars
@@ -59,6 +62,11 @@ pub(crate) async fn dealing_exchange(
     if !resharing || initial_dealers.iter().any(|d| *d == own_address) {
         let params = setup();
         for _ in 0..TOTAL_DEALINGS {
+            debug!(
+                "Submitting dealing for indexes {:?} with resharing: {}",
+                receivers.keys().collect::<Vec<_>>(),
+                prior_resharing_secrets.front().is_some()
+            );
             let (dealing, _) = Dealing::create(
                 rng.clone(),
                 &params,
@@ -71,9 +79,11 @@ pub(crate) async fn dealing_exchange(
                 .submit_dealing(ContractSafeBytes::from(&dealing), resharing)
                 .await?;
         }
+    } else {
+        debug!("Nothing to do, waiting for initial dealers to submit dealings");
     }
 
-    info!("DKG: Finished submitting dealing");
+    info!("DKG: Finished dealing exchange");
     state.set_receiver_index(receiver_index);
 
     Ok(())
@@ -109,7 +119,7 @@ pub(crate) mod tests {
 
     fn insert_dealers(
         params: &Params,
-        dealer_details_db: &Arc<RwLock<HashMap<String, DealerDetails>>>,
+        dealer_details_db: &Arc<RwLock<HashMap<String, (DealerDetails, bool)>>>,
     ) -> Vec<DkgKeyPair> {
         let mut keypairs = vec![];
         for (idx, addr) in TEST_VALIDATORS_ADDRESS.iter().enumerate() {
@@ -119,12 +129,15 @@ pub(crate) mod tests {
             keypairs.push(keypair);
             dealer_details_db.write().unwrap().insert(
                 addr.to_string(),
-                DealerDetails {
-                    address: Addr::unchecked(*addr),
-                    bte_public_key_with_proof,
-                    announce_address: format!("localhost:80{}", idx),
-                    assigned_index: (idx + 1) as u64,
-                },
+                (
+                    DealerDetails {
+                        address: Addr::unchecked(*addr),
+                        bte_public_key_with_proof,
+                        announce_address: format!("localhost:80{}", idx),
+                        assigned_index: (idx + 1) as u64,
+                    },
+                    true,
+                ),
             );
         }
         keypairs
@@ -216,7 +229,7 @@ pub(crate) mod tests {
             .unwrap()
             .entry(TEST_VALIDATORS_ADDRESS[1].to_string())
             .and_modify(|details| {
-                let mut bytes = bs58::decode(details.bte_public_key_with_proof.clone())
+                let mut bytes = bs58::decode(details.0.bte_public_key_with_proof.clone())
                     .into_vec()
                     .unwrap();
                 // Find another value for last byte that still deserializes to a public key with proof
@@ -231,7 +244,7 @@ pub(crate) mod tests {
                         break;
                     }
                 }
-                details.bte_public_key_with_proof = bs58::encode(&bytes).into_string();
+                details.0.bte_public_key_with_proof = bs58::encode(&bytes).into_string();
             });
 
         dealing_exchange(&dkg_client, &mut state, OsRng, false)
@@ -257,7 +270,7 @@ pub(crate) mod tests {
         let threshold_db = Arc::new(RwLock::new(Some(3)));
         let initial_dealers_db = Arc::new(RwLock::new(Some(InitialReplacementData {
             initial_dealers: vec![Addr::unchecked(TEST_VALIDATORS_ADDRESS[0])],
-            initial_height: Some(100),
+            initial_height: 100,
         })));
         let dkg_client = DkgClient::new(
             DummyClient::new(

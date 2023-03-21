@@ -42,6 +42,7 @@ const GatewayInitForm = ({
         initialValue={gatewayData?.identityKey}
         errorText={errors.identityKey?.message}
         onChanged={(value) => setValue('identityKey', value)}
+        showTickOnValid={false}
       />
       <TextField
         {...register('sphinxKey')}

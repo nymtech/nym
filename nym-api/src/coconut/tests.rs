@@ -69,7 +69,7 @@ pub(crate) struct DummyClient {
     spent_credential_db: Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
 
     epoch: Arc<RwLock<Epoch>>,
-    dealer_details: Arc<RwLock<HashMap<String, DealerDetails>>>,
+    dealer_details: Arc<RwLock<HashMap<String, (DealerDetails, bool)>>>,
     threshold: Arc<RwLock<Option<Threshold>>>,
     dealings: Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
     verification_share: Arc<RwLock<HashMap<String, ContractVKShare>>>,
@@ -122,7 +122,7 @@ impl DummyClient {
 
     pub fn with_dealer_details(
         mut self,
-        dealer_details: &Arc<RwLock<HashMap<String, DealerDetails>>>,
+        dealer_details: &Arc<RwLock<HashMap<String, (DealerDetails, bool)>>>,
     ) -> Self {
         self.dealer_details = Arc::clone(dealer_details);
         self
@@ -233,14 +233,25 @@ impl super::client::Client for DummyClient {
     }
 
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
+        let (details, dealer_type) = if let Some((details, current)) = self
+            .dealer_details
+            .read()
+            .unwrap()
+            .get(self.validator_address.as_ref())
+            .cloned()
+        {
+            let dealer_type = if current {
+                DealerType::Current
+            } else {
+                DealerType::Past
+            };
+            (Some(details), dealer_type)
+        } else {
+            (None, DealerType::Unknown)
+        };
         Ok(DealerDetailsResponse {
-            details: self
-                .dealer_details
-                .read()
-                .unwrap()
-                .get(self.validator_address.as_ref())
-                .cloned(),
-            dealer_type: DealerType::Current,
+            details,
+            dealer_type,
         })
     }
 
@@ -251,6 +262,7 @@ impl super::client::Client for DummyClient {
             .unwrap()
             .values()
             .cloned()
+            .filter_map(|(d, current)| if current { Some(d) } else { None })
             .collect())
     }
 
@@ -287,13 +299,11 @@ impl super::client::Client for DummyClient {
         _fee: Option<Fee>,
     ) -> Result<()> {
         if let Some(proposal) = self.proposal_db.write().unwrap().get_mut(&proposal_id) {
-            // for now, just suppose that first vote is honest
-            if proposal.status == cw3::Status::Open {
-                if vote_yes {
-                    proposal.status = cw3::Status::Passed;
-                } else {
-                    proposal.status = cw3::Status::Rejected;
-                }
+            // for now, just suppose that every vote is honest
+            if !vote_yes {
+                proposal.status = cw3::Status::Rejected;
+            } else if vote_yes && proposal.status == cw3::Status::Open {
+                proposal.status = cw3::Status::Passed;
             }
         }
         Ok(())
@@ -323,22 +333,33 @@ impl super::client::Client for DummyClient {
         _resharing: bool,
     ) -> Result<ExecuteResult> {
         let mut dealer_details = self.dealer_details.write().unwrap();
-        let assigned_index =
-            if let Some(details) = dealer_details.get(self.validator_address.as_ref()) {
-                details.assigned_index
-            } else {
-                let assigned_index = OsRng.gen();
-                dealer_details.insert(
-                    self.validator_address.to_string(),
+        let assigned_index = if let Some((details, active)) =
+            dealer_details.get_mut(self.validator_address.as_ref())
+        {
+            *active = true;
+            details.assigned_index
+        } else {
+            // let assigned_index = OsRng.gen();
+            let assigned_index = dealer_details
+                .values()
+                .map(|(d, _)| d.assigned_index)
+                .max()
+                .unwrap_or(0)
+                + 1;
+            dealer_details.insert(
+                self.validator_address.to_string(),
+                (
                     DealerDetails {
                         address: Addr::unchecked(self.validator_address.to_string()),
                         bte_public_key_with_proof,
                         announce_address,
                         assigned_index,
                     },
-                );
-                assigned_index
-            };
+                    true,
+                ),
+            );
+            assigned_index
+        };
         Ok(ExecuteResult {
             logs: vec![Log {
                 msg_index: 0,
@@ -380,13 +401,17 @@ impl super::client::Client for DummyClient {
         share: VerificationKeyShare,
         resharing: bool,
     ) -> Result<ExecuteResult> {
-        let dealer_details = self
+        let (dealer_details, active) = self
             .dealer_details
             .read()
             .unwrap()
             .get(self.validator_address.as_ref())
             .unwrap()
             .clone();
+        if !active {
+            // Just throw some error, not really the correct one
+            return Err(CoconutError::DepositEncrKeyNotFound);
+        }
         self.verification_share.write().unwrap().insert(
             self.validator_address.to_string(),
             ContractVKShare {

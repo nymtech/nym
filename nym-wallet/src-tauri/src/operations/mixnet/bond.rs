@@ -8,6 +8,7 @@ use crate::operations::helpers::{
 use crate::state::WalletState;
 use crate::{nyxd_client, Gateway, MixNode};
 use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::{MixId, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
@@ -219,6 +220,31 @@ pub async fn update_mixnode_config(
         .current_client()?
         .nyxd
         .update_mixnode_config(update, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn update_gateway_config(
+    update: GatewayConfigUpdate,
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    log::info!(
+        ">>> Update gateway config: update = {}, fee {:?}",
+        update.to_inline_json(),
+        fee,
+    );
+    let res = guard
+        .current_client()?
+        .nyxd
+        .update_gateway_config(update, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);

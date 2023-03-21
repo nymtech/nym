@@ -77,7 +77,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
     } catch (e) {
       Console.error(e as string);
       if (/Raw log: out of gas/.test(e as string)) {
-        setGasError('Out of gas, please increase the amount of fees');
+        setGasError('Specified fee was too small. Please increase the amount and try again');
       } else {
         setSendError(true);
       }

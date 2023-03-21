@@ -20,18 +20,18 @@ use std::time::Duration;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct OldConfig_v1_1_13<T> {
+pub struct OldConfigV1_1_13<T> {
     pub client: Client<T>,
 
     #[serde(default)]
     logging: Logging,
     #[serde(default)]
-    debug: OldDebugConfig_v_1_1_13,
+    debug: OldDebugConfigV1_1_13,
 }
 
-impl<T: NymConfig> Default for OldConfig_v1_1_13<T> {
+impl<T: NymConfig> Default for OldConfigV1_1_13<T> {
     fn default() -> Self {
-        OldConfig_v1_1_13 {
+        OldConfigV1_1_13 {
             client: Client::<T>::default(),
             logging: Default::default(),
             debug: Default::default(),
@@ -41,7 +41,7 @@ impl<T: NymConfig> Default for OldConfig_v1_1_13<T> {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct OldDebugConfig_v_1_1_13 {
+pub struct OldDebugConfigV1_1_13 {
     #[serde(with = "humantime_serde")]
     pub average_packet_delay: Duration,
 
@@ -96,8 +96,8 @@ pub struct OldDebugConfig_v_1_1_13 {
     pub maximum_reply_key_age: Duration,
 }
 
-impl From<OldDebugConfig_v_1_1_13> for DebugConfig {
-    fn from(value: OldDebugConfig_v_1_1_13) -> Self {
+impl From<OldDebugConfigV1_1_13> for DebugConfig {
+    fn from(value: OldDebugConfigV1_1_13) -> Self {
         DebugConfig {
             traffic: Traffic {
                 average_packet_delay: value.average_packet_delay,
@@ -140,9 +140,9 @@ impl From<OldDebugConfig_v_1_1_13> for DebugConfig {
     }
 }
 
-impl Default for OldDebugConfig_v_1_1_13 {
+impl Default for OldDebugConfigV1_1_13 {
     fn default() -> Self {
-        OldDebugConfig_v_1_1_13 {
+        OldDebugConfigV1_1_13 {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             ack_wait_multiplier: DEFAULT_ACK_WAIT_MULTIPLIER,
@@ -169,8 +169,8 @@ impl Default for OldDebugConfig_v_1_1_13 {
     }
 }
 
-impl<T, U> From<OldConfig_v1_1_13<T>> for Config<U> {
-    fn from(value: OldConfig_v1_1_13<T>) -> Self {
+impl<T, U> From<OldConfigV1_1_13<T>> for Config<U> {
+    fn from(value: OldConfigV1_1_13<T>) -> Self {
         Config {
             client: Client {
                 version: value.client.version,

@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::{Config, Socket};
-use client_core::config::old_config_v1_1_13::OldConfig_v1_1_13 as OldBaseConfig;
+use client_core::config::old_config_v1_1_13::OldConfigV1_1_13 as OldBaseConfigV1_1_13;
 use nym_config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct OldConfig_v1_1_13 {
+pub struct OldConfigV1_1_13 {
     #[serde(flatten)]
-    base: OldBaseConfig<OldConfig_v1_1_13>,
+    base: OldBaseConfigV1_1_13<OldConfigV1_1_13>,
 
     socket: Socket,
 }
 
-impl NymConfig for OldConfig_v1_1_13 {
+impl NymConfig for OldConfigV1_1_13 {
     fn template() -> &'static str {
         // not intended to be used
         unimplemented!()
@@ -50,8 +50,8 @@ impl NymConfig for OldConfig_v1_1_13 {
     }
 }
 
-impl From<OldConfig_v1_1_13> for Config {
-    fn from(value: OldConfig_v1_1_13) -> Self {
+impl From<OldConfigV1_1_13> for Config {
+    fn from(value: OldConfigV1_1_13) -> Self {
         Config {
             base: value.base.into(),
             socket: value.socket,

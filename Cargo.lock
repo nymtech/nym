@@ -3319,7 +3319,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3479,7 +3479,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3982,7 +3982,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",

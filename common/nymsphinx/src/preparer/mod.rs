@@ -46,7 +46,10 @@ pub struct MessagePreparer<R> {
     rng: R,
 
     /// Size of the target [`SphinxPacket`] into which the underlying is going to get split.
-    packet_size: PacketSize,
+    primary_packet_size: PacketSize,
+
+    /// Alternative size of the target [`SphinxPacket`] into which the underlying is going to get split.
+    secondary_packet_size: Option<PacketSize>,
 
     /// Address of this client which also represent an address to which all acknowledgements
     /// and surb-based are going to be sent.
@@ -75,11 +78,12 @@ where
     ) -> Self {
         MessagePreparer {
             rng,
-            packet_size: Default::default(),
             sender_address,
             average_packet_delay,
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
+            primary_packet_size: PacketSize::RegularPacket,
+            secondary_packet_size: None,
         }
     }
 
@@ -90,8 +94,14 @@ where
     }
 
     /// Allows setting non-default size of the sphinx packets sent out.
-    pub fn with_custom_real_message_packet_size(mut self, packet_size: PacketSize) -> Self {
-        self.packet_size = packet_size;
+    pub fn with_custom_primary_packet_size(mut self, packet_size: PacketSize) -> Self {
+        self.primary_packet_size = packet_size;
+        self
+    }
+
+    /// Allows setting non-default size of the sphinx packets sent out.
+    pub fn with_custom_secondary_packet_size(mut self, packet_size: Option<PacketSize>) -> Self {
+        self.secondary_packet_size = packet_size;
         self
     }
 
@@ -150,10 +160,10 @@ where
         let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
             .build_reply(reply_surb.encryption_key());
 
-        // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lenghts
+        // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lengths
         // and we just very carefully constructed a (presumably) valid one
         let (sphinx_packet, first_hop_address) = reply_surb
-            .apply_surb(packet_payload, Some(self.packet_size))
+            .apply_surb(packet_payload, Some(self.primary_packet_size))
             .unwrap();
 
         Ok(PreparedFragment {
@@ -213,7 +223,7 @@ where
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
         let sphinx_packet = SphinxPacketBuilder::new()
-            .with_payload_size(self.packet_size.payload_size())
+            .with_payload_size(self.primary_packet_size.payload_size())
             .build_packet(packet_payload, &route, &destination, &delays)
             .unwrap();
 
@@ -249,7 +259,7 @@ where
     }
 
     pub fn pad_and_split_message(&mut self, message: NymMessage) -> Vec<Fragment> {
-        let plaintext_per_packet = message.available_plaintext_per_packet(self.packet_size);
+        let plaintext_per_packet = message.available_plaintext_per_packet(self.primary_packet_size);
 
         message
             .pad_to_full_packet_lengths(plaintext_per_packet)

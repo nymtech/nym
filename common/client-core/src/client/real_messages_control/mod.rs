@@ -102,7 +102,8 @@ impl<'a> From<&'a Config> for message_handler::Config {
             cfg.traffic.average_packet_delay,
             cfg.acks.average_ack_delay,
         )
-        .with_custom_packet_size(cfg.traffic.primary_packet_size)
+        .with_custom_primary_packet_size(cfg.traffic.primary_packet_size)
+        .with_custom_secondary_packet_size(cfg.traffic.secondary_packet_size)
     }
 }
 

@@ -101,8 +101,11 @@ pub(crate) struct Config {
     /// Note that it does not include gateway hops.
     num_mix_hops: u8,
 
-    /// Predefined packet size used for the encapsulated messages.
-    packet_size: PacketSize,
+    /// Primary predefined packet size used for the encapsulated messages.
+    primary_packet_size: PacketSize,
+
+    /// Optional secondary predefined packet size used for the encapsulated messages.
+    secondary_packet_size: Option<PacketSize>,
 }
 
 impl Config {
@@ -118,7 +121,8 @@ impl Config {
             average_packet_delay,
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
-            packet_size: PacketSize::default(),
+            primary_packet_size: PacketSize::default(),
+            secondary_packet_size: None,
         }
     }
 
@@ -130,8 +134,14 @@ impl Config {
     }
 
     /// Allows setting non-default size of the sphinx packets sent out.
-    pub fn with_custom_packet_size(mut self, packet_size: PacketSize) -> Self {
-        self.packet_size = packet_size;
+    pub fn with_custom_primary_packet_size(mut self, packet_size: PacketSize) -> Self {
+        self.primary_packet_size = packet_size;
+        self
+    }
+
+    /// Allows setting non-default size of the sphinx packets sent out.
+    pub fn with_custom_secondary_packet_size(mut self, packet_size: Option<PacketSize>) -> Self {
+        self.secondary_packet_size = packet_size;
         self
     }
 }
@@ -170,7 +180,8 @@ where
             config.average_packet_delay,
             config.average_ack_delay,
         )
-        .with_custom_real_message_packet_size(config.packet_size)
+        .with_custom_primary_packet_size(config.primary_packet_size)
+        .with_custom_secondary_packet_size(config.secondary_packet_size)
         .with_mix_hops(config.num_mix_hops);
 
         MessageHandler {

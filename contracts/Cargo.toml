@@ -7,6 +7,9 @@ members = [
     "multisig/cw4-group",
     "coconut-test",
     "coconut-dkg",
+]
+
+exclude = [
     "service-provider-directory"
 ]
 

@@ -15,4 +15,15 @@ serde = { version = "1.0.155", default-features = false, features = ["derive"] }
 thiserror = "1.0.39"
 
 [dev-dependencies]
-cw-multi-test = "0.16.2"
+cw-multi-test = "0.13.4"
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true

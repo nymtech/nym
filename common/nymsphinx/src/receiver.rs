@@ -7,6 +7,8 @@ use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_crypto::symmetric::stream_cipher::CipherKey;
+use nym_outfox::error::OutfoxError;
+use nym_outfox::lion::lion_transform_decrypt;
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx_anonymous_replies::SurbEncryptionKey;
 use nym_sphinx_chunking::fragment::Fragment;
@@ -74,54 +76,76 @@ pub enum MessageRecoveryError {
 
     #[error("Failed to recover message fragment - {0}")]
     FragmentRecoveryError(#[from] ChunkingError),
+
+    #[error("Outfox: {source}")]
+    OutfoxRecoveryError {
+        #[from]
+        source: OutfoxError,
+    },
 }
 
-pub struct MessageReceiver {
-    /// High level public structure used to buffer all received data [`Fragment`]s and eventually
-    /// returning original messages that they encapsulate.
+#[derive(Default)]
+pub struct OutfoxMessageReceiver {
     reconstructor: MessageReconstructor,
-
-    /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
-    /// Note that it does not include gateway hops.
-    num_mix_hops: u8,
 }
 
-impl MessageReceiver {
+impl OutfoxMessageReceiver {
     pub fn new() -> Self {
         Default::default()
     }
+}
 
-    /// Allows setting non-default number of expected mix hops in the network.
-    #[must_use]
-    pub fn with_mix_hops(mut self, hops: u8) -> Self {
-        self.num_mix_hops = hops;
-        self
+impl MessageReceiver for OutfoxMessageReceiver {
+    fn new() -> Self {
+        Self::default()
     }
 
-    fn decrypt_raw_message<C>(&self, message: &mut [u8], key: &CipherKey<C>)
+    fn reconstructor(&self) -> MessageReconstructor {
+        self.reconstructor.clone()
+    }
+
+    fn num_mix_hops(&self) -> u8 {
+        DEFAULT_NUM_MIX_HOPS
+    }
+
+    fn decrypt_raw_message<C>(
+        &self,
+        message: &mut [u8],
+        key: &CipherKey<C>,
+    ) -> Result<(), MessageRecoveryError>
     where
         C: StreamCipher + KeyIvInit,
     {
-        let zero_iv = stream_cipher::zero_iv::<C>();
-        stream_cipher::decrypt_in_place::<C>(key, &zero_iv, message)
+        lion_transform_decrypt(message, key)?;
+        Ok(())
     }
+}
 
-    /// Given raw fragment data, **WITH KEY DIGEST PREFIX ALREADY REMOVED!!**, uses looked up
-    /// key to decrypt fragment data
-    pub fn recover_plaintext_from_reply(
+pub trait MessageReceiver {
+    fn new() -> Self;
+    fn reconstructor(&self) -> MessageReconstructor;
+    fn num_mix_hops(&self) -> u8;
+
+    fn decrypt_raw_message<C>(
+        &self,
+        message: &mut [u8],
+        key: &CipherKey<C>,
+    ) -> Result<(), MessageRecoveryError>
+    where
+        C: StreamCipher + KeyIvInit;
+
+    fn recover_plaintext_from_reply(
         &self,
         reply_ciphertext: &mut [u8],
         reply_key: SurbEncryptionKey,
-    ) {
+    ) -> Result<(), MessageRecoveryError> {
         self.decrypt_raw_message::<ReplySurbEncryptionAlgorithm>(
             reply_ciphertext,
             reply_key.inner(),
         )
     }
 
-    /// Given raw fragment data, recovers the remote ephemeral key, recomputes shared secret,
-    /// uses it to decrypt fragment data
-    pub fn recover_plaintext_from_regular_packet<'a>(
+    fn recover_plaintext_from_regular_packet<'a>(
         &self,
         local_key: &encryption::PrivateKey,
         raw_enc_frag: &'a mut [u8],
@@ -146,30 +170,25 @@ impl MessageReceiver {
         // 3. decrypt fragment data
         let fragment_ciphertext = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];
 
-        self.decrypt_raw_message::<PacketEncryptionAlgorithm>(fragment_ciphertext, &encryption_key);
+        self.decrypt_raw_message::<PacketEncryptionAlgorithm>(
+            fragment_ciphertext,
+            &encryption_key,
+        )?;
         let fragment_data = fragment_ciphertext;
 
         Ok(fragment_data)
     }
 
-    /// Given fragment data recovers [`Fragment`] itself.
-    pub fn recover_fragment(&self, frag_data: &[u8]) -> Result<Fragment, MessageRecoveryError> {
+    fn recover_fragment(&self, frag_data: &[u8]) -> Result<Fragment, MessageRecoveryError> {
         Ok(Fragment::try_from_bytes(frag_data)?)
     }
 
-    /// Inserts given [`Fragment`] into the reconstructor.
-    /// If it was last remaining [`Fragment`] for the original message, the message is reconstructed
-    /// and returned alongside all (if applicable) set ids used in the message.
-    ///
-    /// # Returns:
-    /// - The reconstructed message alongside optional reply SURB,
-    /// - List of ids of all the [`Set`]s used during reconstruction to detect stale retransmissions.
-    pub fn insert_new_fragment(
+    fn insert_new_fragment(
         &mut self,
         fragment: Fragment,
     ) -> Result<Option<(NymMessage, Vec<i32>)>, MessageRecoveryError> {
-        if let Some((message, used_sets)) = self.reconstructor.insert_new_fragment(fragment) {
-            match PaddedMessage::new_reconstructed(message).remove_padding(self.num_mix_hops) {
+        if let Some((message, used_sets)) = self.reconstructor().insert_new_fragment(fragment) {
+            match PaddedMessage::new_reconstructed(message).remove_padding(self.num_mix_hops()) {
                 Ok(message) => Ok(Some((message, used_sets))),
                 Err(err) => Err(MessageRecoveryError::MalformedReconstructedMessage {
                     source: err,
@@ -182,9 +201,56 @@ impl MessageReceiver {
     }
 }
 
-impl Default for MessageReceiver {
+#[derive(Clone)]
+pub struct SphinxMessageReceiver {
+    /// High level public structure used to buffer all received data [`Fragment`]s and eventually
+    /// returning original messages that they encapsulate.
+    reconstructor: MessageReconstructor,
+
+    /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
+    /// Note that it does not include gateway hops.
+    num_mix_hops: u8,
+}
+
+impl SphinxMessageReceiver {
+    /// Allows setting non-default number of expected mix hops in the network.
+    #[must_use]
+    pub fn with_mix_hops(mut self, hops: u8) -> Self {
+        self.num_mix_hops = hops;
+        self
+    }
+}
+
+impl MessageReceiver for SphinxMessageReceiver {
+    fn new() -> Self {
+        Default::default()
+    }
+
+    fn decrypt_raw_message<C>(
+        &self,
+        message: &mut [u8],
+        key: &CipherKey<C>,
+    ) -> Result<(), MessageRecoveryError>
+    where
+        C: StreamCipher + KeyIvInit,
+    {
+        let zero_iv = stream_cipher::zero_iv::<C>();
+        stream_cipher::decrypt_in_place::<C>(key, &zero_iv, message);
+        Ok(())
+    }
+
+    fn reconstructor(&self) -> MessageReconstructor {
+        self.reconstructor.clone()
+    }
+
+    fn num_mix_hops(&self) -> u8 {
+        self.num_mix_hops
+    }
+}
+
+impl Default for SphinxMessageReceiver {
     fn default() -> Self {
-        MessageReceiver {
+        SphinxMessageReceiver {
             reconstructor: Default::default(),
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
         }

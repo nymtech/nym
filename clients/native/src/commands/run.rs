@@ -10,7 +10,7 @@ use crate::{
     error::ClientError,
 };
 
-use crate::client::config::old_config::OldConfig;
+use crate::client::config::old_config_v1_1_13::OldConfig_v1_1_13;
 use clap::Args;
 use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
@@ -106,7 +106,7 @@ fn load_config(id: &str) -> Result<Config, Box<dyn Error + Send + Sync>> {
             warn!("Failed to load config for {id} - {err}...\nAttempting to use the old config template...");
 
             // if this failed, try to use the old template
-            let old_config = match OldConfig::load_from_file(id) {
+            let old_config = match OldConfig_v1_1_13::load_from_file(id) {
                 Ok(cfg) => {
                     info!("Managed to load config for {id} using old template");
                     cfg

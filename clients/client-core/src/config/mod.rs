@@ -13,7 +13,7 @@ use url::Url;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-pub mod old_config;
+pub mod old_config_v1_1_13;
 pub mod persistence;
 
 pub const MISSING_VALUE: &str = "MISSING VALUE";

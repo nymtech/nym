@@ -5,6 +5,7 @@ use crate::FRAG_ID_LEN;
 use nym_sphinx_types::header::HEADER_SIZE;
 use nym_sphinx_types::PAYLOAD_OVERHEAD_SIZE;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use thiserror::Error;
@@ -57,6 +58,20 @@ pub enum PacketSize {
     // for example for streaming fast and furious in compressed XviD quality
     #[serde(rename = "extended16")]
     ExtendedPacket16 = 5,
+}
+
+impl PartialOrd for PacketSize {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // order them by actual packet size
+        self.size().partial_cmp(&other.size())
+    }
+}
+
+impl Ord for PacketSize {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // order them by actual packet size
+        self.size().cmp(&other.size())
+    }
 }
 
 impl FromStr for PacketSize {

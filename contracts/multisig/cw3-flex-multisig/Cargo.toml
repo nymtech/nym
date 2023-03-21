@@ -33,4 +33,4 @@ nym-multisig-contract-common = { path= "../../../common/cosmwasm-smart-contracts
 [dev-dependencies]
 cosmwasm-schema = { version = "1.0.0" }
 cw4-group = { path = "../cw4-group", version = "0.13.4" }
-cw-multi-test = { version = "0.13.4" }
+cw-multi-test = { workspace = true }

@@ -29,9 +29,15 @@ incremental = false
 overflow-checks = true
 
 [workspace.dependencies]
+cosmwasm-derive = "=1.0.0"
+cosmwasm-schema = "=1.0.0"
 cosmwasm-std = "=1.0.0"
 cosmwasm-storage = "=1.0.0"
-cosmwasm-schema = "=1.0.0"
-cosmwasm-derive = "=1.0.0"
-cw2 = { version = "=0.13.4" }
+cw-controllers = "=0.13.4"
+cw-multi-test = "=0.13.4"
 cw-storage-plus = "=0.13.4"
+cw-utils = "=0.13.4"
+cw2 = "=0.13.4"
+cw3 = "=0.13.4"
+cw3-fixed-multisig = "=0.13.4"
+cw4 = "=0.13.4"

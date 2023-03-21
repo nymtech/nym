@@ -27,3 +27,11 @@ codegen-units = 1
 panic = 'abort'
 incremental = false
 overflow-checks = true
+
+[workspace.dependencies]
+cosmwasm-std = "=1.0.0"
+cosmwasm-storage = "=1.0.0"
+cosmwasm-schema = "=1.0.0"
+cosmwasm-derive = "=1.0.0"
+cw2 = { version = "=0.13.4" }
+cw-storage-plus = "=0.13.4"

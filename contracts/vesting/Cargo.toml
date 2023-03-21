@@ -24,9 +24,10 @@ mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-
 contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common", version = "0.3.0" }
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.3.0" }
 
-cosmwasm-std = { version = "1.0.0 "}
-cw2 = { version = "0.13.4" }
-cw-storage-plus = { version = "0.13.4", features = ["iterator"] }
+cosmwasm-std = { workspace = true }
+cosmwasm-derive = { workspace = true }
+cw2 = { workspace = true }
+cw-storage-plus = { workspace = true, features = ["iterator"] }
 
 schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }

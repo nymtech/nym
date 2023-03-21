@@ -533,16 +533,11 @@ where
         // primarily to throttle incoming connections (e.g socks5 for attached network-requesters)
         let shared_lane_queue_lengths = LaneQueueLengths::new();
 
-        let mut controller_config = real_messages_control::Config::new(
+        let controller_config = real_messages_control::Config::new(
             self.debug_config,
             self.key_manager.ack_key(),
             self_address,
         );
-
-        if let Some(size) = self.debug_config.traffic.use_extended_packet_size {
-            log::debug!("Setting extended packet size: {:?}", size);
-            controller_config.set_custom_packet_size(size.into());
-        }
 
         Self::start_real_traffic_controller(
             controller_config,

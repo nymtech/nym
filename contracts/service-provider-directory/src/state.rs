@@ -2,11 +2,18 @@ use cosmwasm_std::Addr;
 use cw_storage_plus::{Item, Map};
 use serde::{Deserialize, Serialize};
 
+pub const CONFIG: Item<Config> = Item::new("config");
+pub const SERVICES: Map<String, Service> = Map::new("services");
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+pub enum ServiceType {
+    NetworkRequester,
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct Service {
     pub client_address: String,
-    pub standard_whitelist: bool,
-    pub uptime_score: u8,
+    pub service_type: ServiceType,
     pub owner: Addr,
 }
 
@@ -16,5 +23,3 @@ pub struct Config {
     pub admin: Addr,
 }
 
-pub const CONFIG: Item<Config> = Item::new("config");
-pub const SERVICES: Map<String, Service> = Map::new("services");

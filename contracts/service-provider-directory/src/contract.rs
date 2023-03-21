@@ -1,13 +1,15 @@
-use crate::error::ContractError;
-use crate::msg::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg, ServicesListResp};
-use crate::state::{Config, Service, CONFIG, SERVICES};
-use cosmwasm_std::Addr;
+use crate::{
+    error::ContractError,
+    msg::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg, ServicesListResp},
+    state::{Config, Service, CONFIG, SERVICES},
+};
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
+    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
 };
 use cw2::set_contract_version;
 
-const CONTRACT_NAME: &str = "service-storage-poc";
+// WIP(JON): can we get this through vergen instead?
+const CONTRACT_NAME: &str = "crate:nym-service-provider-directory";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn instantiate(

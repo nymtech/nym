@@ -1,6 +1,6 @@
 [package]
 name = "nym-mixnet-contract"
-version = "1.2.0-pre.0"
+version = "1.2.0"
 description = "Nym mixnet contract"
 edition = { workspace = true }
 authors = { workspace = true }

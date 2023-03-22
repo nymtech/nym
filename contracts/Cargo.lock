@@ -1062,7 +1062,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract"
-version = "1.2.0-pre.0"
+version = "1.2.0"
 dependencies = [
  "bs58",
  "cosmwasm-derive",
@@ -1130,7 +1130,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract"
-version = "1.2.0-pre.1"
+version = "1.2.0"
 dependencies = [
  "base64 0.21.0",
  "cosmwasm-crypto",

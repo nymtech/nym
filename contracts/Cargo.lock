@@ -173,7 +173,6 @@ dependencies = [
  "cw3-flex-multisig",
  "cw4",
  "cw4-group",
- "nym-bandwidth-claim-contract",
  "nym-coconut-bandwidth",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg",
@@ -961,14 +960,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-bandwidth-claim-contract"
-version = "0.1.0"
-dependencies = [
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "nym-coconut-bandwidth"
 version = "0.1.0"
 dependencies = [
@@ -976,7 +967,6 @@ dependencies = [
  "cosmwasm-storage",
  "cw-controllers",
  "cw-storage-plus",
- "nym-bandwidth-claim-contract",
  "nym-coconut-bandwidth-contract-common",
  "nym-multisig-contract-common",
  "schemars",
@@ -1071,6 +1061,7 @@ dependencies = [
  "cosmwasm-storage",
  "cw-storage-plus",
  "cw2",
+ "nym-contracts-common",
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-vesting-contract-common",
@@ -1094,7 +1085,7 @@ dependencies = [
  "nym-contracts-common",
  "schemars",
  "serde",
- "serde_json",
+ "serde-json-wasm",
  "serde_repr",
  "thiserror",
  "time",

@@ -730,9 +730,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "1.2.1"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5abeeb891e6d0098402e4d3d042f90451db52651d2fe14b170e69a1dd3e4115"
+checksum = "4b36e527620a2a3e00e46b6e731ab6c9b68d11069c986f7d7be8eba79ef081a4"
 dependencies = [
  "syn",
 ]
@@ -2781,7 +2781,7 @@ dependencies = [
 
 [[package]]
 name = "nym-bin-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clap",
  "clap_complete",
@@ -2840,7 +2840,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -2903,7 +2903,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -2987,8 +2987,9 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract"
-version = "1.2.0-pre.1"
+version = "1.2.0"
 dependencies = [
+ "cosmwasm-derive",
  "cosmwasm-std",
  "cw-storage-plus",
  "cw2",
@@ -3004,7 +3005,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",
@@ -3051,7 +3052,7 @@ dependencies = [
 
 [[package]]
 name = "nym_wallet"
-version = "1.1.11"
+version = "1.1.12"
 dependencies = [
  "aes-gcm",
  "argon2 0.3.4",

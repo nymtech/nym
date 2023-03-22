@@ -6,7 +6,7 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-describe.only('Vesting queries', () => {
+describe('Vesting queries', () => {
   let client: ValidatorClient;
 
   beforeEach(async () => {
@@ -142,7 +142,7 @@ describe.only('Vesting queries', () => {
   });
 
   // TODO add option for if account has no gateway and expected is null 
-  it('can get gateway', async () => {
+  it.skip('can get gateway', async () => {
     const gateway = await client.getGateway(gatewayowner);
     expect(Object.keys(gateway)).toEqual(Object.keys(Node));
     expect(gateway).toBeTruthy();

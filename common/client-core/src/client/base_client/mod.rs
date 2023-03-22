@@ -235,7 +235,7 @@ where
     ) {
         info!("Starting loop cover traffic stream...");
 
-        let mut stream = LoopCoverTrafficStream::new(
+        let stream = LoopCoverTrafficStream::new(
             ack_key,
             debug_config.acknowledgements.average_ack_delay,
             debug_config.traffic.average_packet_delay,
@@ -244,11 +244,6 @@ where
             self_address,
             topology_accessor,
         );
-
-        if let Some(size) = debug_config.traffic.use_extended_packet_size {
-            log::debug!("Setting extended packet size: {:?}", size);
-            stream.set_custom_packet_size(size.into());
-        }
 
         stream.start_with_shutdown(shutdown);
     }

@@ -363,10 +363,6 @@ impl<T> Config<T> {
         self.debug.traffic.disable_main_poisson_packet_distribution
     }
 
-    pub fn get_use_extended_packet_size(&self) -> Option<ExtendedPacketSize> {
-        self.debug.traffic.use_extended_packet_size
-    }
-
     pub fn get_minimum_reply_surb_storage_threshold(&self) -> usize {
         self.debug.reply_surbs.minimum_reply_surb_storage_threshold
     }
@@ -603,7 +599,7 @@ impl<T: NymConfig> Client<T> {
 pub struct Logging {}
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct Traffic {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
@@ -631,10 +627,6 @@ pub struct Traffic {
     /// Note that its use decreases overall anonymity.
     /// Do not set it it unless you understand the consequences of that change.
     pub secondary_packet_size: Option<PacketSize>,
-
-    /// Controls whether the sent sphinx packet use a NON-DEFAULT bigger size.
-    #[deprecated]
-    pub use_extended_packet_size: Option<ExtendedPacketSize>,
 }
 
 impl Traffic {
@@ -658,7 +650,6 @@ impl Default for Traffic {
             disable_main_poisson_packet_distribution: false,
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: None,
-            use_extended_packet_size: None,
         }
     }
 }
@@ -849,14 +840,6 @@ impl DebugConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum ExtendedPacketSize {
-    Extended8,
-    Extended16,
-    Extended32,
-}
-
 // it could be derived, sure, but I'd rather have an explicit implementation in case we had to change
 // something manually at some point
 #[allow(clippy::derivable_impls)]
@@ -869,16 +852,6 @@ impl Default for DebugConfig {
             acknowledgements: Default::default(),
             topology: Default::default(),
             reply_surbs: Default::default(),
-        }
-    }
-}
-
-impl From<ExtendedPacketSize> for PacketSize {
-    fn from(size: ExtendedPacketSize) -> PacketSize {
-        match size {
-            ExtendedPacketSize::Extended8 => PacketSize::ExtendedPacket8,
-            ExtendedPacketSize::Extended16 => PacketSize::ExtendedPacket16,
-            ExtendedPacketSize::Extended32 => PacketSize::ExtendedPacket32,
         }
     }
 }

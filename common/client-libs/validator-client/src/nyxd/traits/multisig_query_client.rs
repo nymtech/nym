@@ -5,7 +5,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, NyxdClient};
 
 use cw3::{ProposalListResponse, ProposalResponse};
-use multisig_contract_common::msg::QueryMsg;
+use nym_multisig_contract_common::msg::QueryMsg;
 
 use async_trait::async_trait;
 

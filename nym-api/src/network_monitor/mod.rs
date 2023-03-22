@@ -16,10 +16,11 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
 use crate::support::config::Config;
 use crate::support::nyxd;
-use credential_storage::PersistentStorage;
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
+use nym_credential_storage::PersistentStorage;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskManager;
 use std::sync::Arc;
 use validator_client::nyxd::SigningNyxdClient;
@@ -32,7 +33,7 @@ pub(crate) mod test_route;
 
 pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
-pub(crate) fn setup<'a>(
+pub(crate) fn setup<'a, R: MessageReceiver>(
     config: &'a Config,
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
@@ -73,7 +74,9 @@ impl<'a> NetworkMonitorBuilder<'a> {
         }
     }
 
-    pub(crate) async fn build(self) -> NetworkMonitorRunnables {
+    pub(crate) async fn build<R: MessageReceiver + Send + 'static>(
+        self,
+    ) -> NetworkMonitorRunnables<R> {
         // TODO: those keys change constant throughout the whole execution of the monitor.
         // and on top of that, they are used with ALL the gateways -> presumably this should change
         // in the future
@@ -97,8 +100,10 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let bandwidth_controller = {
             let client = self._nyxd_client.0.read().await;
             BandwidthController::new(
-                credential_storage::initialise_storage(self.config.get_credentials_database_path())
-                    .await,
+                nym_credential_storage::initialise_storage(
+                    self.config.get_credentials_database_path(),
+                )
+                .await,
                 client.clone(),
             )
         };
@@ -138,12 +143,12 @@ impl<'a> NetworkMonitorBuilder<'a> {
     }
 }
 
-pub(crate) struct NetworkMonitorRunnables {
-    monitor: Monitor,
+pub(crate) struct NetworkMonitorRunnables<R: MessageReceiver + Send + 'static> {
+    monitor: Monitor<R>,
     packet_receiver: PacketReceiver,
 }
 
-impl NetworkMonitorRunnables {
+impl<R: MessageReceiver + Send + 'static> NetworkMonitorRunnables<R> {
     // TODO: note, that is not exactly doing what we want, because when
     // `ReceivedProcessor` is constructed, it already spawns a future
     // this needs to be refactored!
@@ -193,10 +198,10 @@ fn new_packet_sender(
     )
 }
 
-fn new_received_processor(
+fn new_received_processor<R: MessageReceiver + Send + 'static>(
     packets_receiver: ReceivedProcessorReceiver,
     client_encryption_keypair: Arc<encryption::KeyPair>,
-) -> ReceivedProcessor {
+) -> ReceivedProcessor<R> {
     ReceivedProcessor::new(packets_receiver, client_encryption_keypair)
 }
 
@@ -215,7 +220,7 @@ fn new_packet_receiver(
 
 // TODO: 1) does it still have to have separate builder or could we get rid of it now?
 // TODO: 2) how do we make it non-async as other 'start' methods?
-pub(crate) async fn start(
+pub(crate) async fn start<R: MessageReceiver + Send + 'static>(
     config: &Config,
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
@@ -223,7 +228,7 @@ pub(crate) async fn start(
     system_version: &str,
     shutdown: &TaskManager,
 ) {
-    let monitor_builder = network_monitor::setup(
+    let monitor_builder = network_monitor::setup::<R>(
         config,
         nym_contract_cache_state,
         storage,
@@ -231,6 +236,6 @@ pub(crate) async fn start(
         system_version,
     );
     info!("Starting network monitor...");
-    let runnables = monitor_builder.build().await;
+    let runnables: NetworkMonitorRunnables<R> = monitor_builder.build().await;
     runnables.spawn_tasks(shutdown);
 }

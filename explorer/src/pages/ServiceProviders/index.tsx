@@ -22,9 +22,10 @@ const SupportedApps = () => {
     <FormControl size="small">
       <Select value={selected} onChange={handleChange} displayEmpty sx={{ mr: 2 }}>
         <MenuItem value="">Supported Apps</MenuItem>
-        <MenuItem sx={{ opacity: 1 }}>Keybase</MenuItem>
+        <MenuItem>Keybase</MenuItem>
         <MenuItem>Telegram</MenuItem>
         <MenuItem>Electrum</MenuItem>
+        <MenuItem>Blockstream Green</MenuItem>
       </Select>
     </FormControl>
   );

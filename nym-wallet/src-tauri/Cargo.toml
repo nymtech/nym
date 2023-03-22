@@ -1,6 +1,6 @@
 [package]
 name = "nym_wallet"
-version = "1.1.11"
+version = "1.1.12"
 description = "Nym Native Wallet"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -19,7 +19,8 @@ tauri-codegen = "=1.2.1"
 tauri-macros = "=1.2.1"
 
 [dependencies]
-bip39 = "1.0"
+async-trait = "0.1.64"
+bip39 = { version = "2.0.0", features = ["zeroize", "rand"] }
 cfg-if = "1.0.0"
 colored = "2.0"
 dirs = "4.0"
@@ -31,7 +32,6 @@ itertools = "0.10"
 log = { version = "0.4", features = ["serde"] }
 once_cell = "1.7.2"
 pretty_env_logger = "0.4"
-rand = "0.6.5"
 reqwest = {version = "0.11.9", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -49,7 +49,7 @@ k256 = { version = "0.10", features = ["ecdsa", "sha256"] }
 aes-gcm = "0.9.4"
 argon2 = { version = "0.3.2", features = ["std"] }
 base64 = "0.13"
-zeroize = "1.4.3"
+zeroize = { version = "1.5", features = ["zeroize_derive", "serde"] }
 
 cosmwasm-std = "1.0.0"
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
@@ -57,16 +57,20 @@ cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegr
 validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 nym-config = { path = "../../common/config" }
-coconut-interface = { path = "../../common/coconut-interface" }
+nym-coconut-interface = { path = "../../common/coconut-interface" }
 # Used for Type conversion, can be extracted but its a lot of work
 nym-vesting-contract = { path = "../../contracts/vesting" }
 nym-types = { path = "../../common/types" }
 nym-wallet-types = { path = "../nym-wallet-types" }
 
 [dev-dependencies]
+nym-crypto = { path = "../../common/crypto", features = ["rand"] }
+rand_chacha = "0.2"
 tempfile = "3.3.0"
 ts-rs = "6.1.2"
 

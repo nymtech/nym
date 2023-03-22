@@ -13,10 +13,15 @@ import {
 } from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 import { invokeWrapper } from './wrapper';
+import { TBondGatewaySignatureArgs, TBondMixnodeSignatureArgs } from '../types';
 
 export const getLockedCoins = async (): Promise<DecCoin> => invokeWrapper<DecCoin>('locked_coins');
 
 export const getSpendableCoins = async (): Promise<DecCoin> => invokeWrapper<DecCoin>('spendable_coins');
+
+export const getSpendableVestedCoins = async (): Promise<DecCoin> => invokeWrapper<DecCoin>('spendable_vested_coins');
+
+export const getSpendableRewardCoins = async (): Promise<DecCoin> => invokeWrapper<DecCoin>('spendable_reward_coins');
 
 export const getVestingCoins = async (vestingAccountAddress: string): Promise<DecCoin> =>
   invokeWrapper<DecCoin>('vesting_coins', { vestingAccountAddress });
@@ -35,12 +40,15 @@ export const getCurrentVestingPeriod = async (address: string) =>
 export const vestingBondGateway = async ({
   gateway,
   pledge,
-  ownerSignature,
+  msgSignature,
 }: {
   gateway: Gateway;
   pledge: DecCoin;
-  ownerSignature: string;
-}) => invokeWrapper<TransactionExecuteResult>('vesting_bond_gateway', { gateway, ownerSignature, pledge });
+  msgSignature: string;
+}) => invokeWrapper<TransactionExecuteResult>('vesting_bond_gateway', { gateway, msgSignature, pledge });
+
+export const vestingGenerateGatewayMsgPayload = async (args: TBondGatewaySignatureArgs) =>
+  invokeWrapper<string>('vesting_generate_gateway_bonding_msg_payload', args);
 
 export const vestingUnbondGateway = async (fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('vesting_unbond_gateway', { fee });
@@ -49,13 +57,16 @@ export const vestingBondMixNode = async ({
   mixnode,
   costParams,
   pledge,
-  ownerSignature,
+  msgSignature,
 }: {
   mixnode: MixNode;
   costParams: MixNodeCostParams;
   pledge: DecCoin;
-  ownerSignature: string;
-}) => invokeWrapper<TransactionExecuteResult>('vesting_bond_mixnode', { mixnode, costParams, ownerSignature, pledge });
+  msgSignature: string;
+}) => invokeWrapper<TransactionExecuteResult>('vesting_bond_mixnode', { mixnode, costParams, msgSignature, pledge });
+
+export const vestingGenerateMixnodeMsgPayload = async (args: TBondMixnodeSignatureArgs) =>
+  invokeWrapper<string>('vesting_generate_mixnode_bonding_msg_payload', args);
 
 export const vestingUnbondMixnode = async (fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('vesting_unbond_mixnode', { fee });

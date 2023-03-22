@@ -63,6 +63,7 @@ fn main() {
             mixnet::bond::unbond_mixnode,
             mixnet::bond::update_mixnode_cost_params,
             mixnet::bond::update_mixnode_config,
+            mixnet::bond::update_gateway_config,
             mixnet::bond::get_number_of_mixnode_delegators,
             mixnet::bond::get_mix_node_description,
             mixnet::bond::get_mixnode_avg_uptime,
@@ -126,6 +127,8 @@ fn main() {
             vesting::queries::locked_coins,
             vesting::queries::original_vesting,
             vesting::queries::spendable_coins,
+            vesting::queries::spendable_vested_coins,
+            vesting::queries::spendable_reward_coins,
             vesting::queries::get_historical_vesting_staking_reward,
             vesting::queries::get_spendable_vested_coins,
             vesting::queries::get_spendable_reward_coins,
@@ -169,6 +172,10 @@ fn main() {
             simulate::mixnet::simulate_claim_operator_reward,
             signatures::sign::sign,
             signatures::sign::verify,
+            signatures::ed25519_signing_payload::generate_mixnode_bonding_msg_payload,
+            signatures::ed25519_signing_payload::vesting_generate_mixnode_bonding_msg_payload,
+            signatures::ed25519_signing_payload::generate_gateway_bonding_msg_payload,
+            signatures::ed25519_signing_payload::vesting_generate_gateway_bonding_msg_payload,
             help::log::help_log_toggle_window,
         ])
         .menu(Menu::os_default(&context.package_info().name).add_default_app_submenus())

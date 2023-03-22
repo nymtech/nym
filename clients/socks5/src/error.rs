@@ -1,6 +1,6 @@
 use crate::socks::types::SocksProxyError;
 use client_core::error::ClientCoreError;
-use socks5_requests::{ConnectionError, ConnectionId};
+use nym_socks5_requests::{ConnectionError, ConnectionId};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Socks5ClientError {

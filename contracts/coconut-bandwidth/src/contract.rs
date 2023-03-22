@@ -5,7 +5,9 @@ use cosmwasm_std::{
     entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
 
-use coconut_bandwidth_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use nym_coconut_bandwidth_contract_common::msg::{
+    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+};
 
 use crate::error::ContractError;
 use crate::queries::{query_all_spent_credentials_paged, query_spent_credential};

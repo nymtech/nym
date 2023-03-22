@@ -10,6 +10,7 @@ use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
 use crate::support::config::Config;
 use log::{debug, error, info};
+use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
 use std::process;
@@ -23,11 +24,11 @@ pub(crate) mod receiver;
 pub(crate) mod sender;
 pub(crate) mod summary_producer;
 
-pub(super) struct Monitor {
+pub(super) struct Monitor<R: MessageReceiver + Send + 'static> {
     test_nonce: u64,
     packet_preparer: PacketPreparer,
     packet_sender: PacketSender,
-    received_processor: ReceivedProcessor,
+    received_processor: ReceivedProcessor<R>,
     summary_producer: SummaryProducer,
     node_status_storage: NymApiStorage,
     run_interval: Duration,
@@ -45,12 +46,12 @@ pub(super) struct Monitor {
     minimum_test_routes: usize,
 }
 
-impl Monitor {
+impl<R: MessageReceiver + Send> Monitor<R> {
     pub(super) fn new(
         config: &Config,
         packet_preparer: PacketPreparer,
         packet_sender: PacketSender,
-        received_processor: ReceivedProcessor,
+        received_processor: ReceivedProcessor<R>,
         summary_producer: SummaryProducer,
         node_status_storage: NymApiStorage,
     ) -> Self {

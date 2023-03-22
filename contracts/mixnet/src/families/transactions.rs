@@ -305,71 +305,77 @@ mod test {
     use crate::families::queries::{get_family_by_head, get_family_by_label};
     use crate::families::storage::is_family_member;
     use crate::mixnet_contract_settings::storage::minimum_mixnode_pledge;
-    use crate::support::tests::{fixtures, test_helpers};
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use crate::support::tests::fixtures;
+    use crate::support::tests::test_helpers::TestSetup;
+    use cosmwasm_std::testing::mock_info;
 
     #[test]
     fn test_family_crud() {
-        let mut deps = test_helpers::init_contract();
-        let env = mock_env();
-        let mut rng = test_helpers::test_rng();
+        let mut test = TestSetup::new();
+        let env = test.env();
 
         let head = "alice";
         let malicious_head = "timmy";
+        let member = "bob";
 
-        let minimum_pledge = minimum_mixnode_pledge(deps.as_ref().storage).unwrap();
-
-        let (head_mixnode, head_sig, head_keypair) =
-            test_helpers::mixnode_with_signature(&mut rng, head);
-
-        let (malicious_mixnode, malicious_sig, _malicious_keypair) =
-            test_helpers::mixnode_with_signature(&mut rng, malicious_head);
-
+        let minimum_pledge = minimum_mixnode_pledge(test.deps().storage).unwrap();
         let cost_params = fixtures::mix_node_cost_params_fixture();
 
-        let member = "bob";
-        let (member_mixnode, member_sig, _) =
-            test_helpers::mixnode_with_signature(&mut rng, member);
+        let (head_mixnode, head_bond_sig, head_keypair) = test.mixnode_with_signature(head, None);
+        let (malicious_mixnode, malicious_bond_sig, malicious_keypair) =
+            test.mixnode_with_signature(malicious_head, None);
+        let (member_mixnode, member_bond_sig, member_keypair) =
+            test.mixnode_with_signature(member, None);
 
-        // we are informed that we didn't send enough funds
         crate::mixnodes::transactions::try_add_mixnode(
-            deps.as_mut(),
+            test.deps_mut(),
             env.clone(),
             mock_info(head, &[minimum_pledge.clone()]),
             head_mixnode.clone(),
             cost_params.clone(),
-            head_sig.clone(),
+            head_bond_sig,
         )
         .unwrap();
 
         crate::mixnodes::transactions::try_add_mixnode(
-            deps.as_mut(),
+            test.deps_mut(),
             env.clone(),
             mock_info(malicious_head, &[minimum_pledge.clone()]),
             malicious_mixnode,
             cost_params.clone(),
-            malicious_sig.clone(),
+            malicious_bond_sig,
         )
         .unwrap();
 
         crate::mixnodes::transactions::try_add_mixnode(
-            deps.as_mut(),
+            test.deps_mut(),
             env,
             mock_info(member, &[minimum_pledge]),
             member_mixnode.clone(),
             cost_params,
-            member_sig.clone(),
+            member_bond_sig,
         )
         .unwrap();
 
-        try_create_family(deps.as_mut(), mock_info(head, &[]), head_sig, "test").unwrap();
+        let old_style_head_sig = head_keypair.private_key().sign_text(head);
+        let old_style_malicious_head_sig =
+            malicious_keypair.private_key().sign_text(malicious_head);
+        let old_style_member_sig = member_keypair.private_key().sign_text(member);
+
+        try_create_family(
+            test.deps_mut(),
+            mock_info(head, &[]),
+            old_style_head_sig,
+            "test",
+        )
+        .unwrap();
         let family_head = FamilyHead::new(&head_mixnode.identity_key);
-        assert!(get_family(&family_head, &deps.storage).is_ok());
+        assert!(get_family(&family_head, test.deps().storage).is_ok());
 
         let nope = try_create_family(
-            deps.as_mut(),
+            test.deps_mut(),
             mock_info(malicious_head, &[]),
-            malicious_sig,
+            old_style_malicious_head_sig,
             "test",
         );
 
@@ -381,11 +387,11 @@ mod test {
             },
         }
 
-        let family = get_family_by_label("test", &deps.storage).unwrap();
+        let family = get_family_by_label("test", test.deps().storage).unwrap();
         assert!(family.is_some());
         assert_eq!(family.unwrap().head_identity(), family_head.identity());
 
-        let family = get_family_by_head(family_head.identity(), &deps.storage).unwrap();
+        let family = get_family_by_head(family_head.identity(), test.deps().storage).unwrap();
         assert_eq!(family.head_identity(), family_head.identity());
 
         let join_signature = head_keypair
@@ -394,41 +400,47 @@ mod test {
             .to_base58_string();
 
         try_join_family(
-            deps.as_mut(),
+            test.deps_mut(),
             mock_info(member, &[]),
-            Some(member_sig.clone()),
+            Some(old_style_member_sig.clone()),
             join_signature.clone(),
             head_mixnode.identity_key.clone(),
         )
         .unwrap();
 
-        let family = get_family(&family_head, &deps.storage).unwrap();
+        let family = get_family(&family_head, test.deps().storage).unwrap();
 
-        assert!(is_family_member(&deps.storage, &family, &member_mixnode.identity_key).unwrap());
+        assert!(
+            is_family_member(test.deps().storage, &family, &member_mixnode.identity_key).unwrap()
+        );
 
         try_leave_family(
-            deps.as_mut(),
+            test.deps_mut(),
             mock_info(member, &[]),
-            member_sig.clone(),
+            old_style_member_sig.clone(),
             head_mixnode.identity_key.clone(),
         )
         .unwrap();
 
-        let family = get_family(&family_head, &deps.storage).unwrap();
-        assert!(!is_family_member(&deps.storage, &family, &member_mixnode.identity_key).unwrap());
+        let family = get_family(&family_head, test.deps().storage).unwrap();
+        assert!(
+            !is_family_member(test.deps().storage, &family, &member_mixnode.identity_key).unwrap()
+        );
 
         try_join_family(
-            deps.as_mut(),
+            test.deps_mut(),
             mock_info(member, &[]),
-            Some(member_sig.clone()),
-            join_signature.clone(),
-            head_mixnode.identity_key.clone(),
+            Some(old_style_member_sig),
+            join_signature,
+            head_mixnode.identity_key,
         )
         .unwrap();
 
-        let family = get_family(&family_head, &deps.storage).unwrap();
+        let family = get_family(&family_head, test.deps().storage).unwrap();
 
-        assert!(is_family_member(&deps.storage, &family, &member_mixnode.identity_key).unwrap());
+        assert!(
+            is_family_member(test.deps().storage, &family, &member_mixnode.identity_key).unwrap()
+        );
 
         // try_head_kick_member(
         //     deps.as_mut(),
@@ -438,8 +450,8 @@ mod test {
         // )
         // .unwrap();
 
-        // let family = get_family(&family_head, &deps.storage).unwrap();
-        // assert!(!is_family_member(&deps.storage, &family, &member_mixnode.identity_key).unwrap());
+        // let family = get_family(&family_head, test.deps().storage).unwrap();
+        // assert!(!is_family_member(test.deps().storage, &family, &member_mixnode.identity_key).unwrap());
     }
 
     #[cfg(test)]
@@ -456,7 +468,7 @@ mod test {
 
             let head = "alice";
 
-            let (_, keypair) = test.add_dummy_mixnode_with_keypair(head, None);
+            let (_, keypair) = test.add_dummy_mixnode_with_proxy_and_keypair(head, None);
             let sig = keypair.private_key().sign_text(head);
 
             let res = try_create_family_on_behalf(
@@ -495,7 +507,7 @@ mod test {
             let new_member = "vin-diesel";
 
             let (_, head_keys) = test.create_dummy_mixnode_with_new_family(head, label);
-            let (_, member_keys) = test.add_dummy_mixnode_with_keypair(new_member, None);
+            let (_, member_keys) = test.add_dummy_mixnode_with_proxy_and_keypair(new_member, None);
 
             // TODO: those signatures are WRONG and have to be c hanged
             let join_signature = head_keys
@@ -542,7 +554,7 @@ mod test {
             let new_member = "vin-diesel";
 
             let (_, head_keys) = test.create_dummy_mixnode_with_new_family(head, label);
-            let (_, member_keys) = test.add_dummy_mixnode_with_keypair(new_member, None);
+            let (_, member_keys) = test.add_dummy_mixnode_with_proxy_and_keypair(new_member, None);
 
             // TODO: those signatures are WRONG and have to be changed
             let join_signature = head_keys
@@ -599,7 +611,7 @@ mod test {
             let new_member = "vin-diesel";
 
             let (_, head_keys) = test.create_dummy_mixnode_with_new_family(head, label);
-            let (_, member_keys) = test.add_dummy_mixnode_with_keypair(new_member, None);
+            let (_, member_keys) = test.add_dummy_mixnode_with_proxy_and_keypair(new_member, None);
 
             // TODO: those signatures are WRONG and have to be c hanged
             let join_signature = head_keys
@@ -613,7 +625,7 @@ mod test {
                 test.deps_mut(),
                 mock_info(vesting_contract.as_ref(), &[]),
                 new_member.to_string(),
-                Some(member_sig.clone()),
+                Some(member_sig),
                 join_signature,
                 head_identity,
             )

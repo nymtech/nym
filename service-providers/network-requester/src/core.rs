@@ -12,21 +12,23 @@ use async_trait::async_trait;
 use futures::channel::mpsc;
 use log::warn;
 use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_service_providers_common::interface::{
+    BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
+};
+use nym_service_providers_common::ServiceProvider;
+use nym_socks5_proxy_helpers::connection_controller::{
+    Controller, ControllerCommand, ControllerSender,
+};
+use nym_socks5_proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
+use nym_socks5_requests::{
+    ConnectRequest, ConnectionId, NetworkData, SendRequest, Socks5ProtocolVersion,
+    Socks5ProviderRequest, Socks5Request, Socks5RequestContent, Socks5Response,
+};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::{TaskClient, TaskManager};
-use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
-use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
-use service_providers_common::interface::{
-    BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
-};
-use service_providers_common::ServiceProvider;
-use socks5_requests::{
-    ConnectRequest, ConnectionId, NetworkData, SendRequest, Socks5ProtocolVersion,
-    Socks5ProviderRequest, Socks5Request, Socks5RequestContent, Socks5Response,
-};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 

@@ -1,4 +1,5 @@
 import {
+  API_BASE_URL,
   BLOCK_API,
   COUNTRY_DATA_API,
   GATEWAYS_API,
@@ -27,6 +28,7 @@ import {
   StatusResponse,
   SummaryOverviewResponse,
   ValidatorsResponse,
+  Environment,
   GatewayBondAnnotated,
   GatewayBond,
   DirectoryService,
@@ -157,3 +159,8 @@ export class Api {
     return json;
   };
 }
+
+export const getEnvironment = (): Environment => {
+  const matchEnv = (env: Environment) => API_BASE_URL?.toLocaleLowerCase().includes(env) && env;
+  return matchEnv('sandbox') || matchEnv('qa') || 'mainnet';
+};

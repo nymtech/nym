@@ -5,7 +5,7 @@ use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
 use crate::registration::handshake::SharedKeys;
 use crate::{GatewayMacSize, PROTOCOL_VERSION};
-use coconut_interface::Credential;
+use nym_coconut_interface::Credential;
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use nym_crypto::symmetric::stream_cipher;

@@ -5,8 +5,9 @@ use nym_api_requests::models::{
 };
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
-    Interval as ContractInterval, IntervalRewardParams, IntervalRewardingParamsUpdate, MixNode,
-    MixNodeConfigUpdate, RewardedSetNodeStatus, RewardingParams, UnbondedMixnode,
+    GatewayConfigUpdate, Interval as ContractInterval, IntervalRewardParams,
+    IntervalRewardingParamsUpdate, MixNode, MixNodeConfigUpdate, RewardedSetNodeStatus,
+    RewardingParams, UnbondedMixnode,
 };
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
 use nym_types::currency::{CurrencyDenom, DecCoin};
@@ -90,6 +91,7 @@ fn main() {
     do_export!(Gas);
     do_export!(GasInfo);
     do_export!(Gateway);
+    do_export!(GatewayConfigUpdate);
     do_export!(GatewayBond);
     do_export!(CurrencyDenom);
     do_export!(DecCoin);

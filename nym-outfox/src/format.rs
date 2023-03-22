@@ -70,7 +70,7 @@ const TAGBYTES: usize = 16;
 
 use std::ops::Range;
 
-use crate::error::OutFoxError;
+use crate::error::OutfoxError;
 use crate::lion::*;
 
 /// A structure that holds mix packet construction parameters. These incluse the length
@@ -184,16 +184,16 @@ impl MixStageParameters {
         user_secret_key: &Scalar,
         mix_public_key: &MontgomeryPoint,
         routing_data: &[u8],
-    ) -> Result<MontgomeryPoint, OutFoxError> {
+    ) -> Result<MontgomeryPoint, OutfoxError> {
         if buffer.len() != self.incoming_packet_length() {
-            return Err(OutFoxError::LenMismatch {
+            return Err(OutfoxError::LenMismatch {
                 expected: buffer.len(),
                 got: self.incoming_packet_length(),
             });
         }
 
         if routing_data.len() != self.routing_information_length_bytes {
-            return Err(OutFoxError::LenMismatch {
+            return Err(OutfoxError::LenMismatch {
                 expected: routing_data.len(),
                 got: self.routing_information_length_bytes,
             });
@@ -212,7 +212,7 @@ impl MixStageParameters {
 
         let tag = header_aead_key
             .encrypt_in_place_detached(&nonce.into(), &[], &mut buffer[self.header_range()])
-            .map_err(|_| OutFoxError::ChaCha20Poly1305Error)?;
+            .map_err(|_| OutfoxError::ChaCha20Poly1305Error)?;
 
         // Copy Tag into buffer
         buffer[self.tag_range()].copy_from_slice(&tag[..]);
@@ -230,10 +230,10 @@ impl MixStageParameters {
         &self,
         buffer: &mut [u8],
         mix_secret_key: &Scalar,
-    ) -> Result<MontgomeryPoint, OutFoxError> {
+    ) -> Result<MontgomeryPoint, OutfoxError> {
         // Check the length of the incoming buffer is correct.
         if buffer.len() != self.incoming_packet_length() {
-            return Err(OutFoxError::LenMismatch {
+            return Err(OutfoxError::LenMismatch {
                 expected: buffer.len(),
                 got: self.incoming_packet_length(),
             });
@@ -257,7 +257,7 @@ impl MixStageParameters {
                 &mut buffer[self.header_range()],
                 tag.as_slice().try_into().unwrap(),
             )
-            .map_err(|_| OutFoxError::ChaCha20Poly1305Error)?;
+            .map_err(|_| OutfoxError::ChaCha20Poly1305Error)?;
 
         // Do a round of LION on the payload
         lion_transform_decrypt(&mut buffer[self.payload_range()], &shared_key.0)?;

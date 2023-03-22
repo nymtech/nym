@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::gateway::GatewayConfigUpdate;
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate};
 use crate::rewarding::RewardDistribution;
@@ -42,6 +43,7 @@ pub enum MixnetEventType {
     ReconcilePendingEvents,
     PendingIntervalConfigUpdate,
     IntervalConfigUpdate,
+    GatewayConfigUpdate,
 }
 
 impl From<MixnetEventType> for String {
@@ -86,6 +88,7 @@ impl ToString for MixnetEventType {
             MixnetEventType::PendingIntervalConfigUpdate => "pending_interval_config_update",
             MixnetEventType::IntervalConfigUpdate => "interval_config_update",
             MixnetEventType::DelegationOnUnbonding => "delegation_on_unbonding_node",
+            MixnetEventType::GatewayConfigUpdate => "gateway_config_update",
         };
 
         format!("{EVENT_VERSION_PREFIX}{event_name}")
@@ -122,6 +125,7 @@ pub const OLD_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "old_rewarding_validator_a
 pub const NEW_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "new_rewarding_validator_address";
 
 pub const UPDATED_MIXNODE_CONFIG_KEY: &str = "updated_mixnode_config";
+pub const UPDATED_GATEWAY_CONFIG_KEY: &str = "updated_gateway_config";
 pub const UPDATED_MIXNODE_COST_PARAMS_KEY: &str = "updated_mixnode_cost_params";
 
 // rewarding
@@ -380,6 +384,17 @@ pub fn new_mixnode_config_update_event(
         .add_attribute(OWNER_KEY, owner)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(UPDATED_MIXNODE_CONFIG_KEY, update.to_inline_json())
+}
+
+pub fn new_gateway_config_update_event(
+    owner: &Addr,
+    proxy: &Option<Addr>,
+    update: &GatewayConfigUpdate,
+) -> Event {
+    Event::new(MixnetEventType::GatewayConfigUpdate)
+        .add_attribute(OWNER_KEY, owner)
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
+        .add_attribute(UPDATED_GATEWAY_CONFIG_KEY, update.to_inline_json())
 }
 
 pub fn new_mixnode_pending_cost_params_update_event(

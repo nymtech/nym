@@ -38,7 +38,8 @@ const ArrowBackIcon = ({ onBack }: { onBack?: () => void }) => {
   return <CustomButton Icon={ArrowBack} onClick={handleBack} />;
 };
 
-const getTitleIcon = (path: string) => {
+const getTitle = (path: string) => {
+  if (path.includes('settings')) return 'Settings';
   if (path !== '/') {
     const title = path.split('/').slice(-1);
     return (
@@ -60,7 +61,7 @@ export const CustomTitleBar = ({ path = '/', onBack }: { path?: string; onBack?:
   <Box style={customTitleBarStyles.titlebar}>
     {/* set width to keep logo centered */}
     <Box sx={{ width: '40px' }}>{path === '/' ? <MenuIcon /> : <ArrowBackIcon onBack={onBack} />}</Box>
-    {getTitleIcon(path)}
-    {path !== '/' && <Box sx={{ width: '40px' }} />}
+    {getTitle(path)}
+    <Box sx={{ width: '40px' }} />
   </Box>
 );

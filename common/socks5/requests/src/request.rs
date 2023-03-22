@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{Socks5ProtocolVersion, Socks5RequestError, Socks5Response};
+use nym_service_providers_common::interface::{Serializable, ServiceProviderRequest};
 use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
-use service_providers_common::interface::{Serializable, ServiceProviderRequest};
 use std::convert::TryFrom;
 use thiserror::Error;
 

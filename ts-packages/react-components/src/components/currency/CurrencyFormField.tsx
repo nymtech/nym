@@ -84,7 +84,7 @@ export const CurrencyFormField: FCWithChildren<{
 
       // it can't be lower than one micro coin
       if (newNumber < MIN_VALUE) {
-        setValidationError('Amount cannot be less than 1 uNYM');
+        setValidationError('Amount cannot be less than 0.000001');
         return fireOnValidate(false);
       }
 

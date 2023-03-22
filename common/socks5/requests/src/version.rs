@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use service_providers_common::{define_simple_version, interface::Version};
+use nym_service_providers_common::{define_simple_version, interface::Version};
 
 /// Defines initial version of the communication interface between socks5 clients and
 /// network requesters (socks5).

@@ -62,10 +62,10 @@ pub(crate) enum RequestHandlingError {
     ProposalIdError { reason: String },
 
     #[error("Coconut interface error - {0}")]
-    CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
+    CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
     #[error("Credential error - {0}")]
-    CredentialError(#[from] credentials::error::Error),
+    CredentialError(#[from] nym_credentials::error::Error),
 }
 
 impl RequestHandlingError {
@@ -225,7 +225,7 @@ where
         }
 
         let aggregated_verification_key =
-            credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
+            nym_credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
 
         if !credential.verify(&aggregated_verification_key) {
             return Err(RequestHandlingError::InvalidBandwidthCredential(

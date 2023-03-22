@@ -273,30 +273,24 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod mixnode_bonds {
         use super::*;
-        use crate::support::tests::fixtures::good_mixnode_pledge;
 
         #[test]
         fn obeys_limits() {
-            let mut deps = test_helpers::init_contract();
-            let env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let mut test = TestSetup::new();
+            test.add_dummy_mixnodes(1000);
             let limit = 2;
 
-            test_helpers::add_dummy_mixnodes(&mut rng, deps.as_mut(), env, 1000);
-            let page1 = query_mixnode_bonds_paged(deps.as_ref(), None, Some(limit)).unwrap();
+            let page1 = query_mixnode_bonds_paged(test.deps(), None, Some(limit)).unwrap();
             assert_eq!(limit, page1.nodes.len() as u32);
         }
 
         #[test]
         fn has_default_limit() {
-            let mut deps = test_helpers::init_contract();
-            let env = mock_env();
-            let mut rng = test_helpers::test_rng();
-
-            test_helpers::add_dummy_mixnodes(&mut rng, deps.as_mut(), env, 1000);
+            let mut test = TestSetup::new();
+            test.add_dummy_mixnodes(1000);
 
             // query without explicitly setting a limit
-            let page1 = query_mixnode_bonds_paged(deps.as_ref(), None, None).unwrap();
+            let page1 = query_mixnode_bonds_paged(test.deps(), None, None).unwrap();
 
             assert_eq!(
                 MIXNODE_BOND_DEFAULT_RETRIEVAL_LIMIT,
@@ -306,14 +300,12 @@ pub(crate) mod tests {
 
         #[test]
         fn has_max_limit() {
-            let mut deps = test_helpers::init_contract();
-            let env = mock_env();
-            let mut rng = test_helpers::test_rng();
-            test_helpers::add_dummy_mixnodes(&mut rng, deps.as_mut(), env, 1000);
+            let mut test = TestSetup::new();
+            test.add_dummy_mixnodes(1000);
 
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000;
-            let page1 = query_mixnode_bonds_paged(deps.as_ref(), None, Some(crazy_limit)).unwrap();
+            let page1 = query_mixnode_bonds_paged(test.deps(), None, Some(crazy_limit)).unwrap();
 
             // we default to a decent sized upper bound instead
             assert_eq!(MIXNODE_BOND_MAX_RETRIEVAL_LIMIT, page1.nodes.len() as u32);
@@ -322,63 +314,43 @@ pub(crate) mod tests {
         #[test]
         fn pagination_works() {
             // as we add mixnodes, we're always inserting them in ascending manner due to monotonically increasing id
-            let mut deps = test_helpers::init_contract();
-            let env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let mut test = TestSetup::new();
 
-            test_helpers::add_mixnode(
-                &mut rng,
-                deps.as_mut(),
-                env.clone(),
-                "addr1",
-                good_mixnode_pledge(),
-            );
+            test.add_dummy_mixnode("addr1", None);
 
             let per_page = 2;
-            let page1 = query_mixnode_bonds_paged(deps.as_ref(), None, Some(per_page)).unwrap();
+            let page1 = query_mixnode_bonds_paged(test.deps(), None, Some(per_page)).unwrap();
 
             // page should have 1 result on it
             assert_eq!(1, page1.nodes.len());
 
             // save another
-            test_helpers::add_mixnode(
-                &mut rng,
-                deps.as_mut(),
-                env.clone(),
-                "addr2",
-                good_mixnode_pledge(),
-            );
+            test.add_dummy_mixnode("addr2", None);
 
             // page1 should have 2 results on it
-            let page1 = query_mixnode_bonds_paged(deps.as_ref(), None, Some(per_page)).unwrap();
+            let page1 = query_mixnode_bonds_paged(test.deps(), None, Some(per_page)).unwrap();
             assert_eq!(2, page1.nodes.len());
 
-            test_helpers::add_mixnode(
-                &mut rng,
-                deps.as_mut(),
-                env.clone(),
-                "addr3",
-                good_mixnode_pledge(),
-            );
+            test.add_dummy_mixnode("addr3", None);
 
             // page1 still has the same 2 results
             let another_page1 =
-                query_mixnode_bonds_paged(deps.as_ref(), None, Some(per_page)).unwrap();
+                query_mixnode_bonds_paged(test.deps(), None, Some(per_page)).unwrap();
             assert_eq!(2, another_page1.nodes.len());
             assert_eq!(page1, another_page1);
 
             // retrieving the next page should start after the last key on this page
             let start_after = page1.start_next_after.unwrap();
-            let page2 = query_mixnode_bonds_paged(deps.as_ref(), Some(start_after), Some(per_page))
-                .unwrap();
+            let page2 =
+                query_mixnode_bonds_paged(test.deps(), Some(start_after), Some(per_page)).unwrap();
 
             assert_eq!(1, page2.nodes.len());
 
             // save another one
-            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, "addr4", good_mixnode_pledge());
+            test.add_dummy_mixnode("addr4", None);
 
-            let page2 = query_mixnode_bonds_paged(deps.as_ref(), Some(start_after), Some(per_page))
-                .unwrap();
+            let page2 =
+                query_mixnode_bonds_paged(test.deps(), Some(start_after), Some(per_page)).unwrap();
 
             // now we have 2 pages, with 2 results on the second page
             assert_eq!(2, page2.nodes.len());
@@ -388,29 +360,24 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod mixnode_details {
         use super::*;
-        use crate::support::tests::fixtures::good_mixnode_pledge;
 
         #[test]
         fn obeys_limits() {
-            let mut deps = test_helpers::init_contract();
-            let env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let mut test = TestSetup::new();
+            test.add_dummy_mixnodes(1000);
             let limit = 2;
 
-            test_helpers::add_dummy_mixnodes(&mut rng, deps.as_mut(), env, 1000);
-            let page1 = query_mixnodes_details_paged(deps.as_ref(), None, Some(limit)).unwrap();
+            let page1 = query_mixnodes_details_paged(test.deps(), None, Some(limit)).unwrap();
             assert_eq!(limit, page1.nodes.len() as u32);
         }
 
         #[test]
         fn has_default_limit() {
-            let mut deps = test_helpers::init_contract();
-            let env = mock_env();
-            let mut rng = test_helpers::test_rng();
-            test_helpers::add_dummy_mixnodes(&mut rng, deps.as_mut(), env, 1000);
+            let mut test = TestSetup::new();
+            test.add_dummy_mixnodes(1000);
 
             // query without explicitly setting a limit
-            let page1 = query_mixnodes_details_paged(deps.as_ref(), None, None).unwrap();
+            let page1 = query_mixnodes_details_paged(test.deps(), None, None).unwrap();
 
             assert_eq!(
                 MIXNODE_DETAILS_DEFAULT_RETRIEVAL_LIMIT,
@@ -420,15 +387,12 @@ pub(crate) mod tests {
 
         #[test]
         fn has_max_limit() {
-            let mut deps = test_helpers::init_contract();
-            let env = mock_env();
-            let mut rng = test_helpers::test_rng();
-            test_helpers::add_dummy_mixnodes(&mut rng, deps.as_mut(), env, 1000);
+            let mut test = TestSetup::new();
+            test.add_dummy_mixnodes(1000);
 
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000;
-            let page1 =
-                query_mixnodes_details_paged(deps.as_ref(), None, Some(crazy_limit)).unwrap();
+            let page1 = query_mixnodes_details_paged(test.deps(), None, Some(crazy_limit)).unwrap();
 
             // we default to a decent sized upper bound instead
             assert_eq!(
@@ -440,64 +404,44 @@ pub(crate) mod tests {
         #[test]
         fn pagination_works() {
             // as we add mixnodes, we're always inserting them in ascending manner due to monotonically increasing id
-            let mut deps = test_helpers::init_contract();
-            let env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let mut test = TestSetup::new();
 
-            test_helpers::add_mixnode(
-                &mut rng,
-                deps.as_mut(),
-                env.clone(),
-                "addr1",
-                good_mixnode_pledge(),
-            );
+            test.add_dummy_mixnode("addr1", None);
 
             let per_page = 2;
-            let page1 = query_mixnodes_details_paged(deps.as_ref(), None, Some(per_page)).unwrap();
+            let page1 = query_mixnodes_details_paged(test.deps(), None, Some(per_page)).unwrap();
 
             // page should have 1 result on it
             assert_eq!(1, page1.nodes.len());
 
             // save another
-            test_helpers::add_mixnode(
-                &mut rng,
-                deps.as_mut(),
-                env.clone(),
-                "addr2",
-                good_mixnode_pledge(),
-            );
+            test.add_dummy_mixnode("addr2", None);
 
             // page1 should have 2 results on it
-            let page1 = query_mixnodes_details_paged(deps.as_ref(), None, Some(per_page)).unwrap();
+            let page1 = query_mixnodes_details_paged(test.deps(), None, Some(per_page)).unwrap();
             assert_eq!(2, page1.nodes.len());
 
-            test_helpers::add_mixnode(
-                &mut rng,
-                deps.as_mut(),
-                env.clone(),
-                "addr3",
-                good_mixnode_pledge(),
-            );
+            test.add_dummy_mixnode("addr3", None);
 
             // page1 still has the same 2 results
             let another_page1 =
-                query_mixnodes_details_paged(deps.as_ref(), None, Some(per_page)).unwrap();
+                query_mixnodes_details_paged(test.deps(), None, Some(per_page)).unwrap();
             assert_eq!(2, another_page1.nodes.len());
             assert_eq!(page1, another_page1);
 
             // retrieving the next page should start after the last key on this page
             let start_after = page1.start_next_after.unwrap();
             let page2 =
-                query_mixnodes_details_paged(deps.as_ref(), Some(start_after), Some(per_page))
+                query_mixnodes_details_paged(test.deps(), Some(start_after), Some(per_page))
                     .unwrap();
 
             assert_eq!(1, page2.nodes.len());
 
             // save another one
-            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, "addr4", good_mixnode_pledge());
+            test.add_dummy_mixnode("addr4", None);
 
             let page2 =
-                query_mixnodes_details_paged(deps.as_ref(), Some(start_after), Some(per_page))
+                query_mixnodes_details_paged(test.deps(), Some(start_after), Some(per_page))
                     .unwrap();
 
             // now we have 2 pages, with 2 results on the second page
@@ -1135,26 +1079,18 @@ pub(crate) mod tests {
 
     #[test]
     fn query_for_owned_mixnode() {
-        let mut deps = test_helpers::init_contract();
-        let env = mock_env();
-        let mut rng = test_helpers::test_rng();
+        let mut test = TestSetup::new();
 
         let address = "mix-owner".to_string();
 
         // when it doesnt exist
-        let res = query_owned_mixnode(deps.as_ref(), address.clone()).unwrap();
+        let res = query_owned_mixnode(test.deps(), address.clone()).unwrap();
         assert!(res.mixnode_details.is_none());
         assert_eq!(address, res.address);
 
         // when it [fully] exists
-        let id = test_helpers::add_mixnode(
-            &mut rng,
-            deps.as_mut(),
-            env,
-            &address,
-            good_mixnode_pledge(),
-        );
-        let res = query_owned_mixnode(deps.as_ref(), address.clone()).unwrap();
+        let id = test.add_dummy_mixnode(&address, None);
+        let res = query_owned_mixnode(test.deps(), address.clone()).unwrap();
         let details = res.mixnode_details.unwrap();
         assert_eq!(address, details.bond_information.owner);
         assert_eq!(
@@ -1171,30 +1107,27 @@ pub(crate) mod tests {
         rewarding_details.delegates = Decimal::raw(12345);
         rewarding_details.unique_delegations = 1;
         rewards_storage::MIXNODE_REWARDING
-            .save(deps.as_mut().storage, id, &rewarding_details)
+            .save(test.deps_mut().storage, id, &rewarding_details)
             .unwrap();
 
-        pending_events::unbond_mixnode(deps.as_mut(), &mock_env(), 123, id).unwrap();
-        let res = query_owned_mixnode(deps.as_ref(), address.clone()).unwrap();
+        pending_events::unbond_mixnode(test.deps_mut(), &mock_env(), 123, id).unwrap();
+        let res = query_owned_mixnode(test.deps(), address.clone()).unwrap();
         assert!(res.mixnode_details.is_none());
         assert_eq!(address, res.address);
     }
 
     #[test]
     fn query_for_mixnode_details() {
-        let mut deps = test_helpers::init_contract();
-        let env = mock_env();
-        let mut rng = test_helpers::test_rng();
+        let mut test = TestSetup::new();
 
         // no node under this id
-        let res = query_mixnode_details(deps.as_ref(), 42).unwrap();
+        let res = query_mixnode_details(test.deps(), 42).unwrap();
         assert!(res.mixnode_details.is_none());
         assert_eq!(42, res.mix_id);
 
         // it exists
-        let mix_id =
-            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, "foomp", good_mixnode_pledge());
-        let res = query_mixnode_details(deps.as_ref(), mix_id).unwrap();
+        let mix_id = test.add_dummy_mixnode("foomp", None);
+        let res = query_mixnode_details(test.deps(), mix_id).unwrap();
         let details = res.mixnode_details.unwrap();
         assert_eq!(mix_id, details.bond_information.mix_id);
         assert_eq!(
@@ -1227,18 +1160,15 @@ pub(crate) mod tests {
 
     #[test]
     fn query_for_mixnode_rewarding_details() {
-        let mut deps = test_helpers::init_contract();
-        let env = mock_env();
-        let mut rng = test_helpers::test_rng();
+        let mut test = TestSetup::new();
 
         // no node under this id
-        let res = query_mixnode_rewarding_details(deps.as_ref(), 42).unwrap();
+        let res = query_mixnode_rewarding_details(test.deps(), 42).unwrap();
         assert!(res.rewarding_details.is_none());
         assert_eq!(42, res.mix_id);
 
-        let mix_id =
-            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, "foomp", good_mixnode_pledge());
-        let res = query_mixnode_rewarding_details(deps.as_ref(), mix_id).unwrap();
+        let mix_id = test.add_dummy_mixnode("foomp", None);
+        let res = query_mixnode_rewarding_details(test.deps(), mix_id).unwrap();
         let details = res.rewarding_details.unwrap();
         assert_eq!(
             fixtures::mix_node_cost_params_fixture(),
@@ -1249,80 +1179,74 @@ pub(crate) mod tests {
 
     #[test]
     fn query_for_unbonded_mixnode() {
-        let mut deps = test_helpers::init_contract();
-        let env = mock_env();
-        let mut rng = test_helpers::test_rng();
+        let mut test = TestSetup::new();
 
         let sender = "mix-owner";
 
         // no node under this id
-        let res = query_unbonded_mixnode(deps.as_ref(), 42).unwrap();
+        let res = query_unbonded_mixnode(test.deps(), 42).unwrap();
         assert!(res.unbonded_info.is_none());
         assert_eq!(42, res.mix_id);
 
         // add and unbond the mixnode
-        let mix_id =
-            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, sender, good_mixnode_pledge());
-        pending_events::unbond_mixnode(deps.as_mut(), &mock_env(), 123, mix_id).unwrap();
+        let mix_id = test.add_dummy_mixnode(sender, None);
+        pending_events::unbond_mixnode(test.deps_mut(), &mock_env(), 123, mix_id).unwrap();
 
-        let res = query_unbonded_mixnode(deps.as_ref(), mix_id).unwrap();
+        let res = query_unbonded_mixnode(test.deps(), mix_id).unwrap();
         assert_eq!(res.unbonded_info.unwrap().owner, sender);
         assert_eq!(mix_id, res.mix_id);
     }
 
     #[test]
     fn query_for_stake_saturation() {
-        let mut deps = test_helpers::init_contract();
-        let env = mock_env();
-        let mut rng = test_helpers::test_rng();
+        let mut test = TestSetup::new();
 
         // no node under this id
-        let res = query_stake_saturation(deps.as_ref(), 42).unwrap();
+        let res = query_stake_saturation(test.deps(), 42).unwrap();
         assert!(res.current_saturation.is_none());
         assert!(res.uncapped_saturation.is_none());
         assert_eq!(42, res.mix_id);
 
         let rewarding_params = rewards_storage::REWARDING_PARAMS
-            .load(deps.as_ref().storage)
+            .load(test.deps().storage)
             .unwrap();
         let saturation_point = rewarding_params.interval.stake_saturation_point;
 
-        let mix_id =
-            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, "foomp", good_mixnode_pledge());
+        let mix_id = test.add_dummy_mixnode("foomp", None);
 
         // below saturation point
         // there's only the base pledge without any delegation
         let expected =
             Decimal::from_atomics(good_mixnode_pledge()[0].amount, 0).unwrap() / saturation_point;
-        let res = query_stake_saturation(deps.as_ref(), mix_id).unwrap();
+        let res = query_stake_saturation(test.deps(), mix_id).unwrap();
         assert_eq!(expected, res.current_saturation.unwrap());
         assert_eq!(expected, res.uncapped_saturation.unwrap());
         assert_eq!(mix_id, res.mix_id);
 
         // exactly at saturation point
         let mut mix_rewarding = rewards_storage::MIXNODE_REWARDING
-            .load(deps.as_ref().storage, mix_id)
+            .load(test.deps().storage, mix_id)
             .unwrap();
         mix_rewarding.operator = saturation_point;
         rewards_storage::MIXNODE_REWARDING
-            .save(deps.as_mut().storage, mix_id, &mix_rewarding)
+            .save(test.deps_mut().storage, mix_id, &mix_rewarding)
             .unwrap();
 
-        let res = query_stake_saturation(deps.as_ref(), mix_id).unwrap();
+        let res = query_stake_saturation(test.deps(), mix_id).unwrap();
         assert_eq!(Decimal::one(), res.current_saturation.unwrap());
         assert_eq!(Decimal::one(), res.uncapped_saturation.unwrap());
         assert_eq!(mix_id, res.mix_id);
 
         // above the saturation point
         let mut mix_rewarding = rewards_storage::MIXNODE_REWARDING
-            .load(deps.as_ref().storage, mix_id)
+            .load(test.deps().storage, mix_id)
             .unwrap();
         mix_rewarding.delegates = mix_rewarding.operator * Decimal::percent(150);
         rewards_storage::MIXNODE_REWARDING
-            .save(deps.as_mut().storage, mix_id, &mix_rewarding)
+            .save(test.deps_mut().storage, mix_id, &mix_rewarding)
             .unwrap();
 
-        let res = query_stake_saturation(deps.as_ref(), mix_id).unwrap();
+        let res = query_stake_saturation(test.deps(), mix_id).unwrap();
         assert_eq!(Decimal::one(), res.current_saturation.unwrap());
         assert_eq!(Decimal::percent(250), res.uncapped_saturation.unwrap());
         assert_eq!(mix_id, res.mix_id);

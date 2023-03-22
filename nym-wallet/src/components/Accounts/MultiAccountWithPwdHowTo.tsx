@@ -22,12 +22,12 @@ export const MultiAccountWithPwdHowTo = ({ show, handleClose }: { show: boolean;
   >
     <Stack spacing={2}>
       <Warning sx={{ textAlign: 'center' }}>
-        <Typography fontWeight={600} sx={{ mb: 1 }}>
+        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
           This machine already has a password set on it
         </Typography>
-        <Typography>
+        <Typography variant="caption">
           In order to import or create account(s) you need to log in with your password or create a new one. Creating a
-          new password will overwrite any old one. Make sure your menonics are all wirtten down before creating a new
+          new password will overwrite any old one. Make sure your mnemonics are all written down before creating a new
           password.
         </Typography>
       </Warning>
@@ -35,13 +35,14 @@ export const MultiAccountWithPwdHowTo = ({ show, handleClose }: { show: boolean;
       {passwordCreationSteps.map((step, index) => (
         <Stack key={step} direction="row" spacing={1}>
           <Typography fontWeight={600}>{`${index + 1}.`}</Typography>
-          <Typography>{`${step}`}</Typography>
+          <Typography variant="body2">{`${step}`}</Typography>
         </Stack>
       ))}
       <Link
         href="https://nymtech.net/docs/stable/wallet#importing-or-creating-accounts-when-you-have-signed-in-with-mnemonic-but-a-password-already-exists-on-your-machine"
         target="_blank"
         text="Open Nym docs for this guide in a browser window"
+        variant="body2"
         fontWeight={600}
       />
     </Stack>

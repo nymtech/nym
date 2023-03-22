@@ -1,5 +1,7 @@
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{Coin, Timestamp};
 use mixnet_contract_common::{
+    gateway::GatewayConfigUpdate,
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
     Gateway, IdentityKey, MixId, MixNode,
 };
@@ -118,7 +120,7 @@ pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         amount: Coin,
     },
     PledgeMore {
@@ -131,13 +133,16 @@ pub enum ExecuteMsg {
     },
     BondGateway {
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         amount: Coin,
     },
     UnbondGateway {},
     TrackUnbondGateway {
         owner: String,
         amount: Coin,
+    },
+    UpdateGatewayConfig {
+        new_config: GatewayConfigUpdate,
     },
     TransferOwnership {
         to_address: String,
@@ -178,6 +183,7 @@ impl ExecuteMsg {
             ExecuteMsg::BondGateway { .. } => "VestingExecuteMsg::BondGateway",
             ExecuteMsg::UnbondGateway { .. } => "VestingExecuteMsg::UnbondGateway",
             ExecuteMsg::TrackUnbondGateway { .. } => "VestingExecuteMsg::TrackUnbondGateway",
+            ExecuteMsg::UpdateGatewayConfig { .. } => "VestingExecuteMsg::UpdateGatewayConfig",
             ExecuteMsg::TransferOwnership { .. } => "VestingExecuteMsg::TransferOwnership",
             ExecuteMsg::UpdateStakingAddress { .. } => "VestingExecuteMsg::UpdateStakingAddress",
             ExecuteMsg::UpdateLockedPledgeCap { .. } => "VestingExecuteMsg::UpdateLockedPledgeCap",

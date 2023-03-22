@@ -1,10 +1,11 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::context::SigningClient;
 use clap::Parser;
 use cosmwasm_std::Uint128;
 use log::{info, warn};
+use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::{Coin, MixNodeCostParams};
 use nym_mixnet_contract_common::{MixNode, Percent};
 use nym_network_defaults::{
@@ -18,7 +19,7 @@ pub struct Args {
     pub host: String,
 
     #[clap(long)]
-    pub signature: String,
+    pub signature: MessageSignature,
 
     #[clap(long)]
     pub mix_port: Option<u16>,
@@ -95,7 +96,7 @@ pub async fn vesting_bond_mixnode(client: SigningClient, args: Args, denom: &str
     };
 
     let res = client
-        .vesting_bond_mixnode(mixnode, cost_params, &args.signature, coin.into(), None)
+        .vesting_bond_mixnode(mixnode, cost_params, args.signature, coin.into(), None)
         .await
         .expect("failed to bond vesting mixnode!");
 

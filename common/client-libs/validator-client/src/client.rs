@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{nym_api, ValidatorClientError};
-use coconut_dkg_common::types::NodeIndex;
-use coconut_interface::VerificationKey;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
@@ -11,6 +9,8 @@ use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
 };
+use nym_coconut_dkg_common::types::NodeIndex;
+use nym_coconut_interface::VerificationKey;
 pub use nym_mixnet_contract_common::{mixnode::MixNodeDetails, GatewayBond, IdentityKeyRef, MixId};
 
 #[cfg(feature = "nyxd-client")]
@@ -18,17 +18,17 @@ use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient
 #[cfg(feature = "nyxd-client")]
 use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient, SigningNyxdClient};
 #[cfg(feature = "nyxd-client")]
-use coconut_dkg_common::{
+use cw3::ProposalResponse;
+#[cfg(feature = "nyxd-client")]
+use nym_api_requests::models::MixNodeBondAnnotated;
+#[cfg(feature = "nyxd-client")]
+use nym_coconut_dkg_common::{
     dealer::ContractDealing,
     types::{DealerDetails, EpochId},
     verification_key::ContractVKShare,
 };
 #[cfg(feature = "nyxd-client")]
-use coconut_interface::Base58;
-#[cfg(feature = "nyxd-client")]
-use cw3::ProposalResponse;
-#[cfg(feature = "nyxd-client")]
-use nym_api_requests::models::MixNodeBondAnnotated;
+use nym_coconut_interface::Base58;
 #[cfg(feature = "nyxd-client")]
 use nym_mixnet_contract_common::{
     families::{Family, FamilyHead},
@@ -747,6 +747,12 @@ where
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
         Ok(self.nym_api.get_mixnodes_detailed().await?)
+    }
+
+    pub async fn get_cached_mixnodes_detailed_unfiltered(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
+        Ok(self.nym_api.get_mixnodes_detailed_unfiltered().await?)
     }
 
     pub async fn get_cached_rewarded_mixnodes(

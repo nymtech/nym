@@ -6,8 +6,8 @@ use crate::epoch_state::storage::INITIAL_REPLACEMENT_DATA;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::STATE;
-use coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
 use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
+use nym_coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
 
 // currently we only require that
 // a) it's part of the signer group
@@ -22,7 +22,7 @@ fn verify_dealer(deps: DepsMut<'_>, dealer: &Addr, resharing: bool) -> Result<()
     let state = STATE.load(deps.storage)?;
 
     let height = if resharing {
-        INITIAL_REPLACEMENT_DATA.load(deps.storage)?.initial_height
+        Some(INITIAL_REPLACEMENT_DATA.load(deps.storage)?.initial_height)
     } else {
         None
     };
@@ -81,9 +81,9 @@ pub(crate) mod tests {
     use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_fixture_dealer, GROUP_MEMBERS};
-    use coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cw4::Member;
+    use nym_coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
     use rusty_fork::rusty_fork_test;
 
     rusty_fork_test! {
@@ -105,7 +105,7 @@ pub(crate) mod tests {
                     deps.as_mut().storage,
                     &InitialReplacementData {
                         initial_dealers: vec![details1.address, details2.address, details3.address],
-                        initial_height: Some(1),
+                        initial_height: 1,
                     },
                 )
                 .unwrap();
@@ -126,7 +126,7 @@ pub(crate) mod tests {
 
             INITIAL_REPLACEMENT_DATA
                 .update::<_, ContractError>(deps.as_mut().storage, |mut data| {
-                    data.initial_height = Some(2);
+                    data.initial_height = 2;
                     Ok(data)
                 })
                 .unwrap();

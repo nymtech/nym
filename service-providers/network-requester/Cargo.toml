@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-network-requester"
-version = "1.1.12"
+version = "1.1.13"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.65"
@@ -38,10 +38,10 @@ nym-bin-common = { path = "../../common/bin-common"}
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../../common/nymsphinx" }
-ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
-proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
-service-providers-common = { path = "../common" }
-socks5-requests = { path = "../../common/socks5/requests" }
+nym-ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
+nym-socks5-proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
+nym-service-providers-common = { path = "../common" }
+nym-socks5-requests = { path = "../../common/socks5/requests" }
 nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
 websocket-requests = { path = "../../clients/native/websocket-requests" }

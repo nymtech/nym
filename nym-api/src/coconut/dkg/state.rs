@@ -4,11 +4,12 @@
 use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
-use coconut_dkg_common::dealer::DealerDetails;
-use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Addr;
-use dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
-use dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
+use log::debug;
+use nym_coconut_dkg_common::dealer::DealerDetails;
+use nym_coconut_dkg_common::types::EpochState;
+use nym_dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
+use nym_dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
 use nymcoconut::SecretKey;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -133,7 +134,7 @@ impl ConsistentState for State {
 
     fn proposal_id_value(&self) -> Result<u64, CoconutError> {
         self.proposal_id.ok_or(CoconutError::UnrecoverableState {
-            reason: String::from("Proposal id should have benn set"),
+            reason: String::from("Proposal id should have been set"),
         })
     }
 }
@@ -242,8 +243,8 @@ impl State {
         }
     }
 
-    pub async fn reset_persistent(&mut self, resharing: bool) {
-        if !resharing {
+    pub async fn reset_persistent(&mut self, reset_coconut_keypair: bool) {
+        if reset_coconut_keypair {
             self.coconut_keypair.set(None).await;
         }
         self.node_index = Default::default();
@@ -337,7 +338,7 @@ impl State {
 
     pub async fn set_coconut_keypair(
         &mut self,
-        coconut_keypair: Option<coconut_interface::KeyPair>,
+        coconut_keypair: Option<nym_coconut_interface::KeyPair>,
     ) {
         self.coconut_keypair.set(coconut_keypair).await
     }
@@ -360,6 +361,10 @@ impl State {
             .iter_mut()
             .find(|(addr, _)| *addr == dealer_addr)
         {
+            debug!(
+                "Dealer {} misbehaved: {:?}. It will be marked locally as bad dealer and ignored",
+                dealer_addr, reason
+            );
             *value = Err(reason);
         }
     }

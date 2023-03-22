@@ -3,6 +3,7 @@
 
 use crate::delegation::OwnerProxySubKey;
 use crate::error::MixnetContractError;
+use crate::gateway::GatewayConfigUpdate;
 use crate::helpers::IntoBaseDecimal;
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
@@ -10,6 +11,7 @@ use crate::reward_params::{
 };
 use crate::{delegation, ContractStateParams, Layer, LayerAssignment, MixId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -153,12 +155,12 @@ pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     BondMixnodeOnBehalf {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         owner: String,
     },
     PledgeMore {},
@@ -187,15 +189,22 @@ pub enum ExecuteMsg {
     // gateway-related:
     BondGateway {
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     BondGatewayOnBehalf {
         gateway: Gateway,
         owner: String,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     UnbondGateway {},
     UnbondGatewayOnBehalf {
+        owner: String,
+    },
+    UpdateGatewayConfig {
+        new_config: GatewayConfigUpdate,
+    },
+    UpdateGatewayConfigOnBehalf {
+        new_config: GatewayConfigUpdate,
         owner: String,
     },
 
@@ -312,6 +321,10 @@ impl ExecuteMsg {
             }
             ExecuteMsg::UnbondGateway { .. } => "unbonding gateway".into(),
             ExecuteMsg::UnbondGatewayOnBehalf { .. } => "unbonding gateway on behalf".into(),
+            ExecuteMsg::UpdateGatewayConfig { .. } => "updating gateway configuration".into(),
+            ExecuteMsg::UpdateGatewayConfigOnBehalf { .. } => {
+                "updating gateway configuration on behalf".into()
+            }
             ExecuteMsg::DelegateToMixnode { mix_id } => format!("delegating to mixnode {mix_id}"),
             ExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, .. } => {
                 format!("delegating to mixnode {mix_id} on behalf")
@@ -500,6 +513,11 @@ pub enum QueryMsg {
         start_after: Option<u32>,
     },
     GetNumberOfPendingEvents {},
+
+    // signing-related
+    GetSigningNonce {
+        address: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

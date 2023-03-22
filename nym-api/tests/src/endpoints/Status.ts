@@ -29,6 +29,14 @@ export default class Status extends APIClient {
     return response.data;
   }
 
+  public async getUnfilteredGateways(): Promise<DetailedGateway[]> {
+    const response = await this.restClient.sendGet({
+      route: `/gateways/detailed-unfiltered`,
+    });
+
+    return response.data;
+  }
+
   public async getGatewayStatusReport(identity_key: string): Promise<Report> {
     const response = await this.restClient.sendGet({
       route: `/gateway/${identity_key}/report`,
@@ -48,6 +56,14 @@ export default class Status extends APIClient {
   public async getGatewayCoreCount(identity_key: string): Promise<CoreCount> {
     const response = await this.restClient.sendGet({
       route: `/gateway/${identity_key}/core-status-count`,
+    });
+
+    return response.data;
+  }
+
+  public async getGatewayAverageUptime(identity_key: string): Promise<CoreCount | NoUptime> {
+    const response = await this.restClient.sendGet({
+      route: `/gateway/${identity_key}/avg_uptime`,
     });
 
     return response.data;
@@ -120,7 +136,7 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getMixnodeAverageUptime(mix_id: number): Promise<AvgUptime> {
+  public async getMixnodeAverageUptime(mix_id: number): Promise<AvgUptime | NoUptime> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${mix_id}/avg_uptime`,
     });

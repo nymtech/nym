@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [v1.1.13] (2023-03-15)
+## [v1.1.12] (2023-03-15)
 
 - Wallet - in the vesting section separate the "Unlocked transferable tokens" into "Unlocked vesting tokens" and "Transferable rewards" for better clarity ([#3132])
 - Wallet - change the Bonding flow to include an additional step for the user to provide a unique signature when they bond their node ([#3109])

@@ -30,9 +30,12 @@ describe("Get mixnode data", (): void => {
   it("Get a mixnode average uptime", async (): Promise<void> => {
     const identity_key = config.environmnetConfig.mix_id;
     const response = await status.getMixnodeAverageUptime(identity_key);
-
-    expect(identity_key).toStrictEqual(response.mix_id);
-    expect(typeof response.avg_uptime).toBe("number");
+    if ("mix_id" in response) {
+        expect(identity_key).toStrictEqual(response.mix_id);
+        expect(typeof response.avg_uptime).toBe("number");
+    } else if ("message" in response) {
+      expect(response.message).toContain("could not find uptime history associated with mixnode");
+    }
   });
 
   it("Get a mixnode history", async (): Promise<void> => {

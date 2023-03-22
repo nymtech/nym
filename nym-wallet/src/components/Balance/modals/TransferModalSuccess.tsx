@@ -2,7 +2,8 @@ import React from 'react';
 import { Stack, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { ConfirmationModal } from 'src/components';
-import { TTransactionDetails } from '../types';
+
+export type TTransactionDetails = { amount: string; url: string };
 
 export const SuccessModal = ({ tx, onClose }: { tx?: TTransactionDetails; onClose: () => void }) => (
   <ConfirmationModal

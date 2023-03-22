@@ -89,6 +89,7 @@ export interface MixNodeResponseItem {
   uncapped_saturation: number;
   operating_cost: Amount;
   profit_margin_percent: string;
+  blacklisted: boolean;
 }
 
 export type MixNodeResponse = MixNodeResponseItem[];
@@ -237,6 +238,8 @@ export type MixNodeEconomicDynamicsStatsResponse = {
   estimated_delegators_reward: number;
   current_interval_uptime: number;
 };
+
+export type Environment = 'mainnet' | 'sandbox' | 'qa';
 
 export type DirectoryServiceProvider = {
   id: string;

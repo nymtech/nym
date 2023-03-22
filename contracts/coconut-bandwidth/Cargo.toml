@@ -12,10 +12,10 @@ crate-type = ["cdylib", "rlib"]
 nym-coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
 
-cosmwasm-std = "1.0.0"
-cosmwasm-storage = "1.0.0"
-cw-storage-plus = "0.13.4"
-cw-controllers = "0.13.4"
+cosmwasm-std = { workspace = true }
+cosmwasm-storage = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw-controllers = { workspace = true }
 
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }

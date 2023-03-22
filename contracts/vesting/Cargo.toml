@@ -1,6 +1,6 @@
 [package]
 name = "nym-vesting-contract"
-version = "1.2.0-pre.1"
+version = "1.2.0"
 description = "Nym vesting contract"
 edition = { workspace = true }
 authors = { workspace = true }
@@ -20,13 +20,14 @@ name = "vesting_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.2.0" }
-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common", version = "0.2.0" }
-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.2.0" }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.3.0" }
+contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common", version = "0.3.0" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.3.0" }
 
-cosmwasm-std = { version = "1.0.0 "}
-cw2 = { version = "0.13.4" }
-cw-storage-plus = { version = "0.13.4", features = ["iterator"] }
+cosmwasm-std = { workspace = true }
+cosmwasm-derive = { workspace = true }
+cw2 = { workspace = true }
+cw-storage-plus = { workspace = true, features = ["iterator"] }
 
 schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
@@ -38,6 +39,7 @@ rand_chacha = "0.3.1"
 base64 = "0.21.0"
 hex = "0.4.3"
 serde_json = "1.0.66"
+cosmwasm-crypto = { workspace = true }
 
 [build-dependencies]
 vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc"] }

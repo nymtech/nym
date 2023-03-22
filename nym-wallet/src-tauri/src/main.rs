@@ -127,6 +127,8 @@ fn main() {
             vesting::queries::locked_coins,
             vesting::queries::original_vesting,
             vesting::queries::spendable_coins,
+            vesting::queries::spendable_vested_coins,
+            vesting::queries::spendable_reward_coins,
             vesting::queries::get_historical_vesting_staking_reward,
             vesting::queries::get_spendable_vested_coins,
             vesting::queries::get_spendable_reward_coins,

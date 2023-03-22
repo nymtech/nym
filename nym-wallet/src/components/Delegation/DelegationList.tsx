@@ -46,6 +46,7 @@ const headCells: HeadCell[] = [
   { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'left' },
   { id: 'amount', label: 'Delegation', sortable: true, align: 'left' },
   { id: 'unclaimed_rewards', label: 'Reward', sortable: true, align: 'left' },
+  { id: 'uses_locked_tokens', label: '', sortable: false, align: 'left' },
 ];
 
 const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy, onRequestSort }) => {

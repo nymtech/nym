@@ -19,6 +19,10 @@ export const getLockedCoins = async (): Promise<DecCoin> => invokeWrapper<DecCoi
 
 export const getSpendableCoins = async (): Promise<DecCoin> => invokeWrapper<DecCoin>('spendable_coins');
 
+export const getSpendableVestedCoins = async (): Promise<DecCoin> => invokeWrapper<DecCoin>('spendable_vested_coins');
+
+export const getSpendableRewardCoins = async (): Promise<DecCoin> => invokeWrapper<DecCoin>('spendable_reward_coins');
+
 export const getVestingCoins = async (vestingAccountAddress: string): Promise<DecCoin> =>
   invokeWrapper<DecCoin>('vesting_coins', { vestingAccountAddress });
 

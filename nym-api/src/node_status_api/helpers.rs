@@ -24,17 +24,19 @@ async fn get_gateway_bond_annotated(
     cache: &NodeStatusCache,
     identity: &str,
 ) -> Result<GatewayBondAnnotated, ErrorResponse> {
-    let gateways = cache.gateways_annotated().await.ok_or(ErrorResponse::new(
-        "no data available",
-        Status::ServiceUnavailable,
-    ))?;
+    let gateways = cache
+        .gateways_annotated_filtered()
+        .await
+        .ok_or(ErrorResponse::new(
+            "no data available",
+            Status::ServiceUnavailable,
+        ))?;
 
     gateways
-        .into_inner()
         .into_iter()
         .find(|gateway| gateway.identity() == identity)
         .ok_or(ErrorResponse::new(
-            "mixnode bond not found",
+            "gateway bond not found",
             Status::NotFound,
         ))
 }
@@ -43,13 +45,15 @@ async fn get_mixnode_bond_annotated(
     cache: &NodeStatusCache,
     mix_id: MixId,
 ) -> Result<MixNodeBondAnnotated, ErrorResponse> {
-    let mixnodes = cache.mixnodes_annotated().await.ok_or(ErrorResponse::new(
-        "no data available",
-        Status::ServiceUnavailable,
-    ))?;
+    let mixnodes = cache
+        .mixnodes_annotated_filtered()
+        .await
+        .ok_or(ErrorResponse::new(
+            "no data available",
+            Status::ServiceUnavailable,
+        ))?;
 
     mixnodes
-        .into_inner()
         .into_iter()
         .find(|mixnode| mixnode.mix_id() == mix_id)
         .ok_or(ErrorResponse::new(
@@ -374,7 +378,16 @@ pub(crate) async fn _get_mixnode_inclusion_probabilities(
 
 pub(crate) async fn _get_mixnodes_detailed(cache: &NodeStatusCache) -> Vec<MixNodeBondAnnotated> {
     cache
-        .mixnodes_annotated()
+        .mixnodes_annotated_filtered()
+        .await
+        .unwrap_or_default()
+}
+
+pub(crate) async fn _get_mixnodes_detailed_unfiltered(
+    cache: &NodeStatusCache,
+) -> Vec<MixNodeBondAnnotated> {
+    cache
+        .mixnodes_annotated_full()
         .await
         .unwrap_or_default()
         .into_inner()
@@ -400,7 +413,16 @@ pub(crate) async fn _get_active_set_detailed(cache: &NodeStatusCache) -> Vec<Mix
 
 pub(crate) async fn _get_gateways_detailed(cache: &NodeStatusCache) -> Vec<GatewayBondAnnotated> {
     cache
-        .gateways_annotated()
+        .gateways_annotated_filtered()
+        .await
+        .unwrap_or_default()
+}
+
+pub(crate) async fn _get_gateways_detailed_unfiltered(
+    cache: &NodeStatusCache,
+) -> Vec<GatewayBondAnnotated> {
+    cache
+        .gateways_annotated_full()
         .await
         .unwrap_or_default()
         .into_inner()

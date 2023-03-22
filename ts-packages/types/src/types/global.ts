@@ -150,3 +150,51 @@ export type LayerDistribution = {
   layer2: number;
   layer3: number;
 };
+
+export interface ContractState {
+  owner: string;
+  rewarding_validator_address: string;
+  vesting_contract_address: string;
+  rewarding_denom: string;
+  params: ContractStateParams;
+}
+
+export type VestingAccountNode = {
+  amount: Coin;
+  block_time: string;
+};
+
+export interface VestAccounts {
+  account_id: string;
+  owner: string;
+}
+
+export interface VestingAccountsPaged {
+  accounts: VestAccounts[];
+  start_next_after: string;
+}
+
+export interface VestingAccountsCoinPaged {
+  account_id: string;
+  owner: string;
+  still_vesting: Coin;
+}
+
+export interface DelegationTimes {
+  account_id: number;
+  delegation_timestamps: [];
+  mix_id: number;
+  owner: string;
+}
+
+export interface DelegationBlock {
+  account_id: number;
+  amount: string;
+  block_timestamp: number;
+  mix_id: number;
+}
+
+export interface Delegations {
+  delegations: DelegationBlock[];
+  start_next_after: string | null;
+}

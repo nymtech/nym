@@ -4,8 +4,8 @@
  */
 // eslint-disable-next-line import/no-cycle
 import { INyxdQuery } from './query-client';
-import { Delegation, RewardingParams, StakeSaturationResponse } from '@nymproject/types';
 import {
+  Delegation, OriginalVestingResponse, RewardingParams, StakeSaturationResponse, VestingAccountInfo,
   UnbondedMixnodeResponse,
   GatewayOwnershipResponse,
   MixnetContractVersion,
@@ -18,8 +18,10 @@ import {
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
   LayerDistribution,
+  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode
 } from '@nymproject/types';
-import { ContractState, SmartContractQuery } from './types/shared';
+import { SmartContractQuery } from './types/shared';
+import { Coin } from 'cosmjs-types/cosmos/base/v1beta1/coin';
 
 export default class NyxdQuerier implements INyxdQuery {
   client: SmartContractQuery;
@@ -186,6 +188,138 @@ export default class NyxdQuerier implements INyxdQuery {
   getSpendableCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<any> {
     return this.client.queryContractSmart(vestingContractAddress, {
       vesting_account_address: vestingAccountAddress,
+    });
+  }
+
+  getVestingAccountsPaged(vestingContractAddress: string): Promise<VestingAccountsPaged> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_accounts_paged: {}
+    });
+  }
+
+  getVestingAmountsAccountsPaged(vestingContractAddress: string): Promise<VestingAccountsCoinPaged> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_accounts_vesting_coins_paged: {}
+    });
+  }
+
+  getLockedTokens(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      locked_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getSpendableTokens(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      spendable_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getVestedTokens(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_vested_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getVestingTokens(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_vesting_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getSpendableVestedTokens(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_spendable_vested_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getSpendableRewards(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_spendable_reward_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getDelegatedCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_delegated_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getPledgedCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_pledged_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getStakedCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_staked_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getWithdrawnCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_withdrawn_coins: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getStartTime(vestingContractAddress: string, vestingAccountAddress: string): Promise<string> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_start_time: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getEndTime(vestingContractAddress: string, vestingAccountAddress: string): Promise<string> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_end_time: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getOriginalVestingDetails(vestingContractAddress: string, vestingAccountAddress: string): Promise<OriginalVestingResponse> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_original_vesting: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getHistoricStakingRewards(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_historical_vesting_staking_reward: { vesting_account_address: vestingAccountAddress }
+    });
+  }
+
+  getAccountDetails(vestingContractAddress: string, address: string): Promise<VestingAccountInfo> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_account: { address: address }
+    });
+  }
+
+  getMixnode(vestingContractAddress: string, address: string): Promise<VestingAccountNode> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_mixnode: { address: address }
+    });
+  }
+
+  getGateway(vestingContractAddress: string, address: string): Promise<VestingAccountNode> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_gateway: { address: address }
+    });
+  }
+
+  getDelegationTimes(vestingContractAddress: string, mix_id: number, address: string): Promise<DelegationTimes> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_delegation_times: { mix_id: mix_id, address: address }
+    });
+  }
+
+  getAllDelegations(vestingContractAddress: string): Promise<Delegations> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_all_delegations: {}
+    });
+  }
+
+  getCurrentVestingPeriod(vestingContractAddress: string, address: string): Promise<Period> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_current_vesting_period: { address: address }
     });
   }
 }

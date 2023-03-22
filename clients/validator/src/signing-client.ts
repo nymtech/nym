@@ -29,6 +29,7 @@ import {
   MixNodeDetails,
   MixNodeRewarding,
   MixOwnershipResponse,
+  OriginalVestingResponse,
   PagedAllDelegationsResponse,
   PagedDelegatorDelegationsResponse,
   PagedGatewayResponse,
@@ -38,9 +39,10 @@ import {
   PagedUnbondedMixnodesResponse,
   RewardingParams,
   UnbondedMixnodeResponse,
+  VestingAccountInfo,
+  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode
 } from '@nymproject/types';
 import NymApiQuerier from './nym-api-querier';
-import { ContractState } from './types/shared';
 
 // methods exposed by `SigningCosmWasmClient`
 export interface ICosmWasmSigning {
@@ -243,7 +245,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
   // query related:
 
   getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion> {
-    return this.getContractVersion(mixnetContractAddress);
+    return this.nyxdQuerier.getContractVersion(mixnetContractAddress);
   }
 
   getMixNodeBonds(
@@ -507,5 +509,95 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
       fee,
       memo,
     );
+  }
+
+  // vesting related 
+
+  getVestingAccountsPaged(vestingContractAddress: string): Promise<VestingAccountsPaged> {
+    return this.nyxdQuerier.getVestingAccountsPaged(vestingContractAddress);
+  };
+
+  getVestingAmountsAccountsPaged(vestingContractAddress: string): Promise<VestingAccountsCoinPaged> {
+    return this.nyxdQuerier.getVestingAmountsAccountsPaged(vestingContractAddress);
+  }
+
+  getLockedTokens(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.nyxdQuerier.getLockedTokens(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getSpendableTokens(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.nyxdQuerier.getSpendableTokens(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getVestedTokens(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.nyxdQuerier.getVestedTokens(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getVestingTokens(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.nyxdQuerier.getVestingTokens(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getSpendableVestedTokens(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.nyxdQuerier.getSpendableVestedTokens(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getSpendableRewards(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.nyxdQuerier.getSpendableRewards(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getDelegatedCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.nyxdQuerier.getDelegatedCoins(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getPledgedCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.nyxdQuerier.getPledgedCoins(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getStakedCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.nyxdQuerier.getStakedCoins(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getWithdrawnCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.nyxdQuerier.getWithdrawnCoins(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getStartTime(vestingContractAddress: string, vestingAccountAddress: string): Promise<string> {
+    return this.nyxdQuerier.getStartTime(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getEndTime(vestingContractAddress: string, vestingAccountAddress: string): Promise<string> {
+    return this.nyxdQuerier.getEndTime(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getOriginalVestingDetails(vestingContractAddress: string, vestingAccountAddress: string): Promise<OriginalVestingResponse> {
+    return this.nyxdQuerier.getOriginalVestingDetails(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getHistoricStakingRewards(vestingContractAddress: string, vestingAccountAddress: string): Promise<Coin> {
+    return this.nyxdQuerier.getHistoricStakingRewards(vestingContractAddress, vestingAccountAddress);
+  }
+
+  getAccountDetails(vestingContractAddress: string, address: string): Promise<VestingAccountInfo> {
+    return this.nyxdQuerier.getAccountDetails(vestingContractAddress, address);
+  }
+
+  getMixnode(vestingContractAddress: string, address: string): Promise<VestingAccountNode> {
+    return this.nyxdQuerier.getMixnode(vestingContractAddress, address);
+  }
+
+  getGateway(vestingContractAddress: string, address: string): Promise<VestingAccountNode> {
+    return this.nyxdQuerier.getGateway(vestingContractAddress, address);
+  }
+
+  getDelegationTimes(vestingContractAddress: string, mix_id: number, delegatorAddress: string): Promise<DelegationTimes> {
+    return this.nyxdQuerier.getDelegationTimes(vestingContractAddress, mix_id, delegatorAddress);
+  }
+
+  getAllDelegations(vestingContractAddress: string): Promise<Delegations> {
+    return this.nyxdQuerier.getAllDelegations(vestingContractAddress);
+  }
+
+  getCurrentVestingPeriod(vestingContractAddress: string, address: string): Promise<Period> {
+    return this.nyxdQuerier.getCurrentVestingPeriod(vestingContractAddress, address);
   }
 }

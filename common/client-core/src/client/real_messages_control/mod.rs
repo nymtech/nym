@@ -49,6 +49,9 @@ pub struct Config {
     /// Specifies all traffic related configuration options.
     traffic: config::Traffic,
 
+    /// Specifies all cover traffic related configuration options.
+    cover_traffic: config::CoverTraffic,
+
     /// Specifies all acknowledgements related configuration options.
     acks: config::Acknowledgements,
 
@@ -72,25 +75,15 @@ impl<'a> From<&'a Config> for real_traffic_stream::Config {
             Arc::clone(&cfg.ack_key),
             cfg.self_recipient,
             cfg.acks.average_ack_delay,
-            cfg.traffic.average_packet_delay,
-            cfg.traffic.message_sending_average_delay,
-            cfg.traffic.disable_main_poisson_packet_distribution,
+            cfg.traffic,
+            cfg.cover_traffic.cover_traffic_primary_size_ratio,
         )
-        .with_custom_cover_packet_size(cfg.traffic.primary_packet_size)
     }
 }
 
 impl<'a> From<&'a Config> for reply_controller::Config {
     fn from(cfg: &'a Config) -> Self {
-        reply_controller::Config::new(
-            cfg.reply_surbs.minimum_reply_surb_request_size,
-            cfg.reply_surbs.maximum_reply_surb_request_size,
-            cfg.reply_surbs.maximum_allowed_reply_surb_request_size,
-            cfg.reply_surbs.maximum_reply_surb_rerequest_waiting_period,
-            cfg.reply_surbs.maximum_reply_surb_drop_waiting_period,
-            cfg.reply_surbs.maximum_reply_surb_age,
-            cfg.reply_surbs.maximum_reply_key_age,
-        )
+        reply_controller::Config::new(cfg.reply_surbs)
     }
 }
 
@@ -117,6 +110,7 @@ impl Config {
             ack_key,
             self_recipient,
             traffic: base_client_debug_config.traffic,
+            cover_traffic: base_client_debug_config.cover_traffic,
             acks: base_client_debug_config.acknowledgements,
             reply_surbs: base_client_debug_config.reply_surbs,
         }

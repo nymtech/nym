@@ -32,7 +32,7 @@ const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_00
 // bandwidth bridging protocol, we can come back to a smaller timeout value
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
-const DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO: f32 = 0.70;
+const DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO: f64 = 0.70;
 
 // reply-surbs related:
 
@@ -664,7 +664,7 @@ pub struct CoverTraffic {
 
     /// Specifies the ratio of `primary_packet_size` to `secondary_packet_size` used in cover traffic.
     /// Only applicable if `secondary_packet_size` is enabled.
-    pub cover_traffic_primary_size_ratio: f32,
+    pub cover_traffic_primary_size_ratio: f64,
 
     /// Controls whether the dedicated loop cover traffic stream should be enabled.
     /// (and sending packets, on average, every [Self::loop_cover_traffic_average_delay])

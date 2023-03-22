@@ -162,6 +162,29 @@ impl NymMessage {
         }
     }
 
+    fn serialized_size(&self, num_mix_hops: u8) -> usize {
+        let inner_size = match self {
+            NymMessage::Plain(msg) => msg.len(),
+            NymMessage::Repliable(msg) => msg.serialized_size(num_mix_hops),
+            NymMessage::Reply(msg) => msg.serialized_size(),
+        };
+        let message_type_size = 1;
+        message_type_size + inner_size
+    }
+
+    /// Determines the number of required packets of the provided size for the split message.
+    pub fn required_packets(&self, packet_size: PacketSize, num_mix_hops: u8) -> usize {
+        // let size = self.into_bytes()
+        let plaintext_per_packet = self.available_plaintext_per_packet(packet_size);
+        let serialized_len = self.serialized_size(num_mix_hops);
+
+        // same logic as in `pad_to_full_packet_lengths` for the additional '1' being added.
+        let (num_fragments, _) =
+            chunking::number_of_required_fragments(serialized_len + 1, plaintext_per_packet);
+
+        num_fragments
+    }
+
     /// Length of plaintext (from the sphinx point of view) data that is available per sphinx
     /// packet.
     pub fn available_plaintext_per_packet(&self, packet_size: PacketSize) -> usize {
@@ -239,5 +262,29 @@ impl PaddedMessage {
 impl From<Vec<u8>> for PaddedMessage {
     fn from(bytes: Vec<u8>) -> Self {
         PaddedMessage(bytes)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serialized_size_matches_actual_serialization() {
+        // plain
+        let plain = NymMessage::new_plain(vec![1, 2, 3, 4, 5]);
+        assert_eq!(plain.serialized_size(3), plain.into_bytes().len());
+
+        // a single variant for each repliable and reply is enough as they are more thoroughly tested
+        // internally
+        let repliable = NymMessage::new_repliable(RepliableMessage::new_data(
+            vec![1, 2, 3, 4, 5],
+            [42u8; 16].into(),
+            vec![],
+        ));
+        assert_eq!(repliable.serialized_size(3), repliable.into_bytes().len());
+
+        let reply = NymMessage::new_reply(ReplyMessage::new_data_message(vec![1, 2, 3, 4, 5]));
+        assert_eq!(reply.serialized_size(3), reply.into_bytes().len());
     }
 }

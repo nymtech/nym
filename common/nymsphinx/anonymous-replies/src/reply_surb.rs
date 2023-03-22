@@ -34,8 +34,8 @@ pub enum ReplySurbError {
 
 #[derive(Debug)]
 pub struct ReplySurb {
-    surb: SURB,
-    encryption_key: SurbEncryptionKey,
+    pub(crate) surb: SURB,
+    pub(crate) encryption_key: SurbEncryptionKey,
 }
 
 // Serialize + Deserialize is not really used anymore (it was for a CBOR experiment)

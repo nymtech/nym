@@ -258,8 +258,12 @@ where
         )
     }
 
-    pub fn pad_and_split_message(&mut self, message: NymMessage) -> Vec<Fragment> {
-        let plaintext_per_packet = message.available_plaintext_per_packet(self.primary_packet_size);
+    pub fn pad_and_split_message(
+        &mut self,
+        message: NymMessage,
+        packet_size: PacketSize,
+    ) -> Vec<Fragment> {
+        let plaintext_per_packet = message.available_plaintext_per_packet(packet_size);
 
         message
             .pad_to_full_packet_lengths(plaintext_per_packet)

@@ -222,6 +222,24 @@ where
         }
     }
 
+    fn optimal_packet_size(&self, msg: &NymMessage) -> PacketSize {
+        // if secondary packet was never set, then it's obvious we have to use the primary packet
+        let Some(secondary_packet) = self.config.secondary_packet_size else {
+            return self.config.primary_packet_size
+        };
+
+        let primary_count =
+            msg.required_packets(self.config.primary_packet_size, self.config.num_mix_hops);
+        let secondary_count = msg.required_packets(secondary_packet, self.config.num_mix_hops);
+
+        // if there would be no benefit in using the secondary packet - use the primary (duh)
+        if primary_count <= secondary_count {
+            self.config.primary_packet_size
+        } else {
+            secondary_packet
+        }
+    }
+
     async fn generate_reply_surbs_with_keys(
         &mut self,
         amount: usize,
@@ -248,9 +266,12 @@ where
         reply_surb: ReplySurb,
         is_extra_surb_request: bool,
     ) -> Result<(), SurbWrappedPreparationError> {
+        let msg = NymMessage::new_reply(message);
+        let packet_size = self.optimal_packet_size(&msg);
+
         let mut fragment = self
             .message_preparer
-            .pad_and_split_message(NymMessage::new_reply(message));
+            .pad_and_split_message(msg, packet_size);
         if fragment.len() > 1 {
             // well, it's not a single surb message
             return Err(SurbWrappedPreparationError {
@@ -300,10 +321,11 @@ where
 
     // // TODO: this will require additional argument to make it use different variant of `ReplyMessage`
     pub(crate) fn split_reply_message(&mut self, message: Vec<u8>) -> Vec<Fragment> {
+        let msg = NymMessage::new_reply(ReplyMessage::new_data_message(message));
+        let packet_size = self.optimal_packet_size(&msg);
+
         self.message_preparer
-            .pad_and_split_message(NymMessage::new_reply(ReplyMessage::new_data_message(
-                message,
-            )))
+            .pad_and_split_message(msg, packet_size)
     }
 
     pub(crate) async fn send_retransmission_reply_chunks(
@@ -399,7 +421,10 @@ where
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
-        let fragments = self.message_preparer.pad_and_split_message(message);
+        let packet_size = self.optimal_packet_size(&message);
+        let fragments = self
+            .message_preparer
+            .pad_and_split_message(message, packet_size);
 
         let mut pending_acks = Vec::with_capacity(fragments.len());
         let mut real_messages = Vec::with_capacity(fragments.len());

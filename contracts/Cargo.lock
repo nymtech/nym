@@ -1113,6 +1113,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-service-provider-directory"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw2",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [

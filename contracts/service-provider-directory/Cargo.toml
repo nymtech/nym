@@ -7,23 +7,11 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-#cosmwasm-std = { version = "1.0.0", features = ["staking"] }
-cosmwasm-std = { version = "1.0.0" }
-cw-storage-plus = "0.13.4"
-cw2 = { version = "0.13.4" }
+cosmwasm-std = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw2 = { workspace = true }
 serde = { version = "1.0.155", default-features = false, features = ["derive"] }
 thiserror = "1.0.39"
 
 [dev-dependencies]
-cw-multi-test = "0.13.4"
-
-[profile.release]
-opt-level = 3
-debug = false
-rpath = false
-lto = true
-debug-assertions = false
-codegen-units = 1
-panic = 'abort'
-incremental = false
-overflow-checks = true
+cw-multi-test = { workspace = true }

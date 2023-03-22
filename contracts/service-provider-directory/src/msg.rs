@@ -1,17 +1,11 @@
-use crate::state::Service;
+use crate::state::{ClientAddress, Config, Service, ServiceType, SpId};
 use cosmwasm_std::Addr;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub enum QueryMsg {
-    QueryAll {},
-    QueryConfig {},
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct GreetResp {
-    pub message: String,
-}
+//#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+//pub struct GreetResp {
+//    pub message: String,
+//}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct InstantiateMsg {
@@ -22,32 +16,44 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum ExecuteMsg {
     Announce {
-        client_address: String,
-        standard_whitelist: bool,
+        client_address: ClientAddress,
+        service_type: ServiceType,
         owner: Addr,
     },
     Delete {
-        client_address: String,
-    },
-    UpdateScore {
-        client_address: String,
-        new_score: i8,
+        sp_id: SpId,
     },
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct ServicesInfo {
-    pub owner: String,
-    pub services: Service,
+pub enum QueryMsg {
+    QueryAll {},
+    QueryConfig {},
+}
+
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct ServiceInfo {
+    pub sp_id: SpId,
+    pub service: Service,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct ServicesListResp {
-    pub services: Vec<ServicesInfo>,
+pub struct ServicesListResponse {
+    pub services: Vec<ServiceInfo>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct ConfigResponse {
     pub updater_role: Addr,
     pub admin: Addr,
+}
+
+impl From<Config> for ConfigResponse {
+    fn from(config: Config) -> Self {
+        ConfigResponse {
+            updater_role: config.updater_role,
+            admin: config.admin,
+        }
+    }
 }

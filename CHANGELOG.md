@@ -9,7 +9,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - NE - instead of throwing a "Mixnode/Gateway not found" error for blacklisted nodes due to bad performance, show their history but tag them as "Having poor performance" ([#2979])
 - NE - Upgrade Sandbox and make below changes:  ([#2332])
 - Explorer - Updates ([#3168])
-- Fix contracts and nym-api audit findings ([#3026])
 - Website v2 - deploy infrastructure for strapi and CI ([#2213])
 - add blockstream green to sp list ([#3180])
 - mock-nym-api: fix .storybook lint error ([#3178])
@@ -18,7 +17,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2979]: https://github.com/nymtech/nym/issues/2979
 [#2332]: https://github.com/nymtech/nym/issues/2332
 [#3168]: https://github.com/nymtech/nym/issues/3168
-[#3026]: https://github.com/nymtech/nym/issues/3026
 [#2213]: https://github.com/nymtech/nym/issues/2213
 [#3180]: https://github.com/nymtech/nym/pull/3180
 [#3178]: https://github.com/nymtech/nym/pull/3178

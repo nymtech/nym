@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## [v1.1.5] (2023-03-21)
+
+- Fix contracts and nym-api audit findings ([#3026])
+
+[#3026]: https://github.com/nymtech/nym/issues/3026
+
 ## [v1.1.4] (2023-02-21)
 
 - Problem 142 (rust-side) ([#3024])

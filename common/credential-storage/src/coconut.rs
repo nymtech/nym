@@ -48,12 +48,12 @@ impl CoconutCredentialManager {
     /// Tries to retrieve one of the stored, unused credentials.
     pub(crate) async fn get_next_coconut_credential(
         &self,
-    ) -> Result<CoconutCredential, sqlx::Error> {
+    ) -> Result<Option<CoconutCredential>, sqlx::Error> {
         sqlx::query_as!(
             CoconutCredential,
             "SELECT * FROM coconut_credentials WHERE NOT consumed"
         )
-        .fetch_one(&self.connection_pool)
+        .fetch_optional(&self.connection_pool)
         .await
     }
 

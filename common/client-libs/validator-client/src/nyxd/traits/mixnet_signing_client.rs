@@ -106,6 +106,11 @@ pub trait MixnetSigningClient {
         .await
     }
 
+    async fn begin_epoch_transition(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(fee, MixnetExecuteMsg::BeginEpochTransition {}, vec![])
+            .await
+    }
+
     async fn advance_current_epoch(
         &self,
         new_rewarded_set: Vec<LayerAssignment>,
@@ -193,7 +198,8 @@ pub trait MixnetSigningClient {
     async fn join_family_on_behalf(
         &self,
         member_address: String,
-        signature: String,
+        node_identity_signature: String,
+        family_signature: String,
         family_head: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -201,7 +207,8 @@ pub trait MixnetSigningClient {
             fee,
             MixnetExecuteMsg::JoinFamilyOnBehalf {
                 member_address,
-                signature,
+                node_identity_signature,
+                family_signature,
                 family_head,
             },
             vec![],
@@ -229,7 +236,7 @@ pub trait MixnetSigningClient {
     async fn leave_family_on_behalf(
         &self,
         member_address: String,
-        signature: String,
+        node_identity_signature: String,
         family_head: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -237,7 +244,7 @@ pub trait MixnetSigningClient {
             fee,
             MixnetExecuteMsg::LeaveFamilyOnBehalf {
                 member_address,
-                signature,
+                node_identity_signature,
                 family_head,
             },
             vec![],

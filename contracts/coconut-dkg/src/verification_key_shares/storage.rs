@@ -4,10 +4,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{VK_SHARES_EPOCH_ID_IDX_NAMESPACE, VK_SHARES_PK_NAMESPACE};
-use coconut_dkg_common::types::EpochId;
-use coconut_dkg_common::verification_key::ContractVKShare;
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
+use nym_coconut_dkg_common::types::EpochId;
+use nym_coconut_dkg_common::verification_key::ContractVKShare;
 
 pub(crate) const VERIFICATION_KEY_SHARES_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const VERIFICATION_KEY_SHARES_PAGE_DEFAULT_LIMIT: u32 = 50;

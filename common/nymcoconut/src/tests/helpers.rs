@@ -109,13 +109,13 @@ pub mod tests {
     use super::*;
     use crate::{KeyPair, Parameters, SecretKey};
     use bls12_381::Scalar;
-    use dkg::{bte::decrypt_share, combine_shares, Dealing, NodeIndex};
+    use nym_dkg::{bte::decrypt_share, combine_shares, Dealing, NodeIndex};
     use rand_chacha::rand_core::SeedableRng;
 
     pub fn generate_dkg_secrets(node_indices: &[NodeIndex]) -> Vec<Scalar> {
         let dummy_seed = [42u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
-        let params = dkg::bte::setup();
+        let params = nym_dkg::bte::setup();
 
         // the simplest possible case
         let threshold = 2;
@@ -123,7 +123,7 @@ pub mod tests {
         let mut receivers = std::collections::BTreeMap::new();
         let mut full_keys = Vec::new();
         for index in node_indices {
-            let (dk, pk) = dkg::bte::keygen(&params, &mut rng);
+            let (dk, pk) = nym_dkg::bte::keygen(&params, &mut rng);
             receivers.insert(*index, *pk.public_key());
             full_keys.push((dk, pk))
         }

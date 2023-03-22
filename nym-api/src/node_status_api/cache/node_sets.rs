@@ -6,7 +6,7 @@ use nym_mixnet_contract_common::{reward_params::Performance, Interval, MixId};
 use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, MixNodeDetails, RewardedSetNodeStatus, RewardingParams,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub(super) fn to_rewarded_set_node_status(
     rewarded_set: &[MixNodeDetails],
@@ -84,6 +84,7 @@ pub(super) async fn annotate_nodes_with_details(
     current_interval: Interval,
     rewarded_set: &HashMap<MixId, RewardedSetNodeStatus>,
     mix_to_family: Vec<(IdentityKey, FamilyHead)>,
+    blacklist: &HashSet<MixId>,
 ) -> Vec<MixNodeBondAnnotated> {
     let mix_to_family = mix_to_family
         .into_iter()
@@ -135,6 +136,7 @@ pub(super) async fn annotate_nodes_with_details(
             .cloned();
 
         annotated.push(MixNodeBondAnnotated {
+            blacklisted: blacklist.contains(&mixnode.mix_id()),
             mixnode_details: mixnode,
             stake_saturation,
             uncapped_stake_saturation,
@@ -152,6 +154,7 @@ pub(crate) async fn annotate_gateways_with_details(
     storage: &Option<NymApiStorage>,
     gateway_bonds: Vec<GatewayBond>,
     current_interval: Interval,
+    blacklist: &HashSet<IdentityKey>,
 ) -> Vec<GatewayBondAnnotated> {
     let mut annotated = Vec::new();
     for gateway_bond in gateway_bonds {
@@ -175,6 +178,7 @@ pub(crate) async fn annotate_gateways_with_details(
         .unwrap_or_default();
 
         annotated.push(GatewayBondAnnotated {
+            blacklisted: blacklist.contains(&gateway_bond.gateway.identity_key),
             gateway_bond,
             performance,
             node_performance,

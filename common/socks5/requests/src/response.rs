@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{ConnectionId, Socks5ProtocolVersion, Socks5RequestError};
-use service_providers_common::interface::{Serializable, ServiceProviderResponse};
+use nym_service_providers_common::interface::{Serializable, ServiceProviderResponse};
 use thiserror::Error;
 
 // don't start tags from 0 for easier backwards compatibility since `NetworkData`

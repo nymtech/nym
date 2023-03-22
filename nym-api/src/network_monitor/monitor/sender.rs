@@ -6,7 +6,6 @@ use crate::network_monitor::monitor::gateway_clients_cache::{
 };
 use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
-use credential_storage::PersistentStorage;
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
 use futures::task::Context;
@@ -15,6 +14,7 @@ use gateway_client::error::GatewayClientError;
 use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
 use log::{debug, info, trace, warn};
 use nym_config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
+use nym_credential_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;

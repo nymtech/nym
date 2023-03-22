@@ -10,9 +10,10 @@ import {
   MixnodeStatus,
   SummaryOverviewResponse,
   ValidatorsResponse,
+  Environment,
 } from '../typeDefs/explorer-api';
 import { EnumFilterKey } from '../typeDefs/filters';
-import { Api } from '../api';
+import { Api, getEnvironment } from '../api';
 import { NavOptionType, originalNavOptions } from './nav';
 
 interface StateData {
@@ -25,6 +26,7 @@ interface StateData {
   mode: PaletteMode;
   navState: NavOptionType[];
   validators?: ApiState<ValidatorsResponse>;
+  environment?: Environment;
   serviceProviders?: ApiState<DirectoryService>;
 }
 
@@ -49,6 +51,9 @@ export const MainContext = React.createContext<State>({
 export const useMainContext = (): React.ContextType<typeof MainContext> => React.useContext<State>(MainContext);
 
 export const MainContextProvider: FCWithChildren = ({ children }) => {
+  // network explorer environment
+  const [environment, setEnvironment] = React.useState<Environment>('mainnet');
+
   // light/dark mode
   const [mode, setMode] = React.useState<PaletteMode>('dark');
 
@@ -190,10 +195,12 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
       fetchCountryData(),
       fetchServiceProviders(),
     ]);
+    setEnvironment(getEnvironment());
   }, []);
 
   const state = React.useMemo<State>(
     () => ({
+      environment,
       block,
       countryData,
       fetchMixnodes,
@@ -210,6 +217,7 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
       serviceProviders,
     }),
     [
+      environment,
       block,
       countryData,
       gateways,

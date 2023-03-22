@@ -17,12 +17,12 @@ use crate::state::{State, MULTISIG, STATE};
 use crate::verification_key_shares::queries::query_vk_shares_paged;
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
-use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use coconut_dkg_common::types::{Epoch, EpochState};
 use cosmwasm_std::{
     entry_point, to_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use cw4::Cw4Contract;
+use nym_coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use nym_coconut_dkg_common::types::{Epoch, EpochState};
 
 /// Instantiate the contract.
 ///
@@ -136,13 +136,13 @@ mod tests {
     use super::*;
     use crate::support::tests::fixtures::TEST_MIX_DENOM;
     use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
-    use coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
-    use coconut_dkg_common::types::NodeIndex;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
-    use group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
+    use nym_coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
+    use nym_coconut_dkg_common::types::NodeIndex;
+    use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
 
     fn instantiate_with_group(app: &mut App, members: &[Addr]) -> Addr {
         let group_code_id = app.store_code(Box::new(ContractWrapper::new(

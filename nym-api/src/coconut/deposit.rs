@@ -1,12 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_bandwidth_contract_common::events::{
+use nym_api_requests::coconut::BlindSignRequestBody;
+use nym_coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
-use credentials::coconut::bandwidth::BandwidthVoucher;
-use nym_api_requests::coconut::BlindSignRequestBody;
+use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::asymmetric::identity::{self, Signature};
 use validator_client::nyxd::TxResponse;

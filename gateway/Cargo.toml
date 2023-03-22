@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-gateway"
-version = "1.1.12"
+version = "1.1.13"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -23,7 +23,7 @@ clap = { version = "4.0", features = ["cargo", "derive"] }
 colored = "2.0"
 dashmap = "4.0"
 dirs = "4.0"
-dotenv = "0.15.0"
+dotenvy = { workspace = true }
 futures = "0.3"
 humantime-serde = "1.0.1"
 lazy_static = "1.4.0"
@@ -52,8 +52,8 @@ tokio-util = { version = "0.7.4", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
 
 # internal
-coconut-interface = { path = "../common/coconut-interface" }
-credentials = { path = "../common/credentials" }
+nym-coconut-interface = { path = "../common/coconut-interface" }
+nym-credentials = { path = "../common/credentials" }
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto" }
 nym-bin-common = { path = "../common/bin-common" }

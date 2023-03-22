@@ -6,23 +6,23 @@ use crate::epoch_operations::MixnodeToReward;
 use crate::support::config::Config;
 use anyhow::Result;
 use async_trait::async_trait;
-use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
-use coconut_dkg_common::types::InitialReplacementData;
-use coconut_dkg_common::{
+use cw3::ProposalResponse;
+use cw4::MemberResponse;
+use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use nym_coconut_dkg_common::types::InitialReplacementData;
+use nym_coconut_dkg_common::{
     dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
-use cw3::ProposalResponse;
-use cw4::MemberResponse;
 use nym_config::defaults::{ChainDetails, NymNetworkDetails, DEFAULT_NYM_API_PORT};
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_mixnet_contract_common::families::{Family, FamilyHead};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
 use nym_mixnet_contract_common::{
-    CurrentIntervalResponse, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment, MixId,
-    RewardedSetNodeStatus,
+    CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment,
+    MixId, RewardedSetNodeStatus,
 };
 use nym_vesting_contract_common::AccountVestingCoins;
 use std::sync::Arc;
@@ -157,6 +157,12 @@ impl Client {
         Ok(self.0.read().await.get_current_interval_details().await?)
     }
 
+    pub(crate) async fn get_current_epoch_status(
+        &self,
+    ) -> Result<EpochStatus, ValidatorClientError> {
+        Ok(self.0.read().await.nyxd.get_current_epoch_status().await?)
+    }
+
     pub(crate) async fn get_current_rewarding_parameters(
         &self,
     ) -> Result<RewardingParams, ValidatorClientError> {
@@ -211,6 +217,21 @@ impl Client {
         &self,
     ) -> Result<Vec<(IdentityKey, FamilyHead)>, ValidatorClientError> {
         self.0.read().await.get_all_family_members().await
+    }
+
+    pub(crate) async fn get_pending_events_count(&self) -> Result<u32, ValidatorClientError> {
+        let pending = self.0.read().await.get_number_of_pending_events().await?;
+        Ok(pending.epoch_events + pending.interval_events)
+    }
+
+    pub(crate) async fn begin_epoch_transition(&self) -> Result<(), ValidatorClientError> {
+        self.0
+            .write()
+            .await
+            .nyxd
+            .begin_epoch_transition(None)
+            .await?;
+        Ok(())
     }
 
     pub(crate) async fn send_rewarding_messages(
@@ -268,12 +289,15 @@ impl Client {
         Ok(())
     }
 
-    pub(crate) async fn reconcile_epoch_events(&self) -> Result<(), ValidatorClientError> {
+    pub(crate) async fn reconcile_epoch_events(
+        &self,
+        limit: Option<u32>,
+    ) -> Result<(), ValidatorClientError> {
         self.0
             .write()
             .await
             .nyxd
-            .reconcile_epoch_events(None, None)
+            .reconcile_epoch_events(limit, None)
             .await?;
         Ok(())
     }
@@ -329,7 +353,7 @@ impl crate::coconut::client::Client for Client {
 
     async fn get_current_epoch_threshold(
         &self,
-    ) -> crate::coconut::error::Result<Option<dkg::Threshold>> {
+    ) -> crate::coconut::error::Result<Option<nym_dkg::Threshold>> {
         Ok(self
             .0
             .read()

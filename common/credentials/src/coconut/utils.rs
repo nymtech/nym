@@ -1,11 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_interface::{
+use nym_api_requests::coconut::BlindSignRequestBody;
+use nym_coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prove_bandwidth_credential, Attribute,
     BlindedSignature, Credential, Parameters, Signature, SignatureShare, VerificationKey,
 };
-use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_crypto::asymmetric::encryption::PublicKey;
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;

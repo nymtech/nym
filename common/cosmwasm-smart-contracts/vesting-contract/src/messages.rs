@@ -61,13 +61,14 @@ pub enum ExecuteMsg {
         owner_signature: String,
         label: String,
     },
-    /// Family head needs to sign the joining node IdentityKey
+    /// Family head needs to sign the joining node IdentityKey, the Node provides its signature signaling consent to join the family
     JoinFamily {
-        signature: String,
+        node_identity_signature: String,
+        family_signature: String,
         family_head: IdentityKey,
     },
     LeaveFamily {
-        signature: String,
+        node_identity_signature: String,
         family_head: IdentityKey,
     },
     KickFamilyMember {
@@ -188,6 +189,8 @@ impl ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetContractVersion {},
+    #[serde(rename = "get_cw2_contract_version")]
+    GetCW2ContractVersion {},
     GetAccountsPaged {
         start_next_after: Option<String>,
         limit: Option<u32>,

@@ -4,7 +4,7 @@
 // use nym_client::client::config::{BaseConfig, Config, GatewayEndpointConfig};
 // use nym_client::client::{DirectClient, KeyManager, Recipient, ReconstructedMessage, SocketClient};
 use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, Recipient, ReconstructedMessage};
-use service_providers_common::interface::{
+use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, Request, Response, ResponseContent,
 };
 

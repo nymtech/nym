@@ -7,19 +7,19 @@ use crate::helpers::{
 use crate::spend_credential_creates_proposal::{
     TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS, TEST_COCONUT_DKG_CONTRACT_ADDRESS, TEST_COIN_DENOM,
 };
-use coconut_dkg_common::msg::ExecuteMsg::{
-    AdvanceEpochState, CommitVerificationKeyShare, RegisterDealer,
-};
-use coconut_dkg_common::msg::InstantiateMsg as DkgInstantiateMsg;
-use coconut_dkg_common::msg::QueryMsg::GetVerificationKeys;
-use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmwasm_std::{coins, Addr, Decimal};
 use cw4::Member;
 use cw_multi_test::Executor;
 use cw_utils::{Duration, Threshold};
-use group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
-use multisig_contract_common::msg::ExecuteMsg::{Execute, Vote};
-use multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
+use nym_coconut_dkg_common::msg::ExecuteMsg::{
+    AdvanceEpochState, CommitVerificationKeyShare, RegisterDealer,
+};
+use nym_coconut_dkg_common::msg::InstantiateMsg as DkgInstantiateMsg;
+use nym_coconut_dkg_common::msg::QueryMsg::GetVerificationKeys;
+use nym_coconut_dkg_common::verification_key::PagedVKSharesResponse;
+use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
+use nym_multisig_contract_common::msg::ExecuteMsg::{Execute, Vote};
+use nym_multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
 
 #[test]
 fn dkg_proposal() {

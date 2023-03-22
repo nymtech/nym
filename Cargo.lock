@@ -214,7 +214,7 @@ dependencies = [
  "http",
  "http-body",
  "hyper",
- "itoa 1.0.5",
+ "itoa",
  "matchit",
  "memchr",
  "mime",
@@ -244,14 +244,6 @@ dependencies = [
  "rustversion",
  "tower-layer",
  "tower-service",
-]
-
-[[package]]
-name = "bandwidth-claim-contract"
-version = "0.1.0"
-dependencies = [
- "schemars",
- "serde",
 ]
 
 [[package]]
@@ -434,18 +426,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bstr"
-version = "0.2.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba3569f383e8f1598449f1a423e72e99569137b47740b1da11ef19af3d5c3223"
-dependencies = [
- "lazy_static",
- "memchr",
- "regex-automata",
- "serde",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -589,17 +569,6 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "2.34.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0610544180c38b88101fecf2dd634b174a62eef6946f84dfc6a7127512b381c"
-dependencies = [
- "bitflags",
- "textwrap 0.11.0",
- "unicode-width",
-]
-
-[[package]]
-name = "clap"
 version = "3.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71655c45cb9845d3270c9d6df84ebe72b4dad3c2ba3f7023ad47c144e4e473a5"
@@ -607,7 +576,7 @@ dependencies = [
  "bitflags",
  "clap_lex 0.2.4",
  "indexmap",
- "textwrap 0.16.0",
+ "textwrap",
 ]
 
 [[package]]
@@ -677,7 +646,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "async-trait",
  "dashmap 5.4.0",
@@ -722,39 +691,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
 dependencies = [
  "bitflags",
-]
-
-[[package]]
-name = "coconut-bandwidth-contract-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "multisig-contract-common",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "coconut-dkg-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "cw-utils",
- "multisig-contract-common",
- "nym-contracts-common",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "coconut-interface"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "getset",
- "nymcoconut",
- "serde",
- "thiserror",
 ]
 
 [[package]]
@@ -919,9 +855,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "1.2.1"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5abeeb891e6d0098402e4d3d042f90451db52651d2fe14b170e69a1dd3e4115"
+checksum = "4b36e527620a2a3e00e46b6e731ab6c9b68d11069c986f7d7be8eba79ef081a4"
 dependencies = [
  "syn",
 ]
@@ -997,12 +933,12 @@ version = "0.1.0"
 dependencies = [
  "bip39",
  "clap 4.1.4",
- "coconut-interface",
- "credential-storage",
- "credentials",
  "log",
  "nym-bin-common",
+ "nym-coconut-interface",
  "nym-config",
+ "nym-credential-storage",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -1012,57 +948,6 @@ dependencies = [
  "tokio",
  "url",
  "validator-client",
-]
-
-[[package]]
-name = "credential-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "log",
- "sqlx 0.5.13",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "credentials"
-version = "0.1.0"
-dependencies = [
- "bls12_381 0.5.0",
- "coconut-interface",
- "cosmrs",
- "nym-api-requests",
- "nym-crypto",
- "rand 0.7.3",
- "thiserror",
- "validator-client",
-]
-
-[[package]]
-name = "criterion"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b01d6de93b2b6c65e17c634a26653a29d107b3c98c607c765bf38d041531cd8f"
-dependencies = [
- "atty",
- "cast",
- "clap 2.34.0",
- "criterion-plot 0.4.5",
- "csv",
- "itertools",
- "lazy_static",
- "num-traits",
- "oorandom",
- "plotters",
- "rayon",
- "regex",
- "serde",
- "serde_cbor",
- "serde_derive",
- "serde_json",
- "tinytemplate",
- "walkdir",
 ]
 
 [[package]]
@@ -1076,7 +961,7 @@ dependencies = [
  "cast",
  "ciborium",
  "clap 3.2.23",
- "criterion-plot 0.5.0",
+ "criterion-plot",
  "itertools",
  "lazy_static",
  "num-traits",
@@ -1089,16 +974,6 @@ dependencies = [
  "serde_json",
  "tinytemplate",
  "walkdir",
-]
-
-[[package]]
-name = "criterion-plot"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2673cc8207403546f45f5fd319a974b1e6983ad1a3ee7e6041650013be041876"
-dependencies = [
- "cast",
- "itertools",
 ]
 
 [[package]]
@@ -1236,28 +1111,6 @@ checksum = "b1d1a86f49236c215f271d40892d5fc950490551400b02ef360692c29815c714"
 dependencies = [
  "generic-array 0.14.6",
  "subtle 2.4.1",
-]
-
-[[package]]
-name = "csv"
-version = "1.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22813a6dc45b335f9bade10bf7271dc477e81113e89eb251a0bc2a8a81c536e1"
-dependencies = [
- "bstr",
- "csv-core",
- "itoa 0.4.8",
- "ryu",
- "serde",
-]
-
-[[package]]
-name = "csv-core"
-version = "0.1.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b2466559f260f48ad25fe6317b3c8dac77b5bdb5763ac7d9d6103530663bc90"
-dependencies = [
- "memchr",
 ]
 
 [[package]]
@@ -1580,29 +1433,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dkg"
-version = "0.1.0"
-dependencies = [
- "bitvec",
- "bls12_381 0.6.0",
- "bs58",
- "criterion 0.3.6",
- "ff 0.11.1",
- "group 0.11.0",
- "lazy_static",
- "nym-contracts-common",
- "nym-pemstore",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rand_core 0.6.4",
- "serde",
- "serde_derive",
- "sha2 0.9.9",
- "thiserror",
- "zeroize",
-]
-
-[[package]]
 name = "doc-comment"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1782,11 +1612,11 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "explorer-api"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "chrono",
  "clap 4.1.4",
- "dotenv",
+ "dotenvy",
  "humantime-serde",
  "isocountry",
  "itertools",
@@ -2052,14 +1882,14 @@ name = "gateway-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "coconut-interface",
- "credential-storage",
- "credentials",
  "futures",
  "gateway-requests",
  "getrandom 0.2.8",
  "log",
  "mobile-storage",
+ "nym-coconut-interface",
+ "nym-credential-storage",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -2085,10 +1915,10 @@ name = "gateway-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "coconut-interface",
- "credentials",
  "futures",
  "log",
+ "nym-coconut-interface",
+ "nym-credentials",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
@@ -2238,15 +2068,6 @@ dependencies = [
  "ff 0.11.1",
  "rand_core 0.6.4",
  "subtle 2.4.1",
-]
-
-[[package]]
-name = "group-contract-common"
-version = "0.1.0"
-dependencies = [
- "cw4",
- "schemars",
- "serde",
 ]
 
 [[package]]
@@ -2474,7 +2295,7 @@ checksum = "75f43d41e26995c17e71ee126451dd3941010b0514a81a9d11f3b341debc2399"
 dependencies = [
  "bytes",
  "fnv",
- "itoa 1.0.5",
+ "itoa",
 ]
 
 [[package]]
@@ -2546,7 +2367,7 @@ dependencies = [
  "http-body",
  "httparse",
  "httpdate",
- "itoa 1.0.5",
+ "itoa",
  "pin-project-lite",
  "socket2",
  "tokio",
@@ -2775,12 +2596,6 @@ checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
 dependencies = [
  "either",
 ]
-
-[[package]]
-name = "itoa"
-version = "0.4.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
 
 [[package]]
 name = "itoa"
@@ -3152,20 +2967,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "multisig-contract-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "cw-utils",
- "cw3",
- "cw3-fixed-multisig",
- "cw4",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3261,7 +3062,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3269,33 +3070,32 @@ dependencies = [
  "bs58",
  "cfg-if",
  "clap 4.1.4",
- "coconut-bandwidth-contract-common",
- "coconut-dkg-common",
- "coconut-interface",
  "console-subscriber",
  "cosmwasm-std",
- "credential-storage",
- "credentials",
  "cw-utils",
  "cw3",
  "cw4",
  "dirs",
- "dkg",
- "dotenv",
  "futures",
  "gateway-client",
  "getset",
  "humantime-serde",
  "lazy_static",
  "log",
- "multisig-contract-common",
  "nym-api-requests",
  "nym-bin-common",
+ "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
+ "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
+ "nym-credential-storage",
+ "nym-credentials",
  "nym-crypto",
+ "nym-dkg",
  "nym-inclusion-probability",
  "nym-mixnet-contract-common",
+ "nym-multisig-contract-common",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
@@ -3330,10 +3130,10 @@ name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "coconut-interface",
  "cosmrs",
  "cosmwasm-std",
  "getset",
+ "nym-coconut-interface",
  "nym-mixnet-contract-common",
  "schemars",
  "serde",
@@ -3341,8 +3141,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-bandwidth-claim-contract"
+version = "0.1.0"
+dependencies = [
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "nym-bin-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clap 4.1.4",
  "clap_complete",
@@ -3371,7 +3179,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -3380,7 +3188,7 @@ dependencies = [
  "clap 4.1.4",
  "clap_complete",
  "clap_complete_fig",
- "dotenv",
+ "dotenvy",
  "log",
  "nym-bin-common",
  "nym-cli-commands",
@@ -3402,8 +3210,6 @@ dependencies = [
  "bs58",
  "cfg-if",
  "clap 4.1.4",
- "coconut-bandwidth-contract-common",
- "coconut-dkg-common",
  "comfy-table",
  "cosmrs",
  "cosmwasm-std",
@@ -3412,8 +3218,10 @@ dependencies = [
  "humantime-serde",
  "k256",
  "log",
- "multisig-contract-common",
+ "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
  "nym-mixnet-contract-common",
+ "nym-multisig-contract-common",
  "nym-network-defaults",
  "nym-vesting-contract-common",
  "rand 0.6.5",
@@ -3429,13 +3237,10 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "clap 4.1.4",
  "client-core",
- "coconut-interface",
- "credential-storage",
- "credentials",
  "dirs",
  "futures",
  "gateway-client",
@@ -3443,7 +3248,10 @@ dependencies = [
  "lazy_static",
  "log",
  "nym-bin-common",
+ "nym-coconut-interface",
  "nym-config",
+ "nym-credential-storage",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -3464,6 +3272,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-coconut-bandwidth-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "nym-multisig-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "nym-coconut-dkg-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "nym-contracts-common",
+ "nym-multisig-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "nym-coconut-interface"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "getset",
+ "nymcoconut",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-config"
 version = "0.1.0"
 dependencies = [
@@ -3478,7 +3319,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3486,6 +3327,31 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "nym-credential-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "sqlx 0.5.13",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "nym-credentials"
+version = "0.1.0"
+dependencies = [
+ "bls12_381 0.5.0",
+ "cosmrs",
+ "nym-api-requests",
+ "nym-coconut-interface",
+ "nym-crypto",
+ "rand 0.7.3",
+ "thiserror",
+ "validator-client",
 ]
 
 [[package]]
@@ -3514,6 +3380,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-dkg"
+version = "0.1.0"
+dependencies = [
+ "bitvec",
+ "bls12_381 0.6.0",
+ "bs58",
+ "criterion",
+ "ff 0.11.1",
+ "group 0.11.0",
+ "lazy_static",
+ "nym-contracts-common",
+ "nym-pemstore",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_derive",
+ "sha2 0.9.9",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-execute"
 version = "0.1.0"
 dependencies = [
@@ -3523,7 +3412,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3531,12 +3420,10 @@ dependencies = [
  "bip39",
  "bs58",
  "clap 4.1.4",
- "coconut-interface",
  "colored",
- "credentials",
  "dashmap 4.0.2",
  "dirs",
- "dotenv",
+ "dotenvy",
  "futures",
  "gateway-requests",
  "humantime-serde",
@@ -3546,7 +3433,9 @@ dependencies = [
  "mixnode-common",
  "nym-api-requests",
  "nym-bin-common",
+ "nym-coconut-interface",
  "nym-config",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -3571,6 +3460,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-group-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cw4",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "nym-inclusion-probability"
 version = "0.1.0"
 dependencies = [
@@ -3581,7 +3479,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3600,7 +3498,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "anyhow",
  "atty",
@@ -3609,7 +3507,6 @@ dependencies = [
  "colored",
  "cupid",
  "dirs",
- "dotenv",
  "futures",
  "humantime-serde",
  "lazy_static",
@@ -3641,11 +3538,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-multisig-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "cw3",
+ "cw3-fixed-multisig",
+ "cw4",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
  "cfg-if",
- "dotenv",
+ "dotenvy",
  "hex-literal",
  "once_cell",
  "serde",
@@ -3655,7 +3566,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "async-trait",
  "clap 4.1.4",
@@ -3669,19 +3580,19 @@ dependencies = [
  "nym-config",
  "nym-crypto",
  "nym-network-defaults",
+ "nym-ordered-buffer",
  "nym-sdk",
+ "nym-service-providers-common",
+ "nym-socks5-proxy-helpers",
+ "nym-socks5-requests",
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
- "ordered-buffer",
  "pretty_env_logger",
- "proxy-helpers",
  "publicsuffix",
  "rand 0.7.3",
  "reqwest",
  "serde",
- "service-providers-common",
- "socks5-requests",
  "sqlx 0.6.2",
  "tap",
  "thiserror",
@@ -3693,7 +3604,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "dirs",
  "log",
@@ -3720,13 +3631,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ordered-buffer"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-outfox"
 version = "0.1.0"
 dependencies = [
  "blake3",
  "chacha20",
  "chacha20poly1305",
- "criterion 0.4.0",
+ "criterion",
  "curve25519-dalek",
  "fastrand",
  "getrandom 0.2.8",
@@ -3768,14 +3687,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-service-providers-common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "log",
+ "nym-bin-common",
+ "nym-sdk",
+ "nym-sphinx-anonymous-replies",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "nym-socks5-client"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "clap 4.1.4",
  "client-core",
- "coconut-interface",
- "credential-storage",
- "credentials",
  "dirs",
  "futures",
  "gateway-client",
@@ -3784,27 +3716,56 @@ dependencies = [
  "log",
  "mobile-storage",
  "nym-bin-common",
+ "nym-coconut-interface",
  "nym-config",
+ "nym-credential-storage",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
+ "nym-ordered-buffer",
  "nym-pemstore",
+ "nym-service-providers-common",
+ "nym-socks5-proxy-helpers",
+ "nym-socks5-requests",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
- "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
- "proxy-helpers",
  "rand 0.7.3",
  "serde",
  "serde_json",
- "service-providers-common",
- "socks5-requests",
  "tap",
  "thiserror",
  "tokio",
  "url",
  "validator-client",
+]
+
+[[package]]
+name = "nym-socks5-proxy-helpers"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "futures",
+ "log",
+ "nym-ordered-buffer",
+ "nym-socks5-requests",
+ "nym-task",
+ "tokio",
+ "tokio-test",
+ "tokio-util",
+]
+
+[[package]]
+name = "nym-socks5-requests"
+version = "0.1.0"
+dependencies = [
+ "nym-service-providers-common",
+ "nym-sphinx-addressing",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -3980,12 +3941,12 @@ dependencies = [
 name = "nym-types"
 version = "1.0.0"
 dependencies = [
- "coconut-interface",
  "cosmrs",
  "cosmwasm-std",
  "eyre",
  "itertools",
  "log",
+ "nym-coconut-interface",
  "nym-config",
  "nym-mixnet-contract-common",
  "nym-vesting-contract",
@@ -4006,12 +3967,15 @@ dependencies = [
 name = "nym-vesting-contract"
 version = "1.2.0-pre.1"
 dependencies = [
+ "cosmwasm-derive",
  "cosmwasm-std",
  "cw-storage-plus",
+ "cw2",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
  "nym-vesting-contract-common",
  "schemars",
+ "semver 1.0.16",
  "serde",
  "thiserror",
  "vergen",
@@ -4019,7 +3983,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",
@@ -4055,14 +4019,14 @@ version = "0.5.0"
 dependencies = [
  "bls12_381 0.6.0",
  "bs58",
- "criterion 0.3.6",
+ "criterion",
  "digest 0.9.0",
- "dkg",
  "doc-comment",
  "ff 0.11.1",
  "getrandom 0.2.8",
  "group 0.11.0",
  "itertools",
+ "nym-dkg",
  "nym-pemstore",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -4151,14 +4115,6 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
-]
-
-[[package]]
-name = "ordered-buffer"
-version = "0.1.0"
-dependencies = [
- "log",
- "thiserror",
 ]
 
 [[package]]
@@ -4591,21 +4547,6 @@ checksum = "a5e0526209433e96d83d750dd81a99118edbc55739e7e61a46764fd2ad537788"
 dependencies = [
  "bytes",
  "prost 0.11.6",
-]
-
-[[package]]
-name = "proxy-helpers"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "futures",
- "log",
- "nym-task",
- "ordered-buffer",
- "socks5-requests",
- "tokio",
- "tokio-test",
- "tokio-util",
 ]
 
 [[package]]
@@ -5434,16 +5375,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_cbor"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bef2ebfde456fb76bbcf9f59315333decc4fda0b2b44b420243c11e0f5ec1f5"
-dependencies = [
- "half",
- "serde",
-]
-
-[[package]]
 name = "serde_derive"
 version = "1.0.152"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5471,7 +5402,7 @@ version = "1.0.93"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cad406b69c91885b5107daf2c29572f6c8cdb3c66826821e286c533490c0bc76"
 dependencies = [
- "itoa 1.0.5",
+ "itoa",
  "ryu",
  "serde",
 ]
@@ -5494,25 +5425,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3491c14715ca2294c4d6a88f15e84739788c1d030eed8c110436aafdaa2f3fd"
 dependencies = [
  "form_urlencoded",
- "itoa 1.0.5",
+ "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "service-providers-common"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "log",
- "nym-bin-common",
- "nym-sdk",
- "nym-sphinx-anonymous-replies",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
 ]
 
 [[package]]
@@ -5692,17 +5607,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "socks5-requests"
-version = "0.1.0"
-dependencies = [
- "nym-sphinx-addressing",
- "serde",
- "serde_json",
- "service-providers-common",
- "thiserror",
-]
-
-[[package]]
 name = "sphinx-packet"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5818,7 +5722,7 @@ dependencies = [
  "hashlink 0.7.0",
  "hex",
  "indexmap",
- "itoa 1.0.5",
+ "itoa",
  "libc",
  "libsqlite3-sys",
  "log",
@@ -5865,7 +5769,7 @@ dependencies = [
  "hashlink 0.8.1",
  "hex",
  "indexmap",
- "itoa 1.0.5",
+ "itoa",
  "libc",
  "libsqlite3-sys",
  "log",
@@ -6219,15 +6123,6 @@ dependencies = [
 
 [[package]]
 name = "textwrap"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
-dependencies = [
- "unicode-width",
-]
-
-[[package]]
-name = "textwrap"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "222a222a5bfe1bba4a77b45ec488a741b3cb8872e5e499451fd7d0129c9c7c3d"
@@ -6278,7 +6173,7 @@ version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a561bf4617eebd33bca6434b988f39ed798e527f51a1e797d0ee4f61c0a38376"
 dependencies = [
- "itoa 1.0.5",
+ "itoa",
  "js-sys",
  "serde",
  "time-core",
@@ -6851,9 +6746,6 @@ dependencies = [
  "async-trait",
  "base64 0.13.1",
  "bip39",
- "coconut-bandwidth-contract-common",
- "coconut-dkg-common",
- "coconut-interface",
  "colored",
  "cosmrs",
  "cosmwasm-std",
@@ -6861,15 +6753,18 @@ dependencies = [
  "cw4",
  "flate2",
  "futures",
- "group-contract-common",
  "itertools",
  "log",
- "multisig-contract-common",
  "nym-api-requests",
+ "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
+ "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
  "nym-execute",
+ "nym-group-contract-common",
  "nym-mixnet-contract-common",
+ "nym-multisig-contract-common",
  "nym-network-defaults",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
@@ -6882,6 +6777,7 @@ dependencies = [
  "tokio",
  "ts-rs",
  "url",
+ "zeroize",
 ]
 
 [[package]]

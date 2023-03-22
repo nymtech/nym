@@ -3,13 +3,13 @@
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::StorageError;
-#[cfg(not(feature = "mobile"))]
-#[cfg(not(target_arch = "wasm32"))]
-use credential_storage::error::StorageError;
 use gateway_requests::registration::handshake::error::HandshakeError;
 #[cfg(feature = "mobile")]
 #[cfg(not(target_arch = "wasm32"))]
 use mobile_storage::StorageError;
+#[cfg(not(feature = "mobile"))]
+#[cfg(not(target_arch = "wasm32"))]
+use nym_credential_storage::error::StorageError;
 use std::io;
 use thiserror::Error;
 use tungstenite::Error as WsError;
@@ -31,7 +31,7 @@ pub enum GatewayClientError {
     CredentialStorageError(#[from] StorageError),
 
     #[error("Coconut error - {0}")]
-    CoconutError(#[from] coconut_interface::CoconutError),
+    CoconutError(#[from] nym_coconut_interface::CoconutError),
 
     // TODO: see if `JsValue` is a reasonable type for this
     #[cfg(target_arch = "wasm32")]
@@ -48,7 +48,7 @@ pub enum GatewayClientError {
     NoBandwidthControllerAvailable,
 
     #[error("Credential error - {0}")]
-    CredentialError(#[from] credentials::error::Error),
+    CredentialError(#[from] nym_credentials::error::Error),
 
     #[error("Connection was abruptly closed")]
     ConnectionAbruptlyClosed,

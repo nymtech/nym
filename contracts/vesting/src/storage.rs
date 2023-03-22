@@ -1,5 +1,6 @@
 use crate::errors::ContractError;
 use crate::vesting::Account;
+use cosmwasm_std::Order;
 use cosmwasm_std::{Addr, Api, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::{IdentityKey, MixId};
@@ -55,7 +56,13 @@ pub fn save_delegation(
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
-    DELEGATIONS.save(storage, key, &amount)?;
+    let existing_delegation_amount = if let Some(delegation) = DELEGATIONS.may_load(storage, key)? {
+        delegation
+    } else {
+        Uint128::zero()
+    };
+    let new_delegations_amount = existing_delegation_amount + amount;
+    DELEGATIONS.save(storage, key, &new_delegations_amount)?;
     Ok(())
 }
 
@@ -65,6 +72,27 @@ pub fn remove_delegation(
 ) -> Result<(), ContractError> {
     DELEGATIONS.remove(storage, key);
     Ok(())
+}
+
+pub fn load_delegation_timestamps(
+    prefix: (AccountStorageKey, MixId),
+    storage: &dyn Storage,
+) -> Result<Vec<BlockTimestampSecs>, ContractError> {
+    let block_timestamps = DELEGATIONS
+        .prefix(prefix)
+        .keys(storage, None, None, Order::Ascending)
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(block_timestamps)
+}
+
+pub fn count_subdelegations_for_mix(
+    prefix: (AccountStorageKey, MixId),
+    storage: &dyn Storage,
+) -> u32 {
+    DELEGATIONS
+        .prefix(prefix)
+        .keys(storage, None, None, Order::Ascending)
+        .count() as u32
 }
 
 pub fn load_withdrawn(

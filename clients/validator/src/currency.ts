@@ -1,5 +1,6 @@
 import { Decimal } from '@cosmjs/math';
 import { Coin } from '@cosmjs/stargate';
+import { CoinMap } from './types/shared';
 
 // NARROW NO-BREAK SPACE (U+202F)
 const thinSpace = '\u202F';
@@ -32,15 +33,6 @@ export function printableBalanceToNative(amountToDisplay: string): string {
 // reciprocal of `printableBalanceToNative`, takes, for example 10000000 and returns 10
 export function nativeToPrintable(nativeValue: string): string {
   return Decimal.fromAtomics(nativeValue, 6).toString();
-}
-
-export interface MappedCoin {
-  readonly denom: string;
-  readonly fractionalDigits: number;
-}
-
-export interface CoinMap {
-  readonly [key: string]: MappedCoin;
 }
 
 export function nativeCoinToDisplay(coin: Coin, coinMap: CoinMap): Coin {

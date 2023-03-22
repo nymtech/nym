@@ -9,6 +9,7 @@ use error::Result;
 use routes::{post_all_statistics, post_statistic};
 
 use nym_statistics_common::api::STATISTICS_SERVICE_VERSION;
+use nym_task::TaskManager;
 
 mod error;
 mod routes;
@@ -33,16 +34,12 @@ impl NetworkStatisticsAPI {
     }
 
     pub async fn run(self) {
-        let shutdown_handle = self.rocket.shutdown();
+        let rocket_shutdown_handle = self.rocket.shutdown();
+        let shutdown = TaskManager::new(10);
         tokio::spawn(self.rocket.launch());
 
-        if let Err(e) = tokio::signal::ctrl_c().await {
-            error!(
-                "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
-                e
-            );
-        }
-        info!("Received SIGINT - the network statistics API will terminate now");
-        shutdown_handle.notify();
+        shutdown.catch_interrupt().await.ok();
+        info!("Stopping network statistics");
+        rocket_shutdown_handle.notify();
     }
 }

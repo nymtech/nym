@@ -3601,6 +3601,7 @@ dependencies = [
  "log",
  "nym-bin-common",
  "nym-statistics-common",
+ "nym-task",
  "pretty_env_logger",
  "rocket",
  "serde",

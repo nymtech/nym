@@ -16,6 +16,7 @@ thiserror = "1"
 tokio = { version = "1.4", features = [ "net", "rt-multi-thread", "macros", "time" ] }
 nym-bin-common = { path = "../../common/bin-common"}
 nym-statistics-common = { path = "../../common/statistics" }
+nym-task = { path = "../../common/task" }
 
 [build-dependencies]
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }

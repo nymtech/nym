@@ -333,7 +333,7 @@ where
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // The average delay could change depending on if backpressure in the downstream channel
         // (mix_tx) was detected.
-        self.adjust_current_average_message_sending_delay();
+        //self.adjust_current_average_message_sending_delay();
         let avg_delay = self.current_average_message_sending_delay();
 
         // Start by checking if we have any incoming messages about closed connections

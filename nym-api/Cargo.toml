@@ -68,12 +68,12 @@ nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contr
 nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
 nym-coconut-interface = { path = "../common/coconut-interface" }
 nym-config = { path = "../common/config" }
-cosmwasm-std = "1.0.0"
+cosmwasm-std = { workspace = true }
 nym-credential-storage = { path = "../common/credential-storage" }
 nym-credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }
-cw3 = { version = "0.13.4" }
-cw4 = { version = "0.13.4" }
+cw3 = { workspace = true }
+cw4 = { workspace = true }
 nym-dkg = { path = "../common/dkg", features = ["cw-types"] }
 gateway-client = { path = "../common/client-libs/gateway-client" }
 nym-inclusion-probability = { path = "../common/inclusion-probability" }
@@ -106,5 +106,5 @@ sqlx = { version = "0.6.2", features = [
 ] }
 
 [dev-dependencies]
-cw3 = "0.13.4"
-cw-utils = "0.13.4"
+cw3 = { workspace = true }
+cw-utils = { workspace = true }

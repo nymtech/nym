@@ -11,7 +11,7 @@ use contracts_common::signing::MessageSignature;
 use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{
     coin, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
-    QueryResponse, Response, StdError, StdResult, Timestamp, Uint128,
+    QueryResponse, Response, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
 use mixnet_contract_common::gateway::GatewayConfigUpdate;
@@ -75,15 +75,6 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    // this is the first migration that uses cw2 standard and thus the value in the storage doesn't yet exist
-    // set it instead.
-    if matches!(
-        cw2::get_contract_version(deps.storage),
-        Err(StdError::NotFound { .. })
-    ) {
-        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    }
-
     // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
     let version: Version =
         CONTRACT_VERSION
@@ -106,7 +97,7 @@ pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respons
         cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
         // If state structure changed in any contract version in the way migration is needed, it
-        // should occur here
+        // should occur here, for example anything from `crate::queued_migrations::`
     }
 
     Ok(Response::new())

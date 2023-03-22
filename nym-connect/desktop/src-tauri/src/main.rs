@@ -12,6 +12,8 @@ use tokio::sync::RwLock;
 use crate::menu::{create_tray_menu, tray_menu_event_handler};
 use crate::state::State;
 use crate::window::window_toggle;
+use std::path::PathBuf;
+
 
 mod config;
 mod error;
@@ -25,7 +27,8 @@ mod tasks;
 mod window;
 
 fn main() {
-    setup_env(None);
+    let path = PathBuf::from("/Users/benedetta/nym/workspace/nym/envs/qa-qwerty.env");
+    setup_env(Some(&path));
     println!("Starting up...");
 
     // As per breaking change description here

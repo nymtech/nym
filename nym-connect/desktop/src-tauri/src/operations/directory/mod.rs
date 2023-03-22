@@ -8,12 +8,10 @@ use nym_api_requests::models::GatewayBondAnnotated;
 use nym_contracts_common::types::Percent;
 
 static SERVICE_PROVIDER_WELLKNOWN_URL: &str =
-    "https://nymtech.net/.wellknown/connect/service-providers.json";
-
-static HARBOUR_MASTER_URL: &str = "https://harbourmaster.nymtech.net/v1/services/?size=100";
-
+    "http://178.79.159.92/service-providers.json";
+static HARBOUR_MASTER_URL: &str = "http://178.79.159.92/harbourmaster.json";
 static GATEWAYS_DETAILED_URL: &str =
-    "https://validator.nymtech.net/api/v1/status/gateways/detailed";
+    "https://qwerty-validator-api.qa.nymte.ch/api/v1/status/gateways/detailed";
 
 #[tauri::command]
 pub async fn get_services() -> Result<Vec<DirectoryServiceProvider>> {

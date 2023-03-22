@@ -4,6 +4,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+- nym-network-statistics properly handles signals ([#3209])
+
+[#3209]: https://github.com/nymtech/nym/issues/3209
+
 ## [v1.1.13] (2023-03-15)
 
 - NE - instead of throwing a "Mixnode/Gateway not found" error for blacklisted nodes due to bad performance, show their history but tag them as "Having poor performance" ([#2979])

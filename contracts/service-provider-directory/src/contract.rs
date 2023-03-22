@@ -150,7 +150,6 @@ mod tests {
         let mut app = App::default();
         let code = ContractWrapper::new(execute, instantiate, query);
         let code_id = app.store_code(Box::new(code));
-
         let addr = app
             .instantiate_contract(
                 code_id,
@@ -184,7 +183,6 @@ mod tests {
         let mut app = App::default();
         let code = ContractWrapper::new(execute, instantiate, query);
         let code_id = app.store_code(Box::new(code));
-
         let addr = app
             .instantiate_contract(
                 code_id,
@@ -213,7 +211,6 @@ mod tests {
             .unwrap();
 
         let wasm = resp.events.iter().find(|ev| ev.ty == "wasm").unwrap();
-
         assert_eq!(
             wasm.attributes
                 .iter()
@@ -236,161 +233,147 @@ mod tests {
         };
 
         let expected = vec![ServiceInfo { sp_id: 1, service }];
-
         assert_eq!(query, ServicesListResponse { services: expected });
     }
 
-    //#[test]
-    //fn delete_service() {
-    //    let mut app = App::default();
-    //    let code = ContractWrapper::new(execute, instantiate, query);
-    //    let code_id = app.store_code(Box::new(code));
-    //    let addr = app
-    //        .instantiate_contract(
-    //            code_id,
-    //            Addr::unchecked("owner"),
-    //            &InstantiateMsg {
-    //                updater_role: Addr::unchecked("updater"),
-    //                admin: Addr::unchecked("admin"),
-    //            },
-    //            &[],
-    //            "Contract",
-    //            None,
-    //        )
-    //        .unwrap();
+    #[test]
+    fn delete_service() {
+        let mut app = App::default();
+        let code = ContractWrapper::new(execute, instantiate, query);
+        let code_id = app.store_code(Box::new(code));
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("owner"),
+                &InstantiateMsg {
+                    updater_role: Addr::unchecked("updater"),
+                    admin: Addr::unchecked("admin"),
+                },
+                &[],
+                "contract_label",
+                None,
+            )
+            .unwrap();
 
-    //    app.execute_contract(
-    //        Addr::unchecked("owner"),
-    //        addr.clone(),
-    //        &ExecuteMsg::Announce {
-    //            client_address: "nymAddress".to_string(),
-    //            standard_whitelist: true,
-    //            owner: Addr::unchecked("owner"),
-    //        },
-    //        &[],
-    //    )
-    //    .unwrap();
+        app.execute_contract(
+            Addr::unchecked("owner"),
+            addr.clone(),
+            &ExecuteMsg::Announce {
+                client_address: ClientAddress::Address("nymAddress".to_string()),
+                service_type: ServiceType::NetworkRequester,
+                owner: Addr::unchecked("owner"),
+            },
+            &[],
+        )
+        .unwrap();
 
-    //    let query: ServicesListResp = app
-    //        .wrap()
-    //        .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
-    //        .unwrap();
+        let query: ServicesListResponse = app
+            .wrap()
+            .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
+            .unwrap();
 
-    //    let test_service: Service = Service {
-    //        client_address: "nymAddress".to_string(),
-    //        standard_whitelist: true,
-    //        owner: Addr::unchecked("owner"),
-    //        uptime_score: 0,
-    //    };
+        let service: Service = Service {
+            client_address: ClientAddress::Address("nymAddress".to_string()),
+            service_type: ServiceType::NetworkRequester,
+            owner: Addr::unchecked("owner"),
+            block_height: 12345,
+        };
 
-    //    let expected = vec![ServicesInfo {
-    //        owner: "nymAddress".to_string(),
-    //        services: test_service,
-    //    }];
+        let expected = vec![ServiceInfo { sp_id: 1, service }];
+        assert_eq!(query, ServicesListResponse { services: expected });
 
-    //    assert_eq!(query, ServicesListResp { services: expected });
+        let delete_resp = app
+            .execute_contract(
+                Addr::unchecked("owner"),
+                addr.clone(),
+                &ExecuteMsg::Delete { sp_id: 1 },
+                &[],
+            )
+            .unwrap();
 
-    //    let delete_resp = app
-    //        .execute_contract(
-    //            Addr::unchecked("owner"),
-    //            addr.clone(),
-    //            &ExecuteMsg::Delete {
-    //                client_address: "nymAddress".to_string(),
-    //            },
-    //            &[],
-    //        )
-    //        .unwrap();
+        let wasm = delete_resp
+            .events
+            .iter()
+            .find(|ev| ev.ty == "wasm")
+            .unwrap();
+        assert_eq!(
+            wasm.attributes
+                .iter()
+                .find(|attr| attr.key == "action")
+                .unwrap()
+                .value,
+            "service deleted"
+        );
 
-    //    let wasm = delete_resp
-    //        .events
-    //        .iter()
-    //        .find(|ev| ev.ty == "wasm")
-    //        .unwrap();
-    //    assert_eq!(
-    //        wasm.attributes
-    //            .iter()
-    //            .find(|attr| attr.key == "action")
-    //            .unwrap()
-    //            .value,
-    //        "service deleted"
-    //    );
+        let query: ServicesListResponse = app
+            .wrap()
+            .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
+            .unwrap();
 
-    //    let query: ServicesListResp = app
-    //        .wrap()
-    //        .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
-    //        .unwrap();
+        let expected = vec![];
+        assert_eq!(query, ServicesListResponse { services: expected });
+    }
 
-    //    let expected = vec![];
+    #[test]
+    fn only_owner_can_delete_service() {
+        let mut app = App::default();
+        let code = ContractWrapper::new(execute, instantiate, query);
+        let code_id = app.store_code(Box::new(code));
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("owner"),
+                &InstantiateMsg {
+                    updater_role: Addr::unchecked("updater"),
+                    admin: Addr::unchecked("admin"),
+                },
+                &[],
+                "contact_label",
+                None,
+            )
+            .unwrap();
 
-    //    assert_eq!(query, ServicesListResp { services: expected });
-    //}
+        app.execute_contract(
+            Addr::unchecked("owner"),
+            addr.clone(),
+            &ExecuteMsg::Announce {
+                client_address: ClientAddress::Address("nymAddress".to_string()),
+                service_type: ServiceType::NetworkRequester,
+                owner: Addr::unchecked("owner"),
+            },
+            &[],
+        )
+        .unwrap();
 
-    //#[test]
-    //fn only_owner_can_delete_service() {
-    //    let mut app = App::default();
-    //    let code = ContractWrapper::new(execute, instantiate, query);
-    //    let code_id = app.store_code(Box::new(code));
-    //    let addr = app
-    //        .instantiate_contract(
-    //            code_id,
-    //            Addr::unchecked("owner"),
-    //            &InstantiateMsg {
-    //                updater_role: Addr::unchecked("updater"),
-    //                admin: Addr::unchecked("admin"),
-    //            },
-    //            &[],
-    //            "Contract",
-    //            None,
-    //        )
-    //        .unwrap();
+        let query: ServicesListResponse = app
+            .wrap()
+            .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
+            .unwrap();
 
-    //    app.execute_contract(
-    //        Addr::unchecked("owner"),
-    //        addr.clone(),
-    //        &ExecuteMsg::Announce {
-    //            client_address: "nymAddress".to_string(),
-    //            standard_whitelist: true,
-    //            owner: Addr::unchecked("owner"),
-    //        },
-    //        &[],
-    //    )
-    //    .unwrap();
+        let service: Service = Service {
+            client_address: ClientAddress::Address("nymAddress".to_string()),
+            service_type: ServiceType::NetworkRequester,
+            owner: Addr::unchecked("owner"),
+            block_height: 12345,
+        };
 
-    //    let query: ServicesListResp = app
-    //        .wrap()
-    //        .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
-    //        .unwrap();
+        let expected = vec![ServiceInfo { sp_id: 1, service }];
+        assert_eq!(query, ServicesListResponse { services: expected });
 
-    //    let test_service: Service = Service {
-    //        client_address: "nymAddress".to_string(),
-    //        standard_whitelist: true,
-    //        owner: Addr::unchecked("owner"),
-    //        uptime_score: 0,
-    //    };
+        let delete_resp = app
+            .execute_contract(
+                Addr::unchecked("not_owner"),
+                addr.clone(),
+                &ExecuteMsg::Delete { sp_id: 1 },
+                &[],
+            )
+            .unwrap_err(); // we're **expecting** an error hence this will panic if delete_resp = Ok value
 
-    //    let expected = vec![ServicesInfo {
-    //        owner: "nymAddress".to_string(),
-    //        services: test_service,
-    //    }];
-
-    //    assert_eq!(query, ServicesListResp { services: expected });
-
-    //    let delete_resp = app
-    //        .execute_contract(
-    //            Addr::unchecked("not_owner"),
-    //            addr.clone(),
-    //            &ExecuteMsg::Delete {
-    //                client_address: "nymAddress".to_string(),
-    //            },
-    //            &[],
-    //        )
-    //        .unwrap_err(); // we're **expecting** an error hence this will panic if delete_resp = Ok value
-
-    //    assert_eq!(
-    //        ContractError::Unauthorized {
-    //            sender: Addr::unchecked("not_owner")
-    //        },
-    //        delete_resp.downcast().unwrap()
-    //    );
-    //}
+        assert_eq!(
+            ContractError::Unauthorized {
+                sender: Addr::unchecked("not_owner")
+            },
+            delete_resp.downcast().unwrap()
+        );
+    }
 }

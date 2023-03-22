@@ -51,4 +51,3 @@ pub(crate) fn next_sp_id_counter(store: &mut dyn Storage) -> StdResult<SpId> {
     SP_ID_COUNTER.save(store, &id)?;
     Ok(id)
 }
-

@@ -31,7 +31,6 @@ pub enum QueryMsg {
     QueryConfig {},
 }
 
-
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct ServiceInfo {
     pub sp_id: SpId,

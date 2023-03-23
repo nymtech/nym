@@ -7,6 +7,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, NyxdClient};
 use async_trait::async_trait;
 use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
@@ -136,6 +137,50 @@ pub trait VestingSigningClient {
         cap: Option<PledgeCap>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
+
+    async fn vesting_create_family(
+        &self,
+        label: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(fee, VestingExecuteMsg::CreateFamily { label }, vec![])
+            .await
+    }
+
+    async fn vesting_join_family(
+        &self,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::JoinFamily {
+                join_permit,
+                family_head,
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn vesting_leave_family(
+        &self,
+        family_head: FamilyHead,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(fee, VestingExecuteMsg::LeaveFamily { family_head }, vec![])
+            .await
+    }
+
+    async fn vesting_kick_family_member(
+        &self,
+        member: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(fee, VestingExecuteMsg::KickFamilyMember { member }, vec![])
+            .await
+    }
 }
 
 #[async_trait]

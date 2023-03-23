@@ -1,5 +1,6 @@
 use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{Coin, Timestamp};
+use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{
     gateway::GatewayConfigUpdate,
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
@@ -60,21 +61,17 @@ pub enum ExecuteMsg {
     // Families
     /// Only owner of the node can crate the family with node as head
     CreateFamily {
-        owner_signature: String,
         label: String,
     },
     /// Family head needs to sign the joining node IdentityKey, the Node provides its signature signaling consent to join the family
     JoinFamily {
-        node_identity_signature: String,
-        family_signature: String,
-        family_head: IdentityKey,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
     },
     LeaveFamily {
-        node_identity_signature: String,
-        family_head: IdentityKey,
+        family_head: FamilyHead,
     },
     KickFamilyMember {
-        signature: String,
         member: IdentityKey,
     },
     TrackReward {

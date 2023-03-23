@@ -1,11 +1,6 @@
-use crate::state::{ClientAddress, Config, Service, ServiceType, SpId};
+use crate::state::{ClientAddress, Config, Service, ServiceType, ServiceId};
 use cosmwasm_std::Addr;
 use serde::{Deserialize, Serialize};
-
-//#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-//pub struct GreetResp {
-//    pub message: String,
-//}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct InstantiateMsg {
@@ -21,7 +16,7 @@ pub enum ExecuteMsg {
         owner: Addr,
     },
     Delete {
-        sp_id: SpId,
+        service_id: ServiceId,
     },
 }
 
@@ -33,7 +28,7 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct ServiceInfo {
-    pub sp_id: SpId,
+    pub service_id: ServiceId,
     pub service: Service,
 }
 

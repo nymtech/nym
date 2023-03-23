@@ -42,13 +42,13 @@ pub fn execute(
             service_type,
             owner,
         } => exec::announce(deps, env, info, client_address, service_type, owner),
-        ExecuteMsg::Delete { sp_id } => exec::delete(deps, info, sp_id),
+        ExecuteMsg::Delete { service_id: sp_id } => exec::delete(deps, info, sp_id),
     }
 }
 
 mod exec {
     use super::*;
-    use crate::state::{self, ClientAddress, ServiceType, SpId};
+    use crate::state::{self, ClientAddress, ServiceId, ServiceType};
 
     pub fn announce(
         deps: DepsMut,
@@ -75,7 +75,7 @@ mod exec {
     pub fn delete(
         deps: DepsMut,
         info: MessageInfo,
-        sp_id: SpId,
+        sp_id: ServiceId,
     ) -> Result<Response, ContractError> {
         let service_to_delete = SERVICES.load(deps.storage, sp_id)?;
 
@@ -106,7 +106,12 @@ mod query {
     pub fn query_all(deps: Deps, _env: Env) -> StdResult<ServicesListResponse> {
         let services = SERVICES
             .range(deps.storage, None, None, Order::Ascending)
-            .map(|item| item.map(|(sp_id, service)| ServiceInfo { sp_id, service }))
+            .map(|item| {
+                item.map(|(sp_id, service)| ServiceInfo {
+                    service_id: sp_id,
+                    service,
+                })
+            })
             .collect::<StdResult<Vec<_>>>()?;
         Ok(ServicesListResponse { services })
     }
@@ -230,20 +235,18 @@ mod tests {
     fn announce_and_query_service() {
         let (_, _, query) = helpers::setup_and_query_all();
 
-        let expected = ServiceInfo {
-            sp_id: 1,
-            service: Service {
-                client_address: ClientAddress::Address("nymAddress".to_string()),
-                service_type: ServiceType::NetworkRequester,
-                owner: Addr::unchecked("owner"),
-                block_height: 12345,
-            },
-        };
-
         assert_eq!(
             query,
             ServicesListResponse {
-                services: vec![expected]
+                services: vec![ServiceInfo {
+                    service_id: 1,
+                    service: Service {
+                        client_address: ClientAddress::Address("nymAddress".to_string()),
+                        service_type: ServiceType::NetworkRequester,
+                        owner: Addr::unchecked("owner"),
+                        block_height: 12345,
+                    },
+                }]
             }
         );
     }
@@ -257,7 +260,7 @@ mod tests {
             .execute_contract(
                 Addr::unchecked("owner"),
                 addr.clone(),
-                &ExecuteMsg::Delete { sp_id: 1 },
+                &ExecuteMsg::Delete { service_id: 1 },
                 &[],
             )
             .unwrap();
@@ -283,7 +286,7 @@ mod tests {
             .execute_contract(
                 Addr::unchecked("not_owner"),
                 addr.clone(),
-                &ExecuteMsg::Delete { sp_id: 1 },
+                &ExecuteMsg::Delete { service_id: 1 },
                 &[],
             )
             .unwrap_err(); // we're **expecting** an error hence this will panic if delete_resp = Ok value
@@ -295,4 +298,20 @@ mod tests {
             delete_resp.downcast().unwrap()
         );
     }
+
+    #[test]
+    fn delete_service_that_does_not_exist() {
+        todo!();
+    }
+
+    #[test]
+    fn service_id_increases_for_new_services() {
+        todo!();
+    }
+
+    #[test]
+    fn service_id_is_not_resused_when_deleting_and_then_adding_a_new_service() {
+        todo!();
+    }
+
 }

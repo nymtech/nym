@@ -1,3 +1,6 @@
+//! The service provider directory contract is for users to announce their service providers for
+//! public use.
+
 use crate::msg::ExecuteMsg;
 use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use error::ContractError;

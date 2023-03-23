@@ -51,7 +51,7 @@ zeroize = { version = "1.5.7", optional = true, features = ["zeroize_derive"] }
 cosmwasm-std = { workspace = true, optional = true }
 
 [dev-dependencies]
-bip39 = "1"
+bip39 = { workspace = true }
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32"] }
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 ts-rs = "6.1.2"

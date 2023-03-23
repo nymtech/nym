@@ -1116,6 +1116,7 @@ dependencies = [
 name = "nym-service-provider-directory"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cosmwasm-std",
  "cw-multi-test",
  "cw-storage-plus",

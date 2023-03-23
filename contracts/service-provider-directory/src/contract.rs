@@ -128,80 +128,16 @@ mod tests {
     use crate::{
         msg::ServiceInfo,
         state::{ClientAddress, ServiceType},
+        test_helpers::{get_attribute, TestSetup},
     };
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
         Addr,
     };
-    use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 
-    mod helpers {
-        use super::*;
-
-        pub(super) fn get_attribute(response: &AppResponse, key: &str) -> String {
-            let wasm = response.events.iter().find(|ev| ev.ty == "wasm").unwrap();
-            wasm.attributes
-                .iter()
-                .find(|attr| attr.key == key)
-                .unwrap()
-                .value
-                .clone()
-        }
-
-        pub(super) fn setup_contract() -> (App, Addr) {
-            let mut app = App::default();
-            let code = ContractWrapper::new(execute, instantiate, query);
-            let code_id = app.store_code(Box::new(code));
-            let addr = app
-                .instantiate_contract(
-                    code_id,
-                    Addr::unchecked("owner"),
-                    &InstantiateMsg {
-                        updater_role: Addr::unchecked("updater"),
-                        admin: Addr::unchecked("admin"),
-                    },
-                    &[],
-                    "contract_label",
-                    None,
-                )
-                .unwrap();
-
-            (app, addr)
-        }
-
-        pub(super) fn announce_address(app: &mut App, addr: &Addr) -> AppResponse {
-            let resp = app
-                .execute_contract(
-                    Addr::unchecked("owner"),
-                    addr.clone(),
-                    &ExecuteMsg::Announce {
-                        client_address: ClientAddress::Address("nymAddress".to_owned()),
-                        service_type: ServiceType::NetworkRequester,
-                        owner: Addr::unchecked("owner"),
-                    },
-                    &[],
-                )
-                .unwrap();
-            assert_eq!(get_attribute(&resp, "action"), "service announced");
-            resp
-        }
-
-        pub(super) fn query_all(app: &App, addr: &Addr) -> ServicesListResponse {
-            app.wrap()
-                .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
-                .unwrap()
-        }
-
-        pub(super) fn setup_and_query_all() -> (App, Addr, ServicesListResponse) {
-            let (mut app, addr) = setup_contract();
-            announce_address(&mut app, &addr);
-            let query = query_all(&app, &addr);
-            (app, addr, query)
-        }
-    }
-
+    // Test to instantiate the contract without using the test helpers and cw_multi_test.
     #[test]
-    fn explicitly_instantiate_contract() {
+    fn instantiate_contract_without_helpers() {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let info = mock_info("test0", &[]);
@@ -215,12 +151,14 @@ mod tests {
     }
 
     #[test]
+    fn instantiate_contract_with_helpers() {
+        TestSetup::new();
+    }
+
+    #[test]
     fn query_config() {
-        let (app, addr) = helpers::setup_contract();
-        let resp: ConfigResponse = app
-            .wrap()
-            .query_wasm_smart(addr, &QueryMsg::QueryConfig {})
-            .unwrap();
+        let setup = TestSetup::new();
+        let resp: ConfigResponse = setup.query(&QueryMsg::QueryConfig {});
 
         assert_eq!(
             resp,
@@ -233,17 +171,20 @@ mod tests {
 
     #[test]
     fn announce_and_query_service() {
-        let (_, _, query) = helpers::setup_and_query_all();
+        let owner = Addr::unchecked("owner");
+        let client_address = ClientAddress::new("nymAddress");
+        let mut setup = TestSetup::new();
+        setup.announce_network_requester(client_address, owner);
 
         assert_eq!(
-            query,
+            setup.query_all(),
             ServicesListResponse {
                 services: vec![ServiceInfo {
                     service_id: 1,
                     service: Service {
-                        client_address: ClientAddress::Address("nymAddress".to_string()),
+                        client_address,
                         service_type: ServiceType::NetworkRequester,
-                        owner: Addr::unchecked("owner"),
+                        owner,
                         block_height: 12345,
                     },
                 }]
@@ -253,49 +194,31 @@ mod tests {
 
     #[test]
     fn delete_service() {
-        let (mut app, addr, query) = helpers::setup_and_query_all();
-        assert!(!query.services.is_empty());
-
-        let delete_resp = app
-            .execute_contract(
-                Addr::unchecked("owner"),
-                addr.clone(),
-                &ExecuteMsg::Delete { service_id: 1 },
-                &[],
-            )
-            .unwrap();
-
-        assert_eq!(
-            helpers::get_attribute(&delete_resp, "action"),
-            "service deleted"
-        );
-
-        let query: ServicesListResponse = app
-            .wrap()
-            .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
-            .unwrap();
-        assert!(query.services.is_empty());
+        let mut setup = TestSetup::new();
+        let owner = Addr::unchecked("owner");
+        setup.announce_network_requester(ClientAddress::new("nymAddress"), owner);
+        assert!(!setup.query_all().services.is_empty());
+        setup.delete(1, Addr::unchecked("owner")).unwrap();
+        assert!(setup.query_all().services.is_empty());
     }
 
     #[test]
     fn only_owner_can_delete_service() {
-        let (mut app, addr, query) = helpers::setup_and_query_all();
-        assert!(!query.services.is_empty());
+        let mut setup = TestSetup::new();
+        setup.announce_network_requester(ClientAddress::new("nymAddress"));
+        assert!(!setup.query_all().services.is_empty());
 
-        let delete_resp = app
-            .execute_contract(
-                Addr::unchecked("not_owner"),
-                addr.clone(),
-                &ExecuteMsg::Delete { service_id: 1 },
-                &[],
-            )
-            .unwrap_err(); // we're **expecting** an error hence this will panic if delete_resp = Ok value
+        let delete_resp: ContractError = setup
+            .delete(1, Addr::unchecked("not_owner"))
+            .unwrap_err()
+            .downcast()
+            .unwrap();
 
         assert_eq!(
+            delete_resp,
             ContractError::Unauthorized {
                 sender: Addr::unchecked("not_owner")
-            },
-            delete_resp.downcast().unwrap()
+            }
         );
     }
 

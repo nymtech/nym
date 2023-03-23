@@ -26,6 +26,12 @@ pub enum ClientAddress {
     //Name(String),
 }
 
+impl ClientAddress {
+    pub fn new(address: &str) -> Self {
+        Self::Address(address.to_string())
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct Service {
     /// The address of the service.

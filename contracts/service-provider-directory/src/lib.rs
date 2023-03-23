@@ -10,6 +10,9 @@ mod error;
 mod msg;
 mod state;
 
+#[cfg(test)]
+mod test_helpers;
+
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut,

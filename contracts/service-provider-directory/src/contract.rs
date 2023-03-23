@@ -13,7 +13,7 @@ const CONTRACT_NAME: &str = "crate:nym-service-provider-directory";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn instantiate(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -31,7 +31,7 @@ pub fn instantiate(
 }
 
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -48,18 +48,18 @@ pub fn execute(
 
 mod exec {
     use super::*;
-    use crate::state::{self, ClientAddress, ServiceId, ServiceType};
+    use crate::state::{self, NymAddress, ServiceId, ServiceType};
 
     pub fn announce(
         deps: DepsMut,
         env: Env,
         _info: MessageInfo,
-        client_address: ClientAddress,
+        client_address: NymAddress,
         service_type: ServiceType,
         owner: Addr,
     ) -> Result<Response, ContractError> {
         let new_service = Service {
-            client_address: client_address.clone(),
+            nym_address: client_address,
             service_type,
             owner,
             block_height: env.block.height,
@@ -91,10 +91,10 @@ mod exec {
     }
 }
 
-pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::QueryAll {} => to_binary(&query::query_all(_deps, _env)?),
-        QueryMsg::QueryConfig {} => to_binary(&query::query_config(_deps, _env)?),
+        QueryMsg::QueryAll {} => to_binary(&query::query_all(deps, env)?),
+        QueryMsg::QueryConfig {} => to_binary(&query::query_config(deps, env)?),
     }
 }
 
@@ -107,8 +107,8 @@ mod query {
         let services = SERVICES
             .range(deps.storage, None, None, Order::Ascending)
             .map(|item| {
-                item.map(|(sp_id, service)| ServiceInfo {
-                    service_id: sp_id,
+                item.map(|(service_id, service)| ServiceInfo {
+                    service_id,
                     service,
                 })
             })
@@ -127,8 +127,8 @@ mod tests {
     use super::*;
     use crate::{
         msg::ServiceInfo,
-        state::{ClientAddress, ServiceType},
-        test_helpers::{get_attribute, TestSetup},
+        state::{NymAddress, ServiceType},
+        test_helpers::TestSetup,
     };
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
@@ -172,9 +172,11 @@ mod tests {
     #[test]
     fn announce_and_query_service() {
         let owner = Addr::unchecked("owner");
-        let client_address = ClientAddress::new("nymAddress");
+        let nym_address = NymAddress::new("nymAddress");
         let mut setup = TestSetup::new();
-        setup.announce_network_requester(client_address, owner);
+        setup
+            .announce_network_requester(nym_address.clone(), owner.clone())
+            .unwrap();
 
         assert_eq!(
             setup.query_all(),
@@ -182,7 +184,7 @@ mod tests {
                 services: vec![ServiceInfo {
                     service_id: 1,
                     service: Service {
-                        client_address,
+                        nym_address,
                         service_type: ServiceType::NetworkRequester,
                         owner,
                         block_height: 12345,
@@ -195,8 +197,9 @@ mod tests {
     #[test]
     fn delete_service() {
         let mut setup = TestSetup::new();
-        let owner = Addr::unchecked("owner");
-        setup.announce_network_requester(ClientAddress::new("nymAddress"), owner);
+        setup
+            .announce_network_requester(NymAddress::new("nymAddress"), Addr::unchecked("owner"))
+            .unwrap();
         assert!(!setup.query_all().services.is_empty());
         setup.delete(1, Addr::unchecked("owner")).unwrap();
         assert!(setup.query_all().services.is_empty());
@@ -205,7 +208,9 @@ mod tests {
     #[test]
     fn only_owner_can_delete_service() {
         let mut setup = TestSetup::new();
-        setup.announce_network_requester(ClientAddress::new("nymAddress"));
+        setup
+            .announce_network_requester(NymAddress::new("nymAddress"), Addr::unchecked("owner"))
+            .unwrap();
         assert!(!setup.query_all().services.is_empty());
 
         let delete_resp: ContractError = setup

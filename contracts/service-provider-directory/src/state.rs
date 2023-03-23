@@ -20,13 +20,13 @@ pub enum ServiceType {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
-pub enum ClientAddress {
+pub enum NymAddress {
     Address(String),
     // For the future when we have a nym-dns contract
     //Name(String),
 }
 
-impl ClientAddress {
+impl NymAddress {
     pub fn new(address: &str) -> Self {
         Self::Address(address.to_string())
     }
@@ -35,7 +35,7 @@ impl ClientAddress {
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct Service {
     /// The address of the service.
-    pub client_address: ClientAddress,
+    pub nym_address: NymAddress,
     /// The service type.
     pub service_type: ServiceType,
     /// Service owner.

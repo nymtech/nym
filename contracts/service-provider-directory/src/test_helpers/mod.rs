@@ -1,12 +1,11 @@
+use anyhow::Result;
 use cosmwasm_std::Addr;
 use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 use serde::de::DeserializeOwned;
 
 use crate::{
-    execute, instantiate,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ServicesListResponse},
-    query,
-    state::{ClientAddress, ServiceId, ServiceType},
+    state::{NymAddress, ServiceId, ServiceType},
 };
 
 pub fn get_attribute(response: &AppResponse, key: &str) -> String {
@@ -27,7 +26,7 @@ pub struct TestSetup {
 impl TestSetup {
     pub fn new() -> Self {
         let mut app = App::default();
-        let code = ContractWrapper::new(execute, instantiate, query);
+        let code = ContractWrapper::new(crate::execute, crate::instantiate, crate::query);
         let code_id = app.store_code(Box::new(code));
         let addr = Self::instantiate(&mut app, code_id);
         TestSetup { app, addr }
@@ -59,24 +58,28 @@ impl TestSetup {
         self.query(&QueryMsg::QueryAll {})
     }
 
-    pub fn announce_network_requester(&mut self, client_address: ClientAddress, owner: Addr) {
-        let resp = self
-            .app
-            .execute_contract(
+    pub fn announce_network_requester(
+        &mut self,
+        address: NymAddress,
+        owner: Addr,
+    ) -> Result<AppResponse> {
+        let resp = self.app.execute_contract(
+            owner.clone(),
+            self.addr.clone(),
+            &ExecuteMsg::Announce {
+                client_address: address,
+                service_type: ServiceType::NetworkRequester,
                 owner,
-                self.addr.clone(),
-                &ExecuteMsg::Announce {
-                    client_address,
-                    service_type: ServiceType::NetworkRequester,
-                    owner: Addr::unchecked("owner"),
-                },
-                &[],
-            )
-            .unwrap();
-        assert_eq!(get_attribute(&resp, "action"), "service announced");
+            },
+            &[],
+        );
+        if let Ok(ref resp) = resp {
+            assert_eq!(get_attribute(&resp, "action"), "service announced");
+        }
+        resp
     }
 
-    pub fn delete(&mut self, service_id: ServiceId, owner: Addr) -> anyhow::Result<AppResponse> {
+    pub fn delete(&mut self, service_id: ServiceId, owner: Addr) -> Result<AppResponse> {
         let delete_resp = self.app.execute_contract(
             owner,
             self.addr.clone(),

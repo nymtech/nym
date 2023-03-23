@@ -280,20 +280,20 @@ impl RewardedSetUpdater {
         }
 
         // Reward all the nodes in the still current, soon to be previous rewarded set
-        log::info!("Rewarding the current rewarded set...");
-        if let Err(err) = self.reward_current_rewarded_set(interval).await {
-            log::error!("FAILED to reward rewarded set - {err}");
-            // since we haven't advanced the epoch yet, we will attempt to reward those nodes again
-            // next time we enter this function (i.e. within 2min or so)
-            //
-            // TODO: deal with the following edge case:
-            // - the nym api REWARDS all mixnodes
-            // - then crashes before advancing epoch
-            // - upon restart it will attempt (and fail) to re-reward the mixnodes
-            return Err(err);
-        } else {
-            log::info!("Rewarded current rewarded set... SUCCESS");
-        }
+        // log::info!("Rewarding the current rewarded set...");
+        // if let Err(err) = self.reward_current_rewarded_set(interval).await {
+        //     log::error!("FAILED to reward rewarded set - {err}");
+        //     // since we haven't advanced the epoch yet, we will attempt to reward those nodes again
+        //     // next time we enter this function (i.e. within 2min or so)
+        //     //
+        //     // TODO: deal with the following edge case:
+        //     // - the nym api REWARDS all mixnodes
+        //     // - then crashes before advancing epoch
+        //     // - upon restart it will attempt (and fail) to re-reward the mixnodes
+        //     return Err(err);
+        // } else {
+        //     log::info!("Rewarded current rewarded set... SUCCESS");
+        // }
 
         // note: those operations don't really have to be atomic, so it's fine to send them
         // as separate transactions

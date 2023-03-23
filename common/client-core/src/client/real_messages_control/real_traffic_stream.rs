@@ -203,10 +203,11 @@ where
             return self.config.traffic.primary_packet_size
         };
 
-        if self
+        let use_primary = self
             .rng
-            .gen_bool(self.config.cover_traffic_primary_size_ratio)
-        {
+            .gen_bool(self.config.cover_traffic_primary_size_ratio);
+
+        if use_primary {
             self.config.traffic.primary_packet_size
         } else {
             secondary_packet_size

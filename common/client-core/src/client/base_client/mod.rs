@@ -238,11 +238,11 @@ where
         let stream = LoopCoverTrafficStream::new(
             ack_key,
             debug_config.acknowledgements.average_ack_delay,
-            debug_config.traffic.average_packet_delay,
-            debug_config.cover_traffic.loop_cover_traffic_average_delay,
             mix_tx,
             self_address,
             topology_accessor,
+            debug_config.traffic,
+            debug_config.cover_traffic,
         );
 
         stream.start_with_shutdown(shutdown);

@@ -3,7 +3,7 @@ use crate::nyxd_client;
 use crate::state::WalletState;
 use crate::{Gateway, MixNode};
 use nym_contracts_common::signing::MessageSignature;
-use nym_mixnet_contract_common::MixNodeConfigUpdate;
+use nym_mixnet_contract_common::{GatewayConfigUpdate, MixNodeConfigUpdate};
 
 use crate::operations::helpers::{
     verify_gateway_bonding_sign_payload, verify_mixnode_bonding_sign_payload,
@@ -247,6 +247,31 @@ pub async fn vesting_update_mixnode_config(
         .current_client()?
         .nyxd
         .vesting_update_mixnode_config(update, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn vesting_update_gateway_config(
+    update: GatewayConfigUpdate,
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    log::info!(
+        ">>> Update gateway config with locked tokens: update = {}, fee = {:?}",
+        update.to_inline_json(),
+        fee,
+    );
+    let res = guard
+        .current_client()?
+        .nyxd
+        .vesting_update_gateway_config(update, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);

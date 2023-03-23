@@ -10,6 +10,7 @@ import {
   VestingAccountInfo,
   MixNodeCostParams,
   MixNodeConfigUpdate,
+  GatewayConfigUpdate,
 } from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 import { invokeWrapper } from './wrapper';
@@ -79,6 +80,9 @@ export const vestingUpdateMixnodeCostParams = async (newCosts: MixNodeCostParams
 
 export const vestingUpdateMixnodeConfig = async (update: MixNodeConfigUpdate, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('vesting_update_mixnode_config', { update, fee });
+
+export const vestingUpdateGatewayConfig = async (update: GatewayConfigUpdate, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_update_gateway_config', { update, fee });
 
 export const vestingDelegateToMixnode = async (mixId: number, amount: DecCoin, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('vesting_delegate_to_mixnode', { mixId, amount, fee });

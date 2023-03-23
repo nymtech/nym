@@ -47,7 +47,6 @@ const bondedGatewayMock: TBondedGateway = {
     average: 100,
     current: 100,
   },
-  isUnbonding: false,
 };
 
 const TxResultMock: TransactionExecuteResult = {

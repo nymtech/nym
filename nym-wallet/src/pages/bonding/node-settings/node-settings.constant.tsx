@@ -1,5 +1,7 @@
-export const createNavItems = (isMixnode: boolean) => {
-  const navItems = ['Unbond'];
-  if (isMixnode) return ['General', 'Playground', ...navItems];
+export const makeNavItems = (isMixnode: boolean) => {
+  const navItems = ['General', 'Unbond'];
+
+  if (isMixnode) navItems.splice(1, 0, 'Playground');
+
   return navItems;
 };

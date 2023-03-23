@@ -15,7 +15,7 @@ import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 
-export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
+export const GeneralMixnodeSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const { getFee, fee, resetFeeState } = useGetFee();
 
@@ -141,7 +141,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
               <TextField
                 {...register('host')}
                 name="host"
-                label="host"
+                label="Host"
                 fullWidth
                 error={!!errors.host}
                 helperText={errors.host?.message}

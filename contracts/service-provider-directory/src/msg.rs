@@ -1,14 +1,16 @@
-use crate::state::{ClientAddress, Config, Service, ServiceType, ServiceId};
+use crate::state::{ClientAddress, Config, Service, ServiceId, ServiceType};
 use cosmwasm_std::Addr;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
 pub struct InstantiateMsg {
     pub updater_role: Addr,
     pub admin: Addr,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     Announce {
         client_address: ClientAddress,
@@ -21,23 +23,27 @@ pub enum ExecuteMsg {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     QueryAll {},
     QueryConfig {},
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
 pub struct ServiceInfo {
     pub service_id: ServiceId,
     pub service: Service,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
 pub struct ServicesListResponse {
     pub services: Vec<ServiceInfo>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
 pub struct ConfigResponse {
     pub updater_role: Addr,
     pub admin: Addr,

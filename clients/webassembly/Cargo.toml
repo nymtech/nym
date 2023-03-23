@@ -30,7 +30,7 @@ wasm-bindgen = { version = "=0.2.83", features = ["serde-serialize"]  }
 wasm-bindgen-futures = "0.4"
 
 # internal
-client-core = { path = "../client-core", default-features = false, features = ["wasm"] }
+client-core = { path = "../../common/client-core", default-features = false, features = ["wasm"] }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto" }

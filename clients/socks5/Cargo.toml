@@ -28,7 +28,7 @@ url = "2.2"
 
 # internal
 nym-bin-common = { path = "../../common/bin-common" }
-client-core = { path = "../client-core", features = ["fs-surb-storage"] }
+client-core = { path = "../../common/client-core", features = ["fs-surb-storage"] }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-config = { path = "../../common/config" }
 nym-credential-storage = { path = "../../common/credential-storage", optional = true }

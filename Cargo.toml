@@ -17,7 +17,7 @@ opt-level = 3
 
 resolver = "2"
 members = [
-    "clients/client-core",
+    "common/client-core",
     "clients/credential",
     "clients/native",
     "clients/native/websocket-requests",

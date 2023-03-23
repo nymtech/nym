@@ -69,7 +69,6 @@ mod exec {
 
         SERVICES.save(deps.storage, sp_id, &new_service)?;
 
-        // WIP(JON): extract out the creation of the events, like in other contracts
         Ok(Response::new().add_attribute("action", "service announced"))
     }
 
@@ -129,10 +128,75 @@ mod tests {
         testing::{mock_dependencies, mock_env, mock_info},
         Addr,
     };
-    use cw_multi_test::{App, ContractWrapper, Executor};
+    use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
+
+    mod helpers {
+        use super::*;
+
+        pub(super) fn get_attribute(response: &AppResponse, key: &str) -> String {
+            let wasm = response.events.iter().find(|ev| ev.ty == "wasm").unwrap();
+            wasm.attributes
+                .iter()
+                .find(|attr| attr.key == key)
+                .unwrap()
+                .value
+                .clone()
+        }
+
+        pub(super) fn setup_contract() -> (App, Addr) {
+            let mut app = App::default();
+            let code = ContractWrapper::new(execute, instantiate, query);
+            let code_id = app.store_code(Box::new(code));
+            let addr = app
+                .instantiate_contract(
+                    code_id,
+                    Addr::unchecked("owner"),
+                    &InstantiateMsg {
+                        updater_role: Addr::unchecked("updater"),
+                        admin: Addr::unchecked("admin"),
+                    },
+                    &[],
+                    "contract_label",
+                    None,
+                )
+                .unwrap();
+
+            (app, addr)
+        }
+
+        pub(super) fn announce_address(app: &mut App, addr: &Addr) -> AppResponse {
+            let resp = app
+                .execute_contract(
+                    Addr::unchecked("owner"),
+                    addr.clone(),
+                    &ExecuteMsg::Announce {
+                        client_address: ClientAddress::Address("nymAddress".to_owned()),
+                        service_type: ServiceType::NetworkRequester,
+                        owner: Addr::unchecked("owner"),
+                    },
+                    &[],
+                )
+                .unwrap();
+            assert_eq!(get_attribute(&resp, "action"), "service announced");
+            resp
+        }
+
+        pub(super) fn query_all(app: &App, addr: &Addr) -> ServicesListResponse {
+            app.wrap()
+                .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
+                .unwrap()
+        }
+
+        pub(super) fn setup_and_query_all() -> (App, Addr, ServicesListResponse) {
+            let (mut app, addr) = setup_contract();
+            announce_address(&mut app, &addr);
+            let query = query_all(&app, &addr);
+            (app, addr, query)
+        }
+    }
 
     #[test]
-    fn instantiate_contract() {
+    fn explicitly_instantiate_contract() {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let info = mock_info("test0", &[]);
@@ -147,23 +211,7 @@ mod tests {
 
     #[test]
     fn query_config() {
-        let mut app = App::default();
-        let code = ContractWrapper::new(execute, instantiate, query);
-        let code_id = app.store_code(Box::new(code));
-        let addr = app
-            .instantiate_contract(
-                code_id,
-                Addr::unchecked("owner"),
-                &InstantiateMsg {
-                    updater_role: Addr::unchecked("updater"),
-                    admin: Addr::unchecked("admin"),
-                },
-                &[],
-                "contract_label",
-                None,
-            )
-            .unwrap();
-
+        let (app, addr) = helpers::setup_contract();
         let resp: ConfigResponse = app
             .wrap()
             .query_wasm_smart(addr, &QueryMsg::QueryConfig {})
@@ -180,107 +228,30 @@ mod tests {
 
     #[test]
     fn announce_and_query_service() {
-        let mut app = App::default();
-        let code = ContractWrapper::new(execute, instantiate, query);
-        let code_id = app.store_code(Box::new(code));
-        let addr = app
-            .instantiate_contract(
-                code_id,
-                Addr::unchecked("owner"),
-                &InstantiateMsg {
-                    updater_role: Addr::unchecked("updater"),
-                    admin: Addr::unchecked("admin"),
-                },
-                &[],
-                "contract_label",
-                None,
-            )
-            .unwrap();
+        let (_, _, query) = helpers::setup_and_query_all();
 
-        let resp = app
-            .execute_contract(
-                Addr::unchecked("owner"),
-                addr.clone(),
-                &ExecuteMsg::Announce {
-                    client_address: ClientAddress::Address("nymAddress".to_owned()),
-                    service_type: ServiceType::NetworkRequester,
-                    owner: Addr::unchecked("owner"),
-                },
-                &[],
-            )
-            .unwrap();
-
-        let wasm = resp.events.iter().find(|ev| ev.ty == "wasm").unwrap();
-        assert_eq!(
-            wasm.attributes
-                .iter()
-                .find(|attr| attr.key == "action")
-                .unwrap()
-                .value,
-            "service announced"
-        );
-
-        let query: ServicesListResponse = app
-            .wrap()
-            .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
-            .unwrap();
-
-        let service: Service = Service {
-            client_address: ClientAddress::Address("nymAddress".to_string()),
-            service_type: ServiceType::NetworkRequester,
-            owner: Addr::unchecked("owner"),
-            block_height: 12345,
+        let expected = ServiceInfo {
+            sp_id: 1,
+            service: Service {
+                client_address: ClientAddress::Address("nymAddress".to_string()),
+                service_type: ServiceType::NetworkRequester,
+                owner: Addr::unchecked("owner"),
+                block_height: 12345,
+            },
         };
 
-        let expected = vec![ServiceInfo { sp_id: 1, service }];
-        assert_eq!(query, ServicesListResponse { services: expected });
+        assert_eq!(
+            query,
+            ServicesListResponse {
+                services: vec![expected]
+            }
+        );
     }
 
     #[test]
     fn delete_service() {
-        let mut app = App::default();
-        let code = ContractWrapper::new(execute, instantiate, query);
-        let code_id = app.store_code(Box::new(code));
-        let addr = app
-            .instantiate_contract(
-                code_id,
-                Addr::unchecked("owner"),
-                &InstantiateMsg {
-                    updater_role: Addr::unchecked("updater"),
-                    admin: Addr::unchecked("admin"),
-                },
-                &[],
-                "contract_label",
-                None,
-            )
-            .unwrap();
-
-        app.execute_contract(
-            Addr::unchecked("owner"),
-            addr.clone(),
-            &ExecuteMsg::Announce {
-                client_address: ClientAddress::Address("nymAddress".to_string()),
-                service_type: ServiceType::NetworkRequester,
-                owner: Addr::unchecked("owner"),
-            },
-            &[],
-        )
-        .unwrap();
-
-        let query: ServicesListResponse = app
-            .wrap()
-            .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
-            .unwrap();
-
-        let service: Service = Service {
-            client_address: ClientAddress::Address("nymAddress".to_string()),
-            service_type: ServiceType::NetworkRequester,
-            owner: Addr::unchecked("owner"),
-            block_height: 12345,
-        };
-
-        let expected = vec![ServiceInfo { sp_id: 1, service }];
-        assert_eq!(query, ServicesListResponse { services: expected });
+        let (mut app, addr, query) = helpers::setup_and_query_all();
+        assert!(!query.services.is_empty());
 
         let delete_resp = app
             .execute_contract(
@@ -291,17 +262,8 @@ mod tests {
             )
             .unwrap();
 
-        let wasm = delete_resp
-            .events
-            .iter()
-            .find(|ev| ev.ty == "wasm")
-            .unwrap();
         assert_eq!(
-            wasm.attributes
-                .iter()
-                .find(|attr| attr.key == "action")
-                .unwrap()
-                .value,
+            helpers::get_attribute(&delete_resp, "action"),
             "service deleted"
         );
 
@@ -309,56 +271,13 @@ mod tests {
             .wrap()
             .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
             .unwrap();
-
-        let expected = vec![];
-        assert_eq!(query, ServicesListResponse { services: expected });
+        assert!(query.services.is_empty());
     }
 
     #[test]
     fn only_owner_can_delete_service() {
-        let mut app = App::default();
-        let code = ContractWrapper::new(execute, instantiate, query);
-        let code_id = app.store_code(Box::new(code));
-        let addr = app
-            .instantiate_contract(
-                code_id,
-                Addr::unchecked("owner"),
-                &InstantiateMsg {
-                    updater_role: Addr::unchecked("updater"),
-                    admin: Addr::unchecked("admin"),
-                },
-                &[],
-                "contact_label",
-                None,
-            )
-            .unwrap();
-
-        app.execute_contract(
-            Addr::unchecked("owner"),
-            addr.clone(),
-            &ExecuteMsg::Announce {
-                client_address: ClientAddress::Address("nymAddress".to_string()),
-                service_type: ServiceType::NetworkRequester,
-                owner: Addr::unchecked("owner"),
-            },
-            &[],
-        )
-        .unwrap();
-
-        let query: ServicesListResponse = app
-            .wrap()
-            .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {})
-            .unwrap();
-
-        let service: Service = Service {
-            client_address: ClientAddress::Address("nymAddress".to_string()),
-            service_type: ServiceType::NetworkRequester,
-            owner: Addr::unchecked("owner"),
-            block_height: 12345,
-        };
-
-        let expected = vec![ServiceInfo { sp_id: 1, service }];
-        assert_eq!(query, ServicesListResponse { services: expected });
+        let (mut app, addr, query) = helpers::setup_and_query_all();
+        assert!(!query.services.is_empty());
 
         let delete_resp = app
             .execute_contract(

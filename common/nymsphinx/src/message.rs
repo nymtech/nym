@@ -16,6 +16,8 @@ use rand::Rng;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 
+pub(crate) const ACK_OVERHEAD: usize = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
+
 #[derive(Debug, Error)]
 pub enum NymMessageError {
     #[error("{received} is not a valid type tag for a NymMessage")]
@@ -172,24 +174,9 @@ impl NymMessage {
         message_type_size + inner_size
     }
 
-    /// Determines the number of required packets of the provided size for the split message.
-    pub fn required_packets(&self, packet_size: PacketSize, num_mix_hops: u8) -> usize {
-        // let size = self.into_bytes()
-        let plaintext_per_packet = self.available_plaintext_per_packet(packet_size);
-        let serialized_len = self.serialized_size(num_mix_hops);
-
-        // same logic as in `pad_to_full_packet_lengths` for the additional '1' being added.
-        let (num_fragments, _) =
-            chunking::number_of_required_fragments(serialized_len + 1, plaintext_per_packet);
-
-        num_fragments
-    }
-
-    /// Length of plaintext (from the sphinx point of view) data that is available per sphinx
+    /// Length of plaintext (from the **sphinx** point of view) data that is available per sphinx
     /// packet.
-    pub fn available_plaintext_per_packet(&self, packet_size: PacketSize) -> usize {
-        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
-
+    pub fn available_sphinx_plaintext_per_packet(&self, packet_size: PacketSize) -> usize {
         let variant_overhead = match self {
             // each plain or repliable packet attaches an ephemeral public key so that the recipient
             // could perform diffie-hellman with its own keys followed by a kdf to re-derive
@@ -200,7 +187,31 @@ impl NymMessage {
             NymMessage::Reply(_) => ReplySurbKeyDigestAlgorithm::output_size(),
         };
 
-        packet_size.plaintext_size() - ack_overhead - variant_overhead
+        // each packet will contain an ack + variant specific data (as described above)
+        packet_size.plaintext_size() - ACK_OVERHEAD - variant_overhead
+    }
+
+    /// Length of the actual (from the **message** point of view) data that is available in each packet.
+    pub fn true_available_plaintext_per_packet(&self, packet_size: PacketSize) -> usize {
+        let sphinx_plaintext = self.available_sphinx_plaintext_per_packet(packet_size);
+        sphinx_plaintext - chunking::MIN_PADDING_OVERHEAD
+    }
+
+    /// Determines the number of required packets of the provided size for the split message.
+    pub fn required_packets(&self, packet_size: PacketSize, num_mix_hops: u8) -> usize {
+        let plaintext_per_packet = self.true_available_plaintext_per_packet(packet_size);
+        let serialized_len = self.serialized_size(num_mix_hops);
+
+        let (num_fragments, _) =
+            chunking::number_of_required_fragments(serialized_len, plaintext_per_packet);
+
+        // by chunking I mean that currently the fragments hold variable amount of plaintext in them (I wish I had time to rewrite it...)
+        log::trace!(
+            "this message will use {serialized_len} bytes of PLAINTEXT (This does not account for Ack or chunking overhead). \
+            With {packet_size:?} PacketSize ({plaintext_per_packet} of usable plaintext available) it will require {num_fragments} packet(s).",
+        );
+
+        num_fragments
     }
 
     /// Pads the message so that after it gets chunked, it will occupy exactly N sphinx packets.
@@ -210,10 +221,14 @@ impl NymMessage {
 
         let bytes = self.into_bytes();
 
-        // 1 is added as there will always have to be at least a single byte of padding (1) added
+        // 1 (chunking::MIN_PADDING_OVERHEAD) is added as there will always have to be at least a single byte of padding (1) added
         // to be able to later distinguish the actual padding from the underlying message
+        // TODO: this whole `MIN_PADDING_OVERHEAD` feels very awkward. it should somehow be included in
+        // `available_plaintext_per_packet`
+        let total_required_bytes = bytes.len() + chunking::MIN_PADDING_OVERHEAD;
+
         let (packets_used, space_left) =
-            chunking::number_of_required_fragments(bytes.len() + 1, plaintext_per_packet);
+            chunking::number_of_required_fragments(total_required_bytes, plaintext_per_packet);
 
         let wasted_space = space_left as f32 / (bytes.len() + 1 + space_left) as f32;
         log::trace!("Padding {self_display}: {} of raw plaintext bytes are required. They're going to be put into {packets_used} sphinx packets with {space_left} bytes of leftover space. {wasted_space}% of packet capacity is going to be wasted.", bytes.len() + 1);

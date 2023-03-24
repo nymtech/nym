@@ -172,10 +172,8 @@ impl ReplySurb {
     pub fn apply_surb<M: AsRef<[u8]>>(
         self,
         message: M,
-        packet_size: Option<PacketSize>,
+        packet_size: PacketSize,
     ) -> Result<(SphinxPacket, NymNodeRoutingAddress), ReplySurbError> {
-        let packet_size = packet_size.unwrap_or_default();
-
         let message_bytes = message.as_ref();
         if message_bytes.len() != packet_size.plaintext_size() {
             return Err(ReplySurbError::UnpaddedMessageError);

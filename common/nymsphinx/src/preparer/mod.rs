@@ -1,8 +1,10 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::message::NymMessage;
+use crate::message::{NymMessage, ACK_OVERHEAD};
 use crate::NymsphinxPayloadBuilder;
+use nym_crypto::asymmetric::encryption;
+use nym_crypto::Digest;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::clients::Recipient;
@@ -11,7 +13,7 @@ use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::DEFAULT_NUM_MIX_HOPS;
+use nym_sphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::builder::SphinxPacketBuilder;
 use nym_sphinx_types::{delays, Delay};
 use nym_topology::{NymTopology, NymTopologyError};
@@ -45,12 +47,6 @@ pub struct MessagePreparer<R> {
     /// Instance of a cryptographically secure random number generator.
     rng: R,
 
-    /// Size of the target [`SphinxPacket`] into which the underlying is going to get split.
-    primary_packet_size: PacketSize,
-
-    /// Alternative size of the target [`SphinxPacket`] into which the underlying is going to get split.
-    secondary_packet_size: Option<PacketSize>,
-
     /// Address of this client which also represent an address to which all acknowledgements
     /// and surb-based are going to be sent.
     sender_address: Recipient,
@@ -82,26 +78,12 @@ where
             average_packet_delay,
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
-            primary_packet_size: PacketSize::RegularPacket,
-            secondary_packet_size: None,
         }
     }
 
     /// Allows setting non-default number of expected mix hops in the network.
     pub fn with_mix_hops(mut self, hops: u8) -> Self {
         self.num_mix_hops = hops;
-        self
-    }
-
-    /// Allows setting non-default size of the sphinx packets sent out.
-    pub fn with_custom_primary_packet_size(mut self, packet_size: PacketSize) -> Self {
-        self.primary_packet_size = packet_size;
-        self
-    }
-
-    /// Allows setting non-default size of the sphinx packets sent out.
-    pub fn with_custom_secondary_packet_size(mut self, packet_size: Option<PacketSize>) -> Self {
-        self.secondary_packet_size = packet_size;
         self
     }
 
@@ -146,6 +128,16 @@ where
         ack_key: &AckKey,
         reply_surb: ReplySurb,
     ) -> Result<PreparedFragment, NymTopologyError> {
+        // each reply attaches the digest of the encryption key so that the recipient could
+        // lookup correct key for decryption,
+        let reply_overhead = ReplySurbKeyDigestAlgorithm::output_size();
+        let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + reply_overhead;
+
+        // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
+        // more gracefully is that this error should never be reached as it implies incorrect chunking
+        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext)
+            .expect("the message has been incorrectly fragmented");
+
         // this is not going to be accurate by any means. but that's the best estimation we can do
         let expected_forward_delay = Delay::new_from_millis(
             (self.average_packet_delay.as_millis() * self.num_mix_hops as u128) as u64,
@@ -162,9 +154,8 @@ where
 
         // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lengths
         // and we just very carefully constructed a (presumably) valid one
-        let (sphinx_packet, first_hop_address) = reply_surb
-            .apply_surb(packet_payload, Some(self.primary_packet_size))
-            .unwrap();
+        let (sphinx_packet, first_hop_address) =
+            reply_surb.apply_surb(packet_payload, packet_size).unwrap();
 
         Ok(PreparedFragment {
             // the round-trip delay is the sum of delays of all hops on the forward route as
@@ -200,6 +191,17 @@ where
         ack_key: &AckKey,
         packet_recipient: &Recipient,
     ) -> Result<PreparedFragment, NymTopologyError> {
+        // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
+        // could perform diffie-hellman with its own keys followed by a kdf to re-derive
+        // the packet encryption key
+        let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
+        let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + non_reply_overhead;
+
+        // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
+        // more gracefully is that this error should never be reached as it implies incorrect chunking
+        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext)
+            .expect("the message has been incorrectly fragmented");
+
         let fragment_identifier = fragment.fragment_identifier();
 
         // create an ack
@@ -223,7 +225,7 @@ where
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
         let sphinx_packet = SphinxPacketBuilder::new()
-            .with_payload_size(self.primary_packet_size.payload_size())
+            .with_payload_size(packet_size.payload_size())
             .build_packet(packet_payload, &route, &destination, &delays)
             .unwrap();
 
@@ -263,7 +265,7 @@ where
         message: NymMessage,
         packet_size: PacketSize,
     ) -> Vec<Fragment> {
-        let plaintext_per_packet = message.available_plaintext_per_packet(packet_size);
+        let plaintext_per_packet = message.available_sphinx_plaintext_per_packet(packet_size);
 
         message
             .pad_to_full_packet_lengths(plaintext_per_packet)

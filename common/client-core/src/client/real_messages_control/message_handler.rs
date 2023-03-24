@@ -180,8 +180,6 @@ where
             config.average_packet_delay,
             config.average_ack_delay,
         )
-        .with_custom_primary_packet_size(config.primary_packet_size)
-        .with_custom_secondary_packet_size(config.secondary_packet_size)
         .with_mix_hops(config.num_mix_hops);
 
         MessageHandler {
@@ -225,6 +223,7 @@ where
     fn optimal_packet_size(&self, msg: &NymMessage) -> PacketSize {
         // if secondary packet was never set, then it's obvious we have to use the primary packet
         let Some(secondary_packet) = self.config.secondary_packet_size else {
+            trace!("only primary packet size is available");
             return self.config.primary_packet_size
         };
 
@@ -232,10 +231,13 @@ where
             msg.required_packets(self.config.primary_packet_size, self.config.num_mix_hops);
         let secondary_count = msg.required_packets(secondary_packet, self.config.num_mix_hops);
 
+        trace!("This message would require: {primary_count} primary packets or {secondary_count} secondary packets...");
         // if there would be no benefit in using the secondary packet - use the primary (duh)
         if primary_count <= secondary_count {
+            trace!("so choosing primary for this message");
             self.config.primary_packet_size
         } else {
+            trace!("so choosing secondary for this message");
             secondary_packet
         }
     }

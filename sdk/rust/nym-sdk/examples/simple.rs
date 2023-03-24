@@ -18,4 +18,6 @@ async fn main() {
     client
         .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&msg.message)))
         .await;
+
+    client.disconnect().await;
 }

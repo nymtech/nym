@@ -28,7 +28,7 @@ impl ExecuteMsg {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     QueryId { service_id: ServiceId },

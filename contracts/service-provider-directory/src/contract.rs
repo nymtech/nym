@@ -62,7 +62,7 @@ pub mod execute {
     ) -> Result<Response, ContractError> {
         let new_service = Service {
             nym_address,
-            service_type: service_type.clone(),
+            service_type,
             owner,
             block_height: env.block.height,
         };

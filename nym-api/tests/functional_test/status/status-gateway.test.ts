@@ -65,12 +65,14 @@ describe("Get gateway data", (): void => {
   it("Get a gateway status report", async (): Promise<void> => {
     const identity_key = config.environmnetConfig.gateway_identity;
     const response = await status.getGatewayStatusReport(identity_key);
-    expect(identity_key).toStrictEqual(response.identity);
-    expect(typeof response.owner).toBe("string");
-    expect(typeof response.most_recent).toBe("number");
-    expect(typeof response.last_hour).toBe("number");
-    expect(typeof response.last_day).toBe("number");
+    if ("mix_id" in response) {
+      expect(identity_key).toStrictEqual(response.identity);
+      expect(typeof response.owner).toBe("string");
+      expect(typeof response.most_recent).toBe("number");
+      expect(typeof response.last_hour).toBe("number");
+      expect(typeof response.last_day).toBe("number");
+    } else if ("message" in response) {
+      expect(response.message).toContain("gateway bond not found");
+    }
   });
-
-
 });

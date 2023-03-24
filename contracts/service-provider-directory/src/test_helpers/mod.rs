@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Response};
 use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 use serde::de::DeserializeOwned;
 
@@ -8,7 +8,19 @@ use crate::{
     state::{NymAddress, ServiceId, ServiceType},
 };
 
-pub fn get_attribute(response: &AppResponse, key: &str) -> String {
+pub mod assert;
+pub mod fixture;
+
+pub fn get_attribute(res: Response, key: &str) -> String {
+    res.attributes
+        .iter()
+        .find(|attr| attr.key == key)
+        .unwrap()
+        .value
+        .clone()
+}
+
+pub fn get_app_attribute(response: &AppResponse, key: &str) -> String {
     let wasm = response.events.iter().find(|ev| ev.ty == "wasm").unwrap();
     wasm.attributes
         .iter()
@@ -74,7 +86,7 @@ impl TestSetup {
             &[],
         );
         if let Ok(ref resp) = resp {
-            assert_eq!(get_attribute(&resp, "action"), "announce");
+            assert_eq!(get_app_attribute(&resp, "action"), "announce");
         }
         resp
     }
@@ -88,7 +100,7 @@ impl TestSetup {
         );
 
         if let Ok(ref resp) = delete_resp {
-            assert_eq!(get_attribute(&resp, "action"), "delete");
+            assert_eq!(get_app_attribute(&resp, "action"), "delete");
         }
 
         delete_resp

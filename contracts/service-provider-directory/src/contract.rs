@@ -140,87 +140,20 @@ pub mod query {
 mod tests {
     use crate::{
         msg::ServiceInfo,
-        state::{NymAddress, ServiceId, ServiceType},
+        test_helpers::{
+            assert::{
+                assert_config, assert_empty, assert_not_found, assert_service, assert_services,
+            },
+            fixture::service_fixture,
+            get_attribute,
+        },
     };
 
     use super::*;
     use cosmwasm_std::{
-        from_binary,
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, StdError,
+        Addr,
     };
-
-    fn get_attribute(res: Response, key: &str) -> String {
-        res.attributes
-            .iter()
-            .find(|attr| attr.key == key)
-            .unwrap()
-            .value
-            .clone()
-    }
-
-    fn service_fixture() -> Service {
-        Service {
-            nym_address: NymAddress::new("nym"),
-            service_type: ServiceType::NetworkRequester,
-            owner: Addr::unchecked("steve"),
-            block_height: 12345,
-        }
-    }
-
-    fn assert_config(deps: Deps, updater_role: Addr, admin: Addr) {
-        let res = query(deps, mock_env(), QueryMsg::QueryConfig {}).unwrap();
-        let config: ConfigResponse = from_binary(&res).unwrap();
-        assert_eq!(
-            config,
-            ConfigResponse {
-                updater_role,
-                admin,
-            }
-        );
-    }
-
-    fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {
-        let res = query(deps, mock_env(), QueryMsg::QueryAll {}).unwrap();
-        let services: ServicesListResponse = from_binary(&res).unwrap();
-        assert_eq!(
-            services,
-            ServicesListResponse {
-                services: expected_services.to_vec(),
-            }
-        );
-    }
-
-    fn assert_service(deps: Deps, expected_service: &ServiceInfo) {
-        let res = query(
-            deps,
-            mock_env(),
-            QueryMsg::QueryId {
-                service_id: expected_service.service_id,
-            },
-        )
-        .unwrap();
-        let services: ServiceInfo = from_binary(&res).unwrap();
-        assert_eq!(&services, expected_service);
-    }
-
-    fn assert_empty(deps: Deps) {
-        let res = query(deps, mock_env(), QueryMsg::QueryAll {}).unwrap();
-        let services: ServicesListResponse = from_binary(&res).unwrap();
-        assert!(services.services.is_empty());
-    }
-
-    fn assert_not_found(deps: Deps, expected_id: ServiceId) {
-        let res = query(
-            deps,
-            mock_env(),
-            QueryMsg::QueryId {
-                service_id: expected_id,
-            },
-        )
-        .unwrap_err();
-        assert!(matches!(res, StdError::NotFound { .. }));
-    }
 
     #[test]
     fn instantiate_contract() {
@@ -240,7 +173,7 @@ mod tests {
 
         // Check that it worked by querying the config, and checking that the list of services is
         // empty
-        assert_config(deps.as_ref(), updater_role,  admin);
+        assert_config(deps.as_ref(), updater_role, admin);
         assert_empty(deps.as_ref());
     }
 
@@ -261,11 +194,7 @@ mod tests {
         assert_eq!(res.messages.len(), 0);
 
         // Announce
-        let msg = ExecuteMsg::Announce {
-            nym_address: service_fixture().nym_address,
-            service_type: service_fixture().service_type,
-            owner: service_fixture().owner,
-        };
+        let msg: ExecuteMsg = service_fixture().into_announce_msg();
         let info = mock_info("anyone", &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 

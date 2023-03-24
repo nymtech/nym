@@ -138,18 +138,18 @@ pub mod query {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use crate::{
         msg::ServiceInfo,
         test_helpers::{
             assert::{
                 assert_config, assert_empty, assert_not_found, assert_service, assert_services,
             },
-            fixture::service_fixture,
-            get_attribute,
+            fixture::service_fixture, helpers::get_attribute,
         },
     };
 
-    use super::*;
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
         Addr,
@@ -200,10 +200,12 @@ mod tests {
 
         // Check that the service has had service id assigned to it
         let expected_id = 1;
-        let sp_id = get_attribute(res.clone(), "service_id");
-        assert_eq!(sp_id, expected_id.to_string());
-        let sp_type = get_attribute(res, "service_type");
-        assert_eq!(sp_type, "network_requester".to_string());
+        let sp_id: u64 = get_attribute(res.clone(), "service_id").parse().unwrap();
+        assert_eq!(sp_id, expected_id);
+        assert_eq!(
+            get_attribute(res, "service_type"),
+            "network_requester".to_string()
+        );
 
         // The expected announced service
         let expected_service = ServiceInfo {
@@ -230,7 +232,7 @@ mod tests {
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
 
-        // Announce (note: timmy annouinces on someone elses behalf)
+        // Announce (note: timmy announces on someone else's behalf)
         let msg = service_fixture().into_announce_msg();
         let info = mock_info("timmy", &[]);
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -243,7 +245,7 @@ mod tests {
         };
         assert_services(deps.as_ref(), &[expected_service.clone()]);
 
-        // Removing someone elses service will fail
+        // Removing someone else's service will fail
         let msg = ExecuteMsg::Delete {
             service_id: expected_id,
         };
@@ -256,7 +258,7 @@ mod tests {
             }
         );
 
-        // Removing an non-existant service will fail
+        // Removing an non-existent service will fail
         let msg = ExecuteMsg::Delete {
             service_id: expected_id + 1,
         };

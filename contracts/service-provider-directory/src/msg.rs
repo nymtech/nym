@@ -22,6 +22,12 @@ pub enum ExecuteMsg {
     },
 }
 
+impl ExecuteMsg {
+    pub fn delete(service_id: ServiceId) -> Self {
+        ExecuteMsg::Delete { service_id }
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
@@ -35,6 +41,16 @@ pub enum QueryMsg {
 pub struct ServiceInfo {
     pub service_id: ServiceId,
     pub service: Service,
+}
+
+impl ServiceInfo {
+    #[cfg(test)]
+    pub fn new(service_id: ServiceId, service: Service) -> Self {
+        Self {
+            service_id,
+            service,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

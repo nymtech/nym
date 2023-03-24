@@ -61,8 +61,8 @@ pub struct Service {
 
 #[cfg(test)]
 mod test {
-    use crate::msg::ExecuteMsg;
     use super::Service;
+    use crate::msg::ExecuteMsg;
 
     impl Service {
         pub fn into_announce_msg(self) -> ExecuteMsg {
@@ -87,4 +87,76 @@ pub(crate) fn next_service_id_counter(store: &mut dyn Storage) -> StdResult<Serv
     let id: ServiceId = SERVICE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
     SERVICE_ID_COUNTER.save(store, &id)?;
     Ok(id)
+}
+
+#[cfg(test)]
+mod tests {
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+
+    use crate::{
+        msg::{ExecuteMsg, InstantiateMsg, ServiceInfo},
+        test_helpers::{assert::assert_services, fixture::service_fixture, helpers::get_attribute},
+    };
+
+    use super::*;
+
+    #[test]
+    fn deleted_service_id_is_not_reused() {
+        let mut deps = mock_dependencies();
+        let updater_role = Addr::unchecked("foo");
+        let admin = Addr::unchecked("bar");
+        let msg = InstantiateMsg {
+            updater_role: updater_role.clone(),
+            admin: admin.clone(),
+        };
+        let info = mock_info("creator", &[]);
+
+        // Instantiate contract
+        let res = crate::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
+
+        // Announce
+        let msg = service_fixture().into_announce_msg();
+        let info = mock_info("anyone", &[]);
+
+        let res = crate::execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+        let sp_id: u64 = get_attribute(res.clone(), "service_id").parse().unwrap();
+        assert_eq!(sp_id, 1);
+
+        assert_services(deps.as_ref(), &[ServiceInfo::new(1, service_fixture())]);
+
+        let res = crate::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let sp_id: u64 = get_attribute(res.clone(), "service_id").parse().unwrap();
+        assert_eq!(sp_id, 2);
+
+        assert_services(
+            deps.as_ref(),
+            &[
+                ServiceInfo::new(1, service_fixture()),
+                ServiceInfo::new(2, service_fixture()),
+            ],
+        );
+
+        // Delete the last entry
+        let msg = ExecuteMsg::delete(2);
+        let info = mock_info(&service_fixture().owner.to_string(), &[]);
+        crate::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_services(deps.as_ref(), &[ServiceInfo::new(1, service_fixture())]);
+
+        // Create a third entry. The index should not reuse the previous entry that we just
+        // deleted.
+        let msg = service_fixture().into_announce_msg();
+        let info = mock_info("anyone", &[]);
+        let res = crate::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let sp_id: u64 = get_attribute(res.clone(), "service_id").parse().unwrap();
+        assert_eq!(sp_id, 3);
+
+        assert_services(
+            deps.as_ref(),
+            &[
+                ServiceInfo::new(1, service_fixture()),
+                ServiceInfo::new(3, service_fixture()),
+            ],
+        );
+    }
 }

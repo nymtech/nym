@@ -2,7 +2,10 @@
 //! public use.
 
 use crate::msg::ExecuteMsg;
-use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use error::ContractError;
 
 mod contract;
@@ -11,9 +14,9 @@ mod msg;
 mod state;
 
 #[cfg(test)]
-mod test_helpers;
-#[cfg(test)]
 mod integration_tests;
+#[cfg(test)]
+mod test_helpers;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(

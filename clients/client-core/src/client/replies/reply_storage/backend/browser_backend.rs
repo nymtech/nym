@@ -35,8 +35,12 @@ impl ReplyStorageBackend for Backend {
     ) -> Result<Self, Self::StorageError> {
         Ok(Backend {
             empty: Empty {
-                min_surb_threshold: debug_config.minimum_reply_surb_storage_threshold,
-                max_surb_threshold: debug_config.maximum_reply_surb_storage_threshold,
+                min_surb_threshold: debug_config
+                    .reply_surbs
+                    .minimum_reply_surb_storage_threshold,
+                max_surb_threshold: debug_config
+                    .reply_surbs
+                    .maximum_reply_surb_storage_threshold,
             },
         })
     }

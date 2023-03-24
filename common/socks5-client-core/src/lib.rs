@@ -1,9 +1,8 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::Config;
-use crate::error::Socks5ClientError;
-use crate::socks;
+use crate::config::Config;
+use crate::error::Socks5ClientCoreError;
 use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
@@ -28,6 +27,8 @@ use validator_client::nyxd::QueryNyxdClient;
 use validator_client::Client;
 
 pub mod config;
+pub mod error;
+pub mod socks;
 
 // Channels used to control the main task from outside
 pub type Socks5ControlMessageSender = mpsc::UnboundedSender<Socks5ControlMessage>;
@@ -214,7 +215,7 @@ impl NymClient {
         res
     }
 
-    pub async fn start(self) -> Result<TaskManager, Socks5ClientError> {
+    pub async fn start(self) -> Result<TaskManager, Socks5ClientCoreError> {
         #[cfg(not(feature = "mobile"))]
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),

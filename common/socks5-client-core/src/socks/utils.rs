@@ -16,7 +16,7 @@ pub(crate) fn pretty_print_addr(addr_type: &AddrType, addr: &[u8]) -> String {
 
             addr_16
                 .iter()
-                .map(|x| format!("{:x}", x))
+                .map(|x| format!("{x:x}"))
                 .collect::<Vec<String>>()
                 .join(":")
         }

@@ -3700,9 +3700,6 @@ version = "1.1.13"
 dependencies = [
  "clap 4.1.11",
  "client-core",
- "dirs",
- "futures",
- "gateway-client",
  "gateway-requests",
  "lazy_static",
  "log",
@@ -3710,28 +3707,21 @@ dependencies = [
  "nym-bin-common",
  "nym-coconut-interface",
  "nym-config",
- "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-pemstore",
- "nym-service-providers-common",
- "nym-socks5-proxy-helpers",
- "nym-socks5-requests",
  "nym-sphinx",
- "nym-task",
  "nym-topology",
- "pin-project",
  "pretty_env_logger",
- "rand 0.7.3",
  "serde",
  "serde_json",
+ "socks5-client-core",
  "tap",
  "thiserror",
  "tokio",
  "url",
- "validator-client",
 ]
 
 [[package]]
@@ -5575,6 +5565,32 @@ checksum = "64a4a911eed85daf18834cfaa86a79b7d266ff93ff5ba14005426219480ed662"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "socks5-client-core"
+version = "0.1.0"
+dependencies = [
+ "client-core",
+ "dirs",
+ "futures",
+ "gateway-client",
+ "log",
+ "nym-config",
+ "nym-credential-storage",
+ "nym-network-defaults",
+ "nym-service-providers-common",
+ "nym-socks5-proxy-helpers",
+ "nym-socks5-requests",
+ "nym-sphinx",
+ "nym-task",
+ "pin-project",
+ "rand 0.7.3",
+ "serde",
+ "tap",
+ "thiserror",
+ "tokio",
+ "validator-client",
 ]
 
 [[package]]

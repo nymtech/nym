@@ -7,10 +7,8 @@ use clap::{crate_name, crate_version, Parser};
 use nym_bin_common::logging::{banner, setup_logging};
 use nym_network_defaults::setup_env;
 
-pub mod client;
 mod commands;
 pub mod error;
-pub mod socks;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {

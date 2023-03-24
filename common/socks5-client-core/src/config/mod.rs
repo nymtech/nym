@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::template::config_template;
+use crate::config::template::config_template;
 pub use client_core::config::Config as BaseConfig;
 pub use client_core::config::MISSING_VALUE;
 use client_core::config::{ClientCoreConfigTrait, DebugConfig};

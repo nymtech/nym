@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    client::config::Config,
     commands::{override_config, OverrideConfig},
     error::Socks5ClientError,
 };
@@ -11,6 +10,7 @@ use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
+use socks5_client_core::config::Config;
 use std::fmt::Display;
 use tap::TapFallible;
 

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    client::{config::Config, NymClient},
     commands::{override_config, OverrideConfig},
     error::Socks5ClientError,
 };
@@ -13,6 +12,7 @@ use nym_bin_common::version_checker::is_minor_version_compatible;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
+use socks5_client_core::{config::Config, NymClient};
 
 #[derive(Args, Clone)]
 pub(crate) struct Run {

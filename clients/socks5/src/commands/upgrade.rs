@@ -1,10 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::{Config, MISSING_VALUE};
-
 use nym_bin_common::version_checker::Version;
 use nym_config::NymConfig;
+use socks5_client_core::config::{Config, MISSING_VALUE};
 
 use clap::Args;
 use std::{fmt::Display, process};

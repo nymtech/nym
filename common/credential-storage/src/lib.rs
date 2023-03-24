@@ -90,7 +90,8 @@ impl Storage for PersistentStorage {
         let credential = self
             .coconut_credential_manager
             .get_next_coconut_credential()
-            .await?;
+            .await?
+            .ok_or(StorageError::NoCredential)?;
 
         Ok(credential)
     }

@@ -13,4 +13,7 @@ pub enum StorageError {
 
     #[error("Inconsistent data in database")]
     InconsistentData,
+
+    #[error("No unused credential in database. You need to buy at least one")]
+    NoCredential,
 }

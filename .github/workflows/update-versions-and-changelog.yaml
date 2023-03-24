@@ -34,7 +34,7 @@ jobs:
           path: "ci-tools"
           token: "${{ secrets.ACCESS_TOKEN_PRIVATE_REPOS }}"
 
-      - name: Install Rust stable
+      - name: install-rust-stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -82,8 +82,14 @@ jobs:
         run: "cargo install --path ."
         working-directory: "ci-tools/changelog-updater"
 
-      - name: run-changelog-updater
-        run: "changelog-updater mix ${{ inputs.milestone_id }} release/${{ inputs.release_version }}"
+      - name: run-changelog-updater-binaries
+        run: "changelog-updater --release-version ${{ inputs.release_version }} --component binaries mix ${{ inputs.milestone_id }} release/${{ inputs.release_version }}"
+
+      - name: run-changelog-updater-connect
+        run: "changelog-updater --release-version ${{ inputs.release_version }} --component connect --changelog nym-connect/desktop/CHANGELOG.md  mix ${{ inputs.milestone_id }} release/${{ inputs.release_version }}"
+
+      - name: run-changelog-updater-wallet
+        run: "changelog-updater --release-version ${{ inputs.release_version }} --component wallet --changelog nym-wallet/CHANGELOG.md mix ${{ inputs.milestone_id }} release/${{ inputs.release_version }}"
 
       - name: push-changes-to-branch
         run: |

@@ -100,8 +100,8 @@ impl MessageReceiver for OutfoxMessageReceiver {
         Self::default()
     }
 
-    fn reconstructor(&self) -> MessageReconstructor {
-        self.reconstructor.clone()
+    fn reconstructor(&mut self) -> &mut MessageReconstructor {
+        &mut self.reconstructor
     }
 
     fn num_mix_hops(&self) -> u8 {
@@ -123,7 +123,7 @@ impl MessageReceiver for OutfoxMessageReceiver {
 
 pub trait MessageReceiver {
     fn new() -> Self;
-    fn reconstructor(&self) -> MessageReconstructor;
+    fn reconstructor(&mut self) -> &mut MessageReconstructor;
     fn num_mix_hops(&self) -> u8;
 
     fn decrypt_raw_message<C>(
@@ -239,8 +239,8 @@ impl MessageReceiver for SphinxMessageReceiver {
         Ok(())
     }
 
-    fn reconstructor(&self) -> MessageReconstructor {
-        self.reconstructor.clone()
+    fn reconstructor(&mut self) -> &mut MessageReconstructor {
+        &mut self.reconstructor
     }
 
     fn num_mix_hops(&self) -> u8 {

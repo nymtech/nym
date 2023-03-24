@@ -104,7 +104,7 @@ impl NymClient {
         BandwidthController::new(storage, client)
     }
 
-    fn start_socks5_listener(
+    pub fn start_socks5_listener(
         config: &Config,
         client_input: ClientInput,
         client_output: ClientOutput,

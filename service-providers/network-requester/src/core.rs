@@ -465,6 +465,7 @@ async fn create_mixnet_client<T>(
     let mixnet_config = nym_sdk::mixnet::Config {
         user_chosen_gateway: None,
         nym_api_endpoints,
+        socks5_service_provider: None,
         debug_config,
     };
 

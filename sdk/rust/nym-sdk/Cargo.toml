@@ -14,6 +14,7 @@ nym-network-defaults = { path = "../../../common/network-defaults" }
 nym-sphinx = { path = "../../../common/nymsphinx" }
 nym-task = { path = "../../../common/task" }
 nym-topology = { path = "../../../common/topology" }
+socks5-client-core = { path = "../../../common/socks5-client-core" }
 validator-client = { path = "../../../common/client-libs/validator-client", features = ["nyxd-client"] }
 
 futures = "0.3"
@@ -26,5 +27,6 @@ toml = "0.5.10"
 
 [dev-dependencies]
 pretty_env_logger = "0.4.0"
+reqwest = { version = "0.11", features = ["json", "socks"] }
 tokio = { version = "1", features = ["full"] }
 nym-bin-common = { path = "../../../common/bin-common" }

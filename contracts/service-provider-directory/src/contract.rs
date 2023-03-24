@@ -194,7 +194,7 @@ mod tests {
         assert_eq!(res.messages.len(), 0);
 
         // Announce
-        let msg: ExecuteMsg = service_fixture().into_announce_msg();
+        let msg = service_fixture().into_announce_msg();
         let info = mock_info("anyone", &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
@@ -231,11 +231,7 @@ mod tests {
         assert_eq!(res.messages.len(), 0);
 
         // Announce (note: timmy annouinces on someone elses behalf)
-        let msg = ExecuteMsg::Announce {
-            nym_address: service_fixture().nym_address,
-            service_type: service_fixture().service_type,
-            owner: service_fixture().owner,
-        };
+        let msg = service_fixture().into_announce_msg();
         let info = mock_info("timmy", &[]);
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 

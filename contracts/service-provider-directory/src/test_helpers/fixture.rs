@@ -1,9 +1,6 @@
 use cosmwasm_std::Addr;
 
-use crate::{
-    msg::ExecuteMsg,
-    state::{NymAddress, Service, ServiceType},
-};
+use crate::state::{NymAddress, Service, ServiceType};
 
 pub fn service_fixture() -> Service {
     Service {

@@ -2,8 +2,6 @@ use cosmwasm_std::{Addr, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use serde::{Deserialize, Serialize};
 
-use crate::msg::ExecuteMsg;
-
 // Storage keys
 pub const CONFIG_KEY: &str = "config";
 pub const SERVICE_ID_COUNTER_KEY: &str = "sidc";
@@ -61,12 +59,18 @@ pub struct Service {
     pub block_height: u64,
 }
 
-impl Service {
-    pub fn into_announce_msg(self) -> ExecuteMsg {
-        ExecuteMsg::Announce {
-            nym_address: self.nym_address,
-            service_type: self.service_type,
-            owner: self.owner,
+#[cfg(test)]
+mod test {
+    use crate::msg::ExecuteMsg;
+    use super::Service;
+
+    impl Service {
+        pub fn into_announce_msg(self) -> ExecuteMsg {
+            ExecuteMsg::Announce {
+                nym_address: self.nym_address,
+                service_type: self.service_type,
+                owner: self.owner,
+            }
         }
     }
 }

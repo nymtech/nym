@@ -4,7 +4,9 @@ use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 use serde::de::DeserializeOwned;
 
 use crate::{
-    msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ServiceInfo, ServicesListResponse, ConfigResponse},
+    msg::{
+        ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg, ServiceInfo, ServicesListResponse,
+    },
     state::{NymAddress, ServiceId, ServiceType},
     test_helpers::helpers::get_app_attribute,
 };

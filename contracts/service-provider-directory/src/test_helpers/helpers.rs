@@ -1,4 +1,3 @@
-
 use cosmwasm_std::Response;
 use cw_multi_test::AppResponse;
 

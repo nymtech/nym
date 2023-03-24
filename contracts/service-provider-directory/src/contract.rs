@@ -146,7 +146,8 @@ mod tests {
             assert::{
                 assert_config, assert_empty, assert_not_found, assert_service, assert_services,
             },
-            fixture::service_fixture, helpers::get_attribute,
+            fixture::service_fixture,
+            helpers::get_attribute,
         },
     };
 

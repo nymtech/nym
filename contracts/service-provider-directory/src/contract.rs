@@ -8,6 +8,7 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 
+// version info for migration info
 const CONTRACT_NAME: &str = "crate:nym-service-provider-directory";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -139,7 +140,7 @@ pub mod query {
 mod tests {
     use crate::{
         msg::ServiceInfo,
-        state::{NymAddress, ServiceType},
+        state::{NymAddress, ServiceId, ServiceType},
     };
 
     use super::*;
@@ -167,6 +168,60 @@ mod tests {
         }
     }
 
+    fn assert_config(deps: Deps, updater_role: Addr, admin: Addr) {
+        let res = query(deps, mock_env(), QueryMsg::QueryConfig {}).unwrap();
+        let config: ConfigResponse = from_binary(&res).unwrap();
+        assert_eq!(
+            config,
+            ConfigResponse {
+                updater_role,
+                admin,
+            }
+        );
+    }
+
+    fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {
+        let res = query(deps, mock_env(), QueryMsg::QueryAll {}).unwrap();
+        let services: ServicesListResponse = from_binary(&res).unwrap();
+        assert_eq!(
+            services,
+            ServicesListResponse {
+                services: expected_services.to_vec(),
+            }
+        );
+    }
+
+    fn assert_service(deps: Deps, expected_service: &ServiceInfo) {
+        let res = query(
+            deps,
+            mock_env(),
+            QueryMsg::QueryId {
+                service_id: expected_service.service_id,
+            },
+        )
+        .unwrap();
+        let services: ServiceInfo = from_binary(&res).unwrap();
+        assert_eq!(&services, expected_service);
+    }
+
+    fn assert_empty(deps: Deps) {
+        let res = query(deps, mock_env(), QueryMsg::QueryAll {}).unwrap();
+        let services: ServicesListResponse = from_binary(&res).unwrap();
+        assert!(services.services.is_empty());
+    }
+
+    fn assert_not_found(deps: Deps, expected_id: ServiceId) {
+        let res = query(
+            deps,
+            mock_env(),
+            QueryMsg::QueryId {
+                service_id: expected_id,
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(res, StdError::NotFound { .. }));
+    }
+
     #[test]
     fn instantiate_contract() {
         let mut deps = mock_dependencies();
@@ -183,21 +238,10 @@ mod tests {
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
 
-        // Check that it worked by querying the config
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryConfig {}).unwrap();
-        let config: ConfigResponse = from_binary(&res).unwrap();
-        assert_eq!(
-            config,
-            ConfigResponse {
-                updater_role,
-                admin,
-            }
-        );
-
-        // The list of services should be empty
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryAll {}).unwrap();
-        let services: ServicesListResponse = from_binary(&res).unwrap();
-        assert!(services.services.is_empty());
+        // Check that it worked by querying the config, and checking that the list of services is
+        // empty
+        assert_config(deps.as_ref(), updater_role,  admin);
+        assert_empty(deps.as_ref());
     }
 
     #[test]
@@ -225,7 +269,7 @@ mod tests {
         let info = mock_info("anyone", &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        // Get the generated service id
+        // Check that the service has had service id assigned to it
         let expected_id = 1;
         let sp_id = get_attribute(res.clone(), "service_id");
         assert_eq!(sp_id, expected_id.to_string());
@@ -237,28 +281,8 @@ mod tests {
             service_id: expected_id,
             service: service_fixture(),
         };
-
-        // Query all to check
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryAll {}).unwrap();
-        let services: ServicesListResponse = from_binary(&res).unwrap();
-        assert_eq!(
-            services,
-            ServicesListResponse {
-                services: vec![expected_service.clone()],
-            }
-        );
-
-        // Query by id
-        let res = query(
-            deps.as_ref(),
-            mock_env(),
-            QueryMsg::QueryId {
-                service_id: expected_id,
-            },
-        )
-        .unwrap();
-        let services: ServiceInfo = from_binary(&res).unwrap();
-        assert_eq!(services, expected_service,);
+        assert_services(deps.as_ref(), &[expected_service.clone()]);
+        assert_service(deps.as_ref(), &expected_service);
     }
 
     #[test]
@@ -277,14 +301,14 @@ mod tests {
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
 
-        // Announce
+        // Announce (note: timmy annouinces on someone elses behalf)
         let msg = ExecuteMsg::Announce {
             nym_address: service_fixture().nym_address,
             service_type: service_fixture().service_type,
             owner: service_fixture().owner,
         };
         let info = mock_info("timmy", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // The expected announced service
         let expected_id = 1;
@@ -292,14 +316,18 @@ mod tests {
             service_id: expected_id,
             service: service_fixture(),
         };
+        assert_services(deps.as_ref(), &[expected_service.clone()]);
 
-        // Query all to check
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryAll {}).unwrap();
-        let services: ServicesListResponse = from_binary(&res).unwrap();
+        // Removing someone elses service will fail
+        let msg = ExecuteMsg::Delete {
+            service_id: expected_id,
+        };
+        let info = mock_info("timmy", &[]);
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert_eq!(
-            services,
-            ServicesListResponse {
-                services: vec![expected_service.clone()],
+            res,
+            ContractError::Unauthorized {
+                sender: Addr::unchecked("timmy")
             }
         );
 
@@ -307,8 +335,11 @@ mod tests {
         let msg = ExecuteMsg::Delete {
             service_id: expected_id + 1,
         };
-        let info = mock_info("timmy", &[]);
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        let info_owner = MessageInfo {
+            sender: service_fixture().owner,
+            funds: vec![],
+        };
+        let res = execute(deps.as_mut(), mock_env(), info_owner.clone(), msg).unwrap_err();
         assert_eq!(
             res,
             ContractError::NotFound {
@@ -316,41 +347,13 @@ mod tests {
             }
         );
 
-        // Removing someone elses service will fail
+        // Remove as correct owner succeeds
         let msg = ExecuteMsg::Delete {
             service_id: expected_id,
         };
-        let info = mock_info("sven", &[]);
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-        assert_eq!(
-            res,
-            ContractError::Unauthorized {
-                sender: Addr::unchecked("sven")
-            }
-        );
-
-        // Remove succeeds
-        let msg = ExecuteMsg::Delete {
-            service_id: expected_id,
-        };
-        let info = mock_info("timmy", &[]);
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let res = execute(deps.as_mut(), mock_env(), info_owner, msg).unwrap();
         assert_eq!(get_attribute(res, "service_id"), expected_id.to_string());
-
-        // The list of services should be empty
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryAll {}).unwrap();
-        let services: ServicesListResponse = from_binary(&res).unwrap();
-        assert!(services.services.is_empty());
-
-        // And a direct query should fail
-        let res = query(
-            deps.as_ref(),
-            mock_env(),
-            QueryMsg::QueryId {
-                service_id: expected_id,
-            },
-        )
-        .unwrap_err();
-        assert!(matches!(res, StdError::NotFound { .. }));
+        assert_services(deps.as_ref(), &[]);
+        assert_not_found(deps.as_ref(), expected_id);
     }
 }

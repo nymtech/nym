@@ -124,7 +124,7 @@ export interface NodeHistory {
   history: History[];
 }
 
-export interface NoUptime {
+export interface ErrorMsg {
   message: string;
 }
 
@@ -166,7 +166,6 @@ export interface nodePerformance {
   last_hour: string;
   last_24h: string;
 }
-
 
 export interface AvgUptime {
   mix_id: number;

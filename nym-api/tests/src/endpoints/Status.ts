@@ -7,7 +7,7 @@ import {
   InclusionProbabilities,
   InclusionProbability,
   NodeHistory,
-  NoUptime,
+  ErrorMsg,
   Report,
   RewardEstimation,
   StakeSaturation,
@@ -37,7 +37,9 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getGatewayStatusReport(identity_key: string): Promise<Report> {
+  public async getGatewayStatusReport(
+    identity_key: string
+  ): Promise<Report | ErrorMsg> {
     const response = await this.restClient.sendGet({
       route: `/gateway/${identity_key}/report`,
     });
@@ -45,7 +47,9 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getGatewayHistory(identity_key: string): Promise<NodeHistory | NoUptime> {
+  public async getGatewayHistory(
+    identity_key: string
+  ): Promise<NodeHistory | ErrorMsg> {
     const response = await this.restClient.sendGet({
       route: `/gateway/${identity_key}/history`,
     });
@@ -61,7 +65,9 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getGatewayAverageUptime(identity_key: string): Promise<CoreCount | NoUptime> {
+  public async getGatewayAverageUptime(
+    identity_key: string
+  ): Promise<CoreCount | ErrorMsg> {
     const response = await this.restClient.sendGet({
       route: `/gateway/${identity_key}/avg_uptime`,
     });
@@ -71,7 +77,9 @@ export default class Status extends APIClient {
 
   // MIXNODES
 
-  public async getMixnodeStatusReport(mix_id: number): Promise<Report> {
+  public async getMixnodeStatusReport(
+    mix_id: number
+  ): Promise<Report | ErrorMsg> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${mix_id}/report`,
     });
@@ -81,7 +89,7 @@ export default class Status extends APIClient {
 
   public async getMixnodeStakeSaturation(
     mix_id: number
-  ): Promise<StakeSaturation> {
+  ): Promise<StakeSaturation | ErrorMsg> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${mix_id}/stake-saturation`,
     });
@@ -99,7 +107,7 @@ export default class Status extends APIClient {
 
   public async getMixnodeRewardComputation(
     mix_id: number
-  ): Promise<RewardEstimation> {
+  ): Promise<RewardEstimation | ErrorMsg> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${mix_id}/reward-estimation`,
     });
@@ -128,7 +136,9 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getMixnodeHistory(mix_id: number): Promise<NodeHistory | NoUptime> {
+  public async getMixnodeHistory(
+    mix_id: number
+  ): Promise<NodeHistory | ErrorMsg> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${mix_id}/history`,
     });
@@ -136,7 +146,9 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getMixnodeAverageUptime(mix_id: number): Promise<AvgUptime | NoUptime> {
+  public async getMixnodeAverageUptime(
+    mix_id: number
+  ): Promise<AvgUptime | ErrorMsg> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${mix_id}/avg_uptime`,
     });
@@ -146,7 +158,7 @@ export default class Status extends APIClient {
 
   public async getMixnodeInclusionProbability(
     mix_id: number
-  ): Promise<InclusionProbability> {
+  ): Promise<InclusionProbability | ErrorMsg> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${mix_id}/inclusion-probability`,
     });
@@ -181,6 +193,14 @@ export default class Status extends APIClient {
   public async getDetailedRewardedMixnodes(): Promise<DetailedMixnodes[]> {
     const response = await this.restClient.sendGet({
       route: `/mixnodes/rewarded/detailed`,
+    });
+
+    return response.data;
+  }
+
+  public async getUnfilteredMixnodes(): Promise<DetailedMixnodes[]> {
+    const response = await this.restClient.sendGet({
+      route: `/mixnodes/detailed-unfiltered`,
     });
 
     return response.data;

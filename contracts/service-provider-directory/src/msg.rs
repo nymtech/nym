@@ -1,4 +1,4 @@
-use crate::state::{NymAddress, Config, Service, ServiceId, ServiceType};
+use crate::state::{Config, NymAddress, Service, ServiceId, ServiceType};
 use cosmwasm_std::Addr;
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +13,7 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     Announce {
-        client_address: NymAddress,
+        nym_address: NymAddress,
         service_type: ServiceType,
         owner: Addr,
     },
@@ -25,6 +25,7 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    QueryId { service_id: ServiceId },
     QueryAll {},
     QueryConfig {},
 }

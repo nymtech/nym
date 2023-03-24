@@ -8,26 +8,27 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 
-// WIP(JON): can we get this through vergen instead?
 const CONTRACT_NAME: &str = "crate:nym-service-provider-directory";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn instantiate(
     deps: DepsMut<'_>,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
     let config = Config {
-        updater_role: msg.updater_role,
-        admin: msg.admin,
+        updater_role: msg.updater_role.clone(),
+        admin: msg.admin.clone(),
     };
-
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     CONFIG.save(deps.storage, &config)?;
 
-    Ok(Response::new())
+    Ok(Response::new()
+        .add_attribute("method", "instantiate")
+        .add_attribute("owner", info.sender)
+        .add_attribute("admin", msg.admin)
+        .add_attribute("updater_role", msg.updater_role))
 }
 
 pub fn execute(
@@ -38,72 +39,84 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Announce {
-            client_address,
+            nym_address: client_address,
             service_type,
             owner,
-        } => exec::announce(deps, env, info, client_address, service_type, owner),
-        ExecuteMsg::Delete { service_id: sp_id } => exec::delete(deps, info, sp_id),
+        } => execute::announce(deps, env, client_address, service_type, owner),
+        ExecuteMsg::Delete { service_id: sp_id } => execute::delete(deps, info, sp_id),
     }
 }
 
-mod exec {
+pub mod execute {
     use super::*;
     use crate::state::{self, NymAddress, ServiceId, ServiceType};
 
+    /// Announce a new service. It will be assigned a new service provider id.
     pub fn announce(
         deps: DepsMut,
         env: Env,
-        _info: MessageInfo,
-        client_address: NymAddress,
+        nym_address: NymAddress,
         service_type: ServiceType,
         owner: Addr,
     ) -> Result<Response, ContractError> {
         let new_service = Service {
-            nym_address: client_address,
-            service_type,
+            nym_address,
+            service_type: service_type.clone(),
             owner,
             block_height: env.block.height,
         };
-
-        let sp_id = state::next_sp_id_counter(deps.storage)?;
-
-        SERVICES.save(deps.storage, sp_id, &new_service)?;
-
-        Ok(Response::new().add_attribute("action", "service announced"))
+        let service_id = state::next_service_id_counter(deps.storage)?;
+        SERVICES.save(deps.storage, service_id, &new_service)?;
+        Ok(Response::new()
+            .add_attribute("action", "announce")
+            .add_attribute("service_id", service_id.to_string())
+            .add_attribute("service_type", service_type.to_string()))
     }
 
+    /// Delete an exsisting service.
     pub fn delete(
         deps: DepsMut,
         info: MessageInfo,
-        sp_id: ServiceId,
+        service_id: ServiceId,
     ) -> Result<Response, ContractError> {
-        let service_to_delete = SERVICES.load(deps.storage, sp_id)?;
+        if !SERVICES.has(deps.storage, service_id) {
+            return Err(ContractError::NotFound { service_id });
+        }
 
+        let service_to_delete = SERVICES.load(deps.storage, service_id)?;
         if info.sender != service_to_delete.owner {
             return Err(ContractError::Unauthorized {
                 sender: info.sender,
             });
         }
-
-        SERVICES.remove(deps.storage, sp_id);
-
-        Ok(Response::new().add_attribute("action", "service deleted"))
+        SERVICES.remove(deps.storage, service_id);
+        Ok(Response::new()
+            .add_attribute("action", "delete")
+            .add_attribute("service_id", service_id.to_string()))
     }
 }
 
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::QueryAll {} => to_binary(&query::query_all(deps, env)?),
-        QueryMsg::QueryConfig {} => to_binary(&query::query_config(deps, env)?),
+        QueryMsg::QueryId { service_id } => to_binary(&query::query_id(deps, env, service_id)?),
+        QueryMsg::QueryAll {} => to_binary(&query::query_all(deps)?),
+        QueryMsg::QueryConfig {} => to_binary(&query::query_config(deps)?),
     }
 }
 
-mod query {
-    use crate::msg::ServiceInfo;
-
+pub mod query {
     use super::*;
+    use crate::{msg::ServiceInfo, state::ServiceId};
 
-    pub fn query_all(deps: Deps, _env: Env) -> StdResult<ServicesListResponse> {
+    pub fn query_id(deps: Deps, _env: Env, service_id: ServiceId) -> StdResult<ServiceInfo> {
+        let service = SERVICES.load(deps.storage, service_id)?;
+        Ok(ServiceInfo {
+            service_id,
+            service,
+        })
+    }
+
+    pub fn query_all(deps: Deps) -> StdResult<ServicesListResponse> {
         let services = SERVICES
             .range(deps.storage, None, None, Order::Ascending)
             .map(|item| {
@@ -116,7 +129,7 @@ mod query {
         Ok(ServicesListResponse { services })
     }
 
-    pub fn query_config(deps: Deps, _env: Env) -> StdResult<ConfigResponse> {
+    pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         let config = CONFIG.load(deps.storage)?;
         Ok(config.into())
     }
@@ -124,121 +137,220 @@ mod query {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::{
         msg::ServiceInfo,
         state::{NymAddress, ServiceType},
-        test_helpers::TestSetup,
     };
+
+    use super::*;
     use cosmwasm_std::{
+        from_binary,
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr,
+        Addr, StdError,
     };
 
-    // Test to instantiate the contract without using the test helpers and cw_multi_test.
-    #[test]
-    fn instantiate_contract_without_helpers() {
-        let mut deps = mock_dependencies();
-        let env = mock_env();
-        let info = mock_info("test0", &[]);
+    fn get_attribute(res: Response, key: &str) -> String {
+        res.attributes
+            .iter()
+            .find(|attr| attr.key == key)
+            .unwrap()
+            .value
+            .clone()
+    }
 
+    fn service_fixture() -> Service {
+        Service {
+            nym_address: NymAddress::new("nym"),
+            service_type: ServiceType::NetworkRequester,
+            owner: Addr::unchecked("steve"),
+            block_height: 12345,
+        }
+    }
+
+    #[test]
+    fn instantiate_contract() {
+        let mut deps = mock_dependencies();
+
+        let updater_role = Addr::unchecked("foo");
+        let admin = Addr::unchecked("bar");
         let msg = InstantiateMsg {
-            updater_role: Addr::unchecked("test1"),
-            admin: Addr::unchecked("test2"),
+            updater_role: updater_role.clone(),
+            admin: admin.clone(),
+        };
+        let info = mock_info("creator", &[]);
+
+        // Instantiate contract
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
+
+        // Check that it worked by querying the config
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryConfig {}).unwrap();
+        let config: ConfigResponse = from_binary(&res).unwrap();
+        assert_eq!(
+            config,
+            ConfigResponse {
+                updater_role,
+                admin,
+            }
+        );
+
+        // The list of services should be empty
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryAll {}).unwrap();
+        let services: ServicesListResponse = from_binary(&res).unwrap();
+        assert!(services.services.is_empty());
+    }
+
+    #[test]
+    fn announce() {
+        let mut deps = mock_dependencies();
+
+        let updater_role = Addr::unchecked("foo");
+        let admin = Addr::unchecked("bar");
+        let msg = InstantiateMsg {
+            updater_role: updater_role.clone(),
+            admin: admin.clone(),
+        };
+        let info = mock_info("creator", &[]);
+
+        // Instantiate contract
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
+
+        // Announce
+        let msg = ExecuteMsg::Announce {
+            nym_address: service_fixture().nym_address,
+            service_type: service_fixture().service_type,
+            owner: service_fixture().owner,
+        };
+        let info = mock_info("anyone", &[]);
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // Get the generated service id
+        let expected_id = 1;
+        let sp_id = get_attribute(res.clone(), "service_id");
+        assert_eq!(sp_id, expected_id.to_string());
+        let sp_type = get_attribute(res, "service_type");
+        assert_eq!(sp_type, "network_requester".to_string());
+
+        // The expected announced service
+        let expected_service = ServiceInfo {
+            service_id: expected_id,
+            service: service_fixture(),
         };
 
-        instantiate(deps.as_mut(), env, info, msg).unwrap();
-    }
-
-    #[test]
-    fn instantiate_contract_with_helpers() {
-        TestSetup::new();
-    }
-
-    #[test]
-    fn query_config() {
-        let setup = TestSetup::new();
-        let resp: ConfigResponse = setup.query(&QueryMsg::QueryConfig {});
-
+        // Query all to check
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryAll {}).unwrap();
+        let services: ServicesListResponse = from_binary(&res).unwrap();
         assert_eq!(
-            resp,
-            ConfigResponse {
-                updater_role: Addr::unchecked("updater"),
-                admin: Addr::unchecked("admin")
-            }
-        );
-    }
-
-    #[test]
-    fn announce_and_query_service() {
-        let owner = Addr::unchecked("owner");
-        let nym_address = NymAddress::new("nymAddress");
-        let mut setup = TestSetup::new();
-        setup
-            .announce_network_requester(nym_address.clone(), owner.clone())
-            .unwrap();
-
-        assert_eq!(
-            setup.query_all(),
+            services,
             ServicesListResponse {
-                services: vec![ServiceInfo {
-                    service_id: 1,
-                    service: Service {
-                        nym_address,
-                        service_type: ServiceType::NetworkRequester,
-                        owner,
-                        block_height: 12345,
-                    },
-                }]
+                services: vec![expected_service.clone()],
             }
         );
+
+        // Query by id
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::QueryId {
+                service_id: expected_id,
+            },
+        )
+        .unwrap();
+        let services: ServiceInfo = from_binary(&res).unwrap();
+        assert_eq!(services, expected_service,);
     }
 
     #[test]
-    fn delete_service() {
-        let mut setup = TestSetup::new();
-        setup
-            .announce_network_requester(NymAddress::new("nymAddress"), Addr::unchecked("owner"))
-            .unwrap();
-        assert!(!setup.query_all().services.is_empty());
-        setup.delete(1, Addr::unchecked("owner")).unwrap();
-        assert!(setup.query_all().services.is_empty());
-    }
+    fn delete() {
+        let mut deps = mock_dependencies();
 
-    #[test]
-    fn only_owner_can_delete_service() {
-        let mut setup = TestSetup::new();
-        setup
-            .announce_network_requester(NymAddress::new("nymAddress"), Addr::unchecked("owner"))
-            .unwrap();
-        assert!(!setup.query_all().services.is_empty());
+        let updater_role = Addr::unchecked("foo");
+        let admin = Addr::unchecked("bar");
+        let msg = InstantiateMsg {
+            updater_role: updater_role.clone(),
+            admin: admin.clone(),
+        };
+        let info = mock_info("creator", &[]);
 
-        let delete_resp: ContractError = setup
-            .delete(1, Addr::unchecked("not_owner"))
-            .unwrap_err()
-            .downcast()
-            .unwrap();
+        // Instantiate contract
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
 
+        // Announce
+        let msg = ExecuteMsg::Announce {
+            nym_address: service_fixture().nym_address,
+            service_type: service_fixture().service_type,
+            owner: service_fixture().owner,
+        };
+        let info = mock_info("timmy", &[]);
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // The expected announced service
+        let expected_id = 1;
+        let expected_service = ServiceInfo {
+            service_id: expected_id,
+            service: service_fixture(),
+        };
+
+        // Query all to check
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryAll {}).unwrap();
+        let services: ServicesListResponse = from_binary(&res).unwrap();
         assert_eq!(
-            delete_resp,
-            ContractError::Unauthorized {
-                sender: Addr::unchecked("not_owner")
+            services,
+            ServicesListResponse {
+                services: vec![expected_service.clone()],
             }
         );
-    }
 
-    #[test]
-    fn delete_service_that_does_not_exist() {
-        todo!();
-    }
+        // Removing an non-existant service will fail
+        let msg = ExecuteMsg::Delete {
+            service_id: expected_id + 1,
+        };
+        let info = mock_info("timmy", &[]);
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        assert_eq!(
+            res,
+            ContractError::NotFound {
+                service_id: expected_id + 1
+            }
+        );
 
-    #[test]
-    fn service_id_increases_for_new_services() {
-        todo!();
-    }
+        // Removing someone elses service will fail
+        let msg = ExecuteMsg::Delete {
+            service_id: expected_id,
+        };
+        let info = mock_info("sven", &[]);
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        assert_eq!(
+            res,
+            ContractError::Unauthorized {
+                sender: Addr::unchecked("sven")
+            }
+        );
 
-    #[test]
-    fn service_id_is_not_resused_when_deleting_and_then_adding_a_new_service() {
-        todo!();
+        // Remove succeeds
+        let msg = ExecuteMsg::Delete {
+            service_id: expected_id,
+        };
+        let info = mock_info("timmy", &[]);
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(get_attribute(res, "service_id"), expected_id.to_string());
+
+        // The list of services should be empty
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryAll {}).unwrap();
+        let services: ServicesListResponse = from_binary(&res).unwrap();
+        assert!(services.services.is_empty());
+
+        // And a direct query should fail
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::QueryId {
+                service_id: expected_id,
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(res, StdError::NotFound { .. }));
     }
 }

@@ -67,14 +67,14 @@ impl TestSetup {
             owner.clone(),
             self.addr.clone(),
             &ExecuteMsg::Announce {
-                client_address: address,
+                nym_address: address,
                 service_type: ServiceType::NetworkRequester,
                 owner,
             },
             &[],
         );
         if let Ok(ref resp) = resp {
-            assert_eq!(get_attribute(&resp, "action"), "service announced");
+            assert_eq!(get_attribute(&resp, "action"), "announce");
         }
         resp
     }
@@ -88,7 +88,7 @@ impl TestSetup {
         );
 
         if let Ok(ref resp) = delete_resp {
-            assert_eq!(get_attribute(&resp, "action"), "service deleted");
+            assert_eq!(get_attribute(&resp, "action"), "delete");
         }
 
         delete_resp

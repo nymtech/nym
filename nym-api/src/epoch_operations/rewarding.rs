@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::epoch_operations::error::RewardingError;
-use crate::support::storage::models::RewardingReport;
 use crate::RewardedSetUpdater;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{EpochState, ExecuteMsg, Interval, MixId};
@@ -42,8 +41,15 @@ impl RewardedSetUpdater {
                 warn!("we seem to have crashed mid epoch operations... no need to reward mixnodes as we've already done that! (or this could be a false positive if there were no nodes to reward - to fix this warning later)");
                 Ok(())
             }
-            EpochState::Rewarding { .. } => {
+            EpochState::Rewarding { last_rewarded, .. } => {
                 log::info!("Rewarding the current rewarded set...");
+
+                // with how the nym-api is currently coded, this should never happen as we're always
+                // rewarding ALL mixnodes at once, but who knows what we might decide to do in the future...
+                if last_rewarded != 0 {
+                    return Err(RewardingError::MidMixRewarding { last_rewarded });
+                }
+
                 if let Err(err) = self._reward_current_rewarded_set(current_interval).await {
                     log::error!("FAILED to reward rewarded set - {err}");
                     Err(err)
@@ -62,17 +68,8 @@ impl RewardedSetUpdater {
         let mut to_reward = self.nodes_to_reward(current_interval).await;
         to_reward.sort_by_key(|a| a.mix_id);
 
-        if let Some(existing_report) = self
-            .storage
-            .get_rewarding_report(current_interval.current_epoch_absolute_id())
-            .await?
-        {
-            warn!("We have already rewarded mixnodes for this rewarding epoch ({}). {} nodes should have gotten rewards", existing_report.absolute_epoch_id, existing_report.eligible_mixnodes);
-            return Ok(());
-        }
-
         if to_reward.is_empty() {
-            info!("There are no nodes to reward in this epoch");
+            error!("There are no nodes to reward in this epoch - we shouldn't have been in the 'Rewarding' state!");
         } else if let Err(err) = self.nyxd_client.send_rewarding_messages(&to_reward).await {
             error!(
                 "failed to perform mixnode rewarding for epoch {}! Error encountered: {err}",
@@ -82,15 +79,6 @@ impl RewardedSetUpdater {
         }
 
         log::info!("rewarded {} mixnodes...", to_reward.len());
-
-        let rewarding_report = RewardingReport {
-            absolute_epoch_id: current_interval.current_epoch_absolute_id(),
-            eligible_mixnodes: to_reward.len() as u32,
-        };
-
-        self.storage
-            .insert_rewarding_report(rewarding_report)
-            .await?;
 
         Ok(())
     }

@@ -2,27 +2,39 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-#[allow(dead_code)]
-mod c {
-    include!("bindings.rs");
+mod bindings;
+use bindings as c;
+
+use std::fmt;
+use std::{
+    error::Error,
+    ffi::{CStr, CString, IntoStringError},
+};
+
+#[derive(Debug)]
+pub struct CpuCyclesError {
+    message: String,
 }
 
-use std::ffi::{CStr, CString, IntoStringError};
-use thiserror::Error;
+impl fmt::Display for CpuCyclesError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
 
-#[derive(Error, Debug)]
-pub enum CpuCyclesError {
-    #[error("Could not get cpu cycle count!")]
-    CpuCycles,
-    #[error("{source}")]
-    StringError { source: IntoStringError },
+impl Error for CpuCyclesError {}
+
+pub fn cpucycles_tracesetup() {
+    unsafe { c::cpucycles_tracesetup() }
 }
 
 pub fn cpucycles() -> Result<i64, CpuCyclesError> {
     if let Some(count) = unsafe { c::cpucycles.map(|f| f()) } {
         Ok(count)
     } else {
-        Err(CpuCyclesError::CpuCycles)
+        Err(CpuCyclesError {
+            message: "Could not execute cpucycles!".to_string(),
+        })
     }
 }
 
@@ -32,12 +44,12 @@ pub fn cpucycles_persecond() -> Result<i64, CpuCyclesError> {
 
 pub fn cpucycles_implementation() -> Result<String, IntoStringError> {
     let implementation = unsafe { CString::from(CStr::from_ptr(c::cpucycles_implementation())) };
-    Ok(implementation.into_string()?)
+    implementation.into_string()
 }
 
 pub fn cpucycles_version() -> Result<String, IntoStringError> {
-    let implementation = unsafe { CString::from(CStr::from_ptr(c::cpucycles_version())) };
-    Ok(implementation.into_string()?)
+    let version = unsafe { CString::from(CStr::from_ptr(c::cpucycles_version())) };
+    version.into_string()
 }
 
 #[cfg(test)]

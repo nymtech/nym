@@ -13,6 +13,7 @@ pub use client_core::config::Config as BaseConfig;
 pub use client_core::config::MISSING_VALUE;
 pub use client_core::config::{DebugConfig, GatewayEndpointConfig};
 
+pub mod old_config_v1_1_13;
 mod template;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]

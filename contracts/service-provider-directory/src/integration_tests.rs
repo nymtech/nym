@@ -1,12 +1,12 @@
 //! Integration tests using cw-multi-test.
 
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Coin};
 
 use crate::{
     error::ContractError,
     msg::{ConfigResponse, ServiceInfo, ServicesListResponse},
     state::{NymAddress, Service, ServiceType},
-    test_helpers::test_setup::TestSetup,
+    test_helpers::{helpers::nyms, test_setup::TestSetup},
 };
 
 #[test]
@@ -46,6 +46,7 @@ fn announce_and_query_service() {
                     service_type: ServiceType::NetworkRequester,
                     owner: owner.clone(),
                     block_height: 12345,
+                    deposit: nyms(100),
                 },
             }]
         }
@@ -60,6 +61,7 @@ fn announce_and_query_service() {
                 service_type: ServiceType::NetworkRequester,
                 owner: owner.clone(),
                 block_height: 12345,
+                deposit: nyms(100),
             },
         }
     );
@@ -81,6 +83,7 @@ fn announce_and_query_service() {
                         service_type: ServiceType::NetworkRequester,
                         owner,
                         block_height: 12345,
+                        deposit: nyms(100),
                     },
                 },
                 ServiceInfo {
@@ -90,6 +93,7 @@ fn announce_and_query_service() {
                         service_type: ServiceType::NetworkRequester,
                         owner: owner2,
                         block_height: 12345,
+                        deposit: nyms(100),
                     },
                 }
             ]
@@ -203,6 +207,7 @@ fn service_id_is_not_resused_when_deleting_and_then_adding_a_new_service() {
                 service_type: ServiceType::NetworkRequester,
                 owner: Addr::unchecked("owner2"),
                 block_height: 12345,
+                deposit: nyms(100),
             },
         }]
     );
@@ -221,6 +226,7 @@ fn service_id_is_not_resused_when_deleting_and_then_adding_a_new_service() {
                     service_type: ServiceType::NetworkRequester,
                     owner: Addr::unchecked("owner2"),
                     block_height: 12345,
+                    deposit: nyms(100),
                 },
             },
             ServiceInfo {
@@ -230,6 +236,7 @@ fn service_id_is_not_resused_when_deleting_and_then_adding_a_new_service() {
                     service_type: ServiceType::NetworkRequester,
                     owner: Addr::unchecked("owner4"),
                     block_height: 12345,
+                    deposit: nyms(100),
                 },
             }
         ]

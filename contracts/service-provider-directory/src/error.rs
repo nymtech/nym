@@ -13,4 +13,16 @@ pub enum ContractError {
 
     #[error("{sender} is not owner of service")]
     Unauthorized { sender: Addr },
+
+    #[error("deposit required to announce service")]
+    DepositRequired { source: cw_utils::PaymentError },
+
+    #[error("insufficiant deposit: {funds}, required: {deposit_required}")]
+    InsufficientDeposit {
+        funds: cosmwasm_std::Uint128,
+        deposit_required: cosmwasm_std::Coin,
+    },
+
+    #[error("deposit too large: {funds}, required: {deposit_required}")]
+    TooLargeDeposit { funds: cosmwasm_std::Uint128, deposit_required: cosmwasm_std::Coin },
 }

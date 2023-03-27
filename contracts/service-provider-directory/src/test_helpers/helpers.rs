@@ -1,5 +1,9 @@
-use cosmwasm_std::Response;
+use cosmwasm_std::{Response, Coin};
 use cw_multi_test::AppResponse;
+
+pub fn nyms(amount: u64) -> Coin {
+    Coin::new(amount.into(), "unym")
+}
 
 pub fn get_attribute(res: Response, key: &str) -> String {
     res.attributes

@@ -1,5 +1,5 @@
 use crate::state::{Config, NymAddress, Service, ServiceId, ServiceType};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct InstantiateMsg {
     pub updater_role: Addr,
     pub admin: Addr,
+    pub deposit_required: Coin,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

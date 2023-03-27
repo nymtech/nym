@@ -21,6 +21,7 @@ pub fn instantiate(
     let config = Config {
         updater_role: msg.updater_role.clone(),
         admin: msg.admin.clone(),
+        deposit_required: msg.deposit_required.clone(),
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     CONFIG.save(deps.storage, &config)?;
@@ -43,12 +44,14 @@ pub fn execute(
             nym_address: client_address,
             service_type,
             owner,
-        } => execute::announce(deps, env, client_address, service_type, owner),
+        } => execute::announce(deps, env, info, client_address, service_type, owner),
         ExecuteMsg::Delete { service_id: sp_id } => execute::delete(deps, info, sp_id),
     }
 }
 
 pub mod execute {
+    use cosmwasm_std::{coins, BankMsg, Coin};
+
     use super::*;
     use crate::state::{self, NymAddress, ServiceId, ServiceType};
 
@@ -56,19 +59,49 @@ pub mod execute {
     pub fn announce(
         deps: DepsMut,
         env: Env,
+        info: MessageInfo,
         nym_address: NymAddress,
         service_type: ServiceType,
         owner: Addr,
     ) -> Result<Response, ContractError> {
+        let deposit_required = state::deposit_required(deps.storage)?;
+        let denom = deposit_required.denom.clone();
+        let will_deposit = cw_utils::must_pay(&info, &denom)
+            .map_err(|err| ContractError::DepositRequired { source: err })?;
+
+        if will_deposit < deposit_required.amount {
+            return Err(ContractError::InsufficientDeposit {
+                funds: will_deposit,
+                deposit_required,
+            });
+        }
+
+        if will_deposit > deposit_required.amount {
+            return Err(ContractError::TooLargeDeposit {
+                funds: will_deposit,
+                deposit_required,
+            });
+        }
+
+        let admin = state::admin(deps.storage)?;
+
+        let will_deposit = Coin::new(will_deposit.u128(), denom);
+        let deposit_msg = BankMsg::Send {
+            to_address: admin.to_string(),
+            amount: vec![will_deposit.clone()],
+        };
+
         let new_service = Service {
             nym_address,
             service_type,
             owner,
             block_height: env.block.height,
+            deposit: will_deposit,
         };
         let service_id = state::next_service_id_counter(deps.storage)?;
         SERVICES.save(deps.storage, service_id, &new_service)?;
         Ok(Response::new()
+            .add_message(deposit_msg)
             .add_attribute("action", "announce")
             .add_attribute("service_id", service_id.to_string())
             .add_attribute("service_type", service_type.to_string()))
@@ -90,8 +123,15 @@ pub mod execute {
                 sender: info.sender,
             });
         }
+
+        let return_deposit_msg = BankMsg::Send {
+            to_address: service_to_delete.owner.to_string(),
+            amount: vec![service_to_delete.deposit],
+        };
+
         SERVICES.remove(deps.storage, service_id);
         Ok(Response::new()
+            .add_message(return_deposit_msg)
             .add_attribute("action", "delete")
             .add_attribute("service_id", service_id.to_string()))
     }
@@ -153,7 +193,7 @@ mod tests {
 
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr,
+        Addr, Coin,
     };
 
     #[test]
@@ -165,6 +205,7 @@ mod tests {
         let msg = InstantiateMsg {
             updater_role: updater_role.clone(),
             admin: admin.clone(),
+            deposit_required: Coin::new(100, "unym"),
         };
         let info = mock_info("creator", &[]);
 
@@ -187,6 +228,7 @@ mod tests {
         let msg = InstantiateMsg {
             updater_role: updater_role.clone(),
             admin: admin.clone(),
+            deposit_required: Coin::new(100, "unym"),
         };
         let info = mock_info("creator", &[]);
 
@@ -226,6 +268,7 @@ mod tests {
         let msg = InstantiateMsg {
             updater_role: updater_role.clone(),
             admin: admin.clone(),
+            deposit_required: Coin::new(100, "unym"),
         };
         let info = mock_info("creator", &[]);
 

@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, StdResult, Storage};
+use cosmwasm_std::{Addr, Coin, StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use serde::{Deserialize, Serialize};
 
@@ -47,7 +47,7 @@ impl NymAddress {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct Service {
     /// The address of the service.
     pub nym_address: NymAddress,
@@ -57,6 +57,8 @@ pub struct Service {
     pub owner: Addr,
     /// Block height at which the service was added.
     pub block_height: u64,
+    /// The deposit used to announce the service.
+    pub deposit: Coin,
 }
 
 #[cfg(test)]
@@ -75,18 +77,29 @@ mod test {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct Config {
     pub updater_role: Addr,
     pub admin: Addr,
+    pub deposit_required: Coin,
 }
 
-// Generate the next service provider id, store it and return it
+/// Generate the next service provider id, store it and return it
 pub(crate) fn next_service_id_counter(store: &mut dyn Storage) -> StdResult<ServiceId> {
     // The first id is 1.
-    let id: ServiceId = SERVICE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
+    let id = SERVICE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
     SERVICE_ID_COUNTER.save(store, &id)?;
     Ok(id)
+}
+
+/// Return the deposit required to announce a service.
+pub(crate) fn deposit_required(store: &dyn Storage) -> StdResult<Coin> {
+    CONFIG.load(store).map(|config| config.deposit_required)
+}
+
+/// Return the address of the contract admin
+pub(crate) fn admin(store: &dyn Storage) -> StdResult<Addr> {
+    CONFIG.load(store).map(|config| config.admin)
 }
 
 #[cfg(test)]
@@ -108,6 +121,7 @@ mod tests {
         let msg = InstantiateMsg {
             updater_role: updater_role.clone(),
             admin: admin.clone(),
+            deposit_required: Coin::new(100, "unym"),
         };
         let info = mock_info("creator", &[]);
 

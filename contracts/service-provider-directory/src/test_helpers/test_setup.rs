@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Coin};
 use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 use serde::de::DeserializeOwned;
 
@@ -33,6 +33,7 @@ impl TestSetup {
             &InstantiateMsg {
                 updater_role: Addr::unchecked("updater"),
                 admin: Addr::unchecked("admin"),
+                deposit_required: Coin::new(100, "unym"),
             },
             &[],
             "contract_label",

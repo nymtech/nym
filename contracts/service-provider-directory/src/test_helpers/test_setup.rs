@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::{Addr, Coin, StdResult};
 use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 use serde::de::DeserializeOwned;
 
@@ -93,5 +93,9 @@ impl TestSetup {
             assert_eq!(get_app_attribute(&resp, "action"), "delete");
         }
         delete_resp
+    }
+
+    pub fn balance(&self, address: impl Into<String>) -> StdResult<Coin> {
+        self.app.wrap().query_balance(address, "unym")
     }
 }

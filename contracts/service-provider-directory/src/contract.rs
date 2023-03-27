@@ -83,13 +83,13 @@ pub mod execute {
             });
         }
 
-        let admin = state::admin(deps.storage)?;
+        //let admin = state::admin(deps.storage)?;
 
         let will_deposit = Coin::new(will_deposit.u128(), denom);
-        let deposit_msg = BankMsg::Send {
-            to_address: admin.to_string(),
-            amount: vec![will_deposit.clone()],
-        };
+        //let deposit_msg = BankMsg::Send {
+            //to_address: admin.to_string(),
+            //amount: vec![will_deposit.clone()],
+        //};
 
         let new_service = Service {
             nym_address,
@@ -101,7 +101,7 @@ pub mod execute {
         let service_id = state::next_service_id_counter(deps.storage)?;
         SERVICES.save(deps.storage, service_id, &new_service)?;
         Ok(Response::new()
-            .add_message(deposit_msg)
+            //.add_message(deposit_msg)
             .add_attribute("action", "announce")
             .add_attribute("service_id", service_id.to_string())
             .add_attribute("service_type", service_type.to_string()))
@@ -124,14 +124,14 @@ pub mod execute {
             });
         }
 
-        let return_deposit_msg = BankMsg::Send {
-            to_address: service_to_delete.owner.to_string(),
-            amount: vec![service_to_delete.deposit],
-        };
+        //let return_deposit_msg = BankMsg::Send {
+            //to_address: service_to_delete.owner.to_string(),
+            //amount: vec![service_to_delete.deposit],
+        //};
 
         SERVICES.remove(deps.storage, service_id);
         Ok(Response::new()
-            .add_message(return_deposit_msg)
+            //.add_message(return_deposit_msg)
             .add_attribute("action", "delete")
             .add_attribute("service_id", service_id.to_string()))
     }

@@ -30,6 +30,11 @@ fn announce_and_query_service() {
     let mut setup = TestSetup::new();
     assert_eq!(setup.query_all(), ServicesListResponse { services: vec![] });
 
+    let admin_balance = setup.balance("admin").unwrap();
+    let owner_balance = setup.balance("owner").unwrap();
+    dbg!(&admin_balance);
+    dbg!(&owner_balance);
+
     let owner = Addr::unchecked("owner");
     let nym_address = NymAddress::new("nymAddress");
     setup

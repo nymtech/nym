@@ -60,6 +60,11 @@ impl Cli {
     }
 }
 
+#[cfg(feature = "cpu-cycles")]
+pub fn cpu_cycles() {
+    info!("{}", cpu_cycles::cpucycles())
+}
+
 #[tokio::main]
 async fn main() {
     setup_logging();

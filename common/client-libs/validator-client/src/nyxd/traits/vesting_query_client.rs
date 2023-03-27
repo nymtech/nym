@@ -229,6 +229,32 @@ pub trait VestingQueryClient {
         .await
     }
 
+    async fn get_vesting_delegation(
+        &self,
+        address: &str,
+        mix_id: MixId,
+        block_timestamp_secs: u64,
+    ) -> Result<VestingDelegation, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetDelegation {
+            address: address.to_string(),
+            mix_id,
+            block_timestamp_secs,
+        })
+        .await
+    }
+
+    async fn get_total_delegation_amount(
+        &self,
+        address: &str,
+        mix_id: MixId,
+    ) -> Result<Coin, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetTotalDelegationAmount {
+            address: address.to_string(),
+            mix_id,
+        })
+        .await
+    }
+
     async fn get_delegation_timestamps(
         &self,
         address: &str,

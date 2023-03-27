@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::errors::ContractError;
+use crate::storage;
 use crate::storage::{account_from_address, BlockTimestampSecs, ACCOUNTS, DELEGATIONS, MIX_DENOM};
 use crate::traits::VestingAccount;
 use crate::vesting::Account;
 use contracts_common::ContractBuildInformation;
-use cosmwasm_std::{Coin, Deps, Env, Order, StdResult, Timestamp};
+use cosmwasm_std::{Coin, Deps, Env, Order, StdResult, Timestamp, Uint128};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::MixId;
 use vesting_contract_common::{
@@ -272,10 +273,8 @@ pub fn try_get_delegation_times(
     let owner = deps.api.addr_validate(vesting_account_address)?;
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
 
-    let delegation_timestamps = DELEGATIONS
-        .prefix((account.storage_key(), mix_id))
-        .keys(deps.storage, None, None, Order::Ascending)
-        .collect::<StdResult<Vec<_>>>()?;
+    let delegation_timestamps =
+        storage::load_delegation_timestamps((account.storage_key(), mix_id), deps.storage)?;
 
     Ok(DelegationTimesResponse {
         owner,
@@ -319,4 +318,40 @@ pub fn try_get_all_delegations(
         delegations,
         start_next_after,
     })
+}
+
+pub fn try_get_delegation(
+    deps: Deps<'_>,
+    vesting_account_address: &str,
+    mix_id: MixId,
+    block_timestamp_secs: BlockTimestampSecs,
+) -> Result<VestingDelegation, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+
+    let storage_key = (account.storage_key(), mix_id, block_timestamp_secs);
+    let delegation_amount = DELEGATIONS.load(deps.storage, storage_key)?;
+
+    Ok(VestingDelegation {
+        account_id: account.storage_key(),
+        mix_id,
+        block_timestamp: block_timestamp_secs,
+        amount: delegation_amount,
+    })
+}
+
+pub fn try_get_delegation_amount(
+    deps: Deps<'_>,
+    vesting_account_address: &str,
+    mix_id: MixId,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+
+    let amount = DELEGATIONS
+        .prefix((account.storage_key(), mix_id))
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|kv_res| kv_res.map(|kv| kv.1))
+        .try_fold(Uint128::zero(), |acc, x_res| x_res.map(|x| x + acc))?;
+    let denom = MIX_DENOM.load(deps.storage)?;
+
+    Ok(Coin { denom, amount })
 }

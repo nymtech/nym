@@ -286,6 +286,19 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetCurrentVestingPeriod { address } => {
             to_binary(&try_get_current_vesting_period(&address, deps, env)?)
         }
+        QueryMsg::GetDelegation {
+            address,
+            mix_id,
+            block_timestamp_secs,
+        } => to_binary(&try_get_delegation(
+            deps,
+            &address,
+            mix_id,
+            block_timestamp_secs,
+        )?),
+        QueryMsg::GetTotalDelegationAmount { address, mix_id } => {
+            to_binary(&try_get_delegation_amount(deps, &address, mix_id)?)
+        }
         QueryMsg::GetDelegationTimes { address, mix_id } => {
             to_binary(&try_get_delegation_times(deps, &address, mix_id)?)
         }

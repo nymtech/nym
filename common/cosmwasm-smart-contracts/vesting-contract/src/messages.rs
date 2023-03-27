@@ -260,6 +260,15 @@ pub enum QueryMsg {
     GetCurrentVestingPeriod {
         address: String,
     },
+    GetDelegation {
+        address: String,
+        mix_id: MixId,
+        block_timestamp_secs: u64,
+    },
+    GetTotalDelegationAmount {
+        address: String,
+        mix_id: MixId,
+    },
     GetDelegationTimes {
         address: String,
         mix_id: MixId,

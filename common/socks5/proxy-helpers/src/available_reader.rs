@@ -14,7 +14,7 @@ use tokio::io::AsyncRead;
 use tokio::time::{sleep, Duration, Instant, Sleep};
 use tokio_util::io::poll_read_buf;
 
-const MAX_READ_AMOUNT: usize = 500 * 1000; // 0.5MB
+const DEFAULT_MAX_READ_AMOUNT: usize = 128 * 1024; // 128kB
 const GRACE_DURATION: Duration = Duration::from_millis(1);
 const READ_TIMEOUT: Duration = Duration::from_millis(10);
 
@@ -25,6 +25,7 @@ pub struct AvailableReader<'a, R: AsyncRead + Unpin> {
     inner: RefCell<&'a mut R>,
     grace_period: Option<Pin<Box<Sleep>>>,
     read_deadline: Option<Pin<Box<Sleep>>>,
+    max_read: usize,
 }
 
 impl<'a, R> AvailableReader<'a, R>
@@ -33,11 +34,11 @@ where
 {
     const BUF_INCREMENT: usize = 4096;
 
-    pub fn new(reader: &'a mut R) -> Self {
-        // pub fn new(reader: &'a mut R, buffer_size: usize) -> Self {
+    pub fn new(reader: &'a mut R, max_read: Option<usize>) -> Self {
         AvailableReader {
             buf: RefCell::new(BytesMut::with_capacity(Self::BUF_INCREMENT)),
             inner: RefCell::new(reader),
+            max_read: max_read.unwrap_or(DEFAULT_MAX_READ_AMOUNT),
             grace_period: None,
             read_deadline: None,
         }
@@ -141,7 +142,7 @@ impl<'a, R: AsyncRead + Unpin> Stream for AvailableReader<'a, R> {
                     // if we reached our maximum amount or we've been trying to read the data for too long
                     // return what we have
                     let read_bytes_len = self.buf.borrow().len();
-                    if read_bytes_len >= MAX_READ_AMOUNT || deadline_poll_res.is_ready() {
+                    if read_bytes_len >= self.max_read || deadline_poll_res.is_ready() {
                         self.return_buf()
                     } else {
                         Poll::Pending
@@ -166,7 +167,7 @@ mod tests {
         let data = vec![42u8; 100];
         let mut reader = Cursor::new(data.clone());
 
-        let mut available_reader = AvailableReader::new(&mut reader);
+        let mut available_reader = AvailableReader::new(&mut reader, None);
         let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);
@@ -178,7 +179,7 @@ mod tests {
         let data = vec![42u8; AvailableReader::<Cursor<Vec<u8>>>::BUF_INCREMENT + 100];
         let mut reader = Cursor::new(data.clone());
 
-        let mut available_reader = AvailableReader::new(&mut reader);
+        let mut available_reader = AvailableReader::new(&mut reader, None);
         let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);
@@ -196,7 +197,7 @@ mod tests {
             .read(&second_data_chunk)
             .build();
 
-        let mut available_reader = AvailableReader::new(&mut reader_mock);
+        let mut available_reader = AvailableReader::new(&mut reader_mock, None);
         let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, first_data_chunk);
@@ -215,7 +216,7 @@ mod tests {
             .read(&data)
             .build();
 
-        let mut available_reader = AvailableReader::new(&mut reader_mock);
+        let mut available_reader = AvailableReader::new(&mut reader_mock, None);
         let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);

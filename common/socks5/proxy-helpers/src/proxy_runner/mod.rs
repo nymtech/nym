@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::connection_controller::ConnectionReceiver;
@@ -49,6 +49,8 @@ pub struct ProxyRunner<S> {
     connection_id: ConnectionId,
     lane_queue_lengths: Option<LaneQueueLengths>,
 
+    available_plaintext_per_mix_packet: usize,
+
     // Listens to shutdown commands from higher up
     shutdown_listener: TaskClient,
 }
@@ -64,6 +66,7 @@ where
         remote_source_address: String,
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<S>,
+        available_plaintext_per_mix_packet: usize,
         connection_id: ConnectionId,
         lane_queue_lengths: Option<LaneQueueLengths>,
         shutdown_listener: TaskClient,
@@ -76,6 +79,7 @@ where
             remote_source_address,
             connection_id,
             lane_queue_lengths,
+            available_plaintext_per_mix_packet,
             shutdown_listener,
         }
     }
@@ -96,6 +100,7 @@ where
             self.remote_source_address.clone(),
             self.connection_id,
             self.mix_sender.clone(),
+            self.available_plaintext_per_mix_packet,
             adapter_fn,
             Arc::clone(&shutdown_notify),
             self.lane_queue_lengths.clone(),

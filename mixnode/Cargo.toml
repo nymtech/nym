@@ -29,32 +29,38 @@ log = { workspace = true }
 pretty_env_logger = "0.4.0"
 rand = "0.7.3"
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
-serde = { version="1.0", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sysinfo = "0.27.7"
-tokio = { version="1.21.2", features = ["rt-multi-thread", "net", "signal"] }
-tokio-util = { version="0.7.3", features = ["codec"] }
+tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal"] }
+tokio-util = { version = "0.7.3", features = ["codec"] }
 toml = "0.5.8"
 url = { version = "2.2", features = ["serde"] }
 atty = "0.2"
 
 ## internal
-nym-config = { path="../common/config" }
-nym-crypto = { path="../common/crypto" }
+nym-config = { path = "../common/config" }
+nym-crypto = { path = "../common/crypto" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
-mixnet-client = { path="../common/client-libs/mixnet-client" }
-mixnode-common = { path="../common/mixnode-common" }
-nym-nonexhaustive-delayqueue = { path="../common/nonexhaustive-delayqueue" }
-nym-sphinx = { path="../common/nymsphinx" }
+mixnet-client = { path = "../common/client-libs/mixnet-client" }
+mixnode-common = { path = "../common/mixnode-common" }
+nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
+nym-sphinx = { path = "../common/nymsphinx" }
 nym-pemstore = { path = "../common/pemstore", version = "0.2.0" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
-nym-topology = { path="../common/topology" }
-validator-client = { path="../common/client-libs/validator-client" }
-nym-bin-common = { path="../common/bin-common" }
+nym-topology = { path = "../common/topology" }
+validator-client = { path = "../common/client-libs/validator-client" }
+nym-bin-common = { path = "../common/bin-common" }
+cpu-cycles = { path = "../cpu-cycles", optional = true }
 
 [dev-dependencies]
-tokio = { version="1.21.2", features = ["rt-multi-thread", "net", "signal", "test-util"] }
+tokio = { version = "1.21.2", features = [
+    "rt-multi-thread",
+    "net",
+    "signal",
+    "test-util",
+] }
 
 nym-sphinx-types = { path = "../common/nymsphinx/types" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }

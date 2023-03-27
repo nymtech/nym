@@ -11,5 +11,3 @@ thiserror = "1"
 [build-dependencies]
 bindgen = "0.64.0"
 cfg-if = "1"
-
-[workspace]

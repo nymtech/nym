@@ -1,7 +1,7 @@
 extern crate bindgen;
 
 use cfg_if;
-use std::path::PathBuf;
+use std::{env, path::PathBuf, process::Command};
 
 use bindgen::CargoCallbacks;
 
@@ -50,23 +50,30 @@ fn main() {
         } else if #[cfg(all(target_arch = "arm", target_pointer_width = "64"))] {
             src_path = "arm64-pmc.c".to_string()
         } else {
-            panic!("Unsupported architecture!")
+            panic!("Unsupported architecture ({:?})!", env::var("CARGO_CFG_TARGET_ARCH"), )
         }
     };
 
     // Run `clang` to compile the `hello.c` file into a `hello.o` object file.
     // Unwrap if it is not possible to spawn the process.
-    if !std::process::Command::new("clang")
+    let mut compile_o_command = Command::new("clang");
+    let compile_o_command = compile_o_command
         .arg("-c")
         .arg("-o")
         .arg(&obj_path)
-        .arg(libdir_path.join(&src_path))
-        .output()
-        .expect("could not spawn `clang`")
-        .status
-        .success()
-    {
-        panic!("could not compile object file")
+        .arg(libdir_path.join(&src_path));
+
+    println!("Running: {:?}", compile_o_command);
+
+    match compile_o_command.output() {
+        Ok(output) => {
+            if !output.status.success() {
+                panic!("{:?}", unsafe {
+                    std::str::from_utf8_unchecked(&output.stderr)
+                })
+            }
+        }
+        Err(e) => panic!("{e}"),
     }
 
     // Run `ar` to generate the `libhello.a` file from the `hello.o` file.

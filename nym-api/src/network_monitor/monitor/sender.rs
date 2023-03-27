@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::monitor::gateway_clients_cache::{
@@ -6,10 +6,12 @@ use crate::network_monitor::monitor::gateway_clients_cache::{
 };
 use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
+use crate::support::nyxd;
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
 use futures::task::Context;
 use futures::{Future, Stream};
+use gateway_client::bandwidth::BandwidthController;
 use gateway_client::error::GatewayClientError;
 use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
 use log::{debug, info, trace, warn};
@@ -25,9 +27,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
-
-use gateway_client::bandwidth::BandwidthController;
-use validator_client::nyxd::SigningNyxdClient;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
@@ -81,7 +80,7 @@ struct FreshGatewayClientData {
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     gateway_response_timeout: Duration,
-    bandwidth_controller: BandwidthController<SigningNyxdClient, PersistentStorage>,
+    bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
     disabled_credentials_mode: bool,
 }
 
@@ -139,7 +138,7 @@ impl PacketSender {
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
         max_sending_rate: usize,
-        bandwidth_controller: BandwidthController<SigningNyxdClient, PersistentStorage>,
+        bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
         disabled_credentials_mode: bool,
     ) -> Self {
         PacketSender {
@@ -207,7 +206,7 @@ impl PacketSender {
     }
 
     async fn attempt_to_send_packets(
-        client: &mut GatewayClient<SigningNyxdClient>,
+        client: &mut GatewayClient<nyxd::Client>,
         mut mix_packets: Vec<MixPacket>,
         max_sending_rate: usize,
     ) -> Result<(), GatewayClientError> {
@@ -315,7 +314,7 @@ impl PacketSender {
     }
 
     async fn check_remaining_bandwidth(
-        client: &mut GatewayClient<SigningNyxdClient>,
+        client: &mut GatewayClient<nyxd::Client>,
     ) -> Result<(), GatewayClientError> {
         if client.remaining_bandwidth() < REMAINING_BANDWIDTH_THRESHOLD {
             Err(GatewayClientError::NotEnoughBandwidth(
@@ -369,9 +368,8 @@ impl PacketSender {
 
         if let Err(err) = Self::check_remaining_bandwidth(unwrapped_client).await {
             warn!(
-                "Failed to claim additional bandwidth for {} - {}",
+                "Failed to claim additional bandwidth for {} - {err}",
                 unwrapped_client.gateway_identity().to_base58_string(),
-                err
             );
             if existing_client {
                 guard.invalidate();

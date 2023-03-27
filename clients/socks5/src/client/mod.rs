@@ -25,6 +25,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_task::{TaskClient, TaskManager};
 use std::error::Error;
 use validator_client::nyxd::QueryNyxdClient;
+use validator_client::Client;
 
 pub mod config;
 
@@ -71,7 +72,9 @@ impl NymClient {
     }
 
     #[cfg(not(feature = "mobile"))]
-    async fn create_bandwidth_controller(config: &Config) -> BandwidthController<QueryNyxdClient> {
+    async fn create_bandwidth_controller(
+        config: &Config,
+    ) -> BandwidthController<Client<QueryNyxdClient>> {
         let details = nym_network_defaults::NymNetworkDetails::new_from_env();
         let mut client_config = validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct validator client config");
@@ -225,7 +228,7 @@ impl NymClient {
         );
 
         #[cfg(feature = "mobile")]
-        let base_builder = BaseClientBuilder::<_, QueryNyxdClient>::new_from_base_config(
+        let base_builder = BaseClientBuilder::<_, Client<QueryNyxdClient>>::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
             None,

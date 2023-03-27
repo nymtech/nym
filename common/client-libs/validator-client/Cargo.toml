@@ -13,9 +13,9 @@ colored = "2.0"
 
 nym-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
 nym-contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
-nym-mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
-nym-vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
-nym-coconut-bandwidth-contract-common = { path= "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-mixnet-contract-common = { path = "../../cosmwasm-smart-contracts/mixnet-contract" }
+nym-vesting-contract-common = { path = "../../cosmwasm-smart-contracts/vesting-contract" }
+nym-coconut-bandwidth-contract-common = { path = "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
 nym-vesting-contract = { path = "../../../contracts/vesting" }
@@ -31,7 +31,6 @@ futures = "0.3"
 nym-coconut-interface = { path = "../../coconut-interface" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
-nym-execute = { path = "../../execute" }
 
 # required for nyxd-client
 # at some point it might be possible to make it wasm-compatible
@@ -39,7 +38,9 @@ nym-execute = { path = "../../execute" }
 async-trait = { workspace = true, optional = true }
 bip39 = { workspace = true, features = ["rand"], optional = true }
 nym-config = { path = "../../config", optional = true }
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"], optional = true}
+cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"], optional = true }
+# note that this has the same version as used by cosmrs
+eyre = { version = "0.6", optional = true }
 cw3 = { workspace = true, optional = true }
 cw4 = { workspace = true, optional = true }
 prost = { version = "0.10", default-features = false, optional = true }
@@ -50,13 +51,21 @@ zeroize = { version = "1.5.7", optional = true, features = ["zeroize_derive"] }
 cosmwasm-std = { workspace = true, optional = true }
 
 [dev-dependencies]
+bip39 = { workspace = true }
+cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32"] }
+tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 ts-rs = "6.1.2"
+
+[[example]]
+name = "offline_signing"
+# it should only really require the "signing" feature,
+# but that would require another round of refactoring to make it possible
+# (traits would need to be moved around and refactored themselves)
+required-features = ["nyxd-client"]
 
 [features]
 nyxd-client = [
     "async-trait",
-    "bip39",
-    "nym-config",
     "cosmrs",
     "cw3",
     "cw4",
@@ -65,6 +74,13 @@ nyxd-client = [
     "sha2",
     "itertools",
     "cosmwasm-std",
+    "signing"
+]
+signing = [
+    "bip39",
+    "cosmrs",
+    "eyre",
+    "nym-config",
     "zeroize"
 ]
 generate-ts = []

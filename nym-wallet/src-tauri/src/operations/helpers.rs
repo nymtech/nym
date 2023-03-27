@@ -14,7 +14,7 @@ use nym_mixnet_contract_common::{
 };
 use validator_client::nyxd::error::NyxdError;
 use validator_client::nyxd::traits::MixnetQueryClient;
-use validator_client::nyxd::{Coin, SigningNyxdClient};
+use validator_client::nyxd::{Coin, DirectSigningNyxdClient};
 use validator_client::Client;
 
 // define this as a separate trait for mocking purposes
@@ -26,7 +26,7 @@ pub(crate) trait AddressAndNonceProvider {
 }
 
 #[async_trait]
-impl AddressAndNonceProvider for Client<SigningNyxdClient> {
+impl AddressAndNonceProvider for Client<DirectSigningNyxdClient> {
     async fn get_signing_nonce(&self) -> Result<Nonce, NyxdError> {
         self.nyxd.get_signing_nonce(self.nyxd.address()).await
     }

@@ -1,16 +1,16 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod addr_secp265k1;
+pub mod addr_secp256k1;
 pub mod error;
 pub(crate) mod helpers;
-mod sign_secp265k1;
+mod sign_secp256k1;
 pub mod version;
 
-use crate::addr_secp265k1::AddrSecp265k1Response;
+use crate::addr_secp256k1::AddrSecp256k1Response;
 use crate::error::LedgerError;
 use crate::helpers::path_bytes;
-use crate::sign_secp265k1::SignSecp265k1Response;
+use crate::sign_secp256k1::SignSecp256k1Response;
 use crate::version::VersionResponse;
 use bip32::DerivationPath;
 use error::Result;
@@ -72,8 +72,8 @@ impl CosmosLedger {
         VersionResponse::try_from(response)
     }
 
-    /// Get the SECP265K1 address of the device.
-    pub fn get_addr_secp265k1(&self, display: bool) -> Result<AddrSecp265k1Response> {
+    /// Get the SECP256K1 address of the device.
+    pub fn get_addr_secp256k1(&self, display: bool) -> Result<AddrSecp256k1Response> {
         let display = u8::from(display);
         let components = path_bytes(self.path.clone())?;
         let data: Vec<u8> = vec![
@@ -98,10 +98,10 @@ impl CosmosLedger {
             data,
         };
         let response = self.transport.exchange(&command)?;
-        AddrSecp265k1Response::try_from(response)
+        AddrSecp256k1Response::try_from(response)
     }
 
-    pub fn sign_secp265k1(&self, message: String) -> Result<SignSecp265k1Response> {
+    pub fn sign_secp256k1(&self, message: String) -> Result<SignSecp256k1Response> {
         let serialized_path: Vec<u8> = path_bytes(self.path.clone())?
             .into_iter()
             .flatten()
@@ -131,7 +131,7 @@ impl CosmosLedger {
             };
             let sign_response = self.transport.exchange(&command)?;
             if payload_desc == PAYLOAD_TYPE_LAST {
-                return SignSecp265k1Response::try_from(sign_response);
+                return SignSecp256k1Response::try_from(sign_response);
             }
         }
         // It should never reach this, as the message is not empty

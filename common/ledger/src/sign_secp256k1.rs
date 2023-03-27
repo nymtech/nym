@@ -7,18 +7,18 @@ use k256::ecdsa::Signature;
 use ledger_transport::APDUAnswer;
 
 /// Version and status data of the device.
-pub struct SignSecp265k1Response {
+pub struct SignSecp256k1Response {
     /// DER encoded signature data
     pub signature: Signature,
 }
 
-impl TryFrom<APDUAnswer<Vec<u8>>> for SignSecp265k1Response {
+impl TryFrom<APDUAnswer<Vec<u8>>> for SignSecp256k1Response {
     type Error = LedgerError;
 
     fn try_from(answer: APDUAnswer<Vec<u8>>) -> Result<Self, Self::Error> {
         let bytes = answer_bytes(&answer)?;
 
-        Ok(SignSecp265k1Response {
+        Ok(SignSecp256k1Response {
             signature: Signature::from_der(bytes)?,
         })
     }

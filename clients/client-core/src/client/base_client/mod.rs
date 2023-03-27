@@ -1,6 +1,7 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::received_buffer::ReceivedBufferMessage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::key_manager::KeyManager;
@@ -24,8 +25,6 @@ use crate::error::ClientCoreError;
 use crate::spawn_future;
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
-#[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_mockups::CosmWasmClient;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
@@ -45,9 +44,10 @@ use tap::TapFallible;
 use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::CosmWasmClient;
+use validator_client::nyxd::traits::DkgQueryClient;
 
-use super::received_buffer::ReceivedBufferMessage;
+#[cfg(target_arch = "wasm32")]
+use gateway_client::wasm_mockups::DkgQueryClient;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod non_wasm_helpers;
@@ -150,7 +150,7 @@ impl From<bool> for CredentialsToggle {
     }
 }
 
-pub struct BaseClientBuilder<'a, B, C: Clone> {
+pub struct BaseClientBuilder<'a, B, C> {
     // due to wasm limitations I had to split it like this : (
     gateway_config: &'a GatewayEndpointConfig,
     debug_config: &'a DebugConfig,
@@ -166,7 +166,7 @@ pub struct BaseClientBuilder<'a, B, C: Clone> {
 impl<'a, B, C> BaseClientBuilder<'a, B, C>
 where
     B: ReplyStorageBackend + Send + Sync + 'static,
-    C: CosmWasmClient + Sync + Send + Clone + 'static,
+    C: DkgQueryClient + Sync + Send + 'static,
 {
     pub fn new_from_base_config<T>(
         base_config: &'a Config<T>,

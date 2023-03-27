@@ -1,6 +1,8 @@
 use crate::order::OrderSignature;
 use validator_client::nyxd::error::NyxdError;
-use validator_client::nyxd::wallet::{AccountData, DirectSecp256k1HdWallet};
+use validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
+use validator_client::signing::signer::OfflineSigner;
+use validator_client::signing::AccountData;
 
 /// Signs an order message to purchase Nym with Bity
 pub fn sign_order(
@@ -12,7 +14,7 @@ pub fn sign_order(
         account_id: signer.address().clone(),
         public_key: signer.public_key(),
         signature_as_hex: wallet
-            .sign_raw_with_account(signer, &message.into_bytes())?
+            .sign_raw_with_account(signer, message.into_bytes())?
             .to_string(),
     })
 }

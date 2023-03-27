@@ -6,7 +6,8 @@ use cosmrs::crypto::PublicKey;
 use log::error;
 use serde::Serialize;
 use serde_json::json;
-use validator_client::nyxd::wallet::DirectSecp256k1HdWallet;
+use validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
+use validator_client::signing::signer::OfflineSigner;
 
 #[derive(Debug, Serialize)]
 pub struct SignatureOutputJson {
@@ -41,7 +42,7 @@ pub fn sign(args: Args, prefix: &str, mnemonic: Option<bip39::Mnemonic>) {
         Ok(accounts) => match accounts.first() {
             Some(account) => {
                 let msg = args.message.into_bytes();
-                match wallet.sign_raw_with_account(account, &msg) {
+                match wallet.sign_raw_with_account(account, msg) {
                     Ok(signature) => {
                         let output = SignatureOutputJson {
                             account_id: account.address().to_string(),

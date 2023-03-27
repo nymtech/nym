@@ -3,7 +3,6 @@
 
 use crate::nyxd::cosmwasm_client::types::ContractCodeId;
 use cosmrs::{
-    bip32,
     rpc::endpoint::abci_query::AbciQuery,
     tendermint::{
         abci::{self, Code as AbciCode},
@@ -13,23 +12,20 @@ use cosmrs::{
 };
 use thiserror::Error;
 
-use std::{io, time::Duration};
-
+use crate::signing::direct_wallet::DirectSecp256k1HdWalletError;
 pub use cosmrs::rpc::{
     error::{Error as TendermintRpcError, ErrorDetail as TendermintRpcErrorDetail},
     response_error::{Code, ResponseError},
 };
+use std::{io, time::Duration};
 
 #[derive(Debug, Error)]
 pub enum NyxdError {
     #[error("No contract address is available to perform the call")]
     NoContractAddressAvailable,
 
-    #[error("There was an issue with bip32 - {0}")]
-    Bip32Error(#[from] bip32::Error),
-
-    #[error("There was an issue with bip39 - {0}")]
-    Bip39Error(#[from] bip39::Error),
+    #[error(transparent)]
+    WalletError(#[from] DirectSecp256k1HdWalletError),
 
     #[error("There was an issue on the cosmrs side - {0}")]
     CosmrsError(#[from] cosmrs::Error),

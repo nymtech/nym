@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::spawn_future;
-#[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_mockups::CosmWasmClient;
 use gateway_client::GatewayClient;
 use log::*;
 use nym_sphinx::forwarding::packet::MixPacket;
+
 #[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::CosmWasmClient;
+use validator_client::nyxd::traits::DkgQueryClient;
+
+#[cfg(target_arch = "wasm32")]
+use gateway_client::wasm_mockups::DkgQueryClient;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
@@ -17,7 +19,7 @@ pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
 const MAX_FAILURE_COUNT: usize = 100;
 
-pub struct MixTrafficController<C: Clone> {
+pub struct MixTrafficController<C> {
     // TODO: most likely to be replaced by some higher level construct as
     // later on gateway_client will need to be accessible by other entities
     gateway_client: GatewayClient<C>,
@@ -30,7 +32,7 @@ pub struct MixTrafficController<C: Clone> {
 
 impl<C> MixTrafficController<C>
 where
-    C: CosmWasmClient + Sync + Send + Clone + 'static,
+    C: DkgQueryClient + Sync + Send + 'static,
 {
     pub fn new(
         gateway_client: GatewayClient<C>,

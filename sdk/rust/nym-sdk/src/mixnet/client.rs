@@ -25,7 +25,8 @@ use nym_task::{
 use futures::StreamExt;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::NymTopology;
-use validator_client::nyxd::SigningNyxdClient;
+use validator_client::nyxd::DirectSigningNyxdClient;
+use validator_client::Client;
 
 use crate::{Error, Result};
 
@@ -221,7 +222,7 @@ where
         self.key_manager.is_gateway_key_set()
     }
 
-    /// Sets the keys of this [`MixnetClientBuilder<B>`].
+    /// Sets the keys of this [`MixnetClientBuilder`].
     fn set_keys(&mut self, keys: Keys) {
         self.key_manager.set_identity_keypair(keys.identity_keypair);
         self.key_manager
@@ -238,7 +239,7 @@ where
         KeysArc::from(&self.key_manager)
     }
 
-    /// Sets the gateway endpoint of this [`MixnetClientBuilder<B>`].
+    /// Sets the gateway endpoint of this [`MixnetClientBuilder`].
     ///
     /// NOTE: this will mark this builder as `Registered`, and the it is assumed that the keys are
     /// also explicitly set.
@@ -292,7 +293,7 @@ where
         Ok(())
     }
 
-    /// Returns the get gateway endpoint of this [`MixnetClientBuilder<B>`].
+    /// Returns the get gateway endpoint of this [`MixnetClientBuilder`].
     pub fn get_gateway_endpoint(&self) -> Option<&GatewayEndpointConfig> {
         self.state.gateway_endpoint_config()
     }
@@ -399,15 +400,16 @@ where
         // TODO: we currently don't support having a bandwidth controller
         let bandwidth_controller = None;
 
-        let mut base_builder: BaseClientBuilder<'_, _, SigningNyxdClient> = BaseClientBuilder::new(
-            &gateway_endpoint_config,
-            &self.config.debug_config,
-            self.key_manager.clone(),
-            bandwidth_controller,
-            self.reply_storage_backend,
-            CredentialsToggle::Disabled,
-            self.config.nym_api_endpoints.clone(),
-        );
+        let mut base_builder: BaseClientBuilder<'_, _, Client<DirectSigningNyxdClient>> =
+            BaseClientBuilder::new(
+                &gateway_endpoint_config,
+                &self.config.debug_config,
+                self.key_manager.clone(),
+                bandwidth_controller,
+                self.reply_storage_backend,
+                CredentialsToggle::Disabled,
+                self.config.nym_api_endpoints.clone(),
+            );
 
         if let Some(topology_provider) = self.custom_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);

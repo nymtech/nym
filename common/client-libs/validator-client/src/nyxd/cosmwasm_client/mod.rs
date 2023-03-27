@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::wallet::DirectSecp256k1HdWallet;
 use crate::nyxd::GasPrice;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl};
 use std::convert::TryInto;
@@ -20,12 +19,11 @@ where
     Ok(HttpClient::new(endpoint)?)
 }
 
-// maybe the wallet could be made into a generic, but for now, let's just have this one implementation
-pub fn connect_with_signer<U: Clone>(
+pub fn connect_with_signer<S, U: Clone>(
     endpoint: U,
-    signer: DirectSecp256k1HdWallet,
+    signer: S,
     gas_price: GasPrice,
-) -> Result<signing_client::Client, NyxdError>
+) -> Result<signing_client::Client<S>, NyxdError>
 where
     U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
 {

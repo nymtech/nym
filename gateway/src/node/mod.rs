@@ -224,7 +224,7 @@ where
 
     fn random_nyxd_client(
         &self,
-    ) -> validator_client::Client<validator_client::nyxd::SigningNyxdClient> {
+    ) -> validator_client::Client<validator_client::nyxd::DirectSigningNyxdClient> {
         let endpoints = self.config.get_nyxd_urls();
         let validator_nyxd = endpoints
             .choose(&mut thread_rng())

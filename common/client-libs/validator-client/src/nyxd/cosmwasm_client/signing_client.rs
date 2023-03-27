@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
@@ -7,8 +7,10 @@ use crate::nyxd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nyxd::cosmwasm_client::types::*;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
-use crate::nyxd::wallet::DirectSecp256k1HdWallet;
 use crate::nyxd::{Coin, GasAdjustable, GasPrice, TxResponse};
+use crate::signing::signer::OfflineSigner;
+use crate::signing::tx_signer::TxSigner;
+use crate::signing::SignerData;
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
@@ -19,7 +21,7 @@ use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
-use cosmrs::tx::{self, Msg, SignDoc, SignerInfo};
+use cosmrs::tx::{self, Msg, Raw};
 use cosmrs::{cosmwasm, rpc, AccountId, Any, Tx};
 use log::debug;
 use serde::Serialize;
@@ -56,17 +58,15 @@ fn single_unspecified_signer_auth(
 
 #[async_trait]
 pub trait SigningCosmWasmClient: CosmWasmClient {
-    fn signer(&self) -> &DirectSecp256k1HdWallet;
+    type Signer: OfflineSigner + Send + Sync;
+
+    fn signer(&self) -> &Self::Signer;
 
     fn gas_price(&self) -> &GasPrice;
 
     fn signer_public_key(&self, signer_address: &AccountId) -> Option<tx::SignerPublicKey> {
-        let signer_accounts = self.signer().try_derive_accounts().ok()?;
-        let account_from_signer = signer_accounts
-            .iter()
-            .find(|account| &account.address == signer_address)?;
-        let public_key = account_from_signer.public_key;
-        Some(public_key.into())
+        let account = self.signer().find_account(signer_address).ok()?;
+        Some(account.public_key().into())
     }
 
     async fn simulate(
@@ -597,7 +597,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let fee = self
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = self.sign(signer_address, messages, fee, memo, None).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
@@ -617,7 +617,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         let fee = self
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = self.sign(signer_address, messages, fee, memo, None).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
@@ -638,7 +638,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
 
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = self.sign(signer_address, messages, fee, memo, None).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
@@ -659,50 +659,12 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .determine_transaction_fee(signer_address, &messages, fee, &memo)
             .await?;
 
-        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_raw = self.sign(signer_address, messages, fee, memo, None).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
 
         self.broadcast_tx(tx_bytes.into()).await
-    }
-
-    fn sign_direct(
-        &self,
-        signer_address: &AccountId,
-        messages: Vec<Any>,
-        fee: tx::Fee,
-        memo: impl Into<String> + Send + 'static,
-        signer_data: SignerData,
-    ) -> Result<tx::Raw, NyxdError> {
-        let signer_accounts = self.signer().try_derive_accounts()?;
-        let account_from_signer = signer_accounts
-            .iter()
-            .find(|account| &account.address == signer_address)
-            .ok_or_else(|| NyxdError::SigningAccountNotFound(signer_address.clone()))?;
-
-        // TODO: WTF HOW IS TIMEOUT_HEIGHT SUPPOSED TO GET DETERMINED?
-        // IT DOESNT EXIST IN COSMJS!!
-        // try to set to 0
-        let timeout_height = 0u32;
-
-        let tx_body = tx::Body::new(messages, memo, timeout_height);
-        let signer_info =
-            SignerInfo::single_direct(Some(account_from_signer.public_key), signer_data.sequence);
-        let auth_info = signer_info.auth_info(fee);
-
-        // ideally I'd prefer to have the entire error put into the NyxdError::SigningFailure
-        // but I'm super hesitant to trying to downcast the eyre::Report to cosmrs::error::Error
-        let sign_doc = SignDoc::new(
-            &tx_body,
-            &auth_info,
-            &signer_data.chain_id,
-            signer_data.account_number,
-        )
-        .map_err(|_| NyxdError::SigningFailure)?;
-
-        self.signer()
-            .sign_direct_with_account(account_from_signer, sign_doc)
     }
 
     async fn sign(
@@ -711,36 +673,59 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         messages: Vec<Any>,
         fee: tx::Fee,
         memo: impl Into<String> + Send + 'static,
+        explicit_signer_data: Option<SignerData>,
     ) -> Result<tx::Raw, NyxdError> {
-        // TODO: Future optimisation: rather than grabbing current account_number and sequence
-        // on every sign request -> just keep them cached on the struct and increment as required
-        let sequence_response = self.get_sequence(signer_address).await?;
-        let chain_id = self.get_chain_id().await?;
+        let signer_data = match explicit_signer_data {
+            Some(signer_data) => signer_data,
+            None => {
+                // TODO: Future optimisation: rather than grabbing current account_number and sequence
+                // on every sign request -> just keep them cached on the struct and increment as required
+                let sequence_response = self.get_sequence(signer_address).await?;
+                let chain_id = self.get_chain_id().await?;
 
-        let signer_data = SignerData {
-            account_number: sequence_response.account_number,
-            sequence: sequence_response.sequence,
-            chain_id,
+                SignerData::new_from_sequence_response(sequence_response, chain_id)
+            }
         };
 
         self.sign_direct(signer_address, messages, fee, memo, signer_data)
     }
+
+    fn sign_amino(
+        &self,
+        signer_address: &AccountId,
+        messages: Vec<Any>,
+        fee: tx::Fee,
+        memo: impl Into<String> + Send + 'static,
+        signer_data: SignerData,
+    ) -> Result<tx::Raw, NyxdError>;
+
+    fn sign_direct(
+        &self,
+        signer_address: &AccountId,
+        messages: Vec<Any>,
+        fee: tx::Fee,
+        memo: impl Into<String> + Send + 'static,
+        signer_data: SignerData,
+    ) -> Result<tx::Raw, NyxdError>;
 }
 
-#[derive(Debug, Clone)]
-pub struct Client {
+#[derive(Debug)]
+pub struct Client<S> {
+    // TODO: somehow nicely hide this guy if we decide to use our client in offline mode,
+    // maybe just convert it into an option?
+    // or maybe we need another level of indirection. tbd.
     rpc_client: HttpClient,
-    signer: DirectSecp256k1HdWallet,
+    tx_signer: TxSigner<S>,
     gas_price: GasPrice,
 
     broadcast_polling_rate: Duration,
     broadcast_timeout: Duration,
 }
 
-impl Client {
+impl<S> Client<S> {
     pub fn connect_with_signer<U: Clone>(
         endpoint: U,
-        signer: DirectSecp256k1HdWallet,
+        signer: S,
         gas_price: GasPrice,
     ) -> Result<Self, NyxdError>
     where
@@ -749,11 +734,18 @@ impl Client {
         let rpc_client = HttpClient::new(endpoint)?;
         Ok(Client {
             rpc_client,
-            signer,
+            tx_signer: TxSigner::new(signer),
             gas_price,
             broadcast_polling_rate: DEFAULT_BROADCAST_POLLING_RATE,
             broadcast_timeout: DEFAULT_BROADCAST_TIMEOUT,
         })
+    }
+
+    pub fn offline(signer: S) -> TxSigner<S>
+    where
+        S: OfflineSigner,
+    {
+        TxSigner::new(signer)
     }
 
     pub fn change_endpoint<U>(&mut self, new_endpoint: U) -> Result<(), NyxdError>
@@ -765,8 +757,8 @@ impl Client {
         Ok(())
     }
 
-    pub fn into_signer(self) -> DirectSecp256k1HdWallet {
-        self.signer
+    pub fn into_signer(self) -> S {
+        self.tx_signer.into_inner_signer()
     }
 
     pub fn set_broadcast_polling_rate(&mut self, broadcast_polling_rate: Duration) {
@@ -779,7 +771,10 @@ impl Client {
 }
 
 #[async_trait]
-impl rpc::Client for Client {
+impl<S> rpc::Client for Client<S>
+where
+    S: Send + Sync,
+{
     async fn perform<R>(&self, request: R) -> Result<R::Response, rpc::Error>
     where
         R: SimpleRequest,
@@ -789,7 +784,10 @@ impl rpc::Client for Client {
 }
 
 #[async_trait]
-impl CosmWasmClient for Client {
+impl<S> CosmWasmClient for Client<S>
+where
+    S: Send + Sync,
+{
     fn broadcast_polling_rate(&self) -> Duration {
         self.broadcast_polling_rate
     }
@@ -800,12 +798,44 @@ impl CosmWasmClient for Client {
 }
 
 #[async_trait]
-impl SigningCosmWasmClient for Client {
-    fn signer(&self) -> &DirectSecp256k1HdWallet {
-        &self.signer
+impl<S> SigningCosmWasmClient for Client<S>
+where
+    S: OfflineSigner + Send + Sync,
+    NyxdError: From<S::Error>,
+{
+    type Signer = S;
+
+    fn signer(&self) -> &Self::Signer {
+        self.tx_signer.signer()
     }
 
     fn gas_price(&self) -> &GasPrice {
         &self.gas_price
+    }
+
+    fn sign_amino(
+        &self,
+        signer_address: &AccountId,
+        messages: Vec<Any>,
+        fee: tx::Fee,
+        memo: impl Into<String> + Send + 'static,
+        signer_data: SignerData,
+    ) -> Result<Raw, NyxdError> {
+        Ok(self
+            .tx_signer
+            .sign_amino(signer_address, messages, fee, memo, signer_data)?)
+    }
+
+    fn sign_direct(
+        &self,
+        signer_address: &AccountId,
+        messages: Vec<Any>,
+        fee: tx::Fee,
+        memo: impl Into<String> + Send + 'static,
+        signer_data: SignerData,
+    ) -> Result<Raw, NyxdError> {
+        Ok(self
+            .tx_signer
+            .sign_direct(signer_address, messages, fee, memo, signer_data)?)
     }
 }

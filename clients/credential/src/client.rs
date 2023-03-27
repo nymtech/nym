@@ -8,10 +8,10 @@ use std::str::FromStr;
 use url::Url;
 use validator_client::nyxd;
 use validator_client::nyxd::traits::CoconutBandwidthSigningClient;
-use validator_client::nyxd::{Coin, Fee, NyxdClient, SigningNyxdClient};
+use validator_client::nyxd::{Coin, DirectSigningNyxdClient, Fee, NyxdClient};
 
 pub(crate) struct Client {
-    nyxd_client: NyxdClient<SigningNyxdClient>,
+    nyxd_client: NyxdClient<DirectSigningNyxdClient>,
     mix_denom_base: String,
 }
 

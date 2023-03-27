@@ -28,7 +28,7 @@ impl APICommunicationChannel for QueryCommunicationChannel {
     async fn aggregated_verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey> {
         let client = self.nyxd_client.0.read().await;
         let coconut_api_clients =
-            CoconutApiClient::all_coconut_api_clients(&client, epoch_id).await?;
+            CoconutApiClient::all_coconut_api_clients(&client.nyxd, epoch_id).await?;
         let vk = obtain_aggregate_verification_key(&coconut_api_clients).await?;
         Ok(vk)
     }

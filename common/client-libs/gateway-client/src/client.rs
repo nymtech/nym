@@ -27,9 +27,10 @@ use std::time::Duration;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
-use tokio_tungstenite::connect_async;
+use validator_client::nyxd::traits::DkgQueryClient;
+
 #[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::CosmWasmClient;
+use tokio_tungstenite::connect_async;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "mobile"))]
@@ -40,7 +41,7 @@ use nym_credential_storage::PersistentStorage;
 use mobile_storage::PersistentStorage;
 
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::CosmWasmClient;
+use crate::wasm_mockups::DkgQueryClient;
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::PersistentStorage;
 #[cfg(target_arch = "wasm32")]
@@ -51,7 +52,7 @@ use wasm_utils::websocket::JSWebsocket;
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
-pub struct GatewayClient<C: Clone> {
+pub struct GatewayClient<C> {
     authenticated: bool,
     disabled_credentials_mode: bool,
     bandwidth_remaining: i64,
@@ -79,7 +80,7 @@ pub struct GatewayClient<C: Clone> {
 
 impl<C> GatewayClient<C>
 where
-    C: CosmWasmClient + Sync + Send + Clone,
+    C: Sync + Send,
 {
     // TODO: put it all in a Config struct
     #[allow(clippy::too_many_arguments)]
@@ -236,7 +237,7 @@ where
 
         for i in 1..self.reconnection_attempts {
             info!("attempt {}...", i);
-            if self.authenticate_and_start().await.is_ok() {
+            if self.try_reconnect().await.is_ok() {
                 info!("managed to reconnect!");
                 return Ok(());
             }
@@ -255,7 +256,7 @@ where
 
         // final attempt (done separately to be able to return a proper error)
         info!("attempt {}", self.reconnection_attempts);
-        match self.authenticate_and_start().await {
+        match self.try_reconnect().await {
             Ok(_) => {
                 info!("managed to reconnect!");
                 Ok(())
@@ -573,7 +574,10 @@ where
         Ok(())
     }
 
-    pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError> {
+    pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError>
+    where
+        C: DkgQueryClient,
+    {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
@@ -760,7 +764,24 @@ where
         Ok(())
     }
 
-    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError> {
+    async fn try_reconnect(&mut self) -> Result<(), GatewayClientError> {
+        if !self.connection.is_established() {
+            self.establish_connection().await?;
+        }
+
+        // TODO: the name of this method is very deceiving
+        self.perform_initial_authentication().await?;
+
+        // this call is NON-blocking
+        self.start_listening_for_mixnet_messages()?;
+
+        Ok(())
+    }
+
+    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError>
+    where
+        C: DkgQueryClient,
+    {
         if !self.connection.is_established() {
             self.establish_connection().await?;
         }

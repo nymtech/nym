@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use dashmap::DashMap;
-use nymsphinx::addressing::clients::{Recipient, RecipientBytes};
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::addressing::clients::{Recipient, RecipientBytes};
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::sync::Arc;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]

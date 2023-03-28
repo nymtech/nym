@@ -4,29 +4,29 @@
 use clap::Parser;
 use log::info;
 
-use crate::context::SigningClientWithNymd;
+use crate::context::SigningClientWithNyxd;
 use crate::utils::{pretty_cosmwasm_coin, show_error_passthrough};
 
 use comfy_table::Table;
 use cosmwasm_std::Addr;
-use mixnet_contract_common::{Delegation, PendingEpochEvent, PendingEpochEventKind};
+use nym_mixnet_contract_common::{Delegation, PendingEpochEvent, PendingEpochEventKind};
 
 #[derive(Debug, Parser)]
 pub struct Args {}
 
-pub async fn execute(_args: Args, client: SigningClientWithNymd) {
+pub async fn execute(_args: Args, client: SigningClientWithNyxd) {
     info!(
         "Getting delegations for account {}...",
-        client.nymd.address()
+        client.nyxd.address()
     );
 
     let delegations = client
-        .get_all_delegator_delegations(client.nymd.address())
+        .get_all_delegator_delegations(client.nyxd.address())
         .await
         .map_err(show_error_passthrough);
 
     let mixnet_contract_events = client
-        .get_all_nymd_pending_epoch_events()
+        .get_all_nyxd_pending_epoch_events()
         .await
         .map_err(show_error_passthrough);
 
@@ -48,14 +48,14 @@ pub async fn execute(_args: Args, client: SigningClientWithNymd) {
     }
 }
 
-async fn to_iso_timestamp(block_height: u32, client: &SigningClientWithNymd) -> String {
-    match client.nymd.get_block_timestamp(Some(block_height)).await {
+async fn to_iso_timestamp(block_height: u32, client: &SigningClientWithNyxd) -> String {
+    match client.nyxd.get_block_timestamp(Some(block_height)).await {
         Ok(res) => res.to_rfc3339(),
         Err(_e) => "-".to_string(),
     }
 }
 
-async fn print_delegations(delegations: Vec<Delegation>, client: &SigningClientWithNymd) {
+async fn print_delegations(delegations: Vec<Delegation>, client: &SigningClientWithNyxd) {
     let mut table = Table::new();
 
     table.set_header(vec!["Timestamp", "Mix Id", "Delegation", "Proxy"]);
@@ -75,7 +75,7 @@ async fn print_delegations(delegations: Vec<Delegation>, client: &SigningClientW
     println!("{table}");
 }
 
-async fn print_delegation_events(events: Vec<PendingEpochEvent>, client: &SigningClientWithNymd) {
+async fn print_delegation_events(events: Vec<PendingEpochEvent>, client: &SigningClientWithNyxd) {
     let mut table = Table::new();
 
     table.set_header(vec![
@@ -94,7 +94,7 @@ async fn print_delegation_events(events: Vec<PendingEpochEvent>, client: &Signin
                 amount,
                 proxy,
             } => {
-                if owner.as_str() == client.nymd.address().as_ref() {
+                if owner.as_str() == client.nyxd.address().as_ref() {
                     table.add_row(vec![
                         "not-sure-if-applicable".into(),
                         mix_id.to_string(),
@@ -109,7 +109,7 @@ async fn print_delegation_events(events: Vec<PendingEpochEvent>, client: &Signin
                 mix_id,
                 proxy,
             } => {
-                if owner.as_str() == client.nymd.address().as_ref() {
+                if owner.as_str() == client.nyxd.address().as_ref() {
                     table.add_row(vec![
                         "not-sure-if-applicable".into(),
                         mix_id.to_string(),

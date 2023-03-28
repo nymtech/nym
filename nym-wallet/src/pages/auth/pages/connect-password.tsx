@@ -9,9 +9,8 @@ import { Subtitle, Title, PasswordStrength } from '../components';
 
 export const ConnectPassword = () => {
   const [confirmedPassword, setConfirmedPassword] = useState<string>('');
-  const [isStrongPassword, setIsStrongPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
+  const [isSafePassword, setIsSafePassword] = useState(false);
   const { mnemonic, password, setPassword, resetState } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -49,7 +48,7 @@ export const ConnectPassword = () => {
               label="Password"
               autoFocus
             />
-            <PasswordStrength password={password} onChange={(isStrong) => setIsStrongPassword(isStrong)} />
+            <PasswordStrength password={password} handleIsSafePassword={setIsSafePassword} withWarnings />
           </>
           <PasswordInput
             password={confirmedPassword}
@@ -59,7 +58,7 @@ export const ConnectPassword = () => {
           <Button
             size="large"
             variant="contained"
-            disabled={password !== confirmedPassword || password.length === 0 || !isStrongPassword || isLoading}
+            disabled={password !== confirmedPassword || password.length === 0 || isLoading || !isSafePassword}
             onClick={storePassword}
           >
             {isLoading ? <CircularProgress size={25} /> : 'Create password'}

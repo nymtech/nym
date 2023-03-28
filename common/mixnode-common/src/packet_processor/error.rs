@@ -1,9 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nymsphinx_acknowledgements::surb_ack::SurbAckRecoveryError;
-use nymsphinx_addressing::nodes::NymNodeRoutingAddressError;
-use nymsphinx_types::Error as SphinxError;
+use nym_sphinx_acknowledgements::surb_ack::SurbAckRecoveryError;
+use nym_sphinx_addressing::nodes::NymNodeRoutingAddressError;
+use nym_sphinx_types::Error as SphinxError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

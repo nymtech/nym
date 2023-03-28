@@ -1,17 +1,17 @@
 [package]
 name = "explorer-api"
-version = "1.1.2"
+version = "1.1.13"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 chrono = { version = "0.4.19", features = ["serde"] }
-clap = { version = "3.2", features = ["cargo", "derive"] }
+clap = { version = "4.0", features = ["cargo", "derive"] }
 humantime-serde = "1.0"
 isocountry = "0.3.2"
 itertools = "0.10.3"
-log = "0.4.0"
+log = { workspace = true }
 okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
 pretty_env_logger = "0.4.0"
 reqwest = "0.11.4"
@@ -24,11 +24,14 @@ serde_json = "1.0.66"
 thiserror = "1.0.29"
 tokio = {version = "1.21.2", features = ["full"] }
 maxminddb = "0.23.0"
-dotenv = "0.15.0"
+dotenvy = "0.15.6"
+rand = "0.8.5"
+rand_seeder = "0.2.3"
+rand_pcg = "0.3.1"
 
-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
-network-defaults = { path = "../common/network-defaults" }
-logging = { path = "../common/logging"}
-task = { path = "../common/task" }
-validator-client = { path = "../common/client-libs/validator-client", features=["nymd-client"] }
+nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
+nym-network-defaults = { path = "../common/network-defaults" }
+nym-bin-common = { path = "../common/bin-common"}
+nym-task = { path = "../common/task" }
+validator-client = { path = "../common/client-libs/validator-client", features=["nyxd-client"] }

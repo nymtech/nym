@@ -5,7 +5,7 @@ This is a CLI tool for interacting with:
 - the Nyx blockchain
 - the smart contracts for the Mixnet
 
-It provides a convenient wrapper around the [`nymd client`](../../common/client-libs) with similar functionality to the`nyxd` binary for querying the chain or executing smart contract methods.
+It provides a convenient wrapper around the [`nyxd client`](../../common/client-libs) with similar functionality to the`nyxd` binary for querying the chain or executing smart contract methods.
 
 And in the future it will provide an easy way to interact with Coconut, to issue and verify Coconut credenitals.
 
@@ -41,7 +41,7 @@ You will need to pass the following with every command as an argument:
 
 ```
 --mnemonic <MNEMONIC>                    
---nymd-url <NYMD_URL>                    
+--nyxd-url <nyxd_URL>                    
 --mixnet-contract <MIXNET_CONTRACT_ADDRESS>      
 --vesting-contract <VESTING_CONTRACT_ADDRESS>
 ```

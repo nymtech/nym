@@ -6,7 +6,7 @@ import { validateKey } from '@nymproject/types';
 import DoneIcon from '@mui/icons-material/Done';
 import { SxProps } from '@mui/system';
 
-export const IdentityKeyFormField: React.FC<{
+export const IdentityKeyFormField: FCWithChildren<{
   showTickOnValid?: boolean;
   fullWidth?: boolean;
   required?: boolean;
@@ -19,7 +19,10 @@ export const IdentityKeyFormField: React.FC<{
   onValidate?: (isValid: boolean, error?: string) => void;
   textFieldProps?: TextFieldProps;
   errorText?: string;
+  size?: 'small' | 'medium';
   sx?: SxProps;
+  disabled?: boolean;
+  autoFocus?: boolean;
 }> = ({
   required,
   fullWidth,
@@ -33,6 +36,9 @@ export const IdentityKeyFormField: React.FC<{
   onValidate,
   textFieldProps,
   showTickOnValid = true,
+  size,
+  disabled,
+  autoFocus,
 }) => {
   const [value, setValue] = React.useState<string | undefined>(initialValue);
   const [validationError, setValidationError] = React.useState<string | undefined>();
@@ -100,6 +106,9 @@ export const IdentityKeyFormField: React.FC<{
       defaultValue={initialValue}
       onChange={handleChange}
       InputLabelProps={{ shrink: true }}
+      size={size}
+      disabled={disabled}
+      autoFocus={autoFocus}
     />
   );
 };

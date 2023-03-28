@@ -1,21 +1,26 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::config_template;
+pub use client_core::config::Config as BaseConfig;
 pub use client_core::config::MISSING_VALUE;
-use client_core::config::{ClientCoreConfigTrait, Config as BaseConfig, DebugConfig};
-use config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
-use config::NymConfig;
-use nymsphinx::addressing::clients::Recipient;
+use client_core::config::{ClientCoreConfigTrait, DebugConfig};
+use nym_config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
+use nym_config::{NymConfig, OptionalSet};
+use nym_service_providers_common::interface::ProviderInterfaceVersion;
+use nym_socks5_requests::Socks5ProtocolVersion;
+use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 mod template;
 
 const DEFAULT_CONNECTION_START_SURBS: u32 = 20;
 const DEFAULT_PER_REQUEST_SURBS: u32 = 3;
 
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(flatten)]
@@ -33,10 +38,12 @@ impl NymConfig for Config {
     }
 
     fn default_root_directory() -> PathBuf {
-        dirs::home_dir()
-            .expect("Failed to evaluate $HOME value")
-            .join(".nym")
-            .join("socks5-clients")
+        #[cfg(not(feature = "mobile"))]
+        let base_dir = dirs::home_dir().expect("Failed to evaluate $HOME value");
+        #[cfg(feature = "mobile")]
+        let base_dir = PathBuf::from("/tmp");
+
+        base_dir.join(".nym").join("socks5-clients")
     }
 
     fn try_default_root_directory() -> Option<PathBuf> {
@@ -85,6 +92,16 @@ impl Config {
         self
     }
 
+    pub fn with_provider_interface_version(mut self, version: ProviderInterfaceVersion) -> Self {
+        self.socks5.provider_interface_version = version;
+        self
+    }
+
+    pub fn with_socks5_protocol_version(mut self, version: Socks5ProtocolVersion) -> Self {
+        self.socks5.socks5_protocol_version = version;
+        self
+    }
+
     pub fn with_anonymous_replies(mut self, anonymous_replies: bool) -> Self {
         self.socks5.send_anonymously = anonymous_replies;
         self
@@ -112,6 +129,14 @@ impl Config {
             .expect("malformed provider address")
     }
 
+    pub fn get_provider_interface_version(&self) -> ProviderInterfaceVersion {
+        self.socks5.provider_interface_version
+    }
+
+    pub fn get_socks5_protocol_version(&self) -> Socks5ProtocolVersion {
+        self.socks5.socks5_protocol_version
+    }
+
     pub fn get_send_anonymously(&self) -> bool {
         self.socks5.send_anonymously
     }
@@ -127,9 +152,53 @@ impl Config {
     pub fn get_per_request_surbs(&self) -> u32 {
         self.socks5_debug.per_request_surbs
     }
+
+    // poor man's 'builder' method
+    pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+    {
+        self.base = f(self.base, val);
+        self
+    }
+
+    // helper methods to use `OptionalSet` trait. Those are defined due to very... ehm. 'specific' structure of this config
+    // (plz, lets refactor it)
+    pub fn with_optional_ext<F, T>(mut self, f: F, val: Option<T>) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+    {
+        self.base = self.base.with_optional(f, val);
+        self
+    }
+
+    pub fn with_optional_env_ext<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+        T: FromStr,
+        <T as FromStr>::Err: Debug,
+    {
+        self.base = self.base.with_optional_env(f, val, env_var);
+        self
+    }
+
+    pub fn with_optional_custom_env_ext<F, T, G>(
+        mut self,
+        f: F,
+        val: Option<T>,
+        env_var: &str,
+        parser: G,
+    ) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+        G: Fn(&str) -> T,
+    {
+        self.base = self.base.with_optional_custom_env(f, val, env_var, parser);
+        self
+    }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Socks5 {
     /// The port on which the client will be listening for incoming requests
@@ -137,6 +206,15 @@ pub struct Socks5 {
 
     /// The mix address of the provider to which all requests are going to be sent.
     provider_mix_address: String,
+
+    /// The version of the 'service provider' this client is going to use in its communication with the
+    /// specified socks5 provider.
+    // if in doubt, use the legacy version as initially nobody will be using the updated binaries
+    #[serde(default = "ProviderInterfaceVersion::new_legacy")]
+    provider_interface_version: ProviderInterfaceVersion,
+
+    #[serde(default = "Socks5ProtocolVersion::new_legacy")]
+    socks5_protocol_version: Socks5ProtocolVersion,
 
     /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
     /// While this is going to hide its actual address information, it will make the actual communication
@@ -152,6 +230,8 @@ impl Socks5 {
         Socks5 {
             listening_port: DEFAULT_SOCKS5_LISTENING_PORT,
             provider_mix_address: provider_mix_address.into(),
+            provider_interface_version: ProviderInterfaceVersion::Legacy,
+            socks5_protocol_version: Socks5ProtocolVersion::Legacy,
             send_anonymously: false,
         }
     }
@@ -162,12 +242,14 @@ impl Default for Socks5 {
         Socks5 {
             listening_port: DEFAULT_SOCKS5_LISTENING_PORT,
             provider_mix_address: "".into(),
+            provider_interface_version: ProviderInterfaceVersion::Legacy,
+            socks5_protocol_version: Socks5ProtocolVersion::Legacy,
             send_anonymously: false,
         }
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Socks5Debug {
     /// Number of reply SURBs attached to each `Request::Connect` message.

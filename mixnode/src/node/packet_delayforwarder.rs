@@ -4,8 +4,8 @@
 use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
-use nymsphinx::forwarding::packet::MixPacket;
+use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
+use nym_sphinx::forwarding::packet::MixPacket;
 use std::io;
 use tokio::time::Instant;
 
@@ -134,13 +134,13 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
-    use task::TaskManager;
+    use nym_task::TaskManager;
 
-    use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
-    use nymsphinx_params::packet_sizes::PacketSize;
-    use nymsphinx_params::PacketMode;
-    use nymsphinx_types::builder::SphinxPacketBuilder;
-    use nymsphinx_types::{
+    use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
+    use nym_sphinx_params::packet_sizes::PacketSize;
+    use nym_sphinx_params::PacketMode;
+    use nym_sphinx_types::builder::SphinxPacketBuilder;
+    use nym_sphinx_types::{
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
         SphinxPacket, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };

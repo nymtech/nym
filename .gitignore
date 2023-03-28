@@ -39,3 +39,5 @@ validator-api-config.toml
 dist
 storybook-static
 envs/qwerty.env
+.parcel-cache
+**/.DS_Store

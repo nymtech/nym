@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
-use client_connections::{ConnectionId, TransmissionLane};
 use futures::channel::{mpsc, oneshot};
 use log::error;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::anonymous_replies::ReplySurb;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::anonymous_replies::ReplySurb;
+use nym_task::connections::{ConnectionId, TransmissionLane};
 use std::sync::Weak;
 
 pub(crate) fn new_control_channels() -> (ReplyControllerSender, ReplyControllerReceiver) {
@@ -96,6 +96,24 @@ impl ReplyControllerSender {
                 0
             }
         }
+    }
+}
+
+pub struct ReplyQueueLengths {
+    reply_controller_sender: ReplyControllerSender,
+}
+
+impl ReplyQueueLengths {
+    pub fn new(reply_controller_sender: ReplyControllerSender) -> Self {
+        Self {
+            reply_controller_sender,
+        }
+    }
+
+    pub async fn get_lane_queue_length(&self, connection_id: ConnectionId) -> usize {
+        self.reply_controller_sender
+            .get_lane_queue_length(connection_id)
+            .await
     }
 }
 

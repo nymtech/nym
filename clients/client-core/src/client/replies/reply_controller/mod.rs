@@ -4,14 +4,14 @@
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
 use crate::client::replies::reply_storage::CombinedReplyStorage;
-use client_connections::{ConnectionId, TransmissionLane};
 use futures::channel::oneshot;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::anonymous_replies::ReplySurb;
-use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::anonymous_replies::ReplySurb;
+use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
+use nym_task::connections::{ConnectionId, TransmissionLane};
 use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::btree_map::Entry;
@@ -30,7 +30,8 @@ pub struct Config {
     min_surb_request_size: u32,
     max_surb_request_size: u32,
     maximum_allowed_reply_surb_request_size: u32,
-    max_surb_waiting_period: Duration,
+    max_surb_rerequest_waiting_period: Duration,
+    max_surb_drop_waiting_period: Duration,
     max_reply_surb_age: Duration,
     max_reply_key_age: Duration,
 }
@@ -40,7 +41,8 @@ impl Config {
         min_surb_request_size: u32,
         max_surb_request_size: u32,
         maximum_allowed_reply_surb_request_size: u32,
-        max_surb_waiting_period: Duration,
+        max_surb_rerequest_waiting_period: Duration,
+        max_surb_drop_waiting_period: Duration,
         max_reply_surb_age: Duration,
         max_reply_key_age: Duration,
     ) -> Self {
@@ -48,7 +50,8 @@ impl Config {
             min_surb_request_size,
             max_surb_request_size,
             maximum_allowed_reply_surb_request_size,
-            max_surb_waiting_period,
+            max_surb_rerequest_waiting_period,
+            max_surb_drop_waiting_period,
             max_reply_surb_age,
             max_reply_key_age,
         }
@@ -742,9 +745,13 @@ where
 
             let diff = now - last_received_time;
 
-            if diff > self.config.max_surb_waiting_period {
-                warn!("We haven't received any surbs in {:?} from {pending_reply_target}. Going to explicitly ask for more", diff);
-                to_request.push(*pending_reply_target);
+            if diff > self.config.max_surb_rerequest_waiting_period {
+                if diff > self.config.max_surb_drop_waiting_period {
+                    to_remove.push(*pending_reply_target)
+                } else {
+                    debug!("We haven't received any surbs in {:?} from {pending_reply_target}. Going to explicitly ask for more", diff);
+                    to_request.push(*pending_reply_target);
+                }
             }
         }
 
@@ -828,7 +835,7 @@ where
     //     todo!()
     // }
 
-    pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+    pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started ReplyController with graceful shutdown support");
 
         let polling_rate = Duration::from_secs(5);

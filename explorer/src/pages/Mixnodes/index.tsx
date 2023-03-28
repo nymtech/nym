@@ -10,7 +10,7 @@ import { useMainContext } from '../../context/main';
 import { MixnodeRowType, mixnodeToGridRow } from '../../components/MixNodes';
 import { TableToolbar } from '../../components/TableToolbar';
 import { MixNodeResponse, MixnodeStatusWithAll, toMixnodeStatus } from '../../typeDefs/explorer-api';
-import { BIG_DIPPER } from '../../api/constants';
+import { NYM_BIG_DIPPER } from '../../api/constants';
 import { CustomColumnHeading } from '../../components/CustomColumnHeading';
 import { Title } from '../../components/Title';
 import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
@@ -35,7 +35,7 @@ const getCellStyles = (theme: Theme, row: MixnodeRowType, textColor?: string): S
   ...getCellFontStyle(theme, row, textColor),
 });
 
-export const PageMixnodes: React.FC = () => {
+export const PageMixnodes: FCWithChildren = () => {
   const { mixnodes, fetchMixnodes } = useMainContext();
   const [filteredMixnodes, setFilteredMixnodes] = React.useState<MixNodeResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('10');
@@ -85,6 +85,7 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'mix_id',
       headerName: 'Mix ID',
+      disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Mix ID" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 100,
@@ -103,6 +104,7 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'identity_key',
       headerName: 'Identity Key',
+      disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 170,
@@ -128,6 +130,7 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'bond',
       headerName: 'Stake',
+      disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Stake" />,
       type: 'number',
       headerClassName: 'MuiDataGrid-header-override',
@@ -146,10 +149,11 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'stake_saturation',
       headerName: 'Stake Saturation',
+      disableColumnMenu: true,
       renderHeader: () => (
         <CustomColumnHeading
           headingTitle="Stake Saturation"
-          tooltipInfo="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 750k NYM, computed as S/K where S is  total amount of tokens available to stakeholders and K is the number of nodes in the reward set."
+          tooltipInfo="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is 730k NYM, computed as S/K where S is target amount of tokens staked in the network and K is the number of nodes in the reward set."
         />
       ),
       headerClassName: 'MuiDataGrid-header-override',
@@ -164,13 +168,14 @@ export const PageMixnodes: React.FC = () => {
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.mix_id}`}
         >
-          {`${params.value.toFixed(2)} %`}
+          {`${params.value} %`}
         </MuiLink>
       ),
     },
     {
       field: 'pledge_amount',
       headerName: 'Bond',
+      disableColumnMenu: true,
       width: 175,
       headerClassName: 'MuiDataGrid-header-override',
       renderHeader: () => <CustomColumnHeading headingTitle="Bond" tooltipInfo="Node operator's share of stake." />,
@@ -189,6 +194,7 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'profit_percentage',
       headerName: 'Profit Margin',
+      disableColumnMenu: true,
       renderHeader: () => (
         <CustomColumnHeading
           headingTitle="Profit Margin"
@@ -220,6 +226,7 @@ export const PageMixnodes: React.FC = () => {
       headerClassName: 'MuiDataGrid-header-override',
       width: 170,
       headerAlign: 'left',
+      disableColumnMenu: true,
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
@@ -231,12 +238,13 @@ export const PageMixnodes: React.FC = () => {
       ),
     },
     {
-      field: 'avg_uptime',
+      field: 'node_performance',
       headerName: 'Routing Score',
+      disableColumnMenu: true,
       renderHeader: () => (
         <CustomColumnHeading
           headingTitle="Routing Score"
-          tooltipInfo="Node’s routing score is relative to that of the network. Each time a node is tested, the test packets have to go through the full path of the network (a gateway + 3 nodes). If a node in the path drop packets it will affect the score of other nodes in the test."
+          tooltipInfo="Mixnode's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test."
         />
       ),
       headerClassName: 'MuiDataGrid-header-override',
@@ -255,13 +263,14 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'owner',
       headerName: 'Owner',
+      disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
       width: 120,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
-          href={`${BIG_DIPPER}/account/${params.value}`}
+          href={`${NYM_BIG_DIPPER}/account/${params.value}`}
           target="_blank"
           sx={getCellStyles(theme, params.row)}
           data-testid="big-dipper-link"
@@ -274,6 +283,7 @@ export const PageMixnodes: React.FC = () => {
       field: 'location',
       headerName: 'Location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
+      disableColumnMenu: true,
       width: 120,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
@@ -303,6 +313,7 @@ export const PageMixnodes: React.FC = () => {
       field: 'host',
       headerName: 'Host',
       renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
+      disableColumnMenu: true,
       headerClassName: 'MuiDataGrid-header-override',
       width: 130,
       headerAlign: 'left',
@@ -321,7 +332,6 @@ export const PageMixnodes: React.FC = () => {
   const handlePageSize = (event: SelectChangeEvent<string>) => {
     setPageSize(event.target.value);
   };
-
   return (
     <>
       <Title text="Mixnodes" />

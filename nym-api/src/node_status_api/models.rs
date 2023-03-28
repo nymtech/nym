@@ -3,12 +3,12 @@
 
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
-use mixnet_contract_common::reward_params::Performance;
-use mixnet_contract_common::{IdentityKey, MixId};
 use nym_api_requests::models::{
     GatewayStatusReportResponse, GatewayUptimeHistoryResponse, HistoricalUptimeResponse,
-    MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse, RequestError,
+    MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse, NodePerformance, RequestError,
 };
+use nym_mixnet_contract_common::reward_params::Performance;
+use nym_mixnet_contract_common::{IdentityKey, MixId};
 use okapi::openapi3::{Responses, SchemaObject};
 use rocket::http::Status;
 use rocket::response::{self, Responder, Response};
@@ -179,6 +179,16 @@ impl From<MixnodeStatusReport> for MixnodeStatusReportResponse {
     }
 }
 
+impl From<MixnodeStatusReport> for NodePerformance {
+    fn from(report: MixnodeStatusReport) -> Self {
+        NodePerformance {
+            most_recent: report.most_recent.into(),
+            last_hour: report.last_hour.into(),
+            last_24h: report.last_day.into(),
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct GatewayStatusReport {
     pub(crate) identity: String,
@@ -224,6 +234,16 @@ impl From<GatewayStatusReport> for GatewayStatusReportResponse {
             most_recent: status.most_recent.0,
             last_hour: status.last_hour.0,
             last_day: status.last_day.0,
+        }
+    }
+}
+
+impl From<GatewayStatusReport> for NodePerformance {
+    fn from(report: GatewayStatusReport) -> Self {
+        NodePerformance {
+            most_recent: report.most_recent.into(),
+            last_hour: report.last_hour.into(),
+            last_24h: report.last_day.into(),
         }
     }
 }

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::FRAG_ID_LEN;
-use nymsphinx_types::header::HEADER_SIZE;
-use nymsphinx_types::PAYLOAD_OVERHEAD_SIZE;
+use nym_sphinx_types::header::HEADER_SIZE;
+use nym_sphinx_types::PAYLOAD_OVERHEAD_SIZE;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use thiserror::Error;
@@ -45,9 +45,10 @@ pub enum InvalidPacketSize {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum PacketSize {
     // for example instant messaging use case
+    #[default]
     RegularPacket = 1,
 
     // for sending SURB-ACKs
@@ -220,8 +221,15 @@ impl PacketSize {
     }
 }
 
-impl Default for PacketSize {
-    fn default() -> Self {
-        PacketSize::RegularPacket
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::AckEncryptionAlgorithm;
+    use nym_crypto::symmetric::stream_cipher::IvSizeUser;
+
+    #[test]
+    fn ack_iv_size_assertion() {
+        let iv_size = AckEncryptionAlgorithm::iv_size();
+        assert_eq!(iv_size, ACK_IV_SIZE);
     }
 }

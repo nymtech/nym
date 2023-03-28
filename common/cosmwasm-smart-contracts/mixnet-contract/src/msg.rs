@@ -101,15 +101,16 @@ pub enum ExecuteMsg {
         owner_signature: String,
         label: String,
     },
-    /// Family head needs to sign the joining node IdentityKey
+    /// Family head needs to sign the joining node IdentityKey, MixNode needs to provide its signature proving that it wants to join the family
     JoinFamilyOnBehalf {
         member_address: String,
-        signature: String,
+        node_identity_signature: String,
+        family_signature: String,
         family_head: IdentityKey,
     },
     LeaveFamilyOnBehalf {
         member_address: String,
-        signature: String,
+        node_identity_signature: String,
         family_head: IdentityKey,
     },
     KickFamilyMemberOnBehalf {
@@ -138,6 +139,7 @@ pub enum ExecuteMsg {
         epoch_duration_secs: u64,
         force_immediately: bool,
     },
+    BeginEpochTransition {},
     AdvanceCurrentEpoch {
         new_rewarded_set: Vec<LayerAssignment>,
         // families_in_layer: HashMap<String, Layer>,
@@ -241,30 +243,30 @@ impl ExecuteMsg {
     pub fn default_memo(&self) -> String {
         match self {
             ExecuteMsg::AssignNodeLayer { mix_id, layer } => {
-                format!("assigning mix {} for layer {:?}", mix_id, layer)
+                format!("assigning mix {mix_id} for layer {layer:?}")
             }
             ExecuteMsg::CreateFamily { .. } => "crating node family with".to_string(),
             ExecuteMsg::JoinFamily { family_head, .. } => {
-                format!("joining family {}", family_head)
+                format!("joining family {family_head}")
             }
             ExecuteMsg::LeaveFamily { family_head, .. } => {
-                format!("leaving family {}", family_head)
+                format!("leaving family {family_head}")
             }
             ExecuteMsg::KickFamilyMember { member, .. } => {
-                format!("kicking {} from family", member)
+                format!("kicking {member} from family")
             }
             ExecuteMsg::CreateFamilyOnBehalf { .. } => "crating node family with".to_string(),
             ExecuteMsg::JoinFamilyOnBehalf { family_head, .. } => {
-                format!("joining family {}", family_head)
+                format!("joining family {family_head}")
             }
             ExecuteMsg::LeaveFamilyOnBehalf { family_head, .. } => {
-                format!("leaving family {}", family_head)
+                format!("leaving family {family_head}")
             }
             ExecuteMsg::KickFamilyMemberOnBehalf { member, .. } => {
-                format!("kicking {} from family", member)
+                format!("kicking {member} from family")
             }
             ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
-                format!("updating rewarding validator to {}", address)
+                format!("updating rewarding validator to {address}")
             }
             ExecuteMsg::UpdateContractStateParams { .. } => {
                 "updating mixnet state parameters".into()
@@ -273,21 +275,15 @@ impl ExecuteMsg {
                 active_set_size,
                 force_immediately,
             } => format!(
-                "updating active set size to {}. forced: {}",
-                active_set_size, force_immediately
+                "updating active set size to {active_set_size}. forced: {force_immediately}"
             ),
             ExecuteMsg::UpdateRewardingParams {
                 force_immediately, ..
-            } => format!(
-                "updating mixnet rewarding parameters. forced: {}",
-                force_immediately
-            ),
+            } => format!("updating mixnet rewarding parameters. forced: {force_immediately}"),
             ExecuteMsg::UpdateIntervalConfig {
                 force_immediately, ..
-            } => format!(
-                "updating mixnet interval configuration. forced: {}",
-                force_immediately
-            ),
+            } => format!("updating mixnet interval configuration. forced: {force_immediately}"),
+            ExecuteMsg::BeginEpochTransition {} => "beginning epoch transition".into(),
             ExecuteMsg::AdvanceCurrentEpoch { .. } => "advancing current epoch".into(),
             ExecuteMsg::ReconcileEpochEvents { .. } => "reconciling epoch events".into(),
             ExecuteMsg::BondMixnode { mix_node, .. } => {
@@ -316,34 +312,30 @@ impl ExecuteMsg {
             }
             ExecuteMsg::UnbondGateway { .. } => "unbonding gateway".into(),
             ExecuteMsg::UnbondGatewayOnBehalf { .. } => "unbonding gateway on behalf".into(),
-            ExecuteMsg::DelegateToMixnode { mix_id } => format!("delegating to mixnode {}", mix_id),
+            ExecuteMsg::DelegateToMixnode { mix_id } => format!("delegating to mixnode {mix_id}"),
             ExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, .. } => {
-                format!("delegating to mixnode {} on behalf", mix_id)
+                format!("delegating to mixnode {mix_id} on behalf")
             }
             ExecuteMsg::UndelegateFromMixnode { mix_id } => {
-                format!("removing delegation from mixnode {}", mix_id)
+                format!("removing delegation from mixnode {mix_id}")
             }
             ExecuteMsg::UndelegateFromMixnodeOnBehalf { mix_id, .. } => {
-                format!("removing delegation from mixnode {} on behalf", mix_id)
+                format!("removing delegation from mixnode {mix_id} on behalf")
             }
             ExecuteMsg::RewardMixnode {
                 mix_id,
                 performance,
-            } => format!(
-                "rewarding mixnode {} for performance {}",
-                mix_id, performance
-            ),
+            } => format!("rewarding mixnode {mix_id} for performance {performance}"),
             ExecuteMsg::WithdrawOperatorReward { .. } => "withdrawing operator reward".into(),
             ExecuteMsg::WithdrawOperatorRewardOnBehalf { .. } => {
                 "withdrawing operator reward on behalf".into()
             }
             ExecuteMsg::WithdrawDelegatorReward { mix_id } => {
-                format!("withdrawing delegator reward from mixnode {}", mix_id)
+                format!("withdrawing delegator reward from mixnode {mix_id}")
             }
-            ExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, .. } => format!(
-                "withdrawing delegator reward from mixnode {} on behalf",
-                mix_id
-            ),
+            ExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, .. } => {
+                format!("withdrawing delegator reward from mixnode {mix_id} on behalf")
+            }
             #[cfg(feature = "contract-testing")]
             ExecuteMsg::TestingResolveAllPendingEvents { .. } => {
                 "resolving all pending events".into()
@@ -378,10 +370,13 @@ pub enum QueryMsg {
     },
     // state/sys-params-related
     GetContractVersion {},
+    #[serde(rename = "get_cw2_contract_version")]
+    GetCW2ContractVersion {},
     GetRewardingValidatorAddress {},
     GetStateParams {},
     GetState {},
     GetRewardingParams {},
+    GetEpochStatus {},
     GetCurrentIntervalDetails {},
     GetRewardedSet {
         limit: Option<u32>,
@@ -504,6 +499,7 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<u32>,
     },
+    GetNumberOfPendingEvents {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

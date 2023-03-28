@@ -4,20 +4,20 @@
 use crate::client::replies::reply_controller::ReplyControllerSender;
 use crate::client::replies::reply_storage::SentReplyKeys;
 use crate::spawn_future;
-use crypto::asymmetric::encryption;
-use crypto::Digest;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
-use nymsphinx::anonymous_replies::requests::{
+use nym_crypto::asymmetric::encryption;
+use nym_crypto::Digest;
+use nym_sphinx::anonymous_replies::requests::{
     RepliableMessage, RepliableMessageContent, ReplyMessage, ReplyMessageContent,
 };
-use nymsphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncryptionKey};
-use nymsphinx::message::{NymMessage, PlainMessage};
-use nymsphinx::params::ReplySurbKeyDigestAlgorithm;
-use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
+use nym_sphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncryptionKey};
+use nym_sphinx::message::{NymMessage, PlainMessage};
+use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
+use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -48,7 +48,7 @@ struct ReceivedMessagesBufferInner {
 
 impl ReceivedMessagesBufferInner {
     fn recover_from_fragment(&mut self, fragment_data: &[u8]) -> Option<NymMessage> {
-        if nymsphinx::cover::is_cover(fragment_data) {
+        if nym_sphinx::cover::is_cover(fragment_data) {
             trace!("The message was a loop cover message! Skipping it");
             println!("Cover received");
             return None;
@@ -407,7 +407,7 @@ impl RequestReceiver {
         }
     }
 
-    async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+    async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started RequestReceiver with graceful shutdown support");
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -446,7 +446,7 @@ impl FragmentedMessageReceiver {
         }
     }
 
-    async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+    async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -496,7 +496,7 @@ impl ReceivedMessagesBufferController {
         }
     }
 
-    pub fn start_with_shutdown(self, shutdown: task::TaskClient) {
+    pub fn start_with_shutdown(self, shutdown: nym_task::TaskClient) {
         let mut fragmented_message_receiver = self.fragmented_message_receiver;
         let mut request_receiver = self.request_receiver;
 

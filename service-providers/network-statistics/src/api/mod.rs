@@ -8,7 +8,7 @@ use crate::storage::NetworkStatisticsStorage;
 use error::Result;
 use routes::{post_all_statistics, post_statistic};
 
-use statistics_common::api::STATISTICS_SERVICE_VERSION;
+use nym_statistics_common::api::STATISTICS_SERVICE_VERSION;
 
 mod error;
 mod routes;

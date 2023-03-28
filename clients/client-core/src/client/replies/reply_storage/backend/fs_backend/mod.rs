@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::base_client::non_wasm_helpers;
 use crate::client::replies::reply_storage::backend::fs_backend::manager::StorageManager;
 use crate::client::replies::reply_storage::backend::fs_backend::models::{
     ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag, StoredSurbSender,
@@ -11,7 +12,7 @@ use crate::client::replies::reply_storage::{
 };
 use async_trait::async_trait;
 use log::{error, info, warn};
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::fs;
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
@@ -23,10 +24,48 @@ mod manager;
 mod models;
 
 #[derive(Debug)]
+enum StorageManagerState {
+    Storage(StorageManager),
+    Inactive(InactiveMetadata),
+}
+
+// When the storage backaed is initialized as inactive, it will still contain metadata parameters
+// that will be needed when the in-mem storage is fetched for use.
+#[derive(Debug)]
+struct InactiveMetadata {
+    pub minimum_reply_surb_storage_threshold: usize,
+    pub maximum_reply_surb_storage_threshold: usize,
+}
+
+impl StorageManagerState {
+    fn get(&self) -> &StorageManager {
+        match self {
+            StorageManagerState::Storage(manager) => manager,
+            StorageManagerState::Inactive(_) => {
+                panic!("tried to get storage of an inactive backend")
+            }
+        }
+    }
+
+    fn get_mut(&mut self) -> &mut StorageManager {
+        match self {
+            StorageManagerState::Storage(manager) => manager,
+            StorageManagerState::Inactive(_) => {
+                panic!("tried to get storage of an inactive backend")
+            }
+        }
+    }
+
+    fn is_active(&self) -> bool {
+        matches!(self, StorageManagerState::Storage(_))
+    }
+}
+
+#[derive(Debug)]
 pub struct Backend {
     temporary_old_path: Option<PathBuf>,
     database_path: PathBuf,
-    manager: StorageManager,
+    manager: StorageManagerState,
 }
 
 impl Backend {
@@ -40,15 +79,30 @@ impl Backend {
             });
         }
 
+        let manager = StorageManager::init(database_path, true).await?;
+        manager.create_status_table().await?;
+
         let backend = Backend {
             temporary_old_path: None,
             database_path: owned_path,
-            manager: StorageManager::init(database_path, true).await?,
+            manager: StorageManagerState::Storage(manager),
         };
 
-        backend.manager.create_status_table().await?;
-
         Ok(backend)
+    }
+
+    pub fn new_inactive(
+        minimum_reply_surb_storage_threshold: usize,
+        maximum_reply_surb_storage_threshold: usize,
+    ) -> Self {
+        Backend {
+            temporary_old_path: None,
+            database_path: PathBuf::new(),
+            manager: StorageManagerState::Inactive(InactiveMetadata {
+                minimum_reply_surb_storage_threshold,
+                maximum_reply_surb_storage_threshold,
+            }),
+        }
     }
 
     pub async fn try_load<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
@@ -101,30 +155,33 @@ impl Backend {
         // (assuming no key rotation has happened)
         // but the way it's currently coded, everyone will purge old data
         let since_last_flush = OffsetDateTime::now_utc() - last_flush;
-        if since_last_flush.whole_days() > 0 {
-            info!("it's been over {} days and {} hours since we last used our data store. our reply surbs are already outdated - we're going to purge them now.", since_last_flush.whole_days(), since_last_flush.whole_hours());
+        let days = since_last_flush.whole_days();
+        let hours = since_last_flush.whole_hours() % 24;
+
+        if days > 0 {
+            info!("it's been over {days} days and {hours} hours since we last used our data store. our reply surbs are already outdated - we're going to purge them now.");
             manager.delete_all_reply_surb_data().await?;
         }
 
-        if since_last_flush.whole_days() > 1 {
-            info!("it's been over {} days and {} hours since we last used our data store. our reply keys are already outdated - we're going to purge them now.", since_last_flush.whole_days(), since_last_flush.whole_hours());
+        if days > 1 {
+            info!("it's been over {days} days and {hours} hours since we last used our data store. our reply keys are already outdated - we're going to purge them now.");
             manager.delete_all_reply_keys().await?;
         }
 
-        if since_last_flush.whole_days() > 2 {
-            info!("it's been over {} days and {} hours since we last used our data store. our used sender tags are already outdated - we're going to purge them now.", since_last_flush.whole_days(), since_last_flush.whole_hours());
+        if days > 2 {
+            info!("it's been over {days} days and {hours} hours since we last used our data store. our used sender tags are already outdated - we're going to purge them now.");
             manager.delete_all_tags().await?;
         }
 
         Ok(Backend {
             temporary_old_path: None,
             database_path: owned_path,
-            manager,
+            manager: StorageManagerState::Storage(manager),
         })
     }
 
     async fn close_pool(&mut self) {
-        self.manager.connection_pool.close().await;
+        self.manager.get_mut().connection_pool.close().await;
     }
 
     async fn rotate(&mut self) -> Result<(), StorageError> {
@@ -143,8 +200,9 @@ impl Backend {
 
         fs::rename(&self.database_path, &temp_old)
             .map_err(|err| StorageError::DatabaseRenameError { source: err })?;
-        self.manager = StorageManager::init(&self.database_path, true).await?;
-        self.manager.create_status_table().await?;
+        self.manager =
+            StorageManagerState::Storage(StorageManager::init(&self.database_path, true).await?);
+        self.manager.get_mut().create_status_table().await?;
 
         self.temporary_old_path = Some(temp_old);
         Ok(())
@@ -161,26 +219,27 @@ impl Backend {
     }
 
     async fn start_storage_flush(&self) -> Result<(), StorageError> {
-        Ok(self.manager.set_flush_status(true).await?)
+        Ok(self.manager.get().set_flush_status(true).await?)
     }
 
     async fn end_storage_flush(&self) -> Result<(), StorageError> {
         self.manager
+            .get()
             .set_previous_flush_timestamp(OffsetDateTime::now_utc().unix_timestamp())
             .await?;
-        Ok(self.manager.set_flush_status(false).await?)
+        Ok(self.manager.get().set_flush_status(false).await?)
     }
 
     async fn start_client_use(&self) -> Result<(), StorageError> {
-        Ok(self.manager.set_client_in_use_status(true).await?)
+        Ok(self.manager.get().set_client_in_use_status(true).await?)
     }
 
     async fn stop_client_use(&self) -> Result<(), StorageError> {
-        Ok(self.manager.set_client_in_use_status(false).await?)
+        Ok(self.manager.get().set_client_in_use_status(false).await?)
     }
 
     async fn get_stored_tags(&self) -> Result<UsedSenderTags, StorageError> {
-        let stored = self.manager.get_tags().await?;
+        let stored = self.manager.get().get_tags().await?;
 
         // stop at the first instance of corruption. if even a single entry is malformed,
         // something weird has happened and we can't trust the rest of the data
@@ -196,6 +255,7 @@ impl Backend {
         for map_ref in tags.as_raw_iter() {
             let (recipient, tag) = map_ref.pair();
             self.manager
+                .get()
                 .insert_tag(StoredSenderTag::new(*recipient, *tag))
                 .await?;
         }
@@ -203,7 +263,7 @@ impl Backend {
     }
 
     async fn get_stored_reply_keys(&self) -> Result<SentReplyKeys, StorageError> {
-        let stored = self.manager.get_reply_keys().await?;
+        let stored = self.manager.get().get_reply_keys().await?;
 
         // stop at the first instance of corruption. if even a single entry is malformed,
         // something weird has happened and we can't trust the rest of the data
@@ -219,6 +279,7 @@ impl Backend {
         for map_ref in reply_keys.as_raw_iter() {
             let (digest, key) = map_ref.pair();
             self.manager
+                .get()
                 .insert_reply_key(StoredReplyKey::new(*digest, *key))
                 .await?;
         }
@@ -226,7 +287,7 @@ impl Backend {
     }
 
     async fn get_stored_reply_surbs(&self) -> Result<ReceivedReplySurbsMap, StorageError> {
-        let surb_senders = self.manager.get_surb_senders().await?;
+        let surb_senders = self.manager.get().get_surb_senders().await?;
 
         let metadata = self.get_reply_surb_storage_metadata().await?;
         let mut received_surbs = Vec::with_capacity(surb_senders.len());
@@ -236,6 +297,7 @@ impl Backend {
                 sender.try_into()?;
             let stored_surbs = self
                 .manager
+                .get()
                 .get_reply_surbs(sender_id)
                 .await?
                 .into_iter()
@@ -263,6 +325,7 @@ impl Backend {
             let (tag, received_surbs) = map_ref.pair();
             let sender_id = self
                 .manager
+                .get()
                 .insert_surb_sender(StoredSurbSender::new(
                     *tag,
                     received_surbs.surbs_last_received_at(),
@@ -271,6 +334,7 @@ impl Backend {
 
             for reply_surb in received_surbs.surbs_ref() {
                 self.manager
+                    .get()
                     .insert_reply_surb(StoredReplySurb::new(sender_id, reply_surb))
                     .await?
             }
@@ -282,6 +346,7 @@ impl Backend {
         &self,
     ) -> Result<ReplySurbStorageMetadata, StorageError> {
         self.manager
+            .get()
             .get_reply_surb_storage_metadata()
             .await
             .map_err(Into::into)
@@ -292,6 +357,7 @@ impl Backend {
         reply_surbs: &ReceivedReplySurbsMap,
     ) -> Result<(), StorageError> {
         self.manager
+            .get()
             .insert_reply_surb_storage_metadata(ReplySurbStorageMetadata::new(
                 reply_surbs.min_surb_threshold(),
                 reply_surbs.max_surb_threshold(),
@@ -304,6 +370,24 @@ impl Backend {
 #[async_trait]
 impl ReplyStorageBackend for Backend {
     type StorageError = error::StorageError;
+
+    async fn new(
+        debug_config: &crate::config::DebugConfig,
+        db_path: Option<PathBuf>,
+    ) -> Result<Self, Self::StorageError> {
+        non_wasm_helpers::setup_fs_reply_surb_backend(db_path, debug_config)
+            .await
+            .map_err(|err| {
+                log::error!("Failed to create storage: {err}");
+                Self::StorageError::FailedToCreateStorage {
+                    source: Box::new(err),
+                }
+            })
+    }
+
+    fn is_active(&self) -> bool {
+        self.manager.is_active()
+    }
 
     async fn start_storage_session(&self) -> Result<(), Self::StorageError> {
         self.start_client_use().await
@@ -340,6 +424,18 @@ impl ReplyStorageBackend for Backend {
         let reply_surbs = self.get_stored_reply_surbs().await?;
 
         Ok(CombinedReplyStorage::load(reply_keys, reply_surbs, tags))
+    }
+
+    fn get_inactive_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
+        match self.manager {
+            StorageManagerState::Storage(_) => {
+                panic!("tried to get inactive storage from an active storage backend")
+            }
+            StorageManagerState::Inactive(ref state) => Ok(CombinedReplyStorage::new(
+                state.minimum_reply_surb_storage_threshold,
+                state.maximum_reply_surb_storage_threshold,
+            )),
+        }
     }
 
     async fn stop_storage_session(self) -> Result<(), Self::StorageError> {

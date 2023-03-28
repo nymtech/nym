@@ -17,7 +17,7 @@ type FormattedDateRecord = [string, number];
 type FormattedChartHeadings = string[];
 type FormattedChartData = [FormattedChartHeadings | FormattedDateRecord];
 
-export const UptimeChart: React.FC<ChartProps> = ({ title, xLabel, yLabel, uptimeStory, loading }) => {
+export const UptimeChart: FCWithChildren<ChartProps> = ({ title, xLabel, yLabel, uptimeStory, loading }) => {
   const [formattedChartData, setFormattedChartData] = React.useState<FormattedChartData>();
   const theme = useTheme();
   const color = theme.palette.text.primary;

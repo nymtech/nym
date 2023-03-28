@@ -6,8 +6,8 @@ use self::error::HandshakeError;
 #[cfg(not(target_arch = "wasm32"))]
 use self::gateway::GatewayHandshake;
 pub use self::shared_key::{SharedKeySize, SharedKeys};
-use crypto::asymmetric::identity;
 use futures::{Sink, Stream};
+use nym_crypto::asymmetric::identity;
 use rand::{CryptoRng, RngCore};
 use tungstenite::{Error as WsError, Message as WsMessage};
 

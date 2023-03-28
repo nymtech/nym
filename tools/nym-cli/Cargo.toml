@@ -1,17 +1,17 @@
 [package]
 name = "nym-cli"
-version = "1.1.5"
-authors = ["Nym Technologies SA"]
+version = "1.1.13"
+authors.workspace = true
 edition = "2021"
 
 [dependencies]
 base64 = "0.13.0"
 bs58 = "0.4"
-clap = { version = "3.2", features = ["derive"] }
-clap_complete = "3.2"
-clap_complete_fig = "3.2"
-dotenv = "0.15.0"
-log = "0.4"
+clap = { version = "4.0", features = ["derive"] }
+clap_complete = "4.0"
+clap_complete_fig = "4.0"
+dotenvy = "0.15.6"
+log = { workspace = true }
 pretty_env_logger = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -21,6 +21,6 @@ anyhow = "1"
 tap = "1"
 
 nym-cli-commands = { path = "../../common/commands" }
-logging = { path = "../../common/logging"}
-validator-client = { path = "../../common/client-libs/validator-client", features = ["nymd-client"] }
-network-defaults = { path = "../../common/network-defaults" }
+nym-bin-common = { path = "../../common/bin-common"}
+validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }
+nym-network-defaults = { path = "../../common/network-defaults" }

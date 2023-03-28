@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BackendError;
-use crate::nymd_client;
+use crate::nyxd_client;
 use crate::state::WalletState;
 use nym_types::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use nym_wallet_types::interval::Interval;
-use validator_client::nymd::traits::MixnetQueryClient;
+use validator_client::nyxd::traits::MixnetQueryClient;
 
 #[tauri::command]
 pub async fn get_current_interval(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Interval, BackendError> {
     log::info!(">>> Get current interval");
-    let res = nymd_client!(state).get_current_interval_details().await?;
+    let res = nyxd_client!(state).get_current_interval_details().await?;
     log::info!("<<< current interval = {:?}", res);
     Ok(res.interval.into())
 }
@@ -26,7 +26,7 @@ pub async fn get_pending_epoch_events(
     let guard = state.read().await;
     let reg = guard.registered_coins()?;
     let client = guard.current_client()?;
-    let res = client.get_all_nymd_pending_epoch_events().await?;
+    let res = client.get_all_nyxd_pending_epoch_events().await?;
 
     log::info!("<<< got = {:?} events", res.len());
 
@@ -46,7 +46,7 @@ pub async fn get_pending_interval_events(
     let guard = state.read().await;
     let reg = guard.registered_coins()?;
     let client = guard.current_client()?;
-    let res = client.get_all_nymd_pending_interval_events().await?;
+    let res = client.get_all_nyxd_pending_interval_events().await?;
 
     log::info!("<<< got = {:?} events", res.len());
 

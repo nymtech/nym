@@ -4,18 +4,20 @@
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::storage::Storage;
 use log::*;
+use nym_task::TaskClient;
 use std::net::SocketAddr;
 use std::process;
 use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {
     address: SocketAddr,
+    shutdown: TaskClient,
 }
 
 // TODO: this file is nearly identical to the one in mixnode
 impl Listener {
-    pub(crate) fn new(address: SocketAddr) -> Self {
-        Listener { address }
+    pub(crate) fn new(address: SocketAddr, shutdown: TaskClient) -> Self {
+        Listener { address, shutdown }
     }
 
     pub(crate) async fn run<St>(&mut self, connection_handler: ConnectionHandler<St>)
@@ -31,13 +33,21 @@ impl Listener {
             }
         };
 
-        loop {
-            match tcp_listener.accept().await {
-                Ok((socket, remote_addr)) => {
-                    let handler = connection_handler.clone();
-                    tokio::spawn(handler.handle_connection(socket, remote_addr));
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                biased;
+                _ = self.shutdown.recv() => {
+                    log::trace!("mixnet_handling::Listener: Received shutdown");
                 }
-                Err(err) => warn!("failed to get client: {err}"),
+                connection = tcp_listener.accept() => {
+                    match connection {
+                        Ok((socket, remote_addr)) => {
+                            let handler = connection_handler.clone();
+                            tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone()));
+                        }
+                        Err(err) => warn!("failed to get client: {err}"),
+                    }
+                }
             }
         }
     }

@@ -1,20 +1,21 @@
 [package]
-name = "nymsphinx-cover"
+name = "nym-sphinx-cover"
 version = "0.1.0"
-authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Sphinx packets used as cover traffic"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 thiserror = "1.0.37"
 
-crypto = { path = "../../crypto" }
-nymsphinx-acknowledgements = { path = "../acknowledgements" }
-nymsphinx-addressing = { path = "../addressing" }
-nymsphinx-chunking = { path = "../chunking" }
-nymsphinx-params = { path = "../params" }
-nymsphinx-forwarding = { path = "../forwarding" }
-nymsphinx-types = { path = "../types" }
-topology = { path = "../../topology" }
+nym-crypto = { path = "../../crypto" }
+nym-sphinx-acknowledgements = { path = "../acknowledgements" }
+nym-sphinx-addressing = { path = "../addressing" }
+nym-sphinx-chunking = { path = "../chunking" }
+nym-sphinx-params = { path = "../params" }
+nym-sphinx-forwarding = { path = "../forwarding" }
+nym-sphinx-types = { path = "../types" }
+nym-topology = { path = "../../topology" }

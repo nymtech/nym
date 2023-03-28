@@ -1,8 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(feature = "coconut")]
-use dkg::{error::DkgError, Dealing};
+#[cfg(feature = "dkg")]
+use nym_dkg::{error::DkgError, Dealing};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
@@ -31,7 +31,7 @@ impl Display for ContractSafeBytes {
             write!(f, "0x")?;
         }
         for byte in self.0.iter().take(MAX_DISPLAY_SIZE) {
-            write!(f, "{:02X}", byte)?;
+            write!(f, "{byte:02X}")?;
         }
         // just some sanity safeguards
         if self.0.len() > MAX_DISPLAY_SIZE {
@@ -67,21 +67,5 @@ impl<'de> Deserialize<'de> for ContractSafeBytes {
             .into_vec()
             .map_err(serde::de::Error::custom)?;
         Ok(ContractSafeBytes(bytes))
-    }
-}
-
-#[cfg(feature = "coconut")]
-impl<'a> From<&'a Dealing> for ContractSafeBytes {
-    fn from(dealing: &'a Dealing) -> Self {
-        ContractSafeBytes(dealing.to_bytes())
-    }
-}
-
-#[cfg(feature = "coconut")]
-impl<'a> TryFrom<&'a ContractSafeBytes> for Dealing {
-    type Error = DkgError;
-
-    fn try_from(value: &'a ContractSafeBytes) -> Result<Self, Self::Error> {
-        Dealing::try_from_bytes(&value.0)
     }
 }

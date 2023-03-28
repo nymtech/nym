@@ -14,9 +14,7 @@ const row: EconomicsInfoRowWithIndex = {
   selectionChance: {
     value: 'High',
   },
-  avgUptime: {
-    value: '65 %',
-  },
+
   estimatedOperatorReward: {
     value: '80000.123456 NYM',
   },
@@ -29,9 +27,11 @@ const row: EconomicsInfoRowWithIndex = {
   operatingCost: {
     value: '11121 NYM',
   },
-  stakeSaturation: {
-    value: '80 %',
-    progressBarValue: 80,
+  avgUptime: {
+    value: '-',
+  },
+  nodePerformance: {
+    value: '-',
   },
 };
 
@@ -55,9 +55,7 @@ const emptyRow: EconomicsInfoRowWithIndex = {
     value: '-',
     progressBarValue: 0,
   },
-  avgUptime: {
-    value: '-',
-  },
+
   estimatedOperatorReward: {
     value: '-',
   },
@@ -70,9 +68,11 @@ const emptyRow: EconomicsInfoRowWithIndex = {
   operatingCost: {
     value: '-',
   },
-  stakeSaturation: {
+  avgUptime: {
     value: '-',
-    progressBarValue: 0,
+  },
+  nodePerformance: {
+    value: '-',
   },
 };
 

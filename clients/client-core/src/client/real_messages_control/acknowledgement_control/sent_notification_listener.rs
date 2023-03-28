@@ -5,7 +5,7 @@ use super::action_controller::{AckActionSender, Action};
 use super::SentPacketNotificationReceiver;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
+use nym_sphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
 
 /// Module responsible for starting up retransmission timers.
 /// It is required because when we send our packet to the `real traffic stream` controlled
@@ -37,7 +37,7 @@ impl SentNotificationListener {
             .unwrap();
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started SentNotificationListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {

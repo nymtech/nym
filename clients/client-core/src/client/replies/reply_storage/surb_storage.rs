@@ -4,8 +4,8 @@
 use dashmap::iter::Iter;
 use dashmap::DashMap;
 use log::trace;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::anonymous_replies::ReplySurb;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::anonymous_replies::ReplySurb;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;

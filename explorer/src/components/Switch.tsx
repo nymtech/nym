@@ -51,16 +51,16 @@ export const DarkLightSwitch = styled(Switch)(({ theme }) => ({
   },
 }));
 
-export const DarkLightSwitchMobile: React.FC = () => {
+export const DarkLightSwitchMobile: FCWithChildren = () => {
   const { toggleMode } = useMainContext();
   return (
-    <Button onClick={() => toggleMode()} data-testid="switch-button">
+    <Button onClick={() => toggleMode()} data-testid="switch-button" sx={{ p: 0, minWidth: 0 }}>
       <LightSwitchSVG />
     </Button>
   );
 };
 
-export const DarkLightSwitchDesktop: React.FC<{ defaultChecked: boolean }> = ({ defaultChecked }) => {
+export const DarkLightSwitchDesktop: FCWithChildren<{ defaultChecked: boolean }> = ({ defaultChecked }) => {
   const { toggleMode } = useMainContext();
   return (
     <Button sx={{ paddingLeft: 0 }} onClick={() => toggleMode()} data-testid="switch-button">

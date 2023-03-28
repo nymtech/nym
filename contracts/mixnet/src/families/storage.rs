@@ -81,14 +81,13 @@ pub fn remove_family_member(store: &mut dyn Storage, member: IdentityKeyRef<'_>)
     MEMBERS.remove(store, member.to_string())
 }
 
-#[allow(dead_code)]
 pub fn is_family_member(
     store: &dyn Storage,
     f: &Family,
     member: IdentityKeyRef<'_>,
 ) -> Result<bool, MixnetContractError> {
-    let m = get_members(f, store)?;
-    Ok(m.contains(member))
+    let existing_head = MEMBERS.may_load(store, member.to_owned())?;
+    Ok(existing_head.as_ref() == Some(f.head()))
 }
 
 pub fn is_any_member(

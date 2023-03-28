@@ -1,4 +1,4 @@
-name: Publish Nym Connect (Ubuntu)
+name: Publish Nym Connect - desktop (Ubuntu)
 on:
   workflow_dispatch:
   release:
@@ -6,14 +6,15 @@ on:
 
 defaults:
   run:
-    working-directory: nym-connect
+    working-directory: nym-connect/desktop
 
 jobs:
   publish-tauri:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-connect-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-20.04]
+        platform: [custom-runner-linux]
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -23,17 +24,13 @@ jobs:
         run: >
           sudo apt-get update &&
           sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
-      - name: Check the release tag starts with `nym-connect-`
-        if: startsWith(github.ref, 'refs/tags/nym-connect-') == false && github.event_name != 'workflow_dispatch'
-        uses: actions/github-script@v3
-        with:
-          script: |
-            core.setFailed('Release tag did not start with nym-connect-...')
+        continue-on-error: true
 
       - name: Node v16
         uses: actions/setup-node@v3
         with:
           node-version: 16
+
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
@@ -56,7 +53,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nym-connect.AppImage.tar.gz
-          path: nym-connect/target/release/bundle/appimage/nym-connect_1.0.0_amd64.AppImage
+          path: nym-connect/desktop/target/release/bundle/appimage/nym-connect_1.0.0_amd64.AppImage
           retention-days: 30
 
       - name: Upload to release based on tag name
@@ -64,5 +61,5 @@ jobs:
         if: github.event_name == 'release'
         with:
           files: |
-            nym-connect/target/release/bundle/appimage/*.AppImage
-            nym-connect/target/release/bundle/appimage/*.AppImage.tar.gz*
+            nym-connect/desktop/target/release/bundle/appimage/*.AppImage
+            nym-connect/desktop/target/release/bundle/appimage/*.AppImage.tar.gz*

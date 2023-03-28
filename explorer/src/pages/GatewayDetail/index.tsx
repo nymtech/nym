@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Alert, AlertTitle, Box, CircularProgress, Grid } from '@mui/material';
 import { useParams } from 'react-router-dom';
-import { GatewayResponseItem } from '../../typeDefs/explorer-api';
+import { GatewayBond } from '../../typeDefs/explorer-api';
 import { ColumnsType, DetailTable } from '../../components/DetailTable';
 import { gatewayEnrichedToGridRow, GatewayEnrichedRowType } from '../../components/Gateways';
 import { ComponentError } from '../../components/ComponentError';
@@ -14,7 +14,7 @@ import { Title } from '../../components/Title';
 
 const columns: ColumnsType[] = [
   {
-    field: 'identityKey',
+    field: 'identity_key',
     title: 'Identity Key',
     headerAlign: 'left',
     width: 230,
@@ -22,23 +22,20 @@ const columns: ColumnsType[] = [
   {
     field: 'bond',
     title: 'Bond',
-    flex: 1,
     headerAlign: 'left',
   },
   {
-    field: 'routingScore',
+    field: 'node_performance',
     title: 'Routing Score',
-    flex: 1,
     headerAlign: 'left',
     tooltipInfo:
-      'Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test.',
+      "Gateway's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test",
   },
   {
     field: 'avgUptime',
     title: 'Avg. Score',
-    flex: 1,
     headerAlign: 'left',
-    tooltipInfo: 'Is the average routing score in the last 24 hours',
+    tooltipInfo: "Gateway's average routing score in the last 24 hours",
   },
   {
     field: 'host',
@@ -50,26 +47,23 @@ const columns: ColumnsType[] = [
     field: 'location',
     title: 'Location',
     headerAlign: 'left',
-    flex: 1,
   },
   {
     field: 'owner',
     title: 'Owner',
     headerAlign: 'left',
-    flex: 1,
   },
   {
     field: 'version',
     title: 'Version',
     headerAlign: 'left',
-    flex: 1,
   },
 ];
 
 /**
  * Shows gateway details
  */
-const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: GatewayResponseItem | undefined }) => {
+const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: GatewayBond | undefined }) => {
   const [enrichGateway, setEnrichGateway] = React.useState<GatewayEnrichedRowType>();
   const [status, setStatus] = React.useState<number[] | undefined>();
   const { uptimeReport, uptimeStory } = useGatewayContext();
@@ -117,7 +111,12 @@ const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: Gat
           {uptimeStory && (
             <ContentCard title="Routing Score">
               {uptimeStory.error && <ComponentError text="There was a problem retrieving routing score." />}
-              <UptimeChart loading={uptimeStory.isLoading} xLabel="date" uptimeStory={uptimeStory} />
+              <UptimeChart
+                loading={uptimeStory.isLoading}
+                xLabel="Date"
+                yLabel="Daily average"
+                uptimeStory={uptimeStory}
+              />
             </ContentCard>
           )}
         </Grid>
@@ -129,14 +128,14 @@ const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: Gat
 /**
  * Guard component to handle loading and not found states
  */
-const PageGatewayDetailGuard: React.FC = () => {
-  const [selectedGateway, setSelectedGateway] = React.useState<GatewayResponseItem | undefined>();
+const PageGatewayDetailGuard: FCWithChildren = () => {
+  const [selectedGateway, setSelectedGateway] = React.useState<GatewayBond>();
   const { gateways } = useMainContext();
   const { id } = useParams<{ id: string | undefined }>();
 
   React.useEffect(() => {
     if (gateways?.data) {
-      setSelectedGateway(gateways.data.find((gateway) => gateway.gateway.identity_key === id));
+      setSelectedGateway(gateways.data.find((g) => g.gateway.identity_key === id));
     }
   }, [gateways, id]);
 
@@ -170,7 +169,7 @@ const PageGatewayDetailGuard: React.FC = () => {
 /**
  * Wrapper component that adds the mixnode content based on the `id` in the address URL
  */
-export const PageGatewayDetail: React.FC = () => {
+export const PageGatewayDetail: FCWithChildren = () => {
   const { id } = useParams<{ id: string | undefined }>();
 
   if (!id) {

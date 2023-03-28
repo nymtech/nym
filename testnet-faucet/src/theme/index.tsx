@@ -3,7 +3,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles'
 import { CssBaseline } from '@mui/material'
 import { getDesignTokens } from './theme'
 
-export const NymThemeProvider: React.FC = ({ children }) => {
+export const NymThemeProvider: FCWithChildren = ({ children }) => {
   const theme = createTheme(getDesignTokens('dark'))
   return (
     <ThemeProvider theme={theme}>

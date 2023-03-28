@@ -1,4 +1,18 @@
+# Changelog
+
 ## Unreleased
+
+## [v1.1.4] (2023-02-21)
+
+- Problem 142 (rust-side) ([#3024])
+
+## [nym-contracts-v1.1.3](https://github.com/nymtech/nym/tree/nym-contracts-v1.1.3) (2022-01-25)
+
+### Added
+
+- vesting-contract: `GetAccountsPaged` and `GetAccountsVestingCoinsPaged` queries for querying multiple accounts simultaneously ([#2791])
+
+[#2791]: https://github.com/nymtech/nym/pull/2791
 
 ## [nym-contracts-v1.1.2](https://github.com/nymtech/nym/tree/nym-contracts-v1.1.2) (2022-12-07)
 

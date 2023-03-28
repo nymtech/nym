@@ -4,7 +4,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::vesting::delegate::vesting_undelegate_from_mixnode;
-use mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::MixId;
 use nym_types::currency::DecCoin;
 use nym_types::delegation::{Delegation, DelegationWithEverything, DelegationsSummaryResponse};
 use nym_types::deprecated::{
@@ -13,8 +13,8 @@ use nym_types::deprecated::{
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::pending_events::PendingEpochEvent;
 use nym_types::transaction::TransactionExecuteResult;
-use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
-use validator_client::nymd::Fee;
+use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use validator_client::nyxd::Fee;
 
 #[tauri::command]
 pub async fn get_pending_delegation_events(
@@ -25,7 +25,7 @@ pub async fn get_pending_delegation_events(
     let reg = guard.registered_coins()?;
     let client = guard.current_client()?;
 
-    let events = client.get_all_nymd_pending_epoch_events().await?;
+    let events = client.get_all_nyxd_pending_epoch_events().await?;
     let converted = events
         .into_iter()
         .map(|e| PendingEpochEvent::try_from_mixnet_contract(e, reg))
@@ -36,9 +36,9 @@ pub async fn get_pending_delegation_events(
     // we only care about events concerning THIS client
     let mut client_specific_events = Vec::new();
     for delegation_event in delegation_events {
-        if delegation_event.address_matches(client.nymd.address().as_ref()) {
+        if delegation_event.address_matches(client.nyxd.address().as_ref()) {
             let node_identity = client
-                .nymd
+                .nyxd
                 .get_mixnode_details(delegation_event.mix_id)
                 .await?
                 .mixnode_details
@@ -82,7 +82,7 @@ pub async fn delegate_to_mixnode(
         fee,
     );
     let res = client
-        .nymd
+        .nyxd
         .delegate_to_mixnode(mix_id, delegation_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -108,7 +108,7 @@ pub async fn undelegate_from_mixnode(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .undelegate_from_mixnode(mix_id, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -153,10 +153,10 @@ pub async fn get_all_mix_delegations(
     let client = guard.current_client()?;
     let reg = guard.registered_coins()?;
 
-    let address = client.nymd.address();
+    let address = client.nyxd.address();
     let network = guard.current_network();
     let base_mix_denom = network.base_mix_denom().to_string();
-    let vesting_contract = client.nymd.vesting_contract_address();
+    let vesting_contract = client.nyxd.vesting_contract_address();
 
     log::info!("  >>> Get delegations");
     let delegations = client.get_all_delegator_delegations(address).await?;
@@ -213,7 +213,7 @@ pub async fn get_all_mix_delegations(
 
         log::trace!("  >>> Get accumulated rewards: address = {}", address);
         let pending_reward = client
-            .nymd
+            .nyxd
             .get_pending_delegator_reward(address, d.mix_id, d.proxy.clone())
             .await?;
 
@@ -230,7 +230,7 @@ pub async fn get_all_mix_delegations(
         };
 
         log::trace!("  >>> Get stake saturation: mix_id = {}", d.mix_id);
-        let stake_saturation = client.nymd.get_mixnode_stake_saturation(d.mix_id).await?;
+        let stake_saturation = client.nyxd.get_mixnode_stake_saturation(d.mix_id).await?;
         log::trace!("  <<< {:?}", stake_saturation);
 
         log::trace!(
@@ -250,7 +250,7 @@ pub async fn get_all_mix_delegations(
             d.height
         );
         let timestamp = client
-            .nymd
+            .nyxd
             .get_block_timestamp(Some(d.height as u32))
             .await?;
         let delegated_on_iso_datetime = timestamp.to_rfc3339();
@@ -325,7 +325,7 @@ pub async fn get_pending_delegator_rewards(
     let guard = state.read().await;
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .get_pending_delegator_reward(&address.parse()?, mix_id, proxy)
         .await?;
 

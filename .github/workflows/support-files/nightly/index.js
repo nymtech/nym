@@ -151,7 +151,7 @@ async function getMessageBody(context) {
       return `${icon} ${job.conclusion}: ${job.name} - ${job.html_url}`;
     })
     // and join with newlines for display in the template
-    .join('\n');
+    .join('\n\n');
 
   return template({ ...context, jobResults });
 }

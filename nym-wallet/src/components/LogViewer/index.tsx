@@ -42,6 +42,7 @@ export const LogViewer: FC = () => {
 
   useEffect(() => {
     listen('log://log', (event) => {
+      // eslint-disable-next-line no-console
       console.log(event.payload);
       const payload = event.payload as RecordPayload;
       messages.current.unshift(payload);

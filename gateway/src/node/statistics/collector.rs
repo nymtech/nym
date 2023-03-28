@@ -6,7 +6,7 @@ use sqlx::types::chrono::{DateTime, Utc};
 use std::time::Duration;
 use url::Url;
 
-use statistics_common::{
+use nym_statistics_common::{
     api::build_and_send_statistics_request, collector::StatisticsCollector, error::StatsError,
     StatsData, StatsGatewayData, StatsMessage,
 };

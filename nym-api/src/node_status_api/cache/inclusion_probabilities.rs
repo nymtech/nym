@@ -1,6 +1,6 @@
-use contracts_common::truncate_decimal;
-use mixnet_contract_common::{MixId, MixNodeDetails, RewardingParams};
 use nym_api_requests::models::InclusionProbability;
+use nym_contracts_common::truncate_decimal;
+use nym_mixnet_contract_common::{MixId, MixNodeDetails, RewardingParams};
 use serde::Serialize;
 use std::time::Duration;
 use tap::TapFallible;
@@ -46,7 +46,7 @@ fn compute_inclusion_probabilities(
 
     // Compute inclusion probabilitites and keep track of how long time it took.
     let mut rng = rand::thread_rng();
-    let results = inclusion_probability::simulate_selection_probability_mixnodes(
+    let results = nym_inclusion_probability::simulate_selection_probability_mixnodes(
         &mixnode_total_bonds,
         active_set_size as usize,
         standby_set_size as usize,
@@ -75,7 +75,7 @@ fn unzip_into_mixnode_ids_and_total_bonds(mixnodes: &[MixNodeDetails]) -> (Vec<M
 
 fn zip_ids_together_with_results(
     ids: &[MixId],
-    results: &inclusion_probability::SelectionProbability,
+    results: &nym_inclusion_probability::SelectionProbability,
 ) -> Vec<InclusionProbability> {
     ids.iter()
         .zip(results.active_set_probability.iter())

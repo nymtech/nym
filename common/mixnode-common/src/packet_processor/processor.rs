@@ -3,12 +3,12 @@
 
 use crate::packet_processor::error::MixProcessingError;
 use log::*;
-use nymsphinx_acknowledgements::surb_ack::SurbAck;
-use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
-use nymsphinx_forwarding::packet::MixPacket;
-use nymsphinx_framing::packet::FramedSphinxPacket;
-use nymsphinx_params::{PacketMode, PacketSize};
-use nymsphinx_types::{
+use nym_sphinx_acknowledgements::surb_ack::SurbAck;
+use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
+use nym_sphinx_forwarding::packet::MixPacket;
+use nym_sphinx_framing::packet::FramedSphinxPacket;
+use nym_sphinx_params::{PacketMode, PacketSize};
+use nym_sphinx_types::{
     Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, Payload, PrivateKey,
     ProcessedPacket, SphinxPacket,
 };
@@ -189,7 +189,7 @@ impl SphinxPacketProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nymsphinx_types::crypto::keygen;
+    use nym_sphinx_types::crypto::keygen;
 
     fn fixture() -> SphinxPacketProcessor {
         let local_keys = keygen();

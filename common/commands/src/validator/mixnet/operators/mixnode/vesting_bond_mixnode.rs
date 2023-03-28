@@ -5,12 +5,12 @@ use crate::context::SigningClient;
 use clap::Parser;
 use cosmwasm_std::Uint128;
 use log::{info, warn};
-use mixnet_contract_common::{Coin, MixNodeCostParams};
-use mixnet_contract_common::{MixNode, Percent};
-use network_defaults::{
+use nym_mixnet_contract_common::{Coin, MixNodeCostParams};
+use nym_mixnet_contract_common::{MixNode, Percent};
+use nym_network_defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
-use validator_client::nymd::{CosmWasmCoin, VestingSigningClient};
+use validator_client::nyxd::{CosmWasmCoin, VestingSigningClient};
 
 #[derive(Debug, Parser)]
 pub struct Args {

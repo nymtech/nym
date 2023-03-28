@@ -9,7 +9,7 @@ use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
 
 use crate::state::ExplorerApiStateContext;
-use mixnet_contract_common::GatewayBond;
+use nym_mixnet_contract_common::GatewayBond;
 
 pub fn gateways_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![settings: list]

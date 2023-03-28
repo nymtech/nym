@@ -34,6 +34,10 @@ impl Listener {
 
         while !self.shutdown.is_shutdown() {
             tokio::select! {
+                biased;
+                _ = self.shutdown.recv() => {
+                    log::trace!("Listener: Received shutdown");
+                }
                 connection = listener.accept() => {
                     match connection {
                         Ok((socket, remote_addr)) => {
@@ -43,9 +47,6 @@ impl Listener {
                         Err(err) => warn!("Failed to accept incoming connection - {err}"),
                     }
                 },
-                _ = self.shutdown.recv() => {
-                    log::trace!("Listener: Received shutdown");
-                }
             };
         }
         log::trace!("Listener: Exiting");

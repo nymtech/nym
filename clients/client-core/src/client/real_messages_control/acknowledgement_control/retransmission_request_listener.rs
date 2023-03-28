@@ -9,12 +9,12 @@ use crate::client::real_messages_control::acknowledgement_control::PacketDestina
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use crate::client::replies::reply_controller::ReplyControllerSender;
-use client_connections::TransmissionLane;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::chunking::fragment::Fragment;
-use nymsphinx::preparer::PreparedFragment;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::chunking::fragment::Fragment;
+use nym_sphinx::preparer::PreparedFragment;
+use nym_task::connections::TransmissionLane;
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 
@@ -137,7 +137,7 @@ where
             .await
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started RetransmissionRequestListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {

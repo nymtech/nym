@@ -13,7 +13,7 @@ const modalStyle: SxProps = {
   p: 4,
 };
 
-export const LoadingModal: React.FC<{
+export const LoadingModal: FCWithChildren<{
   sx?: SxProps;
   backdropProps?: object;
 }> = ({ sx, backdropProps }) => (

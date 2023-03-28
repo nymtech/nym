@@ -36,7 +36,7 @@ const toChunks = (value: String, size: number = 3): Array<string> => {
   return chunks.map((chars) => chars.join(''));
 };
 
-export const CurrencyAmountString: React.FC<{
+export const CurrencyAmountString: FCWithChildren<{
   majorAmount?: string;
   showSeparators?: boolean;
   sx?: SxProps;
@@ -93,7 +93,7 @@ export const CurrencyAmountString: React.FC<{
   );
 };
 
-export const CurrencyAmount: React.FC<{
+export const CurrencyAmount: FCWithChildren<{
   majorAmount?: DecCoin;
   showSeparators?: boolean;
   sx?: SxProps;

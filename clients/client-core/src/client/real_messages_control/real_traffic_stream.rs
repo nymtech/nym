@@ -6,20 +6,20 @@ use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
-use client_connections::{
-    ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
-};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::acknowledgements::AckKey;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::chunking::fragment::FragmentIdentifier;
-use nymsphinx::cover::generate_loop_cover_packet;
-use nymsphinx::forwarding::packet::MixPacket;
-use nymsphinx::params::PacketSize;
-use nymsphinx::preparer::PreparedFragment;
-use nymsphinx::utils::sample_poisson_duration;
+use nym_sphinx::acknowledgements::AckKey;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::chunking::fragment::FragmentIdentifier;
+use nym_sphinx::cover::generate_loop_cover_packet;
+use nym_sphinx::forwarding::packet::MixPacket;
+use nym_sphinx::params::PacketSize;
+use nym_sphinx::preparer::PreparedFragment;
+use nym_sphinx::utils::sample_poisson_duration;
+use nym_task::connections::{
+    ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
+};
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -378,7 +378,6 @@ where
         if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
             match id {
                 ConnectionCommand::Close(id) => self.on_close_connection(id),
-                ConnectionCommand::ActiveConnections(_) => panic!(),
             }
         }
 
@@ -457,7 +456,6 @@ where
         if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
             match id {
                 ConnectionCommand::Close(id) => self.on_close_connection(id),
-                ConnectionCommand::ActiveConnections(_) => panic!(),
             }
         }
 
@@ -498,7 +496,7 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_status(&self, shutdown: &mut task::TaskClient) {
+    fn log_status(&self, shutdown: &mut nym_task::TaskClient) {
         use crate::error::ClientCoreStatusMessage;
 
         let packets = self.transmission_buffer.total_size();
@@ -507,14 +505,10 @@ where
         let mult = self.sending_delay_controller.current_multiplier();
         let delay = self.current_average_message_sending_delay().as_millis();
         let status_str = if self.config.disable_poisson_packet_distribution {
-            format!(
-                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), no delay",
-                backlog
-            )
+            format!("Status: {lanes} lanes, backlog: {backlog:.2} kiB ({packets}), no delay")
         } else {
             format!(
-                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), avg delay: {}ms ({mult})",
-                backlog, delay
+                "Status: {lanes} lanes, backlog: {backlog:.2} kiB ({packets}), avg delay: {delay}ms ({mult})"
             )
         };
         if packets > 1000 {
@@ -543,7 +537,7 @@ where
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         self.run_test().await;
         return;
         println!("START LINE");
@@ -574,9 +568,7 @@ where
                     }
                 }
             }
-            tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
-                .await
-                .expect("Task stopped without shutdown called");
+            shutdown.recv_timeout().await;
         }
 
         #[cfg(target_arch = "wasm32")]

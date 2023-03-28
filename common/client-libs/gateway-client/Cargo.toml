@@ -10,23 +10,25 @@ edition = "2021"
 # TODO: (for this and other crates), similarly to 'tokio', import only required "futures" modules rather than
 # the entire crate
 futures = "0.3"
-log = "0.4"
+log = { workspace = true }
 thiserror = "1.0"
 url = "2.2"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-async-trait = { version = "0.1.51" }
-tokio = { version = "1.21.2", features = ["macros"] }
+async-trait = { workspace = true }
+tokio = { version = "1.24.1", features = ["macros"] }
 
 # internal
-coconut-interface = { path = "../../coconut-interface", optional = true }
-credentials = { path = "../../credentials" }
-crypto = { path = "../../crypto" }
+nym-coconut-interface = { path = "../../coconut-interface" }
+nym-credentials = { path = "../../credentials" }
+nym-crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
-network-defaults = { path = "../../network-defaults" }
-nymsphinx = { path = "../../nymsphinx" }
-pemstore = { path = "../../pemstore" }
-validator-client = { path = "../validator-client", optional = true }
-task = { path = "../../task" }
+nym-network-defaults = { path = "../../network-defaults" }
+nym-sphinx = { path = "../../nymsphinx" }
+nym-pemstore = { path = "../../pemstore" }
+validator-client = { path = "../validator-client" }
+nym-task = { path = "../../task" }
+serde = { version = "1.0", features = ["derive"]}
+mobile-storage = { path = "../../mobile-storage" }
 
 
 [dependencies.tungstenite]
@@ -35,17 +37,17 @@ default-features = false
 
 # non-wasm-only dependencies
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "1.21.2"
+version = "1.24.1"
 features = ["macros", "rt", "net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
-version = "0.1.9"
+version = "0.1.11"
 features = ["net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
 version = "0.14"
 
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.credential-storage]
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-credential-storage]
 path = "../../credential-storage"
 
 # wasm-only dependencies
@@ -78,5 +80,5 @@ features = ["js"]
 #url = "2.1"
 
 [features]
-coconut = ["gateway-requests/coconut", "coconut-interface", "validator-client", "credentials/coconut"]
 wasm = []
+mobile = []

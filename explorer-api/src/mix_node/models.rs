@@ -3,15 +3,15 @@
 
 use crate::cache::Cache;
 use crate::mix_nodes::location::Location;
-use contracts_common::Percent;
-use mixnet_contract_common::Delegation;
-use mixnet_contract_common::{Addr, Coin, Layer, MixId, MixNode};
+use nym_contracts_common::Percent;
+use nym_mixnet_contract_common::Delegation;
+use nym_mixnet_contract_common::{Addr, Coin, Layer, MixId, MixNode};
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::sync::RwLock;
-use validator_client::models::SelectionChance;
+use validator_client::models::{NodePerformance, SelectionChance};
 
 #[derive(Clone, Debug, Serialize, JsonSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -36,10 +36,13 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub stake_saturation: f32,
     pub uncapped_saturation: f32,
     pub avg_uptime: u8,
+    pub node_performance: NodePerformance,
     pub estimated_operator_apy: f64,
     pub estimated_delegators_apy: f64,
     pub operating_cost: Coin,
     pub profit_margin_percent: Percent,
+    pub family_id: Option<u16>,
+    pub blacklisted: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]

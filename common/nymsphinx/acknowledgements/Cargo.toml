@@ -1,20 +1,21 @@
 [package]
-name = "nymsphinx-acknowledgements"
+name = "nym-sphinx-acknowledgements"
 version = "0.1.0"
-authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Sphinx packet ack messages"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 thiserror = "1.0.37"
 
-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
-nymsphinx-addressing = { path = "../addressing" }
-nymsphinx-params = { path = "../params" }
-nymsphinx-types = { path = "../types" }
-pemstore = { path = "../../pemstore" }
-topology = { path = "../../topology" }
+nym-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
+nym-sphinx-addressing = { path = "../addressing" }
+nym-sphinx-params = { path = "../params" }
+nym-sphinx-types = { path = "../types" }
+nym-pemstore = { path = "../../pemstore" }
+nym-topology = { path = "../../topology" }
 
 

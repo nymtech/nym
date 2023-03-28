@@ -56,7 +56,6 @@ impl Family {
         self.proxy.as_ref()
     }
 
-    #[allow(dead_code)]
     pub fn label(&self) -> &str {
         &self.label
     }

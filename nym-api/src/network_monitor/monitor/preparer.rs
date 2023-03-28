@@ -1,23 +1,23 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract_cache::ValidatorCache;
 use crate::network_monitor::chunker::Chunker;
 use crate::network_monitor::monitor::sender::GatewayPackets;
 use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::test_route::TestRoute;
-use crypto::asymmetric::{encryption, identity};
+use crate::nym_contract_cache::cache::NymContractCache;
 use log::info;
-use mixnet_contract_common::{Addr, GatewayBond, Layer, MixId, MixNodeBond};
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::forwarding::packet::MixPacket;
+use nym_crypto::asymmetric::{encryption, identity};
+use nym_mixnet_contract_common::{Addr, GatewayBond, Layer, MixId, MixNodeBond};
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::forwarding::packet::MixPacket;
+use nym_topology::{gateway, mix, NymTopology};
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::time::Duration;
-use topology::{gateway, mix, NymTopology};
 
 // declared type aliases for easier code reasoning
 type Version = String;
@@ -134,7 +134,7 @@ pub(crate) struct PreparedPackets {
 pub(crate) struct PacketPreparer {
     system_version: String,
     chunker: Option<Chunker>,
-    validator_cache: ValidatorCache,
+    validator_cache: NymContractCache,
 
     /// Number of test packets sent to each node
     per_node_test_packets: usize,
@@ -150,7 +150,7 @@ pub(crate) struct PacketPreparer {
 impl PacketPreparer {
     pub(crate) fn new(
         system_version: &str,
-        validator_cache: ValidatorCache,
+        validator_cache: NymContractCache,
         per_node_test_packets: usize,
         self_public_identity: identity::PublicKey,
         self_public_encryption: encryption::PublicKey,
@@ -380,7 +380,6 @@ impl PacketPreparer {
         GatewayPackets::new(
             route.gateway_clients_address(),
             route.gateway_identity(),
-            route.gateway_owner(),
             mix_packets,
         )
     }
@@ -453,7 +452,6 @@ impl PacketPreparer {
             let recipient = self.create_packet_sender(test_route.gateway());
             let gateway_identity = test_route.gateway_identity();
             let gateway_address = test_route.gateway_clients_address();
-            let gateway_owner = test_route.gateway_owner();
 
             // it's actually going to be a tiny bit more due to gateway testing, but it's a good enough approximation
             let mut mix_packets = Vec::with_capacity(mixnodes.len() * self.per_node_test_packets);
@@ -471,9 +469,7 @@ impl PacketPreparer {
 
             let gateway_packets = all_gateway_packets
                 .entry(gateway_identity.to_bytes())
-                .or_insert_with(|| {
-                    GatewayPackets::empty(gateway_address, gateway_identity, gateway_owner)
-                });
+                .or_insert_with(|| GatewayPackets::empty(gateway_address, gateway_identity));
             gateway_packets.push_packets(mix_packets);
 
             // and for each gateway...
@@ -482,7 +478,6 @@ impl PacketPreparer {
                 let test_packet = TestPacket::from_gateway(gateway, test_route.id(), test_nonce);
                 let gateway_identity = gateway.identity_key;
                 let gateway_address = gateway.clients_address();
-                let gateway_owner = gateway.owner.clone();
                 let recipient = self.create_packet_sender(gateway);
                 let topology = test_route.substitute_gateway(gateway);
                 // produce n mix packets
@@ -495,9 +490,7 @@ impl PacketPreparer {
                 // or create a new one
                 let gateway_packets = all_gateway_packets
                     .entry(gateway_identity.to_bytes())
-                    .or_insert_with(|| {
-                        GatewayPackets::empty(gateway_address, gateway_identity, gateway_owner)
-                    });
+                    .or_insert_with(|| GatewayPackets::empty(gateway_address, gateway_identity));
                 gateway_packets.push_packets(gateway_mix_packets);
             }
         }

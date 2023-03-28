@@ -1,50 +1,50 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) mod client;
-pub(crate) mod comm;
-mod deposit;
-pub(crate) mod dkg;
-pub(crate) mod error;
-pub(crate) mod keypair;
-#[cfg(test)]
-pub(crate) mod tests;
-
+use self::comm::APICommunicationChannel;
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
-use crate::NymApiStorage;
-
-use coconut_bandwidth_contract_common::spend_credential::{
-    funds_from_cosmos_msgs, SpendCredentialStatus,
-};
-use coconut_interface::KeyPair as CoconutKeyPair;
-use coconut_interface::{
-    Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
-};
-use config::defaults::NYM_API_VERSION;
-use credentials::coconut::params::{
-    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
-};
-use crypto::asymmetric::encryption;
-use crypto::shared_key::new_ephemeral_shared_key;
-use crypto::symmetric::stream_cipher;
+use crate::coconut::helpers::accepted_vote_err;
+use crate::support::storage::NymApiStorage;
+use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
-use validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
-use validator_client::nymd::{Coin, Fee};
-
-use getset::{CopyGetters, Getters};
+use nym_coconut_bandwidth_contract_common::spend_credential::{
+    funds_from_cosmos_msgs, SpendCredentialStatus,
+};
+use nym_coconut_dkg_common::types::EpochId;
+use nym_coconut_interface::KeyPair as CoconutKeyPair;
+use nym_coconut_interface::{
+    Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
+};
+use nym_config::defaults::NYM_API_VERSION;
+use nym_credentials::coconut::params::{
+    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
+};
+use nym_crypto::asymmetric::encryption;
+use nym_crypto::shared_key::new_ephemeral_shared_key;
+use nym_crypto::symmetric::stream_cipher;
 use rand_07::rngs::OsRng;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
+use validator_client::nyxd::{Coin, Fee};
 
-use self::comm::APICommunicationChannel;
+pub(crate) mod client;
+pub(crate) mod comm;
+mod deposit;
+pub(crate) mod dkg;
+pub(crate) mod error;
+pub(crate) mod helpers;
+pub(crate) mod keypair;
+#[cfg(test)]
+pub(crate) mod tests;
 
 pub struct State {
     client: Arc<dyn LocalClient + Send + Sync>,
@@ -135,8 +135,10 @@ impl State {
         }
     }
 
-    pub async fn verification_key(&self) -> Result<VerificationKey> {
-        self.comm_channel.aggregated_verification_key().await
+    pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey> {
+        self.comm_channel
+            .aggregated_verification_key(epoch_id)
+            .await
     }
 }
 
@@ -180,11 +182,7 @@ impl InternalSignRequest {
             rocket.manage(state).mount(
                 // this format! is so ugly...
                 format!("/{}/{}/{}", NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH),
-                routes![
-                    post_blind_sign,
-                    post_partial_bandwidth_credential,
-                    verify_bandwidth_credential
-                ],
+                routes![post_blind_sign, verify_bandwidth_credential],
             )
         })
     }
@@ -192,7 +190,7 @@ impl InternalSignRequest {
 
 fn blind_sign(request: InternalSignRequest, key_pair: &CoconutKeyPair) -> Result<BlindedSignature> {
     let params = Parameters::new(request.total_params())?;
-    Ok(coconut_interface::blind_sign(
+    Ok(nym_coconut_interface::blind_sign(
         &params,
         &key_pair.secret_key(),
         request.blind_sign_request(),
@@ -240,18 +238,6 @@ pub async fn post_blind_sign(
     Ok(Json(response))
 }
 
-#[post("/partial-bandwidth-credential", data = "<tx_hash>")]
-pub async fn post_partial_bandwidth_credential(
-    tx_hash: Json<String>,
-    state: &RocketState<State>,
-) -> Result<Json<BlindedSignatureResponse>> {
-    let v = state
-        .signed_before(&tx_hash)
-        .await?
-        .ok_or(CoconutError::NoSignature)?;
-    Ok(Json(v))
-}
-
 #[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]
 pub async fn verify_bandwidth_credential(
     verify_credential_body: Json<VerifyCredentialBody>,
@@ -287,7 +273,9 @@ pub async fn verify_bandwidth_credential(
             status: format!("{:?}", credential_status),
         });
     }
-    let verification_key = state.verification_key().await?;
+    let verification_key = state
+        .verification_key(*verify_credential_body.credential().epoch_id())
+        .await?;
     let mut vote_yes = verify_credential_body
         .credential()
         .verify(&verification_key);
@@ -299,7 +287,7 @@ pub async fn verify_bandwidth_credential(
         );
 
     // Vote yes or no on the proposal based on the verification result
-    state
+    let ret = state
         .client
         .vote_proposal(
             proposal_id,
@@ -310,7 +298,8 @@ pub async fn verify_bandwidth_credential(
                 Some(verify_credential_body.gateway_cosmos_addr().to_owned()),
             )),
         )
-        .await?;
+        .await;
+    accepted_vote_err(ret)?;
 
     Ok(Json(VerifyCredentialResponse::new(vote_yes)))
 }

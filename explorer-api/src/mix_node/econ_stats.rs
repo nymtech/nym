@@ -4,8 +4,8 @@
 use crate::client::ThreadsafeValidatorClient;
 use crate::helpers::best_effort_small_dec_to_f64;
 use crate::mix_node::models::EconomicDynamicsStats;
-use contracts_common::truncate_decimal;
-use mixnet_contract_common::MixId;
+use nym_contracts_common::truncate_decimal;
+use nym_mixnet_contract_common::MixId;
 
 pub(crate) async fn retrieve_mixnode_econ_stats(
     client: &ThreadsafeValidatorClient,

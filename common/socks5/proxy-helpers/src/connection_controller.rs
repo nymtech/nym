@@ -1,18 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::{ConnectionCommand, ConnectionCommandSender};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
-use socks5_requests::ConnectionId;
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
-use task::TaskClient;
-use tokio::time;
+use nym_ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
+use nym_socks5_requests::{ConnectionId, NetworkData, SendRequest};
+use nym_task::connections::{ConnectionCommand, ConnectionCommandSender};
+use nym_task::TaskClient;
+use std::collections::{HashMap, HashSet};
 
 /// A generic message produced after reading from a socket/connection. It includes data that was
 /// actually read alongside boolean indicating whether the connection got closed so that
@@ -36,9 +32,38 @@ pub type ControllerSender = mpsc::UnboundedSender<ControllerCommand>;
 pub type ControllerReceiver = mpsc::UnboundedReceiver<ControllerCommand>;
 
 pub enum ControllerCommand {
-    Insert(ConnectionId, ConnectionSender),
-    Remove(ConnectionId),
-    Send(ConnectionId, Vec<u8>, bool),
+    Insert {
+        connection_id: ConnectionId,
+        connection_sender: ConnectionSender,
+    },
+    Remove {
+        connection_id: ConnectionId,
+    },
+    Send {
+        connection_id: ConnectionId,
+        data: Vec<u8>,
+        is_closed: bool,
+    },
+}
+
+impl From<NetworkData> for ControllerCommand {
+    fn from(value: NetworkData) -> Self {
+        ControllerCommand::Send {
+            connection_id: value.connection_id,
+            data: value.data,
+            is_closed: value.is_closed,
+        }
+    }
+}
+
+impl From<SendRequest> for ControllerCommand {
+    fn from(value: SendRequest) -> Self {
+        ControllerCommand::Send {
+            connection_id: value.conn_id,
+            data: value.data,
+            is_closed: value.local_closed,
+        }
+    }
 }
 
 struct ActiveConnection {
@@ -87,10 +112,6 @@ pub struct Controller {
     // Broadcast closed connections
     client_connection_tx: ConnectionCommandSender,
 
-    // The controller can broadcast active connections. This is useful in the network-requester
-    // where its used to query the client for lane queue lengths
-    broadcast_connections: BroadcastActiveConnections,
-
     // TODO: this can potentially be abused to ddos and kill provider. Not sure at this point
     // how to handle it more gracefully
 
@@ -104,7 +125,6 @@ pub struct Controller {
 impl Controller {
     pub fn new(
         client_connection_tx: ConnectionCommandSender,
-        broadcast_connections: BroadcastActiveConnections,
         shutdown: TaskClient,
     ) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
@@ -114,7 +134,6 @@ impl Controller {
                 receiver,
                 recently_closed: HashSet::new(),
                 client_connection_tx,
-                broadcast_connections,
                 pending_messages: HashMap::new(),
                 shutdown,
             },
@@ -163,15 +182,6 @@ impl Controller {
                 log::error!("Failed to send: {err}");
             }
         }
-    }
-
-    fn broadcast_active_connections(&mut self) {
-        // What about the recently closed ones? Hopefully we can ignore them ...
-        let conn_ids = self.active_connections.keys().copied().collect();
-
-        self.client_connection_tx
-            .unbounded_send(ConnectionCommand::ActiveConnections(conn_ids))
-            .unwrap();
     }
 
     fn send_to_connection(&mut self, conn_id: ConnectionId, payload: Vec<u8>, is_closed: bool) {
@@ -230,35 +240,24 @@ impl Controller {
     }
 
     pub async fn run(&mut self) {
-        let mut interval = time::interval(Duration::from_millis(500));
-
         loop {
             tokio::select! {
                 command = self.receiver.next() => match command {
-                    Some(ControllerCommand::Send(conn_id, data, is_closed)) => {
-                        self.send_to_connection(conn_id, data, is_closed)
+                    Some(ControllerCommand::Send{connection_id, data, is_closed}) => {
+                        self.send_to_connection(connection_id, data, is_closed)
                     }
-                    Some(ControllerCommand::Insert(conn_id, sender)) => {
-                        self.insert_connection(conn_id, sender)
+                    Some(ControllerCommand::Insert{connection_id, connection_sender}) => {
+                        self.insert_connection(connection_id, connection_sender)
                     }
-                    Some(ControllerCommand::Remove(conn_id)) => self.remove_connection(conn_id),
+                    Some(ControllerCommand::Remove{ connection_id }) => self.remove_connection(connection_id),
                     None => {
                         log::trace!("SOCKS5 Controller: Stopping since channel closed");
                         break;
                     }
                 },
-                _ = interval.tick() => {
-                    if self.broadcast_connections == BroadcastActiveConnections::On {
-                        self.broadcast_active_connections();
-                    }
-                },
             }
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        tokio::time::timeout(Duration::from_secs(5), self.shutdown.recv())
-            .await
-            .expect("Task stopped without shutdown called");
-        assert!(self.shutdown.is_shutdown_poll());
+        self.shutdown.recv_timeout().await;
         log::debug!("SOCKS5 Controller: Exiting");
     }
 }

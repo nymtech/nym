@@ -40,8 +40,8 @@ async fn main() {
     if let Some(received) = receiving_client.wait_for_messages().await {
         for r in received {
             println!(
-                "Received socks5 message: {}",
-                String::from_utf8_lossy(&r.message)
+                "Received socks5 message requesting for endpoint: {}",
+                String::from_utf8_lossy(&r.message[10..27])
             );
         }
     }

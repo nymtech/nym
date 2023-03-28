@@ -1,4 +1,4 @@
-use cosmwasm_std::{Response, Coin};
+use cosmwasm_std::{Coin, Response};
 use cw_multi_test::AppResponse;
 
 pub fn nyms(amount: u64) -> Coin {

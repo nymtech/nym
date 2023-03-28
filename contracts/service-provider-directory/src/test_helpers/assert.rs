@@ -8,12 +8,7 @@ use crate::{
 pub fn assert_config(deps: Deps, admin: Addr) {
     let res = crate::contract::query(deps, mock_env(), QueryMsg::QueryConfig {}).unwrap();
     let config: ConfigResponse = from_binary(&res).unwrap();
-    assert_eq!(
-        config,
-        ConfigResponse {
-            admin,
-        }
-    );
+    assert_eq!(config, ConfigResponse { admin });
 }
 
 pub fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {

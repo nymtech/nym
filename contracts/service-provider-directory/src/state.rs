@@ -97,13 +97,17 @@ pub(crate) fn deposit_required(store: &dyn Storage) -> StdResult<Coin> {
 }
 
 /// Return the address of the contract admin
+#[allow(unused)]
 pub(crate) fn admin(store: &dyn Storage) -> StdResult<Addr> {
     CONFIG.load(store).map(|config| config.admin)
 }
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::{
+        coins,
+        testing::{mock_dependencies, mock_env, mock_info},
+    };
 
     use crate::{
         msg::{ExecuteMsg, InstantiateMsg, ServiceInfo},
@@ -128,7 +132,7 @@ mod tests {
 
         // Announce
         let msg = service_fixture().into_announce_msg();
-        let info = mock_info("anyone", &[]);
+        let info = mock_info("anyone", &coins(100, "unym"));
 
         let res = crate::execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
         let sp_id: u64 = get_attribute(res.clone(), "service_id").parse().unwrap();
@@ -157,7 +161,7 @@ mod tests {
         // Create a third entry. The index should not reuse the previous entry that we just
         // deleted.
         let msg = service_fixture().into_announce_msg();
-        let info = mock_info("anyone", &[]);
+        let info = mock_info("anyone", &coins(100, "unym"));
         let res = crate::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         let sp_id: u64 = get_attribute(res.clone(), "service_id").parse().unwrap();
         assert_eq!(sp_id, 3);

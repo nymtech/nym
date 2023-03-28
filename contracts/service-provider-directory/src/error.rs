@@ -24,5 +24,8 @@ pub enum ContractError {
     },
 
     #[error("deposit too large: {funds}, required: {deposit_required}")]
-    TooLargeDeposit { funds: cosmwasm_std::Uint128, deposit_required: cosmwasm_std::Coin },
+    TooLargeDeposit {
+        funds: cosmwasm_std::Uint128,
+        deposit_required: cosmwasm_std::Coin,
+    },
 }

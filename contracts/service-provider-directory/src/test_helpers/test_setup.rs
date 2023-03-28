@@ -21,24 +21,20 @@ pub struct TestSetup {
 
 impl TestSetup {
     pub fn new() -> Self {
-        //let mut app = App::default();
         let mut app = AppBuilder::new().build(|router, _, storage| {
-            router
-                .bank
-                .init_balance(storage, &Addr::unchecked("user"), coins(150, DENOM))
-                .unwrap();
-            router
-                .bank
-                .init_balance(storage, &Addr::unchecked("admin"), coins(150, DENOM))
-                .unwrap();
-            router
-                .bank
-                .init_balance(storage, &Addr::unchecked("owner"), coins(150, DENOM))
-                .unwrap();
-            router
-                .bank
-                .init_balance(storage, &Addr::unchecked("owner2"), coins(150, DENOM))
-                .unwrap();
+            let mut init_balance = |account: &str| {
+                router
+                    .bank
+                    .init_balance(storage, &Addr::unchecked(account), coins(150, DENOM))
+                    .unwrap();
+            };
+            init_balance("user");
+            init_balance("admin");
+            init_balance("owner");
+            init_balance("owner1");
+            init_balance("owner2");
+            init_balance("owner3");
+            init_balance("owner4");
         });
         let code = ContractWrapper::new(crate::execute, crate::instantiate, crate::query);
         let code_id = app.store_code(Box::new(code));

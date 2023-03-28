@@ -1,6 +1,6 @@
 //! Integration tests using cw-multi-test.
 
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::Addr;
 
 use crate::{
     error::ContractError,
@@ -29,6 +29,7 @@ fn announce_and_query_service() {
     let mut setup = TestSetup::new();
     assert_eq!(setup.query_all(), ServicesListResponse { services: vec![] });
 
+    // Announce a first service
     let owner = Addr::unchecked("owner");
     let nym_address = NymAddress::new("nymAddress");
     assert_eq!(setup.contract_balance().unwrap(), nyms(0));
@@ -68,6 +69,7 @@ fn announce_and_query_service() {
         }
     );
 
+    // Announce a second service
     let owner2 = Addr::unchecked("owner2");
     let nym_address2 = NymAddress::new("nymAddress2");
     setup
@@ -120,9 +122,11 @@ fn delete_service() {
 #[test]
 fn only_owner_can_delete_service() {
     let mut setup = TestSetup::new();
+    assert_eq!(setup.contract_balance().unwrap(), nyms(0));
     setup
         .announce_network_requester(NymAddress::new("nymAddress"), Addr::unchecked("owner"))
         .unwrap();
+    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
     assert!(!setup.query_all().services.is_empty());
 
     let delete_resp: ContractError = setup
@@ -131,6 +135,7 @@ fn only_owner_can_delete_service() {
         .downcast()
         .unwrap();
 
+    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
     assert_eq!(
         delete_resp,
         ContractError::Unauthorized {
@@ -145,6 +150,7 @@ fn cant_delete_service_that_does_not_exist() {
     setup
         .announce_network_requester(NymAddress::new("nymAddress"), Addr::unchecked("owner"))
         .unwrap();
+    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
     assert!(!setup.query_all().services.is_empty());
 
     let delete_resp: ContractError = setup
@@ -152,6 +158,7 @@ fn cant_delete_service_that_does_not_exist() {
         .unwrap_err()
         .downcast()
         .unwrap();
+    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
     assert_eq!(delete_resp, ContractError::NotFound { service_id: 0 });
 
     let delete_resp: ContractError = setup
@@ -159,10 +166,12 @@ fn cant_delete_service_that_does_not_exist() {
         .unwrap_err()
         .downcast()
         .unwrap();
+    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
     assert_eq!(delete_resp, ContractError::NotFound { service_id: 2 });
 
     assert!(!setup.query_all().services.is_empty());
     setup.delete(1, Addr::unchecked("owner")).unwrap();
+    assert_eq!(setup.contract_balance().unwrap(), nyms(0));
     assert!(setup.query_all().services.is_empty());
 }
 

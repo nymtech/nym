@@ -1,8 +1,24 @@
-
-use cosmwasm_std::Coin;
+use cosmwasm_std::{BankMsg, Coin, Uint128};
 
 use super::*;
 use crate::state::{self, NymAddress, ServiceId, ServiceType};
+
+fn ensure_correct_deposit(
+    will_deposit: Uint128,
+    deposit_required: Coin,
+) -> Result<(), ContractError> {
+    match will_deposit.cmp(&deposit_required.amount) {
+        std::cmp::Ordering::Less => Err(ContractError::InsufficientDeposit {
+            funds: will_deposit,
+            deposit_required,
+        }),
+        std::cmp::Ordering::Equal => Ok(()),
+        std::cmp::Ordering::Greater => Err(ContractError::TooLargeDeposit {
+            funds: will_deposit,
+            deposit_required,
+        }),
+    }
+}
 
 /// Announce a new service. It will be assigned a new service provider id.
 pub fn announce(
@@ -17,34 +33,18 @@ pub fn announce(
     let denom = deposit_required.denom.clone();
     let will_deposit = cw_utils::must_pay(&info, &denom)
         .map_err(|err| ContractError::DepositRequired { source: err })?;
-
-    if will_deposit < deposit_required.amount {
-        return Err(ContractError::InsufficientDeposit {
-            funds: will_deposit,
-            deposit_required,
-        });
-    }
-
-    if will_deposit > deposit_required.amount {
-        return Err(ContractError::TooLargeDeposit {
-            funds: will_deposit,
-            deposit_required,
-        });
-    }
-
-    let will_deposit = Coin::new(will_deposit.u128(), denom);
+    ensure_correct_deposit(will_deposit, deposit_required)?;
 
     let new_service = Service {
         nym_address,
         service_type,
         owner,
         block_height: env.block.height,
-        deposit: will_deposit,
+        deposit: Coin::new(will_deposit.u128(), denom),
     };
     let service_id = state::next_service_id_counter(deps.storage)?;
     SERVICES.save(deps.storage, service_id, &new_service)?;
     Ok(Response::new()
-        //.add_message(deposit_msg)
         .add_attribute("action", "announce")
         .add_attribute("service_id", service_id.to_string())
         .add_attribute("service_type", service_type.to_string()))
@@ -67,14 +67,16 @@ pub fn delete(
         });
     }
 
-    //let return_deposit_msg = BankMsg::Send {
-    //to_address: service_to_delete.owner.to_string(),
-    //amount: vec![service_to_delete.deposit],
-    //};
+    // TODO: should this be reduced to take transaction costs into account? So that the contract
+    // doesn't run out of funds.
+    let return_deposit_msg = BankMsg::Send {
+        to_address: service_to_delete.owner.to_string(),
+        amount: vec![service_to_delete.deposit],
+    };
 
     SERVICES.remove(deps.storage, service_id);
     Ok(Response::new()
-        //.add_message(return_deposit_msg)
+        .add_message(return_deposit_msg)
         .add_attribute("action", "delete")
         .add_attribute("service_id", service_id.to_string()))
 }

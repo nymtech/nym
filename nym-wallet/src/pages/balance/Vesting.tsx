@@ -60,10 +60,10 @@ export const VestingCard = ({
       }
     >
       <Grid container spacing={3}>
-        <Grid item xs={12} xl={8}>
+        <Grid item xs={12} md={7} lg={8}>
           <VestingSchedule />
         </Grid>
-        <Grid item xs={12} xl={4}>
+        <Grid item xs={12} md={5} lg={4}>
           <TokenTransfer
             onTransfer={onTransfer}
             unlockedTokens={unlockedTokens}

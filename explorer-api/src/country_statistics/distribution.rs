@@ -1,5 +1,5 @@
 use log::info;
-use task::ShutdownListener;
+use nym_task::TaskClient;
 
 use crate::country_statistics::country_nodes_distribution::CountryNodesDistribution;
 use crate::COUNTRY_DATA_REFRESH_INTERVAL;
@@ -8,11 +8,11 @@ use crate::state::ExplorerApiStateContext;
 
 pub(crate) struct CountryStatisticsDistributionTask {
     state: ExplorerApiStateContext,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl CountryStatisticsDistributionTask {
-    pub(crate) fn new(state: ExplorerApiStateContext, shutdown: ShutdownListener) -> Self {
+    pub(crate) fn new(state: ExplorerApiStateContext, shutdown: TaskClient) -> Self {
         CountryStatisticsDistributionTask { state, shutdown }
     }
 

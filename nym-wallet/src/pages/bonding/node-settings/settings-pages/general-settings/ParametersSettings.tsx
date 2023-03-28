@@ -1,24 +1,12 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import {
-  Button,
-  Divider,
-  Typography,
-  TextField,
-  InputAdornment,
-  Grid,
-  CircularProgress,
-  Box,
-  FormHelperText,
-} from '@mui/material';
+import { Box, Button, Divider, FormHelperText, Grid, InputAdornment, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { CurrencyDenom, MixNodeCostParams } from '@nymproject/types';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { add, format, fromUnixTime } from 'date-fns';
 import { isMixnode } from 'src/types';
 import {
-  getCurrentInterval,
   getPendingIntervalEvents,
   simulateUpdateMixnodeCostParams,
   simulateVestingUpdateMixnodeCostParams,
@@ -29,6 +17,7 @@ import { TBondedMixnode } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
+import { getIntervalAsDate } from 'src/utils';
 import { Alert } from 'src/components/Alert';
 import { ChangeMixCostParams } from 'src/pages/bonding/types';
 import { AppContext } from 'src/context';
@@ -39,7 +28,6 @@ import { LoadingModal } from 'src/components/Modals/LoadingModal';
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode }): JSX.Element => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const [intervalTime, setIntervalTime] = useState<string>();
-  const [nextEpoch, setNextEpoch] = useState<string>();
   const [pendingUpdates, setPendingUpdates] = useState<MixNodeCostParams>();
   const { clientDetails } = useContext(AppContext);
   const theme = useTheme();
@@ -63,27 +51,13 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     defaultValues,
   });
 
-  const getIntervalAsDate = async () => {
-    const interval = await getCurrentInterval();
-    const secondsToNextInterval =
-      Number(interval.epochs_in_interval - interval.current_epoch_id) * Number(interval.epoch_length_seconds);
-
-    setIntervalTime(
-      format(
-        add(new Date(), {
-          seconds: secondsToNextInterval,
-        }),
-        'MM/dd/yyyy HH:mm',
-      ),
-    );
-    setNextEpoch(
-      format(
-        add(fromUnixTime(Number(interval.current_epoch_start_unix)), {
-          seconds: Number(interval.epoch_length_seconds),
-        }),
-        'HH:mm',
-      ),
-    );
+  const getCurrentInterval = async () => {
+    try {
+      const { nextInterval } = await getIntervalAsDate();
+      setIntervalTime(nextInterval);
+    } catch {
+      Console.log('cant retrieve next interval');
+    }
   };
 
   const getPendingEvents = async () => {
@@ -107,14 +81,14 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   };
 
   useEffect(() => {
-    getIntervalAsDate();
+    getCurrentInterval();
     getPendingEvents();
   }, []);
 
   const onSubmit = async (data: { operatorCost: { amount: string; denom: CurrencyDenom }; profitMargin: string }) => {
     resetFeeState();
     if (data.operatorCost && data.profitMargin) {
-      const MixNodeCostParams = {
+      const mixNodeCostParams = {
         profit_margin_percent: (+data.profitMargin / 100).toString(),
         interval_operating_cost: {
           amount: data.operatorCost.amount,
@@ -123,9 +97,9 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       };
       try {
         if (bondedNode.proxy) {
-          await vestingUpdateMixnodeCostParams(MixNodeCostParams);
+          await vestingUpdateMixnodeCostParams(mixNodeCostParams);
         } else {
-          await updateMixnodeCostParams(MixNodeCostParams);
+          await updateMixnodeCostParams(mixNodeCostParams);
         }
         await getPendingEvents();
         reset();
@@ -137,7 +111,16 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   };
 
   return (
-    <Grid container xs item>
+    <Grid
+      container
+      xs
+      item
+      sx={{
+        '& .MuiGrid-item': {
+          pl: 0,
+        },
+      }}
+    >
       {fee && (
         <ConfirmTx
           open
@@ -149,16 +132,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         />
       )}
       {isSubmitting && <LoadingModal />}
-      <Alert
-        title={
-          <>
-            <Box component="span" sx={{ fontWeight: 600, mr: 2 }}>
-              {`Next epoch ${nextEpoch}`}
-            </Box>
-            <Box component="span" sx={{ fontWeight: 600 }}>{`Next interval: ${intervalTime}`}</Box>
-          </>
-        }
-      />
+      <Alert title={<Box component="span" sx={{ fontWeight: 600 }}>{`Next interval: ${intervalTime}`}</Box>} />
       <Grid container direction="column">
         <Grid item container alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
           <Grid item xl={6}>
@@ -177,7 +151,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             </Typography>
           </Grid>
           {isMixnode(bondedNode) && (
-            <Grid item xs={12} xl={6}>
+            <Grid item xs={12} md={6}>
               <TextField
                 {...register('profitMargin')}
                 name="profitMargin"
@@ -206,7 +180,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             </Grid>
           )}
         </Grid>
-        <Divider flexItem />
+        <Divider flexItem sx={{ position: 'relative', left: '-24px', width: 'calc(100% + 24px)' }} />
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
           <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
@@ -223,33 +197,31 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
               Changes to cost will be applied in the next interval.
             </Typography>
           </Grid>
-          <Grid spacing={3} container item alignItems="center" xs={12} md={6}>
-            <Grid item width={1}>
-              <CurrencyFormField
-                required
-                fullWidth
-                label="Operating cost"
-                onChanged={(newValue) => {
-                  setValue('operatorCost', newValue, { shouldValidate: true, shouldDirty: true });
-                }}
-                validationError={errors.operatorCost?.amount?.message}
-                denom={clientDetails?.display_mix_denom || 'nym'}
-                initialValue={defaultValues.operatorCost.amount}
-              />
-              {pendingUpdates && (
-                <FormHelperText>
-                  Your last change to{' '}
-                  <Typography variant="caption" fontWeight="bold">
-                    {pendingUpdates.interval_operating_cost.amount}{' '}
-                    {pendingUpdates?.interval_operating_cost.denom.toUpperCase()}{' '}
-                  </Typography>
-                  will be applied in the next interval
-                </FormHelperText>
-              )}
-            </Grid>
+          <Grid item xs={12} md={6}>
+            <CurrencyFormField
+              required
+              fullWidth
+              label="Operating cost"
+              onChanged={(newValue) => {
+                setValue('operatorCost', newValue, { shouldValidate: true, shouldDirty: true });
+              }}
+              validationError={errors.operatorCost?.amount?.message}
+              denom={clientDetails?.display_mix_denom || 'nym'}
+              initialValue={defaultValues.operatorCost.amount}
+            />
+            {pendingUpdates && (
+              <FormHelperText>
+                Your last change to{' '}
+                <Typography variant="caption" fontWeight="bold">
+                  {pendingUpdates.interval_operating_cost.amount}{' '}
+                  {pendingUpdates?.interval_operating_cost.denom.toUpperCase()}{' '}
+                </Typography>
+                will be applied in the next interval
+              </FormHelperText>
+            )}
           </Grid>
         </Grid>
-        <Divider flexItem />
+        <Divider flexItem sx={{ position: 'relative', left: '-24px', width: 'calc(100% + 24px)' }} />
         <Grid container justifyContent="end">
           <Button
             size="large"

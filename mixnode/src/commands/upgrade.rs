@@ -3,10 +3,10 @@
 
 use crate::config::{missing_string_value, Config};
 use clap::Args;
-use config::NymConfig;
+use nym_bin_common::version_checker::Version;
+use nym_config::NymConfig;
 use std::fmt::Display;
 use std::process;
-use version_checker::Version;
 
 #[derive(Args)]
 pub(crate) struct Upgrade {
@@ -22,49 +22,38 @@ fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> !
 }
 
 fn print_start_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    println!(
-        "\n==================\nTrying to upgrade mixnode from {} to {} ...",
-        from, to
-    );
+    println!("\n==================\nTrying to upgrade mixnode from {from} to {to} ...");
 }
 
 fn print_failed_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    eprintln!(
-        "Upgrade from {} to {} failed!\n==================\n",
-        from, to
-    );
+    eprintln!("Upgrade from {from} to {to} failed!\n==================\n");
 }
 
 fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    println!(
-        "Upgrade from {} to {} was successful!\n==================\n",
-        from, to
-    );
+    println!("Upgrade from {from} to {to} was successful!\n==================\n");
 }
 
 fn outdated_upgrade(config_version: &Version, package_version: &Version) -> ! {
     eprintln!(
-        "Cannot perform upgrade from {} to {}. Your version is too old to perform the upgrade.!",
-        config_version, package_version
+        "Cannot perform upgrade from {config_version} to {package_version}. Your version is too old to perform the upgrade.!"
     );
     process::exit(1)
 }
 
 fn unsupported_upgrade(config_version: &Version, package_version: &Version) -> ! {
-    eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue if you expected it to work!", config_version, package_version);
+    eprintln!("Cannot perform upgrade from {config_version} to {package_version}. Please let the developers know about this issue if you expected it to work!");
     process::exit(1)
 }
 
 fn parse_config_version(config: &Config) -> Version {
     let version = Version::parse(config.get_version()).unwrap_or_else(|err| {
-        eprintln!("failed to parse client version! - {:?}", err);
+        eprintln!("failed to parse client version! - {err}");
         process::exit(1)
     });
 
     if version.is_prerelease() || !version.build.is_empty() {
         eprintln!(
-            "Trying to upgrade from a non-released version {}. This is not supported!",
-            version
+            "Trying to upgrade from a non-released version {version}. This is not supported!"
         );
         process::exit(1)
     }
@@ -79,10 +68,7 @@ fn parse_package_version() -> Version {
     // however, we are not using them ourselves at the moment and hence it should be fine.
     // if we change our mind, we could easily tweak this code
     if version.is_prerelease() || !version.build.is_empty() {
-        eprintln!(
-            "Trying to upgrade to a non-released version {}. This is not supported!",
-            version
-        );
+        eprintln!("Trying to upgrade to a non-released version {version}. This is not supported!");
         process::exit(1)
     }
 
@@ -106,7 +92,7 @@ fn minor_0_12_upgrade(
     let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
-        eprintln!("failed to overwrite config file! - {:?}", err);
+        eprintln!("failed to overwrite config file! - {err}");
         print_failed_upgrade(config_version, &to_version);
         process::exit(1);
     });
@@ -139,8 +125,8 @@ fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
 pub(crate) fn execute(args: &Upgrade) {
     let package_version = parse_package_version();
 
-    let existing_config = Config::load_from_file(Some(&args.id)).unwrap_or_else(|err| {
-        eprintln!("failed to load existing config file! - {:?}", err);
+    let existing_config = Config::load_from_file(&args.id).unwrap_or_else(|err| {
+        eprintln!("failed to load existing config file! - {err}");
         process::exit(1)
     });
 

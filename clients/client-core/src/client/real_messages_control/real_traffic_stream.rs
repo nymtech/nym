@@ -1,23 +1,25 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use self::sending_delay_controller::SendingDelayController;
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
-use client_connections::{
-    ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
-};
+use crate::client::transmission_buffer::TransmissionBuffer;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::acknowledgements::AckKey;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::chunking::fragment::FragmentIdentifier;
-use nymsphinx::cover::generate_loop_cover_packet;
-use nymsphinx::forwarding::packet::MixPacket;
-use nymsphinx::params::PacketSize;
-use nymsphinx::preparer::PreparedFragment;
-use nymsphinx::utils::sample_poisson_duration;
+use nym_sphinx::acknowledgements::AckKey;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::chunking::fragment::FragmentIdentifier;
+use nym_sphinx::cover::generate_loop_cover_packet;
+use nym_sphinx::forwarding::packet::MixPacket;
+use nym_sphinx::params::PacketSize;
+use nym_sphinx::preparer::PreparedFragment;
+use nym_sphinx::utils::sample_poisson_duration;
+use nym_task::connections::{
+    ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
+};
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -29,22 +31,7 @@ use tokio::time;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
-use self::{
-    sending_delay_controller::SendingDelayController, transmission_buffer::TransmissionBuffer,
-};
-
 mod sending_delay_controller;
-mod transmission_buffer;
-
-#[cfg(not(target_arch = "wasm32"))]
-fn get_time_now() -> time::Instant {
-    time::Instant::now()
-}
-
-#[cfg(target_arch = "wasm32")]
-fn get_time_now() -> wasm_timer::Instant {
-    wasm_timer::Instant::now()
-}
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -135,7 +122,7 @@ where
 
     /// Buffer containing all incoming real messages keyed by transmission lane, that we will send
     /// out to the mixnet.
-    transmission_buffer: TransmissionBuffer,
+    transmission_buffer: TransmissionBuffer<RealMessage>,
 
     /// Incoming channel for being notified of closed connections, so that we can close lanes
     /// corresponding to connections. To avoid sending traffic unnecessary
@@ -162,6 +149,10 @@ impl From<PreparedFragment> for RealMessage {
 }
 
 impl RealMessage {
+    pub(crate) fn packet_size(&self) -> usize {
+        self.mix_packet.sphinx_packet().len()
+    }
+
     pub(crate) fn new(mix_packet: MixPacket, fragment_id: FragmentIdentifier) -> Self {
         RealMessage {
             mix_packet,
@@ -207,7 +198,7 @@ where
             real_receiver,
             rng,
             topology_access,
-            transmission_buffer: Default::default(),
+            transmission_buffer: TransmissionBuffer::new(),
             client_connection_rx,
             lane_queue_lengths,
         }
@@ -264,7 +255,7 @@ where
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
-            log::error!("Failed to send: {}", err);
+            log::error!("Failed to send: {err}");
         }
 
         // notify ack controller about sending our message only after we actually managed to push it
@@ -328,7 +319,9 @@ where
 
     fn pop_next_message(&mut self) -> Option<RealMessage> {
         // Pop the next message from the transmission buffer
-        let (lane, real_next) = self.transmission_buffer.pop_next_message_at_random()?;
+        let (lane, real_next) = self
+            .transmission_buffer
+            .pop_next_message_at_random(&mut self.rng)?;
 
         // Update the published queue length
         let lane_length = self.transmission_buffer.lane_length(&lane);
@@ -340,7 +333,7 @@ where
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // The average delay could change depending on if backpressure in the downstream channel
         // (mix_tx) was detected.
-        self.adjust_current_average_message_sending_delay();
+        //self.adjust_current_average_message_sending_delay();
         let avg_delay = self.current_average_message_sending_delay();
 
         // Start by checking if we have any incoming messages about closed connections
@@ -349,7 +342,6 @@ where
         if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
             match id {
                 ConnectionCommand::Close(id) => self.on_close_connection(id),
-                ConnectionCommand::ActiveConnections(_) => panic!(),
             }
         }
 
@@ -428,7 +420,6 @@ where
         if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
             match id {
                 ConnectionCommand::Close(id) => self.on_close_connection(id),
-                ConnectionCommand::ActiveConnections(_) => panic!(),
             }
         }
 
@@ -469,7 +460,7 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_status(&self, shutdown: &mut task::ShutdownListener) {
+    fn log_status(&self, shutdown: &mut nym_task::TaskClient) {
         use crate::error::ClientCoreStatusMessage;
 
         let packets = self.transmission_buffer.total_size();
@@ -478,14 +469,10 @@ where
         let mult = self.sending_delay_controller.current_multiplier();
         let delay = self.current_average_message_sending_delay().as_millis();
         let status_str = if self.config.disable_poisson_packet_distribution {
-            format!(
-                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), no delay",
-                backlog
-            )
+            format!("Status: {lanes} lanes, backlog: {backlog:.2} kiB ({packets}), no delay")
         } else {
             format!(
-                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), avg delay: {}ms ({mult})",
-                backlog, delay
+                "Status: {lanes} lanes, backlog: {backlog:.2} kiB ({packets}), avg delay: {delay}ms ({mult})"
             )
         };
         if packets > 1000 {
@@ -514,7 +501,7 @@ where
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -525,7 +512,7 @@ where
             while !shutdown.is_shutdown() {
                 tokio::select! {
                     biased;
-                    _ = shutdown.recv() => {
+                    _ = shutdown.recv_with_delay() => {
                         log::trace!("OutQueueControl: Received shutdown");
                     }
                     _ = status_timer.tick() => {
@@ -542,9 +529,7 @@ where
                     }
                 }
             }
-            tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
-                .await
-                .expect("Task stopped without shutdown called");
+            shutdown.recv_timeout().await;
         }
 
         #[cfg(target_arch = "wasm32")]

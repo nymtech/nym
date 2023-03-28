@@ -1,20 +1,30 @@
 import * as React from 'react';
-import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import {
+  Link,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableCellProps,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Tooltip } from '@nymproject/react/tooltip/Tooltip';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { Box } from '@mui/system';
 import { cellStyles } from './Universal-DataGrid';
-import { currencyToString } from '../utils/currency';
+import { unymToNym } from '../utils/currency';
 import { GatewayEnrichedRowType } from './Gateways';
 import { MixnodeRowType } from './MixNodes';
+import { StakeSaturationProgressBar } from './MixNodes/Economics/StakeSaturationProgressBar';
 
 export type ColumnsType = {
   field: string;
   title: string;
-  headerAlign: string;
-  flex?: number;
-  width?: number;
+  headerAlign?: TableCellProps['align'];
+  width?: string | number;
   tooltipInfo?: string;
 };
 
@@ -37,13 +47,27 @@ function formatCellValues(val: string | number, field: string) {
       </Box>
     );
   }
+
   if (field === 'bond') {
-    return currencyToString(val.toString());
+    return unymToNym(val, 6);
   }
+
+  if (field === 'owner') {
+    return (
+      <Link underline="none" color="inherit" target="_blank" href={`https://mixnet.explorers.guru/account/${val}`}>
+        {val}
+      </Link>
+    );
+  }
+
+  if (field === 'stake_saturation') {
+    return <StakeSaturationProgressBar value={Number(val)} threshold={100} />;
+  }
+
   return val;
 }
 
-export const DetailTable: React.FC<{
+export const DetailTable: FCWithChildren<{
   tableName: string;
   columnsData: ColumnsType[];
   rows: MixnodeRowType[] | GatewayEnrichedRowType[];
@@ -51,11 +75,11 @@ export const DetailTable: React.FC<{
   const theme = useTheme();
   return (
     <TableContainer component={Paper}>
-      <Table sx={{ minWidth: 650 }} aria-label={tableName}>
+      <Table sx={{ minWidth: 1080 }} aria-label={tableName}>
         <TableHead>
           <TableRow>
-            {columnsData?.map(({ field, title, flex, tooltipInfo }) => (
-              <TableCell key={field} sx={{ fontSize: 14, fontWeight: 600, flex }}>
+            {columnsData?.map(({ field, title, width, tooltipInfo }) => (
+              <TableCell key={field} sx={{ fontSize: 14, fontWeight: 600, width }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   {tooltipInfo && (
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>

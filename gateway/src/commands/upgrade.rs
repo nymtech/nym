@@ -3,10 +3,10 @@
 
 use crate::config::{Config, MISSING_VALUE};
 use clap::Args;
-use config::NymConfig;
+use nym_bin_common::version_checker::Version;
+use nym_config::NymConfig;
 use std::fmt::Display;
 use std::process;
-use version_checker::Version;
 
 #[derive(Args, Clone)]
 pub struct Upgrade {
@@ -22,7 +22,7 @@ fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> !
 }
 
 fn print_start_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    println!(
+    eprintln!(
         "\n==================\nTrying to upgrade gateway from {} to {} ...",
         from, to
     );
@@ -36,7 +36,7 @@ fn print_failed_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
 }
 
 fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    println!(
+    eprintln!(
         "Upgrade from {} to {} was successful!\n==================\n",
         from, to
     );
@@ -57,7 +57,7 @@ fn unsupported_upgrade(current_version: &Version, config_version: &Version) -> !
 
 fn parse_config_version(config: &Config) -> Version {
     let version = Version::parse(config.get_version()).unwrap_or_else(|err| {
-        eprintln!("failed to parse client version! - {:?}", err);
+        eprintln!("failed to parse client version! - {err}");
         process::exit(1)
     });
 
@@ -103,10 +103,10 @@ fn minor_0_12_upgrade(
 
     print_start_upgrade(config_version, &to_version);
 
-    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
+    let upgraded_config = config.with_custom_version(to_version.to_string());
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
-        eprintln!("failed to overwrite config file! - {:?}", err);
+        eprintln!("failed to overwrite config file! - {err}");
         print_failed_upgrade(config_version, &to_version);
         process::exit(1);
     });
@@ -121,7 +121,7 @@ fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
         let config_version = parse_config_version(&config);
 
         if config_version == package_version {
-            println!("You're using the most recent version!");
+            eprintln!("You're using the most recent version!");
             return;
         }
 
@@ -139,8 +139,8 @@ fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
 pub async fn execute(args: &Upgrade) {
     let package_version = parse_package_version();
 
-    let existing_config = Config::load_from_file(Some(&args.id)).unwrap_or_else(|err| {
-        eprintln!("failed to load existing config file! - {:?}", err);
+    let existing_config = Config::load_from_file(&args.id).unwrap_or_else(|err| {
+        eprintln!("failed to load existing config file! - {err}");
         process::exit(1)
     });
 

@@ -1,14 +1,14 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_storage::ReplyStorageBackend;
-use crypto::asymmetric::identity::Ed25519RecoveryError;
 use gateway_client::error::GatewayClientError;
-use topology::NymTopologyError;
+use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
+use nym_topology::gateway::GatewayConversionError;
+use nym_topology::NymTopologyError;
 use validator_client::ValidatorClientError;
 
 #[derive(thiserror::Error, Debug)]
-pub enum ClientCoreError<B: ReplyStorageBackend> {
+pub enum ClientCoreError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
@@ -30,8 +30,8 @@ pub enum ClientCoreError<B: ReplyStorageBackend> {
     #[error("Failed to setup gateway")]
     FailedToSetupGateway,
 
-    #[error("List of validator apis is empty")]
-    ListOfValidatorApisIsEmpty,
+    #[error("List of nym apis is empty")]
+    ListOfNymApisIsEmpty,
 
     #[error("Could not load existing gateway configuration: {0}")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
@@ -40,7 +40,9 @@ pub enum ClientCoreError<B: ReplyStorageBackend> {
     InsufficientNetworkTopology(#[from] NymTopologyError),
 
     #[error("experienced a failure with our reply surb persistent storage: {source}")]
-    SurbStorageError { source: B::StorageError },
+    SurbStorageError {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 
     #[error("The gateway id is invalid - {0}")]
     UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),
@@ -52,7 +54,35 @@ pub enum ClientCoreError<B: ReplyStorageBackend> {
     GatewayOwnerUnknown,
 
     #[error("The address of the gateway is unknown - did you run init?")]
-    GatwayAddressUnknown,
+    GatewayAddressUnknown,
+
+    #[error("The gateway is malformed: {source}")]
+    MalformedGateway {
+        #[from]
+        source: GatewayConversionError,
+    },
+
+    #[error("failed to establish connection to gateway: {source}")]
+    GatewayConnectionFailure {
+        #[from]
+        source: tungstenite::Error,
+    },
+
+    #[cfg(target_arch = "wasm32")]
+    #[error("failed to establish gateway connection (wasm)")]
+    GatewayJsConnectionFailure,
+
+    #[error("Gateway connection was abruptly closed")]
+    GatewayConnectionAbruptlyClosed,
+
+    #[error("Timed out while trying to establish gateway connection")]
+    GatewayConnectionTimeout,
+
+    #[error("No ping measurements for the gateway ({identity}) performed")]
+    NoGatewayMeasurements { identity: String },
+
+    #[error("failed to register receiver for reconstructed mixnet messages")]
+    FailedToRegisterReceiver,
 
     #[error("Unexpected exit")]
     UnexpectedExit,
@@ -61,8 +91,10 @@ pub enum ClientCoreError<B: ReplyStorageBackend> {
 /// Set of messages that the client can send to listeners via the task manager
 #[derive(thiserror::Error, Debug)]
 pub enum ClientCoreStatusMessage {
+    // NOTE: The nym-connect frontend listens for these strings, so don't change them until we have a more robust mechanism in place
     #[error("The connected gateway is slow, or the connection to it is slow")]
     GatewayIsSlow,
+    // NOTE: The nym-connect frontend listens for these strings, so don't change them until we have a more robust mechanism in place
     #[error("The connected gateway is very slow, or the connection to it is very slow")]
     GatewayIsVerySlow,
 }

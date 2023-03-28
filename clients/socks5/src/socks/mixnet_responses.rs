@@ -1,21 +1,22 @@
-use std::time::Duration;
-
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 
 use client_core::client::received_buffer::ReconstructedMessagesReceiver;
 use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};
-use nymsphinx::receiver::ReconstructedMessage;
-use proxy_helpers::connection_controller::{ControllerCommand, ControllerSender};
-use socks5_requests::Message;
-use task::ShutdownListener;
+use nym_service_providers_common::interface::{ControlResponse, ResponseContent};
+use nym_socks5_proxy_helpers::connection_controller::ControllerSender;
+use nym_socks5_requests::{Socks5ProviderResponse, Socks5Response, Socks5ResponseContent};
+use nym_sphinx::receiver::ReconstructedMessage;
+use nym_task::TaskClient;
+
+use crate::error::Socks5ClientError;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
     mix_response_receiver: ReconstructedMessagesReceiver,
     controller_sender: ControllerSender,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl Drop for MixnetResponseListener {
@@ -25,9 +26,9 @@ impl Drop for MixnetResponseListener {
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
         {
             if self.shutdown.is_shutdown_poll() {
-                log::debug!("The buffer request failed: {}", err);
+                log::debug!("The buffer request failed: {err}");
             } else {
-                log::error!("The buffer request failed: {}", err);
+                log::error!("The buffer request failed: {err}");
             }
         }
     }
@@ -37,7 +38,7 @@ impl MixnetResponseListener {
     pub(crate) fn new(
         buffer_requester: ReceivedBufferRequestSender,
         controller_sender: ControllerSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         let (mix_response_sender, mix_response_receiver) = mpsc::unbounded();
         buffer_requester
@@ -52,50 +53,82 @@ impl MixnetResponseListener {
         }
     }
 
-    async fn on_message(&self, reconstructed_message: ReconstructedMessage) {
+    fn on_control_response(
+        &self,
+        control_response: ControlResponse,
+    ) -> Result<(), Socks5ClientError> {
+        error!("received a control response which we don't know how to handle yet!");
+        error!("got: {:?}", control_response);
+
+        // I guess we'd need another channel here to forward those to where they need to go
+
+        Ok(())
+    }
+
+    fn on_provider_data_response(
+        &self,
+        provider_response: Socks5Response,
+    ) -> Result<(), Socks5ClientError> {
+        match provider_response.content {
+            Socks5ResponseContent::ConnectionError(err_response) => {
+                error!(
+                    "Network requester failed on connection id {} with error: {}",
+                    err_response.connection_id, err_response.network_requester_error
+                );
+                Err(err_response.into())
+            }
+            Socks5ResponseContent::NetworkData(response) => {
+                self.controller_sender
+                    .unbounded_send(response.into())
+                    .unwrap();
+                Ok(())
+            }
+        }
+    }
+
+    fn on_message(
+        &self,
+        reconstructed_message: ReconstructedMessage,
+    ) -> Result<(), Socks5ClientError> {
         let raw_message = reconstructed_message.message;
         if reconstructed_message.sender_tag.is_some() {
             warn!("this message was sent anonymously - it couldn't have come from the service provider");
         }
-
-        let response = match Message::try_from_bytes(&raw_message) {
+        match Socks5ProviderResponse::try_from_bytes(&raw_message) {
             Err(err) => {
-                warn!("failed to parse received response - {:?}", err);
-                return;
+                warn!("failed to parse received response: {err}");
+                Ok(())
             }
-            Ok(Message::Request(_)) => {
-                warn!("unexpected request");
-                return;
-            }
-            Ok(Message::Response(data)) => data,
-            Ok(Message::NetworkRequesterResponse(r)) => {
-                error!(
-                    "Network requester failed on connection id {} with error: {}",
-                    r.connection_id, r.network_requester_error
+            Ok(response) => {
+                // as long as the client used the same (or older) interface than the service provider,
+                // the response should have used exactly the same version
+                trace!(
+                    "the received response was sent with {:?} interface version",
+                    response.interface_version
                 );
-                return;
+                match response.content {
+                    ResponseContent::Control(control_response) => {
+                        self.on_control_response(control_response)
+                    }
+                    ResponseContent::ProviderData(provider_response) => {
+                        self.on_provider_data_response(provider_response)
+                    }
+                }
             }
-        };
-
-        self.controller_sender
-            .unbounded_send(ControllerCommand::Send(
-                response.connection_id,
-                response.data,
-                response.is_closed,
-            ))
-            .unwrap();
+        }
     }
 
     pub(crate) async fn run(&mut self) {
         while !self.shutdown.is_shutdown() {
             tokio::select! {
-                received_responses = self.mix_response_receiver.next() => match received_responses {
-                    Some(received_responses) => {
+                received_responses = self.mix_response_receiver.next() => {
+                    if let Some(received_responses) = received_responses {
                         for reconstructed_message in received_responses {
-                            self.on_message(reconstructed_message).await;
+                            if let Err(err) = self.on_message(reconstructed_message) {
+                                self.shutdown.send_status_msg(Box::new(err));
+                            }
                         }
-                    },
-                    None => {
+                    } else {
                         log::trace!("MixnetResponseListener: Stopping since channel closed");
                         break;
                     }
@@ -105,10 +138,7 @@ impl MixnetResponseListener {
                 }
             }
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        tokio::time::timeout(Duration::from_secs(5), self.shutdown.recv())
-            .await
-            .expect("Task stopped without shutdown called");
+        self.shutdown.recv_timeout().await;
         log::debug!("MixnetResponseListener: Exiting");
     }
 }

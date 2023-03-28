@@ -18,7 +18,7 @@ export const useAppContext = (): State => {
   return context;
 };
 
-export const AppContextProvider: React.FC = ({ children }) => {
+export const AppContextProvider: FCWithChildren = ({ children }) => {
   // light/dark mode
   const [mode, setMode] = React.useState<PaletteMode>('dark');
 

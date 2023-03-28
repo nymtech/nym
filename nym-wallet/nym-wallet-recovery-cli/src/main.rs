@@ -12,7 +12,7 @@ use aes_gcm::{aead::Aead, Aes256Gcm, Key, NewAead, Nonce};
 use anyhow::{anyhow, Result};
 use argon2::{Algorithm, Argon2, Params, Version};
 use clap::Parser;
-use logging::setup_logging;
+use nym_bin_common::logging::setup_logging;
 use serde_json::Value;
 
 // Mostly defaults
@@ -82,7 +82,7 @@ fn decrypt_file(file: File, passwords: &[String], parse: &ParseMode) -> Result<(
         match decrypt_login(login, passwords, parse) {
             Ok(is_success) if is_success => successes += 1,
             Ok(_) => println!("None of the provided passwords succeeded"),
-            Err(err) => println!("Failed: {}", err),
+            Err(err) => println!("Failed: {err}"),
         }
     }
 
@@ -112,7 +112,7 @@ fn decrypt_login(login: &Value, passwords: &[String], parse: &ParseMode) -> Resu
         match result {
             Ok(DecryptedData::Raw(raw_decrypt)) => {
                 println!(" success!");
-                println!("{}", raw_decrypt);
+                println!("{raw_decrypt}");
                 return Ok(true);
             }
             Ok(DecryptedData::Json(json_decrypt)) => match parse_results(&json_decrypt) {
@@ -133,9 +133,9 @@ fn decrypt_login(login: &Value, passwords: &[String], parse: &ParseMode) -> Resu
                     }
                     return Ok(true);
                 }
-                Err(err) => println!(" failed to parse\n{}", err),
+                Err(err) => println!(" failed to parse\n{err}"),
             },
-            Err(err) => println!(" failed\n{}", err),
+            Err(err) => println!(" failed\n{err}"),
         }
     }
 
@@ -160,10 +160,10 @@ fn get_login_entry(login: &Value) -> Result<(&str, &str, &str)> {
 
 fn base64_decode(ciphertext: &str, iv: &str, salt: &str) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
     let ciphertext = base64::decode(ciphertext)
-        .map_err(|err| anyhow!("Unable to base64 decode ciphertext: {}", err))?;
-    let iv = base64::decode(iv).map_err(|err| anyhow!("Unable to base64 decode iv: {}", err))?;
+        .map_err(|err| anyhow!("Unable to base64 decode ciphertext: {err}"))?;
+    let iv = base64::decode(iv).map_err(|err| anyhow!("Unable to base64 decode iv: {err}"))?;
     let salt =
-        base64::decode(salt).map_err(|err| anyhow!("Unable to base64 decode salt: {}", err))?;
+        base64::decode(salt).map_err(|err| anyhow!("Unable to base64 decode salt: {err}"))?;
     Ok((ciphertext, iv, salt))
 }
 
@@ -186,7 +186,7 @@ fn decrypt_password(
     let mut key = Key::default();
     argon2
         .hash_password_into(password.as_bytes(), salt, &mut key)
-        .map_err(|err| anyhow!("Unable to hash password: {}", err))?;
+        .map_err(|err| anyhow!("Unable to hash password: {err}"))?;
 
     // Create the Cipher
     let cipher = Aes256Gcm::new(&key);

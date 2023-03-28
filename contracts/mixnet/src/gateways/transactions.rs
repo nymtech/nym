@@ -4,7 +4,8 @@
 use super::storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::support::helpers::{
-    ensure_no_existing_bond, validate_node_identity_signature, validate_pledge,
+    ensure_no_existing_bond, ensure_sent_by_vesting_contract, validate_node_identity_signature,
+    validate_pledge,
 };
 use cosmwasm_std::{wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
@@ -38,6 +39,8 @@ pub fn try_add_gateway_on_behalf(
     owner: String,
     owner_signature: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
     _try_add_gateway(
@@ -65,7 +68,7 @@ pub(crate) fn _try_add_gateway(
     let pledge = validate_pledge(pledge, minimum_pledge)?;
 
     // if the client has an active bonded mixnode or gateway, don't allow bonding
-    ensure_no_existing_bond(deps.storage, &owner)?;
+    ensure_no_existing_bond(&owner, deps.storage)?;
 
     // check if somebody else has already bonded a gateway with this identity
     if let Some(existing_bond) =
@@ -110,6 +113,8 @@ pub fn try_remove_gateway_on_behalf(
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
     _try_remove_gateway(deps, owner, Some(proxy))
@@ -178,11 +183,14 @@ pub(crate) fn _try_remove_gateway(
 #[cfg(test)]
 pub mod tests {
     use crate::contract::execute;
-    use crate::gateways::transactions::try_add_gateway;
+    use crate::gateways::transactions::{
+        try_add_gateway, try_add_gateway_on_behalf, try_remove_gateway_on_behalf,
+    };
     use crate::interval::pending_events;
     use crate::mixnet_contract_settings::storage::minimum_gateway_pledge;
     use crate::support::tests;
-    use crate::support::tests::fixtures::TEST_COIN_DENOM;
+    use crate::support::tests::fixtures::{good_gateway_pledge, TEST_COIN_DENOM};
+    use crate::support::tests::test_helpers::TestSetup;
     use crate::support::tests::{fixtures, test_helpers};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, Addr, BankMsg, Response, Uint128};
@@ -281,6 +289,36 @@ pub mod tests {
     }
 
     #[test]
+    fn gateway_add_with_illegal_proxy() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        let illegal_proxy = Addr::unchecked("not-vesting-contract");
+        let vesting_contract = test.vesting_contract();
+
+        let owner = "alice";
+        let (gateway, sig) = test_helpers::gateway_with_signature(&mut test.rng, owner);
+
+        let res = try_add_gateway_on_behalf(
+            test.deps_mut(),
+            env,
+            mock_info(illegal_proxy.as_ref(), &good_gateway_pledge()),
+            gateway,
+            owner.to_string(),
+            sig,
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            res,
+            MixnetContractError::SenderIsNotVestingContract {
+                received: illegal_proxy,
+                vesting_contract
+            }
+        )
+    }
+
+    #[test]
     fn gateway_remove() {
         let mut deps = test_helpers::init_contract();
         let mut rng = test_helpers::test_rng();
@@ -366,5 +404,32 @@ pub mod tests {
         let gateway_bonds = tests::queries::get_gateways(&mut deps);
         assert_eq!(1, gateway_bonds.len());
         assert_eq!(&Addr::unchecked("bob"), gateway_bonds[0].owner());
+    }
+
+    #[test]
+    fn gateway_remove_with_illegal_proxy() {
+        let mut test = TestSetup::new();
+
+        let illegal_proxy = Addr::unchecked("not-vesting-contract");
+        let vesting_contract = test.vesting_contract();
+
+        let owner = "alice";
+
+        test.add_dummy_gateway_with_illegal_proxy(owner, None, illegal_proxy.clone());
+
+        let res = try_remove_gateway_on_behalf(
+            test.deps_mut(),
+            mock_info(illegal_proxy.as_ref(), &good_gateway_pledge()),
+            owner.to_string(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            res,
+            MixnetContractError::SenderIsNotVestingContract {
+                received: illegal_proxy,
+                vesting_contract
+            }
+        )
     }
 }

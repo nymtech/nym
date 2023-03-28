@@ -23,16 +23,16 @@ id = '{{ client.id }}'
 # to claim bandwidth without presenting bandwidth credentials.
 disabled_credentials_mode = {{ client.disabled_credentials_mode }}
 
-# Addresses to nymd validators via which the client can communicate with the chain.
-validator_urls = [
-    {{#each client.validator_urls }}
+# Addresses to nyxd validators via which the client can communicate with the chain.
+nyxd_urls = [
+    {{#each client.nyxd_urls }}
         '{{this}}',
     {{/each}}
 ]
 
 # Addresses to APIs running on validator from which the client gets the view of the network.
-validator_api_urls = [
-    {{#each client.validator_api_urls }}
+nym_api_urls = [
+    {{#each client.nym_api_urls }}
         '{{this}}',
     {{/each}}
 ]
@@ -93,6 +93,9 @@ socket_type = '{{ socket.socket_type }}'
 # will be listening for incoming requests
 listening_port = {{ socket.listening_port }}
 
+# if applicable (for the case of 'WebSocket'), the ip address on which the client
+# will be listening for incoming requests
+host = '{{ socket.host }}'
 
 ##### logging configuration options #####
 

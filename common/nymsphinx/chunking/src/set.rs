@@ -66,13 +66,15 @@ pub(crate) type FragmentSet = Vec<Fragment>;
 /// `Fragment`s thus allowing for some additional optimizations by letting it skip
 /// certain procedures when reconstructing.
 pub(crate) fn generate_set_id<R: Rng>(rng: &mut R) -> i32 {
-    let potential_id = rng.gen::<i32>().abs();
+    let potential_id = rng.gen::<i32>();
     // make sure id is always non-zero, as we do not want to accidentally have weird
     // reconstruction cases where unfragmented payload overwrites some part of set with id0
-    if potential_id == 0 {
+    // furthermore, make sure it's not i32::MIN (-2147483648) as due to 2-complement encoding,
+    // attempting to calculate the absolutely value is going to panic
+    if potential_id == 0 || potential_id == i32::MIN {
         generate_set_id(rng)
     } else {
-        potential_id
+        potential_id.abs()
     }
 }
 
@@ -297,7 +299,7 @@ pub fn split_into_sets<R: Rng>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nymsphinx_params::packet_sizes::PacketSize;
+    use nym_sphinx_params::packet_sizes::PacketSize;
 
     fn max_plaintext_size() -> usize {
         PacketSize::default().plaintext_size() - PacketSize::AckPacket.size()

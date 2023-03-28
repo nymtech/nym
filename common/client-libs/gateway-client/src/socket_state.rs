@@ -9,8 +9,8 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
+use nym_task::TaskClient;
 use std::sync::Arc;
-use task::ShutdownListener;
 use tungstenite::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -84,7 +84,7 @@ impl PartiallyDelegated {
         conn: WsConn,
         packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
-        mut shutdown: ShutdownListener,
+        mut shutdown: TaskClient,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -115,7 +115,7 @@ impl PartiallyDelegated {
                         };
 
                         if let Err(err) = Self::route_socket_messages(ws_msgs, &mut packet_router, shared_key.as_ref()) {
-                            log::warn!("Route socket messages failed: {:?}", err);
+                            log::warn!("Route socket messages failed: {err}");
                         }
                     }
                 };

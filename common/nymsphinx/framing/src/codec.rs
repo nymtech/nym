@@ -1,54 +1,45 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::packet::{FramedSphinxPacket, Header};
 use bytes::{Buf, BufMut, BytesMut};
-use nymsphinx_params::packet_modes::InvalidPacketMode;
-use nymsphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
-use nymsphinx_types::SphinxPacket;
+use nym_sphinx_params::packet_modes::InvalidPacketMode;
+use nym_sphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
+use nym_sphinx_types::Error as SphinxError;
+use nym_sphinx_types::SphinxPacket;
 use std::io;
+use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum SphinxCodecError {
-    InvalidPacketSize,
-    InvalidPacketMode,
-    MalformedSphinxPacket,
-    IoError(io::Error),
-}
+    #[error("the packet size information was malformed - {0}")]
+    InvalidPacketSize(#[from] InvalidPacketSize),
 
-impl From<io::Error> for SphinxCodecError {
-    fn from(err: io::Error) -> Self {
-        SphinxCodecError::IoError(err)
-    }
+    #[error("the packet mode information was malformed - {0}")]
+    InvalidPacketMode(#[from] InvalidPacketMode),
+
+    #[error("the actual sphinx packet was malformed - {0}")]
+    MalformedSphinxPacket(#[from] SphinxError),
+
+    #[error("encountered an IO error - {0}")]
+    IoError(#[from] io::Error),
 }
 
 impl From<SphinxCodecError> for io::Error {
     fn from(err: SphinxCodecError) -> Self {
         match err {
-            SphinxCodecError::InvalidPacketSize => {
-                io::Error::new(io::ErrorKind::InvalidInput, "invalid packet size")
+            SphinxCodecError::InvalidPacketSize(source) => {
+                io::Error::new(io::ErrorKind::InvalidInput, source)
             }
-            SphinxCodecError::InvalidPacketMode => {
-                io::Error::new(io::ErrorKind::InvalidInput, "invalid packet mode")
+            SphinxCodecError::InvalidPacketMode(source) => {
+                io::Error::new(io::ErrorKind::InvalidInput, source)
             }
-            SphinxCodecError::MalformedSphinxPacket => {
-                io::Error::new(io::ErrorKind::InvalidData, "malformed packet")
+            SphinxCodecError::MalformedSphinxPacket(source) => {
+                io::Error::new(io::ErrorKind::InvalidData, source)
             }
             SphinxCodecError::IoError(err) => err,
         }
-    }
-}
-
-impl From<InvalidPacketSize> for SphinxCodecError {
-    fn from(_: InvalidPacketSize) -> Self {
-        SphinxCodecError::InvalidPacketSize
-    }
-}
-
-impl From<InvalidPacketMode> for SphinxCodecError {
-    fn from(_: InvalidPacketMode) -> Self {
-        SphinxCodecError::InvalidPacketMode
     }
 }
 
@@ -97,17 +88,11 @@ impl Decoder for SphinxCodec {
         // advance buffer past the header - at this point we have enough bytes
         src.advance(header.size());
         let sphinx_packet_bytes = src.split_to(sphinx_packet_size);
-        let sphinx_packet = match SphinxPacket::from_bytes(&sphinx_packet_bytes) {
-            Ok(sphinx_packet) => sphinx_packet,
-            // here it could be debatable whether stream is corrupt or not,
-            // but let's go with the safer approach and assume it is.
-            Err(_) => return Err(SphinxCodecError::MalformedSphinxPacket),
-        };
 
-        let nymsphinx_packet = FramedSphinxPacket {
-            header,
-            packet: sphinx_packet,
-        };
+        // here it could be debatable whether stream is corrupt or not,
+        // but let's go with the safer approach and assume it is.
+        let packet = SphinxPacket::from_bytes(&sphinx_packet_bytes)?;
+        let nymsphinx_packet = FramedSphinxPacket { header, packet };
 
         // As per docs:
         // Before returning from the function, implementations should ensure that the buffer
@@ -143,8 +128,8 @@ impl Decoder for SphinxCodec {
 #[cfg(test)]
 mod packet_encoding {
     use super::*;
-    use nymsphinx_types::builder::SphinxPacketBuilder;
-    use nymsphinx_types::{
+    use nym_sphinx_types::builder::SphinxPacketBuilder;
+    use nym_sphinx_types::{
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
         DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
@@ -204,8 +189,8 @@ mod packet_encoding {
     #[cfg(test)]
     mod decode_will_allocate_enough_bytes_for_next_call {
         use super::*;
-        use nymsphinx_params::packet_version::PacketVersion;
-        use nymsphinx_params::PacketMode;
+        use nym_sphinx_params::packet_version::PacketVersion;
+        use nym_sphinx_params::PacketMode;
 
         #[test]
         fn for_empty_bytes() {

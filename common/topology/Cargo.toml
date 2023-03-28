@@ -1,20 +1,30 @@
 [package]
-name = "topology"
+name = "nym-topology"
 version = "0.1.0"
-authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2021"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+readme = { workspace = true }
+homepage = { workspace = true }
+documentation = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bs58 = "0.4"
-log = "0.4"
+log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 thiserror = "1.0.37"
+async-trait = { workspace = true, optional = true }
 
 ## internal
-crypto = { path = "../crypto" }
-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
-nymsphinx-addressing = { path = "../nymsphinx/addressing" }
-nymsphinx-types = { path = "../nymsphinx/types" }
-version-checker = { path = "../version-checker" }
+nym-crypto = { path = "../crypto" }
+nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
+nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
+nym-sphinx-types = { path = "../nymsphinx/types" }
+nym-bin-common = { path = "../bin-common" }
+
+[features]
+default = ["provider-trait"]
+provider-trait = ["async-trait"]

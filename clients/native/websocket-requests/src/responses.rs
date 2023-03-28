@@ -6,9 +6,9 @@
 
 use crate::error::{self, ErrorKind};
 use crate::text::ServerResponseText;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
-use nymsphinx::receiver::ReconstructedMessage;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
+use nym_sphinx::receiver::ReconstructedMessage;
 use std::convert::TryInto;
 use std::mem::size_of;
 
@@ -173,7 +173,7 @@ impl ServerResponse {
             Err(err) => {
                 return Err(error::Error::new(
                     ErrorKind::MalformedResponse,
-                    format!("malformed Recipient: {:?}", err),
+                    format!("malformed Recipient: {err}"),
                 ))
             }
         };
@@ -249,7 +249,7 @@ impl ServerResponse {
             Err(err) => {
                 return Err(error::Error::new(
                     ErrorKind::MalformedResponse,
-                    format!("malformed error message: {:?}", err),
+                    format!("malformed error message: {err}"),
                 ))
             }
         };

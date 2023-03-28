@@ -1,92 +1,85 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::{crate_version, Parser};
-use logging::setup_logging;
-use network_defaults::setup_env;
-use once_cell::sync::OnceCell;
+use clap::{crate_name, crate_version, Parser, ValueEnum};
+use colored::Colorize;
+use lazy_static::lazy_static;
+use log::error;
+use nym_bin_common::logging::setup_logging;
+use nym_bin_common::{build_information::BinaryBuildInformation, logging::banner};
+use nym_network_defaults::setup_env;
+use std::error::Error;
 
 mod commands;
 mod config;
+pub(crate) mod error;
 mod node;
+pub(crate) mod support;
 
-static LONG_VERSION: OnceCell<String> = OnceCell::new();
+lazy_static! {
+    pub static ref PRETTY_BUILD_INFORMATION: String =
+        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
+}
 
-// Helper for passing LONG_ABOUT to clap
-fn long_version_static() -> &'static str {
-    LONG_VERSION.get().expect("Failed to get long about text")
+// Helper for passing LONG_VERSION to clap
+fn pretty_build_info_static() -> &'static str {
+    &PRETTY_BUILD_INFORMATION
+}
+
+#[derive(Clone, ValueEnum)]
+pub enum OutputFormat {
+    Json,
+    Text,
+}
+
+impl Default for OutputFormat {
+    fn default() -> Self {
+        OutputFormat::Text
+    }
 }
 
 #[derive(Parser)]
-#[clap(author = "Nymtech", version, about, long_version = long_version_static())]
+#[clap(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
 struct Cli {
     /// Path pointing to an env file that configures the gateway.
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
+    #[clap(short, long)]
+    pub(crate) output: Option<OutputFormat>,
+
     #[clap(subcommand)]
     command: commands::Commands,
 }
 
+impl Cli {
+    fn output(&self) -> OutputFormat {
+        if let Some(ref output) = self.output {
+            output.clone()
+        } else {
+            OutputFormat::default()
+        }
+    }
+}
+
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     setup_logging();
-    println!("{}", banner());
-    LONG_VERSION
-        .set(long_version())
-        .expect("Failed to set long about text");
+    if atty::is(atty::Stream::Stdout) {
+        println!("{}", banner(crate_name!(), crate_version!()));
+    }
 
     let args = Cli::parse();
-    setup_env(args.config_env_file.clone());
-    commands::execute(args).await;
-}
+    setup_env(args.config_env_file.as_ref());
 
-fn banner() -> String {
-    format!(
-        r#"
-
-      _ __  _   _ _ __ ___
-     | '_ \| | | | '_ \ _ \
-     | | | | |_| | | | | | |
-     |_| |_|\__, |_| |_| |_|
-            |___/
-
-             (gateway - version {:})
-
-    "#,
-        crate_version!()
-    )
-}
-
-fn long_version() -> String {
-    format!(
-        r#"
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-"#,
-        "Build Timestamp:",
-        env!("VERGEN_BUILD_TIMESTAMP"),
-        "Build Version:",
-        env!("VERGEN_BUILD_SEMVER"),
-        "Commit SHA:",
-        env!("VERGEN_GIT_SHA"),
-        "Commit Date:",
-        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
-        "Commit Branch:",
-        env!("VERGEN_GIT_BRANCH"),
-        "rustc Version:",
-        env!("VERGEN_RUSTC_SEMVER"),
-        "rustc Channel:",
-        env!("VERGEN_RUSTC_CHANNEL"),
-        "cargo Profile:",
-        env!("VERGEN_CARGO_PROFILE")
-    )
+    commands::execute(args).await.map_err(|err| {
+        if atty::is(atty::Stream::Stdout) {
+            let error_message = format!("{err}").red();
+            error!("{error_message}");
+            error!("Exiting...");
+        }
+        err
+    })
 }
 
 #[cfg(test)]
@@ -96,9 +89,6 @@ mod tests {
 
     #[test]
     fn verify_cli() {
-        LONG_VERSION
-            .set(long_version())
-            .expect("Failed to set long about text");
         Cli::command().debug_assert();
     }
 }

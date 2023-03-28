@@ -1,5 +1,10 @@
-use mixnet_contract_common::rewarding::RewardEstimate;
-use mixnet_contract_common::{
+use nym_api_requests::models::{
+    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
+    MixnodeStatus, MixnodeStatusResponse, RewardEstimationResponse, SelectionChance,
+    StakeSaturationResponse,
+};
+use nym_mixnet_contract_common::rewarding::RewardEstimate;
+use nym_mixnet_contract_common::{
     Interval as ContractInterval, IntervalRewardParams, IntervalRewardingParamsUpdate, MixNode,
     MixNodeConfigUpdate, RewardedSetNodeStatus, RewardingParams, UnbondedMixnode,
 };
@@ -20,6 +25,7 @@ use nym_types::transaction::{
     RpcTransactionResponse, SendTxResult, TransactionDetails, TransactionExecuteResult,
 };
 use nym_types::vesting::{OriginalVestingResponse, PledgeData, VestingAccountInfo, VestingPeriod};
+use nym_vesting_contract_common::Period;
 use nym_wallet_types::admin::TauriContractStateParams;
 use nym_wallet_types::app::AppEnv;
 use nym_wallet_types::interval::Interval;
@@ -27,12 +33,6 @@ use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
 use std::path::Path;
 use ts_rs::TS;
-use validator_api_requests::models::{
-    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
-    MixnodeStatus, MixnodeStatusResponse, RewardEstimationResponse, SelectionChance,
-    StakeSaturationResponse,
-};
-use vesting_contract_common::Period;
 use walkdir::WalkDir;
 
 macro_rules! do_export {
@@ -112,7 +112,7 @@ fn main() {
     do_export!(VestingPeriod);
     do_export!(WrappedDelegationEvent);
 
-    // validator-api-requests
+    // nym-api-requests
     do_export!(MixnodeCoreStatusResponse);
     do_export!(GatewayCoreStatusResponse);
     do_export!(InclusionProbabilityResponse);

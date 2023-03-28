@@ -9,18 +9,16 @@ let nym: NymMixnetClient | null = null;
 async function main() {
   nym = await createNymMixnetClient();
 
+  // add nym client to the Window globally, so that it can be used from the dev tools console
+  (window as any).nym = nym;
+
   if (!nym) {
     console.error('Oh no! Could not create client');
     return;
   }
 
-  // // mixnet v1
-  // const validatorApiUrl = 'https://validator.nymtech.net/api';
-  // const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
-
-  // mixnet v2
-  const validatorApiUrl = 'https://qwerty-validator-api.qa.nymte.ch/api'; // "http://localhost:8081";
-  const preferredGatewayIdentityKey = undefined; // '36vfvEyBzo5cWEFbnP7fqgY39kFw9PQhvwzbispeNaxL';
+  const nymApiUrl = 'https://validator.nymtech.net/api';
+  const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
 
   // subscribe to connect event, so that we can show the client's address
   nym.events.subscribeToConnected((e) => {
@@ -43,10 +41,12 @@ async function main() {
     };
   }
 
+  nym.events.subscribeToRawMessageReceivedEvent((e) => console.log('Received: ', e.args.payload));
+
   // start up the client
   await nym.client.start({
     clientId: 'My awesome client',
-    validatorApiUrl,
+    nymApiUrl,
     preferredGatewayIdentityKey,
   });
 }

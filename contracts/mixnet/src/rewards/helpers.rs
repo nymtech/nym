@@ -1,4 +1,4 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
@@ -8,7 +8,20 @@ use cosmwasm_std::{Coin, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::helpers::IntoBaseDecimal;
 use mixnet_contract_common::mixnode::{MixNodeDetails, MixNodeRewarding};
-use mixnet_contract_common::Delegation;
+use mixnet_contract_common::{Delegation, EpochState, EpochStatus, MixId};
+
+pub(crate) fn update_and_save_last_rewarded(
+    storage: &mut dyn Storage,
+    mut current_epoch_status: EpochStatus,
+    new_last_rewarded: MixId,
+) -> Result<(), MixnetContractError> {
+    let is_done = current_epoch_status.update_last_rewarded(new_last_rewarded)?;
+    if is_done {
+        current_epoch_status.state = EpochState::ReconcilingEvents
+    }
+    interval_storage::save_current_epoch_status(storage, &current_epoch_status)?;
+    Ok(())
+}
 
 /// Recomputes rewarding parameters (such as staking supply, saturation point, etc) based on
 /// pending changes currently stored in `PENDING_REWARD_POOL_CHANGE`.
@@ -215,14 +228,14 @@ mod tests {
         assert_eq!(res.amount, Uint128::zero());
 
         test.skip_to_next_epoch_end();
-        test.update_rewarded_set(vec![mix_id]);
-        let dist1 = test.reward_with_distribution(mix_id, performance(100.0));
+        test.force_change_rewarded_set(vec![mix_id]);
+        let dist1 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist2 = test.reward_with_distribution(mix_id, performance(100.0));
+        let dist2 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist3 = test.reward_with_distribution(mix_id, performance(100.0));
+        let dist3 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         let mix_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
             .unwrap()
@@ -254,14 +267,14 @@ mod tests {
         assert_eq!(res.amount, Uint128::zero());
 
         test.skip_to_next_epoch_end();
-        test.update_rewarded_set(vec![mix_id]);
-        let dist1 = test.reward_with_distribution(mix_id, performance(100.0));
+        test.force_change_rewarded_set(vec![mix_id]);
+        let dist1 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist2 = test.reward_with_distribution(mix_id, performance(100.0));
+        let dist2 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist3 = test.reward_with_distribution(mix_id, performance(100.0));
+        let dist3 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         let delegation_pre = test.delegation(mix_id, delegator, &None);
         let mix_rewarding = test.mix_rewarding(mix_id);

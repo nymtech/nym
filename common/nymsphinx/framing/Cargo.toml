@@ -1,14 +1,16 @@
 [package]
-name = "nymsphinx-framing"
+name = "nym-sphinx-framing"
 version = "0.1.0"
-authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Sphinx packet framing for the Nym mixnet"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
 bytes = "1.0"
-tokio-util = { version = "0.7.3", features = ["codec"] }
+tokio-util = { version = "0.7.4", features = ["codec"] }
+thiserror = "1.0.37"
 
-nymsphinx-types = { path = "../types" }
-nymsphinx-params = { path = "../params" }
+nym-sphinx-types = { path = "../types" }
+nym-sphinx-params = { path = "../params" }

@@ -1,9 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use network_defaults::NymNetworkDetails;
 use nym_cli_commands::context::{create_query_client, create_signing_client, ClientArgs};
-use validator_client::nymd::AccountId;
+use nym_network_defaults::NymNetworkDetails;
+use validator_client::nyxd::AccountId;
 
 pub(crate) async fn execute(
     global_args: ClientArgs,

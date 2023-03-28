@@ -8,13 +8,13 @@ mod tests {
     use crate::{sign, verify};
     use cosmrs::AccountId;
     use std::str::FromStr;
-    use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
+    use validator_client::nyxd::wallet::DirectSecp256k1HdWallet;
 
     fn get_order(prefix: &str) -> anyhow::Result<(OrderSignature, String)> {
         let mnemonic = "crush minute paddle tobacco message debate cabin peace bar jacket execute twenty winner view sure mask popular couch penalty fragile demise fresh pizza stove";
-        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.parse().unwrap())?;
+        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.parse()?);
 
-        let accounts = wallet.try_derive_accounts().unwrap();
+        let accounts = wallet.try_derive_accounts()?;
 
         let message = "This is the order message from Bity";
         let signature = sign::sign_order(&wallet, &accounts[0], message.to_string())?;

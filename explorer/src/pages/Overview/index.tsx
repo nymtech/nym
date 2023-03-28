@@ -3,6 +3,7 @@ import { Box, Grid, Link, Typography } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
+import { PeopleAlt } from '@mui/icons-material';
 import { WorldMap } from '../../components/WorldMap';
 import { useMainContext } from '../../context/main';
 import { formatNumber } from '../../utils';
@@ -15,10 +16,10 @@ import { ContentCard } from '../../components/ContentCard';
 import { StatsCard } from '../../components/StatsCard';
 import { Icons } from '../../components/Icons';
 
-export const PageOverview: React.FC = () => {
+export const PageOverview: FCWithChildren = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { summaryOverview, gateways, validators, block, countryData } = useMainContext();
+  const { summaryOverview, gateways, validators, block, countryData, serviceProviders } = useMainContext();
   return (
     <Box component="main" sx={{ flexGrow: 1 }}>
       <Grid>
@@ -61,7 +62,7 @@ export const PageOverview: React.FC = () => {
               </>
             )}
             {gateways && (
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <StatsCard
                   onClick={() => navigate('/network-components/gateways')}
                   title="Gateways"
@@ -71,9 +72,19 @@ export const PageOverview: React.FC = () => {
                 />
               </Grid>
             )}
-
+            {serviceProviders && (
+              <Grid item xs={12} md={4}>
+                <StatsCard
+                  onClick={() => navigate('/network-components/service-providers')}
+                  title="Service providers"
+                  icon={<PeopleAlt />}
+                  count={serviceProviders.data?.items.length}
+                  errorMsg={summaryOverview?.error}
+                />
+              </Grid>
+            )}
             {validators && (
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <StatsCard
                   onClick={() => window.open(`${BIG_DIPPER}/validators`)}
                   title="Validators"

@@ -15,9 +15,9 @@ use action_controller::AckActionReceiver;
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::params::PacketSize;
-use nymsphinx::{
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::params::PacketSize;
+use nym_sphinx::{
     acknowledgements::AckKey,
     addressing::clients::Recipient,
     chunking::fragment::{Fragment, FragmentIdentifier},
@@ -249,7 +249,7 @@ where
         }
     }
 
-    pub(super) fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
+    pub(super) fn start_with_shutdown(self, shutdown: nym_task::TaskClient) {
         let mut acknowledgement_listener = self.acknowledgement_listener;
         let mut input_message_listener = self.input_message_listener;
         let mut retransmission_request_listener = self.retransmission_request_listener;

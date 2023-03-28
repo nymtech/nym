@@ -1,12 +1,15 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+use std::fmt::{self, Display, Formatter};
+use std::str::FromStr;
+use thiserror::Error;
+
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::{self, Display, Formatter};
 
 /// Size of a X25519 private key
 pub const PRIVATE_KEY_SIZE: usize = 32;
@@ -17,31 +20,26 @@ pub const PUBLIC_KEY_SIZE: usize = 32;
 /// Size of a X25519 shared secret
 pub const SHARED_SECRET_SIZE: usize = 32;
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug, Error)]
 pub enum KeyRecoveryError {
-    InvalidPublicKeyBytes,
-    InvalidPrivateKeyBytes,
-    MalformedString(bs58::decode::Error),
-}
+    #[error("received public key of invalid size. Got: {received}, expected: {expected}")]
+    InvalidSizePublicKey { received: usize, expected: usize },
 
-impl From<bs58::decode::Error> for KeyRecoveryError {
-    fn from(err: bs58::decode::Error) -> Self {
-        KeyRecoveryError::MalformedString(err)
-    }
-}
+    #[error("received private key of invalid size. Got: {received}, expected: {expected}")]
+    InvalidSizePrivateKey { received: usize, expected: usize },
 
-// required for std::error::Error
-impl Display for KeyRecoveryError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            KeyRecoveryError::InvalidPrivateKeyBytes => write!(f, "Invalid private key bytes"),
-            KeyRecoveryError::InvalidPublicKeyBytes => write!(f, "Invalid public key bytes"),
-            KeyRecoveryError::MalformedString(err) => write!(f, "malformed string - {}", err),
-        }
-    }
-}
+    #[error("the base58 representation of the public key was malformed - {source}")]
+    MalformedPublicKeyString {
+        #[source]
+        source: bs58::decode::Error,
+    },
 
-impl std::error::Error for KeyRecoveryError {}
+    #[error("the base58 representation of the private key was malformed - {source}")]
+    MalformedPrivateKeyString {
+        #[source]
+        source: bs58::decode::Error,
+    },
+}
 
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,
@@ -112,7 +110,10 @@ impl PublicKey {
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         if b.len() != PUBLIC_KEY_SIZE {
-            return Err(KeyRecoveryError::InvalidPublicKeyBytes);
+            return Err(KeyRecoveryError::InvalidSizePublicKey {
+                received: b.len(),
+                expected: PUBLIC_KEY_SIZE,
+            });
         }
         let mut bytes = [0; PUBLIC_KEY_SIZE];
         bytes.copy_from_slice(&b[..PUBLIC_KEY_SIZE]);
@@ -124,8 +125,18 @@ impl PublicKey {
     }
 
     pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, KeyRecoveryError> {
-        let bytes = bs58::decode(val).into_vec()?;
+        let bytes = bs58::decode(val)
+            .into_vec()
+            .map_err(|source| KeyRecoveryError::MalformedPublicKeyString { source })?;
         Self::from_bytes(&bytes)
+    }
+}
+
+impl FromStr for PublicKey {
+    type Err = KeyRecoveryError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PublicKey::from_base58_string(s)
     }
 }
 
@@ -188,7 +199,10 @@ impl PrivateKey {
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         if b.len() != PRIVATE_KEY_SIZE {
-            return Err(KeyRecoveryError::InvalidPrivateKeyBytes);
+            return Err(KeyRecoveryError::InvalidSizePrivateKey {
+                received: b.len(),
+                expected: PRIVATE_KEY_SIZE,
+            });
         }
         let mut bytes = [0; 32];
         bytes.copy_from_slice(&b[..PRIVATE_KEY_SIZE]);
@@ -200,7 +214,9 @@ impl PrivateKey {
     }
 
     pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, KeyRecoveryError> {
-        let bytes = bs58::decode(val).into_vec()?;
+        let bytes = bs58::decode(val)
+            .into_vec()
+            .map_err(|source| KeyRecoveryError::MalformedPrivateKeyString { source })?;
         Self::from_bytes(&bytes)
     }
 
@@ -249,38 +265,38 @@ impl PemStorableKey for PrivateKey {
 }
 
 // compatibility with sphinx keys:
-impl From<PublicKey> for nymsphinx_types::PublicKey {
+impl From<PublicKey> for nym_sphinx_types::PublicKey {
     fn from(key: PublicKey) -> Self {
-        nymsphinx_types::PublicKey::from(key.to_bytes())
+        nym_sphinx_types::PublicKey::from(key.to_bytes())
     }
 }
 
-impl<'a> From<&'a PublicKey> for nymsphinx_types::PublicKey {
+impl<'a> From<&'a PublicKey> for nym_sphinx_types::PublicKey {
     fn from(key: &'a PublicKey) -> Self {
-        nymsphinx_types::PublicKey::from((*key).to_bytes())
+        nym_sphinx_types::PublicKey::from((*key).to_bytes())
     }
 }
 
-impl From<nymsphinx_types::PublicKey> for PublicKey {
-    fn from(pub_key: nymsphinx_types::PublicKey) -> Self {
+impl From<nym_sphinx_types::PublicKey> for PublicKey {
+    fn from(pub_key: nym_sphinx_types::PublicKey) -> Self {
         Self(x25519_dalek::PublicKey::from(*pub_key.as_bytes()))
     }
 }
 
-impl From<PrivateKey> for nymsphinx_types::PrivateKey {
+impl From<PrivateKey> for nym_sphinx_types::PrivateKey {
     fn from(key: PrivateKey) -> Self {
-        nymsphinx_types::PrivateKey::from(key.to_bytes())
+        nym_sphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 
-impl<'a> From<&'a PrivateKey> for nymsphinx_types::PrivateKey {
+impl<'a> From<&'a PrivateKey> for nym_sphinx_types::PrivateKey {
     fn from(key: &'a PrivateKey) -> Self {
-        nymsphinx_types::PrivateKey::from(key.to_bytes())
+        nym_sphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 
-impl From<nymsphinx_types::PrivateKey> for PrivateKey {
-    fn from(private_key: nymsphinx_types::PrivateKey) -> Self {
+impl From<nym_sphinx_types::PrivateKey> for PrivateKey {
+    fn from(private_key: nym_sphinx_types::PrivateKey) -> Self {
         let private_key_bytes = private_key.to_bytes();
         assert_eq!(private_key_bytes.len(), PRIVATE_KEY_SIZE);
         Self::from_bytes(&private_key_bytes).unwrap()
@@ -305,10 +321,10 @@ mod sphinx_key_conversion {
             let private_bytes = private.to_bytes();
             let public_bytes = public.to_bytes();
 
-            let sphinx_private: nymsphinx_types::PrivateKey = private.into();
+            let sphinx_private: nym_sphinx_types::PrivateKey = private.into();
             let recovered_private = PrivateKey::from(sphinx_private);
 
-            let sphinx_public: nymsphinx_types::PublicKey = public.into();
+            let sphinx_public: nym_sphinx_types::PublicKey = public.into();
             let recovered_public = PublicKey::from(sphinx_public);
             assert_eq!(private_bytes, recovered_private.to_bytes());
             assert_eq!(public_bytes, recovered_public.to_bytes());
@@ -318,16 +334,16 @@ mod sphinx_key_conversion {
     #[test]
     fn works_for_backward_conversion() {
         for _ in 0..NUM_ITERATIONS {
-            let (sphinx_private, sphinx_public) = nymsphinx_types::crypto::keygen();
+            let (sphinx_private, sphinx_public) = nym_sphinx_types::crypto::keygen();
 
             let private_bytes = sphinx_private.to_bytes();
             let public_bytes = sphinx_public.as_bytes();
 
             let private: PrivateKey = sphinx_private.into();
-            let recovered_sphinx_private: nymsphinx_types::PrivateKey = private.into();
+            let recovered_sphinx_private: nym_sphinx_types::PrivateKey = private.into();
 
             let public: PublicKey = sphinx_public.into();
-            let recovered_sphinx_public: nymsphinx_types::PublicKey = public.into();
+            let recovered_sphinx_public: nym_sphinx_types::PublicKey = public.into();
             assert_eq!(private_bytes, recovered_sphinx_private.to_bytes());
             assert_eq!(public_bytes, recovered_sphinx_public.as_bytes());
         }

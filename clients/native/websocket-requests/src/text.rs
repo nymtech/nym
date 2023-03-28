@@ -4,8 +4,8 @@
 use crate::error::ErrorKind;
 use crate::requests::ClientRequest;
 use crate::responses::ServerResponse;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 

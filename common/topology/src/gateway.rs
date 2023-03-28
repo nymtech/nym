@@ -2,68 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{filter, NetworkAddress};
-use crypto::asymmetric::{encryption, identity};
-use mixnet_contract_common::GatewayBond;
-use nymsphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
-use nymsphinx_types::Node as SphinxNode;
+use nym_crypto::asymmetric::{encryption, identity};
+use nym_mixnet_contract_common::GatewayBond;
+use nym_sphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
+use nym_sphinx_types::Node as SphinxNode;
 use std::convert::{TryFrom, TryInto};
-use std::fmt::{self, Display, Formatter};
+use std::fmt;
 use std::io;
 use std::net::SocketAddr;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum GatewayConversionError {
-    InvalidIdentityKey(identity::Ed25519RecoveryError),
-    InvalidSphinxKey(encryption::KeyRecoveryError),
-    InvalidAddress(String, io::Error),
-    InvalidStake,
-    Other(Box<dyn std::error::Error + Send + Sync>),
-}
+    #[error("gateway identity key was malformed - {0}")]
+    InvalidIdentityKey(#[from] identity::Ed25519RecoveryError),
 
-impl From<encryption::KeyRecoveryError> for GatewayConversionError {
-    fn from(err: encryption::KeyRecoveryError) -> Self {
-        GatewayConversionError::InvalidSphinxKey(err)
-    }
-}
+    #[error("gateway sphinx key was malformed - {0}")]
+    InvalidSphinxKey(#[from] encryption::KeyRecoveryError),
 
-impl From<identity::Ed25519RecoveryError> for GatewayConversionError {
-    fn from(err: identity::Ed25519RecoveryError) -> Self {
-        GatewayConversionError::InvalidIdentityKey(err)
-    }
-}
-
-impl Display for GatewayConversionError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            GatewayConversionError::InvalidIdentityKey(err) => write!(
-                f,
-                "failed to convert gateway due to invalid identity key - {}",
-                err
-            ),
-            GatewayConversionError::InvalidSphinxKey(err) => write!(
-                f,
-                "failed to convert gateway due to invalid sphinx key - {}",
-                err
-            ),
-            GatewayConversionError::InvalidAddress(address, err) => {
-                write!(
-                    f,
-                    "failed to convert gateway due to invalid address {} - {}",
-                    address, err
-                )
-            }
-            GatewayConversionError::InvalidStake => {
-                write!(f, "failed to convert gateway due to invalid stake")
-            }
-            GatewayConversionError::Other(err) => {
-                write!(
-                    f,
-                    "failed to convert gateway due to another error - {}",
-                    err
-                )
-            }
-        }
-    }
+    #[error("'{value}' is not a valid gateway address - {source}")]
+    InvalidAddress {
+        value: String,
+        #[source]
+        source: io::Error,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -123,14 +85,22 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
     type Error = GatewayConversionError;
 
     fn try_from(bond: &'a GatewayBond) -> Result<Self, Self::Error> {
-        let host: NetworkAddress = bond.gateway.host.parse().map_err(|err| {
-            GatewayConversionError::InvalidAddress(bond.gateway.host.clone(), err)
-        })?;
+        let host: NetworkAddress =
+            bond.gateway
+                .host
+                .parse()
+                .map_err(|err| GatewayConversionError::InvalidAddress {
+                    value: bond.gateway.host.clone(),
+                    source: err,
+                })?;
 
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
         let mix_host = host.to_socket_addrs(bond.gateway.mix_port).map_err(|err| {
-            GatewayConversionError::InvalidAddress(bond.gateway.host.clone(), err)
+            GatewayConversionError::InvalidAddress {
+                value: bond.gateway.host.clone(),
+                source: err,
+            }
         })?[0];
 
         Ok(Node {

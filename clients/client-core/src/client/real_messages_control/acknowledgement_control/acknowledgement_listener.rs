@@ -5,7 +5,7 @@ use super::action_controller::{AckActionSender, Action};
 use futures::StreamExt;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
-use nymsphinx::{
+use nym_sphinx::{
     acknowledgements::{identifier::recover_identifier, AckKey},
     chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID},
 };
@@ -65,7 +65,7 @@ impl AcknowledgementListener {
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {
@@ -77,7 +77,7 @@ impl AcknowledgementListener {
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = shutdown.recv_with_delay() => {
                     log::trace!("AcknowledgementListener: Received shutdown");
                 }
             }

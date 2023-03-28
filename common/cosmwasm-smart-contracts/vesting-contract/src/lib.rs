@@ -64,7 +64,7 @@ impl FromStr for PledgeCap {
             Ok(p) => Ok(PledgeCap::Percent(p)),
             Err(_) => match cap.parse::<u128>() {
                 Ok(i) => Ok(PledgeCap::Absolute(Uint128::from(i))),
-                Err(_e) => Err(format!("Could not parse {} as Percent or Uint128", cap)),
+                Err(_e) => Err(format!("Could not parse {cap} as Percent or Uint128")),
             },
         }
     }
@@ -132,6 +132,32 @@ pub struct DelegationTimesResponse {
 pub struct AllDelegationsResponse {
     pub delegations: Vec<VestingDelegation>,
     pub start_next_after: Option<(u32, MixId, u64)>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct AccountVestingCoins {
+    pub account_id: u32,
+    pub owner: Addr,
+    pub still_vesting: Coin,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct VestingCoinsResponse {
+    pub accounts: Vec<AccountVestingCoins>,
+    pub start_next_after: Option<Addr>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct BaseVestingAccountInfo {
+    pub account_id: u32,
+    pub owner: Addr,
+    // TODO: should this particular query/response expose anything else?
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct AccountsResponse {
+    pub accounts: Vec<BaseVestingAccountInfo>,
+    pub start_next_after: Option<Addr>,
 }
 
 #[cfg(test)]

@@ -1,14 +1,14 @@
-import { FeeDetails, DecCoin, TransactionExecuteResult } from '@nymproject/types';
+import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Network } from 'src/types';
-import { TBondedGateway, TBondedMixnode, BondingContext } from '../bonding';
+import { BondingContext, TBondedGateway, TBondedMixnode } from '../bonding';
 import { mockSleep } from './utils';
 
 const SLEEP_MS = 1000;
 
 const bondedMixnodeMock: TBondedMixnode = {
-  name: 'Monster node',
   mixId: 1,
+  name: 'Monster node',
   identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   stake: { denom: 'nym', amount: '1234' },
   bond: { denom: 'nym', amount: '1234' },
@@ -28,9 +28,11 @@ const bondedMixnodeMock: TBondedMixnode = {
   verlocPort: 1790,
   version: '1.0.2',
   isUnbonding: false,
+  uptime: 1,
 };
 
 const bondedGatewayMock: TBondedGateway = {
+  id: 1,
   name: 'Monster node',
   identityKey: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.57',

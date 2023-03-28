@@ -4,15 +4,15 @@
 use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use nymsphinx::params::packet_sizes::PacketSize;
-use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
-use nymsphinx::forwarding::packet::MixPacket;
+use nym_sphinx::params::packet_sizes::PacketSize;
+use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
+use nym_sphinx::forwarding::packet::MixPacket;
 use std::io;
 use tokio::time::Instant;
 use tracing::*;
 use tracing::{trace};
 
-use super::ShutdownListener;
+use super::TaskClient;
 
 // Delay + MixPacket vs Instant + MixPacket
 
@@ -31,7 +31,7 @@ where
     packet_sender: PacketDelayForwardSender,
     packet_receiver: PacketDelayForwardReceiver,
     node_stats_update_sender: UpdateSender,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl<C> DelayForwarder<C>
@@ -41,7 +41,7 @@ where
     pub(crate) fn new(
         client: C,
         node_stats_update_sender: UpdateSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> DelayForwarder<C> {
         let (packet_sender, packet_receiver) = mpsc::unbounded();
 
@@ -139,13 +139,13 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
-    use task::ShutdownNotifier;
+    use nym_task::TaskManager;
 
-    use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
-    use nymsphinx_params::packet_sizes::PacketSize;
-    use nymsphinx_params::PacketMode;
-    use nymsphinx_types::builder::SphinxPacketBuilder;
-    use nymsphinx_types::{
+    use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
+    use nym_sphinx_params::packet_sizes::PacketSize;
+    use nym_sphinx_params::PacketMode;
+    use nym_sphinx_types::builder::SphinxPacketBuilder;
+    use nym_sphinx_types::{
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
         SphinxPacket, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
@@ -210,7 +210,7 @@ mod tests {
         let node_stats_update_sender = UpdateSender::new(stats_sender);
         let client = TestClient::default();
         let client_packets_sent = client.packets_sent.clone();
-        let shutdown = ShutdownNotifier::default();
+        let shutdown = TaskManager::default();
         let mut delay_forwarder =
             DelayForwarder::new(client, node_stats_update_sender, shutdown.subscribe());
         let packet_sender = delay_forwarder.sender();

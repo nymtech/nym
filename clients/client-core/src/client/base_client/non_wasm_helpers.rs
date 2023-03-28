@@ -14,13 +14,15 @@ use time::OffsetDateTime;
 async fn setup_fresh_backend<P: AsRef<Path>>(
     db_path: P,
     debug_config: &DebugConfig,
-) -> Result<fs_backend::Backend, ClientCoreError<fs_backend::Backend>> {
+) -> Result<fs_backend::Backend, ClientCoreError> {
     info!("creating fresh surb database");
     let mut storage_backend = match fs_backend::Backend::init(db_path).await {
         Ok(backend) => backend,
         Err(err) => {
             error!("failed to setup persistent storage backend for our reply needs: {err}");
-            return Err(ClientCoreError::SurbStorageError { source: err });
+            return Err(ClientCoreError::SurbStorageError {
+                source: Box::new(err),
+            });
         }
     };
 
@@ -34,9 +36,19 @@ async fn setup_fresh_backend<P: AsRef<Path>>(
     storage_backend
         .init_fresh(&mem_store)
         .await
-        .map_err(|err| ClientCoreError::SurbStorageError { source: err })?;
+        .map_err(|err| ClientCoreError::SurbStorageError {
+            source: Box::new(err),
+        })?;
 
     Ok(storage_backend)
+}
+
+fn setup_inactive_backend(debug_config: &DebugConfig) -> fs_backend::Backend {
+    info!("creating inactive surb database");
+    fs_backend::Backend::new_inactive(
+        debug_config.minimum_reply_surb_storage_threshold,
+        debug_config.maximum_reply_surb_storage_threshold,
+    )
 }
 
 fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()> {
@@ -49,7 +61,7 @@ fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()> {
 
     let new_extension =
         if let Some(existing_extension) = db_path.extension().and_then(|ext| ext.to_str()) {
-            format!("{existing_extension}.{}", suffix)
+            format!("{existing_extension}.{suffix}")
         } else {
             suffix
         };
@@ -61,23 +73,28 @@ fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()> {
 }
 
 pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
-    db_path: P,
+    db_path: Option<P>,
     debug_config: &DebugConfig,
-) -> Result<fs_backend::Backend, ClientCoreError<fs_backend::Backend>> {
-    // if the database file doesnt exist, initialise fresh storage, otherwise attempt to load the existing one
-    let db_path = db_path.as_ref();
-    if db_path.exists() {
-        info!("loading existing surb database");
-        match fs_backend::Backend::try_load(db_path).await {
-            Ok(backend) => Ok(backend),
-            Err(err) => {
-                error!("failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future");
+) -> Result<fs_backend::Backend, ClientCoreError> {
+    if let Some(db_path) = db_path {
+        // if the database file doesnt exist, initialise fresh storage, otherwise attempt to load
+        // the existing one
+        let db_path = db_path.as_ref();
+        if db_path.exists() {
+            info!("loading existing surb database");
+            match fs_backend::Backend::try_load(db_path).await {
+                Ok(backend) => Ok(backend),
+                Err(err) => {
+                    error!("failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future");
 
-                archive_corrupted_database(db_path)?;
-                setup_fresh_backend(db_path, debug_config).await
+                    archive_corrupted_database(db_path)?;
+                    setup_fresh_backend(db_path, debug_config).await
+                }
             }
+        } else {
+            setup_fresh_backend(db_path, debug_config).await
         }
     } else {
-        setup_fresh_backend(db_path, debug_config).await
+        Ok(setup_inactive_backend(debug_config))
     }
 }

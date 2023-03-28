@@ -3,10 +3,10 @@
 
 use crate::dealings::storage;
 use crate::dealings::storage::DEALINGS_BYTES;
-use coconut_dkg_common::dealer::{ContractDealing, PagedDealingsResponse};
-use coconut_dkg_common::types::TOTAL_DEALINGS;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
+use nym_coconut_dkg_common::dealer::{ContractDealing, PagedDealingsResponse};
+use nym_coconut_dkg_common::types::TOTAL_DEALINGS;
 
 pub fn query_dealings_paged(
     deps: Deps<'_>,
@@ -50,7 +50,6 @@ pub(crate) mod tests {
     use crate::dealings::storage::{DEALINGS_PAGE_DEFAULT_LIMIT, DEALINGS_PAGE_MAX_LIMIT};
     use crate::support::tests::fixtures::dealing_bytes_fixture;
     use crate::support::tests::helpers::init_contract;
-    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::{Addr, DepsMut};
 
     fn fill_dealings(deps: DepsMut<'_>, size: usize) {
@@ -68,7 +67,6 @@ pub(crate) mod tests {
     #[test]
     fn empty_on_bad_idx() {
         let mut deps = init_contract();
-        let env = mock_env();
         fill_dealings(deps.as_mut(), 1000);
 
         for idx in TOTAL_DEALINGS as u64..100 * TOTAL_DEALINGS as u64 {
@@ -89,7 +87,6 @@ pub(crate) mod tests {
     #[test]
     fn dealings_paged_retrieval_obeys_limits() {
         let mut deps = init_contract();
-        let env = mock_env();
         let limit = 2;
         fill_dealings(deps.as_mut(), 1000);
 
@@ -103,7 +100,6 @@ pub(crate) mod tests {
     #[test]
     fn dealings_paged_retrieval_has_default_limit() {
         let mut deps = init_contract();
-        let env = mock_env();
         fill_dealings(deps.as_mut(), 1000);
 
         for idx in 0..TOTAL_DEALINGS as u64 {
@@ -117,7 +113,6 @@ pub(crate) mod tests {
     #[test]
     fn dealings_paged_retrieval_has_max_limit() {
         let mut deps = init_contract();
-        let env = mock_env();
         fill_dealings(deps.as_mut(), 1000);
 
         // query with a crazily high limit in an attempt to use too many resources
@@ -135,7 +130,6 @@ pub(crate) mod tests {
     #[test]
     fn dealings_pagination_works() {
         let mut deps = init_contract();
-        let env = mock_env();
 
         fill_dealings(deps.as_mut(), 1);
 

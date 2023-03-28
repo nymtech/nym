@@ -77,17 +77,19 @@ export interface MixNodeResponseItem {
   status: MixnodeStatus;
   location: {
     country_name: string;
-    lat: number;
-    lng: number;
+    latitude?: number;
+    longitude?: number;
     three_letter_iso_country_code: string;
     two_letter_iso_country_code: string;
   };
   mix_node: MixNode;
   avg_uptime: number;
+  node_performance: NodePerformance;
   stake_saturation: number;
   uncapped_saturation: number;
   operating_cost: Amount;
   profit_margin_percent: string;
+  blacklisted: boolean;
 }
 
 export type MixNodeResponse = MixNodeResponseItem[];
@@ -114,17 +116,29 @@ export interface StatsResponse {
   packets_explicitly_dropped_since_last_update: number;
 }
 
+export interface NodePerformance {
+  most_recent: string;
+  last_hour: string;
+  last_24h: string;
+}
+
 export type MixNodeHistoryResponse = StatsResponse;
 
-export interface GatewayResponseItem {
+export interface GatewayBond {
   block_height: number;
   pledge_amount: Amount;
   total_delegation: Amount;
   owner: string;
   gateway: Gateway;
+  node_performance: NodePerformance;
 }
 
-export type GatewayResponse = GatewayResponseItem[];
+export interface GatewayBondAnnotated {
+  gateway_bond: GatewayBond;
+  node_performance: NodePerformance;
+}
+
+export type GatewayResponse = GatewayBond[];
 
 export interface GatewayReportResponse {
   identity: string;
@@ -223,4 +237,19 @@ export type MixNodeEconomicDynamicsStatsResponse = {
   estimated_operator_reward: number;
   estimated_delegators_reward: number;
   current_interval_uptime: number;
+};
+
+export type Environment = 'mainnet' | 'sandbox' | 'qa';
+
+export type DirectoryServiceProvider = {
+  id: string;
+  description: string;
+  address: string;
+  gateway: string;
+};
+
+export type DirectoryService = {
+  id: string;
+  descrtiption: string;
+  items: DirectoryServiceProvider[];
 };

@@ -4,16 +4,16 @@ use super::{
     authentication::Authenticator, client::SocksClient, mixnet_responses::MixnetResponseListener,
 };
 use crate::socks::client;
-use client_connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use proxy_helpers::connection_controller::{BroadcastActiveConnections, Controller};
+use nym_socks5_proxy_helpers::connection_controller::Controller;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
+use nym_task::TaskClient;
 use std::net::SocketAddr;
 use tap::TapFallible;
-use task::ShutdownListener;
 use tokio::net::TcpListener;
 
 /// A Socks5 server that listens for connections.
@@ -24,7 +24,7 @@ pub struct SphinxSocksServer {
     self_address: Recipient,
     client_config: client::Config,
     lane_queue_lengths: LaneQueueLengths,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl SphinxSocksServer {
@@ -36,7 +36,7 @@ impl SphinxSocksServer {
         self_address: Recipient,
         lane_queue_lengths: LaneQueueLengths,
         client_config: client::Config,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
         // just modify the config
@@ -69,7 +69,7 @@ impl SphinxSocksServer {
         // controller for managing all active connections
         let (mut active_streams_controller, controller_sender) = Controller::new(
             client_connection_tx,
-            BroadcastActiveConnections::Off,
+            //BroadcastActiveConnections::Off,
             self.shutdown.clone(),
         );
         tokio::spawn(async move {
@@ -85,6 +85,11 @@ impl SphinxSocksServer {
         tokio::spawn(async move {
             mixnet_response_listener.run().await;
         });
+
+        // TODO:, if required, there should be another task here responsible for control requests.
+        // it should get `input_sender` to send actual requests into the mixnet
+        // and some channel that connects it from `MixnetResponseListener` to receive
+        // any control responses
 
         loop {
             tokio::select! {
@@ -103,7 +108,7 @@ impl SphinxSocksServer {
 
                     tokio::spawn(async move {
                         if let Err(err) = client.run().await {
-                            error!("Error! {}", err);
+                            error!("Error! {err}");
                             if client.send_error(err).await.is_err() {
                                 warn!("Failed to send error code");
                             };

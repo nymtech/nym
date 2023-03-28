@@ -30,7 +30,7 @@ const transactionForDarkTheme = {
   hash: '11ED7B9E21534A9421834F52FED5103DC6E982949C06335F5E12EFC71DAF0CF0',
 };
 
-const Content: React.FC<{ children: React.ReactElement<any, any>; handleClick: () => void }> = ({
+const Content: FCWithChildren<{ children: React.ReactElement<any, any>; handleClick: () => void }> = ({
   children,
   handleClick,
 }) => (

@@ -5,7 +5,7 @@ use std::ops::Deref;
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, StdResult, WasmMsg};
 use cw4::{Cw4Contract, Member};
 
-use crate::msg::ExecuteMsg;
+use nym_group_contract_common::msg::ExecuteMsg;
 
 /// Cw4GroupContract is a wrapper around Cw4Contract that provides a lot of helpers
 /// for working with cw4-group contracts.

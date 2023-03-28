@@ -3,10 +3,10 @@
 
 use crate::error::BackendError;
 use crate::state::WalletState;
-use mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::MixId;
 use nym_types::currency::DecCoin;
 use nym_types::transaction::TransactionExecuteResult;
-use validator_client::nymd::{Fee, VestingSigningClient};
+use validator_client::nyxd::{Fee, VestingSigningClient};
 
 #[tauri::command]
 pub async fn vesting_delegate_to_mixnode(
@@ -28,8 +28,8 @@ pub async fn vesting_delegate_to_mixnode(
     );
     let res = guard
         .current_client()?
-        .nymd
-        .vesting_delegate_to_mixnode(mix_id, delegation, fee)
+        .nyxd
+        .vesting_delegate_to_mixnode(mix_id, delegation, None, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -53,8 +53,8 @@ pub async fn vesting_undelegate_from_mixnode(
     );
     let res = guard
         .current_client()?
-        .nymd
-        .vesting_undelegate_from_mixnode(mix_id, fee)
+        .nyxd
+        .vesting_undelegate_from_mixnode(mix_id, None, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);

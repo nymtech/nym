@@ -1,4 +1,4 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
@@ -9,9 +9,10 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::get_mixnode_details_by_owner;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::helpers;
+use crate::rewards::helpers::update_and_save_last_rewarded;
 use crate::support::helpers::{
-    ensure_bonded, ensure_is_authorized, ensure_is_owner, ensure_proxy_match,
-    send_to_proxy_or_owner,
+    ensure_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_owner,
+    ensure_proxy_match, ensure_sent_by_vesting_contract, send_to_proxy_or_owner,
 };
 use cosmwasm_std::{wasm_execute, Addr, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
@@ -26,7 +27,7 @@ use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingInter
 use mixnet_contract_common::reward_params::{
     IntervalRewardingParamsUpdate, NodeRewardParams, Performance,
 };
-use mixnet_contract_common::{Delegation, MixId};
+use mixnet_contract_common::{Delegation, EpochState, MixId};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub(crate) fn try_reward_mixnode(
@@ -36,7 +37,9 @@ pub(crate) fn try_reward_mixnode(
     mix_id: MixId,
     node_performance: Performance,
 ) -> Result<Response, MixnetContractError> {
-    ensure_is_authorized(info.sender, deps.storage)?;
+    // check whether this `info.sender` is the same one as set in `epoch_status.being_advanced_by`
+    // if so, return `epoch_status` so we could avoid having to perform extra read from the storage
+    let current_epoch_status = ensure_can_advance_epoch(&info.sender, deps.storage)?;
 
     // see if the epoch has finished
     let interval = interval_storage::current_interval(deps.storage)?;
@@ -47,6 +50,19 @@ pub(crate) fn try_reward_mixnode(
             epoch_end: interval.current_epoch_end_unix_timestamp(),
         });
     }
+    let absolute_epoch_id = interval.current_epoch_absolute_id();
+
+    if matches!(current_epoch_status.state, EpochState::Rewarding {last_rewarded, ..} if last_rewarded == mix_id)
+    {
+        return Err(MixnetContractError::MixnodeAlreadyRewarded {
+            mix_id,
+            absolute_epoch_id,
+        });
+    }
+
+    // update the epoch state with this node as being rewarded most recently
+    // (if the transaction fails down the line, it will be reverted)
+    update_and_save_last_rewarded(deps.storage, current_epoch_status, mix_id)?;
 
     // there's a chance of this failing to load the details if the mixnode unbonded before rewards
     // were distributed and all of its delegators are also gone
@@ -64,8 +80,7 @@ pub(crate) fn try_reward_mixnode(
 
     // check if this node has already been rewarded for the current epoch.
     // unlike the previous check, this one should be a hard error since this cannot be
-    // influenced by users actions
-    let absolute_epoch_id = interval.current_epoch_absolute_id();
+    // influenced by users actions (note that previous epoch state checks should actually already guard us against it)
     if absolute_epoch_id == mix_rewarding.last_rewarded_epoch {
         return Err(MixnetContractError::MixnodeAlreadyRewarded {
             mix_id,
@@ -130,6 +145,8 @@ pub(crate) fn try_withdraw_operator_reward_on_behalf(
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
     _try_withdraw_operator_reward(deps, owner, Some(proxy))
@@ -195,6 +212,8 @@ pub(crate) fn try_withdraw_delegator_reward_on_behalf(
     mix_id: MixId,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
     _try_withdraw_delegator_reward(deps, mix_id, owner, Some(proxy))
@@ -293,6 +312,10 @@ pub(crate) fn try_update_active_set_size(
             active_set_size,
         )))
     } else {
+        // updating active sety size is only allowed if the epoch is currently not in the process of being advanced
+        // (unless the force flag was used)
+        ensure_epoch_in_progress_state(deps.storage)?;
+
         // push the epoch event
         let epoch_event = PendingEpochEventKind::UpdateActiveSetSize {
             new_size: active_set_size,
@@ -332,6 +355,10 @@ pub(crate) fn try_update_rewarding_params(
             rewarding_params.interval,
         )))
     } else {
+        // changing rewarding parameters is only allowed if the epoch is currently not in the process of being advanced
+        // (unless the force flag was used)
+        ensure_epoch_in_progress_state(deps.storage)?;
+
         // push the interval event
         let interval_event = PendingIntervalEventKind::UpdateRewardingParams {
             update: updated_params,
@@ -366,7 +393,236 @@ pub mod tests {
             ZERO_PERFORMANCE_VALUE,
         };
         use mixnet_contract_common::helpers::compare_decimals;
-        use mixnet_contract_common::RewardedSetNodeStatus;
+        use mixnet_contract_common::{EpochStatus, RewardedSetNodeStatus};
+
+        #[cfg(test)]
+        mod epoch_state_is_correctly_updated {
+            use super::*;
+            use mixnet_contract_common::EpochState;
+
+            #[test]
+            fn when_target_mixnode_unbonded() {
+                let mut test = TestSetup::new();
+                let mix_id_unbonded = test.add_dummy_mixnode("mix-owner-unbonded", None);
+                let mix_id_unbonded_leftover =
+                    test.add_dummy_mixnode("mix-owner-unbonded-leftover", None);
+                let mix_id_never_existed = 42;
+                test.skip_to_next_epoch_end();
+                test.force_change_rewarded_set(vec![
+                    mix_id_unbonded,
+                    mix_id_unbonded_leftover,
+                    mix_id_never_existed,
+                ]);
+                test.start_epoch_transition();
+
+                let env = test.env();
+
+                // note: we don't have to test for cases where `is_unbonding` is set to true on a mixnode
+                // since before performing the nym-api should clear out the event queue
+
+                // manually adjust delegation info as to indicate the rewarding information shouldnt get removed
+                let mut rewarding_details = storage::MIXNODE_REWARDING
+                    .load(test.deps().storage, mix_id_unbonded_leftover)
+                    .unwrap();
+                rewarding_details.delegates = Decimal::raw(12345);
+                rewarding_details.unique_delegations = 1;
+                storage::MIXNODE_REWARDING
+                    .save(
+                        test.deps_mut().storage,
+                        mix_id_unbonded_leftover,
+                        &rewarding_details,
+                    )
+                    .unwrap();
+                pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded)
+                    .unwrap();
+
+                pending_events::unbond_mixnode(
+                    test.deps_mut(),
+                    &env,
+                    123,
+                    mix_id_unbonded_leftover,
+                )
+                .unwrap();
+
+                let env = test.env();
+                let sender = test.rewarding_validator();
+                let performance = test_helpers::performance(100.0);
+
+                try_reward_mixnode(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    mix_id_unbonded,
+                    performance,
+                )
+                .unwrap();
+                assert_eq!(
+                    EpochState::Rewarding {
+                        last_rewarded: mix_id_unbonded,
+                        final_node_id: mix_id_never_existed
+                    },
+                    interval_storage::current_epoch_status(test.deps().storage)
+                        .unwrap()
+                        .state
+                );
+
+                try_reward_mixnode(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    mix_id_unbonded_leftover,
+                    performance,
+                )
+                .unwrap();
+                assert_eq!(
+                    EpochState::Rewarding {
+                        last_rewarded: mix_id_unbonded_leftover,
+                        final_node_id: mix_id_never_existed
+                    },
+                    interval_storage::current_epoch_status(test.deps().storage)
+                        .unwrap()
+                        .state
+                );
+
+                try_reward_mixnode(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    mix_id_never_existed,
+                    performance,
+                )
+                .unwrap();
+                assert_eq!(
+                    EpochState::ReconcilingEvents,
+                    interval_storage::current_epoch_status(test.deps().storage)
+                        .unwrap()
+                        .state
+                );
+            }
+
+            #[test]
+            fn when_target_mixnode_has_zero_performance() {
+                let mut test = TestSetup::new();
+                let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+                test.skip_to_next_epoch_end();
+                test.force_change_rewarded_set(vec![mix_id]);
+                test.start_epoch_transition();
+                let zero_performance = test_helpers::performance(0.);
+                let env = test.env();
+                let sender = test.rewarding_validator();
+
+                try_reward_mixnode(test.deps_mut(), env, sender, mix_id, zero_performance).unwrap();
+                assert_eq!(
+                    EpochState::ReconcilingEvents,
+                    interval_storage::current_epoch_status(test.deps().storage)
+                        .unwrap()
+                        .state
+                );
+            }
+
+            #[test]
+            fn when_theres_only_one_node_to_reward() {
+                let mut test = TestSetup::new();
+                let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+                test.skip_to_next_epoch_end();
+                test.force_change_rewarded_set(vec![mix_id]);
+                test.start_epoch_transition();
+                let performance = test_helpers::performance(100.0);
+                let env = test.env();
+                let sender = test.rewarding_validator();
+
+                try_reward_mixnode(test.deps_mut(), env, sender, mix_id, performance).unwrap();
+                assert_eq!(
+                    EpochState::ReconcilingEvents,
+                    interval_storage::current_epoch_status(test.deps().storage)
+                        .unwrap()
+                        .state
+                );
+            }
+
+            #[test]
+            fn when_theres_multiple_nodes_to_reward() {
+                let mut test = TestSetup::new();
+
+                let mut ids = Vec::new();
+                for i in 0..100 {
+                    let mix_id = test.add_dummy_mixnode(&format!("mix-owner{i}"), None);
+                    ids.push(mix_id);
+                }
+
+                test.skip_to_next_epoch_end();
+                test.force_change_rewarded_set(ids.clone());
+                test.start_epoch_transition();
+                let performance = test_helpers::performance(100.0);
+                let env = test.env();
+                let sender = test.rewarding_validator();
+
+                for mix_id in ids {
+                    try_reward_mixnode(
+                        test.deps_mut(),
+                        env.clone(),
+                        sender.clone(),
+                        mix_id,
+                        performance,
+                    )
+                    .unwrap();
+
+                    let current_state = interval_storage::current_epoch_status(test.deps().storage)
+                        .unwrap()
+                        .state;
+                    if mix_id == 100 {
+                        assert_eq!(EpochState::ReconcilingEvents, current_state)
+                    } else {
+                        assert_eq!(
+                            EpochState::Rewarding {
+                                last_rewarded: mix_id,
+                                final_node_id: 100
+                            },
+                            current_state
+                        )
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn can_only_be_performed_if_in_rewarding_state() {
+            let bad_states = vec![
+                EpochState::InProgress,
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let rewarding_validator = test.rewarding_validator();
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
+                    .unwrap();
+
+                test.skip_to_current_epoch_end();
+                test.force_change_rewarded_set(vec![1, 2, 3]);
+                let env = test.env();
+
+                let res = try_reward_mixnode(
+                    test.deps_mut(),
+                    env,
+                    rewarding_validator,
+                    1,
+                    test_helpers::performance(100.),
+                );
+                assert_eq!(
+                    res,
+                    Err(MixnetContractError::UnexpectedNonRewardingEpochState {
+                        current_state: bad_state
+                    })
+                );
+            }
+        }
 
         #[test]
         fn can_only_be_performed_by_specified_rewarding_validator() {
@@ -377,7 +633,8 @@ pub mod tests {
             // skip time to when the following epoch is over (since mixnodes are not eligible for rewarding
             // in the same epoch they're bonded and we need the rewarding epoch to be over)
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.start_epoch_transition();
             let performance = test_helpers::performance(100.);
 
             let env = test.env();
@@ -399,16 +656,17 @@ pub mod tests {
             let mix_id_unbonded_leftover =
                 test.add_dummy_mixnode("mix-owner-unbonded-leftover", None);
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![
-                mix_id_never_existed,
+            test.force_change_rewarded_set(vec![
                 mix_id_unbonded,
                 mix_id_unbonded_leftover,
+                mix_id_never_existed,
             ]);
+            test.start_epoch_transition();
 
             let env = test.env();
 
             // note: we don't have to test for cases where `is_unbonding` is set to true on a mixnode
-            // since before performing the validator-api should clear out the event queue
+            // since before performing the nym-api should clear out the event queue
 
             // manually adjust delegation info as to indicate the rewarding information shouldnt get removed
             let mut rewarding_details = storage::MIXNODE_REWARDING
@@ -433,9 +691,9 @@ pub mod tests {
             let performance = test_helpers::performance(100.0);
 
             for &mix_id in &[
-                mix_id_never_existed,
                 mix_id_unbonded,
                 mix_id_unbonded_leftover,
+                mix_id_never_existed,
             ] {
                 let res = try_reward_mixnode(
                     test.deps_mut(),
@@ -464,7 +722,7 @@ pub mod tests {
 
             // node is in the active set BUT the current epoch has just begun
             test.skip_to_next_epoch();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
             let performance = test_helpers::performance(100.);
 
             let env = test.env();
@@ -476,6 +734,7 @@ pub mod tests {
 
             // epoch is over (sanity check)
             test.skip_to_current_epoch_end();
+            test.start_epoch_transition();
             let env = test.env();
             let res = try_reward_mixnode(test.deps_mut(), env, sender, mix_id, performance);
             assert!(res.is_ok());
@@ -507,6 +766,16 @@ pub mod tests {
                     &RewardedSetNodeStatus::Standby,
                 )
                 .unwrap();
+
+            // actually add one more dummy node with high id so we wouldn't go into the next state
+            interval_storage::REWARDED_SET
+                .save(
+                    test.deps_mut().storage,
+                    9001,
+                    &RewardedSetNodeStatus::Standby,
+                )
+                .unwrap();
+            test.start_epoch_transition();
 
             let performance = test_helpers::performance(100.);
             let env = test.env();
@@ -541,7 +810,8 @@ pub mod tests {
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id, 42]);
+            test.start_epoch_transition();
             let performance = test_helpers::performance(100.);
             let env = test.env();
             let sender = test.rewarding_validator();
@@ -565,6 +835,8 @@ pub mod tests {
 
             // in the following epoch we're good again
             test.skip_to_next_epoch_end();
+            test.start_epoch_transition();
+
             let env = test.env();
             let res = try_reward_mixnode(test.deps_mut(), env, sender, mix_id, performance);
             assert!(res.is_ok());
@@ -576,7 +848,8 @@ pub mod tests {
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id, 42]);
+            test.start_epoch_transition();
             let zero_performance = test_helpers::performance(0.);
             let performance = test_helpers::performance(100.0);
             let env = test.env();
@@ -614,6 +887,8 @@ pub mod tests {
 
             // but in the next epoch, as always, we're good again
             test.skip_to_next_epoch_end();
+            test.start_epoch_transition();
+
             let env = test.env();
             let res =
                 try_reward_mixnode(test.deps_mut(), env, sender, mix_id, performance).unwrap();
@@ -642,7 +917,8 @@ pub mod tests {
             let mix_id3 = test.add_dummy_mixnode("mix-owner3", None);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id1, mix_id2, mix_id3]);
+            test.force_change_rewarded_set(vec![mix_id1, mix_id2, mix_id3]);
+            test.start_epoch_transition();
             let performance = test_helpers::performance(98.0);
             let env = test.env();
             let sender = test.rewarding_validator();
@@ -726,7 +1002,8 @@ pub mod tests {
             let mix_id3 = test.add_dummy_mixnode("mix-owner3", Some(operator3));
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id1, mix_id2, mix_id3]);
+            test.start_epoch_transition();
+            test.force_change_rewarded_set(vec![mix_id1, mix_id2, mix_id3]);
             let performance = test_helpers::performance(98.0);
 
             test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), mix_id2);
@@ -735,8 +1012,12 @@ pub mod tests {
             test.add_immediate_delegation("delegator2", Uint128::new(123_456_000), mix_id3);
             test.add_immediate_delegation("delegator3", Uint128::new(9_100_000_000), mix_id3);
 
+            // bypass proper epoch progression and force change the state
+            test.set_epoch_in_progress_state();
+
             // repeat the rewarding the same set of delegates for few epochs
             for _ in 0..10 {
+                test.start_epoch_transition();
                 for &mix_id in &[mix_id1, mix_id2, mix_id3] {
                     let mut sim = test.instantiate_simulator(mix_id);
                     let dist = test.reward_with_distribution(mix_id, performance);
@@ -747,6 +1028,8 @@ pub mod tests {
                     let sim_res = sim.simulate_epoch_single_node(node_params).unwrap();
                     assert_eq!(sim_res, dist);
                 }
+                // bypass proper epoch progression and force change the state
+                test.set_epoch_in_progress_state();
                 test.skip_to_next_epoch_end();
             }
 
@@ -759,8 +1042,12 @@ pub mod tests {
             test.add_immediate_delegation("delegator5", Uint128::new(123_000_000), mix_id3);
             test.add_immediate_delegation("delegator6", Uint128::new(456_000_000), mix_id3);
 
+            // bypass proper epoch progression and force change the state
+            test.set_epoch_in_progress_state();
+
             let performance = test_helpers::performance(12.3);
             for _ in 0..10 {
+                test.start_epoch_transition();
                 for &mix_id in &[mix_id1, mix_id2, mix_id3] {
                     let mut sim = test.instantiate_simulator(mix_id);
                     let dist = test.reward_with_distribution(mix_id, performance);
@@ -771,6 +1058,8 @@ pub mod tests {
                     let sim_res = sim.simulate_epoch_single_node(node_params).unwrap();
                     assert_eq!(sim_res, dist);
                 }
+                // bypass proper epoch progression and force change the state
+                test.set_epoch_in_progress_state();
                 test.skip_to_next_epoch_end();
             }
         }
@@ -787,7 +1076,7 @@ pub mod tests {
             let mix_id2 = test.add_dummy_mixnode("mix-owner2", Some(operator2));
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id1, mix_id2]);
+            test.force_change_rewarded_set(vec![mix_id1, mix_id2]);
             let performance = test_helpers::performance(98.0);
 
             test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), mix_id1);
@@ -800,6 +1089,8 @@ pub mod tests {
             let del21 = test.delegation(mix_id2, "delegator1", &None);
 
             for _ in 0..10 {
+                test.start_epoch_transition();
+
                 // we know from the previous tests that actual rewarding distribution matches the simulator
                 let mut sim1 = test.instantiate_simulator(mix_id1);
                 let mut sim2 = test.instantiate_simulator(mix_id2);
@@ -933,6 +1224,8 @@ pub mod tests {
                 assert_eq!(dist2.delegates, computed_del21_reward);
 
                 test.skip_to_next_epoch_end();
+                // bypass proper epoch progression and force change the state
+                test.set_epoch_in_progress_state();
             }
 
             // add more delegations and check few more epochs (so that the delegations would start from non-default unit delegation value)
@@ -943,6 +1236,8 @@ pub mod tests {
             let del23 = test.delegation(mix_id2, "delegator3", &None);
 
             for _ in 0..10 {
+                test.start_epoch_transition();
+
                 // we know from the previous tests that actual rewarding distribution matches the simulator
                 let mut sim1 = test.instantiate_simulator(mix_id1);
                 let mut sim2 = test.instantiate_simulator(mix_id2);
@@ -1096,6 +1391,8 @@ pub mod tests {
                 );
 
                 test.skip_to_next_epoch_end();
+                // bypass proper epoch progression and force change the state
+                test.set_epoch_in_progress_state();
             }
         }
     }
@@ -1104,8 +1401,9 @@ pub mod tests {
     mod withdrawing_delegator_reward {
         use super::*;
         use crate::interval::pending_events;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
-        use cosmwasm_std::{BankMsg, CosmosMsg, Decimal, Uint128};
+        use cosmwasm_std::{coin, BankMsg, CosmosMsg, Decimal, Uint128};
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         #[test]
@@ -1131,7 +1429,8 @@ pub mod tests {
 
             // perform some rewarding so that we'd have non-zero rewards
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id1, mix_id2]);
+            test.force_change_rewarded_set(vec![mix_id1, mix_id2]);
+            test.start_epoch_transition();
             test.reward_with_distribution(mix_id1, test_helpers::performance(100.0));
             test.reward_with_distribution(mix_id2, test_helpers::performance(100.0));
 
@@ -1178,7 +1477,8 @@ pub mod tests {
 
             // reward mix1, but don't reward mix2
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id1, low_stake_id]);
+            test.force_change_rewarded_set(vec![mix_id1, low_stake_id]);
+            test.start_epoch_transition();
             test.reward_with_distribution(mix_id1, test_helpers::performance(100.0));
             test.reward_with_distribution(low_stake_id, test_helpers::performance(100.0));
 
@@ -1216,14 +1516,18 @@ pub mod tests {
 
             let performance = test_helpers::performance(100.0);
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_unbonding, mix_id_unbonded_leftover]);
+            test.force_change_rewarded_set(vec![mix_id_unbonding, mix_id_unbonded_leftover]);
 
             // go through few rewarding cycles before unbonding nodes (partially or fully)
             for _ in 0..10 {
+                test.start_epoch_transition();
+
                 test.reward_with_distribution(mix_id_unbonding, performance);
                 test.reward_with_distribution(mix_id_unbonded_leftover, performance);
 
                 test.skip_to_next_epoch_end();
+                // bypass proper epoch progression and force change the state
+                test.set_epoch_in_progress_state();
             }
 
             // start unbonding the first node and fully unbond the other
@@ -1291,12 +1595,13 @@ pub mod tests {
 
             let performance = test_helpers::performance(100.0);
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_single, mix_id_quad]);
+            test.force_change_rewarded_set(vec![mix_id_single, mix_id_quad]);
 
             // accumulate some rewards
             let mut accumulated_single = Decimal::zero();
             let mut accumulated_quad = Decimal::zero();
             for _ in 0..10 {
+                test.start_epoch_transition();
                 let dist = test.reward_with_distribution(mix_id_single, performance);
                 // sanity check to make sure test is actually doing what it's supposed to be doing
                 assert!(!dist.delegates.is_zero());
@@ -1306,6 +1611,8 @@ pub mod tests {
                 accumulated_quad += dist.delegates;
 
                 test.skip_to_next_epoch_end();
+                // bypass proper epoch progression and force change the state
+                test.set_epoch_in_progress_state();
             }
 
             let before = test.read_delegation(mix_id_single, delegator1, None);
@@ -1361,9 +1668,13 @@ pub mod tests {
 
             // accumulate some more
             for _ in 0..10 {
+                test.start_epoch_transition();
+
                 let dist = test.reward_with_distribution(mix_id_quad, performance);
                 accumulated_quad += dist.delegates;
                 test.skip_to_next_epoch_end();
+                // bypass proper epoch progression and force change the state
+                test.set_epoch_in_progress_state();
             }
 
             let before1_new = test.read_delegation(mix_id_quad, delegator1, None);
@@ -1422,14 +1733,58 @@ pub mod tests {
             let accumulated_actual = truncate_reward_amount(accumulated_quad);
             assert_eq_with_leeway(total_claimed, accumulated_actual, Uint128::new(6));
         }
+
+        #[test]
+        fn fails_for_illegal_proxy() {
+            let test = TestSetup::new();
+
+            let illegal_proxy = Addr::unchecked("not-vesting-contract");
+            let vesting_contract = test.vesting_contract();
+
+            let mut test = TestSetup::new();
+            let mix_id =
+                test.add_dummy_mixnode("mix-owner1", Some(Uint128::new(1_000_000_000_000)));
+
+            let delegator = "delegator";
+
+            test.add_immediate_delegation_with_illegal_proxy(
+                delegator,
+                100_000_000u128,
+                mix_id,
+                illegal_proxy.clone(),
+            );
+
+            // reward the node
+            test.skip_to_next_epoch_end();
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.start_epoch_transition();
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let res = try_withdraw_delegator_reward_on_behalf(
+                test.deps_mut(),
+                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
+                mix_id,
+                delegator.to_string(),
+            )
+            .unwrap_err();
+
+            assert_eq!(
+                res,
+                MixnetContractError::SenderIsNotVestingContract {
+                    received: illegal_proxy,
+                    vesting_contract
+                }
+            )
+        }
     }
 
     #[cfg(test)]
     mod withdrawing_operator_reward {
         use super::*;
         use crate::interval::pending_events;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::TestSetup;
-        use cosmwasm_std::{BankMsg, CosmosMsg, Uint128};
+        use cosmwasm_std::{coin, BankMsg, CosmosMsg, Uint128};
 
         #[test]
         fn can_only_be_done_if_bond_exists() {
@@ -1440,7 +1795,8 @@ pub mod tests {
             let sender = mock_info("random-guy", &[]);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.start_epoch_transition();
             test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
 
             let res = try_withdraw_operator_reward(test.deps_mut(), sender.clone());
@@ -1466,7 +1822,8 @@ pub mod tests {
 
             // reward mix1, but don't reward mix2
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id1]);
+            test.force_change_rewarded_set(vec![mix_id1]);
+            test.start_epoch_transition();
             test.reward_with_distribution(mix_id1, test_helpers::performance(100.0));
 
             let res1 = try_withdraw_operator_reward(test.deps_mut(), sender1).unwrap();
@@ -1498,14 +1855,17 @@ pub mod tests {
 
             let performance = test_helpers::performance(100.0);
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_unbonding, mix_id_unbonded_leftover]);
+            test.force_change_rewarded_set(vec![mix_id_unbonding, mix_id_unbonded_leftover]);
 
             // go through few rewarding cycles before unbonding nodes (partially or fully)
             for _ in 0..10 {
+                test.start_epoch_transition();
                 test.reward_with_distribution(mix_id_unbonding, performance);
                 test.reward_with_distribution(mix_id_unbonded_leftover, performance);
 
                 test.skip_to_next_epoch_end();
+                // bypass proper epoch progression and force change the state
+                test.set_epoch_in_progress_state();
             }
 
             // start unbonding the first node and fully unbond the other
@@ -1537,12 +1897,89 @@ pub mod tests {
                 })
             );
         }
+
+        #[test]
+        fn fails_for_illegal_proxy() {
+            let mut test = TestSetup::new();
+
+            let illegal_proxy = Addr::unchecked("not-vesting-contract");
+            let vesting_contract = test.vesting_contract();
+
+            let owner = "mix-owner1";
+            let mix_id = test.add_dummy_mixnode_with_illegal_proxy(
+                owner,
+                Some(Uint128::new(1_000_000_000_000)),
+                illegal_proxy.clone(),
+            );
+
+            // reward the node
+            test.skip_to_next_epoch_end();
+            test.force_change_rewarded_set(vec![mix_id]);
+            test.start_epoch_transition();
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let res = try_withdraw_operator_reward_on_behalf(
+                test.deps_mut(),
+                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
+                owner.to_string(),
+            )
+            .unwrap_err();
+
+            assert_eq!(
+                res,
+                MixnetContractError::SenderIsNotVestingContract {
+                    received: illegal_proxy,
+                    vesting_contract
+                }
+            )
+        }
     }
 
     #[cfg(test)]
     mod updating_active_set {
         use super::*;
         use crate::support::tests::test_helpers::TestSetup;
+        use mixnet_contract_common::{EpochState, EpochStatus};
+
+        #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress_unless_forced() {
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let owner = test.owner();
+                let env = test.env();
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+
+                interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
+                    .unwrap();
+
+                let res = try_update_active_set_size(
+                    test.deps_mut(),
+                    env.clone(),
+                    owner.clone(),
+                    100,
+                    false,
+                );
+                assert!(matches!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress { .. })
+                ));
+
+                let res_forced =
+                    try_update_active_set_size(test.deps_mut(), env.clone(), owner, 100, true);
+                assert!(res_forced.is_ok())
+            }
+        }
 
         #[test]
         fn can_only_be_done_by_contract_owner() {
@@ -1706,6 +2143,62 @@ pub mod tests {
         use super::*;
         use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
         use cosmwasm_std::Decimal;
+        use mixnet_contract_common::{EpochState, EpochStatus};
+
+        #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress_unless_forced() {
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            let update = IntervalRewardingParamsUpdate {
+                reward_pool: None,
+                staking_supply: None,
+                staking_supply_scale_factor: None,
+                sybil_resistance_percent: None,
+                active_set_work_factor: None,
+                interval_pool_emission: None,
+                rewarded_set_size: Some(123),
+            };
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let owner = test.owner();
+                let env = test.env();
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+
+                interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
+                    .unwrap();
+
+                let res = try_update_rewarding_params(
+                    test.deps_mut(),
+                    env.clone(),
+                    owner.clone(),
+                    update.clone(),
+                    false,
+                );
+                assert!(matches!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress { .. })
+                ));
+
+                let res_forced = try_update_rewarding_params(
+                    test.deps_mut(),
+                    env.clone(),
+                    owner,
+                    update.clone(),
+                    true,
+                );
+                assert!(res_forced.is_ok())
+            }
+        }
 
         #[test]
         fn can_only_be_done_by_contract_owner() {

@@ -5,14 +5,14 @@
 
 use tauri::{Manager, Menu};
 
-use mixnet_contract_common::{Gateway, MixNode};
+use nym_mixnet_contract_common::{Gateway, MixNode};
 
 use crate::menu::AddDefaultSubmenus;
 use crate::operations::help;
 use crate::operations::mixnet;
+use crate::operations::nym_api;
 use crate::operations::signatures;
 use crate::operations::simulate;
-use crate::operations::validator_api;
 use crate::operations::vesting;
 use crate::state::WalletState;
 
@@ -29,7 +29,7 @@ mod wallet_storage;
 
 #[allow(clippy::too_many_lines)]
 fn main() {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
 
     let context = tauri::generate_context!();
     tauri::Builder::default()
@@ -83,14 +83,16 @@ fn main() {
             mixnet::rewards::claim_delegator_reward,
             mixnet::rewards::claim_operator_reward,
             mixnet::rewards::claim_locked_and_unlocked_delegator_reward,
+            mixnet::rewards::get_current_rewarding_parameters,
             mixnet::send::send,
+            mixnet::bond::get_mixnode_uptime,
             network_config::add_validator,
-            network_config::get_validator_api_urls,
-            network_config::get_validator_nymd_urls,
+            network_config::get_nym_api_urls,
+            network_config::get_nyxd_urls,
             network_config::remove_validator,
-            network_config::select_validator_api_url,
-            network_config::select_validator_nymd_url,
-            network_config::update_validator_urls,
+            network_config::select_nym_api_url,
+            network_config::select_nyxd_url,
+            network_config::update_nyxd_urls,
             state::load_config_from_files,
             state::save_config_to_files,
             utils::owns_gateway,
@@ -99,13 +101,14 @@ fn main() {
             utils::get_old_and_incorrect_hardcoded_fee,
             utils::try_convert_pubkey_to_mix_id,
             utils::default_mixnode_cost_params,
-            validator_api::status::gateway_core_node_status,
-            validator_api::status::mixnode_core_node_status,
-            validator_api::status::mixnode_inclusion_probability,
-            validator_api::status::mixnode_reward_estimation,
-            validator_api::status::mixnode_stake_saturation,
-            validator_api::status::mixnode_status,
-            validator_api::status::gateway_report,
+            nym_api::status::compute_mixnode_reward_estimation,
+            nym_api::status::gateway_core_node_status,
+            nym_api::status::mixnode_core_node_status,
+            nym_api::status::mixnode_inclusion_probability,
+            nym_api::status::mixnode_reward_estimation,
+            nym_api::status::mixnode_stake_saturation,
+            nym_api::status::mixnode_status,
+            nym_api::status::gateway_report,
             vesting::rewards::vesting_claim_delegator_reward,
             vesting::rewards::vesting_claim_operator_reward,
             vesting::bond::vesting_bond_gateway,
@@ -118,13 +121,22 @@ fn main() {
             vesting::bond::withdraw_vested_coins,
             vesting::delegate::vesting_delegate_to_mixnode,
             vesting::delegate::vesting_undelegate_from_mixnode,
-            vesting::queries::delegated_free,
-            vesting::queries::delegated_vesting,
             vesting::queries::get_account_info,
             vesting::queries::get_current_vesting_period,
             vesting::queries::locked_coins,
             vesting::queries::original_vesting,
             vesting::queries::spendable_coins,
+            vesting::queries::spendable_vested_coins,
+            vesting::queries::spendable_reward_coins,
+            vesting::queries::get_historical_vesting_staking_reward,
+            vesting::queries::get_spendable_vested_coins,
+            vesting::queries::get_spendable_reward_coins,
+            vesting::queries::get_delegated_coins,
+            vesting::queries::get_pledged_coins,
+            vesting::queries::get_withdrawn_coins,
+            vesting::queries::get_staked_coins,
+            vesting::queries::delegated_free,
+            vesting::queries::delegated_vesting,
             vesting::queries::vested_coins,
             vesting::queries::vesting_coins,
             vesting::queries::vesting_end_time,
@@ -133,6 +145,7 @@ fn main() {
             vesting::queries::vesting_start_time,
             simulate::admin::simulate_update_contract_settings,
             simulate::cosmos::simulate_send,
+            simulate::cosmos::get_custom_fees,
             simulate::mixnet::simulate_bond_gateway,
             simulate::mixnet::simulate_unbond_gateway,
             simulate::mixnet::simulate_bond_mixnode,

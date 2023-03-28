@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::spawn_future;
+#[cfg(target_arch = "wasm32")]
+use gateway_client::wasm_mockups::CosmWasmClient;
 use gateway_client::GatewayClient;
 use log::*;
-use nymsphinx::forwarding::packet::MixPacket;
+use nym_sphinx::forwarding::packet::MixPacket;
+#[cfg(not(target_arch = "wasm32"))]
+use validator_client::nyxd::CosmWasmClient;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
@@ -13,10 +17,10 @@ pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
 const MAX_FAILURE_COUNT: usize = 100;
 
-pub struct MixTrafficController {
+pub struct MixTrafficController<C: Clone> {
     // TODO: most likely to be replaced by some higher level construct as
     // later on gateway_client will need to be accessible by other entities
-    gateway_client: GatewayClient,
+    gateway_client: GatewayClient<C>,
     mix_rx: BatchMixMessageReceiver,
 
     // TODO: this is temporary work-around.
@@ -24,8 +28,13 @@ pub struct MixTrafficController {
     consecutive_gateway_failure_count: usize,
 }
 
-impl MixTrafficController {
-    pub fn new(gateway_client: GatewayClient) -> (MixTrafficController, BatchMixMessageSender) {
+impl<C> MixTrafficController<C>
+where
+    C: CosmWasmClient + Sync + Send + Clone + 'static,
+{
+    pub fn new(
+        gateway_client: GatewayClient<C>,
+    ) -> (MixTrafficController<C>, BatchMixMessageSender) {
         let (sphinx_message_sender, sphinx_message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
         (
@@ -51,13 +60,13 @@ impl MixTrafficController {
         };
 
         match result {
-            Err(e) => {
-                error!("Failed to send sphinx packet(s) to the gateway! - {:?}", e);
+            Err(err) => {
+                error!("Failed to send sphinx packet(s) to the gateway! - {err}");
                 self.consecutive_gateway_failure_count += 1;
                 if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
                     // todo: in the future this should initiate a 'graceful' shutdown or try
                     // to reconnect?
-                    panic!("failed to send sphinx packet to the gateway {} times in a row - assuming the gateway is dead. Can't do anything about it yet :(", MAX_FAILURE_COUNT)
+                    panic!("failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead. Can't do anything about it yet :(")
                 }
             }
             Ok(_) => {
@@ -67,11 +76,11 @@ impl MixTrafficController {
         }
     }
 
-    pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
+    pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
         spawn_future(async move {
             debug!("Started MixTrafficController with graceful shutdown support");
 
-            while !shutdown.is_shutdown() {
+            loop {
                 tokio::select! {
                     mix_packets = self.mix_rx.recv() => match mix_packets {
                         Some(mix_packets) => {
@@ -82,8 +91,9 @@ impl MixTrafficController {
                             break;
                         }
                     },
-                    _ = shutdown.recv() => {
+                    _ = shutdown.recv_with_delay() => {
                         log::trace!("MixTrafficController: Received shutdown");
+                        break;
                     }
                 }
             }

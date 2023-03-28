@@ -4,7 +4,7 @@
 use super::models::SummedDelegations;
 use crate::client::ThreadsafeValidatorClient;
 use itertools::Itertools;
-use mixnet_contract_common::{Delegation, MixId};
+use nym_mixnet_contract_common::{Delegation, MixId};
 
 pub(crate) async fn get_single_mixnode_delegations(
     client: &ThreadsafeValidatorClient,
@@ -12,7 +12,7 @@ pub(crate) async fn get_single_mixnode_delegations(
 ) -> Vec<Delegation> {
     match client
         .0
-        .get_all_nymd_single_mixnode_delegations(mix_id)
+        .get_all_nyxd_single_mixnode_delegations(mix_id)
         .await
     {
         Ok(result) => result,

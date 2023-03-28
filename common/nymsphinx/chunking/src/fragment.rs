@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ChunkingError;
-use nymsphinx_params::{SerializedFragmentIdentifier, FRAG_ID_LEN};
+use nym_sphinx_params::{SerializedFragmentIdentifier, FRAG_ID_LEN};
 use std::convert::TryInto;
 use std::fmt::{self, Debug, Formatter};
 
@@ -206,6 +206,11 @@ impl Fragment {
             set_id: self.header.id,
             fragment_position: self.header.current_fragment,
         }
+    }
+
+    /// Gets the size of payload contained in this `Fragment`.
+    pub fn payload_size(&self) -> usize {
+        self.payload.len()
     }
 
     /// Extracts id of this `Fragment`.
@@ -456,7 +461,7 @@ impl FragmentHeader {
 #[cfg(test)]
 mod fragment_tests {
     use super::*;
-    use nymsphinx_params::packet_sizes::PacketSize;
+    use nym_sphinx_params::packet_sizes::PacketSize;
     use rand::{thread_rng, RngCore};
 
     fn max_plaintext_size() -> usize {

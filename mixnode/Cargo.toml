@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-mixnode"
-version = "1.1.4"
+version = "1.1.14"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -18,20 +18,20 @@ rust-version = "1.58.1"
 [dependencies]
 anyhow = "1.0.40"
 bs58 = "0.4.0"
-clap = { version = "3.2", features = ["cargo", "derive"] }
+clap = { version = "4.0", features = ["cargo", "derive"] }
 colored = "2.0"
 cupid = "0.6.1"
 dirs = "4.0"
-dotenv = "0.15.0"
 futures = "0.3.0"
 humantime-serde = "1.0"
 lazy_static = "1.4.0"
-log = "0.4.0"
+log = { workspace = true }
 pretty_env_logger = "0.4.0"
 rand = "0.7.3"
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
 serde = { version="1.0", features = ["derive"] }
-sysinfo = "0.24.1"
+serde_json = "1.0"
+sysinfo = "0.27.7"
 tokio = { version="1.21.2", features = ["rt-multi-thread", "net", "signal"] }
 tokio-util = { version="0.7.3", features = ["codec"] }
 toml = "0.5.8"
@@ -42,27 +42,24 @@ tracing-opentelemetry = "0.18.0"
 opentelemetry-jaeger = {version = "0.17.0", features = ["collector_client","rt-tokio","isahc_collector_client"]}
 opentelemetry = {version = "0.18.0", features = ["rt-tokio"]}
 tracing-flame = "0.2.0"
+atty = "0.2"
 
 ## internal
-config = { path="../common/config" }
-crypto = { path="../common/crypto" }
-completions = { path="../common/completions" }
-logging = { path="../common/logging" }
+nym-config = { path="../common/config" }
+nym-crypto = { path="../common/crypto" }
 mixnet-client = { path="../common/client-libs/mixnet-client" }
 mixnode-common = { path="../common/mixnode-common" }
-nonexhaustive-delayqueue = { path="../common/nonexhaustive-delayqueue" }
-nymsphinx = { path="../common/nymsphinx" }
-pemstore = { path="../common/pemstore" }
-task = { path = "../common/task" }
-topology = { path="../common/topology" }
+nym-nonexhaustive-delayqueue = { path="../common/nonexhaustive-delayqueue" }
+nym-sphinx = { path="../common/nymsphinx" }
+nym-pemstore = { path = "../common/pemstore", version = "0.2.0" }
+nym-task = { path = "../common/task" }
+nym-types = { path = "../common/types" }
+nym-topology = { path="../common/topology" }
 validator-client = { path="../common/client-libs/validator-client" }
-version-checker = { path="../common/version-checker" }
+nym-bin-common = { path="../common/bin-common" }
 
 [dev-dependencies]
 tokio = { version="1.21.2", features = ["rt-multi-thread", "net", "signal", "test-util"] }
 
-nymsphinx-types = { path = "../common/nymsphinx/types" }
-nymsphinx-params = { path = "../common/nymsphinx/params" }
-
-[build-dependencies]
-vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }
+nym-sphinx-types = { path = "../common/nymsphinx/types" }
+nym-sphinx-params = { path = "../common/nymsphinx/params" }

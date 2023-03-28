@@ -1,9 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::{
-    ConnectionCommand, ConnectionCommandSender, LaneQueueLengths, TransmissionLane,
-};
+use client_core::client::replies::reply_controller::requests::ReplyControllerSender;
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
@@ -13,10 +11,15 @@ use client_core::client::{
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::receiver::ReconstructedMessage;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::receiver::ReconstructedMessage;
+use nym_task::connections::{
+    ConnectionCommand, ConnectionCommandSender, ConnectionId, LaneQueueLengths, TransmissionLane,
+};
+use std::time::Duration;
 use tokio::net::TcpStream;
+use tokio::time::Instant;
 use tokio_tungstenite::{
     accept_async,
     tungstenite::{protocol::Message as WsMessage, Error as WsError},
@@ -24,14 +27,53 @@ use tokio_tungstenite::{
 };
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
+#[derive(Default)]
 enum ReceivedResponseType {
+    #[default]
     Binary,
     Text,
 }
 
-impl Default for ReceivedResponseType {
-    fn default() -> Self {
-        ReceivedResponseType::Binary
+pub(crate) struct HandlerBuilder {
+    msg_input: InputMessageSender,
+    client_connection_tx: ConnectionCommandSender,
+    buffer_requester: ReceivedBufferRequestSender,
+    self_full_address: Recipient,
+    lane_queue_lengths: LaneQueueLengths,
+    reply_controller_sender: ReplyControllerSender,
+}
+
+impl HandlerBuilder {
+    pub(crate) fn new(
+        msg_input: InputMessageSender,
+        client_connection_tx: ConnectionCommandSender,
+        buffer_requester: ReceivedBufferRequestSender,
+        self_full_address: &Recipient,
+        lane_queue_lengths: LaneQueueLengths,
+        reply_controller_sender: ReplyControllerSender,
+    ) -> Self {
+        Self {
+            msg_input,
+            client_connection_tx,
+            buffer_requester,
+            self_full_address: *self_full_address,
+            lane_queue_lengths,
+            reply_controller_sender,
+        }
+    }
+
+    // TODO: make sure we only ever have one active handler
+    pub fn create_active_handler(&self) -> Handler {
+        Handler {
+            msg_input: self.msg_input.clone(),
+            client_connection_tx: self.client_connection_tx.clone(),
+            buffer_requester: self.buffer_requester.clone(),
+            self_full_address: self.self_full_address,
+            socket: None,
+            received_response_type: Default::default(),
+            lane_queue_lengths: self.lane_queue_lengths.clone(),
+            reply_controller_sender: self.reply_controller_sender.clone(),
+        }
     }
 }
 
@@ -43,21 +85,7 @@ pub(crate) struct Handler {
     socket: Option<WebSocketStream<TcpStream>>,
     received_response_type: ReceivedResponseType,
     lane_queue_lengths: LaneQueueLengths,
-}
-
-// clone is used to use handler on a new connection, which initially is `None`
-impl Clone for Handler {
-    fn clone(&self) -> Self {
-        Handler {
-            msg_input: self.msg_input.clone(),
-            client_connection_tx: self.client_connection_tx.clone(),
-            buffer_requester: self.buffer_requester.clone(),
-            self_full_address: self.self_full_address,
-            socket: None,
-            received_response_type: Default::default(),
-            lane_queue_lengths: self.lane_queue_lengths.clone(),
-        }
-    }
+    reply_controller_sender: ReplyControllerSender,
 }
 
 impl Drop for Handler {
@@ -73,22 +101,46 @@ impl Drop for Handler {
 }
 
 impl Handler {
-    pub(crate) fn new(
-        msg_input: InputMessageSender,
-        client_connection_tx: ConnectionCommandSender,
-        buffer_requester: ReceivedBufferRequestSender,
-        self_full_address: Recipient,
-        lane_queue_lengths: LaneQueueLengths,
-    ) -> Self {
-        Handler {
-            msg_input,
-            client_connection_tx,
-            buffer_requester,
-            self_full_address,
-            socket: None,
-            received_response_type: Default::default(),
-            lane_queue_lengths,
+    async fn get_lane_queue_length(&self, connection_id: ConnectionId) -> Option<ServerResponse> {
+        let req_start = Instant::now();
+
+        // get the base queue length
+        // Note that this does _NOT_ take into account the packets that have been received but not
+        // yet reach `OutQueueControl`, so it might be a tad low.
+        let conn_lane = TransmissionLane::ConnectionId(connection_id);
+        let Ok(base_length) = self
+            .lane_queue_lengths
+            .lock()
+            .map(|guard| guard.get(&conn_lane).unwrap_or_default()) else {
+            // I'd argue we should panic here as this error it not recoverable
+            error!("The lane queue length lock is poisoned!!");
+            return None
+        };
+
+        // get the number of pending replies waiting for reply surbs
+        let reply_queue_length = self
+            .reply_controller_sender
+            .get_lane_queue_length(connection_id)
+            .await;
+
+        let queue_length = base_length + reply_queue_length;
+
+        let time_taken = req_start.elapsed();
+        let msg =
+            format!("it took {time_taken:?} to get lane length for connection {connection_id}. The length is: {queue_length} = {base_length} (already queued up) + {reply_queue_length} (waiting for reply SURBs)");
+
+        if time_taken > Duration::from_millis(1) {
+            info!("{msg}");
+        } else if time_taken > Duration::from_millis(10) {
+            warn!("{msg}");
+        } else if time_taken > Duration::from_millis(50) {
+            error!("{msg}");
         }
+
+        Some(ServerResponse::LaneQueueLength {
+            lane: connection_id,
+            queue_length,
+        })
     }
 
     async fn handle_send(
@@ -115,27 +167,11 @@ impl Handler {
             .expect("InputMessageReceiver has stopped receiving!");
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
-        let connection_id = match lane {
-            TransmissionLane::General
-            | TransmissionLane::ReplySurbRequest
-            | TransmissionLane::Retransmission
-            | TransmissionLane::AdditionalReplySurbs => return None,
-            TransmissionLane::ConnectionId(id) => id,
+        let TransmissionLane::ConnectionId(connection_id) = lane else {
+          return None
         };
 
-        // on receiving a send, we reply back the current lane queue length for that connection id.
-        // Note that this does _NOT_ take into account the packets that have been received but not
-        // yet reach `OutQueueControl`, so it might be a tad low.
-        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
-            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
-            return Some(ServerResponse::LaneQueueLength {
-                lane: connection_id,
-                queue_length,
-            });
-        }
-
-        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
-        None
+        self.get_lane_queue_length(connection_id).await
     }
 
     async fn handle_send_anonymous(
@@ -162,27 +198,11 @@ impl Handler {
             .expect("InputMessageReceiver has stopped receiving!");
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
-        let connection_id = match lane {
-            TransmissionLane::General
-            | TransmissionLane::ReplySurbRequest
-            | TransmissionLane::Retransmission
-            | TransmissionLane::AdditionalReplySurbs => return None,
-            TransmissionLane::ConnectionId(id) => id,
+        let TransmissionLane::ConnectionId(connection_id) = lane else {
+          return None
         };
 
-        // on receiving a send, we reply back the current lane queue length for that connection id.
-        // Note that this does _NOT_ take into account the packets that have been received but not
-        // yet reach `OutQueueControl`, so it might be a tad low.
-        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
-            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
-            return Some(ServerResponse::LaneQueueLength {
-                lane: connection_id,
-                queue_length,
-            });
-        }
-
-        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
-        None
+        self.get_lane_queue_length(connection_id).await
     }
 
     async fn handle_reply(
@@ -205,27 +225,11 @@ impl Handler {
             .expect("InputMessageReceiver has stopped receiving!");
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
-        let connection_id = match lane {
-            TransmissionLane::General
-            | TransmissionLane::ReplySurbRequest
-            | TransmissionLane::Retransmission
-            | TransmissionLane::AdditionalReplySurbs => return None,
-            TransmissionLane::ConnectionId(id) => id,
+        let TransmissionLane::ConnectionId(connection_id) = lane else {
+          return None
         };
 
-        // on receiving a send, we reply back the current lane queue length for that connection id.
-        // Note that this does _NOT_ take into account the packets that have been received but not
-        // yet reach `OutQueueControl`, so it might be a tad low.
-        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
-            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
-            return Some(ServerResponse::LaneQueueLength {
-                lane: connection_id,
-                queue_length,
-            });
-        }
-
-        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
-        None
+        self.get_lane_queue_length(connection_id).await
     }
 
     fn handle_self_address(&self) -> ServerResponse {
@@ -239,20 +243,8 @@ impl Handler {
         None
     }
 
-    fn handle_get_lane_queue_length(&self, connection_id: u64) -> Option<ServerResponse> {
-        let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() else {
-            log::warn!(
-                "Failed to get the lane queue length lock, not responding back with the current queue length"
-            );
-            return None;
-        };
-
-        let lane = TransmissionLane::ConnectionId(connection_id);
-        let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
-        Some(ServerResponse::LaneQueueLength {
-            lane: connection_id,
-            queue_length,
-        })
+    async fn handle_get_lane_queue_length(&self, connection_id: u64) -> Option<ServerResponse> {
+        self.get_lane_queue_length(connection_id).await
     }
 
     async fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
@@ -281,7 +273,7 @@ impl Handler {
 
             ClientRequest::SelfAddress => Some(self.handle_self_address()),
             ClientRequest::ClosedConnection(id) => self.handle_closed_connection(id),
-            ClientRequest::GetLaneQueueLength(id) => self.handle_get_lane_queue_length(id),
+            ClientRequest::GetLaneQueueLength(id) => self.handle_get_lane_queue_length(id).await,
         }
     }
 
@@ -362,8 +354,12 @@ impl Handler {
         }
     }
 
-    async fn listen_for_requests(&mut self, mut msg_receiver: ReconstructedMessagesReceiver) {
-        loop {
+    async fn listen_for_requests(
+        &mut self,
+        mut msg_receiver: ReconstructedMessagesReceiver,
+        mut task_client: nym_task::TaskClient,
+    ) {
+        while !task_client.is_shutdown() {
             tokio::select! {
                 // we can either get a client request from the websocket
                 socket_msg = self.next_websocket_request() => {
@@ -373,7 +369,7 @@ impl Handler {
                     let socket_msg = match socket_msg.unwrap() {
                         Ok(socket_msg) => socket_msg,
                         Err(err) => {
-                            warn!("failed to obtain message from websocket stream! stopping connection handler: {}", err);
+                            warn!("failed to obtain message from websocket stream! stopping connection handler: {err}");
                             break;
                         }
                     };
@@ -397,21 +393,33 @@ impl Handler {
                         error!("mix messages sender was unexpectedly closed! this shouldn't have ever happened! (unless we're shutting down - TODO: implement proper graceful shutdown handler)");
                         return
                     };
-                    if let Err(e) = self.push_websocket_received_plaintexts(mix_messages).await {
-                        warn!("failed to send sphinx packets back to the client - {:?}, assuming the connection is dead", e);
+                    if let Err(err) = self.push_websocket_received_plaintexts(mix_messages).await {
+                        warn!("failed to send sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;
                     }
                 }
+                _ = task_client.recv() => {
+                    log::trace!("Websocket handler: Received shutdown");
+                }
             }
         }
+        log::debug!("Websocket handler: Exiting");
     }
 
     // consume self to make sure `drop` is called after this is done
-    pub(crate) async fn handle_connection(mut self, socket: TcpStream) {
+    pub(crate) async fn handle_connection(
+        mut self,
+        socket: TcpStream,
+        mut task_client: nym_task::TaskClient,
+    ) {
+        // We don't want a crash in the connection handler to trigger a shutdown of the whole
+        // process.
+        task_client.mark_as_success();
+
         let ws_stream = match accept_async(socket).await {
             Ok(ws_stream) => ws_stream,
             Err(err) => {
-                warn!("error while performing the websocket handshake - {:?}", err);
+                warn!("error while performing the websocket handshake - {err}");
                 return;
             }
         };
@@ -426,7 +434,8 @@ impl Handler {
             ))
             .expect("the buffer request failed!");
 
-        self.listen_for_requests(reconstructed_receiver).await;
+        self.listen_for_requests(reconstructed_receiver, task_client)
+            .await;
     }
 }
 

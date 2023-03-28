@@ -9,17 +9,17 @@ use std::process;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
-use super::ShutdownListener;
+use super::TaskClient;
 
 pub(crate) mod connection_handler;
 
 pub(crate) struct Listener {
     address: SocketAddr,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl Listener {
-    pub(crate) fn new(address: SocketAddr, shutdown: ShutdownListener) -> Self {
+    pub(crate) fn new(address: SocketAddr, shutdown: TaskClient) -> Self {
         Listener { address, shutdown }
     }
     #[instrument(level="info", skip_all, "Mixnet Listener")]
@@ -28,25 +28,26 @@ impl Listener {
         let listener = match TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
-                error!("Failed to bind to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address, err);
+                error!("Failed to bind to {} - {err}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address);
                 process::exit(1);
             }
         };
 
         while !self.shutdown.is_shutdown() {
             tokio::select! {
+                biased;
+                _ = self.shutdown.recv() => {
+                    trace!("Listener: Received shutdown");
+                }
                 connection = listener.accept() => {
                     match connection {
                         Ok((socket, remote_addr)) => {
                             let handler = connection_handler.clone();
                             tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone()).instrument(info_span!("Connection handling", address = %remote_addr)));
                         }
-                        Err(err) => warn!("Failed to accept incoming connection - {:?}", err),
+                        Err(err) => warn!("Failed to accept incoming connection - {err}"),
                     }
                 },
-                _ = self.shutdown.recv() => {
-                    trace!("Listener: Received shutdown");
-                }
             };
         }
         trace!("Listener: Exiting");

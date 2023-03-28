@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BackendError;
-use crate::nymd_client;
+use crate::nyxd_client;
 use crate::state::WalletState;
 use cosmwasm_std::Timestamp;
 use nym_types::currency::DecCoin;
 use nym_types::vesting::VestingAccountInfo;
 use nym_types::vesting::{OriginalVestingResponse, PledgeData};
-use validator_client::nymd::VestingQueryClient;
-use vesting_contract_common::Period;
+use nym_vesting_contract_common::Period;
+use validator_client::nyxd::VestingQueryClient;
 
 #[tauri::command]
-pub async fn locked_coins(
+pub(crate) async fn locked_coins(
     block_time: Option<u64>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
@@ -21,19 +21,19 @@ pub async fn locked_coins(
     let client = guard.current_client()?;
 
     let res = client
-        .nymd
+        .nyxd
         .locked_coins(
-            client.nymd.address().as_ref(),
+            client.nyxd.address().as_ref(),
             block_time.map(Timestamp::from_seconds),
         )
         .await?;
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< locked coins = {}", display);
+    log::info!("<<< locked coins = {display}");
     Ok(display)
 }
 
 #[tauri::command]
-pub async fn spendable_coins(
+pub(crate) async fn spendable_coins(
     block_time: Option<u64>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
@@ -42,20 +42,56 @@ pub async fn spendable_coins(
     let client = guard.current_client()?;
 
     let res = client
-        .nymd
+        .nyxd
         .spendable_coins(
-            client.nymd.address().as_ref(),
+            client.nyxd.address().as_ref(),
             block_time.map(Timestamp::from_seconds),
         )
         .await?;
 
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< spendable coins = {}", display);
+    log::info!("<<< spendable coins = {display}");
     Ok(display)
 }
 
 #[tauri::command]
-pub async fn vested_coins(
+pub(crate) async fn spendable_vested_coins(
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query spendable vested coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nyxd
+        .get_spendable_vested_coins(client.nyxd.address().as_ref())
+        .await?;
+
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< spendable vested coins = {display}");
+    Ok(display)
+}
+
+#[tauri::command]
+pub(crate) async fn spendable_reward_coins(
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query spendable reward coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nyxd
+        .get_spendable_reward_coins(client.nyxd.address().as_ref())
+        .await?;
+
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< spendable reward coins = {display}");
+    Ok(display)
+}
+
+#[tauri::command]
+pub(crate) async fn vested_coins(
     vesting_account_address: &str,
     block_time: Option<u64>,
     state: tauri::State<'_, WalletState>,
@@ -65,7 +101,7 @@ pub async fn vested_coins(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .vested_coins(
             vesting_account_address,
             block_time.map(Timestamp::from_seconds),
@@ -73,12 +109,12 @@ pub async fn vested_coins(
         .await?;
 
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< vested coins = {}", display);
+    log::info!("<<< vested coins = {display}");
     Ok(display)
 }
 
 #[tauri::command]
-pub async fn vesting_coins(
+pub(crate) async fn vesting_coins(
     vesting_account_address: &str,
     block_time: Option<u64>,
     state: tauri::State<'_, WalletState>,
@@ -88,7 +124,7 @@ pub async fn vesting_coins(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .vesting_coins(
             vesting_account_address,
             block_time.map(Timestamp::from_seconds),
@@ -96,17 +132,17 @@ pub async fn vesting_coins(
         .await?;
 
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< vesting coins = {}", display);
+    log::info!("<<< vesting coins = {display}");
     Ok(display)
 }
 
 #[tauri::command]
-pub async fn vesting_start_time(
+pub(crate) async fn vesting_start_time(
     vesting_account_address: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<u64, BackendError> {
     log::info!(">>> Query vesting start time");
-    let res = nymd_client!(state)
+    let res = nyxd_client!(state)
         .vesting_start_time(vesting_account_address)
         .await?
         .seconds();
@@ -115,12 +151,12 @@ pub async fn vesting_start_time(
 }
 
 #[tauri::command]
-pub async fn vesting_end_time(
+pub(crate) async fn vesting_end_time(
     vesting_account_address: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<u64, BackendError> {
     log::info!(">>> Query vesting end time");
-    let res = nymd_client!(state)
+    let res = nyxd_client!(state)
         .vesting_end_time(vesting_account_address)
         .await?
         .seconds();
@@ -129,7 +165,7 @@ pub async fn vesting_end_time(
 }
 
 #[tauri::command]
-pub async fn original_vesting(
+pub(crate) async fn original_vesting(
     vesting_account_address: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<OriginalVestingResponse, BackendError> {
@@ -139,7 +175,7 @@ pub async fn original_vesting(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .original_vesting(vesting_account_address)
         .await?;
 
@@ -149,54 +185,153 @@ pub async fn original_vesting(
 }
 
 #[tauri::command]
-pub async fn delegated_free(
-    vesting_account_address: &str,
-    block_time: Option<u64>,
+pub(crate) async fn get_historical_vesting_staking_reward(
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
-    log::info!(">>> Query delegated free");
+    log::info!(">>> Query historical vesting staking reward coins");
     let guard = state.read().await;
+    let client = guard.current_client()?;
 
-    let res = guard
-        .current_client()?
-        .nymd
-        .delegated_free(
-            vesting_account_address,
-            block_time.map(Timestamp::from_seconds),
-        )
+    let res = client
+        .nyxd
+        .get_historical_vesting_staking_reward(client.nyxd.address().as_ref())
         .await?;
-
     let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< delegated free = {}", display);
+    log::info!("<<< historical vesting staking reward coins = {display}");
     Ok(display)
+}
+
+#[tauri::command]
+pub(crate) async fn get_spendable_vested_coins(
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query spendable vested coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nyxd
+        .get_spendable_vested_coins(client.nyxd.address().as_ref())
+        .await?;
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< spendable vested coins = {display}");
+    Ok(display)
+}
+
+#[tauri::command]
+pub(crate) async fn get_spendable_reward_coins(
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query spendable reward coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nyxd
+        .get_spendable_reward_coins(client.nyxd.address().as_ref())
+        .await?;
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< spendable reward coins = {display}");
+    Ok(display)
+}
+
+#[tauri::command]
+pub(crate) async fn get_delegated_coins(
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query delegated coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nyxd
+        .get_delegated_coins(client.nyxd.address().as_ref())
+        .await?;
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< delegated coins = {display}");
+    Ok(display)
+}
+
+#[tauri::command]
+pub(crate) async fn get_pledged_coins(
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query pledged coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nyxd
+        .get_pledged_coins(client.nyxd.address().as_ref())
+        .await?;
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< pledged coins = {display}");
+    Ok(display)
+}
+
+#[tauri::command]
+pub(crate) async fn get_staked_coins(
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query staked coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nyxd
+        .get_staked_coins(client.nyxd.address().as_ref())
+        .await?;
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< staked coins = {display}");
+    Ok(display)
+}
+
+#[tauri::command]
+pub(crate) async fn get_withdrawn_coins(
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query withdrawn coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nyxd
+        .get_withdrawn_coins(client.nyxd.address().as_ref())
+        .await?;
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< pledged coins = {display}");
+    Ok(display)
+}
+
+#[tauri::command]
+pub(crate) async fn delegated_free(
+    _vesting_account_address: &str,
+    _block_time: Option<u64>,
+    _state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query delegated free -> THIS QUERY HAS BEEN REMOVED FROM THE CONTRACT");
+    Err(BackendError::RemovedCommand {
+        name: "vesting::queries::delegated_free".to_string(),
+        alternative: "vesting::queries::get_delegated_coins".to_string(),
+    })
 }
 
 /// Returns the total amount of delegated tokens that have vested
 #[tauri::command]
-pub async fn delegated_vesting(
-    block_time: Option<u64>,
-    vesting_account_address: &str,
-    state: tauri::State<'_, WalletState>,
+pub(crate) async fn delegated_vesting(
+    _block_time: Option<u64>,
+    _vesting_account_address: &str,
+    _state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
-    log::info!(">>> Query delegated vesting");
-    let guard = state.read().await;
-
-    let res = guard
-        .current_client()?
-        .nymd
-        .delegated_vesting(
-            vesting_account_address,
-            block_time.map(Timestamp::from_seconds),
-        )
-        .await?;
-
-    let display = guard.attempt_convert_to_display_dec_coin(res)?;
-    log::info!("<<< delegated_vesting = {}", display);
-    Ok(display)
+    log::info!(">>> Query delegated vesting -> THIS QUERY HAS BEEN REMOVED FROM THE CONTRACT");
+    Err(BackendError::RemovedCommand {
+        name: "vesting::queries::delegated_vesting".to_string(),
+        alternative: "vesting::queries::get_delegated_coins".to_string(),
+    })
 }
 
 #[tauri::command]
-pub async fn vesting_get_mixnode_pledge(
+pub(crate) async fn vesting_get_mixnode_pledge(
     address: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Option<PledgeData>, BackendError> {
@@ -206,7 +341,7 @@ pub async fn vesting_get_mixnode_pledge(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .get_mixnode_pledge(address)
         .await?
         .map(|pledge| PledgeData::from_vesting_contract(pledge, reg))
@@ -217,7 +352,7 @@ pub async fn vesting_get_mixnode_pledge(
 }
 
 #[tauri::command]
-pub async fn vesting_get_gateway_pledge(
+pub(crate) async fn vesting_get_gateway_pledge(
     address: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Option<PledgeData>, BackendError> {
@@ -227,7 +362,7 @@ pub async fn vesting_get_gateway_pledge(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .get_gateway_pledge(address)
         .await?
         .map(|pledge| PledgeData::from_vesting_contract(pledge, reg))
@@ -238,12 +373,12 @@ pub async fn vesting_get_gateway_pledge(
 }
 
 #[tauri::command]
-pub async fn get_current_vesting_period(
+pub(crate) async fn get_current_vesting_period(
     address: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Period, BackendError> {
     log::info!(">>> Query current vesting period");
-    let res = nymd_client!(state)
+    let res = nyxd_client!(state)
         .get_current_vesting_period(address)
         .await?;
     log::info!("<<< {:?}", res);
@@ -251,7 +386,7 @@ pub async fn get_current_vesting_period(
 }
 
 #[tauri::command]
-pub async fn get_account_info(
+pub(crate) async fn get_account_info(
     address: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<VestingAccountInfo, BackendError> {
@@ -259,7 +394,7 @@ pub async fn get_account_info(
     let guard = state.read().await;
     let res = guard.registered_coins()?;
 
-    let vesting_account = guard.current_client()?.nymd.get_account(address).await?;
+    let vesting_account = guard.current_client()?.nyxd.get_account(address).await?;
     let res = VestingAccountInfo::from_vesting_contract(vesting_account, res)?;
 
     log::info!("<<< {:?}", res);

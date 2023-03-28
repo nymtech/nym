@@ -4,10 +4,10 @@
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver};
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_controller::ReplyControllerSender;
-use client_connections::TransmissionLane;
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_task::connections::TransmissionLane;
 use rand::{CryptoRng, Rng};
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
@@ -109,7 +109,7 @@ where
         };
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started InputMessageListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {
@@ -123,7 +123,7 @@ where
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = shutdown.recv_with_delay() => {
                     log::trace!("InputMessageListener: Received shutdown");
                 }
             }

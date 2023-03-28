@@ -21,13 +21,13 @@ use crate::{
     },
     spawn_future,
 };
-use client_connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
-use nymsphinx::acknowledgements::AckKey;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::params::PacketSize;
+use nym_sphinx::acknowledgements::AckKey;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::params::PacketSize;
+use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
@@ -81,7 +81,11 @@ pub struct Config {
 
     /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
     /// for more even though in theory they wouldn't need to.
-    maximum_reply_surb_waiting_period: Duration,
+    maximum_reply_surb_rerequest_waiting_period: Duration,
+
+    /// Defines maximum amount of time the client is going to wait for reply surbs before
+    /// deciding it's never going to get them and would drop all pending messages
+    maximum_reply_surb_drop_waiting_period: Duration,
 
     /// Defines maximum amount of time given reply surb is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
@@ -119,7 +123,8 @@ impl<'a> From<&'a Config> for reply_controller::Config {
             cfg.minimum_reply_surb_request_size,
             cfg.maximum_reply_surb_request_size,
             cfg.maximum_allowed_reply_surb_request_size,
-            cfg.maximum_reply_surb_waiting_period,
+            cfg.maximum_reply_surb_rerequest_waiting_period,
+            cfg.maximum_reply_surb_drop_waiting_period,
             cfg.maximum_reply_surb_age,
             cfg.maximum_reply_key_age,
         )
@@ -161,8 +166,10 @@ impl Config {
                 .maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: base_client_debug_config
                 .maximum_allowed_reply_surb_request_size,
-            maximum_reply_surb_waiting_period: base_client_debug_config
-                .maximum_reply_surb_waiting_period,
+            maximum_reply_surb_rerequest_waiting_period: base_client_debug_config
+                .maximum_reply_surb_rerequest_waiting_period,
+            maximum_reply_surb_drop_waiting_period: base_client_debug_config
+                .maximum_reply_surb_drop_waiting_period,
             maximum_reply_surb_age: base_client_debug_config.maximum_reply_surb_age,
             maximum_reply_key_age: base_client_debug_config.maximum_reply_key_age,
         }
@@ -263,7 +270,7 @@ impl RealMessagesController<OsRng> {
         }
     }
 
-    pub fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
+    pub fn start_with_shutdown(self, shutdown: nym_task::TaskClient) {
         let mut out_queue_control = self.out_queue_control;
         let ack_control = self.ack_control;
         let mut reply_control = self.reply_control;

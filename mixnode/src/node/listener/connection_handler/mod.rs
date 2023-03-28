@@ -5,15 +5,15 @@ use crate::node::listener::connection_handler::packet_processing::{
     MixProcessingResult, PacketProcessor,
 };
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
-use crate::node::ShutdownListener;
+use crate::node::TaskClient;
 use futures::StreamExt;
 use tracing::{error, info, trace, debug, warn};
 use tracing::*;
-use nymsphinx::forwarding::packet::MixPacket;
-use nymsphinx::params::PacketSize;
-use nymsphinx::framing::codec::SphinxCodec;
-use nymsphinx::framing::packet::FramedSphinxPacket;
-use nymsphinx::Delay as SphinxDelay;
+use nym_sphinx::forwarding::packet::MixPacket;
+use nym_sphinx::params::PacketSize;
+use nym_sphinx::framing::codec::SphinxCodec;
+use nym_sphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::Delay as SphinxDelay;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
@@ -63,7 +63,7 @@ impl ConnectionHandler {
         // all processing such, key caching, etc. was done.
         // however, if it was a forward hop, we still need to delay it
         match self.packet_processor.process_received(framed_sphinx_packet) {
-            Err(e) => debug!("We failed to process received sphinx packet - {:?}", e),
+            Err(err) => debug!("We failed to process received sphinx packet - {err}"),
             Ok(res) => match res {
                 MixProcessingResult::ForwardHop(forward_packet, delay) => {
                     self.delay_and_forward_packet(forward_packet, delay)
@@ -79,12 +79,17 @@ impl ConnectionHandler {
         self,
         conn: TcpStream,
         remote: SocketAddr,
-        mut shutdown: ShutdownListener,
+        mut shutdown: TaskClient,
     ) {
         debug!("Starting connection handler for {:?}", remote);
+        shutdown.mark_as_success();
         let mut framed_conn = Framed::new(conn, SphinxCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    trace!("ConnectionHandler: received shutdown");
+                }
                 Some(framed_sphinx_packet) = framed_conn.next() => {
                     match framed_sphinx_packet {
                         Ok(framed_sphinx_packet) => {
@@ -102,16 +107,12 @@ impl ConnectionHandler {
                         }
                         Err(err) => {
                             error!(
-                                "The socket connection got corrupted with error: {:?}. Closing the socket",
-                                err
+                                "The socket connection got corrupted with error: {err}. Closing the socket",
                             );
                             return;
                         }
                     }
                 },
-                _ = shutdown.recv() => {
-                    trace!("ConnectionHandler: received shutdown");
-                }
             }
         }
 

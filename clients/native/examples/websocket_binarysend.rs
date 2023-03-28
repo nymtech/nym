@@ -1,5 +1,5 @@
 use futures::{SinkExt, StreamExt};
-use nymsphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::clients::Recipient;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,
@@ -85,7 +85,7 @@ async fn send_file_without_reply() {
     let (mut ws_stream, _) = connect_async(uri).await.unwrap();
 
     let recipient = get_self_address(&mut ws_stream).await;
-    println!("our full address is: {}", recipient);
+    println!("our full address is: {recipient}");
 
     let read_data = std::fs::read("examples/dummy_file").unwrap();
 

@@ -1,16 +1,16 @@
 use serde::{Serialize, Serializer};
 use std::io;
 use thiserror::Error;
-use validator_client::validator_api::error::ValidatorAPIError;
-use validator_client::{nymd::error::NymdError, ValidatorClientError};
+use validator_client::nym_api::error::NymAPIError;
+use validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 
 // TODO: ask @MS why this even exists
 #[derive(Error, Debug)]
 pub enum TypesError {
     #[error("{source}")]
-    NymdError {
+    NyxdError {
         #[from]
-        source: NymdError,
+        source: NyxdError,
     },
     #[error("{source}")]
     CosmwasmStd {
@@ -23,9 +23,9 @@ pub enum TypesError {
         source: eyre::Report,
     },
     #[error("{source}")]
-    ValidatorApiError {
+    NymApiError {
         #[from]
-        source: ValidatorAPIError,
+        source: NymAPIError,
     },
     #[error("{source}")]
     IOError {
@@ -52,8 +52,8 @@ pub enum TypesError {
         #[from]
         source: cosmwasm_std::DecimalRangeExceeded,
     },
-    #[error("No validator API URL configured")]
-    NoValidatorApiUrlConfigured,
+    #[error("No nym API URL configured")]
+    NoNymApiUrlConfigured,
     #[error("{0} is not a valid amount string")]
     InvalidAmount(String),
     #[error("{0} is not a valid denomination string")]
@@ -88,10 +88,10 @@ impl Serialize for TypesError {
 impl From<ValidatorClientError> for TypesError {
     fn from(e: ValidatorClientError) -> Self {
         match e {
-            ValidatorClientError::ValidatorAPIError { source } => source.into(),
+            ValidatorClientError::NymAPIError { source } => source.into(),
             ValidatorClientError::MalformedUrlProvided(e) => e.into(),
-            ValidatorClientError::NymdError(e) => e.into(),
-            ValidatorClientError::NoAPIUrlAvailable => TypesError::NoValidatorApiUrlConfigured,
+            ValidatorClientError::NyxdError(e) => e.into(),
+            ValidatorClientError::NoAPIUrlAvailable => TypesError::NoNymApiUrlConfigured,
         }
     }
 }

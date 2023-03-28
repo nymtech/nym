@@ -9,7 +9,7 @@ use crate::node::storage::shared_keys::SharedKeysManager;
 use async_trait::async_trait;
 use gateway_requests::registration::handshake::SharedKeys;
 use log::{debug, error};
-use nymsphinx::DestinationAddressBytes;
+use nym_sphinx::DestinationAddressBytes;
 use sqlx::ConnectOptions;
 use std::path::Path;
 
@@ -173,13 +173,13 @@ impl PersistentStorage {
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,
             Err(err) => {
-                error!("Failed to connect to SQLx database: {}", err);
+                error!("Failed to connect to SQLx database: {err}");
                 return Err(err.into());
             }
         };
 
         if let Err(err) = sqlx::migrate!("./migrations").run(&connection_pool).await {
-            error!("Failed to perform migration on the SQLx database: {}", err);
+            error!("Failed to perform migration on the SQLx database: {err}");
             return Err(err.into());
         }
 

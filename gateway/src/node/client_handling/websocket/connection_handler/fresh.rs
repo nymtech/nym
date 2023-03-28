@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
-#[cfg(feature = "coconut")]
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::client_handling::websocket::connection_handler::{
     AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
 };
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
-use crypto::asymmetric::identity;
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
@@ -21,7 +19,8 @@ use gateway_requests::types::{ClientControlRequest, ServerResponse};
 use gateway_requests::{BinaryResponse, PROTOCOL_VERSION};
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
-use nymsphinx::DestinationAddressBytes;
+use nym_crypto::asymmetric::identity;
+use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -30,7 +29,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 
 #[derive(Debug, Error)]
-enum InitialAuthenticationError {
+pub(crate) enum InitialAuthenticationError {
     #[error("Internal gateway storage error")]
     StorageError(#[from] StorageError),
 
@@ -75,8 +74,6 @@ pub(crate) struct FreshHandler<R, S, St> {
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
-
-    #[cfg(feature = "coconut")]
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
 }
 
@@ -98,7 +95,7 @@ where
         local_identity: Arc<identity::KeyPair>,
         storage: St,
         active_clients_store: ActiveClientsStore,
-        #[cfg(feature = "coconut")] coconut_verifier: Arc<CoconutVerifier>,
+        coconut_verifier: Arc<CoconutVerifier>,
     ) -> Self {
         FreshHandler {
             rng,
@@ -108,18 +105,8 @@ where
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
             storage,
-            #[cfg(feature = "coconut")]
             coconut_verifier,
         }
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    /// Check that the local identity matches a given identity.
-    pub(crate) fn check_local_identity(
-        &self,
-        identity: &crypto::asymmetric::identity::PublicKey,
-    ) -> bool {
-        self.local_identity.public_key().eq(identity)
     }
 
     /// Attempts to perform websocket handshake with the remote and upgrades the raw TCP socket
@@ -586,7 +573,7 @@ where
             let msg = match msg {
                 Ok(msg) => msg,
                 Err(err) => {
-                    error!("failed to obtain message from websocket stream! stopping connection handler: {}", err);
+                    error!("failed to obtain message from websocket stream! stopping connection handler: {err}");
                     break;
                 }
             };
@@ -605,7 +592,7 @@ where
                             if let Err(err) =
                                 self.send_websocket_message(err.into_error_message()).await
                             {
-                                debug!("Failed to send authentication error response - {}", err);
+                                debug!("Failed to send authentication error response - {err}");
                                 return None;
                             }
                         }
@@ -614,7 +601,7 @@ where
                                 .send_websocket_message(auth_result.server_response.into())
                                 .await
                             {
-                                debug!("Failed to send authentication response - {}", err);
+                                debug!("Failed to send authentication response - {err}");
                                 return None;
                             }
 
@@ -645,10 +632,7 @@ where
                         )
                         .await
                     {
-                        debug!(
-                            "Failed to send error response during authentication - {}",
-                            err
-                        )
+                        debug!("Failed to send error response during authentication: {err}",)
                     }
                     return None;
                 }
@@ -659,10 +643,10 @@ where
         None
     }
 
-    pub(crate) async fn start_handling(self)
+    pub(crate) async fn start_handling(self, shutdown: nym_task::TaskClient)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        super::handle_connection(self).await
+        super::handle_connection(self, shutdown).await
     }
 }

@@ -1,0 +1,110 @@
+# Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "nym-api"
+version = "1.1.14"
+authors = [
+    "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
+    "Jędrzej Stuczyński <andrew@nymtech.net>",
+    "Drazen Urch <durch@users.noreply.github.com>",
+]
+edition = "2021"
+rust-version = "1.56"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = { workspace = true }
+bs58 = {version = "0.4.0" }
+bip39 = "1"
+cfg-if = "1.0"
+clap = { version = "4.0", features = ["cargo", "derive"] }
+console-subscriber = { version = "0.1.1", optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
+dirs = "4.0"
+futures = "0.3.24"
+humantime-serde = "1.0"
+lazy_static = "1.4.0"
+log = { workspace = true }
+pin-project = "1.0"
+pretty_env_logger = "0.4.0"
+rand = "0.8.5"
+rand-07 = { package = "rand", version = "0.7.3" } # required for compatibility
+reqwest = { version = "0.11.11", features = ["json"] }
+rocket = { version = "0.5.0-rc.2", features = ["json"] }
+rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", rev = "dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
+serde = "1.0"
+serde_json = "1.0"
+tap = "1.0"
+thiserror = "1.0"
+time = { version = "0.3.14", features = ["serde-human-readable", "parsing"] }
+tokio = { version = "1.24.1", features = [
+    "rt-multi-thread",
+    "macros",
+    "signal",
+    "time",
+] }
+tokio-stream = "0.1.11"
+url = "2.2"
+
+ts-rs = {version = "6.1", optional = true}
+
+anyhow = "1.0"
+getset = "0.1.1"
+
+sqlx = { version = "0.6.2", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
+
+okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
+rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
+schemars = { version = "0.8", features = ["preserve_order"] }
+
+## internal
+nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-coconut-interface = { path = "../common/coconut-interface" }
+nym-config = { path = "../common/config" }
+cosmwasm-std = { workspace = true }
+nym-credential-storage = { path = "../common/credential-storage" }
+nym-credentials = { path = "../common/credentials" }
+nym-crypto = { path = "../common/crypto" }
+cw3 = { workspace = true }
+cw4 = { workspace = true }
+nym-dkg = { path = "../common/dkg", features = ["cw-types"] }
+gateway-client = { path = "../common/client-libs/gateway-client" }
+nym-inclusion-probability = { path = "../common/inclusion-probability" }
+nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
+nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
+nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
+nymcoconut = { path = "../common/nymcoconut" }
+nym-sphinx = { path = "../common/nymsphinx" }
+nym-pemstore = { path = "../common/pemstore" }
+nym-task = { path = "../common/task" }
+nym-topology = { path = "../common/topology" }
+nym-api-requests = { path = "nym-api-requests" }
+validator-client = { path = "../common/client-libs/validator-client", features = [
+    "nyxd-client",
+] }
+nym-bin-common = { path = "../common/bin-common" }
+
+[features]
+no-reward = []
+generate-ts = ["ts-rs"]
+
+[build-dependencies]
+tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
+sqlx = { version = "0.6.2", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
+
+[dev-dependencies]
+cw3 = { workspace = true }
+cw-utils = { workspace = true }

@@ -3,10 +3,10 @@
 
 use crate::codec::SphinxCodecError;
 use bytes::{BufMut, BytesMut};
-use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::packet_version::PacketVersion;
-use nymsphinx_params::PacketMode;
-use nymsphinx_types::SphinxPacket;
+use nym_sphinx_params::packet_sizes::PacketSize;
+use nym_sphinx_params::packet_version::PacketVersion;
+use nym_sphinx_params::PacketMode;
+use nym_sphinx_types::SphinxPacket;
 use std::convert::TryFrom;
 
 pub struct FramedSphinxPacket {

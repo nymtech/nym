@@ -1,5 +1,21 @@
 [workspace]
-members = ["coconut-bandwidth", "mixnet", "vesting", "multisig/cw3-flex-multisig", "multisig/cw4-group", "coconut-test", "coconut-dkg"]
+members = [
+    "coconut-bandwidth",
+    "mixnet",
+    "vesting",
+    "multisig/cw3-flex-multisig",
+    "multisig/cw4-group",
+    "coconut-test",
+    "coconut-dkg"
+]
+
+[workspace.package]
+authors = ["Nym Technologies SA"]
+repository = "https://github.com/nymtech/nym"
+homepage = "https://nymtech.net"
+documentation = "https://nymtech.net"
+edition = "2021"
+license = "Apache-2.0"
 
 [profile.release]
 opt-level = 3
@@ -11,3 +27,18 @@ codegen-units = 1
 panic = 'abort'
 incremental = false
 overflow-checks = true
+
+[workspace.dependencies]
+cosmwasm-crypto = "=1.0.0"
+cosmwasm-derive = "=1.0.0"
+cosmwasm-schema = "=1.0.0"
+cosmwasm-std = "=1.0.0"
+cosmwasm-storage = "=1.0.0"
+cw-controllers = "=0.13.4"
+cw-multi-test = "=0.13.4"
+cw-storage-plus = "=0.13.4"
+cw-utils = "=0.13.4"
+cw2 = "=0.13.4"
+cw3 = "=0.13.4"
+cw3-fixed-multisig = "=0.13.4"
+cw4 = "=0.13.4"

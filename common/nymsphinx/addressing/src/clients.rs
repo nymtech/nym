@@ -5,11 +5,12 @@
 // it's already destructed).
 
 use crate::nodes::{NodeIdentity, NODE_IDENTITY_SIZE};
-use crypto::asymmetric::{encryption, identity};
-use nymsphinx_types::Destination;
+use nym_crypto::asymmetric::{encryption, identity};
+use nym_sphinx_types::Destination;
 use serde::de::{Error as SerdeError, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Formatter};
+use std::str::FromStr;
 use thiserror::Error;
 
 // Not entirely sure whether this is the correct place for those, but let's see how it's going
@@ -222,6 +223,14 @@ impl std::fmt::Display for Recipient {
             self.client_encryption_key.to_base58_string(),
             self.gateway.to_base58_string()
         )
+    }
+}
+
+impl FromStr for Recipient {
+    type Err = RecipientFormattingError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Recipient::try_from_base58_string(s)
     }
 }
 

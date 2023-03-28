@@ -4,12 +4,14 @@
 pub use ed25519_dalek::ed25519::signature::Signature as SignatureTrait;
 pub use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
-use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
-use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+use nym_sphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
+use std::fmt::{self, Display, Formatter};
+use std::str::FromStr;
+use thiserror::Error;
+
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
-use std::fmt::{self, Display, Formatter};
-
 #[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
 #[cfg(feature = "serde")]
@@ -17,34 +19,29 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")]
 use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum Ed25519RecoveryError {
-    MalformedBytes(SignatureError),
-    MalformedString(bs58::decode::Error),
-}
+    #[error(transparent)]
+    MalformedBytes(#[from] SignatureError),
 
-impl From<SignatureError> for Ed25519RecoveryError {
-    fn from(err: SignatureError) -> Self {
-        Ed25519RecoveryError::MalformedBytes(err)
-    }
-}
+    #[error("the base58 representation of the public key was malformed - {source}")]
+    MalformedPublicKeyString {
+        #[source]
+        source: bs58::decode::Error,
+    },
 
-impl From<bs58::decode::Error> for Ed25519RecoveryError {
-    fn from(err: bs58::decode::Error) -> Self {
-        Ed25519RecoveryError::MalformedString(err)
-    }
-}
+    #[error("the base58 representation of the private key was malformed - {source}")]
+    MalformedPrivateKeyString {
+        #[source]
+        source: bs58::decode::Error,
+    },
 
-impl fmt::Display for Ed25519RecoveryError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Ed25519RecoveryError::MalformedBytes(err) => write!(f, "malformed bytes - {}", err),
-            Ed25519RecoveryError::MalformedString(err) => write!(f, "malformed string - {}", err),
-        }
-    }
+    #[error("the base58 representation of the signature was malformed - {source}")]
+    MalformedSignatureString {
+        #[source]
+        source: bs58::decode::Error,
+    },
 }
-
-impl std::error::Error for Ed25519RecoveryError {}
 
 /// Keypair for usage in ed25519 EdDSA.
 #[derive(Debug)]
@@ -134,12 +131,22 @@ impl PublicKey {
     }
 
     pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, Ed25519RecoveryError> {
-        let bytes = bs58::decode(val).into_vec()?;
+        let bytes = bs58::decode(val)
+            .into_vec()
+            .map_err(|source| Ed25519RecoveryError::MalformedPublicKeyString { source })?;
         Self::from_bytes(&bytes)
     }
 
     pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), SignatureError> {
         self.0.verify(message, &signature.0)
+    }
+}
+
+impl FromStr for PublicKey {
+    type Err = Ed25519RecoveryError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PublicKey::from_base58_string(s)
     }
 }
 
@@ -211,7 +218,9 @@ impl PrivateKey {
     }
 
     pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, Ed25519RecoveryError> {
-        let bytes = bs58::decode(val).into_vec()?;
+        let bytes = bs58::decode(val)
+            .into_vec()
+            .map_err(|source| Ed25519RecoveryError::MalformedPrivateKeyString { source })?;
         Self::from_bytes(&bytes)
     }
 
@@ -277,7 +286,9 @@ impl Signature {
     }
 
     pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, Ed25519RecoveryError> {
-        let bytes = bs58::decode(val).into_vec()?;
+        let bytes = bs58::decode(val)
+            .into_vec()
+            .map_err(|source| Ed25519RecoveryError::MalformedSignatureString { source })?;
         Self::from_bytes(&bytes)
     }
 

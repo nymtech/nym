@@ -4,11 +4,11 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use tracing::*;
-use nymsphinx::framing::codec::SphinxCodec;
-use nymsphinx::framing::packet::FramedSphinxPacket;
-use nymsphinx::params::PacketMode;
-use nymsphinx::params::packet_sizes::PacketSize;
-use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
+use nym_sphinx::framing::codec::SphinxCodec;
+use nym_sphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::params::PacketMode;
+use nym_sphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
+use nym_sphinx::params::packet_sizes::PacketSize;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
@@ -123,7 +123,7 @@ impl Client {
         // We could have as well used conn.send_all(receiver.map(Ok)), but considering we don't care
         // about neither receiver nor the connection, it doesn't matter which one gets consumed
         if let Err(err) = receiver.map(Ok).forward(conn).await {
-            warn!("Failed to forward packets to {} - {:?}", address, err);
+            warn!("Failed to forward packets to {} - {err}", address);
         }
 
         debug!(

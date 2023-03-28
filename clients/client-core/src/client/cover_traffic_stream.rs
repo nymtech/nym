@@ -7,11 +7,11 @@ use crate::spawn_future;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::acknowledgements::AckKey;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::cover::generate_loop_cover_packet;
-use nymsphinx::params::PacketSize;
-use nymsphinx::utils::sample_poisson_duration;
+use nym_sphinx::acknowledgements::AckKey;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::cover::generate_loop_cover_packet;
+use nym_sphinx::params::PacketSize;
+use nym_sphinx::utils::sample_poisson_duration;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -192,7 +192,7 @@ impl LoopCoverTrafficStream<OsRng> {
                     // However it's still useful to alert the user that the gateway or the link to
                     // the gateway can't keep up. Either due to insufficient bandwidth on the
                     // client side, or that the gateway is overloaded.
-                    log::warn!("Failed to send sphinx packet - gateway or connection to gatway can't keep up");
+                    log::warn!("Failed to send sphinx packet - gateway or connection to gateway can't keep up");
                 }
                 TrySendError::Closed(_) => {
                     log::warn!("Failed to send cover message - channel closed");
@@ -213,7 +213,7 @@ impl LoopCoverTrafficStream<OsRng> {
         tokio::task::yield_now().await;
     }
 
-    pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
+    pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
         // we should set initial delay only when we actually start the stream
         let sampled =
             sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);

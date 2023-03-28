@@ -10,10 +10,11 @@ use futures::StreamExt;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use mixnode_common::packet_processor::processor::ProcessedFinalHop;
-use nymsphinx::forwarding::packet::MixPacket;
-use nymsphinx::framing::codec::SphinxCodec;
-use nymsphinx::framing::packet::FramedSphinxPacket;
-use nymsphinx::DestinationAddressBytes;
+use nym_sphinx::forwarding::packet::MixPacket;
+use nym_sphinx::framing::codec::SphinxCodec;
+use nym_sphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::DestinationAddressBytes;
+use nym_task::TaskClient;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
@@ -142,7 +143,7 @@ impl<St: Storage> ConnectionHandler<St> {
                 .store_processed_packet_payload(client_address, unsent_plaintext)
                 .await
             {
-                Err(err) => error!("Failed to store client data - {}", err),
+                Err(err) => error!("Failed to store client data - {err}"),
                 Ok(_) => trace!("Stored packet for {}", client_address),
             },
             Ok(_) => trace!("Pushed received packet to {}", client_address),
@@ -163,8 +164,8 @@ impl<St: Storage> ConnectionHandler<St> {
 
         let processed_final_hop = match self.packet_processor.process_received(framed_sphinx_packet)
         {
-            Err(e) => {
-                debug!("We failed to process received sphinx packet - {:?}", e);
+            Err(err) => {
+                debug!("We failed to process received sphinx packet - {err}");
                 return;
             }
             Ok(processed_final_hop) => processed_final_hop,
@@ -173,26 +174,39 @@ impl<St: Storage> ConnectionHandler<St> {
         self.handle_processed_packet(processed_final_hop).await
     }
 
-    pub(crate) async fn handle_connection(mut self, conn: TcpStream, remote: SocketAddr) {
+    pub(crate) async fn handle_connection(
+        mut self,
+        conn: TcpStream,
+        remote: SocketAddr,
+        mut shutdown: TaskClient,
+    ) {
         debug!("Starting connection handler for {:?}", remote);
+        shutdown.mark_as_success();
         let mut framed_conn = Framed::new(conn, SphinxCodec);
-        while let Some(framed_sphinx_packet) = framed_conn.next().await {
-            match framed_sphinx_packet {
-                Ok(framed_sphinx_packet) => {
-                    // TODO: benchmark spawning tokio task with full processing vs just processing it
-                    // synchronously under higher load in single and multi-threaded situation.
-
-                    // in theory we could process multiple sphinx packet from the same connection in parallel,
-                    // but we already handle multiple concurrent connections so if anything, making
-                    // that change would only slow things down
-                    self.handle_received_packet(framed_sphinx_packet).await;
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("ConnectionHandler: received shutdown");
                 }
-                Err(err) => {
-                    error!(
-                        "The socket connection got corrupted with error: {:?}. Closing the socket",
-                        err
-                    );
-                    return;
+                Some(framed_sphinx_packet) = framed_conn.next() => {
+                    match framed_sphinx_packet {
+                        Ok(framed_sphinx_packet) => {
+                            // TODO: benchmark spawning tokio task with full processing vs just processing it
+                            // synchronously under higher load in single and multi-threaded situation.
+
+                            // in theory we could process multiple sphinx packet from the same connection in parallel,
+                            // but we already handle multiple concurrent connections so if anything, making
+                            // that change would only slow things down
+                            self.handle_received_packet(framed_sphinx_packet).await;
+                        }
+                        Err(err) => {
+                            error!(
+                                "The socket connection got corrupted with error: {err}. Closing the socket",
+                            );
+                            return;
+                        }
+                    }
                 }
             }
         }

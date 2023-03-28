@@ -3,9 +3,9 @@
 
 use clap::{CommandFactory, Parser, Subcommand};
 use log::{error, warn};
-use logging::setup_logging;
+use nym_bin_common::logging::setup_logging;
 use nym_cli_commands::context::{get_network_details, ClientArgs};
-use validator_client::nymd::AccountId;
+use validator_client::nyxd::AccountId;
 
 mod completion;
 mod validator;
@@ -28,15 +28,15 @@ pub(crate) struct Cli {
 
     #[clap(long, global = true)]
     #[clap(
-        help = "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file"
+        help = "Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file"
     )]
-    pub(crate) nymd_url: Option<String>,
+    pub(crate) nyxd_url: Option<String>,
 
     #[clap(long, global = true)]
     #[clap(
         help = "Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file"
     )]
-    pub(crate) validator_api_url: Option<String>,
+    pub(crate) nym_api_url: Option<String>,
 
     #[clap(long, global = true)]
     #[clap(
@@ -76,8 +76,8 @@ pub(crate) enum Commands {
 
 async fn execute(cli: Cli) -> anyhow::Result<()> {
     let args = ClientArgs {
-        nymd_url: cli.nymd_url,
-        validator_api_url: cli.validator_api_url,
+        nyxd_url: cli.nyxd_url,
+        nym_api_url: cli.nym_api_url,
         mnemonic: cli.mnemonic,
         mixnet_contract_address: cli.mixnet_contract_address,
         vesting_contract_address: cli.vesting_contract_address,

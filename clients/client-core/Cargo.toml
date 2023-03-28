@@ -1,48 +1,56 @@
 [package]
 name = "client-core"
-version = "1.1.4"
+version = "1.1.13"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
+rust-version = "1.66"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = { version = "0.1.58" }
+async-trait = { workspace = true }
 dirs = "4.0"
 dashmap = "5.4.0"
 futures = "0.3"
 humantime-serde = "1.0"
-log = "0.4"
+log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.89"
 tap = "1.0.1"
 thiserror = "1.0.34"
 url = { version ="2.2", features = ["serde"] }
-tokio = { version = "1.21.2", features = ["macros"]}
+tungstenite = { version = "0.13.0", default-features = false }
+tokio = { version = "1.24.1", features = ["macros"]}
 time = "0.3.17"
 
 # internal
-config = { path = "../../common/config" }
-client-connections = { path = "../../common/client-connections" }
-crypto = { path = "../../common/crypto" }
+nym-config = { path = "../../common/config" }
+nym-crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 #gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
 gateway-requests = { path = "../../gateway/gateway-requests" }
-nonexhaustive-delayqueue = { path = "../../common/nonexhaustive-delayqueue" }
-nymsphinx = { path = "../../common/nymsphinx" }
-pemstore = { path = "../../common/pemstore" }
-topology = { path = "../../common/topology" }
+nym-nonexhaustive-delayqueue = { path = "../../common/nonexhaustive-delayqueue" }
+nym-sphinx = { path = "../../common/nymsphinx" }
+nym-pemstore = { path = "../../common/pemstore" }
+nym-topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
-task = { path = "../../common/task" }
+nym-task = { path = "../../common/task" }
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.validator-client]
+path = "../../common/client-libs/validator-client"
+features = ["nyxd-client"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
-version = "0.1.9"
+version = "0.1.11"
 features = ["time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "1.21.2"
+version = "1.24.1"
 features = ["time"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
+version = "0.14"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 version = "0.6.2"
@@ -65,6 +73,7 @@ features = ["futures"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
 path = "../../common/wasm-utils"
+features = ["websocket"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.time]
 version = "0.3.17"
@@ -74,12 +83,11 @@ features = ["wasm-bindgen"]
 tempfile = "3.1.0"
 
 [build-dependencies]
-tokio = { version = "1.21.2", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 
 [features]
 default = []
 fs-surb-storage = ["sqlx"]
 wasm = ["gateway-client/wasm"]
-coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
 

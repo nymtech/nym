@@ -37,7 +37,7 @@ where
     pub async fn flush_on_shutdown(
         mut self,
         mem_state: CombinedReplyStorage,
-        mut shutdown: task::ShutdownListener,
+        mut shutdown: nym_task::TaskClient,
     ) {
         use log::{debug, error, info, warn};
 

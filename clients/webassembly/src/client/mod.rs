@@ -4,17 +4,20 @@
 use self::config::Config;
 use crate::client::helpers::InputSender;
 use crate::client::response_pusher::ResponsePusher;
-use client_connections::TransmissionLane;
-use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
+use client_core::client::base_client::{
+    BaseClientBuilder, ClientInput, ClientOutput, CredentialsToggle,
+};
 use client_core::client::replies::reply_storage::browser_backend;
 use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
 use gateway_client::bandwidth::BandwidthController;
+use gateway_client::wasm_mockups::SigningNyxdClient;
 use js_sys::Promise;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_task::connections::TransmissionLane;
+use nym_task::TaskManager;
 use rand::rngs::OsRng;
 use std::sync::Arc;
-use task::ShutdownNotifier;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::{console_error, console_log};
@@ -30,7 +33,7 @@ pub struct NymClient {
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
-    _shutdown: ShutdownNotifier,
+    _task_manager: TaskManager,
 }
 
 #[wasm_bindgen]
@@ -45,7 +48,7 @@ pub struct NymClientBuilder {
     on_message: js_sys::Function,
 
     // unimplemented:
-    bandwidth_controller: Option<BandwidthController>,
+    bandwidth_controller: Option<BandwidthController<SigningNyxdClient>>,
     disabled_credentials: bool,
 }
 
@@ -92,14 +95,20 @@ impl NymClientBuilder {
         future_to_promise(async move {
             console_log!("Starting the wasm client");
 
+            let disabled_credentials = if self.disabled_credentials {
+                CredentialsToggle::Disabled
+            } else {
+                CredentialsToggle::Enabled
+            };
+
             let base_builder = BaseClientBuilder::new(
                 &self.config.gateway_endpoint,
                 &self.config.debug,
                 self.key_manager,
                 self.bandwidth_controller,
                 self.reply_surb_storage_backend,
-                self.disabled_credentials,
-                vec![self.config.validator_api_url.clone()],
+                disabled_credentials,
+                vec![self.config.nym_api_url.clone()],
             );
 
             let self_address = base_builder.as_mix_recipient().to_string();
@@ -121,7 +130,7 @@ impl NymClientBuilder {
             Ok(JsValue::from(NymClient {
                 self_address,
                 client_input: Arc::new(client_input),
-                _shutdown: started_client.shutdown_notifier,
+                _task_manager: started_client.task_manager,
             }))
         })
     }

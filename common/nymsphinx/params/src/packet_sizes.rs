@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::FRAG_ID_LEN;
-use nymsphinx_types::header::HEADER_SIZE;
-use nymsphinx_types::PAYLOAD_OVERHEAD_SIZE;
+use nym_sphinx_types::header::HEADER_SIZE;
+use nym_sphinx_types::PAYLOAD_OVERHEAD_SIZE;
 use std::convert::TryFrom;
 use std::str::FromStr;
+use thiserror::Error;
 
 // it's up to the smart people to figure those values out : )
 const REGULAR_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 2 * 1024;
@@ -19,7 +20,6 @@ const ACK_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + ACK_IV_SIZE
 const EXTENDED_PACKET_SIZE_8: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 8 * 1024;
 const EXTENDED_PACKET_SIZE_16: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 16 * 1024;
 const EXTENDED_PACKET_SIZE_32: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 32 * 1024;
-
 const EXTENDED_PACKET_SIZE_10: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 10 * 1024;
 const EXTENDED_PACKET_SIZE_15: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 15 * 1024;
 const EXTENDED_PACKET_SIZE_20: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 20 * 1024;
@@ -31,16 +31,23 @@ const EXTENDED_PACKET_SIZE_200: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 20
 const EXTENDED_PACKET_SIZE_250: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 250 * 1024;
 const EXTENDED_PACKET_SIZE_500: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 500 * 1024;
 
-#[derive(Debug)]
-pub struct InvalidPacketSize;
+#[derive(Debug, Error)]
+pub enum InvalidPacketSize {
+    #[error("{received} is not a valid packet size tag")]
+    UnknownPacketTag { received: u8 },
 
-#[derive(Debug)]
-pub struct InvalidExtendedPacketSize;
+    #[error("{received} is not a valid extended packet size variant")]
+    UnknownExtendedPacketVariant { received: String },
+
+    #[error("{received} does not correspond with any known packet size")]
+    UnknownPacketSize { received: usize },
+}
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum PacketSize {
     // for example instant messaging use case
+    #[default]
     RegularPacket = 1,
 
     // for sending SURB-ACKs
@@ -88,7 +95,9 @@ impl FromStr for PacketSize {
             "extended200" => Ok(Self::ExtendedPacket200),
             "extended250" => Ok(Self::ExtendedPacket250),
             "extended500" => Ok(Self::ExtendedPacket500),
-            _ => Err(InvalidPacketSize),
+            s => Err(InvalidPacketSize::UnknownExtendedPacketVariant {
+                received: s.to_string(),
+            }),
         }
     }
 }
@@ -96,7 +105,7 @@ impl FromStr for PacketSize {
 impl TryFrom<u8> for PacketSize {
     type Error = InvalidPacketSize;
 
-    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             _ if value == (PacketSize::RegularPacket as u8) => Ok(Self::RegularPacket),
             _ if value == (PacketSize::AckPacket as u8) => Ok(Self::AckPacket),
@@ -113,7 +122,7 @@ impl TryFrom<u8> for PacketSize {
             _ if value == (PacketSize::ExtendedPacket200 as u8) => Ok(Self::ExtendedPacket200),
             _ if value == (PacketSize::ExtendedPacket250 as u8) => Ok(Self::ExtendedPacket250),
             _ if value == (PacketSize::ExtendedPacket500 as u8) => Ok(Self::ExtendedPacket500),
-            _ => Err(InvalidPacketSize),
+            v => Err(InvalidPacketSize::UnknownPacketTag { received: v }),
         }
     }
 }
@@ -147,7 +156,7 @@ impl PacketSize {
         self.size() - HEADER_SIZE
     }
 
-    pub fn get_type(size: usize) -> std::result::Result<Self, InvalidPacketSize> {
+    pub fn get_type(size: usize) -> Result<Self, InvalidPacketSize> {
         if PacketSize::RegularPacket.size() == size {
             Ok(PacketSize::RegularPacket)
         } else if PacketSize::AckPacket.size() == size {
@@ -179,7 +188,7 @@ impl PacketSize {
         } else if PacketSize::ExtendedPacket500.size() == size {
             Ok(PacketSize::ExtendedPacket500)
         } else {
-            Err(InvalidPacketSize)
+            Err(InvalidPacketSize::UnknownPacketSize { received: size })
         }
     }
 
@@ -211,9 +220,16 @@ impl PacketSize {
     }
 }
 
-impl Default for PacketSize {
-    fn default() -> Self {
-        PacketSize::RegularPacket
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::AckEncryptionAlgorithm;
+    use nym_crypto::symmetric::stream_cipher::IvSizeUser;
+
+    #[test]
+    fn ack_iv_size_assertion() {
+        let iv_size = AckEncryptionAlgorithm::iv_size();
+        assert_eq!(iv_size, ACK_IV_SIZE);
     }
 }
 

@@ -3,11 +3,11 @@
 
 use std::future::Future;
 
-use mixnet_contract_common::GatewayBond;
-use task::ShutdownListener;
+use nym_mixnet_contract_common::GatewayBond;
+use nym_task::TaskClient;
 use validator_client::models::MixNodeBondAnnotated;
-use validator_client::nymd::error::NymdError;
-use validator_client::nymd::{Paging, QueryNymdClient, ValidatorResponse};
+use validator_client::nyxd::error::NyxdError;
+use validator_client::nyxd::{Paging, QueryNyxdClient, ValidatorResponse};
 use validator_client::ValidatorClientError;
 
 use crate::mix_nodes::CACHE_REFRESH_RATE;
@@ -15,24 +15,24 @@ use crate::state::ExplorerApiStateContext;
 
 pub(crate) struct ExplorerApiTasks {
     state: ExplorerApiStateContext,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl ExplorerApiTasks {
-    pub(crate) fn new(state: ExplorerApiStateContext, shutdown: ShutdownListener) -> Self {
+    pub(crate) fn new(state: ExplorerApiStateContext, shutdown: TaskClient) -> Self {
         ExplorerApiTasks { state, shutdown }
     }
 
     // a helper to remove duplicate code when grabbing active/rewarded/all mixnodes
     async fn retrieve_mixnodes<'a, F, Fut>(&'a self, f: F) -> Vec<MixNodeBondAnnotated>
     where
-        F: FnOnce(&'a validator_client::Client<QueryNymdClient>) -> Fut,
+        F: FnOnce(&'a validator_client::Client<QueryNyxdClient>) -> Fut,
         Fut: Future<Output = Result<Vec<MixNodeBondAnnotated>, ValidatorClientError>>,
     {
         let bonds = match f(&self.state.inner.validator_client.0).await {
             Ok(result) => result,
-            Err(e) => {
-                error!("Unable to retrieve mixnode bonds: {:?}", e);
+            Err(err) => {
+                error!("Unable to retrieve mixnode bonds: {err}");
                 vec![]
             }
         };
@@ -43,7 +43,7 @@ impl ExplorerApiTasks {
 
     async fn retrieve_all_mixnodes(&self) -> Vec<MixNodeBondAnnotated> {
         info!("About to retrieve all mixnode bonds...");
-        self.retrieve_mixnodes(validator_client::Client::get_cached_mixnodes_detailed)
+        self.retrieve_mixnodes(validator_client::Client::get_cached_mixnodes_detailed_unfiltered)
             .await
     }
 
@@ -57,14 +57,14 @@ impl ExplorerApiTasks {
             .await
     }
 
-    async fn retrieve_all_validators(&self) -> Result<ValidatorResponse, NymdError> {
+    async fn retrieve_all_validators(&self) -> Result<ValidatorResponse, NyxdError> {
         info!("About to retrieve all validators...");
         let height = self
             .state
             .inner
             .validator_client
             .0
-            .nymd
+            .nyxd
             .get_current_block_height()
             .await?;
         let response: ValidatorResponse = self
@@ -72,7 +72,7 @@ impl ExplorerApiTasks {
             .inner
             .validator_client
             .0
-            .nymd
+            .nyxd
             .get_validators(height.value(), Paging::All)
             .await?;
         info!("Fetched {} validators", response.validators.len());
@@ -115,8 +115,8 @@ impl ExplorerApiTasks {
     async fn update_validators_cache(&self) {
         match self.retrieve_all_validators().await {
             Ok(response) => self.state.inner.validators.update_cache(response).await,
-            Err(e) => {
-                error!("Failed to get validators: {:?}", e)
+            Err(err) => {
+                error!("Failed to get validators: {err}")
             }
         }
     }
@@ -124,8 +124,8 @@ impl ExplorerApiTasks {
     async fn update_gateways_cache(&self) {
         match self.retrieve_all_gateways().await {
             Ok(response) => self.state.inner.gateways.update_cache(response).await,
-            Err(e) => {
-                error!("Failed to get gateways: {:?}", e)
+            Err(err) => {
+                error!("Failed to get gateways: {err}")
             }
         }
     }

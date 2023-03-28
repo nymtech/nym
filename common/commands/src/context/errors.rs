@@ -11,14 +11,14 @@ pub enum ContextError {
     #[error("failed to parse mnemonic - {0}")]
     Bip39Error(#[from] bip39::Error),
 
-    // there are lots of error that can occur in the nymd client, so just pass through their display details
+    // there are lots of error that can occur in the nyxd client, so just pass through their display details
     // TODO: improve this to return known errors
     #[error("failed to create client - {0}")]
-    NymdError(String),
+    NyxdError(String),
 
-    #[error("{0}")]
-    NymdErrorPassthrough(#[from] validator_client::nymd::error::NymdError),
+    #[error(transparent)]
+    NyxdErrorPassthrough(#[from] validator_client::nyxd::error::NyxdError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     ValidatorClientError(#[from] validator_client::ValidatorClientError),
 }

@@ -1,8 +1,12 @@
-import { createTheme, Palette, PaletteOptions, ThemeOptions } from '@mui/material/styles';
+import { createTheme, Palette, ThemeOptions } from '@mui/material/styles';
 import { PaletteMode } from '@mui/material';
-import { darkMode, lightMode, nymPalette, NymPalette, variantToMUIPalette } from './common';
-import { NymWalletPalette, nymWalletPallete } from './wallet';
-import { networkExplorerPalette, NetworkExplorerPalette } from './network-explorer';
+import { nymPalette, NymPalette } from './common';
+// eslint-disable-next-line import/no-cycle
+import { NymWalletPalette } from './wallet';
+// eslint-disable-next-line import/no-cycle
+import { NetworkExplorerPalette } from './network-explorer';
+// eslint-disable-next-line import/no-cycle
+import { createDarkModePalette, createLightModePalette } from './utils';
 
 /**
  * To use the theme, copy the file in `../../template/mui-theme.d.ts` into `src/typings/mui-theme.d.ts` in your project.
@@ -29,30 +33,6 @@ export interface NymTheme {
  * Type use by MUI's `createTheme` method
  */
 export type NymPaletteWithExtensionsOptions = Partial<NymPaletteWithExtensions>;
-
-/**
- * Returns the Nym palette for light mode.
- */
-export const createLightModePalette = (): PaletteOptions & NymPaletteWithExtensionsOptions => ({
-  nym: {
-    ...nymPalette,
-    ...nymWalletPallete(lightMode),
-    ...networkExplorerPalette(lightMode),
-  },
-  ...variantToMUIPalette(lightMode),
-});
-
-/**
- * Returns the Nym palette for dark mode.
- */
-export const createDarkModePalette = (): PaletteOptions & NymPaletteWithExtensionsOptions => ({
-  nym: {
-    ...nymPalette,
-    ...nymWalletPallete(darkMode),
-    ...networkExplorerPalette(darkMode),
-  },
-  ...variantToMUIPalette(darkMode),
-});
 
 /**
  * Gets the theme options to be passed to `createTheme`.
@@ -84,6 +64,7 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       ].join(','),
       fontSize: 14,
       fontWeightRegular: 500,
+      fontWeightMedium: 600,
       button: {
         textTransform: 'none',
         fontWeight: '600',

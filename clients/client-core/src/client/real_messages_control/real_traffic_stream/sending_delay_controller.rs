@@ -1,13 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::get_time_now;
+use crate::client::helpers::{get_time_now, Instant};
 use std::time::Duration;
-
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::time;
-#[cfg(target_arch = "wasm32")]
-use wasm_timer;
 
 // The minimum time between increasing the average delay between packets. If we hit the ceiling in
 // the available buffer space we want to take somewhat swift action, but we still need to give a
@@ -39,19 +34,11 @@ pub(crate) struct SendingDelayController {
     lower_bound: u32,
 
     /// To make sure we don't change the multiplier to fast, we limit a change to some duration
-    #[cfg(not(target_arch = "wasm32"))]
-    time_when_changed: time::Instant,
-
-    #[cfg(target_arch = "wasm32")]
-    time_when_changed: wasm_timer::Instant,
+    time_when_changed: Instant,
 
     /// If we have a long enough time without any backpressure detected we try reducing the sending
     /// delay multiplier
-    #[cfg(not(target_arch = "wasm32"))]
-    time_when_backpressure_detected: time::Instant,
-
-    #[cfg(target_arch = "wasm32")]
-    time_when_backpressure_detected: wasm_timer::Instant,
+    time_when_backpressure_detected: Instant,
 }
 
 impl Default for SendingDelayController {
@@ -77,10 +64,12 @@ impl SendingDelayController {
         self.current_multiplier
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn min_multiplier(&self) -> u32 {
         self.lower_bound
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn max_multiplier(&self) -> u32 {
         self.upper_bound
     }

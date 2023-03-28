@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
-use super::ShutdownListener;
+use super::TaskClient;
 
 // convenience aliases
 type PacketsMap = HashMap<String, u64>;
@@ -211,14 +211,14 @@ impl CurrentPacketData {
 struct UpdateHandler {
     current_data: CurrentPacketData,
     update_receiver: PacketDataReceiver,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl UpdateHandler {
     fn new(
         current_data: CurrentPacketData,
         update_receiver: PacketDataReceiver,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         UpdateHandler {
             current_data,
@@ -293,7 +293,7 @@ struct StatsUpdater {
     updating_delay: Duration,
     current_packet_data: CurrentPacketData,
     current_stats: SharedNodeStats,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl StatsUpdater {
@@ -301,7 +301,7 @@ impl StatsUpdater {
         updating_delay: Duration,
         current_packet_data: CurrentPacketData,
         current_stats: SharedNodeStats,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         StatsUpdater {
             updating_delay,
@@ -335,11 +335,11 @@ impl StatsUpdater {
 struct PacketStatsConsoleLogger {
     logging_delay: Duration,
     stats: SharedNodeStats,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl PacketStatsConsoleLogger {
-    fn new(logging_delay: Duration, stats: SharedNodeStats, shutdown: ShutdownListener) -> Self {
+    fn new(logging_delay: Duration, stats: SharedNodeStats, shutdown: TaskClient) -> Self {
         PacketStatsConsoleLogger {
             logging_delay,
             stats,
@@ -451,7 +451,7 @@ impl Controller {
     pub(crate) fn new(
         logging_delay: Duration,
         stats_updating_delay: Duration,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         let (sender, receiver) = mpsc::unbounded();
         let shared_packet_data = CurrentPacketData::new();
@@ -503,13 +503,13 @@ impl Controller {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use task::ShutdownNotifier;
+    use nym_task::TaskManager;
 
     #[tokio::test]
     async fn node_stats_reported_are_received() {
         let logging_delay = Duration::from_millis(20);
         let stats_updating_delay = Duration::from_millis(10);
-        let shutdown = ShutdownNotifier::default();
+        let shutdown = TaskManager::default();
         let node_stats_controller =
             Controller::new(logging_delay, stats_updating_delay, shutdown.subscribe());
 

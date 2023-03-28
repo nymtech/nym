@@ -1,4 +1,5 @@
 import {
+  API_BASE_URL,
   BLOCK_API,
   COUNTRY_DATA_API,
   GATEWAYS_API,
@@ -9,13 +10,13 @@ import {
   OVERVIEW_API,
   UPTIME_STORY_API,
   VALIDATORS_API,
+  SERVICE_PROVIDERS,
 } from './constants';
 
 import {
   CountryDataResponse,
   DelegationsResponse,
   UniqDelegationsResponse,
-  GatewayResponse,
   GatewayReportResponse,
   UptimeStoryResponse,
   MixNodeDescriptionResponse,
@@ -27,6 +28,10 @@ import {
   StatusResponse,
   SummaryOverviewResponse,
   ValidatorsResponse,
+  Environment,
+  GatewayBondAnnotated,
+  GatewayBond,
+  DirectoryService,
 } from '../typeDefs/explorer-api';
 
 function getFromCache(key: string) {
@@ -61,6 +66,7 @@ export class Api {
     if (cachedMixnodes) {
       return cachedMixnodes;
     }
+
     const res = await fetch(MIXNODES_API);
     const json = await res.json();
     storeInCache('mixnodes', JSON.stringify(json));
@@ -89,9 +95,13 @@ export class Api {
     return response.json();
   };
 
-  static fetchGateways = async (): Promise<GatewayResponse> => {
+  static fetchGateways = async (): Promise<GatewayBond[]> => {
     const res = await fetch(GATEWAYS_API);
-    return res.json();
+    const gatewaysAnnotated: GatewayBondAnnotated[] = await res.json();
+    return gatewaysAnnotated.map(({ gateway_bond, node_performance }) => ({
+      ...gateway_bond,
+      node_performance,
+    }));
   };
 
   static fetchGatewayUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>
@@ -142,4 +152,15 @@ export class Api {
 
   static fetchUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>
     (await fetch(`${UPTIME_STORY_API}/${id}/history`)).json();
+
+  static fetchServiceProviders = async (): Promise<DirectoryService[]> => {
+    const res = await fetch(SERVICE_PROVIDERS);
+    const json = await res.json();
+    return json;
+  };
 }
+
+export const getEnvironment = (): Environment => {
+  const matchEnv = (env: Environment) => API_BASE_URL?.toLocaleLowerCase().includes(env) && env;
+  return matchEnv('sandbox') || matchEnv('qa') || 'mainnet';
+};

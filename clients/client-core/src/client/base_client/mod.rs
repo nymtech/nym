@@ -15,41 +15,85 @@ use crate::client::replies::reply_controller::{ReplyControllerReceiver, ReplyCon
 use crate::client::replies::reply_storage::{
     CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
 };
+use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, DebugConfig, GatewayEndpointConfig};
 use crate::error::ClientCoreError;
 use crate::spawn_future;
-use client_connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
-use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
+#[cfg(target_arch = "wasm32")]
+use gateway_client::wasm_mockups::CosmWasmClient;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
 };
 use log::{debug, info};
-use nymsphinx::acknowledgements::AckKey;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::addressing::nodes::NodeIdentity;
+use nym_crypto::asymmetric::{encryption, identity};
+use nym_sphinx::acknowledgements::AckKey;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::nodes::NodeIdentity;
+use nym_sphinx::receiver::ReconstructedMessage;
+use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
+use nym_task::{TaskClient, TaskManager};
+use nym_topology::provider_trait::TopologyProvider;
 use std::sync::Arc;
 use std::time::Duration;
 use tap::TapFallible;
-use task::{ShutdownListener, ShutdownNotifier};
 use url::Url;
+
+#[cfg(not(target_arch = "wasm32"))]
+use validator_client::nyxd::CosmWasmClient;
+
+use super::received_buffer::ReceivedBufferMessage;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod non_wasm_helpers;
 
+pub mod helpers;
+
+#[derive(Clone)]
 pub struct ClientInput {
-    pub shared_lane_queue_lengths: LaneQueueLengths,
     pub connection_command_sender: ConnectionCommandSender,
     pub input_sender: InputMessageSender,
 }
 
+impl ClientInput {
+    pub async fn send(
+        &self,
+        message: InputMessage,
+    ) -> Result<(), tokio::sync::mpsc::error::SendError<InputMessage>> {
+        self.input_sender.send(message).await
+    }
+}
+
+#[derive(Clone)]
 pub struct ClientOutput {
     pub received_buffer_request_sender: ReceivedBufferRequestSender,
+}
+
+impl ClientOutput {
+    pub fn register_receiver(
+        &mut self,
+    ) -> Result<mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>, ClientCoreError> {
+        let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();
+
+        self.received_buffer_request_sender
+            .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
+                reconstructed_sender,
+            ))
+            .map_err(|_| ClientCoreError::FailedToRegisterReceiver)?;
+
+        Ok(reconstructed_receiver)
+    }
+}
+
+pub struct ClientState {
+    pub shared_lane_queue_lengths: LaneQueueLengths,
+    pub reply_controller_sender: ReplyControllerSender,
+    pub topology_accessor: TopologyAccessor,
 }
 
 pub enum ClientInputStatus {
@@ -80,36 +124,65 @@ impl ClientOutputStatus {
     }
 }
 
-pub struct BaseClientBuilder<'a, B> {
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum CredentialsToggle {
+    Enabled,
+    Disabled,
+}
+
+impl CredentialsToggle {
+    pub fn is_enabled(&self) -> bool {
+        self == &CredentialsToggle::Enabled
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        self == &CredentialsToggle::Disabled
+    }
+}
+
+impl From<bool> for CredentialsToggle {
+    fn from(value: bool) -> Self {
+        if value {
+            CredentialsToggle::Enabled
+        } else {
+            CredentialsToggle::Disabled
+        }
+    }
+}
+
+pub struct BaseClientBuilder<'a, B, C: Clone> {
     // due to wasm limitations I had to split it like this : (
     gateway_config: &'a GatewayEndpointConfig,
     debug_config: &'a DebugConfig,
     disabled_credentials: bool,
-    validator_api_endpoints: Vec<Url>,
+    nym_api_endpoints: Vec<Url>,
     reply_storage_backend: B,
 
-    bandwidth_controller: Option<BandwidthController>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+    bandwidth_controller: Option<BandwidthController<C>>,
     key_manager: KeyManager,
 }
 
-impl<'a, B> BaseClientBuilder<'a, B>
+impl<'a, B, C> BaseClientBuilder<'a, B, C>
 where
     B: ReplyStorageBackend + Send + Sync + 'static,
+    C: CosmWasmClient + Sync + Send + Clone + 'static,
 {
     pub fn new_from_base_config<T>(
         base_config: &'a Config<T>,
         key_manager: KeyManager,
-        bandwidth_controller: Option<BandwidthController>,
+        bandwidth_controller: Option<BandwidthController<C>>,
         reply_storage_backend: B,
-    ) -> BaseClientBuilder<'a, B> {
+    ) -> BaseClientBuilder<'a, B, C> {
         BaseClientBuilder {
             gateway_config: base_config.get_gateway_endpoint_config(),
             debug_config: base_config.get_debug_config(),
             disabled_credentials: base_config.get_disabled_credentials_mode(),
-            validator_api_endpoints: base_config.get_validator_api_endpoints(),
+            nym_api_endpoints: base_config.get_nym_api_endpoints(),
             bandwidth_controller,
             reply_storage_backend,
             key_manager,
+            custom_topology_provider: None,
         }
     }
 
@@ -117,20 +190,26 @@ where
         gateway_config: &'a GatewayEndpointConfig,
         debug_config: &'a DebugConfig,
         key_manager: KeyManager,
-        bandwidth_controller: Option<BandwidthController>,
+        bandwidth_controller: Option<BandwidthController<C>>,
         reply_storage_backend: B,
-        disabled_credentials: bool,
-        validator_api_endpoints: Vec<Url>,
-    ) -> BaseClientBuilder<'a, B> {
+        credentials_toggle: CredentialsToggle,
+        nym_api_endpoints: Vec<Url>,
+    ) -> BaseClientBuilder<'a, B, C> {
         BaseClientBuilder {
             gateway_config,
             debug_config,
-            disabled_credentials,
-            validator_api_endpoints,
-            bandwidth_controller,
+            disabled_credentials: credentials_toggle.is_disabled(),
+            nym_api_endpoints,
             reply_storage_backend,
+            custom_topology_provider: None,
+            bandwidth_controller,
             key_manager,
         }
+    }
+
+    pub fn with_topology_provider(mut self, provider: Box<dyn TopologyProvider>) -> Self {
+        self.custom_topology_provider = Some(provider);
+        self
     }
 
     pub fn as_mix_recipient(&self) -> Recipient {
@@ -151,7 +230,7 @@ where
         self_address: Recipient,
         topology_accessor: TopologyAccessor,
         mix_tx: BatchMixMessageSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         info!("Starting loop cover traffic stream...");
 
@@ -185,7 +264,7 @@ where
         reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         info!("Starting real traffic stream...");
 
@@ -212,7 +291,7 @@ where
         mixnet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         info!("Starting received messages buffer controller...");
         ReceivedMessagesBufferController::new(
@@ -229,28 +308,25 @@ where
         &mut self,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
-        shutdown: ShutdownListener,
-    ) -> Result<GatewayClient, ClientCoreError<B>> {
+        shutdown: TaskClient,
+    ) -> Result<GatewayClient<C>, ClientCoreError> {
         let gateway_id = self.gateway_config.gateway_id.clone();
         if gateway_id.is_empty() {
             return Err(ClientCoreError::GatewayIdUnknown);
         }
-        let gateway_owner = self.gateway_config.gateway_owner.clone();
-        if gateway_owner.is_empty() {
-            return Err(ClientCoreError::GatewayOwnerUnknown);
-        }
         let gateway_address = self.gateway_config.gateway_listener.clone();
         if gateway_address.is_empty() {
-            return Err(ClientCoreError::GatwayAddressUnknown);
+            return Err(ClientCoreError::GatewayAddressUnknown);
         }
 
         let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
             .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
         // disgusting wasm workaround since there's no key persistence there (nor `client init`)
-        let shared_key = if self.key_manager.gateway_key_set() {
+        let shared_key = if self.key_manager.is_gateway_key_set() {
             Some(self.key_manager.gateway_shared_key())
         } else {
+            log::info!("Gateway key not set! Will proceed anyway.");
             None
         };
 
@@ -258,7 +334,6 @@ where
             gateway_address,
             self.key_manager.identity_keypair(),
             gateway_identity,
-            gateway_owner,
             shared_key,
             mixnet_message_sender,
             ack_sender,
@@ -278,25 +353,38 @@ where
         Ok(gateway_client)
     }
 
+    fn setup_topology_provider(
+        custom_provider: Option<Box<dyn TopologyProvider>>,
+        nym_api_urls: Vec<Url>,
+    ) -> Box<dyn TopologyProvider> {
+        // if no custom provider was ... provided ..., create one using nym-api
+        custom_provider.unwrap_or_else(|| {
+            Box::new(NymApiTopologyProvider::new(
+                nym_api_urls,
+                env!("CARGO_PKG_VERSION").to_string(),
+            ))
+        })
+    }
+
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
     async fn start_topology_refresher(
-        validator_api_urls: Vec<Url>,
+        topology_provider: Box<dyn TopologyProvider>,
         refresh_rate: Duration,
         topology_accessor: TopologyAccessor,
-        shutdown: ShutdownListener,
-    ) -> Result<(), ClientCoreError<B>> {
-        let topology_refresher_config = TopologyRefresherConfig::new(
-            validator_api_urls,
-            refresh_rate,
-            env!("CARGO_PKG_VERSION").to_string(),
+        shutdown: TaskClient,
+    ) -> Result<(), ClientCoreError> {
+        let topology_refresher_config = TopologyRefresherConfig::new(refresh_rate);
+
+        let mut topology_refresher = TopologyRefresher::new(
+            topology_refresher_config,
+            topology_accessor,
+            topology_provider,
         );
-        let mut topology_refresher =
-            TopologyRefresher::new(topology_refresher_config, topology_accessor);
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
         info!("Obtaining initial network topology");
-        topology_refresher.refresh().await;
+        topology_refresher.try_refresh().await;
 
         if let Err(err) = topology_refresher.ensure_topology_is_routable().await {
             log::error!(
@@ -316,8 +404,8 @@ where
     // over it. Perhaps GatewayClient needs to be thread-shareable or have some channel for
     // requests?
     fn start_mix_traffic_controller(
-        gateway_client: GatewayClient,
-        shutdown: ShutdownListener,
+        gateway_client: GatewayClient<C>,
+        shutdown: TaskClient,
     ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");
         let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_client);
@@ -327,25 +415,43 @@ where
 
     async fn setup_persistent_reply_storage(
         backend: B,
-        shutdown: ShutdownListener,
-    ) -> Result<CombinedReplyStorage, ClientCoreError<B>> {
-        let persistent_storage = PersistentReplyStorage::new(backend);
-        let mem_store = persistent_storage
-            .load_state_from_backend()
-            .await
-            .map_err(|err| ClientCoreError::SurbStorageError { source: err })?;
-
-        let store_clone = mem_store.clone();
-        spawn_future(async move {
-            persistent_storage
-                .flush_on_shutdown(store_clone, shutdown)
+        shutdown: TaskClient,
+    ) -> Result<CombinedReplyStorage, ClientCoreError>
+    where
+        <B as ReplyStorageBackend>::StorageError: Sync + Send,
+    {
+        if backend.is_active() {
+            log::trace!("Setup persistent reply storage");
+            let persistent_storage = PersistentReplyStorage::new(backend);
+            let mem_store = persistent_storage
+                .load_state_from_backend()
                 .await
-        });
+                .map_err(|err| ClientCoreError::SurbStorageError {
+                    source: Box::new(err),
+                })?;
 
-        Ok(mem_store)
+            let store_clone = mem_store.clone();
+            spawn_future(async move {
+                persistent_storage
+                    .flush_on_shutdown(store_clone, shutdown)
+                    .await
+            });
+
+            Ok(mem_store)
+        } else {
+            log::trace!("Setup inactive reply storage");
+            Ok(backend
+                .get_inactive_storage()
+                .map_err(|err| ClientCoreError::SurbStorageError {
+                    source: Box::new(err),
+                })?)
+        }
     }
 
-    pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError<B>> {
+    pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
+    where
+        <B as ReplyStorageBackend>::StorageError: Sync + Send,
+    {
         info!("Starting nym client");
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -367,29 +473,35 @@ where
         let shared_topology_accessor = TopologyAccessor::new();
 
         // Shutdown notifier for signalling tasks to stop
-        let shutdown = ShutdownNotifier::default();
+        let task_manager = TaskManager::default();
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
-            reply_controller::new_control_channels();
+            reply_controller::requests::new_control_channels();
 
         let self_address = self.as_mix_recipient();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
         let gateway_client = self
-            .start_gateway_client(mixnet_messages_sender, ack_sender, shutdown.subscribe())
+            .start_gateway_client(mixnet_messages_sender, ack_sender, task_manager.subscribe())
             .await?;
 
-        let reply_storage =
-            Self::setup_persistent_reply_storage(self.reply_storage_backend, shutdown.subscribe())
-                .await?;
+        let reply_storage = Self::setup_persistent_reply_storage(
+            self.reply_storage_backend,
+            task_manager.subscribe(),
+        )
+        .await?;
 
+        let topology_provider = Self::setup_topology_provider(
+            self.custom_topology_provider.take(),
+            self.nym_api_endpoints,
+        );
         Self::start_topology_refresher(
-            self.validator_api_endpoints.clone(),
+            topology_provider,
             self.debug_config.topology_refresh_rate,
             shared_topology_accessor.clone(),
-            shutdown.subscribe(),
+            task_manager.subscribe(),
         )
         .await?;
 
@@ -399,7 +511,7 @@ where
             mixnet_messages_receiver,
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
-            shutdown.subscribe(),
+            task_manager.subscribe(),
         );
 
         // The sphinx_message_sender is the transmitter for any component generating sphinx packets
@@ -407,7 +519,7 @@ where
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
         let sphinx_message_sender =
-            Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
+            Self::start_mix_traffic_controller(gateway_client, task_manager.subscribe());
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.
@@ -435,11 +547,11 @@ where
             input_receiver,
             sphinx_message_sender.clone(),
             reply_storage,
-            reply_controller_sender,
+            reply_controller_sender.clone(),
             reply_controller_receiver,
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
-            shutdown.subscribe(),
+            task_manager.subscribe(),
         );
 
         if !self.debug_config.disable_loop_cover_traffic_stream {
@@ -447,9 +559,9 @@ where
                 self.debug_config,
                 self.key_manager.ack_key(),
                 self_address,
-                shared_topology_accessor,
+                shared_topology_accessor.clone(),
                 sphinx_message_sender,
-                shutdown.subscribe(),
+                task_manager.subscribe(),
             );
         }
 
@@ -459,7 +571,6 @@ where
         Ok(BaseClient {
             client_input: ClientInputStatus::AwaitingProducer {
                 client_input: ClientInput {
-                    shared_lane_queue_lengths,
                     connection_command_sender: client_connection_tx,
                     input_sender,
                 },
@@ -469,7 +580,12 @@ where
                     received_buffer_request_sender,
                 },
             },
-            shutdown_notifier: shutdown,
+            client_state: ClientState {
+                shared_lane_queue_lengths,
+                reply_controller_sender,
+                topology_accessor: shared_topology_accessor,
+            },
+            task_manager,
         })
     }
 }
@@ -477,6 +593,7 @@ where
 pub struct BaseClient {
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
+    pub client_state: ClientState,
 
-    pub shutdown_notifier: ShutdownNotifier,
+    pub task_manager: TaskManager,
 }

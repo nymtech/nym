@@ -1,26 +1,32 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::error::Error;
+
 use crate::client::config::Config;
 use crate::error::ClientError;
 use crate::websocket;
-use client_connections::TransmissionLane;
 use client_core::client::base_client::{
-    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput,
+    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use client_core::client::inbound_messages::InputMessage;
-use client_core::client::key_manager::KeyManager;
-use client_core::client::received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
+use client_core::client::received_buffer::{
+    ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
+};
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::receiver::ReconstructedMessage;
-use task::{wait_for_signal, ShutdownNotifier};
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_task::connections::TransmissionLane;
+use nym_task::TaskManager;
+use tokio::sync::watch::error::SendError;
+use validator_client::nyxd::QueryNyxdClient;
 
-pub(crate) mod config;
+pub use client_core::client::key_manager::KeyManager;
+pub use nym_sphinx::addressing::clients::Recipient;
+pub use nym_sphinx::receiver::ReconstructedMessage;
+pub mod config;
 
 pub struct SocketClient {
     /// Client configuration options, including, among other things, packet sending rates,
@@ -42,104 +48,102 @@ impl SocketClient {
         }
     }
 
-    async fn create_bandwidth_controller(config: &Config) -> BandwidthController {
-        #[cfg(feature = "coconut")]
-        let bandwidth_controller = {
-            let details = network_defaults::NymNetworkDetails::new_from_env();
-            let mut client_config =
-                validator_client::Config::try_from_nym_network_details(&details)
-                    .expect("failed to construct validator client config");
-            let nymd_url = config
-                .get_base()
-                .get_validator_endpoints()
-                .pop()
-                .expect("No nymd validator endpoint provided");
-            let api_url = config
-                .get_base()
-                .get_validator_api_endpoints()
-                .pop()
-                .expect("No validator api endpoint provided");
-            // overwrite env configuration with config URLs
-            client_config = client_config.with_urls(nymd_url, api_url);
-            let client = validator_client::Client::new_query(client_config)
-                .expect("Could not construct query client");
-            let coconut_api_clients =
-                validator_client::CoconutApiClient::all_coconut_api_clients(&client)
-                    .await
-                    .expect("Could not query api clients");
-            BandwidthController::new(
-                credential_storage::initialise_storage(config.get_base().get_database_path()).await,
-                coconut_api_clients,
-            )
-        };
-        #[cfg(not(feature = "coconut"))]
-        let bandwidth_controller = BandwidthController::new(
-            credential_storage::initialise_storage(config.get_base().get_database_path()).await,
+    pub fn new_with_keys(config: Config, key_manager: KeyManager) -> Self {
+        SocketClient {
+            config,
+            key_manager,
+        }
+    }
+
+    async fn create_bandwidth_controller(config: &Config) -> BandwidthController<QueryNyxdClient> {
+        let details = nym_network_defaults::NymNetworkDetails::new_from_env();
+        let mut client_config = validator_client::Config::try_from_nym_network_details(&details)
+            .expect("failed to construct validator client config");
+        let nyxd_url = config
+            .get_base()
+            .get_validator_endpoints()
+            .pop()
+            .expect("No nyxd validator endpoint provided");
+        let api_url = config
+            .get_base()
+            .get_nym_api_endpoints()
+            .pop()
+            .expect("No validator api endpoint provided");
+        // overwrite env configuration with config URLs
+        client_config = client_config.with_urls(nyxd_url, api_url);
+        let client = validator_client::Client::new_query(client_config)
+            .expect("Could not construct query client");
+        BandwidthController::new(
+            nym_credential_storage::initialise_storage(config.get_base().get_database_path()).await,
+            client,
         )
-        .expect("Could not create bandwidth controller");
-        bandwidth_controller
     }
 
     fn start_websocket_listener(
         config: &Config,
         client_input: ClientInput,
         client_output: ClientOutput,
-        self_address: Recipient,
+        client_state: ClientState,
+        self_address: &Recipient,
+        shutdown: nym_task::TaskClient,
     ) {
         info!("Starting websocket listener...");
 
         let ClientInput {
-            shared_lane_queue_lengths,
             connection_command_sender,
             input_sender,
         } = client_input;
 
-        let received_buffer_request_sender = client_output.received_buffer_request_sender;
+        let ClientOutput {
+            received_buffer_request_sender,
+        } = client_output;
 
-        let websocket_handler = websocket::Handler::new(
+        let ClientState {
+            shared_lane_queue_lengths,
+            reply_controller_sender,
+            ..
+        } = client_state;
+
+        let websocket_handler = websocket::HandlerBuilder::new(
             input_sender,
             connection_command_sender,
             received_buffer_request_sender,
             self_address,
             shared_lane_queue_lengths,
+            reply_controller_sender,
         );
 
-        websocket::Listener::new(config.get_listening_port()).start(websocket_handler);
+        websocket::Listener::new(config.get_listening_ip(), config.get_listening_port())
+            .start(websocket_handler, shutdown);
     }
 
     /// blocking version of `start_socket` method. Will run forever (or until SIGINT is sent)
-    pub async fn run_socket_forever(self) -> Result<(), ClientError> {
-        let mut shutdown = self.start_socket().await?;
-        wait_for_signal().await;
+    pub async fn run_socket_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let shutdown = self.start_socket().await?;
 
-        println!(
-            "Received signal - the client will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
-        );
-
-        log::info!("Sending shutdown");
-        shutdown.signal_shutdown().ok();
-
-        // Some of these components have shutdown signalling implemented as part of socks5 work,
-        // but since it's not fully implemented (yet) for all the components of the native client,
-        // we don't try to wait and instead just stop immediately.
-        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
-        shutdown.wait_for_shutdown().await;
-
+        let res = shutdown.catch_interrupt().await;
         log::info!("Stopping nym-client");
-        Ok(())
+        res
     }
 
-    pub async fn start_socket(self) -> Result<ShutdownNotifier, ClientError> {
+    pub async fn start_socket(self) -> Result<TaskManager, ClientError> {
         if !self.config.get_socket_type().is_websocket() {
             return Err(ClientError::InvalidSocketMode);
         }
 
+        // don't create bandwidth controller if credentials are disabled
+        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+            None
+        } else {
+            Some(Self::create_bandwidth_controller(&self.config).await)
+        };
+
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
-            Some(Self::create_bandwidth_controller(&self.config).await),
+            bandwidth_controller,
             non_wasm_helpers::setup_fs_reply_surb_backend(
-                self.config.get_base().get_reply_surb_database_path(),
+                Some(self.config.get_base().get_reply_surb_database_path()),
                 self.config.get_debug_settings(),
             )
             .await?,
@@ -149,13 +153,21 @@ impl SocketClient {
         let mut started_client = base_builder.start_base().await?;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
+        let client_state = started_client.client_state;
 
-        Self::start_websocket_listener(&self.config, client_input, client_output, self_address);
+        Self::start_websocket_listener(
+            &self.config,
+            client_input,
+            client_output,
+            client_state,
+            &self_address,
+            started_client.task_manager.subscribe(),
+        );
 
         info!("Client startup finished!");
         info!("The address of this client is: {}", self_address);
 
-        Ok(started_client.shutdown_notifier)
+        Ok(started_client.task_manager)
     }
 
     pub async fn start_direct(self) -> Result<DirectClient, ClientError> {
@@ -163,16 +175,25 @@ impl SocketClient {
             return Err(ClientError::InvalidSocketMode);
         }
 
+        // don't create bandwidth controller if credentials are disabled
+        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+            None
+        } else {
+            Some(Self::create_bandwidth_controller(&self.config).await)
+        };
+
         let base_client = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
-            Some(Self::create_bandwidth_controller(&self.config).await),
+            bandwidth_controller,
             non_wasm_helpers::setup_fs_reply_surb_backend(
-                self.config.get_base().get_reply_surb_database_path(),
+                Some(self.config.get_base().get_reply_surb_database_path()),
                 self.config.get_debug_settings(),
             )
             .await?,
         );
+
+        let address = base_client.as_mix_recipient();
 
         let mut started_client = base_client.start_base().await?;
         let client_input = started_client.client_input.register_producer();
@@ -191,21 +212,38 @@ impl SocketClient {
 
         Ok(DirectClient {
             client_input,
+            _received_buffer_request_sender: client_output.received_buffer_request_sender,
             reconstructed_receiver,
-            _shutdown_notifier: started_client.shutdown_notifier,
+            address,
+            shutdown_notifier: started_client.task_manager,
         })
     }
 }
 
 pub struct DirectClient {
     client_input: ClientInput,
+    // make sure to not drop the channel
+    _received_buffer_request_sender: ReceivedBufferRequestSender,
     reconstructed_receiver: ReconstructedMessagesReceiver,
+    address: Recipient,
 
     // we need to keep reference to this guy otherwise things will start dropping
-    _shutdown_notifier: ShutdownNotifier,
+    shutdown_notifier: TaskManager,
 }
 
 impl DirectClient {
+    pub fn address(&self) -> &Recipient {
+        &self.address
+    }
+
+    pub fn signal_shutdown(&self) -> Result<(), SendError<()>> {
+        self.shutdown_notifier.signal_shutdown()
+    }
+
+    pub async fn wait_for_shutdown(&mut self) {
+        self.shutdown_notifier.wait_for_shutdown().await
+    }
+
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)

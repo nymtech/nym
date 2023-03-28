@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::connection_controller::ConnectionReceiver;
-use client_connections::LaneQueueLengths;
-use socks5_requests::ConnectionId;
+use nym_socks5_requests::ConnectionId;
+use nym_task::connections::LaneQueueLengths;
+use nym_task::TaskClient;
 use std::fmt::Debug;
 use std::{sync::Arc, time::Duration};
-use task::ShutdownListener;
 use tokio::{net::TcpStream, sync::Notify};
 
 mod inbound;
@@ -50,7 +50,7 @@ pub struct ProxyRunner<S> {
     lane_queue_lengths: Option<LaneQueueLengths>,
 
     // Listens to shutdown commands from higher up
-    shutdown_listener: ShutdownListener,
+    shutdown_listener: TaskClient,
 }
 
 impl<S> ProxyRunner<S>
@@ -66,7 +66,7 @@ where
         mix_sender: MixProxySender<S>,
         connection_id: ConnectionId,
         lane_queue_lengths: Option<LaneQueueLengths>,
-        shutdown_listener: ShutdownListener,
+        shutdown_listener: TaskClient,
     ) -> Self {
         ProxyRunner {
             mix_receiver: Some(mix_receiver),

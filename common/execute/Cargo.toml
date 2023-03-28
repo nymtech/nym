@@ -1,5 +1,5 @@
 [package]
-name = "execute"
+name = "nym-execute"
 version = "0.1.0"
 edition = "2021"
 

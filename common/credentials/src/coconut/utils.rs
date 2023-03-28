@@ -1,20 +1,18 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_interface::{
+use nym_api_requests::coconut::BlindSignRequestBody;
+use nym_coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prove_bandwidth_credential, Attribute,
     BlindedSignature, Credential, Parameters, Signature, SignatureShare, VerificationKey,
 };
-use crypto::asymmetric::encryption::PublicKey;
-use crypto::shared_key::recompute_shared_key;
-use crypto::symmetric::stream_cipher;
-use validator_api_requests::coconut::BlindSignRequestBody;
+use nym_crypto::asymmetric::encryption::PublicKey;
+use nym_crypto::shared_key::recompute_shared_key;
+use nym_crypto::symmetric::stream_cipher;
 use validator_client::client::CoconutApiClient;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
-use crate::coconut::params::{
-    ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
-};
+use crate::coconut::params::{NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm};
 use crate::error::Error;
 
 pub async fn obtain_aggregate_verification_key(
@@ -39,7 +37,7 @@ pub async fn obtain_aggregate_verification_key(
 async fn obtain_partial_credential(
     params: &Parameters,
     attributes: &BandwidthVoucher,
-    client: &validator_client::client::ApiClient,
+    client: &validator_client::client::NymApiClient,
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
     let public_attributes = attributes.get_public_attributes();
@@ -47,30 +45,24 @@ async fn obtain_partial_credential(
     let private_attributes = attributes.get_private_attributes();
     let blind_sign_request = attributes.blind_sign_request();
 
-    let response = if attributes.use_request() {
-        let blind_sign_request_body = BlindSignRequestBody::new(
-            blind_sign_request,
-            attributes.tx_hash().to_string(),
-            attributes.sign(blind_sign_request).to_base58_string(),
-            &public_attributes,
-            public_attributes_plain,
-            (public_attributes.len() + private_attributes.len()) as u32,
-        );
-        client.blind_sign(&blind_sign_request_body).await?
-    } else {
-        client
-            .partial_bandwidth_credential(&attributes.tx_hash().to_string())
-            .await?
-    };
+    let blind_sign_request_body = BlindSignRequestBody::new(
+        blind_sign_request,
+        attributes.tx_hash().to_string(),
+        attributes.sign(blind_sign_request).to_base58_string(),
+        &public_attributes,
+        public_attributes_plain,
+        (public_attributes.len() + private_attributes.len()) as u32,
+    );
+    let response = client.blind_sign(&blind_sign_request_body).await?;
     let encrypted_signature = response.encrypted_signature;
     let remote_key = PublicKey::from_bytes(&response.remote_key)?;
 
     let encryption_key = recompute_shared_key::<
-        ValidatorApiCredentialEncryptionAlgorithm,
-        ValidatorApiCredentialHkdfAlgorithm,
+        NymApiCredentialEncryptionAlgorithm,
+        NymApiCredentialHkdfAlgorithm,
     >(&remote_key, attributes.encryption_key());
-    let zero_iv = stream_cipher::zero_iv::<ValidatorApiCredentialEncryptionAlgorithm>();
-    let blinded_signature_bytes = stream_cipher::decrypt::<ValidatorApiCredentialEncryptionAlgorithm>(
+    let zero_iv = stream_cipher::zero_iv::<NymApiCredentialEncryptionAlgorithm>();
+    let blinded_signature_bytes = stream_cipher::decrypt::<NymApiCredentialEncryptionAlgorithm>(
         &encryption_key,
         &zero_iv,
         &encrypted_signature,
@@ -94,6 +86,7 @@ pub async fn obtain_aggregate_signature(
     params: &Parameters,
     attributes: &BandwidthVoucher,
     coconut_api_clients: &[CoconutApiClient],
+    threshold: u64,
 ) -> Result<Signature, Error> {
     if coconut_api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
@@ -110,41 +103,43 @@ pub async fn obtain_aggregate_signature(
         .iter()
         .map(|api_client| api_client.node_id)
         .collect();
+    let verification_key =
+        aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;
 
     for coconut_api_client in coconut_api_clients.iter() {
-        let signature = obtain_partial_credential(
+        if let Ok(signature) = obtain_partial_credential(
             params,
             attributes,
             &coconut_api_client.api_client,
             &coconut_api_client.verification_key,
         )
-        .await?;
-        let share = SignatureShare::new(signature, coconut_api_client.node_id);
-        shares.push(share)
+        .await
+        {
+            let share = SignatureShare::new(signature, coconut_api_client.node_id);
+            shares.push(share)
+        }
+    }
+    if shares.len() < threshold as usize {
+        return Err(Error::NotEnoughShares);
     }
 
     let mut attributes = Vec::with_capacity(private_attributes.len() + public_attributes.len());
     attributes.extend_from_slice(&private_attributes);
     attributes.extend_from_slice(&public_attributes);
 
-    let verification_key =
-        aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;
-
-    Ok(aggregate_signature_shares(
-        params,
-        &verification_key,
-        &attributes,
-        &shares,
-    )?)
+    aggregate_signature_shares(params, &verification_key, &attributes, &shares)
+        .map_err(Error::SignatureAggregationError)
 }
 
 // TODO: better type flow
+#[allow(clippy::too_many_arguments)]
 pub fn prepare_credential_for_spending(
     params: &Parameters,
     voucher_value: u64,
     voucher_info: String,
     serial_number: Attribute,
     binding_number: Attribute,
+    epoch_id: u64,
     signature: &Signature,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
@@ -161,5 +156,6 @@ pub fn prepare_credential_for_spending(
         theta,
         voucher_value,
         voucher_info,
+        epoch_id,
     ))
 }

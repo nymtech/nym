@@ -5,14 +5,15 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use mixnet_contract_common::rewarding::helpers::truncate_reward;
-use mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::rewarding::helpers::truncate_reward;
+use nym_mixnet_contract_common::MixId;
 use serde::Serialize;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::helpers::best_effort_small_dec_to_f64;
 use validator_client::models::MixNodeBondAnnotated;
 
+use super::utils::family_numerical_id;
 use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
 use crate::mix_nodes::location::{Location, LocationCache, LocationCacheItem};
 use crate::mix_nodes::CACHE_ENTRY_TTL;
@@ -140,6 +141,8 @@ impl ThreadsafeMixNodesCache {
         let denom = &node.mixnode_details.original_pledge().denom;
         let rewarding_info = &node.mixnode_details.rewarding_details;
 
+        let family_id = node.family.as_ref().map(family_numerical_id);
+
         PrettyDetailedMixNodeBond {
             mix_id,
             location: location.and_then(|l| l.location.clone()),
@@ -150,6 +153,7 @@ impl ThreadsafeMixNodesCache {
             layer: node.mixnode_details.bond_information.layer,
             mix_node: node.mixnode_details.bond_information.mix_node.clone(),
             avg_uptime: node.performance.round_to_integer(),
+            node_performance: node.node_performance.clone(),
             stake_saturation: best_effort_small_dec_to_f64(node.stake_saturation) as f32,
             uncapped_saturation: best_effort_small_dec_to_f64(node.uncapped_stake_saturation)
                 as f32,
@@ -157,6 +161,8 @@ impl ThreadsafeMixNodesCache {
             estimated_delegators_apy: best_effort_small_dec_to_f64(node.estimated_delegators_apy),
             operating_cost: rewarding_info.cost_params.interval_operating_cost.clone(),
             profit_margin_percent: rewarding_info.cost_params.profit_margin_percent,
+            family_id,
+            blacklisted: node.blacklisted,
         }
     }
 

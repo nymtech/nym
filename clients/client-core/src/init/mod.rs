@@ -5,25 +5,27 @@
 
 use std::fmt::Display;
 
-use nymsphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
+use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
+use rand::rngs::OsRng;
 use serde::Serialize;
 use tap::TapFallible;
 
-use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
+use nym_config::NymConfig;
+use nym_crypto::asymmetric::{encryption, identity};
+use url::Url;
 
-use crate::client::replies::reply_storage::ReplyStorageBackend;
+use crate::client::key_manager::KeyManager;
 use crate::{
     config::{
         persistence::key_pathfinder::ClientKeyPathfinder, ClientCoreConfigTrait, Config,
         GatewayEndpointConfig,
     },
     error::ClientCoreError,
-    init::helpers::{query_gateway_details, register_with_gateway_and_store_keys},
 };
 
 mod helpers;
 
+/// Struct describing the results of the client initialization procedure.
 #[derive(Debug, Serialize)]
 pub struct InitResults {
     version: String,
@@ -61,84 +63,99 @@ impl Display for InitResults {
     }
 }
 
-/// Convenience function for setting up the gateway for a client. Depending on the arguments given
-/// it will do the sensible thing.
-pub async fn setup_gateway<B, C, T>(
+/// Create a new set of client keys.
+pub fn new_client_keys() -> KeyManager {
+    let mut rng = OsRng;
+    KeyManager::new(&mut rng)
+}
+
+/// Authenticate and register with a gateway.
+/// Either pick one at random by querying the available gateways from the nym-api, or use the
+/// chosen one if it's among the available ones.
+/// The shared key is added to the supplied `KeyManager` and the endpoint details are returned.
+pub async fn register_with_gateway(
+    key_manager: &mut KeyManager,
+    nym_api_endpoints: Vec<Url>,
+    chosen_gateway_id: Option<identity::PublicKey>,
+    by_latency: bool,
+) -> Result<GatewayEndpointConfig, ClientCoreError> {
+    // Get the gateway details of the gateway we will use
+    let gateway =
+        helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id, by_latency).await?;
+    log::debug!("Querying gateway gives: {}", gateway);
+
+    let our_identity = key_manager.identity_keypair();
+
+    // Establish connection, authenticate and generate keys for talking with the gateway
+    let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
+    key_manager.insert_gateway_shared_key(shared_keys);
+
+    Ok(gateway.into())
+}
+
+/// Convenience function for setting up the gateway for a client given a `Config`. Depending on the
+/// arguments given it will do the sensible thing. Either it will
+///
+/// a. Reuse existing gateway configuration from storage.
+/// b. Create a new gateway configuration but keep existing keys. This assumes that the caller
+///    knows what they are doing and that the keys match the requested gateway.
+/// c. Create a new gateway configuration with a newly registered gateway and keys.
+pub async fn setup_gateway_from_config<C, T>(
     register_gateway: bool,
-    user_chosen_gateway_id: Option<String>,
+    user_chosen_gateway_id: Option<identity::PublicKey>,
     config: &Config<T>,
-) -> Result<GatewayEndpointConfig, ClientCoreError<B>>
+    by_latency: bool,
+) -> Result<GatewayEndpointConfig, ClientCoreError>
 where
-    B: ReplyStorageBackend,
     C: NymConfig + ClientCoreConfigTrait,
     T: NymConfig,
 {
     let id = config.get_id();
-    if register_gateway {
-        register_with_gateway(user_chosen_gateway_id, config).await
-    } else if let Some(user_chosen_gateway_id) = user_chosen_gateway_id {
-        config_gateway_with_existing_keys(user_chosen_gateway_id, config).await
-    } else {
-        reuse_existing_gateway_config::<B, C>(&id)
+
+    // If we are not going to register gateway, and an explicitly chosed gateway is not passed in,
+    // load the existing configuration file
+    if !register_gateway && user_chosen_gateway_id.is_none() {
+        println!("Not registering gateway, will reuse existing config and keys");
+        return load_existing_gateway_config::<C>(&id);
     }
-}
 
-/// Get the gateway details by querying the validator-api. Either pick one at random or use
-/// the chosen one if it's among the available ones.
-/// Saves keys to disk, specified by the paths in `config`.
-pub async fn register_with_gateway<B, T>(
-    user_chosen_gateway_id: Option<String>,
-    config: &Config<T>,
-) -> Result<GatewayEndpointConfig, ClientCoreError<B>>
-where
-    B: ReplyStorageBackend,
-    T: NymConfig,
-{
-    println!("Configuring gateway");
-    let gateway =
-        query_gateway_details(config.get_validator_api_endpoints(), user_chosen_gateway_id).await?;
-    log::debug!("Querying gateway gives: {}", gateway);
-
-    // Registering with gateway by setting up and writing shared keys to disk
-    log::trace!("Registering gateway");
-    register_with_gateway_and_store_keys(gateway.clone(), config).await?;
-    println!("Saved all generated keys");
-
-    Ok(gateway.into())
-}
-
-/// Set the gateway using the usual procedue of querying the validator-api, but don't register or
-/// create any keys.
-/// This assumes that the user knows what they are doing, and that the existing keys are valid for
-/// the gateway being used
-pub async fn config_gateway_with_existing_keys<B, T>(
-    user_chosen_gateway_id: String,
-    config: &Config<T>,
-) -> Result<GatewayEndpointConfig, ClientCoreError<B>>
-where
-    B: ReplyStorageBackend,
-    T: NymConfig,
-{
-    println!("Using gateway provided by user, keeping existing keys");
-    let gateway = query_gateway_details(
-        config.get_validator_api_endpoints(),
-        Some(user_chosen_gateway_id),
+    // Else, we preceed by querying the nym-api
+    let gateway = helpers::query_gateway_details(
+        config.get_nym_api_endpoints(),
+        user_chosen_gateway_id,
+        by_latency,
     )
     .await?;
     log::debug!("Querying gateway gives: {}", gateway);
+
+    // If we are not registering, just return this and assume the caller has the keys already and
+    // wants to keep the,
+    if !register_gateway && user_chosen_gateway_id.is_some() {
+        println!("Using gateway provided by user, keeping existing keys");
+        return Ok(gateway.into());
+    }
+
+    // Create new keys and derive our identity
+    let mut key_manager = new_client_keys();
+    let our_identity = key_manager.identity_keypair();
+
+    // Establish connection, authenticate and generate keys for talking with the gateway
+    println!("Registering with new gateway");
+    let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
+    key_manager.insert_gateway_shared_key(shared_keys);
+
+    // Write all keys to storage and just return the gateway endpoint config. It is assumed that we
+    // will load keys from storage when actually connecting.
+    helpers::store_keys(&key_manager, config)?;
     Ok(gateway.into())
 }
 
 /// Read and reuse the existing gateway configuration from a file that was generate earlier.
-pub fn reuse_existing_gateway_config<B, T>(
-    id: &str,
-) -> Result<GatewayEndpointConfig, ClientCoreError<B>>
+pub fn load_existing_gateway_config<T>(id: &str) -> Result<GatewayEndpointConfig, ClientCoreError>
 where
-    B: ReplyStorageBackend,
     T: NymConfig + ClientCoreConfigTrait,
 {
-    println!("Not registering gateway, will reuse existing config and keys");
-    T::load_from_file(Some(id))
+    T::load_from_file(id)
         .map(|existing_config| existing_config.get_gateway_endpoint().clone())
         .map_err(|err| {
             log::error!(
@@ -152,22 +169,32 @@ where
         })
 }
 
+/// Get the full client address from the client keys and the gateway identity
+pub fn get_client_address(
+    key_manager: &KeyManager,
+    gateway_config: &GatewayEndpointConfig,
+) -> Recipient {
+    Recipient::new(
+        *key_manager.identity_keypair().public_key(),
+        *key_manager.encryption_keypair().public_key(),
+        // TODO: below only works under assumption that gateway address == gateway id
+        // (which currently is true)
+        NodeIdentity::from_base58_string(&gateway_config.gateway_id).unwrap(),
+    )
+}
+
 /// Get the client address by loading the keys from stored files.
-pub fn get_client_address_from_stored_keys<B, T>(
+pub fn get_client_address_from_stored_keys<T>(
     config: &Config<T>,
-) -> Result<Recipient, ClientCoreError<B>>
+) -> Result<Recipient, ClientCoreError>
 where
-    T: config::NymConfig,
-    B: ReplyStorageBackend,
+    T: nym_config::NymConfig,
 {
-    fn load_identity_keys<B>(
+    fn load_identity_keys(
         pathfinder: &ClientKeyPathfinder,
-    ) -> Result<identity::KeyPair, ClientCoreError<B>>
-    where
-        B: ReplyStorageBackend,
-    {
+    ) -> Result<identity::KeyPair, ClientCoreError> {
         let identity_keypair: identity::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
             ))
@@ -175,14 +202,11 @@ where
         Ok(identity_keypair)
     }
 
-    fn load_sphinx_keys<B>(
+    fn load_sphinx_keys(
         pathfinder: &ClientKeyPathfinder,
-    ) -> Result<encryption::KeyPair, ClientCoreError<B>>
-    where
-        B: ReplyStorageBackend,
-    {
+    ) -> Result<encryption::KeyPair, ClientCoreError> {
         let sphinx_keypair: encryption::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
             ))
@@ -208,9 +232,9 @@ where
 pub fn output_to_json<T: Serialize>(init_results: &T, output_file: &str) {
     match std::fs::File::create(output_file) {
         Ok(file) => match serde_json::to_writer_pretty(file, init_results) {
-            Ok(_) => println!("Saved: {}", output_file),
-            Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+            Ok(_) => println!("Saved: {output_file}"),
+            Err(err) => eprintln!("Could not save {output_file}: {err}"),
         },
-        Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+        Err(err) => eprintln!("Could not save {output_file}: {err}"),
     }
 }

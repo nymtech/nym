@@ -29,3 +29,5 @@ pub enum ContractError {
         deposit_required: cosmwasm_std::Coin,
     },
 }
+
+pub(crate) type Result<T, E = ContractError> = std::result::Result<T, E>;

@@ -1,6 +1,7 @@
 use cosmwasm_std::{from_binary, testing::mock_env, Addr, Deps, StdError};
 
 use crate::{
+    error::ContractError,
     msg::{ConfigResponse, QueryMsg, ServiceInfo, ServicesListResponse},
     state::ServiceId,
 };
@@ -50,5 +51,5 @@ pub fn assert_not_found(deps: Deps, expected_id: ServiceId) {
         },
     )
     .unwrap_err();
-    assert!(matches!(res, StdError::NotFound { .. }));
+    assert!(matches!(res, ContractError::Std(StdError::NotFound { .. })));
 }

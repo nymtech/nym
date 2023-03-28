@@ -1,9 +1,9 @@
 use crate::{
-    error::ContractError,
+    error::{ContractError, Result},
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     state::{self, Config},
 };
-use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
 use cw2::set_contract_version;
 
 mod execute;
@@ -18,7 +18,7 @@ pub fn instantiate(
     _env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response> {
     let config = Config {
         admin: msg.admin.clone(),
         deposit_required: msg.deposit_required.clone(),
@@ -48,12 +48,13 @@ pub fn execute(
     }
 }
 
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
+    let response = match msg {
         QueryMsg::ServiceId { service_id } => to_binary(&query::query_id(deps, service_id)?),
         QueryMsg::All {} => to_binary(&query::query_all(deps)?),
         QueryMsg::Config {} => to_binary(&query::query_config(deps)?),
-    }
+    };
+    Ok(response?)
 }
 
 #[cfg(test)]

@@ -23,9 +23,7 @@ use nym_credentials::coconut::params::{
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
-use nymcoconut::{
-    prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, Parameters,
-};
+use nymcoconut::{prepare_blind_sign, ttp_keygen, Base58, BlindedSignature, Parameters};
 use validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
@@ -729,21 +727,16 @@ async fn blind_sign_correct() {
 
     let params = Parameters::new(4).unwrap();
     let mut rng = OsRng;
+    let identity_keypair = identity::KeyPair::new(&mut rng);
+    let encryption_keypair = encryption::KeyPair::new(&mut rng);
     let voucher = BandwidthVoucher::new(
         &params,
         "1234".to_string(),
         VOUCHER_INFO.to_string(),
         tx_hash,
-        identity::PrivateKey::from_base58_string(
-            identity::KeyPair::new(&mut rng)
-                .private_key()
-                .to_base58_string(),
-        )
-        .unwrap(),
-        encryption::PrivateKey::from_bytes(
-            &encryption::KeyPair::new(&mut rng).private_key().to_bytes(),
-        )
-        .unwrap(),
+        identity::PrivateKey::from_base58_string(identity_keypair.private_key().to_base58_string())
+            .unwrap(),
+        encryption::PrivateKey::from_bytes(&encryption_keypair.private_key().to_bytes()).unwrap(),
     );
 
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
@@ -768,13 +761,17 @@ async fn blind_sign_correct() {
         },
         Tag {
             key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
-            value: "64auwDkWan7R8yH1Mwe9dS4qXgrDBCUNDg3Q4KFnd2P5"
+            value: identity_keypair
+                .public_key()
+                .to_base58_string()
                 .parse()
                 .unwrap(),
         },
         Tag {
             key: DEPOSIT_ENCRYPTION_KEY.parse().unwrap(),
-            value: "HxnTpWTkgigSTAysVKLE8pEiUULHdTT1BxFfzfJvQRi6"
+            value: encryption_keypair
+                .public_key()
+                .to_base58_string()
                 .parse()
                 .unwrap(),
         },
@@ -801,36 +798,12 @@ async fn blind_sign_correct() {
         .await
         .expect("valid rocket instance");
 
-    // hard-coded values, that generate a correct signature
-    let blind_sign_req = BlindSignRequest::from_bytes(&[
-        176, 113, 19, 237, 218, 252, 113, 20, 225, 238, 59, 88, 217, 45, 233, 178, 65, 28, 242, 0,
-        222, 48, 110, 216, 26, 111, 51, 235, 61, 74, 200, 15, 130, 245, 45, 170, 155, 190, 156, 77,
-        180, 142, 29, 63, 15, 224, 150, 31, 139, 24, 65, 175, 143, 153, 11, 203, 33, 16, 152, 22,
-        221, 203, 99, 233, 208, 142, 161, 194, 46, 227, 177, 96, 119, 30, 175, 69, 104, 14, 2, 191,
-        26, 94, 30, 165, 15, 28, 40, 176, 1, 78, 253, 79, 20, 137, 102, 74, 2, 0, 0, 0, 0, 0, 0, 0,
-        131, 133, 112, 115, 53, 98, 58, 166, 240, 70, 185, 210, 203, 12, 114, 66, 180, 38, 139, 12,
-        187, 45, 250, 201, 68, 102, 159, 172, 218, 124, 151, 23, 172, 18, 216, 122, 246, 7, 185,
-        76, 20, 167, 123, 122, 152, 241, 175, 226, 176, 8, 170, 70, 140, 252, 36, 130, 67, 204,
-        111, 116, 107, 92, 200, 77, 252, 31, 138, 18, 10, 215, 165, 243, 95, 199, 193, 61, 200,
-        187, 22, 198, 109, 213, 145, 71, 171, 132, 174, 68, 105, 248, 0, 115, 50, 55, 199, 84, 67,
-        16, 125, 216, 250, 154, 115, 174, 9, 206, 44, 88, 63, 163, 124, 10, 239, 64, 158, 191, 27,
-        169, 177, 194, 223, 142, 202, 206, 189, 122, 123, 91, 171, 15, 40, 192, 148, 75, 174, 24,
-        116, 229, 127, 170, 110, 183, 151, 2, 118, 168, 22, 113, 87, 237, 91, 228, 249, 120, 114,
-        255, 53, 175, 245, 39, 2, 0, 0, 0, 0, 0, 0, 0, 225, 45, 230, 25, 62, 202, 96, 166, 171,
-        241, 206, 137, 254, 51, 154, 255, 122, 130, 107, 54, 5, 206, 207, 120, 193, 214, 64, 10,
-        111, 195, 86, 55, 201, 36, 10, 18, 154, 158, 183, 87, 185, 59, 228, 89, 134, 193, 217, 188,
-        64, 164, 249, 21, 248, 20, 207, 58, 31, 10, 19, 176, 246, 150, 45, 48, 2, 0, 0, 0, 0, 0, 0,
-        0, 173, 60, 65, 209, 100, 114, 138, 186, 158, 150, 109, 230, 111, 86, 101, 72, 194, 237,
-        173, 195, 139, 175, 238, 25, 169, 18, 188, 75, 77, 54, 111, 20, 115, 235, 195, 2, 123, 133,
-        164, 81, 15, 45, 11, 84, 139, 38, 8, 224, 197, 181, 95, 147, 49, 77, 193, 207, 52, 141,
-        195, 195, 66, 137, 17, 32,
-    ])
-    .unwrap();
     let request_body = BlindSignRequestBody::new(
-        &blind_sign_req,
+        voucher.blind_sign_request(),
         tx_hash.to_string(),
-        "gSFgpma5GAVMcsmZwKieqGNHNd3dPzcfa8eT2Qn2LoBccSeyiJdphREbNrkuh5XWxMe2hUsranaYzLro48L9Qhd"
-            .to_string(),
+        voucher
+            .sign(voucher.blind_sign_request())
+            .to_base58_string(),
         &voucher.get_public_attributes(),
         voucher.get_public_attributes_plain(),
         4,

@@ -20,13 +20,13 @@ pub enum ContractError {
     #[error("insufficiant deposit: {funds}, required: {deposit_required}")]
     InsufficientDeposit {
         funds: cosmwasm_std::Uint128,
-        deposit_required: cosmwasm_std::Coin,
+        deposit_required: cosmwasm_std::Uint128,
     },
 
     #[error("deposit too large: {funds}, required: {deposit_required}")]
     TooLargeDeposit {
         funds: cosmwasm_std::Uint128,
-        deposit_required: cosmwasm_std::Coin,
+        deposit_required: cosmwasm_std::Uint128,
     },
 }
 

@@ -128,7 +128,7 @@ mod tests {
             .unwrap_err(),
             ContractError::InsufficientDeposit {
                 funds: 99u128.into(),
-                deposit_required: nyms(100),
+                deposit_required: 100u128.into(),
             }
         );
 
@@ -142,7 +142,7 @@ mod tests {
             .unwrap_err(),
             ContractError::TooLargeDeposit {
                 funds: 101u128.into(),
-                deposit_required: nyms(100),
+                deposit_required: 100u128.into(),
             }
         );
 

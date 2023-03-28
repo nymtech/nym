@@ -5,11 +5,8 @@ use crate::{
     state::{self, NymAddress, Service, ServiceId, ServiceType},
 };
 
-fn ensure_correct_deposit(
-    will_deposit: Uint128,
-    deposit_required: Coin,
-) -> Result<(), ContractError> {
-    match will_deposit.cmp(&deposit_required.amount) {
+fn ensure_correct_deposit(will_deposit: Uint128, deposit_required: Uint128) -> Result<(), ContractError> {
+    match will_deposit.cmp(&deposit_required) {
         std::cmp::Ordering::Less => Err(ContractError::InsufficientDeposit {
             funds: will_deposit,
             deposit_required,
@@ -35,7 +32,7 @@ pub fn announce(
     let denom = deposit_required.denom.clone();
     let will_deposit = cw_utils::must_pay(&info, &denom)
         .map_err(|err| ContractError::DepositRequired { source: err })?;
-    ensure_correct_deposit(will_deposit, deposit_required)?;
+    ensure_correct_deposit(will_deposit, deposit_required.amount)?;
 
     let new_service = Service {
         nym_address,

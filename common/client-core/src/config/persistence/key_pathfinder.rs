@@ -18,10 +18,7 @@ pub struct ClientKeyPathfinder {
 impl ClientKeyPathfinder {
     pub fn new(id: String) -> Self {
         let os_config_dir = dirs::config_dir().expect("no config directory known for this OS"); // grabs the OS default config dir
-        let config_dir = os_config_dir
-            .join("nym")
-            .join("../../../../../clients")
-            .join(id);
+        let config_dir = os_config_dir.join("nym").join("clients").join(id);
         ClientKeyPathfinder {
             identity_private_key: config_dir.join("private_identity.pem"),
             identity_public_key: config_dir.join("public_identity.pem"),

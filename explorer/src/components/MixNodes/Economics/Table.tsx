@@ -53,7 +53,6 @@ export const DelegatorsInfoTable: FCWithChildren<UniversalTableProps<EconomicsIn
               {columnsData?.map((_, index: number) => {
                 const { field } = columnsData[index];
                 const value: EconomicsRowsType = (eachRow as any)[field];
-                console.log(value);
                 return (
                   <TableCell
                     key={_.title}

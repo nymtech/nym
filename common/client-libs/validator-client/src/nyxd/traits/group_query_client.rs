@@ -4,7 +4,7 @@
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, NyxdClient};
 
-use group_contract_common::msg::QueryMsg;
+use nym_group_contract_common::msg::QueryMsg;
 
 use async_trait::async_trait;
 use cw4::MemberResponse;

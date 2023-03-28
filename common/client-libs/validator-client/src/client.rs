@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{nym_api, ValidatorClientError};
-use coconut_dkg_common::types::NodeIndex;
-use coconut_interface::VerificationKey;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
@@ -11,6 +9,8 @@ use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
 };
+use nym_coconut_dkg_common::types::NodeIndex;
+use nym_coconut_interface::VerificationKey;
 pub use nym_mixnet_contract_common::{mixnode::MixNodeDetails, GatewayBond, IdentityKeyRef, MixId};
 
 #[cfg(feature = "nyxd-client")]
@@ -18,17 +18,17 @@ use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient
 #[cfg(feature = "nyxd-client")]
 use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient, SigningNyxdClient};
 #[cfg(feature = "nyxd-client")]
-use coconut_dkg_common::{
+use cw3::ProposalResponse;
+#[cfg(feature = "nyxd-client")]
+use nym_api_requests::models::MixNodeBondAnnotated;
+#[cfg(feature = "nyxd-client")]
+use nym_coconut_dkg_common::{
     dealer::ContractDealing,
     types::{DealerDetails, EpochId},
     verification_key::ContractVKShare,
 };
 #[cfg(feature = "nyxd-client")]
-use coconut_interface::Base58;
-#[cfg(feature = "nyxd-client")]
-use cw3::ProposalResponse;
-#[cfg(feature = "nyxd-client")]
-use nym_api_requests::models::MixNodeBondAnnotated;
+use nym_coconut_interface::Base58;
 #[cfg(feature = "nyxd-client")]
 use nym_mixnet_contract_common::{
     families::{Family, FamilyHead},
@@ -130,10 +130,9 @@ impl Config {
 #[cfg(feature = "nyxd-client")]
 #[derive(Clone)]
 pub struct Client<C: Clone> {
-    // TODO: we really shouldn't be storing a mnemonic here, but removing it would be
-    // non-trivial amount of work and it's out of scope of the current branch
-    mnemonic: Option<bip39::Mnemonic>,
-
+    // // TODO: we really shouldn't be storing a mnemonic here, but removing it would be
+    // // non-trivial amount of work and it's out of scope of the current branch
+    // mnemonic: Option<bip39::Mnemonic>,
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
     mixnode_delegations_page_limit: Option<u32>,
@@ -157,12 +156,11 @@ impl Client<SigningNyxdClient> {
         let nyxd_client = NyxdClient::connect_with_mnemonic(
             config.nyxd_config.clone(),
             config.nyxd_url.as_str(),
-            mnemonic.clone(),
+            mnemonic,
             None,
         )?;
 
         Ok(Client {
-            mnemonic: Some(mnemonic),
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
@@ -176,12 +174,7 @@ impl Client<SigningNyxdClient> {
     }
 
     pub fn change_nyxd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
-        self.nyxd = NyxdClient::connect_with_mnemonic(
-            self.nyxd.current_config().clone(),
-            new_endpoint.as_ref(),
-            self.mnemonic.clone().unwrap(),
-            None,
-        )?;
+        self.nyxd.change_endpoint(new_endpoint.as_ref())?;
         Ok(())
     }
 
@@ -198,7 +191,6 @@ impl Client<QueryNyxdClient> {
             NyxdClient::connect(config.nyxd_config.clone(), config.nyxd_url.as_str())?;
 
         Ok(Client {
-            mnemonic: None,
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
@@ -755,6 +747,12 @@ where
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
         Ok(self.nym_api.get_mixnodes_detailed().await?)
+    }
+
+    pub async fn get_cached_mixnodes_detailed_unfiltered(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
+        Ok(self.nym_api.get_mixnodes_detailed_unfiltered().await?)
     }
 
     pub async fn get_cached_rewarded_mixnodes(

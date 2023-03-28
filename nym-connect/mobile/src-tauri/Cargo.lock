@@ -612,7 +612,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.11"
+version = "1.1.12"
 dependencies = [
  "async-trait",
  "dashmap",
@@ -687,39 +687,6 @@ dependencies = [
  "foreign-types",
  "libc",
  "objc",
-]
-
-[[package]]
-name = "coconut-bandwidth-contract-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "multisig-contract-common",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "coconut-dkg-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "cw-utils",
- "multisig-contract-common",
- "nym-contracts-common",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "coconut-interface"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "getset",
- "nymcoconut",
- "serde",
- "thiserror",
 ]
 
 [[package]]
@@ -946,30 +913,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b540bd8bc810d3885c6ea91e2018302f68baba2129ab3e88f32389ee9370880d"
 dependencies = [
  "cfg-if",
-]
-
-[[package]]
-name = "credential-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "log",
- "sqlx 0.5.13",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "credentials"
-version = "0.1.0"
-dependencies = [
- "bls12_381 0.5.0",
- "coconut-interface",
- "cosmrs",
- "nym-api-requests",
- "nym-crypto",
- "thiserror",
- "validator-client",
 ]
 
 [[package]]
@@ -1407,27 +1350,6 @@ name = "dispatch"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
-
-[[package]]
-name = "dkg"
-version = "0.1.0"
-dependencies = [
- "bitvec",
- "bls12_381 0.6.0",
- "bs58",
- "ff 0.11.1",
- "group 0.11.0",
- "lazy_static",
- "nym-pemstore",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rand_core 0.6.4",
- "serde",
- "serde_derive",
- "sha2 0.9.9",
- "thiserror",
- "zeroize",
-]
 
 [[package]]
 name = "dotenv"
@@ -1901,14 +1823,14 @@ name = "gateway-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "coconut-interface",
- "credential-storage",
- "credentials",
  "futures",
  "gateway-requests",
  "getrandom 0.2.8",
  "log",
  "mobile-storage",
+ "nym-coconut-interface",
+ "nym-credential-storage",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
@@ -1934,10 +1856,10 @@ name = "gateway-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "coconut-interface",
- "credentials",
  "futures",
  "log",
+ "nym-coconut-interface",
+ "nym-credentials",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
@@ -2247,15 +2169,6 @@ dependencies = [
  "ff 0.11.1",
  "rand_core 0.6.4",
  "subtle 2.4.1",
-]
-
-[[package]]
-name = "group-contract-common"
-version = "0.1.0"
-dependencies = [
- "cw4",
- "schemars",
- "serde",
 ]
 
 [[package]]
@@ -3245,20 +3158,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "multisig-contract-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "cw-utils",
- "cw3",
- "cw3-fixed-multisig",
- "cw4",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3435,10 +3334,10 @@ name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "coconut-interface",
  "cosmrs",
  "cosmwasm-std",
  "getset",
+ "nym-coconut-interface",
  "nym-mixnet-contract-common",
  "schemars",
  "serde",
@@ -3446,7 +3345,7 @@ dependencies = [
 
 [[package]]
 name = "nym-bin-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
  "clap_complete",
@@ -3456,6 +3355,39 @@ dependencies = [
  "semver 0.11.0",
  "serde",
  "vergen",
+]
+
+[[package]]
+name = "nym-coconut-bandwidth-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "nym-multisig-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "nym-coconut-dkg-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "nym-contracts-common",
+ "nym-multisig-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "nym-coconut-interface"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "getset",
+ "nymcoconut",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -3514,7 +3446,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3524,8 +3456,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-crypto"
+name = "nym-credential-storage"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "sqlx 0.5.13",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "nym-credentials"
+version = "0.1.0"
+dependencies = [
+ "bls12_381 0.5.0",
+ "cosmrs",
+ "nym-api-requests",
+ "nym-coconut-interface",
+ "nym-crypto",
+ "thiserror",
+ "validator-client",
+]
+
+[[package]]
+name = "nym-crypto"
+version = "0.2.0"
 dependencies = [
  "aes 0.8.2",
  "blake3",
@@ -3546,6 +3502,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-dkg"
+version = "0.1.0"
+dependencies = [
+ "bitvec",
+ "bls12_381 0.6.0",
+ "bs58",
+ "ff 0.11.1",
+ "group 0.11.0",
+ "lazy_static",
+ "nym-pemstore",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_derive",
+ "sha2 0.9.9",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-execute"
 version = "0.1.0"
 dependencies = [
@@ -3554,8 +3531,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-mixnet-contract-common"
+name = "nym-group-contract-common"
 version = "0.1.0"
+dependencies = [
+ "cw4",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "nym-mixnet-contract-common"
+version = "0.2.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3571,11 +3557,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-multisig-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "cw3",
+ "cw3-fixed-multisig",
+ "cw4",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
  "cfg-if",
- "dotenv",
+ "dotenvy",
  "hex-literal",
  "once_cell",
  "serde",
@@ -3596,20 +3596,39 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-pemstore"
+name = "nym-ordered-buffer"
 version = "0.1.0"
+dependencies = [
+ "log",
+ "thiserror",
+]
+
+[[package]]
+name = "nym-pemstore"
+version = "0.2.0"
 dependencies = [
  "pem",
 ]
 
 [[package]]
+name = "nym-service-providers-common"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "nym-bin-common",
+ "nym-sphinx-anonymous-replies",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-socks5-client"
-version = "1.1.11"
+version = "1.1.12"
 dependencies = [
  "clap",
  "client-core",
- "coconut-interface",
- "credentials",
  "dirs",
  "futures",
  "gateway-client",
@@ -3618,27 +3637,54 @@ dependencies = [
  "log",
  "mobile-storage",
  "nym-bin-common",
+ "nym-coconut-interface",
  "nym-config",
+ "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
+ "nym-ordered-buffer",
  "nym-pemstore",
+ "nym-service-providers-common",
+ "nym-socks5-proxy-helpers",
+ "nym-socks5-requests",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
- "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
- "proxy-helpers",
  "rand 0.7.3",
  "serde",
  "serde_json",
- "service-providers-common",
- "socks5-requests",
  "tap",
  "thiserror",
  "tokio",
  "url",
  "validator-client",
+]
+
+[[package]]
+name = "nym-socks5-proxy-helpers"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "futures",
+ "log",
+ "nym-ordered-buffer",
+ "nym-socks5-requests",
+ "nym-task",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "nym-socks5-requests"
+version = "0.1.0"
+dependencies = [
+ "nym-service-providers-common",
+ "nym-sphinx-addressing",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -3761,7 +3807,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-types"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "sphinx-packet",
 ]
@@ -3796,14 +3842,16 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract"
-version = "1.1.4"
+version = "1.2.0-pre.1"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
+ "cw2",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
  "nym-vesting-contract-common",
  "schemars",
+ "semver 1.0.16",
  "serde",
  "thiserror",
  "vergen",
@@ -3811,7 +3859,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",
@@ -3827,11 +3875,11 @@ dependencies = [
  "bls12_381 0.6.0",
  "bs58",
  "digest 0.9.0",
- "dkg",
  "ff 0.11.1",
  "getrandom 0.2.8",
  "group 0.11.0",
  "itertools",
+ "nym-dkg",
  "nym-pemstore",
  "rand 0.8.5",
  "serde",
@@ -3960,14 +4008,6 @@ dependencies = [
  "openssl-src",
  "pkg-config",
  "vcpkg",
-]
-
-[[package]]
-name = "ordered-buffer"
-version = "0.1.0"
-dependencies = [
- "log",
- "thiserror",
 ]
 
 [[package]]
@@ -4458,20 +4498,6 @@ checksum = "2d0a014229361011dc8e69c8a1ec6c2e8d0f2af7c91e3ea3f5b2170298461e68"
 dependencies = [
  "bytes",
  "prost",
-]
-
-[[package]]
-name = "proxy-helpers"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "futures",
- "log",
- "nym-task",
- "ordered-buffer",
- "socks5-requests",
- "tokio",
- "tokio-util",
 ]
 
 [[package]]
@@ -5310,19 +5336,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "service-providers-common"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "log",
- "nym-bin-common",
- "nym-sphinx-anonymous-replies",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "servo_arc"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5458,17 +5471,6 @@ checksum = "02e2d2db9033d13a1567121ddd7a095ee144db4e1ca1b1bda3419bc0da294ebd"
 dependencies = [
  "libc",
  "winapi",
-]
-
-[[package]]
-name = "socks5-requests"
-version = "0.1.0"
-dependencies = [
- "nym-sphinx-addressing",
- "serde",
- "serde_json",
- "service-providers-common",
- "thiserror",
 ]
 
 [[package]]
@@ -6748,9 +6750,6 @@ dependencies = [
  "async-trait",
  "base64 0.13.1",
  "bip39",
- "coconut-bandwidth-contract-common",
- "coconut-dkg-common",
- "coconut-interface",
  "colored 2.0.0",
  "cosmrs",
  "cosmwasm-std",
@@ -6758,15 +6757,18 @@ dependencies = [
  "cw4",
  "flate2",
  "futures",
- "group-contract-common",
  "itertools",
  "log",
- "multisig-contract-common",
  "nym-api-requests",
+ "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
+ "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
  "nym-execute",
+ "nym-group-contract-common",
  "nym-mixnet-contract-common",
+ "nym-multisig-contract-common",
  "nym-network-defaults",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
@@ -6778,6 +6780,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
+ "zeroize",
 ]
 
 [[package]]

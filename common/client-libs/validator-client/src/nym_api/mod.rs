@@ -144,6 +144,21 @@ impl Client {
         .await
     }
 
+    pub async fn get_mixnodes_detailed_unfiltered(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
+        self.query_nym_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::MIXNODES,
+                routes::DETAILED_UNFILTERED,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
     pub async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
         self.query_nym_api(&[routes::API_VERSION, routes::GATEWAYS], NO_PARAMS)
             .await

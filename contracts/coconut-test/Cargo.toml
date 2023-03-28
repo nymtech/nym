@@ -2,31 +2,32 @@
 name = "coconut-test"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
-coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract" }
+nym-bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
+nym-coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract" }
 
-cosmwasm-std = "1.0.0"
-cosmwasm-storage = "1.0.0"
-cw3 = "0.13.4"
-cw4 = "0.13.4"
-cw-storage-plus = "0.13.4"
-cw-controllers = "0.13.4"
-cw-utils = "0.13.4"
+cosmwasm-std = { workspace = true }
+cosmwasm-storage = { workspace = true }
+cw3 = { workspace = true }
+cw4 = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw-controllers = { workspace = true }
+cw-utils = { workspace = true }
 
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = "1.0.23"
 
-coconut-bandwidth = { path = "../coconut-bandwidth" }
-coconut-dkg = { path = "../coconut-dkg" }
-cw-multi-test = { version = "0.13.4" }
+nym-coconut-bandwidth = { path = "../coconut-bandwidth" }
+nym-coconut-dkg = { path = "../coconut-dkg" }
+cw-multi-test = { workspace = true }
 cw3-flex-multisig = { path = "../multisig/cw3-flex-multisig" }
 cw4-group = { path = "../multisig/cw4-group" }
 

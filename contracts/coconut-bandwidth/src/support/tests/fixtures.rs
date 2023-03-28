@@ -1,8 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_bandwidth_contract_common::spend_credential::{SpendCredential, SpendCredentialData};
 use cosmwasm_std::{Addr, Coin};
+use nym_coconut_bandwidth_contract_common::spend_credential::{
+    SpendCredential, SpendCredentialData,
+};
 
 pub const TEST_MIX_DENOM: &str = "unym";
 

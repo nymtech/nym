@@ -4,10 +4,10 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nym_ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
+use nym_socks5_requests::{ConnectionId, NetworkData, SendRequest};
 use nym_task::connections::{ConnectionCommand, ConnectionCommandSender};
 use nym_task::TaskClient;
-use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
-use socks5_requests::{ConnectionId, NetworkData, SendRequest};
 use std::collections::{HashMap, HashSet};
 
 /// A generic message produced after reading from a socket/connection. It includes data that was

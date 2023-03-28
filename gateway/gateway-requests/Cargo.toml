@@ -22,8 +22,8 @@ thiserror = "1.0"
 nym-crypto = { path = "../../common/crypto"  }
 nym-pemstore = { path = "../../common/pemstore" }
 
-coconut-interface = { path = "../../common/coconut-interface" }
-credentials = { path = "../../common/credentials" }
+nym-coconut-interface = { path = "../../common/coconut-interface" }
+nym-credentials = { path = "../../common/credentials" }
 
 [dependencies.tungstenite]
 version = "0.13.0"

@@ -20,6 +20,7 @@ export type MixnodeRowType = {
   stake_saturation: React.ReactNode;
   operating_cost: string;
   node_performance: NodePerformance['most_recent'];
+  blacklisted: boolean;
 };
 
 export function mixnodeToGridRow(arrayOfMixnodes?: MixNodeResponse): MixnodeRowType[] {
@@ -51,5 +52,6 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     stake_saturation: uncappedSaturation.toFixed(2),
     operating_cost: `${unymToNym(item.operating_cost?.amount, 6)} NYM`,
     node_performance: `${toPercentIntegerString(item.node_performance.most_recent)}%`,
+    blacklisted: item.blacklisted,
   };
 }

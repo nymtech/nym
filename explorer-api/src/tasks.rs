@@ -43,7 +43,7 @@ impl ExplorerApiTasks {
 
     async fn retrieve_all_mixnodes(&self) -> Vec<MixNodeBondAnnotated> {
         info!("About to retrieve all mixnode bonds...");
-        self.retrieve_mixnodes(validator_client::Client::get_cached_mixnodes_detailed)
+        self.retrieve_mixnodes(validator_client::Client::get_cached_mixnodes_detailed_unfiltered)
             .await
     }
 

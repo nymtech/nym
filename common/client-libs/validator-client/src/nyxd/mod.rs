@@ -197,7 +197,7 @@ impl NyxdClient<SigningNyxdClient> {
     {
         let prefix = &config.chain_details.bech32_account_prefix;
         let denom = &config.chain_details.mix_denom.base;
-        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)?;
+        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
         let client_address = wallet
             .try_derive_accounts()?
             .into_iter()
@@ -211,6 +211,17 @@ impl NyxdClient<SigningNyxdClient> {
             client_address: Some(client_address),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
+    }
+
+    pub fn change_endpoint<U>(&mut self, new_endpoint: U) -> Result<(), NyxdError>
+    where
+        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+    {
+        self.client.change_endpoint(new_endpoint)
+    }
+
+    pub fn into_signer(self) -> DirectSecp256k1HdWallet {
+        self.client.into_signer()
     }
 }
 

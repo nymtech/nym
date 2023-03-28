@@ -1,5 +1,5 @@
 use client_core::error::ClientCoreError;
-use socks5_requests::Socks5RequestError;
+use nym_socks5_requests::Socks5RequestError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum NetworkRequesterError {

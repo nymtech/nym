@@ -17,7 +17,7 @@ serde_derive = "1.0"
 bs58 = "0.4.0"
 sha2 = "0.9"
 
-dkg = { path = "../dkg" }
+nym-dkg = { path = "../dkg" }
 nym-pemstore = { path = "../pemstore" }
 
 [dependencies.ff]
@@ -29,7 +29,7 @@ version = "0.11"
 default-features = false
 
 [dev-dependencies]
-criterion = { version="0.3", features=["html_reports"] }
+criterion = { version="0.4", features=["html_reports"] }
 doc-comment = "0.3"
 rand_chacha = "0.3"
 

@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{IdentityKey, MixId};
+use crate::{EpochState, IdentityKey, MixId};
 use cosmwasm_std::{Addr, Coin, Decimal};
 use thiserror::Error;
 
@@ -63,6 +63,19 @@ pub enum MixnetContractError {
 
     #[error("Proxy address mismatch, expected {existing}, got {incoming}")]
     ProxyMismatch { existing: String, incoming: String },
+
+    #[error("Proxy address ({received}) is not set to the vesting contract ({vesting_contract})")]
+    ProxyIsNotVestingContract {
+        received: Addr,
+        vesting_contract: Addr,
+    },
+    #[error(
+        "Sender of this message ({received}) is not the vesting contract ({vesting_contract})"
+    )]
+    SenderIsNotVestingContract {
+        received: Addr,
+        vesting_contract: Addr,
+    },
 
     #[error("Failed to recover ed25519 public key from its base58 representation - {0}")]
     MalformedEd25519IdentityKey(String),
@@ -169,4 +182,40 @@ pub enum MixnetContractError {
 
     #[error("Feature is not yet implemented")]
     NotImplemented,
+
+    #[error("epochs_in_interval must be > 0")]
+    EpochsInIntervalZero,
+
+    #[error("epoch duration must be > 0")]
+    EpochDurationZero,
+
+    #[error("this validator ({current_validator}) is not the one responsible for advancing this epoch. It's responsibility of {chosen_validator}.")]
+    RewardingValidatorMismatch {
+        current_validator: Addr,
+        chosen_validator: Addr,
+    },
+
+    #[error("the epoch is currently in the process of being advanced. (the state is {current_state}) Please try sending your transaction again once this has finished")]
+    EpochAdvancementInProgress { current_state: EpochState },
+
+    #[error("the epoch is in an unexpected state. expected 'mix rewarding' state, but we're in {current_state} instead.")]
+    UnexpectedNonRewardingEpochState { current_state: EpochState },
+
+    #[error("attempted to reward mixnode out of order. Attempted to reward {attempted_to_reward} while last rewarded was {last_rewarded}.")]
+    RewardingOutOfOrder {
+        last_rewarded: MixId,
+        attempted_to_reward: MixId,
+    },
+
+    #[error("the epoch is currently not in the 'event reconciliation' state. (the state is {current_state})")]
+    EpochNotInEventReconciliationState { current_state: EpochState },
+
+    #[error("the epoch is currently not in the 'epoch advancement' state. (the state is {current_state})")]
+    EpochNotInAdvancementState { current_state: EpochState },
+
+    #[error("failed to parse {value} into a valid SemVer version: {error_message}")]
+    SemVerFailure {
+        value: String,
+        error_message: String,
+    },
 }

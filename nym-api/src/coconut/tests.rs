@@ -3,23 +3,23 @@
 
 use super::InternalSignRequest;
 use crate::coconut::error::{CoconutError, Result};
-use coconut_bandwidth_contract_common::events::{
-    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
-    DEPOSIT_VALUE,
-};
-use coconut_bandwidth_contract_common::spend_credential::{
-    SpendCredential, SpendCredentialResponse,
-};
-use coconut_interface::{hash_to_scalar, Credential, VerificationKey};
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
-use credentials::coconut::bandwidth::BandwidthVoucher;
-use credentials::coconut::params::{
-    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
-};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
+use nym_coconut_bandwidth_contract_common::events::{
+    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
+    DEPOSIT_VALUE,
+};
+use nym_coconut_bandwidth_contract_common::spend_credential::{
+    SpendCredential, SpendCredentialResponse,
+};
+use nym_coconut_interface::{hash_to_scalar, Credential, VerificationKey};
 use nym_config::defaults::VOUCHER_INFO;
+use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::params::{
+    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
+};
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
@@ -35,19 +35,19 @@ use validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, Tx
 use crate::coconut::State;
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
-use coconut_dkg_common::dealer::{
-    ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
-};
-use coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
-use coconut_dkg_common::types::{
-    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, TOTAL_DEALINGS,
-};
-use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
-use dkg::Threshold;
+use nym_coconut_dkg_common::dealer::{
+    ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
+};
+use nym_coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
+use nym_coconut_dkg_common::types::{
+    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, TOTAL_DEALINGS,
+};
+use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_dkg::Threshold;
 use rand_07::rngs::OsRng;
 use rand_07::Rng;
 use rocket::http::Status;
@@ -399,10 +399,11 @@ impl super::client::Client for DummyClient {
             },
         );
         let proposal_id = OsRng.gen();
-        let verify_vk_share_req = coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
-            owner: Addr::unchecked(self.validator_address.as_ref()),
-            resharing,
-        };
+        let verify_vk_share_req =
+            nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
+                owner: Addr::unchecked(self.validator_address.as_ref()),
+                resharing,
+            };
         let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: String::new(),
             msg: to_binary(&verify_vk_share_req).unwrap(),
@@ -954,7 +955,7 @@ async fn verification_of_bandwidth_credential() {
 
     // Test the endpoint without any credential recorded in the Coconut Bandwidth Contract
     let funds = Coin::new(voucher_value as u128, TEST_COIN_DENOM);
-    let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+    let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
         funds: funds.clone().into(),
     };
     let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -1050,7 +1051,7 @@ async fn verification_of_bandwidth_credential() {
     // Test the endpoint with a proposal that has a different value for the funds to be released
     // then what's in the credential
     let funds = Coin::new((voucher_value + 10) as u128, TEST_COIN_DENOM);
-    let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+    let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
         funds: funds.clone().into(),
     };
     let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -1088,7 +1089,7 @@ async fn verification_of_bandwidth_credential() {
 
     // Test the endpoint with every dependency met
     let funds = Coin::new(voucher_value as u128, TEST_COIN_DENOM);
-    let msg = coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+    let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
         funds: funds.clone().into(),
     };
     let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {

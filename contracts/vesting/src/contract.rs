@@ -10,11 +10,12 @@ use crate::vesting::{populate_vesting_periods, Account};
 use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{
     coin, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
-    QueryResponse, Response, StdResult, Timestamp, Uint128,
+    QueryResponse, Response, StdError, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::{Gateway, MixId, MixNode};
+use semver::Version;
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
@@ -30,7 +31,24 @@ use vesting_contract_common::{
     VestingCoinsResponse, VestingDelegation,
 };
 
+// version info for migration info
+const CONTRACT_NAME: &str = "crate:nym-vesting-contract";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub const INITIAL_LOCKED_PLEDGE_CAP: Uint128 = Uint128::new(100_000_000_000);
+
+// as of 01.02.23 the maximum number of delegations anyone has made towards particular mixnode is 12.
+// thus restricting it to 25, which is more than double of that, doesn't seem too unreasonable.
+// and is going to alleviate the issue of unbounded iteration in `remove_delegations_for_mix`
+// that happens upon advancing the current epoch.
+//
+// However, do note it doesn't necessarily mean that upon reaching this limit it's impossible to perform
+// further delegations (towards the same node)
+// while this might not be the best workaround, you could remove the existing delegation
+// (thus removing all separate entries from the storage, i.e. the `DELEGATIONS` map)
+// and re-delegate it with the reclaimed amount (which will include all rewards)
+// which will only result in a single key-value being stored.
+pub const MAX_PER_MIX_DELEGATIONS: u32 = 25;
 
 /// Instantiate the contract
 #[entry_point]
@@ -47,11 +65,48 @@ pub fn instantiate(
     ADMIN.save(deps.storage, &info.sender)?;
     MIXNET_CONTRACT_ADDRESS.save(deps.storage, &mixnet_contract_address)?;
     MIX_DENOM.save(deps.storage, &msg.mix_denom)?;
+
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     Ok(Response::default())
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    // this is the first migration that uses cw2 standard and thus the value in the storage doesn't yet exist
+    // set it instead.
+    if matches!(
+        cw2::get_contract_version(deps.storage),
+        Err(StdError::NotFound { .. })
+    ) {
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    }
+
+    // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
+    let version: Version =
+        CONTRACT_VERSION
+            .parse()
+            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+                value: CONTRACT_VERSION.to_string(),
+                error_message: error.to_string(),
+            })?;
+
+    let storage_version_raw = cw2::get_contract_version(deps.storage)?.version;
+    let storage_version: Version =
+        storage_version_raw
+            .parse()
+            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+                value: storage_version_raw,
+                error_message: error.to_string(),
+            })?;
+
+    if storage_version < version {
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+        // If state structure changed in any contract version in the way migration is needed, it
+        // should occur here
+    }
+
     Ok(Response::new())
 }
 
@@ -68,13 +123,20 @@ pub fn execute(
             label,
         } => try_create_family(info, deps, owner_signature, label),
         ExecuteMsg::JoinFamily {
-            signature,
+            node_identity_signature,
+            family_signature,
             family_head,
-        } => try_join_family(info, deps, signature, family_head),
+        } => try_join_family(
+            info,
+            deps,
+            node_identity_signature,
+            family_signature,
+            family_head,
+        ),
         ExecuteMsg::LeaveFamily {
-            signature,
+            node_identity_signature,
             family_head,
-        } => try_leave_family(info, deps, signature, family_head),
+        } => try_leave_family(info, deps, node_identity_signature, family_head),
         ExecuteMsg::KickFamilyMember { signature, member } => {
             try_kick_family_member(info, deps, signature, member)
         }
@@ -177,20 +239,26 @@ pub fn try_create_family(
 pub fn try_join_family(
     info: MessageInfo,
     deps: DepsMut,
-    signature: String,
+    node_identity_signature: String,
+    family_signature: String,
     family_head: String,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_join_family(deps.storage, signature, &family_head)
+    account.try_join_family(
+        deps.storage,
+        node_identity_signature,
+        family_signature,
+        &family_head,
+    )
 }
 pub fn try_leave_family(
     info: MessageInfo,
     deps: DepsMut,
-    signature: String,
+    node_identity_signature: String,
     family_head: String,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_leave_family(deps.storage, signature, &family_head)
+    account.try_leave_family(deps.storage, node_identity_signature, &family_head)
 }
 pub fn try_kick_family_member(
     info: MessageInfo,
@@ -474,6 +542,14 @@ fn try_delegate_to_mixnode(
     env: Env,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
+    // TODO
+    // as of 01.02.23
+    // thus restricting it to 25, which is more than double of that, doesn't seem too unreasonable.
+
+    // while this might not be the best workaround, if user wishes to delegate more tokens towards the same node
+    // they could remove the existing delegation (thus removing all separate entries from the storage)
+    // and re-delegate it with the reclaimed amount (which will include all rewards).
+
     let mix_denom = MIX_DENOM.load(deps.storage)?;
     let amount = validate_funds(&[amount], mix_denom)?;
 
@@ -602,6 +678,7 @@ pub(crate) fn try_create_periodic_vesting_account(
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetContractVersion {} => to_binary(&get_contract_version()),
+        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
         QueryMsg::GetAccountsPaged {
             start_next_after,
             limit,

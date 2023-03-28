@@ -74,7 +74,7 @@ impl SocketClient {
         let client = validator_client::Client::new_query(client_config)
             .expect("Could not construct query client");
         BandwidthController::new(
-            credential_storage::initialise_storage(config.get_base().get_database_path()).await,
+            nym_credential_storage::initialise_storage(config.get_base().get_database_path()).await,
             client,
         )
     }

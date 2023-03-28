@@ -6,8 +6,8 @@ use crate::epoch_state::storage::INITIAL_REPLACEMENT_DATA;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::STATE;
-use coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
 use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
+use nym_coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
 
 // currently we only require that
 // a) it's part of the signer group
@@ -81,9 +81,9 @@ pub(crate) mod tests {
     use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_fixture_dealer, GROUP_MEMBERS};
-    use coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cw4::Member;
+    use nym_coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
     use rusty_fork::rusty_fork_test;
 
     rusty_fork_test! {

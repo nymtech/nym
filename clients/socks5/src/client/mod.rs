@@ -92,7 +92,7 @@ impl NymClient {
 
         #[cfg(not(feature = "mobile"))]
         let storage =
-            credential_storage::initialise_storage(config.get_base().get_database_path()).await;
+            nym_credential_storage::initialise_storage(config.get_base().get_database_path()).await;
 
         #[cfg(feature = "mobile")]
         let storage = mobile_storage::PersistentStorage {};

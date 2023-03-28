@@ -162,6 +162,7 @@ impl ThreadsafeMixNodesCache {
             operating_cost: rewarding_info.cost_params.interval_operating_cost.clone(),
             profit_margin_percent: rewarding_info.cost_params.profit_margin_percent,
             family_id,
+            blacklisted: node.blacklisted,
         }
     }
 

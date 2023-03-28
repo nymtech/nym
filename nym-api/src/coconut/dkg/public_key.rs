@@ -4,7 +4,7 @@
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::State;
 use crate::coconut::error::CoconutError;
-use coconut_dkg_common::dealer::DealerType;
+use nym_coconut_dkg_common::dealer::DealerType;
 
 pub(crate) async fn public_key_submission(
     dkg_client: &DkgClient,
@@ -46,7 +46,7 @@ pub(crate) mod tests {
     use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
-    use dkg::bte::keys::KeyPair as DkgKeyPair;
+    use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
     use rand::rngs::OsRng;
     use std::path::PathBuf;
     use std::str::FromStr;
@@ -65,7 +65,7 @@ pub(crate) mod tests {
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
-            DkgKeyPair::new(&dkg::bte::setup(), OsRng),
+            DkgKeyPair::new(&nym_dkg::bte::setup(), OsRng),
             KeyPair::new(),
         );
 

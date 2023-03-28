@@ -20,7 +20,7 @@ use std::collections::HashSet;
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes")]
 pub async fn get_mixnodes(cache: &State<NymContractCache>) -> Json<Vec<MixNodeDetails>> {
-    Json(cache.mixnodes().await)
+    Json(cache.mixnodes_filtered().await)
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
@@ -41,7 +41,7 @@ pub async fn get_mixnodes_detailed(
 #[openapi(tag = "contract-cache")]
 #[get("/gateways")]
 pub async fn get_gateways(cache: &State<NymContractCache>) -> Json<Vec<GatewayBond>> {
-    Json(cache.gateways().await)
+    Json(cache.gateways_filtered().await)
 }
 
 #[openapi(tag = "contract-cache")]
@@ -68,7 +68,7 @@ pub async fn get_rewarded_set_detailed(
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/active")]
 pub async fn get_active_set(cache: &State<NymContractCache>) -> Json<Vec<MixNodeDetails>> {
-    Json(cache.mixnodes().await)
+    Json(cache.mixnodes_filtered().await)
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
@@ -91,7 +91,12 @@ pub async fn get_active_set_detailed(
 pub async fn get_blacklisted_mixnodes(
     cache: &State<NymContractCache>,
 ) -> Json<Option<HashSet<MixId>>> {
-    Json(cache.mixnodes_blacklist().await.map(|c| c.value))
+    let blacklist = cache.mixnodes_blacklist().await.value;
+    if blacklist.is_empty() {
+        Json(None)
+    } else {
+        Json(Some(blacklist))
+    }
 }
 
 #[openapi(tag = "contract-cache")]
@@ -99,7 +104,12 @@ pub async fn get_blacklisted_mixnodes(
 pub async fn get_blacklisted_gateways(
     cache: &State<NymContractCache>,
 ) -> Json<Option<HashSet<String>>> {
-    Json(cache.gateways_blacklist().await.map(|c| c.value))
+    let blacklist = cache.gateways_blacklist().await.value;
+    if blacklist.is_empty() {
+        Json(None)
+    } else {
+        Json(Some(blacklist))
+    }
 }
 
 #[openapi(tag = "contract-cache")]

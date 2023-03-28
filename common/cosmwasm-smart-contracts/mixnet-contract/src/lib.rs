@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 #![warn(clippy::expect_used)]
@@ -29,7 +29,8 @@ pub use gateway::{
     Gateway, GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse,
 };
 pub use interval::{
-    CurrentIntervalResponse, Interval, PendingEpochEventsResponse, PendingIntervalEventsResponse,
+    CurrentIntervalResponse, EpochState, EpochStatus, Interval, NumberOfPendingEventsResponse,
+    PendingEpochEventsResponse, PendingIntervalEventsResponse,
 };
 pub use mixnode::{
     Layer, MixNode, MixNodeBond, MixNodeConfigUpdate, MixNodeCostParams, MixNodeDetails,

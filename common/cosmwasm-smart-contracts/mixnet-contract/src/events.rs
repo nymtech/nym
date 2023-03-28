@@ -35,6 +35,7 @@ pub enum MixnetEventType {
     Undelegation,
     ContractSettingsUpdate,
     RewardingValidatorUpdate,
+    BeginEpochTransition,
     AdvanceEpoch,
     ExecutePendingEpochEvents,
     ExecutePendingIntervalEvents,
@@ -77,6 +78,7 @@ impl ToString for MixnetEventType {
             MixnetEventType::Undelegation => "undelegation",
             MixnetEventType::ContractSettingsUpdate => "settings_update",
             MixnetEventType::RewardingValidatorUpdate => "rewarding_validator_address_update",
+            MixnetEventType::BeginEpochTransition => "beginning_epoch_transition",
             MixnetEventType::AdvanceEpoch => "advance_epoch",
             MixnetEventType::ExecutePendingEpochEvents => "execute_pending_epoch_events",
             MixnetEventType::ExecutePendingIntervalEvents => "execute_pending_interval_events",
@@ -139,6 +141,7 @@ pub const ZERO_PERFORMANCE_VALUE: &str = "zero_performance";
 // rewarded set update
 pub const ACTIVE_SET_SIZE_KEY: &str = "active_set_size";
 
+pub const CURRENT_EPOCH_KEY: &str = "current_epoch";
 pub const NEW_CURRENT_EPOCH_KEY: &str = "new_current_epoch";
 
 // interval
@@ -498,6 +501,13 @@ pub fn new_mix_rewarding_event(
             DELEGATES_REWARD_KEY,
             reward_distribution.delegates.to_string(),
         )
+}
+
+pub fn new_epoch_transition_start_event(current_interval: Interval) -> Event {
+    Event::new(MixnetEventType::BeginEpochTransition).add_attribute(
+        CURRENT_EPOCH_KEY,
+        current_interval.current_epoch_absolute_id().to_string(),
+    )
 }
 
 pub fn new_advance_epoch_event(interval: Interval, rewarded_nodes: u32) -> Event {

@@ -1,8 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_interface::Parameters;
-use credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_coconut_interface::Parameters;
+use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 
 use nym_crypto::asymmetric::{encryption, identity};
 

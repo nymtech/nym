@@ -201,10 +201,7 @@ pub fn compute_pedersen_commitments_for_private_attributes(
     (commitments_openings, pedersen_commitments)
 }
 
-pub fn compute_commitment_hash(
-    commitment: G1Projective,
-    public_attributes: &[Attribute],
-) -> G1Projective {
+pub fn compute_hash(commitment: G1Projective, public_attributes: &[Attribute]) -> G1Projective {
     let mut buff = Vec::new();
     buff.extend_from_slice(commitment.to_bytes().as_ref());
     for attr in public_attributes {
@@ -238,7 +235,7 @@ pub fn prepare_blind_sign(
         compute_attributes_commitment(params, private_attributes, public_attributes, hs);
 
     // Compute the challenge as the commitment hash
-    let commitment_hash = compute_commitment_hash(commitment, public_attributes);
+    let commitment_hash = compute_hash(commitment, public_attributes);
 
     let (pedersen_commitments_openings, pedersen_commitments) =
         compute_pedersen_commitments_for_private_attributes(
@@ -285,7 +282,7 @@ pub fn blind_sign(
     }
 
     // Verify the commitment hash
-    let h = compute_commitment_hash(blind_sign_request.commitment, public_attributes);
+    let h = compute_hash(blind_sign_request.commitment, public_attributes);
     if !(h == blind_sign_request.commitment_hash) {
         return Err(CoconutError::Issuance(
             "Failed to verify the commitment hash".to_string(),

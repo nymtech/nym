@@ -14,7 +14,7 @@ use itertools::izip;
 use sha2::Sha256;
 
 use crate::error::{CoconutError, Result};
-use crate::scheme::issuance::compute_commitment_hash;
+use crate::scheme::issuance::compute_hash;
 use crate::scheme::setup::Parameters;
 use crate::scheme::VerificationKey;
 use crate::utils::{try_deserialize_scalar, try_deserialize_scalar_vec};
@@ -106,7 +106,7 @@ impl ProofCmCs {
         let witness_attributes = params.n_random_scalars(private_attributes.len());
 
         // recompute h
-        let h = compute_commitment_hash(*commitment, public_attributes);
+        let h = compute_hash(*commitment, public_attributes);
         let hs_bytes = params
             .gen_hs()
             .iter()
@@ -188,7 +188,7 @@ impl ProofCmCs {
         }
 
         // recompute h
-        let h = compute_commitment_hash(*commitment, public_attributes);
+        let h = compute_hash(*commitment, public_attributes);
         let g1 = params.gen1();
 
         let hs_bytes = params

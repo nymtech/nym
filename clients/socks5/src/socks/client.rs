@@ -26,6 +26,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::{self, net::TcpStream};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[pin_project(project = StateProject)]
 enum StreamState {
@@ -484,11 +485,23 @@ impl SocksClient {
                     remote_address.clone(),
                     self.connection_id
                 );
+                let time = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+        
+                println!("Download started_{}",time);
+                println!("Connection id {:?}", self.connection_id);
                 self.run_proxy(mix_receiver, remote_address.clone()).await;
                 info!(
                     "Proxy for {} is finished (id: {})",
                     remote_address, self.connection_id
                 );
+                let time2 = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+                println!("Download ended_{}",time2);
             }
 
             SocksCommand::Bind => unimplemented!(), // not handled

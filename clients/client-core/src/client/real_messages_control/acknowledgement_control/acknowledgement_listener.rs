@@ -10,6 +10,7 @@ use nym_sphinx::{
     chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID},
 };
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Module responsible for listening for any data resembling acknowledgements from the network
 /// and firing actions to remove them from the 'Pending' state.
@@ -47,11 +48,17 @@ impl AcknowledgementListener {
         // if we received an ack for cover message or a reply there will be nothing to remove,
         // because nothing was inserted in the first place
         if frag_id == COVER_FRAG_ID {
+            println!("cover ack");
             trace!("Received an ack for a cover message - no need to do anything");
             return;
         }
 
         trace!("Received {} from the mix network", frag_id);
+        let time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+        println!("real ack : /{:?}/{}", frag_id, time);
 
         self.action_sender
             .unbounded_send(Action::new_remove(frag_id))

@@ -47,6 +47,16 @@ impl From<u8> for PacketVersion {
             n if n == PacketSize::ExtendedPacket8 as u8 => PacketVersion::Legacy,
             n if n == PacketSize::ExtendedPacket16 as u8 => PacketVersion::Legacy,
             n if n == PacketSize::ExtendedPacket32 as u8 => PacketVersion::Legacy,
+            n if n == PacketSize::ExtendedPacket10 as u8 => PacketVersion::Legacy,
+            n if n == PacketSize::ExtendedPacket15 as u8 => PacketVersion::Legacy,
+            n if n == PacketSize::ExtendedPacket20 as u8 => PacketVersion::Legacy,
+            n if n == PacketSize::ExtendedPacket25 as u8 => PacketVersion::Legacy,
+            n if n == PacketSize::ExtendedPacket50 as u8 => PacketVersion::Legacy,
+            n if n == PacketSize::ExtendedPacket100 as u8 => PacketVersion::Legacy,
+            n if n == PacketSize::ExtendedPacket150 as u8 => PacketVersion::Legacy,
+            n if n == PacketSize::ExtendedPacket200 as u8 => PacketVersion::Legacy,
+            n if n == PacketSize::ExtendedPacket250 as u8 => PacketVersion::Legacy,
+            n if n == PacketSize::ExtendedPacket500 as u8 => PacketVersion::Legacy,
             n => PacketVersion::Versioned(n),
         }
     }
@@ -57,3 +67,4 @@ impl Default for PacketVersion {
         PacketVersion::Versioned(CURRENT_PACKET_VERSION_NUMBER)
     }
 }
+

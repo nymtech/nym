@@ -16,6 +16,7 @@ serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.21.2", features = ["time", "macros", "rt", "net", "io-util"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 url = "2.2"
+tracing = "0.1.37"
 
 crypto =  { path = "../crypto" }
 nymsphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }

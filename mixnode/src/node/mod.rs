@@ -19,7 +19,8 @@ use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use ::crypto::asymmetric::{encryption, identity};
 use config::NymConfig;
-use log::{error, info, warn};
+use tracing::*;
+use tracing::{info, error, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -211,7 +212,7 @@ impl MixNode {
 
         let packet_sender = packet_forwarder.sender();
 
-        tokio::spawn(async move { packet_forwarder.run().await });
+        tokio::spawn(async move { packet_forwarder.run().await }.instrument(info_span!("Packet delay forwarder")));
         packet_sender
     }
 
@@ -255,13 +256,13 @@ impl MixNode {
         atomic_verloc_results
     }
 
-    fn random_api_client(&self) -> validator_client::ApiClient {
+    fn random_api_client(&self) -> validator_client::client::ApiClient {
         let endpoints = self.config.get_validator_api_endpoints();
         let validator_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
 
-        validator_client::ApiClient::new(validator_api.clone())
+        validator_client::client::ApiClient::new(validator_api.clone())
     }
 
     // TODO: ask DH whether this function still makes sense in ^0.10
@@ -291,13 +292,13 @@ impl MixNode {
     async fn wait_for_interrupt(&self, mut shutdown: ShutdownNotifier) {
         wait_for_signal().await;
 
-        log::info!("Sending shutdown");
+        info!("Sending shutdown");
         shutdown.signal_shutdown().ok();
 
-        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        info!("Waiting for tasks to finish... (Press ctrl-c to force)");
         shutdown.wait_for_shutdown().await;
 
-        log::info!("Stopping nym mixnode");
+        info!("Stopping nym mixnode");
     }
 
     pub async fn run(&mut self) {
@@ -307,7 +308,7 @@ impl MixNode {
             if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
                 warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
             } else {
-                log::error!(
+                error!(
                     "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
                     duplicate_node_key
                 );

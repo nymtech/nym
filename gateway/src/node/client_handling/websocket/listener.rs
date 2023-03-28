@@ -65,7 +65,7 @@ impl Listener {
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
-                    log::trace!("client_handling::Listener: received shutdown");
+                    trace!("client_handling::Listener: received shutdown");
                 }
                 connection = tcp_listener.accept() => {
                     match connection {
@@ -85,7 +85,7 @@ impl Listener {
                                 Arc::clone(&self.coconut_verifier),
                             );
                             let shutdown = shutdown.clone();
-                            tokio::spawn(async move { handle.start_handling(shutdown).await });
+                            tokio::spawn(async move { handle.start_handling(shutdown).await }.instrument(info_span!("Connection handling", address = %remote_addr)));
                         }
                         Err(err) => warn!("failed to get client: {err}"),
                     }
@@ -108,6 +108,6 @@ impl Listener {
         tokio::spawn(async move {
             self.run(outbound_mix_sender, storage, active_clients_store, shutdown)
                 .await
-        })
+        }.instrument(info_span!("Client Listener")))
     }
 }

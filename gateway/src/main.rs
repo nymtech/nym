@@ -5,7 +5,6 @@ use build_information::BinaryBuildInformation;
 use clap::{crate_name, crate_version, Parser, ValueEnum};
 use colored::Colorize;
 use lazy_static::lazy_static;
-use log::error;
 use logging::setup_logging;
 use network_defaults::setup_env;
 use std::error::Error;
@@ -13,7 +12,6 @@ use std::error::Error;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{EnvFilter, Registry, filter};
 use tracing::*;
-use opentelemetry::trace::{TraceError};
 use tracing_flame::FlameLayer;
 use std::time::Duration;
 use std::thread::sleep;
@@ -77,33 +75,36 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let tracer = opentelemetry_jaeger::new_agent_pipeline()
         .with_endpoint("143.42.21.138:6831")
         .with_service_name("nym_gateway")
-        .install_simple()
+        .with_auto_split_batch(true)
+        .install_batch(opentelemetry::runtime::Tokio)
         .expect("Failed to initialize tracer");
 
-    let jaeger_layer = tracing_opentelemetry::layer().with_tracer(tracer);
-    let filter_layer = filter::filter_fn(|metadata| {metadata.target().starts_with("nym_gateway")});
+    //let jaeger_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+    let hyper_filter = filter::filter_fn(|metadata| {!metadata.target().starts_with("hyper")});
+    let tokio_filter = filter::filter_fn(|metadata| {!metadata.target().starts_with("tokio")});
 
     let (flame_layer, _guard) = FlameLayer::with_file("./tracing.folded").unwrap();
 
     let subscriber = Registry::default()
         .with(EnvFilter::from_default_env())
-        .with(filter_layer)
+        .with(hyper_filter)
+        .with(tokio_filter)
         .with(tracing_subscriber::fmt::layer().pretty())
-        .with(flame_layer)
-        .with(jaeger_layer);
+        .with(flame_layer);
+        //.with(jaeger_layer)
 
 
-    tracing::subscriber::set_global_default(subscriber)
-     .expect("Failed to set global subscriber");
+   // tracing::subscriber::set_global_default(subscriber)
+    // .expect("Failed to set global subscriber");
     //tracing_subscriber::fmt::init();
-    //setup_logging();
+    setup_logging();
     if atty::is(atty::Stream::Stdout) {
         println!("{}", logging::banner(crate_name!(), crate_version!()));
     }
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
-
+//.instrument(info_span!("Execute Run"))
     commands::execute(args).await.map_err(|err| {
         if atty::is(atty::Stream::Stdout) {
             let error_message = format!("{err}").red();
@@ -111,7 +112,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             error!("Exiting...");
         }
         err
-    })
+    });
+    //sleep(Duration::from_secs(5));
+    //opentelemetry::global::shutdown_tracer_provider();
+    Ok(())
+
 }
 
 #[cfg(test)]

@@ -604,7 +604,7 @@ where
         let mut now = Instant::now(); 
         while let Some(next_message) = self.next().await {
             let packet = MixPacket::try_from_bytes(&dummy_packet.clone()).unwrap();
-            self.on_message(next_message, Some(packet)).await;
+            self.on_message(next_message, None).await;
             if now.elapsed().as_secs() > 10 {
                 break;
             }

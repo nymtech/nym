@@ -19,7 +19,7 @@ impl Listener {
     pub(crate) fn new(address: SocketAddr, shutdown: TaskClient) -> Self {
         Listener { address, shutdown }
     }
-    //SW#[instrument(level="info", skip_all, name="Mixnet Listener")]
+
     pub(crate) async fn run<St>(&mut self, connection_handler: ConnectionHandler<St>)
     where
         St: Storage + Clone + 'static,
@@ -37,13 +37,14 @@ impl Listener {
             tokio::select! {
                 biased;
                 _ = self.shutdown.recv() => {
-                    log::trace!("mixnet_handling::Listener: Received shutdown");
+                    trace!("mixnet_handling::Listener: Received shutdown");
                 }
                 connection = tcp_listener.accept() => {
                     match connection {
                         Ok((socket, remote_addr)) => {
                             let handler = connection_handler.clone();
-                            tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone()));
+                            tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone())
+                            .instrument(info_span!("Mixnet connection handling", address = %remote_addr)));
                         }
                         Err(err) => warn!("failed to get client: {err}"),
                     }
@@ -58,6 +59,6 @@ impl Listener {
     {
         info!("Running mix listener on {:?}", self.address.to_string());
 
-        tokio::spawn(async move { self.run(connection_handler).await })
+        tokio::spawn(async move { self.run(connection_handler).await }.instrument(info_span!("Mixnet Listener")))
     }
 }

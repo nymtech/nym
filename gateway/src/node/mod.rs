@@ -225,8 +225,7 @@ where
             self.config.get_use_legacy_sphinx_framing(),
             shutdown,
         );
-        //let span = info_span!("PacketForwarder Run");
-        tokio::spawn(async move { packet_forwarder.run().await });
+        tokio::spawn(async move { packet_forwarder.run().await }.instrument(info_span!("Packet Forwarder")));
         packet_sender
     }
 
@@ -235,7 +234,7 @@ where
         shutdown: TaskManager,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let res = shutdown.catch_interrupt().await;
-        log::info!("Stopping nym gateway");
+        info!("Stopping nym gateway");
         res
     }
 

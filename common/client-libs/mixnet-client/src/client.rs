@@ -3,10 +3,11 @@
 
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::*;
+use tracing::*;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;
 use nymsphinx::params::PacketMode;
+use nymsphinx::params::packet_sizes::PacketSize;
 use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use std::collections::HashMap;
 use std::io;
@@ -197,6 +198,7 @@ impl Client {
 }
 
 impl SendWithoutResponse for Client {
+    #[instrument(level="info", skip(self, packet), "Sending packet to mixnet", fields(packet_size))]
     fn send_without_response(
         &mut self,
         address: NymNodeRoutingAddress,
@@ -204,13 +206,15 @@ impl SendWithoutResponse for Client {
         packet_mode: PacketMode,
     ) -> io::Result<()> {
         trace!("Sending packet to {:?}", address);
+        let packet_size = PacketSize::get_type(packet.len()).unwrap();
+        Span::current().record("packet_size", field::debug(packet_size));
         let framed_packet =
             FramedSphinxPacket::new(packet, packet_mode, self.config.use_legacy_version);
 
         if let Some(sender) = self.conn_new.get_mut(&address) {
             if let Err(err) = sender.channel.try_send(framed_packet) {
                 if err.is_full() {
-                    debug!("Connection to {} seems to not be able to handle all the traffic - dropping the current packet", address);
+                    info!("Connection to {} seems to not be able to handle all the traffic - dropping the current packet", address);
                     // it's not a 'big' error, but we did not manage to send the packet
                     // if the queue is full, we can't really do anything but to drop the packet
                     Err(io::Error::new(

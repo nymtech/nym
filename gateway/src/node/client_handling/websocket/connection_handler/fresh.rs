@@ -124,7 +124,7 @@ where
 
     /// Attempts to perform websocket handshake with the remote and upgrades the raw TCP socket
     /// to the framed WebSocket.
-    //SW#[instrument(level="info", skip_all)]
+    #[instrument(level="debug", skip_all)]
     pub(crate) async fn perform_websocket_handshake(&mut self) -> Result<(), WsError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -148,7 +148,7 @@ where
     /// # Arguments
     ///
     /// * `init_msg`: a client handshake init message which should contain its identity public key as well as an ephemeral key.
-    //SW#[instrument(level="info", skip_all)]
+    #[instrument(level="debug", skip_all)]
     async fn perform_registration_handshake(
         &mut self,
         init_msg: Vec<u8>,
@@ -172,7 +172,7 @@ where
     }
 
     /// Attempts to read websocket message from the associated socket.
-    ////SW#[instrument(level="info", skip_all)]
+    #[instrument(level="debug", skip_all)]
     pub(crate) async fn read_websocket_message(&mut self) -> Option<Result<Message, WsError>>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -188,7 +188,7 @@ where
     /// # Arguments
     ///
     /// * `msg`: WebSocket message to write back to the client.
-    //SW#[instrument(level="info", skip_all)]
+    #[instrument(level="debug", skip_all)]
     pub(crate) async fn send_websocket_message(&mut self, msg: Message) -> Result<(), WsError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -209,7 +209,7 @@ where
     ///
     /// * `shared_keys`: keys derived between the client and gateway.
     /// * `packets`: unwrapped packets that are to be pushed back to the client.
-    //SW#[instrument(level="info", skip_all)]
+    #[instrument(level="debug", skip_all, fields(packets = packets.len()))]
     pub(crate) async fn push_packets_to_client(
         &mut self,
         shared_keys: SharedKeys,
@@ -580,7 +580,7 @@ where
     /// result in client getting registered or authenticated. All other requests, such as forwarding
     /// sphinx packets considered an error and terminate the connection.
     // TODO: somehow cleanup this method
-    //SW#[instrument(level="info", skip_all)]
+    #[instrument(level="debug", skip_all)]
     pub(crate) async fn perform_initial_authentication(
         mut self,
     ) -> Option<AuthenticatedHandler<R, S, St>>

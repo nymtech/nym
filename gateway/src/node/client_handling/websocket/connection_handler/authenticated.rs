@@ -138,6 +138,7 @@ where
     }
 
     /// Explicitly removes handle from the global store.
+    #[instrument(level="debug", skip_all)]
     fn disconnect(self) {
         self.inner
             .active_clients_store
@@ -186,7 +187,7 @@ where
     /// # Arguments
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
-    //SW#[instrument(level="info", skip_all)]
+    #[instrument(level="debug", skip_all)]
     fn forward_packet(&self, mix_packet: MixPacket) {
         if let Err(err) = self.inner.outbound_mix_sender.unbounded_send(mix_packet) {
             error!("We failed to forward requested mix packet - {err}. Presumably our mix forwarder has crashed. We cannot continue.");
@@ -351,7 +352,7 @@ where
     /// # Arguments
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
-    //SW#[instrument(level="info", skip_all)]
+    #[instrument(level="debug", skip_all)]
     async fn handle_forward_sphinx(
         &self,
         mix_packet: MixPacket,
@@ -379,7 +380,7 @@ where
     /// # Arguments
     ///
     /// * `bin_msg`: raw message to handle.
-    //SW#[instrument(level="info", skip_all)]
+    #[instrument(level="debug", skip_all)]
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(bin_msg, &self.client.shared_keys) {
@@ -401,7 +402,7 @@ where
     /// # Arguments
     ///
     /// * `raw_request`: raw message to handle.
-    //SW#[instrument(level="info", skip_all)]
+    #[instrument(level="debug", skip_all)]
     async fn handle_text(&mut self, raw_request: String) -> Message {
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
@@ -424,7 +425,7 @@ where
     /// # Arguments
     ///
     /// * `raw_request`: raw received websocket message.
-    //SW#[instrument(level="info", skip_all)]
+    //#[instrument(level="info", skip_all)]
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
@@ -439,7 +440,7 @@ where
     /// Simultaneously listens for incoming client requests, which realistically should only be
     /// binary requests to forward sphinx packets or increase bandwidth
     /// and for sphinx packets received from the mix network that should be sent back to the client.
-    //SW#[instrument(level="info", skip_all, name="Serving requests")]
+    #[instrument(level="info", skip_all, name="Serving requests")]
     pub(crate) async fn listen_for_requests(mut self, mut shutdown: TaskClient)
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -450,11 +451,10 @@ where
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = shutdown.recv() => {
-                    log::trace!("client_handling::AuthenticatedHandler: received shutdown");
+                    trace!("client_handling::AuthenticatedHandler: received shutdown");
                 }
                 socket_msg = self.inner.read_websocket_message() => {
-                    //let span = info_span!("Processing client request");
-                    //let guard = span.enter();
+
                     debug!("Handling client request");
                     let socket_msg = match socket_msg {
                         None => break,
@@ -470,7 +470,7 @@ where
                     }
 
                     if let Some(response) = self.handle_request(socket_msg).await {
-                        //debug!(parent: &span, "Sending response to client request");
+                        trace!("Sending response to client request");
                         if let Err(err) = self.inner.send_websocket_message(response).await {
                             warn!(
                                 "Failed to send message over websocket: {err}. Assuming the connection is dead.",
@@ -478,7 +478,7 @@ where
                             break;
                         }
                     }
-                    //drop(guard);
+
                 },
                 mix_messages = self.mix_receiver.next() => {
                     //let span = info_span!("Processing mixnet message");

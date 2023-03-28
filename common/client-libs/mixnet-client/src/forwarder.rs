@@ -53,10 +53,10 @@ impl PacketForwarder {
             tokio::select! {
                 biased;
                 _ = self.shutdown.recv() => {
-                    log::trace!("PacketForwarder: Received shutdown");
+                    trace!("PacketForwarder: Received shutdown");
                 }
                 Some(mix_packet) = self.packet_receiver.next() => {
-                     trace!("Going to forward packet to {:?}", mix_packet.next_hop());
+                    trace!("Going to forward packet to {:?}", mix_packet.next_hop());
 
                     let next_hop = mix_packet.next_hop();
                     let packet_mode = mix_packet.packet_mode();

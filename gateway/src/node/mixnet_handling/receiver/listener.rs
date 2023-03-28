@@ -3,8 +3,8 @@
 
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::storage::Storage;
-use log::*;
 use nym_task::TaskClient;
+use tracing::*;
 use std::net::SocketAddr;
 use std::process;
 use tokio::task::JoinHandle;
@@ -37,13 +37,14 @@ impl Listener {
             tokio::select! {
                 biased;
                 _ = self.shutdown.recv() => {
-                    log::trace!("mixnet_handling::Listener: Received shutdown");
+                    trace!("mixnet_handling::Listener: Received shutdown");
                 }
                 connection = tcp_listener.accept() => {
                     match connection {
                         Ok((socket, remote_addr)) => {
                             let handler = connection_handler.clone();
-                            tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone()));
+                            tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone())
+                            .instrument(info_span!("Mixnet connection handling", address = %remote_addr)));
                         }
                         Err(err) => warn!("failed to get client: {err}"),
                     }
@@ -58,6 +59,6 @@ impl Listener {
     {
         info!("Running mix listener on {:?}", self.address.to_string());
 
-        tokio::spawn(async move { self.run(connection_handler).await })
+        tokio::spawn(async move { self.run(connection_handler).await }.instrument(info_span!("Mixnet Listener")))
     }
 }

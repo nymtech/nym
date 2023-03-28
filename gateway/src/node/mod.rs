@@ -14,7 +14,7 @@ use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use crate::{commands::sign::load_identity_keys, OutputFormat};
 use colored::Colorize;
-use log::*;
+use tracing::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_defaults::NymNetworkDetails;
@@ -220,8 +220,7 @@ where
             self.config.get_use_legacy_sphinx_framing(),
             shutdown,
         );
-
-        tokio::spawn(async move { packet_forwarder.run().await });
+        tokio::spawn(async move { packet_forwarder.run().await }.instrument(info_span!("Packet Forwarder")));
         packet_sender
     }
 
@@ -230,7 +229,7 @@ where
         shutdown: TaskManager,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let res = shutdown.catch_interrupt().await;
-        log::info!("Stopping nym gateway");
+        info!("Stopping nym gateway");
         res
     }
 

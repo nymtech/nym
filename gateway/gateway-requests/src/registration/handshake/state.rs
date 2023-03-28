@@ -6,7 +6,6 @@ use crate::registration::handshake::shared_key::{SharedKeySize, SharedKeys};
 use crate::registration::handshake::WsItem;
 use crate::types;
 use futures::{Sink, SinkExt, Stream, StreamExt};
-use log::*;
 use nym_crypto::{
     asymmetric::{encryption, identity},
     generic_array::typenum::Unsigned,
@@ -14,6 +13,7 @@ use nym_crypto::{
     symmetric::stream_cipher,
 };
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
+use tracing::*;
 use rand::{CryptoRng, RngCore};
 use std::convert::{TryFrom, TryInto};
 use tungstenite::Message as WsMessage;

@@ -17,7 +17,7 @@ use gateway_requests::registration::handshake::error::HandshakeError;
 use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys};
 use gateway_requests::types::{ClientControlRequest, ServerResponse};
 use gateway_requests::{BinaryResponse, PROTOCOL_VERSION};
-use log::*;
+use tracing::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::DestinationAddressBytes;
@@ -111,6 +111,7 @@ where
 
     /// Attempts to perform websocket handshake with the remote and upgrades the raw TCP socket
     /// to the framed WebSocket.
+    #[instrument(level="debug", skip_all)]
     pub(crate) async fn perform_websocket_handshake(&mut self) -> Result<(), WsError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -134,6 +135,7 @@ where
     /// # Arguments
     ///
     /// * `init_msg`: a client handshake init message which should contain its identity public key as well as an ephemeral key.
+    #[instrument(level="debug", skip_all)]
     async fn perform_registration_handshake(
         &mut self,
         init_msg: Vec<u8>,
@@ -157,6 +159,7 @@ where
     }
 
     /// Attempts to read websocket message from the associated socket.
+    #[instrument(level="debug", skip_all)]
     pub(crate) async fn read_websocket_message(&mut self) -> Option<Result<Message, WsError>>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -172,6 +175,7 @@ where
     /// # Arguments
     ///
     /// * `msg`: WebSocket message to write back to the client.
+    #[instrument(level="debug", skip_all)]
     pub(crate) async fn send_websocket_message(&mut self, msg: Message) -> Result<(), WsError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -192,6 +196,7 @@ where
     ///
     /// * `shared_keys`: keys derived between the client and gateway.
     /// * `packets`: unwrapped packets that are to be pushed back to the client.
+    #[instrument(level="debug", skip_all, fields(packets = packets.len()))]
     pub(crate) async fn push_packets_to_client(
         &mut self,
         shared_keys: SharedKeys,
@@ -202,6 +207,7 @@ where
     {
         // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
         // be more explicit in the naming?
+        debug!("Pushing {} packets", packets.len());
         let messages: Vec<Result<Message, WsError>> = packets
             .into_iter()
             .map(|received_message| {
@@ -561,6 +567,7 @@ where
     /// result in client getting registered or authenticated. All other requests, such as forwarding
     /// sphinx packets considered an error and terminate the connection.
     // TODO: somehow cleanup this method
+    #[instrument(level="debug", skip_all)]
     pub(crate) async fn perform_initial_authentication(
         mut self,
     ) -> Option<AuthenticatedHandler<R, S, St>>
@@ -597,6 +604,7 @@ where
                             }
                         }
                         Ok(auth_result) => {
+                            debug!("Confirming auth");
                             if let Err(err) = self
                                 .send_websocket_message(auth_result.server_response.into())
                                 .await

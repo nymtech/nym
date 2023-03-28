@@ -24,9 +24,6 @@ use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
-use std::time::Instant;
-use std::thread::sleep;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
@@ -215,32 +212,7 @@ where
         self.sent_notifier.unbounded_send(frag_id).unwrap();
     }
 
-    async fn craft_dummy_packet(&mut self) -> Option<MixPacket> {
-        let topology_permit = self.topology_access.get_read_permit().await;
-        // the ack is sent back to ourselves (and then ignored)
-        let topology_ref = match topology_permit.try_get_valid_topology_ref(
-            &self.config.our_full_destination,
-            Some(&self.config.our_full_destination),
-        ) {
-            Ok(topology) => topology,
-            Err(err) => {
-                warn!("We're not going to send any loop cover message this time, as the current topology seem to be invalid - {err}");
-                return None;
-            }
-        };
-        Some(generate_loop_cover_packet(
-            &mut self.rng,
-            topology_ref,
-            &*self.config.ack_key,
-            &self.config.our_full_destination,
-            self.config.average_ack_delay,
-            self.config.average_packet_delay,
-            self.config.cover_packet_size,
-        )
-        .expect("Somehow failed to generate a loop cover message with a valid topology"))
-    }
-
-    async fn on_message(&mut self, next_message: StreamMessage, dummy_packet: Option<MixPacket>) {
+    async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
         let (next_message, fragment_id) = match next_message {
@@ -260,33 +232,25 @@ where
                         return;
                     }
                 };
-                println!("cover sent");
-                match dummy_packet {
-                    Some(packet) => (packet, None),
-                    None => 
-                    (
-                        generate_loop_cover_packet(
-                            &mut self.rng,
-                            topology_ref,
-                            &self.config.ack_key,
-                            &self.config.our_full_destination,
-                            self.config.average_ack_delay,
-                            self.config.average_packet_delay,
-                            self.config.cover_packet_size,
-                        )
-                        .expect("Somehow failed to generate a loop cover message with a valid topology"),
-                        None,
+
+                (
+                    generate_loop_cover_packet(
+                        &mut self.rng,
+                        topology_ref,
+                        &self.config.ack_key,
+                        &self.config.our_full_destination,
+                        self.config.average_ack_delay,
+                        self.config.average_packet_delay,
+                        self.config.cover_packet_size,
                     )
-                }
+                    .expect(
+                        "Somehow failed to generate a loop cover message with a valid topology",
+                    ),
+                    None,
+                )
             }
             StreamMessage::Real(real_message) => {
-                let time = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_millis();
-                println!("real sent: /{:?}/{}", real_message.fragment_id, time);
                 (real_message.mix_packet, Some(real_message.fragment_id))
-
             }
         };
 
@@ -538,9 +502,6 @@ where
     }
 
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
-        self.run_test().await;
-        return;
-        println!("START LINE");
         debug!("Started OutQueueControl with graceful shutdown support");
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -561,7 +522,7 @@ where
                         self.log_status_infrequent();
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
-                        self.on_message(next_message, None).await;
+                        self.on_message(next_message).await;
                     } else {
                         log::trace!("OutQueueControl: Stopping since channel closed");
                         break;
@@ -588,58 +549,7 @@ where
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
         log::debug!("OutQueueControl: Exiting");
-    }
-
-    pub(super) async fn run_test(&mut self) {
-        warn!("Started OutQueueControl in test mode");
-        warn!("Using packets of {:?} bytes",self.config.cover_packet_size.size());
-        let dummy_packet = self.craft_dummy_packet().await.unwrap().into_bytes();
-
-        sleep(Duration::new(5, 0));
-        info!("Starting warmup phase");
-
-        let mut now = Instant::now(); 
-        while let Some(next_message) = self.next().await {
-           let packet = MixPacket::try_from_bytes(&dummy_packet.clone()).unwrap();
-           self.on_message(next_message, Some(packet)).await;
-           if now.elapsed().as_secs() > 10 {
-               break;
-           }
-        }
-
-        info!("10sec warmup done");
-        sleep(Duration::new(10, 0));
-        info!("10 seconds cooldown elapsed");
-        info!("Resetting delay");
-        self.next_delay = None;
-
-        info!("Starting measurement");
-        println!("START LINE");
-
-        now = Instant::now(); 
-        while let Some(next_message) = self.next().await {
-            let packet = MixPacket::try_from_bytes(&dummy_packet.clone()).unwrap();
-            self.on_message(next_message, Some(packet)).await;
-            if now.elapsed().as_secs() > 300 {
-                break;
-            }
-        }
-        println!("STOP LINE");
-        info!("Stopping stream after 5min");
-        sleep(Duration::new(10, 0));
-        info!("10 seconds cooldown elapsed");
-
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub(super) async fn run(&mut self) {
-        debug!("Started OutQueueControl without graceful shutdown support");
-
-        while let Some(next_message) = self.next().await {
-            self.on_message(next_message).await;
-        }
     }
 }
 

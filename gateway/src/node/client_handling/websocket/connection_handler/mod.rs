@@ -4,9 +4,9 @@
 use crate::node::storage::Storage;
 use gateway_requests::registration::handshake::SharedKeys;
 use gateway_requests::ServerResponse;
-use log::{trace, warn};
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
+use tracing::*;
 use rand::{CryptoRng, Rng};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;

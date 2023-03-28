@@ -7,6 +7,8 @@ use crate::{
     OutputFormat,
 };
 use clap::Args;
+use config::NymConfig;
+use tracing::*;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -115,19 +117,19 @@ fn special_addresses() -> Vec<&'static str> {
 pub async fn execute(args: Run, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
     let id = args.id.clone();
     println!("Starting gateway {id}...");
-
+    event!(Level::INFO, "Loading config");
     let config = build_config(id, args)?;
     ensure_config_version_compatibility(&config)?;
 
     if special_addresses().contains(&&*config.get_listening_address().to_string()) {
         show_binding_warning(config.get_listening_address().to_string());
     }
-
+    event!(Level::INFO, "Creating Gateway node");
     let mut gateway = crate::node::create_gateway(config).await;
     eprintln!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
     gateway.print_node_details(output)?;
-
+//.instrument(info_span!("Gateway run"))
     gateway.run().await
 }

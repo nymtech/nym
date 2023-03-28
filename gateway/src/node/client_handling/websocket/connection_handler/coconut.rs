@@ -1,8 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use log::*;
 use nym_coconut_interface::Credential;
+use coconut_interface::Credential;
+use tracing::*;
 use std::time::{Duration, SystemTime};
 use validator_client::nyxd::traits::DkgQueryClient;
 use validator_client::{

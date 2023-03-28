@@ -7,7 +7,7 @@ use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::StreamExt;
-use log::*;
+use tracing::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use mixnode_common::packet_processor::processor::ProcessedFinalHop;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -86,7 +86,7 @@ impl<St: Storage> ConnectionHandler<St> {
             }
         }
     }
-
+    #[instrument(level="debug", skip_all)]
     fn try_push_message_to_client(
         &mut self,
         client_address: DestinationAddressBytes,
@@ -105,7 +105,7 @@ impl<St: Storage> ConnectionHandler<St> {
             }
         }
     }
-
+    #[instrument(level="debug", skip_all)]
     pub(crate) async fn store_processed_packet_payload(
         &self,
         client_address: DestinationAddressBytes,
@@ -118,7 +118,7 @@ impl<St: Storage> ConnectionHandler<St> {
 
         self.storage.store_message(client_address, message).await
     }
-
+    #[instrument(level="debug", skip_all)]
     fn forward_ack(&self, forward_ack: Option<MixPacket>, client_address: DestinationAddressBytes) {
         if let Some(forward_ack) = forward_ack {
             trace!(
@@ -130,7 +130,7 @@ impl<St: Storage> ConnectionHandler<St> {
             self.ack_sender.unbounded_send(forward_ack).unwrap();
         }
     }
-
+    #[instrument(level="debug", skip_all)]
     async fn handle_processed_packet(&mut self, processed_final_hop: ProcessedFinalHop) {
         let client_address = processed_final_hop.destination;
         let message = processed_final_hop.message;
@@ -154,7 +154,7 @@ impl<St: Storage> ConnectionHandler<St> {
         // received ack back into the network
         self.forward_ack(forward_ack, client_address);
     }
-
+    //#[instrument(level="info", skip_all)]
     async fn handle_received_packet(&mut self, framed_sphinx_packet: FramedSphinxPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
@@ -187,7 +187,7 @@ impl<St: Storage> ConnectionHandler<St> {
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
-                    log::trace!("ConnectionHandler: received shutdown");
+                    trace!("ConnectionHandler: received shutdown");
                 }
                 Some(framed_sphinx_packet) = framed_conn.next() => {
                     match framed_sphinx_packet {

@@ -9,8 +9,8 @@ use futures::StreamExt;
 use gateway_requests::iv::IVConversionError;
 use gateway_requests::types::{BinaryRequest, ServerResponse};
 use gateway_requests::{ClientControlRequest, GatewayRequestsError};
-use log::*;
 use nym_sphinx::forwarding::packet::MixPacket;
+use tracing::*;
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::process;
@@ -132,6 +132,7 @@ where
     }
 
     /// Explicitly removes handle from the global store.
+    #[instrument(level="debug", skip_all)]
     fn disconnect(self) {
         self.inner
             .active_clients_store
@@ -180,6 +181,7 @@ where
     /// # Arguments
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
+    #[instrument(level="debug", skip_all)]
     fn forward_packet(&self, mix_packet: MixPacket) {
         if let Err(err) = self.inner.outbound_mix_sender.unbounded_send(mix_packet) {
             error!("We failed to forward requested mix packet - {err}. Presumably our mix forwarder has crashed. We cannot continue.");
@@ -279,13 +281,14 @@ where
     /// # Arguments
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
+    #[instrument(level="debug", skip_all)]
     async fn handle_forward_sphinx(
         &self,
         mix_packet: MixPacket,
     ) -> Result<ServerResponse, RequestHandlingError> {
         let consumed_bandwidth = mix_packet.sphinx_packet().len() as i64;
 
-        let available_bandwidth = self.get_available_bandwidth().await?;
+        let available_bandwidth = self.get_available_bandwidth().instrument(trace_span!("Get available bandwidth")).await?;
 
         if available_bandwidth < consumed_bandwidth {
             return Ok(ServerResponse::new_error(
@@ -293,7 +296,7 @@ where
             ));
         }
 
-        self.consume_bandwidth(consumed_bandwidth).await?;
+        self.consume_bandwidth(consumed_bandwidth).instrument(trace_span!("Consume bandwidth")).await?;
         self.forward_packet(mix_packet);
 
         Ok(ServerResponse::Send {
@@ -306,6 +309,7 @@ where
     /// # Arguments
     ///
     /// * `bin_msg`: raw message to handle.
+    #[instrument(level="debug", skip_all)]
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(bin_msg, &self.client.shared_keys) {
@@ -327,6 +331,7 @@ where
     /// # Arguments
     ///
     /// * `raw_request`: raw message to handle.
+    #[instrument(level="debug", skip_all)]
     async fn handle_text(&mut self, raw_request: String) -> Message {
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
@@ -349,6 +354,7 @@ where
     /// # Arguments
     ///
     /// * `raw_request`: raw received websocket message.
+    //#[instrument(level="info", skip_all)]
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
@@ -363,6 +369,7 @@ where
     /// Simultaneously listens for incoming client requests, which realistically should only be
     /// binary requests to forward sphinx packets or increase bandwidth
     /// and for sphinx packets received from the mix network that should be sent back to the client.
+    #[instrument(level="info", skip_all, name="Serving requests")]
     pub(crate) async fn listen_for_requests(mut self, mut shutdown: TaskClient)
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -373,14 +380,16 @@ where
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = shutdown.recv() => {
-                    log::trace!("client_handling::AuthenticatedHandler: received shutdown");
+                    trace!("client_handling::AuthenticatedHandler: received shutdown");
                 }
                 socket_msg = self.inner.read_websocket_message() => {
+
+                    debug!("Handling client request");
                     let socket_msg = match socket_msg {
                         None => break,
                         Some(Ok(socket_msg)) => socket_msg,
                         Some(Err(err)) => {
-                            error!("failed to obtain message from websocket stream! stopping connection handler: {err}");
+                            log::error!("failed to obtain message from websocket stream! stopping connection handler: {err}");
                             break;
                         }
                     };
@@ -390,6 +399,7 @@ where
                     }
 
                     if let Some(response) = self.handle_request(socket_msg).await {
+                        trace!("Sending response to client request");
                         if let Err(err) = self.inner.send_websocket_message(response).await {
                             warn!(
                                 "Failed to send message over websocket: {err}. Assuming the connection is dead.",
@@ -397,13 +407,17 @@ where
                             break;
                         }
                     }
+
                 },
                 mix_messages = self.mix_receiver.next() => {
+                    //let span = info_span!("Processing mixnet message");
+                    //let guard = span.enter();
                     let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
                     if let Err(err) = self.inner.push_packets_to_client(self.client.shared_keys, mix_messages).await {
                         warn!("failed to send the unwrapped sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;
                     }
+                    //drop(guard);
                 }
             }
         }

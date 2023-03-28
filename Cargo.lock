@@ -2003,6 +2003,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tracing",
  "tungstenite 0.13.0",
 ]
 
@@ -3549,6 +3550,8 @@ dependencies = [
  "nym-task",
  "nym-types",
  "once_cell",
+ "opentelemetry",
+ "opentelemetry-jaeger",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3560,6 +3563,10 @@ dependencies = [
  "tokio-stream",
  "tokio-tungstenite 0.14.0",
  "tokio-util",
+ "tracing",
+ "tracing-flame",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
  "url",
  "validator-client",
 ]
@@ -6690,6 +6697,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ce8c33a8d48bd45d624a6e523445fd21ec13d3653cd51f681abf67418f54eb8"
 dependencies = [
  "cfg-if",
+ "log",
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",

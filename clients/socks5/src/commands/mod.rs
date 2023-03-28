@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_config::OptionalSet;
-use socks5_client_core::config::{BaseConfig, Config};
+use nym_socks5_client_core::config::{BaseConfig, Config};
 use std::error::Error;
 
 pub mod init;

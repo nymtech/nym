@@ -3351,6 +3351,7 @@ dependencies = [
  "nym-config",
  "nym-contracts-common",
  "nym-crypto",
+ "nym-socks5-client-core",
  "nym-task",
  "pretty_env_logger",
  "rand 0.8.5",
@@ -3359,7 +3360,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
- "socks5-client-core",
  "tap",
  "tauri",
  "tauri-build",
@@ -3451,14 +3451,6 @@ dependencies = [
  "sha2 0.9.9",
  "thiserror",
  "zeroize",
-]
-
-[[package]]
-name = "nym-execute"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -3566,6 +3558,32 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "nym-socks5-client-core"
+version = "0.1.0"
+dependencies = [
+ "client-core",
+ "dirs",
+ "futures",
+ "gateway-client",
+ "log",
+ "nym-config",
+ "nym-credential-storage",
+ "nym-network-defaults",
+ "nym-service-providers-common",
+ "nym-socks5-proxy-helpers",
+ "nym-socks5-requests",
+ "nym-sphinx",
+ "nym-task",
+ "pin-project",
+ "rand 0.7.3",
+ "serde",
+ "tap",
+ "thiserror",
+ "tokio",
+ "validator-client",
 ]
 
 [[package]]
@@ -5254,32 +5272,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "socks5-client-core"
-version = "0.1.0"
-dependencies = [
- "client-core",
- "dirs",
- "futures",
- "gateway-client",
- "log",
- "nym-config",
- "nym-credential-storage",
- "nym-network-defaults",
- "nym-service-providers-common",
- "nym-socks5-proxy-helpers",
- "nym-socks5-requests",
- "nym-sphinx",
- "nym-task",
- "pin-project",
- "rand 0.7.3",
- "serde",
- "tap",
- "thiserror",
- "tokio",
- "validator-client",
-]
-
-[[package]]
 name = "soup2"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6583,6 +6575,7 @@ dependencies = [
  "cosmwasm-std",
  "cw3",
  "cw4",
+ "eyre",
  "flate2",
  "futures",
  "itertools",
@@ -6593,7 +6586,6 @@ dependencies = [
  "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
- "nym-execute",
  "nym-group-contract-common",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",

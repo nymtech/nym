@@ -32,9 +32,9 @@ nym-sphinx = { path = "../../common/nymsphinx" }
 nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-pemstore = { path = "../../common/pemstore" }
 nym-topology = { path = "../../common/topology" }
-socks5-client-core = { path = "../../common/socks5-client-core" }
+nym-socks5-client-core = { path = "../../common/socks5-client-core" }
 
 [features]
 default = []
 eth = []
-mobile = ["mobile-storage", "socks5-client-core/mobile"]
+mobile = ["mobile-storage", "nym-socks5-client-core/mobile"]

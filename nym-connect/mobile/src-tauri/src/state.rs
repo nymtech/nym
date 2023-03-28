@@ -7,7 +7,7 @@ use futures::SinkExt;
 use tap::TapFallible;
 use tauri::Manager;
 
-use socks5_client_core::{
+use nym_socks5_client_core::{
     config::Config as Socks5Config, Socks5ControlMessage, Socks5ControlMessageSender,
 };
 use tokio::time::Instant;

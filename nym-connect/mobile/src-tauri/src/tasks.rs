@@ -10,8 +10,8 @@ use tap::TapFallible;
 use tokio::sync::RwLock;
 
 use nym_config_common::NymConfig;
-use socks5_client_core::NymClient as Socks5NymClient;
-use socks5_client_core::{config::Config as Socks5Config, Socks5ControlMessageSender};
+use nym_socks5_client_core::NymClient as Socks5NymClient;
+use nym_socks5_client_core::{config::Config as Socks5Config, Socks5ControlMessageSender};
 
 use crate::{
     config::Config,

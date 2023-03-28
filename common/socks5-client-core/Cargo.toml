@@ -1,5 +1,5 @@
 [package]
-name = "socks5-client-core"
+name = "nym-socks5-client-core"
 version = "0.1.0"
 edition = "2021"
 

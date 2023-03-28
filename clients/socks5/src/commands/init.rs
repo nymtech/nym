@@ -8,9 +8,9 @@ use crate::{
 use clap::Args;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
+use nym_socks5_client_core::config::Config;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
-use socks5_client_core::config::Config;
 use std::fmt::Display;
 use tap::TapFallible;
 

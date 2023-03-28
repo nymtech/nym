@@ -421,24 +421,25 @@ where
         let mut client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        let reconstructed_receiver = if let Some(service_provider) =
-            self.config.socks5_service_provider
-        {
-            let socks5_config =
-                socks5_client_core::config::Config::new(service_provider.clone(), service_provider);
-            socks5_client_core::NymClient::start_socks5_listener(
-                &socks5_config,
-                client_input.clone(),
-                client_output.clone(),
-                client_state.clone(),
-                self_address,
-                started_client.task_manager.subscribe(),
-            );
-            None
-        } else {
-            // Register our receiver
-            Some(client_output.register_receiver()?)
-        };
+        let reconstructed_receiver =
+            if let Some(service_provider) = self.config.socks5_service_provider {
+                let socks5_config = nym_socks5_client_core::config::Config::new(
+                    service_provider.clone(),
+                    service_provider,
+                );
+                nym_socks5_client_core::NymClient::start_socks5_listener(
+                    &socks5_config,
+                    client_input.clone(),
+                    client_output.clone(),
+                    client_state.clone(),
+                    self_address,
+                    started_client.task_manager.subscribe(),
+                );
+                None
+            } else {
+                // Register our receiver
+                Some(client_output.register_receiver()?)
+            };
 
         Ok(MixnetClient {
             nym_address,

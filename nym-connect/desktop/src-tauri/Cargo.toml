@@ -51,7 +51,7 @@ nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contra
 nym-config-common = { path = "../../../common/config", package = "nym-config" }
 nym-crypto = { path = "../../../common/crypto" }
 nym-bin-common = { path = "../../../common/bin-common"}
-socks5-client-core = { path = "../../../common/socks5-client-core" }
+nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
 nym-task = { path = "../../../common/task" }
 
 [dev-dependencies]

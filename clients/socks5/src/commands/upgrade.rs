@@ -3,7 +3,7 @@
 
 use nym_bin_common::version_checker::Version;
 use nym_config::NymConfig;
-use socks5_client_core::config::{Config, MISSING_VALUE};
+use nym_socks5_client_core::config::{Config, MISSING_VALUE};
 
 use clap::Args;
 use std::{fmt::Display, process};

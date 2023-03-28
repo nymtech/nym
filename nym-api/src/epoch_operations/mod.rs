@@ -17,9 +17,9 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
 use error::RewardingError;
+pub(crate) use helpers::MixnodeWithPerformance;
 use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
 use nym_task::{TaskClient, TaskManager};
-pub(crate) use rewarding::MixnodeWithPerformance;
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -133,7 +133,7 @@ impl RewardedSetUpdater {
         // note: those operations don't really have to be atomic, so it's fine to send them
         // as separate transactions
         self.reconcile_epoch_events().await?;
-        self.update_rewarded_set_and_advance_epoch(&all_mixnodes)
+        self.update_rewarded_set_and_advance_epoch(interval, &all_mixnodes)
             .await?;
 
         log::info!("Purging old node statuses from the storage...");

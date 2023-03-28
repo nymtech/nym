@@ -61,22 +61,6 @@ pub struct Service {
     pub deposit: Coin,
 }
 
-#[cfg(test)]
-mod test {
-    use super::Service;
-    use crate::msg::ExecuteMsg;
-
-    impl Service {
-        pub fn into_announce_msg(self) -> ExecuteMsg {
-            ExecuteMsg::Announce {
-                nym_address: self.nym_address,
-                service_type: self.service_type,
-                owner: self.owner,
-            }
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct Config {
     pub admin: Addr,
@@ -115,6 +99,16 @@ mod tests {
     };
 
     use super::*;
+
+    impl Service {
+        pub fn into_announce_msg(self) -> ExecuteMsg {
+            ExecuteMsg::Announce {
+                nym_address: self.nym_address,
+                service_type: self.service_type,
+                owner: self.owner,
+            }
+        }
+    }
 
     #[test]
     fn deleted_service_id_is_not_reused() {

@@ -6,10 +6,6 @@ description = "A SOCKS5 localhost proxy that converts incoming messages to Sphin
 edition = "2021"
 rust-version = "1.56"
 
-[lib]
-name = "nym_socks5"
-path = "src/lib.rs"
-
 [dependencies]
 clap = { version = "4.0", features = ["cargo", "derive"] }
 lazy_static = "1.4.0"

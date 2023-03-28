@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { Card, FormControl, Grid, MenuItem, Select, SelectChangeEvent } from '@mui/material';
-import { Api } from '../../api';
+import React, { useState } from 'react';
+import { Card, FormControl, Grid, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
 import { TableToolbar } from '../../components/TableToolbar';
 import { Title } from '../../components/Title';
 import { UniversalDataGrid } from '../../components/Universal-DataGrid';
-import { DirectoryService } from '../../typeDefs/explorer-api';
+import { useMainContext } from '../../context/main';
 
 const columns = [
   {
@@ -32,23 +31,12 @@ const SupportedApps = () => {
 };
 
 export const ServiceProviders = () => {
-  const [serviceProviders, setServiceProviders] = useState<DirectoryService>();
+  const { serviceProviders } = useMainContext();
   const [pageSize, setPageSize] = React.useState('10');
-
-  const getServiceproviders = async () => {
-    const [data] = await Api.fetchServiceProviders();
-    setServiceProviders(data);
-  };
-
-  useEffect(() => {
-    getServiceproviders();
-  }, []);
 
   const handleOnPageSizeChange = (event: SelectChangeEvent<string>) => {
     setPageSize(event.target.value);
   };
-
-  if (!serviceProviders) return null;
 
   return (
     <>
@@ -60,12 +48,18 @@ export const ServiceProviders = () => {
               padding: 2,
             }}
           >
-            <TableToolbar
-              onChangePageSize={handleOnPageSizeChange}
-              pageSize={pageSize}
-              childrenBefore={<SupportedApps />}
-            />
-            <UniversalDataGrid pagination rows={serviceProviders.items} columns={columns} pageSize={pageSize} />
+            {serviceProviders ? (
+              <>
+                <TableToolbar
+                  onChangePageSize={handleOnPageSizeChange}
+                  pageSize={pageSize}
+                  childrenBefore={<SupportedApps />}
+                />
+                <UniversalDataGrid pagination rows={serviceProviders} columns={columns} pageSize={pageSize} />
+              </>
+            ) : (
+              <Typography>No service providers to display</Typography>
+            )}
           </Card>
         </Grid>
       </Grid>

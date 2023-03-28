@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::signing::storage as signing_storage;
+use crate::support::helpers::decode_ed25519_identity_key;
 use cosmwasm_std::{Addr, Coin, Deps};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{construct_mixnode_bonding_sign_payload, MixNode, MixNodeCostParams};
@@ -18,10 +19,7 @@ pub(crate) fn verify_mixnode_bonding_signature(
     signature: MessageSignature,
 ) -> Result<(), MixnetContractError> {
     // recover the public key
-    let mut public_key = [0u8; 32];
-    bs58::decode(&mixnode.identity_key)
-        .into(&mut public_key)
-        .map_err(|err| MixnetContractError::MalformedEd25519IdentityKey(err.to_string()))?;
+    let public_key = decode_ed25519_identity_key(&mixnode.identity_key)?;
 
     // reconstruct the payload
     let nonce = signing_storage::get_signing_nonce(deps.storage, sender.clone())?;

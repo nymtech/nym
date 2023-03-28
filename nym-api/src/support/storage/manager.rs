@@ -867,6 +867,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `report`: report to insert into the database
+    #[allow(unused)]
     pub(crate) async fn insert_rewarding_report(
         &self,
         report: RewardingReport,
@@ -885,6 +886,7 @@ impl StorageManager {
         Ok(())
     }
 
+    #[allow(unused)]
     pub(crate) async fn get_rewarding_report(
         &self,
         absolute_epoch_id: EpochId,

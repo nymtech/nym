@@ -236,15 +236,15 @@ where
 
         let mut stream = LoopCoverTrafficStream::new(
             ack_key,
-            debug_config.average_ack_delay,
-            debug_config.average_packet_delay,
-            debug_config.loop_cover_traffic_average_delay,
+            debug_config.acknowledgements.average_ack_delay,
+            debug_config.traffic.average_packet_delay,
+            debug_config.cover_traffic.loop_cover_traffic_average_delay,
             mix_tx,
             self_address,
             topology_accessor,
         );
 
-        if let Some(size) = debug_config.use_extended_packet_size {
+        if let Some(size) = debug_config.traffic.use_extended_packet_size {
             log::debug!("Setting extended packet size: {:?}", size);
             stream.set_custom_packet_size(size.into());
         }
@@ -338,7 +338,9 @@ where
             shared_key,
             mixnet_message_sender,
             ack_sender,
-            self.debug_config.gateway_response_timeout,
+            self.debug_config
+                .gateway_connection
+                .gateway_response_timeout,
             self.bandwidth_controller.take(),
             shutdown,
         );
@@ -500,7 +502,7 @@ where
         );
         Self::start_topology_refresher(
             topology_provider,
-            self.debug_config.topology_refresh_rate,
+            self.debug_config.topology.topology_refresh_rate,
             shared_topology_accessor.clone(),
             task_manager.subscribe(),
         )
@@ -536,7 +538,7 @@ where
             self_address,
         );
 
-        if let Some(size) = self.debug_config.use_extended_packet_size {
+        if let Some(size) = self.debug_config.traffic.use_extended_packet_size {
             log::debug!("Setting extended packet size: {:?}", size);
             controller_config.set_custom_packet_size(size.into());
         }
@@ -555,7 +557,11 @@ where
             task_manager.subscribe(),
         );
 
-        if !self.debug_config.disable_loop_cover_traffic_stream {
+        if !self
+            .debug_config
+            .cover_traffic
+            .disable_loop_cover_traffic_stream
+        {
             Self::start_cover_traffic_stream(
                 self.debug_config,
                 self.key_manager.ack_key(),

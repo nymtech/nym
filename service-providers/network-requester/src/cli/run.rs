@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::cli::try_upgrade_v1_1_13_config;
 use crate::{
     cli::{override_config, OverrideConfig},
     config::Config,
@@ -108,6 +109,10 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
     }
 
     let id = &args.id;
+
+    // in case we're using old config, try to upgrade it
+    // (if we're using the current version, it's a no-op)
+    try_upgrade_v1_1_13_config(id)?;
 
     let mut config = match Config::load_from_file(id) {
         Ok(cfg) => cfg,

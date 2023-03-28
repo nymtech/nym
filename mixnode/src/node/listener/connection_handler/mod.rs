@@ -85,9 +85,9 @@ impl ConnectionHandler {
                 _ = shutdown.recv() => {
                     log::trace!("ConnectionHandler: received shutdown");
                 }
-                Some(framed_sphinx_packet) = framed_conn.next() => {
+                framed_sphinx_packet = framed_conn.next() => {
                     match framed_sphinx_packet {
-                        Ok(framed_sphinx_packet) => {
+                        Some(Ok(framed_sphinx_packet)) => {
                             // TODO: benchmark spawning tokio task with full processing vs just processing it
                             // synchronously (without delaying inside of course,
                             // delay is moved to a global DelayQueue)
@@ -98,12 +98,13 @@ impl ConnectionHandler {
                             // that change would only slow things down
                             self.handle_received_packet(framed_sphinx_packet);
                         }
-                        Err(err) => {
+                        Some(Err(err)) => {
                             error!(
                                 "The socket connection got corrupted with error: {err}. Closing the socket",
                             );
                             return;
                         }
+                        None => break, // stream got closed by remote
                     }
                 },
             }

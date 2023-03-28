@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::try_upgrade_v1_1_13_config;
 use crate::{
     client::config::Config,
     commands::{override_config, OverrideConfig},
@@ -121,6 +122,9 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     let already_init = Config::default_config_file_path(id).exists();
     if already_init {
+        // in case we're using old config, try to upgrade it
+        // (if we're using the current version, it's a no-op)
+        try_upgrade_v1_1_13_config(id)?;
         println!("Client \"{id}\" was already initialised before");
     }
 

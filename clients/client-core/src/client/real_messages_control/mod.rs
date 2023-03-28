@@ -153,25 +153,35 @@ impl Config {
             ack_key,
             self_recipient,
             packet_size: Default::default(),
-            ack_wait_addition: base_client_debug_config.ack_wait_addition,
-            ack_wait_multiplier: base_client_debug_config.ack_wait_multiplier,
-            average_message_sending_delay: base_client_debug_config.message_sending_average_delay,
-            average_packet_delay_duration: base_client_debug_config.average_packet_delay,
-            average_ack_delay_duration: base_client_debug_config.average_ack_delay,
+            ack_wait_addition: base_client_debug_config.acknowledgements.ack_wait_addition,
+            ack_wait_multiplier: base_client_debug_config
+                .acknowledgements
+                .ack_wait_multiplier,
+            average_message_sending_delay: base_client_debug_config
+                .traffic
+                .message_sending_average_delay,
+            average_packet_delay_duration: base_client_debug_config.traffic.average_packet_delay,
+            average_ack_delay_duration: base_client_debug_config.acknowledgements.average_ack_delay,
             disable_main_poisson_packet_distribution: base_client_debug_config
+                .traffic
                 .disable_main_poisson_packet_distribution,
             minimum_reply_surb_request_size: base_client_debug_config
+                .reply_surbs
                 .minimum_reply_surb_request_size,
             maximum_reply_surb_request_size: base_client_debug_config
+                .reply_surbs
                 .maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: base_client_debug_config
+                .reply_surbs
                 .maximum_allowed_reply_surb_request_size,
             maximum_reply_surb_rerequest_waiting_period: base_client_debug_config
+                .reply_surbs
                 .maximum_reply_surb_rerequest_waiting_period,
             maximum_reply_surb_drop_waiting_period: base_client_debug_config
+                .reply_surbs
                 .maximum_reply_surb_drop_waiting_period,
-            maximum_reply_surb_age: base_client_debug_config.maximum_reply_surb_age,
-            maximum_reply_key_age: base_client_debug_config.maximum_reply_key_age,
+            maximum_reply_surb_age: base_client_debug_config.reply_surbs.maximum_reply_surb_age,
+            maximum_reply_key_age: base_client_debug_config.reply_surbs.maximum_reply_key_age,
         }
     }
 

@@ -3,6 +3,7 @@
 
 use crate::delegation::OwnerProxySubKey;
 use crate::error::MixnetContractError;
+use crate::families::FamilyHead;
 use crate::gateway::GatewayConfigUpdate;
 use crate::helpers::IntoBaseDecimal;
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
@@ -82,42 +83,35 @@ pub enum ExecuteMsg {
     // Families
     /// Only owner of the node can crate the family with node as head
     CreateFamily {
-        owner_signature: String,
         label: String,
     },
     /// Family head needs to sign the joining node IdentityKey
     JoinFamily {
-        signature: String,
-        family_head: IdentityKey,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
     },
     LeaveFamily {
-        signature: String,
-        family_head: IdentityKey,
+        family_head: FamilyHead,
     },
     KickFamilyMember {
-        signature: String,
         member: IdentityKey,
     },
     CreateFamilyOnBehalf {
         owner_address: String,
-        owner_signature: String,
         label: String,
     },
     /// Family head needs to sign the joining node IdentityKey, MixNode needs to provide its signature proving that it wants to join the family
     JoinFamilyOnBehalf {
         member_address: String,
-        node_identity_signature: String,
-        family_signature: String,
-        family_head: IdentityKey,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
     },
     LeaveFamilyOnBehalf {
         member_address: String,
-        node_identity_signature: String,
-        family_head: IdentityKey,
+        family_head: FamilyHead,
     },
     KickFamilyMemberOnBehalf {
         head_address: String,
-        signature: String,
         member: IdentityKey,
     },
 

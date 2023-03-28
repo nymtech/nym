@@ -99,15 +99,22 @@ impl ConnectionHandler {
         let mut framed_conn = Framed::new(conn, EchoPacketCodec);
         while !shutdown_listener.is_shutdown() {
             tokio::select! {
-                Some(echo_packet) = framed_conn.next() => {
+                biased;
+               _ = shutdown_listener.recv() => {
+                    trace!("ConnectionHandler: Shutdown received");
+                }
+                maybe_echo_packet = framed_conn.next() => {
                     // handle echo packet
-                    let reply_packet = match echo_packet {
-                        Ok(echo_packet) => self.handle_echo_packet(echo_packet),
-                        Err(err) => {
-                            error!(
-                                "The socket connection got corrupted with error: {}. Closing the socket",
-                                err
+                    let reply_packet = match maybe_echo_packet {
+                        Some(Ok(echo_packet)) => self.handle_echo_packet(echo_packet),
+                        Some(Err(err)) => {
+                             error!(
+                                "The socket connection got corrupted with error: {err}. Closing the socket",
                             );
+                            return;
+                        }
+                        None => {
+                            error!("The socket connection got terminated by the remote!");
                             return;
                         }
                     };
@@ -125,9 +132,6 @@ impl ConnectionHandler {
                         return;
                     }
                 },
-                _ = shutdown_listener.recv() => {
-                    trace!("ConnectionHandler: Shutdown received");
-                }
             }
         }
     }

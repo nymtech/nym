@@ -1,10 +1,12 @@
 import React from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { TBondedGateway, urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { Network } from 'src/types';
 import { IdentityKey } from 'src/components/IdentityKey';
+import { useNavigate } from 'react-router-dom';
+import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedGatewayActions, TBondedGatwayActions } from './BondedGatewayAction';
 
@@ -43,6 +45,7 @@ export const BondedGateway = ({
   onActionSelect: (action: TBondedGatwayActions) => void;
 }) => {
   const { name, bond, ip, identityKey, routingScore } = gateway;
+  const navigate = useNavigate();
   const cells: Cell[] = [
     {
       cell: `${bond.amount} ${bond.denom}`,
@@ -85,6 +88,18 @@ export const BondedGateway = ({
           )}
           <IdentityKey identityKey={identityKey} />
         </Stack>
+      }
+      Action={
+        <Box>
+          <Button
+            variant="text"
+            color="secondary"
+            onClick={() => navigate('/bonding/node-settings')}
+            startIcon={<NodeIcon />}
+          >
+            Gateway Settings
+          </Button>
+        </Box>
       }
     >
       <NodeTable headers={headers} cells={cells} />

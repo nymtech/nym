@@ -82,8 +82,14 @@ impl NymClientBuilder {
     // with no persistence
     fn setup_reply_surb_storage_backend(config: &Config) -> browser_backend::Backend {
         browser_backend::Backend::new(
-            config.debug.minimum_reply_surb_storage_threshold,
-            config.debug.maximum_reply_surb_storage_threshold,
+            config
+                .debug
+                .reply_surbs
+                .minimum_reply_surb_storage_threshold,
+            config
+                .debug
+                .reply_surbs
+                .maximum_reply_surb_storage_threshold,
         )
     }
 

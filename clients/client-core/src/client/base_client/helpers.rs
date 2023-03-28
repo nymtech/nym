@@ -5,7 +5,11 @@ use crate::{client::replies::reply_storage, config::DebugConfig};
 
 pub fn setup_empty_reply_surb_backend(debug_config: &DebugConfig) -> reply_storage::Empty {
     reply_storage::Empty {
-        min_surb_threshold: debug_config.minimum_reply_surb_storage_threshold,
-        max_surb_threshold: debug_config.maximum_reply_surb_storage_threshold,
+        min_surb_threshold: debug_config
+            .reply_surbs
+            .minimum_reply_surb_storage_threshold,
+        max_surb_threshold: debug_config
+            .reply_surbs
+            .maximum_reply_surb_storage_threshold,
     }
 }

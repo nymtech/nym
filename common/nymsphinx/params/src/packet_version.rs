@@ -67,4 +67,3 @@ impl Default for PacketVersion {
         PacketVersion::Versioned(CURRENT_PACKET_VERSION_NUMBER)
     }
 }
-

@@ -369,7 +369,7 @@ where
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // The average delay could change depending on if backpressure in the downstream channel
         // (mix_tx) was detected.
-        self.adjust_current_average_message_sending_delay();
+        //self.adjust_current_average_message_sending_delay();
         let avg_delay = self.current_average_message_sending_delay();
 
         // Start by checking if we have any incoming messages about closed connections
@@ -544,6 +544,9 @@ where
     }
 
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+        self.run_test().await;
+        return;
+        println!("START LINE");
         debug!("Started OutQueueControl with graceful shutdown support");
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -602,15 +605,16 @@ where
         warn!("Using packets of {:?} bytes",self.config.cover_packet_size.size());
         let dummy_packet = self.craft_dummy_packet().await.unwrap().into_bytes();
 
+        sleep(Duration::new(5, 0));
         info!("Starting warmup phase");
 
         let mut now = Instant::now(); 
         while let Some(next_message) = self.next().await {
-            let packet = MixPacket::try_from_bytes(&dummy_packet.clone()).unwrap();
-            self.on_message(next_message, Some(packet)).await;
-            if now.elapsed().as_secs() > 10 {
-                break;
-            }
+           let packet = MixPacket::try_from_bytes(&dummy_packet.clone()).unwrap();
+           self.on_message(next_message, Some(packet)).await;
+           if now.elapsed().as_secs() > 10 {
+               break;
+           }
         }
 
         info!("10sec warmup done");

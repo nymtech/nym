@@ -32,8 +32,10 @@ const EXTENDED_PACKET_SIZE_200: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 20
 const EXTENDED_PACKET_SIZE_250: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 250 * 1024;
 const EXTENDED_PACKET_SIZE_500: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 500 * 1024;
 
-#[derive(Debug)]
-pub struct InvalidPacketSize;
+#[derive(Debug, Error)]
+pub enum InvalidPacketSize {
+    #[error("{received} is not a valid packet size tag")]
+    UnknownPacketTag { received: u8 },
 
     #[error("{received} is not a valid extended packet size variant")]
     UnknownExtendedPacketVariant { received: String },
@@ -93,7 +95,9 @@ impl FromStr for PacketSize {
             "extended200" => Ok(Self::ExtendedPacket200),
             "extended250" => Ok(Self::ExtendedPacket250),
             "extended500" => Ok(Self::ExtendedPacket500),
-            _ => Err(InvalidPacketSize),
+            s => Err(InvalidPacketSize::UnknownExtendedPacketVariant {
+                received: s.to_string(),
+            }),
         }
     }
 }
@@ -118,7 +122,7 @@ impl TryFrom<u8> for PacketSize {
             _ if value == (PacketSize::ExtendedPacket200 as u8) => Ok(Self::ExtendedPacket200),
             _ if value == (PacketSize::ExtendedPacket250 as u8) => Ok(Self::ExtendedPacket250),
             _ if value == (PacketSize::ExtendedPacket500 as u8) => Ok(Self::ExtendedPacket500),
-            _ => Err(InvalidPacketSize),
+            v => Err(InvalidPacketSize::UnknownPacketTag { received: v }),
         }
     }
 }

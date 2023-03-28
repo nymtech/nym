@@ -19,7 +19,7 @@ use crate::support::storage::NymApiStorage;
 use error::RewardingError;
 use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
 use nym_task::{TaskClient, TaskManager};
-pub(crate) use rewarding::MixnodeToReward;
+pub(crate) use rewarding::MixnodeWithPerformance;
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::time::sleep;

@@ -2,6 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Decimal, Fraction};
+use nym_mixnet_contract_common::reward_params::Performance;
+use nym_mixnet_contract_common::{ExecuteMsg, MixId};
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct MixnodeWithPerformance {
+    pub(crate) mix_id: MixId,
+
+    pub(crate) performance: Performance,
+}
+
+impl From<MixnodeWithPerformance> for ExecuteMsg {
+    fn from(mix_reward: MixnodeWithPerformance) -> Self {
+        ExecuteMsg::RewardMixnode {
+            mix_id: mix_reward.mix_id,
+            performance: mix_reward.performance,
+        }
+    }
+}
 
 pub(super) fn stake_to_f64(stake: Decimal) -> f64 {
     let max = f64::MAX.round() as u128;

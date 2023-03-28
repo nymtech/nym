@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Coin, StdResult, Storage, Uint128};
+use cosmwasm_std::{Addr, Coin, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use serde::{Deserialize, Serialize};
 
@@ -79,7 +79,6 @@ mod test {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct Config {
-    pub updater_role: Addr,
     pub admin: Addr,
     pub deposit_required: Coin,
 }
@@ -116,10 +115,8 @@ mod tests {
     #[test]
     fn deleted_service_id_is_not_reused() {
         let mut deps = mock_dependencies();
-        let updater_role = Addr::unchecked("foo");
         let admin = Addr::unchecked("bar");
         let msg = InstantiateMsg {
-            updater_role: updater_role.clone(),
             admin: admin.clone(),
             deposit_required: Coin::new(100, "unym"),
         };

@@ -5,13 +5,12 @@ use crate::{
     state::ServiceId,
 };
 
-pub fn assert_config(deps: Deps, updater_role: Addr, admin: Addr) {
+pub fn assert_config(deps: Deps, admin: Addr) {
     let res = crate::contract::query(deps, mock_env(), QueryMsg::QueryConfig {}).unwrap();
     let config: ConfigResponse = from_binary(&res).unwrap();
     assert_eq!(
         config,
         ConfigResponse {
-            updater_role,
             admin,
         }
     );

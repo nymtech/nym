@@ -1,6 +1,6 @@
 use anyhow::Result;
-use cosmwasm_std::{Addr, Coin, StdResult};
-use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
+use cosmwasm_std::{coins, Addr, Coin, StdResult, Uint128};
+use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
 use serde::de::DeserializeOwned;
 
 use crate::{
@@ -11,6 +11,8 @@ use crate::{
     test_helpers::helpers::get_app_attribute,
 };
 
+const CONTRACT_DENOM: &str = "unym";
+
 // Helper for being able to systematic integration tests
 pub struct TestSetup {
     app: App,
@@ -19,7 +21,25 @@ pub struct TestSetup {
 
 impl TestSetup {
     pub fn new() -> Self {
-        let mut app = App::default();
+        //let mut app = App::default();
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(storage, &Addr::unchecked("user"), coins(150, "unym"))
+                .unwrap();
+            router
+                .bank
+                .init_balance(storage, &Addr::unchecked("admin"), coins(150, "unym"))
+                .unwrap();
+            router
+                .bank
+                .init_balance(storage, &Addr::unchecked("owner"), coins(150, "unym"))
+                .unwrap();
+            router
+                .bank
+                .init_balance(storage, &Addr::unchecked("owner2"), coins(150, "unym"))
+                .unwrap();
+        });
         let code = ContractWrapper::new(crate::execute, crate::instantiate, crate::query);
         let code_id = app.store_code(Box::new(code));
         let addr = Self::instantiate(&mut app, code_id);
@@ -31,7 +51,6 @@ impl TestSetup {
             code_id,
             Addr::unchecked("owner"),
             &InstantiateMsg {
-                updater_role: Addr::unchecked("updater"),
                 admin: Addr::unchecked("admin"),
                 deposit_required: Coin::new(100, "unym"),
             },
@@ -40,6 +59,15 @@ impl TestSetup {
             None,
         )
         .unwrap()
+    }
+
+    #[allow(unused)]
+    pub fn address(&self) -> &Addr {
+        &self.addr
+    }
+
+    pub fn contract_balance(&self) -> StdResult<Coin> {
+        self.app.wrap().query_balance(&self.addr, "unym")
     }
 
     pub fn query<T: DeserializeOwned>(&self, query_msg: &QueryMsg) -> T {
@@ -74,7 +102,11 @@ impl TestSetup {
                 service_type: ServiceType::NetworkRequester,
                 owner,
             },
-            &[],
+            //&[],
+            &[Coin {
+                denom: "unym".to_string(),
+                amount: Uint128::new(100),
+            }],
         );
         if let Ok(ref resp) = resp {
             assert_eq!(get_app_attribute(&resp, "action"), "announce");

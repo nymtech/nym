@@ -8,6 +8,9 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 
+mod execute;
+mod query;
+
 // version info for migration info
 const CONTRACT_NAME: &str = "crate:nym-service-provider-directory";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -19,7 +22,6 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     let config = Config {
-        updater_role: msg.updater_role.clone(),
         admin: msg.admin.clone(),
         deposit_required: msg.deposit_required.clone(),
     };
@@ -29,8 +31,7 @@ pub fn instantiate(
     Ok(Response::new()
         .add_attribute("method", "instantiate")
         .add_attribute("owner", info.sender)
-        .add_attribute("admin", msg.admin)
-        .add_attribute("updater_role", msg.updater_role))
+        .add_attribute("admin", msg.admin))
 }
 
 pub fn execute(
@@ -49,130 +50,11 @@ pub fn execute(
     }
 }
 
-pub mod execute {
-    use cosmwasm_std::{coins, BankMsg, Coin};
-
-    use super::*;
-    use crate::state::{self, NymAddress, ServiceId, ServiceType};
-
-    /// Announce a new service. It will be assigned a new service provider id.
-    pub fn announce(
-        deps: DepsMut,
-        env: Env,
-        info: MessageInfo,
-        nym_address: NymAddress,
-        service_type: ServiceType,
-        owner: Addr,
-    ) -> Result<Response, ContractError> {
-        let deposit_required = state::deposit_required(deps.storage)?;
-        let denom = deposit_required.denom.clone();
-        let will_deposit = cw_utils::must_pay(&info, &denom)
-            .map_err(|err| ContractError::DepositRequired { source: err })?;
-
-        if will_deposit < deposit_required.amount {
-            return Err(ContractError::InsufficientDeposit {
-                funds: will_deposit,
-                deposit_required,
-            });
-        }
-
-        if will_deposit > deposit_required.amount {
-            return Err(ContractError::TooLargeDeposit {
-                funds: will_deposit,
-                deposit_required,
-            });
-        }
-
-        //let admin = state::admin(deps.storage)?;
-
-        let will_deposit = Coin::new(will_deposit.u128(), denom);
-        //let deposit_msg = BankMsg::Send {
-            //to_address: admin.to_string(),
-            //amount: vec![will_deposit.clone()],
-        //};
-
-        let new_service = Service {
-            nym_address,
-            service_type,
-            owner,
-            block_height: env.block.height,
-            deposit: will_deposit,
-        };
-        let service_id = state::next_service_id_counter(deps.storage)?;
-        SERVICES.save(deps.storage, service_id, &new_service)?;
-        Ok(Response::new()
-            //.add_message(deposit_msg)
-            .add_attribute("action", "announce")
-            .add_attribute("service_id", service_id.to_string())
-            .add_attribute("service_type", service_type.to_string()))
-    }
-
-    /// Delete an exsisting service.
-    pub fn delete(
-        deps: DepsMut,
-        info: MessageInfo,
-        service_id: ServiceId,
-    ) -> Result<Response, ContractError> {
-        if !SERVICES.has(deps.storage, service_id) {
-            return Err(ContractError::NotFound { service_id });
-        }
-
-        let service_to_delete = SERVICES.load(deps.storage, service_id)?;
-        if info.sender != service_to_delete.owner {
-            return Err(ContractError::Unauthorized {
-                sender: info.sender,
-            });
-        }
-
-        //let return_deposit_msg = BankMsg::Send {
-            //to_address: service_to_delete.owner.to_string(),
-            //amount: vec![service_to_delete.deposit],
-        //};
-
-        SERVICES.remove(deps.storage, service_id);
-        Ok(Response::new()
-            //.add_message(return_deposit_msg)
-            .add_attribute("action", "delete")
-            .add_attribute("service_id", service_id.to_string()))
-    }
-}
-
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::QueryId { service_id } => to_binary(&query::query_id(deps, env, service_id)?),
         QueryMsg::QueryAll {} => to_binary(&query::query_all(deps)?),
         QueryMsg::QueryConfig {} => to_binary(&query::query_config(deps)?),
-    }
-}
-
-pub mod query {
-    use super::*;
-    use crate::{msg::ServiceInfo, state::ServiceId};
-
-    pub fn query_id(deps: Deps, _env: Env, service_id: ServiceId) -> StdResult<ServiceInfo> {
-        let service = SERVICES.load(deps.storage, service_id)?;
-        Ok(ServiceInfo {
-            service_id,
-            service,
-        })
-    }
-
-    pub fn query_all(deps: Deps) -> StdResult<ServicesListResponse> {
-        let services = SERVICES
-            .range(deps.storage, None, None, Order::Ascending)
-            .map(|item| {
-                item.map(|(service_id, service)| ServiceInfo {
-                    service_id,
-                    service,
-                })
-            })
-            .collect::<StdResult<Vec<_>>>()?;
-        Ok(ServicesListResponse { services })
-    }
-
-    pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
-        let config = CONFIG.load(deps.storage)?;
-        Ok(config.into())
     }
 }
 
@@ -187,7 +69,7 @@ mod tests {
                 assert_config, assert_empty, assert_not_found, assert_service, assert_services,
             },
             fixture::service_fixture,
-            helpers::get_attribute,
+            helpers::{get_attribute, nyms},
         },
     };
 
@@ -196,16 +78,16 @@ mod tests {
         Addr, Coin,
     };
 
+    const DENOM: &str = "unym";
+
     #[test]
     fn instantiate_contract() {
         let mut deps = mock_dependencies();
 
-        let updater_role = Addr::unchecked("foo");
         let admin = Addr::unchecked("bar");
         let msg = InstantiateMsg {
-            updater_role: updater_role.clone(),
             admin: admin.clone(),
-            deposit_required: Coin::new(100, "unym"),
+            deposit_required: Coin::new(100u128, DENOM),
         };
         let info = mock_info("creator", &[]);
 
@@ -215,20 +97,18 @@ mod tests {
 
         // Check that it worked by querying the config, and checking that the list of services is
         // empty
-        assert_config(deps.as_ref(), updater_role, admin);
+        assert_config(deps.as_ref(), admin);
         assert_empty(deps.as_ref());
     }
 
     #[test]
-    fn announce() {
+    fn announce_fails_incorrect_deposit() {
         let mut deps = mock_dependencies();
 
-        let updater_role = Addr::unchecked("foo");
-        let admin = Addr::unchecked("bar");
+        let admin = Addr::unchecked("admin");
         let msg = InstantiateMsg {
-            updater_role: updater_role.clone(),
             admin: admin.clone(),
-            deposit_required: Coin::new(100, "unym"),
+            deposit_required: nyms(100),
         };
         let info = mock_info("creator", &[]);
 
@@ -238,7 +118,56 @@ mod tests {
 
         // Announce
         let msg = service_fixture().into_announce_msg();
-        let info = mock_info("anyone", &[]);
+
+        assert_eq!(
+            execute(
+                deps.as_mut(),
+                mock_env(),
+                mock_info("user", &[nyms(99)]),
+                msg.clone()
+            )
+            .unwrap_err(),
+            ContractError::InsufficientDeposit {
+                funds: 99u128.into(),
+                deposit_required: nyms(100),
+            }
+        );
+
+        assert_eq!(
+            execute(
+                deps.as_mut(),
+                mock_env(),
+                mock_info("user", &[nyms(101)]),
+                msg
+            )
+            .unwrap_err(),
+            ContractError::TooLargeDeposit {
+                funds: 101u128.into(),
+                deposit_required: nyms(100),
+            }
+        );
+
+        assert_config(deps.as_ref(), admin);
+        assert_empty(deps.as_ref());
+    }
+
+    #[test]
+    fn announce_success() {
+        let mut deps = mock_dependencies();
+
+        let msg = InstantiateMsg {
+            admin: Addr::unchecked("admin"),
+            deposit_required: nyms(100),
+        };
+        let info = mock_info("creator", &[]);
+
+        // Instantiate contract
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
+
+        // Announce
+        let msg = service_fixture().into_announce_msg();
+        let info = mock_info("user", &[nyms(100)]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Check that the service has had service id assigned to it
@@ -263,10 +192,8 @@ mod tests {
     fn delete() {
         let mut deps = mock_dependencies();
 
-        let updater_role = Addr::unchecked("foo");
-        let admin = Addr::unchecked("bar");
+        let admin = Addr::unchecked("admin");
         let msg = InstantiateMsg {
-            updater_role: updater_role.clone(),
             admin: admin.clone(),
             deposit_required: Coin::new(100, "unym"),
         };
@@ -276,9 +203,11 @@ mod tests {
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
 
-        // Announce (note: timmy announces on someone else's behalf)
+        // Announce
+        // Note: Timmy announces on Steve's behalf (who is the owner of the service).
         let msg = service_fixture().into_announce_msg();
-        let info = mock_info("timmy", &[]);
+        let info = mock_info("timmy", &[nyms(100)]);
+        assert!(info.sender != service_fixture().owner);
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // The expected announced service
@@ -294,9 +223,8 @@ mod tests {
             service_id: expected_id,
         };
         let info = mock_info("timmy", &[]);
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert_eq!(
-            res,
+            execute(deps.as_mut(), mock_env(), info, msg).unwrap_err(),
             ContractError::Unauthorized {
                 sender: Addr::unchecked("timmy")
             }
@@ -310,9 +238,8 @@ mod tests {
             sender: service_fixture().owner,
             funds: vec![],
         };
-        let res = execute(deps.as_mut(), mock_env(), info_owner.clone(), msg).unwrap_err();
         assert_eq!(
-            res,
+            execute(deps.as_mut(), mock_env(), info_owner.clone(), msg).unwrap_err(),
             ContractError::NotFound {
                 service_id: expected_id + 1
             }

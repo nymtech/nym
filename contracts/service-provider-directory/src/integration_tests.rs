@@ -19,7 +19,6 @@ fn query_config() {
     assert_eq!(
         TestSetup::new().query_config(),
         ConfigResponse {
-            updater_role: Addr::unchecked("updater"),
             admin: Addr::unchecked("admin")
         }
     );
@@ -32,14 +31,25 @@ fn announce_and_query_service() {
 
     let admin_balance = setup.balance("admin").unwrap();
     let owner_balance = setup.balance("owner").unwrap();
+    let user_balance = setup.balance("user").unwrap();
     dbg!(&admin_balance);
     dbg!(&owner_balance);
+    dbg!(&user_balance);
+    dbg!(&setup.contract_balance());
 
     let owner = Addr::unchecked("owner");
     let nym_address = NymAddress::new("nymAddress");
     setup
         .announce_network_requester(nym_address.clone(), owner.clone())
         .unwrap();
+
+    let admin_balance = setup.balance("admin").unwrap();
+    let owner_balance = setup.balance("owner").unwrap();
+    let user_balance = setup.balance("user").unwrap();
+    dbg!(&admin_balance);
+    dbg!(&owner_balance);
+    dbg!(&user_balance);
+    dbg!(&setup.contract_balance());
 
     assert_eq!(
         setup.query_all(),
@@ -76,6 +86,14 @@ fn announce_and_query_service() {
     setup
         .announce_network_requester(nym_address2.clone(), owner2.clone())
         .unwrap();
+
+    let admin_balance = setup.balance("admin").unwrap();
+    let owner_balance = setup.balance("owner").unwrap();
+    let user_balance = setup.balance("user").unwrap();
+    dbg!(&admin_balance);
+    dbg!(&owner_balance);
+    dbg!(&user_balance);
+    dbg!(&setup.contract_balance());
 
     assert_eq!(
         setup.query_all(),

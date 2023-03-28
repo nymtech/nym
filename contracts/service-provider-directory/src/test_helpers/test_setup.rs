@@ -11,7 +11,7 @@ use crate::{
     test_helpers::helpers::get_app_attribute,
 };
 
-const CONTRACT_DENOM: &str = "unym";
+const DENOM: &str = "unym";
 
 // Helper for being able to systematic integration tests
 pub struct TestSetup {
@@ -25,19 +25,19 @@ impl TestSetup {
         let mut app = AppBuilder::new().build(|router, _, storage| {
             router
                 .bank
-                .init_balance(storage, &Addr::unchecked("user"), coins(150, "unym"))
+                .init_balance(storage, &Addr::unchecked("user"), coins(150, DENOM))
                 .unwrap();
             router
                 .bank
-                .init_balance(storage, &Addr::unchecked("admin"), coins(150, "unym"))
+                .init_balance(storage, &Addr::unchecked("admin"), coins(150, DENOM))
                 .unwrap();
             router
                 .bank
-                .init_balance(storage, &Addr::unchecked("owner"), coins(150, "unym"))
+                .init_balance(storage, &Addr::unchecked("owner"), coins(150, DENOM))
                 .unwrap();
             router
                 .bank
-                .init_balance(storage, &Addr::unchecked("owner2"), coins(150, "unym"))
+                .init_balance(storage, &Addr::unchecked("owner2"), coins(150, DENOM))
                 .unwrap();
         });
         let code = ContractWrapper::new(crate::execute, crate::instantiate, crate::query);
@@ -52,7 +52,7 @@ impl TestSetup {
             Addr::unchecked("owner"),
             &InstantiateMsg {
                 admin: Addr::unchecked("admin"),
-                deposit_required: Coin::new(100, "unym"),
+                deposit_required: Coin::new(100, DENOM),
             },
             &[],
             "contract_label",
@@ -67,7 +67,7 @@ impl TestSetup {
     }
 
     pub fn contract_balance(&self) -> StdResult<Coin> {
-        self.app.wrap().query_balance(&self.addr, "unym")
+        self.app.wrap().query_balance(&self.addr, DENOM)
     }
 
     pub fn query<T: DeserializeOwned>(&self, query_msg: &QueryMsg) -> T {
@@ -102,9 +102,8 @@ impl TestSetup {
                 service_type: ServiceType::NetworkRequester,
                 owner,
             },
-            //&[],
             &[Coin {
-                denom: "unym".to_string(),
+                denom: DENOM.to_string(),
                 amount: Uint128::new(100),
             }],
         );
@@ -128,6 +127,6 @@ impl TestSetup {
     }
 
     pub fn balance(&self, address: impl Into<String>) -> StdResult<Coin> {
-        self.app.wrap().query_balance(address, "unym")
+        self.app.wrap().query_balance(address, DENOM)
     }
 }

@@ -29,28 +29,16 @@ fn announce_and_query_service() {
     let mut setup = TestSetup::new();
     assert_eq!(setup.query_all(), ServicesListResponse { services: vec![] });
 
-    let admin_balance = setup.balance("admin").unwrap();
-    let owner_balance = setup.balance("owner").unwrap();
-    let user_balance = setup.balance("user").unwrap();
-    dbg!(&admin_balance);
-    dbg!(&owner_balance);
-    dbg!(&user_balance);
-    dbg!(&setup.contract_balance());
-
     let owner = Addr::unchecked("owner");
     let nym_address = NymAddress::new("nymAddress");
+    assert_eq!(setup.contract_balance().unwrap(), nyms(0));
+    assert_eq!(setup.balance(&owner).unwrap(), nyms(150));
     setup
         .announce_network_requester(nym_address.clone(), owner.clone())
         .unwrap();
 
-    let admin_balance = setup.balance("admin").unwrap();
-    let owner_balance = setup.balance("owner").unwrap();
-    let user_balance = setup.balance("user").unwrap();
-    dbg!(&admin_balance);
-    dbg!(&owner_balance);
-    dbg!(&user_balance);
-    dbg!(&setup.contract_balance());
-
+    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
+    assert_eq!(setup.balance(&owner).unwrap(), nyms(50));
     assert_eq!(
         setup.query_all(),
         ServicesListResponse {
@@ -66,7 +54,6 @@ fn announce_and_query_service() {
             }]
         }
     );
-
     assert_eq!(
         setup.query_id(1),
         ServiceInfo {
@@ -87,14 +74,7 @@ fn announce_and_query_service() {
         .announce_network_requester(nym_address2.clone(), owner2.clone())
         .unwrap();
 
-    let admin_balance = setup.balance("admin").unwrap();
-    let owner_balance = setup.balance("owner").unwrap();
-    let user_balance = setup.balance("user").unwrap();
-    dbg!(&admin_balance);
-    dbg!(&owner_balance);
-    dbg!(&user_balance);
-    dbg!(&setup.contract_balance());
-
+    assert_eq!(setup.contract_balance().unwrap(), nyms(200));
     assert_eq!(
         setup.query_all(),
         ServicesListResponse {
@@ -130,8 +110,10 @@ fn delete_service() {
     setup
         .announce_network_requester(NymAddress::new("nymAddress"), Addr::unchecked("owner"))
         .unwrap();
+    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
     assert!(!setup.query_all().services.is_empty());
     setup.delete(1, Addr::unchecked("owner")).unwrap();
+    assert_eq!(setup.contract_balance().unwrap(), nyms(0));
     assert!(setup.query_all().services.is_empty());
 }
 

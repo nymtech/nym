@@ -1,11 +1,9 @@
 use crate::{
     error::ContractError,
-    msg::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg, ServicesListResponse},
-    state::{Config, Service, CONFIG, SERVICES},
+    msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
+    state::{self, Config},
 };
-use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
-};
+use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 
 mod execute;
@@ -26,7 +24,7 @@ pub fn instantiate(
         deposit_required: msg.deposit_required.clone(),
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    CONFIG.save(deps.storage, &config)?;
+    state::save_config(deps.storage, &config)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -50,11 +48,11 @@ pub fn execute(
     }
 }
 
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::QueryId { service_id } => to_binary(&query::query_id(deps, env, service_id)?),
-        QueryMsg::QueryAll {} => to_binary(&query::query_all(deps)?),
-        QueryMsg::QueryConfig {} => to_binary(&query::query_config(deps)?),
+        QueryMsg::ServiceId { service_id } => to_binary(&query::query_id(deps, service_id)?),
+        QueryMsg::All {} => to_binary(&query::query_all(deps)?),
+        QueryMsg::Config {} => to_binary(&query::query_config(deps)?),
     }
 }
 

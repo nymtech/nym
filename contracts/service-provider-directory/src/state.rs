@@ -1,6 +1,8 @@
-use cosmwasm_std::{Addr, Coin, StdResult, Storage};
+use cosmwasm_std::{Addr, Coin, Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use serde::{Deserialize, Serialize};
+
+use crate::msg::ServiceInfo;
 
 // Storage keys
 pub const CONFIG_KEY: &str = "config";
@@ -67,12 +69,12 @@ pub struct Config {
     pub deposit_required: Coin,
 }
 
-/// Generate the next service provider id, store it and return it
-pub(crate) fn next_service_id_counter(store: &mut dyn Storage) -> StdResult<ServiceId> {
-    // The first id is 1.
-    let id = SERVICE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
-    SERVICE_ID_COUNTER.save(store, &id)?;
-    Ok(id)
+pub(crate) fn save_config(store: &mut dyn Storage, config: &Config) -> StdResult<()> {
+    CONFIG.save(store, config)
+}
+
+pub(crate) fn load_config(store: &dyn Storage) -> StdResult<Config> {
+    CONFIG.load(store)
 }
 
 /// Return the deposit required to announce a service.
@@ -84,6 +86,46 @@ pub(crate) fn deposit_required(store: &dyn Storage) -> StdResult<Coin> {
 #[allow(unused)]
 pub(crate) fn admin(store: &dyn Storage) -> StdResult<Addr> {
     CONFIG.load(store).map(|config| config.admin)
+}
+
+pub(crate) fn has_service(store: &dyn Storage, service_id: ServiceId) -> bool {
+    SERVICES.has(store, service_id)
+}
+
+/// Generate the next service provider id, store it and return it
+pub(crate) fn next_service_id_counter(store: &mut dyn Storage) -> StdResult<ServiceId> {
+    // The first id is 1.
+    let id = SERVICE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
+    SERVICE_ID_COUNTER.save(store, &id)?;
+    Ok(id)
+}
+
+pub(crate) fn save_service(
+    store: &mut dyn Storage,
+    service_id: ServiceId,
+    new_service: Service,
+) -> StdResult<()> {
+    SERVICES.save(store, service_id, &new_service)
+}
+
+pub(crate) fn load_service(store: &dyn Storage, service_id: ServiceId) -> StdResult<Service> {
+    SERVICES.load(store, service_id)
+}
+
+pub(crate) fn load_all_services(store: &dyn Storage) -> StdResult<Vec<ServiceInfo>> {
+    SERVICES
+        .range(store, None, None, Order::Ascending)
+        .map(|item| {
+            item.map(|(service_id, service)| ServiceInfo {
+                service_id,
+                service,
+            })
+        })
+        .collect::<StdResult<Vec<_>>>()
+}
+
+pub(crate) fn remove_service(store: &mut dyn Storage, service_id: ServiceId) {
+    SERVICES.remove(store, service_id);
 }
 
 #[cfg(test)]

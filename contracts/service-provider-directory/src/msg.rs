@@ -31,9 +31,9 @@ impl ExecuteMsg {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    QueryId { service_id: ServiceId },
-    QueryAll {},
-    QueryConfig {},
+    ServiceId { service_id: ServiceId },
+    All {},
+    Config {},
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

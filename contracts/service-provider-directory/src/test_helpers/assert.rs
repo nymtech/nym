@@ -6,13 +6,13 @@ use crate::{
 };
 
 pub fn assert_config(deps: Deps, admin: Addr) {
-    let res = crate::contract::query(deps, mock_env(), QueryMsg::QueryConfig {}).unwrap();
+    let res = crate::contract::query(deps, mock_env(), QueryMsg::Config {}).unwrap();
     let config: ConfigResponse = from_binary(&res).unwrap();
     assert_eq!(config, ConfigResponse { admin });
 }
 
 pub fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {
-    let res = crate::contract::query(deps, mock_env(), QueryMsg::QueryAll {}).unwrap();
+    let res = crate::contract::query(deps, mock_env(), QueryMsg::All {}).unwrap();
     let services: ServicesListResponse = from_binary(&res).unwrap();
     assert_eq!(
         services,
@@ -26,7 +26,7 @@ pub fn assert_service(deps: Deps, expected_service: &ServiceInfo) {
     let res = crate::contract::query(
         deps,
         mock_env(),
-        QueryMsg::QueryId {
+        QueryMsg::ServiceId {
             service_id: expected_service.service_id,
         },
     )
@@ -36,7 +36,7 @@ pub fn assert_service(deps: Deps, expected_service: &ServiceInfo) {
 }
 
 pub fn assert_empty(deps: Deps) {
-    let res = crate::contract::query(deps, mock_env(), QueryMsg::QueryAll {}).unwrap();
+    let res = crate::contract::query(deps, mock_env(), QueryMsg::All {}).unwrap();
     let services: ServicesListResponse = from_binary(&res).unwrap();
     assert!(services.services.is_empty());
 }
@@ -45,7 +45,7 @@ pub fn assert_not_found(deps: Deps, expected_id: ServiceId) {
     let res = crate::contract::query(
         deps,
         mock_env(),
-        QueryMsg::QueryId {
+        QueryMsg::ServiceId {
             service_id: expected_id,
         },
     )

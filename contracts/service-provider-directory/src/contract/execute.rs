@@ -1,7 +1,9 @@
-use cosmwasm_std::{BankMsg, Coin, Uint128};
+use cosmwasm_std::{Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 
-use super::*;
-use crate::state::{self, NymAddress, ServiceId, ServiceType};
+use crate::{
+    error::ContractError,
+    state::{self, NymAddress, Service, ServiceId, ServiceType},
+};
 
 fn ensure_correct_deposit(
     will_deposit: Uint128,
@@ -43,7 +45,7 @@ pub fn announce(
         deposit: Coin::new(will_deposit.u128(), denom),
     };
     let service_id = state::next_service_id_counter(deps.storage)?;
-    SERVICES.save(deps.storage, service_id, &new_service)?;
+    state::save_service(deps.storage, service_id, new_service)?;
     Ok(Response::new()
         .add_attribute("action", "announce")
         .add_attribute("service_id", service_id.to_string())
@@ -56,11 +58,12 @@ pub fn delete(
     info: MessageInfo,
     service_id: ServiceId,
 ) -> Result<Response, ContractError> {
-    if !SERVICES.has(deps.storage, service_id) {
+    if !state::has_service(deps.storage, service_id) {
         return Err(ContractError::NotFound { service_id });
     }
 
-    let service_to_delete = SERVICES.load(deps.storage, service_id)?;
+    let service_to_delete = state::load_service(deps.storage, service_id)?;
+
     if info.sender != service_to_delete.owner {
         return Err(ContractError::Unauthorized {
             sender: info.sender,
@@ -74,7 +77,7 @@ pub fn delete(
         amount: vec![service_to_delete.deposit],
     };
 
-    SERVICES.remove(deps.storage, service_id);
+    state::remove_service(deps.storage, service_id);
     Ok(Response::new()
         .add_message(return_deposit_msg)
         .add_attribute("action", "delete")

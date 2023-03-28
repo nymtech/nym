@@ -3454,14 +3454,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-execute"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "nym-group-contract-common"
 version = "0.1.0"
 dependencies = [
@@ -6596,6 +6588,7 @@ dependencies = [
  "cosmwasm-std",
  "cw3",
  "cw4",
+ "eyre",
  "flate2",
  "futures",
  "itertools",
@@ -6606,7 +6599,6 @@ dependencies = [
  "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
- "nym-execute",
  "nym-group-contract-common",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",

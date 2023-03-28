@@ -83,7 +83,7 @@ wasm:
 	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
 	wasm-opt --disable-sign-ext -Os contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm -o contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm
 	wasm-opt --disable-sign-ext -Os contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm -o contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm
-	#wasm-opt --disable-sign-ext -Os contracts/target/wasm32-unknown-unknown/release/nym_service_provider_directory.wasm -o contracts/target/wasm32-unknown-unknown/release/nym_service_provider_directory.wasm
+	wasm-opt --disable-sign-ext -Os contracts/target/wasm32-unknown-unknown/release/nym_service_provider_directory.wasm -o contracts/target/wasm32-unknown-unknown/release/nym_service_provider_directory.wasm
 
 # NOTE: this seems deprecated an not needed anymore?
 mixnet-opt: wasm

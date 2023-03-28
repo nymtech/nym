@@ -20,7 +20,7 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_mixnode_bonding_event, new_mixnode_config_update_event,
     new_mixnode_pending_cost_params_update_event, new_pending_mixnode_unbonding_event,
-    new_pending_pledge_increase_event,
+    new_pending_pledge_decrease_event, new_pending_pledge_increase_event,
 };
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
@@ -212,6 +212,81 @@ pub fn _try_increase_pledge(
     let epoch_event = PendingEpochEventKind::PledgeMore {
         mix_id,
         amount: pledge_increase,
+    };
+    interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
+
+    Ok(Response::new().add_event(cosmos_event))
+}
+
+pub fn try_decrease_pledge(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    decrease_by: Coin,
+) -> Result<Response, MixnetContractError> {
+    _try_decrease_pledge(deps, env, decrease_by, info.sender, None)
+}
+
+pub fn try_decrease_pledge_on_behalf(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    decrease_by: Coin,
+    owner: String,
+) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
+    let proxy = info.sender;
+    let owner = deps.api.addr_validate(&owner)?;
+    _try_decrease_pledge(deps, env, decrease_by, owner, Some(proxy))
+}
+
+pub fn _try_decrease_pledge(
+    deps: DepsMut<'_>,
+    env: Env,
+    decrease_by: Coin,
+    owner: Addr,
+    proxy: Option<Addr>,
+) -> Result<Response, MixnetContractError> {
+    let mix_details = get_mixnode_details_by_owner(deps.storage, owner.clone())?
+        .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?;
+    let mix_id = mix_details.mix_id();
+
+    // decreasing pledge is only allowed if the epoch is currently not in the process of being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
+
+    ensure_proxy_match(&proxy, &mix_details.bond_information.proxy)?;
+    ensure_bonded(&mix_details.bond_information)?;
+
+    let minimum_pledge = mixnet_params_storage::minimum_mixnode_pledge(deps.storage)?;
+
+    // check that the denomination is correct
+    if decrease_by.denom != minimum_pledge.denom {
+        return Err(MixnetContractError::WrongDenom {
+            received: decrease_by.denom,
+            expected: minimum_pledge.denom,
+        });
+    }
+
+    // decreasing pledge can't result in the new pledge being lower than the minimum amount
+    let new_pledge_amount = mix_details
+        .original_pledge()
+        .amount
+        .saturating_sub(decrease_by.amount);
+    if new_pledge_amount < minimum_pledge.amount {
+        return Err(MixnetContractError::InvalidPledgeReduction {
+            current: mix_details.original_pledge().to_owned(),
+            decrease_by,
+            minimum: minimum_pledge,
+        });
+    }
+
+    let cosmos_event = new_pending_pledge_decrease_event(mix_id, &decrease_by);
+
+    // push the event to execute it at the end of the epoch
+    let epoch_event = PendingEpochEventKind::DecreasePledge {
+        mix_id,
+        decrease_by,
     };
     interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
 
@@ -1154,7 +1229,7 @@ pub mod tests {
             let owner_unbonded = Addr::unchecked(OWNER_UNBONDED);
             let owner_unbonded_leftover = Addr::unchecked(OWNER_UNBONDED_LEFTOVER);
 
-            let ids = setup_mix_combinations(&mut test);
+            let ids = setup_mix_combinations(&mut test, None);
             let mix_id_unbonding = ids[1];
 
             let res = try_increase_pledge(
@@ -1242,34 +1317,317 @@ pub mod tests {
                 }
             );
         }
+
+        #[test]
+        fn fails_for_illegal_proxy() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            let illegal_proxy = Addr::unchecked("not-vesting-contract");
+            let vesting_contract = test.vesting_contract();
+
+            let owner = "alice";
+
+            test.add_dummy_mixnode_with_illegal_proxy(owner, None, illegal_proxy.clone());
+
+            let res = try_increase_pledge_on_behalf(
+                test.deps_mut(),
+                env,
+                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
+                owner.to_string(),
+            )
+            .unwrap_err();
+
+            assert_eq!(
+                res,
+                MixnetContractError::SenderIsNotVestingContract {
+                    received: illegal_proxy,
+                    vesting_contract
+                }
+            )
+        }
     }
 
-    #[test]
-    fn fails_for_illegal_proxy() {
-        let mut test = TestSetup::new();
-        let env = test.env();
+    #[cfg(test)]
+    mod decreasing_mixnode_pledge {
+        use super::*;
+        use crate::mixnodes::helpers::tests::{
+            setup_mix_combinations, OWNER_UNBONDED, OWNER_UNBONDED_LEFTOVER, OWNER_UNBONDING,
+        };
+        use crate::support::tests::test_helpers::TestSetup;
+        use mixnet_contract_common::{EpochState, EpochStatus};
 
-        let illegal_proxy = Addr::unchecked("not-vesting-contract");
-        let vesting_contract = test.vesting_contract();
+        #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress() {
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
 
-        let owner = "alice";
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let env = test.env();
+                let owner = "mix-owner";
+                let decrease = test.coin(1000);
 
-        test.add_dummy_mixnode_with_illegal_proxy(owner, None, illegal_proxy.clone());
+                test.add_dummy_mixnode(owner, Some(Uint128::new(100_000_000_000)));
 
-        let res = try_increase_pledge_on_behalf(
-            test.deps_mut(),
-            env,
-            mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
-            owner.to_string(),
-        )
-        .unwrap_err();
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
+                    .unwrap();
 
-        assert_eq!(
-            res,
-            MixnetContractError::SenderIsNotVestingContract {
-                received: illegal_proxy,
-                vesting_contract
+                let sender = mock_info(owner, &[]);
+                let res = try_decrease_pledge(test.deps_mut(), env, sender, decrease);
+
+                assert!(matches!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress { .. })
+                ));
             }
-        )
+        }
+
+        #[test]
+        fn is_not_allowed_if_account_doesnt_own_mixnode() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let sender = mock_info("not-mix-owner", &[]);
+            let decrease = test.coin(1000);
+
+            let res = try_decrease_pledge(test.deps_mut(), env, sender, decrease);
+            assert_eq!(
+                res,
+                Err(MixnetContractError::NoAssociatedMixNodeBond {
+                    owner: Addr::unchecked("not-mix-owner")
+                })
+            )
+        }
+
+        #[test]
+        fn is_not_allowed_if_theres_proxy_mismatch() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            let owner_without_proxy = Addr::unchecked("no-proxy");
+            let owner_with_proxy = Addr::unchecked("with-proxy");
+            let proxy = Addr::unchecked("proxy");
+            let wrong_proxy = Addr::unchecked("unrelated-proxy");
+
+            // just to make sure that after decrease the value would still be above the minimum
+            let stake = Uint128::new(100_000_000_000);
+            let decrease = test.coin(1000);
+
+            test.add_dummy_mixnode(owner_without_proxy.as_str(), Some(stake));
+            test.add_dummy_mixnode_with_illegal_proxy(
+                owner_with_proxy.as_str(),
+                Some(stake),
+                proxy.clone(),
+            );
+
+            let res = _try_decrease_pledge(
+                test.deps_mut(),
+                env.clone(),
+                decrease.clone(),
+                owner_without_proxy.clone(),
+                Some(proxy),
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::ProxyMismatch {
+                    existing: "None".to_string(),
+                    incoming: "proxy".to_string()
+                })
+            );
+
+            let res = _try_decrease_pledge(
+                test.deps_mut(),
+                env.clone(),
+                decrease.clone(),
+                owner_with_proxy.clone(),
+                None,
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::ProxyMismatch {
+                    existing: "proxy".to_string(),
+                    incoming: "None".to_string()
+                })
+            );
+
+            let res = _try_decrease_pledge(
+                test.deps_mut(),
+                env,
+                decrease,
+                owner_with_proxy.clone(),
+                Some(wrong_proxy),
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::ProxyMismatch {
+                    existing: "proxy".to_string(),
+                    incoming: "unrelated-proxy".to_string()
+                })
+            )
+        }
+
+        #[test]
+        fn is_not_allowed_if_mixnode_has_unbonded_or_is_unbonding() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            // just to make sure that after decrease the value would still be above the minimum
+            let stake = Uint128::new(100_000_000_000);
+            let decrease = test.coin(1000);
+
+            // TODO: I dislike this cross-test access, but it provides us with exactly what we need
+            // perhaps it should be refactored a bit?
+            let owner_unbonding = Addr::unchecked(OWNER_UNBONDING);
+            let owner_unbonded = Addr::unchecked(OWNER_UNBONDED);
+            let owner_unbonded_leftover = Addr::unchecked(OWNER_UNBONDED_LEFTOVER);
+
+            let ids = setup_mix_combinations(&mut test, Some(stake));
+            let mix_id_unbonding = ids[1];
+
+            let res = try_decrease_pledge(
+                test.deps_mut(),
+                env.clone(),
+                mock_info(owner_unbonding.as_str(), &[]),
+                decrease.clone(),
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::MixnodeIsUnbonding {
+                    mix_id: mix_id_unbonding
+                })
+            );
+
+            // if the nodes are gone we treat them as tey never existed in the first place
+            // (regardless of if there's some leftover data)
+            let res = try_decrease_pledge(
+                test.deps_mut(),
+                env.clone(),
+                mock_info(owner_unbonded_leftover.as_str(), &[]),
+                decrease.clone(),
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::NoAssociatedMixNodeBond {
+                    owner: owner_unbonded_leftover
+                })
+            );
+
+            let res = try_decrease_pledge(
+                test.deps_mut(),
+                env,
+                mock_info(owner_unbonded.as_str(), &[]),
+                decrease,
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::NoAssociatedMixNodeBond {
+                    owner: owner_unbonded
+                })
+            )
+        }
+
+        #[test]
+        fn is_not_allowed_if_it_would_result_going_below_minimum_pledge() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let owner = "mix-owner";
+
+            let minimum_pledge = minimum_mixnode_pledge(test.deps().storage).unwrap();
+            let pledge_amount = minimum_pledge.amount + Uint128::new(100);
+            let pledged = test.coin(pledge_amount.u128());
+            test.add_dummy_mixnode(owner, Some(pledge_amount));
+
+            let invalid_decrease = test.coin(150);
+            let valid_decrease = test.coin(50);
+
+            let sender = mock_info(owner, &[]);
+            let res = try_decrease_pledge(
+                test.deps_mut(),
+                env.clone(),
+                sender.clone(),
+                invalid_decrease.clone(),
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::InvalidPledgeReduction {
+                    current: pledged,
+                    decrease_by: invalid_decrease,
+                    minimum: minimum_pledge,
+                })
+            );
+
+            let res = try_decrease_pledge(test.deps_mut(), env.clone(), sender, valid_decrease);
+            assert!(res.is_ok())
+        }
+
+        #[test]
+        fn with_valid_information_creates_pending_event() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            // just to make sure that after decrease the value would still be above the minimum
+            let stake = Uint128::new(100_000_000_000);
+            let decrease = test.coin(1000);
+
+            let owner = "mix-owner";
+            let mix_id = test.add_dummy_mixnode(owner, Some(stake));
+
+            let events = test.pending_epoch_events();
+            assert!(events.is_empty());
+
+            let sender = mock_info(owner, &[test.coin(1000)]);
+            try_decrease_pledge(test.deps_mut(), env, sender, decrease.clone()).unwrap();
+
+            let events = test.pending_epoch_events();
+
+            assert_eq!(
+                events[0].kind,
+                PendingEpochEventKind::DecreasePledge {
+                    mix_id,
+                    decrease_by: decrease
+                }
+            );
+        }
+
+        #[test]
+        fn fails_for_illegal_proxy() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            let stake = Uint128::new(100_000_000_000);
+            let decrease = test.coin(1000);
+
+            let illegal_proxy = Addr::unchecked("not-vesting-contract");
+            let vesting_contract = test.vesting_contract();
+
+            let owner = "alice";
+
+            test.add_dummy_mixnode_with_illegal_proxy(owner, Some(stake), illegal_proxy.clone());
+
+            let res = try_decrease_pledge_on_behalf(
+                test.deps_mut(),
+                env,
+                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
+                decrease,
+                owner.to_string(),
+            )
+            .unwrap_err();
+
+            assert_eq!(
+                res,
+                MixnetContractError::SenderIsNotVestingContract {
+                    received: illegal_proxy,
+                    vesting_contract
+                }
+            )
+        }
     }
 }

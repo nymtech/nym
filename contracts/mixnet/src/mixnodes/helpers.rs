@@ -153,7 +153,7 @@ pub(crate) mod tests {
         mix_node_cost_params_fixture, mix_node_fixture, TEST_COIN_DENOM,
     };
     use crate::support::tests::test_helpers::TestSetup;
-    use cosmwasm_std::coin;
+    use cosmwasm_std::{coin, Uint128};
 
     pub(crate) const OWNER_EXISTS: &str = "mix-owner-existing";
     pub(crate) const OWNER_UNBONDING: &str = "mix-owner-unbonding";
@@ -161,11 +161,14 @@ pub(crate) mod tests {
     pub(crate) const OWNER_UNBONDED_LEFTOVER: &str = "mix-owner-unbonded-leftover";
 
     // create a mixnode that is bonded, unbonded, in the process of unbonding and unbonded with leftover mix rewarding details
-    pub(crate) fn setup_mix_combinations(test: &mut TestSetup) -> Vec<MixId> {
-        let mix_id_exists = test.add_dummy_mixnode(OWNER_EXISTS, None);
-        let mix_id_unbonding = test.add_dummy_mixnode(OWNER_UNBONDING, None);
-        let mix_id_unbonded = test.add_dummy_mixnode(OWNER_UNBONDED, None);
-        let mix_id_unbonded_leftover = test.add_dummy_mixnode(OWNER_UNBONDED_LEFTOVER, None);
+    pub(crate) fn setup_mix_combinations(
+        test: &mut TestSetup,
+        stake: Option<Uint128>,
+    ) -> Vec<MixId> {
+        let mix_id_exists = test.add_dummy_mixnode(OWNER_EXISTS, stake);
+        let mix_id_unbonding = test.add_dummy_mixnode(OWNER_UNBONDING, stake);
+        let mix_id_unbonded = test.add_dummy_mixnode(OWNER_UNBONDED, stake);
+        let mix_id_unbonded_leftover = test.add_dummy_mixnode(OWNER_UNBONDED_LEFTOVER, stake);
 
         // manually adjust delegation info as to indicate the rewarding information shouldnt get removed
         let mut rewarding_details = test.mix_rewarding(mix_id_unbonded_leftover);
@@ -200,7 +203,7 @@ pub(crate) mod tests {
         let owner_unbonded = Addr::unchecked(OWNER_UNBONDED);
         let owner_unbonded_leftover = Addr::unchecked(OWNER_UNBONDED_LEFTOVER);
 
-        let ids = setup_mix_combinations(&mut test);
+        let ids = setup_mix_combinations(&mut test, None);
         let mix_id_exists = ids[0];
         let mix_id_unbonding = ids[1];
 
@@ -234,7 +237,7 @@ pub(crate) mod tests {
     fn getting_mixnode_details_by_id() {
         let mut test = TestSetup::new();
 
-        let ids = setup_mix_combinations(&mut test);
+        let ids = setup_mix_combinations(&mut test, None);
         let mix_id_exists = ids[0];
         let mix_id_unbonding = ids[1];
         let mix_id_unbonded = ids[2];
@@ -266,7 +269,7 @@ pub(crate) mod tests {
         let owner_unbonded = Addr::unchecked(OWNER_UNBONDED);
         let owner_unbonded_leftover = Addr::unchecked(OWNER_UNBONDED_LEFTOVER);
 
-        let ids = setup_mix_combinations(&mut test);
+        let ids = setup_mix_combinations(&mut test, None);
         let mix_id_exists = ids[0];
         let mix_id_unbonding = ids[1];
 

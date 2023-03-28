@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{EpochState, IdentityKey, MixId};
@@ -25,6 +25,13 @@ pub enum MixnetContractError {
 
     #[error("Not enough funds sent for node pledge. (received {received}, minimum {minimum})")]
     InsufficientPledge { received: Coin, minimum: Coin },
+
+    #[error("Attempted to reduce node pledge ({current} - {decrease_by}) below the minimum amount: {minimum}")]
+    InvalidPledgeReduction {
+        current: Coin,
+        decrease_by: Coin,
+        minimum: Coin,
+    },
 
     #[error("Not enough funds sent for node delegation. (received {received}, minimum {minimum})")]
     InsufficientDelegation { received: Coin, minimum: Coin },

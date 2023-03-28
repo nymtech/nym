@@ -38,6 +38,10 @@ pub enum PendingEpochEventKind {
         mix_id: MixId,
         amount: Coin,
     },
+    DecreasePledge {
+        mix_id: MixId,
+        decrease_by: Coin,
+    },
     UnbondMixnode {
         mix_id: MixId,
     },

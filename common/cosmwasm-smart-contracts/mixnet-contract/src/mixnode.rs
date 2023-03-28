@@ -332,6 +332,22 @@ impl MixNodeRewarding {
         Ok(())
     }
 
+    /// Decreases total pledge of operator by the specified amount.
+    pub fn decrease_operator_uint128(
+        &mut self,
+        amount: Uint128,
+    ) -> Result<(), MixnetContractError> {
+        let amount_decimal = amount.into_base_decimal()?;
+        if self.operator < amount_decimal {
+            return Err(MixnetContractError::OverflowDecimalSubtraction {
+                minuend: self.operator,
+                subtrahend: amount_decimal,
+            });
+        }
+        self.operator -= amount_decimal;
+        Ok(())
+    }
+
     pub fn increase_delegates_uint128(
         &mut self,
         amount: Uint128,

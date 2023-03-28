@@ -251,6 +251,18 @@ pub fn execute(
         ExecuteMsg::PledgeMoreOnBehalf { owner } => {
             crate::mixnodes::transactions::try_increase_pledge_on_behalf(deps, env, info, owner)
         }
+        ExecuteMsg::DecreasePledge { decrease_by } => {
+            crate::mixnodes::transactions::try_decrease_pledge(deps, env, info, decrease_by)
+        }
+        ExecuteMsg::DecreasePledgeOnBehalf { owner, decrease_by } => {
+            crate::mixnodes::transactions::try_decrease_pledge_on_behalf(
+                deps,
+                env,
+                info,
+                decrease_by,
+                owner,
+            )
+        }
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, env, info)
         }

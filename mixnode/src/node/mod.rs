@@ -17,9 +17,10 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
+use tracing::*;
+use tracing::{info, error, warn};
 use crate::OutputFormat;
 use colored::Colorize;
-use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_bin_common::version_checker::parse_version;
 use nym_config::NymConfig;
@@ -215,7 +216,7 @@ impl MixNode {
 
         let packet_sender = packet_forwarder.sender();
 
-        tokio::spawn(async move { packet_forwarder.run().await });
+        tokio::spawn(async move { packet_forwarder.run().await }.instrument(info_span!("Packet delay forwarder")));
         packet_sender
     }
 
@@ -294,7 +295,7 @@ impl MixNode {
 
     async fn wait_for_interrupt(&self, shutdown: TaskManager) {
         let _res = shutdown.catch_interrupt().await;
-        log::info!("Stopping nym mixnode");
+        info!("Stopping nym mixnode");
     }
 
     pub async fn run(&mut self) {
@@ -304,7 +305,7 @@ impl MixNode {
             if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
                 warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
             } else {
-                log::error!(
+                error!(
                     "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
                     duplicate_node_key
                 );

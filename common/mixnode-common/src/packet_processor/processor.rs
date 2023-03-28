@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::packet_processor::error::MixProcessingError;
-use log::*;
+use tracing::*;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -57,6 +57,7 @@ impl SphinxPacketProcessor {
     }
 
     /// Takes the received framed packet and tries to unwrap it from the sphinx encryption.
+    #[instrument(level="debug", skip_all)]
     fn perform_initial_unwrapping(
         &self,
         received: FramedSphinxPacket,
@@ -73,6 +74,7 @@ impl SphinxPacketProcessor {
 
     /// Processed received forward hop packet - tries to extract next hop address, sets delay
     /// and packs all the data in a way that can be easily sent to the next hop.
+    #[instrument(level="debug", skip_all)]
     fn process_forward_hop(
         &self,
         packet: SphinxPacket,
@@ -88,6 +90,7 @@ impl SphinxPacketProcessor {
 
     /// Split data extracted from the final hop sphinx packet into a SURBAck and message
     /// that should get delivered to a client.
+    #[instrument(level="debug", skip_all)]
     fn split_hop_data_into_ack_and_message(
         &self,
         mut extracted_data: Vec<u8>,
@@ -105,6 +108,7 @@ impl SphinxPacketProcessor {
 
     /// Tries to extract a SURBAck that could be sent back into the mix network and message
     /// that should get delivered to a client from received Sphinx packet.
+    #[instrument(level="debug", skip_all)]
     fn split_into_ack_and_message(
         &self,
         data: Vec<u8>,
@@ -129,6 +133,7 @@ impl SphinxPacketProcessor {
     /// Processed received final hop packet - tries to extract SURBAck out of it (assuming the
     /// packet itself is not an ACK) and splits it from the message that should get delivered
     /// to the destination.
+    #[instrument(level="debug", skip_all)]
     fn process_final_hop(
         &self,
         destination: DestinationAddressBytes,
@@ -150,6 +155,7 @@ impl SphinxPacketProcessor {
 
     /// Performs final processing for the unwrapped packet based on whether it was a forward hop
     /// or a final hop.
+    #[instrument(level="debug", skip_all)]
     fn perform_final_processing(
         &self,
         packet: ProcessedPacket,
@@ -167,7 +173,7 @@ impl SphinxPacketProcessor {
             }
         }
     }
-
+    #[instrument(level="debug", skip_all, fields(packet_size=?received.packet_size()))]
     pub fn process_received(
         &self,
         received: FramedSphinxPacket,

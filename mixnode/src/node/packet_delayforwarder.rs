@@ -4,10 +4,13 @@
 use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
+use nym_sphinx::params::packet_sizes::PacketSize;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx::forwarding::packet::MixPacket;
 use std::io;
 use tokio::time::Instant;
+use tracing::*;
+use tracing::{trace};
 
 use super::TaskClient;
 
@@ -55,11 +58,13 @@ where
     pub(crate) fn sender(&self) -> PacketDelayForwardSender {
         self.packet_sender.clone()
     }
-
+    #[instrument(level="debug", skip_all, "Forwarding packet", fields(packet_size))]
     fn forward_packet(&mut self, packet: MixPacket) {
         let next_hop = packet.next_hop();
         let packet_mode = packet.packet_mode();
         let sphinx_packet = packet.into_sphinx_packet();
+        let packet_size = PacketSize::get_type(sphinx_packet.len()).unwrap();
+        Span::current().record("packet_size", field::debug(packet_size));
 
         if let Err(err) =
             self.mixnet_client
@@ -87,7 +92,7 @@ where
         let delayed_packet = packet.into_inner();
         self.forward_packet(delayed_packet)
     }
-
+    #[instrument(level="debug", skip_all, "Handling packet", fields(packet_size))]
     fn handle_new_packet(&mut self, new_packet: (MixPacket, Option<Instant>)) {
         // in case of a zero delay packet, don't bother putting it in the delay queue,
         // just forward it immediately
@@ -105,7 +110,7 @@ where
     }
 
     pub(crate) async fn run(&mut self) {
-        log::trace!("Starting DelayForwarder");
+        trace!("Starting DelayForwarder");
         loop {
             tokio::select! {
                 delayed = self.delay_queue.next() => {
@@ -117,12 +122,12 @@ where
                     self.handle_new_packet(new_packet.unwrap())
                 }
                 _ = self.shutdown.recv() => {
-                    log::trace!("DelayForwarder: Received shutdown");
+                    trace!("DelayForwarder: Received shutdown");
                     break;
                 }
             }
         }
-        log::trace!("DelayForwarder: Exiting");
+        trace!("DelayForwarder: Exiting");
     }
 }
 

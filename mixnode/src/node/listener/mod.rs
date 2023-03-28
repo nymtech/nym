@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::listener::connection_handler::ConnectionHandler;
-use log::error;
+use tracing::*;
+use tracing::{error, info, trace, warn};
 use std::net::SocketAddr;
 use std::process;
 use tokio::net::TcpListener;
@@ -21,9 +22,9 @@ impl Listener {
     pub(crate) fn new(address: SocketAddr, shutdown: TaskClient) -> Self {
         Listener { address, shutdown }
     }
-
+    #[instrument(level="info", skip_all, "Mixnet Listener")]
     async fn run(&mut self, connection_handler: ConnectionHandler) {
-        log::trace!("Starting Listener");
+        trace!("Starting Listener");
         let listener = match TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
@@ -36,20 +37,20 @@ impl Listener {
             tokio::select! {
                 biased;
                 _ = self.shutdown.recv() => {
-                    log::trace!("Listener: Received shutdown");
+                    trace!("Listener: Received shutdown");
                 }
                 connection = listener.accept() => {
                     match connection {
                         Ok((socket, remote_addr)) => {
                             let handler = connection_handler.clone();
-                            tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone()));
+                            tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone()).instrument(info_span!("Connection handling", address = %remote_addr)));
                         }
                         Err(err) => warn!("Failed to accept incoming connection - {err}"),
                     }
                 },
             };
         }
-        log::trace!("Listener: Exiting");
+        trace!("Listener: Exiting");
     }
 
     pub(crate) fn start(mut self, connection_handler: ConnectionHandler) -> JoinHandle<()> {

@@ -7,6 +7,9 @@ extern crate rocket;
 use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser, ValueEnum};
 use lazy_static::lazy_static;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::{EnvFilter, Registry, filter};
+use tracing_flame::FlameLayer;
 use nym_bin_common::logging::setup_logging;
 use nym_bin_common::{build_information::BinaryBuildInformation, logging::banner};
 
@@ -62,7 +65,32 @@ impl Cli {
 
 #[tokio::main]
 async fn main() {
-    setup_logging();
+    //setup_logging();
+
+    //let tracer = opentelemetry_jaeger::new_agent_pipeline()
+    //.with_endpoint("143.42.21.138:6831")
+    //.with_service_name("nym_mixnode1")
+    //.with_auto_split_batch(true)
+    //.install_batch(opentelemetry::runtime::Tokio)
+    //.expect("Failed to initialize tracer");
+
+    //let jaeger_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+    let hyper_filter = filter::filter_fn(|metadata| {!metadata.target().starts_with("hyper")});
+    let tokio_filter = filter::filter_fn(|metadata| {!metadata.target().starts_with("tokio")});
+    //let (flame_layer, _guard) = FlameLayer::with_file("./tracing.folded").unwrap();
+
+    let subscriber = Registry::default()
+        .with(EnvFilter::from_default_env())
+        .with(hyper_filter)
+        .with(tokio_filter)
+        .with(tracing_subscriber::fmt::layer().pretty());
+        //.with(flame_layer);
+        //.with(jaeger_layer);
+
+    
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Failed to set global subscriber");
+
     if atty::is(atty::Stream::Stdout) {
         println!("{}", banner(crate_name!(), crate_version!()));
     }
@@ -70,6 +98,7 @@ async fn main() {
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
     commands::execute(args).await;
+    opentelemetry::global::shutdown_tracer_provider();
 }
 
 #[cfg(test)]

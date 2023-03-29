@@ -11,12 +11,14 @@ const AppVersion = () => {
     const update = await checkUpdate();
     if (update.shouldUpdate && update.manifest) {
       setUpdateAvailable(true);
+    } else {
+      setUpdateAvailable(false);
     }
   };
 
   useEffect(() => {
     updateCheck();
-  }, []);
+  }, [appVersion]);
 
   return (
     <Stack direction="column" alignItems="flex-end" gap={1}>

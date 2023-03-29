@@ -196,6 +196,9 @@ pub enum MixnetContractError {
 
     #[error("epoch duration must be > 0")]
     EpochDurationZero,
+    
+    #[error("attempted to perform the operation with 0 coins. This is not allowed")]
+    ZeroCoinAmount,
 
     #[error("this validator ({current_validator}) is not the one responsible for advancing this epoch. It's responsibility of {chosen_validator}.")]
     RewardingValidatorMismatch {

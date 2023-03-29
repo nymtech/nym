@@ -268,6 +268,12 @@ pub fn _try_decrease_pledge(
         });
     }
 
+    // also check if the request contains non-zero amount
+    // (otherwise it's a no-op and we should we waste gas when resolving events?)
+    if decrease_by.amount.is_zero() {
+        return Err(MixnetContractError::ZeroCoinAmount);
+    }
+
     // decreasing pledge can't result in the new pledge being lower than the minimum amount
     let new_pledge_amount = mix_details
         .original_pledge()
@@ -1569,6 +1575,22 @@ pub mod tests {
         }
 
         #[test]
+        fn provided_amount_has_to_be_nonzero() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            let stake = Uint128::new(100_000_000_000);
+            let decrease = test.coin(0);
+
+            let owner = "mix-owner";
+            test.add_dummy_mixnode(owner, Some(stake));
+
+            let sender = mock_info(owner, &[]);
+            let res = try_decrease_pledge(test.deps_mut(), env, sender, decrease.clone());
+            assert_eq!(res, Err(MixnetContractError::ZeroCoinAmount))
+        }
+
+        #[test]
         fn with_valid_information_creates_pending_event() {
             let mut test = TestSetup::new();
             let env = test.env();
@@ -1583,7 +1605,7 @@ pub mod tests {
             let events = test.pending_epoch_events();
             assert!(events.is_empty());
 
-            let sender = mock_info(owner, &[test.coin(1000)]);
+            let sender = mock_info(owner, &[]);
             try_decrease_pledge(test.deps_mut(), env, sender, decrease.clone()).unwrap();
 
             let events = test.pending_epoch_events();

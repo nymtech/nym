@@ -950,6 +950,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "mixnet-vesting-integration-tests"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-multi-test",
+ "nym-contracts-common",
+ "nym-crypto",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
+ "rand_chacha 0.2.2",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"

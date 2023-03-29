@@ -5,7 +5,10 @@ use crate::{
     state::{self, NymAddress, Service, ServiceId, ServiceType},
 };
 
-fn ensure_correct_deposit(will_deposit: Uint128, deposit_required: Uint128) -> Result<(), ContractError> {
+fn ensure_correct_deposit(
+    will_deposit: Uint128,
+    deposit_required: Uint128,
+) -> Result<(), ContractError> {
     match will_deposit.cmp(&deposit_required) {
         std::cmp::Ordering::Less => Err(ContractError::InsufficientDeposit {
             funds: will_deposit,
@@ -42,7 +45,8 @@ pub fn announce(
         deposit: Coin::new(will_deposit.u128(), denom),
     };
     let service_id = state::next_service_id_counter(deps.storage)?;
-    state::save_service(deps.storage, service_id, new_service)?;
+    //state::save_service(deps.storage, service_id, new_service)?;
+    state::services().save(deps.storage, service_id, &new_service)?;
     Ok(Response::new()
         .add_attribute("action", "announce")
         .add_attribute("service_id", service_id.to_string())
@@ -55,11 +59,12 @@ pub fn delete(
     info: MessageInfo,
     service_id: ServiceId,
 ) -> Result<Response, ContractError> {
-    if !state::has_service(deps.storage, service_id) {
+    if !state::services().has(deps.storage, service_id) {
         return Err(ContractError::NotFound { service_id });
     }
 
-    let service_to_delete = state::load_service(deps.storage, service_id)?;
+    //let service_to_delete = state::load_service(deps.storage, service_id)?;
+    let service_to_delete = state::services().load(deps.storage, service_id)?;
 
     if info.sender != service_to_delete.owner {
         return Err(ContractError::Unauthorized {
@@ -74,7 +79,8 @@ pub fn delete(
         amount: vec![service_to_delete.deposit],
     };
 
-    state::remove_service(deps.storage, service_id);
+    //state::remove_service(deps.storage, service_id);
+    state::services().remove(deps.storage, service_id)?;
     Ok(Response::new()
         .add_message(return_deposit_msg)
         .add_attribute("action", "delete")

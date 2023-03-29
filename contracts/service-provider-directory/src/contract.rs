@@ -65,6 +65,7 @@ mod tests {
 
     use crate::{
         msg::ServiceInfo,
+        state::ServiceId,
         test_helpers::{
             assert::{
                 assert_config, assert_empty, assert_not_found, assert_service, assert_services,
@@ -173,7 +174,7 @@ mod tests {
 
         // Check that the service has had service id assigned to it
         let expected_id = 1;
-        let sp_id: u64 = get_attribute(res.clone(), "service_id").parse().unwrap();
+        let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
         assert_eq!(sp_id, expected_id);
         assert_eq!(
             get_attribute(res, "service_type"),

@@ -85,7 +85,7 @@ impl TestSetup {
     }
 
     pub fn query_all(&self) -> ServicesListResponse {
-        self.query(&QueryMsg::All {})
+        self.query(&QueryMsg::all())
     }
 
     pub fn announce_network_requester(

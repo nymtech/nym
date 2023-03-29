@@ -1,24 +1,19 @@
-use cosmwasm_std::{Addr, Coin, Order, Storage};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, UniqueIndex};
+use cosmwasm_std::{Addr, Coin, Storage};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    error::{ContractError, Result},
-    msg::ServiceInfo,
-};
+use crate::error::Result;
 
 // Storage keys
 pub const CONFIG_KEY: &str = "config";
 pub const SERVICE_ID_COUNTER_KEY: &str = "sidc";
-pub const SERVICES_KEY: &str = "services";
 
 // Storage
 pub const CONFIG: Item<Config> = Item::new(CONFIG_KEY);
-pub const SERVICES: Map<ServiceId, Service> = Map::new(SERVICES_KEY);
 pub const SERVICE_ID_COUNTER: Item<ServiceId> = Item::new(SERVICE_ID_COUNTER_KEY);
 
 /// The directory of services are indexed by [`ServiceId`].
-pub type ServiceId = u64;
+pub type ServiceId = u32;
 
 /// The type of services provider supported
 #[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Debug)]
@@ -49,6 +44,18 @@ impl NymAddress {
     /// Create a new nym address.
     pub fn new(address: &str) -> Self {
         Self::Address(address.to_string())
+    }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            NymAddress::Address(address) => address,
+        }
+    }
+}
+
+impl ToString for NymAddress {
+    fn to_string(&self) -> String {
+        self.as_str().to_string()
     }
 }
 
@@ -91,10 +98,6 @@ pub(crate) fn admin(store: &dyn Storage) -> Result<Addr> {
     Ok(CONFIG.load(store).map(|config| config.admin)?)
 }
 
-pub(crate) fn has_service(store: &dyn Storage, service_id: ServiceId) -> bool {
-    SERVICES.has(store, service_id)
-}
-
 /// Generate the next service provider id, store it and return it
 pub(crate) fn next_service_id_counter(store: &mut dyn Storage) -> Result<ServiceId> {
     // The first id is 1.
@@ -103,26 +106,14 @@ pub(crate) fn next_service_id_counter(store: &mut dyn Storage) -> Result<Service
     Ok(id)
 }
 
-pub(crate) fn save_service(
-    store: &mut dyn Storage,
-    service_id: ServiceId,
-    new_service: Service,
-) -> Result<()> {
-    Ok(SERVICES.save(store, service_id, &new_service)?)
-}
-
-pub(crate) fn load_service(store: &dyn Storage, service_id: ServiceId) -> Result<Service> {
-    Ok(SERVICES.load(store, service_id)?)
-}
-
 pub(crate) struct ServiceIndex<'a> {
-    pub(crate) nym_address: UniqueIndex<'a, NymAddress, Service>,
-    pub(crate) owner: UniqueIndex<'a, Addr, Service>,
+    pub(crate) nym_address: MultiIndex<'a, String, Service, ServiceId>,
+    pub(crate) owner: MultiIndex<'a, Addr, Service, ServiceId>,
 }
 
-const SERVICES_PK_NAMESPACE: &str = "sn";
-const SERVICES_OWNER_IDX_NAMESPACE: &str = "so";
-const SERVICES_NYM_ADDRESS_IDX_NAMESPACE: &str = "snyma";
+const SERVICES_PK_NAMESPACE: &str = "sernames";
+const SERVICES_OWNER_IDX_NAMESPACE: &str = "serown";
+const SERVICES_NYM_ADDRESS_IDX_NAMESPACE: &str = "sernyma";
 
 impl<'a> IndexList<Service> for ServiceIndex<'a> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Service>> + '_> {
@@ -133,37 +124,43 @@ impl<'a> IndexList<Service> for ServiceIndex<'a> {
 
 pub(crate) fn services<'a>() -> IndexedMap<'a, ServiceId, Service, ServiceIndex<'a>> {
     let indexes = ServiceIndex {
-        nym_address: UniqueIndex::new(
-            |d| d.nym_address.clone(),
+        nym_address: MultiIndex::new(
+            |d| d.nym_address.to_string(),
+            SERVICES_PK_NAMESPACE,
             SERVICES_NYM_ADDRESS_IDX_NAMESPACE,
         ),
-        owner: UniqueIndex::new(|d| d.owner.clone(), SERVICES_OWNER_IDX_NAMESPACE),
+        owner: MultiIndex::new(
+            |d| d.owner.clone(),
+            SERVICES_PK_NAMESPACE,
+            SERVICES_OWNER_IDX_NAMESPACE,
+        ),
     };
     IndexedMap::new(SERVICES_PK_NAMESPACE, indexes)
 }
 
-pub(crate) fn all_services(store: &dyn Storage) -> Result<Vec<ServiceInfo>> {
-    SERVICES
-        .range(store, None, None, Order::Ascending)
-        .map(|item| {
-            item.map_err(ContractError::Std)
-                .map(|(service_id, service)| ServiceInfo {
-                    service_id,
-                    service,
-                })
-        })
-        .collect::<Result<Vec<_>>>()
-}
+//pub(crate) fn all_services(store: &dyn Storage) -> Result<Vec<ServiceInfo>> {
+//    SERVICES
+//        .range(store, None, None, Order::Ascending)
+//        .map(|item| {
+//            item.map_err(ContractError::Std)
+//                .map(|(service_id, service)| ServiceInfo {
+//                    service_id,
+//                    service,
+//                })
+//        })
+//        .collect::<Result<Vec<_>>>()
+//}
 
-pub(crate) fn remove_service(store: &mut dyn Storage, service_id: ServiceId) {
-    SERVICES.remove(store, service_id);
-}
+//pub(crate) fn remove_service(store: &mut dyn Storage, service_id: ServiceId) {
+//    SERVICES.remove(store, service_id);
+//}
 
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{
         coins,
         testing::{mock_dependencies, mock_env, mock_info},
+        Order,
     };
 
     use crate::{
@@ -181,6 +178,33 @@ mod tests {
                 owner: self.owner,
             }
         }
+    }
+
+    #[test]
+    fn save_and_load_returns_a_key() {
+        let mut deps = mock_dependencies();
+        let admin = Addr::unchecked("bar");
+        let msg = InstantiateMsg {
+            admin: admin.clone(),
+            deposit_required: Coin::new(100, "unym"),
+        };
+        let info = mock_info("creator", &[]);
+
+        // Instantiate contract
+        let res = crate::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
+
+        // Announce
+        let msg = service_fixture().into_announce_msg();
+        let info = mock_info("anyone", &coins(100, "unym"));
+
+        let res = crate::execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+        let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
+        assert_eq!(sp_id, 1);
+
+        let s = services();
+        let k = s.keys(&deps.storage, None, None, Order::Ascending);
+        assert_eq!(k.count(), 1);
     }
 
     #[test]
@@ -202,13 +226,13 @@ mod tests {
         let info = mock_info("anyone", &coins(100, "unym"));
 
         let res = crate::execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
-        let sp_id: u64 = get_attribute(res.clone(), "service_id").parse().unwrap();
+        let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
         assert_eq!(sp_id, 1);
 
         assert_services(deps.as_ref(), &[ServiceInfo::new(1, service_fixture())]);
 
         let res = crate::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        let sp_id: u64 = get_attribute(res.clone(), "service_id").parse().unwrap();
+        let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
         assert_eq!(sp_id, 2);
 
         assert_services(
@@ -230,7 +254,7 @@ mod tests {
         let msg = service_fixture().into_announce_msg();
         let info = mock_info("anyone", &coins(100, "unym"));
         let res = crate::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        let sp_id: u64 = get_attribute(res.clone(), "service_id").parse().unwrap();
+        let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
         assert_eq!(sp_id, 3);
 
         assert_services(

@@ -13,7 +13,7 @@ pub fn assert_config(deps: Deps, admin: Addr) {
 }
 
 pub fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {
-    let res = crate::contract::query(deps, mock_env(), QueryMsg::All {}).unwrap();
+    let res = crate::contract::query(deps, mock_env(), QueryMsg::all()).unwrap();
     let services: ServicesListResponse = from_binary(&res).unwrap();
     assert_eq!(
         services,
@@ -37,7 +37,7 @@ pub fn assert_service(deps: Deps, expected_service: &ServiceInfo) {
 }
 
 pub fn assert_empty(deps: Deps) {
-    let res = crate::contract::query(deps, mock_env(), QueryMsg::All {}).unwrap();
+    let res = crate::contract::query(deps, mock_env(), QueryMsg::all()).unwrap();
     let services: ServicesListResponse = from_binary(&res).unwrap();
     assert!(services.services.is_empty());
 }

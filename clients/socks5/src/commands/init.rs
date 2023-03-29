@@ -3,13 +3,13 @@
 
 use crate::commands::try_upgrade_v1_1_13_config;
 use crate::{
-    client::config::Config,
     commands::{override_config, OverrideConfig},
     error::Socks5ClientError,
 };
 use clap::Args;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
+use nym_socks5_client_core::config::Config;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;

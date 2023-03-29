@@ -415,13 +415,31 @@ where
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
+        let self_address = base_builder.as_mix_recipient();
         let mut started_client = base_builder.start_base().await?;
         let client_input = started_client.client_input.register_producer();
         let mut client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        // Register our receiver
-        let reconstructed_receiver = client_output.register_receiver()?;
+        let reconstructed_receiver =
+            if let Some(service_provider) = self.config.socks5_service_provider {
+                let socks5_config = nym_socks5_client_core::config::Config::new(
+                    service_provider.clone(),
+                    service_provider,
+                );
+                nym_socks5_client_core::NymClient::start_socks5_listener(
+                    &socks5_config,
+                    client_input.clone(),
+                    client_output.clone(),
+                    client_state.clone(),
+                    self_address,
+                    started_client.task_manager.subscribe(),
+                );
+                None
+            } else {
+                // Register our receiver
+                Some(client_output.register_receiver()?)
+            };
 
         Ok(MixnetClient {
             nym_address,
@@ -481,7 +499,7 @@ pub struct MixnetClient {
     client_state: ClientState,
 
     /// A channel for messages arriving from the mixnet after they have been reconstructed.
-    reconstructed_receiver: ReconstructedMessagesReceiver,
+    reconstructed_receiver: Option<ReconstructedMessagesReceiver>,
 
     /// The task manager that controlls all the spawned tasks that the clients uses to do it's job.
     task_manager: TaskManager,
@@ -631,7 +649,11 @@ impl MixnetClient {
 
     /// Wait for messages from the mixnet
     pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
-        self.reconstructed_receiver.next().await
+        if let Some(recv) = self.reconstructed_receiver.as_mut() {
+            recv.next().await
+        } else {
+            None
+        }
     }
 
     /// Provide a callback to execute on incoming messages from the mixnet.

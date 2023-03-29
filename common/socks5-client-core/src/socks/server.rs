@@ -1,4 +1,4 @@
-use crate::error::Socks5ClientError;
+use crate::error::Socks5ClientCoreError;
 
 use super::{
     authentication::Authenticator, client::SocksClient, mixnet_responses::MixnetResponseListener,
@@ -44,7 +44,7 @@ impl SphinxSocksServer {
         info!("Listening on {}:{}", ip, port);
         SphinxSocksServer {
             authenticator,
-            listening_address: format!("{}:{}", ip, port).parse().unwrap(),
+            listening_address: format!("{ip}:{port}").parse().unwrap(),
             service_provider,
             self_address,
             client_config,
@@ -60,7 +60,7 @@ impl SphinxSocksServer {
         input_sender: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
         client_connection_tx: ConnectionCommandSender,
-    ) -> Result<(), Socks5ClientError> {
+    ) -> Result<(), Socks5ClientCoreError> {
         let listener = TcpListener::bind(self.listening_address)
             .await
             .tap_err(|err| log::error!("Failed to bind to address: {err}"))?;

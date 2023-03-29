@@ -1,8 +1,6 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::old_config_v1_1_13::OldConfigV1_1_13;
-use crate::client::config::{BaseConfig, Config};
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
@@ -10,6 +8,8 @@ use log::info;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_config::{NymConfig, OptionalSet};
+use nym_socks5_client_core::config::old_config_v1_1_13::OldConfigV1_1_13;
+use nym_socks5_client_core::config::{BaseConfig, Config};
 use std::error::Error;
 
 pub mod init;

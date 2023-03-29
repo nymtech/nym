@@ -5,7 +5,7 @@ use crate::{
 use client_core::config::Config as BaseConfig;
 use nym_config_common::NymConfig;
 use nym_crypto::asymmetric::identity;
-use nym_socks5::client::config::Config as Socks5Config;
+use nym_socks5_client_core::config::Config as Socks5Config;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tap::TapFallible;

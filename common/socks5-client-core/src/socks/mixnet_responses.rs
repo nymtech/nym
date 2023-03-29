@@ -10,7 +10,7 @@ use nym_socks5_requests::{Socks5ProviderResponse, Socks5Response, Socks5Response
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskClient;
 
-use crate::error::Socks5ClientError;
+use crate::error::Socks5ClientCoreError;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
@@ -56,7 +56,7 @@ impl MixnetResponseListener {
     fn on_control_response(
         &self,
         control_response: ControlResponse,
-    ) -> Result<(), Socks5ClientError> {
+    ) -> Result<(), Socks5ClientCoreError> {
         error!("received a control response which we don't know how to handle yet!");
         error!("got: {:?}", control_response);
 
@@ -68,7 +68,7 @@ impl MixnetResponseListener {
     fn on_provider_data_response(
         &self,
         provider_response: Socks5Response,
-    ) -> Result<(), Socks5ClientError> {
+    ) -> Result<(), Socks5ClientCoreError> {
         match provider_response.content {
             Socks5ResponseContent::ConnectionError(err_response) => {
                 error!(
@@ -89,7 +89,7 @@ impl MixnetResponseListener {
     fn on_message(
         &self,
         reconstructed_message: ReconstructedMessage,
-    ) -> Result<(), Socks5ClientError> {
+    ) -> Result<(), Socks5ClientCoreError> {
         let raw_message = reconstructed_message.message;
         if reconstructed_message.sender_tag.is_some() {
             warn!("this message was sent anonymously - it couldn't have come from the service provider");

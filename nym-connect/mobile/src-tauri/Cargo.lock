@@ -3321,7 +3321,7 @@ dependencies = [
  "nym-config",
  "nym-contracts-common",
  "nym-crypto",
- "nym-socks5-client",
+ "nym-socks5-client-core",
  "nym-task",
  "pretty_env_logger",
  "rand 0.8.5",
@@ -3529,41 +3529,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-socks5-client"
-version = "1.1.13"
+name = "nym-socks5-client-core"
+version = "0.1.0"
 dependencies = [
- "clap",
  "client-core",
  "dirs",
  "futures",
  "gateway-client",
- "gateway-requests",
- "lazy_static",
  "log",
- "mobile-storage",
- "nym-bin-common",
- "nym-coconut-interface",
  "nym-config",
- "nym-credentials",
- "nym-crypto",
  "nym-network-defaults",
- "nym-ordered-buffer",
- "nym-pemstore",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",
  "nym-socks5-requests",
  "nym-sphinx",
  "nym-task",
- "nym-topology",
  "pin-project",
- "pretty_env_logger",
  "rand 0.7.3",
  "serde",
- "serde_json",
  "tap",
  "thiserror",
  "tokio",
- "url",
  "validator-client",
 ]
 

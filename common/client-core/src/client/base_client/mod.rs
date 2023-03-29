@@ -90,6 +90,7 @@ impl ClientOutput {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct ClientState {
     pub shared_lane_queue_lengths: LaneQueueLengths,
     pub reply_controller_sender: ReplyControllerSender,

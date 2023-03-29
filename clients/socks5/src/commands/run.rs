@@ -3,7 +3,6 @@
 
 use crate::commands::try_upgrade_v1_1_13_config;
 use crate::{
-    client::{config::Config, NymClient},
     commands::{override_config, OverrideConfig},
     error::Socks5ClientError,
 };
@@ -12,6 +11,7 @@ use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
+use nym_socks5_client_core::{config::Config, NymClient};
 use nym_sphinx::addressing::clients::Recipient;
 
 #[derive(Args, Clone)]

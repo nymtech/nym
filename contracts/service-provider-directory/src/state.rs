@@ -4,15 +4,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 
-mod config;
+pub mod config;
+pub mod service_id_counter;
+pub mod services;
 
+// WIP
 pub use config::*;
-
-// Storage keys
-pub const SERVICE_ID_COUNTER_KEY: &str = "sidc";
-
-// Storage
-pub const SERVICE_ID_COUNTER: Item<ServiceId> = Item::new(SERVICE_ID_COUNTER_KEY);
+pub use services::*;
+pub use service_id_counter::*;
 
 /// The directory of services are indexed by [`ServiceId`].
 pub type ServiceId = u32;
@@ -74,64 +73,6 @@ pub struct Service {
     /// The deposit used to announce the service.
     pub deposit: Coin,
 }
-
-
-/// Generate the next service provider id, store it and return it
-pub(crate) fn next_service_id_counter(store: &mut dyn Storage) -> Result<ServiceId> {
-    // The first id is 1.
-    let id = SERVICE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
-    SERVICE_ID_COUNTER.save(store, &id)?;
-    Ok(id)
-}
-
-pub(crate) struct ServiceIndex<'a> {
-    pub(crate) nym_address: MultiIndex<'a, String, Service, ServiceId>,
-    pub(crate) owner: MultiIndex<'a, Addr, Service, ServiceId>,
-}
-
-const SERVICES_PK_NAMESPACE: &str = "sernames";
-const SERVICES_OWNER_IDX_NAMESPACE: &str = "serown";
-const SERVICES_NYM_ADDRESS_IDX_NAMESPACE: &str = "sernyma";
-
-impl<'a> IndexList<Service> for ServiceIndex<'a> {
-    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Service>> + '_> {
-        let v: Vec<&dyn Index<Service>> = vec![&self.nym_address, &self.owner];
-        Box::new(v.into_iter())
-    }
-}
-
-pub(crate) fn services<'a>() -> IndexedMap<'a, ServiceId, Service, ServiceIndex<'a>> {
-    let indexes = ServiceIndex {
-        nym_address: MultiIndex::new(
-            |d| d.nym_address.to_string(),
-            SERVICES_PK_NAMESPACE,
-            SERVICES_NYM_ADDRESS_IDX_NAMESPACE,
-        ),
-        owner: MultiIndex::new(
-            |d| d.owner.clone(),
-            SERVICES_PK_NAMESPACE,
-            SERVICES_OWNER_IDX_NAMESPACE,
-        ),
-    };
-    IndexedMap::new(SERVICES_PK_NAMESPACE, indexes)
-}
-
-//pub(crate) fn all_services(store: &dyn Storage) -> Result<Vec<ServiceInfo>> {
-//    SERVICES
-//        .range(store, None, None, Order::Ascending)
-//        .map(|item| {
-//            item.map_err(ContractError::Std)
-//                .map(|(service_id, service)| ServiceInfo {
-//                    service_id,
-//                    service,
-//                })
-//        })
-//        .collect::<Result<Vec<_>>>()
-//}
-
-//pub(crate) fn remove_service(store: &mut dyn Storage, service_id: ServiceId) {
-//    SERVICES.remove(store, service_id);
-//}
 
 #[cfg(test)]
 mod tests {

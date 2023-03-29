@@ -13,6 +13,8 @@ mod error;
 mod msg;
 mod state;
 
+pub mod types;
+
 #[cfg(test)]
 mod integration_tests;
 #[cfg(test)]

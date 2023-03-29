@@ -293,6 +293,12 @@ pub(crate) fn decrease_pledge(
     updated_bond.original_pledge.amount -= decrease_by.amount;
     updated_rewarding.decrease_operator_uint128(decrease_by.amount)?;
 
+    let proxy = &mix_details.bond_information.proxy;
+    let owner = &mix_details.bond_information.owner;
+
+    // send the removed tokens back to the operator
+    let return_tokens = send_to_proxy_or_owner(proxy, owner, vec![decrease_by.clone()]);
+
     // update both, bond information and rewarding details
     mixnodes_storage::mixnode_bonds().replace(
         deps.storage,
@@ -304,7 +310,9 @@ pub(crate) fn decrease_pledge(
 
     // TODO: add return tokens submsg
 
-    Ok(Response::new().add_event(new_pledge_decrease_event(created_at, mix_id, &decrease_by)))
+    Ok(Response::new()
+        .add_message(return_tokens)
+        .add_event(new_pledge_decrease_event(created_at, mix_id, &decrease_by)))
 }
 
 impl ContractExecutableEvent for PendingEpochEventData {
@@ -1467,7 +1475,7 @@ mod tests {
     #[cfg(test)]
     mod decreasing_pledge {
         use super::*;
-        use cosmwasm_std::Uint128;
+        use cosmwasm_std::{BankMsg, CosmosMsg, Uint128};
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         #[test]
@@ -1513,11 +1521,45 @@ mod tests {
 
         #[test]
         fn returns_tokens_back_to_the_owner() {
-            todo!()
+            let mut test = TestSetup::new();
+            let owner = "mix-owner";
+            let mix_id = test.add_dummy_mixnode(owner, None);
+
+            let amount = test.coin(12345);
+            let res = decrease_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
+
+            assert_eq!(res.messages.len(), 1);
+            assert_eq!(
+                res.messages[0].msg,
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: owner.to_string(),
+                    amount: vec![amount]
+                })
+            )
         }
 
         #[test]
         fn returns_tokens_back_to_the_proxy_if_bonded_with_vesting() {
+            let mut test = TestSetup::new();
+            let owner = "mix-owner";
+            let mix_id = test.add_dummy_mixnode_with_legal_proxy(owner, None);
+            let vesting_contract = test.vesting_contract();
+
+            let amount = test.coin(12345);
+            let res = decrease_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
+
+            assert_eq!(res.messages.len(), 1);
+            assert_eq!(
+                res.messages[0].msg,
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: vesting_contract.to_string(),
+                    amount: vec![amount]
+                })
+            )
+        }
+
+        #[test]
+        fn attaches_vesting_track_message() {
             todo!()
         }
 

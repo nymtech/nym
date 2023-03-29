@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::{Config, Socks5, Socks5Debug};
+use crate::config::{Config, Socks5, Socks5Debug};
 use client_core::config::old_config_v1_1_13::OldConfigV1_1_13 as OldBaseConfigV1_1_13;
 use nym_config::NymConfig;
 use serde::{Deserialize, Serialize};

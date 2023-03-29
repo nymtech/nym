@@ -8,9 +8,8 @@ use log::info;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_config::{NymConfig, OptionalSet};
-use nym_config::OptionalSet;
-use nym_socks5_client_core::config::{BaseConfig, Config};
 use nym_socks5_client_core::config::old_config_v1_1_13::OldConfigV1_1_13;
+use nym_socks5_client_core::config::{BaseConfig, Config};
 use std::error::Error;
 
 pub mod init;

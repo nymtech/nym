@@ -14,9 +14,10 @@ use itertools::izip;
 use sha2::Sha256;
 
 use crate::error::{CoconutError, Result};
+use crate::scheme::issuance::compute_hash;
 use crate::scheme::setup::Parameters;
 use crate::scheme::VerificationKey;
-use crate::utils::{hash_g1, try_deserialize_scalar, try_deserialize_scalar_vec};
+use crate::utils::{try_deserialize_scalar, try_deserialize_scalar_vec};
 use crate::Attribute;
 
 // as per the reference python implementation
@@ -91,6 +92,7 @@ impl ProofCmCs {
         commitments: &[G1Projective],
         pedersen_commitments_openings: &[Scalar],
         private_attributes: &[Attribute],
+        public_attributes: &[Attribute],
     ) -> Self {
         // note: this is only called from `prepare_blind_sign` that already checks
         // whether private attributes are non-empty and whether we don't have too many
@@ -104,7 +106,7 @@ impl ProofCmCs {
         let witness_attributes = params.n_random_scalars(private_attributes.len());
 
         // recompute h
-        let h = hash_g1(commitment.to_bytes());
+        let h = compute_hash(*commitment, public_attributes);
         let hs_bytes = params
             .gen_hs()
             .iter()
@@ -186,7 +188,7 @@ impl ProofCmCs {
         }
 
         // recompute h
-        let h = hash_g1(commitment.to_bytes());
+        let h = compute_hash(*commitment, public_attributes);
         let g1 = params.gen1();
 
         let hs_bytes = params
@@ -531,7 +533,7 @@ mod tests {
         let private_attributes = params.n_random_scalars(1);
 
         // 0 public 1 private
-        let pi_s = ProofCmCs::construct(&params, &cm, &r, &cms, &rs, &private_attributes);
+        let pi_s = ProofCmCs::construct(&params, &cm, &r, &cms, &rs, &private_attributes, &[]);
 
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);
@@ -547,7 +549,7 @@ mod tests {
         let private_attributes = params.n_random_scalars(2);
 
         // 0 public 2 privates
-        let pi_s = ProofCmCs::construct(&params, &cm, &r, &cms, &rs, &private_attributes);
+        let pi_s = ProofCmCs::construct(&params, &cm, &r, &cms, &rs, &private_attributes, &[]);
 
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);

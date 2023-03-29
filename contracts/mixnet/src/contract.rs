@@ -8,7 +8,6 @@ use crate::mixnodes::storage as mixnode_storage;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    StdError,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
@@ -105,68 +104,56 @@ pub fn execute(
             crate::mixnodes::transactions::assign_mixnode_layer(deps, info, mix_id, layer)
         }
         // families
-        ExecuteMsg::CreateFamily {
-            owner_signature,
-            label,
-        } => crate::families::transactions::try_create_family(deps, info, owner_signature, &label),
-        ExecuteMsg::JoinFamily {
-            signature,
-            family_head,
-        } => {
-            crate::families::transactions::try_join_family(deps, info, None, signature, family_head)
+        ExecuteMsg::CreateFamily { label } => {
+            crate::families::transactions::try_create_family(deps, info, label)
         }
-        ExecuteMsg::LeaveFamily {
-            signature,
+        ExecuteMsg::JoinFamily {
+            join_permit,
             family_head,
-        } => crate::families::transactions::try_leave_family(deps, info, signature, family_head),
-        ExecuteMsg::KickFamilyMember { signature, member } => {
-            crate::families::transactions::try_head_kick_member(deps, info, signature, &member)
+        } => crate::families::transactions::try_join_family(deps, info, join_permit, family_head),
+        ExecuteMsg::LeaveFamily { family_head } => {
+            crate::families::transactions::try_leave_family(deps, info, family_head)
+        }
+        ExecuteMsg::KickFamilyMember { member } => {
+            crate::families::transactions::try_head_kick_member(deps, info, member)
         }
         ExecuteMsg::CreateFamilyOnBehalf {
             owner_address,
-            owner_signature,
             label,
         } => crate::families::transactions::try_create_family_on_behalf(
             deps,
             info,
             owner_address,
-            owner_signature,
-            &label,
+            label,
         ),
         ExecuteMsg::JoinFamilyOnBehalf {
             member_address,
-            node_identity_signature,
-            family_signature,
+            join_permit,
             family_head,
         } => crate::families::transactions::try_join_family_on_behalf(
             deps,
             info,
             member_address,
-            Some(node_identity_signature),
-            family_signature,
+            join_permit,
             family_head,
         ),
         ExecuteMsg::LeaveFamilyOnBehalf {
             member_address,
-            node_identity_signature,
             family_head,
         } => crate::families::transactions::try_leave_family_on_behalf(
             deps,
             info,
             member_address,
-            node_identity_signature,
             family_head,
         ),
         ExecuteMsg::KickFamilyMemberOnBehalf {
             head_address,
-            signature,
             member,
         } => crate::families::transactions::try_head_kick_member_on_behalf(
             deps,
             info,
             head_address,
-            signature,
-            &member,
+            member,
         ),
         // state/sys-params-related
         ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
@@ -393,13 +380,13 @@ pub fn query(
             &crate::families::queries::get_family_by_head(&head, deps.storage)?,
         ),
         QueryMsg::GetFamilyByLabel { label } => to_binary(
-            &crate::families::queries::get_family_by_label(&label, deps.storage)?,
+            &crate::families::queries::get_family_by_label(label, deps.storage)?,
         ),
         QueryMsg::GetFamilyMembersByHead { head } => to_binary(
             &crate::families::queries::get_family_members_by_head(&head, deps.storage)?,
         ),
         QueryMsg::GetFamilyMembersByLabel { label } => to_binary(
-            &crate::families::queries::get_family_members_by_label(&label, deps.storage)?,
+            &crate::families::queries::get_family_members_by_label(label, deps.storage)?,
         ),
         QueryMsg::GetContractVersion {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
@@ -603,17 +590,6 @@ pub fn migrate(
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
-    // this is the first migration that uses cw2 standard and thus the value in the storage doesn't yet exist
-    // set it instead.
-    if matches!(
-        cw2::get_contract_version(deps.storage),
-        Err(StdError::NotFound { .. })
-    ) {
-        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-        crate::queued_migrations::create_epoch_status(deps.storage)?;
-        return Ok(Response::new());
-    }
-
     // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
     let version: Version = CONTRACT_VERSION.parse().map_err(|error: semver::Error| {
         MixnetContractError::SemVerFailure {
@@ -635,8 +611,7 @@ pub fn migrate(
         cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
         // If state structure changed in any contract version in the way migration is needed, it
-        // should occur here
-        crate::queued_migrations::create_epoch_status(deps.storage)?;
+        // should occur here, for example anything from `crate::queued_migrations::`
     }
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address

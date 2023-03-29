@@ -4,7 +4,7 @@ const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin'
 const ReactRefreshTypeScript = require('react-refresh-typescript');
 const commonConfig = require('./webpack.common');
 
-module.exports = mergeWithRules({
+const config = mergeWithRules({
   module: {
     rules: {
       test: 'match',
@@ -67,3 +67,12 @@ module.exports = mergeWithRules({
     },
   },
 });
+
+// Remove WebpackFavicons plugin as it makes FDroid build more
+// difficult to configure since webpack-favicons depends on sharp,
+// which depends on system library libvips
+// As we are building for mobile, this is useless anyway
+// TODO do not base deletion on index
+config.plugins.splice(2, 1);
+
+module.exports = config;

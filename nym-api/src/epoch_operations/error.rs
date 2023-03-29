@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node_status_api::models::NymApiStorageError;
-use nym_mixnet_contract_common::EpochState;
+use nym_mixnet_contract_common::{EpochState, MixId};
 use thiserror::Error;
 use validator_client::nyxd::error::NyxdError;
 use validator_client::nyxd::AccountId;
@@ -21,6 +21,9 @@ pub enum RewardingError {
         current_state: EpochState,
         operation: String,
     },
+
+    #[error("it seems the current epoch is in mid-rewarding state (last rewarded is {last_rewarded}). With our current nym-api this shouldn't have been possible. Manual intervention is required.")]
+    MidMixRewarding { last_rewarded: MixId },
 
     // #[error("There were no mixnodes to reward (network is dead)")]
     // NoMixnodesToReward,

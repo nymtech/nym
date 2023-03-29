@@ -1,0 +1,309 @@
+#!/usr/bin/env python3
+
+import os
+import shutil
+import sys
+import platform
+import subprocess
+import tempfile
+
+prefix = '/usr/local'
+clean = True
+linktype = 'so'
+
+host = platform.machine()
+host = ''.join(c for c in host if c in '_0123456789abcdefghijklmnopqrstuvwxyz')
+
+if host == 'x86_64': host = 'amd64'
+if host == 'i386': host = 'x86'
+if host == 'i686': host = 'x86'
+
+if host.startswith('armv8') or host.startswith('aarch64'): host = 'arm64'
+if host.startswith('arm'): host = 'arm32'
+
+if host.startswith('riscv64'): host = 'riscv64'
+if host.startswith('riscv'): host = 'riscv32'
+
+if host.startswith('mips64'): host = 'mips64'
+if host.startswith('mips'): host = 'mips32'
+
+if host.startswith('powerpc64') or host.startswith('ppc64'): host = 'ppc64'
+if host.startswith('powerpc') or host.startswith('ppc'): host = 'ppc32'
+
+if host.startswith('sparcv9') or host.startswith('sun4u'): host = 'sparc64'
+if host.startswith('sparc') or host.startswith('sun'): host = 'sparc32'
+
+makefile = ''
+
+for arg in sys.argv[1:]:
+  if arg.startswith('--prefix='):
+    prefix = arg[9:]
+    continue
+  if arg.startswith('--host='):
+    host = arg[7:]
+    host = host.split('-')[0]
+    continue
+  if arg == '--clean':
+    clean = True
+    continue
+  if arg == '--noclean':
+    clean = False
+    continue
+  raise ValueError('unrecognized argument %s' % arg)
+
+echoargs = './configure'
+echoargs += ' --prefix=%s' % prefix
+echoargs += ' --host=%s' % host
+if clean: echoargs += ' --clean'
+if not clean: echoargs += ' --noclean'
+print(echoargs)
+
+if prefix[0] != '/':
+  raise ValueError('prefix %s is not an absolute path' % prefix)
+
+rpath = None
+# XXX: rpath = '%s/lib' % prefix
+
+if clean:
+  shutil.rmtree('build/%s' % host,ignore_errors=True)
+
+def dirlinksym(dir,source,target):
+  with tempfile.TemporaryDirectory(dir=dir) as t:
+    os.symlink(target,'%s/symlink' % t)
+    os.rename('%s/symlink' % t,'%s/%s' % (dir,source))
+
+os.makedirs('build/%s' % host,exist_ok=True)
+os.makedirs('build/%s/package/bin' % host,exist_ok=True)
+os.makedirs('build/%s/package/lib' % host,exist_ok=True)
+os.makedirs('build/%s/package/include' % host,exist_ok=True)
+
+if clean:
+  os.symlink('../..','build/%s/src' % host)
+
+# ----- build scripts
+
+os.makedirs('build/%s/scripts'%host,exist_ok=True)
+dirlinksym('build/%s/scripts'%host,'install','../src/scripts-build/install')
+
+# ----- compilers
+
+def compilerversion(c):
+  try:
+    p = subprocess.Popen(c.split()+['--version'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
+    out,err = p.communicate()
+    assert not err
+    assert not p.returncode
+    return out
+  except:
+    pass
+
+firstcompiler = None
+
+with open('compilers/default') as f:
+  for c in f.readlines():
+    c = c.strip()
+    cv = compilerversion(c)
+    if cv == None:
+      print('skipping default compiler %s' % c)
+      continue
+    print('using default compiler %s' % c)
+    firstcompiler = c
+    break
+
+if firstcompiler is None:
+  raise ValueError('did not find a working compiler')
+
+with open('build/%s/scripts/compiledefault' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('\n')
+  f.write('dir="$1"; shift\n')
+  f.write('base="$1"; shift\n')
+  f.write('ext="$1"; shift\n')
+  f.write('\n')
+  f.write('cd "$dir" && \\\n')
+  f.write('%s \\\n' % firstcompiler)
+  f.write('  "$@" \\\n')
+  f.write('  -c "$base.$ext"\n')
+os.chmod('build/%s/scripts/compiledefault' % host,0o755)
+
+# ----- libcpucycles
+
+os.makedirs('build/%s/cpucycles' % host,exist_ok=True)
+os.makedirs('build/%s/package/man/man3' % host,exist_ok=True)
+
+dirlinksym('build/%s/cpucycles'%host,'cpucycles.h','../src/cpucycles/cpucycles.h')
+dirlinksym('build/%s/cpucycles'%host,'cpucycles_internal.h','../src/cpucycles/cpucycles_internal.h')
+shutil.copy2('cpucycles/cpucycles.h','build/%s/package/include/cpucycles.h'%host)
+shutil.copy2('doc/man/cpucycles.3','build/%s/package/man/man3/cpucycles.3'%host)
+
+with open('build/%s/cpucycles/compile-ticks' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('arch="$1"; shift\n')
+  f.write('x="$1"; shift\n')
+  f.write('for source in try-"$arch"-"$x".c try-default-zero.c\n')
+  f.write('do\n')
+  f.write('  cp "$source" "$arch"-"$x".c\n')
+  f.write('  %s \\\n' % firstcompiler)
+  f.write('    -Dticks=cpucycles_ticks_"$arch"_"$x" \\\n')
+  f.write('    -Dticks_setup=cpucycles_ticks_"$arch"_"$x"_setup \\\n')
+  f.write('    -c "$arch"-"$x".c\n')
+  f.write('  case $? in\n')
+  f.write('    0) break ;;\n')
+  f.write('    111) exit 111 ;;\n')
+  f.write('    *) echo "skipping option that did not compile" ;;\n')
+  f.write('  esac\n')
+  f.write('done\n')
+os.chmod('build/%s/cpucycles/compile-ticks' % host,0o755)
+
+cpucyclesoptions = []
+cpucyclesofiles = []
+
+with open('cpucycles/options') as f:
+  for line in f:
+    line = line.strip()
+    if line == '': continue
+    if line[0] == '#': continue
+    base = line.split()[0]
+    if not os.path.exists('cpucycles/%s.c' % base): continue
+    cpucycles = base.split('-')
+    if len(cpucycles) != 2: continue
+    if cpucycles[0] not in (host,'default'): continue
+    cpucyclesoptions += [cpucycles]
+
+cpucyclesoptions += [['default','zero']] # must be last
+
+for cpucycles in cpucyclesoptions:
+  base = '-'.join(cpucycles)
+  cpucyclesofiles += ['cpucycles/%s.o' % base]
+  dirlinksym('build/%s/cpucycles'%host,'try-%s.c'%base,'../src/cpucycles/%s.c'%base)
+  M = 'cpucycles/%s.o: cpucycles/try-%s.c cpucycles/try-default-zero.c\n' % (base,base)
+  M += '\tcd cpucycles && ./compile-ticks %s %s\n' % tuple(cpucycles)
+  M += '\n'
+  makefile = M + makefile
+
+for fn in sorted(os.listdir('cpucycles')):
+  if not fn.endswith('.c'): continue
+  if '-' in fn: continue
+  base = fn[:-2]
+  cpucyclesofiles += ['cpucycles/%s.o' % base]
+  dirlinksym('build/%s/cpucycles'%host,fn,'../src/cpucycles/%s'%fn)
+  M = 'cpucycles/%s.o: cpucycles/%s.c\n' % (base,base)
+  M += '\tscripts/compiledefault cpucycles %s c\n' % base
+  M += '\n'
+  makefile = M + makefile
+
+with open('build/%s/cpucycles/options.inc' % host,'w') as f:
+  f.write('#define NUMOPTIONS %d\n' % len(cpucyclesoptions))
+  f.write('#define DEFAULTOPTION (NUMOPTIONS-1)\n')
+  f.write('\n')
+  for cpucycles in cpucyclesoptions:
+    f.write('extern long long cpucycles_ticks_%s_%s_setup(void);\n' % (cpucycles[0],cpucycles[1]))
+    f.write('extern long long cpucycles_ticks_%s_%s(void);\n' % (cpucycles[0],cpucycles[1]))
+  f.write('\n')
+  f.write('static struct {\n')
+  f.write('  const char *implementation;\n')
+  f.write('  long long (*ticks_setup)(void);\n')
+  f.write('  long long (*ticks)(void);\n')
+  f.write('} options[NUMOPTIONS] = {\n')
+  for cpucycles in cpucyclesoptions:
+    f.write('{ "%s-%s", cpucycles_ticks_%s_%s_setup, cpucycles_ticks_%s_%s },\n' % (cpucycles[0],cpucycles[1],cpucycles[0],cpucycles[1],cpucycles[0],cpucycles[1]))
+  f.write('} ;\n')
+
+dirlinksym('build/%s/scripts'%host,'staticlib','../src/scripts-build/staticlib')
+
+M = 'package/lib/libcpucycles.a: scripts/staticlib %s\n' % ' '.join(cpucyclesofiles)
+M += '\tscripts/staticlib %s\n' % ' '.join(cpucyclesofiles)
+M += '\n'
+makefile = M + makefile
+
+with open('build/%s/scripts/sharedlib' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('\n')
+  f.write('%s -shared \\\n' % firstcompiler)
+  if rpath:
+    f.write('  -Wl,-rpath=%s \\\n' % rpath)
+  f.write('  -Wl,-soname,libcpucycles.so.1 \\\n')
+  f.write('  -o package/lib/libcpucycles.so.1 \\\n')
+  f.write('  "$@"\n')
+  f.write('chmod 644 package/lib/libcpucycles.so.1\n')
+os.chmod('build/%s/scripts/sharedlib' % host,0o755)
+
+M = 'package/lib/libcpucycles.so.1: scripts/sharedlib %s\n' % ' '.join(cpucyclesofiles)
+M += '\tscripts/sharedlib %s\n' % ' '.join(cpucyclesofiles)
+M += '\n'
+makefile = M + makefile
+
+M = 'package/lib/libcpucycles.so: package/lib/libcpucycles.so.1\n'
+M += '\trm -f package/lib/libcpucycles.so\n'
+M += '\tln -s libcpucycles.so.1 package/lib/libcpucycles.so\n'
+M += '\n'
+makefile = M + makefile
+
+# ----- command
+
+os.makedirs('build/%s/command'%host)
+for c in sorted(os.listdir('command')):
+  dirlinksym('build/%s/command'%host,c,'../src/command/%s'%c)
+dirlinksym('build/%s/command'%host,'bin','../package/bin')
+dirlinksym('build/%s/command'%host,'lib','../package/lib')
+dirlinksym('build/%s/command'%host,'include','../package/include')
+
+with open('build/%s/command/link' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('target="$1"; shift\n')
+  f.write('%s \\\n' % firstcompiler)
+  f.write('  -o "$target" "$@"\n')
+os.chmod('build/%s/command/link' % host,0o755)
+
+commands = []
+
+for fn in sorted(os.listdir('command')):
+  if not fn.endswith('.c'): continue
+
+  libs = ['libcpucycles']
+
+  base = fn[:-2]
+  M = 'command/%s.o: command/%s.c\n' % (base,base)
+  M += '\tscripts/compiledefault command %s c -I include\n' % base
+  M += '\n'
+  makefile = M + makefile
+  M = 'package/bin/%s: command/%s.o%s\n' % (base,base,''.join(' package/lib/%s.%s' % (x,linktype) for x in libs))
+  M += '\tcd command && ./link bin/%s %s.o%s -lm -lrt\n' % (base,base,''.join(' lib/%s.%s' % (x,linktype) for x in libs))
+  M += '\n'
+  makefile = M + makefile
+  commands += ['package/bin/%s' % base]
+
+M = 'commands: %s\n' % ' '.join(commands)
+M += '\n'
+makefile = M + makefile
+
+# ----- make install
+
+M = 'install: scripts/install default\n'
+M += '\tscripts/install %s\n' % prefix
+M += '\n'
+makefile = M + makefile
+
+# ----- make default
+
+M = 'default: package/lib/libcpucycles.a package/lib/libcpucycles.so package/lib/libcpucycles.so.1 \\\n'
+M += 'commands\n'
+M += '\n'
+makefile = M + makefile
+
+with open('build/%s/Makefile' % host,'w') as f:
+  f.write(makefile)
+
+# ----- build/0, build/Makefile
+
+dirlinksym('build','0',host)
+
+with open('build/Makefile','w') as f:
+  f.write('default:\n')
+  f.write('\tcd %s && $(MAKE)\n' % host)
+  f.write('\n')
+  f.write('install:\n')
+  f.write('\tcd %s && $(MAKE) install\n' % host)
+  f.write('\n')
+  f.write('clean:\n')
+  f.write('\trm -r %s\n' % host)

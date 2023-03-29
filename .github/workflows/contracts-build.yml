@@ -20,7 +20,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install wasm-opt
-        run: cargo install --version 0.110.0 wasm-opt
+        run: cargo install --version 0.112.0 wasm-opt
 
       - name: Build release contracts
         run: make wasm

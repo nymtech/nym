@@ -11,9 +11,10 @@ use contracts_common::signing::MessageSignature;
 use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{
     coin, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
-    QueryResponse, Response, StdError, StdResult, Timestamp, Uint128,
+    QueryResponse, Response, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
+use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::gateway::GatewayConfigUpdate;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::{Gateway, MixId, MixNode};
@@ -75,15 +76,6 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    // this is the first migration that uses cw2 standard and thus the value in the storage doesn't yet exist
-    // set it instead.
-    if matches!(
-        cw2::get_contract_version(deps.storage),
-        Err(StdError::NotFound { .. })
-    ) {
-        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    }
-
     // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
     let version: Version =
         CONTRACT_VERSION
@@ -106,7 +98,7 @@ pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respons
         cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
         // If state structure changed in any contract version in the way migration is needed, it
-        // should occur here
+        // should occur here, for example anything from `crate::queued_migrations::`
     }
 
     Ok(Response::new())
@@ -120,28 +112,13 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::CreateFamily {
-            owner_signature,
-            label,
-        } => try_create_family(info, deps, owner_signature, label),
+        ExecuteMsg::CreateFamily { label } => try_create_family(info, deps, label),
         ExecuteMsg::JoinFamily {
-            node_identity_signature,
-            family_signature,
+            join_permit,
             family_head,
-        } => try_join_family(
-            info,
-            deps,
-            node_identity_signature,
-            family_signature,
-            family_head,
-        ),
-        ExecuteMsg::LeaveFamily {
-            node_identity_signature,
-            family_head,
-        } => try_leave_family(info, deps, node_identity_signature, family_head),
-        ExecuteMsg::KickFamilyMember { signature, member } => {
-            try_kick_family_member(info, deps, signature, member)
-        }
+        } => try_join_family(info, deps, join_permit, family_head),
+        ExecuteMsg::LeaveFamily { family_head } => try_leave_family(info, deps, family_head),
+        ExecuteMsg::KickFamilyMember { member } => try_kick_family_member(info, deps, member),
         ExecuteMsg::UpdateLockedPledgeCap { address, cap } => {
             try_update_locked_pledge_cap(address, cap, info, deps)
         }
@@ -235,44 +212,35 @@ pub fn execute(
 pub fn try_create_family(
     info: MessageInfo,
     deps: DepsMut,
-    owner_signature: String,
     label: String,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_create_family(deps.storage, owner_signature, label)
+    account.try_create_family(deps.storage, label)
 }
 pub fn try_join_family(
     info: MessageInfo,
     deps: DepsMut,
-    node_identity_signature: String,
-    family_signature: String,
-    family_head: String,
+    join_permit: MessageSignature,
+    family_head: FamilyHead,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_join_family(
-        deps.storage,
-        node_identity_signature,
-        family_signature,
-        &family_head,
-    )
+    account.try_join_family(deps.storage, join_permit, family_head)
 }
 pub fn try_leave_family(
     info: MessageInfo,
     deps: DepsMut,
-    node_identity_signature: String,
-    family_head: String,
+    family_head: FamilyHead,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_leave_family(deps.storage, node_identity_signature, &family_head)
+    account.try_leave_family(deps.storage, family_head)
 }
 pub fn try_kick_family_member(
     info: MessageInfo,
     deps: DepsMut,
-    signature: String,
     member: String,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_head_kick_member(deps.storage, signature, &member)
+    account.try_head_kick_member(deps.storage, &member)
 }
 
 /// Update locked_pledge_cap, the hard cap for staking/bonding with unvested tokens.

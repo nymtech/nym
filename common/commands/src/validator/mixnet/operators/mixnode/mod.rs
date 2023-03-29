@@ -4,6 +4,7 @@
 use clap::{Args, Subcommand};
 
 pub mod bond_mixnode;
+pub mod families;
 pub mod keys;
 pub mod mixnode_bonding_sign_payload;
 pub mod rewards;
@@ -27,6 +28,8 @@ pub enum MixnetOperatorsMixnodeCommands {
     Rewards(rewards::MixnetOperatorsMixnodeRewards),
     /// Manage your mixnode settings stored in the directory
     Settings(settings::MixnetOperatorsMixnodeSettings),
+    /// Operations for mixnode families
+    Families(families::MixnetOperatorsMixnodeFamilies),
     /// Bond to a mixnode
     Bond(bond_mixnode::Args),
     /// Unbond from a mixnode

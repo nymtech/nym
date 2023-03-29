@@ -1,0 +1,88 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style type="text/css">
+html{overflow-y:scroll}
+body{font-family:sans-serif}
+p,ul,ol,blockquote,pre{font-size:0.9em;line-height:1.6em}
+li p{font-size:1.0em}
+blockquote p{font-size:1.0em}
+tt{font-size:1.2em}
+code{font-size:1.2em}
+h1{font-size:1.5em}
+h2{font-size:1.3em}
+h3{font-size:1.0em}
+h1 a{text-decoration:none}
+table{border-collapse:collapse}
+th,td{border:1px solid black}
+table a{text-decoration:none}
+table tr{font-size:0.9em;line-height:1.6em}
+.links a:hover{text-decoration:underline}
+.links a:active{text-decoration:underline}
+.links img{width:200px;padding-left:1em}
+.links td{border:0px;padding-top:0.5em;padding-bottom:0.5em}
+.headline{padding:0;font-weight:bold;font-size:1.5em;vertical-align:top;padding-bottom:0.5em;color:#125d0d}
+.navt{display:inline-block;box-sizing:border-box;-moz-box-sizing:border-box;-webkit-box-sizing:border-box;
+min-width:14%;margin:0;padding:0;padding-left:0.5em;padding-right:0.5em;vertical-align:center;
+font-weight:bold;font-size:1.1em;text-align:center;border:1px solid black}
+.here{border-bottom:0px;background-color:#ffffff}
+.away{background-color:#125d0d;}
+.away a{text-decoration:none;display:block;color:#ffffff}
+.away a:hover,.away a:active{text-decoration:underline}
+.main{margin:0;padding-top:0em;padding-bottom:1%;clear:both}
+</style>
+<title>
+Intro</title>
+</head>
+<body>
+<div class=headline>
+libcpucycles
+</div>
+<div class=nav>
+<div class="navt here">Intro
+</div><div class="navt away"><a href=download.html>Download</a>
+</div><div class="navt away"><a href=install.html>Install</a>
+</div><div class="navt away"><a href=api.html>API</a>
+</div><div class="navt away"><a href=counters.html>Counters</a>
+</div><div class="navt away"><a href=selection.html>Selection</a>
+</div><div class="navt away"><a href=security.html>Security</a>
+</div></div>
+<div class=main>
+<p>libcpucycles is a public-domain microlibrary for counting CPU cycles.
+Cycle counts are not as detailed as
+<a href="https://gamozolabs.github.io/metrology/2019/08/19/sushi_roll.html">Falk diagrams</a>
+but are the most precise timers available to typical software; they are
+central tools used in understanding and improving software performance.</p>
+<p>The libcpucycles <a href="api.html">API</a> is simple: include <code>&lt;cpucycles.h&gt;</code>, call
+<code>cpucycles()</code> to receive a <code>long long</code> whenever desired, and link with
+<code>-lcpucycles</code>.</p>
+<p><a href="counters.html">Internally</a>, libcpucycles understands machine-level
+cycle counters for amd64 (both PMC and TSC), arm32, arm64 (both PMC and
+VCT), mips64, ppc32, ppc64, riscv32, riscv64, s390x, sparc64, and x86.
+libcpucycles also understands four OS-level mechanisms, which give
+varying levels of accuracy: <code>mach_absolute_time</code>, <code>perf_event</code>,
+<code>CLOCK_MONOTONIC</code>, and, as a fallback, microsecond-resolution
+<code>gettimeofday</code>.</p>
+<p>When the program first calls <code>cpucycles()</code>, libcpucycles automatically
+benchmarks the available mechanisms and <a href="selection.html">selects</a> the
+mechanism that does the best job. Subsequent <code>cpucycles()</code> calls are
+thread-safe and very fast. An accompanying <code>cpucycles-info</code> program
+prints a summary of cycle-counter accuracy.</p>
+<p>For comparison, there is a simple-sounding <code>__rdtsc()</code> API provided by
+compilers, but this works only on Intel/AMD CPUs and is generally noisier
+than PMC. There is a <code>__builtin_readcyclecounter()</code> that works on more
+CPUs, but this works only with <code>clang</code> and has the same noise problems.
+Both of these mechanisms put the burden on the caller to figure out what
+can be done on other CPUs. Various packages include their own more
+portable abstraction layers for counting cycles (see, e.g., FFTW's
+<a href="https://github.com/FFTW/fftw3/blob/master/kernel/cycle.h"><code>cycle.h</code></a>,
+used to automatically select from among multiple implementations
+provided by FFTW), but this creates per-package effort to keep up with
+the latest cycle counters. The goal of libcpucycles is to provide
+state-of-the-art cycle counting centrally for all packages to use.</p><hr><font size=1><b>Version:</b>
+This is version 2023.01.06 of the "Intro" web page.
+</font>
+</div>
+</body>
+</html>

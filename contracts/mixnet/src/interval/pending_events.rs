@@ -1554,7 +1554,7 @@ mod tests {
             let amount = test.coin(12345);
             let res = decrease_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
 
-            assert_eq!(res.messages.len(), 1);
+            assert_eq!(res.messages.len(), 2);
             assert_eq!(
                 res.messages[0].msg,
                 CosmosMsg::Bank(BankMsg::Send {

@@ -67,20 +67,20 @@ impl ServiceInfo {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
-pub struct ServicesListResponse {
-    pub services: Vec<ServiceInfo>,
-}
-impl ServicesListResponse {
-    pub(crate) fn new(services: Vec<(ServiceId, Service)>) -> ServicesListResponse {
-        let s = services
-            .into_iter()
-            .map(|(service_id, service)| ServiceInfo::new(service_id, service))
-            .collect();
-        ServicesListResponse { services: s }
-    }
-}
+//#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+//#[serde(rename_all = "snake_case")]
+//pub struct ServicesListResponse {
+//    pub services: Vec<ServiceInfo>,
+//}
+//impl ServicesListResponse {
+//    pub(crate) fn new(services: Vec<(ServiceId, Service)>) -> ServicesListResponse {
+//        let s = services
+//            .into_iter()
+//            .map(|(service_id, service)| ServiceInfo::new(service_id, service))
+//            .collect();
+//        ServicesListResponse { services: s }
+//    }
+//}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -88,6 +88,24 @@ pub struct PagedServicesListResponse {
     pub services: Vec<ServiceInfo>,
     pub per_page: usize,
     pub start_next_after: Option<ServiceId>,
+}
+
+impl PagedServicesListResponse {
+    pub(crate) fn new(
+        services: Vec<(ServiceId, Service)>,
+        per_page: usize,
+        start_next_after: Option<ServiceId>,
+    ) -> PagedServicesListResponse {
+        let services = services
+            .into_iter()
+            .map(|(service_id, service)| ServiceInfo::new(service_id, service))
+            .collect();
+        PagedServicesListResponse {
+            services,
+            per_page,
+            start_next_after,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

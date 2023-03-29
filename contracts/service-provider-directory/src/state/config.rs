@@ -25,8 +25,3 @@ pub(crate) fn load_config(store: &dyn Storage) -> Result<Config> {
 pub(crate) fn deposit_required(store: &dyn Storage) -> Result<Coin> {
     Ok(CONFIG.load(store).map(|config| config.deposit_required)?)
 }
-
-/// Return the address of the contract admin
-pub(crate) fn admin(store: &dyn Storage) -> Result<Addr> {
-    Ok(CONFIG.load(store).map(|config| config.admin)?)
-}

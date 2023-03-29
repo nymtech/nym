@@ -1,8 +1,9 @@
 use cosmwasm_std::{from_binary, testing::mock_env, Addr, Deps, StdError};
 
 use crate::{
+    constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
     error::ContractError,
-    msg::{ConfigResponse, QueryMsg, ServiceInfo, ServicesListResponse},
+    msg::{ConfigResponse, PagedServicesListResponse, QueryMsg, ServiceInfo},
     types::ServiceId,
 };
 
@@ -14,11 +15,14 @@ pub fn assert_config(deps: Deps, admin: Addr) {
 
 pub fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {
     let res = crate::contract::query(deps, mock_env(), QueryMsg::all()).unwrap();
-    let services: ServicesListResponse = from_binary(&res).unwrap();
+    let services: PagedServicesListResponse = from_binary(&res).unwrap();
+    let start_next_after = expected_services.iter().last().map(|s| s.service_id);
     assert_eq!(
         services,
-        ServicesListResponse {
+        PagedServicesListResponse {
             services: expected_services.to_vec(),
+            per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
+            start_next_after,
         }
     );
 }
@@ -38,7 +42,7 @@ pub fn assert_service(deps: Deps, expected_service: &ServiceInfo) {
 
 pub fn assert_empty(deps: Deps) {
     let res = crate::contract::query(deps, mock_env(), QueryMsg::all()).unwrap();
-    let services: ServicesListResponse = from_binary(&res).unwrap();
+    let services: PagedServicesListResponse = from_binary(&res).unwrap();
     assert!(services.services.is_empty());
 }
 

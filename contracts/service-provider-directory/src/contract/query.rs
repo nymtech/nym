@@ -3,13 +3,10 @@ use cw_storage_plus::Bound;
 
 use crate::{
     error::Result,
-    msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo, ServicesListResponse},
+    msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo},
     state,
-    types::ServiceId,
+    types::ServiceId, constants::{SERVICE_DEFAULT_RETRIEVAL_LIMIT, SERVICE_MAX_RETRIEVAL_LIMIT},
 };
-
-const SERVICE_DEFAULT_RETRIEVAL_LIMIT: u32 = 100;
-const SERVICE_MAX_RETRIEVAL_LIMIT: u32 = 150;
 
 pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<ServiceInfo> {
     let service = state::services().load(deps.storage, service_id)?;
@@ -23,9 +20,7 @@ pub fn query_all_paged(
     deps: Deps,
     start_after: Option<ServiceId>,
     limit: Option<u32>,
-) -> StdResult<ServicesListResponse> {
-    // WIP(JON)
-    //) -> StdResult<PagerServicesListResponse> {
+) -> StdResult<PagedServicesListResponse> {
     let limit = limit
         .unwrap_or(SERVICE_DEFAULT_RETRIEVAL_LIMIT)
         .min(SERVICE_MAX_RETRIEVAL_LIMIT) as usize;
@@ -36,7 +31,13 @@ pub fn query_all_paged(
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .collect::<StdResult<Vec<_>>>()?;
-    Ok(ServicesListResponse::new(services))
+
+    let start_next_after = services.last().map(|service| service.0);
+    Ok(PagedServicesListResponse::new(
+        services,
+        limit,
+        start_next_after,
+    ))
 }
 
 pub fn query_config(deps: Deps) -> Result<ConfigResponse> {

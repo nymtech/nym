@@ -5,10 +5,11 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     msg::{
-        ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg, ServiceInfo, ServicesListResponse,
+        ConfigResponse, ExecuteMsg, InstantiateMsg, PagedServicesListResponse, QueryMsg,
+        ServiceInfo,
     },
-    types::{NymAddress, ServiceId, ServiceType},
     test_helpers::helpers::get_app_attribute,
+    types::{NymAddress, ServiceId, ServiceType},
 };
 
 const DENOM: &str = "unym";
@@ -84,7 +85,7 @@ impl TestSetup {
         self.query(&QueryMsg::ServiceId { service_id })
     }
 
-    pub fn query_all(&self) -> ServicesListResponse {
+    pub fn query_all(&self) -> PagedServicesListResponse {
         self.query(&QueryMsg::all())
     }
 

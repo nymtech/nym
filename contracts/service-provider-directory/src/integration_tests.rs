@@ -3,10 +3,11 @@
 use cosmwasm_std::Addr;
 
 use crate::{
+    constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
     error::ContractError,
-    msg::{ConfigResponse, ServiceInfo, ServicesListResponse},
-    types::{NymAddress, Service, ServiceType},
+    msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo},
     test_helpers::{helpers::nyms, test_setup::TestSetup},
+    types::{NymAddress, Service, ServiceType},
 };
 
 #[test]
@@ -27,7 +28,14 @@ fn query_config() {
 #[test]
 fn announce_and_query_service() {
     let mut setup = TestSetup::new();
-    assert_eq!(setup.query_all(), ServicesListResponse { services: vec![] });
+    assert_eq!(
+        setup.query_all(),
+        PagedServicesListResponse {
+            services: vec![],
+            per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
+            start_next_after: None,
+        }
+    );
 
     // Announce a first service
     let owner = Addr::unchecked("owner");
@@ -42,7 +50,7 @@ fn announce_and_query_service() {
     assert_eq!(setup.balance(&owner).unwrap(), nyms(50));
     assert_eq!(
         setup.query_all(),
-        ServicesListResponse {
+        PagedServicesListResponse {
             services: vec![ServiceInfo {
                 service_id: 1,
                 service: Service {
@@ -52,7 +60,9 @@ fn announce_and_query_service() {
                     block_height: 12345,
                     deposit: nyms(100),
                 },
-            }]
+            }],
+            per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
+            start_next_after: Some(1),
         }
     );
     assert_eq!(
@@ -79,7 +89,7 @@ fn announce_and_query_service() {
     assert_eq!(setup.contract_balance().unwrap(), nyms(200));
     assert_eq!(
         setup.query_all(),
-        ServicesListResponse {
+        PagedServicesListResponse {
             services: vec![
                 ServiceInfo {
                     service_id: 1,
@@ -101,7 +111,9 @@ fn announce_and_query_service() {
                         deposit: nyms(100),
                     },
                 }
-            ]
+            ],
+            per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
+            start_next_after: Some(2),
         }
     );
 }

@@ -65,7 +65,6 @@ mod tests {
 
     use crate::{
         msg::ServiceInfo,
-        types::ServiceId,
         test_helpers::{
             assert::{
                 assert_config, assert_empty, assert_not_found, assert_service, assert_services,
@@ -73,6 +72,7 @@ mod tests {
             fixture::service_fixture,
             helpers::{get_attribute, nyms},
         },
+        types::ServiceId,
     };
 
     use cosmwasm_std::{

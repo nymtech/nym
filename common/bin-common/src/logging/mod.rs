@@ -1,6 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use tracing_subscriber::{
+    fmt::Layer, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
+};
+
 // I'd argue we should start transitioning from `log` to `tracing`
 pub fn setup_logging() {
     let mut log_builder = pretty_env_logger::formatted_timed_builder();
@@ -22,6 +26,18 @@ pub fn setup_logging() {
         .filter_module("handlebars", log::LevelFilter::Warn)
         .filter_module("sled", log::LevelFilter::Warn)
         .init();
+}
+
+pub fn setup_tracing(file_name: &str) {
+    let file_appender = tracing_appender::rolling::hourly(file_name, "log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    let appender_layer = Layer::new().with_writer(non_blocking);
+
+    let registry = Registry::default()
+        .with(EnvFilter::from_default_env())
+        .with(appender_layer);
+
+    registry.init();
 }
 
 pub fn banner(crate_name: &str, crate_version: &str) -> String {

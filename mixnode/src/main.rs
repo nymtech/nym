@@ -8,7 +8,7 @@ use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
 use lazy_static::lazy_static;
 use nym_bin_common::build_information::BinaryBuildInformation;
-use nym_bin_common::logging::{maybe_print_banner, setup_logging};
+use nym_bin_common::logging::{maybe_print_banner, setup_logging, setup_tracing};
 
 mod commands;
 mod config;
@@ -36,13 +36,29 @@ struct Cli {
 }
 
 #[cfg(feature = "cpu-cycles")]
-pub fn cpu_cycles() {
-    info!("{}", cpu_cycles::cpucycles())
+pub fn cpu_cycles() -> i64 {
+    cpu_cycles::cpucycles().unwrap_or(0)
+}
+
+pub fn cpu_cycles() -> i64 {
+    0
+}
+
+#[macro_export]
+macro_rules! measure {
+    ( $x:expr ) => {{
+        let start_cycles = $crate::cpu_cycles();
+        $x;
+        let end_cycles = $crate::cpu_cycles();
+        tracing::Span::current().record("cpucycles", end_cycles - start_cycles);
+    }};
 }
 
 #[tokio::main]
 async fn main() {
     setup_logging();
+    setup_tracing("/tmp/tracing.log");
+
     maybe_print_banner(crate_name!(), crate_version!());
 
     let args = Cli::parse();

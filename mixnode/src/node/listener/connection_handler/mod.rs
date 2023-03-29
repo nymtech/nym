@@ -16,6 +16,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
+use tracing::instrument;
 
 pub(crate) mod packet_processing;
 
@@ -48,6 +49,7 @@ impl ConnectionHandler {
             .expect("the delay-forwarder has died!");
     }
 
+    #[instrument(skip(self, framed_sphinx_packet), fields(cpucycles))]
     fn handle_received_packet(&self, framed_sphinx_packet: FramedSphinxPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
@@ -57,16 +59,18 @@ impl ConnectionHandler {
 
         // all processing such, key caching, etc. was done.
         // however, if it was a forward hop, we still need to delay it
-        match self.packet_processor.process_received(framed_sphinx_packet) {
-            Err(err) => debug!("We failed to process received sphinx packet - {err}"),
-            Ok(res) => match res {
-                MixProcessingResult::ForwardHop(forward_packet, delay) => {
-                    self.delay_and_forward_packet(forward_packet, delay)
-                }
-                MixProcessingResult::FinalHop(..) => {
-                    warn!("Somehow processed a loop cover message that we haven't implemented yet!")
-                }
-            },
+        crate::measure! {
+            match self.packet_processor.process_received(framed_sphinx_packet) {
+                Err(err) => debug!("We failed to process received sphinx packet - {err}"),
+                Ok(res) => match res {
+                    MixProcessingResult::ForwardHop(forward_packet, delay) => {
+                        self.delay_and_forward_packet(forward_packet, delay)
+                    }
+                    MixProcessingResult::FinalHop(..) => {
+                        warn!("Somehow processed a loop cover message that we haven't implemented yet!")
+                    }
+                },
+            }
         }
     }
 

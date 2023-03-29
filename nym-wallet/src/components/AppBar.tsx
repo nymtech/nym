@@ -2,14 +2,12 @@ import React, { useContext } from 'react';
 import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { Logout, SettingsOutlined as SettingsIcon } from '@mui/icons-material';
-import TerminalIcon from '@mui/icons-material/Terminal';
 import { AppContext } from '../context/main';
 import { NetworkSelector } from './NetworkSelector';
 import { MultiAccounts } from './Accounts';
-import { config } from '../config';
 
 export const AppBar = () => {
-  const { logOut, handleShowTerminal, appEnv } = useContext(AppContext);
+  const { logOut } = useContext(AppContext);
   const navigate = useNavigate();
 
   return (
@@ -30,13 +28,6 @@ export const AppBar = () => {
                 <SettingsIcon fontSize="small" />
               </IconButton>
             </Grid>
-            {(appEnv?.SHOW_TERMINAL || config.IS_DEV_MODE) && (
-              <Grid item>
-                <IconButton size="small" onClick={handleShowTerminal} sx={{ color: 'text.primary' }}>
-                  <TerminalIcon fontSize="small" />
-                </IconButton>
-              </Grid>
-            )}
             <Grid item>
               <IconButton
                 size="small"

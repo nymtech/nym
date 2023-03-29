@@ -183,12 +183,17 @@ impl NymMessage {
     /// Pads the message so that after it gets chunked, it will occupy exactly N sphinx packets.
     /// Produces new_message = message || 1 || 0000....
     pub fn pad_to_full_packet_lengths(self, plaintext_per_packet: usize) -> PaddedMessage {
+        let self_display = self.to_string();
+
         let bytes = self.into_bytes();
 
         // 1 is added as there will always have to be at least a single byte of padding (1) added
         // to be able to later distinguish the actual padding from the underlying message
-        let (_, space_left) =
+        let (packets_used, space_left) =
             chunking::number_of_required_fragments(bytes.len() + 1, plaintext_per_packet);
+
+        let wasted_space = space_left as f32 / (bytes.len() + 1 + space_left) as f32;
+        log::trace!("Padding {self_display}: {} of raw plaintext bytes are required. They're going to be put into {packets_used} sphinx packets with {space_left} bytes of leftover space. {wasted_space}% of packet capacity is going to be wasted.", bytes.len() + 1);
 
         bytes
             .into_iter()

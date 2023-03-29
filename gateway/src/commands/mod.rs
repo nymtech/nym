@@ -68,10 +68,10 @@ pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync
     let output = args.output();
 
     match args.command {
-        Commands::Init(m) => init::execute(m, output.clone()).await?,
-        Commands::NodeDetails(m) => node_details::execute(m, output.clone()).await?,
-        Commands::Run(m) => run::execute(m, output.clone()).await?,
-        Commands::Sign(m) => sign::execute(m)?,
+        Commands::Init(m) => init::execute(m, output).await?,
+        Commands::NodeDetails(m) => node_details::execute(m, output).await?,
+        Commands::Run(m) => run::execute(m, output).await?,
+        Commands::Sign(m) => sign::execute(m, output)?,
         Commands::Upgrade(m) => upgrade::execute(&m).await,
         Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),

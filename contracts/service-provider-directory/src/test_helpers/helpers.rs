@@ -1,6 +1,8 @@
 use cosmwasm_std::{Coin, Response};
 use cw_multi_test::AppResponse;
 
+use crate::{msg::ExecuteMsg, types::Service};
+
 pub fn nyms(amount: u64) -> Coin {
     Coin::new(amount.into(), "unym")
 }
@@ -22,4 +24,14 @@ pub fn get_app_attribute(response: &AppResponse, key: &str) -> String {
         .unwrap()
         .value
         .clone()
+}
+
+impl Service {
+    pub fn into_announce_msg(self) -> ExecuteMsg {
+        ExecuteMsg::Announce {
+            nym_address: self.nym_address,
+            service_type: self.service_type,
+            owner: self.owner,
+        }
+    }
 }

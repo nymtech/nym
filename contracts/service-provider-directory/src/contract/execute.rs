@@ -2,7 +2,7 @@ use cosmwasm_std::{Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uin
 
 use crate::{
     error::ContractError,
-    state::{self},
+    state,
     types::{NymAddress, Service, ServiceId, ServiceType},
 };
 
@@ -46,7 +46,6 @@ pub fn announce(
         deposit: Coin::new(will_deposit.u128(), denom),
     };
     let service_id = state::next_service_id_counter(deps.storage)?;
-    //state::save_service(deps.storage, service_id, new_service)?;
     state::services().save(deps.storage, service_id, &new_service)?;
     Ok(Response::new()
         .add_attribute("action", "announce")
@@ -64,7 +63,6 @@ pub fn delete(
         return Err(ContractError::NotFound { service_id });
     }
 
-    //let service_to_delete = state::load_service(deps.storage, service_id)?;
     let service_to_delete = state::services().load(deps.storage, service_id)?;
 
     if info.sender != service_to_delete.owner {

@@ -4,12 +4,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 
+mod config;
+
+pub use config::*;
+
 // Storage keys
-pub const CONFIG_KEY: &str = "config";
 pub const SERVICE_ID_COUNTER_KEY: &str = "sidc";
 
 // Storage
-pub const CONFIG: Item<Config> = Item::new(CONFIG_KEY);
 pub const SERVICE_ID_COUNTER: Item<ServiceId> = Item::new(SERVICE_ID_COUNTER_KEY);
 
 /// The directory of services are indexed by [`ServiceId`].
@@ -73,30 +75,6 @@ pub struct Service {
     pub deposit: Coin,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
-pub struct Config {
-    pub admin: Addr,
-    pub deposit_required: Coin,
-}
-
-pub(crate) fn save_config(store: &mut dyn Storage, config: &Config) -> Result<()> {
-    Ok(CONFIG.save(store, config)?)
-}
-
-pub(crate) fn load_config(store: &dyn Storage) -> Result<Config> {
-    Ok(CONFIG.load(store)?)
-}
-
-/// Return the deposit required to announce a service.
-pub(crate) fn deposit_required(store: &dyn Storage) -> Result<Coin> {
-    Ok(CONFIG.load(store).map(|config| config.deposit_required)?)
-}
-
-/// Return the address of the contract admin
-#[allow(unused)]
-pub(crate) fn admin(store: &dyn Storage) -> Result<Addr> {
-    Ok(CONFIG.load(store).map(|config| config.admin)?)
-}
 
 /// Generate the next service provider id, store it and return it
 pub(crate) fn next_service_id_counter(store: &mut dyn Storage) -> Result<ServiceId> {

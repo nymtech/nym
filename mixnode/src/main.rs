@@ -4,12 +4,13 @@
 #[macro_use]
 extern crate rocket;
 
+use nym_bin_common::setup_tracing;
 use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
 use lazy_static::lazy_static;
 use nym_bin_common::build_information::BinaryBuildInformation;
-use nym_bin_common::logging::{maybe_print_banner, setup_logging, setup_tracing};
-
+use nym_bin_common::logging::{maybe_print_banner, setup_logging};
+use tracing::instrument;
 mod commands;
 mod config;
 mod node;
@@ -54,16 +55,25 @@ macro_rules! measure {
     }};
 }
 
+#[instrument(fields(cpucycles))]
+fn test_function() {
+    measure!({})
+}
+
 #[tokio::main]
 async fn main() {
-    setup_logging();
-    setup_tracing("/tmp/tracing.log");
+    // setup_logging();
+    setup_tracing!("/tmp/tracing.log");
 
     maybe_print_banner(crate_name!(), crate_version!());
+
+    test_function();
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
     commands::execute(args).await;
+
+    opentelemetry::global::shutdown_tracer_provider();
 }
 
 #[cfg(test)]

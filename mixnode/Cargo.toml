@@ -39,6 +39,7 @@ url = { version = "2.2", features = ["serde"] }
 
 ## tracing
 tracing = "0.1.37"
+opentelemetry = "0.19.0"
 
 ## internal
 nym-config = { path = "../common/config" }
@@ -66,3 +67,6 @@ tokio = { version = "1.21.2", features = [
 
 nym-sphinx-types = { path = "../common/nymsphinx/types" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }
+
+[features]
+cpucycles = ["mixnode-common/cpucycles"]

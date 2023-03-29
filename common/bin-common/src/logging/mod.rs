@@ -1,9 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+// use tracing_subscriber::{
+//     fmt::Layer, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
+// };
+// use tracing_tree::HierarchicalLayer;
 
-use tracing_subscriber::{
-    fmt::Layer, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
-};
+pub use tracing_appender;
+pub use tracing_subscriber;
+pub use tracing_tree;
 
 // I'd argue we should start transitioning from `log` to `tracing`
 pub fn setup_logging() {
@@ -28,16 +32,26 @@ pub fn setup_logging() {
         .init();
 }
 
-pub fn setup_tracing(file_name: &str) {
-    let file_appender = tracing_appender::rolling::hourly(file_name, "log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    let appender_layer = Layer::new().with_writer(non_blocking);
+#[macro_export]
+macro_rules! setup_tracing {
+    ($file_name: expr) => {
+        use nym_bin_common::logging::tracing_subscriber::layer::SubscriberExt;
+        use nym_bin_common::logging::tracing_subscriber::util::SubscriberInitExt;
 
-    let registry = Registry::default()
-        .with(EnvFilter::from_default_env())
-        .with(appender_layer);
+        let file_appender = nym_bin_common::logging::tracing_appender::rolling::hourly($file_name, "log");
+        let (non_blocking, _guard) = nym_bin_common::logging::tracing_appender::non_blocking(file_appender);
+        let appender_layer = nym_bin_common::logging::tracing_subscriber::fmt::Layer::new().with_ansi(false).with_writer(non_blocking);
 
-    registry.init();
+        nym_bin_common::logging::tracing_subscriber::Registry::default()
+            .with(nym_bin_common::logging::tracing_subscriber::EnvFilter::from_default_env())
+            .with(appender_layer)
+            .with(
+                nym_bin_common::logging::tracing_tree::HierarchicalLayer::new(4)
+                    .with_targets(true)
+                    .with_bracketed_fields(true),
+            )
+            .init();
+    };
 }
 
 pub fn banner(crate_name: &str, crate_version: &str) -> String {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::listener::connection_handler::ConnectionHandler;
-use log::error;
+use tracing::error;
 use std::net::SocketAddr;
 use std::process;
 use tokio::net::TcpListener;

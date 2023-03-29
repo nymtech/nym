@@ -7,7 +7,8 @@ use crate::node::listener::connection_handler::packet_processing::{
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use futures::StreamExt;
-use log::{error, info};
+use tracing::{error, info};
+use mixnode_common::measure;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::SphinxCodec;
 use nym_sphinx::framing::packet::FramedSphinxPacket;
@@ -59,7 +60,7 @@ impl ConnectionHandler {
 
         // all processing such, key caching, etc. was done.
         // however, if it was a forward hop, we still need to delay it
-        crate::measure! {
+        measure!({
             match self.packet_processor.process_received(framed_sphinx_packet) {
                 Err(err) => debug!("We failed to process received sphinx packet - {err}"),
                 Ok(res) => match res {
@@ -71,7 +72,7 @@ impl ConnectionHandler {
                     }
                 },
             }
-        }
+        })
     }
 
     pub(crate) async fn handle_connection(

@@ -21,6 +21,7 @@ serde_json = { workspace = true, optional = true }
 ## tracing
 tracing-appender = "0.2.2"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+tracing-tree = "0.2.2"
 
 
 [build-dependencies]

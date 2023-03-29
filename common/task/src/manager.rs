@@ -374,7 +374,9 @@ impl Drop for TaskClient {
             log::trace!("Notifying stop on unexpected drop");
             // If we can't send, well then there is not much to do
             self.drop_error
-                .send(Box::new(TaskError::UnexpectedHalt(self.type_name().to_string())))
+                .send(Box::new(TaskError::UnexpectedHalt(
+                    self.type_name().to_string(),
+                )))
                 .ok();
         }
     }

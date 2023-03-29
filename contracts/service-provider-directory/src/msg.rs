@@ -31,8 +31,13 @@ impl ExecuteMsg {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    ServiceId { service_id: ServiceId },
-    All {},
+    ServiceId {
+        service_id: ServiceId,
+    },
+    All {
+        limit: Option<u32>,
+        start_after: Option<ServiceId>,
+    },
     Config {},
 }
 

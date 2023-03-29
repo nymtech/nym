@@ -51,7 +51,9 @@ pub fn execute(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
     let response = match msg {
         QueryMsg::ServiceId { service_id } => to_binary(&query::query_id(deps, service_id)?),
-        QueryMsg::All {} => to_binary(&query::query_all(deps)?),
+        QueryMsg::All { limit, start_after } => {
+            to_binary(&query::query_all_paged(deps, limit, start_after)?)
+        }
         QueryMsg::Config {} => to_binary(&query::query_config(deps)?),
     };
     Ok(response?)

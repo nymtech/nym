@@ -1,17 +1,15 @@
 import React, { useContext } from 'react';
 import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { Logout } from '@mui/icons-material';
+import { Logout, SettingsOutlined as SettingsIcon } from '@mui/icons-material';
 import TerminalIcon from '@mui/icons-material/Terminal';
-import ModeNightOutlinedIcon from '@mui/icons-material/ModeNightOutlined';
-import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import { AppContext } from '../context/main';
 import { NetworkSelector } from './NetworkSelector';
 import { MultiAccounts } from './Accounts';
 import { config } from '../config';
 
 export const AppBar = () => {
-  const { logOut, handleShowTerminal, appEnv, mode, handleSwitchMode } = useContext(AppContext);
+  const { logOut, handleShowTerminal, appEnv } = useContext(AppContext);
   const navigate = useNavigate();
 
   return (
@@ -28,12 +26,8 @@ export const AppBar = () => {
           </Grid>
           <Grid item container justifyContent="flex-end" md={12} lg={5} spacing={2}>
             <Grid item>
-              <IconButton size="small" onClick={handleSwitchMode} sx={{ color: 'text.primary' }}>
-                {mode === 'dark' ? (
-                  <LightModeOutlinedIcon fontSize="small" />
-                ) : (
-                  <ModeNightOutlinedIcon fontSize="small" sx={{ transform: 'rotate(180deg)' }} />
-                )}
+              <IconButton size="small" onClick={() => navigate('/balance/settings')} sx={{ color: 'text.primary' }}>
+                <SettingsIcon fontSize="small" />
               </IconButton>
             </Grid>
             {(appEnv?.SHOW_TERMINAL || config.IS_DEV_MODE) && (

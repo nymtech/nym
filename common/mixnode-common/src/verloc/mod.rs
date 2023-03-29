@@ -234,6 +234,10 @@ impl VerlocMeasurer {
 
     async fn perform_measurement(&self, nodes_to_test: Vec<TestedNode>) -> MeasurementOutcome {
         log::trace!("Performing measurements");
+        if nodes_to_test.is_empty() {
+            log::debug!("there are no nodes to measure");
+            return MeasurementOutcome::Done;
+        }
 
         let mut shutdown_listener = self.shutdown_listener.clone();
         shutdown_listener.mark_as_success();
@@ -263,7 +267,12 @@ impl VerlocMeasurer {
             // exhaust the results
             while !shutdown_listener.is_shutdown() {
                 tokio::select! {
-                    Some(result) = measurement_chunk.next() => {
+                    measurement_result = measurement_chunk.next() => {
+                        let Some(result) = measurement_result  else {
+                            // if the stream has finished, it means we got everything we could have gotten
+                            break
+                        }
+
                         // if we receive JoinError it means the task failed to get executed, so either there's a bigger issue with tokio
                         // or there was a panic inside the task itself. In either case, we should just terminate ourselves.
                         let execution_result = result.expect("the measurement task panicked!");

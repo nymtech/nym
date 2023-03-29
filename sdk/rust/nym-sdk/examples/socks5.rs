@@ -1,4 +1,5 @@
 use nym_sdk::mixnet;
+use nym_socks5_client_core::config::Socks5;
 
 #[tokio::main]
 async fn main() {
@@ -7,21 +8,16 @@ async fn main() {
     println!("Connecting receiver");
     let mut receiving_client = mixnet::MixnetClient::connect_new().await.unwrap();
 
-    let config = mixnet::Config {
-        socks5_service_provider: Some(receiving_client.nym_address().to_string()),
-        ..Default::default()
-    };
+    let socks5_config = Socks5::new(receiving_client.nym_address().to_string());
+    let client_config = mixnet::Config::new(None, Some(socks5_config), None);
     let sending_client = mixnet::MixnetClientBuilder::new()
-        .config(config)
+        .config(client_config)
         .build::<mixnet::EmptyReplyStorage>()
         .await
         .unwrap();
 
     println!("Connecting sender");
     let mut sending_client = sending_client.connect_to_mixnet().await.unwrap();
-    // wait until socks5 server is started
-    println!("Wait 5 seconds for the socks5 setup to be done");
-    std::thread::sleep(std::time::Duration::from_secs(5));
 
     let proxy = reqwest::Proxy::all(format!(
         "socks5h://127.0.0.1:{}",

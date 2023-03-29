@@ -203,19 +203,19 @@ impl Config {
 #[serde(deny_unknown_fields)]
 pub struct Socks5 {
     /// The port on which the client will be listening for incoming requests
-    listening_port: u16,
+    pub listening_port: u16,
 
     /// The mix address of the provider to which all requests are going to be sent.
-    provider_mix_address: String,
+    pub provider_mix_address: String,
 
     /// The version of the 'service provider' this client is going to use in its communication with the
     /// specified socks5 provider.
     // if in doubt, use the legacy version as initially nobody will be using the updated binaries
     #[serde(default = "ProviderInterfaceVersion::new_legacy")]
-    provider_interface_version: ProviderInterfaceVersion,
+    pub provider_interface_version: ProviderInterfaceVersion,
 
     #[serde(default = "Socks5ProtocolVersion::new_legacy")]
-    socks5_protocol_version: Socks5ProtocolVersion,
+    pub socks5_protocol_version: Socks5ProtocolVersion,
 
     /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
     /// While this is going to hide its actual address information, it will make the actual communication
@@ -223,7 +223,7 @@ pub struct Socks5 {
     ///
     /// Note that some service providers might not support this.
     #[serde(default)]
-    send_anonymously: bool,
+    pub send_anonymously: bool,
 }
 
 impl Socks5 {

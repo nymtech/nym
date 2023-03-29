@@ -421,25 +421,33 @@ where
         let mut client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        let reconstructed_receiver =
-            if let Some(service_provider) = self.config.socks5_service_provider {
-                let socks5_config = nym_socks5_client_core::config::Config::new(
-                    service_provider.clone(),
-                    service_provider,
-                );
-                nym_socks5_client_core::NymClient::start_socks5_listener(
-                    &socks5_config,
-                    client_input.clone(),
-                    client_output.clone(),
-                    client_state.clone(),
-                    self_address,
-                    started_client.task_manager.subscribe(),
-                );
-                None
-            } else {
-                // Register our receiver
-                Some(client_output.register_receiver()?)
-            };
+        let reconstructed_receiver = if let Some(socks5_config) = self.config.socks5_config {
+            let socks5_config = nym_socks5_client_core::config::Config::new(
+                socks5_config.provider_mix_address.clone(),
+                socks5_config.provider_mix_address.clone(),
+            );
+            let socks5_listener_boot_time_secs = 5;
+            nym_socks5_client_core::NymClient::start_socks5_listener(
+                &socks5_config,
+                client_input.clone(),
+                client_output.clone(),
+                client_state.clone(),
+                self_address,
+                started_client.task_manager.subscribe(),
+            );
+            log::debug!(
+                "Waiting for {} seconds for the socks5 channel to boot",
+                socks5_listener_boot_time_secs
+            );
+            std::thread::sleep(std::time::Duration::from_secs(
+                socks5_listener_boot_time_secs,
+            ));
+
+            None
+        } else {
+            // Register our receiver
+            Some(client_output.register_receiver()?)
+        };
 
         Ok(MixnetClient {
             nym_address,

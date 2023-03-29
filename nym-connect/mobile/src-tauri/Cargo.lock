@@ -3582,6 +3582,7 @@ dependencies = [
 name = "nym-sphinx"
 version = "0.1.0"
 dependencies = [
+ "log",
  "nym-crypto",
  "nym-outfox",
  "nym-sphinx-acknowledgements",

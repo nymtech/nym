@@ -1,9 +1,3 @@
-use cosmwasm_std::{Addr, Coin, Storage};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
-use serde::{Deserialize, Serialize};
-
-use crate::error::Result;
-
 pub mod config;
 pub mod service_id_counter;
 pub mod services;
@@ -18,7 +12,7 @@ mod tests {
     use cosmwasm_std::{
         coins,
         testing::{mock_dependencies, mock_env, mock_info},
-        Order,
+        Order, Addr, Coin,
     };
 
     use crate::{

@@ -308,11 +308,17 @@ pub(crate) fn decrease_pledge(
     )?;
     rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &updated_rewarding)?;
 
-    // TODO: add return tokens submsg
-
-    Ok(Response::new()
+    let response = Response::new()
         .add_message(return_tokens)
-        .add_event(new_pledge_decrease_event(created_at, mix_id, &decrease_by)))
+        .add_event(new_pledge_decrease_event(created_at, mix_id, &decrease_by))
+        .maybe_add_track_vesting_decrease_mixnode_pledge(
+            deps.storage,
+            proxy.clone(),
+            owner.clone().to_string(),
+            decrease_by,
+        )?;
+
+    Ok(response)
 }
 
 impl ContractExecutableEvent for PendingEpochEventData {
@@ -1475,7 +1481,7 @@ mod tests {
     #[cfg(test)]
     mod decreasing_pledge {
         use super::*;
-        use cosmwasm_std::{BankMsg, CosmosMsg, Uint128};
+        use cosmwasm_std::{to_binary, BankMsg, CosmosMsg, Uint128, WasmMsg};
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         #[test]
@@ -1560,7 +1566,34 @@ mod tests {
 
         #[test]
         fn attaches_vesting_track_message() {
-            todo!()
+            let mut test = TestSetup::new();
+            let mix_id_no_proxy = test.add_dummy_mixnode("mix-owner1", None);
+            let mix_id_proxy = test.add_dummy_mixnode_with_legal_proxy("mix-owner2", None);
+            let vesting_contract = test.vesting_contract();
+
+            let amount = test.coin(12345);
+            let res_no_proxy =
+                decrease_pledge(test.deps_mut(), 123, mix_id_no_proxy, amount.clone()).unwrap();
+
+            // nothing was attached (apart from bank message tested in `returns_tokens_back_to_the_owner`)
+            // because it wasn't done with proxy!
+            assert_eq!(res_no_proxy.messages.len(), 1);
+
+            let res_proxy =
+                decrease_pledge(test.deps_mut(), 123, mix_id_proxy, amount.clone()).unwrap();
+            assert_eq!(res_proxy.messages.len(), 2);
+            assert_eq!(
+                res_proxy.messages[1].msg,
+                CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: vesting_contract.to_string(),
+                    msg: to_binary(&VestingContractExecuteMsg::TrackDecreasePledge {
+                        owner: "mix-owner2".to_string(),
+                        amount
+                    })
+                    .unwrap(),
+                    funds: vec![],
+                })
+            );
         }
 
         #[test]

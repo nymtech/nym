@@ -61,4 +61,3 @@ impl std::fmt::Display for ServiceType {
         write!(f, "{service_type}")
     }
 }
-

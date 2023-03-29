@@ -1,7 +1,7 @@
 use crate::errors::ContractError;
 use crate::vesting::Account;
-use cosmwasm_std::Order;
 use cosmwasm_std::{Addr, Api, Storage, Uint128};
+use cosmwasm_std::{Coin, Order};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::{IdentityKey, MixId};
 use vesting_contract_common::PledgeData;
@@ -155,6 +155,24 @@ pub fn save_bond_pledge(
 ) -> Result<(), ContractError> {
     BOND_PLEDGES.save(storage, key, value)?;
     Ok(())
+}
+
+pub fn decrease_bond_pledge(
+    key: AccountStorageKey,
+    amount: Coin,
+    storage: &mut dyn Storage,
+) -> Result<(), ContractError> {
+    let mut existing = BOND_PLEDGES.load(storage, key)?;
+    if existing.amount.amount <= amount.amount {
+        // this shouldn't be possible!
+        // (but check for it anyway... just in case)
+        return Err(ContractError::InvalidBondPledgeReduction {
+            current: existing.amount,
+            decrease_by: amount,
+        });
+    }
+    existing.amount.amount -= amount.amount;
+    save_bond_pledge(key, &existing, storage)
 }
 
 pub fn load_gateway_pledge(

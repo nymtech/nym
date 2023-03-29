@@ -135,8 +135,18 @@ impl MixnodeBondingAccount for Account {
         let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
         self.save_balance(new_balance, storage)?;
 
-        self.remove_mixnode_pledge(storage)?;
-        Ok(())
+        self.remove_mixnode_pledge(storage)
+    }
+
+    fn try_track_decrease_mixnode_pledge(
+        &self,
+        amount: Coin,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
+        let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
+        self.save_balance(new_balance, storage)?;
+
+        self.decrease_mixnode_pledge(amount, storage)
     }
 
     fn try_update_mixnode_config(

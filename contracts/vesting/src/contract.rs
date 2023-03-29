@@ -164,6 +164,9 @@ pub fn execute(
         ExecuteMsg::TrackUnbondMixnode { owner, amount } => {
             try_track_unbond_mixnode(&owner, amount, info, deps)
         }
+        ExecuteMsg::TrackDecreasePledge { owner, amount } => {
+            try_track_decrease_mixnode_pledge(&owner, amount, info, deps)
+        }
         ExecuteMsg::BondGateway {
             gateway,
             owner_signature,

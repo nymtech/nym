@@ -128,6 +128,10 @@ pub enum ExecuteMsg {
         owner: String,
         amount: Coin,
     },
+    TrackDecreasePledge {
+        owner: String,
+        amount: Coin,
+    },
     BondGateway {
         gateway: Gateway,
         owner_signature: MessageSignature,
@@ -177,6 +181,7 @@ impl ExecuteMsg {
             ExecuteMsg::PledgeMore { .. } => "VestingExecuteMsg::PledgeMore",
             ExecuteMsg::UnbondMixnode { .. } => "VestingExecuteMsg::UnbondMixnode",
             ExecuteMsg::TrackUnbondMixnode { .. } => "VestingExecuteMsg::TrackUnbondMixnode",
+            ExecuteMsg::TrackDecreasePledge { .. } => "VestingExecuteMsg::TrackDecreasePledge",
             ExecuteMsg::BondGateway { .. } => "VestingExecuteMsg::BondGateway",
             ExecuteMsg::UnbondGateway { .. } => "VestingExecuteMsg::UnbondGateway",
             ExecuteMsg::TrackUnbondGateway { .. } => "VestingExecuteMsg::TrackUnbondGateway",

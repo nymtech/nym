@@ -1,5 +1,5 @@
 use crate::storage::AccountStorageKey;
-use cosmwasm_std::{Addr, OverflowError, StdError, Uint128};
+use cosmwasm_std::{Addr, Coin, OverflowError, StdError, Uint128};
 use mixnet_contract_common::MixId;
 use thiserror::Error;
 
@@ -57,6 +57,9 @@ pub enum ContractError {
 
     #[error("VESTING ({}): No bond found for account {0}", line!())]
     NoBondFound(String),
+
+    #[error("VESTING: Attempted to reduce mixnode bond pledge below zero! The current pledge is {current} and we attempted to reduce it by {decrease_by}.")]
+    InvalidBondPledgeReduction { current: Coin, decrease_by: Coin },
 
     #[error("VESTING ({}): Action can only be executed by account owner -> {0}", line!())]
     NotOwner(String),

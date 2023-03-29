@@ -11,9 +11,9 @@ use mixnet_contract_common::mixnode::MixNodeConfigUpdate;
 use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use vesting_contract_common::events::{
-    new_vesting_mixnode_bonding_event, new_vesting_mixnode_unbonding_event,
-    new_vesting_pledge_more_event, new_vesting_update_mixnode_config_event,
-    new_vesting_update_mixnode_cost_params_event,
+    new_vesting_decrease_pledge_event, new_vesting_mixnode_bonding_event,
+    new_vesting_mixnode_unbonding_event, new_vesting_pledge_more_event,
+    new_vesting_update_mixnode_config_event, new_vesting_update_mixnode_cost_params_event,
 };
 use vesting_contract_common::PledgeData;
 
@@ -109,6 +109,51 @@ impl MixnodeBondingAccount for Account {
             .add_event(new_vesting_pledge_more_event()))
     }
 
+    fn try_decrease_mixnode_pledge(
+        &self,
+        amount: Coin,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError> {
+        match self.load_mixnode_pledge(storage)? {
+            Some(pledge) => {
+                if pledge.amount.amount <= amount.amount {
+                    return Err(ContractError::InvalidBondPledgeReduction {
+                        current: pledge.amount,
+                        decrease_by: amount,
+                    });
+                }
+            }
+            None => {
+                return Err(ContractError::NoBondFound(
+                    self.owner_address().as_str().to_string(),
+                ));
+            }
+        }
+
+        let msg = MixnetExecuteMsg::DecreasePledgeOnBehalf {
+            owner: self.owner_address().into_string(),
+            decrease_by: amount,
+        };
+
+        let decrease_pledge_message =
+            wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
+
+        Ok(Response::new()
+            .add_message(decrease_pledge_message)
+            .add_event(new_vesting_decrease_pledge_event()))
+    }
+
+    fn try_track_decrease_mixnode_pledge(
+        &self,
+        amount: Coin,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
+        let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
+        self.save_balance(new_balance, storage)?;
+
+        self.decrease_mixnode_pledge(amount, storage)
+    }
+
     fn try_unbond_mixnode(&self, storage: &dyn Storage) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::UnbondMixnodeOnBehalf {
             owner: self.owner_address().into_string(),
@@ -136,17 +181,6 @@ impl MixnodeBondingAccount for Account {
         self.save_balance(new_balance, storage)?;
 
         self.remove_mixnode_pledge(storage)
-    }
-
-    fn try_track_decrease_mixnode_pledge(
-        &self,
-        amount: Coin,
-        storage: &mut dyn Storage,
-    ) -> Result<(), ContractError> {
-        let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
-        self.save_balance(new_balance, storage)?;
-
-        self.decrease_mixnode_pledge(amount, storage)
     }
 
     fn try_update_mixnode_config(

@@ -27,6 +27,12 @@ pub trait MixnodeBondingAccount {
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError>;
 
+    fn try_decrease_mixnode_pledge(
+        &self,
+        amount: Coin,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError>;
+
     fn try_unbond_mixnode(&self, storage: &dyn Storage) -> Result<Response, ContractError>;
 
     fn try_track_unbond_mixnode(

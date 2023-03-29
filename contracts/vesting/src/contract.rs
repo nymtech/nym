@@ -160,6 +160,7 @@ pub fn execute(
             deps,
         ),
         ExecuteMsg::PledgeMore { amount } => try_pledge_more(deps, env, info, amount),
+        ExecuteMsg::DecreasePledge { amount } => try_decrease_pledge(deps, info, amount),
         ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
         ExecuteMsg::TrackUnbondMixnode { owner, amount } => {
             try_track_unbond_mixnode(&owner, amount, info, deps)

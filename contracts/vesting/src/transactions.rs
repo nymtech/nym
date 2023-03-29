@@ -278,6 +278,19 @@ pub fn try_pledge_more(
     account.try_pledge_additional_tokens(additional_pledge, &env, deps.storage)
 }
 
+pub fn try_decrease_pledge(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    amount: Coin,
+) -> Result<Response, ContractError> {
+    let mix_denom = MIX_DENOM.load(deps.storage)?;
+    // perform basic validation - is it correct demon, is it non-zero, etc.
+    let decrease = validate_funds(&[amount], mix_denom)?;
+
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_decrease_mixnode_pledge(decrease, deps.storage)
+}
+
 /// Unbond a mixnode, sends [mixnet_contract_common::ExecuteMsg::UnbondMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
 pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut<'_>) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;

@@ -26,7 +26,7 @@ pub type StatusReceiver = futures::channel::mpsc::Receiver<SentStatus>;
 #[derive(thiserror::Error, Debug)]
 enum TaskError {
     #[error("Task halted unexpectedly")]
-    UnexpectedHalt,
+    UnexpectedHalt(String),
 }
 
 // TODO: possibly we should create a `Status` trait instead of reusing `Error`
@@ -267,6 +267,10 @@ impl TaskClient {
         }
     }
 
+    fn type_name(&self) -> &'static str {
+        return std::any::type_name::<Self>();
+    }
+
     pub fn is_dummy(&self) -> bool {
         self.mode.is_dummy()
     }
@@ -370,7 +374,7 @@ impl Drop for TaskClient {
             log::trace!("Notifying stop on unexpected drop");
             // If we can't send, well then there is not much to do
             self.drop_error
-                .send(Box::new(TaskError::UnexpectedHalt))
+                .send(Box::new(TaskError::UnexpectedHalt(self.type_name().to_string())))
                 .ok();
         }
     }

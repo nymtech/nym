@@ -1,5 +1,4 @@
 use nym_sdk::mixnet;
-use nym_socks5_client_core::config::Socks5;
 
 #[tokio::main]
 async fn main() {
@@ -8,22 +7,17 @@ async fn main() {
     println!("Connecting receiver");
     let mut receiving_client = mixnet::MixnetClient::connect_new().await.unwrap();
 
-    let socks5_config = Socks5::new(receiving_client.nym_address().to_string());
-    let client_config = mixnet::Config::new(None, Some(socks5_config), None);
+    let socks5_config = mixnet::Socks5::new(receiving_client.nym_address().to_string());
     let sending_client = mixnet::MixnetClientBuilder::new()
-        .config(client_config)
+        .socks5_config(socks5_config)
         .build::<mixnet::EmptyReplyStorage>()
         .await
         .unwrap();
 
     println!("Connecting sender");
-    let mut sending_client = sending_client.connect_to_mixnet().await.unwrap();
+    let mut sending_client = sending_client.connect_to_mixnet_via_socks5().await.unwrap();
 
-    let proxy = reqwest::Proxy::all(format!(
-        "socks5h://127.0.0.1:{}",
-        nym_network_defaults::DEFAULT_SOCKS5_LISTENING_PORT
-    ))
-    .unwrap();
+    let proxy = reqwest::Proxy::all(sending_client.socks5_url()).unwrap();
     let reqwest_client = reqwest::Client::builder().proxy(proxy).build().unwrap();
     tokio::spawn(async move {
         println!("Sending socks5-wrapped http request");

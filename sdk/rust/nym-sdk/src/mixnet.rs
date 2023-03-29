@@ -34,11 +34,11 @@ mod client;
 mod config;
 mod connection_state;
 mod keys;
+mod native_client;
 mod paths;
+mod socks5_client;
 
-pub use client::{
-    DisconnectedMixnetClient, IncludedSurbs, MixnetClient, MixnetClientBuilder, MixnetClientSender,
-};
+pub use client::{DisconnectedMixnetClient, IncludedSurbs, MixnetClientBuilder};
 pub use client_core::{
     client::{
         inbound_messages::InputMessage,
@@ -48,9 +48,13 @@ pub use client_core::{
 };
 pub use config::Config;
 pub use keys::{Keys, KeysArc};
+pub use native_client::MixnetClient;
+pub use native_client::MixnetClientSender;
+pub use nym_socks5_client_core::config::Socks5;
 pub use nym_sphinx::{
     addressing::clients::{ClientIdentity, Recipient},
     receiver::ReconstructedMessage,
 };
 pub use nym_topology::{provider_trait::TopologyProvider, NymTopology};
 pub use paths::{GatewayKeyMode, KeyMode, StoragePaths};
+pub use socks5_client::Socks5MixnetClient;

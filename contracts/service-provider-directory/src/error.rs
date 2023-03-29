@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, StdError};
 use thiserror::Error;
 
-use crate::state::ServiceId;
+use crate::types::ServiceId;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {

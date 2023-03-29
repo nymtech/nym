@@ -2,7 +2,8 @@ use cosmwasm_std::{Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uin
 
 use crate::{
     error::ContractError,
-    state::{self, NymAddress, Service, ServiceId, ServiceType},
+    state::{self},
+    types::{NymAddress, Service, ServiceId, ServiceType},
 };
 
 fn ensure_correct_deposit(

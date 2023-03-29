@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 
-use super::ServiceId;
+use crate::types::ServiceId;
 
 // Storage keys
 pub const SERVICE_ID_COUNTER_KEY: &str = "sidc";

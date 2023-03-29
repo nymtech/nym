@@ -5,7 +5,7 @@ use cosmwasm_std::Addr;
 use crate::{
     error::ContractError,
     msg::{ConfigResponse, ServiceInfo, ServicesListResponse},
-    state::{NymAddress, Service, ServiceType},
+    types::{NymAddress, Service, ServiceType},
     test_helpers::{helpers::nyms, test_setup::TestSetup},
 };
 

@@ -1,4 +1,5 @@
-use crate::state::{Config, NymAddress, Service, ServiceId, ServiceType};
+use crate::state::Config;
+use crate::types::{NymAddress, Service, ServiceId, ServiceType};
 use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 

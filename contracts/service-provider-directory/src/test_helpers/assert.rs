@@ -3,7 +3,7 @@ use cosmwasm_std::{from_binary, testing::mock_env, Addr, Deps, StdError};
 use crate::{
     error::ContractError,
     msg::{ConfigResponse, QueryMsg, ServiceInfo, ServicesListResponse},
-    state::ServiceId,
+    types::ServiceId,
 };
 
 pub fn assert_config(deps: Deps, admin: Addr) {

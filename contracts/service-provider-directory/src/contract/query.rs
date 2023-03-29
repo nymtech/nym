@@ -4,7 +4,8 @@ use cw_storage_plus::Bound;
 use crate::{
     error::{ContractError, Result},
     msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo, ServicesListResponse},
-    state::{self, ServiceId},
+    state::{self},
+    types::ServiceId,
 };
 
 const SERVICE_DEFAULT_RETRIEVAL_LIMIT: u32 = 100;

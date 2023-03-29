@@ -65,7 +65,7 @@ mod tests {
 
     use crate::{
         msg::ServiceInfo,
-        state::ServiceId,
+        types::ServiceId,
         test_helpers::{
             assert::{
                 assert_config, assert_empty, assert_not_found, assert_service, assert_services,

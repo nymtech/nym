@@ -7,7 +7,7 @@ use crate::{
     msg::{
         ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg, ServiceInfo, ServicesListResponse,
     },
-    state::{NymAddress, ServiceId, ServiceType},
+    types::{NymAddress, ServiceId, ServiceType},
     test_helpers::helpers::get_app_attribute,
 };
 

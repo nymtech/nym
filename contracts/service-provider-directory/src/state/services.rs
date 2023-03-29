@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 
-use super::{Service, ServiceId};
+use crate::types::{Service, ServiceId};
 
 const SERVICES_PK_NAMESPACE: &str = "sernames";
 const SERVICES_OWNER_IDX_NAMESPACE: &str = "serown";

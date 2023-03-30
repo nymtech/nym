@@ -1,22 +1,18 @@
+use super::host::Host;
+use crate::allowed_hosts::group::HostsGroup;
 use std::{
-    collections::HashSet,
     fs::{self, File, OpenOptions},
     io::{self, BufRead, BufReader},
     net::IpAddr,
     path::{Path, PathBuf},
 };
 
-use super::host::Host;
-use ipnetwork::IpNetwork;
-
 /// A simple file-backed store for information about allowed / unknown hosts.
 /// It ignores any port information.
 #[derive(Debug)]
 pub(crate) struct HostsStore {
     pub(super) storefile: PathBuf,
-
-    pub(super) domains: HashSet<String>,
-    pub(super) ip_nets: Vec<IpNetwork>,
+    pub(super) data: HostsGroup,
 }
 
 impl HostsStore {
@@ -37,40 +33,30 @@ impl HostsStore {
             hosts.extend(standard_hosts.unwrap_or_default());
         }
 
-        let (domains, ip_nets): (Vec<_>, Vec<_>) =
-            hosts.into_iter().partition(|host| host.is_domain());
-
         HostsStore {
             storefile,
-            domains: domains.into_iter().map(Host::extract_domain).collect(),
-            ip_nets: ip_nets.into_iter().map(Host::extract_ipnetwork).collect(),
+            data: HostsGroup::new(hosts),
         }
     }
 
     pub(crate) fn contains_domain(&self, host: &str) -> bool {
-        self.domains.contains(&host.to_string())
+        self.data.contains_domain(host)
     }
 
     pub(super) fn contains_ip_address(&self, address: IpAddr) -> bool {
-        for ip_net in &self.ip_nets {
-            if ip_net.contains(address) {
-                return true;
-            }
-        }
-
-        false
+        self.data.contains_ip_address(address)
     }
 
     pub(super) fn add_ip(&mut self, ip: IpAddr) {
         if !self.contains_ip_address(ip) {
-            self.ip_nets.push(ip.into());
+            self.data.add_ip(ip);
             self.append_to_file(&ip.to_string());
         }
     }
 
     pub(super) fn add_domain(&mut self, domain: &str) {
         if !self.contains_domain(domain) {
-            self.domains.insert(domain.to_string());
+            self.data.add_domain(domain);
             self.append_to_file(domain);
         }
     }
@@ -135,7 +121,7 @@ mod constructor_tests {
     #[test]
     fn works_with_no_standard_hosts() {
         let store = HostsStore::new(PathBuf::from("/tmp"), PathBuf::from("foomp.db"), None);
-        assert_eq!(store.domains.len(), 0);
+        assert_eq!(store.data.domains.len(), 0);
     }
 
     #[test]
@@ -148,7 +134,7 @@ mod constructor_tests {
                 Host::from(String::from("foomp.com")),
             ]),
         );
-        assert_eq!(store.domains.len(), 2);
+        assert_eq!(store.data.domains.len(), 2);
         assert!(store.contains_domain("google.com"));
         assert!(store.contains_domain("foomp.com"));
     }

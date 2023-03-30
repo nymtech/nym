@@ -1,0 +1,55 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::allowed_hosts::host::Host;
+use ipnetwork::IpNetwork;
+use std::collections::HashSet;
+use std::net::IpAddr;
+
+/// A simpled grouped set of hosts.
+/// It ignores any port information.
+#[derive(Debug)]
+pub(crate) struct HostsGroup {
+    pub(super) domains: HashSet<String>,
+    pub(super) ip_nets: Vec<IpNetwork>,
+}
+
+impl HostsGroup {
+    pub(crate) fn new(raw_hosts: Vec<Host>) -> HostsGroup {
+        let mut domains = HashSet::new();
+        let mut ip_nets = Vec::new();
+
+        for host in raw_hosts {
+            match host {
+                Host::Domain(domain) => {
+                    domains.insert(domain);
+                }
+                Host::IpNetwork(ipnet) => ip_nets.push(ipnet),
+            }
+        }
+
+        HostsGroup { domains, ip_nets }
+    }
+
+    pub(crate) fn contains_domain(&self, host: &str) -> bool {
+        self.domains.contains(&host.to_string())
+    }
+
+    pub(super) fn contains_ip_address(&self, address: IpAddr) -> bool {
+        for ip_net in &self.ip_nets {
+            if ip_net.contains(address) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub(super) fn add_ip(&mut self, ip: IpAddr) {
+        self.ip_nets.push(ip.into());
+    }
+
+    pub(super) fn add_domain(&mut self, domain: &str) {
+        self.domains.insert(domain.to_string());
+    }
+}

@@ -40,7 +40,7 @@ mod tests {
     use cosmwasm_std::{
         coins,
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, Coin, Order,
+        Coin, Order,
     };
 
     use crate::{
@@ -52,7 +52,6 @@ mod tests {
     #[test]
     fn save_and_load_returns_a_key() {
         let mut deps = mock_dependencies();
-        let admin = Addr::unchecked("bar");
         let msg = InstantiateMsg {
             deposit_required: Coin::new(100, "unym"),
         };

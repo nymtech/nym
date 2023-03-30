@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 
 use crate::{
     error::{ContractError, Result},

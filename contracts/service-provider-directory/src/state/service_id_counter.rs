@@ -19,7 +19,7 @@ mod tests {
     use cosmwasm_std::{
         coins,
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, Coin,
+        Coin,
     };
 
     use crate::{

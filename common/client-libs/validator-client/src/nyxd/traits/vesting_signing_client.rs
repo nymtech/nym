@@ -91,6 +91,21 @@ pub trait VestingSigningClient {
         .await
     }
 
+    async fn vesting_decrease_pledge(
+        &self,
+        decrease_by: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::DecreasePledge {
+                amount: decrease_by.into(),
+            },
+            vec![],
+        )
+        .await
+    }
+
     async fn vesting_unbond_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_track_unbond_mixnode(

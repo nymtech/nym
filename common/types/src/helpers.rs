@@ -18,6 +18,7 @@ impl ConsoleSigningOutput {
         }
     }
 
+    #[deprecated]
     pub fn to_json_string(&self) -> String {
         serde_json::to_string(self).expect("json serialization of 'ConsoleSigningOutput' failed")
     }

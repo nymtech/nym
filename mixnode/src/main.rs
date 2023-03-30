@@ -24,18 +24,6 @@ fn pretty_build_info_static() -> &'static str {
     &PRETTY_BUILD_INFORMATION
 }
 
-#[derive(Clone, ValueEnum)]
-enum OutputFormat {
-    Json,
-    Text,
-}
-
-impl Default for OutputFormat {
-    fn default() -> Self {
-        OutputFormat::Text
-    }
-}
-
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
 struct Cli {

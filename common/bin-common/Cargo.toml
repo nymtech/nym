@@ -15,6 +15,7 @@ log = { workspace = true }
 pretty_env_logger = "0.4.0"
 semver = "0.11"
 serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true, optional = true }
 
 [build-dependencies]
 vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc", "cargo"] }

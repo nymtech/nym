@@ -26,8 +26,8 @@ lazy_static = "1.4.0"
 log = { workspace = true } # self explanatory
 pretty_env_logger = "0.4" # for formatting log messages
 rand = { version = "0.7.3", features = ["wasm-bindgen"] } # rng-related traits + some rng implementation to use
-serde = { version = "1.0.104", features = ["derive"] } # for config serialization/deserialization
-serde_json = "1.0"
+serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
+serde_json = { workspace = true }
 thiserror = "1.0.34"
 tap = "1.0.1"
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] } # async runtime
@@ -52,4 +52,4 @@ validator-client = { path = "../../common/client-libs/validator-client", feature
 websocket-requests = { path = "websocket-requests" }
 
 [dev-dependencies]
-serde_json = "1.0" # for the "textsend" example
+serde_json = { workspace = true } # for the "textsend" example

@@ -31,7 +31,7 @@ log = { workspace = true }
 once_cell = "1.7.2"
 pretty_env_logger = "0.4"
 rand = "0.7"
-serde = { version = "1.0", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 sqlx = { version = "0.5", features = [
     "runtime-tokio-rustls",
     "sqlite",
@@ -56,7 +56,7 @@ nym-coconut-interface = { path = "../common/coconut-interface" }
 nym-credentials = { path = "../common/credentials" }
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto" }
-nym-bin-common = { path = "../common/bin-common" }
+nym-bin-common = { path = "../common/bin-common", features = ["serde_json"] }
 gateway-requests = { path = "gateway-requests" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
@@ -70,7 +70,7 @@ validator-client = { path = "../common/client-libs/validator-client", features =
     "nyxd-client",
 ] }
 nym-types = { path = "../common/types" }
-serde_json = "1"
+serde_json = { workspace = true }
 atty = "0.2"
 
 

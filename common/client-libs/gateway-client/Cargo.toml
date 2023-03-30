@@ -27,7 +27,7 @@ nym-sphinx = { path = "../../nymsphinx" }
 nym-pemstore = { path = "../../pemstore" }
 validator-client = { path = "../validator-client" }
 nym-task = { path = "../../task" }
-serde = { version = "1.0", features = ["derive"]}
+serde = { workspace = true, features = ["derive"] }
 mobile-storage = { path = "../../mobile-storage" }
 
 

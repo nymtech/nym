@@ -1,11 +1,12 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::{crate_name, crate_version, Parser, ValueEnum};
+use clap::{crate_name, crate_version, Parser};
 use colored::Colorize;
 use lazy_static::lazy_static;
 use log::error;
 use nym_bin_common::logging::setup_logging;
+use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::{build_information::BinaryBuildInformation, logging::banner};
 use nym_network_defaults::setup_env;
 use std::error::Error;
@@ -26,18 +27,6 @@ fn pretty_build_info_static() -> &'static str {
     &PRETTY_BUILD_INFORMATION
 }
 
-#[derive(Clone, ValueEnum)]
-pub enum OutputFormat {
-    Json,
-    Text,
-}
-
-impl Default for OutputFormat {
-    fn default() -> Self {
-        OutputFormat::Text
-    }
-}
-
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
 struct Cli {
@@ -45,21 +34,8 @@ struct Cli {
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
-    #[clap(short, long)]
-    pub(crate) output: Option<OutputFormat>,
-
     #[clap(subcommand)]
     command: commands::Commands,
-}
-
-impl Cli {
-    fn output(&self) -> OutputFormat {
-        if let Some(ref output) = self.output {
-            output.clone()
-        } else {
-            OutputFormat::default()
-        }
-    }
 }
 
 #[tokio::main]

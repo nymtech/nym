@@ -11,9 +11,9 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
-use crate::OutputFormat;
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_defaults::NymNetworkDetails;
 use nym_statistics_common::collector::StatisticsSender;
@@ -106,7 +106,7 @@ where
         sphinx_keypair
     }
 
-    pub(crate) fn print_node_details(&self, output: OutputFormat) -> Result<(), GatewayError> {
+    pub(crate) fn print_node_details(&self, output: OutputFormat) {
         let node_details = nym_types::gateway::GatewayNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
@@ -123,15 +123,7 @@ where
                 .to_string(),
         };
 
-        match output {
-            OutputFormat::Json => println!(
-                "{}",
-                serde_json::to_string(&node_details)
-                    .unwrap_or_else(|_| "Could not serialize node details".to_string())
-            ),
-            OutputFormat::Text => println!("{}", node_details),
-        }
-        Ok(())
+        println!("{}", output.format(&node_details));
     }
 
     fn start_mix_socket_listener(

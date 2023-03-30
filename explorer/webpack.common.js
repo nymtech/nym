@@ -26,6 +26,6 @@ module.exports = mergeWithRules({
       crypto: false,
       net: false,
       zlib: false,
-    }
-  }
+    },
+  },
 });

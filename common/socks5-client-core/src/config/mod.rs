@@ -111,7 +111,6 @@ impl Config {
         self
     }
 
-    #[must_use]
     pub fn with_port(mut self, port: u16) -> Self {
         self.socks5.with_port(port);
         self
@@ -267,10 +266,10 @@ impl Default for Socks5 {
 #[serde(deny_unknown_fields)]
 pub struct Socks5Debug {
     /// Number of reply SURBs attached to each `Request::Connect` message.
-    pub connection_start_surbs: u32,
+    connection_start_surbs: u32,
 
     /// Number of reply SURBs attached to each `Request::Send` message.
-    pub per_request_surbs: u32,
+    per_request_surbs: u32,
 }
 
 impl Default for Socks5Debug {

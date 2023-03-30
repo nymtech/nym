@@ -22,7 +22,7 @@ export const AppRoutes = () => (
     <Receive />
     <Routes>
       <Route path="/balance" element={<Balance />} />
-      <Route path="/balance/settings" element={<Settings />} />
+      <Route path="/settings" element={<Settings />} />
       <Route path="/bonding" element={<BondingPage />} />
       <Route path="/bonding/node-settings" element={<NodeSettingsPage />} />
       <Route path="/delegation" element={<DelegationPage />} />

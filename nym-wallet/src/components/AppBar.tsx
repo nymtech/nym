@@ -24,7 +24,7 @@ export const AppBar = () => {
           </Grid>
           <Grid item container justifyContent="flex-end" md={12} lg={5} spacing={2}>
             <Grid item>
-              <IconButton size="small" onClick={() => navigate('/balance/settings')} sx={{ color: 'text.primary' }}>
+              <IconButton size="small" onClick={() => navigate('/settings')} sx={{ color: 'text.primary' }}>
                 <SettingsIcon fontSize="small" />
               </IconButton>
             </Grid>

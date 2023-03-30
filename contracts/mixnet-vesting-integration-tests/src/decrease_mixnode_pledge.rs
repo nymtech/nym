@@ -109,9 +109,10 @@ fn decrease_mixnode_pledge_from_vesting_account_with_minimum_pledge() {
         .unwrap_err();
     assert_eq!(
         MixnetContractError::InvalidPledgeReduction {
-            current: pledge,
-            decrease_by: amount,
-            minimum: minimum_pledge,
+            current: pledge.amount,
+            decrease_by: amount.amount,
+            minimum: minimum_pledge.amount,
+            denom: minimum_pledge.denom
         },
         res_below.downcast().unwrap()
     )

@@ -281,9 +281,10 @@ pub fn _try_decrease_pledge(
         .saturating_sub(decrease_by.amount);
     if new_pledge_amount < minimum_pledge.amount {
         return Err(MixnetContractError::InvalidPledgeReduction {
-            current: mix_details.original_pledge().to_owned(),
-            decrease_by,
-            minimum: minimum_pledge,
+            current: mix_details.original_pledge().amount,
+            decrease_by: decrease_by.amount,
+            minimum: minimum_pledge.amount,
+            denom: minimum_pledge.denom,
         });
     }
 
@@ -1564,9 +1565,10 @@ pub mod tests {
             assert_eq!(
                 res,
                 Err(MixnetContractError::InvalidPledgeReduction {
-                    current: pledged,
-                    decrease_by: invalid_decrease,
-                    minimum: minimum_pledge,
+                    current: pledged.amount,
+                    decrease_by: invalid_decrease.amount,
+                    minimum: minimum_pledge.amount,
+                    denom: minimum_pledge.denom
                 })
             );
 

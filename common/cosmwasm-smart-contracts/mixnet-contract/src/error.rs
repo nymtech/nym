@@ -3,7 +3,7 @@
 
 use crate::{EpochState, IdentityKey, MixId};
 use contracts_common::signing::verifier::ApiVerifierError;
-use cosmwasm_std::{Addr, Coin, Decimal};
+use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -26,11 +26,12 @@ pub enum MixnetContractError {
     #[error("Not enough funds sent for node pledge. (received {received}, minimum {minimum})")]
     InsufficientPledge { received: Coin, minimum: Coin },
 
-    #[error("Attempted to reduce node pledge ({current} - {decrease_by}) below the minimum amount: {minimum}")]
+    #[error("Attempted to reduce node pledge ({current}{denom} - {decrease_by}{denom}) below the minimum amount: {minimum}{denom}")]
     InvalidPledgeReduction {
-        current: Coin,
-        decrease_by: Coin,
-        minimum: Coin,
+        current: Uint128,
+        decrease_by: Uint128,
+        minimum: Uint128,
+        denom: String,
     },
 
     #[error("Not enough funds sent for node delegation. (received {received}, minimum {minimum})")]
@@ -196,7 +197,7 @@ pub enum MixnetContractError {
 
     #[error("epoch duration must be > 0")]
     EpochDurationZero,
-    
+
     #[error("attempted to perform the operation with 0 coins. This is not allowed")]
     ZeroCoinAmount,
 

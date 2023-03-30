@@ -23,4 +23,3 @@ pub fn get_app_attribute(response: &AppResponse, key: &str) -> String {
         .value
         .clone()
 }
-

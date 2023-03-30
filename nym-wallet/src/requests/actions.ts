@@ -13,7 +13,7 @@ import {
   TBondGatewaySignatureArgs,
   TBondMixNodeArgs,
   TBondMixnodeSignatureArgs,
-  TBondMoreArgs, TDecreaseBondArgs, TDecreasePledgeArgs,
+  TBondMoreArgs, TDecreaseBondArgs,
 } from '../types';
 import { invokeWrapper } from './wrapper';
 

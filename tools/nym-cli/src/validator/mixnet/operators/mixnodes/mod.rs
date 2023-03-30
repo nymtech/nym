@@ -36,6 +36,12 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::mixnet::operators::mixnode::MixnetOperatorsMixnodeCommands::CreateMixnodeBondingSignPayload(args) => {
             nym_cli_commands::validator::mixnet::operators::mixnode::mixnode_bonding_sign_payload::create_payload(args,create_signing_client(global_args, network_details)?).await
         }
+        nym_cli_commands::validator::mixnet::operators::mixnode::MixnetOperatorsMixnodeCommands::PledgeMore(args) => {
+            nym_cli_commands::validator::mixnet::operators::mixnode::pledge_more::pledge_more(args, create_signing_client(global_args, network_details)?).await
+        }
+        nym_cli_commands::validator::mixnet::operators::mixnode::MixnetOperatorsMixnodeCommands::PledgeMoreVesting(args) => {
+            nym_cli_commands::validator::mixnet::operators::mixnode::vesting_pledge_more::vesting_pledge_more(args, create_signing_client(global_args, network_details)?).await
+        }
         _ => unreachable!(),
     }
     Ok(())

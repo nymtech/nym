@@ -105,7 +105,7 @@ impl InitResults {
     fn new(config: &Config, address: &Recipient) -> Self {
         Self {
             client_core: client_core::init::InitResults::new(config.get_base(), address),
-            socks5_listening_port: config.get_listening_port().to_string(),
+            socks5_listening_port: config.get_socks5().get_listening_port().to_string(),
         }
     }
 }

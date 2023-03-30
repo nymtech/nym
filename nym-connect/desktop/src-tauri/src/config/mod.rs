@@ -5,7 +5,7 @@ use crate::{
 use client_core::config::Config as BaseConfig;
 use nym_config_common::NymConfig;
 use nym_crypto::asymmetric::identity;
-use nym_socks5_client_core::config::Config as Socks5Config;
+use nym_socks5_client_core::config::{Config as Socks5Config, Socks5};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tap::TapFallible;
@@ -52,13 +52,17 @@ impl Config {
         }
     }
 
-    pub fn get_socks5(&self) -> &Socks5Config {
+    pub fn get_config(&self) -> &Socks5Config {
         &self.socks5
     }
 
+    pub fn get_socks5(&self) -> &Socks5 {
+        self.socks5.get_socks5()
+    }
+
     #[allow(unused)]
-    pub fn get_socks5_mut(&mut self) -> &mut Socks5Config {
-        &mut self.socks5
+    pub fn get_socks5_mut(&mut self) -> &mut Socks5 {
+        self.socks5.get_socks5_mut()
     }
 
     pub fn get_base(&self) -> &BaseConfig<Socks5Config> {
@@ -145,7 +149,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 
     config.get_base_mut().set_gateway_endpoint(gateway);
 
-    config.get_socks5().save_to_file(None).tap_err(|_| {
+    config.get_config().save_to_file(None).tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;
 
@@ -159,7 +163,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 fn print_saved_config(config: &Config) {
     log::info!(
         "Saved configuration file to {:?}",
-        config.get_socks5().get_config_file_save_location()
+        config.get_config().get_config_file_save_location()
     );
     log::info!("Gateway id: {}", config.get_base().get_gateway_id());
     log::info!("Gateway owner: {}", config.get_base().get_gateway_owner());

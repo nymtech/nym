@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{Config, Socks5, Socks5Debug};
+use crate::config::{Config, Socks5};
 use client_core::config::old_config_v1_1_13::OldConfigV1_1_13 as OldBaseConfigV1_1_13;
 use nym_config::NymConfig;
 use serde::{Deserialize, Serialize};
@@ -14,9 +14,6 @@ pub struct OldConfigV1_1_13 {
     base: OldBaseConfigV1_1_13<OldConfigV1_1_13>,
 
     socks5: Socks5,
-
-    #[serde(default)]
-    socks5_debug: Socks5Debug,
 }
 
 impl NymConfig for OldConfigV1_1_13 {
@@ -60,7 +57,6 @@ impl From<OldConfigV1_1_13> for Config {
         Config {
             base: value.base.into(),
             socks5: value.socks5,
-            socks5_debug: value.socks5_debug,
         }
     }
 }

@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::Config;
+use crate::config::{Config, Socks5};
 use crate::error::Socks5ClientCoreError;
 use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
@@ -105,7 +105,7 @@ impl NymClient {
     }
 
     pub fn start_socks5_listener(
-        config: &Config,
+        socks5_config: &Socks5,
         client_input: ClientInput,
         client_output: ClientOutput,
         client_status: ClientState,
@@ -132,17 +132,17 @@ impl NymClient {
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = SphinxSocksServer::new(
-            config.get_listening_port(),
+            socks5_config.get_listening_port(),
             authenticator,
-            config.get_provider_mix_address(),
+            socks5_config.get_provider_mix_address(),
             self_address,
             shared_lane_queue_lengths,
             socks::client::Config::new(
-                config.get_provider_interface_version(),
-                config.get_socks5_protocol_version(),
-                config.get_send_anonymously(),
-                config.get_connection_start_surbs(),
-                config.get_per_request_surbs(),
+                socks5_config.get_provider_interface_version(),
+                socks5_config.get_socks5_protocol_version(),
+                socks5_config.get_send_anonymously(),
+                socks5_config.get_connection_start_surbs(),
+                socks5_config.get_per_request_surbs(),
             ),
             shutdown.clone(),
         );
@@ -243,7 +243,7 @@ impl NymClient {
         let client_state = started_client.client_state;
 
         Self::start_socks5_listener(
-            &self.config,
+            self.config.get_socks5(),
             client_input,
             client_output,
             client_state,

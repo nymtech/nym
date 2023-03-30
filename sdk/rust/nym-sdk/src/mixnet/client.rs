@@ -441,13 +441,9 @@ where
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        let socks5_config_core = nym_socks5_client_core::config::Config::new(
-            socks5_config.provider_mix_address.clone(),
-            socks5_config.provider_mix_address.clone(),
-        );
         let socks5_listener_boot_time_secs = 5;
         nym_socks5_client_core::NymClient::start_socks5_listener(
-            &socks5_config_core,
+            &socks5_config,
             client_input,
             client_output,
             client_state.clone(),

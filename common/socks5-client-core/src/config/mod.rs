@@ -28,9 +28,6 @@ pub struct Config {
     base: BaseConfig<Config>,
 
     socks5: Socks5,
-
-    #[serde(default)]
-    socks5_debug: Socks5Debug,
 }
 
 impl NymConfig for Config {
@@ -77,35 +74,7 @@ impl Config {
         Config {
             base: BaseConfig::new(id),
             socks5: Socks5::new(provider_mix_address),
-            socks5_debug: Socks5Debug::default(),
         }
-    }
-
-    #[must_use]
-    pub fn with_port(mut self, port: u16) -> Self {
-        self.socks5.listening_port = port;
-        self
-    }
-
-    #[must_use]
-    pub fn with_provider_mix_address(mut self, address: String) -> Self {
-        self.socks5.provider_mix_address = address;
-        self
-    }
-
-    pub fn with_provider_interface_version(mut self, version: ProviderInterfaceVersion) -> Self {
-        self.socks5.provider_interface_version = version;
-        self
-    }
-
-    pub fn with_socks5_protocol_version(mut self, version: Socks5ProtocolVersion) -> Self {
-        self.socks5.socks5_protocol_version = version;
-        self
-    }
-
-    pub fn with_anonymous_replies(mut self, anonymous_replies: bool) -> Self {
-        self.socks5.send_anonymously = anonymous_replies;
-        self
     }
 
     // getters
@@ -117,6 +86,14 @@ impl Config {
         &mut self.base
     }
 
+    pub fn get_socks5(&self) -> &Socks5 {
+        &self.socks5
+    }
+
+    pub fn get_socks5_mut(&mut self) -> &mut Socks5 {
+        &mut self.socks5
+    }
+
     pub fn get_debug_settings(&self) -> &DebugConfig {
         self.get_base().get_debug_config()
     }
@@ -125,41 +102,23 @@ impl Config {
         self.config_directory().join(Self::config_file_name())
     }
 
-    pub fn get_provider_mix_address(&self) -> Recipient {
-        Recipient::try_from_base58_string(&self.socks5.provider_mix_address)
-            .expect("malformed provider address")
-    }
-
-    pub fn get_provider_interface_version(&self) -> ProviderInterfaceVersion {
-        self.socks5.provider_interface_version
-    }
-
-    pub fn get_socks5_protocol_version(&self) -> Socks5ProtocolVersion {
-        self.socks5.socks5_protocol_version
-    }
-
-    pub fn get_send_anonymously(&self) -> bool {
-        self.socks5.send_anonymously
-    }
-
-    pub fn get_listening_port(&self) -> u16 {
-        self.socks5.listening_port
-    }
-
-    pub fn get_connection_start_surbs(&self) -> u32 {
-        self.socks5_debug.connection_start_surbs
-    }
-
-    pub fn get_per_request_surbs(&self) -> u32 {
-        self.socks5_debug.per_request_surbs
-    }
-
     // poor man's 'builder' method
     pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
     where
         F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
     {
         self.base = f(self.base, val);
+        self
+    }
+
+    #[must_use]
+    pub fn with_port(mut self, port: u16) -> Self {
+        self.socks5.with_port(port);
+        self
+    }
+
+    pub fn with_anonymous_replies(mut self, anonymous_replies: bool) -> Self {
+        self.socks5.with_anonymous_replies(anonymous_replies);
         self
     }
 
@@ -203,19 +162,19 @@ impl Config {
 #[serde(deny_unknown_fields)]
 pub struct Socks5 {
     /// The port on which the client will be listening for incoming requests
-    pub listening_port: u16,
+    listening_port: u16,
 
     /// The mix address of the provider to which all requests are going to be sent.
-    pub provider_mix_address: String,
+    provider_mix_address: String,
 
     /// The version of the 'service provider' this client is going to use in its communication with the
     /// specified socks5 provider.
     // if in doubt, use the legacy version as initially nobody will be using the updated binaries
     #[serde(default = "ProviderInterfaceVersion::new_legacy")]
-    pub provider_interface_version: ProviderInterfaceVersion,
+    provider_interface_version: ProviderInterfaceVersion,
 
     #[serde(default = "Socks5ProtocolVersion::new_legacy")]
-    pub socks5_protocol_version: Socks5ProtocolVersion,
+    socks5_protocol_version: Socks5ProtocolVersion,
 
     /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
     /// While this is going to hide its actual address information, it will make the actual communication
@@ -223,7 +182,10 @@ pub struct Socks5 {
     ///
     /// Note that some service providers might not support this.
     #[serde(default)]
-    pub send_anonymously: bool,
+    send_anonymously: bool,
+
+    #[serde(default)]
+    socks5_debug: Socks5Debug,
 }
 
 impl Socks5 {
@@ -234,7 +196,57 @@ impl Socks5 {
             provider_interface_version: ProviderInterfaceVersion::Legacy,
             socks5_protocol_version: Socks5ProtocolVersion::Legacy,
             send_anonymously: false,
+            socks5_debug: Default::default(),
         }
+    }
+
+    pub fn with_port(&mut self, port: u16) {
+        self.listening_port = port;
+    }
+
+    pub fn with_provider_mix_address(&mut self, address: String) {
+        self.provider_mix_address = address;
+    }
+
+    pub fn with_provider_interface_version(&mut self, version: ProviderInterfaceVersion) {
+        self.provider_interface_version = version;
+    }
+
+    pub fn with_socks5_protocol_version(&mut self, version: Socks5ProtocolVersion) {
+        self.socks5_protocol_version = version;
+    }
+
+    pub fn with_anonymous_replies(&mut self, anonymous_replies: bool) {
+        self.send_anonymously = anonymous_replies;
+    }
+
+    pub fn get_provider_mix_address(&self) -> Recipient {
+        Recipient::try_from_base58_string(&self.provider_mix_address)
+            .expect("malformed provider address")
+    }
+
+    pub fn get_provider_interface_version(&self) -> ProviderInterfaceVersion {
+        self.provider_interface_version
+    }
+
+    pub fn get_socks5_protocol_version(&self) -> Socks5ProtocolVersion {
+        self.socks5_protocol_version
+    }
+
+    pub fn get_send_anonymously(&self) -> bool {
+        self.send_anonymously
+    }
+
+    pub fn get_listening_port(&self) -> u16 {
+        self.listening_port
+    }
+
+    pub fn get_connection_start_surbs(&self) -> u32 {
+        self.socks5_debug.connection_start_surbs
+    }
+
+    pub fn get_per_request_surbs(&self) -> u32 {
+        self.socks5_debug.per_request_surbs
     }
 }
 
@@ -246,6 +258,7 @@ impl Default for Socks5 {
             provider_interface_version: ProviderInterfaceVersion::Legacy,
             socks5_protocol_version: Socks5ProtocolVersion::Legacy,
             send_anonymously: false,
+            socks5_debug: Default::default(),
         }
     }
 }
@@ -254,10 +267,10 @@ impl Default for Socks5 {
 #[serde(deny_unknown_fields)]
 pub struct Socks5Debug {
     /// Number of reply SURBs attached to each `Request::Connect` message.
-    connection_start_surbs: u32,
+    pub connection_start_surbs: u32,
 
     /// Number of reply SURBs attached to each `Request::Send` message.
-    per_request_surbs: u32,
+    pub per_request_surbs: u32,
 }
 
 impl Default for Socks5Debug {

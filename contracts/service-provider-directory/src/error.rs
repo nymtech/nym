@@ -1,4 +1,5 @@
 use cosmwasm_std::{Addr, StdError};
+use cw_controllers::AdminError;
 use thiserror::Error;
 
 use crate::types::ServiceId;
@@ -7,6 +8,9 @@ use crate::types::ServiceId;
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
+
+    #[error("{0}")]
+    AdminError(#[from] AdminError),
 
     #[error("service not found: {service_id}")]
     NotFound { service_id: ServiceId },

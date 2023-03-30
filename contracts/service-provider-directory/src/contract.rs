@@ -45,6 +45,9 @@ pub fn execute(
             owner,
         } => execute::announce(deps, env, info, client_address, service_type, owner),
         ExecuteMsg::Delete { service_id: sp_id } => execute::delete(deps, info, sp_id),
+        ExecuteMsg::UpdateDepositRequired { deposit_required } => {
+            execute::update_deposit_required(deps, info, deposit_required)
+        }
     }
 }
 

@@ -1,15 +1,12 @@
 use cosmwasm_std::{Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
 
 use crate::{
-    error::ContractError,
+    error::{ContractError, Result},
     state,
     types::{NymAddress, Service, ServiceId, ServiceType},
 };
 
-fn ensure_correct_deposit(
-    will_deposit: Uint128,
-    deposit_required: Uint128,
-) -> Result<(), ContractError> {
+fn ensure_correct_deposit(will_deposit: Uint128, deposit_required: Uint128) -> Result<()> {
     match will_deposit.cmp(&deposit_required) {
         std::cmp::Ordering::Less => Err(ContractError::InsufficientDeposit {
             funds: will_deposit,
@@ -31,7 +28,7 @@ pub fn announce(
     nym_address: NymAddress,
     service_type: ServiceType,
     owner: Addr,
-) -> Result<Response, ContractError> {
+) -> Result<Response> {
     let deposit_required = state::deposit_required(deps.storage)?;
     let denom = deposit_required.denom.clone();
     let will_deposit = cw_utils::must_pay(&info, &denom)
@@ -54,11 +51,7 @@ pub fn announce(
 }
 
 /// Delete an exsisting service.
-pub fn delete(
-    deps: DepsMut,
-    info: MessageInfo,
-    service_id: ServiceId,
-) -> Result<Response, ContractError> {
+pub fn delete(deps: DepsMut, info: MessageInfo, service_id: ServiceId) -> Result<Response> {
     if !state::services().has(deps.storage, service_id) {
         return Err(ContractError::NotFound { service_id });
     }
@@ -78,10 +71,26 @@ pub fn delete(
         amount: vec![service_to_delete.deposit],
     };
 
-    //state::remove_service(deps.storage, service_id);
     state::services().remove(deps.storage, service_id)?;
     Ok(Response::new()
         .add_message(return_deposit_msg)
         .add_attribute("action", "delete")
         .add_attribute("service_id", service_id.to_string()))
+}
+
+/// Update the deposit required to announce new services
+pub(crate) fn update_deposit_required(
+    deps: DepsMut,
+    info: MessageInfo,
+    deposit_required: Coin,
+) -> Result<Response> {
+    state::assert_admin(deps.as_ref(), &info.sender)?;
+
+    let mut config = state::load_config(deps.storage)?;
+    config.deposit_required = deposit_required.clone();
+    state::save_config(deps.storage, &config)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "update_deposit_required")
+        .add_attribute("deposit_required", deposit_required.to_string()))
 }

@@ -1,5 +1,4 @@
-use cosmwasm_std::{Addr, Coin, DepsMut, Storage};
-use cw_controllers::Admin;
+use cosmwasm_std::{Coin, Storage};
 use cw_storage_plus::Item;
 use serde::{Deserialize, Serialize};
 
@@ -7,13 +6,6 @@ use crate::error::Result;
 
 const CONFIG_KEY: &str = "config";
 const CONFIG: Item<Config> = Item::new(CONFIG_KEY);
-
-const ADMIN_KEY: &str = "admin";
-const ADMIN: Admin = Admin::new(ADMIN_KEY);
-
-pub(crate) fn set_admin(deps: DepsMut<'_>, admin: Addr) -> Result<()> {
-    Ok(ADMIN.set(deps, Some(admin))?)
-}
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub(crate) struct Config {

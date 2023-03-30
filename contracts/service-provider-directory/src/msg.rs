@@ -20,6 +20,9 @@ pub enum ExecuteMsg {
     Delete {
         service_id: ServiceId,
     },
+    UpdateDepositRequired {
+        deposit_required: Coin,
+    },
 }
 
 impl ExecuteMsg {
@@ -65,21 +68,6 @@ impl ServiceInfo {
         }
     }
 }
-
-//#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-//#[serde(rename_all = "snake_case")]
-//pub struct ServicesListResponse {
-//    pub services: Vec<ServiceInfo>,
-//}
-//impl ServicesListResponse {
-//    pub(crate) fn new(services: Vec<(ServiceId, Service)>) -> ServicesListResponse {
-//        let s = services
-//            .into_iter()
-//            .map(|(service_id, service)| ServiceInfo::new(service_id, service))
-//            .collect();
-//        ServicesListResponse { services: s }
-//    }
-//}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]

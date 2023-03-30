@@ -47,7 +47,7 @@ fn ensure_max_aliases_per_nym_address(deps: Deps, nym_address: NymAddress) -> Re
 }
 
 fn ensure_service_exists(deps: Deps, service_id: ServiceId) -> Result<()> {
-    if state::services().has(deps.storage, service_id) {
+    if state::services::has_service(deps.storage, service_id) {
         Ok(())
     } else {
         Err(ContractError::NotFound { service_id })
@@ -88,8 +88,7 @@ pub fn announce(
         block_height: env.block.height,
         deposit: Coin::new(will_deposit.u128(), denom),
     };
-    let service_id = state::next_service_id_counter(deps.storage)?;
-    state::services().save(deps.storage, service_id, &new_service)?;
+    let service_id = state::services::save(deps.storage, &new_service)?;
     Ok(Response::new()
         .add_attribute("action", "announce")
         .add_attribute("service_id", service_id.to_string())
@@ -99,7 +98,7 @@ pub fn announce(
 /// Delete an exsisting service.
 pub fn delete(deps: DepsMut, info: MessageInfo, service_id: ServiceId) -> Result<Response> {
     ensure_service_exists(deps.as_ref(), service_id)?;
-    let service_to_delete = state::services().load(deps.storage, service_id)?;
+    let service_to_delete = state::services::load_id(deps.storage, service_id)?;
     ensure_sender_authorized(info, &service_to_delete)?;
 
     // TODO: should this be reduced to take transaction costs into account? So that the contract
@@ -109,7 +108,7 @@ pub fn delete(deps: DepsMut, info: MessageInfo, service_id: ServiceId) -> Result
         amount: vec![service_to_delete.deposit],
     };
 
-    state::services().remove(deps.storage, service_id)?;
+    state::services::remove(deps.storage, service_id)?;
     Ok(Response::new()
         .add_message(return_deposit_msg)
         .add_attribute("action", "delete")

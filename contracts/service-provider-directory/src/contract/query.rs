@@ -1,21 +1,13 @@
-use cosmwasm_std::{Addr, Deps, Order, StdResult};
-use cw_storage_plus::Bound;
+use cosmwasm_std::{Addr, Deps};
 use nym_service_provider_directory_common::{
     msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo, ServicesListResponse},
     NymAddress, ServiceId,
 };
 
-use crate::{
-    constants::{
-        MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS, MAX_NUMBER_OF_PROVIDERS_PER_OWNER,
-        SERVICE_DEFAULT_RETRIEVAL_LIMIT, SERVICE_MAX_RETRIEVAL_LIMIT,
-    },
-    error::Result,
-    state,
-};
+use crate::{error::Result, state};
 
 pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<ServiceInfo> {
-    let service = state::services().load(deps.storage, service_id)?;
+    let service = state::services::load_id(deps.storage, service_id)?;
     Ok(ServiceInfo {
         service_id,
         service,
@@ -23,24 +15,12 @@ pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<ServiceInfo> {
 }
 
 pub fn query_owner(deps: Deps, owner: Addr) -> Result<ServicesListResponse> {
-    let services = state::services()
-        .idx
-        .owner
-        .prefix(owner)
-        .range(deps.storage, None, None, Order::Ascending)
-        .take(MAX_NUMBER_OF_PROVIDERS_PER_OWNER as usize)
-        .collect::<StdResult<Vec<_>>>()?;
+    let services = state::services::load_owner(deps.storage, owner)?;
     Ok(ServicesListResponse::new(services))
 }
 
 pub fn query_nym_address(deps: Deps, nym_address: NymAddress) -> Result<ServicesListResponse> {
-    let services = state::services()
-        .idx
-        .nym_address
-        .prefix(nym_address.to_string())
-        .range(deps.storage, None, None, Order::Ascending)
-        .take(MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS as usize)
-        .collect::<StdResult<Vec<_>>>()?;
+    let services = state::services::load_nym_address(deps.storage, nym_address)?;
     Ok(ServicesListResponse::new(services))
 }
 
@@ -49,22 +29,12 @@ pub fn query_all_paged(
     start_after: Option<ServiceId>,
     limit: Option<u32>,
 ) -> Result<PagedServicesListResponse> {
-    let limit = limit
-        .unwrap_or(SERVICE_DEFAULT_RETRIEVAL_LIMIT)
-        .min(SERVICE_MAX_RETRIEVAL_LIMIT) as usize;
-
-    let start = start_after.map(Bound::exclusive);
-
-    let services = state::services()
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .collect::<StdResult<Vec<_>>>()?;
-
-    let start_next_after = services.last().map(|service| service.0);
+    let (services, start_next_after, limit) =
+        state::services::load_all_paged(deps.storage, start_after, limit)?;
     Ok(PagedServicesListResponse::new(
         services,
-        limit,
         start_next_after,
+        limit,
     ))
 }
 

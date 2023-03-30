@@ -94,15 +94,15 @@ impl ServicesListResponse {
 #[serde(rename_all = "snake_case")]
 pub struct PagedServicesListResponse {
     pub services: Vec<ServiceInfo>,
-    pub per_page: usize,
     pub start_next_after: Option<ServiceId>,
+    pub per_page: usize,
 }
 
 impl PagedServicesListResponse {
     pub fn new(
         services: Vec<(ServiceId, Service)>,
-        per_page: usize,
         start_next_after: Option<ServiceId>,
+        per_page: usize,
     ) -> PagedServicesListResponse {
         let services = services
             .into_iter()
@@ -110,8 +110,8 @@ impl PagedServicesListResponse {
             .collect();
         PagedServicesListResponse {
             services,
-            per_page,
             start_next_after,
+            per_page,
         }
     }
 }

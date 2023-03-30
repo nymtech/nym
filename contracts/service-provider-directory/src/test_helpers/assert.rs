@@ -1,4 +1,4 @@
-use cosmwasm_std::{from_binary, testing::mock_env, Addr, Coin, Deps, StdError};
+use cosmwasm_std::{from_binary, testing::mock_env, Addr, Coin, Deps};
 use nym_service_provider_directory_common::{
     msg::{ConfigResponse, PagedServicesListResponse, QueryMsg, ServiceInfo},
     ServiceId,
@@ -55,5 +55,10 @@ pub fn assert_not_found(deps: Deps, expected_id: ServiceId) {
         },
     )
     .unwrap_err();
-    assert!(matches!(res, ContractError::Std(StdError::NotFound { .. })));
+    assert!(matches!(
+        res,
+        ContractError::NotFound {
+            service_id: _expected_id
+        }
+    ));
 }

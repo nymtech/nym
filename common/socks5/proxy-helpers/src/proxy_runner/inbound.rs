@@ -61,7 +61,6 @@ where
         None => (Default::default(), true),
     };
 
-    error!("{} bytes", read_data.len());
 
     debug!(
         target: &*format!("({connection_id}) socks5 inbound"),

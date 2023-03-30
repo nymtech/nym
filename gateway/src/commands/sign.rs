@@ -6,11 +6,12 @@ use crate::error::GatewayError;
 use crate::support::config::build_config;
 use crate::{
     commands::ensure_config_version_compatibility,
-    config::persistence::pathfinder::GatewayPathfinder,
+    config::persistence::pathfinder::GatewayPathfinder, OutputFormat,
 };
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
 use nym_crypto::asymmetric::identity;
+use nym_types::helpers::ConsoleSigningOutput;
 use std::error::Error;
 use validator_client::nyxd;
 
@@ -73,39 +74,50 @@ pub fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
 fn print_signed_address(
     private_key: &identity::PrivateKey,
     wallet_address: nyxd::AccountId,
+    output: OutputFormat,
 ) -> Result<(), GatewayError> {
     // perform extra validation to ensure we have correct prefix
     ensure_correct_bech32_prefix(&wallet_address)?;
 
-    let signature = private_key.sign_text(wallet_address.as_ref());
-    eprintln!("The base58-encoded signature on '{wallet_address}' is: {signature}");
-    Ok(())
+    print_signed_text(private_key, &wallet_address.to_string(), output)
 }
 
-fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
+fn print_signed_text(
+    private_key: &identity::PrivateKey,
+    text: &str,
+    output: OutputFormat,
+) -> Result<(), GatewayError> {
     eprintln!(
         "Signing the text {:?} using your mixnode's Ed25519 identity key...",
         text
     );
 
     let signature = private_key.sign_text(text);
+    let sign_output = ConsoleSigningOutput::new(text, signature);
 
-    eprintln!(
-        "The base58-encoded signature on '{}' is: {}",
-        text, signature
-    );
+    let msg = match output {
+        OutputFormat::Json => sign_output.to_json_string(),
+        OutputFormat::Text => sign_output.to_string(),
+    };
+    println!("{msg}");
+
+    Ok(())
 }
 
-fn print_signed_contract_msg(private_key: &identity::PrivateKey, raw_msg: &str) {
+fn print_signed_contract_msg(
+    private_key: &identity::PrivateKey,
+    raw_msg: &str,
+    output: OutputFormat,
+) {
     let trimmed = raw_msg.trim();
-    println!(">>> attempting to sign {trimmed}");
+    eprintln!(">>> attempting to sign {trimmed}");
 
     let Ok(decoded) = bs58::decode(trimmed).into_vec() else {
         println!("it seems you have incorrectly copied the message to sign. Make sure you didn't accidentally skip any characters");
         return;
     };
 
-    println!(">>> decoding the message...");
+    eprintln!(">>> decoding the message...");
 
     // we don't really care about what particular information is embedded inside of it,
     // we just want to know if user correctly copied the string, i.e. whether it's a valid bs58 encoded json
@@ -116,13 +128,18 @@ fn print_signed_contract_msg(private_key: &identity::PrivateKey, raw_msg: &str) 
 
     // if this is a valid json, it MUST be a valid string
     let decoded_string = String::from_utf8(decoded.clone()).unwrap();
-    println!(">>> message to sign: {decoded_string}");
-
     let signature = private_key.sign(&decoded).to_base58_string();
-    println!(">>> The base58-encoded signature is:\n{signature}");
+
+    let sign_output = ConsoleSigningOutput::new(decoded_string, signature);
+
+    let msg = match output {
+        OutputFormat::Json => sign_output.to_json_string(),
+        OutputFormat::Text => sign_output.to_string(),
+    };
+    println!("{msg}")
 }
 
-pub fn execute(args: Sign) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub fn execute(args: Sign, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
     let config = build_config(args.id.clone(), OverrideConfig::default())?;
     ensure_config_version_compatibility(&config)?;
 
@@ -131,10 +148,14 @@ pub fn execute(args: Sign) -> Result<(), Box<dyn Error + Send + Sync>> {
     let identity_keypair = load_identity_keys(&pathfinder);
 
     match signed_target {
-        SignedTarget::Text(text) => print_signed_text(identity_keypair.private_key(), &text),
-        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), addr)?,
+        SignedTarget::Text(text) => {
+            print_signed_text(identity_keypair.private_key(), &text, output)?
+        }
+        SignedTarget::Address(addr) => {
+            print_signed_address(identity_keypair.private_key(), addr, output)?
+        }
         SignedTarget::ContractMsg(raw_msg) => {
-            print_signed_contract_msg(identity_keypair.private_key(), &raw_msg)
+            print_signed_contract_msg(identity_keypair.private_key(), &raw_msg, output)
         }
     }
 

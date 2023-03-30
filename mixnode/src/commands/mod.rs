@@ -69,7 +69,7 @@ pub(crate) async fn execute(args: Cli) {
         Commands::Describe(m) => describe::execute(m),
         Commands::Init(m) => init::execute(&m, output),
         Commands::Run(m) => run::execute(&m, output).await,
-        Commands::Sign(m) => sign::execute(&m),
+        Commands::Sign(m) => sign::execute(&m, output),
         Commands::Upgrade(m) => upgrade::execute(&m),
         Commands::NodeDetails(m) => node_details::execute(&m, output),
         Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),

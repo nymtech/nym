@@ -1,7 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::helpers::{mix_coin, mix_coins, vesting_owner, TestSetup, MIX_DENOM};
+use crate::support::helpers::{mix_coin, mix_coins, vesting_owner};
+use crate::support::setup::{TestSetup, MIX_DENOM};
 use cosmwasm_std::Addr;
 use cw_multi_test::Executor;
 use nym_contracts_common::Percent;
@@ -13,7 +14,7 @@ use vesting_contract::errors::ContractError as VestingContractError;
 
 #[test]
 fn decrease_mixnode_pledge_from_vesting_account_with_minimum_pledge() {
-    let mut test = TestSetup::new();
+    let mut test = TestSetup::new_simple();
     let vesting_account = "vesting-account";
 
     // 0. get the minimum pledge amount
@@ -118,7 +119,7 @@ fn decrease_mixnode_pledge_from_vesting_account_with_minimum_pledge() {
 
 #[test]
 fn decrease_mixnode_pledge_from_vesting_account_with_sufficient_pledge() {
-    let mut test = TestSetup::new();
+    let mut test = TestSetup::new_simple();
     let vesting_account = "vesting-account";
 
     // 1. create vesting account

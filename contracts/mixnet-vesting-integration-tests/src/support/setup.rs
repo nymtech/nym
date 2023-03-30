@@ -1,23 +1,24 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{coin, coins, Addr, Coin, Decimal, Empty, Timestamp};
-use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper, Executor};
+use crate::support::fixtures;
+use crate::support::helpers::{
+    mixnet_contract_wrapper, rewarding_validator, test_rng, vesting_contract_wrapper,
+};
+use cosmwasm_std::{coins, Addr, Coin, Timestamp};
+use cw_multi_test::{App, AppBuilder, Executor};
 use nym_contracts_common::signing::{ContractMessageContent, MessageSignature, Nonce};
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{
-    CurrentIntervalResponse, InitialRewardingParams, LayerAssignment, MixNodeCostParams,
-    MixnodeBondingPayload, PagedRewardedSetResponse, Percent, RewardingParams,
-    SignableMixNodeBondingMsg,
+    CurrentIntervalResponse, LayerAssignment, MixNodeCostParams, MixnodeBondingPayload,
+    PagedRewardedSetResponse, RewardingParams, SignableMixNodeBondingMsg,
 };
 use nym_mixnet_contract_common::{
     ExecuteMsg as MixnetExecuteMsg, MixNode, QueryMsg as MixnetQueryMsg,
 };
-use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha20Rng;
 use std::collections::HashMap;
-use std::time::Duration;
 
 // our global accounts that should always get some coins at the start
 pub const MIXNET_OWNER: &str = "mixnet-owner";
@@ -31,29 +32,41 @@ pub struct ContractInstantiationResult {
 }
 
 #[allow(unused)]
-pub fn mixnet_owner() -> Addr {
-    Addr::unchecked(MIXNET_OWNER)
+pub struct TestSetupBuilder {
+    mixnet_init_msg: nym_mixnet_contract_common::InstantiateMsg,
+    initial_balances: HashMap<Addr, Vec<Coin>>,
 }
 
-pub fn vesting_owner() -> Addr {
-    Addr::unchecked(VESTING_OWNER)
-}
+#[allow(unused)]
+impl TestSetupBuilder {
+    pub fn new() -> Self {
+        TestSetupBuilder {
+            mixnet_init_msg: fixtures::default_mixnet_init_msg(),
+            initial_balances: Default::default(),
+        }
+    }
 
-pub fn rewarding_validator() -> Addr {
-    Addr::unchecked(REWARDING_VALIDATOR)
-}
+    pub fn with_mixnet_init_msg(
+        mut self,
+        mixnet_init_msg: nym_mixnet_contract_common::InstantiateMsg,
+    ) -> Self {
+        self.mixnet_init_msg = mixnet_init_msg;
+        self
+    }
 
-pub fn mix_coins(amount: u128) -> Vec<Coin> {
-    coins(amount.into(), MIX_DENOM)
-}
+    pub fn with_initial_balances(mut self, initial_balances: HashMap<Addr, Vec<Coin>>) -> Self {
+        self.initial_balances = initial_balances;
+        self
+    }
 
-pub fn mix_coin(amount: u128) -> Coin {
-    coin(amount, MIX_DENOM)
-}
+    pub fn with_initial_balance(mut self, addr: impl Into<String>, balance: Vec<Coin>) -> Self {
+        self.initial_balances.insert(Addr::unchecked(addr), balance);
+        self
+    }
 
-pub fn test_rng() -> ChaCha20Rng {
-    let dummy_seed = [42u8; 32];
-    ChaCha20Rng::from_seed(dummy_seed)
+    pub fn build(self) -> TestSetup {
+        TestSetup::new(self.initial_balances, self.mixnet_init_msg)
+    }
 }
 
 pub struct TestSetup {
@@ -65,12 +78,15 @@ pub struct TestSetup {
 }
 
 impl TestSetup {
-    pub fn new() -> Self {
-        TestSetup::new_with_balances(Default::default())
+    pub fn new_simple() -> Self {
+        TestSetup::new(Default::default(), fixtures::default_mixnet_init_msg())
     }
 
-    pub fn new_with_balances(balances: HashMap<Addr, Vec<Coin>>) -> Self {
-        let (app, contracts) = instantiate_contracts(balances);
+    pub fn new(
+        initial_balances: HashMap<Addr, Vec<Coin>>,
+        custom_mixnet_init: nym_mixnet_contract_common::InstantiateMsg,
+    ) -> Self {
+        let (app, contracts) = instantiate_contracts(initial_balances, Some(custom_mixnet_init));
         TestSetup {
             app,
             rng: test_rng(),
@@ -236,6 +252,7 @@ impl TestSetup {
 
 pub fn instantiate_contracts(
     mut initial_funds: HashMap<Addr, Vec<Coin>>,
+    custom_mixnet_init: Option<nym_mixnet_contract_common::InstantiateMsg>,
 ) -> (App, ContractInstantiationResult) {
     // add our global addresses to the map
     initial_funds.insert(
@@ -269,24 +286,7 @@ pub fn instantiate_contracts(
         .instantiate_contract(
             mixnet_code_id,
             Addr::unchecked(MIXNET_OWNER),
-            &nym_mixnet_contract_common::InstantiateMsg {
-                rewarding_validator_address: REWARDING_VALIDATOR.to_string(),
-                vesting_contract_address: "placeholder".to_string(),
-                rewarding_denom: MIX_DENOM.to_string(),
-                epochs_in_interval: 720,
-                epoch_duration: Duration::from_secs(60 * 60),
-                initial_rewarding_params: InitialRewardingParams {
-                    initial_reward_pool: Decimal::from_atomics(250_000_000_000_000u128, 0).unwrap(),
-                    initial_staking_supply: Decimal::from_atomics(223_000_000_000_000u128, 0)
-                        .unwrap(),
-                    staking_supply_scale_factor: Percent::hundred(),
-                    sybil_resistance: Percent::from_percentage_value(30).unwrap(),
-                    active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
-                    interval_pool_emission: Percent::from_percentage_value(2).unwrap(),
-                    rewarded_set_size: 240,
-                    active_set_size: 100,
-                },
-            },
+            &custom_mixnet_init.unwrap_or(fixtures::default_mixnet_init_msg()),
             &[],
             "mixnet-contract",
             Some(MIXNET_OWNER.to_string()),
@@ -324,27 +324,5 @@ pub fn instantiate_contracts(
             mixnet_contract_address,
             vesting_contract_address,
         },
-    )
-}
-
-fn mixnet_contract_wrapper() -> Box<dyn Contract<Empty>> {
-    Box::new(
-        ContractWrapper::new(
-            mixnet_contract::contract::execute,
-            mixnet_contract::contract::instantiate,
-            mixnet_contract::contract::query,
-        )
-        .with_migrate(mixnet_contract::contract::migrate),
-    )
-}
-
-fn vesting_contract_wrapper() -> Box<dyn Contract<Empty>> {
-    Box::new(
-        ContractWrapper::new(
-            vesting_contract::contract::execute,
-            vesting_contract::contract::instantiate,
-            vesting_contract::contract::query,
-        )
-        .with_migrate(vesting_contract::contract::migrate),
     )
 }

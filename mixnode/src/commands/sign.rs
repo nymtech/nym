@@ -71,7 +71,7 @@ fn print_signed_address(
     // perform extra validation to ensure we have correct prefix
     validate_bech32_address_or_exit(wallet_address.as_ref());
 
-    print_signed_text(private_key, &wallet_address.to_string(), output)
+    print_signed_text(private_key, wallet_address.as_ref(), output)
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str, output: OutputFormat) {

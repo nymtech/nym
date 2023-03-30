@@ -79,7 +79,7 @@ fn print_signed_address(
     // perform extra validation to ensure we have correct prefix
     ensure_correct_bech32_prefix(&wallet_address)?;
 
-    print_signed_text(private_key, &wallet_address.to_string(), output)
+    print_signed_text(private_key, wallet_address.as_ref(), output)
 }
 
 fn print_signed_text(

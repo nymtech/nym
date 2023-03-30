@@ -113,7 +113,7 @@ mod tests {
     use crate::{
         error::ContractError,
         test_helpers::{
-            fixture::{service_fixture, service_fixture_by_name},
+            fixture::{service_fixture, service_fixture_with_address},
             helpers::instantiate_test_contract,
         },
     };
@@ -166,15 +166,15 @@ mod tests {
     #[test]
     fn load_by_owner_works() {
         let mut deps = instantiate_test_contract();
-        save(deps.as_mut().storage, &service_fixture_by_name("a")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("b")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("c")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
         assert_eq!(
             load_owner(&deps.storage, Addr::unchecked("steve")).unwrap(),
             vec![
-                (1, service_fixture_by_name("a")),
-                (2, service_fixture_by_name("b")),
-                (3, service_fixture_by_name("c")),
+                (1, service_fixture_with_address("a")),
+                (2, service_fixture_with_address("b")),
+                (3, service_fixture_with_address("c")),
             ]
         );
     }
@@ -182,9 +182,9 @@ mod tests {
     #[test]
     fn load_by_wrong_owner_returns_empty() {
         let mut deps = instantiate_test_contract();
-        save(deps.as_mut().storage, &service_fixture_by_name("a")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("b")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("c")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
         assert_eq!(
             load_owner(&deps.storage, Addr::unchecked("timmy")).unwrap(),
             vec![]
@@ -194,21 +194,21 @@ mod tests {
     #[test]
     fn load_by_nym_address_works() {
         let mut deps = instantiate_test_contract();
-        save(deps.as_mut().storage, &service_fixture_by_name("a")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("b")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("c")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
         assert_eq!(
             load_nym_address(&deps.storage, NymAddress::new("b")).unwrap(),
-            vec![(2, service_fixture_by_name("b"))]
+            vec![(2, service_fixture_with_address("b"))]
         );
     }
 
     #[test]
     fn load_by_wrong_nym_address_returns_empty() {
         let mut deps = instantiate_test_contract();
-        save(deps.as_mut().storage, &service_fixture_by_name("a")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("b")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("c")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
         assert_eq!(
             load_nym_address(&deps.storage, NymAddress::new("d")).unwrap(),
             vec![]
@@ -218,14 +218,14 @@ mod tests {
     #[test]
     fn load_all_paged_with_no_limit_works() {
         let mut deps = instantiate_test_contract();
-        save(deps.as_mut().storage, &service_fixture_by_name("a")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("b")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
         assert_eq!(
             load_all_paged(&deps.storage, None, None).unwrap(),
             (
                 vec![
-                    (1, service_fixture_by_name("a")),
-                    (2, service_fixture_by_name("b"))
+                    (1, service_fixture_with_address("a")),
+                    (2, service_fixture_with_address("b"))
                 ],
                 Some(2),
                 100,
@@ -236,17 +236,17 @@ mod tests {
     #[test]
     fn load_all_paged_with_limit_works() {
         let mut deps = instantiate_test_contract();
-        save(deps.as_mut().storage, &service_fixture_by_name("a")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("b")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("c")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("d")).unwrap();
-        save(deps.as_mut().storage, &service_fixture_by_name("e")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("d")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address("e")).unwrap();
         assert_eq!(
             load_all_paged(&deps.storage, None, Some(2)).unwrap(),
             (
                 vec![
-                    (1, service_fixture_by_name("a")),
-                    (2, service_fixture_by_name("b"))
+                    (1, service_fixture_with_address("a")),
+                    (2, service_fixture_with_address("b"))
                 ],
                 Some(2),
                 2,
@@ -256,8 +256,8 @@ mod tests {
             load_all_paged(&deps.storage, Some(2), Some(2)).unwrap(),
             (
                 vec![
-                    (3, service_fixture_by_name("c")),
-                    (4, service_fixture_by_name("d"))
+                    (3, service_fixture_with_address("c")),
+                    (4, service_fixture_with_address("d"))
                 ],
                 Some(4),
                 2,
@@ -265,7 +265,7 @@ mod tests {
         );
         assert_eq!(
             load_all_paged(&deps.storage, Some(4), Some(2)).unwrap(),
-            (vec![(5, service_fixture_by_name("e")),], Some(5), 2,)
+            (vec![(5, service_fixture_with_address("e")),], Some(5), 2,)
         );
     }
 

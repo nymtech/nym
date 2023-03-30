@@ -7,11 +7,11 @@ use crate::{
     types::ServiceId,
 };
 
-pub fn assert_config(deps: Deps, admin: Addr, deposit_required: Coin) {
+pub fn assert_config(deps: Deps, admin: &Addr, deposit_required: Coin) {
+    crate::state::assert_admin(deps, admin).unwrap();
     let res = crate::contract::query(deps, mock_env(), QueryMsg::Config {}).unwrap();
     let config: ConfigResponse = from_binary(&res).unwrap();
     assert_eq!(config, ConfigResponse { deposit_required });
-    // WIP(JON) also assert owner
 }
 
 pub fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {

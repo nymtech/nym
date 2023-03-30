@@ -88,11 +88,11 @@ mod tests {
     fn instantiate_contract() {
         let mut deps = mock_dependencies();
 
-        let admin = Addr::unchecked("bar");
         let msg = InstantiateMsg {
             deposit_required: Coin::new(100u128, DENOM),
         };
         let info = mock_info("creator", &[]);
+        let admin = info.sender.clone();
 
         // Instantiate contract
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -100,7 +100,7 @@ mod tests {
 
         // Check that it worked by querying the config, and checking that the list of services is
         // empty
-        assert_config(deps.as_ref(), admin, Coin::new(100u128, DENOM));
+        assert_config(deps.as_ref(), &admin, Coin::new(100u128, DENOM));
         assert_empty(deps.as_ref());
     }
 
@@ -108,11 +108,11 @@ mod tests {
     fn announce_fails_incorrect_deposit() {
         let mut deps = mock_dependencies();
 
-        let admin = Addr::unchecked("admin");
         let msg = InstantiateMsg {
             deposit_required: nyms(100),
         };
         let info = mock_info("creator", &[]);
+        let admin = info.sender.clone();
 
         // Instantiate contract
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -149,7 +149,7 @@ mod tests {
             }
         );
 
-        assert_config(deps.as_ref(), admin, Coin::new(100, DENOM));
+        assert_config(deps.as_ref(), &admin, Coin::new(100, DENOM));
         assert_empty(deps.as_ref());
     }
 

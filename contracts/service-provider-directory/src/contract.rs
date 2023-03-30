@@ -42,8 +42,7 @@ pub fn execute(
         ExecuteMsg::Announce {
             nym_address: client_address,
             service_type,
-            owner,
-        } => execute::announce(deps, env, info, client_address, service_type, owner),
+        } => execute::announce(deps, env, info, client_address, service_type),
         ExecuteMsg::Delete { service_id: sp_id } => execute::delete(deps, info, sp_id),
         ExecuteMsg::UpdateDepositRequired { deposit_required } => {
             execute::update_deposit_required(deps, info, deposit_required)
@@ -169,7 +168,7 @@ mod tests {
 
         // Announce
         let msg = service_fixture().into_announce_msg();
-        let info = mock_info("user", &[nyms(100)]);
+        let info = mock_info("steve", &[nyms(100)]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Check that the service has had service id assigned to it
@@ -194,7 +193,6 @@ mod tests {
     fn delete() {
         let mut deps = mock_dependencies();
 
-        let admin = Addr::unchecked("admin");
         let msg = InstantiateMsg {
             deposit_required: Coin::new(100, "unym"),
         };
@@ -205,11 +203,10 @@ mod tests {
         assert_eq!(res.messages.len(), 0);
 
         // Announce
-        // Note: Timmy announces on Steve's behalf (who is the owner of the service).
         let msg = service_fixture().into_announce_msg();
-        let info = mock_info("timmy", &[nyms(100)]);
-        assert!(info.sender != service_fixture().owner);
-        execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let info_steve = mock_info("steve", &[nyms(100)]);
+        assert_eq!(info_steve.sender, service_fixture().owner);
+        execute(deps.as_mut(), mock_env(), info_steve, msg).unwrap();
 
         // The expected announced service
         let expected_id = 1;
@@ -223,9 +220,9 @@ mod tests {
         let msg = ExecuteMsg::Delete {
             service_id: expected_id,
         };
-        let info = mock_info("timmy", &[]);
+        let info_timmy = mock_info("timmy", &[]);
         assert_eq!(
-            execute(deps.as_mut(), mock_env(), info, msg).unwrap_err(),
+            execute(deps.as_mut(), mock_env(), info_timmy, msg).unwrap_err(),
             ContractError::Unauthorized {
                 sender: Addr::unchecked("timmy")
             }

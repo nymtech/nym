@@ -31,7 +31,6 @@ mod tests {
     #[test]
     fn deleted_service_id_is_not_reused() {
         let mut deps = mock_dependencies();
-        let admin = Addr::unchecked("bar");
         let msg = InstantiateMsg {
             deposit_required: Coin::new(100, "unym"),
         };
@@ -43,7 +42,7 @@ mod tests {
 
         // Announce
         let msg = service_fixture().into_announce_msg();
-        let info = mock_info("anyone", &coins(100, "unym"));
+        let info = mock_info(service_fixture().owner.as_str(), &coins(100, "unym"));
 
         let res = crate::execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
         let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
@@ -72,7 +71,7 @@ mod tests {
         // Create a third entry. The index should not reuse the previous entry that we just
         // deleted.
         let msg = service_fixture().into_announce_msg();
-        let info = mock_info("anyone", &coins(100, "unym"));
+        let info = mock_info(service_fixture().owner.as_str(), &coins(100, "unym"));
         let res = crate::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
         assert_eq!(sp_id, 3);

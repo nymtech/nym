@@ -15,7 +15,6 @@ pub enum ExecuteMsg {
     Announce {
         nym_address: NymAddress,
         service_type: ServiceType,
-        owner: Addr,
     },
     Delete {
         service_id: ServiceId,

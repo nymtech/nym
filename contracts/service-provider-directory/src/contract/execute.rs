@@ -27,7 +27,6 @@ pub fn announce(
     info: MessageInfo,
     nym_address: NymAddress,
     service_type: ServiceType,
-    owner: Addr,
 ) -> Result<Response> {
     let deposit_required = state::deposit_required(deps.storage)?;
     let denom = deposit_required.denom.clone();
@@ -38,7 +37,7 @@ pub fn announce(
     let new_service = Service {
         nym_address,
         service_type,
-        owner,
+        owner: info.sender,
         block_height: env.block.height,
         deposit: Coin::new(will_deposit.u128(), denom),
     };

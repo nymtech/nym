@@ -31,7 +31,6 @@ impl Service {
         ExecuteMsg::Announce {
             nym_address: self.nym_address,
             service_type: self.service_type,
-            owner: self.owner,
         }
     }
 }

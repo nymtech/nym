@@ -94,12 +94,11 @@ impl TestSetup {
         owner: Addr,
     ) -> Result<AppResponse> {
         let resp = self.app.execute_contract(
-            owner.clone(),
+            owner,
             self.addr.clone(),
             &ExecuteMsg::Announce {
                 nym_address: address,
                 service_type: ServiceType::NetworkRequester,
-                owner,
             },
             &[Coin {
                 denom: DENOM.to_string(),

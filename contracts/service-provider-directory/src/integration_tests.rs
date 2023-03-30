@@ -20,7 +20,7 @@ fn query_config() {
     assert_eq!(
         TestSetup::new().query_config(),
         ConfigResponse {
-            admin: Addr::unchecked("admin")
+            deposit_required: nyms(100),
         }
     );
 }

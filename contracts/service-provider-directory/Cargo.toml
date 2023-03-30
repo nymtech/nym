@@ -8,6 +8,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 cosmwasm-std = { workspace = true }
+cw-controllers = { workspace = true }
 cw-storage-plus = { workspace = true }
 cw-utils = { workspace = true }
 cw2 = { workspace = true }

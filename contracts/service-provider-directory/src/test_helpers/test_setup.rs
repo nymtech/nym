@@ -49,9 +49,8 @@ impl TestSetup {
     fn instantiate(app: &mut App, code_id: u64) -> Addr {
         app.instantiate_contract(
             code_id,
-            Addr::unchecked("owner"),
+            Addr::unchecked("admin"),
             &InstantiateMsg {
-                admin: Addr::unchecked("admin"),
                 deposit_required: Coin::new(100, DENOM),
             },
             &[],

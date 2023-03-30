@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct InstantiateMsg {
-    pub admin: Addr,
     pub deposit_required: Coin,
 }
 
@@ -111,13 +110,13 @@ impl PagedServicesListResponse {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct ConfigResponse {
-    pub admin: Addr,
+    pub deposit_required: Coin,
 }
 
 impl From<Config> for ConfigResponse {
     fn from(config: Config) -> Self {
         ConfigResponse {
-            admin: config.admin,
+            deposit_required: config.deposit_required,
         }
     }
 }

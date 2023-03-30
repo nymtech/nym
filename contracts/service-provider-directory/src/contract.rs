@@ -14,13 +14,14 @@ const CONTRACT_NAME: &str = "crate:nym-service-provider-directory";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn instantiate(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     _env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response> {
+    state::set_admin(deps.branch(), info.sender.clone())?;
+
     let config = Config {
-        admin: msg.admin.clone(),
         deposit_required: msg.deposit_required.clone(),
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -28,8 +29,7 @@ pub fn instantiate(
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
-        .add_attribute("owner", info.sender)
-        .add_attribute("admin", msg.admin))
+        .add_attribute("admin", info.sender))
 }
 
 pub fn execute(
@@ -88,7 +88,6 @@ mod tests {
 
         let admin = Addr::unchecked("bar");
         let msg = InstantiateMsg {
-            admin: admin.clone(),
             deposit_required: Coin::new(100u128, DENOM),
         };
         let info = mock_info("creator", &[]);
@@ -99,7 +98,7 @@ mod tests {
 
         // Check that it worked by querying the config, and checking that the list of services is
         // empty
-        assert_config(deps.as_ref(), admin);
+        assert_config(deps.as_ref(), admin, Coin::new(100u128, DENOM));
         assert_empty(deps.as_ref());
     }
 
@@ -109,7 +108,6 @@ mod tests {
 
         let admin = Addr::unchecked("admin");
         let msg = InstantiateMsg {
-            admin: admin.clone(),
             deposit_required: nyms(100),
         };
         let info = mock_info("creator", &[]);
@@ -149,7 +147,7 @@ mod tests {
             }
         );
 
-        assert_config(deps.as_ref(), admin);
+        assert_config(deps.as_ref(), admin, Coin::new(100, DENOM));
         assert_empty(deps.as_ref());
     }
 
@@ -158,7 +156,6 @@ mod tests {
         let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
-            admin: Addr::unchecked("admin"),
             deposit_required: nyms(100),
         };
         let info = mock_info("creator", &[]);
@@ -196,7 +193,6 @@ mod tests {
 
         let admin = Addr::unchecked("admin");
         let msg = InstantiateMsg {
-            admin: admin.clone(),
             deposit_required: Coin::new(100, "unym"),
         };
         let info = mock_info("creator", &[]);

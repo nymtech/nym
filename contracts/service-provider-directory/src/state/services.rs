@@ -54,7 +54,6 @@ mod tests {
         let mut deps = mock_dependencies();
         let admin = Addr::unchecked("bar");
         let msg = InstantiateMsg {
-            admin: admin.clone(),
             deposit_required: Coin::new(100, "unym"),
         };
         let info = mock_info("creator", &[]);

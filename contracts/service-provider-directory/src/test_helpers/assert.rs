@@ -1,4 +1,4 @@
-use cosmwasm_std::{from_binary, testing::mock_env, Addr, Deps, StdError};
+use cosmwasm_std::{from_binary, testing::mock_env, Addr, Coin, Deps, StdError};
 
 use crate::{
     constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
@@ -7,10 +7,11 @@ use crate::{
     types::ServiceId,
 };
 
-pub fn assert_config(deps: Deps, admin: Addr) {
+pub fn assert_config(deps: Deps, admin: Addr, deposit_required: Coin) {
     let res = crate::contract::query(deps, mock_env(), QueryMsg::Config {}).unwrap();
     let config: ConfigResponse = from_binary(&res).unwrap();
-    assert_eq!(config, ConfigResponse { admin });
+    assert_eq!(config, ConfigResponse { deposit_required });
+    // WIP(JON) also assert owner
 }
 
 pub fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {

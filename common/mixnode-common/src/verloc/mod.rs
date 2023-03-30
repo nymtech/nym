@@ -271,7 +271,7 @@ impl VerlocMeasurer {
                         let Some(result) = measurement_result  else {
                             // if the stream has finished, it means we got everything we could have gotten
                             break
-                        }
+                        };
 
                         // if we receive JoinError it means the task failed to get executed, so either there's a bigger issue with tokio
                         // or there was a panic inside the task itself. In either case, we should just terminate ourselves.

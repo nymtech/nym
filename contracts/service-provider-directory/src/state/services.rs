@@ -41,11 +41,11 @@ mod tests {
         testing::{mock_dependencies, mock_env, mock_info},
         Coin, Order,
     };
+    use nym_service_provider_directory_common::ServiceId;
 
     use crate::{
-        msg::InstantiateMsg,
+        msg::{ExecuteMsg, InstantiateMsg},
         test_helpers::{fixture::service_fixture, helpers::get_attribute},
-        types::ServiceId,
     };
 
     #[test]
@@ -61,7 +61,7 @@ mod tests {
         assert_eq!(res.messages.len(), 0);
 
         // Announce
-        let msg = service_fixture().into_announce_msg();
+        let msg: ExecuteMsg = service_fixture().into();
         let info = mock_info("anyone", &coins(100, "unym"));
 
         let res = crate::execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();

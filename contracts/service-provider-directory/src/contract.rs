@@ -74,13 +74,13 @@ mod tests {
             fixture::service_fixture,
             helpers::{get_attribute, nyms},
         },
-        types::ServiceId,
     };
 
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Coin,
     };
+    use nym_service_provider_directory_common::ServiceId;
 
     const DENOM: &str = "unym";
 
@@ -119,7 +119,7 @@ mod tests {
         assert_eq!(res.messages.len(), 0);
 
         // Announce
-        let msg = service_fixture().into_announce_msg();
+        let msg: ExecuteMsg = service_fixture().into();
 
         assert_eq!(
             execute(
@@ -167,7 +167,7 @@ mod tests {
         assert_eq!(res.messages.len(), 0);
 
         // Announce
-        let msg = service_fixture().into_announce_msg();
+        let msg: ExecuteMsg = service_fixture().into();
         let info = mock_info("steve", &[nyms(100)]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
@@ -203,7 +203,7 @@ mod tests {
         assert_eq!(res.messages.len(), 0);
 
         // Announce
-        let msg = service_fixture().into_announce_msg();
+        let msg: ExecuteMsg = service_fixture().into();
         let info_steve = mock_info("steve", &[nyms(100)]);
         assert_eq!(info_steve.sender, service_fixture().owner);
         execute(deps.as_mut(), mock_env(), info_steve, msg).unwrap();

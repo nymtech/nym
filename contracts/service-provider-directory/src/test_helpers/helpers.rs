@@ -27,11 +27,11 @@ pub fn get_app_attribute(response: &AppResponse, key: &str) -> String {
         .clone()
 }
 
-impl Service {
-    pub fn into_announce_msg(self) -> ExecuteMsg {
+impl From<Service> for ExecuteMsg {
+    fn from(service: Service) -> Self {
         ExecuteMsg::Announce {
-            nym_address: self.nym_address,
-            service_type: self.service_type,
+            nym_address: service.nym_address,
+            service_type: service.service_type,
         }
     }
 }

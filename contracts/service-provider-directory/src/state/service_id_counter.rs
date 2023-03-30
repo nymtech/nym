@@ -22,11 +22,11 @@ mod tests {
         testing::{mock_dependencies, mock_env, mock_info},
         Coin,
     };
+    use nym_service_provider_directory_common::ServiceId;
 
     use crate::{
         msg::{ExecuteMsg, InstantiateMsg, ServiceInfo},
         test_helpers::{assert::assert_services, fixture::service_fixture, helpers::get_attribute},
-        types::ServiceId,
     };
 
     #[test]
@@ -42,7 +42,7 @@ mod tests {
         assert_eq!(res.messages.len(), 0);
 
         // Announce
-        let msg = service_fixture().into_announce_msg();
+        let msg: ExecuteMsg = service_fixture().into();
         let info = mock_info(service_fixture().owner.as_str(), &coins(100, "unym"));
 
         let res = crate::execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
@@ -71,7 +71,7 @@ mod tests {
 
         // Create a third entry. The index should not reuse the previous entry that we just
         // deleted.
-        let msg = service_fixture().into_announce_msg();
+        let msg: ExecuteMsg = service_fixture().into();
         let info = mock_info(service_fixture().owner.as_str(), &coins(100, "unym"));
         let res = crate::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();

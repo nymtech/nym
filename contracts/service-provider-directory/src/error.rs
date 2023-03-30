@@ -1,6 +1,6 @@
 use cosmwasm_std::{Addr, StdError};
 use cw_controllers::AdminError;
-use nym_service_provider_directory_common::ServiceId;
+use nym_service_provider_directory_common::{NymAddress, ServiceId};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -30,6 +30,15 @@ pub enum ContractError {
     TooLargeDeposit {
         funds: cosmwasm_std::Uint128,
         deposit_required: cosmwasm_std::Uint128,
+    },
+
+    #[error("reached the max number of providers ({max_providers}) for owner {owner}")]
+    ReachedMaxProvidersForAdmin { max_providers: u32, owner: Addr },
+
+    #[error("reached the max number of aliases ({max_aliases}) for nym address {0}", nym_address.to_string())]
+    ReachedMaxAliasesForNymAddress {
+        max_aliases: u32,
+        nym_address: NymAddress,
     },
 }
 

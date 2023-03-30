@@ -1,5 +1,5 @@
 use crate::state::Config;
-use cosmwasm_std::Coin;
+use cosmwasm_std::{Addr, Coin};
 use nym_service_provider_directory_common::{NymAddress, Service, ServiceId, ServiceType};
 use serde::{Deserialize, Serialize};
 
@@ -30,11 +30,17 @@ impl ExecuteMsg {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     ServiceId {
         service_id: ServiceId,
+    },
+    Owner {
+        owner: Addr,
+    },
+    NymAddress {
+        nym_address: NymAddress,
     },
     All {
         limit: Option<u32>,
@@ -64,6 +70,23 @@ impl ServiceInfo {
         Self {
             service_id,
             service,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct ServicesListResponse {
+    pub services: Vec<ServiceInfo>,
+}
+
+impl ServicesListResponse {
+    pub(crate) fn new(services: Vec<(u32, Service)>) -> ServicesListResponse {
+        ServicesListResponse {
+            services: services
+                .into_iter()
+                .map(|(service_id, service)| ServiceInfo::new(service_id, service))
+                .collect(),
         }
     }
 }

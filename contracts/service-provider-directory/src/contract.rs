@@ -53,6 +53,10 @@ pub fn execute(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
     let response = match msg {
         QueryMsg::ServiceId { service_id } => to_binary(&query::query_id(deps, service_id)?),
+        QueryMsg::Owner { owner } => to_binary(&query::query_owner(deps, owner)?),
+        QueryMsg::NymAddress { nym_address } => {
+            to_binary(&query::query_nym_address(deps, nym_address)?)
+        }
         QueryMsg::All { limit, start_after } => {
             to_binary(&query::query_all_paged(deps, limit, start_after)?)
         }

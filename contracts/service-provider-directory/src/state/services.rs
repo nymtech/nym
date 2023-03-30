@@ -36,40 +36,84 @@ pub(crate) fn services<'a>() -> IndexedMap<'a, ServiceId, Service, ServiceIndex<
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::{
-        coins,
-        testing::{mock_dependencies, mock_env, mock_info},
-        Coin, Order,
-    };
-    use nym_service_provider_directory_common::{
-        msg::{ExecuteMsg, InstantiateMsg},
-        ServiceId,
+    use cosmwasm_std::{Order, StdError, StdResult};
+
+    use crate::test_helpers::{
+        fixture::{service_fixture, service_fixture_by_name},
+        helpers::{announce_service, instantiate_test_contract},
     };
 
-    use crate::test_helpers::{fixture::service_fixture, helpers::get_attribute};
+    use super::*;
 
     #[test]
-    fn save_and_load_returns_a_key() {
-        let mut deps = mock_dependencies();
-        let msg = InstantiateMsg {
-            deposit_required: Coin::new(100, "unym"),
-        };
-        let info = mock_info("creator", &[]);
+    fn save_and_load_returns_keys() {
+        let mut deps = instantiate_test_contract();
 
-        // Instantiate contract
-        let res = crate::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(res.messages.len(), 0);
+        announce_service(deps.as_mut(), service_fixture());
+        announce_service(deps.as_mut(), service_fixture());
+        announce_service(deps.as_mut(), service_fixture());
 
-        // Announce
-        let msg: ExecuteMsg = service_fixture().into();
-        let info = mock_info("anyone", &coins(100, "unym"));
+        let keys = services().keys(&deps.storage, None, None, Order::Ascending);
+        assert_eq!(keys.count(), 3);
+    }
 
-        let res = crate::execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
-        let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
-        assert_eq!(sp_id, 1);
+    #[test]
+    fn save_and_load_by_id_works() {
+        let mut deps = instantiate_test_contract();
 
-        let s = super::services();
-        let k = s.keys(&deps.storage, None, None, Order::Ascending);
-        assert_eq!(k.count(), 1);
+        announce_service(deps.as_mut(), service_fixture_by_name("a"));
+        announce_service(deps.as_mut(), service_fixture_by_name("b"));
+        announce_service(deps.as_mut(), service_fixture_by_name("c"));
+        // Load not "in-order"
+        assert_eq!(
+            services().load(&deps.storage, 1).unwrap(),
+            service_fixture_by_name("a")
+        );
+        assert_eq!(
+            services().load(&deps.storage, 3).unwrap(),
+            service_fixture_by_name("c")
+        );
+        assert_eq!(
+            services().load(&deps.storage, 2).unwrap(),
+            service_fixture_by_name("b")
+        );
+    }
+
+    #[test]
+    fn save_and_load_by_wrong_id_fails() {
+        let mut deps = instantiate_test_contract();
+
+        announce_service(deps.as_mut(), service_fixture_by_name("a"));
+        announce_service(deps.as_mut(), service_fixture_by_name("b"));
+        announce_service(deps.as_mut(), service_fixture_by_name("c"));
+        assert!(matches!(
+            services().load(&deps.storage, 4).unwrap_err(),
+            StdError::NotFound { .. }
+        ));
+    }
+
+    #[test]
+    fn save_and_load_by_owner_works() {
+        let mut deps = instantiate_test_contract();
+
+        announce_service(deps.as_mut(), service_fixture_by_name("a"));
+        announce_service(deps.as_mut(), service_fixture_by_name("b"));
+        announce_service(deps.as_mut(), service_fixture_by_name("c"));
+
+        let services = services()
+            .idx
+            .owner
+            .prefix(Addr::unchecked("steve"))
+            .range(&deps.storage, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<_>>>()
+            .unwrap();
+        assert_eq!(
+            services,
+            vec![
+                (1, service_fixture_by_name("a")),
+                (2, service_fixture_by_name("b")),
+                (3, service_fixture_by_name("c")),
+            ]
+        );
     }
 }

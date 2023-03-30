@@ -1,7 +1,6 @@
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
-
-use crate::types::{Service, ServiceId};
+use nym_service_provider_directory_common::{Service, ServiceId};
 
 const SERVICES_PK_NAMESPACE: &str = "sernames";
 const SERVICES_OWNER_IDX_NAMESPACE: &str = "serown";

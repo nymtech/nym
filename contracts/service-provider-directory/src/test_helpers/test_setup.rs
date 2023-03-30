@@ -1,6 +1,7 @@
 use anyhow::Result;
 use cosmwasm_std::{coins, Addr, Coin, StdResult, Uint128};
 use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
+use nym_service_provider_directory_common::{NymAddress, ServiceId, ServiceType};
 use serde::de::DeserializeOwned;
 
 use crate::{
@@ -9,7 +10,6 @@ use crate::{
         ServiceInfo,
     },
     test_helpers::helpers::get_app_attribute,
-    types::{NymAddress, ServiceId, ServiceType},
 };
 
 const DENOM: &str = "unym";

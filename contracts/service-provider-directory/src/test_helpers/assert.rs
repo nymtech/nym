@@ -1,10 +1,10 @@
 use cosmwasm_std::{from_binary, testing::mock_env, Addr, Coin, Deps, StdError};
+use nym_service_provider_directory_common::ServiceId;
 
 use crate::{
     constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
     error::ContractError,
     msg::{ConfigResponse, PagedServicesListResponse, QueryMsg, ServiceInfo},
-    types::ServiceId,
 };
 
 pub fn assert_config(deps: Deps, admin: &Addr, deposit_required: Coin) {

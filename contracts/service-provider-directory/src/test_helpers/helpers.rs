@@ -1,7 +1,8 @@
 use cosmwasm_std::{Coin, Response};
 use cw_multi_test::AppResponse;
+use nym_service_provider_directory_common::Service;
 
-use crate::{msg::ExecuteMsg, types::Service};
+use crate::msg::ExecuteMsg;
 
 pub fn nyms(amount: u64) -> Coin {
     Coin::new(amount.into(), "unym")

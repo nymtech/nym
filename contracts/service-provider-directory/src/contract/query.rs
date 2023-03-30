@@ -1,12 +1,12 @@
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
+use nym_service_provider_directory_common::ServiceId;
 
 use crate::{
     constants::{SERVICE_DEFAULT_RETRIEVAL_LIMIT, SERVICE_MAX_RETRIEVAL_LIMIT},
     error::Result,
     msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo},
     state,
-    types::ServiceId,
 };
 
 pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<ServiceInfo> {

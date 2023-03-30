@@ -1123,8 +1123,17 @@ dependencies = [
  "cw-storage-plus",
  "cw-utils",
  "cw2",
+ "nym-service-provider-directory-common",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "nym-service-provider-directory-common"
+version = "0.0.1"
+dependencies = [
+ "cosmwasm-std",
+ "serde",
 ]
 
 [[package]]

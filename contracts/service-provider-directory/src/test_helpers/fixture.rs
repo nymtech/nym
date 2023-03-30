@@ -1,6 +1,5 @@
 use cosmwasm_std::Addr;
-
-use crate::types::{NymAddress, Service, ServiceType};
+use nym_service_provider_directory_common::{NymAddress, Service, ServiceType};
 
 use super::helpers::nyms;
 

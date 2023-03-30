@@ -3679,6 +3679,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-service-provider-directory-common"
+version = "0.0.1"
+dependencies = [
+ "cosmwasm-std",
+ "serde",
+]
+
+[[package]]
 name = "nym-service-providers-common"
 version = "0.1.0"
 dependencies = [

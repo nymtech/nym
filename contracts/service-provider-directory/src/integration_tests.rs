@@ -1,13 +1,13 @@
 //! Integration tests using cw-multi-test.
 
 use cosmwasm_std::Addr;
+use nym_service_provider_directory_common::{NymAddress, Service, ServiceType};
 
 use crate::{
     constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
     error::ContractError,
     msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo},
     test_helpers::{helpers::nyms, test_setup::TestSetup},
-    types::{NymAddress, Service, ServiceType},
 };
 
 #[test]

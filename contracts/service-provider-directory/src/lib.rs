@@ -14,7 +14,6 @@ mod msg;
 mod state;
 
 pub mod constants;
-pub mod types;
 
 #[cfg(test)]
 mod integration_tests;

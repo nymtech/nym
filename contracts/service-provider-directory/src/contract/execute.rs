@@ -1,10 +1,9 @@
-use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
-
 use crate::{
     error::{ContractError, Result},
     state,
-    types::{NymAddress, Service, ServiceId, ServiceType},
 };
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
+use nym_service_provider_directory_common::{NymAddress, Service, ServiceId, ServiceType};
 
 fn ensure_correct_deposit(will_deposit: Uint128, deposit_required: Uint128) -> Result<()> {
     match will_deposit.cmp(&deposit_required) {

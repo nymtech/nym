@@ -1,8 +1,7 @@
 use cosmwasm_std::{Addr, StdError};
 use cw_controllers::AdminError;
+use nym_service_provider_directory_common::ServiceId;
 use thiserror::Error;
-
-use crate::types::ServiceId;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {

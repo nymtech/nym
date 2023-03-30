@@ -242,7 +242,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     setIsLoading(true);
     try {
       await signOut();
-      await setReactState(JSON.stringify({ network: undefined, loginType: undefined }));
+      await setReactState(undefined);
       setClientDetails(undefined);
       enqueueSnackbar('Successfully logged out', { variant: 'success' });
       await createSignInWindow();

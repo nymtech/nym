@@ -3574,6 +3574,7 @@ dependencies = [
  "client-core",
  "dirs",
  "futures",
+ "humantime-serde",
  "ipnetwork 0.20.0",
  "lazy_static",
  "log",

@@ -1,9 +1,16 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::HostsStore;
+use crate::allowed_hosts::group::HostsGroup;
+use crate::allowed_hosts::standard_list::StandardList;
 use std::net::{IpAddr, SocketAddr};
 
-use super::HostsStore;
+enum RequestHost {
+    IpAddr(IpAddr),
+    SocketAddr(SocketAddr),
+    RootDomain(String),
+}
 
 /// Filters outbound requests based on what's in an `allowed_hosts` list.
 ///
@@ -20,6 +27,7 @@ use super::HostsStore;
 /// publicsuffix list.
 pub(crate) struct OutboundRequestFilter {
     pub(super) allowed_hosts: HostsStore,
+    pub(super) standard_list: StandardList,
     root_domain_list: publicsuffix::List,
     unknown_hosts: HostsStore,
 }
@@ -34,6 +42,7 @@ impl OutboundRequestFilter {
     /// requesters are able to support the same minimal functionality out of the box.
     pub(crate) fn new(
         allowed_hosts: HostsStore,
+        standard_list: StandardList,
         unknown_hosts: HostsStore,
     ) -> OutboundRequestFilter {
         let domain_list = match publicsuffix::List::fetch() {
@@ -43,52 +52,85 @@ impl OutboundRequestFilter {
 
         OutboundRequestFilter {
             allowed_hosts,
+            standard_list,
             root_domain_list: domain_list,
             unknown_hosts,
         }
     }
 
-    /// Returns `true` if a host's root domain is in the `allowed_hosts` list.
-    ///
-    /// If it's not in the list, return `false` and write it to the `unknown_hosts` storefile.
-    pub(crate) fn check(&mut self, host: &str) -> bool {
+    fn check_allowed_hosts(&self, host: &RequestHost) -> bool {
+        self.check_group(&self.allowed_hosts.data, host)
+    }
+
+    async fn check_standard_list(&self, host: &RequestHost) -> bool {
+        let guard = self.standard_list.get().await;
+        self.check_group(&*guard, host)
+    }
+
+    fn check_group(&self, group: &HostsGroup, host: &RequestHost) -> bool {
+        match host {
+            RequestHost::IpAddr(ip_addr) => group.contains_ip_address(*ip_addr),
+            RequestHost::SocketAddr(socket_addr) => group.contains_ip_address(socket_addr.ip()),
+            RequestHost::RootDomain(domain) => group.contains_domain(domain),
+        }
+    }
+
+    fn add_to_unknown_hosts(&mut self, host: RequestHost) {
+        match host {
+            RequestHost::IpAddr(ip_addr) => self.unknown_hosts.add_ip(ip_addr),
+            RequestHost::SocketAddr(socket_addr) => self.unknown_hosts.add_ip(socket_addr.ip()),
+            RequestHost::RootDomain(domain) => self.unknown_hosts.add_domain(&domain),
+        }
+    }
+
+    fn parse_request_host(&self, host: &str) -> Option<RequestHost> {
         // first check if it's a socket address (ip:port)
         // (this check is performed to not incorrectly strip what we think might be a port
         // from ipv6 address, as for example ::1 contains colons but has no port
-        let allowed = if let Ok(socketaddr) = host.parse::<SocketAddr>() {
-            if !self.allowed_hosts.contains_ip_address(socketaddr.ip()) {
-                self.unknown_hosts.add_ip(socketaddr.ip());
-                return false;
-            }
-            true
-        } else if let Ok(ipaddr) = host.parse::<IpAddr>() {
+        if let Ok(socketaddr) = host.parse::<SocketAddr>() {
+            Some(RequestHost::SocketAddr(socketaddr))
             // then check if it was an ip address
-            if !self.allowed_hosts.contains_ip_address(ipaddr) {
-                self.unknown_hosts.add_ip(ipaddr);
-                return false;
-            }
-            true
-        } else {
+        } else if let Ok(ipaddr) = host.parse::<IpAddr>() {
+            Some(RequestHost::IpAddr(ipaddr))
             // finally, then assume it might be a domain
+        } else {
+            // check root
             let trimmed = Self::trim_port(host);
-            if let Some(domain_root) = self.get_domain_root(&trimmed) {
-                // it's a domain
-                if !self.allowed_hosts.contains_domain(&domain_root) {
-                    self.unknown_hosts.add_domain(&trimmed);
-                    return false;
+            // if this failed, it was probably some nonsense
+            self.get_domain_root(&trimmed).map(RequestHost::RootDomain)
+        }
+    }
+
+    async fn check_request_host(&mut self, request_host: &RequestHost) -> bool {
+        // first check our own allow list
+        let local_allowed = self.check_allowed_hosts(&request_host);
+
+        // if it's locally allowed, no point in checking the standard list
+        if local_allowed {
+            return true;
+        }
+
+        // if that failed, check the standard list
+        self.check_standard_list(&request_host).await
+    }
+
+    /// Returns `true` if a host's root domain is in the `allowed_hosts` list.
+    ///
+    /// If it's not in the list, return `false` and write it to the `unknown_hosts` storefile.
+    pub(crate) async fn check(&mut self, host: &str) -> bool {
+        let allowed = match self.parse_request_host(host) {
+            Some(request_host) => {
+                let res = self.check_request_host(&request_host).await;
+                if !res {
+                    self.add_to_unknown_hosts(request_host)
                 }
-                true
-            } else {
-                // it's something else, no idea what, probably some nonsense
-                false
+                res
             }
+            None => false,
         };
 
         if !allowed {
-            log::warn!(
-                "Blocked outbound connection to {:?}, add it to allowed.list if needed",
-                &host
-            );
+            log::warn!("Blocked outbound connection to {host}, add it to allowed.list if needed",);
         }
 
         allowed
@@ -158,9 +200,11 @@ mod tests {
             let base_dir = test_base_dir();
             let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
             let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
-            let allowed = HostsStore::new(base_dir.clone(), allowed_filename, None);
-            let unknown = HostsStore::new(base_dir, unknown_filename, None);
-            OutboundRequestFilter::new(allowed, unknown)
+            let allowed = HostsStore::new(base_dir.clone(), allowed_filename);
+            let standard = StandardList::new();
+            let unknown = HostsStore::new(base_dir, unknown_filename);
+
+            OutboundRequestFilter::new(allowed, standard, unknown)
         }
 
         #[test]
@@ -225,28 +269,30 @@ mod tests {
             let base_dir = test_base_dir();
             let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
             let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
-            let allowed = HostsStore::new(base_dir.clone(), allowed_filename, None);
-            let unknown = HostsStore::new(base_dir, unknown_filename, None);
-            OutboundRequestFilter::new(allowed, unknown)
+            let allowed = HostsStore::new(base_dir.clone(), allowed_filename);
+            let standard = StandardList::new();
+            let unknown = HostsStore::new(base_dir, unknown_filename);
+
+            OutboundRequestFilter::new(allowed, standard, unknown)
         }
 
-        #[test]
-        fn are_not_allowed() {
+        #[tokio::test]
+        async fn are_not_allowed() {
             let host = "unknown.com";
             let mut filter = setup();
-            assert!(!filter.check(host));
+            assert!(!filter.check(host).await);
         }
 
-        #[test]
-        fn get_appended_once_to_the_unknown_hosts_list() {
+        #[tokio::test]
+        async fn get_appended_once_to_the_unknown_hosts_list() {
             let host = "unknown.com";
             let mut filter = setup();
-            filter.check(host);
-            assert_eq!(1, filter.unknown_hosts.domains.len());
-            assert!(filter.unknown_hosts.domains.contains("unknown.com"));
-            filter.check(host);
-            assert_eq!(1, filter.unknown_hosts.domains.len());
-            assert!(filter.unknown_hosts.domains.contains("unknown.com"));
+            filter.check(host).await;
+            assert_eq!(1, filter.unknown_hosts.data.domains.len());
+            assert!(filter.unknown_hosts.data.domains.contains("unknown.com"));
+            filter.check(host).await;
+            assert_eq!(1, filter.unknown_hosts.data.domains.len());
+            assert!(filter.unknown_hosts.data.domains.contains("unknown.com"));
         }
     }
 
@@ -262,29 +308,31 @@ mod tests {
                 HostsStore::append(&allowed_storefile, allowed_host)
             }
 
-            let allowed = HostsStore::new(base_dir1, allowed_filename, None);
-            let unknown = HostsStore::new(base_dir2, unknown_filename, None);
-            OutboundRequestFilter::new(allowed, unknown)
+            let allowed = HostsStore::new(base_dir1, allowed_filename);
+            let standard = StandardList::new();
+            let unknown = HostsStore::new(base_dir2, unknown_filename);
+
+            OutboundRequestFilter::new(allowed, standard, unknown)
         }
 
-        #[test]
-        fn are_allowed() {
+        #[tokio::test]
+        async fn are_allowed() {
             let host = "nymtech.net";
 
             let mut filter = setup(&["nymtech.net"]);
-            assert!(filter.check(host));
+            assert!(filter.check(host).await);
         }
 
-        #[test]
-        fn are_allowed_for_subdomains() {
+        #[tokio::test]
+        async fn are_allowed_for_subdomains() {
             let host = "foomp.nymtech.net";
 
             let mut filter = setup(&["nymtech.net"]);
-            assert!(filter.check(host));
+            assert!(filter.check(host).await);
         }
 
-        #[test]
-        fn are_not_appended_to_file() {
+        #[tokio::test]
+        async fn are_not_appended_to_file() {
             let mut filter = setup(&["nymtech.net"]);
 
             // test initial state
@@ -298,20 +346,20 @@ mod tests {
             assert_eq!(1, lines.len());
         }
 
-        #[test]
-        fn are_allowed_for_ipv4_addresses() {
+        #[tokio::test]
+        async fn are_allowed_for_ipv4_addresses() {
             let address_good = "1.1.1.1";
             let address_good_port = "1.1.1.1:1234";
             let address_bad = "1.1.1.2";
 
             let mut filter = setup(&["1.1.1.1"]);
-            assert!(filter.check(address_good));
-            assert!(filter.check(address_good_port));
-            assert!(!filter.check(address_bad));
+            assert!(filter.check(address_good).await);
+            assert!(filter.check(address_good_port).await);
+            assert!(!filter.check(address_bad).await);
         }
 
-        #[test]
-        fn are_allowed_for_ipv6_addresses() {
+        #[tokio::test]
+        async fn are_allowed_for_ipv6_addresses() {
             let ip_v6_full = "2001:0db8:85a3:0000:0000:8a2e:0370:7334";
             let ip_v6_full_rendered = "2001:0db8:85a3::8a2e:0370:7334";
             let ip_v6_full_port = "[2001:0db8:85a3::8a2e:0370:7334]:1234";
@@ -324,23 +372,23 @@ mod tests {
             let mut filter1 = setup(&[ip_v6_full, ip_v6_semi, "::1"]);
             let mut filter2 = setup(&[ip_v6_full_rendered, ip_v6_semi_rendered, "::1"]);
 
-            assert!(filter1.check(ip_v6_full));
-            assert!(filter1.check(ip_v6_full_rendered));
-            assert!(filter1.check(ip_v6_full_port));
-            assert!(filter1.check(ip_v6_semi));
-            assert!(filter1.check(ip_v6_semi_rendered));
-            assert!(filter1.check(ip_v6_loopback_port));
+            assert!(filter1.check(ip_v6_full).await);
+            assert!(filter1.check(ip_v6_full_rendered).await);
+            assert!(filter1.check(ip_v6_full_port).await);
+            assert!(filter1.check(ip_v6_semi).await);
+            assert!(filter1.check(ip_v6_semi_rendered).await);
+            assert!(filter1.check(ip_v6_loopback_port).await);
 
-            assert!(filter2.check(ip_v6_full));
-            assert!(filter2.check(ip_v6_full_rendered));
-            assert!(filter2.check(ip_v6_full_port));
-            assert!(filter2.check(ip_v6_semi));
-            assert!(filter2.check(ip_v6_semi_rendered));
-            assert!(filter2.check(ip_v6_loopback_port));
+            assert!(filter2.check(ip_v6_full).await);
+            assert!(filter2.check(ip_v6_full_rendered).await);
+            assert!(filter2.check(ip_v6_full_port).await);
+            assert!(filter2.check(ip_v6_semi).await);
+            assert!(filter2.check(ip_v6_semi_rendered).await);
+            assert!(filter2.check(ip_v6_loopback_port).await);
         }
 
-        #[test]
-        fn are_allowed_for_ipv4_address_ranges() {
+        #[tokio::test]
+        async fn are_allowed_for_ipv4_address_ranges() {
             let range1 = "127.0.0.1/32";
             let range2 = "1.2.3.4/24";
 
@@ -350,15 +398,15 @@ mod tests {
             let outside_range2 = "1.2.2.4";
 
             let mut filter = setup(&[range1, range2]);
-            assert!(filter.check("127.0.0.1"));
-            assert!(filter.check("127.0.0.1:1234"));
-            assert!(filter.check(bottom_range2));
-            assert!(filter.check(top_range2));
-            assert!(!filter.check(outside_range2));
+            assert!(filter.check("127.0.0.1").await);
+            assert!(filter.check("127.0.0.1:1234").await);
+            assert!(filter.check(bottom_range2).await);
+            assert!(filter.check(top_range2).await);
+            assert!(!filter.check(outside_range2).await);
         }
 
-        #[test]
-        fn are_allowed_for_ipv6_address_ranges() {
+        #[tokio::test]
+        async fn are_allowed_for_ipv6_address_ranges() {
             let range = "2620:0:2d0:200::7/32";
 
             let bottom1 = "2620:0:0:0:0:0:0:0";
@@ -368,10 +416,10 @@ mod tests {
             let mid = "2620:0:42::42";
 
             let mut filter = setup(&[range]);
-            assert!(filter.check(bottom1));
-            assert!(filter.check(bottom2));
-            assert!(filter.check(top));
-            assert!(filter.check(mid));
+            assert!(filter.check(bottom1).await);
+            assert!(filter.check(bottom2).await);
+            assert!(filter.check(top).await);
+            assert!(filter.check(mid).await);
         }
     }
 
@@ -408,14 +456,26 @@ mod tests {
             HostsStore::append(&storefile, "1:2:3::");
             HostsStore::append(&storefile, "5:6:7::/48");
 
-            let host_store = HostsStore::new(base_dir, filename, None);
-            assert!(host_store.domains.contains("nymtech.net"));
-            assert!(host_store.domains.contains("edwardsnowden.com"));
+            let host_store = HostsStore::new(base_dir, filename);
+            assert!(host_store.data.domains.contains("nymtech.net"));
+            assert!(host_store.data.domains.contains("edwardsnowden.com"));
 
-            assert!(host_store.ip_nets.contains(&"1.2.3.4".parse().unwrap()));
-            assert!(host_store.ip_nets.contains(&"5.6.7.8/16".parse().unwrap()));
-            assert!(host_store.ip_nets.contains(&"1:2:3::".parse().unwrap()));
-            assert!(host_store.ip_nets.contains(&"5:6:7::/48".parse().unwrap()));
+            assert!(host_store
+                .data
+                .ip_nets
+                .contains(&"1.2.3.4".parse().unwrap()));
+            assert!(host_store
+                .data
+                .ip_nets
+                .contains(&"5.6.7.8/16".parse().unwrap()));
+            assert!(host_store
+                .data
+                .ip_nets
+                .contains(&"1:2:3::".parse().unwrap()));
+            assert!(host_store
+                .data
+                .ip_nets
+                .contains(&"5:6:7::/48".parse().unwrap()));
         }
     }
 }

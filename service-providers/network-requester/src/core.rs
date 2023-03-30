@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::allowed_hosts;
-use crate::allowed_hosts::OutboundRequestFilter;
+use crate::allowed_hosts::standard_list::StandardListUpdater;
+use crate::allowed_hosts::{OutboundRequestFilter, StandardList};
 use crate::config::Config;
 use crate::error::NetworkRequesterError;
 use crate::reply::MixnetMessage;
@@ -50,6 +51,7 @@ pub struct NRServiceProviderBuilder {
     open_proxy: bool,
     enable_statistics: bool,
     stats_provider_addr: Option<Recipient>,
+    standard_list: StandardList,
 }
 
 struct NRServiceProvider {
@@ -154,29 +156,28 @@ impl NRServiceProviderBuilder {
         enable_statistics: bool,
         stats_provider_addr: Option<Recipient>,
     ) -> NRServiceProviderBuilder {
-        let standard_hosts = allowed_hosts::fetch_standard_allowed_list().await;
-
-        log::info!("Standard allowed hosts: {:?}", standard_hosts);
+        let standard_list = StandardList::new();
 
         let allowed_hosts = allowed_hosts::HostsStore::new(
             allowed_hosts::HostsStore::default_base_dir(),
             PathBuf::from("allowed.list"),
-            Some(standard_hosts),
         );
 
         let unknown_hosts = allowed_hosts::HostsStore::new(
             allowed_hosts::HostsStore::default_base_dir(),
             PathBuf::from("unknown.list"),
-            None,
         );
 
-        let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
+        let outbound_request_filter =
+            OutboundRequestFilter::new(allowed_hosts, standard_list.clone(), unknown_hosts);
+
         NRServiceProviderBuilder {
             config,
             outbound_request_filter,
             open_proxy,
             enable_statistics,
             stats_provider_addr,
+            standard_list,
         }
     }
 
@@ -230,6 +231,14 @@ impl NRServiceProviderBuilder {
             )
             .await;
         });
+
+        // start the standard list updater
+        StandardListUpdater::new(
+            self.config.debug.standard_list_update_interval,
+            self.standard_list,
+            shutdown.subscribe(),
+        )
+        .start();
 
         let service_provider = NRServiceProvider {
             outbound_request_filter: self.outbound_request_filter,
@@ -411,7 +420,7 @@ impl NRServiceProvider {
         let remote_addr = connect_req.remote_addr;
         let conn_id = connect_req.conn_id;
 
-        if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
+        if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr).await {
             let log_msg = format!("Domain {remote_addr:?} failed filter check");
             log::info!("{}", log_msg);
             let msg = MixnetMessage::new_connection_error(

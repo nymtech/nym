@@ -128,7 +128,7 @@ export const vestingBondMore = async ({ fee, additionalPledge }: { fee?: Fee; ad
   });
 
 export const vestingDecreaseBond = async ({ fee, decreaseBy }: { fee?: Fee; decreaseBy: DecCoin }) =>
-    invokeWrapper<TransactionExecuteResult>('vesting_decrease_pledge', {
-      fee,
-      decreaseBy,
-    });
+  invokeWrapper<TransactionExecuteResult>('vesting_decrease_pledge', {
+    fee,
+    decreaseBy,
+  });

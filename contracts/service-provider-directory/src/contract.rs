@@ -89,7 +89,6 @@ mod tests {
     #[test]
     fn instantiate_contract() {
         let mut deps = mock_dependencies();
-
         let msg = InstantiateMsg {
             deposit_required: Coin::new(100u128, DENOM),
         };
@@ -109,14 +108,9 @@ mod tests {
     #[test]
     fn announce_fails_incorrect_deposit() {
         let mut deps = mock_dependencies();
-
-        let msg = InstantiateMsg {
-            deposit_required: nyms(100),
-        };
+        let msg = InstantiateMsg::new(nyms(100));
         let info = mock_info("creator", &[]);
         let admin = info.sender.clone();
-
-        // Instantiate contract
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
 
@@ -158,13 +152,8 @@ mod tests {
     #[test]
     fn announce_success() {
         let mut deps = mock_dependencies();
-
-        let msg = InstantiateMsg {
-            deposit_required: nyms(100),
-        };
+        let msg = InstantiateMsg::new(nyms(100));
         let info = mock_info("creator", &[]);
-
-        // Instantiate contract
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
 
@@ -175,8 +164,8 @@ mod tests {
 
         // Check that the service has had service id assigned to it
         let expected_id = 1;
-        let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
-        assert_eq!(sp_id, expected_id);
+        let id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
+        assert_eq!(id, expected_id);
         assert_eq!(
             get_attribute(res, "service_type"),
             "network_requester".to_string()
@@ -194,13 +183,8 @@ mod tests {
     #[test]
     fn delete() {
         let mut deps = mock_dependencies();
-
-        let msg = InstantiateMsg {
-            deposit_required: Coin::new(100, "unym"),
-        };
+        let msg = InstantiateMsg::new(Coin::new(100, "unym"));
         let info = mock_info("creator", &[]);
-
-        // Instantiate contract
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
 
@@ -219,9 +203,7 @@ mod tests {
         assert_services(deps.as_ref(), &[expected_service.clone()]);
 
         // Removing someone else's service will fail
-        let msg = ExecuteMsg::Delete {
-            service_id: expected_id,
-        };
+        let msg = ExecuteMsg::delete(expected_id);
         let info_timmy = mock_info("timmy", &[]);
         assert_eq!(
             execute(deps.as_mut(), mock_env(), info_timmy, msg).unwrap_err(),
@@ -231,9 +213,7 @@ mod tests {
         );
 
         // Removing an non-existent service will fail
-        let msg = ExecuteMsg::Delete {
-            service_id: expected_id + 1,
-        };
+        let msg = ExecuteMsg::delete(expected_id + 1);
         let info_owner = MessageInfo {
             sender: service_fixture().owner,
             funds: vec![],
@@ -246,9 +226,7 @@ mod tests {
         );
 
         // Remove as correct owner succeeds
-        let msg = ExecuteMsg::Delete {
-            service_id: expected_id,
-        };
+        let msg = ExecuteMsg::delete(expected_id);
         let res = execute(deps.as_mut(), mock_env(), info_owner, msg).unwrap();
         assert_eq!(get_attribute(res, "service_id"), expected_id.to_string());
         assert_services(deps.as_ref(), &[]);

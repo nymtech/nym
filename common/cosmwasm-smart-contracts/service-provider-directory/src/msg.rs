@@ -8,6 +8,12 @@ pub struct InstantiateMsg {
     pub deposit_required: Coin,
 }
 
+impl InstantiateMsg {
+    pub fn new(deposit_required: Coin) -> Self {
+        Self { deposit_required }
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {

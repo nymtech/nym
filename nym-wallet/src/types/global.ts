@@ -57,6 +57,11 @@ export type TBondMoreArgs = {
   fee?: Fee;
 };
 
+export type TDecreaseBondArgs = {
+  decreaseBy: DecCoin;
+  fee?: Fee;
+}
+
 export type TNodeDescription = {
   name: string;
   description: string;

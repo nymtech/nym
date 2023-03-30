@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::context::SigningClient;
-use crate::utils::account_id_to_cw_addr;
+use crate::utils::{account_id_to_cw_addr, DataWrapper};
 use clap::Parser;
 use cosmwasm_std::{Coin, Uint128};
+use nym_bin_common::output_format::OutputFormat;
 use nym_contracts_common::Percent;
 use nym_mixnet_contract_common::{construct_mixnode_bonding_sign_payload, MixNodeCostParams};
 use nym_network_defaults::{
@@ -54,6 +55,9 @@ pub struct Args {
     /// Indicates whether the mixnode is going to get bonded via a vesting account
     #[arg(long)]
     pub with_vesting_account: bool,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 }
 
 pub async fn create_payload(args: Args, client: SigningClient) {
@@ -104,5 +108,6 @@ pub async fn create_payload(args: Args, client: SigningClient) {
 
     let payload =
         construct_mixnode_bonding_sign_payload(nonce, address, proxy, coin, mixnode, cost_params);
-    println!("{}", payload.to_base58_string().unwrap())
+    let wrapper = DataWrapper::new(payload.to_base58_string().unwrap());
+    println!("{}", args.output.format(&wrapper))
 }

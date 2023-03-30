@@ -22,3 +22,4 @@ vergen = { version = "=7.4.3", default-features = false, features = ["build", "g
 
 [features]
 default = []
+output_format = ["serde", "serde_json"]

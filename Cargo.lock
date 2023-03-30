@@ -3216,6 +3216,7 @@ dependencies = [
  "humantime-serde",
  "k256",
  "log",
+ "nym-bin-common",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
  "nym-contracts-common",

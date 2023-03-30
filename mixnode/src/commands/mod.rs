@@ -62,7 +62,7 @@ struct OverrideConfig {
 
 pub(crate) async fn execute(args: Cli) {
     let bin_name = "nym-mixnode";
-    
+
     match args.command {
         Commands::Describe(m) => describe::execute(m),
         Commands::Init(m) => init::execute(&m),

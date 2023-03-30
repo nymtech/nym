@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::ValueEnum;
-use serde::Serialize;
 use std::fmt::{Display, Formatter};
 
 #[derive(Default, Copy, Debug, Clone, ValueEnum)]
@@ -26,8 +25,8 @@ impl OutputFormat {
         matches!(self, OutputFormat::Text)
     }
 
-    #[cfg(feature = "serde_json")]
-    pub fn format<T: Serialize + ToString>(&self, data: &T) -> String {
+    #[cfg(feature = "output_format")]
+    pub fn format<T: serde::Serialize + ToString>(&self, data: &T) -> String {
         match self {
             OutputFormat::Text => data.to_string(),
             OutputFormat::Json => serde_json::to_string(data).unwrap(),

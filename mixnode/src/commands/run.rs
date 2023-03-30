@@ -6,9 +6,9 @@ use crate::commands::{override_config, version_check};
 use crate::config::Config;
 use crate::node::MixNode;
 use clap::Args;
+use nym_bin_common::output_format::OutputFormat;
 use nym_config::NymConfig;
 use std::net::IpAddr;
-use nym_bin_common::output_format::OutputFormat;
 use validator_client::nyxd;
 
 #[derive(Args, Clone)]

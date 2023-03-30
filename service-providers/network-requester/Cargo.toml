@@ -34,7 +34,7 @@ url = { workspace = true }
 client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
-nym-bin-common = { path = "../../common/bin-common", features = ["serde_json"] }
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../../common/nymsphinx" }

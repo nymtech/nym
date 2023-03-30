@@ -19,7 +19,7 @@ tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
 url = "2.2"
 
 # internal
-nym-bin-common = { path = "../../common/bin-common", features = ["serde_json"] }
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 client-core = { path = "../../common/client-core", features = ["fs-surb-storage"] }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-config = { path = "../../common/config" }

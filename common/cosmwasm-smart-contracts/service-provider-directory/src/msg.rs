@@ -1,6 +1,5 @@
-use crate::state::Config;
+use crate::{NymAddress, Service, ServiceId, ServiceType};
 use cosmwasm_std::{Addr, Coin};
-use nym_service_provider_directory_common::{NymAddress, Service, ServiceId, ServiceType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -81,7 +80,7 @@ pub struct ServicesListResponse {
 }
 
 impl ServicesListResponse {
-    pub(crate) fn new(services: Vec<(u32, Service)>) -> ServicesListResponse {
+    pub fn new(services: Vec<(u32, Service)>) -> ServicesListResponse {
         ServicesListResponse {
             services: services
                 .into_iter()
@@ -100,7 +99,7 @@ pub struct PagedServicesListResponse {
 }
 
 impl PagedServicesListResponse {
-    pub(crate) fn new(
+    pub fn new(
         services: Vec<(ServiceId, Service)>,
         per_page: usize,
         start_next_after: Option<ServiceId>,
@@ -123,10 +122,11 @@ pub struct ConfigResponse {
     pub deposit_required: Coin,
 }
 
-impl From<Config> for ConfigResponse {
-    fn from(config: Config) -> Self {
-        ConfigResponse {
-            deposit_required: config.deposit_required,
+impl From<Service> for ExecuteMsg {
+    fn from(service: Service) -> Self {
+        ExecuteMsg::Announce {
+            nym_address: service.nym_address,
+            service_type: service.service_type,
         }
     }
 }

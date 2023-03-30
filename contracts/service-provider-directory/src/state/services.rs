@@ -41,12 +41,12 @@ mod tests {
         testing::{mock_dependencies, mock_env, mock_info},
         Coin, Order,
     };
-    use nym_service_provider_directory_common::ServiceId;
-
-    use crate::{
+    use nym_service_provider_directory_common::{
         msg::{ExecuteMsg, InstantiateMsg},
-        test_helpers::{fixture::service_fixture, helpers::get_attribute},
+        ServiceId,
     };
+
+    use crate::test_helpers::{fixture::service_fixture, helpers::get_attribute};
 
     #[test]
     fn save_and_load_returns_a_key() {

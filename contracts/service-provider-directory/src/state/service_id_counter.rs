@@ -22,11 +22,13 @@ mod tests {
         testing::{mock_dependencies, mock_env, mock_info},
         Coin,
     };
-    use nym_service_provider_directory_common::ServiceId;
-
-    use crate::{
+    use nym_service_provider_directory_common::{
         msg::{ExecuteMsg, InstantiateMsg, ServiceInfo},
-        test_helpers::{assert::assert_services, fixture::service_fixture, helpers::get_attribute},
+        ServiceId,
+    };
+
+    use crate::test_helpers::{
+        assert::assert_services, fixture::service_fixture, helpers::get_attribute,
     };
 
     #[test]

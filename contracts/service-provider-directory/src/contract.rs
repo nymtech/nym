@@ -1,10 +1,10 @@
 use crate::{
     error::{ContractError, Result},
-    msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     state::{self, Config},
 };
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
 use cw2::set_contract_version;
+use nym_service_provider_directory_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 mod execute;
 mod query;
@@ -69,22 +69,20 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
 mod tests {
     use super::*;
 
-    use crate::{
-        msg::ServiceInfo,
-        test_helpers::{
-            assert::{
-                assert_config, assert_empty, assert_not_found, assert_service, assert_services,
-            },
-            fixture::service_fixture,
-            helpers::{get_attribute, nyms},
-        },
+    use crate::test_helpers::{
+        assert::{assert_config, assert_empty, assert_not_found, assert_service, assert_services},
+        fixture::service_fixture,
+        helpers::{get_attribute, nyms},
     };
 
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Coin,
     };
-    use nym_service_provider_directory_common::ServiceId;
+    use nym_service_provider_directory_common::{
+        msg::{ExecuteMsg, ServiceInfo},
+        ServiceId,
+    };
 
     const DENOM: &str = "unym";
 

@@ -1,7 +1,8 @@
 //! The service provider directory contract is for users to announce their service providers for
 //! public use.
 
-use crate::{error::Result, msg::ExecuteMsg};
+use crate::error::Result;
+use nym_service_provider_directory_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -10,7 +11,6 @@ use error::ContractError;
 
 mod contract;
 mod error;
-mod msg;
 mod state;
 
 pub mod constants;
@@ -26,7 +26,7 @@ pub fn instantiate(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: msg::InstantiateMsg,
+    msg: InstantiateMsg,
 ) -> Result<Response> {
     contract::instantiate(deps, env, info, msg)
 }
@@ -44,6 +44,6 @@ pub fn execute(
 
 /// Contract entry point for queries
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: msg::QueryMsg) -> Result<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary> {
     contract::query(deps, env, msg)
 }

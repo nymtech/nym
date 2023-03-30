@@ -1,6 +1,9 @@
 use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use cw_storage_plus::Bound;
-use nym_service_provider_directory_common::{NymAddress, ServiceId};
+use nym_service_provider_directory_common::{
+    msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo, ServicesListResponse},
+    NymAddress, ServiceId,
+};
 
 use crate::{
     constants::{
@@ -8,7 +11,6 @@ use crate::{
         SERVICE_DEFAULT_RETRIEVAL_LIMIT, SERVICE_MAX_RETRIEVAL_LIMIT,
     },
     error::Result,
-    msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo, ServicesListResponse},
     state,
 };
 

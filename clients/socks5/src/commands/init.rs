@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::try_upgrade_v1_1_13_config;
@@ -7,6 +7,7 @@ use crate::{
     error::Socks5ClientError,
 };
 use clap::Args;
+use nym_bin_common::output_format::OutputFormat;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::config::Config;
@@ -75,9 +76,8 @@ pub(crate) struct Init {
     #[clap(long, hide = true)]
     enabled_credentials_mode: Option<bool>,
 
-    /// Save a summary of the initialization to a json file
-    #[clap(long)]
-    output_json: bool,
+    #[clap(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 }
 
 impl From<Init> for OverrideConfig {
@@ -99,6 +99,7 @@ pub struct InitResults {
     #[serde(flatten)]
     client_core: client_core::init::InitResults,
     socks5_listening_port: String,
+    client_address: Recipient,
 }
 
 impl InitResults {
@@ -106,6 +107,7 @@ impl InitResults {
         Self {
             client_core: client_core::init::InitResults::new(config.get_base(), address),
             socks5_listening_port: config.get_socks5().get_listening_port().to_string(),
+            client_address: *address,
         }
     }
 }
@@ -113,12 +115,13 @@ impl InitResults {
 impl Display for InitResults {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.client_core)?;
-        write!(f, "SOCKS5 listening port: {}", self.socks5_listening_port)
+        write!(f, "SOCKS5 listening port: {}", self.socks5_listening_port)?;
+        write!(f, "address of this client: {}", self.client_address)
     }
 }
 
 pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
-    println!("Initialising client...");
+    eprintln!("Initialising client...");
 
     let id = &args.id;
     let provider_address = &args.provider;
@@ -128,14 +131,14 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
         // in case we're using old config, try to upgrade it
         // (if we're using the current version, it's a no-op)
         try_upgrade_v1_1_13_config(id)?;
-        println!("SOCKS5 client \"{id}\" was already initialised before");
+        eprintln!("SOCKS5 client \"{id}\" was already initialised before");
     }
 
     // Usually you only register with the gateway on the first init, however you can force
     // re-registering if wanted.
     let user_wants_force_register = args.force_register_gateway;
     if user_wants_force_register {
-        println!("Instructed to force registering gateway. This might overwrite keys!");
+        eprintln!("Instructed to force registering gateway. This might overwrite keys!");
     }
 
     // If the client was already initialized, don't generate new keys and don't re-register with
@@ -175,26 +178,21 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
 
     let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
     let init_results = InitResults::new(&config, &address);
-    println!("{}", init_results);
+    println!("{}", args.output.format(&init_results));
 
-    // Output summary to a json file, if specified
-    if args.output_json {
-        client_core::init::output_to_json(&init_results, "socks5_client_init_results.json");
-    }
-
-    println!("\nThe address of this client is: {}\n", address);
+    eprintln!("\nThe address of this client is: {}\n", address);
     Ok(())
 }
 
 fn print_saved_config(config: &Config) {
     let config_save_location = config.get_config_file_save_location();
-    println!("Saved configuration file to {:?}", config_save_location);
-    println!("Using gateway: {}", config.get_base().get_gateway_id());
+    eprintln!("Saved configuration file to {:?}", config_save_location);
+    eprintln!("Using gateway: {}", config.get_base().get_gateway_id());
     log::debug!("Gateway id: {}", config.get_base().get_gateway_id());
     log::debug!("Gateway owner: {}", config.get_base().get_gateway_owner());
     log::debug!(
         "Gateway listener: {}",
         config.get_base().get_gateway_listener()
     );
-    println!("Client configuration completed.\n");
+    eprintln!("Client configuration completed.\n");
 }

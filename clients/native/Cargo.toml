@@ -34,7 +34,7 @@ tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] } 
 tokio-tungstenite = "0.14" # websocket
 
 ## internal
-nym-bin-common = { path = "../../common/bin-common" }
+nym-bin-common = { path = "../../common/bin-common", features = ["serde_json"] }
 client-core = { path = "../../common/client-core", features = ["fs-surb-storage"] }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-config = { path = "../../common/config" }
@@ -52,4 +52,3 @@ validator-client = { path = "../../common/client-libs/validator-client", feature
 websocket-requests = { path = "websocket-requests" }
 
 [dev-dependencies]
-serde_json = { workspace = true } # for the "textsend" example

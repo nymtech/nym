@@ -5,10 +5,10 @@ use super::OverrideConfig;
 use crate::commands::{override_config, version_check};
 use crate::config::Config;
 use crate::node::MixNode;
-use crate::OutputFormat;
 use clap::Args;
 use nym_config::NymConfig;
 use std::net::IpAddr;
+use nym_bin_common::output_format::OutputFormat;
 use validator_client::nyxd;
 
 #[derive(Args, Clone)]
@@ -45,6 +45,9 @@ pub(crate) struct Run {
     // the alias here is included for backwards compatibility (1.1.4 and before)
     #[clap(long, alias = "validators", value_delimiter = ',')]
     nym_apis: Option<Vec<url::Url>>,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 }
 
 impl From<Run> for OverrideConfig {
@@ -63,20 +66,20 @@ impl From<Run> for OverrideConfig {
 }
 
 fn show_binding_warning(address: &str) {
-    println!("\n##### NOTE #####");
-    println!(
+    eprintln!("\n##### NOTE #####");
+    eprintln!(
         "\nYou are trying to bind to {address} - you might not be accessible to other nodes\n\
          You can ignore this note if you're running setup on a local network \n\
          or have set a custom 'announce-host'"
     );
-    println!("\n\n");
+    eprintln!("\n\n");
 }
 
 fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-pub(crate) async fn execute(args: &Run, output: OutputFormat) {
+pub(crate) async fn execute(args: &Run) {
     eprintln!("Starting mixnode {}...", args.id);
 
     let mut config = match Config::load_from_file(&args.id) {
@@ -107,7 +110,7 @@ pub(crate) async fn execute(args: &Run, output: OutputFormat) {
     eprintln!(
         "\nTo bond your mixnode you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
-    mixnode.print_node_details(output);
+    mixnode.print_node_details(args.output);
 
     mixnode.run().await
 }

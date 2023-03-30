@@ -17,11 +17,6 @@ impl ConsoleSigningOutput {
             encoded_signature: encoded_signature.into(),
         }
     }
-
-    #[deprecated]
-    pub fn to_json_string(&self) -> String {
-        serde_json::to_string(self).expect("json serialization of 'ConsoleSigningOutput' failed")
-    }
 }
 
 impl Display for ConsoleSigningOutput {

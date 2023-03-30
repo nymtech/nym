@@ -6,10 +6,10 @@ use std::convert::TryFrom;
 use crate::commands::validate_bech32_address_or_exit;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use crate::node::MixNode;
-use crate::OutputFormat;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
 use log::error;
+use nym_bin_common::output_format::OutputFormat;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
@@ -36,6 +36,9 @@ pub(crate) struct Sign {
     /// Signs a transaction-specific payload, that is going to be sent to the smart contract, with your identity key
     #[clap(long)]
     contract_msg: Option<String>,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 }
 
 enum SignedTarget {
@@ -79,12 +82,7 @@ fn print_signed_text(private_key: &identity::PrivateKey, text: &str, output: Out
 
     let signature = private_key.sign_text(text);
     let sign_output = ConsoleSigningOutput::new(text, signature);
-
-    let msg = match output {
-        OutputFormat::Json => sign_output.to_json_string(),
-        OutputFormat::Text => sign_output.to_string(),
-    };
-    println!("{msg}")
+    println!("{}", output.format(&sign_output));
 }
 
 fn print_signed_contract_msg(
@@ -114,15 +112,10 @@ fn print_signed_contract_msg(
     let signature = private_key.sign(&decoded).to_base58_string();
 
     let sign_output = ConsoleSigningOutput::new(decoded_string, signature);
-
-    let msg = match output {
-        OutputFormat::Json => sign_output.to_json_string(),
-        OutputFormat::Text => sign_output.to_string(),
-    };
-    println!("{msg}")
+    println!("{}", output.format(&sign_output));
 }
 
-pub(crate) fn execute(args: &Sign, output: OutputFormat) {
+pub(crate) fn execute(args: &Sign) {
     let config = match Config::load_from_file(&args.id) {
         Ok(cfg) => cfg,
         Err(err) => {
@@ -151,13 +144,13 @@ pub(crate) fn execute(args: &Sign, output: OutputFormat) {
 
     match signed_target {
         SignedTarget::Text(text) => {
-            print_signed_text(identity_keypair.private_key(), &text, output)
+            print_signed_text(identity_keypair.private_key(), &text, args.output)
         }
         SignedTarget::Address(addr) => {
-            print_signed_address(identity_keypair.private_key(), addr, output)
+            print_signed_address(identity_keypair.private_key(), addr, args.output)
         }
         SignedTarget::ContractMsg(raw_msg) => {
-            print_signed_contract_msg(identity_keypair.private_key(), &raw_msg, output)
+            print_signed_contract_msg(identity_keypair.private_key(), &raw_msg, args.output)
         }
     }
 }

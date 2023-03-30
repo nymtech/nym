@@ -5,7 +5,7 @@
 extern crate rocket;
 
 use ::nym_config::defaults::setup_env;
-use clap::{crate_name, crate_version, Parser, ValueEnum};
+use clap::{crate_name, crate_version, Parser};
 use lazy_static::lazy_static;
 use nym_bin_common::logging::setup_logging;
 use nym_bin_common::{build_information::BinaryBuildInformation, logging::banner};
@@ -31,21 +31,8 @@ struct Cli {
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
-    #[clap(short, long)]
-    pub(crate) output: Option<OutputFormat>,
-
     #[clap(subcommand)]
     command: commands::Commands,
-}
-
-impl Cli {
-    fn output(&self) -> OutputFormat {
-        if let Some(ref output) = self.output {
-            output.clone()
-        } else {
-            OutputFormat::default()
-        }
-    }
 }
 
 #[cfg(feature = "cpu-cycles")]

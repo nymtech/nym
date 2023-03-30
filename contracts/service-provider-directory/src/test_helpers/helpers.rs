@@ -1,5 +1,13 @@
-use cosmwasm_std::{Coin, Response};
+use cosmwasm_std::{
+    coin, coins,
+    testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier},
+    Coin, DepsMut, MemoryStorage, OwnedDeps, Response,
+};
 use cw_multi_test::AppResponse;
+use nym_service_provider_directory_common::{
+    msg::{ExecuteMsg, InstantiateMsg},
+    Service, ServiceId,
+};
 
 pub fn nyms(amount: u64) -> Coin {
     Coin::new(amount.into(), "unym")
@@ -22,4 +30,30 @@ pub fn get_app_attribute(response: &AppResponse, key: &str) -> String {
         .unwrap()
         .value
         .clone()
+}
+
+pub fn instantiate_test_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier> {
+    let mut deps = mock_dependencies();
+    let msg = InstantiateMsg {
+        deposit_required: coin(100, "unym"),
+    };
+    let env = mock_env();
+    let info = mock_info("creator", &[]);
+    let res = crate::instantiate(deps.as_mut(), env, info, msg).unwrap();
+    assert_eq!(res.messages.len(), 0);
+    deps
+}
+
+pub fn announce_service(deps: DepsMut, service: Service) -> ServiceId {
+    let msg: ExecuteMsg = service.clone().into();
+    let info = mock_info(service.owner.as_str(), &coins(100, "unym"));
+    let res = crate::execute(deps, mock_env(), info.clone(), msg.clone()).unwrap();
+    let service_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
+    service_id
+}
+
+pub fn delete_service(deps: DepsMut, service_id: ServiceId, owner: &str) {
+    let msg = ExecuteMsg::Delete { service_id };
+    let info = mock_info(owner, &[]);
+    crate::execute(deps, mock_env(), info, msg).unwrap();
 }

@@ -17,46 +17,41 @@ pub(crate) fn next_service_id_counter(store: &mut dyn Storage) -> Result<Service
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::{
-        coins,
-        testing::{mock_dependencies, mock_env, mock_info},
-        Coin,
-    };
-    use nym_service_provider_directory_common::{
-        msg::{ExecuteMsg, InstantiateMsg, ServiceInfo},
-        ServiceId,
-    };
+
+    use nym_service_provider_directory_common::msg::ServiceInfo;
 
     use crate::test_helpers::{
-        assert::assert_services, fixture::service_fixture, helpers::get_attribute,
+        assert::assert_services,
+        fixture::service_fixture,
+        helpers::{announce_service, delete_service, instantiate_test_contract},
     };
 
     #[test]
-    fn deleted_service_id_is_not_reused() {
-        let mut deps = mock_dependencies();
-        let msg = InstantiateMsg {
-            deposit_required: Coin::new(100, "unym"),
-        };
-        let info = mock_info("creator", &[]);
+    fn get_next_service_id() {
+        let mut deps = instantiate_test_contract();
 
-        // Instantiate contract
-        let res = crate::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(res.messages.len(), 0);
-
-        // Announce
-        let msg: ExecuteMsg = service_fixture().into();
-        let info = mock_info(service_fixture().owner.as_str(), &coins(100, "unym"));
-
-        let res = crate::execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
-        let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
-        assert_eq!(sp_id, 1);
-
+        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 1);
         assert_services(deps.as_ref(), &[ServiceInfo::new(1, service_fixture())]);
 
-        let res = crate::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
-        assert_eq!(sp_id, 2);
+        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 2);
+        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 3);
+        assert_services(
+            deps.as_ref(),
+            &[
+                ServiceInfo::new(1, service_fixture()),
+                ServiceInfo::new(2, service_fixture()),
+                ServiceInfo::new(3, service_fixture()),
+            ],
+        );
+    }
 
+    #[test]
+    fn deleted_service_id_is_not_reused() {
+        let mut deps = instantiate_test_contract();
+
+        // Announce
+        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 1);
+        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 2);
         assert_services(
             deps.as_ref(),
             &[
@@ -66,19 +61,12 @@ mod tests {
         );
 
         // Delete the last entry
-        let msg = ExecuteMsg::delete(2);
-        let info = mock_info(&service_fixture().owner.to_string(), &[]);
-        crate::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        delete_service(deps.as_mut(), 2, "steve");
         assert_services(deps.as_ref(), &[ServiceInfo::new(1, service_fixture())]);
 
         // Create a third entry. The index should not reuse the previous entry that we just
         // deleted.
-        let msg: ExecuteMsg = service_fixture().into();
-        let info = mock_info(service_fixture().owner.as_str(), &coins(100, "unym"));
-        let res = crate::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        let sp_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
-        assert_eq!(sp_id, 3);
-
+        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 3);
         assert_services(
             deps.as_ref(),
             &[

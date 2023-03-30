@@ -22,7 +22,7 @@ pub fn instantiate(
     state::set_admin(deps.branch(), info.sender.clone())?;
 
     let config = Config {
-        deposit_required: msg.deposit_required.clone(),
+        deposit_required: msg.deposit_required,
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     state::save_config(deps.storage, &config)?;

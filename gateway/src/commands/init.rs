@@ -157,9 +157,10 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
     eprintln!("Saved configuration file to {:?}", config_save_location);
     eprintln!("Gateway configuration completed.\n\n\n");
 
-    Ok(crate::node::create_gateway(config)
+    crate::node::create_gateway(config)
         .await
-        .print_node_details(args.output))
+        .print_node_details(args.output);
+    Ok(())
 }
 
 #[cfg(test)]

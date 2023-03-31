@@ -54,7 +54,8 @@ impl From<OldConfigV1_1_13> for Config {
     fn from(value: OldConfigV1_1_13) -> Self {
         Config {
             base: value.base.into(),
-            debug: Default::default(),
+            network_requester: Default::default(),
+            network_requester_debug: Default::default(),
         }
     }
 }

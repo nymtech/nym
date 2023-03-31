@@ -24,7 +24,11 @@ pub struct Config {
     #[serde(flatten)]
     base: BaseConfig<Config>,
 
-    pub debug: Debug,
+    #[serde(default)]
+    pub network_requester: NetworkRequster,
+
+    #[serde(default)]
+    pub network_requester_debug: Debug,
 }
 
 impl NymConfig for Config {
@@ -32,7 +36,6 @@ impl NymConfig for Config {
         config_template()
     }
 
-    // TODO: merge base dir with `HostStore`.
     fn default_root_directory() -> PathBuf {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
@@ -66,6 +69,28 @@ impl ClientCoreConfigTrait for Config {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NetworkRequster {
+    /// Location of the file containing our allow.list
+    pub allowed_list_location: PathBuf,
+
+    /// Location of the file containing our unknown.list
+    pub unknown_list_location: PathBuf,
+}
+
+impl Default for NetworkRequster {
+    fn default() -> Self {
+        // same defaults as we had in <= v1.1.13
+        NetworkRequster {
+            allowed_list_location: <Config as NymConfig>::default_root_directory()
+                .join("allowed.list"),
+            unknown_list_location: <Config as NymConfig>::default_root_directory()
+                .join("unknown.list"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Debug {
@@ -84,15 +109,27 @@ impl Default for Debug {
 
 impl Config {
     pub fn new<S: Into<String>>(id: S) -> Self {
-        Config {
+        let mut cfg = Config {
             base: BaseConfig::new(id),
-            debug: Default::default(),
-        }
+            ..Default::default()
+        };
+
+        cfg.network_requester.allowed_list_location = cfg.data_directory().join("allowed.list");
+        cfg.network_requester.unknown_list_location = cfg.data_directory().join("unknown.list");
+        cfg
     }
 
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
+    }
+
+    pub fn allow_list_file_location(&self) -> PathBuf {
+        self.network_requester.allowed_list_location.clone()
+    }
+
+    pub fn unknown_list_file_location(&self) -> PathBuf {
+        self.network_requester.unknown_list_location.clone()
     }
 
     pub fn get_base(&self) -> &BaseConfig<Self> {

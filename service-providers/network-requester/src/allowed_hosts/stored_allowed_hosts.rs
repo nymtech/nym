@@ -18,8 +18,7 @@ pub(crate) struct StoredAllowedHosts {
 
 impl StoredAllowedHosts {
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
-        let allowed_hosts =
-            HostsStore::new(HostsStore::default_base_dir(), path.as_ref().to_path_buf());
+        let allowed_hosts = HostsStore::new(path);
 
         StoredAllowedHosts {
             inner: Arc::new(RwLock::new(allowed_hosts)),

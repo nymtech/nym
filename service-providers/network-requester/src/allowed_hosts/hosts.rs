@@ -20,8 +20,17 @@ impl HostsStore {
     ///
     /// You can inject a list of standard hosts that you want to support, in addition to the ones
     /// in the user-defined storefile.
-    pub(crate) fn new(base_dir: PathBuf, filename: PathBuf) -> HostsStore {
-        let storefile = Self::setup_storefile(base_dir, filename);
+    pub(crate) fn new<P: AsRef<Path>>(storefile: P) -> HostsStore {
+        let storefile = storefile.as_ref().to_path_buf();
+        if !storefile.is_file() {
+            // there's no error handling in here and I'm not going to be changing it now.
+            panic!(
+                "the provided storefile {:?} is not a valid file!",
+                storefile
+            )
+        }
+
+        Self::setup_storefile(&storefile);
         let hosts = Self::load_from_storefile(&storefile)
             .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {storefile:?}"));
 
@@ -77,25 +86,15 @@ impl HostsStore {
         HostsStore::append(&self.storefile, host);
     }
 
-    /// Returns the default base directory for the storefile.
-    ///
-    /// This is split out so we can easily inject our own base_dir for unit tests.
-    pub fn default_base_dir() -> PathBuf {
-        dirs::home_dir()
-            .expect("no home directory known for this OS")
-            .join(".nym")
-    }
-
-    fn setup_storefile(base_dir: PathBuf, filename: PathBuf) -> PathBuf {
-        let dirpath = base_dir.join("service-providers").join("network-requester");
-        fs::create_dir_all(&dirpath)
-            .unwrap_or_else(|_| panic!("could not create storage directory at {dirpath:?}"));
-        let storefile = dirpath.join(filename);
-        let exists = std::path::Path::new(&storefile).exists();
-        if !exists {
-            File::create(&storefile).unwrap();
+    fn setup_storefile(file: &PathBuf) {
+        if !file.exists() {
+            let parent_dir = file
+                .parent()
+                .expect("parent dir does not exist for {file:?}");
+            fs::create_dir_all(&parent_dir)
+                .unwrap_or_else(|_| panic!("could not create storage directory at {parent_dir:?}"));
+            File::create(&file).unwrap();
         }
-        storefile
     }
 
     /// Loads the storefile contents into memory.

@@ -3,7 +3,7 @@
 
 use futures::channel::mpsc;
 use futures::StreamExt;
-use notify::event::{DataChange, ModifyKind};
+use notify::event::{DataChange, MetadataKind, ModifyKind};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -37,6 +37,7 @@ impl AsyncFileWatcher {
             Some(vec![
                 EventKind::Modify(ModifyKind::Data(DataChange::Content)),
                 EventKind::Modify(ModifyKind::Data(DataChange::Any)),
+                EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any)),
             ]),
             None,
         )
@@ -79,7 +80,7 @@ impl AsyncFileWatcher {
         self
     }
 
-    pub fn with_filter(mut self, filter: notify::EventKind) -> Self {
+    pub fn with_filter(mut self, filter: EventKind) -> Self {
         match &mut self.filters {
             None => {
                 self.filters = Some(vec![filter]);
@@ -133,6 +134,8 @@ impl AsyncFileWatcher {
                         if let Err(_err) = self.event_sender.unbounded_send(event) {
                             log::error!("the file watcher receiver has been dropped!");
                         }
+                    } else {
+                        log::debug!("will not propagate information about {:?}", event);
                     }
                 }
                 Err(err) => {

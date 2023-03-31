@@ -31,7 +31,6 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::{TaskClient, TaskManager};
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
@@ -160,12 +159,8 @@ impl NRServiceProviderBuilder {
     ) -> NRServiceProviderBuilder {
         let standard_list = StandardList::new();
 
-        let allowed_hosts = StoredAllowedHosts::new("allowed.list");
-
-        let unknown_hosts = allowed_hosts::HostsStore::new(
-            allowed_hosts::HostsStore::default_base_dir(),
-            PathBuf::from("unknown.list"),
-        );
+        let allowed_hosts = StoredAllowedHosts::new(config.allow_list_file_location());
+        let unknown_hosts = allowed_hosts::HostsStore::new(config.unknown_list_file_location());
 
         let outbound_request_filter =
             OutboundRequestFilter::new(allowed_hosts.clone(), standard_list.clone(), unknown_hosts);
@@ -234,7 +229,9 @@ impl NRServiceProviderBuilder {
 
         // start the standard list updater
         StandardListUpdater::new(
-            self.config.debug.standard_list_update_interval,
+            self.config
+                .network_requester_debug
+                .standard_list_update_interval,
             self.standard_list,
             shutdown.subscribe(),
         )

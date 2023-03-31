@@ -42,8 +42,8 @@ pub enum Error {
     #[error("no gateway key set")]
     NoGatewayKeySet,
 
-    #[error("not socks5 configuration set")]
-    NoSocks5ConfigSet,
+    #[error("socks5 configuration set: {}, but expected to be {}", set, !set)]
+    Socks5Config { set: bool },
 
     #[error("socks5 channel could not be started")]
     Socks5NotStarted,

@@ -437,7 +437,10 @@ where
         <B as ReplyStorageBackend>::StorageError: Sync + Send,
     {
         let key_manager = self.key_manager.clone();
-        let socks5_config = self.socks5_config.clone().ok_or(Error::NoSocks5ConfigSet)?;
+        let socks5_config = self
+            .socks5_config
+            .clone()
+            .ok_or(Error::Socks5Config { set: false })?;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let (socks5_status_tx, mut socks5_status_rx) = mpsc::channel(128);
 
@@ -503,6 +506,9 @@ where
     where
         <B as ReplyStorageBackend>::StorageError: Sync + Send,
     {
+        if self.socks5_config.is_some() {
+            return Err(Error::Socks5Config { set: true });
+        }
         let key_manager = self.key_manager.clone();
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let client_input = started_client.client_input.register_producer();

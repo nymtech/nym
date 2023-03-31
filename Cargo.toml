@@ -21,6 +21,7 @@ members = [
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
+    "common/async-file-watcher",
     "common/bin-common",
     "common/client-core",
     "common/client-libs/gateway-client",

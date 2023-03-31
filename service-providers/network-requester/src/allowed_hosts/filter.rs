@@ -67,7 +67,7 @@ impl OutboundRequestFilter {
 
     async fn check_standard_list(&self, host: &RequestHost) -> bool {
         let guard = self.standard_list.get().await;
-        self.check_group(&*guard, host)
+        self.check_group(&guard, host)
     }
 
     fn check_group(&self, group: &HostsGroup, host: &RequestHost) -> bool {
@@ -106,7 +106,7 @@ impl OutboundRequestFilter {
 
     async fn check_request_host(&mut self, request_host: &RequestHost) -> bool {
         // first check our own allow list
-        let local_allowed = self.check_allowed_hosts(&request_host).await;
+        let local_allowed = self.check_allowed_hosts(request_host).await;
 
         // if it's locally allowed, no point in checking the standard list
         if local_allowed {
@@ -114,7 +114,7 @@ impl OutboundRequestFilter {
         }
 
         // if that failed, check the standard list
-        self.check_standard_list(&request_host).await
+        self.check_standard_list(request_host).await
     }
 
     /// Returns `true` if a host's root domain is in the `allowed_hosts` list.

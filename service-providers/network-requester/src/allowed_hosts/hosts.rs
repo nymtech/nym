@@ -60,6 +60,7 @@ impl HostsStore {
         self.data.contains_ip_network(network)
     }
 
+    #[allow(unused)]
     pub(super) fn add_host<H: Into<Host>>(&mut self, host: H) {
         match host.into() {
             Host::Domain(domain) => self.add_domain(&domain),
@@ -67,6 +68,7 @@ impl HostsStore {
         }
     }
 
+    #[allow(unused)]
     pub(super) fn add_ipnet(&mut self, network: IpNetwork) {
         if !self.contains_ipnetwork(network) {
             self.data.add_ipnet(network);
@@ -111,9 +113,9 @@ impl HostsStore {
             let parent_dir = file
                 .parent()
                 .expect("parent dir does not exist for {file:?}");
-            fs::create_dir_all(&parent_dir)
+            fs::create_dir_all(parent_dir)
                 .unwrap_or_else(|_| panic!("could not create storage directory at {parent_dir:?}"));
-            File::create(&file).unwrap();
+            File::create(file).unwrap();
         }
     }
 

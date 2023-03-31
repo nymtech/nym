@@ -4,6 +4,7 @@
 use super::HostsStore;
 use crate::allowed_hosts::group::HostsGroup;
 use crate::allowed_hosts::standard_list::StandardList;
+use crate::allowed_hosts::stored_allowed_hosts::StoredAllowedHosts;
 use std::net::{IpAddr, SocketAddr};
 
 enum RequestHost {
@@ -26,7 +27,7 @@ enum RequestHost {
 /// domains as allowed. That list is loaded once at startup from Mozilla's canonical
 /// publicsuffix list.
 pub(crate) struct OutboundRequestFilter {
-    pub(super) allowed_hosts: HostsStore,
+    pub(super) allowed_hosts: StoredAllowedHosts,
     pub(super) standard_list: StandardList,
     root_domain_list: publicsuffix::List,
     unknown_hosts: HostsStore,
@@ -41,7 +42,7 @@ impl OutboundRequestFilter {
     /// Automatcially fetches the latest standard allowed list from the Nym website, so that all
     /// requesters are able to support the same minimal functionality out of the box.
     pub(crate) fn new(
-        allowed_hosts: HostsStore,
+        allowed_hosts: StoredAllowedHosts,
         standard_list: StandardList,
         unknown_hosts: HostsStore,
     ) -> OutboundRequestFilter {
@@ -58,8 +59,9 @@ impl OutboundRequestFilter {
         }
     }
 
-    fn check_allowed_hosts(&self, host: &RequestHost) -> bool {
-        self.check_group(&self.allowed_hosts.data, host)
+    async fn check_allowed_hosts(&self, host: &RequestHost) -> bool {
+        let guard = self.allowed_hosts.get().await;
+        self.check_group(&guard.data, host)
     }
 
     async fn check_standard_list(&self, host: &RequestHost) -> bool {
@@ -103,7 +105,7 @@ impl OutboundRequestFilter {
 
     async fn check_request_host(&mut self, request_host: &RequestHost) -> bool {
         // first check our own allow list
-        let local_allowed = self.check_allowed_hosts(&request_host);
+        let local_allowed = self.check_allowed_hosts(&request_host).await;
 
         // if it's locally allowed, no point in checking the standard list
         if local_allowed {

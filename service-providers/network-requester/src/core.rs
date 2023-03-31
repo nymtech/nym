@@ -3,6 +3,7 @@
 
 use crate::allowed_hosts;
 use crate::allowed_hosts::standard_list::StandardListUpdater;
+use crate::allowed_hosts::stored_allowed_hosts::{start_allowed_list_reloader, StoredAllowedHosts};
 use crate::allowed_hosts::{OutboundRequestFilter, StandardList};
 use crate::config::Config;
 use crate::error::NetworkRequesterError;
@@ -52,6 +53,7 @@ pub struct NRServiceProviderBuilder {
     enable_statistics: bool,
     stats_provider_addr: Option<Recipient>,
     standard_list: StandardList,
+    allowed_hosts: StoredAllowedHosts,
 }
 
 struct NRServiceProvider {
@@ -158,10 +160,7 @@ impl NRServiceProviderBuilder {
     ) -> NRServiceProviderBuilder {
         let standard_list = StandardList::new();
 
-        let allowed_hosts = allowed_hosts::HostsStore::new(
-            allowed_hosts::HostsStore::default_base_dir(),
-            PathBuf::from("allowed.list"),
-        );
+        let allowed_hosts = StoredAllowedHosts::new("allowed.list");
 
         let unknown_hosts = allowed_hosts::HostsStore::new(
             allowed_hosts::HostsStore::default_base_dir(),
@@ -169,7 +168,7 @@ impl NRServiceProviderBuilder {
         );
 
         let outbound_request_filter =
-            OutboundRequestFilter::new(allowed_hosts, standard_list.clone(), unknown_hosts);
+            OutboundRequestFilter::new(allowed_hosts.clone(), standard_list.clone(), unknown_hosts);
 
         NRServiceProviderBuilder {
             config,
@@ -178,6 +177,7 @@ impl NRServiceProviderBuilder {
             enable_statistics,
             stats_provider_addr,
             standard_list,
+            allowed_hosts,
         }
     }
 
@@ -239,6 +239,9 @@ impl NRServiceProviderBuilder {
             shutdown.subscribe(),
         )
         .start();
+
+        // start the allowed.list watcher and updater
+        start_allowed_list_reloader(self.allowed_hosts, shutdown.subscribe()).await;
 
         let service_provider = NRServiceProvider {
             outbound_request_filter: self.outbound_request_filter,

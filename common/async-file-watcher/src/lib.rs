@@ -27,7 +27,7 @@ pub struct AsyncFileWatcher {
 }
 
 impl AsyncFileWatcher {
-    pub async fn new_file_changes_watcher<P: AsRef<Path>>(
+    pub fn new_file_changes_watcher<P: AsRef<Path>>(
         path: P,
         event_sender: FileWatcherEventSender,
     ) -> notify::Result<Self> {

@@ -31,6 +31,12 @@ impl HostsStore {
         }
     }
 
+    pub(crate) fn try_reload(&mut self) -> io::Result<()> {
+        let hosts = Self::load_from_storefile(&self.storefile)?;
+        self.data = HostsGroup::new(hosts);
+        Ok(())
+    }
+
     pub(crate) fn contains_domain(&self, host: &str) -> bool {
         self.data.contains_domain(host)
     }

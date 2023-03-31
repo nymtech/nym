@@ -3658,6 +3658,7 @@ dependencies = [
 name = "nym-network-requester"
 version = "1.1.13"
 dependencies = [
+ "async-file-watcher",
  "async-trait",
  "clap 4.1.11",
  "client-core",

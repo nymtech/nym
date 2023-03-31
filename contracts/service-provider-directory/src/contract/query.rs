@@ -4,7 +4,10 @@ use nym_service_provider_directory_common::{
     NymAddress, ServiceId,
 };
 
-use crate::{error::Result, state};
+use crate::{
+    error::Result,
+    state::{self, services::PagedLoad},
+};
 
 pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<ServiceInfo> {
     let service = state::services::load_id(deps.storage, service_id)?;
@@ -29,8 +32,11 @@ pub fn query_all_paged(
     start_after: Option<ServiceId>,
     limit: Option<u32>,
 ) -> Result<PagedServicesListResponse> {
-    let (services, start_next_after, limit) =
-        state::services::load_all_paged(deps.storage, start_after, limit)?;
+    let PagedLoad {
+        services,
+        start_next_after,
+        limit,
+    } = state::services::load_all_paged(deps.storage, start_after, limit)?;
     Ok(PagedServicesListResponse::new(
         services,
         start_next_after,

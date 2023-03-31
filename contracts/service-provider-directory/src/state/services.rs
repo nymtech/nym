@@ -44,7 +44,7 @@ fn services<'a>() -> IndexedMap<'a, ServiceId, Service, ServiceIndex<'a>> {
 
 pub fn save(store: &mut dyn Storage, new_service: &Service) -> Result<ServiceId> {
     let service_id = super::next_service_id_counter(store)?;
-    services().save(store, service_id, &new_service)?;
+    services().save(store, service_id, new_service)?;
     Ok(service_id)
 }
 
@@ -71,7 +71,7 @@ pub fn load_owner(store: &dyn Storage, owner: Addr) -> Result<Vec<(ServiceId, Se
         .range(store, None, None, Order::Ascending)
         .take(MAX_NUMBER_OF_PROVIDERS_PER_OWNER as usize)
         .collect::<StdResult<Vec<_>>>()?;
-    Ok(services.into())
+    Ok(services)
 }
 
 pub fn load_nym_address(
@@ -85,14 +85,21 @@ pub fn load_nym_address(
         .range(store, None, None, Order::Ascending)
         .take(MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS as usize)
         .collect::<StdResult<Vec<_>>>()?;
-    Ok(services.into())
+    Ok(services)
+}
+
+#[derive(Debug, PartialEq)]
+pub struct PagedLoad {
+    pub services: Vec<(ServiceId, Service)>,
+    pub start_next_after: Option<ServiceId>,
+    pub limit: usize,
 }
 
 pub fn load_all_paged(
     store: &dyn Storage,
     start_after: Option<ServiceId>,
     limit: Option<u32>,
-) -> Result<(Vec<(ServiceId, Service)>, Option<ServiceId>, usize)> {
+) -> Result<PagedLoad> {
     let limit = limit
         .unwrap_or(SERVICE_DEFAULT_RETRIEVAL_LIMIT)
         .min(SERVICE_MAX_RETRIEVAL_LIMIT) as usize;
@@ -105,7 +112,12 @@ pub fn load_all_paged(
         .collect::<StdResult<Vec<_>>>()?;
 
     let start_next_after = services.last().map(|service| service.0);
-    Ok((services, start_next_after, limit))
+
+    Ok(PagedLoad {
+        services,
+        start_next_after,
+        limit,
+    })
 }
 
 #[cfg(test)]
@@ -222,14 +234,14 @@ mod tests {
         save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
         assert_eq!(
             load_all_paged(&deps.storage, None, None).unwrap(),
-            (
-                vec![
+            PagedLoad {
+                services: vec![
                     (1, service_fixture_with_address("a")),
                     (2, service_fixture_with_address("b"))
                 ],
-                Some(2),
-                100,
-            )
+                start_next_after: Some(2),
+                limit: 100,
+            }
         );
     }
 
@@ -243,29 +255,33 @@ mod tests {
         save(deps.as_mut().storage, &service_fixture_with_address("e")).unwrap();
         assert_eq!(
             load_all_paged(&deps.storage, None, Some(2)).unwrap(),
-            (
-                vec![
+            PagedLoad {
+                services: vec![
                     (1, service_fixture_with_address("a")),
                     (2, service_fixture_with_address("b"))
                 ],
-                Some(2),
-                2,
-            )
+                start_next_after: Some(2),
+                limit: 2,
+            }
         );
         assert_eq!(
             load_all_paged(&deps.storage, Some(2), Some(2)).unwrap(),
-            (
-                vec![
+            PagedLoad {
+                services: vec![
                     (3, service_fixture_with_address("c")),
                     (4, service_fixture_with_address("d"))
                 ],
-                Some(4),
-                2,
-            )
+                start_next_after: Some(4),
+                limit: 2,
+            }
         );
         assert_eq!(
             load_all_paged(&deps.storage, Some(4), Some(2)).unwrap(),
-            (vec![(5, service_fixture_with_address("e")),], Some(5), 2,)
+            PagedLoad {
+                services: vec![(5, service_fixture_with_address("e")),],
+                start_next_after: Some(5),
+                limit: 2,
+            }
         );
     }
 

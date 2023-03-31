@@ -116,12 +116,13 @@ mod tests {
 
         // Announce
         let msg: ExecuteMsg = service_fixture().into();
+        let owner = service_fixture().owner.to_string();
 
         assert_eq!(
             execute(
                 deps.as_mut(),
                 mock_env(),
-                mock_info("user", &[nyms(99)]),
+                mock_info(&owner, &[nyms(99)]),
                 msg.clone()
             )
             .unwrap_err(),
@@ -135,7 +136,7 @@ mod tests {
             execute(
                 deps.as_mut(),
                 mock_env(),
-                mock_info("user", &[nyms(101)]),
+                mock_info(&owner, &[nyms(101)]),
                 msg
             )
             .unwrap_err(),

@@ -1,33 +1,27 @@
+use futures::channel::mpsc;
+use futures::StreamExt;
 use std::{path::Path, sync::Arc};
 
+use client_core::client::base_client::BaseClient;
 use client_core::{
     client::{
-        base_client::{
-            BaseClientBuilder, ClientInput, ClientOutput, ClientState, CredentialsToggle,
-        },
-        inbound_messages::InputMessage,
+        base_client::{BaseClientBuilder, CredentialsToggle},
         key_manager::KeyManager,
-        received_buffer::ReconstructedMessagesReceiver,
         replies::reply_storage::ReplyStorageBackend,
     },
     config::{persistence::key_pathfinder::ClientKeyPathfinder, GatewayEndpointConfig},
 };
 use nym_crypto::asymmetric::identity;
-use nym_sphinx::{
-    addressing::clients::{ClientIdentity, Recipient},
-    receiver::ReconstructedMessage,
-};
-use nym_task::{
-    connections::{ConnectionCommandSender, LaneQueueLengths, TransmissionLane},
-    TaskManager,
-};
 
-use futures::StreamExt;
+use nym_socks5_client_core::config::Socks5;
+use nym_task::manager::TaskStatus;
 use nym_topology::provider_trait::TopologyProvider;
-use nym_topology::NymTopology;
 use validator_client::nyxd::DirectSigningNyxdClient;
 use validator_client::Client;
 
+use crate::mixnet::native_client::MixnetClient;
+use crate::mixnet::socks5_client::Socks5MixnetClient;
+use crate::mixnet::Recipient;
 use crate::{Error, Result};
 
 use super::{connection_state::BuilderState, Config, GatewayKeyMode, Keys, KeysArc, StoragePaths};
@@ -41,6 +35,7 @@ pub struct MixnetClientBuilder {
     storage_paths: Option<StoragePaths>,
     keys: Option<Keys>,
     gateway_config: Option<GatewayEndpointConfig>,
+    socks5_config: Option<Socks5>,
     custom_topology_provider: Option<Box<dyn TopologyProvider>>,
 }
 
@@ -75,6 +70,12 @@ impl MixnetClientBuilder {
     }
 
     #[must_use]
+    pub fn socks5_config(mut self, socks5_config: Socks5) -> Self {
+        self.socks5_config = Some(socks5_config);
+        self
+    }
+
+    #[must_use]
     pub fn custom_topology_provider(
         mut self,
         topology_provider: Box<dyn TopologyProvider>,
@@ -94,6 +95,7 @@ impl MixnetClientBuilder {
 
         let mut client = DisconnectedMixnetClient::new(
             Some(config),
+            self.socks5_config,
             storage_paths,
             self.custom_topology_provider,
         )
@@ -115,7 +117,8 @@ impl MixnetClientBuilder {
 
 /// Represents a client that is not yet connected to the mixnet. You typically create one when you
 /// want to have a separate configuration and connection phase. Once the mixnet client builder is
-/// configured, call [`MixnetClientBuilder::connect_to_mixnet()`] to transition to a connected
+/// configured, call [`MixnetClientBuilder::connect_to_mixnet()`] or
+/// [`MixnetClientBuilder::connect_to_mixnet_via_socks5()`] to transition to a connected
 /// client.
 pub struct DisconnectedMixnetClient<B>
 where
@@ -126,6 +129,9 @@ where
 
     /// Client configuration
     config: Config,
+
+    /// Socks5 configuration
+    socks5_config: Option<Socks5>,
 
     /// Paths for client keys, including identity, encryption, ack and shared gateway keys.
     storage_paths: Option<StoragePaths>,
@@ -153,6 +159,7 @@ where
     /// location on-disk, if desired.
     async fn new(
         config: Option<Config>,
+        socks5_config: Option<Socks5>,
         paths: Option<StoragePaths>,
         custom_topology_provider: Option<Box<dyn TopologyProvider>>,
     ) -> Result<DisconnectedMixnetClient<B>>
@@ -208,6 +215,7 @@ where
         Ok(DisconnectedMixnetClient {
             key_manager,
             config,
+            socks5_config,
             storage_paths: paths,
             state: BuilderState::New,
             reply_storage_backend,
@@ -334,28 +342,7 @@ where
         Ok(())
     }
 
-    /// Connect the client to the mixnet.
-    ///
-    /// - If the client is already registered with a gateway, use that gateway.
-    /// - If no gateway is registered, but there is an existing configuration and key, use that.
-    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to
-    /// register a new gateway.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use nym_sdk::mixnet;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let client = mixnet::MixnetClientBuilder::new()
-    ///         .build::<mixnet::EmptyReplyStorage>()
-    ///         .await
-    ///         .unwrap();
-    ///     let client = client.connect_to_mixnet().await.unwrap();
-    /// }
-    /// ```
-    pub async fn connect_to_mixnet(mut self) -> Result<MixnetClient>
+    async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)>
     where
         <B as ReplyStorageBackend>::StorageError: Sync + Send,
     {
@@ -415,35 +402,124 @@ where
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        let self_address = base_builder.as_mix_recipient();
-        let mut started_client = base_builder.start_base().await?;
+        let started_client = base_builder.start_base().await?;
+
+        Ok((started_client, nym_address))
+    }
+
+    /// Connect the client to the mixnet via SOCKS5. A SOCKS5 configuration must be specified
+    /// before attempting to connect.
+    ///
+    /// - If the client is already registered with a gateway, use that gateway.
+    /// - If no gateway is registered, but there is an existing configuration and key, use that.
+    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to
+    /// register a new gateway.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use nym_sdk::mixnet;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let receiving_client = mixnet::MixnetClient::connect_new().await.unwrap();
+    ///     let socks5_config = mixnet::Socks5::new(receiving_client.nym_address().to_string());
+    ///     let client = mixnet::MixnetClientBuilder::new()
+    ///         .socks5_config(socks5_config)
+    ///         .build::<mixnet::EmptyReplyStorage>()
+    ///         .await
+    ///         .unwrap();
+    ///     let client = client.connect_to_mixnet_via_socks5().await.unwrap();
+    /// }
+    /// ```
+    pub async fn connect_to_mixnet_via_socks5(self) -> Result<Socks5MixnetClient>
+    where
+        <B as ReplyStorageBackend>::StorageError: Sync + Send,
+    {
+        let key_manager = self.key_manager.clone();
+        let socks5_config = self
+            .socks5_config
+            .clone()
+            .ok_or(Error::Socks5Config { set: false })?;
+        let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
+        let (socks5_status_tx, mut socks5_status_rx) = mpsc::channel(128);
+
+        let client_input = started_client.client_input.register_producer();
+        let client_output = started_client.client_output.register_consumer();
+        let client_state = started_client.client_state;
+
+        nym_socks5_client_core::NymClient::start_socks5_listener(
+            &socks5_config,
+            client_input,
+            client_output,
+            client_state.clone(),
+            nym_address,
+            started_client.task_manager.subscribe(),
+        );
+        started_client
+            .task_manager
+            .start_status_listener(socks5_status_tx)
+            .await;
+        match socks5_status_rx
+            .next()
+            .await
+            .ok_or(Error::Socks5NotStarted)?
+            .downcast_ref::<TaskStatus>()
+            .ok_or(Error::Socks5NotStarted)?
+        {
+            TaskStatus::Ready => {
+                log::debug!("Socks5 connected");
+            }
+        }
+
+        Ok(Socks5MixnetClient {
+            nym_address,
+            key_manager,
+            client_state,
+            task_manager: started_client.task_manager,
+            socks5_config,
+        })
+    }
+
+    /// Connect the client to the mixnet.
+    ///
+    /// - If the client is already registered with a gateway, use that gateway.
+    /// - If no gateway is registered, but there is an existing configuration and key, use that.
+    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to
+    /// register a new gateway.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use nym_sdk::mixnet;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let client = mixnet::MixnetClientBuilder::new()
+    ///         .build::<mixnet::EmptyReplyStorage>()
+    ///         .await
+    ///         .unwrap();
+    ///     let client = client.connect_to_mixnet().await.unwrap();
+    /// }
+    /// ```
+    pub async fn connect_to_mixnet(self) -> Result<MixnetClient>
+    where
+        <B as ReplyStorageBackend>::StorageError: Sync + Send,
+    {
+        if self.socks5_config.is_some() {
+            return Err(Error::Socks5Config { set: true });
+        }
+        let key_manager = self.key_manager.clone();
+        let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let client_input = started_client.client_input.register_producer();
         let mut client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        let reconstructed_receiver =
-            if let Some(service_provider) = self.config.socks5_service_provider {
-                let socks5_config = nym_socks5_client_core::config::Config::new(
-                    service_provider.clone(),
-                    service_provider,
-                );
-                nym_socks5_client_core::NymClient::start_socks5_listener(
-                    &socks5_config,
-                    client_input.clone(),
-                    client_output.clone(),
-                    client_state.clone(),
-                    self_address,
-                    started_client.task_manager.subscribe(),
-                );
-                None
-            } else {
-                // Register our receiver
-                Some(client_output.register_receiver()?)
-            };
+        let reconstructed_receiver = client_output.register_receiver()?;
 
         Ok(MixnetClient {
             nym_address,
-            key_manager: self.key_manager,
+            key_manager,
             client_input,
             client_output,
             client_state,
@@ -474,216 +550,5 @@ impl IncludedSurbs {
 
     pub fn expose_self_address() -> Self {
         Self::ExposeSelfAddress
-    }
-}
-
-/// Client connected to the Nym mixnet.
-pub struct MixnetClient {
-    /// The nym address of this connected client.
-    nym_address: Recipient,
-
-    /// Keys handled by the client
-    key_manager: KeyManager,
-
-    /// Input to the client from the users perspective. This can be either data to send or controll
-    /// messages.
-    client_input: ClientInput,
-
-    /// Output from the client from the users perspective. This is typically messages arriving from
-    /// the mixnet.
-    #[allow(dead_code)]
-    client_output: ClientOutput,
-
-    /// The current state of the client that is exposed to the user. This includes things like
-    /// current message send queue length.
-    client_state: ClientState,
-
-    /// A channel for messages arriving from the mixnet after they have been reconstructed.
-    reconstructed_receiver: Option<ReconstructedMessagesReceiver>,
-
-    /// The task manager that controlls all the spawned tasks that the clients uses to do it's job.
-    task_manager: TaskManager,
-}
-
-impl MixnetClient {
-    /// Create a new client and connect to the mixnet using ephemeral in-memory keys that are
-    /// discarded at application close.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use nym_sdk::mixnet;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let mut client = mixnet::MixnetClient::connect_new().await;
-    /// }
-    ///
-    /// ```
-    pub async fn connect_new() -> Result<Self> {
-        MixnetClientBuilder::new()
-            .build::<crate::mixnet::EmptyReplyStorage>()
-            .await?
-            .connect_to_mixnet()
-            .await
-    }
-
-    /// Get the client identity, which is the public key of the identity key pair.
-    pub fn identity(&self) -> ClientIdentity {
-        *self.key_manager.identity_keypair().public_key()
-    }
-
-    /// Get the nym address for this client, if it is available. The nym address is composed of the
-    /// client identity, the client encryption key, and the gateway identity.
-    pub fn nym_address(&self) -> &Recipient {
-        &self.nym_address
-    }
-
-    /// Get a shallow clone of [`MixnetClientSender`]. Useful if you want split the send and
-    /// receive logic in different locations.
-    pub fn sender(&self) -> MixnetClientSender {
-        MixnetClientSender {
-            client_input: self.client_input.clone(),
-        }
-    }
-
-    /// Get a shallow clone of [`ConnectionCommandSender`]. This is useful if you want to e.g
-    /// explicitly close a transmission lane that is still sending data even though it should
-    /// cancel.
-    pub fn connection_command_sender(&self) -> ConnectionCommandSender {
-        self.client_input.connection_command_sender.clone()
-    }
-
-    /// Get a shallow clone of [`LaneQueueLengths`]. This is useful to manually implement some form
-    /// of backpressure logic.
-    pub fn shared_lane_queue_lengths(&self) -> LaneQueueLengths {
-        self.client_state.shared_lane_queue_lengths.clone()
-    }
-
-    /// Change the network topology used by this client for constructing sphinx packets into the
-    /// provided one.
-    pub async fn manually_overwrite_topology(&self, new_topology: NymTopology) {
-        self.client_state
-            .topology_accessor
-            .manually_change_topology(new_topology)
-            .await
-    }
-
-    /// Gets the value of the currently used network topology.
-    pub async fn read_current_topology(&self) -> Option<NymTopology> {
-        self.client_state.topology_accessor.current_topology().await
-    }
-
-    /// Restore default topology refreshing behaviour of this client.
-    pub fn restore_automatic_topology_refreshing(&self) {
-        self.client_state.topology_accessor.release_manual_control()
-    }
-
-    /// Sends stringy data to the supplied Nym address
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use nym_sdk::mixnet;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let address = "foobar";
-    ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
-    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     client.send_str(recipient, "hi").await;
-    /// }
-    /// ```
-    pub async fn send_str(&self, address: Recipient, message: &str) {
-        let message_bytes = message.to_string().into_bytes();
-        self.send_bytes(address, message_bytes, IncludedSurbs::default())
-            .await;
-    }
-
-    /// Sends bytes to the supplied Nym address. There is the option to specify the number of
-    /// reply-SURBs to include.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use nym_sdk::mixnet;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let address = "foobar";
-    ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
-    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     let surbs = mixnet::IncludedSurbs::default();
-    ///     client.send_bytes(recipient, "hi".to_owned().into_bytes(), surbs).await;
-    /// }
-    /// ```
-    pub async fn send_bytes(&self, address: Recipient, message: Vec<u8>, surbs: IncludedSurbs) {
-        let lane = TransmissionLane::General;
-        let input_msg = match surbs {
-            IncludedSurbs::Amount(surbs) => {
-                InputMessage::new_anonymous(address, message, surbs, lane)
-            }
-            IncludedSurbs::ExposeSelfAddress => InputMessage::new_regular(address, message, lane),
-        };
-        self.send(input_msg).await
-    }
-
-    /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
-    /// full customization.
-    async fn send(&self, message: InputMessage) {
-        if self.client_input.send(message).await.is_err() {
-            log::error!("Failed to send message");
-        }
-    }
-
-    /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
-    /// full customization.
-    ///
-    /// Waits until the message is actually sent, or close to being sent, until returning.
-    ///
-    /// NOTE: this not yet implemented.
-    #[allow(unused)]
-    async fn send_wait(&self, _message: InputMessage) {
-        todo!();
-    }
-
-    /// Wait for messages from the mixnet
-    pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
-        if let Some(recv) = self.reconstructed_receiver.as_mut() {
-            recv.next().await
-        } else {
-            None
-        }
-    }
-
-    /// Provide a callback to execute on incoming messages from the mixnet.
-    pub async fn on_messages<F>(&mut self, fun: F)
-    where
-        F: Fn(ReconstructedMessage),
-    {
-        while let Some(msgs) = self.wait_for_messages().await {
-            for msg in msgs {
-                fun(msg)
-            }
-        }
-    }
-
-    /// Disconnect from the mixnet. Currently it is not supported to reconnect a disconnected
-    /// client.
-    pub async fn disconnect(&mut self) {
-        self.task_manager.signal_shutdown().ok();
-        self.task_manager.wait_for_shutdown().await;
-    }
-}
-
-pub struct MixnetClientSender {
-    client_input: ClientInput,
-}
-
-impl MixnetClientSender {
-    pub async fn send_input_message(&mut self, message: InputMessage) {
-        if self.client_input.send(message).await.is_err() {
-            log::error!("Failed to send message");
-        }
     }
 }

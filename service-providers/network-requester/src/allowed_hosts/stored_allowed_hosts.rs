@@ -35,6 +35,14 @@ impl StoredAllowedHosts {
     }
 }
 
+impl From<HostsStore> for StoredAllowedHosts {
+    fn from(value: HostsStore) -> Self {
+        StoredAllowedHosts {
+            inner: Arc::new(RwLock::new(value)),
+        }
+    }
+}
+
 pub(crate) struct StoredAllowedHostsReloader {
     stored_hosts: StoredAllowedHosts,
     events_receiver: FileWatcherEventReceiver,

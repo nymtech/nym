@@ -7,6 +7,7 @@ use crate::allowed_hosts::standard_list::StandardList;
 use crate::allowed_hosts::stored_allowed_hosts::StoredAllowedHosts;
 use std::net::{IpAddr, SocketAddr};
 
+#[derive(Debug)]
 enum RequestHost {
     IpAddr(IpAddr),
     SocketAddr(SocketAddr),
@@ -168,12 +169,100 @@ impl OutboundRequestFilter {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs::{self, File},
-        path::PathBuf,
-    };
-
     use super::*;
+    use std::ops::{Deref, DerefMut};
+
+    struct HostsStoreFixture {
+        inner: HostsStore,
+        // take ownership of temp file that will get cleaned up on drop (i.e. when test finishes)
+        _tmp_file: tempfile::NamedTempFile,
+    }
+
+    impl Deref for HostsStoreFixture {
+        type Target = HostsStore;
+
+        fn deref(&self) -> &Self::Target {
+            &self.inner
+        }
+    }
+
+    impl DerefMut for HostsStoreFixture {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.inner
+        }
+    }
+
+    impl HostsStoreFixture {
+        fn new() -> HostsStoreFixture {
+            let tmp_file = tempfile::NamedTempFile::new().unwrap();
+            let inner = HostsStore::new(&tmp_file);
+            HostsStoreFixture {
+                inner,
+                _tmp_file: tmp_file,
+            }
+        }
+    }
+
+    struct OutboundRequestFilterFixture {
+        inner: OutboundRequestFilter,
+        // take ownership of temp files that will get cleaned up on drop (i.e. when test finishes)
+        _allow_tmp_file: tempfile::NamedTempFile,
+        _unknown_tmp_file: tempfile::NamedTempFile,
+    }
+
+    impl Deref for OutboundRequestFilterFixture {
+        type Target = OutboundRequestFilter;
+
+        fn deref(&self) -> &Self::Target {
+            &self.inner
+        }
+    }
+
+    impl DerefMut for OutboundRequestFilterFixture {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.inner
+        }
+    }
+
+    impl OutboundRequestFilterFixture {
+        fn new() -> OutboundRequestFilterFixture {
+            let allow_tmp_file = tempfile::NamedTempFile::new().unwrap();
+            let unknown_tmp_file = tempfile::NamedTempFile::new().unwrap();
+            let allowed = HostsStore::new(&allow_tmp_file);
+            let unknown = HostsStore::new(&unknown_tmp_file);
+            let standard = StandardList::new();
+
+            let inner = OutboundRequestFilter::new(allowed.into(), standard, unknown);
+            OutboundRequestFilterFixture {
+                inner,
+                _allow_tmp_file: allow_tmp_file,
+                _unknown_tmp_file: unknown_tmp_file,
+            }
+        }
+    }
+
+    fn setup_empty() -> OutboundRequestFilterFixture {
+        OutboundRequestFilterFixture::new()
+    }
+
+    fn setup_with_allowed(allowed: &[&str]) -> OutboundRequestFilterFixture {
+        let allow_tmp_file = tempfile::NamedTempFile::new().unwrap();
+        let unknown_tmp_file = tempfile::NamedTempFile::new().unwrap();
+        let mut allowed_store = HostsStore::new(&allow_tmp_file);
+        let unknown = HostsStore::new(&unknown_tmp_file);
+        let standard = StandardList::new();
+
+        for allow in allowed {
+            allowed_store.add_host(allow)
+        }
+
+        let inner = OutboundRequestFilter::new(allowed_store.into(), standard, unknown);
+        OutboundRequestFilterFixture {
+            inner,
+            _allow_tmp_file: allow_tmp_file,
+            _unknown_tmp_file: unknown_tmp_file,
+        }
+    }
 
     #[cfg(test)]
     mod trimming_port_information {
@@ -194,24 +283,11 @@ mod tests {
 
     #[cfg(test)]
     mod getting_the_domain_root {
-        use std::path::PathBuf;
-
         use super::*;
-
-        fn setup() -> OutboundRequestFilter {
-            let base_dir = test_base_dir();
-            let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
-            let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
-            let allowed = HostsStore::new(base_dir.clone(), allowed_filename);
-            let standard = StandardList::new();
-            let unknown = HostsStore::new(base_dir, unknown_filename);
-
-            OutboundRequestFilter::new(allowed, standard, unknown)
-        }
 
         #[test]
         fn leaves_a_com_alone() {
-            let filter = setup();
+            let filter = setup_empty();
             assert_eq!(
                 Some("domain.com".to_string()),
                 filter.get_domain_root("domain.com")
@@ -220,7 +296,7 @@ mod tests {
 
         #[test]
         fn trims_subdomains_from_com() {
-            let filter = setup();
+            let filter = setup_empty();
             assert_eq!(
                 Some("domain.com".to_string()),
                 filter.get_domain_root("foomp.domain.com")
@@ -229,7 +305,7 @@ mod tests {
 
         #[test]
         fn works_for_non_com_roots() {
-            let filter = setup();
+            let filter = setup_empty();
             assert_eq!(
                 Some("domain.co.uk".to_string()),
                 filter.get_domain_root("domain.co.uk")
@@ -238,7 +314,7 @@ mod tests {
 
         #[test]
         fn works_for_non_com_roots_with_subdomains() {
-            let filter = setup();
+            let filter = setup_empty();
             assert_eq!(
                 Some("domain.co.uk".to_string()),
                 filter.get_domain_root("foomp.domain.co.uk")
@@ -247,13 +323,13 @@ mod tests {
 
         #[test]
         fn returns_none_on_garbage() {
-            let filter = setup();
+            let filter = setup_empty();
             assert_eq!(None, filter.get_domain_root("::/&&%@"));
         }
 
         #[test]
         fn returns_full_on_suffix_domains() {
-            let filter = setup();
+            let filter = setup_empty();
             assert_eq!(
                 Some("s3.amazonaws.com".to_string()),
                 filter.get_domain_root("s3.amazonaws.com")
@@ -263,32 +339,19 @@ mod tests {
 
     #[cfg(test)]
     mod requests_to_unknown_hosts {
-        use std::path::PathBuf;
-
         use super::*;
-
-        fn setup() -> OutboundRequestFilter {
-            let base_dir = test_base_dir();
-            let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
-            let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
-            let allowed = HostsStore::new(base_dir.clone(), allowed_filename);
-            let standard = StandardList::new();
-            let unknown = HostsStore::new(base_dir, unknown_filename);
-
-            OutboundRequestFilter::new(allowed, standard, unknown)
-        }
 
         #[tokio::test]
         async fn are_not_allowed() {
             let host = "unknown.com";
-            let mut filter = setup();
+            let mut filter = setup_empty();
             assert!(!filter.check(host).await);
         }
 
         #[tokio::test]
         async fn get_appended_once_to_the_unknown_hosts_list() {
             let host = "unknown.com";
-            let mut filter = setup();
+            let mut filter = setup_empty();
             filter.check(host).await;
             assert_eq!(1, filter.unknown_hosts.data.domains.len());
             assert!(filter.unknown_hosts.data.domains.contains("unknown.com"));
@@ -302,26 +365,11 @@ mod tests {
     mod requests_to_allowed_hosts {
         use super::*;
 
-        fn setup(allowed: &[&str]) -> OutboundRequestFilter {
-            let (allowed_storefile, base_dir1, allowed_filename) = create_test_storefile();
-            let (_, base_dir2, unknown_filename) = create_test_storefile();
-
-            for allowed_host in allowed {
-                HostsStore::append(&allowed_storefile, allowed_host)
-            }
-
-            let allowed = HostsStore::new(base_dir1, allowed_filename);
-            let standard = StandardList::new();
-            let unknown = HostsStore::new(base_dir2, unknown_filename);
-
-            OutboundRequestFilter::new(allowed, standard, unknown)
-        }
-
         #[tokio::test]
         async fn are_allowed() {
             let host = "nymtech.net";
 
-            let mut filter = setup(&["nymtech.net"]);
+            let mut filter = setup_with_allowed(&["nymtech.net"]);
             assert!(filter.check(host).await);
         }
 
@@ -329,22 +377,26 @@ mod tests {
         async fn are_allowed_for_subdomains() {
             let host = "foomp.nymtech.net";
 
-            let mut filter = setup(&["nymtech.net"]);
+            let mut filter = setup_with_allowed(&["nymtech.net"]);
             assert!(filter.check(host).await);
         }
 
         #[tokio::test]
         async fn are_not_appended_to_file() {
-            let mut filter = setup(&["nymtech.net"]);
+            let mut filter = setup_with_allowed(&["nymtech.net"]);
 
             // test initial state
-            let lines = HostsStore::load_from_storefile(&filter.allowed_hosts.storefile).unwrap();
+            let lines =
+                HostsStore::load_from_storefile(&filter.allowed_hosts.get().await.storefile)
+                    .unwrap();
             assert_eq!(1, lines.len());
 
-            filter.check("nymtech.net");
+            assert!(filter.check("nymtech.net").await);
 
             // test state after we've checked to make sure no unexpected changes
-            let lines = HostsStore::load_from_storefile(&filter.allowed_hosts.storefile).unwrap();
+            let lines =
+                HostsStore::load_from_storefile(&filter.allowed_hosts.get().await.storefile)
+                    .unwrap();
             assert_eq!(1, lines.len());
         }
 
@@ -354,7 +406,7 @@ mod tests {
             let address_good_port = "1.1.1.1:1234";
             let address_bad = "1.1.1.2";
 
-            let mut filter = setup(&["1.1.1.1"]);
+            let mut filter = setup_with_allowed(&["1.1.1.1"]);
             assert!(filter.check(address_good).await);
             assert!(filter.check(address_good_port).await);
             assert!(!filter.check(address_bad).await);
@@ -371,8 +423,9 @@ mod tests {
 
             let ip_v6_loopback_port = "[::1]:1234";
 
-            let mut filter1 = setup(&[ip_v6_full, ip_v6_semi, "::1"]);
-            let mut filter2 = setup(&[ip_v6_full_rendered, ip_v6_semi_rendered, "::1"]);
+            let mut filter1 = setup_with_allowed(&[ip_v6_full, ip_v6_semi, "::1"]);
+            let mut filter2 =
+                setup_with_allowed(&[ip_v6_full_rendered, ip_v6_semi_rendered, "::1"]);
 
             assert!(filter1.check(ip_v6_full).await);
             assert!(filter1.check(ip_v6_full_rendered).await);
@@ -399,7 +452,7 @@ mod tests {
 
             let outside_range2 = "1.2.2.4";
 
-            let mut filter = setup(&[range1, range2]);
+            let mut filter = setup_with_allowed(&[range1, range2]);
             assert!(filter.check("127.0.0.1").await);
             assert!(filter.check("127.0.0.1:1234").await);
             assert!(filter.check(bottom_range2).await);
@@ -417,31 +470,12 @@ mod tests {
             let top = "2620:0:ffff:ffff:ffff:ffff:ffff:ffff";
             let mid = "2620:0:42::42";
 
-            let mut filter = setup(&[range]);
+            let mut filter = setup_with_allowed(&[range]);
             assert!(filter.check(bottom1).await);
             assert!(filter.check(bottom2).await);
             assert!(filter.check(top).await);
             assert!(filter.check(mid).await);
         }
-    }
-
-    fn random_string() -> String {
-        format!("{:?}", rand::random::<u32>())
-    }
-
-    fn test_base_dir() -> PathBuf {
-        ["/tmp/nym-tests"].iter().collect()
-    }
-
-    fn create_test_storefile() -> (PathBuf, PathBuf, PathBuf) {
-        let base_dir = test_base_dir();
-        let filename = PathBuf::from(format!("hosts-store-{}.list", random_string()));
-        let dirpath = base_dir.join("service-providers").join("network-requester");
-        fs::create_dir_all(&dirpath)
-            .unwrap_or_else(|_| panic!("could not create storage directory at {dirpath:?}"));
-        let storefile = dirpath.join(&filename);
-        File::create(&storefile).unwrap();
-        (storefile, base_dir, filename)
     }
 
     #[cfg(test)]
@@ -450,15 +484,15 @@ mod tests {
 
         #[test]
         fn loads_its_host_list_from_storefile() {
-            let (storefile, base_dir, filename) = create_test_storefile();
-            HostsStore::append(&storefile, "nymtech.net");
-            HostsStore::append(&storefile, "edwardsnowden.com");
-            HostsStore::append(&storefile, "1.2.3.4");
-            HostsStore::append(&storefile, "5.6.7.8/16");
-            HostsStore::append(&storefile, "1:2:3::");
-            HostsStore::append(&storefile, "5:6:7::/48");
+            let mut host_store = HostsStoreFixture::new();
 
-            let host_store = HostsStore::new(base_dir, filename);
+            host_store.add_host("nymtech.net");
+            host_store.add_host("edwardsnowden.com");
+            host_store.add_host("1.2.3.4");
+            host_store.add_host("5.6.7.8/16");
+            host_store.add_host("1:2:3::");
+            host_store.add_host("5:6:7::/48");
+
             assert!(host_store.data.domains.contains("nymtech.net"));
             assert!(host_store.data.domains.contains("edwardsnowden.com"));
 

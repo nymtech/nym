@@ -47,3 +47,6 @@ nym-socks5-requests = { path = "../../common/socks5/requests" }
 nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
 websocket-requests = { path = "../../clients/native/websocket-requests" }
+
+[dev-dependencies]
+tempfile = "3.5.0"

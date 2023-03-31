@@ -1,5 +1,6 @@
 use super::host::Host;
 use crate::allowed_hosts::group::HostsGroup;
+use ipnetwork::IpNetwork;
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, BufRead, BufReader},
@@ -23,7 +24,7 @@ impl HostsStore {
     pub(crate) fn new<P: AsRef<Path>>(storefile: P) -> HostsStore {
         let storefile = storefile.as_ref().to_path_buf();
         if !storefile.is_file() {
-            // there's no error handling in here and I'm not going to be changing it now.
+            // there's no error handling in here and I'm not going to be changing it right now.
             panic!(
                 "the provided storefile {:?} is not a valid file!",
                 storefile
@@ -54,9 +55,28 @@ impl HostsStore {
         self.data.contains_ip_address(address)
     }
 
+    #[allow(unused)]
+    pub(super) fn contains_ipnetwork(&self, network: IpNetwork) -> bool {
+        self.data.contains_ip_network(network)
+    }
+
+    pub(super) fn add_host<H: Into<Host>>(&mut self, host: H) {
+        match host.into() {
+            Host::Domain(domain) => self.add_domain(&domain),
+            Host::IpNetwork(ipnet) => self.add_ipnet(ipnet),
+        }
+    }
+
+    pub(super) fn add_ipnet(&mut self, network: IpNetwork) {
+        if !self.contains_ipnetwork(network) {
+            self.data.add_ipnet(network);
+            self.append_to_file(&network.to_string());
+        }
+    }
+
     pub(super) fn add_ip(&mut self, ip: IpAddr) {
         if !self.contains_ip_address(ip) {
-            self.data.add_ip(ip);
+            self.data.add_ipnet(ip);
             self.append_to_file(&ip.to_string());
         }
     }
@@ -117,7 +137,8 @@ mod constructor_tests {
 
     #[test]
     fn works_with_no_standard_hosts() {
-        let store = HostsStore::new(PathBuf::from("/tmp"), PathBuf::from("foomp.db"));
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let store = HostsStore::new(temp_file);
         assert_eq!(store.data.domains.len(), 0);
     }
 }

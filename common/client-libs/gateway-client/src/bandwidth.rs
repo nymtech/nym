@@ -86,8 +86,7 @@ where
         #[cfg(not(target_arch = "wasm32"))]
         let coconut_api_clients =
             nym_validator_client::CoconutApiClient::all_coconut_api_clients(&self.client, epoch_id)
-                .await
-                .expect("Could not query api clients");
+                .await?;
         #[cfg(target_arch = "wasm32")]
         let coconut_api_clients = vec![];
         let verification_key = obtain_aggregate_verification_key(&coconut_api_clients).await?;

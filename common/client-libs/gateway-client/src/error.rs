@@ -13,6 +13,7 @@ use nym_gateway_requests::registration::handshake::error::HandshakeError;
 use std::io;
 use thiserror::Error;
 use tungstenite::Error as WsError;
+use validator_client::error::ValidatorClientError;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
 
@@ -70,6 +71,9 @@ pub enum GatewayClientError {
 
     #[error("There are no more bandwidth credentials acquired. Please buy some more if you want to use the mixnet")]
     NoMoreBandwidthCredentials,
+
+    #[error("Validator client error - {0}")]
+    ValidatorError(#[from] ValidatorClientError),
 
     #[error("Received an unexpected response")]
     UnexpectedResponse,

@@ -1,3 +1,5 @@
+use futures::channel::mpsc;
+use futures::StreamExt;
 use std::{path::Path, sync::Arc};
 
 use client_core::client::base_client::BaseClient;
@@ -12,6 +14,7 @@ use client_core::{
 use nym_crypto::asymmetric::identity;
 
 use nym_socks5_client_core::config::Socks5;
+use nym_task::manager::TaskStatus;
 use nym_topology::provider_trait::TopologyProvider;
 use validator_client::nyxd::DirectSigningNyxdClient;
 use validator_client::Client;
@@ -436,12 +439,12 @@ where
         let key_manager = self.key_manager.clone();
         let socks5_config = self.socks5_config.clone().ok_or(Error::NoSocks5ConfigSet)?;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
+        let (socks5_status_tx, mut socks5_status_rx) = mpsc::channel(128);
 
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        let socks5_listener_boot_time_secs = 5;
         nym_socks5_client_core::NymClient::start_socks5_listener(
             &socks5_config,
             client_input,
@@ -450,13 +453,21 @@ where
             nym_address,
             started_client.task_manager.subscribe(),
         );
-        log::debug!(
-            "Waiting for {} seconds for the socks5 channel to boot",
-            socks5_listener_boot_time_secs
-        );
-        std::thread::sleep(std::time::Duration::from_secs(
-            socks5_listener_boot_time_secs,
-        ));
+        started_client
+            .task_manager
+            .start_status_listener(socks5_status_tx)
+            .await;
+        match socks5_status_rx
+            .next()
+            .await
+            .ok_or(Error::Socks5NotStarted)?
+            .downcast_ref::<TaskStatus>()
+            .ok_or(Error::Socks5NotStarted)?
+        {
+            TaskStatus::Ready => {
+                log::debug!("Socks5 connected");
+            }
+        }
 
         Ok(Socks5MixnetClient {
             nym_address,

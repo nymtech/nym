@@ -45,6 +45,9 @@ pub enum Error {
     #[error("not socks5 configuration set")]
     NoSocks5ConfigSet,
 
+    #[error("socks5 channel could not be started")]
+    Socks5NotStarted,
+
     #[error("failed to create reply storage backend: {source}")]
     StorageError {
         source: Box<dyn std::error::Error + Send + Sync>,

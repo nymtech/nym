@@ -35,7 +35,7 @@ impl TestSetup {
             let mut init_balance = |account: &str| {
                 router
                     .bank
-                    .init_balance(storage, &Addr::unchecked(account), coins(150, DENOM))
+                    .init_balance(storage, &Addr::unchecked(account), coins(250, DENOM))
                     .unwrap();
             };
             ADDRESSES.iter().for_each(|addr| init_balance(addr));
@@ -128,6 +128,19 @@ impl TestSetup {
             );
         }
         delete_resp
+    }
+
+    pub fn delete_nym_address(
+        &mut self,
+        nym_address: NymAddress,
+        owner: Addr,
+    ) -> Result<AppResponse> {
+        self.app.execute_contract(
+            owner,
+            self.addr.clone(),
+            &ExecuteMsg::DeleteNymAddress { nym_address },
+            &[],
+        )
     }
 
     pub fn balance(&self, address: impl Into<String>) -> StdResult<Coin> {

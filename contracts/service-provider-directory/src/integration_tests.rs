@@ -43,13 +43,13 @@ fn announce_and_query_service() {
     let owner = Addr::unchecked("owner");
     let nym_address = NymAddress::new("nymAddress");
     assert_eq!(setup.contract_balance().unwrap(), nyms(0));
-    assert_eq!(setup.balance(&owner).unwrap(), nyms(150));
+    assert_eq!(setup.balance(&owner).unwrap(), nyms(250));
     setup
         .announce_network_requester(nym_address.clone(), owner.clone())
         .unwrap();
 
     assert_eq!(setup.contract_balance().unwrap(), nyms(100));
-    assert_eq!(setup.balance(&owner).unwrap(), nyms(50));
+    assert_eq!(setup.balance(&owner).unwrap(), nyms(150));
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {
@@ -187,6 +187,86 @@ fn cant_delete_service_that_does_not_exist() {
     setup.delete(1, Addr::unchecked("owner")).unwrap();
     assert_eq!(setup.contract_balance().unwrap(), nyms(0));
     assert!(setup.query_all().services.is_empty());
+}
+
+#[test]
+fn announce_multiple_services_and_deleting_by_name() {
+    let mut setup = TestSetup::new();
+    let owner1 = Addr::unchecked("owner1");
+    let owner2 = Addr::unchecked("owner2");
+    let nym_address = NymAddress::new("nymAddress");
+
+    setup
+        .announce_network_requester(nym_address.clone(), owner1.clone())
+        .unwrap();
+    setup
+        .announce_network_requester(nym_address.clone(), owner1.clone())
+        .unwrap();
+    setup
+        .announce_network_requester(nym_address.clone(), owner2.clone())
+        .unwrap();
+
+    assert_eq!(
+        setup.query_all(),
+        PagedServicesListResponse {
+            services: vec![
+                ServiceInfo {
+                    service_id: 1,
+                    service: Service {
+                        nym_address: nym_address.clone(),
+                        service_type: ServiceType::NetworkRequester,
+                        owner: owner1.clone(),
+                        block_height: 12345,
+                        deposit: nyms(100),
+                    },
+                },
+                ServiceInfo {
+                    service_id: 2,
+                    service: Service {
+                        nym_address: nym_address.clone(),
+                        service_type: ServiceType::NetworkRequester,
+                        owner: owner1.clone(),
+                        block_height: 12345,
+                        deposit: nyms(100),
+                    },
+                },
+                ServiceInfo {
+                    service_id: 3,
+                    service: Service {
+                        nym_address: nym_address.clone(),
+                        service_type: ServiceType::NetworkRequester,
+                        owner: owner2.clone(),
+                        block_height: 12345,
+                        deposit: nyms(100),
+                    },
+                },
+            ],
+            per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
+            start_next_after: Some(3),
+        }
+    );
+
+    setup
+        .delete_nym_address(nym_address.clone(), owner1.clone())
+        .unwrap();
+
+    assert_eq!(
+        setup.query_all(),
+        PagedServicesListResponse {
+            services: vec![ServiceInfo {
+                service_id: 3,
+                service: Service {
+                    nym_address: nym_address.clone(),
+                    service_type: ServiceType::NetworkRequester,
+                    owner: owner2.clone(),
+                    block_height: 12345,
+                    deposit: nyms(100),
+                },
+            }],
+            per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
+            start_next_after: Some(3),
+        }
+    );
 }
 
 #[test]

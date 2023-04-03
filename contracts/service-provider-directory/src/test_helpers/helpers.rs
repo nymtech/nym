@@ -28,17 +28,34 @@ pub fn get_attribute(res: Response, event_type: &str, key: &str) -> String {
 }
 
 pub fn get_app_attribute(response: &AppResponse, event_type: &str, key: &str) -> String {
-    let wasm = response
+    response
         .events
         .iter()
         .find(|ev| ev.ty == event_type)
-        .unwrap();
-    wasm.attributes
+        .unwrap()
+        .attributes
         .iter()
         .find(|attr| attr.key == key)
         .unwrap()
         .value
         .clone()
+}
+
+#[allow(dead_code)]
+pub fn get_app_attributes(response: &AppResponse, event_type: &str, key: &str) -> Vec<String> {
+    response
+        .events
+        .iter()
+        .filter(|ev| ev.ty == event_type)
+        .map(|ev| {
+            ev.attributes
+                .iter()
+                .find(|attr| attr.key == key)
+                .unwrap()
+                .value
+                .clone()
+        })
+        .collect::<Vec<_>>()
 }
 
 pub fn instantiate_test_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier> {

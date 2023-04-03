@@ -22,6 +22,6 @@
     "@wdio/local-runner": "^7.14.1",
     "@wdio/mocha-framework": "^7.14.1",
     "@wdio/spec-reporter": "^7.14.1",
-    "prettier": "2.4.1"
+    "prettier": "^2.8.7"
   }
 }

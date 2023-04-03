@@ -176,10 +176,7 @@ async fn choose_gateway_by_latency<R: Rng>(
                 continue;
             }
         };
-        debug!(
-            "{id} ({}): {:?}",
-            with_latency.gateway.location, with_latency.latency
-        );
+        debug!("{id}: {:?}", with_latency.latency);
         gateways_with_latency.push(with_latency)
     }
 
@@ -188,8 +185,8 @@ async fn choose_gateway_by_latency<R: Rng>(
         .expect("invalid selection weight!");
 
     info!(
-        "chose gateway {} (located at {}) with average latency of {:?}",
-        chosen.gateway.identity_key, chosen.gateway.location, chosen.latency
+        "chose gateway {} with average latency of {:?}",
+        chosen.gateway.identity_key, chosen.latency
     );
 
     Ok(chosen.gateway.clone())

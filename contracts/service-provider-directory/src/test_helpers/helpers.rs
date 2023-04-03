@@ -5,6 +5,7 @@ use cosmwasm_std::{
 };
 use cw_multi_test::AppResponse;
 use nym_service_provider_directory_common::{
+    events::{ServiceProviderEventType, SERVICE_ID},
     msg::{ExecuteMsg, InstantiateMsg},
     Service, ServiceId,
 };
@@ -13,8 +14,12 @@ pub fn nyms(amount: u64) -> Coin {
     Coin::new(amount.into(), "unym")
 }
 
-pub fn get_attribute(res: Response, key: &str) -> String {
-    res.attributes
+pub fn get_attribute(res: Response, event_type: &str, key: &str) -> String {
+    res.events
+        .iter()
+        .find(|ev| ev.ty == event_type)
+        .unwrap()
+        .attributes
         .iter()
         .find(|attr| attr.key == key)
         .unwrap()
@@ -22,8 +27,12 @@ pub fn get_attribute(res: Response, key: &str) -> String {
         .clone()
 }
 
-pub fn get_app_attribute(response: &AppResponse, key: &str) -> String {
-    let wasm = response.events.iter().find(|ev| ev.ty == "wasm").unwrap();
+pub fn get_app_attribute(response: &AppResponse, event_type: &str, key: &str) -> String {
+    let wasm = response
+        .events
+        .iter()
+        .find(|ev| ev.ty == event_type)
+        .unwrap();
     wasm.attributes
         .iter()
         .find(|attr| attr.key == key)
@@ -48,7 +57,13 @@ pub fn announce_service(deps: DepsMut, service: Service) -> ServiceId {
     let msg: ExecuteMsg = service.clone().into();
     let info = mock_info(service.owner.as_str(), &coins(100, "unym"));
     let res = crate::execute(deps, mock_env(), info.clone(), msg.clone()).unwrap();
-    let service_id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
+    let service_id: ServiceId = get_attribute(
+        res.clone(),
+        &ServiceProviderEventType::Announce.to_string(),
+        SERVICE_ID,
+    )
+    .parse()
+    .unwrap();
     service_id
 }
 

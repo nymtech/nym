@@ -106,7 +106,10 @@ impl TestSetup {
             }],
         );
         if let Ok(ref resp) = resp {
-            assert_eq!(get_app_attribute(&resp, "action"), "announce");
+            assert_eq!(
+                get_app_attribute(&resp, "wasm-announce", "action"),
+                "announce"
+            );
         }
         resp
     }
@@ -119,7 +122,10 @@ impl TestSetup {
             &[],
         );
         if let Ok(ref resp) = delete_resp {
-            assert_eq!(get_app_attribute(&resp, "action"), "delete_id");
+            assert_eq!(
+                get_app_attribute(&resp, "wasm-delete_id", "action"),
+                "delete_id"
+            );
         }
         delete_resp
     }

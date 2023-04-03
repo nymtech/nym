@@ -33,7 +33,7 @@ pub enum ExecuteMsg {
 }
 
 impl ExecuteMsg {
-    pub fn delete(service_id: ServiceId) -> Self {
+    pub fn delete_id(service_id: ServiceId) -> Self {
         ExecuteMsg::DeleteId { service_id }
     }
 }

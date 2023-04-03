@@ -3,7 +3,6 @@ use crate::{
     state::{self, Config},
 };
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
-use cw2::set_contract_version;
 use nym_service_provider_directory_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 mod execute;
@@ -24,7 +23,7 @@ pub fn instantiate(
     let config = Config {
         deposit_required: msg.deposit_required,
     };
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     state::save_config(deps.storage, &config)?;
 
     Ok(Response::new()
@@ -46,7 +45,7 @@ pub fn execute(
         ExecuteMsg::DeleteId { service_id } => execute::delete_id(deps, info, service_id),
         ExecuteMsg::DeleteNymAddress { nym_address } => {
             execute::delete_nym_address(deps, info, nym_address)
-        },
+        }
         ExecuteMsg::UpdateDepositRequired { deposit_required } => {
             execute::update_deposit_required(deps, info, deposit_required)
         }
@@ -168,10 +167,12 @@ mod tests {
 
         // Check that the service has had service id assigned to it
         let expected_id = 1;
-        let id: ServiceId = get_attribute(res.clone(), "service_id").parse().unwrap();
+        let id: ServiceId = get_attribute(res.clone(), "announce", "service_id")
+            .parse()
+            .unwrap();
         assert_eq!(id, expected_id);
         assert_eq!(
-            get_attribute(res, "service_type"),
+            get_attribute(res, "announce", "service_type"),
             "network_requester".to_string()
         );
 
@@ -207,7 +208,7 @@ mod tests {
         assert_services(deps.as_ref(), &[expected_service.clone()]);
 
         // Removing someone else's service will fail
-        let msg = ExecuteMsg::delete(expected_id);
+        let msg = ExecuteMsg::delete_id(expected_id);
         let info_timmy = mock_info("timmy", &[]);
         assert_eq!(
             execute(deps.as_mut(), mock_env(), info_timmy, msg).unwrap_err(),
@@ -217,7 +218,7 @@ mod tests {
         );
 
         // Removing an non-existent service will fail
-        let msg = ExecuteMsg::delete(expected_id + 1);
+        let msg = ExecuteMsg::delete_id(expected_id + 1);
         let info_owner = MessageInfo {
             sender: service_fixture().owner,
             funds: vec![],
@@ -230,9 +231,12 @@ mod tests {
         );
 
         // Remove as correct owner succeeds
-        let msg = ExecuteMsg::delete(expected_id);
+        let msg = ExecuteMsg::delete_id(expected_id);
         let res = execute(deps.as_mut(), mock_env(), info_owner, msg).unwrap();
-        assert_eq!(get_attribute(res, "service_id"), expected_id.to_string());
+        assert_eq!(
+            get_attribute(res, "delete_id", "service_id"),
+            expected_id.to_string()
+        );
         assert_services(deps.as_ref(), &[]);
         assert_not_found(deps.as_ref(), expected_id);
     }

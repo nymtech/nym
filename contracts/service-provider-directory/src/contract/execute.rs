@@ -4,7 +4,10 @@ use crate::{
     state,
 };
 use cosmwasm_std::{Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Response, Uint128};
-use nym_service_provider_directory_common::{NymAddress, Service, ServiceId, ServiceType};
+use nym_service_provider_directory_common::{
+    events::{new_announce_event, new_delete_id_event, new_update_deposit_required_event},
+    NymAddress, Service, ServiceId, ServiceType,
+};
 
 use super::query;
 
@@ -64,10 +67,10 @@ fn ensure_sender_authorized(info: MessageInfo, service: &Service) -> Result<()> 
     }
 }
 
-fn return_deposit(service_to_delete: Service) -> BankMsg {
+fn return_deposit(service_to_delete: &Service) -> BankMsg {
     BankMsg::Send {
         to_address: service_to_delete.owner.to_string(),
-        amount: vec![service_to_delete.deposit],
+        amount: vec![service_to_delete.deposit.clone()],
     }
 }
 
@@ -96,10 +99,8 @@ pub fn announce(
         deposit: Coin::new(will_deposit.u128(), denom),
     };
     let service_id = state::services::save(deps.storage, &new_service)?;
-    Ok(Response::new()
-        .add_attribute("action", "announce")
-        .add_attribute("service_id", service_id.to_string())
-        .add_attribute("service_type", service_type.to_string()))
+
+    Ok(Response::new().add_event(new_announce_event(service_id, new_service)))
 }
 
 /// Delete an exsisting service.
@@ -109,12 +110,11 @@ pub fn delete_id(deps: DepsMut, info: MessageInfo, service_id: ServiceId) -> Res
     ensure_sender_authorized(info, &service_to_delete)?;
 
     state::services::remove(deps.storage, service_id)?;
-    let return_deposit_msg = return_deposit(service_to_delete);
+    let return_deposit_msg = return_deposit(&service_to_delete);
 
     Ok(Response::new()
         .add_message(return_deposit_msg)
-        .add_attribute("action", "delete_id")
-        .add_attribute("service_id", service_id.to_string()))
+        .add_event(new_delete_id_event(service_id, service_to_delete)))
 }
 
 /// Delete an existing service by nym address. If there are multiple entries for a given nym
@@ -125,19 +125,21 @@ pub(crate) fn delete_nym_address(
     nym_address: NymAddress,
 ) -> Result<Response> {
     let mut response = Response::new();
+    let services_to_delete = query::query_nym_address(deps.as_ref(), nym_address.clone())?.services;
 
-    let services = query::query_nym_address(deps.as_ref(), nym_address.clone())?.services;
-    for service_to_delete in services {
-        if state::services::has_service(deps.storage, service_to_delete.service_id) {
-            if info.sender == service_to_delete.service.owner {
-                state::services::remove(deps.storage, service_to_delete.service_id)?;
-                let return_deposit_msg = return_deposit(service_to_delete.service);
-                response = response.add_message(return_deposit_msg);
-                // WIP(JON): add event with attributes
-            }
+    for service_to_delete in services_to_delete {
+        if info.sender == service_to_delete.service.owner {
+            state::services::remove(deps.storage, service_to_delete.service_id)?;
+            let return_deposit_msg = return_deposit(&service_to_delete.service);
+            response = response
+                .add_message(return_deposit_msg)
+                .add_event(new_delete_id_event(
+                    service_to_delete.service_id,
+                    service_to_delete.service,
+                ));
         }
     }
-    Ok(response.add_attribute("action", "delete_nym_address"))
+    Ok(response)
 }
 
 /// Update the deposit required to announce new services
@@ -152,7 +154,5 @@ pub(crate) fn update_deposit_required(
     config.deposit_required = deposit_required.clone();
     state::save_config(deps.storage, &config)?;
 
-    Ok(Response::new()
-        .add_attribute("action", "update_deposit_required")
-        .add_attribute("deposit_required", deposit_required.to_string()))
+    Ok(Response::new().add_event(new_update_deposit_required_event(deposit_required)))
 }

@@ -12,20 +12,8 @@ module.exports = mergeWithRules({
 })(webpackCommon(__dirname), {
   entry: path.resolve(__dirname, 'src/index.tsx'),
   output: {
+    clean: true,
     path: path.resolve(__dirname, 'dist'),
     publicPath: '/',
-  },
-  resolve: {
-    fallback: {
-      fs: false,
-      tls: false,
-      path: false,
-      http: false,
-      https: false,
-      stream: false,
-      crypto: false,
-      net: false,
-      zlib: false,
-    },
   },
 });

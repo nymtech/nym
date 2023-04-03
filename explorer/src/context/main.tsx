@@ -52,7 +52,7 @@ export const useMainContext = (): React.ContextType<typeof MainContext> => React
 
 export const MainContextProvider: FCWithChildren = ({ children }) => {
   // network explorer environment
-  const [environment, setEnvironment] = React.useState<Environment>('mainnet');
+  const [environment, setEnvironment] = React.useState<Environment>();
 
   // light/dark mode
   const [mode, setMode] = React.useState<PaletteMode>('dark');
@@ -187,15 +187,14 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
   };
 
   React.useEffect(() => {
-    Promise.all([
-      fetchOverviewSummary(),
-      fetchGateways(),
-      fetchValidators(),
-      fetchBlock(),
-      fetchCountryData(),
-      fetchServiceProviders(),
-    ]);
+    if (environment === 'mainnet') {
+      fetchServiceProviders();
+    }
+  }, [environment]);
+
+  React.useEffect(() => {
     setEnvironment(getEnvironment());
+    Promise.all([fetchOverviewSummary(), fetchGateways(), fetchValidators(), fetchBlock(), fetchCountryData()]);
   }, []);
 
   const state = React.useMemo<State>(

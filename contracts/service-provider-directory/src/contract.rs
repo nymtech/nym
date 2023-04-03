@@ -43,7 +43,10 @@ pub fn execute(
             nym_address: client_address,
             service_type,
         } => execute::announce(deps, env, info, client_address, service_type),
-        ExecuteMsg::Delete { service_id: sp_id } => execute::delete(deps, info, sp_id),
+        ExecuteMsg::DeleteId { service_id } => execute::delete_id(deps, info, service_id),
+        ExecuteMsg::DeleteNymAddress { nym_address } => {
+            execute::delete_nym_address(deps, info, nym_address)
+        },
         ExecuteMsg::UpdateDepositRequired { deposit_required } => {
             execute::update_deposit_required(deps, info, deposit_required)
         }

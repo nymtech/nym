@@ -115,11 +115,11 @@ impl TestSetup {
         let delete_resp = self.app.execute_contract(
             owner,
             self.addr.clone(),
-            &ExecuteMsg::Delete { service_id },
+            &ExecuteMsg::DeleteId { service_id },
             &[],
         );
         if let Ok(ref resp) = delete_resp {
-            assert_eq!(get_app_attribute(&resp, "action"), "delete");
+            assert_eq!(get_app_attribute(&resp, "action"), "delete_id");
         }
         delete_resp
     }

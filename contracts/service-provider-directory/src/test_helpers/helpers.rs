@@ -53,7 +53,7 @@ pub fn announce_service(deps: DepsMut, service: Service) -> ServiceId {
 }
 
 pub fn delete_service(deps: DepsMut, service_id: ServiceId, owner: &str) {
-    let msg = ExecuteMsg::Delete { service_id };
+    let msg = ExecuteMsg::DeleteId { service_id };
     let info = mock_info(owner, &[]);
     crate::execute(deps, mock_env(), info, msg).unwrap();
 }

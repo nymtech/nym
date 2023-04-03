@@ -64,6 +64,13 @@ fn ensure_sender_authorized(info: MessageInfo, service: &Service) -> Result<()> 
     }
 }
 
+fn return_deposit(service_to_delete: Service) -> BankMsg {
+    BankMsg::Send {
+        to_address: service_to_delete.owner.to_string(),
+        amount: vec![service_to_delete.deposit],
+    }
+}
+
 /// Announce a new service. It will be assigned a new service provider id.
 pub fn announce(
     deps: DepsMut,
@@ -96,23 +103,41 @@ pub fn announce(
 }
 
 /// Delete an exsisting service.
-pub fn delete(deps: DepsMut, info: MessageInfo, service_id: ServiceId) -> Result<Response> {
+pub fn delete_id(deps: DepsMut, info: MessageInfo, service_id: ServiceId) -> Result<Response> {
     ensure_service_exists(deps.as_ref(), service_id)?;
     let service_to_delete = state::services::load_id(deps.storage, service_id)?;
     ensure_sender_authorized(info, &service_to_delete)?;
 
-    // TODO: should this be reduced to take transaction costs into account? So that the contract
-    // doesn't run out of funds.
-    let return_deposit_msg = BankMsg::Send {
-        to_address: service_to_delete.owner.to_string(),
-        amount: vec![service_to_delete.deposit],
-    };
-
     state::services::remove(deps.storage, service_id)?;
+    let return_deposit_msg = return_deposit(service_to_delete);
+
     Ok(Response::new()
         .add_message(return_deposit_msg)
-        .add_attribute("action", "delete")
+        .add_attribute("action", "delete_id")
         .add_attribute("service_id", service_id.to_string()))
+}
+
+/// Delete an existing service by nym address. If there are multiple entries for a given nym
+/// address then all entries with the matching owner will be attempted to removed.
+pub(crate) fn delete_nym_address(
+    deps: DepsMut,
+    info: MessageInfo,
+    nym_address: NymAddress,
+) -> Result<Response> {
+    let mut response = Response::new();
+
+    let services = query::query_nym_address(deps.as_ref(), nym_address.clone())?.services;
+    for service_to_delete in services {
+        if state::services::has_service(deps.storage, service_to_delete.service_id) {
+            if info.sender == service_to_delete.service.owner {
+                state::services::remove(deps.storage, service_to_delete.service_id)?;
+                let return_deposit_msg = return_deposit(service_to_delete.service);
+                response = response.add_message(return_deposit_msg);
+                // WIP(JON): add event with attributes
+            }
+        }
+    }
+    Ok(response.add_attribute("action", "delete_nym_address"))
 }
 
 /// Update the deposit required to announce new services

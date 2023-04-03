@@ -21,8 +21,11 @@ pub enum ExecuteMsg {
         nym_address: NymAddress,
         service_type: ServiceType,
     },
-    Delete {
+    DeleteId {
         service_id: ServiceId,
+    },
+    DeleteNymAddress {
+        nym_address: NymAddress,
     },
     UpdateDepositRequired {
         deposit_required: Coin,
@@ -31,7 +34,7 @@ pub enum ExecuteMsg {
 
 impl ExecuteMsg {
     pub fn delete(service_id: ServiceId) -> Self {
-        ExecuteMsg::Delete { service_id }
+        ExecuteMsg::DeleteId { service_id }
     }
 }
 

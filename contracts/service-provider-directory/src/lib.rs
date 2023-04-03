@@ -1,6 +1,9 @@
 //! The service provider directory contract is for users to announce their service providers for
 //! public use.
 
+#![warn(clippy::expect_used)]
+#![warn(clippy::unwrap_used)]
+
 use crate::error::Result;
 use nym_service_provider_directory_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 

@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 
@@ -41,9 +43,9 @@ impl NymAddress {
     }
 }
 
-impl ToString for NymAddress {
-    fn to_string(&self) -> String {
-        self.as_str().to_string()
+impl Display for NymAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str().to_string())
     }
 }
 

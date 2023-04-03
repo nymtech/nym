@@ -3,9 +3,8 @@ use cw_storage_plus::Item;
 use nym_service_provider_directory_common::msg::ConfigResponse;
 use serde::{Deserialize, Serialize};
 
-use crate::error::Result;
+use crate::{constants::CONFIG_KEY, error::Result};
 
-const CONFIG_KEY: &str = "config";
 const CONFIG: Item<Config> = Item::new(CONFIG_KEY);
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]

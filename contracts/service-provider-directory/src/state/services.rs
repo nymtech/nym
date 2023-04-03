@@ -5,14 +5,11 @@ use nym_service_provider_directory_common::{NymAddress, Service, ServiceId};
 use crate::{
     constants::{
         MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS, MAX_NUMBER_OF_PROVIDERS_PER_OWNER,
+        SERVICES_NYM_ADDRESS_IDX_NAMESPACE, SERVICES_OWNER_IDX_NAMESPACE, SERVICES_PK_NAMESPACE,
         SERVICE_DEFAULT_RETRIEVAL_LIMIT, SERVICE_MAX_RETRIEVAL_LIMIT,
     },
     error::{ContractError, Result},
 };
-
-const SERVICES_PK_NAMESPACE: &str = "sernames";
-const SERVICES_OWNER_IDX_NAMESPACE: &str = "serown";
-const SERVICES_NYM_ADDRESS_IDX_NAMESPACE: &str = "sernyma";
 
 struct ServiceIndex<'a> {
     pub(crate) nym_address: MultiIndex<'a, String, Service, ServiceId>,

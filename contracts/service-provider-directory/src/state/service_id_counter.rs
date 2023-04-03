@@ -2,9 +2,8 @@ use cosmwasm_std::Storage;
 use cw_storage_plus::Item;
 use nym_service_provider_directory_common::ServiceId;
 
-use crate::error::Result;
+use crate::{constants::SERVICE_ID_COUNTER_KEY, error::Result};
 
-const SERVICE_ID_COUNTER_KEY: &str = "sidc";
 const SERVICE_ID_COUNTER: Item<ServiceId> = Item::new(SERVICE_ID_COUNTER_KEY);
 
 /// Generate the next service provider id, store it and return it

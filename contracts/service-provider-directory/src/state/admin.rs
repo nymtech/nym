@@ -1,9 +1,8 @@
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_controllers::Admin;
 
-use crate::error::Result;
+use crate::{constants::ADMIN_KEY, error::Result};
 
-const ADMIN_KEY: &str = "admin";
 const ADMIN: Admin = Admin::new(ADMIN_KEY);
 
 pub(crate) fn set_admin(deps: DepsMut<'_>, admin: Addr) -> Result<()> {

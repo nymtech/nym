@@ -86,7 +86,7 @@ pub struct ServicesListResponse {
 }
 
 impl ServicesListResponse {
-    pub fn new(services: Vec<(u32, Service)>) -> ServicesListResponse {
+    pub fn new(services: Vec<(ServiceId, Service)>) -> ServicesListResponse {
         ServicesListResponse {
             services: services
                 .into_iter()

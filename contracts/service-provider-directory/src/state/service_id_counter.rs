@@ -29,11 +29,11 @@ mod tests {
     fn get_next_service_id() {
         let mut deps = instantiate_test_contract();
 
-        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 1);
+        assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 1);
         assert_services(deps.as_ref(), &[ServiceInfo::new(1, service_fixture())]);
 
-        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 2);
-        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 3);
+        assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 2);
+        assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 3);
         assert_services(
             deps.as_ref(),
             &[
@@ -49,8 +49,8 @@ mod tests {
         let mut deps = instantiate_test_contract();
 
         // Announce
-        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 1);
-        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 2);
+        assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 1);
+        assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 2);
         assert_services(
             deps.as_ref(),
             &[
@@ -65,7 +65,7 @@ mod tests {
 
         // Create a third entry. The index should not reuse the previous entry that we just
         // deleted.
-        assert_eq!(announce_service(deps.as_mut(), service_fixture()), 3);
+        assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 3);
         assert_services(
             deps.as_ref(),
             &[

@@ -1,7 +1,7 @@
 use cosmwasm_std::{
     coin, coins,
     testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier},
-    Coin, DepsMut, MemoryStorage, OwnedDeps, Response,
+    Coin, DepsMut, Event, MemoryStorage, OwnedDeps, Response,
 };
 use cw_multi_test::AppResponse;
 use nym_service_provider_directory_common::{
@@ -14,10 +14,18 @@ pub fn nyms(amount: u64) -> Coin {
     Coin::new(amount.into(), "unym")
 }
 
-pub fn get_attribute(res: Response, event_type: &str, key: &str) -> String {
-    res.events
+pub fn get_event_types(response: &Response, event_type: &str) -> Vec<Event> {
+    response
+        .events
         .iter()
-        .find(|ev| ev.ty == event_type)
+        .filter(|ev| ev.ty == event_type)
+        .cloned()
+        .collect()
+}
+
+pub fn get_attribute(response: &Response, event_type: &str, key: &str) -> String {
+    get_event_types(response, event_type)
+        .first()
         .unwrap()
         .attributes
         .iter()
@@ -27,11 +35,18 @@ pub fn get_attribute(res: Response, event_type: &str, key: &str) -> String {
         .clone()
 }
 
-pub fn get_app_attribute(response: &AppResponse, event_type: &str, key: &str) -> String {
+pub fn get_app_event_types(response: &AppResponse, event_type: &str) -> Vec<Event> {
     response
         .events
         .iter()
-        .find(|ev| ev.ty == event_type)
+        .filter(|ev| ev.ty == event_type)
+        .cloned()
+        .collect()
+}
+
+pub fn get_app_attribute(response: &AppResponse, event_type: &str, key: &str) -> String {
+    get_app_event_types(response, event_type)
+        .first()
         .unwrap()
         .attributes
         .iter()
@@ -43,10 +58,8 @@ pub fn get_app_attribute(response: &AppResponse, event_type: &str, key: &str) ->
 
 #[allow(dead_code)]
 pub fn get_app_attributes(response: &AppResponse, event_type: &str, key: &str) -> Vec<String> {
-    response
-        .events
+    get_app_event_types(response, event_type)
         .iter()
-        .filter(|ev| ev.ty == event_type)
         .map(|ev| {
             ev.attributes
                 .iter()
@@ -70,12 +83,12 @@ pub fn instantiate_test_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuer
     deps
 }
 
-pub fn announce_service(deps: DepsMut, service: Service) -> ServiceId {
+pub fn announce_service(deps: DepsMut<'_>, service: &Service) -> ServiceId {
     let msg: ExecuteMsg = service.clone().into();
     let info = mock_info(service.owner.as_str(), &coins(100, "unym"));
-    let res = crate::execute(deps, mock_env(), info.clone(), msg.clone()).unwrap();
+    let res = crate::execute(deps, mock_env(), info, msg).unwrap();
     let service_id: ServiceId = get_attribute(
-        res.clone(),
+        &res,
         &ServiceProviderEventType::Announce.to_string(),
         SERVICE_ID,
     )
@@ -84,7 +97,7 @@ pub fn announce_service(deps: DepsMut, service: Service) -> ServiceId {
     service_id
 }
 
-pub fn delete_service(deps: DepsMut, service_id: ServiceId, owner: &str) {
+pub fn delete_service(deps: DepsMut<'_>, service_id: ServiceId, owner: &str) {
     let msg = ExecuteMsg::DeleteId { service_id };
     let info = mock_info(owner, &[]);
     crate::execute(deps, mock_env(), info, msg).unwrap();

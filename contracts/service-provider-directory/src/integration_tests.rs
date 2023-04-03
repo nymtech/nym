@@ -9,7 +9,7 @@ use nym_service_provider_directory_common::{
 use crate::{
     constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
     error::ContractError,
-    test_helpers::{helpers::nyms, test_setup::TestSetup},
+    test_helpers::{fixture::service_info, helpers::nyms, test_setup::TestSetup},
 };
 
 #[test]
@@ -42,14 +42,12 @@ fn announce_and_query_service() {
     // Announce a first service
     let owner = Addr::unchecked("owner");
     let nym_address = NymAddress::new("nymAddress");
-    assert_eq!(setup.contract_balance().unwrap(), nyms(0));
-    assert_eq!(setup.balance(&owner).unwrap(), nyms(250));
-    setup
-        .announce_network_requester(nym_address.clone(), owner.clone())
-        .unwrap();
+    assert_eq!(setup.contract_balance(), nyms(0));
+    assert_eq!(setup.balance(&owner), nyms(250));
+    setup.announce_net_req(nym_address.clone(), owner.clone());
 
-    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
-    assert_eq!(setup.balance(&owner).unwrap(), nyms(150));
+    assert_eq!(setup.contract_balance(), nyms(100));
+    assert_eq!(setup.balance(&owner), nyms(150));
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {
@@ -84,35 +82,15 @@ fn announce_and_query_service() {
     // Announce a second service
     let owner2 = Addr::unchecked("owner2");
     let nym_address2 = NymAddress::new("nymAddress2");
-    setup
-        .announce_network_requester(nym_address2.clone(), owner2.clone())
-        .unwrap();
+    setup.announce_net_req(nym_address2.clone(), owner2.clone());
 
-    assert_eq!(setup.contract_balance().unwrap(), nyms(200));
+    assert_eq!(setup.contract_balance(), nyms(200));
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {
             services: vec![
-                ServiceInfo {
-                    service_id: 1,
-                    service: Service {
-                        nym_address,
-                        service_type: ServiceType::NetworkRequester,
-                        owner,
-                        block_height: 12345,
-                        deposit: nyms(100),
-                    },
-                },
-                ServiceInfo {
-                    service_id: 2,
-                    service: Service {
-                        nym_address: nym_address2,
-                        service_type: ServiceType::NetworkRequester,
-                        owner: owner2,
-                        block_height: 12345,
-                        deposit: nyms(100),
-                    },
-                }
+                service_info(1, nym_address, owner),
+                service_info(2, nym_address2, owner2)
             ],
             per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(2),
@@ -123,33 +101,29 @@ fn announce_and_query_service() {
 #[test]
 fn delete_service() {
     let mut setup = TestSetup::new();
-    setup
-        .announce_network_requester(NymAddress::new("nymAddress"), Addr::unchecked("owner"))
-        .unwrap();
-    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
+    setup.announce_net_req(NymAddress::new("nymAddress"), Addr::unchecked("owner"));
+    assert_eq!(setup.contract_balance(), nyms(100));
     assert!(!setup.query_all().services.is_empty());
-    setup.delete(1, Addr::unchecked("owner")).unwrap();
-    assert_eq!(setup.contract_balance().unwrap(), nyms(0));
+    setup.delete(1, Addr::unchecked("owner"));
+    assert_eq!(setup.contract_balance(), nyms(0));
     assert!(setup.query_all().services.is_empty());
 }
 
 #[test]
 fn only_owner_can_delete_service() {
     let mut setup = TestSetup::new();
-    assert_eq!(setup.contract_balance().unwrap(), nyms(0));
-    setup
-        .announce_network_requester(NymAddress::new("nymAddress"), Addr::unchecked("owner"))
-        .unwrap();
-    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
+    assert_eq!(setup.contract_balance(), nyms(0));
+    setup.announce_net_req(NymAddress::new("nymAddress"), Addr::unchecked("owner"));
+    assert_eq!(setup.contract_balance(), nyms(100));
     assert!(!setup.query_all().services.is_empty());
 
     let delete_resp: ContractError = setup
-        .delete(1, Addr::unchecked("not_owner"))
+        .try_delete(1, Addr::unchecked("not_owner"))
         .unwrap_err()
         .downcast()
         .unwrap();
 
-    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
+    assert_eq!(setup.contract_balance(), nyms(100));
     assert_eq!(
         delete_resp,
         ContractError::Unauthorized {
@@ -161,31 +135,29 @@ fn only_owner_can_delete_service() {
 #[test]
 fn cant_delete_service_that_does_not_exist() {
     let mut setup = TestSetup::new();
-    setup
-        .announce_network_requester(NymAddress::new("nymAddress"), Addr::unchecked("owner"))
-        .unwrap();
-    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
+    setup.announce_net_req(NymAddress::new("nymAddress"), Addr::unchecked("owner"));
+    assert_eq!(setup.contract_balance(), nyms(100));
     assert!(!setup.query_all().services.is_empty());
 
     let delete_resp: ContractError = setup
-        .delete(0, Addr::unchecked("owner"))
+        .try_delete(0, Addr::unchecked("owner"))
         .unwrap_err()
         .downcast()
         .unwrap();
-    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
+    assert_eq!(setup.contract_balance(), nyms(100));
     assert_eq!(delete_resp, ContractError::NotFound { service_id: 0 });
 
     let delete_resp: ContractError = setup
-        .delete(2, Addr::unchecked("owner"))
+        .try_delete(2, Addr::unchecked("owner"))
         .unwrap_err()
         .downcast()
         .unwrap();
-    assert_eq!(setup.contract_balance().unwrap(), nyms(100));
+    assert_eq!(setup.contract_balance(), nyms(100));
     assert_eq!(delete_resp, ContractError::NotFound { service_id: 2 });
 
     assert!(!setup.query_all().services.is_empty());
-    setup.delete(1, Addr::unchecked("owner")).unwrap();
-    assert_eq!(setup.contract_balance().unwrap(), nyms(0));
+    setup.delete(1, Addr::unchecked("owner"));
+    assert_eq!(setup.contract_balance(), nyms(0));
     assert!(setup.query_all().services.is_empty());
 }
 
@@ -196,73 +168,31 @@ fn announce_multiple_services_and_deleting_by_name() {
     let owner2 = Addr::unchecked("owner2");
     let nym_address = NymAddress::new("nymAddress");
 
-    setup
-        .announce_network_requester(nym_address.clone(), owner1.clone())
-        .unwrap();
-    setup
-        .announce_network_requester(nym_address.clone(), owner1.clone())
-        .unwrap();
-    setup
-        .announce_network_requester(nym_address.clone(), owner2.clone())
-        .unwrap();
+    setup.announce_net_req(nym_address.clone(), owner1.clone());
+    setup.announce_net_req(nym_address.clone(), owner1.clone());
+    setup.announce_net_req(nym_address.clone(), owner2.clone());
 
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {
             services: vec![
-                ServiceInfo {
-                    service_id: 1,
-                    service: Service {
-                        nym_address: nym_address.clone(),
-                        service_type: ServiceType::NetworkRequester,
-                        owner: owner1.clone(),
-                        block_height: 12345,
-                        deposit: nyms(100),
-                    },
-                },
-                ServiceInfo {
-                    service_id: 2,
-                    service: Service {
-                        nym_address: nym_address.clone(),
-                        service_type: ServiceType::NetworkRequester,
-                        owner: owner1.clone(),
-                        block_height: 12345,
-                        deposit: nyms(100),
-                    },
-                },
-                ServiceInfo {
-                    service_id: 3,
-                    service: Service {
-                        nym_address: nym_address.clone(),
-                        service_type: ServiceType::NetworkRequester,
-                        owner: owner2.clone(),
-                        block_height: 12345,
-                        deposit: nyms(100),
-                    },
-                },
+                service_info(1, nym_address.clone(), owner1.clone()),
+                service_info(2, nym_address.clone(), owner1.clone()),
+                service_info(3, nym_address.clone(), owner2.clone())
             ],
             per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(3),
         }
     );
 
-    setup
-        .delete_nym_address(nym_address.clone(), owner1.clone())
-        .unwrap();
+    // Even though all of them point to the same nym address, we only delete the ones we actually
+    // own.
+    setup.delete_nym_address(nym_address.clone(), owner1);
 
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {
-            services: vec![ServiceInfo {
-                service_id: 3,
-                service: Service {
-                    nym_address: nym_address.clone(),
-                    service_type: ServiceType::NetworkRequester,
-                    owner: owner2.clone(),
-                    block_height: 12345,
-                    deposit: nyms(100),
-                },
-            }],
+            services: vec![service_info(3, nym_address, owner2)],
             per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(3),
         }
@@ -272,12 +202,8 @@ fn announce_multiple_services_and_deleting_by_name() {
 #[test]
 fn service_id_increases_for_new_services() {
     let mut setup = TestSetup::new();
-    setup
-        .announce_network_requester(NymAddress::new("nymAddress1"), Addr::unchecked("owner1"))
-        .unwrap();
-    setup
-        .announce_network_requester(NymAddress::new("nymAddress2"), Addr::unchecked("owner2"))
-        .unwrap();
+    setup.announce_net_req(NymAddress::new("nymAddress1"), Addr::unchecked("owner1"));
+    setup.announce_net_req(NymAddress::new("nymAddress2"), Addr::unchecked("owner2"));
 
     assert_eq!(
         setup
@@ -293,60 +219,29 @@ fn service_id_increases_for_new_services() {
 #[test]
 fn service_id_is_not_resused_when_deleting_and_then_adding_a_new_service() {
     let mut setup = TestSetup::new();
-    setup
-        .announce_network_requester(NymAddress::new("nymAddress1"), Addr::unchecked("owner1"))
-        .unwrap();
-    setup
-        .announce_network_requester(NymAddress::new("nymAddress2"), Addr::unchecked("owner2"))
-        .unwrap();
-    setup
-        .announce_network_requester(NymAddress::new("nymAddress3"), Addr::unchecked("owner3"))
-        .unwrap();
+    setup.announce_net_req(NymAddress::new("nymAddress1"), Addr::unchecked("owner1"));
+    setup.announce_net_req(NymAddress::new("nymAddress2"), Addr::unchecked("owner2"));
+    setup.announce_net_req(NymAddress::new("nymAddress3"), Addr::unchecked("owner3"));
 
-    setup.delete(1, Addr::unchecked("owner1")).unwrap();
-    setup.delete(3, Addr::unchecked("owner3")).unwrap();
+    setup.delete(1, Addr::unchecked("owner1"));
+    setup.delete(3, Addr::unchecked("owner3"));
 
     assert_eq!(
         setup.query_all().services,
-        vec![ServiceInfo {
-            service_id: 2,
-            service: Service {
-                nym_address: NymAddress::new("nymAddress2"),
-                service_type: ServiceType::NetworkRequester,
-                owner: Addr::unchecked("owner2"),
-                block_height: 12345,
-                deposit: nyms(100),
-            },
-        }]
+        vec![service_info(
+            2,
+            NymAddress::new("nymAddress2"),
+            Addr::unchecked("owner2")
+        )]
     );
 
-    setup
-        .announce_network_requester(NymAddress::new("nymAddress4"), Addr::unchecked("owner4"))
-        .unwrap();
+    setup.announce_net_req(NymAddress::new("nymAddress4"), Addr::unchecked("owner4"));
 
     assert_eq!(
         setup.query_all().services,
         vec![
-            ServiceInfo {
-                service_id: 2,
-                service: Service {
-                    nym_address: NymAddress::new("nymAddress2"),
-                    service_type: ServiceType::NetworkRequester,
-                    owner: Addr::unchecked("owner2"),
-                    block_height: 12345,
-                    deposit: nyms(100),
-                },
-            },
-            ServiceInfo {
-                service_id: 4,
-                service: Service {
-                    nym_address: NymAddress::new("nymAddress4"),
-                    service_type: ServiceType::NetworkRequester,
-                    owner: Addr::unchecked("owner4"),
-                    block_height: 12345,
-                    deposit: nyms(100),
-                },
-            }
+            service_info(2, NymAddress::new("nymAddress2"), Addr::unchecked("owner2")),
+            service_info(4, NymAddress::new("nymAddress4"), Addr::unchecked("owner4"))
         ]
     );
 }

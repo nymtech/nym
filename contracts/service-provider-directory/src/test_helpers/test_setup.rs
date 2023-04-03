@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cosmwasm_std::{coins, Addr, Coin, StdResult, Uint128};
+use cosmwasm_std::{coins, Addr, Coin, Uint128};
 use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
 use nym_service_provider_directory_common::{
     msg::{
@@ -65,8 +65,8 @@ impl TestSetup {
         &self.addr
     }
 
-    pub fn contract_balance(&self) -> StdResult<Coin> {
-        self.app.wrap().query_balance(&self.addr, DENOM)
+    pub fn contract_balance(&self) -> Coin {
+        self.app.wrap().query_balance(&self.addr, DENOM).unwrap()
     }
 
     pub fn query<T: DeserializeOwned>(&self, query_msg: &QueryMsg) -> T {
@@ -88,62 +88,59 @@ impl TestSetup {
         self.query(&QueryMsg::all())
     }
 
-    pub fn announce_network_requester(
-        &mut self,
-        address: NymAddress,
-        owner: Addr,
-    ) -> Result<AppResponse> {
-        let resp = self.app.execute_contract(
-            owner,
-            self.addr.clone(),
-            &ExecuteMsg::Announce {
-                nym_address: address,
-                service_type: ServiceType::NetworkRequester,
-            },
-            &[Coin {
-                denom: DENOM.to_string(),
-                amount: Uint128::new(100),
-            }],
+    pub fn announce_net_req(&mut self, address: NymAddress, owner: Addr) -> AppResponse {
+        let resp = self
+            .app
+            .execute_contract(
+                owner,
+                self.addr.clone(),
+                &ExecuteMsg::Announce {
+                    nym_address: address,
+                    service_type: ServiceType::NetworkRequester,
+                },
+                &[Coin {
+                    denom: DENOM.to_string(),
+                    amount: Uint128::new(100),
+                }],
+            )
+            .unwrap();
+        assert_eq!(
+            get_app_attribute(&resp, "wasm-announce", "action"),
+            "announce"
         );
-        if let Ok(ref resp) = resp {
-            assert_eq!(
-                get_app_attribute(&resp, "wasm-announce", "action"),
-                "announce"
-            );
-        }
         resp
     }
 
-    pub fn delete(&mut self, service_id: ServiceId, owner: Addr) -> Result<AppResponse> {
-        let delete_resp = self.app.execute_contract(
+    pub fn try_delete(&mut self, service_id: ServiceId, owner: Addr) -> Result<AppResponse> {
+        self.app.execute_contract(
             owner,
             self.addr.clone(),
             &ExecuteMsg::DeleteId { service_id },
             &[],
-        );
-        if let Ok(ref resp) = delete_resp {
-            assert_eq!(
-                get_app_attribute(&resp, "wasm-delete_id", "action"),
-                "delete_id"
-            );
-        }
-        delete_resp
-    }
-
-    pub fn delete_nym_address(
-        &mut self,
-        nym_address: NymAddress,
-        owner: Addr,
-    ) -> Result<AppResponse> {
-        self.app.execute_contract(
-            owner,
-            self.addr.clone(),
-            &ExecuteMsg::DeleteNymAddress { nym_address },
-            &[],
         )
     }
 
-    pub fn balance(&self, address: impl Into<String>) -> StdResult<Coin> {
-        self.app.wrap().query_balance(address, DENOM)
+    pub fn delete(&mut self, service_id: ServiceId, owner: Addr) -> AppResponse {
+        let delete_resp = self.try_delete(service_id, owner).unwrap();
+        assert_eq!(
+            get_app_attribute(&delete_resp, "wasm-delete_id", "action"),
+            "delete_id"
+        );
+        delete_resp
+    }
+
+    pub fn delete_nym_address(&mut self, nym_address: NymAddress, owner: Addr) -> AppResponse {
+        self.app
+            .execute_contract(
+                owner,
+                self.addr.clone(),
+                &ExecuteMsg::DeleteNymAddress { nym_address },
+                &[],
+            )
+            .unwrap()
+    }
+
+    pub fn balance(&self, address: impl Into<String>) -> Coin {
+        self.app.wrap().query_balance(address, DENOM).unwrap()
     }
 }

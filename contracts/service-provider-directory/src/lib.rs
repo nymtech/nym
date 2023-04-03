@@ -26,7 +26,7 @@ mod test_helpers;
 /// Contract entry point for instantiation.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
@@ -37,7 +37,7 @@ pub fn instantiate(
 /// Contract entry point for execution
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -47,6 +47,6 @@ pub fn execute(
 
 /// Contract entry point for queries
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary> {
+pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<Binary> {
     contract::query(deps, env, msg)
 }

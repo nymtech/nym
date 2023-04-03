@@ -167,12 +167,12 @@ mod tests {
 
         // Check that the service has had service id assigned to it
         let expected_id = 1;
-        let id: ServiceId = get_attribute(res.clone(), "announce", "service_id")
+        let id: ServiceId = get_attribute(&res, "announce", "service_id")
             .parse()
             .unwrap();
         assert_eq!(id, expected_id);
         assert_eq!(
-            get_attribute(res, "announce", "service_type"),
+            get_attribute(&res, "announce", "service_type"),
             "network_requester".to_string()
         );
 
@@ -205,7 +205,7 @@ mod tests {
             service_id: expected_id,
             service: service_fixture(),
         };
-        assert_services(deps.as_ref(), &[expected_service.clone()]);
+        assert_services(deps.as_ref(), &[expected_service]);
 
         // Removing someone else's service will fail
         let msg = ExecuteMsg::delete_id(expected_id);
@@ -234,7 +234,7 @@ mod tests {
         let msg = ExecuteMsg::delete_id(expected_id);
         let res = execute(deps.as_mut(), mock_env(), info_owner, msg).unwrap();
         assert_eq!(
-            get_attribute(res, "delete_id", "service_id"),
+            get_attribute(&res, "delete_id", "service_id"),
             expected_id.to_string()
         );
         assert_services(deps.as_ref(), &[]);

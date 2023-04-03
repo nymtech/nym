@@ -77,7 +77,8 @@ async fn main() -> Result<()> {
                 .client_home_directory
                 .join(DATA_DIR)
                 .join(CRED_DB_FILE_NAME);
-            let shared_storage = nym_credential_storage::initialise_storage(db_path).await;
+            let shared_storage =
+                nym_credential_storage::initialise_persistent_storage(db_path).await;
             let recovery_storage = recovery_storage::RecoveryStorage::new(r.recovery_dir)?;
 
             let network_details = NymNetworkDetails::new_from_env();

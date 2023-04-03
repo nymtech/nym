@@ -97,9 +97,10 @@ impl NymClient {
         let client = nym_validator_client::Client::new_query(client_config)
             .expect("Could not construct query client");
 
-        #[cfg(not(target_os = "android"))]
-        let storage =
-            nym_credential_storage::initialise_storage(config.get_base().get_database_path()).await;
+        let storage = nym_credential_storage::initialise_persistent_storage(
+            config.get_base().get_database_path(),
+        )
+        .await;
 
         #[cfg(target_os = "android")]
         let storage = mobile_storage::PersistentStorage {};

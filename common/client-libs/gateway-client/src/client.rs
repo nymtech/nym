@@ -34,7 +34,7 @@ use tokio_tungstenite::connect_async;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(target_os = "android"))]
-use nym_credential_storage::PersistentStorage;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(target_os = "android")]

@@ -78,7 +78,10 @@ impl SocketClient {
         let client = nym_validator_client::Client::new_query(client_config)
             .expect("Could not construct query client");
         BandwidthController::new(
-            nym_credential_storage::initialise_storage(config.get_base().get_database_path()).await,
+            nym_credential_storage::initialise_persistent_storage(
+                config.get_base().get_database_path(),
+            )
+            .await,
             client,
         )
     }

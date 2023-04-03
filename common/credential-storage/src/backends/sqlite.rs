@@ -4,7 +4,7 @@
 use crate::models::CoconutCredential;
 
 #[derive(Clone)]
-pub(crate) struct CoconutCredentialManager {
+pub struct CoconutCredentialManager {
     connection_pool: sqlx::SqlitePool,
 }
 
@@ -14,7 +14,7 @@ impl CoconutCredentialManager {
     /// # Arguments
     ///
     /// * `connection_pool`: database connection pool to use.
-    pub(crate) fn new(connection_pool: sqlx::SqlitePool) -> Self {
+    pub fn new(connection_pool: sqlx::SqlitePool) -> Self {
         CoconutCredentialManager { connection_pool }
     }
 
@@ -27,7 +27,7 @@ impl CoconutCredentialManager {
     /// * `serial_number`: Base58 representation of the serial number attribute.
     /// * `binding_number`: Base58 representation of the binding number attribute.
     /// * `signature`: Coconut credential in the form of a signature.
-    pub(crate) async fn insert_coconut_credential(
+    pub async fn insert_coconut_credential(
         &self,
         voucher_value: String,
         voucher_info: String,
@@ -46,7 +46,7 @@ impl CoconutCredentialManager {
     }
 
     /// Tries to retrieve one of the stored, unused credentials.
-    pub(crate) async fn get_next_coconut_credential(
+    pub async fn get_next_coconut_credential(
         &self,
     ) -> Result<Option<CoconutCredential>, sqlx::Error> {
         sqlx::query_as!(
@@ -62,7 +62,7 @@ impl CoconutCredentialManager {
     /// # Arguments
     ///
     /// * `id`: Database id.
-    pub(crate) async fn consume_coconut_credential(&self, id: i64) -> Result<(), sqlx::Error> {
+    pub async fn consume_coconut_credential(&self, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "UPDATE coconut_credentials SET consumed = TRUE WHERE id = ?",
             id

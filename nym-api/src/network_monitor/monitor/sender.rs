@@ -13,7 +13,7 @@ use futures::task::Context;
 use futures::{Future, Stream};
 use log::{debug, info, trace, warn};
 use nym_config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
-use nym_credential_storage::PersistentStorage;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use nym_gateway_client::bandwidth::BandwidthController;
 use nym_gateway_client::error::GatewayClientError;

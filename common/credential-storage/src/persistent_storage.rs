@@ -9,7 +9,7 @@ use crate::models::CoconutCredential;
 use async_trait::async_trait;
 use log::{debug, error};
 use sqlx::ConnectOptions;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
@@ -95,12 +95,5 @@ impl Storage for PersistentStorage {
             .await?;
 
         Ok(())
-    }
-}
-
-pub async fn initialise_storage(path: PathBuf) -> PersistentStorage {
-    match PersistentStorage::init(path).await {
-        Err(err) => panic!("failed to initialise credential storage - {err}"),
-        Ok(storage) => storage,
     }
 }

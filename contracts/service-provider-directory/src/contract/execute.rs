@@ -125,7 +125,7 @@ pub(crate) fn delete_nym_address(
     nym_address: NymAddress,
 ) -> Result<Response> {
     let mut response = Response::new();
-    let services_to_delete = query::query_nym_address(deps.as_ref(), nym_address.clone())?.services;
+    let services_to_delete = query::query_nym_address(deps.as_ref(), nym_address)?.services;
 
     for service_to_delete in services_to_delete {
         if info.sender == service_to_delete.service.owner {

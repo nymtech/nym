@@ -337,8 +337,6 @@ mod message_receiver {
             mixes,
             vec![gateway::Node {
                 owner: "foomp4".to_string(),
-                stake: 123,
-                location: "unknown".to_string(),
                 host: "1.2.3.4".parse().unwrap(),
                 mix_host: "1.2.3.4:1789".parse().unwrap(),
                 clients_port: 9000,

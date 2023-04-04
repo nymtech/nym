@@ -1,4 +1,5 @@
 use cosmwasm_std::{Addr, Deps};
+use nym_contracts_common::ContractBuildInformation;
 use nym_service_provider_directory_common::{
     msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo, ServicesListResponse},
     NymAddress, ServiceId,
@@ -47,4 +48,22 @@ pub fn query_all_paged(
 pub fn query_config(deps: Deps) -> Result<ConfigResponse> {
     let config = state::load_config(deps.storage)?;
     Ok(config.into())
+}
+
+pub fn query_contract_version() -> ContractBuildInformation {
+    // as per docs
+    // env! macro will expand to the value of the named environment variable at
+    // compile time, yielding an expression of type `&'static str`
+    ContractBuildInformation {
+        build_timestamp: env!("VERGEN_BUILD_TIMESTAMP").to_string(),
+        build_version: env!("VERGEN_BUILD_SEMVER").to_string(),
+        commit_sha: option_env!("VERGEN_GIT_SHA").unwrap_or("NONE").to_string(),
+        commit_timestamp: option_env!("VERGEN_GIT_COMMIT_TIMESTAMP")
+            .unwrap_or("NONE")
+            .to_string(),
+        commit_branch: option_env!("VERGEN_GIT_BRANCH")
+            .unwrap_or("NONE")
+            .to_string(),
+        rustc_version: env!("VERGEN_RUSTC_SEMVER").to_string(),
+    }
 }

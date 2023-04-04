@@ -1123,10 +1123,12 @@ dependencies = [
  "cw-storage-plus",
  "cw-utils",
  "cw2",
+ "nym-contracts-common",
  "nym-service-provider-directory-common",
  "semver",
  "serde",
  "thiserror",
+ "vergen",
 ]
 
 [[package]]

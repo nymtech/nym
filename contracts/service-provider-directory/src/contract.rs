@@ -96,6 +96,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
             to_binary(&query::query_all_paged(deps, limit, start_after)?)
         }
         QueryMsg::Config {} => to_binary(&query::query_config(deps)?),
+        QueryMsg::GetContractVersion {} => to_binary(&query::query_contract_version()),
+        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
     };
     Ok(response?)
 }

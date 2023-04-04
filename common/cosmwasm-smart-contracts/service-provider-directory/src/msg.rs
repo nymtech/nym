@@ -59,6 +59,9 @@ pub enum QueryMsg {
         start_after: Option<ServiceId>,
     },
     Config {},
+    GetContractVersion {},
+    #[serde(rename = "get_cw2_contract_version")]
+    GetCW2ContractVersion {},
 }
 
 impl QueryMsg {

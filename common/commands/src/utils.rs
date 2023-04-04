@@ -4,8 +4,9 @@
 use cosmrs::AccountId;
 use cosmwasm_std::{Addr, Coin as CosmWasmCoin, Decimal};
 use log::error;
+use serde::Serialize;
 use std::error::Error;
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use validator_client::nyxd::Coin;
 
 // TODO: perhaps it should be moved to some global common crate?
@@ -53,4 +54,24 @@ where
 {
     error!("{}", e);
     e
+}
+
+#[derive(Serialize)]
+pub(crate) struct DataWrapper<T> {
+    data: T,
+}
+
+impl<T> Display for DataWrapper<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.data)
+    }
+}
+
+impl<T> DataWrapper<T> {
+    pub(crate) fn new(data: T) -> Self {
+        DataWrapper { data }
+    }
 }

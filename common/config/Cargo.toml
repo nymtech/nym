@@ -10,7 +10,7 @@ edition = "2021"
 cfg-if = "1.0.0"
 handlebars = "3.0.1"
 log = { workspace = true }
-serde = { version = "1.0", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 toml = "0.5.6"
 url = "2.2"
 

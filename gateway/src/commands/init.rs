@@ -77,6 +77,9 @@ pub struct Init {
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
     statistics_service_url: Option<url::Url>,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 }
 
 impl From<Init> for OverrideConfig {
@@ -100,7 +103,7 @@ impl From<Init> for OverrideConfig {
     }
 }
 
-pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
     eprintln!("Initialising gateway {}...", args.id);
 
     let already_init = if Config::default_config_file_path(&args.id).exists() {
@@ -154,9 +157,10 @@ pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Err
     eprintln!("Saved configuration file to {:?}", config_save_location);
     eprintln!("Gateway configuration completed.\n\n\n");
 
-    Ok(crate::node::create_gateway(config)
+    crate::node::create_gateway(config)
         .await
-        .print_node_details(output)?)
+        .print_node_details(args.output);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -183,6 +187,7 @@ mod tests {
             enabled_statistics: None,
             nyxd_urls: None,
             only_coconut_credentials: None,
+            output: Default::default(),
         };
         std::env::set_var(BECH32_PREFIX, "n");
 

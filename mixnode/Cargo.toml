@@ -29,14 +29,13 @@ log = { workspace = true }
 pretty_env_logger = "0.4.0"
 rand = "0.7.3"
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 sysinfo = "0.27.7"
 tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 toml = "0.5.8"
 url = { version = "2.2", features = ["serde"] }
-atty = "0.2"
 
 ## internal
 nym-config = { path = "../common/config" }
@@ -51,7 +50,7 @@ nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-topology = { path = "../common/topology" }
 validator-client = { path = "../common/client-libs/validator-client" }
-nym-bin-common = { path = "../common/bin-common" }
+nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 cpu-cycles = { path = "../cpu-cycles", optional = true }
 
 [dev-dependencies]

@@ -3149,6 +3149,7 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.3.0"
 dependencies = [
+ "atty",
  "clap 4.1.11",
  "clap_complete",
  "clap_complete_fig",
@@ -3156,6 +3157,7 @@ dependencies = [
  "pretty_env_logger",
  "semver 0.11.0",
  "serde",
+ "serde_json",
  "vergen",
 ]
 
@@ -3215,6 +3217,7 @@ dependencies = [
  "humantime-serde",
  "k256",
  "log",
+ "nym-bin-common",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
  "nym-contracts-common",
@@ -3500,7 +3503,6 @@ name = "nym-mixnode"
 version = "1.1.14"
 dependencies = [
  "anyhow",
- "atty",
  "bs58",
  "clap 4.1.11",
  "colored",

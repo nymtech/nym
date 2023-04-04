@@ -6,10 +6,11 @@ use crate::error::GatewayError;
 use crate::support::config::build_config;
 use crate::{
     commands::ensure_config_version_compatibility,
-    config::persistence::pathfinder::GatewayPathfinder, OutputFormat,
+    config::persistence::pathfinder::GatewayPathfinder,
 };
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
+use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
 use std::error::Error;
@@ -34,6 +35,9 @@ pub struct Sign {
     /// Signs a transaction-specific payload, that is going to be sent to the smart contract, with your identity key
     #[clap(long)]
     contract_msg: Option<String>,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 }
 
 enum SignedTarget {
@@ -94,12 +98,7 @@ fn print_signed_text(
 
     let signature = private_key.sign_text(text);
     let sign_output = ConsoleSigningOutput::new(text, signature);
-
-    let msg = match output {
-        OutputFormat::Json => sign_output.to_json_string(),
-        OutputFormat::Text => sign_output.to_string(),
-    };
-    println!("{msg}");
+    println!("{}", output.format(&sign_output));
 
     Ok(())
 }
@@ -131,18 +130,14 @@ fn print_signed_contract_msg(
     let signature = private_key.sign(&decoded).to_base58_string();
 
     let sign_output = ConsoleSigningOutput::new(decoded_string, signature);
-
-    let msg = match output {
-        OutputFormat::Json => sign_output.to_json_string(),
-        OutputFormat::Text => sign_output.to_string(),
-    };
-    println!("{msg}")
+    println!("{}", output.format(&sign_output));
 }
 
-pub fn execute(args: Sign, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub fn execute(args: Sign) -> Result<(), Box<dyn Error + Send + Sync>> {
     let config = build_config(args.id.clone(), OverrideConfig::default())?;
     ensure_config_version_compatibility(&config)?;
 
+    let output = args.output;
     let signed_target = SignedTarget::try_from(args)?;
     let pathfinder = GatewayPathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);

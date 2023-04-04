@@ -4,9 +4,9 @@
 use super::OverrideConfig;
 use crate::config::Config;
 use crate::node::MixNode;
-use crate::OutputFormat;
 use crate::{commands::override_config, config::persistence::pathfinder::MixNodePathfinder};
 use clap::Args;
+use nym_bin_common::output_format::OutputFormat;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use std::net::IpAddr;
@@ -46,6 +46,9 @@ pub(crate) struct Init {
     // the alias here is included for backwards compatibility (1.1.4 and before)
     #[clap(long, alias = "validators", value_delimiter = ',')]
     nym_apis: Option<Vec<url::Url>>,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 }
 
 impl From<Init> for OverrideConfig {
@@ -63,7 +66,7 @@ impl From<Init> for OverrideConfig {
     }
 }
 
-pub(crate) fn execute(args: &Init, output: OutputFormat) {
+pub(crate) fn execute(args: &Init) {
     let override_config_fields = OverrideConfig::from(args.clone());
     let id = &override_config_fields.id;
     eprintln!("Initialising mixnode {id}...");
@@ -112,5 +115,5 @@ pub(crate) fn execute(args: &Init, output: OutputFormat) {
     eprintln!("Saved configuration file to {config_save_location:?}");
     eprintln!("Mixnode configuration completed.\n\n\n");
 
-    MixNode::new(config).print_node_details(output)
+    MixNode::new(config).print_node_details(args.output)
 }

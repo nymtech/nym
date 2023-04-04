@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::context::QueryClient;
-use crate::utils::account_id_to_cw_addr;
+use crate::utils::{account_id_to_cw_addr, DataWrapper};
 use clap::Parser;
 use cosmrs::AccountId;
 use log::info;
+use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::construct_family_join_permit;
 use nym_mixnet_contract_common::families::FamilyHead;
@@ -25,6 +26,9 @@ pub struct Args {
     /// Identity of the member for whom we're issuing the permit
     #[arg(long)]
     pub member: identity::PublicKey,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 }
 
 pub async fn create_family_join_permit_sign_payload(args: Args, client: QueryClient) {
@@ -68,5 +72,6 @@ pub async fn create_family_join_permit_sign_payload(args: Args, client: QueryCli
     let head = FamilyHead::new(mixnode.bond_information.identity());
 
     let payload = construct_family_join_permit(nonce, head, proxy, args.member.to_base58_string());
-    println!("{}", payload.to_base58_string().unwrap())
+    let wrapper = DataWrapper::new(payload.to_base58_string().unwrap());
+    println!("{}", args.output.format(&wrapper))
 }

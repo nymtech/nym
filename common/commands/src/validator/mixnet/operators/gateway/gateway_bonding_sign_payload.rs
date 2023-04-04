@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::context::SigningClient;
-use crate::utils::account_id_to_cw_addr;
+use crate::utils::{account_id_to_cw_addr, DataWrapper};
 use clap::Parser;
 use cosmwasm_std::Coin;
+use nym_bin_common::output_format::OutputFormat;
 use nym_mixnet_contract_common::construct_gateway_bonding_sign_payload;
 use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use validator_client::nyxd::traits::MixnetQueryClient;
@@ -41,6 +42,9 @@ pub struct Args {
     /// Indicates whether the gateway is going to get bonded via a vesting account
     #[arg(long)]
     pub with_vesting_account: bool,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 }
 
 pub async fn create_payload(args: Args, client: SigningClient) {
@@ -77,5 +81,6 @@ pub async fn create_payload(args: Args, client: SigningClient) {
     };
 
     let payload = construct_gateway_bonding_sign_payload(nonce, address, proxy, coin, gateway);
-    println!("{}", payload.to_base58_string().unwrap())
+    let wrapper = DataWrapper::new(payload.to_base58_string().unwrap());
+    println!("{}", args.output.format(&wrapper))
 }

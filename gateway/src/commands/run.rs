@@ -1,12 +1,10 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::{ensure_config_version_compatibility, OverrideConfig};
 use crate::support::config::build_config;
-use crate::{
-    commands::{ensure_config_version_compatibility, OverrideConfig},
-    OutputFormat,
-};
 use clap::Args;
+use nym_bin_common::output_format::OutputFormat;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -75,6 +73,9 @@ pub struct Run {
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
     statistics_service_url: Option<url::Url>,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 }
 
 impl From<Run> for OverrideConfig {
@@ -112,10 +113,11 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-pub async fn execute(args: Run, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync>> {
     let id = args.id.clone();
-    println!("Starting gateway {id}...");
+    eprintln!("Starting gateway {id}...");
 
+    let output = args.output;
     let config = build_config(id, args)?;
     ensure_config_version_compatibility(&config)?;
 
@@ -127,7 +129,7 @@ pub async fn execute(args: Run, output: OutputFormat) -> Result<(), Box<dyn Erro
     eprintln!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
-    gateway.print_node_details(output)?;
+    gateway.print_node_details(output);
 
     gateway.run().await
 }

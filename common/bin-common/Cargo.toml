@@ -8,6 +8,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
+atty = "0.2"
 clap = { version = "4.0", features = ["derive"] }
 clap_complete = "4.0"
 clap_complete_fig = "4.0"
@@ -15,9 +16,11 @@ log = { workspace = true }
 pretty_env_logger = "0.4.0"
 semver = "0.11"
 serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true, optional = true }
 
 [build-dependencies]
 vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc", "cargo"] }
 
 [features]
 default = []
+output_format = ["serde", "serde_json"]

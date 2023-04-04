@@ -16,9 +16,9 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
-use crate::OutputFormat;
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
+use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::version_checker::parse_version;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -96,14 +96,7 @@ impl MixNode {
             wallet_address: self.config.get_wallet_address().map(|x| x.to_string()),
         };
 
-        match output {
-            OutputFormat::Json => println!(
-                "{}",
-                serde_json::to_string(&node_details)
-                    .unwrap_or_else(|_| "Could not serialize node details".to_string())
-            ),
-            OutputFormat::Text => println!("{node_details}"),
-        }
+        println!("{}", output.format(&node_details));
     }
 
     fn start_http_api(

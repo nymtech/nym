@@ -22,7 +22,7 @@ pretty_env_logger = "0.4.0"
 publicsuffix = "1.5" # Can't update this until bip updates to support newer idna version
 rand = "0.7.3"
 reqwest = { version = "0.11.11", features = ["json"] }
-serde = { version = "1.0", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "chrono"]}
 tap = { workspace = true }
 thiserror = "1.0"
@@ -34,7 +34,7 @@ url = { workspace = true }
 client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
-nym-bin-common = { path = "../../common/bin-common"}
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../../common/nymsphinx" }

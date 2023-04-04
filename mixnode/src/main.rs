@@ -5,10 +5,10 @@
 extern crate rocket;
 
 use ::nym_config::defaults::setup_env;
-use clap::{crate_name, crate_version, Parser, ValueEnum};
+use clap::{crate_name, crate_version, Parser};
 use lazy_static::lazy_static;
-use nym_bin_common::logging::setup_logging;
-use nym_bin_common::{build_information::BinaryBuildInformation, logging::banner};
+use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 
 mod commands;
 mod config;
@@ -24,18 +24,6 @@ fn pretty_build_info_static() -> &'static str {
     &PRETTY_BUILD_INFORMATION
 }
 
-#[derive(Clone, ValueEnum)]
-enum OutputFormat {
-    Json,
-    Text,
-}
-
-impl Default for OutputFormat {
-    fn default() -> Self {
-        OutputFormat::Text
-    }
-}
-
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
 struct Cli {
@@ -43,21 +31,8 @@ struct Cli {
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
-    #[clap(short, long)]
-    pub(crate) output: Option<OutputFormat>,
-
     #[clap(subcommand)]
     command: commands::Commands,
-}
-
-impl Cli {
-    fn output(&self) -> OutputFormat {
-        if let Some(ref output) = self.output {
-            output.clone()
-        } else {
-            OutputFormat::default()
-        }
-    }
 }
 
 #[cfg(feature = "cpu-cycles")]
@@ -68,9 +43,7 @@ pub fn cpu_cycles() {
 #[tokio::main]
 async fn main() {
     setup_logging();
-    if atty::is(atty::Stream::Stdout) {
-        println!("{}", banner(crate_name!(), crate_version!()));
-    }
+    maybe_print_banner(crate_name!(), crate_version!());
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());

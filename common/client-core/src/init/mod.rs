@@ -115,7 +115,7 @@ where
     // If we are not going to register gateway, and an explicitly chosen gateway is not passed in,
     // load the existing configuration file
     if !register_gateway && user_chosen_gateway_id.is_none() {
-        println!("Not registering gateway, will reuse existing config and keys");
+        eprintln!("Not registering gateway, will reuse existing config and keys");
         return load_existing_gateway_config::<C>(&id);
     }
 
@@ -131,7 +131,7 @@ where
     // If we are not registering, just return this and assume the caller has the keys already and
     // wants to keep the,
     if !register_gateway && user_chosen_gateway_id.is_some() {
-        println!("Using gateway provided by user, keeping existing keys");
+        eprintln!("Using gateway provided by user, keeping existing keys");
         return Ok(gateway.into());
     }
 
@@ -140,7 +140,7 @@ where
     let our_identity = key_manager.identity_keypair();
 
     // Establish connection, authenticate and generate keys for talking with the gateway
-    println!("Registering with new gateway");
+    eprintln!("Registering with new gateway");
     let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
     key_manager.insert_gateway_shared_key(shared_keys);
 

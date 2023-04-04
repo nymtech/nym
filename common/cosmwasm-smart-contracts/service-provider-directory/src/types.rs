@@ -22,6 +22,7 @@ pub struct Service {
 
 /// The types of addresses supported.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum NymAddress {
     /// String representation of a nym address, which is of the form
     /// client_id.client_enc@gateway_id.
@@ -51,6 +52,7 @@ impl Display for NymAddress {
 
 /// The type of services provider supported
 #[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum ServiceType {
     NetworkRequester,
 }

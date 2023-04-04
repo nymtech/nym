@@ -17,7 +17,7 @@ use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use futures::StreamExt;
-#[cfg(not(feature = "mobile"))]
+#[cfg(not(target_os = "android"))]
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
@@ -72,7 +72,7 @@ impl NymClient {
         }
     }
 
-    #[cfg(not(feature = "mobile"))]
+    #[cfg(not(target_os = "android"))]
     async fn create_bandwidth_controller(
         config: &Config,
     ) -> BandwidthController<Client<QueryNyxdClient>> {
@@ -94,11 +94,11 @@ impl NymClient {
         let client = validator_client::Client::new_query(client_config)
             .expect("Could not construct query client");
 
-        #[cfg(not(feature = "mobile"))]
+        #[cfg(not(target_os = "android"))]
         let storage =
             nym_credential_storage::initialise_storage(config.get_base().get_database_path()).await;
 
-        #[cfg(feature = "mobile")]
+        #[cfg(target_os = "android")]
         let storage = mobile_storage::PersistentStorage {};
 
         BandwidthController::new(storage, client)
@@ -216,7 +216,7 @@ impl NymClient {
     }
 
     pub async fn start(self) -> Result<TaskManager, Socks5ClientCoreError> {
-        #[cfg(not(feature = "mobile"))]
+        #[cfg(not(target_os = "android"))]
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
@@ -228,7 +228,7 @@ impl NymClient {
             .await?,
         );
 
-        #[cfg(feature = "mobile")]
+        #[cfg(target_os = "android")]
         let base_builder = BaseClientBuilder::<_, Client<QueryNyxdClient>>::new_from_base_config(
             self.config.get_base(),
             self.key_manager,

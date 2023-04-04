@@ -45,7 +45,7 @@ impl NymAddress {
 
 impl Display for NymAddress {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str().to_string())
+        write!(f, "{}", self.as_str())
     }
 }
 

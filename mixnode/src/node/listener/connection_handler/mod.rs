@@ -7,7 +7,6 @@ use crate::node::listener::connection_handler::packet_processing::{
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use futures::StreamExt;
-use tracing::{error, info};
 use mixnode_common::measure;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::SphinxCodec;
@@ -18,6 +17,7 @@ use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
 use tracing::instrument;
+use tracing::{error, info};
 
 pub(crate) mod packet_processing;
 

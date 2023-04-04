@@ -32,15 +32,20 @@ pub fn setup_logging() {
         .init();
 }
 
+// TODO: This has to be a macro, running it as a function does not work for the file_appender for some reason
 #[macro_export]
 macro_rules! setup_tracing {
     ($file_name: expr) => {
         use nym_bin_common::logging::tracing_subscriber::layer::SubscriberExt;
         use nym_bin_common::logging::tracing_subscriber::util::SubscriberInitExt;
 
-        let file_appender = nym_bin_common::logging::tracing_appender::rolling::hourly($file_name, "log");
-        let (non_blocking, _guard) = nym_bin_common::logging::tracing_appender::non_blocking(file_appender);
-        let appender_layer = nym_bin_common::logging::tracing_subscriber::fmt::Layer::new().with_ansi(false).with_writer(non_blocking);
+        let file_appender =
+            nym_bin_common::logging::tracing_appender::rolling::hourly($file_name, "log");
+        let (non_blocking, _guard) =
+            nym_bin_common::logging::tracing_appender::non_blocking(file_appender);
+        let appender_layer = nym_bin_common::logging::tracing_subscriber::fmt::Layer::new()
+            .with_ansi(false)
+            .with_writer(non_blocking);
 
         nym_bin_common::logging::tracing_subscriber::Registry::default()
             .with(nym_bin_common::logging::tracing_subscriber::EnvFilter::from_default_env())

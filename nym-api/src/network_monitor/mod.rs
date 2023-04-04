@@ -32,7 +32,7 @@ pub(crate) mod test_route;
 
 pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
-pub(crate) fn setup<'a, R: MessageReceiver>(
+pub(crate) fn setup<'a>(
     config: &'a Config,
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
@@ -226,7 +226,7 @@ pub(crate) async fn start<R: MessageReceiver + Send + 'static>(
     system_version: &str,
     shutdown: &TaskManager,
 ) {
-    let monitor_builder = network_monitor::setup::<R>(
+    let monitor_builder = network_monitor::setup(
         config,
         nym_contract_cache_state,
         storage,

@@ -3149,6 +3149,7 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.3.0"
 dependencies = [
+ "atty",
  "clap 4.1.11",
  "clap_complete",
  "clap_complete_fig",
@@ -3502,7 +3503,6 @@ name = "nym-mixnode"
 version = "1.1.14"
 dependencies = [
  "anyhow",
- "atty",
  "bs58",
  "clap 4.1.11",
  "colored",

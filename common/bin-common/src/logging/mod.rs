@@ -39,3 +39,9 @@ pub fn banner(crate_name: &str, crate_version: &str) -> String {
     "#
     )
 }
+
+pub fn maybe_print_banner(crate_name: &str, crate_version: &str) {
+    if atty::is(atty::Stream::Stdout) {
+        println!("{}", banner(crate_name, crate_version))
+    }
+}

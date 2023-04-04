@@ -36,7 +36,6 @@ tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 toml = "0.5.8"
 url = { version = "2.2", features = ["serde"] }
-atty = "0.2"
 
 ## internal
 nym-config = { path = "../common/config" }

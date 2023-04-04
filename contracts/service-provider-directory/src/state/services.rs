@@ -88,14 +88,14 @@ pub fn load_nym_address(
 #[derive(Debug, PartialEq)]
 pub struct PagedLoad {
     pub services: Vec<(ServiceId, Service)>,
-    pub start_next_after: Option<ServiceId>,
     pub limit: usize,
+    pub start_next_after: Option<ServiceId>,
 }
 
 pub fn load_all_paged(
     store: &dyn Storage,
-    start_after: Option<ServiceId>,
     limit: Option<u32>,
+    start_after: Option<ServiceId>,
 ) -> Result<PagedLoad> {
     let limit = limit
         .unwrap_or(SERVICE_DEFAULT_RETRIEVAL_LIMIT)
@@ -112,8 +112,8 @@ pub fn load_all_paged(
 
     Ok(PagedLoad {
         services,
-        start_next_after,
         limit,
+        start_next_after,
     })
 }
 
@@ -251,14 +251,14 @@ mod tests {
         save(deps.as_mut().storage, &service_fixture_with_address("d")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address("e")).unwrap();
         assert_eq!(
-            load_all_paged(&deps.storage, None, Some(2)).unwrap(),
+            load_all_paged(&deps.storage, Some(2), None).unwrap(),
             PagedLoad {
                 services: vec![
                     (1, service_fixture_with_address("a")),
                     (2, service_fixture_with_address("b"))
                 ],
-                start_next_after: Some(2),
                 limit: 2,
+                start_next_after: Some(2),
             }
         );
         assert_eq!(
@@ -268,12 +268,12 @@ mod tests {
                     (3, service_fixture_with_address("c")),
                     (4, service_fixture_with_address("d"))
                 ],
-                start_next_after: Some(4),
                 limit: 2,
+                start_next_after: Some(4),
             }
         );
         assert_eq!(
-            load_all_paged(&deps.storage, Some(4), Some(2)).unwrap(),
+            load_all_paged(&deps.storage, Some(2), Some(4)).unwrap(),
             PagedLoad {
                 services: vec![(5, service_fixture_with_address("e")),],
                 start_next_after: Some(5),

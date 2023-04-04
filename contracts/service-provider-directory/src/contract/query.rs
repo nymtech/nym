@@ -29,18 +29,18 @@ pub fn query_nym_address(deps: Deps, nym_address: NymAddress) -> Result<Services
 
 pub fn query_all_paged(
     deps: Deps,
-    start_after: Option<ServiceId>,
     limit: Option<u32>,
+    start_after: Option<ServiceId>,
 ) -> Result<PagedServicesListResponse> {
     let PagedLoad {
         services,
-        start_next_after,
         limit,
-    } = state::services::load_all_paged(deps.storage, start_after, limit)?;
+        start_next_after,
+    } = state::services::load_all_paged(deps.storage, limit, start_after)?;
     Ok(PagedServicesListResponse::new(
         services,
-        start_next_after,
         limit,
+        start_next_after,
     ))
 }
 

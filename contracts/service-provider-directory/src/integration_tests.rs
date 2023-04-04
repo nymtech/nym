@@ -173,37 +173,104 @@ fn cant_delete_service_that_does_not_exist() {
 #[test]
 fn announce_multiple_services_and_deleting_by_name() {
     let mut setup = TestSetup::new();
-    let owner1 = Addr::unchecked("owner1");
-    let owner2 = Addr::unchecked("owner2");
-    let nym_address = NymAddress::new("nymAddress");
+    let owner1 = Addr::unchecked("wealthy_owner_1");
+    let owner2 = Addr::unchecked("wealthy_owner_2");
+    let nym_address1 = NymAddress::new("nymAddress1");
+    let nym_address2 = NymAddress::new("nymAddress2");
 
-    setup.announce_net_req(nym_address.clone(), owner1.clone());
-    setup.announce_net_req(nym_address.clone(), owner1.clone());
-    setup.announce_net_req(nym_address.clone(), owner2.clone());
+    // We announce the same address three times, but with different owners
+    setup.announce_net_req(nym_address1.clone(), owner1.clone());
+    setup.announce_net_req(nym_address1.clone(), owner1.clone());
+    setup.announce_net_req(nym_address2.clone(), owner1.clone());
+    setup.announce_net_req(nym_address1.clone(), owner2.clone());
+    setup.announce_net_req(nym_address2.clone(), owner2.clone());
 
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {
             services: vec![
-                service_info(1, nym_address.clone(), owner1.clone()),
-                service_info(2, nym_address.clone(), owner1.clone()),
-                service_info(3, nym_address.clone(), owner2.clone())
+                service_info(1, nym_address1.clone(), owner1.clone()),
+                service_info(2, nym_address1.clone(), owner1.clone()),
+                service_info(3, nym_address2.clone(), owner1.clone()),
+                service_info(4, nym_address1.clone(), owner2.clone()),
+                service_info(5, nym_address2.clone(), owner2.clone()),
             ],
             per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
-            start_next_after: Some(3),
+            start_next_after: Some(5),
         }
     );
 
-    // Even though all of them point to the same nym address, we only delete the ones we actually
+    // Even though multiple of them point to the same nym address, we only delete the ones we actually
     // own.
-    setup.delete_nym_address(nym_address.clone(), owner1);
+    setup.delete_nym_address(nym_address1.clone(), owner1.clone());
 
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {
-            services: vec![service_info(3, nym_address, owner2)],
+            services: vec![
+                service_info(3, nym_address2.clone(), owner1),
+                service_info(4, nym_address1, owner2.clone()),
+                service_info(5, nym_address2, owner2),
+            ],
             per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
+            start_next_after: Some(5),
+        }
+    );
+}
+
+// add multiple services, then query all but with a paging limit less than the number of services
+// added
+#[test]
+fn paging_works() {
+    let mut setup = TestSetup::new();
+    let owner1 = Addr::unchecked("wealthy_owner_1");
+    let owner2 = Addr::unchecked("wealthy_owner_2");
+    let nym_address1 = NymAddress::new("nymAddress1");
+    let nym_address2 = NymAddress::new("nymAddress2");
+
+    // We announce the same address three times, but with different owners
+    setup.announce_net_req(nym_address1.clone(), owner1.clone());
+    setup.announce_net_req(nym_address1.clone(), owner1.clone());
+    setup.announce_net_req(nym_address2.clone(), owner1.clone());
+    setup.announce_net_req(nym_address1.clone(), owner2.clone());
+    setup.announce_net_req(nym_address2.clone(), owner2.clone());
+
+    assert_eq!(
+        setup.query_all_with_limit(Some(10), None),
+        PagedServicesListResponse {
+            services: vec![
+                service_info(1, nym_address1.clone(), owner1.clone()),
+                service_info(2, nym_address1.clone(), owner1.clone()),
+                service_info(3, nym_address2.clone(), owner1.clone()),
+                service_info(4, nym_address1.clone(), owner2.clone()),
+                service_info(5, nym_address2.clone(), owner2.clone()),
+            ],
+            per_page: 10,
+            start_next_after: Some(5),
+        }
+    );
+
+    assert_eq!(
+        setup.query_all_with_limit(Some(3), None),
+        PagedServicesListResponse {
+            services: vec![
+                service_info(1, nym_address1.clone(), owner1.clone()),
+                service_info(2, nym_address1.clone(), owner1.clone()),
+                service_info(3, nym_address2.clone(), owner1.clone()),
+            ],
+            per_page: 3,
             start_next_after: Some(3),
+        }
+    );
+    assert_eq!(
+        setup.query_all_with_limit(Some(3), Some(3)),
+        PagedServicesListResponse {
+            services: vec![
+                service_info(4, nym_address1.clone(), owner2.clone()),
+                service_info(5, nym_address2.clone(), owner2.clone()),
+            ],
+            per_page: 3,
+            start_next_after: Some(5),
         }
     );
 }

@@ -16,6 +16,7 @@ const DENOM: &str = "unym";
 const ADDRESSES: &[&str] = &[
     "user", "admin", "owner", "owner1", "owner2", "owner3", "owner4",
 ];
+const WEALTHY_ADDRESSES: &[&str] = &["wealthy_owner_1", "wealthy_owner_2"];
 
 /// Helper for being able to systematic integration tests
 pub struct TestSetup {
@@ -32,13 +33,16 @@ impl Default for TestSetup {
 impl TestSetup {
     pub fn new() -> Self {
         let mut app = AppBuilder::new().build(|router, _, storage| {
-            let mut init_balance = |account: &str| {
+            let mut init_balance = |account: &str, amount: u128| {
                 router
                     .bank
-                    .init_balance(storage, &Addr::unchecked(account), coins(250, DENOM))
+                    .init_balance(storage, &Addr::unchecked(account), coins(amount, DENOM))
                     .unwrap();
             };
-            ADDRESSES.iter().for_each(|addr| init_balance(addr));
+            ADDRESSES.iter().for_each(|addr| init_balance(addr, 250));
+            WEALTHY_ADDRESSES
+                .iter()
+                .for_each(|addr| init_balance(addr, 1000));
         });
         let code = ContractWrapper::new(crate::execute, crate::instantiate, crate::query);
         let code_id = app.store_code(Box::new(code));
@@ -86,6 +90,14 @@ impl TestSetup {
 
     pub fn query_all(&self) -> PagedServicesListResponse {
         self.query(&QueryMsg::all())
+    }
+
+    pub fn query_all_with_limit(
+        &self,
+        limit: Option<u32>,
+        start_after: Option<u32>,
+    ) -> PagedServicesListResponse {
+        self.query(&QueryMsg::All { limit, start_after })
     }
 
     pub fn announce_net_req(&mut self, address: NymAddress, owner: Addr) -> AppResponse {

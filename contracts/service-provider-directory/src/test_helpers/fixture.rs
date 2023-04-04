@@ -31,7 +31,7 @@ pub fn service_info(service_id: ServiceId, nym_address: NymAddress, owner: Addr)
         service: Service {
             nym_address,
             service_type: ServiceType::NetworkRequester,
-            owner,
+            owner: owner,
             block_height: 12345,
             deposit: nyms(100),
         },

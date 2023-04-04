@@ -46,8 +46,11 @@ fn announce_and_query_service() {
     assert_eq!(setup.balance(&owner), nyms(250));
     setup.announce_net_req(nym_address.clone(), owner.clone());
 
+    // Deposit is deposited to contract and deducted from owner's balance
     assert_eq!(setup.contract_balance(), nyms(100));
     assert_eq!(setup.balance(&owner), nyms(150));
+
+    // We can query the full service list
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {
@@ -65,6 +68,8 @@ fn announce_and_query_service() {
             start_next_after: Some(1),
         }
     );
+
+    // ... and we can query by id
     assert_eq!(
         setup.query_id(1),
         ServiceInfo {
@@ -103,9 +108,13 @@ fn delete_service() {
     let mut setup = TestSetup::new();
     setup.announce_net_req(NymAddress::new("nymAddress"), Addr::unchecked("owner"));
     assert_eq!(setup.contract_balance(), nyms(100));
+    assert_eq!(setup.balance("owner"), nyms(150));
     assert!(!setup.query_all().services.is_empty());
     setup.delete(1, Addr::unchecked("owner"));
+
+    // Deleting the service returns the deposit to the owner
     assert_eq!(setup.contract_balance(), nyms(0));
+    assert_eq!(setup.balance("owner"), nyms(250));
     assert!(setup.query_all().services.is_empty());
 }
 

@@ -4,6 +4,20 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.14] (2023-04-04)
+
+- Investigate cause of qwerty validator being in invalid rewarding state ([#3224])
+- Fix NR config due to changes in #3199 ([#3223])
+- [Issue] Mixnodes and gateway do not close connections properly  ([#3187])
+- disable sign-ext when using wasm-opt + update wasm-opt ([#3203])
+- chore: tidy up client `Debug` config section ([#3199])
+
+[#3224]: https://github.com/nymtech/nym/issues/3224
+[#3223]: https://github.com/nymtech/nym/issues/3223
+[#3187]: https://github.com/nymtech/nym/issues/3187
+[#3203]: https://github.com/nymtech/nym/pull/3203
+[#3199]: https://github.com/nymtech/nym/pull/3199
+
 ## [v1.1.13] (2023-03-15)
 
 - NE - instead of throwing a "Mixnode/Gateway not found" error for blacklisted nodes due to bad performance, show their history but tag them as "Having poor performance" ([#2979])

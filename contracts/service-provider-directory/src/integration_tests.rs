@@ -179,12 +179,16 @@ fn announce_multiple_services_and_deleting_by_name() {
     let nym_address2 = NymAddress::new("nymAddress2");
 
     // We announce the same address three times, but with different owners
+    assert_eq!(setup.contract_balance(), nyms(0));
+    assert_eq!(setup.balance(&owner1), nyms(1000));
     setup.announce_net_req(nym_address1.clone(), owner1.clone());
     setup.announce_net_req(nym_address1.clone(), owner1.clone());
     setup.announce_net_req(nym_address2.clone(), owner1.clone());
     setup.announce_net_req(nym_address1.clone(), owner2.clone());
     setup.announce_net_req(nym_address2.clone(), owner2.clone());
 
+    assert_eq!(setup.contract_balance(), nyms(500));
+    assert_eq!(setup.balance(&owner1), nyms(700));
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {
@@ -204,6 +208,8 @@ fn announce_multiple_services_and_deleting_by_name() {
     // own.
     setup.delete_nym_address(nym_address1.clone(), owner1.clone());
 
+    assert_eq!(setup.contract_balance(), nyms(300));
+    assert_eq!(setup.balance(&owner1), nyms(900));
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {

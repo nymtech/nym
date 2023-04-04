@@ -40,6 +40,7 @@ pub struct NymClient {
 #[wasm_bindgen]
 pub struct NymClientBuilder {
     config: Config,
+    custom_topology: Option<()>,
 
     /// KeyManager object containing smart pointers to all relevant keys used by the client.
     key_manager: KeyManager,
@@ -58,15 +59,24 @@ pub struct NymClientBuilder {
 impl NymClientBuilder {
     #[wasm_bindgen(constructor)]
     pub fn new(config: Config, on_message: js_sys::Function) -> Self {
+        todo!()
         //, key_manager: Option<KeyManager>) {
-        NymClientBuilder {
-            reply_surb_storage_backend: Self::setup_reply_surb_storage_backend(&config),
-            config,
-            key_manager: Self::setup_key_manager(),
-            on_message,
-            bandwidth_controller: None,
-            disabled_credentials: true,
-        }
+        // NymClientBuilder {
+        //     reply_surb_storage_backend: Self::setup_reply_surb_storage_backend(&config),
+        //     config,
+        //     key_manager: Self::setup_key_manager(),
+        //     on_message,
+        //     bandwidth_controller: None,
+        //     disabled_credentials: true,
+        // }
+    }
+
+    // no cover traffic
+    // no poisson delay
+    // no surbs
+    // hardcoded topology
+    pub fn new_tester(gateway_config: GatewayEndpointConfig) -> Self {
+        todo!()
     }
 
     // TODO: once we make keys persistent, we'll require some kind of `init` method to generate

@@ -17,6 +17,7 @@ default = ["console_error_panic_hook"]
 offline-test = []
 
 [dependencies]
+bs58 = "0.4.0"
 futures = "0.3"
 js-sys = "0.3"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
@@ -37,6 +38,8 @@ nym-credentials = { path = "../../common/credentials" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-crypto = { path = "../../common/crypto" }
 nym-sphinx = { path = "../../common/nymsphinx" }
+nym-topology = { path = "../../common/topology" }
+nym-gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm"] }
 nym-validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 wasm-utils = { path = "../../common/wasm-utils" }
 nym-task = { path = "../../common/task" }

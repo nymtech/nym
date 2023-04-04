@@ -653,7 +653,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "async-trait",
  "dashmap 5.4.0",
@@ -1610,7 +1610,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "explorer-api"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "chrono",
  "clap 4.1.11",
@@ -3059,7 +3059,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.14"
+version = "1.1.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3139,7 +3139,7 @@ dependencies = [
 
 [[package]]
 name = "nym-bin-common"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "clap 4.1.11",
  "clap_complete",
@@ -3168,7 +3168,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -3228,7 +3228,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "clap 4.1.11",
  "client-core",
@@ -3403,7 +3403,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3489,7 +3489,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.14"
+version = "1.1.15"
 dependencies = [
  "anyhow",
  "atty",
@@ -3558,7 +3558,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "async-trait",
  "clap 4.1.11",
@@ -3596,7 +3596,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "dirs",
  "log",
@@ -3696,7 +3696,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "clap 4.1.11",
  "client-core",

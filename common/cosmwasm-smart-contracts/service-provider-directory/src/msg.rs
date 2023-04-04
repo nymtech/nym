@@ -16,6 +16,10 @@ impl InstantiateMsg {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
+pub enum MigrateMsg {}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     Announce {
         nym_address: NymAddress,

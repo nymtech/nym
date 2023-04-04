@@ -12,6 +12,7 @@ cw-controllers = { workspace = true }
 cw-storage-plus = { workspace = true }
 cw-utils = { workspace = true }
 cw2 = { workspace = true }
+semver = { version = "1.0.16", default-features = false }
 serde = { version = "1.0.155", default-features = false, features = ["derive"] }
 thiserror = "1.0.39"
 

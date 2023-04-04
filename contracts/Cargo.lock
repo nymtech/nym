@@ -1124,6 +1124,7 @@ dependencies = [
  "cw-utils",
  "cw2",
  "nym-service-provider-directory-common",
+ "semver",
  "serde",
  "thiserror",
 ]

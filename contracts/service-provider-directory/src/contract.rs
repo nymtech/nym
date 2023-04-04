@@ -3,7 +3,10 @@ use crate::{
     state::{self, Config},
 };
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
-use nym_service_provider_directory_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use nym_service_provider_directory_common::msg::{
+    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+};
+use semver::Version;
 
 mod execute;
 mod query;
@@ -29,6 +32,36 @@ pub fn instantiate(
     Ok(Response::new()
         .add_attribute("method", "instantiate")
         .add_attribute("admin", info.sender))
+}
+
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    // Note: don't remove this particular bit of code as we have to ALWAYS check whether we have to
+    // update the stored version
+    let version: Version =
+        CONTRACT_VERSION
+            .parse()
+            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+                value: CONTRACT_VERSION.to_string(),
+                error_message: error.to_string(),
+            })?;
+
+    let storage_version_raw = cw2::get_contract_version(deps.storage)?.version;
+    let storage_version: Version =
+        storage_version_raw
+            .parse()
+            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+                value: storage_version_raw,
+                error_message: error.to_string(),
+            })?;
+
+    if storage_version < version {
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+        // If state structure changed in any contract version in the way migration is needed, it
+        // should occur here, for example anything from `crate::queued_migrations::`
+    }
+
+    Ok(Response::new())
 }
 
 pub fn execute(

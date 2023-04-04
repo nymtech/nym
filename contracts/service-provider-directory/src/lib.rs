@@ -5,7 +5,9 @@
 #![warn(clippy::unwrap_used)]
 
 use crate::error::Result;
-use nym_service_provider_directory_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use nym_service_provider_directory_common::msg::{
+    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -32,6 +34,12 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response> {
     contract::instantiate(deps, env, info, msg)
+}
+
+/// Contract entry point for migrations.
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    contract::migrate(deps, env, msg)
 }
 
 /// Contract entry point for execution

@@ -40,6 +40,12 @@ pub enum ContractError {
         max_aliases: u32,
         nym_address: NymAddress,
     },
+
+    #[error("failed to parse {value} into a valid SemVer version: {error_message}")]
+    SemVerFailure {
+        value: String,
+        error_message: String,
+    },
 }
 
 pub(crate) type Result<T, E = ContractError> = std::result::Result<T, E>;

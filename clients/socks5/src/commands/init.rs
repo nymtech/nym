@@ -99,7 +99,7 @@ pub struct InitResults {
     #[serde(flatten)]
     client_core: client_core::init::InitResults,
     socks5_listening_port: String,
-    client_address: Recipient,
+    client_address: String,
 }
 
 impl InitResults {
@@ -107,7 +107,7 @@ impl InitResults {
         Self {
             client_core: client_core::init::InitResults::new(config.get_base(), address),
             socks5_listening_port: config.get_socks5().get_listening_port().to_string(),
-            client_address: *address,
+            client_address: address.to_string(),
         }
     }
 }

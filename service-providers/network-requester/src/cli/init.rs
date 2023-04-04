@@ -71,14 +71,14 @@ impl From<Init> for OverrideConfig {
 pub struct InitResults {
     #[serde(flatten)]
     client_core: client_core::init::InitResults,
-    client_address: Recipient,
+    client_address: String,
 }
 
 impl InitResults {
     fn new(config: &Config, address: &Recipient) -> Self {
         Self {
             client_core: client_core::init::InitResults::new(config.get_base(), address),
-            client_address: *address,
+            client_address: address.to_string(),
         }
     }
 }

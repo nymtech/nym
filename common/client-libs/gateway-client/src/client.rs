@@ -27,23 +27,21 @@ use std::time::Duration;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::traits::DkgQueryClient;
-
-#[cfg(not(target_arch = "wasm32"))]
-use tokio_tungstenite::connect_async;
+#[cfg(target_os = "android")]
+use mobile_storage::Storage;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(target_os = "android"))]
-use nym_credential_storage::persistent_storage::PersistentStorage;
-
+use nym_credential_storage::storage::Storage;
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(target_os = "android")]
-use mobile_storage::PersistentStorage;
+use nym_validator_client::nyxd::traits::DkgQueryClient;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio_tungstenite::connect_async;
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::DkgQueryClient;
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::PersistentStorage;
+use crate::wasm_mockups::Storage;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 #[cfg(target_arch = "wasm32")]
@@ -52,7 +50,7 @@ use wasm_utils::websocket::JSWebsocket;
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
-pub struct GatewayClient<C> {
+pub struct GatewayClient<C, St: Storage> {
     authenticated: bool,
     disabled_credentials_mode: bool,
     bandwidth_remaining: i64,
@@ -63,7 +61,7 @@ pub struct GatewayClient<C> {
     connection: SocketState,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
-    bandwidth_controller: Option<BandwidthController<C, PersistentStorage>>,
+    bandwidth_controller: Option<BandwidthController<C, St>>,
 
     // reconnection related variables
     /// Specifies whether client should try to reconnect to gateway on connection failure.
@@ -78,9 +76,10 @@ pub struct GatewayClient<C> {
     shutdown: TaskClient,
 }
 
-impl<C> GatewayClient<C>
+impl<C, St> GatewayClient<C, St>
 where
     C: Sync + Send,
+    St: Storage,
 {
     // TODO: put it all in a Config struct
     #[allow(clippy::too_many_arguments)]
@@ -92,7 +91,7 @@ where
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
-        bandwidth_controller: Option<BandwidthController<C, PersistentStorage>>,
+        bandwidth_controller: Option<BandwidthController<C, St>>,
         shutdown: TaskClient,
     ) -> Self {
         GatewayClient {
@@ -146,7 +145,7 @@ where
         let shutdown = TaskClient::dummy();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
-        GatewayClient::<C> {
+        GatewayClient::<C, St> {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,

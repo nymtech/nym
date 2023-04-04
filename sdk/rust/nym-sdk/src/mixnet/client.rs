@@ -11,12 +11,16 @@ use nym_client_core::{
     },
     config::{persistence::key_pathfinder::ClientKeyPathfinder, GatewayEndpointConfig},
 };
+use nym_credential_storage::ephemeral_storage::EphemeralStorage;
+use nym_credential_storage::initialise_ephemeral_storage;
 use nym_crypto::asymmetric::identity;
+use nym_gateway_client::bandwidth::BandwidthController;
+use nym_network_defaults::NymNetworkDetails;
 
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
 use nym_topology::provider_trait::TopologyProvider;
-use nym_validator_client::nyxd::DirectSigningNyxdClient;
+use nym_validator_client::nyxd::QueryNyxdClient;
 use nym_validator_client::Client;
 
 use crate::mixnet::native_client::MixnetClient;
@@ -286,7 +290,7 @@ where
             .map(identity::PublicKey::from_base58_string)
             .transpose()?;
 
-        let gateway_config = nym_client_core::init::register_with_gateway(
+        let gateway_config = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
             &mut self.key_manager,
             self.config.nym_api_endpoints.clone(),
             user_chosen_gateway,
@@ -384,15 +388,19 @@ where
         let nym_address =
             nym_client_core::init::get_client_address(&self.key_manager, &gateway_endpoint_config);
 
-        // TODO: we currently don't support having a bandwidth controller
-        let bandwidth_controller = None;
+        let network_details = NymNetworkDetails::new_mainnet();
+        let client_config =
+            nym_validator_client::Config::try_from_nym_network_details(&network_details).unwrap();
+        let client = nym_validator_client::Client::new_query(client_config)
+            .expect("Could not construct query client");
+        let bandwidth_controller = BandwidthController::new(initialise_ephemeral_storage(), client);
 
-        let mut base_builder: BaseClientBuilder<'_, _, Client<DirectSigningNyxdClient>> =
+        let mut base_builder: BaseClientBuilder<'_, _, Client<QueryNyxdClient>, EphemeralStorage> =
             BaseClientBuilder::new(
                 &gateway_endpoint_config,
                 &self.config.debug_config,
                 self.key_manager.clone(),
-                bandwidth_controller,
+                Some(bandwidth_controller),
                 self.reply_storage_backend,
                 CredentialsToggle::Disabled,
                 self.config.nym_api_endpoints.clone(),

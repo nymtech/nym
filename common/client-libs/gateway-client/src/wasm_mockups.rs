@@ -31,6 +31,9 @@ impl<C> DkgQueryClient for Client<C> {}
 #[derive(Clone)]
 pub struct PersistentStorage {}
 
+#[derive(Clone)]
+pub struct EphemeralStorage {}
+
 pub struct CoconutCredential {
     pub id: i64,
     pub voucher_value: String,
@@ -59,6 +62,28 @@ pub trait Storage: Send + Sync {
 
 #[async_trait]
 impl Storage for PersistentStorage {
+    async fn insert_coconut_credential(
+        &self,
+        _voucher_value: String,
+        _voucher_info: String,
+        _serial_number: String,
+        _binding_number: String,
+        _signature: String,
+    ) -> Result<(), StorageError> {
+        Err(StorageError::WasmNotSupported)
+    }
+
+    async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, StorageError> {
+        Err(StorageError::WasmNotSupported)
+    }
+
+    async fn consume_coconut_credential(&self, _id: i64) -> Result<(), StorageError> {
+        Err(StorageError::WasmNotSupported)
+    }
+}
+
+#[async_trait]
+impl Storage for EphemeralStorage {
     async fn insert_coconut_credential(
         &self,
         _voucher_value: String,

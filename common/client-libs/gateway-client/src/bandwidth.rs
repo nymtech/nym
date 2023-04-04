@@ -35,31 +35,15 @@ use {
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
-// TODO: make it nicer for wasm (I don't want to touch it for this experiment)
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::PersistentStorage;
-
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::DkgQueryClient;
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(target_os = "android"))]
-use nym_credential_storage::persistent_storage::PersistentStorage;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(target_os = "android")]
-use mobile_storage::PersistentStorage;
-
-#[allow(dead_code)]
-pub struct BandwidthController<C, St: Storage = PersistentStorage> {
+pub struct BandwidthController<C, St: Storage> {
     storage: St,
     client: C,
 }
 
-impl<C, St> BandwidthController<C, St>
-where
-    St: Storage + 'static,
-{
+impl<C, St: Storage> BandwidthController<C, St> {
     pub fn new(storage: St, client: C) -> Self {
         BandwidthController { storage, client }
     }

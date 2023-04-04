@@ -206,7 +206,7 @@ impl PacketSender {
     }
 
     async fn attempt_to_send_packets(
-        client: &mut GatewayClient<nyxd::Client>,
+        client: &mut GatewayClient<nyxd::Client, PersistentStorage>,
         mut mix_packets: Vec<MixPacket>,
         max_sending_rate: usize,
     ) -> Result<(), GatewayClientError> {
@@ -314,7 +314,7 @@ impl PacketSender {
     }
 
     async fn check_remaining_bandwidth(
-        client: &mut GatewayClient<nyxd::Client>,
+        client: &mut GatewayClient<nyxd::Client, PersistentStorage>,
     ) -> Result<(), GatewayClientError> {
         if client.remaining_bandwidth() < REMAINING_BANDWIDTH_THRESHOLD {
             Err(GatewayClientError::NotEnoughBandwidth(

@@ -11,8 +11,17 @@ use serde::Serialize;
 use tap::TapFallible;
 
 use nym_config::NymConfig;
+#[cfg(not(target_os = "android"))]
+#[cfg(not(target_arch = "wasm32"))]
+use nym_credential_storage::storage::Storage;
 use nym_crypto::asymmetric::{encryption, identity};
+#[cfg(target_arch = "wasm32")]
+use nym_gateway_client::wasm_mockups::Storage;
 use url::Url;
+
+#[cfg(target_os = "android")]
+#[cfg(not(target_arch = "wasm32"))]
+use nym_mobile_storage::Storage;
 
 use crate::client::key_manager::KeyManager;
 use crate::{
@@ -73,7 +82,7 @@ pub fn new_client_keys() -> KeyManager {
 /// Either pick one at random by querying the available gateways from the nym-api, or use the
 /// chosen one if it's among the available ones.
 /// The shared key is added to the supplied `KeyManager` and the endpoint details are returned.
-pub async fn register_with_gateway(
+pub async fn register_with_gateway<St: Storage>(
     key_manager: &mut KeyManager,
     nym_api_endpoints: Vec<Url>,
     chosen_gateway_id: Option<identity::PublicKey>,
@@ -87,7 +96,7 @@ pub async fn register_with_gateway(
     let our_identity = key_manager.identity_keypair();
 
     // Establish connection, authenticate and generate keys for talking with the gateway
-    let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
+    let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
     key_manager.insert_gateway_shared_key(shared_keys);
 
     Ok(gateway.into())
@@ -100,7 +109,7 @@ pub async fn register_with_gateway(
 /// b. Create a new gateway configuration but keep existing keys. This assumes that the caller
 ///    knows what they are doing and that the keys match the requested gateway.
 /// c. Create a new gateway configuration with a newly registered gateway and keys.
-pub async fn setup_gateway_from_config<C, T>(
+pub async fn setup_gateway_from_config<C, T, St>(
     register_gateway: bool,
     user_chosen_gateway_id: Option<identity::PublicKey>,
     config: &Config<T>,
@@ -109,6 +118,7 @@ pub async fn setup_gateway_from_config<C, T>(
 where
     C: NymConfig + ClientCoreConfigTrait,
     T: NymConfig,
+    St: Storage,
 {
     let id = config.get_id();
 
@@ -141,7 +151,7 @@ where
 
     // Establish connection, authenticate and generate keys for talking with the gateway
     eprintln!("Registering with new gateway");
-    let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
+    let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
     key_manager.insert_gateway_shared_key(shared_keys);
 
     // Write all keys to storage and just return the gateway endpoint config. It is assumed that we

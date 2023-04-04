@@ -10,10 +10,10 @@ use mobile_storage::StorageError;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_credential_storage::error::StorageError;
 use nym_gateway_requests::registration::handshake::error::HandshakeError;
+use nym_validator_client::error::ValidatorClientError;
 use std::io;
 use thiserror::Error;
 use tungstenite::Error as WsError;
-use validator_client::error::ValidatorClientError;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
 

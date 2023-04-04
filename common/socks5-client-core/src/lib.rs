@@ -77,7 +77,10 @@ impl NymClient {
     #[cfg(not(target_os = "android"))]
     async fn create_bandwidth_controller(
         config: &Config,
-    ) -> BandwidthController<Client<QueryNyxdClient>> {
+    ) -> BandwidthController<
+        Client<QueryNyxdClient>,
+        nym_credential_storage::persistent_storage::PersistentStorage,
+    > {
         let details = nym_network_defaults::NymNetworkDetails::new_from_env();
         let mut client_config =
             nym_validator_client::Config::try_from_nym_network_details(&details)
@@ -101,9 +104,6 @@ impl NymClient {
             config.get_base().get_database_path(),
         )
         .await;
-
-        #[cfg(target_os = "android")]
-        let storage = mobile_storage::PersistentStorage {};
 
         BandwidthController::new(storage, client)
     }
@@ -233,7 +233,11 @@ impl NymClient {
         );
 
         #[cfg(target_os = "android")]
-        let base_builder = BaseClientBuilder::<_, Client<QueryNyxdClient>>::new_from_base_config(
+        let base_builder = BaseClientBuilder::<
+            _,
+            Client<QueryNyxdClient>,
+            nym_mobile_storage::EphemeralStorage,
+        >::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
             None,

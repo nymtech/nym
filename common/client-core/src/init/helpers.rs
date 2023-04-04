@@ -32,9 +32,16 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
+#[cfg(not(target_os = "android"))]
+#[cfg(not(target_arch = "wasm32"))]
+use nym_credential_storage::storage::Storage;
+
+#[cfg(target_os = "android")]
+#[cfg(not(target_arch = "wasm32"))]
+use nym_mobile_storage::Storage;
 
 #[cfg(target_arch = "wasm32")]
-use nym_gateway_client::wasm_mockups::DirectSigningNyxdClient;
+use nym_gateway_client::wasm_mockups::{DirectSigningNyxdClient, Storage};
 #[cfg(target_arch = "wasm32")]
 use wasm_timer::Instant;
 #[cfg(target_arch = "wasm32")]
@@ -223,12 +230,12 @@ pub(super) async fn query_gateway_details(
     }
 }
 
-pub(super) async fn register_with_gateway(
+pub(super) async fn register_with_gateway<St: Storage>(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
 ) -> Result<Arc<SharedKeys>, ClientCoreError> {
     let timeout = Duration::from_millis(1500);
-    let mut gateway_client: GatewayClient<DirectSigningNyxdClient> = GatewayClient::new_init(
+    let mut gateway_client: GatewayClient<DirectSigningNyxdClient, St> = GatewayClient::new_init(
         gateway.clients_address(),
         gateway.identity_key,
         our_identity.clone(),

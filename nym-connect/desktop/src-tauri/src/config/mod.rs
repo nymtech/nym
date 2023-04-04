@@ -4,6 +4,7 @@ use crate::{
 };
 use nym_client_core::config::Config as BaseConfig;
 use nym_config_common::NymConfig;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::config::{Config as Socks5Config, Socks5};
 use std::path::PathBuf;
@@ -138,14 +139,15 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let gateway = nym_client_core::init::setup_gateway_from_config::<Socks5Config, _>(
-        register_gateway,
-        Some(chosen_gateway_id),
-        config.get_base(),
-        // TODO: another instance where this setting should probably get used
-        false,
-    )
-    .await?;
+    let gateway =
+        nym_client_core::init::setup_gateway_from_config::<Socks5Config, _, PersistentStorage>(
+            register_gateway,
+            Some(chosen_gateway_id),
+            config.get_base(),
+            // TODO: another instance where this setting should probably get used
+            false,
+        )
+        .await?;
 
     config.get_base_mut().set_gateway_endpoint(gateway);
 

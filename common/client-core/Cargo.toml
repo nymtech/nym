@@ -14,6 +14,7 @@ dashmap = "5.4.0"
 futures = "0.3"
 humantime-serde = "1.0"
 log = { workspace = true }
+nym-mobile-storage = { path = "../mobile-storage" }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -36,6 +37,7 @@ nym-pemstore = { path = "../pemstore" }
 nym-topology = { path = "../topology" }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 nym-task = { path = "../task" }
+nym-credential-storage = { path = "../credential-storage" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
 path = "../client-libs/validator-client"

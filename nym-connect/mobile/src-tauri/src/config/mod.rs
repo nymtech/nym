@@ -118,7 +118,7 @@ pub async fn init_socks5_config(
     let mut key_manager = nym_client_core::init::new_client_keys();
 
     // Setup gateway and register a new key each time
-    let gateway = nym_client_core::init::register_with_gateway(
+    let gateway = nym_client_core::init::register_with_gateway::<mobile_storage::EphemeralStorage>(
         &mut key_manager,
         nym_api_endpoints,
         Some(chosen_gateway_id),

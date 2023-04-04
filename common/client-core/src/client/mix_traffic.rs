@@ -7,10 +7,17 @@ use nym_gateway_client::GatewayClient;
 use nym_sphinx::forwarding::packet::MixPacket;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(target_os = "android")]
+use nym_mobile_storage::Storage;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(target_os = "android"))]
+use nym_credential_storage::storage::Storage;
+#[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 #[cfg(target_arch = "wasm32")]
-use nym_gateway_client::wasm_mockups::DkgQueryClient;
+use nym_gateway_client::wasm_mockups::{DkgQueryClient, Storage};
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
@@ -19,10 +26,10 @@ pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
 const MAX_FAILURE_COUNT: usize = 100;
 
-pub struct MixTrafficController<C> {
+pub struct MixTrafficController<C, St: Storage> {
     // TODO: most likely to be replaced by some higher level construct as
     // later on gateway_client will need to be accessible by other entities
-    gateway_client: GatewayClient<C>,
+    gateway_client: GatewayClient<C, St>,
     mix_rx: BatchMixMessageReceiver,
 
     // TODO: this is temporary work-around.
@@ -30,13 +37,14 @@ pub struct MixTrafficController<C> {
     consecutive_gateway_failure_count: usize,
 }
 
-impl<C> MixTrafficController<C>
+impl<C, St> MixTrafficController<C, St>
 where
     C: DkgQueryClient + Sync + Send + 'static,
+    St: Storage + 'static,
 {
     pub fn new(
-        gateway_client: GatewayClient<C>,
-    ) -> (MixTrafficController<C>, BatchMixMessageSender) {
+        gateway_client: GatewayClient<C, St>,
+    ) -> (MixTrafficController<C, St>, BatchMixMessageSender) {
         let (sphinx_message_sender, sphinx_message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
         (

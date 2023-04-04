@@ -468,11 +468,13 @@ impl NRServiceProvider {
 async fn create_mixnet_client<T>(
     config: &nym_client_core::config::Config<T>,
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
+    let nyxd_endpoints = config.get_validator_endpoints();
     let nym_api_endpoints = config.get_nym_api_endpoints();
     let debug_config = *config.get_debug_config();
 
     let mixnet_config = nym_sdk::mixnet::Config {
         user_chosen_gateway: None,
+        nyxd_endpoints,
         nym_api_endpoints,
         debug_config,
     };

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::support::nyxd;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use nym_gateway_client::GatewayClient;
 use std::collections::HashMap;
@@ -11,16 +12,16 @@ use tokio::sync::{Mutex, MutexGuard, TryLockError};
 pub(crate) struct GatewayClientHandle(Arc<GatewayClientHandleInner>);
 
 struct GatewayClientHandleInner {
-    client: Mutex<Option<GatewayClient<nyxd::Client>>>,
+    client: Mutex<Option<GatewayClient<nyxd::Client, PersistentStorage>>>,
     raw_identity: [u8; PUBLIC_KEY_LENGTH],
 }
 
 pub(crate) struct UnlockedGatewayClientHandle<'a>(
-    MutexGuard<'a, Option<GatewayClient<nyxd::Client>>>,
+    MutexGuard<'a, Option<GatewayClient<nyxd::Client, PersistentStorage>>>,
 );
 
 impl GatewayClientHandle {
-    pub(crate) fn new(gateway_client: GatewayClient<nyxd::Client>) -> Self {
+    pub(crate) fn new(gateway_client: GatewayClient<nyxd::Client, PersistentStorage>) -> Self {
         GatewayClientHandle(Arc::new(GatewayClientHandleInner {
             raw_identity: gateway_client.gateway_identity().to_bytes(),
             client: Mutex::new(Some(gateway_client)),
@@ -59,11 +60,15 @@ impl GatewayClientHandle {
 }
 
 impl<'a> UnlockedGatewayClientHandle<'a> {
-    pub(crate) fn get_mut_unchecked(&mut self) -> &mut GatewayClient<nyxd::Client> {
+    pub(crate) fn get_mut_unchecked(
+        &mut self,
+    ) -> &mut GatewayClient<nyxd::Client, PersistentStorage> {
         self.0.as_mut().unwrap()
     }
 
-    pub(crate) fn inner_mut(&mut self) -> Option<&mut GatewayClient<nyxd::Client>> {
+    pub(crate) fn inner_mut(
+        &mut self,
+    ) -> Option<&mut GatewayClient<nyxd::Client, PersistentStorage>> {
         self.0.as_mut()
     }
 

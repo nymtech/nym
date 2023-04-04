@@ -23,6 +23,7 @@ use std::error::Error;
 use tokio::sync::watch::error::SendError;
 
 pub use nym_client_core::client::key_manager::KeyManager;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 pub use nym_sphinx::addressing::clients::Recipient;
 pub use nym_sphinx::receiver::ReconstructedMessage;
 use nym_validator_client::Client;
@@ -58,7 +59,7 @@ impl SocketClient {
 
     async fn create_bandwidth_controller(
         config: &Config,
-    ) -> BandwidthController<Client<QueryNyxdClient>> {
+    ) -> BandwidthController<Client<QueryNyxdClient>, PersistentStorage> {
         let details = nym_network_defaults::NymNetworkDetails::new_from_env();
         let mut client_config =
             nym_validator_client::Config::try_from_nym_network_details(&details)

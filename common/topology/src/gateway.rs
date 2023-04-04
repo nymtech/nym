@@ -31,10 +31,6 @@ pub enum GatewayConversionError {
 #[derive(Debug, Clone)]
 pub struct Node {
     pub owner: String,
-    // somebody correct me if I'm wrong, but we should only ever have a single denom of currency
-    // on the network at a type, right?
-    pub stake: u128,
-    pub location: String,
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
     // hostname every time we want to construct a path via this node
@@ -59,8 +55,8 @@ impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Node(id: {}, owner: {}, stake: {}, location: {}, host: {})",
-            self.identity_key, self.owner, self.stake, self.location, self.host,
+            "Node(id: {}, owner: {}, host: {})",
+            self.identity_key, self.owner, self.host,
         )
     }
 }
@@ -105,8 +101,6 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
 
         Ok(Node {
             owner: bond.owner.as_str().to_owned(),
-            stake: bond.pledge_amount.amount.into(),
-            location: bond.gateway.location.clone(),
             host,
             mix_host,
             clients_port: bond.gateway.clients_port,

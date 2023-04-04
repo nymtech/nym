@@ -1,16 +1,22 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::helpers::must_get_gateway_bond_by_owner;
 use super::storage;
+use crate::gateways::signature_helpers::verify_gateway_bonding_signature;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::signing::storage as signing_storage;
 use crate::support::helpers::{
-    ensure_no_existing_bond, ensure_sent_by_vesting_contract, validate_node_identity_signature,
-    validate_pledge,
+    ensure_no_existing_bond, ensure_proxy_match, ensure_sent_by_vesting_contract, validate_pledge,
 };
 use cosmwasm_std::{wasm_execute, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{new_gateway_bonding_event, new_gateway_unbonding_event};
+use mixnet_contract_common::events::{
+    new_gateway_bonding_event, new_gateway_config_update_event, new_gateway_unbonding_event,
+};
+use mixnet_contract_common::gateway::GatewayConfigUpdate;
 use mixnet_contract_common::{Gateway, GatewayBond};
+use nym_contracts_common::signing::MessageSignature;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub fn try_add_gateway(
@@ -18,7 +24,7 @@ pub fn try_add_gateway(
     env: Env,
     info: MessageInfo,
     gateway: Gateway,
-    owner_signature: String,
+    owner_signature: MessageSignature,
 ) -> Result<Response, MixnetContractError> {
     _try_add_gateway(
         deps,
@@ -37,7 +43,7 @@ pub fn try_add_gateway_on_behalf(
     info: MessageInfo,
     gateway: Gateway,
     owner: String,
-    owner_signature: String,
+    owner_signature: MessageSignature,
 ) -> Result<Response, MixnetContractError> {
     ensure_sent_by_vesting_contract(&info, deps.storage)?;
 
@@ -54,13 +60,15 @@ pub fn try_add_gateway_on_behalf(
     )
 }
 
+// TODO: perhaps also require the user to explicitly provide what it thinks is the current nonce
+// so that we could return a better error message if it doesn't match?
 pub(crate) fn _try_add_gateway(
     deps: DepsMut<'_>,
     env: Env,
     gateway: Gateway,
     pledge: Vec<Coin>,
     owner: Addr,
-    owner_signature: String,
+    owner_signature: MessageSignature,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     // check if the pledge contains any funds of the appropriate denomination
@@ -82,12 +90,17 @@ pub(crate) fn _try_add_gateway(
     }
 
     // check if this sender actually owns the gateway by checking the signature
-    validate_node_identity_signature(
+    verify_gateway_bonding_signature(
         deps.as_ref(),
-        &owner,
-        &owner_signature,
-        &gateway.identity_key,
+        owner.clone(),
+        proxy.clone(),
+        pledge.clone(),
+        gateway.clone(),
+        owner_signature,
     )?;
+
+    // update the signing nonce associated with this sender so that the future signature would be made on the new value
+    signing_storage::increment_signing_nonce(deps.storage, owner.clone())?;
 
     let gateway_identity = gateway.identity_key.clone();
     let bond = GatewayBond::new(
@@ -180,41 +193,95 @@ pub(crate) fn _try_remove_gateway(
     )))
 }
 
+pub(crate) fn try_update_gateway_config(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    new_config: GatewayConfigUpdate,
+) -> Result<Response, MixnetContractError> {
+    let owner = info.sender;
+    _try_update_gateway_config(deps, new_config, owner, None)
+}
+
+pub(crate) fn try_update_gateway_config_on_behalf(
+    deps: DepsMut,
+    info: MessageInfo,
+    new_config: GatewayConfigUpdate,
+    owner: String,
+) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
+    let owner = deps.api.addr_validate(&owner)?;
+    let proxy = info.sender;
+    _try_update_gateway_config(deps, new_config, owner, Some(proxy))
+}
+
+pub(crate) fn _try_update_gateway_config(
+    deps: DepsMut,
+    new_config: GatewayConfigUpdate,
+    owner: Addr,
+    proxy: Option<Addr>,
+) -> Result<Response, MixnetContractError> {
+    let existing_bond = must_get_gateway_bond_by_owner(deps.storage, &owner)?;
+    ensure_proxy_match(&proxy, &existing_bond.proxy)?;
+
+    let cfg_update_event = new_gateway_config_update_event(&owner, &proxy, &new_config);
+
+    let mut updated_bond = existing_bond.clone();
+    updated_bond.gateway.host = new_config.host;
+    updated_bond.gateway.mix_port = new_config.mix_port;
+    updated_bond.gateway.clients_port = new_config.clients_port;
+    updated_bond.gateway.location = new_config.location;
+    updated_bond.gateway.version = new_config.version;
+
+    storage::gateways().replace(
+        deps.storage,
+        existing_bond.identity(),
+        Some(&updated_bond),
+        Some(&existing_bond),
+    )?;
+
+    Ok(Response::new().add_event(cfg_update_event))
+}
+
 #[cfg(test)]
 pub mod tests {
+    use super::*;
     use crate::contract::execute;
+    use crate::gateways::queries;
     use crate::gateways::transactions::{
         try_add_gateway, try_add_gateway_on_behalf, try_remove_gateway_on_behalf,
+        try_update_gateway_config, try_update_gateway_config_on_behalf,
     };
     use crate::interval::pending_events;
     use crate::mixnet_contract_settings::storage::minimum_gateway_pledge;
     use crate::support::tests;
-    use crate::support::tests::fixtures::{good_gateway_pledge, TEST_COIN_DENOM};
+    use crate::support::tests::fixtures;
+    use crate::support::tests::fixtures::{good_gateway_pledge, good_mixnode_pledge};
     use crate::support::tests::test_helpers::TestSetup;
-    use crate::support::tests::{fixtures, test_helpers};
-    use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{coin, Addr, BankMsg, Response, Uint128};
+    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::{Addr, BankMsg, Response, Uint128};
     use mixnet_contract_common::error::MixnetContractError;
     use mixnet_contract_common::events::new_gateway_unbonding_event;
+    use mixnet_contract_common::gateway::GatewayConfigUpdate;
     use mixnet_contract_common::ExecuteMsg;
 
     #[test]
     fn gateway_add() {
-        let mut deps = test_helpers::init_contract();
-        let env = mock_env();
-        let mut rng = test_helpers::test_rng();
+        let mut test = TestSetup::new();
 
         // if we fail validation (by say not sending enough funds
         let sender = "alice";
-        let minimum_pledge = minimum_gateway_pledge(deps.as_ref().storage).unwrap();
+        let minimum_pledge = minimum_gateway_pledge(test.deps().storage).unwrap();
         let mut insufficient_pledge = minimum_pledge.clone();
         insufficient_pledge.amount -= Uint128::new(1000);
 
         let info = mock_info(sender, &[insufficient_pledge.clone()]);
-        let (gateway, sig) = test_helpers::gateway_with_signature(&mut rng, sender);
+        let (gateway, sig) =
+            test.gateway_with_signature(sender, Some(vec![insufficient_pledge.clone()]));
 
+        let env = test.env();
         let result = try_add_gateway(
-            deps.as_mut(),
+            test.deps_mut(),
             env.clone(),
             info,
             gateway.clone(),
@@ -233,47 +300,23 @@ pub mod tests {
         // if the signature provided is invalid, the bonding also fails
         let info = mock_info(sender, &[minimum_pledge]);
 
-        let result = try_add_gateway(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            gateway.clone(),
-            "bad-signature".into(),
-        );
-        assert!(matches!(
-            result,
-            Err(MixnetContractError::MalformedEd25519Signature(..))
-        ));
-
         // if there was already a gateway bonded by particular user
-        test_helpers::add_gateway(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            sender,
-            fixtures::good_gateway_pledge(),
-        );
+        test.add_dummy_gateway(sender, None);
 
         // it fails
-        let result = try_add_gateway(deps.as_mut(), env.clone(), info, gateway, sig);
+        let result = try_add_gateway(test.deps_mut(), env.clone(), info, gateway, sig);
         assert_eq!(Err(MixnetContractError::AlreadyOwnsGateway), result);
 
         // the same holds if the user already owns a mixnode
         let sender2 = "mixnode-owner";
 
-        let mix_id = test_helpers::add_mixnode(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            sender2,
-            vec![coin(100_000_000, TEST_COIN_DENOM)],
-        );
+        let mix_id = test.add_dummy_mixnode(sender2, None);
 
         let info = mock_info(sender2, &fixtures::good_gateway_pledge());
-        let (gateway, sig) = test_helpers::gateway_with_signature(&mut rng, sender2);
+        let (gateway, sig) = test.gateway_with_signature(sender2, None);
 
         let result = try_add_gateway(
-            deps.as_mut(),
+            test.deps_mut(),
             env.clone(),
             info.clone(),
             gateway.clone(),
@@ -282,10 +325,82 @@ pub mod tests {
         assert_eq!(Err(MixnetContractError::AlreadyOwnsMixnode), result);
 
         // but after he unbonds it, it's all fine again
-        pending_events::unbond_mixnode(deps.as_mut(), &env, 123, mix_id).unwrap();
+        pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
 
-        let result = try_add_gateway(deps.as_mut(), env, info, gateway, sig);
+        let result = try_add_gateway(test.deps_mut(), env, info, gateway, sig);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn adding_gateway_with_invalid_signatures() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        let sender = "alice";
+        let pledge = good_mixnode_pledge();
+        let info = mock_info(sender, pledge.as_ref());
+
+        let (gateway, signature) = test.gateway_with_signature(sender, Some(pledge.clone()));
+
+        // using different parameters than what the signature was made on
+        let mut modified_gateway = gateway.clone();
+        modified_gateway.mix_port += 1;
+        let res = try_add_gateway(
+            test.deps_mut(),
+            env.clone(),
+            info,
+            modified_gateway,
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        // even stake amount is protected
+        let mut different_pledge = pledge.clone();
+        different_pledge[0].amount += Uint128::new(12345);
+
+        let info = mock_info(sender, different_pledge.as_ref());
+        let res = try_add_gateway(
+            test.deps_mut(),
+            env.clone(),
+            info.clone(),
+            gateway.clone(),
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        let other_sender = mock_info("another-sender", pledge.as_ref());
+        let res = try_add_gateway(
+            test.deps_mut(),
+            env.clone(),
+            other_sender,
+            gateway.clone(),
+            signature.clone(),
+        );
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
+
+        // trying to reuse the same signature for another bonding fails (because nonce doesn't match!)
+        let info = mock_info(sender, pledge.as_ref());
+        let current_nonce =
+            signing_storage::get_signing_nonce(test.deps().storage, Addr::unchecked(sender))
+                .unwrap();
+        assert_eq!(0, current_nonce);
+        let res = try_add_gateway(
+            test.deps_mut(),
+            env.clone(),
+            info.clone(),
+            gateway.clone(),
+            signature.clone(),
+        );
+        assert!(res.is_ok());
+        let updated_nonce =
+            signing_storage::get_signing_nonce(test.deps().storage, Addr::unchecked(sender))
+                .unwrap();
+        assert_eq!(1, updated_nonce);
+
+        _try_remove_gateway(test.deps_mut(), Addr::unchecked(sender), None).unwrap();
+
+        let res = try_add_gateway(test.deps_mut(), env, info, gateway, signature);
+        assert_eq!(res, Err(MixnetContractError::InvalidEd25519Signature));
     }
 
     #[test]
@@ -297,7 +412,7 @@ pub mod tests {
         let vesting_contract = test.vesting_contract();
 
         let owner = "alice";
-        let (gateway, sig) = test_helpers::gateway_with_signature(&mut test.rng, owner);
+        let (gateway, sig) = test.gateway_with_signature(owner, None);
 
         let res = try_add_gateway_on_behalf(
             test.deps_mut(),
@@ -320,14 +435,13 @@ pub mod tests {
 
     #[test]
     fn gateway_remove() {
-        let mut deps = test_helpers::init_contract();
-        let mut rng = test_helpers::test_rng();
-        let env = mock_env();
+        let mut test = TestSetup::new();
+        let env = test.env();
 
         // try unbond when no nodes exist yet
         let info = mock_info("anyone", &[]);
         let msg = ExecuteMsg::UnbondGateway {};
-        let result = execute(deps.as_mut(), mock_env(), info, msg);
+        let result = execute(test.deps_mut(), env.clone(), info, msg);
 
         // we're told that there is no node for our address
         assert_eq!(
@@ -338,18 +452,12 @@ pub mod tests {
         );
 
         // let's add a node owned by bob
-        test_helpers::add_gateway(
-            &mut rng,
-            deps.as_mut(),
-            env.clone(),
-            "bob",
-            fixtures::good_gateway_pledge(),
-        );
+        test.add_dummy_gateway("bob", None);
 
         // attempt to unbond fred's node, which doesn't exist
         let info = mock_info("fred", &[]);
         let msg = ExecuteMsg::UnbondGateway {};
-        let result = execute(deps.as_mut(), mock_env(), info, msg);
+        let result = execute(test.deps_mut(), env.clone(), info, msg);
         assert_eq!(
             result,
             Err(MixnetContractError::NoAssociatedGatewayBond {
@@ -358,28 +466,27 @@ pub mod tests {
         );
 
         // bob's node is still there
-        let nodes = tests::queries::get_gateways(&mut deps);
+        let nodes = queries::query_gateways_paged(test.deps(), None, None)
+            .unwrap()
+            .nodes;
         assert_eq!(1, nodes.len());
 
         let first_node = &nodes[0];
         assert_eq!(&Addr::unchecked("bob"), first_node.owner());
 
         // add a node owned by fred
-        let fred_identity = test_helpers::add_gateway(
-            &mut rng,
-            deps.as_mut(),
-            env,
-            "fred",
-            tests::fixtures::good_gateway_pledge(),
-        );
+        let fred_identity = test.add_dummy_gateway("fred", None);
 
         // let's make sure we now have 2 nodes:
-        assert_eq!(2, tests::queries::get_gateways(&mut deps).len());
+        let nodes = queries::query_gateways_paged(test.deps(), None, None)
+            .unwrap()
+            .nodes;
+        assert_eq!(2, nodes.len());
 
         // unbond fred's node
         let info = mock_info("fred", &[]);
         let msg = ExecuteMsg::UnbondGateway {};
-        let remove_fred = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+        let remove_fred = execute(test.deps_mut(), env, info.clone(), msg).unwrap();
 
         // we should see a funds transfer from the contract back to fred
         let expected_message = BankMsg::Send {
@@ -401,9 +508,11 @@ pub mod tests {
         assert_eq!(expected_response, remove_fred);
 
         // only 1 node now exists, owned by bob:
-        let gateway_bonds = tests::queries::get_gateways(&mut deps);
-        assert_eq!(1, gateway_bonds.len());
-        assert_eq!(&Addr::unchecked("bob"), gateway_bonds[0].owner());
+        let nodes = queries::query_gateways_paged(test.deps(), None, None)
+            .unwrap()
+            .nodes;
+        assert_eq!(1, nodes.len());
+        assert_eq!(&Addr::unchecked("bob"), nodes[0].owner());
     }
 
     #[test]
@@ -420,6 +529,96 @@ pub mod tests {
         let res = try_remove_gateway_on_behalf(
             test.deps_mut(),
             mock_info(illegal_proxy.as_ref(), &good_gateway_pledge()),
+            owner.to_string(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            res,
+            MixnetContractError::SenderIsNotVestingContract {
+                received: illegal_proxy,
+                vesting_contract
+            }
+        )
+    }
+
+    #[test]
+    fn update_gateway_config() {
+        let mut test = TestSetup::new();
+
+        let owner = "alice";
+        let info = mock_info(owner, &[]);
+        let update = GatewayConfigUpdate {
+            host: "1.1.1.1:1234".to_string(),
+            mix_port: 1234,
+            clients_port: 1235,
+            location: "home".to_string(),
+            version: "v1.2.3".to_string(),
+        };
+
+        // try updating a non existing gateway bond
+        let res = try_update_gateway_config(test.deps_mut(), info.clone(), update.clone());
+        assert_eq!(
+            res,
+            Err(MixnetContractError::NoAssociatedGatewayBond {
+                owner: Addr::unchecked(owner)
+            })
+        );
+
+        test.add_dummy_gateway(owner, None);
+        let vesting_contract = test.vesting_contract();
+
+        // attempted to remove on behalf with invalid proxy (current is `None`)
+        let res = try_update_gateway_config_on_behalf(
+            test.deps_mut(),
+            mock_info(vesting_contract.as_ref(), &[]),
+            update.clone(),
+            owner.to_string(),
+        );
+        assert_eq!(
+            res,
+            Err(MixnetContractError::ProxyMismatch {
+                existing: "None".to_string(),
+                incoming: vesting_contract.into_string()
+            })
+        );
+
+        // "normal" update succeeds
+        let res = try_update_gateway_config(test.deps_mut(), info, update.clone());
+        assert!(res.is_ok());
+
+        // and the config has actually been updated
+        let bond =
+            must_get_gateway_bond_by_owner(test.deps().storage, &Addr::unchecked(owner)).unwrap();
+        assert_eq!(bond.gateway.host, update.host);
+        assert_eq!(bond.gateway.mix_port, update.mix_port);
+        assert_eq!(bond.gateway.clients_port, update.clients_port);
+        assert_eq!(bond.gateway.location, update.location);
+        assert_eq!(bond.gateway.version, update.version);
+    }
+
+    #[test]
+    fn updating_gateway_config_with_illegal_proxy() {
+        let mut test = TestSetup::new();
+
+        let illegal_proxy = Addr::unchecked("not-vesting-contract");
+        let vesting_contract = test.vesting_contract();
+
+        let owner = "alice";
+
+        test.add_dummy_gateway_with_illegal_proxy(owner, None, illegal_proxy.clone());
+        let update = GatewayConfigUpdate {
+            host: "1.1.1.1:1234".to_string(),
+            mix_port: 1234,
+            clients_port: 1235,
+            location: "at home".to_string(),
+            version: "v1.2.3".to_string(),
+        };
+
+        let res = try_update_gateway_config_on_behalf(
+            test.deps_mut(),
+            mock_info(illegal_proxy.as_ref(), &[]),
+            update,
             owner.to_string(),
         )
         .unwrap_err();

@@ -291,6 +291,7 @@ impl Config {
         &self.gateway.version
     }
 
+    #[allow(unused)]
     pub fn get_wallet_address(&self) -> Option<nyxd::AccountId> {
         self.gateway.wallet_address.clone()
     }

@@ -4,8 +4,9 @@
 use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
-use nym_mixnet_contract_common::MixNodeConfigUpdate;
+use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::{ExecuteMsg, Gateway, MixId, MixNode};
+use nym_mixnet_contract_common::{GatewayConfigUpdate, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 
@@ -39,13 +40,13 @@ async fn simulate_mixnet_operation(
 pub async fn simulate_bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
-    owner_signature: String,
+    msg_signature: MessageSignature,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     simulate_mixnet_operation(
         ExecuteMsg::BondGateway {
             gateway,
-            owner_signature,
+            owner_signature: msg_signature,
         },
         Some(pledge),
         &state,
@@ -64,7 +65,7 @@ pub async fn simulate_unbond_gateway(
 pub async fn simulate_bond_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
-    owner_signature: String,
+    msg_signature: MessageSignature,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -76,7 +77,7 @@ pub async fn simulate_bond_mixnode(
         ExecuteMsg::BondMixnode {
             mix_node: mixnode,
             cost_params,
-            owner_signature,
+            owner_signature: msg_signature,
         },
         Some(pledge),
         &state,
@@ -123,6 +124,19 @@ pub async fn simulate_update_mixnode_config(
 ) -> Result<FeeDetails, BackendError> {
     simulate_mixnet_operation(
         ExecuteMsg::UpdateMixnodeConfig { new_config: update },
+        None,
+        &state,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn simulate_update_gateway_config(
+    update: GatewayConfigUpdate,
+    state: tauri::State<'_, WalletState>,
+) -> Result<FeeDetails, BackendError> {
+    simulate_mixnet_operation(
+        ExecuteMsg::UpdateGatewayConfig { new_config: update },
         None,
         &state,
     )

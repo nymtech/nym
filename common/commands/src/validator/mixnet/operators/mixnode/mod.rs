@@ -4,7 +4,9 @@
 use clap::{Args, Subcommand};
 
 pub mod bond_mixnode;
+pub mod families;
 pub mod keys;
+pub mod mixnode_bonding_sign_payload;
 pub mod rewards;
 pub mod settings;
 pub mod unbond_mixnode;
@@ -26,12 +28,16 @@ pub enum MixnetOperatorsMixnodeCommands {
     Rewards(rewards::MixnetOperatorsMixnodeRewards),
     /// Manage your mixnode settings stored in the directory
     Settings(settings::MixnetOperatorsMixnodeSettings),
+    /// Operations for mixnode families
+    Families(families::MixnetOperatorsMixnodeFamilies),
     /// Bond to a mixnode
     Bond(bond_mixnode::Args),
-    /// Unbound from a mixnode
-    Unbound(unbond_mixnode::Args),
+    /// Unbond from a mixnode
+    Unbond(unbond_mixnode::Args),
     /// Bond to a mixnode with locked tokens
     BondVesting(vesting_bond_mixnode::Args),
-    /// Unbound from a mixnode (when originally using locked tokens)
-    UnboundVesting(vesting_unbond_mixnode::Args),
+    /// Unbond from a mixnode (when originally using locked tokens)
+    UnbondVesting(vesting_unbond_mixnode::Args),
+    /// Create base58-encoded payload required for producing valid bonding signature.
+    CreateMixnodeBondingSignPayload(mixnode_bonding_sign_payload::Args),
 }

@@ -22,7 +22,7 @@ fn verify_dealer(deps: DepsMut<'_>, dealer: &Addr, resharing: bool) -> Result<()
     let state = STATE.load(deps.storage)?;
 
     let height = if resharing {
-        INITIAL_REPLACEMENT_DATA.load(deps.storage)?.initial_height
+        Some(INITIAL_REPLACEMENT_DATA.load(deps.storage)?.initial_height)
     } else {
         None
     };
@@ -105,7 +105,7 @@ pub(crate) mod tests {
                     deps.as_mut().storage,
                     &InitialReplacementData {
                         initial_dealers: vec![details1.address, details2.address, details3.address],
-                        initial_height: Some(1),
+                        initial_height: 1,
                     },
                 )
                 .unwrap();
@@ -126,7 +126,7 @@ pub(crate) mod tests {
 
             INITIAL_REPLACEMENT_DATA
                 .update::<_, ContractError>(deps.as_mut().storage, |mut data| {
-                    data.initial_height = Some(2);
+                    data.initial_height = 2;
                     Ok(data)
                 })
                 .unwrap();

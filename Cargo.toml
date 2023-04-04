@@ -22,7 +22,6 @@ members = [
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
-    "common/bandwidth-claim-contract",
     "common/bin-common",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
@@ -106,6 +105,7 @@ license = "Apache-2.0"
 
 [workspace.dependencies]
 async-trait = "0.1.64"
+bip39 = { version = "2.0.0", features = ["zeroize"] }
 cfg-if = "1.0.0"
 cosmwasm-derive = "=1.0.0"
 cosmwasm-schema = "=1.0.0"

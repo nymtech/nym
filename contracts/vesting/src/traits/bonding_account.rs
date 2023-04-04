@@ -1,6 +1,8 @@
 use crate::errors::ContractError;
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{Coin, Env, Response, Storage};
 use mixnet_contract_common::{
+    gateway::GatewayConfigUpdate,
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
     Gateway, MixNode,
 };
@@ -12,7 +14,7 @@ pub trait MixnodeBondingAccount {
         &self,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         env: &Env,
         storage: &mut dyn Storage,
@@ -50,7 +52,7 @@ pub trait GatewayBondingAccount {
     fn try_bond_gateway(
         &self,
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         env: &Env,
         storage: &mut dyn Storage,
@@ -63,4 +65,10 @@ pub trait GatewayBondingAccount {
         amount: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError>;
+
+    fn try_update_gateway_config(
+        &self,
+        new_config: GatewayConfigUpdate,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError>;
 }

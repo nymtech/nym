@@ -1,9 +1,11 @@
-use std::collections::HashSet;
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Order, StdError, Storage};
+use cosmwasm_std::{Order, Storage};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::{error::MixnetContractError, IdentityKey, IdentityKeyRef};
+use std::collections::HashSet;
 
 use crate::constants::{FAMILIES_INDEX_NAMESPACE, FAMILIES_MAP_NAMESPACE, MEMBERS_MAP_NAMESPACE};
 
@@ -51,22 +53,8 @@ pub fn get_family(head: &FamilyHead, store: &dyn Storage) -> Result<Family, Mixn
     }
 }
 
-pub fn create_family(f: &Family, store: &mut dyn Storage) -> Result<(), MixnetContractError> {
-    match families().save(store, f.head_identity().to_string(), f) {
-        Ok(()) => Ok(()),
-        Err(e) => match &e {
-            StdError::GenericErr { msg } => {
-                if msg.starts_with("Violates unique constraint") {
-                    Err(MixnetContractError::FamilyWithLabelExists(
-                        f.label().to_string(),
-                    ))
-                } else {
-                    Err(e.into())
-                }
-            }
-            _ => Err(e.into()),
-        },
-    }
+pub fn save_family(f: &Family, store: &mut dyn Storage) -> Result<(), MixnetContractError> {
+    Ok(families().save(store, f.head_identity().to_string(), f)?)
 }
 
 pub fn add_family_member(

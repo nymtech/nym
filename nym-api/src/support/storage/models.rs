@@ -41,6 +41,8 @@ pub(crate) struct TestingRoute {
     pub(crate) monitor_run_db_id: i64,
 }
 
+// for now let's leave it here to have a data model to use with existing database tables
+#[allow(unused)]
 pub(crate) struct RewardingReport {
     // references particular interval_rewarding
     pub(crate) absolute_epoch_id: u32,

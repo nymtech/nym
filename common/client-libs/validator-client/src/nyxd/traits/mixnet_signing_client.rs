@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::coin::Coin;
@@ -8,6 +8,9 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Fee, NyxdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
 use cosmrs::AccountId;
+use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::families::FamilyHead;
+use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use nym_mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
 use nym_mixnet_contract_common::{
@@ -144,25 +147,16 @@ pub trait MixnetSigningClient {
     // family related
     async fn create_family(
         &self,
-        owner_signature: String,
         label: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::CreateFamily {
-                owner_signature,
-                label,
-            },
-            vec![],
-        )
-        .await
+        self.execute_mixnet_contract(fee, MixnetExecuteMsg::CreateFamily { label }, vec![])
+            .await
     }
 
     async fn create_family_on_behalf(
         &self,
         owner_address: String,
-        owner_signature: String,
         label: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -170,7 +164,6 @@ pub trait MixnetSigningClient {
             fee,
             MixnetExecuteMsg::CreateFamilyOnBehalf {
                 owner_address,
-                owner_signature,
                 label,
             },
             vec![],
@@ -180,14 +173,14 @@ pub trait MixnetSigningClient {
 
     async fn join_family(
         &self,
-        signature: String,
-        family_head: String,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::JoinFamily {
-                signature,
+                join_permit,
                 family_head,
             },
             vec![],
@@ -198,17 +191,15 @@ pub trait MixnetSigningClient {
     async fn join_family_on_behalf(
         &self,
         member_address: String,
-        node_identity_signature: String,
-        family_signature: String,
-        family_head: String,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::JoinFamilyOnBehalf {
                 member_address,
-                node_identity_signature,
-                family_signature,
+                join_permit,
                 family_head,
             },
             vec![],
@@ -218,33 +209,23 @@ pub trait MixnetSigningClient {
 
     async fn leave_family(
         &self,
-        signature: String,
-        family_head: String,
+        family_head: FamilyHead,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::LeaveFamily {
-                signature,
-                family_head,
-            },
-            vec![],
-        )
-        .await
+        self.execute_mixnet_contract(fee, MixnetExecuteMsg::LeaveFamily { family_head }, vec![])
+            .await
     }
 
     async fn leave_family_on_behalf(
         &self,
         member_address: String,
-        node_identity_signature: String,
-        family_head: String,
+        family_head: FamilyHead,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::LeaveFamilyOnBehalf {
                 member_address,
-                node_identity_signature,
                 family_head,
             },
             vec![],
@@ -254,22 +235,16 @@ pub trait MixnetSigningClient {
 
     async fn kick_family_member(
         &self,
-        signature: String,
         member: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::KickFamilyMember { signature, member },
-            vec![],
-        )
-        .await
+        self.execute_mixnet_contract(fee, MixnetExecuteMsg::KickFamilyMember { member }, vec![])
+            .await
     }
 
     async fn kick_family_member_on_behalf(
         &self,
         head_address: String,
-        signature: String,
         member: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -277,7 +252,6 @@ pub trait MixnetSigningClient {
             fee,
             MixnetExecuteMsg::KickFamilyMemberOnBehalf {
                 head_address,
-                signature,
                 member,
             },
             vec![],
@@ -290,7 +264,7 @@ pub trait MixnetSigningClient {
         &self,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -311,7 +285,7 @@ pub trait MixnetSigningClient {
         owner: AccountId,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -442,7 +416,7 @@ pub trait MixnetSigningClient {
     async fn bond_gateway(
         &self,
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -461,7 +435,7 @@ pub trait MixnetSigningClient {
         &self,
         owner: AccountId,
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -490,6 +464,36 @@ pub trait MixnetSigningClient {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UnbondGatewayOnBehalf {
+                owner: owner.to_string(),
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn update_gateway_config(
+        &self,
+        new_config: GatewayConfigUpdate,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::UpdateGatewayConfig { new_config },
+            vec![],
+        )
+        .await
+    }
+
+    async fn update_gateway_config_on_behalf(
+        &self,
+        owner: AccountId,
+        new_config: GatewayConfigUpdate,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::UpdateGatewayConfigOnBehalf {
+                new_config,
                 owner: owner.to_string(),
             },
             vec![],

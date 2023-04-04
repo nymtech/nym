@@ -167,7 +167,6 @@ impl MixNodeCostParams {
 pub struct MixnodeNodeDetailsResponse {
     pub identity_key: String,
     pub sphinx_key: String,
-    pub owner_signature: String,
     pub announce_address: String,
     pub bind_address: String,
     pub version: String,
@@ -182,7 +181,6 @@ impl fmt::Display for MixnodeNodeDetailsResponse {
         let wallet_address = self.wallet_address.clone().unwrap_or_default();
         writeln!(f, "Identity Key: {}", self.identity_key)?;
         writeln!(f, "Sphinx Key: {}", self.sphinx_key)?;
-        writeln!(f, "Owner Signature: {}", self.owner_signature)?;
         writeln!(
             f,
             "Host: {} (bind address: {})",

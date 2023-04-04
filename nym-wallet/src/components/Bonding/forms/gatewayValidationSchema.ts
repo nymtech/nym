@@ -18,10 +18,6 @@ export const gatewayValidationSchema = Yup.object().shape({
     .required('A sphinx key is required')
     .test('valid-sphinx-key', 'A valid sphinx key is required', (value) => validateKey(value || '', 32)),
 
-  ownerSignature: Yup.string()
-    .required('Signature is required')
-    .test('valid-signature', 'A valid signature is required', (value) => validateKey(value || '', 64)),
-
   host: Yup.string()
     .required('A host is required')
     .test('valid-host', 'A valid host is required', (value) => (value ? isValidHostname(value) : false)),
@@ -69,4 +65,24 @@ export const amountSchema = Yup.object().shape({
         return true;
       }),
   }),
+});
+
+export const updateGatewayValidationSchema = Yup.object().shape({
+  host: Yup.string()
+    .required('A host is required')
+    .test('valid-host', 'A valid host is required', (value) => (value ? isValidHostname(value) : false)),
+
+  mixPort: Yup.number()
+    .required('A mixport is required')
+    .test('valid-mixport', 'A valid mixport is required', (value) => (value ? validateRawPort(value) : false)),
+
+  httpApiPort: Yup.number()
+    .required('A clients port is required')
+    .test('valid-clients', 'A valid clients port is required', (value) => (value ? validateRawPort(value) : false)),
+  location: Yup.string().test('valid-location', 'A valid location is required', (value) =>
+    value ? validateLocation(value) : false,
+  ),
+  version: Yup.string().test('valid-version', 'A valid version is required', (value) =>
+    value ? validateVersion(value) : false,
+  ),
 });

@@ -8,7 +8,7 @@ use cosmrs::crypto::PublicKey;
 use cosmrs::tx::SignDoc;
 use cosmrs::{tx, AccountId};
 use nym_config::defaults;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Derivation information required to derive a keypair and an address from a mnemonic.
 #[derive(Debug, Clone)]
@@ -41,7 +41,7 @@ impl AccountData {
 
 type Secp256k1Keypair = (SigningKey, PublicKey);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
 pub struct DirectSecp256k1HdWallet {
     /// Base secret
     secret: bip39::Mnemonic,
@@ -54,28 +54,8 @@ pub struct DirectSecp256k1HdWallet {
     // that would include the secret key which is a dyn EcdsaSigner and hence not Sync making the wallet
     // not Sync and if used on the signing client in an async trait, it wouldn't be Send
     /// Derivation instructions
+    #[zeroize(skip)]
     accounts: Vec<Secp256k1Derivation>,
-}
-
-impl Zeroize for DirectSecp256k1HdWallet {
-    fn zeroize(&mut self) {
-        // in ideal world, Mnemonic would have had zeroize defined on it (there's an almost year old PR that introduces it)
-        // and the memory would have been filled with zeroes.
-        //
-        // we really don't want to keep our real mnemonic in memory, so let's do the semi-nasty thing
-        // of overwriting it with a fresh mnemonic that was never used before
-        //
-        // note: this function can only fail on an invalid word count, which clearly is not the case here
-        self.secret = bip39::Mnemonic::generate(self.secret.word_count()).unwrap();
-        self.seed.zeroize();
-        // there's nothing secret about derivation paths
-    }
-}
-
-impl Drop for DirectSecp256k1HdWallet {
-    fn drop(&mut self) {
-        self.zeroize()
-    }
 }
 
 impl DirectSecp256k1HdWallet {

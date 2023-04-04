@@ -7,7 +7,6 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nym-bandwidth-claim-contract = { path = "../../common/bandwidth-claim-contract" }
 nym-coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
 nym-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }

@@ -1,6 +1,6 @@
 [package]
 name = "nym-mixnet-contract-common"
-version = "0.3.0"
+version = "0.4.0"
 description = "Common library for the Nym mixnet contract"
 rust-version = "1.62"
 edition = { workspace = true }
@@ -15,8 +15,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_repr = "0.1"
 schemars = "0.8"
 thiserror = "1.0"
-contracts-common = { path = "../contracts-common", package = "nym-contracts-common", version = "0.3.0" }
-serde_json = "1.0.0"
+contracts-common = { path = "../contracts-common", package = "nym-contracts-common", version = "0.4.0" }
+# use 0.4.1 as that's the version used by cosmwasm-std 1.0.0
+# (and ideally we don't want to pull the same dependency twice)
+serde-json-wasm = "=0.4.1"
 humantime-serde = "1.1.1"
 
 # TO CHECK WHETHER STILL NEEDED:

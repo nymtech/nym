@@ -3,6 +3,8 @@
 
 use crate::delegation::OwnerProxySubKey;
 use crate::error::MixnetContractError;
+use crate::families::FamilyHead;
+use crate::gateway::GatewayConfigUpdate;
 use crate::helpers::IntoBaseDecimal;
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
@@ -10,6 +12,7 @@ use crate::reward_params::{
 };
 use crate::{delegation, ContractStateParams, Layer, LayerAssignment, MixId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -80,42 +83,35 @@ pub enum ExecuteMsg {
     // Families
     /// Only owner of the node can crate the family with node as head
     CreateFamily {
-        owner_signature: String,
         label: String,
     },
     /// Family head needs to sign the joining node IdentityKey
     JoinFamily {
-        signature: String,
-        family_head: IdentityKey,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
     },
     LeaveFamily {
-        signature: String,
-        family_head: IdentityKey,
+        family_head: FamilyHead,
     },
     KickFamilyMember {
-        signature: String,
         member: IdentityKey,
     },
     CreateFamilyOnBehalf {
         owner_address: String,
-        owner_signature: String,
         label: String,
     },
     /// Family head needs to sign the joining node IdentityKey, MixNode needs to provide its signature proving that it wants to join the family
     JoinFamilyOnBehalf {
         member_address: String,
-        node_identity_signature: String,
-        family_signature: String,
-        family_head: IdentityKey,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
     },
     LeaveFamilyOnBehalf {
         member_address: String,
-        node_identity_signature: String,
-        family_head: IdentityKey,
+        family_head: FamilyHead,
     },
     KickFamilyMemberOnBehalf {
         head_address: String,
-        signature: String,
         member: IdentityKey,
     },
 
@@ -153,12 +149,12 @@ pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     BondMixnodeOnBehalf {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         owner: String,
     },
     PledgeMore {},
@@ -187,15 +183,22 @@ pub enum ExecuteMsg {
     // gateway-related:
     BondGateway {
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     BondGatewayOnBehalf {
         gateway: Gateway,
         owner: String,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     UnbondGateway {},
     UnbondGatewayOnBehalf {
+        owner: String,
+    },
+    UpdateGatewayConfig {
+        new_config: GatewayConfigUpdate,
+    },
+    UpdateGatewayConfigOnBehalf {
+        new_config: GatewayConfigUpdate,
         owner: String,
     },
 
@@ -312,6 +315,10 @@ impl ExecuteMsg {
             }
             ExecuteMsg::UnbondGateway { .. } => "unbonding gateway".into(),
             ExecuteMsg::UnbondGatewayOnBehalf { .. } => "unbonding gateway on behalf".into(),
+            ExecuteMsg::UpdateGatewayConfig { .. } => "updating gateway configuration".into(),
+            ExecuteMsg::UpdateGatewayConfigOnBehalf { .. } => {
+                "updating gateway configuration on behalf".into()
+            }
             ExecuteMsg::DelegateToMixnode { mix_id } => format!("delegating to mixnode {mix_id}"),
             ExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, .. } => {
                 format!("delegating to mixnode {mix_id} on behalf")
@@ -500,6 +507,11 @@ pub enum QueryMsg {
         start_after: Option<u32>,
     },
     GetNumberOfPendingEvents {},
+
+    // signing-related
+    GetSigningNonce {
+        address: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

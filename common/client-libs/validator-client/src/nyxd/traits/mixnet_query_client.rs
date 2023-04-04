@@ -6,6 +6,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::NyxdClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
+use nym_contracts_common::signing::Nonce;
 use nym_mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
 use nym_mixnet_contract_common::families::Family;
 use nym_mixnet_contract_common::mixnode::{
@@ -388,6 +389,13 @@ pub trait MixnetQueryClient {
     ) -> Result<NumberOfPendingEventsResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetNumberOfPendingEvents {})
             .await
+    }
+
+    async fn get_signing_nonce(&self, address: &AccountId) -> Result<Nonce, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetSigningNonce {
+            address: address.to_string(),
+        })
+        .await
     }
 
     async fn get_node_family_by_label(&self, label: &str) -> Result<Option<Family>, NyxdError> {

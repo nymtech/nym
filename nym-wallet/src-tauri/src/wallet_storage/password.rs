@@ -1,13 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use serde::{Deserialize, Serialize};
 use std::fmt;
-
-use serde::{Deserialize, Deserializer, Serialize};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 // The `LoginId` is the top level id in the wallet file, and is not stored encrypted
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct LoginId(String);
 
 impl LoginId {
@@ -81,26 +80,4 @@ impl fmt::Display for AccountId {
 }
 
 // simple wrapper for String that will get zeroized on drop
-#[derive(Zeroize)]
-#[zeroize(drop)]
-pub struct UserPassword(String);
-
-impl UserPassword {
-    #[cfg(test)]
-    pub(crate) fn new(inner: String) -> Self {
-        UserPassword(inner)
-    }
-
-    pub(crate) fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
-    }
-}
-
-impl<'de> Deserialize<'de> for UserPassword {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Ok(UserPassword(String::deserialize(deserializer)?))
-    }
-}
+pub type UserPassword = Zeroizing<String>;

@@ -30,8 +30,12 @@ async fn setup_fresh_backend<P: AsRef<Path>>(
     // it will only be happening on the very first run and in practice won't incur huge
     // costs since the storage is going to be empty
     let mem_store = CombinedReplyStorage::new(
-        debug_config.minimum_reply_surb_storage_threshold,
-        debug_config.maximum_reply_surb_storage_threshold,
+        debug_config
+            .reply_surbs
+            .minimum_reply_surb_storage_threshold,
+        debug_config
+            .reply_surbs
+            .maximum_reply_surb_storage_threshold,
     );
     storage_backend
         .init_fresh(&mem_store)
@@ -46,8 +50,12 @@ async fn setup_fresh_backend<P: AsRef<Path>>(
 fn setup_inactive_backend(debug_config: &DebugConfig) -> fs_backend::Backend {
     info!("creating inactive surb database");
     fs_backend::Backend::new_inactive(
-        debug_config.minimum_reply_surb_storage_threshold,
-        debug_config.maximum_reply_surb_storage_threshold,
+        debug_config
+            .reply_surbs
+            .minimum_reply_surb_storage_threshold,
+        debug_config
+            .reply_surbs
+            .maximum_reply_surb_storage_threshold,
     )
 }
 

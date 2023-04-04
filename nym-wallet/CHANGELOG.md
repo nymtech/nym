@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [v1.2.0] (2023-04-04)
+
+- Add Version and Location to gateway settings ([#3266])
+- Wallet - bonding screen - short info with link ([#3179])
+- Wallet - discrepancies figma vs wallet ([#2183])
+- Wallet - If a gateway is bonded show gateway settings in the node settings: ([#2242])
+
+[#3266]: https://github.com/nymtech/nym/issues/3266
+[#3179]: https://github.com/nymtech/nym/issues/3179
+[#2183]: https://github.com/nymtech/nym/issues/2183
+[#2242]: https://github.com/nymtech/nym/issues/2242
+
 ## [v1.1.12] (2023-03-15)
 
 - Wallet - in the vesting section separate the "Unlocked transferable tokens" into "Unlocked vesting tokens" and "Transferable rewards" for better clarity ([#3132])

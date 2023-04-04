@@ -39,41 +39,43 @@ pub const FAMILIES_DEFAULT_RETRIEVAL_LIMIT: u32 = 10;
 pub const FAMILIES_MAX_RETRIEVAL_LIMIT: u32 = 20;
 
 // storage keys
-pub(crate) const DELEGATION_PK_NAMESPACE: &str = "dl";
-pub(crate) const DELEGATION_OWNER_IDX_NAMESPACE: &str = "dlo";
-pub(crate) const DELEGATION_MIXNODE_IDX_NAMESPACE: &str = "dlm";
+pub const DELEGATION_PK_NAMESPACE: &str = "dl";
+pub const DELEGATION_OWNER_IDX_NAMESPACE: &str = "dlo";
+pub const DELEGATION_MIXNODE_IDX_NAMESPACE: &str = "dlm";
 
-pub(crate) const GATEWAYS_PK_NAMESPACE: &str = "gt";
-pub(crate) const GATEWAYS_OWNER_IDX_NAMESPACE: &str = "gto";
+pub const GATEWAYS_PK_NAMESPACE: &str = "gt";
+pub const GATEWAYS_OWNER_IDX_NAMESPACE: &str = "gto";
 
-pub(crate) const REWARDED_SET_KEY: &str = "rs";
-pub(crate) const CURRENT_EPOCH_STATUS_KEY: &str = "ces";
-pub(crate) const CURRENT_INTERVAL_KEY: &str = "ci";
-pub(crate) const EPOCH_EVENT_ID_COUNTER_KEY: &str = "eic";
-pub(crate) const INTERVAL_EVENT_ID_COUNTER_KEY: &str = "iic";
-pub(crate) const PENDING_EPOCH_EVENTS_NAMESPACE: &str = "pee";
-pub(crate) const PENDING_INTERVAL_EVENTS_NAMESPACE: &str = "pie";
+pub const REWARDED_SET_KEY: &str = "rs";
+pub const CURRENT_EPOCH_STATUS_KEY: &str = "ces";
+pub const CURRENT_INTERVAL_KEY: &str = "ci";
+pub const EPOCH_EVENT_ID_COUNTER_KEY: &str = "eic";
+pub const INTERVAL_EVENT_ID_COUNTER_KEY: &str = "iic";
+pub const PENDING_EPOCH_EVENTS_NAMESPACE: &str = "pee";
+pub const PENDING_INTERVAL_EVENTS_NAMESPACE: &str = "pie";
 
-pub(crate) const LAST_EPOCH_EVENT_ID_KEY: &str = "lee";
-pub(crate) const LAST_INTERVAL_EVENT_ID_KEY: &str = "lie";
+pub const LAST_EPOCH_EVENT_ID_KEY: &str = "lee";
+pub const LAST_INTERVAL_EVENT_ID_KEY: &str = "lie";
 
-pub(crate) const CONTRACT_STATE_KEY: &str = "state";
+pub const CONTRACT_STATE_KEY: &str = "state";
 
-pub(crate) const LAYER_DISTRIBUTION_KEY: &str = "layers";
-pub(crate) const NODE_ID_COUNTER_KEY: &str = "nic";
-pub(crate) const MIXNODES_PK_NAMESPACE: &str = "mnn";
-pub(crate) const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
-pub(crate) const MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "mni";
-pub(crate) const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
+pub const LAYER_DISTRIBUTION_KEY: &str = "layers";
+pub const NODE_ID_COUNTER_KEY: &str = "nic";
+pub const MIXNODES_PK_NAMESPACE: &str = "mnn";
+pub const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
+pub const MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "mni";
+pub const MIXNODES_SPHINX_IDX_NAMESPACE: &str = "mns";
 
-pub(crate) const UNBONDED_MIXNODES_PK_NAMESPACE: &str = "ubm";
-pub(crate) const UNBONDED_MIXNODES_OWNER_IDX_NAMESPACE: &str = "umo";
-pub(crate) const UNBONDED_MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "umi";
+pub const UNBONDED_MIXNODES_PK_NAMESPACE: &str = "ubm";
+pub const UNBONDED_MIXNODES_OWNER_IDX_NAMESPACE: &str = "umo";
+pub const UNBONDED_MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "umi";
 
-pub(crate) const REWARDING_PARAMS_KEY: &str = "rparams";
-pub(crate) const PENDING_REWARD_POOL_KEY: &str = "prp";
-pub(crate) const MIXNODES_REWARDING_PK_NAMESPACE: &str = "mnr";
+pub const REWARDING_PARAMS_KEY: &str = "rparams";
+pub const PENDING_REWARD_POOL_KEY: &str = "prp";
+pub const MIXNODES_REWARDING_PK_NAMESPACE: &str = "mnr";
 
-pub(crate) const FAMILIES_INDEX_NAMESPACE: &str = "faml2";
-pub(crate) const FAMILIES_MAP_NAMESPACE: &str = "fam2";
-pub(crate) const MEMBERS_MAP_NAMESPACE: &str = "memb2";
+pub const FAMILIES_INDEX_NAMESPACE: &str = "faml2";
+pub const FAMILIES_MAP_NAMESPACE: &str = "fam2";
+pub const MEMBERS_MAP_NAMESPACE: &str = "memb2";
+
+pub const SIGNING_NONCES_NAMESPACE: &str = "sn";

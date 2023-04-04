@@ -135,13 +135,16 @@ async fn wait_for_interrupt() {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     setup_logging();
 
     let cli = Cli::parse();
 
     tokio::select! {
-        _ = wait_for_interrupt() => warn!("Received interrupt - the specified command might have not completed!"),
-        _ = execute(cli) => (),
+        _ = wait_for_interrupt() => {
+            warn!("Received interrupt - the specified command might have not completed!");
+            Ok(())
+        },
+        res = execute(cli) => res
     }
 }

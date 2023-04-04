@@ -112,14 +112,14 @@ where
 {
     let id = config.get_id();
 
-    // If we are not going to register gateway, and an explicitly chosed gateway is not passed in,
+    // If we are not going to register gateway, and an explicitly chosen gateway is not passed in,
     // load the existing configuration file
     if !register_gateway && user_chosen_gateway_id.is_none() {
         println!("Not registering gateway, will reuse existing config and keys");
         return load_existing_gateway_config::<C>(&id);
     }
 
-    // Else, we preceed by querying the nym-api
+    // Else, we proceed by querying the nym-api
     let gateway = helpers::query_gateway_details(
         config.get_nym_api_endpoints(),
         user_chosen_gateway_id,

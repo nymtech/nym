@@ -9,7 +9,16 @@ import {
 } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Big from 'big.js';
-import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs, TBondMoreArgs } from 'src/types';
+import {
+  EnumNodeType,
+  isGateway,
+  isMixnode,
+  TBondGatewayArgs,
+  TBondGatewaySignatureArgs,
+  TBondMixNodeArgs,
+  TBondMixnodeSignatureArgs,
+  TBondMoreArgs,
+} from 'src/types';
 import { Console } from 'src/utils/console';
 import {
   bondGateway as bondGatewayRequest,
@@ -37,6 +46,10 @@ import {
   getMixnodeRewardEstimation,
   getGatewayReport,
   getMixnodeUptime,
+  vestingGenerateMixnodeMsgPayload as vestingGenerateMixnodeMsgPayloadReq,
+  generateMixnodeMsgPayload as generateMixnodeMsgPayloadReq,
+  vestingGenerateGatewayMsgPayload as vestingGenerateGatewayMsgPayloadReq,
+  generateGatewayMsgPayload as generateGatewayMsgPayloadReq,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
@@ -81,7 +94,7 @@ export interface TBondedGateway {
   identityKey: string;
   ip: string;
   bond: DecCoin;
-  location?: string; // TODO not yet available, only available in Network Explorer API
+  location?: string;
   proxy?: string;
   host: string;
   httpApiPort: number;
@@ -92,7 +105,6 @@ export interface TBondedGateway {
     current: number;
     average: number;
   };
-  isUnbonding: boolean;
 }
 
 export type TokenPool = 'locked' | 'balance';
@@ -109,6 +121,8 @@ export type TBondingContext = {
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
+  generateMixnodeMsgPayload: (data: TBondMixnodeSignatureArgs) => Promise<string | undefined>;
+  generateGatewayMsgPayload: (data: TBondGatewaySignatureArgs) => Promise<string | undefined>;
 };
 
 export const BondingContext = createContext<TBondingContext>({
@@ -133,6 +147,12 @@ export const BondingContext = createContext<TBondingContext>({
     throw new Error('Not implemented');
   },
   checkOwnership(): Promise<void> {
+    throw new Error('Not implemented');
+  },
+  generateMixnodeMsgPayload: async () => {
+    throw new Error('Not implemented');
+  },
+  generateGatewayMsgPayload: async () => {
     throw new Error('Not implemented');
   },
 });
@@ -247,7 +267,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
-    if (ownership.hasOwnership && clientDetails) {
+    if (ownership.hasOwnership && ownership.nodeType === EnumNodeType.mixnode && clientDetails) {
       try {
         const data = await getMixnodeBondDetails();
         let operatorRewards;
@@ -310,21 +330,25 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       }
     }
 
-    if (ownership.hasOwnership) {
+    if (ownership.hasOwnership && ownership.nodeType === EnumNodeType.gateway) {
       try {
         const data = await getGatewayBondDetails();
         if (data) {
+          const { gateway, proxy } = data;
           const nodeDescription = await getNodeDescription(data.gateway.host, data.gateway.clients_port);
           const routingScore = await getGatewayReportDetails(data.gateway.identity_key);
           setBondedNode({
             name: nodeDescription?.name,
-            identityKey: data.gateway.identity_key,
-            ip: data.gateway.host,
-            location: data.gateway.location,
+            identityKey: gateway.identity_key,
+            mixPort: gateway.mix_port,
+            httpApiPort: gateway.clients_port,
+            host: gateway.host,
+            ip: gateway.host,
+            location: gateway.location,
             bond: decCoinToDisplay(data.pledge_amount),
-            proxy: data.proxy,
+            proxy,
             routingScore,
-            isUnbonding: false,
+            version: gateway.version,
           } as TBondedGateway);
         }
       } catch (e: any) {
@@ -465,6 +489,42 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return undefined;
   };
 
+  const generateMixnodeMsgPayload = async (data: TBondMixnodeSignatureArgs) => {
+    let message;
+    setIsLoading(true);
+    try {
+      if (isVesting) {
+        message = await vestingGenerateMixnodeMsgPayloadReq(data);
+      } else {
+        message = await generateMixnodeMsgPayloadReq(data);
+      }
+    } catch (e) {
+      Console.warn(e);
+      setError(`an error occurred: ${e}`);
+    } finally {
+      setIsLoading(false);
+    }
+    return message;
+  };
+
+  const generateGatewayMsgPayload = async (data: TBondGatewaySignatureArgs) => {
+    let message;
+    setIsLoading(true);
+    try {
+      if (isVesting) {
+        message = await vestingGenerateGatewayMsgPayloadReq(data);
+      } else {
+        message = await generateGatewayMsgPayloadReq(data);
+      }
+    } catch (e) {
+      Console.warn(e);
+      setError(`an error occurred: ${e}`);
+    } finally {
+      setIsLoading(false);
+    }
+    return message;
+  };
+
   const memoizedValue = useMemo(
     () => ({
       isLoading: isLoading || isOwnershipLoading,
@@ -478,6 +538,8 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       redeemRewards,
       bondMore,
       checkOwnership,
+      generateMixnodeMsgPayload,
+      generateGatewayMsgPayload,
     }),
     [isLoading, isOwnershipLoading, error, bondedNode, isVesting],
   );

@@ -1,4 +1,11 @@
-import { FeeDetails, DecCoin, Gateway, MixNodeCostParams, MixNodeConfigUpdate } from '@nymproject/types';
+import {
+  FeeDetails,
+  DecCoin,
+  Gateway,
+  MixNodeCostParams,
+  MixNodeConfigUpdate,
+  GatewayConfigUpdate,
+} from '@nymproject/types';
 import { TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { invokeWrapper } from './wrapper';
 
@@ -18,6 +25,9 @@ export const simulateUpdateMixnodeCostParams = async (newCosts: MixNodeCostParam
 export const simulateUpdateMixnodeConfig = async (update: MixNodeConfigUpdate) =>
   invokeWrapper<FeeDetails>('simulate_update_mixnode_config', { update });
 
+export const simulateUpdateGatewayConfig = async (update: GatewayConfigUpdate) =>
+  invokeWrapper<FeeDetails>('simulate_update_gateway_config', { update });
+
 export const simulateDelegateToMixnode = async (args: { mixId: number; amount: DecCoin }) =>
   invokeWrapper<FeeDetails>('simulate_delegate_to_mixnode', args);
 
@@ -33,7 +43,7 @@ export const simulateVestingClaimDelegatorReward = async (mixId: number) =>
 export const simulateVestingUndelegateFromMixnode = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_undelegate_from_mixnode', args);
 
-export const simulateVestingBondGateway = async (args: { gateway: Gateway; pledge: DecCoin; ownerSignature: string }) =>
+export const simulateVestingBondGateway = async (args: { gateway: Gateway; pledge: DecCoin; msgSignature: string }) =>
   invokeWrapper<FeeDetails>('simulate_vesting_bond_gateway', args);
 
 export const simulateVestingUnbondGateway = async (args: any) =>
@@ -52,6 +62,9 @@ export const simulateVestingUpdateMixnodeCostParams = async (newCosts: MixNodeCo
 
 export const simulateVestingUpdateMixnodeConfig = async (update: MixNodeConfigUpdate) =>
   invokeWrapper<FeeDetails>('simulate_vesting_update_mixnode_config', { update });
+
+export const simulateVestingUpdateGatewayConfig = async (update: GatewayConfigUpdate) =>
+  invokeWrapper<FeeDetails>('simulate_vesting_update_gateway_config', { update });
 
 export const simulateWithdrawVestedCoins = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_withdraw_vested_coins', args);

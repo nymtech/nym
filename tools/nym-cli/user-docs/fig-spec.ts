@@ -3803,8 +3803,8 @@ const completion: Fig.Spec = {
                   ],
                 },
                 {
-                  name: "unbound",
-                  description: "Unbound from a mixnode",
+                  name: "unbond",
+                  description: "Unbond from a mixnode",
                   options: [
                     {
                       name: "--mnemonic",
@@ -3994,8 +3994,8 @@ const completion: Fig.Spec = {
                   ],
                 },
                 {
-                  name: "unbound-vesting",
-                  description: "Unbound from a mixnode (when originally using locked tokens)",
+                  name: "unbond-vesting",
+                  description: "Unbond from a mixnode (when originally using locked tokens)",
                   options: [
                     {
                       name: "--gas",
@@ -4296,8 +4296,8 @@ const completion: Fig.Spec = {
                   ],
                 },
                 {
-                  name: "unbound",
-                  description: "Unbound from a gateway",
+                  name: "unbond",
+                  description: "Unbond from a gateway",
                   options: [
                     {
                       name: "--mnemonic",
@@ -4473,8 +4473,8 @@ const completion: Fig.Spec = {
                   ],
                 },
                 {
-                  name: "vesting-unbound",
-                  description: "Unbound from a gateway (when originally using locked tokens)",
+                  name: "vesting-unbond",
+                  description: "Unbond from a gateway (when originally using locked tokens)",
                   options: [
                     {
                       name: "--mnemonic",

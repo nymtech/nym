@@ -37,7 +37,7 @@ There are two ways to provide this:
 
 ### Passing named arguments
 
-You will need to pass the following with every command as an argument:
+You will need to pass the following with most commands as arguments:
 
 ```
 --mnemonic <MNEMONIC>                    
@@ -70,7 +70,7 @@ nym-cli --help
 - query for a block at a height
 - query for a block at a timestamp
 
-### 🪐 `cosmwasm`
+### 🪐 cosmwasm
 
 - upload a smart contract
 - instantiate a smart contract
@@ -90,6 +90,8 @@ nym-cli --help
 - query for waiting rewards
 - withdraw rewards
 - manage mixnode settings
+- create payload for family creation signature 
+- create family
 
 #### 🥩 Delegators
 

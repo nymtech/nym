@@ -16,8 +16,8 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
-use tracing::instrument;
-use tracing::{error, info};
+#[cfg(feature = "cpucycles")]
+use tracing::{error, info, instrument};
 
 pub(crate) mod packet_processing;
 
@@ -50,7 +50,10 @@ impl ConnectionHandler {
             .expect("the delay-forwarder has died!");
     }
 
-    #[instrument(skip(self, framed_sphinx_packet), fields(cpucycles))]
+    #[cfg_attr(
+        feature = "cpucycles",
+        instrument(skip(self, framed_sphinx_packet), fields(cpucycles))
+    )]
     fn handle_received_packet(&self, framed_sphinx_packet: FramedSphinxPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in

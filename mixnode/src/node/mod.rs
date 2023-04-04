@@ -16,7 +16,6 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
-use tracing::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::version_checker::parse_version;
@@ -28,6 +27,8 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
+#[cfg(feature = "cpucycles")]
+use tracing::{error, info, warn};
 
 mod http;
 mod listener;

@@ -9,10 +9,11 @@ use crate::node::MixNode;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
 use nym_bin_common::output_format::OutputFormat;
-use tracing::error;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
+#[cfg(feature = "cpucycles")]
+use tracing::error;
 use validator_client::nyxd;
 
 use super::version_check;

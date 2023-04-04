@@ -5,8 +5,11 @@
 // };
 // use tracing_tree::HierarchicalLayer;
 
+#[cfg(feature = "tracing")]
 pub use tracing_appender;
+#[cfg(feature = "tracing")]
 pub use tracing_subscriber;
+#[cfg(feature = "tracing")]
 pub use tracing_tree;
 
 // I'd argue we should start transitioning from `log` to `tracing`
@@ -33,6 +36,7 @@ pub fn setup_logging() {
 }
 
 // TODO: This has to be a macro, running it as a function does not work for the file_appender for some reason
+#[cfg(feature = "tracing")]
 #[macro_export]
 macro_rules! setup_tracing {
     ($file_name: expr) => {

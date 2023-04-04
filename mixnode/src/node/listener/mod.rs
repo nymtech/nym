@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use std::process;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
+#[cfg(feature = "cpucycles")]
 use tracing::error;
 
 use super::TaskClient;

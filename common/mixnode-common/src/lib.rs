@@ -16,7 +16,9 @@ pub fn cpu_cycles() -> Result<i64, Box<dyn std::error::Error>> {
 #[macro_export]
 macro_rules! measure {
     ( $x:expr ) => {{
-        let start_cycles = $crate::cpu_cycles();
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "cpucycles")] {
+                let start_cycles = $crate::cpu_cycles();
         // if the block needs to return something, we can return it
         let r = $x;
         let end_cycles = $crate::cpu_cycles();
@@ -31,5 +33,9 @@ macro_rules! measure {
             (_, Err(e)) => error!("{e}"),
         }
         r
+            } else {
+                $x
+            }
+        }
     }};
 }

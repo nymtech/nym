@@ -30,4 +30,3 @@ validator-client = { path = "../client-libs/validator-client", features = ["nyxd
 
 [features]
 default = ["nym-credential-storage"]
-mobile = ["gateway-client/mobile"]

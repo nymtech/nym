@@ -18,9 +18,9 @@ mod tasks;
 
 pub use state::State;
 
-#[cfg(mobile)]
+//#[cfg(target_os = "android")]
 mod mobile;
-#[cfg(mobile)]
+//#[cfg(target_os = "android")]
 pub use mobile::*;
 
 pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;

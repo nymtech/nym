@@ -8,9 +8,9 @@ use crate::socks::{
     server::SphinxSocksServer,
 };
 
-#[cfg(feature = "mobile")]
+#[cfg(target_os = "android")]
 use client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
-#[cfg(not(feature = "mobile"))]
+#[cfg(not(target_os = "android"))]
 use client_core::client::base_client::non_wasm_helpers;
 use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState};
 use client_core::client::key_manager::KeyManager;

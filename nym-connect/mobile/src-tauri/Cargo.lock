@@ -3246,6 +3246,7 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.3.0"
 dependencies = [
+ "atty",
  "clap",
  "clap_complete",
  "clap_complete_fig",

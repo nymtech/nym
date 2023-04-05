@@ -34,10 +34,11 @@ import {
   StakeSaturationResponse,
   UnbondedMixnodeResponse,
   VestingAccountInfo,
-  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode
+  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode, DelegationBlock
 } from '@nymproject/types';
 import QueryClient from './query-client';
 import SigningClient, { ISigningClient } from './signing-client';
+// import { DelegationBlock } from './types/shared';
 
 export interface INymClient {
   readonly mixnetContract: string;
@@ -604,6 +605,14 @@ export default class ValidatorClient implements INymClient {
 
   public async getAllDelegations(): Promise<Delegations> {
     return this.client.getAllDelegations(this.vestingContract);
+  }
+
+  public async getDelegation(address: string, mix_id: number): Promise<DelegationBlock> {
+    return this.client.getDelegation(this.vestingContract, address, mix_id );
+  }
+ 
+  public async getTotalDelegationAmount(address: string, mix_id: number, block_timestamp_sec: number): Promise<Coin> {
+    return this.client.getTotalDelegationAmount(this.vestingContract, address, mix_id, block_timestamp_sec);
   }
 
   public async getCurrentVestingPeriod(address: string): Promise<Period> {

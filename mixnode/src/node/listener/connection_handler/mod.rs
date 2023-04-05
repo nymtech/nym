@@ -7,7 +7,7 @@ use crate::node::listener::connection_handler::packet_processing::{
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use futures::StreamExt;
-use log::{error, info};
+use mixnode_common::measure;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::SphinxCodec;
 use nym_sphinx::framing::packet::FramedSphinxPacket;
@@ -16,6 +16,8 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
+#[cfg(feature = "cpucycles")]
+use tracing::{error, info, instrument};
 
 pub(crate) mod packet_processing;
 
@@ -48,6 +50,10 @@ impl ConnectionHandler {
             .expect("the delay-forwarder has died!");
     }
 
+    #[cfg_attr(
+        feature = "cpucycles",
+        instrument(skip(self, framed_sphinx_packet), fields(cpucycles))
+    )]
     fn handle_received_packet(&self, framed_sphinx_packet: FramedSphinxPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
@@ -57,17 +63,19 @@ impl ConnectionHandler {
 
         // all processing such, key caching, etc. was done.
         // however, if it was a forward hop, we still need to delay it
-        match self.packet_processor.process_received(framed_sphinx_packet) {
-            Err(err) => debug!("We failed to process received sphinx packet - {err}"),
-            Ok(res) => match res {
-                MixProcessingResult::ForwardHop(forward_packet, delay) => {
-                    self.delay_and_forward_packet(forward_packet, delay)
-                }
-                MixProcessingResult::FinalHop(..) => {
-                    warn!("Somehow processed a loop cover message that we haven't implemented yet!")
-                }
-            },
-        }
+        measure!({
+            match self.packet_processor.process_received(framed_sphinx_packet) {
+                Err(err) => debug!("We failed to process received sphinx packet - {err}"),
+                Ok(res) => match res {
+                    MixProcessingResult::ForwardHop(forward_packet, delay) => {
+                        self.delay_and_forward_packet(forward_packet, delay)
+                    }
+                    MixProcessingResult::FinalHop(..) => {
+                        warn!("Somehow processed a loop cover message that we haven't implemented yet!")
+                    }
+                },
+            }
+        })
     }
 
     pub(crate) async fn handle_connection(

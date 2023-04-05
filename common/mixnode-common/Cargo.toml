@@ -13,12 +13,21 @@ humantime-serde = "1.0"
 log = { workspace = true }
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1.24.1", features = ["time", "macros", "rt", "net", "io-util"] }
+tokio = { version = "1.24.1", features = [
+    "time",
+    "macros",
+    "rt",
+    "net",
+    "io-util",
+] }
 tokio-util = { version = "0.7.4", features = ["codec"] }
 url = "2.2"
 thiserror = "1.0.37"
 
-nym-crypto =  { path = "../crypto" }
+## tracing
+tracing = { version = "0.1.37", optional = true }
+
+nym-crypto = { path = "../crypto" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-sphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
 nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
@@ -27,5 +36,13 @@ nym-sphinx-framing = { path = "../nymsphinx/framing" }
 nym-sphinx-params = { path = "../nymsphinx/params" }
 nym-sphinx-types = { path = "../nymsphinx/types" }
 nym-task = { path = "../task" }
-validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"]}
+validator-client = { path = "../client-libs/validator-client", features = [
+    "nyxd-client",
+] }
 nym-bin-common = { path = "../bin-common" }
+
+cfg-if = "1.0.0"
+cpu-cycles = { path = "../../cpu-cycles", optional = true }
+
+[features]
+cpucycles = ["cpu-cycles", "tracing"]

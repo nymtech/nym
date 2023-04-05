@@ -1,5 +1,16 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+// use tracing_subscriber::{
+//     fmt::Layer, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
+// };
+// use tracing_tree::HierarchicalLayer;
+
+#[cfg(feature = "tracing")]
+pub use tracing_appender;
+#[cfg(feature = "tracing")]
+pub use tracing_subscriber;
+#[cfg(feature = "tracing")]
+pub use tracing_tree;
 
 // I'd argue we should start transitioning from `log` to `tracing`
 pub fn setup_logging() {
@@ -22,6 +33,34 @@ pub fn setup_logging() {
         .filter_module("handlebars", log::LevelFilter::Warn)
         .filter_module("sled", log::LevelFilter::Warn)
         .init();
+}
+
+// TODO: This has to be a macro, running it as a function does not work for the file_appender for some reason
+#[cfg(feature = "tracing")]
+#[macro_export]
+macro_rules! setup_tracing {
+    ($file_name: expr) => {
+        use nym_bin_common::logging::tracing_subscriber::layer::SubscriberExt;
+        use nym_bin_common::logging::tracing_subscriber::util::SubscriberInitExt;
+
+        let file_appender =
+            nym_bin_common::logging::tracing_appender::rolling::hourly($file_name, "log");
+        let (non_blocking, _guard) =
+            nym_bin_common::logging::tracing_appender::non_blocking(file_appender);
+        let appender_layer = nym_bin_common::logging::tracing_subscriber::fmt::Layer::new()
+            .with_ansi(false)
+            .with_writer(non_blocking);
+
+        nym_bin_common::logging::tracing_subscriber::Registry::default()
+            .with(nym_bin_common::logging::tracing_subscriber::EnvFilter::from_default_env())
+            .with(appender_layer)
+            .with(
+                nym_bin_common::logging::tracing_tree::HierarchicalLayer::new(4)
+                    .with_targets(true)
+                    .with_bracketed_fields(true),
+            )
+            .init();
+    };
 }
 
 pub fn banner(crate_name: &str, crate_version: &str) -> String {

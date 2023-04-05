@@ -36,6 +36,12 @@ tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 toml = "0.5.8"
 url = { version = "2.2", features = ["serde"] }
+cfg-if = "1.0.0"
+
+## tracing
+tracing = { version = "0.1.37", optional = true }
+opentelemetry = { version = "0.19.0", optional = true }
+
 
 ## internal
 nym-config = { path = "../common/config" }
@@ -63,3 +69,11 @@ tokio = { version = "1.21.2", features = [
 
 nym-sphinx-types = { path = "../common/nymsphinx/types" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }
+
+[features]
+cpucycles = [
+    "mixnode-common/cpucycles",
+    "tracing",
+    "opentelemetry",
+    "nym-bin-common/tracing",
+]

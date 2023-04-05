@@ -7,9 +7,15 @@ extern crate rocket;
 use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
 use lazy_static::lazy_static;
+#[cfg(feature = "cpucycles")]
+use mixnode_common::measure;
 use nym_bin_common::build_information::BinaryBuildInformation;
+#[allow(unused_imports)]
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
-
+#[cfg(feature = "cpucycles")]
+use nym_bin_common::setup_tracing;
+#[cfg(feature = "cpucycles")]
+use tracing::instrument;
 mod commands;
 mod config;
 mod node;
@@ -35,19 +41,32 @@ struct Cli {
     command: commands::Commands,
 }
 
-#[cfg(feature = "cpu-cycles")]
-pub fn cpu_cycles() {
-    info!("{}", cpu_cycles::cpucycles())
+#[cfg(feature = "cpucycles")]
+#[instrument(fields(cpucycles))]
+fn test_function() {
+    measure!({})
 }
 
 #[tokio::main]
 async fn main() {
-    setup_logging();
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "cpucycles")] {
+            setup_tracing!("/tmp/tracing.log");
+        } else {
+            setup_logging();
+        }
+    }
+
     maybe_print_banner(crate_name!(), crate_version!());
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
     commands::execute(args).await;
+
+    cfg_if::cfg_if! {
+    if #[cfg(feature = "cpucycles")] {
+        opentelemetry::global::shutdown_tracer_provider();
+    }}
 }
 
 #[cfg(test)]

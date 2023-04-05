@@ -8,11 +8,12 @@ use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use crate::node::MixNode;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
-use log::error;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
+#[cfg(feature = "cpucycles")]
+use tracing::error;
 use validator_client::nyxd;
 
 use super::version_check;

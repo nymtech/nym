@@ -8,8 +8,10 @@ export const SetupComplete = () => (
     title="You're all set!"
     description="Open the extension and sign in to begin your interchain journey"
     Actions={
-      <Box>
-        <Button variant="contained">Done</Button>
+      <Box width="100%">
+        <Button variant="contained" fullWidth size="large">
+          Done
+        </Button>
       </Box>
     }
   />

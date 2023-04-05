@@ -15,6 +15,6 @@ export const LogoWithText = ({
   <Stack alignItems="center" justifyContent="center" gap={3}>
     <Logo small={logoSmall} />
     <Title>{title}</Title>
-    <Typography sx={{ color: 'grey.700' }}>{description}</Typography>
+    <Typography sx={{ color: 'grey.700', textAlign: 'center' }}>{description}</Typography>
   </Stack>
 );

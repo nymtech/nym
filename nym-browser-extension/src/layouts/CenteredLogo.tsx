@@ -23,6 +23,6 @@ export const CenteredLogoLayout = ({
   <Box style={layoutStyle}>
     <Box></Box>
     <LogoWithText title={title} description={description} />
-    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>{Actions}</Box>
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>{Actions}</Box>
   </Box>
 );

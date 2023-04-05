@@ -19,17 +19,6 @@ pub struct ChainDetails {
     pub stake_denom: DenomDetailsOwned,
 }
 
-// by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
-impl Default for ChainDetails {
-    fn default() -> Self {
-        ChainDetails {
-            bech32_account_prefix: mainnet::BECH32_PREFIX.into(),
-            mix_denom: mainnet::MIX_DENOM.into(),
-            stake_denom: mainnet::STAKE_DENOM.into(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct NymContracts {
     pub mixnet_contract_address: Option<String>,
@@ -43,11 +32,18 @@ pub struct NymContracts {
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
 // with `NetworkDetails` defined in all.rs...
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct NymNetworkDetails {
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
+}
+
+// by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
+impl Default for NymNetworkDetails {
+    fn default() -> Self {
+        NymNetworkDetails::new_mainnet()
+    }
 }
 
 impl NymNetworkDetails {

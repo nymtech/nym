@@ -1,12 +1,13 @@
 [workspace]
 members = [
     "coconut-bandwidth",
+    "coconut-dkg",
+    "coconut-test",
     "mixnet",
-    "vesting",
     "multisig/cw3-flex-multisig",
     "multisig/cw4-group",
-    "coconut-test",
-    "coconut-dkg"
+    "service-provider-directory",
+    "vesting",
 ]
 
 [workspace.package]

@@ -14,7 +14,7 @@ import { createMnemonic, validateMnemonic } from 'src/requests';
 import { Console } from 'src/utils/console';
 import { AccountsContext } from 'src/context';
 import { ConfirmPassword, Mnemonic } from 'src/components';
-import { MnemonicInput } from 'src/components/textfields';
+import { MnemonicInput } from '@nymproject/react/textfields/Mnemonic';
 import { StyledBackButton } from 'src/components/StyledBackButton';
 
 const createAccountSteps = [

@@ -48,7 +48,11 @@ const nymBrowserExtPalette = (variant: NymPaletteVariant): NymBrowserExtPalette 
 /**
  * Map a Nym palette variant onto the MUI palette
  */
-const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({});
+const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
+  primary: {
+    main: '#6750A4',
+  },
+});
 
 /**
  * Returns the Network Explorer palette for light mode.

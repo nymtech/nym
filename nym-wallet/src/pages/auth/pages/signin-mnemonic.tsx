@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Button, FormControl, Stack } from '@mui/material';
 import { AppContext } from 'src/context';
 import { isPasswordCreated } from 'src/requests';
-import { MnemonicInput } from 'src/components';
+import { MnemonicInput } from '@nymproject/react/textfields/Mnemonic';
 import { Subtitle } from '../components';
 
 export const SignInMnemonic = () => {

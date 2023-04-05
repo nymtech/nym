@@ -14,7 +14,6 @@ export * from './NymCard';
 export * from './NymLogo';
 export * from './RequestStatus';
 export * from './SuccessResponse';
-export * from './textfields';
 export * from './Title';
 export * from './TokenPoolSelector';
 export * from './TransactionDetails';

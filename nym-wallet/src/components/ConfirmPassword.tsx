@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, CircularProgress, DialogActions, DialogContent, Typography } from '@mui/material';
 import { useKeyPress } from 'src/hooks/useKeyPress';
-import { PasswordInput } from './textfields';
+import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { StyledBackButton } from './StyledBackButton';
 
 export const ConfirmPassword = ({

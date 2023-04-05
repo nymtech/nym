@@ -4,10 +4,10 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCodeV4, ResponseCodeV5, SocksProxyError};
 use super::{SocksVersion, RESERVED, SOCKS4_VERSION, SOCKS5_VERSION};
-use nym_client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
+use nym_client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use nym_service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
 use nym_socks5_proxy_helpers::connection_controller::{
     ConnectionReceiver, ControllerCommand, ControllerSender,

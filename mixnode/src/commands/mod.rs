@@ -10,9 +10,9 @@ use nym_bin_common::version_checker;
 use nym_config::defaults::var_names::{BECH32_PREFIX, NYM_API};
 use nym_config::OptionalSet;
 use nym_crypto::bech32_address_validation;
+use nym_validator_client::nyxd;
 use std::net::IpAddr;
 use std::process;
-use nym_validator_client::nyxd;
 
 mod describe;
 mod init;

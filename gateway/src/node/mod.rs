@@ -18,12 +18,12 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_defaults::NymNetworkDetails;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
+use nym_validator_client::Client;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use nym_validator_client::Client;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;

@@ -4,10 +4,10 @@
 use clap::Parser;
 use cosmrs::crypto::PublicKey;
 use log::error;
-use serde::Serialize;
-use serde_json::json;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 use nym_validator_client::signing::signer::OfflineSigner;
+use serde::Serialize;
+use serde_json::json;
 
 #[derive(Debug, Serialize)]
 pub struct SignatureOutputJson {

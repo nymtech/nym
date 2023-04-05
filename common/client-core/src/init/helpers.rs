@@ -7,11 +7,11 @@ use crate::{
     error::ClientCoreError,
 };
 use futures::{SinkExt, StreamExt};
-use nym_gateway_client::GatewayClient;
-use nym_gateway_requests::registration::handshake::SharedKeys;
 use log::{debug, info, trace, warn};
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
+use nym_gateway_client::GatewayClient;
+use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_topology::{filter::VersionFilterable, gateway};
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::{sync::Arc, time::Duration};
@@ -20,6 +20,8 @@ use tungstenite::Message;
 use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
+use nym_validator_client::nyxd::DirectSigningNyxdClient;
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
@@ -27,8 +29,6 @@ use tokio::time::Instant;
 use tokio_tungstenite::connect_async;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-#[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::DirectSigningNyxdClient;
 
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;

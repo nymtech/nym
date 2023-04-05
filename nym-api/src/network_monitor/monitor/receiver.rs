@@ -5,8 +5,8 @@ use crate::network_monitor::gateways_reader::{GatewayMessages, GatewaysReader};
 use crate::network_monitor::monitor::processor::ReceivedProcessorSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use nym_gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
 use nym_crypto::asymmetric::identity;
+use nym_gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
 use nym_task::TaskClient;
 
 pub(crate) type GatewayClientUpdateSender = mpsc::UnboundedSender<GatewayClientUpdate>;

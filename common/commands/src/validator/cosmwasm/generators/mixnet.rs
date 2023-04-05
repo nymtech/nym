@@ -6,9 +6,9 @@ use log::{debug, info};
 
 use cosmwasm_std::Decimal;
 use nym_mixnet_contract_common::{InitialRewardingParams, InstantiateMsg, Percent};
+use nym_validator_client::nyxd::AccountId;
 use std::str::FromStr;
 use std::time::Duration;
-use nym_validator_client::nyxd::AccountId;
 
 #[derive(Debug, Parser)]
 pub struct Args {

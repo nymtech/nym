@@ -10,10 +10,10 @@ use nym_bin_common::version_checker;
 use nym_config::OptionalSet;
 use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
+use nym_validator_client::nyxd::{self, AccountId};
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use nym_validator_client::nyxd::{self, AccountId};
 
 pub(crate) mod init;
 pub(crate) mod node_details;

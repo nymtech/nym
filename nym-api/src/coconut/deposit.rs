@@ -95,12 +95,12 @@ pub async fn extract_encryption_key(
 mod test {
     use super::*;
     use crate::coconut::tests::tx_entry_fixture;
-    use nym_config::defaults::VOUCHER_INFO;
     use nym_coconut::{prepare_blind_sign, BlindSignRequest, Parameters};
-    use rand_07::rngs::OsRng;
-    use std::str::FromStr;
+    use nym_config::defaults::VOUCHER_INFO;
     use nym_validator_client::nyxd::tx::Hash;
     use nym_validator_client::nyxd::{Event, Tag};
+    use rand_07::rngs::OsRng;
+    use std::str::FromStr;
 
     #[tokio::test]
     async fn extract_encryption_key_test() {

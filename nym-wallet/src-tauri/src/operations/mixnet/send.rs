@@ -2,8 +2,8 @@ use crate::error::BackendError;
 use crate::state::WalletState;
 use nym_types::currency::DecCoin;
 use nym_types::transaction::{SendTxResult, TransactionDetails};
-use std::str::FromStr;
 use nym_validator_client::nyxd::{AccountId, Fee};
+use std::str::FromStr;
 
 #[tauri::command]
 pub async fn send(

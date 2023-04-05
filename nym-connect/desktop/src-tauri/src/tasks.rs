@@ -1,8 +1,8 @@
+use futures::{channel::mpsc, StreamExt};
 use nym_client_core::{
     config::{ClientCoreConfigTrait, GatewayEndpointConfig},
     error::ClientCoreStatusMessage,
 };
-use futures::{channel::mpsc, StreamExt};
 use nym_task::manager::TaskStatus;
 use std::sync::Arc;
 use tap::TapFallible;

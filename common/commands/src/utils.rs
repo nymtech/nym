@@ -4,10 +4,10 @@
 use cosmrs::AccountId;
 use cosmwasm_std::{Addr, Coin as CosmWasmCoin, Decimal};
 use log::error;
+use nym_validator_client::nyxd::Coin;
 use serde::Serialize;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
-use nym_validator_client::nyxd::Coin;
 
 // TODO: perhaps it should be moved to some global common crate?
 pub fn account_id_to_cw_addr(account_id: &AccountId) -> Addr {

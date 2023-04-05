@@ -5,11 +5,11 @@ use self::template::config_template;
 use nym_config::defaults::mainnet::{MIXNET_CONTRACT_ADDRESS, VESTING_CONTRACT_ADDRESS};
 use nym_config::defaults::DEFAULT_NYM_API_PORT;
 use nym_config::NymConfig;
+use nym_validator_client::nyxd;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
-use nym_validator_client::nyxd;
 
 mod template;
 

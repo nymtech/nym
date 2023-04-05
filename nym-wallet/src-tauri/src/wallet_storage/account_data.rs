@@ -19,8 +19,8 @@ use super::password::{AccountId, LoginId};
 use super::UserPassword;
 use crate::error::BackendError;
 use bip39::Mnemonic;
-use serde::{Deserialize, Serialize};
 use nym_validator_client::nyxd::bip32::DerivationPath;
+use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 const CURRENT_WALLET_FILE_VERSION: u32 = 1;
@@ -333,8 +333,8 @@ impl MnemonicAccount {
 }
 
 mod display_hd_path {
-    use serde::{Deserialize, Deserializer, Serializer};
     use nym_validator_client::nyxd::bip32::DerivationPath;
+    use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S: Serializer>(
         hd_path: &DerivationPath,

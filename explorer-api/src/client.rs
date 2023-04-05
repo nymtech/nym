@@ -2,9 +2,9 @@ use nym_network_defaults::{
     var_names::{NYM_API, NYXD},
     NymNetworkDetails,
 };
+use nym_validator_client::nyxd::QueryNyxdClient;
 use reqwest::Url;
 use std::{str::FromStr, sync::Arc};
-use nym_validator_client::nyxd::QueryNyxdClient;
 
 // since this is just a query client, we don't need any locking mechanism to keep sequence numbers in check
 // nor we need to access any of its methods taking mutable reference (like updating api URL)

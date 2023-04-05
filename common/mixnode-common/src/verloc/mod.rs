@@ -206,7 +206,9 @@ impl VerlocMeasurer {
             )),
             shutdown_listener,
             currently_used_api: 0,
-            validator_client: nym_validator_client::NymApiClient::new(config.nym_api_urls[0].clone()),
+            validator_client: nym_validator_client::NymApiClient::new(
+                config.nym_api_urls[0].clone(),
+            ),
             config,
             results: AtomicVerlocResult::new(),
         }

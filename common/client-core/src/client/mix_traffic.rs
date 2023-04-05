@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::spawn_future;
-use nym_gateway_client::GatewayClient;
 use log::*;
+use nym_gateway_client::GatewayClient;
 use nym_sphinx::forwarding::packet::MixPacket;
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -5,13 +5,13 @@ use crate::config::template::config_template;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use nym_config::NymConfig;
 use nym_network_defaults::mainnet::{NYM_API, NYXD_URL, STATISTICS_SERVICE_DOMAIN_ADDRESS};
+use nym_validator_client::nyxd;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
-use nym_validator_client::nyxd;
 
 pub mod persistence;
 mod template;

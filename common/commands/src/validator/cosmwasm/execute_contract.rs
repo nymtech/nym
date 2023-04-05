@@ -5,8 +5,8 @@ use crate::context::SigningClient;
 use clap::Parser;
 use cosmrs::AccountId;
 use log::{error, info};
-use serde_json::{json, Value};
 use nym_validator_client::nyxd::Coin;
+use serde_json::{json, Value};
 
 #[derive(Debug, Parser)]
 pub struct Args {

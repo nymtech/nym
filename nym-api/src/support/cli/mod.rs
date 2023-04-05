@@ -8,8 +8,8 @@ use clap::Parser;
 use lazy_static::lazy_static;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_config::{NymConfig, OptionalSet};
-use std::fs;
 use nym_validator_client::nyxd;
+use std::fs;
 
 lazy_static! {
     pub static ref PRETTY_BUILD_INFORMATION: String =

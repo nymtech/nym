@@ -8,10 +8,10 @@ use cosmwasm_std::Decimal;
 use nym_mixnet_contract_common::{IdentityKey, MixId, Percent};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
-use nym_wallet_types::app::AppEnv;
-use serde::{Deserialize, Serialize};
 use nym_validator_client::nyxd::traits::MixnetQueryClient;
 use nym_validator_client::nyxd::{tx, Coin, CosmosCoin, Gas, GasPrice};
+use nym_wallet_types::app::AppEnv;
+use serde::{Deserialize, Serialize};
 
 fn get_env_as_option(key: &str) -> Option<String> {
     match ::std::env::var(key) {

@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use ::nym_config_common::NymConfig;
+use futures::SinkExt;
 use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::error::ClientCoreStatusMessage;
-use futures::SinkExt;
 use tap::TapFallible;
 use tauri::Manager;
 

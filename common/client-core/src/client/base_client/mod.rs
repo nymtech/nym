@@ -24,13 +24,13 @@ use crate::config::{Config, DebugConfig, GatewayEndpointConfig};
 use crate::error::ClientCoreError;
 use crate::spawn_future;
 use futures::channel::mpsc;
+use log::{debug, info};
+use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::bandwidth::BandwidthController;
 use nym_gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
 };
-use log::{debug, info};
-use nym_crypto::asymmetric::{encryption, identity};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;

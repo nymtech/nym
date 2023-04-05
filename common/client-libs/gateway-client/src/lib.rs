@@ -3,9 +3,9 @@
 
 use crate::error::GatewayClientError;
 pub use client::GatewayClient;
+use log::warn;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_gateway_requests::BinaryResponse;
-use log::warn;
 pub use packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };

@@ -12,9 +12,9 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
+use nym_validator_client::nyxd;
 #[cfg(feature = "cpucycles")]
 use tracing::error;
-use nym_validator_client::nyxd;
 
 use super::version_check;
 

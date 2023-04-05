@@ -9,8 +9,8 @@ use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
-use std::net::IpAddr;
 use nym_validator_client::nyxd;
+use std::net::IpAddr;
 
 #[derive(Args, Clone)]
 pub(crate) struct Init {

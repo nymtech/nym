@@ -1,9 +1,9 @@
 use crate::currency::DecCoin;
 use crate::error::TypesError;
 use crate::gas::{Gas, GasInfo};
-use serde::{Deserialize, Serialize};
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::TxResponse;
+use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(

@@ -8,23 +8,25 @@ use crate::socks::{
     server::SphinxSocksServer,
 };
 
+use futures::channel::mpsc;
+use futures::StreamExt;
+use log::*;
 #[cfg(target_os = "android")]
 use nym_client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
 #[cfg(not(target_os = "android"))]
 use nym_client_core::client::base_client::non_wasm_helpers;
-use nym_client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState};
+use nym_client_core::client::base_client::{
+    BaseClientBuilder, ClientInput, ClientOutput, ClientState,
+};
 use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use futures::channel::mpsc;
-use futures::StreamExt;
 #[cfg(not(target_os = "android"))]
 use nym_gateway_client::bandwidth::BandwidthController;
-use log::*;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::{TaskClient, TaskManager};
-use std::error::Error;
 use nym_validator_client::nyxd::QueryNyxdClient;
 use nym_validator_client::Client;
+use std::error::Error;
 
 pub mod config;
 pub mod error;
@@ -77,8 +79,9 @@ impl NymClient {
         config: &Config,
     ) -> BandwidthController<Client<QueryNyxdClient>> {
         let details = nym_network_defaults::NymNetworkDetails::new_from_env();
-        let mut client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
-            .expect("failed to construct validator client config");
+        let mut client_config =
+            nym_validator_client::Config::try_from_nym_network_details(&details)
+                .expect("failed to construct validator client config");
         let nyxd_url = config
             .get_base()
             .get_validator_endpoints()

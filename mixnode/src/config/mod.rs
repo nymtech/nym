@@ -7,13 +7,13 @@ use nym_config::defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
 use nym_config::NymConfig;
+use nym_validator_client::nyxd;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
-use nym_validator_client::nyxd;
 
 pub mod persistence;
 mod template;

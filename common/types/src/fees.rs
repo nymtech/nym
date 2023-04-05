@@ -1,6 +1,6 @@
 use crate::currency::DecCoin;
-use serde::{Deserialize, Serialize};
 use nym_validator_client::nyxd::Fee;
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "generate-ts")]
 use ts_rs::{Dependency, TS};
@@ -52,8 +52,8 @@ impl TS for FeeDetails {
 // the types...
 #[cfg(feature = "generate-ts")]
 pub mod ts_type_helpers {
-    use serde::{Deserialize, Serialize};
     use nym_validator_client::nyxd::GasAdjustment;
+    use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
     #[ts(export_to = "ts-packages/types/src/types/rust/Fee.ts")]

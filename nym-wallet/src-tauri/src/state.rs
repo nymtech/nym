@@ -7,6 +7,11 @@ use itertools::Itertools;
 use log::warn;
 use nym_types::currency::{DecCoin, Denom, RegisteredCoins};
 use nym_types::fees::FeeDetails;
+use nym_validator_client::nyxd::cosmwasm_client::types::SimulateResponse;
+use nym_validator_client::nyxd::{
+    AccountId as CosmosAccountId, Coin, DirectSigningNyxdClient, Fee,
+};
+use nym_validator_client::Client;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config;
 use once_cell::sync::Lazy;
@@ -16,9 +21,6 @@ use std::time::Duration;
 use strum::IntoEnumIterator;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use url::Url;
-use nym_validator_client::nyxd::cosmwasm_client::types::SimulateResponse;
-use nym_validator_client::nyxd::{AccountId as CosmosAccountId, Coin, DirectSigningNyxdClient, Fee};
-use nym_validator_client::Client;
 
 // Some hardcoded metadata overrides
 static METADATA_OVERRIDES: Lazy<Vec<(Url, ValidatorMetadata)>> = Lazy::new(|| {

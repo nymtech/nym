@@ -62,11 +62,11 @@ pub(crate) mod tests {
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
     use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
+    use nym_validator_client::nyxd::AccountId;
     use rand::rngs::OsRng;
     use std::path::PathBuf;
     use std::str::FromStr;
     use url::Url;
-    use nym_validator_client::nyxd::AccountId;
 
     const TEST_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 

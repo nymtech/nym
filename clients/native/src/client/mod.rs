@@ -4,6 +4,8 @@
 use crate::client::config::Config;
 use crate::error::ClientError;
 use crate::websocket;
+use futures::channel::mpsc;
+use log::*;
 use nym_client_core::client::base_client::{
     non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
@@ -12,15 +14,13 @@ use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use futures::channel::mpsc;
 use nym_gateway_client::bandwidth::BandwidthController;
-use log::*;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
+use nym_validator_client::nyxd::QueryNyxdClient;
 use std::error::Error;
 use tokio::sync::watch::error::SendError;
-use nym_validator_client::nyxd::QueryNyxdClient;
 
 pub use nym_client_core::client::key_manager::KeyManager;
 pub use nym_sphinx::addressing::clients::Recipient;
@@ -60,8 +60,9 @@ impl SocketClient {
         config: &Config,
     ) -> BandwidthController<Client<QueryNyxdClient>> {
         let details = nym_network_defaults::NymNetworkDetails::new_from_env();
-        let mut client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
-            .expect("failed to construct validator client config");
+        let mut client_config =
+            nym_validator_client::Config::try_from_nym_network_details(&details)
+                .expect("failed to construct validator client config");
         let nyxd_url = config
             .get_base()
             .get_validator_endpoints()

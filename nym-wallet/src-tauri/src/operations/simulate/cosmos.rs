@@ -5,8 +5,8 @@ use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::state::WalletState;
 use nym_types::currency::DecCoin;
-use std::str::FromStr;
 use nym_validator_client::nyxd::{AccountId, MsgSend};
+use std::str::FromStr;
 
 #[tauri::command]
 pub async fn simulate_send(

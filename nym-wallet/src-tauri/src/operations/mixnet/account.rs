@@ -9,13 +9,13 @@ use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use nym_config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
 use nym_types::account::{Account, AccountEntry, Balance};
+use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
+use nym_validator_client::signing::AccountData;
+use nym_validator_client::{nyxd::DirectSigningNyxdClient, Client};
 use nym_wallet_types::network::Network as WalletNetwork;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 use url::Url;
-use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
-use nym_validator_client::signing::AccountData;
-use nym_validator_client::{nyxd::DirectSigningNyxdClient, Client};
 
 #[tauri::command]
 pub async fn connect_with_mnemonic(

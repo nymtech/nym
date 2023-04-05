@@ -4,7 +4,6 @@
 use super::authenticated::RequestHandlingError;
 use log::*;
 use nym_coconut_interface::Credential;
-use std::time::{Duration, SystemTime};
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 use nym_validator_client::{
     nyxd::{
@@ -14,6 +13,7 @@ use nym_validator_client::{
     },
     Client, CoconutApiClient,
 };
+use std::time::{Duration, SystemTime};
 
 const ONE_HOUR_SEC: u64 = 3600;
 const MAX_FEEGRANT_UNYM: u128 = 10000;

@@ -9,10 +9,10 @@ use crate::{
 use clap::Args;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_validator_client::nyxd;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use nym_validator_client::nyxd;
 
 #[derive(Args, Clone)]
 pub struct Init {

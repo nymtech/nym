@@ -7,11 +7,11 @@ use nym_network_defaults::{
     var_names::{MIXNET_CONTRACT_ADDRESS, NYM_API, NYXD, VESTING_CONTRACT_ADDRESS},
     NymNetworkDetails,
 };
-use tap::prelude::*;
 pub use nym_validator_client::nym_api::Client as NymApiClient;
 use nym_validator_client::nyxd::{
     self, AccountId, DirectSigningNyxdClient, NyxdClient, QueryNyxdClient,
 };
+use tap::prelude::*;
 
 pub mod errors;
 

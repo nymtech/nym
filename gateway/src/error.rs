@@ -1,11 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::ValidatorClientError;
 use std::io;
 use std::path::PathBuf;
 use thiserror::Error;
-use nym_validator_client::nyxd::AccountId;
-use nym_validator_client::ValidatorClientError;
 
 #[derive(Debug, Error)]
 pub(crate) enum GatewayError {

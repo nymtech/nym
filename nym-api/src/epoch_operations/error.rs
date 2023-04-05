@@ -3,10 +3,10 @@
 
 use crate::node_status_api::models::NymApiStorageError;
 use nym_mixnet_contract_common::{EpochState, MixId};
-use thiserror::Error;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::ValidatorClientError;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum RewardingError {

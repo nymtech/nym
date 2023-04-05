@@ -25,10 +25,6 @@ use nym_mixnet_contract_common::{
     CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment,
     MixId, RewardedSetNodeStatus,
 };
-use nym_vesting_contract_common::AccountVestingCoins;
-use serde::Deserialize;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
 use nym_validator_client::nyxd::{
@@ -44,8 +40,14 @@ use nym_validator_client::nyxd::{
     AccountId, Coin, DirectSigningNyxdClient, TendermintTime, VestingQueryClient,
 };
 use nym_validator_client::ValidatorClientError;
+use nym_vesting_contract_common::AccountVestingCoins;
+use serde::Deserialize;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
-pub(crate) struct Client(pub(crate) Arc<RwLock<nym_validator_client::Client<DirectSigningNyxdClient>>>);
+pub(crate) struct Client(
+    pub(crate) Arc<RwLock<nym_validator_client::Client<DirectSigningNyxdClient>>>,
+);
 
 impl Clone for Client {
     fn clone(&self) -> Self {

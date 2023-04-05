@@ -1,14 +1,14 @@
 use nym_contracts_common::signing::SigningAlgorithm;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_types::error::TypesError;
+use nym_validator_client::nym_api::error::NymAPIError;
+use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWalletError;
+use nym_validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 use nym_wallet_types::network::Network;
 use serde::{Serialize, Serializer};
 use std::io;
 use std::num::ParseIntError;
 use thiserror::Error;
-use nym_validator_client::nym_api::error::NymAPIError;
-use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWalletError;
-use nym_validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 
 #[derive(Error, Debug)]
 pub enum BackendError {

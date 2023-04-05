@@ -2,25 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::epoch_operations::error::RewardingError;
+use crate::epoch_operations::helpers::MixnodeWithPerformance;
 use crate::RewardedSetUpdater;
-use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::{EpochState, ExecuteMsg, Interval, MixId};
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct MixnodeToReward {
-    pub(crate) mix_id: MixId,
-
-    pub(crate) performance: Performance,
-}
-
-impl From<MixnodeToReward> for ExecuteMsg {
-    fn from(mix_reward: MixnodeToReward) -> Self {
-        ExecuteMsg::RewardMixnode {
-            mix_id: mix_reward.mix_id,
-            performance: mix_reward.performance,
-        }
-    }
-}
+use nym_mixnet_contract_common::{EpochState, Interval, MixId};
 
 impl RewardedSetUpdater {
     pub(super) async fn reward_current_rewarded_set(
@@ -83,7 +67,7 @@ impl RewardedSetUpdater {
         Ok(())
     }
 
-    async fn nodes_to_reward(&self, interval: Interval) -> Vec<MixnodeToReward> {
+    async fn nodes_to_reward(&self, interval: Interval) -> Vec<MixnodeWithPerformance> {
         // try to get current up to date view of the network bypassing the cache
         // in case the epochs were significantly shortened for the purposes of testing
         let rewarded_set: Vec<MixId> = match self.nyxd_client.get_rewarded_set_mixnodes().await {
@@ -100,22 +84,6 @@ impl RewardedSetUpdater {
             }
         };
 
-        let mut eligible_nodes = Vec::with_capacity(rewarded_set.len());
-        for mix_id in rewarded_set {
-            let uptime = self
-                .storage
-                .get_average_mixnode_uptime_in_the_last_24hrs(
-                    mix_id,
-                    interval.current_epoch_end_unix_timestamp(),
-                )
-                .await
-                .unwrap_or_default();
-            eligible_nodes.push(MixnodeToReward {
-                mix_id,
-                performance: uptime.into(),
-            })
-        }
-
-        eligible_nodes
+        self.load_nodes_performance(&interval, &rewarded_set).await
     }
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::error::CoconutError;
-use crate::epoch_operations::MixnodeToReward;
+use crate::epoch_operations::MixnodeWithPerformance;
 use crate::support::config::Config;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -238,13 +238,13 @@ impl Client {
 
     pub(crate) async fn send_rewarding_messages(
         &self,
-        nodes: &[MixnodeToReward],
+        nodes: &[MixnodeWithPerformance],
     ) -> Result<(), ValidatorClientError> {
         // for some reason, compiler complains if this is explicitly inline in code ¯\_(ツ)_/¯
         #[inline]
         #[allow(unused_variables)]
         fn generate_reward_messages(
-            eligible_mixnodes: &[MixnodeToReward],
+            eligible_mixnodes: &[MixnodeWithPerformance],
         ) -> Vec<(ExecuteMsg, Vec<Coin>)> {
             cfg_if::cfg_if! {
                 if #[cfg(feature = "no-reward")] {

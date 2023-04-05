@@ -5,13 +5,15 @@ use crate::config::template::config_template;
 use client_core::config::ClientCoreConfigTrait;
 use nym_config::{NymConfig, OptionalSet};
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::time::Duration;
 
 pub use client_core::config::Config as BaseConfig;
 pub use client_core::config::MISSING_VALUE;
 pub use client_core::config::{DebugConfig, GatewayEndpointConfig};
+
+pub const DEFAULT_STANDARD_LIST_UPDATE_INTERVAL: Duration = Duration::from_secs(30 * 60);
 
 pub mod old_config_v1_1_13;
 mod template;
@@ -21,6 +23,12 @@ mod template;
 pub struct Config {
     #[serde(flatten)]
     base: BaseConfig<Config>,
+
+    #[serde(default)]
+    pub network_requester: NetworkRequster,
+
+    #[serde(default)]
+    pub network_requester_debug: Debug,
 }
 
 impl NymConfig for Config {
@@ -28,7 +36,6 @@ impl NymConfig for Config {
         config_template()
     }
 
-    // TODO: merge base dir with `HostStore`.
     fn default_root_directory() -> PathBuf {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
@@ -62,16 +69,67 @@ impl ClientCoreConfigTrait for Config {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NetworkRequster {
+    /// Location of the file containing our allow.list
+    pub allowed_list_location: PathBuf,
+
+    /// Location of the file containing our unknown.list
+    pub unknown_list_location: PathBuf,
+}
+
+impl Default for NetworkRequster {
+    fn default() -> Self {
+        // same defaults as we had in <= v1.1.13
+        NetworkRequster {
+            allowed_list_location: <Config as NymConfig>::default_root_directory()
+                .join("allowed.list"),
+            unknown_list_location: <Config as NymConfig>::default_root_directory()
+                .join("unknown.list"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Debug {
+    /// Defines how often the standard allow list should get updated
+    #[serde(with = "humantime_serde")]
+    pub standard_list_update_interval: Duration,
+}
+
+impl Default for Debug {
+    fn default() -> Self {
+        Debug {
+            standard_list_update_interval: DEFAULT_STANDARD_LIST_UPDATE_INTERVAL,
+        }
+    }
+}
+
 impl Config {
     pub fn new<S: Into<String>>(id: S) -> Self {
-        Config {
+        let mut cfg = Config {
             base: BaseConfig::new(id),
-        }
+            ..Default::default()
+        };
+
+        cfg.network_requester.allowed_list_location = cfg.data_directory().join("allowed.list");
+        cfg.network_requester.unknown_list_location = cfg.data_directory().join("unknown.list");
+        cfg
     }
 
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
+    }
+
+    pub fn allow_list_file_location(&self) -> PathBuf {
+        self.network_requester.allowed_list_location.clone()
+    }
+
+    pub fn unknown_list_file_location(&self) -> PathBuf {
+        self.network_requester.unknown_list_location.clone()
     }
 
     pub fn get_base(&self) -> &BaseConfig<Self> {
@@ -106,7 +164,7 @@ impl Config {
     where
         F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
         T: FromStr,
-        <T as FromStr>::Err: Debug,
+        <T as FromStr>::Err: std::fmt::Debug,
     {
         self.base = self.base.with_optional_env(f, val, env_var);
         self

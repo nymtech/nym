@@ -1,22 +1,19 @@
+use super::host::Host;
+use crate::allowed_hosts::group::HostsGroup;
+use ipnetwork::IpNetwork;
 use std::{
-    collections::HashSet,
     fs::{self, File, OpenOptions},
     io::{self, BufRead, BufReader},
     net::IpAddr,
     path::{Path, PathBuf},
 };
 
-use super::host::Host;
-use ipnetwork::IpNetwork;
-
 /// A simple file-backed store for information about allowed / unknown hosts.
 /// It ignores any port information.
 #[derive(Debug)]
 pub(crate) struct HostsStore {
     pub(super) storefile: PathBuf,
-
-    pub(super) domains: HashSet<String>,
-    pub(super) ip_nets: Vec<IpNetwork>,
+    pub(super) data: HostsGroup,
 }
 
 impl HostsStore {
@@ -24,53 +21,71 @@ impl HostsStore {
     ///
     /// You can inject a list of standard hosts that you want to support, in addition to the ones
     /// in the user-defined storefile.
-    pub(crate) fn new(
-        base_dir: PathBuf,
-        filename: PathBuf,
-        standard_hosts: Option<Vec<Host>>,
-    ) -> HostsStore {
-        let storefile = Self::setup_storefile(base_dir, filename);
-        let mut hosts = Self::load_from_storefile(&storefile)
-            .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {storefile:?}"));
-
-        if standard_hosts.is_some() {
-            hosts.extend(standard_hosts.unwrap_or_default());
+    pub(crate) fn new<P: AsRef<Path>>(storefile: P) -> HostsStore {
+        let storefile = storefile.as_ref().to_path_buf();
+        if !storefile.is_file() {
+            // there's no error handling in here and I'm not going to be changing it right now.
+            panic!(
+                "the provided storefile {:?} is not a valid file!",
+                storefile
+            )
         }
 
-        let (domains, ip_nets): (Vec<_>, Vec<_>) =
-            hosts.into_iter().partition(|host| host.is_domain());
+        Self::setup_storefile(&storefile);
+        let hosts = Self::load_from_storefile(&storefile)
+            .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {storefile:?}"));
 
         HostsStore {
             storefile,
-            domains: domains.into_iter().map(Host::extract_domain).collect(),
-            ip_nets: ip_nets.into_iter().map(Host::extract_ipnetwork).collect(),
+            data: HostsGroup::new(hosts),
         }
+    }
+
+    pub(crate) fn try_reload(&mut self) -> io::Result<()> {
+        let hosts = Self::load_from_storefile(&self.storefile)?;
+        self.data = HostsGroup::new(hosts);
+        Ok(())
     }
 
     pub(crate) fn contains_domain(&self, host: &str) -> bool {
-        self.domains.contains(&host.to_string())
+        self.data.contains_domain(host)
     }
 
     pub(super) fn contains_ip_address(&self, address: IpAddr) -> bool {
-        for ip_net in &self.ip_nets {
-            if ip_net.contains(address) {
-                return true;
-            }
-        }
+        self.data.contains_ip_address(address)
+    }
 
-        false
+    #[allow(unused)]
+    pub(super) fn contains_ipnetwork(&self, network: IpNetwork) -> bool {
+        self.data.contains_ip_network(network)
+    }
+
+    #[allow(unused)]
+    pub(super) fn add_host<H: Into<Host>>(&mut self, host: H) {
+        match host.into() {
+            Host::Domain(domain) => self.add_domain(&domain),
+            Host::IpNetwork(ipnet) => self.add_ipnet(ipnet),
+        }
+    }
+
+    #[allow(unused)]
+    pub(super) fn add_ipnet(&mut self, network: IpNetwork) {
+        if !self.contains_ipnetwork(network) {
+            self.data.add_ipnet(network);
+            self.append_to_file(&network.to_string());
+        }
     }
 
     pub(super) fn add_ip(&mut self, ip: IpAddr) {
         if !self.contains_ip_address(ip) {
-            self.ip_nets.push(ip.into());
+            self.data.add_ipnet(ip);
             self.append_to_file(&ip.to_string());
         }
     }
 
     pub(super) fn add_domain(&mut self, domain: &str) {
         if !self.contains_domain(domain) {
-            self.domains.insert(domain.to_string());
+            self.data.add_domain(domain);
             self.append_to_file(domain);
         }
     }
@@ -93,25 +108,15 @@ impl HostsStore {
         HostsStore::append(&self.storefile, host);
     }
 
-    /// Returns the default base directory for the storefile.
-    ///
-    /// This is split out so we can easily inject our own base_dir for unit tests.
-    pub fn default_base_dir() -> PathBuf {
-        dirs::home_dir()
-            .expect("no home directory known for this OS")
-            .join(".nym")
-    }
-
-    fn setup_storefile(base_dir: PathBuf, filename: PathBuf) -> PathBuf {
-        let dirpath = base_dir.join("service-providers").join("network-requester");
-        fs::create_dir_all(&dirpath)
-            .unwrap_or_else(|_| panic!("could not create storage directory at {dirpath:?}"));
-        let storefile = dirpath.join(filename);
-        let exists = std::path::Path::new(&storefile).exists();
-        if !exists {
-            File::create(&storefile).unwrap();
+    fn setup_storefile(file: &PathBuf) {
+        if !file.exists() {
+            let parent_dir = file
+                .parent()
+                .expect("parent dir does not exist for {file:?}");
+            fs::create_dir_all(parent_dir)
+                .unwrap_or_else(|_| panic!("could not create storage directory at {parent_dir:?}"));
+            File::create(file).unwrap();
         }
-        storefile
     }
 
     /// Loads the storefile contents into memory.
@@ -134,22 +139,8 @@ mod constructor_tests {
 
     #[test]
     fn works_with_no_standard_hosts() {
-        let store = HostsStore::new(PathBuf::from("/tmp"), PathBuf::from("foomp.db"), None);
-        assert_eq!(store.domains.len(), 0);
-    }
-
-    #[test]
-    fn includes_standard_hosts_when_they_are_supplied() {
-        let store = HostsStore::new(
-            PathBuf::from("/tmp"),
-            PathBuf::from("foomp.db"),
-            Some(vec![
-                Host::from(String::from("google.com")),
-                Host::from(String::from("foomp.com")),
-            ]),
-        );
-        assert_eq!(store.domains.len(), 2);
-        assert!(store.contains_domain("google.com"));
-        assert!(store.contains_domain("foomp.com"));
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let store = HostsStore::new(temp_file);
+        assert_eq!(store.data.domains.len(), 0);
     }
 }

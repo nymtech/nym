@@ -11,17 +11,9 @@ use serde::Serialize;
 use tap::TapFallible;
 
 use nym_config::NymConfig;
-#[cfg(not(target_os = "android"))]
-#[cfg(not(target_arch = "wasm32"))]
 use nym_credential_storage::storage::Storage;
 use nym_crypto::asymmetric::{encryption, identity};
-#[cfg(target_arch = "wasm32")]
-use nym_gateway_client::wasm_mockups::Storage;
 use url::Url;
-
-#[cfg(target_os = "android")]
-#[cfg(not(target_arch = "wasm32"))]
-use nym_mobile_storage::Storage;
 
 use crate::client::key_manager::KeyManager;
 use crate::{

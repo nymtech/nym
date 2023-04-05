@@ -20,7 +20,7 @@ use nym_client_core::client::base_client::{
 };
 use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-#[cfg(not(target_os = "android"))]
+use nym_credential_storage::storage::Storage;
 use nym_gateway_client::bandwidth::BandwidthController;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::{TaskClient, TaskManager};
@@ -74,13 +74,10 @@ impl NymClient {
         }
     }
 
-    #[cfg(not(target_os = "android"))]
-    async fn create_bandwidth_controller(
+    async fn create_bandwidth_controller<St: Storage>(
         config: &Config,
-    ) -> BandwidthController<
-        Client<QueryNyxdClient>,
-        nym_credential_storage::persistent_storage::PersistentStorage,
-    > {
+        storage: St,
+    ) -> BandwidthController<Client<QueryNyxdClient>, St> {
         let details = nym_network_defaults::NymNetworkDetails::new_from_env();
         let mut client_config =
             nym_validator_client::Config::try_from_nym_network_details(&details)
@@ -99,11 +96,6 @@ impl NymClient {
         client_config = client_config.with_urls(nyxd_url, api_url);
         let client = nym_validator_client::Client::new_query(client_config)
             .expect("Could not construct query client");
-
-        let storage = nym_credential_storage::initialise_persistent_storage(
-            config.get_base().get_database_path(),
-        )
-        .await;
 
         BandwidthController::new(storage, client)
     }
@@ -224,7 +216,16 @@ impl NymClient {
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
-            Some(Self::create_bandwidth_controller(&self.config).await),
+            Some(
+                Self::create_bandwidth_controller(
+                    &self.config,
+                    nym_credential_storage::initialise_persistent_storage(
+                        self.config.get_base().get_database_path(),
+                    )
+                    .await,
+                )
+                .await,
+            ),
             non_wasm_helpers::setup_fs_reply_surb_backend(
                 Some(self.config.get_base().get_reply_surb_database_path()),
                 self.config.get_debug_settings(),
@@ -233,14 +234,16 @@ impl NymClient {
         );
 
         #[cfg(target_os = "android")]
-        let base_builder = BaseClientBuilder::<
-            _,
-            Client<QueryNyxdClient>,
-            nym_mobile_storage::EphemeralStorage,
-        >::new_from_base_config(
+        let base_builder = BaseClientBuilder::<_, Client<QueryNyxdClient>, _>::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
-            None,
+            Some(
+                Self::create_bandwidth_controller(
+                    &self.config,
+                    nym_credential_storage::initialise_ephemeral_storage(),
+                )
+                .await,
+            ),
             setup_empty_reply_surb_backend(self.config.get_debug_settings()),
         );
 

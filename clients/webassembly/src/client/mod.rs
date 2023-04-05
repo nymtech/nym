@@ -10,10 +10,9 @@ use nym_client_core::client::base_client::{
 };
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
+use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_gateway_client::bandwidth::BandwidthController;
-use nym_gateway_client::wasm_mockups::{
-    Client as FakeClient, DirectSigningNyxdClient, EphemeralStorage,
-};
+use nym_gateway_client::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;

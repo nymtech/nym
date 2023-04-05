@@ -6,18 +6,12 @@ use log::*;
 use nym_gateway_client::GatewayClient;
 use nym_sphinx::forwarding::packet::MixPacket;
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(target_os = "android")]
-use nym_mobile_storage::Storage;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(target_os = "android"))]
 use nym_credential_storage::storage::Storage;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 #[cfg(target_arch = "wasm32")]
-use nym_gateway_client::wasm_mockups::{DkgQueryClient, Storage};
+use nym_gateway_client::wasm_mockups::DkgQueryClient;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;

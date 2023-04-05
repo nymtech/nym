@@ -14,7 +14,6 @@ dashmap = "5.4.0"
 futures = "0.3"
 humantime-serde = "1.0"
 log = { workspace = true }
-nym-mobile-storage = { path = "../mobile-storage" }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

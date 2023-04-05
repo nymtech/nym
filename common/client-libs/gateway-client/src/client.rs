@@ -26,12 +26,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tungstenite::protocol::Message;
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(target_os = "android")]
-use mobile_storage::Storage;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(target_os = "android"))]
 use nym_credential_storage::storage::Storage;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
@@ -40,8 +34,6 @@ use tokio_tungstenite::connect_async;
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::DkgQueryClient;
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::Storage;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 #[cfg(target_arch = "wasm32")]

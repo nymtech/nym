@@ -3204,7 +3204,6 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-client",
  "nym-gateway-requests",
- "nym-mobile-storage",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
@@ -3421,7 +3420,6 @@ dependencies = [
 name = "nym-gateway-client"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "futures",
  "getrandom 0.2.8",
  "log",
@@ -3430,7 +3428,6 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
- "nym-mobile-storage",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -3493,14 +3490,6 @@ dependencies = [
  "serde_repr",
  "thiserror",
  "time",
-]
-
-[[package]]
-name = "nym-mobile-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "thiserror",
 ]
 
 [[package]]

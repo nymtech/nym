@@ -1,13 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::StorageError;
-#[cfg(target_os = "android")]
-#[cfg(not(target_arch = "wasm32"))]
-use mobile_storage::StorageError;
-#[cfg(not(target_os = "android"))]
-#[cfg(not(target_arch = "wasm32"))]
 use nym_credential_storage::error::StorageError;
 use nym_gateway_requests::registration::handshake::error::HandshakeError;
 use nym_validator_client::error::ValidatorClientError;

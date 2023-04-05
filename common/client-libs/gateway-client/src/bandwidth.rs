@@ -3,26 +3,8 @@
 
 use crate::error::GatewayClientError;
 
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::Storage;
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(target_os = "android"))]
-use nym_credential_storage::storage::Storage;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(target_os = "android")]
-use mobile_storage::Storage;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(target_os = "android")]
-use mobile_storage::StorageError;
-
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::StorageError;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(target_os = "android"))]
 use nym_credential_storage::error::StorageError;
+use nym_credential_storage::storage::Storage;
 
 use std::str::FromStr;
 use {

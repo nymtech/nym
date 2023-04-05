@@ -32,16 +32,10 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
-#[cfg(not(target_os = "android"))]
-#[cfg(not(target_arch = "wasm32"))]
 use nym_credential_storage::storage::Storage;
 
-#[cfg(target_os = "android")]
-#[cfg(not(target_arch = "wasm32"))]
-use nym_mobile_storage::Storage;
-
 #[cfg(target_arch = "wasm32")]
-use nym_gateway_client::wasm_mockups::{DirectSigningNyxdClient, Storage};
+use nym_gateway_client::wasm_mockups::DirectSigningNyxdClient;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer::Instant;
 #[cfg(target_arch = "wasm32")]

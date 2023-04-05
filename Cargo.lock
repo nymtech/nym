@@ -3236,7 +3236,6 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-client",
  "nym-gateway-requests",
- "nym-mobile-storage",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
@@ -3509,7 +3508,6 @@ dependencies = [
 name = "nym-gateway-client"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "futures",
  "getrandom 0.2.8",
  "log",
@@ -3518,7 +3516,6 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
- "nym-mobile-storage",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -3679,14 +3676,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
-]
-
-[[package]]
-name = "nym-mobile-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "thiserror",
 ]
 
 [[package]]
@@ -3885,7 +3874,6 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
- "nym-mobile-storage",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-pemstore",
@@ -3912,7 +3900,6 @@ dependencies = [
  "nym-config",
  "nym-credential-storage",
  "nym-gateway-client",
- "nym-mobile-storage",
  "nym-network-defaults",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",

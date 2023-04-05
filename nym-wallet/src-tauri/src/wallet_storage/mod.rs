@@ -143,13 +143,20 @@ pub(crate) fn store_login_with_multiple_accounts(
     hd_path: DerivationPath,
     id: LoginId,
     password: &UserPassword,
+    overwrite: bool,
 ) -> Result<(), BackendError> {
     // make sure the entire directory structure exists
     let store_dir = get_storage_directory()?;
     create_dir_all(&store_dir)?;
     let filepath = store_dir.join(WALLET_INFO_FILENAME);
 
-    store_login_with_multiple_accounts_at_file(&filepath, mnemonic, hd_path, id, password)
+    if overwrite {
+        store_login_with_multiple_accounts_at_file_overwrite(
+            &filepath, mnemonic, hd_path, id, password,
+        )
+    } else {
+        store_login_with_multiple_accounts_at_file(&filepath, mnemonic, hd_path, id, password)
+    }
 }
 
 fn store_login_with_multiple_accounts_at_file(
@@ -176,6 +183,29 @@ fn store_login_with_multiple_accounts_at_file(
     let new_encrypted_login = EncryptedLogin::encrypt(id, &new_login, password)?;
 
     stored_wallet.add_encrypted_login(new_encrypted_login)?;
+
+    write_to_file(filepath, &stored_wallet)
+}
+
+fn store_login_with_multiple_accounts_at_file_overwrite(
+    filepath: &Path,
+    mnemonic: Mnemonic,
+    hd_path: DerivationPath,
+    id: LoginId,
+    password: &UserPassword,
+) -> Result<(), BackendError> {
+    let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
+        Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
+        result => result?,
+    };
+
+    let mut new_accounts = MultipleAccounts::new();
+    new_accounts.add(DEFAULT_FIRST_ACCOUNT_NAME.into(), mnemonic, hd_path)?;
+    let new_login = StoredLogin::Multiple(new_accounts);
+    let new_encrypted_login = EncryptedLogin::encrypt(id, &new_login, password)?;
+
+    archive_wallet_file()?;
+    stored_wallet.replace_encrypted_login(new_encrypted_login)?;
 
     write_to_file(filepath, &stored_wallet)
 }

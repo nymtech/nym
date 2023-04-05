@@ -304,20 +304,19 @@ pub fn create_password(mnemonic: Mnemonic, password: UserPassword) -> Result<(),
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     // Currently we only support a single, default, login id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
-    wallet_storage::store_login_with_multiple_accounts(mnemonic, hd_path, login_id, &password)
+    wallet_storage::store_login_with_multiple_accounts(
+        mnemonic, hd_path, login_id, &password, false,
+    )
 }
 
 #[tauri::command]
 pub fn update_password(mnemonic: Mnemonic, password: UserPassword) -> Result<(), BackendError> {
-    if does_password_file_exist()? {
-        return Err(BackendError::WalletFileAlreadyExists);
-    }
     log::info!("Updating password");
 
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     // Currently we only support a single, default, login id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
-    wallet_storage::store_login_with_multiple_accounts(mnemonic, hd_path, login_id, &password)
+    wallet_storage::store_login_with_multiple_accounts(mnemonic, hd_path, login_id, &password, true)
 }
 
 #[tauri::command]

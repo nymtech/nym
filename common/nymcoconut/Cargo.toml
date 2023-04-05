@@ -1,5 +1,5 @@
 [package]
-name = "nymcoconut"
+name = "nym-coconut"
 version = "0.5.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>", "Ania Piotrowska <ania@nymtech.net>"]
 edition = "2021"

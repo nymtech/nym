@@ -96,7 +96,7 @@ mod test {
     use super::*;
     use crate::coconut::tests::tx_entry_fixture;
     use nym_config::defaults::VOUCHER_INFO;
-    use nymcoconut::{prepare_blind_sign, BlindSignRequest, Parameters};
+    use nym_coconut::{prepare_blind_sign, BlindSignRequest, Parameters};
     use rand_07::rngs::OsRng;
     use std::str::FromStr;
     use validator_client::nyxd::tx::Hash;

@@ -18,8 +18,8 @@ use nym_dkg::bte::{decrypt_share, setup};
 use nym_dkg::error::DkgError;
 use nym_dkg::{combine_shares, try_recover_verification_keys, Dealing, Threshold};
 use nym_pemstore::KeyPairPath;
-use nymcoconut::tests::helpers::transpose_matrix;
-use nymcoconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
+use nym_coconut::tests::helpers::transpose_matrix;
+use nym_coconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
 use std::collections::BTreeMap;
 use validator_client::nyxd::cosmwasm_client::logs::find_attribute;
 
@@ -311,7 +311,7 @@ pub(crate) mod tests {
     use nym_coconut_dkg_common::verification_key::ContractVKShare;
     use nym_contracts_common::dealings::ContractSafeBytes;
     use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
-    use nymcoconut::aggregate_verification_keys;
+    use nym_coconut::aggregate_verification_keys;
     use rand::rngs::OsRng;
     use rand::Rng;
     use std::collections::HashMap;

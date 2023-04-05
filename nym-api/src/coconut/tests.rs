@@ -22,8 +22,8 @@ use nym_credentials::coconut::params::{
 };
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
-use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
-use nymcoconut::{prepare_blind_sign, ttp_keygen, Base58, BlindedSignature, Parameters};
+use nym_coconut::tests::helpers::theta_from_keys_and_attributes;
+use nym_coconut::{prepare_blind_sign, ttp_keygen, Base58, BlindedSignature, Parameters};
 use validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };

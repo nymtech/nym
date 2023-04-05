@@ -42,7 +42,7 @@ pub enum CoconutError {
     ValidatorClientError(#[from] validator_client::ValidatorClientError),
 
     #[error("Coconut internal error - {0}")]
-    CoconutInternalError(#[from] nymcoconut::CoconutError),
+    CoconutInternalError(#[from] nym_coconut::CoconutError),
 
     #[error("Could not find a deposit event in the transaction provided")]
     DepositEventNotFound,

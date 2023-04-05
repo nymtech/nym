@@ -101,7 +101,7 @@ pub(crate) mod tests {
     use nym_coconut_dkg_common::types::InitialReplacementData;
     use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
     use nym_dkg::bte::{Params, PublicKeyWithProof};
-    use nymcoconut::{ttp_keygen, Parameters};
+    use nym_coconut::{ttp_keygen, Parameters};
     use rand::rngs::OsRng;
     use std::collections::HashMap;
     use std::path::PathBuf;

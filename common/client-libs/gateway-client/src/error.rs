@@ -3,7 +3,7 @@
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::StorageError;
-use gateway_requests::registration::handshake::error::HandshakeError;
+use nym_gateway_requests::registration::handshake::error::HandshakeError;
 #[cfg(target_os = "android")]
 #[cfg(not(target_arch = "wasm32"))]
 use mobile_storage::StorageError;

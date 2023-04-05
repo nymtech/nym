@@ -29,7 +29,7 @@ nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto" }
 gateway-client = { path = "../client-libs/gateway-client" }
 #gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
-gateway-requests = { path = "../../gateway/gateway-requests" }
+nym-gateway-requests = { path = "../../gateway/gateway-requests" }
 nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-pemstore = { path = "../pemstore" }

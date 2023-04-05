@@ -8,7 +8,7 @@ use crate::{
 };
 use futures::{SinkExt, StreamExt};
 use gateway_client::GatewayClient;
-use gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::registration::handshake::SharedKeys;
 use log::{debug, info, trace, warn};
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;

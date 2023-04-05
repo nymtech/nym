@@ -6,9 +6,9 @@ use crate::node::client_handling::websocket::message_receiver::MixMessageReceive
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::StreamExt;
-use gateway_requests::iv::IVConversionError;
-use gateway_requests::types::{BinaryRequest, ServerResponse};
-use gateway_requests::{ClientControlRequest, GatewayRequestsError};
+use nym_gateway_requests::iv::IVConversionError;
+use nym_gateway_requests::types::{BinaryRequest, ServerResponse};
+use nym_gateway_requests::{ClientControlRequest, GatewayRequestsError};
 use log::*;
 use nym_sphinx::forwarding::packet::MixPacket;
 use rand::{CryptoRng, Rng};
@@ -20,7 +20,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 
 use crate::node::client_handling::bandwidth::Bandwidth;
 use crate::node::client_handling::FREE_TESTNET_BANDWIDTH_VALUE;
-use gateway_requests::iv::IV;
+use nym_gateway_requests::iv::IV;
 use nym_task::TaskClient;
 
 #[derive(Debug, Error)]

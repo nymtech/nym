@@ -670,12 +670,12 @@ dependencies = [
  "dirs",
  "futures",
  "gateway-client",
- "gateway-requests",
  "gloo-timers",
  "humantime-serde",
  "log",
  "nym-config",
  "nym-crypto",
+ "nym-gateway-requests",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
@@ -1931,7 +1931,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
- "gateway-requests",
  "getrandom 0.2.8",
  "log",
  "mobile-storage",
@@ -1939,6 +1938,7 @@ dependencies = [
  "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
+ "nym-gateway-requests",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -1956,25 +1956,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-timer",
  "wasm-utils",
-]
-
-[[package]]
-name = "gateway-requests"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "futures",
- "log",
- "nym-coconut-interface",
- "nym-credentials",
- "nym-crypto",
- "nym-pemstore",
- "nym-sphinx",
- "rand 0.7.3",
- "serde",
- "serde_json",
- "thiserror",
- "tungstenite 0.13.0",
 ]
 
 [[package]]
@@ -3358,7 +3339,6 @@ dependencies = [
  "dirs",
  "futures",
  "gateway-client",
- "gateway-requests",
  "lazy_static",
  "log",
  "nym-bin-common",
@@ -3367,6 +3347,7 @@ dependencies = [
  "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
+ "nym-gateway-requests",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -3562,7 +3543,6 @@ dependencies = [
  "dirs",
  "dotenvy",
  "futures",
- "gateway-requests",
  "humantime-serde",
  "lazy_static",
  "log",
@@ -3574,6 +3554,7 @@ dependencies = [
  "nym-config",
  "nym-credentials",
  "nym-crypto",
+ "nym-gateway-requests",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -3594,6 +3575,25 @@ dependencies = [
  "tokio-tungstenite 0.14.0",
  "tokio-util",
  "url",
+]
+
+[[package]]
+name = "nym-gateway-requests"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "futures",
+ "log",
+ "nym-coconut-interface",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-pemstore",
+ "nym-sphinx",
+ "rand 0.7.3",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tungstenite 0.13.0",
 ]
 
 [[package]]
@@ -3813,10 +3813,10 @@ dependencies = [
  "client-core",
  "futures",
  "gateway-client",
- "gateway-requests",
  "log",
  "nym-bin-common",
  "nym-crypto",
+ "nym-gateway-requests",
  "nym-network-defaults",
  "nym-socks5-client-core",
  "nym-sphinx",
@@ -3863,7 +3863,6 @@ version = "1.1.13"
 dependencies = [
  "clap 4.1.11",
  "client-core",
- "gateway-requests",
  "lazy_static",
  "log",
  "mobile-storage",
@@ -3872,6 +3871,7 @@ dependencies = [
  "nym-config",
  "nym-credentials",
  "nym-crypto",
+ "nym-gateway-requests",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-pemstore",

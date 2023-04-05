@@ -7,7 +7,7 @@ use crate::{cleanup_socket_messages, try_decrypt_binary_message};
 use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::registration::handshake::SharedKeys;
 use log::*;
 use nym_task::TaskClient;
 use std::sync::Arc;

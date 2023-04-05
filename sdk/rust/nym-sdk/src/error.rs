@@ -42,6 +42,9 @@ pub enum Error {
     #[error("no gateway key set")]
     NoGatewayKeySet,
 
+    #[error("bad validator details: {0}")]
+    BadValidatorDetails(#[from] nym_validator_client::ValidatorClientError),
+
     #[error("socks5 configuration set: {}, but expected to be {}", set, !set)]
     Socks5Config { set: bool },
 

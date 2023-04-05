@@ -1,6 +1,7 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use std::{path::Path, sync::Arc};
+use url::Url;
 
 use nym_client_core::client::base_client::BaseClient;
 use nym_client_core::{
@@ -15,7 +16,6 @@ use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_credential_storage::initialise_ephemeral_storage;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::bandwidth::BandwidthController;
-use nym_network_defaults::NymNetworkDetails;
 
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
@@ -144,6 +144,9 @@ where
     /// connected to the mixnet.
     state: BuilderState,
 
+    /// Controller of bandwidth credentials that the mixnet client can use to connect
+    bandwidth_controller: BandwidthController<Client<QueryNyxdClient>, EphemeralStorage>,
+
     /// The storage backend for reply-SURBs
     reply_storage_backend: B,
 
@@ -156,11 +159,12 @@ where
     B: ReplyStorageBackend + Sync + Send + 'static,
 {
     /// Create a new mixnet client in a disconnected state. If no config options are supplied,
-    /// creates a new client with ephemeral keys stored in RAM, which will be discarded at
+    /// creates a new mainnet client with ephemeral keys stored in RAM, which will be discarded at
     /// application close.
     ///
-    /// Callers have the option of supplying futher parameters to store persistent identities at a
-    /// location on-disk, if desired.
+    /// Callers have the option of supplying further parameters to:
+    /// - store persistent identities at a location on-disk, if desired;
+    /// - use SOCKS5 mode
     async fn new(
         config: Option<Config>,
         socks5_config: Option<Socks5>,
@@ -172,6 +176,11 @@ where
     {
         let config = config.unwrap_or_default();
         let reply_surb_database_path = paths.as_ref().map(|p| p.reply_surb_database_path.clone());
+
+        let client_config =
+            nym_validator_client::Config::try_from_nym_network_details(&config.network_details)?;
+        let client = nym_validator_client::Client::new_query(client_config)?;
+        let bandwidth_controller = BandwidthController::new(initialise_ephemeral_storage(), client);
 
         // The reply storage backend is generic, and can be set by the caller/instantiator
         let reply_storage_backend = B::new(&config.debug_config, reply_surb_database_path)
@@ -223,8 +232,19 @@ where
             storage_paths: paths,
             state: BuilderState::New,
             reply_storage_backend,
+            bandwidth_controller,
             custom_topology_provider,
         })
+    }
+
+    fn get_api_endpoints(&self) -> Vec<Url> {
+        self.config
+            .network_details
+            .endpoints
+            .iter()
+            .filter_map(|details| details.api_url.as_ref())
+            .filter_map(|s| Url::parse(s).ok())
+            .collect()
     }
 
     /// Client keys are generated at client creation if none were found. The gateway shared
@@ -290,9 +310,10 @@ where
             .map(identity::PublicKey::from_base58_string)
             .transpose()?;
 
+        let api_endpoints = self.get_api_endpoints();
         let gateway_config = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
             &mut self.key_manager,
-            self.config.nym_api_endpoints.clone(),
+            api_endpoints,
             user_chosen_gateway,
             // TODO: this should probably be configurable with the config
             false,
@@ -379,6 +400,8 @@ where
             return Err(Error::NoGatewayKeySet);
         }
 
+        let api_endpoints = self.get_api_endpoints();
+
         // At this point we should be in a registered state, either at function entry or by the
         // above convenience logic.
         let BuilderState::Registered { gateway_endpoint_config } = self.state else {
@@ -388,22 +411,15 @@ where
         let nym_address =
             nym_client_core::init::get_client_address(&self.key_manager, &gateway_endpoint_config);
 
-        let network_details = NymNetworkDetails::new_mainnet();
-        let client_config =
-            nym_validator_client::Config::try_from_nym_network_details(&network_details).unwrap();
-        let client = nym_validator_client::Client::new_query(client_config)
-            .expect("Could not construct query client");
-        let bandwidth_controller = BandwidthController::new(initialise_ephemeral_storage(), client);
-
         let mut base_builder: BaseClientBuilder<'_, _, Client<QueryNyxdClient>, EphemeralStorage> =
             BaseClientBuilder::new(
                 &gateway_endpoint_config,
                 &self.config.debug_config,
                 self.key_manager.clone(),
-                Some(bandwidth_controller),
+                Some(self.bandwidth_controller),
                 self.reply_storage_backend,
                 CredentialsToggle::Disabled,
-                self.config.nym_api_endpoints.clone(),
+                api_endpoints,
             );
 
         if let Some(topology_provider) = self.custom_topology_provider {

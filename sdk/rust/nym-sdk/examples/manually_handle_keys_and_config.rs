@@ -6,9 +6,7 @@ async fn main() {
 
     let user_chosen_gateway_id = None;
 
-    let nyxd_endpoints = vec!["https://rpc.nymtech.net".parse().unwrap()];
-    let nym_api_endpoints = vec!["https://validator.nymtech.net/api/".parse().unwrap()];
-    let config = mixnet::Config::new(user_chosen_gateway_id, nyxd_endpoints, nym_api_endpoints);
+    let config = mixnet::Config::new(user_chosen_gateway_id, None);
 
     // Just some plain data to pretend we have some external storage that the application
     // implementer is using.

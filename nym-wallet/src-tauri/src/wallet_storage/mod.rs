@@ -162,6 +162,18 @@ pub(crate) fn save_login(
     }
 }
 
+fn get_new_encrypted_login(
+    mnemonic: Mnemonic,
+    hd_path: DerivationPath,
+    id: LoginId,
+    password: &UserPassword,
+) -> Result<EncryptedLogin, BackendError> {
+    let mut new_accounts = MultipleAccounts::new();
+    new_accounts.add(DEFAULT_FIRST_ACCOUNT_NAME.into(), mnemonic, hd_path)?;
+    let new_login = StoredLogin::Multiple(new_accounts);
+    EncryptedLogin::encrypt(id, &new_login, password)
+}
+
 fn store_login_with_multiple_accounts_at_file(
     filepath: &Path,
     mnemonic: Mnemonic,
@@ -180,12 +192,8 @@ fn store_login_with_multiple_accounts_at_file(
         return Err(BackendError::WalletDifferentPasswordDetected);
     }
 
-    let mut new_accounts = MultipleAccounts::new();
-    new_accounts.add(DEFAULT_FIRST_ACCOUNT_NAME.into(), mnemonic, hd_path)?;
-    let new_login = StoredLogin::Multiple(new_accounts);
-    let new_encrypted_login = EncryptedLogin::encrypt(id, &new_login, password)?;
-
-    stored_wallet.add_encrypted_login(new_encrypted_login)?;
+    let new_login = get_new_encrypted_login(mnemonic, hd_path, id, password)?;
+    stored_wallet.add_encrypted_login(new_login)?;
 
     write_to_file(filepath, &stored_wallet)
 }
@@ -202,13 +210,9 @@ fn store_login_with_multiple_accounts_at_file_overwrite(
         result => result?,
     };
 
-    let mut new_accounts = MultipleAccounts::new();
-    new_accounts.add(DEFAULT_FIRST_ACCOUNT_NAME.into(), mnemonic, hd_path)?;
-    let new_login = StoredLogin::Multiple(new_accounts);
-    let new_encrypted_login = EncryptedLogin::encrypt(id, &new_login, password)?;
-
     archive_wallet_file()?;
-    stored_wallet.replace_encrypted_login(new_encrypted_login)?;
+    let new_login = get_new_encrypted_login(mnemonic, hd_path, id, password)?;
+    stored_wallet.replace_encrypted_login(new_login)?;
 
     write_to_file(filepath, &stored_wallet)
 }

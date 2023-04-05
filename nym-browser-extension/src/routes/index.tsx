@@ -1,12 +1,12 @@
-import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Delegation, Balance, Home, Receive, Send, Settings, Login } from 'src/pages/';
 import { RegisterRoutes } from './register';
 
 export const AppRoutes = () => (
   <Router>
     <Routes>
-      {RegisterRoutes}
       <Route path="/" element={<Home />} />
+      <Route path="/register/*" element={<RegisterRoutes />} />
       <Route path="/login" element={<Login />} />
       <Route path="/balance" element={<Balance />} />
       <Route path="/delegation" element={<Delegation />} />

@@ -270,6 +270,7 @@ where
     ) -> Result<(), SurbWrappedPreparationError> {
         let msg = NymMessage::new_reply(message);
         let packet_size = self.optimal_packet_size(&msg);
+        debug!("Using {packet_size} packets for {msg}");
 
         let mut fragment = self
             .message_preparer
@@ -325,6 +326,7 @@ where
     pub(crate) fn split_reply_message(&mut self, message: Vec<u8>) -> Vec<Fragment> {
         let msg = NymMessage::new_reply(ReplyMessage::new_data_message(message));
         let packet_size = self.optimal_packet_size(&msg);
+        debug!("Using {packet_size} packets for {msg}");
 
         self.message_preparer
             .pad_and_split_message(msg, packet_size)
@@ -424,6 +426,7 @@ where
         let topology = self.get_topology(&topology_permit)?;
 
         let packet_size = self.optimal_packet_size(&message);
+        debug!("Using {packet_size} packets for {message}");
         let fragments = self
             .message_preparer
             .pad_and_split_message(message, packet_size);

@@ -220,6 +220,7 @@ where
         let (next_message, fragment_id) = match next_message {
             StreamMessage::Cover => {
                 let cover_traffic_packet_size = self.loop_cover_message_size();
+                trace!("the next loop cover message will be put in a {cover_traffic_packet_size} packet");
 
                 // TODO for way down the line: in very rare cases (during topology update) we might have
                 // to wait a really tiny bit before actually obtaining the permit hence messing with our

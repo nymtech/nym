@@ -61,7 +61,7 @@ $(eval $(call add_cargo_workspace,contracts,contracts,--target wasm32-unknown-un
 $(eval $(call add_cargo_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
 $(eval $(call add_cargo_workspace,wallet,nym-wallet,))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
-ifndef NYM_NO_MOBILE
+ifdef NYM_MOBILE
 $(eval $(call add_cargo_workspace,connect-mobile,nym-connect/mobile/src-tauri))
 endif
 

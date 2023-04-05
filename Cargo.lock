@@ -3259,12 +3259,14 @@ dependencies = [
  "clap 4.1.11",
  "clap_complete",
  "clap_complete_fig",
+ "filetime",
  "log",
  "pretty_env_logger",
  "semver 0.11.0",
  "serde",
  "serde_json",
  "vergen",
+ "walkdir",
 ]
 
 [[package]]

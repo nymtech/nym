@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::{ensure_config_version_compatibility, OverrideConfig};
+use crate::config::{Config, MAX_NUMBER_OF_CONFIGS_TO_KEEP};
 use crate::support::config::build_config;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
+use nym_config::NymConfig;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -113,7 +115,22 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
+fn prune_old_configs() {
+    let default_root_directory = Config::default_root_directory();
+    if let Err(err) = nym_bin_common::file_handling::keep_recently_accessed_dirs(
+        default_root_directory,
+        MAX_NUMBER_OF_CONFIGS_TO_KEEP,
+    ) {
+        eprintln!(
+            "Error encountered while pruning old configurations: {}",
+            err
+        );
+    }
+}
+
 pub async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync>> {
+    prune_old_configs();
+
     let id = args.id.clone();
     eprintln!("Starting gateway {id}...");
 

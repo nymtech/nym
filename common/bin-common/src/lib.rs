@@ -6,3 +6,4 @@ pub mod completions;
 pub mod logging;
 pub mod output_format;
 pub mod version_checker;
+pub mod file_handling;

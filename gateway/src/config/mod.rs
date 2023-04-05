@@ -29,6 +29,8 @@ const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
 
+pub const MAX_NUMBER_OF_CONFIGS_TO_KEEP: usize = 100_000;
+
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
 }

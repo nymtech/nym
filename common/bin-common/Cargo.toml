@@ -12,11 +12,13 @@ atty = "0.2"
 clap = { version = "4.0", features = ["derive"] }
 clap_complete = "4.0"
 clap_complete_fig = "4.0"
+filetime = "0.2.20"
 log = { workspace = true }
 pretty_env_logger = "0.4.0"
 semver = "0.11"
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
+walkdir = "2.3.3"
 
 [build-dependencies]
 vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc", "cargo"] }

@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_core::client::replies::reply_controller::requests::ReplyControllerSender;
-use client_core::client::{
+use nym_client_core::client::replies::reply_controller::requests::ReplyControllerSender;
+use nym_client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,

@@ -39,7 +39,7 @@ mod paths;
 mod socks5_client;
 
 pub use client::{DisconnectedMixnetClient, IncludedSurbs, MixnetClientBuilder};
-pub use client_core::{
+pub use nym_client_core::{
     client::{
         inbound_messages::InputMessage,
         replies::reply_storage::{fs_backend::Backend as ReplyStorage, Empty as EmptyReplyStorage},

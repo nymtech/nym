@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage"]}
+nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage"]}
 nym-crypto = { path = "../../../common/crypto" }
 nym-gateway-client = { path = "../../../common/client-libs/gateway-client" }
 nym-gateway-requests = { path = "../../../gateway/gateway-requests" }

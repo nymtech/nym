@@ -5,8 +5,8 @@ use crate::{
     error::{BackendError, Result},
     state::State,
 };
-use client_core::client::key_manager::KeyManager;
-use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_client_core::client::key_manager::KeyManager;
+use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_crypto::asymmetric::identity;
 
 pub async fn get_identity_key(

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use client_core::error::ClientCoreStatusMessage;
+use nym_client_core::error::ClientCoreStatusMessage;
 use nym_task::manager::TaskStatus;
 use tauri::async_runtime::RwLock;
 

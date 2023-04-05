@@ -621,45 +621,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "client-core"
-version = "1.1.13"
-dependencies = [
- "async-trait",
- "dashmap",
- "dirs",
- "futures",
- "gateway-client",
- "gateway-requests",
- "gloo-timers",
- "humantime-serde",
- "log",
- "nym-config",
- "nym-crypto",
- "nym-nonexhaustive-delayqueue",
- "nym-pemstore",
- "nym-sphinx",
- "nym-task",
- "nym-topology",
- "rand 0.7.3",
- "serde",
- "serde_json",
- "sqlx 0.6.3",
- "tap",
- "thiserror",
- "time",
- "tokio",
- "tokio-stream",
- "tokio-tungstenite",
- "tungstenite",
- "url",
- "validator-client",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-timer",
- "wasm-utils",
-]
-
-[[package]]
 name = "cocoa"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1776,58 +1737,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
 dependencies = [
  "byteorder",
-]
-
-[[package]]
-name = "gateway-client"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures",
- "gateway-requests",
- "getrandom 0.2.8",
- "log",
- "mobile-storage",
- "nym-coconut-interface",
- "nym-credential-storage",
- "nym-credentials",
- "nym-crypto",
- "nym-network-defaults",
- "nym-pemstore",
- "nym-sphinx",
- "nym-task",
- "rand 0.7.3",
- "serde",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tokio-tungstenite",
- "tungstenite",
- "url",
- "validator-client",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-timer",
- "wasm-utils",
-]
-
-[[package]]
-name = "gateway-requests"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "futures",
- "log",
- "nym-coconut-interface",
- "nym-credentials",
- "nym-crypto",
- "nym-pemstore",
- "nym-sphinx",
- "rand 0.7.3",
- "serde",
- "serde_json",
- "thiserror",
- "tungstenite",
 ]
 
 [[package]]
@@ -3049,14 +2958,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mobile-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "thiserror",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3258,6 +3159,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-client-core"
+version = "1.1.13"
+dependencies = [
+ "async-trait",
+ "dashmap",
+ "dirs",
+ "futures",
+ "gloo-timers",
+ "humantime-serde",
+ "log",
+ "nym-config",
+ "nym-crypto",
+ "nym-gateway-client",
+ "nym-gateway-requests",
+ "nym-nonexhaustive-delayqueue",
+ "nym-pemstore",
+ "nym-sphinx",
+ "nym-task",
+ "nym-topology",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "serde",
+ "serde_json",
+ "sqlx 0.6.3",
+ "tap",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "tungstenite",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-timer",
+ "wasm-utils",
+]
+
+[[package]]
 name = "nym-coconut"
 version = "0.5.0"
 dependencies = [
@@ -3329,7 +3269,6 @@ version = "1.1.12"
 dependencies = [
  "anyhow",
  "bip39",
- "client-core",
  "dirs",
  "eyre",
  "fern",
@@ -3339,6 +3278,7 @@ dependencies = [
  "log",
  "nym-api-requests",
  "nym-bin-common",
+ "nym-client-core",
  "nym-config",
  "nym-contracts-common",
  "nym-crypto",
@@ -3395,8 +3335,8 @@ dependencies = [
  "nym-api-requests",
  "nym-coconut-interface",
  "nym-crypto",
+ "nym-validator-client",
  "thiserror",
- "validator-client",
 ]
 
 [[package]]
@@ -3443,6 +3383,58 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-gateway-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "getrandom 0.2.8",
+ "log",
+ "nym-coconut-interface",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-gateway-requests",
+ "nym-mobile-storage",
+ "nym-network-defaults",
+ "nym-pemstore",
+ "nym-sphinx",
+ "nym-task",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "tungstenite",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-timer",
+ "wasm-utils",
+]
+
+[[package]]
+name = "nym-gateway-requests"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "futures",
+ "log",
+ "nym-coconut-interface",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-pemstore",
+ "nym-sphinx",
+ "rand 0.7.3",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tungstenite",
+]
+
+[[package]]
 name = "nym-group-contract-common"
 version = "0.1.0"
 dependencies = [
@@ -3466,6 +3458,14 @@ dependencies = [
  "serde_repr",
  "thiserror",
  "time",
+]
+
+[[package]]
+name = "nym-mobile-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "thiserror",
 ]
 
 [[package]]
@@ -3553,25 +3553,25 @@ dependencies = [
 name = "nym-socks5-client-core"
 version = "0.1.0"
 dependencies = [
- "client-core",
  "dirs",
  "futures",
- "gateway-client",
  "log",
+ "nym-client-core",
  "nym-config",
+ "nym-gateway-client",
  "nym-network-defaults",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",
  "nym-socks5-requests",
  "nym-sphinx",
  "nym-task",
+ "nym-validator-client",
  "pin-project",
  "rand 0.7.3",
  "serde",
  "tap",
  "thiserror",
  "tokio",
- "validator-client",
 ]
 
 [[package]]
@@ -3752,6 +3752,46 @@ dependencies = [
  "nym-sphinx-types",
  "rand 0.7.3",
  "thiserror",
+]
+
+[[package]]
+name = "nym-validator-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.13.1",
+ "bip39",
+ "colored 2.0.0",
+ "cosmrs",
+ "cosmwasm-std",
+ "cw3",
+ "cw4",
+ "eyre",
+ "flate2",
+ "futures",
+ "itertools",
+ "log",
+ "nym-api-requests",
+ "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
+ "nym-coconut-interface",
+ "nym-config",
+ "nym-contracts-common",
+ "nym-group-contract-common",
+ "nym-mixnet-contract-common",
+ "nym-multisig-contract-common",
+ "nym-network-defaults",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
+ "prost",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.9.9",
+ "thiserror",
+ "tokio",
+ "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -6570,46 +6610,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1674845326ee10d37ca60470760d4288a6f80f304007d92e5c53bab78c9cfd79"
 dependencies = [
  "getrandom 0.2.8",
-]
-
-[[package]]
-name = "validator-client"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.13.1",
- "bip39",
- "colored 2.0.0",
- "cosmrs",
- "cosmwasm-std",
- "cw3",
- "cw4",
- "eyre",
- "flate2",
- "futures",
- "itertools",
- "log",
- "nym-api-requests",
- "nym-coconut-bandwidth-contract-common",
- "nym-coconut-dkg-common",
- "nym-coconut-interface",
- "nym-config",
- "nym-contracts-common",
- "nym-group-contract-common",
- "nym-mixnet-contract-common",
- "nym-multisig-contract-common",
- "nym-network-defaults",
- "nym-vesting-contract",
- "nym-vesting-contract-common",
- "prost",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.9.9",
- "thiserror",
- "tokio",
- "url",
- "zeroize",
 ]
 
 [[package]]

@@ -1,4 +1,4 @@
-use client_core::error::ClientCoreError;
+use nym_client_core::error::ClientCoreError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ClientError {

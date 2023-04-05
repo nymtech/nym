@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_core::config::GatewayEndpointConfig;
+use nym_client_core::config::GatewayEndpointConfig;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]

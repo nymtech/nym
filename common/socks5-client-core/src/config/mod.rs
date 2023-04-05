@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-pub use client_core::config::Config as BaseConfig;
-pub use client_core::config::MISSING_VALUE;
-use client_core::config::{ClientCoreConfigTrait, DebugConfig};
+pub use nym_client_core::config::Config as BaseConfig;
+pub use nym_client_core::config::MISSING_VALUE;
+use nym_client_core::config::{ClientCoreConfigTrait, DebugConfig};
 use nym_config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
 use nym_config::{NymConfig, OptionalSet};
 use nym_service_providers_common::interface::ProviderInterfaceVersion;
@@ -64,7 +64,7 @@ impl NymConfig for Config {
 }
 
 impl ClientCoreConfigTrait for Config {
-    fn get_gateway_endpoint(&self) -> &client_core::config::GatewayEndpointConfig {
+    fn get_gateway_endpoint(&self) -> &nym_client_core::config::GatewayEndpointConfig {
         self.base.get_gateway_endpoint()
     }
 }

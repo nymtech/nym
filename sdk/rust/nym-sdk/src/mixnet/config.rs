@@ -1,4 +1,4 @@
-use client_core::config::DebugConfig;
+use nym_client_core::config::DebugConfig;
 use nym_network_defaults::mainnet;
 use url::Url;
 

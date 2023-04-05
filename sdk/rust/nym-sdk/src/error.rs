@@ -16,7 +16,7 @@ pub enum Error {
     Ed25519RecoveryError(#[from] nym_crypto::asymmetric::identity::Ed25519RecoveryError),
 
     #[error(transparent)]
-    ClientCoreError(#[from] client_core::error::ClientCoreError),
+    ClientCoreError(#[from] nym_client_core::error::ClientCoreError),
 
     #[error("key file encountered that we don't want to overwrite: {0}")]
     DontOverwrite(PathBuf),

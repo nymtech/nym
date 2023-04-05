@@ -4,7 +4,7 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCodeV4, ResponseCodeV5, SocksProxyError};
 use super::{SocksVersion, RESERVED, SOCKS4_VERSION, SOCKS5_VERSION};
-use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
+use nym_client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;

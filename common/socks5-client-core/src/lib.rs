@@ -9,12 +9,12 @@ use crate::socks::{
 };
 
 #[cfg(target_os = "android")]
-use client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
+use nym_client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
 #[cfg(not(target_os = "android"))]
-use client_core::client::base_client::non_wasm_helpers;
-use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState};
-use client_core::client::key_manager::KeyManager;
-use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_client_core::client::base_client::non_wasm_helpers;
+use nym_client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState};
+use nym_client_core::client::key_manager::KeyManager;
+use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use futures::StreamExt;
 #[cfg(not(target_os = "android"))]

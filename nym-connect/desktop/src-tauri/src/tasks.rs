@@ -1,4 +1,4 @@
-use client_core::{
+use nym_client_core::{
     config::{ClientCoreConfigTrait, GatewayEndpointConfig},
     error::ClientCoreStatusMessage,
 };

@@ -1,4 +1,4 @@
-use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
@@ -105,8 +105,8 @@ impl From<StoragePaths> for ClientKeyPathfinder {
     }
 }
 
-impl<T> From<&client_core::config::Config<T>> for StoragePaths {
-    fn from(value: &client_core::config::Config<T>) -> Self {
+impl<T> From<&nym_client_core::config::Config<T>> for StoragePaths {
+    fn from(value: &nym_client_core::config::Config<T>) -> Self {
         Self {
             operating_mode: KeyMode::Keep,
             private_identity: value.get_private_identity_key_file(),

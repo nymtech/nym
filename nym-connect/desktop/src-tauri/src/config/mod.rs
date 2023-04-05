@@ -2,7 +2,7 @@ use crate::{
     error::{BackendError, Result},
     state::State,
 };
-use client_core::config::Config as BaseConfig;
+use nym_client_core::config::Config as BaseConfig;
 use nym_config_common::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::config::{Config as Socks5Config, Socks5};
@@ -138,7 +138,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let gateway = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
+    let gateway = nym_client_core::init::setup_gateway_from_config::<Socks5Config, _>(
         register_gateway,
         Some(chosen_gateway_id),
         config.get_base(),
@@ -155,7 +155,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 
     print_saved_config(&config);
 
-    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
+    let address = nym_client_core::init::get_client_address_from_stored_keys(config.get_base())?;
     log::info!("The address of this client is: {}", address);
     Ok(())
 }

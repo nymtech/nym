@@ -4,14 +4,14 @@
 use crate::client::config::Config;
 use crate::error::ClientError;
 use crate::websocket;
-use client_core::client::base_client::{
+use nym_client_core::client::base_client::{
     non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
-use client_core::client::inbound_messages::InputMessage;
-use client_core::client::received_buffer::{
+use nym_client_core::client::inbound_messages::InputMessage;
+use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
-use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use nym_gateway_client::bandwidth::BandwidthController;
 use log::*;
@@ -22,7 +22,7 @@ use std::error::Error;
 use tokio::sync::watch::error::SendError;
 use nym_validator_client::nyxd::QueryNyxdClient;
 
-pub use client_core::client::key_manager::KeyManager;
+pub use nym_client_core::client::key_manager::KeyManager;
 pub use nym_sphinx::addressing::clients::Recipient;
 pub use nym_sphinx::receiver::ReconstructedMessage;
 use nym_validator_client::Client;

@@ -2,8 +2,8 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use std::{path::Path, sync::Arc};
 
-use client_core::client::base_client::BaseClient;
-use client_core::{
+use nym_client_core::client::base_client::BaseClient;
+use nym_client_core::{
     client::{
         base_client::{BaseClientBuilder, CredentialsToggle},
         key_manager::KeyManager,
@@ -200,7 +200,7 @@ where
                     assert!(!(path_finder.any_file_exists() && paths.operating_mode.is_keep()));
 
                     // Create new keys and write to storage
-                    let key_manager = client_core::init::new_client_keys();
+                    let key_manager = nym_client_core::init::new_client_keys();
                     // WARN: this will overwrite!
                     key_manager.store_keys(&path_finder)?;
                     key_manager
@@ -209,7 +209,7 @@ where
         } else {
             // Ephemeral keys that we only store in memory
             log::debug!("Creating new ephemeral keys");
-            client_core::init::new_client_keys()
+            nym_client_core::init::new_client_keys()
         };
 
         Ok(DisconnectedMixnetClient {
@@ -286,7 +286,7 @@ where
             .map(identity::PublicKey::from_base58_string)
             .transpose()?;
 
-        let gateway_config = client_core::init::register_with_gateway(
+        let gateway_config = nym_client_core::init::register_with_gateway(
             &mut self.key_manager,
             self.config.nym_api_endpoints.clone(),
             user_chosen_gateway,
@@ -382,7 +382,7 @@ where
         };
 
         let nym_address =
-            client_core::init::get_client_address(&self.key_manager, &gateway_endpoint_config);
+            nym_client_core::init::get_client_address(&self.key_manager, &gateway_endpoint_config);
 
         // TODO: we currently don't support having a bandwidth controller
         let bandwidth_controller = None;

@@ -4,11 +4,11 @@
 use self::config::Config;
 use crate::client::helpers::InputSender;
 use crate::client::response_pusher::ResponsePusher;
-use client_core::client::base_client::{
+use nym_client_core::client::base_client::{
     BaseClientBuilder, ClientInput, ClientOutput, CredentialsToggle,
 };
-use client_core::client::replies::reply_storage::browser_backend;
-use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
+use nym_client_core::client::replies::reply_storage::browser_backend;
+use nym_client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
 use nym_gateway_client::bandwidth::BandwidthController;
 use nym_gateway_client::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use js_sys::Promise;

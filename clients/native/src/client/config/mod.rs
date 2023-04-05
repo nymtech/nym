@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::config_template;
-use client_core::config::ClientCoreConfigTrait;
+use nym_client_core::config::ClientCoreConfigTrait;
 use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nym_config::{NymConfig, OptionalSet};
 use serde::{Deserialize, Serialize};
@@ -11,9 +11,9 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 use std::str::FromStr;
 
-pub use client_core::config::Config as BaseConfig;
-pub use client_core::config::MISSING_VALUE;
-pub use client_core::config::{DebugConfig, GatewayEndpointConfig};
+pub use nym_client_core::config::Config as BaseConfig;
+pub use nym_client_core::config::MISSING_VALUE;
+pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
 
 pub mod old_config_v1_1_13;
 mod template;
@@ -81,7 +81,7 @@ impl NymConfig for Config {
 }
 
 impl ClientCoreConfigTrait for Config {
-    fn get_gateway_endpoint(&self) -> &client_core::config::GatewayEndpointConfig {
+    fn get_gateway_endpoint(&self) -> &nym_client_core::config::GatewayEndpointConfig {
         self.base.get_gateway_endpoint()
     }
 }

@@ -20,7 +20,7 @@ url = "2.2"
 
 # internal
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
-client-core = { path = "../../common/client-core", features = ["fs-surb-storage"] }
+nym-client-core = { path = "../../common/client-core", features = ["fs-surb-storage"] }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-config = { path = "../../common/config" }
 nym-mobile-storage = { path = "../../common/mobile-storage", optional = true }

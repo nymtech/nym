@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use ::nym_config_common::NymConfig;
-use client_core::error::ClientCoreStatusMessage;
+use nym_client_core::error::ClientCoreStatusMessage;
 use futures::SinkExt;
 use tap::TapFallible;
 use tauri::Manager;

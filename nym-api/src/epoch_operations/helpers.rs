@@ -1,7 +1,26 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::epoch_operations::RewardedSetUpdater;
 use cosmwasm_std::{Decimal, Fraction};
+use nym_mixnet_contract_common::reward_params::Performance;
+use nym_mixnet_contract_common::{ExecuteMsg, Interval, MixId};
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct MixnodeWithPerformance {
+    pub(crate) mix_id: MixId,
+
+    pub(crate) performance: Performance,
+}
+
+impl From<MixnodeWithPerformance> for ExecuteMsg {
+    fn from(mix_reward: MixnodeWithPerformance) -> Self {
+        ExecuteMsg::RewardMixnode {
+            mix_id: mix_reward.mix_id,
+            performance: mix_reward.performance,
+        }
+    }
+}
 
 pub(super) fn stake_to_f64(stake: Decimal) -> f64 {
     let max = f64::MAX.round() as u128;
@@ -14,6 +33,40 @@ pub(super) fn stake_to_f64(stake: Decimal) -> f64 {
         (num / den) as f64
     } else {
         (num as f64) / (den as f64)
+    }
+}
+
+impl RewardedSetUpdater {
+    pub(crate) async fn load_performance(
+        &self,
+        interval: &Interval,
+        mix_id: MixId,
+    ) -> MixnodeWithPerformance {
+        let uptime = self
+            .storage
+            .get_average_mixnode_uptime_in_the_last_24hrs(
+                mix_id,
+                interval.current_epoch_end_unix_timestamp(),
+            )
+            .await
+            .unwrap_or_default();
+
+        MixnodeWithPerformance {
+            mix_id,
+            performance: uptime.into(),
+        }
+    }
+
+    pub(crate) async fn load_nodes_performance(
+        &self,
+        interval: &Interval,
+        nodes: &[MixId],
+    ) -> Vec<MixnodeWithPerformance> {
+        let mut with_performance = Vec::with_capacity(nodes.len());
+        for mix_id in nodes {
+            with_performance.push(self.load_performance(interval, *mix_id).await)
+        }
+        with_performance
     }
 }
 

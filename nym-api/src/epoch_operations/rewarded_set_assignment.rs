@@ -4,17 +4,36 @@
 use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::helpers::stake_to_f64;
 use crate::RewardedSetUpdater;
+use cosmwasm_std::Decimal;
 use nym_mixnet_contract_common::families::FamilyHead;
-use nym_mixnet_contract_common::{EpochState, IdentityKey, Layer, LayerAssignment, MixNodeDetails};
+use nym_mixnet_contract_common::reward_params::Performance;
+use nym_mixnet_contract_common::{
+    EpochState, IdentityKey, Interval, Layer, LayerAssignment, MixId, MixNodeDetails,
+};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
+
+#[derive(Debug, Clone)]
+struct MixnodeWithStakeAndPerformance {
+    mix_id: MixId,
+    identity: IdentityKey,
+    total_stake: Decimal,
+    performance: Performance,
+}
+
+impl MixnodeWithStakeAndPerformance {
+    fn to_selection_weight(&self) -> f64 {
+        let scaled_stake = self.total_stake * self.performance;
+        stake_to_f64(scaled_stake)
+    }
+}
 
 impl RewardedSetUpdater {
     // Needs to run for active and reserve sets separatley, as it does not preserve order
     async fn determine_layers(
         &self,
-        set: &[MixNodeDetails],
+        set: &[MixnodeWithStakeAndPerformance],
     ) -> Result<Vec<LayerAssignment>, RewardingError> {
         let mut assignments = Vec::with_capacity(set.len());
         let target_layer_count = set.len() / 3;
@@ -30,11 +49,11 @@ impl RewardedSetUpdater {
         let mut families = HashMap::new();
 
         for node in set.iter() {
-            if let Some(fh) = mix_to_family.get(node.bond_information.identity()) {
+            if let Some(fh) = mix_to_family.get(&node.identity) {
                 let family: &mut Vec<u32> = families.entry(fh.identity()).or_default();
-                family.push(node.mix_id())
+                family.push(node.mix_id)
             } else {
-                regular_nodes.push(node.mix_id())
+                regular_nodes.push(node.mix_id)
             }
         }
 
@@ -82,9 +101,9 @@ impl RewardedSetUpdater {
 
     fn determine_rewarded_set(
         &self,
-        mixnodes: &[MixNodeDetails],
+        mixnodes: Vec<MixnodeWithStakeAndPerformance>,
         nodes_to_select: u32,
-    ) -> Result<Vec<MixNodeDetails>, RewardingError> {
+    ) -> Result<Vec<MixnodeWithStakeAndPerformance>, RewardingError> {
         if mixnodes.is_empty() {
             return Ok(Vec::new());
         }
@@ -93,10 +112,10 @@ impl RewardedSetUpdater {
 
         // generate list of mixnodes and their relatively weight (by total stake)
         let choices = mixnodes
-            .iter()
+            .into_iter()
             .map(|mix| {
-                let total_stake = stake_to_f64(mix.total_stake());
-                (mix.to_owned(), total_stake)
+                let weight = mix.to_selection_weight();
+                (mix, weight)
             })
             .collect::<Vec<_>>();
 
@@ -107,20 +126,45 @@ impl RewardedSetUpdater {
         // - we have more than u32::MAX values (which is incredibly unrealistic to have 4B mixnodes bonded... literally every other person on the planet would need one)
         Ok(choices
             .choose_multiple_weighted(&mut rng, nodes_to_select as usize, |item| item.1)?
-            .map(|(mix, _weight)| mix.to_owned())
+            .map(|(mix, _weight)| mix.clone())
             .collect())
+    }
+
+    async fn attach_performance(
+        &self,
+        interval: Interval,
+        mixnodes: &[MixNodeDetails],
+    ) -> Vec<MixnodeWithStakeAndPerformance> {
+        let mut with_performance = Vec::with_capacity(mixnodes.len());
+        for mix in mixnodes {
+            with_performance.push(MixnodeWithStakeAndPerformance {
+                mix_id: mix.mix_id(),
+                identity: mix.bond_information.identity().to_owned(),
+                total_stake: mix.total_stake(),
+                performance: self
+                    .load_performance(&interval, mix.mix_id())
+                    .await
+                    .performance,
+            })
+        }
+        with_performance
     }
 
     pub(super) async fn update_rewarded_set_and_advance_epoch(
         &self,
+        current_interval: Interval,
         all_mixnodes: &[MixNodeDetails],
     ) -> Result<(), RewardingError> {
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
         match epoch_status.state {
             EpochState::AdvancingEpoch => {
                 log::info!("Advancing epoch and updating the rewarded set...");
+                let nodes_with_performance = self
+                    .attach_performance(current_interval, all_mixnodes)
+                    .await;
+
                 if let Err(err) = self
-                    ._update_rewarded_set_and_advance_epoch(all_mixnodes)
+                    ._update_rewarded_set_and_advance_epoch(nodes_with_performance)
                     .await
                 {
                     log::error!("FAILED to advance the current epoch... - {err}");
@@ -143,7 +187,7 @@ impl RewardedSetUpdater {
 
     async fn _update_rewarded_set_and_advance_epoch(
         &self,
-        all_mixnodes: &[MixNodeDetails],
+        all_mixnodes: Vec<MixnodeWithStakeAndPerformance>,
     ) -> Result<(), RewardingError> {
         // we grab rewarding parameters here as they might have gotten updated when performing epoch actions
         let rewarding_parameters = self.nyxd_client.get_current_rewarding_parameters().await?;

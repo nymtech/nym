@@ -4,10 +4,10 @@
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::StorageError;
 use gateway_requests::registration::handshake::error::HandshakeError;
-#[cfg(feature = "mobile")]
+#[cfg(target_os = "android")]
 #[cfg(not(target_arch = "wasm32"))]
 use mobile_storage::StorageError;
-#[cfg(not(feature = "mobile"))]
+#[cfg(not(target_os = "android"))]
 #[cfg(not(target_arch = "wasm32"))]
 use nym_credential_storage::error::StorageError;
 use std::io;

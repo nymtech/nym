@@ -1,0 +1,10 @@
+[package]
+name = "nym-service-provider-directory-common"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+serde = { workspace = true, default-features = false, features = ["derive"] }

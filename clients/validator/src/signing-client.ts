@@ -40,7 +40,7 @@ import {
   RewardingParams,
   UnbondedMixnodeResponse,
   VestingAccountInfo,
-  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode
+  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode, DelegationBlock
 } from '@nymproject/types';
 import NymApiQuerier from './nym-api-querier';
 
@@ -595,6 +595,14 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   getAllDelegations(vestingContractAddress: string): Promise<Delegations> {
     return this.nyxdQuerier.getAllDelegations(vestingContractAddress);
+  }
+
+  getDelegation(vestingContractAddress: string, vestingAccountAddress: string, mix_id: number): Promise<DelegationBlock> {
+    return this.nyxdQuerier.getDelegation(vestingContractAddress, vestingAccountAddress, mix_id);
+  }
+
+  getTotalDelegationAmount(vestingContractAddress: string, vestingAccountAddress: string, mix_id: number, block_timestamp_sec: number): Promise<Coin> {
+    return this.nyxdQuerier.getTotalDelegationAmount(vestingContractAddress, vestingAccountAddress, mix_id, block_timestamp_sec);
   }
 
   getCurrentVestingPeriod(vestingContractAddress: string, address: string): Promise<Period> {

@@ -138,7 +138,10 @@ fn store_login_at_file(
     write_to_file(filepath, &stored_wallet)
 }
 
-pub(crate) fn store_login_with_multiple_accounts(
+/// Store the login with multiple accounts support
+///
+/// Set `overwrite` to true to overwrite the wallet file in case of password update
+pub(crate) fn save_login(
     mnemonic: Mnemonic,
     hd_path: DerivationPath,
     id: LoginId,

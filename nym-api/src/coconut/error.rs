@@ -12,7 +12,7 @@ use nym_crypto::asymmetric::{
     identity::{Ed25519RecoveryError, SignatureError},
 };
 use nym_dkg::error::DkgError;
-use validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::error::NyxdError;
 
 use crate::node_status_api::models::NymApiStorageError;
 
@@ -39,7 +39,7 @@ pub enum CoconutError {
     NyxdError(#[from] NyxdError),
 
     #[error("Validator client error - {0}")]
-    ValidatorClientError(#[from] validator_client::ValidatorClientError),
+    ValidatorClientError(#[from] nym_validator_client::ValidatorClientError),
 
     #[error("Coconut internal error - {0}")]
     CoconutInternalError(#[from] nym_coconut::CoconutError),

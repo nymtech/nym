@@ -19,7 +19,7 @@ use std::ffi::OsString;
 use std::fs::{self, create_dir_all, OpenOptions};
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
-use validator_client::nyxd::bip32::DerivationPath;
+use nym_validator_client::nyxd::bip32::DerivationPath;
 
 #[cfg(test)]
 use self::account_data::MnemonicAccount;

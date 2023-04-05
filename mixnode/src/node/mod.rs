@@ -233,13 +233,13 @@ impl MixNode {
         atomic_verloc_results
     }
 
-    fn random_api_client(&self) -> validator_client::NymApiClient {
+    fn random_api_client(&self) -> nym_validator_client::NymApiClient {
         let endpoints = self.config.get_nym_api_endpoints();
         let nym_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
 
-        validator_client::NymApiClient::new(nym_api.clone())
+        nym_validator_client::NymApiClient::new(nym_api.clone())
     }
 
     // TODO: ask DH whether this function still makes sense in ^0.10

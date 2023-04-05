@@ -44,7 +44,7 @@ use tap::TapFallible;
 use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 #[cfg(target_arch = "wasm32")]
 use gateway_client::wasm_mockups::DkgQueryClient;

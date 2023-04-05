@@ -11,7 +11,7 @@ use serde::Serialize;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::helpers::best_effort_small_dec_to_f64;
-use validator_client::models::MixNodeBondAnnotated;
+use nym_validator_client::models::MixNodeBondAnnotated;
 
 use super::utils::family_numerical_id;
 use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};

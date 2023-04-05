@@ -34,10 +34,10 @@ nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-pemstore = { path = "../pemstore" }
 nym-topology = { path = "../topology" }
-validator-client = { path = "../client-libs/validator-client", default-features = false }
+nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 nym-task = { path = "../task" }
 
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.validator-client]
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
 path = "../client-libs/validator-client"
 features = ["nyxd-client"]
 

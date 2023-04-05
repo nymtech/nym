@@ -10,8 +10,8 @@ use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_wallet_types::app::AppEnv;
 use serde::{Deserialize, Serialize};
-use validator_client::nyxd::traits::MixnetQueryClient;
-use validator_client::nyxd::{tx, Coin, CosmosCoin, Gas, GasPrice};
+use nym_validator_client::nyxd::traits::MixnetQueryClient;
+use nym_validator_client::nyxd::{tx, Coin, CosmosCoin, Gas, GasPrice};
 
 fn get_env_as_option(key: &str) -> Option<String> {
     match ::std::env::var(key) {

@@ -10,7 +10,7 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::construct_family_join_permit;
 use nym_mixnet_contract_common::families::FamilyHead;
-use validator_client::nyxd::traits::MixnetQueryClient;
+use nym_validator_client::nyxd::traits::MixnetQueryClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {

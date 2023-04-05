@@ -13,7 +13,7 @@ use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use validator_client::nyxd::{self, AccountId};
+use nym_validator_client::nyxd::{self, AccountId};
 
 pub(crate) mod init;
 pub(crate) mod node_details;

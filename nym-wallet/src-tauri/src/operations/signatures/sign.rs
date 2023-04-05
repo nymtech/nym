@@ -7,7 +7,7 @@ use k256::ecdsa::signature::Verifier;
 use serde::Serialize;
 use serde_json::json;
 use std::str::FromStr;
-use validator_client::signing::signer::OfflineSigner;
+use nym_validator_client::signing::signer::OfflineSigner;
 
 #[derive(Debug, Serialize)]
 pub struct SignatureOutputJson {

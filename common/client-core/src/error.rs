@@ -5,7 +5,7 @@ use gateway_client::error::GatewayClientError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::NymTopologyError;
-use validator_client::ValidatorClientError;
+use nym_validator_client::ValidatorClientError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ClientCoreError {

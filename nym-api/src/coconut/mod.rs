@@ -33,8 +33,8 @@ use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
-use validator_client::nyxd::{Coin, Fee};
+use nym_validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
+use nym_validator_client::nyxd::{Coin, Fee};
 
 pub(crate) mod client;
 pub(crate) mod comm;

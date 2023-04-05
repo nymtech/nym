@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::time;
-use validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::Coin;
 
 pub(crate) struct CirculatingSupplyCacheRefresher {
     nyxd_client: Client,

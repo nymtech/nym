@@ -18,9 +18,9 @@ use std::time::{Duration, SystemTime};
 
 use clap::{CommandFactory, Parser};
 use nym_bin_common::logging::setup_logging;
-use validator_client::nyxd::traits::DkgQueryClient;
-use validator_client::nyxd::CosmWasmClient;
-use validator_client::Config;
+use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::CosmWasmClient;
+use nym_validator_client::Config;
 
 const SAFETY_BUFFER_SECS: u64 = 60; // 1 minute
 
@@ -36,7 +36,7 @@ struct Cli {
 }
 
 async fn block_until_coconut_is_available<C: Clone + CosmWasmClient + Send + Sync>(
-    client: &validator_client::Client<C>,
+    client: &nym_validator_client::Client<C>,
 ) -> Result<()> {
     loop {
         let epoch = client.nyxd.get_current_epoch().await?;
@@ -82,7 +82,7 @@ async fn main() -> Result<()> {
 
             let network_details = NymNetworkDetails::new_from_env();
             let config = Config::try_from_nym_network_details(&network_details)?;
-            let client = validator_client::Client::new_query(config)?;
+            let client = nym_validator_client::Client::new_query(config)?;
 
             block_until_coconut_is_available(&client).await?;
             info!("Starting depositing funds, don't kill the process");

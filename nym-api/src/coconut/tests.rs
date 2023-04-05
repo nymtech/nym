@@ -24,11 +24,11 @@ use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_coconut::tests::helpers::theta_from_keys_and_attributes;
 use nym_coconut::{prepare_blind_sign, ttp_keygen, Base58, BlindedSignature, Parameters};
-use validator_client::nym_api::routes::{
+use nym_validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
-use validator_client::nyxd::Coin;
-use validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
+use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 
 use crate::coconut::State;
 use crate::support::storage::NymApiStorage;
@@ -53,8 +53,8 @@ use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
-use validator_client::nyxd::cosmwasm_client::logs::Log;
-use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
+use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
+use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";

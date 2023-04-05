@@ -8,17 +8,17 @@ use nym_network_defaults::{
     NymNetworkDetails,
 };
 use tap::prelude::*;
-pub use validator_client::nym_api::Client as NymApiClient;
-use validator_client::nyxd::{
+pub use nym_validator_client::nym_api::Client as NymApiClient;
+use nym_validator_client::nyxd::{
     self, AccountId, DirectSigningNyxdClient, NyxdClient, QueryNyxdClient,
 };
 
 pub mod errors;
 
-pub type SigningClient = validator_client::nyxd::NyxdClient<DirectSigningNyxdClient>;
-pub type QueryClient = validator_client::nyxd::NyxdClient<QueryNyxdClient>;
-pub type SigningClientWithNyxd = validator_client::Client<DirectSigningNyxdClient>;
-pub type QueryClientWithNyxd = validator_client::Client<QueryNyxdClient>;
+pub type SigningClient = nym_validator_client::nyxd::NyxdClient<DirectSigningNyxdClient>;
+pub type QueryClient = nym_validator_client::nyxd::NyxdClient<QueryNyxdClient>;
+pub type SigningClientWithNyxd = nym_validator_client::Client<DirectSigningNyxdClient>;
+pub type QueryClientWithNyxd = nym_validator_client::Client<QueryNyxdClient>;
 
 #[derive(Debug)]
 pub struct ClientArgs {
@@ -108,7 +108,7 @@ pub fn create_signing_client_with_nym_api(
     args: ClientArgs,
     network_details: &NymNetworkDetails,
 ) -> Result<SigningClientWithNyxd, ContextError> {
-    let client_config = validator_client::Config::try_from_nym_network_details(network_details)
+    let client_config = nym_validator_client::Config::try_from_nym_network_details(network_details)
         .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
     // get mnemonic
@@ -121,7 +121,7 @@ pub fn create_signing_client_with_nym_api(
         },
     };
 
-    match validator_client::client::Client::new_signing(client_config, mnemonic) {
+    match nym_validator_client::client::Client::new_signing(client_config, mnemonic) {
         Ok(client) => Ok(client),
         Err(e) => Err(ContextError::NyxdError(format!("{e}"))),
     }
@@ -130,10 +130,10 @@ pub fn create_signing_client_with_nym_api(
 pub fn create_query_client_with_nym_api(
     network_details: &NymNetworkDetails,
 ) -> Result<QueryClientWithNyxd, ContextError> {
-    let client_config = validator_client::Config::try_from_nym_network_details(network_details)
+    let client_config = nym_validator_client::Config::try_from_nym_network_details(network_details)
         .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
-    match validator_client::client::Client::new_query(client_config) {
+    match nym_validator_client::client::Client::new_query(client_config) {
         Ok(client) => Ok(client),
         Err(e) => Err(ContextError::NyxdError(format!("{e}"))),
     }

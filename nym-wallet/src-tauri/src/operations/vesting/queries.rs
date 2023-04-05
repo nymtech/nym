@@ -9,7 +9,7 @@ use nym_types::currency::DecCoin;
 use nym_types::vesting::VestingAccountInfo;
 use nym_types::vesting::{OriginalVestingResponse, PledgeData};
 use nym_vesting_contract_common::Period;
-use validator_client::nyxd::VestingQueryClient;
+use nym_validator_client::nyxd::VestingQueryClient;
 
 #[tauri::command]
 pub(crate) async fn locked_coins(

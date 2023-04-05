@@ -22,7 +22,7 @@ ts-rs = "6.1.2"
 cosmwasm-std = { workspace = true }
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
 
-validator-client = { path = "../../common/client-libs/validator-client", features = [
+nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }

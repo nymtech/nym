@@ -6,9 +6,9 @@ use bip39::Mnemonic;
 use nym_network_defaults::{NymNetworkDetails, VOUCHER_INFO};
 use std::str::FromStr;
 use url::Url;
-use validator_client::nyxd;
-use validator_client::nyxd::traits::CoconutBandwidthSigningClient;
-use validator_client::nyxd::{Coin, DirectSigningNyxdClient, Fee, NyxdClient};
+use nym_validator_client::nyxd;
+use nym_validator_client::nyxd::traits::CoconutBandwidthSigningClient;
+use nym_validator_client::nyxd::{Coin, DirectSigningNyxdClient, Fee, NyxdClient};
 
 pub(crate) struct Client {
     nyxd_client: NyxdClient<DirectSigningNyxdClient>,

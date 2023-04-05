@@ -7,7 +7,7 @@ use log::error;
 use serde::Serialize;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
-use validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::Coin;
 
 // TODO: perhaps it should be moved to some global common crate?
 pub fn account_id_to_cw_addr(account_id: &AccountId) -> Addr {

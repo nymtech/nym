@@ -5,10 +5,10 @@ use cosmrs::bank::MsgSend;
 use cosmrs::rpc::{self, HttpClient};
 use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
-use validator_client::nyxd::CosmWasmClient;
-use validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
-use validator_client::signing::tx_signer::TxSigner;
-use validator_client::signing::SignerData;
+use nym_validator_client::nyxd::CosmWasmClient;
+use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
+use nym_validator_client::signing::tx_signer::TxSigner;
+use nym_validator_client::signing::SignerData;
 
 // run with: cargo run --example offline_signing --features=nyxd-client
 #[tokio::main]

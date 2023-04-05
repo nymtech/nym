@@ -11,8 +11,8 @@ use nym_mixnet_contract_common::{construct_mixnode_bonding_sign_payload, MixNode
 use nym_network_defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
-use validator_client::nyxd::traits::MixnetQueryClient;
-use validator_client::nyxd::CosmWasmCoin;
+use nym_validator_client::nyxd::traits::MixnetQueryClient;
+use nym_validator_client::nyxd::CosmWasmCoin;
 
 #[derive(Debug, Parser)]
 pub struct Args {

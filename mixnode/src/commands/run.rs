@@ -9,7 +9,7 @@ use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::NymConfig;
 use std::net::IpAddr;
-use validator_client::nyxd;
+use nym_validator_client::nyxd;
 
 #[derive(Args, Clone)]
 pub(crate) struct Run {

@@ -27,7 +27,7 @@ use std::time::Duration;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;

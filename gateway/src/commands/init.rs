@@ -12,7 +12,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use validator_client::nyxd;
+use nym_validator_client::nyxd;
 
 #[derive(Args, Clone)]
 pub struct Init {

@@ -13,8 +13,8 @@ use std::{
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tokio::time;
-use validator_client::nyxd::Coin;
-use validator_client::ValidatorClientError;
+use nym_validator_client::nyxd::Coin;
+use nym_validator_client::ValidatorClientError;
 
 mod data;
 pub(crate) mod refresher;

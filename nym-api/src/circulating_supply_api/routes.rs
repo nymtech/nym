@@ -8,7 +8,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
-use validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::Coin;
 
 // TODO: this is not the best place to put it, it should be more centralised,
 // but for a quick fix, that's good enough for now...

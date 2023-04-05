@@ -12,7 +12,7 @@ use nym_config::OptionalSet;
 use nym_crypto::bech32_address_validation;
 use std::net::IpAddr;
 use std::process;
-use validator_client::nyxd;
+use nym_validator_client::nyxd;
 
 mod describe;
 mod init;

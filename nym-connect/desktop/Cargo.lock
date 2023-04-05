@@ -3288,6 +3288,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-coconut"
+version = "0.5.0"
+dependencies = [
+ "bls12_381 0.6.0",
+ "bs58",
+ "digest 0.9.0",
+ "ff 0.11.1",
+ "getrandom 0.2.8",
+ "group 0.11.0",
+ "itertools",
+ "nym-dkg",
+ "nym-pemstore",
+ "rand 0.8.5",
+ "serde",
+ "serde_derive",
+ "sha2 0.9.9",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
@@ -3315,7 +3335,7 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "getset",
- "nymcoconut",
+ "nym-coconut",
  "serde",
  "thiserror",
 ]
@@ -3794,26 +3814,6 @@ dependencies = [
  "nym-mixnet-contract-common",
  "schemars",
  "serde",
-]
-
-[[package]]
-name = "nymcoconut"
-version = "0.5.0"
-dependencies = [
- "bls12_381 0.6.0",
- "bs58",
- "digest 0.9.0",
- "ff 0.11.1",
- "getrandom 0.2.8",
- "group 0.11.0",
- "itertools",
- "nym-dkg",
- "nym-pemstore",
- "rand 0.8.5",
- "serde",
- "serde_derive",
- "sha2 0.9.9",
- "thiserror",
 ]
 
 [[package]]

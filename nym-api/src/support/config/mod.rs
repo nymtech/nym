@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
-use validator_client::nyxd;
+use nym_validator_client::nyxd;
 
 mod template;
 

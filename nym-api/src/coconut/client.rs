@@ -12,8 +12,8 @@ use nym_coconut_dkg_common::types::{
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_dkg::Threshold;
-use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
-use validator_client::nyxd::{AccountId, Fee, TxResponse};
+use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
+use nym_validator_client::nyxd::{AccountId, Fee, TxResponse};
 
 #[async_trait]
 pub trait Client {

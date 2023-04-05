@@ -28,7 +28,7 @@ use tokio_tungstenite::connect_async;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 #[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::DirectSigningNyxdClient;
+use nym_validator_client::nyxd::DirectSigningNyxdClient;
 
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -67,7 +67,7 @@ async fn current_gateways<R: Rng>(
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
-    let client = validator_client::client::NymApiClient::new(nym_api.clone());
+    let client = nym_validator_client::client::NymApiClient::new(nym_api.clone());
 
     log::trace!("Fetching list of gateways from: {}", nym_api);
 

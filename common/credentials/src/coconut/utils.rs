@@ -9,7 +9,7 @@ use nym_coconut_interface::{
 use nym_crypto::asymmetric::encryption::PublicKey;
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
-use validator_client::client::CoconutApiClient;
+use nym_validator_client::client::CoconutApiClient;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use crate::coconut::params::{NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm};
@@ -37,7 +37,7 @@ pub async fn obtain_aggregate_verification_key(
 async fn obtain_partial_credential(
     params: &Parameters,
     attributes: &BandwidthVoucher,
-    client: &validator_client::client::NymApiClient,
+    client: &nym_validator_client::client::NymApiClient,
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
     let public_attributes = attributes.get_public_attributes();

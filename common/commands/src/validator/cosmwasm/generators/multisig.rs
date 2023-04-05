@@ -8,7 +8,7 @@ use cosmwasm_std::Decimal;
 use cw_utils::{Duration, Threshold};
 use log::{debug, info};
 use nym_multisig_contract_common::msg::InstantiateMsg;
-use validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::AccountId;
 
 #[derive(Debug, Parser)]
 pub struct Args {

@@ -6,8 +6,8 @@ use crate::state::WalletState;
 use nym_mixnet_contract_common::ContractStateParams;
 use nym_types::transaction::TransactionExecuteResult;
 use nym_wallet_types::admin::TauriContractStateParams;
-use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
-use validator_client::nyxd::Fee;
+use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_validator_client::nyxd::Fee;
 
 #[tauri::command]
 pub async fn get_contract_settings(

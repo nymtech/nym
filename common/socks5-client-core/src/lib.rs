@@ -23,8 +23,8 @@ use log::*;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::{TaskClient, TaskManager};
 use std::error::Error;
-use validator_client::nyxd::QueryNyxdClient;
-use validator_client::Client;
+use nym_validator_client::nyxd::QueryNyxdClient;
+use nym_validator_client::Client;
 
 pub mod config;
 pub mod error;
@@ -77,7 +77,7 @@ impl NymClient {
         config: &Config,
     ) -> BandwidthController<Client<QueryNyxdClient>> {
         let details = nym_network_defaults::NymNetworkDetails::new_from_env();
-        let mut client_config = validator_client::Config::try_from_nym_network_details(&details)
+        let mut client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct validator client config");
         let nyxd_url = config
             .get_base()
@@ -91,7 +91,7 @@ impl NymClient {
             .expect("No validator api endpoint provided");
         // overwrite env configuration with config URLs
         client_config = client_config.with_urls(nyxd_url, api_url);
-        let client = validator_client::Client::new_query(client_config)
+        let client = nym_validator_client::Client::new_query(client_config)
             .expect("Could not construct query client");
 
         #[cfg(not(target_os = "android"))]

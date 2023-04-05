@@ -8,7 +8,7 @@ use cosmwasm_std::Coin;
 use nym_bin_common::output_format::OutputFormat;
 use nym_mixnet_contract_common::construct_gateway_bonding_sign_payload;
 use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
-use validator_client::nyxd::traits::MixnetQueryClient;
+use nym_validator_client::nyxd::traits::MixnetQueryClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {

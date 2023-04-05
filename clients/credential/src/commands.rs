@@ -13,9 +13,9 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_defaults::VOUCHER_INFO;
 use rand::rngs::OsRng;
 use std::str::FromStr;
-use validator_client::nyxd::traits::DkgQueryClient;
-use validator_client::nyxd::tx::Hash;
-use validator_client::CoconutApiClient;
+use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::tx::Hash;
+use nym_validator_client::CoconutApiClient;
 
 use crate::client::Client;
 use crate::error::{CredentialClientError, Result};

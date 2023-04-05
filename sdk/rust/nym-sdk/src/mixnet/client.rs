@@ -16,8 +16,8 @@ use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
 use nym_topology::provider_trait::TopologyProvider;
-use validator_client::nyxd::DirectSigningNyxdClient;
-use validator_client::Client;
+use nym_validator_client::nyxd::DirectSigningNyxdClient;
+use nym_validator_client::Client;
 
 use crate::mixnet::native_client::MixnetClient;
 use crate::mixnet::socks5_client::Socks5MixnetClient;

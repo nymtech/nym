@@ -8,7 +8,7 @@ mod tests {
     use crate::{sign, verify};
     use cosmrs::AccountId;
     use std::str::FromStr;
-    use validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
+    use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 
     fn get_order(prefix: &str) -> anyhow::Result<(OrderSignature, String)> {
         let mnemonic = "crush minute paddle tobacco message debate cabin peace bar jacket execute twenty winner view sure mask popular couch penalty fragile demise fresh pizza stove";

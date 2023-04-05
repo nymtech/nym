@@ -28,7 +28,7 @@ tap = "1"
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
 cosmwasm-std = { workspace = true }
 
-validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"] }
+nym-validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"] }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 nym-network-defaults = { path = "../network-defaults" }

@@ -1,8 +1,8 @@
 use serde::{Serialize, Serializer};
 use std::io;
 use thiserror::Error;
-use validator_client::nym_api::error::NymAPIError;
-use validator_client::{nyxd::error::NyxdError, ValidatorClientError};
+use nym_validator_client::nym_api::error::NymAPIError;
+use nym_validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 
 // TODO: ask @MS why this even exists
 #[derive(Error, Debug)]

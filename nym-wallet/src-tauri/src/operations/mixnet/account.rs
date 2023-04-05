@@ -13,9 +13,9 @@ use nym_wallet_types::network::Network as WalletNetwork;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 use url::Url;
-use validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
-use validator_client::signing::AccountData;
-use validator_client::{nyxd::DirectSigningNyxdClient, Client};
+use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
+use nym_validator_client::signing::AccountData;
+use nym_validator_client::{nyxd::DirectSigningNyxdClient, Client};
 
 #[tauri::command]
 pub async fn connect_with_mnemonic(
@@ -188,7 +188,7 @@ async fn run_connection_test(
         .into_iter()
         .flat_map(|(net, urls)| urls.into_iter().map(move |url| (net.into(), url)));
 
-    validator_client::connection_tester::run_validator_connection_test(
+    nym_validator_client::connection_tester::run_validator_connection_test(
         untested_nyxd_urls,
         untested_api_urls,
         mixnet_contract_address,
@@ -247,10 +247,10 @@ fn create_clients(
                     .as_ref(),
             ));
 
-        let config = validator_client::Config::try_from_nym_network_details(&network_details)?
+        let config = nym_validator_client::Config::try_from_nym_network_details(&network_details)?
             .with_urls(nyxd_url, api_url);
 
-        let mut client = validator_client::Client::new_signing(config, mnemonic.clone())?;
+        let mut client = nym_validator_client::Client::new_signing(config, mnemonic.clone())?;
         client.set_nyxd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
         clients.push((network, client));
     }

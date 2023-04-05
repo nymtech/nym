@@ -8,7 +8,7 @@ use nym_bin_common::output_format::OutputFormat;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use validator_client::nyxd;
+use nym_validator_client::nyxd;
 
 #[derive(Args, Clone)]
 pub struct Run {

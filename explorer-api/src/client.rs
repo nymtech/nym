@@ -4,7 +4,7 @@ use nym_network_defaults::{
 };
 use reqwest::Url;
 use std::{str::FromStr, sync::Arc};
-use validator_client::nyxd::QueryNyxdClient;
+use nym_validator_client::nyxd::QueryNyxdClient;
 
 // since this is just a query client, we don't need any locking mechanism to keep sequence numbers in check
 // nor we need to access any of its methods taking mutable reference (like updating api URL)
@@ -12,7 +12,7 @@ use validator_client::nyxd::QueryNyxdClient;
 
 #[derive(Clone)]
 pub(crate) struct ThreadsafeValidatorClient(
-    pub(crate) Arc<validator_client::Client<QueryNyxdClient>>,
+    pub(crate) Arc<nym_validator_client::Client<QueryNyxdClient>>,
 );
 
 impl ThreadsafeValidatorClient {
@@ -32,11 +32,11 @@ pub(crate) fn new_validator_client() -> ThreadsafeValidatorClient {
         .expect("nyxd validator not in url format");
 
     let details = NymNetworkDetails::new_from_env();
-    let client_config = validator_client::Config::try_from_nym_network_details(&details)
+    let client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
         .expect("failed to construct valid validator client config with the provided network")
         .with_urls(nyxd_url, api_url);
 
     ThreadsafeValidatorClient(Arc::new(
-        validator_client::Client::new_query(client_config).expect("Failed to connect to nyxd!"),
+        nym_validator_client::Client::new_query(client_config).expect("Failed to connect to nyxd!"),
     ))
 }

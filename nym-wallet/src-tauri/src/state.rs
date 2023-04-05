@@ -16,9 +16,9 @@ use std::time::Duration;
 use strum::IntoEnumIterator;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use url::Url;
-use validator_client::nyxd::cosmwasm_client::types::SimulateResponse;
-use validator_client::nyxd::{AccountId as CosmosAccountId, Coin, DirectSigningNyxdClient, Fee};
-use validator_client::Client;
+use nym_validator_client::nyxd::cosmwasm_client::types::SimulateResponse;
+use nym_validator_client::nyxd::{AccountId as CosmosAccountId, Coin, DirectSigningNyxdClient, Fee};
+use nym_validator_client::Client;
 
 // Some hardcoded metadata overrides
 static METADATA_OVERRIDES: Lazy<Vec<(Url, ValidatorMetadata)>> = Lazy::new(|| {

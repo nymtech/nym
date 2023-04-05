@@ -50,10 +50,10 @@ pub(crate) enum RequestHandlingError {
     OnlyCoconutCredentials,
 
     #[error("Nyxd Error - {0}")]
-    NyxdError(#[from] validator_client::nyxd::error::NyxdError),
+    NyxdError(#[from] nym_validator_client::nyxd::error::NyxdError),
 
     #[error("Validator API error - {0}")]
-    APIError(#[from] validator_client::ValidatorClientError),
+    APIError(#[from] nym_validator_client::ValidatorClientError),
 
     #[error("Not enough nym API endpoints provided. Needed {needed}, received {received}")]
     NotEnoughNymAPIs { received: usize, needed: usize },

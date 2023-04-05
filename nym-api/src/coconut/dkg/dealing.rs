@@ -108,7 +108,7 @@ pub(crate) mod tests {
     use std::str::FromStr;
     use std::sync::{Arc, RwLock};
     use url::Url;
-    use validator_client::nyxd::AccountId;
+    use nym_validator_client::nyxd::AccountId;
 
     const TEST_VALIDATORS_ADDRESS: [&str; 4] = [
         "n1aq9kakfgwqcufr23lsv644apavcntrsqsk4yus",

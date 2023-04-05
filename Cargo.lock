@@ -681,6 +681,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-topology",
+ "nym-validator-client",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -694,7 +695,6 @@ dependencies = [
  "tokio-tungstenite 0.14.0",
  "tungstenite 0.13.0",
  "url",
- "validator-client",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-timer",
@@ -967,12 +967,12 @@ dependencies = [
  "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
+ "nym-validator-client",
  "rand 0.7.3",
  "serde",
  "thiserror",
  "tokio",
  "url",
- "validator-client",
 ]
 
 [[package]]
@@ -1654,6 +1654,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-task",
+ "nym-validator-client",
  "okapi",
  "pretty_env_logger",
  "rand 0.8.5",
@@ -1668,7 +1669,6 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
- "validator-client",
 ]
 
 [[package]]
@@ -1943,6 +1943,7 @@ dependencies = [
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
+ "nym-validator-client",
  "rand 0.7.3",
  "serde",
  "thiserror",
@@ -1951,7 +1952,6 @@ dependencies = [
  "tokio-tungstenite 0.14.0",
  "tungstenite 0.13.0",
  "url",
- "validator-client",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-timer",
@@ -3024,6 +3024,7 @@ dependencies = [
  "nym-sphinx-params",
  "nym-sphinx-types",
  "nym-task",
+ "nym-validator-client",
  "rand 0.8.5",
  "serde",
  "thiserror",
@@ -3031,7 +3032,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
- "validator-client",
 ]
 
 [[package]]
@@ -3215,6 +3215,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-topology",
+ "nym-validator-client",
  "nym-vesting-contract-common",
  "okapi",
  "pin-project",
@@ -3236,7 +3237,6 @@ dependencies = [
  "tokio-stream",
  "ts-rs",
  "url",
- "validator-client",
 ]
 
 [[package]]
@@ -3282,10 +3282,10 @@ dependencies = [
  "eyre",
  "k256",
  "nym-cli-commands",
+ "nym-validator-client",
  "serde",
  "serde_json",
  "thiserror",
- "validator-client",
 ]
 
 [[package]]
@@ -3304,12 +3304,12 @@ dependencies = [
  "nym-bin-common",
  "nym-cli-commands",
  "nym-network-defaults",
+ "nym-validator-client",
  "pretty_env_logger",
  "serde",
  "serde_json",
  "tap",
  "tokio",
- "validator-client",
 ]
 
 [[package]]
@@ -3337,6 +3337,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
+ "nym-validator-client",
  "nym-vesting-contract-common",
  "rand 0.6.5",
  "serde",
@@ -3346,7 +3347,6 @@ dependencies = [
  "time 0.3.20",
  "toml",
  "url",
- "validator-client",
 ]
 
 [[package]]
@@ -3372,6 +3372,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-topology",
+ "nym-validator-client",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3381,7 +3382,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.14.0",
  "url",
- "validator-client",
  "websocket-requests",
 ]
 
@@ -3486,9 +3486,9 @@ dependencies = [
  "nym-api-requests",
  "nym-coconut-interface",
  "nym-crypto",
+ "nym-validator-client",
  "rand 0.7.3",
  "thiserror",
- "validator-client",
 ]
 
 [[package]]
@@ -3580,6 +3580,7 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-types",
+ "nym-validator-client",
  "once_cell",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3593,7 +3594,6 @@ dependencies = [
  "tokio-tungstenite 0.14.0",
  "tokio-util",
  "url",
- "validator-client",
 ]
 
 [[package]]
@@ -3663,6 +3663,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-types",
+ "nym-validator-client",
  "opentelemetry",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3675,7 +3676,6 @@ dependencies = [
  "toml",
  "tracing",
  "url",
- "validator-client",
 ]
 
 [[package]]
@@ -3822,6 +3822,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-topology",
+ "nym-validator-client",
  "pretty_env_logger",
  "rand 0.7.3",
  "reqwest",
@@ -3830,7 +3831,6 @@ dependencies = [
  "tokio",
  "toml",
  "url",
- "validator-client",
 ]
 
 [[package]]
@@ -3904,13 +3904,13 @@ dependencies = [
  "nym-socks5-requests",
  "nym-sphinx",
  "nym-task",
+ "nym-validator-client",
  "pin-project",
  "rand 0.7.3",
  "serde",
  "tap",
  "thiserror",
  "tokio",
- "validator-client",
 ]
 
 [[package]]
@@ -4122,6 +4122,7 @@ dependencies = [
  "nym-coconut-interface",
  "nym-config",
  "nym-mixnet-contract-common",
+ "nym-validator-client",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
  "reqwest",
@@ -4133,7 +4134,47 @@ dependencies = [
  "thiserror",
  "ts-rs",
  "url",
- "validator-client",
+]
+
+[[package]]
+name = "nym-validator-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.13.1",
+ "bip39",
+ "colored",
+ "cosmrs",
+ "cosmwasm-std",
+ "cw3",
+ "cw4",
+ "eyre",
+ "flate2",
+ "futures",
+ "itertools",
+ "log",
+ "nym-api-requests",
+ "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
+ "nym-coconut-interface",
+ "nym-config",
+ "nym-contracts-common",
+ "nym-group-contract-common",
+ "nym-mixnet-contract-common",
+ "nym-multisig-contract-common",
+ "nym-network-defaults",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
+ "prost 0.10.4",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.9.9",
+ "thiserror",
+ "tokio",
+ "ts-rs",
+ "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -4177,13 +4218,13 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-types",
+ "nym-validator-client",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
  "serde",
  "serde_json",
  "strum 0.23.0",
  "ts-rs",
- "validator-client",
 ]
 
 [[package]]
@@ -6770,10 +6811,10 @@ dependencies = [
  "nym-api-requests",
  "nym-mixnet-contract-common",
  "nym-types",
+ "nym-validator-client",
  "nym-vesting-contract-common",
  "nym-wallet-types",
  "ts-rs",
- "validator-client",
  "walkdir",
 ]
 
@@ -6981,47 +7022,6 @@ name = "uuid"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
-
-[[package]]
-name = "validator-client"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.13.1",
- "bip39",
- "colored",
- "cosmrs",
- "cosmwasm-std",
- "cw3",
- "cw4",
- "eyre",
- "flate2",
- "futures",
- "itertools",
- "log",
- "nym-api-requests",
- "nym-coconut-bandwidth-contract-common",
- "nym-coconut-dkg-common",
- "nym-coconut-interface",
- "nym-config",
- "nym-contracts-common",
- "nym-group-contract-common",
- "nym-mixnet-contract-common",
- "nym-multisig-contract-common",
- "nym-network-defaults",
- "nym-vesting-contract",
- "nym-vesting-contract-common",
- "prost 0.10.4",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.9.9",
- "thiserror",
- "tokio",
- "ts-rs",
- "url",
- "zeroize",
-]
 
 [[package]]
 name = "valuable"

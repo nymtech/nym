@@ -1,6 +1,6 @@
 use cosmrs::tx::Gas as CosmrsGas;
 use serde::{Deserialize, Serialize};
-use validator_client::nyxd::cosmwasm_client::types::GasInfo as ValidatorClientGasInfo;
+use nym_validator_client::nyxd::cosmwasm_client::types::GasInfo as ValidatorClientGasInfo;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(

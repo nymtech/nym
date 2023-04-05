@@ -14,7 +14,7 @@ use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
 #[cfg(feature = "cpucycles")]
 use tracing::error;
-use validator_client::nyxd;
+use nym_validator_client::nyxd;
 
 use super::version_check;
 

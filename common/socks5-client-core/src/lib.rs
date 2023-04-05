@@ -18,7 +18,7 @@ use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use futures::StreamExt;
 #[cfg(not(target_os = "android"))]
-use gateway_client::bandwidth::BandwidthController;
+use nym_gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::{TaskClient, TaskManager};

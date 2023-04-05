@@ -27,7 +27,7 @@ time = "0.3.17"
 # internal
 nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto" }
-gateway-client = { path = "../client-libs/gateway-client" }
+nym-gateway-client = { path = "../client-libs/gateway-client" }
 #gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
 nym-gateway-requests = { path = "../../gateway/gateway-requests" }
 nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
@@ -89,5 +89,5 @@ sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macro
 [features]
 default = []
 fs-surb-storage = ["sqlx"]
-wasm = ["gateway-client/wasm"]
+wasm = ["nym-gateway-client/wasm"]
 

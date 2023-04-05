@@ -7,7 +7,7 @@ use crate::spawn_future;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
-use gateway_client::MixnetMessageReceiver;
+use nym_gateway_client::MixnetMessageReceiver;
 use log::*;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;

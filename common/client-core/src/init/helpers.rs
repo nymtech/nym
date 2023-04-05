@@ -7,7 +7,7 @@ use crate::{
     error::ClientCoreError,
 };
 use futures::{SinkExt, StreamExt};
-use gateway_client::GatewayClient;
+use nym_gateway_client::GatewayClient;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use log::{debug, info, trace, warn};
 use nym_config::NymConfig;
@@ -34,7 +34,7 @@ use nym_validator_client::nyxd::DirectSigningNyxdClient;
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 #[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_mockups::DirectSigningNyxdClient;
+use nym_gateway_client::wasm_mockups::DirectSigningNyxdClient;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer::Instant;
 #[cfg(target_arch = "wasm32")]

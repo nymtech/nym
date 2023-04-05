@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::support::nyxd;
-use gateway_client::GatewayClient;
+use nym_gateway_client::GatewayClient;
 use nym_crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use std::collections::HashMap;
 use std::sync::Arc;

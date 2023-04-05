@@ -669,12 +669,12 @@ dependencies = [
  "dashmap 5.4.0",
  "dirs",
  "futures",
- "gateway-client",
  "gloo-timers",
  "humantime-serde",
  "log",
  "nym-config",
  "nym-crypto",
+ "nym-gateway-client",
  "nym-gateway-requests",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
@@ -1926,39 +1926,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gateway-client"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures",
- "getrandom 0.2.8",
- "log",
- "nym-coconut-interface",
- "nym-credential-storage",
- "nym-credentials",
- "nym-crypto",
- "nym-gateway-requests",
- "nym-mobile-storage",
- "nym-network-defaults",
- "nym-pemstore",
- "nym-sphinx",
- "nym-task",
- "nym-validator-client",
- "rand 0.7.3",
- "serde",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tokio-tungstenite 0.14.0",
- "tungstenite 0.13.0",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-timer",
- "wasm-utils",
-]
-
-[[package]]
 name = "gcc"
 version = "0.3.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3164,7 +3131,6 @@ dependencies = [
  "cw4",
  "dirs",
  "futures",
- "gateway-client",
  "getset",
  "humantime-serde",
  "lazy_static",
@@ -3181,6 +3147,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-dkg",
+ "nym-gateway-client",
  "nym-inclusion-probability",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
@@ -3330,7 +3297,6 @@ dependencies = [
  "client-core",
  "dirs",
  "futures",
- "gateway-client",
  "lazy_static",
  "log",
  "nym-bin-common",
@@ -3339,6 +3305,7 @@ dependencies = [
  "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
+ "nym-gateway-client",
  "nym-gateway-requests",
  "nym-network-defaults",
  "nym-pemstore",
@@ -3567,6 +3534,39 @@ dependencies = [
  "tokio-tungstenite 0.14.0",
  "tokio-util",
  "url",
+]
+
+[[package]]
+name = "nym-gateway-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "getrandom 0.2.8",
+ "log",
+ "nym-coconut-interface",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-gateway-requests",
+ "nym-mobile-storage",
+ "nym-network-defaults",
+ "nym-pemstore",
+ "nym-sphinx",
+ "nym-task",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite 0.14.0",
+ "tungstenite 0.13.0",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-timer",
+ "wasm-utils",
 ]
 
 [[package]]
@@ -3812,10 +3812,10 @@ version = "0.1.0"
 dependencies = [
  "client-core",
  "futures",
- "gateway-client",
  "log",
  "nym-bin-common",
  "nym-crypto",
+ "nym-gateway-client",
  "nym-gateway-requests",
  "nym-network-defaults",
  "nym-socks5-client-core",
@@ -3894,10 +3894,10 @@ dependencies = [
  "client-core",
  "dirs",
  "futures",
- "gateway-client",
  "log",
  "nym-config",
  "nym-credential-storage",
+ "nym-gateway-client",
  "nym-network-defaults",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",

@@ -9,8 +9,8 @@ use client_core::client::base_client::{
 };
 use client_core::client::replies::reply_storage::browser_backend;
 use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
-use gateway_client::bandwidth::BandwidthController;
-use gateway_client::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
+use nym_gateway_client::bandwidth::BandwidthController;
+use nym_gateway_client::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use js_sys::Promise;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;

@@ -1,5 +1,5 @@
 [package]
-name = "gateway-client"
+name = "nym-gateway-client"
 version = "0.1.0"
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"

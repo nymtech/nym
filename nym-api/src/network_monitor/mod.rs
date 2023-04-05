@@ -17,7 +17,7 @@ use crate::storage::NymApiStorage;
 use crate::support::config::Config;
 use crate::support::nyxd;
 use futures::channel::mpsc;
-use gateway_client::bandwidth::BandwidthController;
+use nym_gateway_client::bandwidth::BandwidthController;
 use nym_credential_storage::PersistentStorage;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_sphinx::receiver::MessageReceiver;

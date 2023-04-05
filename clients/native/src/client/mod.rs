@@ -13,7 +13,7 @@ use client_core::client::received_buffer::{
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
-use gateway_client::bandwidth::BandwidthController;
+use nym_gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;

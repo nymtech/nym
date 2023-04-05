@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use gateway_client::error::GatewayClientError;
+use nym_gateway_client::error::GatewayClientError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::NymTopologyError;

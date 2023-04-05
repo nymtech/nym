@@ -23,7 +23,7 @@ nym-bin-common = { path = "../../common/bin-common", features = ["output_format"
 client-core = { path = "../../common/client-core", features = ["fs-surb-storage"] }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-config = { path = "../../common/config" }
-mobile-storage = { path = "../../common/mobile-storage", optional = true }
+nym-mobile-storage = { path = "../../common/mobile-storage", optional = true }
 nym-credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto" }
 nym-gateway-requests = { path = "../../gateway/gateway-requests" }

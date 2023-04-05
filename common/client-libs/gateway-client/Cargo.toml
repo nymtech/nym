@@ -28,7 +28,7 @@ nym-pemstore = { path = "../../pemstore" }
 nym-validator-client = { path = "../validator-client" }
 nym-task = { path = "../../task" }
 serde = { workspace = true, features = ["derive"] }
-mobile-storage = { path = "../../mobile-storage" }
+nym-mobile-storage = { path = "../../mobile-storage" }
 
 
 [dependencies.tungstenite]

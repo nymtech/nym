@@ -1933,12 +1933,12 @@ dependencies = [
  "futures",
  "getrandom 0.2.8",
  "log",
- "mobile-storage",
  "nym-coconut-interface",
  "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-mobile-storage",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -3016,14 +3016,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mobile-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "thiserror",
-]
-
-[[package]]
 name = "multer"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3679,6 +3671,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-mobile-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-multisig-contract-common"
 version = "0.1.0"
 dependencies = [
@@ -3865,13 +3865,13 @@ dependencies = [
  "client-core",
  "lazy_static",
  "log",
- "mobile-storage",
  "nym-bin-common",
  "nym-coconut-interface",
  "nym-config",
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-mobile-storage",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-pemstore",

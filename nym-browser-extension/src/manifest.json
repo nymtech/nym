@@ -5,9 +5,6 @@
   "manifest_version": 3,
   "action": {
     "default_popup": "index.html",
-    "default_title": "Open Nym"
-  },
-  "icons": {
-    "48": "../../assets/appicon/appicon.png"
+    "default_title": "Nym - Browser extension"
   }
 }

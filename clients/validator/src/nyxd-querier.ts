@@ -18,7 +18,7 @@ import {
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
   LayerDistribution,
-  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode
+  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode, DelegationBlock
 } from '@nymproject/types';
 import { SmartContractQuery } from './types/shared';
 import { Coin } from 'cosmjs-types/cosmos/base/v1beta1/coin';
@@ -314,6 +314,18 @@ export default class NyxdQuerier implements INyxdQuery {
   getAllDelegations(vestingContractAddress: string): Promise<Delegations> {
     return this.client.queryContractSmart(vestingContractAddress, {
       get_all_delegations: {}
+    });
+  }
+
+  getDelegation(vestingContractAddress: string, address: string, mix_id: number): Promise<DelegationBlock> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_all_delegations: {address: address, mix_id: mix_id}
+    });
+  }
+
+  getTotalDelegationAmount(vestingContractAddress: string, address: string, mix_id: number, block_timestamp_sec: number): Promise<Coin> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      get_all_delegations: {address: address, mix_id: mix_id, block_timestamp_sec: block_timestamp_sec}
     });
   }
 

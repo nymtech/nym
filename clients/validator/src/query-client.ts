@@ -22,7 +22,7 @@ import {
   MixNodeRewarding,
   OriginalVestingResponse,
   VestingAccountInfo,
-  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode
+  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode, DelegationBlock
 } from '@nymproject/types';
 import NymApiQuerier, { INymApiQuery } from './nym-api-querier';
 import { ICosmWasmQuery } from './types/shared';
@@ -286,6 +286,14 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
 
   getAllDelegations(vestingContractAddress: string): Promise<Delegations> {
     return this.nyxdQuerier.getAllDelegations(vestingContractAddress);
+  }
+
+  getDelegation(vestingContractAddress: string, vestingAccountAddress: string, mix_id: number): Promise<DelegationBlock> {
+    return this.nyxdQuerier.getDelegation(vestingContractAddress, vestingAccountAddress, mix_id);
+  }
+
+  getTotalDelegationAmount(vestingContractAddress: string, vestingAccountAddress: string, mix_id: number, block_timestamp_sec: number): Promise<Coin> {
+    return this.nyxdQuerier.getTotalDelegationAmount(vestingContractAddress, vestingAccountAddress, mix_id, block_timestamp_sec);
   }
 
   getCurrentVestingPeriod(vestingContractAddress: string, address: string): Promise<Period> {

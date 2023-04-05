@@ -33,11 +33,11 @@ use validator_client::nyxd::traits::DkgQueryClient;
 use tokio_tungstenite::connect_async;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(feature = "mobile"))]
+#[cfg(not(target_os = "android"))]
 use nym_credential_storage::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "mobile")]
+#[cfg(target_os = "android")]
 use mobile_storage::PersistentStorage;
 
 #[cfg(target_arch = "wasm32")]

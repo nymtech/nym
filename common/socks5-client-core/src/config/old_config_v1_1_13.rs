@@ -23,9 +23,9 @@ impl NymConfig for OldConfigV1_1_13 {
     }
 
     fn default_root_directory() -> PathBuf {
-        #[cfg(not(feature = "mobile"))]
+        #[cfg(not(target_os = "android"))]
         let base_dir = dirs::home_dir().expect("Failed to evaluate $HOME value");
-        #[cfg(feature = "mobile")]
+        #[cfg(target_os = "android")]
         let base_dir = PathBuf::from("/tmp");
 
         base_dir.join(".nym").join("socks5-clients")

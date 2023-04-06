@@ -17,7 +17,7 @@ use nym_sphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::builder::SphinxPacketBuilder;
 use nym_sphinx_types::{delays, Delay};
 use nym_topology::{NymTopology, NymTopologyError};
-use rand::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng, RngCore};
 use std::convert::TryFrom;
 use std::time::Duration;
 
@@ -36,6 +36,35 @@ pub struct PreparedFragment {
 
     /// Identifier to uniquely identify a fragment.
     pub fragment_identifier: FragmentIdentifier,
+}
+
+// this is extracted into a trait with default implementation to remove duplicate code
+// (which we REALLY want to avoid with crypto)
+pub trait FragmentPreparer {
+    type Rng: RngCore + CryptoRng;
+
+    fn rng(&mut self) -> &mut Self::Rng;
+    fn num_mix_hops(&self) -> u8;
+    fn average_ack_delay(&self) -> Duration;
+
+    fn generate_surb_ack(
+        &mut self,
+        recipient: &Recipient,
+        fragment_id: FragmentIdentifier,
+        topology: &NymTopology,
+        ack_key: &AckKey,
+    ) -> Result<SurbAck, NymTopologyError> {
+        let ack_delay = self.average_ack_delay();
+
+        SurbAck::construct(
+            self.rng(),
+            recipient,
+            ack_key,
+            fragment_id.to_bytes(),
+            ack_delay,
+            topology,
+        )
+    }
 }
 
 /// Prepares the message that is to be sent through the mix network by attaching

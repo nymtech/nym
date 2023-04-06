@@ -1,0 +1,17 @@
+[package]
+name = "node-tester-utils"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.7.3"
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+nym-topology = { path = "../topology" }
+# TODO: do we need the whole nymsphinx?
+nym-sphinx = { path = "../nymsphinx" }

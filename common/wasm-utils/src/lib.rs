@@ -50,3 +50,9 @@ pub async fn sleep(ms: i32) -> Result<(), JsValue> {
     js_fut.await?;
     Ok(())
 }
+
+/// A helper that construct a `JsValue` containing an error with the provided message.
+pub fn simple_js_error<S: AsRef<str>>(message: S) -> JsValue {
+    let js_error = js_sys::Error::new(message.as_ref());
+    JsValue::from(js_error)
+}

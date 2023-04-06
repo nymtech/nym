@@ -1,3 +1,4 @@
+use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
@@ -7,6 +8,14 @@ pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
 
 #[derive(Debug)]
 pub enum InputMessage {
+    /// Fire an already prepared mix packet into the network.
+    /// No guarantees are made about it. For example no retransmssion
+    /// will be attempted if it gets dropped.
+    Premade {
+        msg: RealMessage,
+        lane: TransmissionLane,
+    },
+
     /// The simplest message variant where no additional information is attached.
     /// You're simply sending your `data` to specified `recipient` without any tagging.
     ///
@@ -44,6 +53,10 @@ pub enum InputMessage {
 }
 
 impl InputMessage {
+    pub fn new_premade(msg: RealMessage, lane: TransmissionLane) -> Self {
+        InputMessage::Premade { msg, lane }
+    }
+
     pub fn new_regular(recipient: Recipient, data: Vec<u8>, lane: TransmissionLane) -> Self {
         InputMessage::Regular {
             recipient,
@@ -82,7 +95,8 @@ impl InputMessage {
         match self {
             InputMessage::Regular { lane, .. }
             | InputMessage::Anonymous { lane, .. }
-            | InputMessage::Reply { lane, .. } => lane,
+            | InputMessage::Reply { lane, .. }
+            | InputMessage::Premade { lane, .. } => lane,
         }
     }
 }

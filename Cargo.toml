@@ -48,6 +48,7 @@ members = [
     "common/ledger",
     "common/mixnode-common",
     "common/network-defaults",
+    "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
     "common/nymcoconut",
     "common/nymsphinx",

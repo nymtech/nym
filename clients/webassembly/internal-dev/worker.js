@@ -90,6 +90,8 @@ async function main() {
     mixnodes.set(1, [l1Mixnode]);
     mixnodes.set(2, [l2Mixnode]);
     mixnodes.set(3, [l3Mixnode]);
+
+
     const gateways = [gateway];
 
     const topology = new WasmNymTopology(mixnodes, gateways);

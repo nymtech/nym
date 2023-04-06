@@ -4,7 +4,7 @@
 use crate::filter::VersionFilterable;
 use log::warn;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::GatewayBond;
+use nym_mixnet_contract_common::{GatewayBond, IdentityKey, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
 use rand::{CryptoRng, Rng};
@@ -103,6 +103,28 @@ pub struct NymTopology {
 impl NymTopology {
     pub fn new(mixes: HashMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
         NymTopology { mixes, gateways }
+    }
+
+    pub fn find_mix(&self, mix_id: MixId) -> Option<&mix::Node> {
+        for nodes in self.mixes.values() {
+            for node in nodes {
+                if node.mix_id == mix_id {
+                    return Some(node);
+                }
+            }
+        }
+        None
+    }
+
+    pub fn find_mix_by_identity(&self, mixnode_identity: IdentityKeyRef) -> Option<&mix::Node> {
+        for nodes in self.mixes.values() {
+            for node in nodes {
+                if node.identity_key.to_base58_string() == mixnode_identity {
+                    return Some(node);
+                }
+            }
+        }
+        None
     }
 
     pub fn mixes(&self) -> &HashMap<MixLayer, Vec<mix::Node>> {

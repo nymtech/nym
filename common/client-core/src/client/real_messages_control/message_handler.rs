@@ -401,6 +401,14 @@ where
         Ok(())
     }
 
+    pub(crate) async fn send_premade_mix_packet(
+        &mut self,
+        msg: RealMessage,
+        lane: TransmissionLane,
+    ) {
+        self.forward_messages(vec![msg], lane).await;
+    }
+
     pub(crate) async fn try_send_plain_message(
         &mut self,
         recipient: Recipient,

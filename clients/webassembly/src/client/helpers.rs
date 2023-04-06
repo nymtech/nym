@@ -1,18 +1,17 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_core::client::base_client::ClientInput;
-use client_core::client::inbound_messages::InputMessage;
+use crate::tester::NodeTesterRequest;
+use crate::topology::WasmNymTopology;
+use crate::topology::WasmNymTopology;
 use js_sys::Promise;
+use nym_client_core::client::base_client::{ClientInput, ClientState};
+use nym_client_core::client::inbound_messages::InputMessage;
+use nym_topology::MixLayer;
 use std::sync::Arc;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
-
-use nym_client_core::client::base_client::{ClientInput, ClientState};
-use nym_client_core::client::inbound_messages::InputMessage;
-use wasm_utils::console_log;
-
-use crate::topology::WasmNymTopology;
+use wasm_utils::{console_log, simple_js_error};
 
 // defining helper trait as we could directly call the method on the wrapper
 pub(crate) trait InputSender {
@@ -25,11 +24,9 @@ impl InputSender for Arc<ClientInput> {
         future_to_promise(async move {
             match this.input_sender.send(message).await {
                 Ok(_) => Ok(JsValue::null()),
-                Err(_) => {
-                    let js_error =
-                        js_sys::Error::new("InputMessageReceiver has stopped receiving!");
-                    Err(JsValue::from(js_error))
-                }
+                Err(_) => Err(simple_js_error(
+                    "InputMessageReceiver has stopped receiving!",
+                )),
             }
         })
     }
@@ -39,6 +36,9 @@ pub(crate) trait WasmTopologyExt {
     fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise;
 
     fn check_for_mixnode_existence(&self, mixnode_identity: String) -> Promise;
+
+    /// Gets a variant of `this` topology where the target node is the only one on its layer
+    fn reduced_layer_topology(&self, mixnode_identity: String) -> Promise;
 }
 
 impl WasmTopologyExt for Arc<ClientState> {
@@ -57,23 +57,37 @@ impl WasmTopologyExt for Arc<ClientState> {
         let this = Arc::clone(self);
         future_to_promise(async move {
             let Some(current_topology) = this.topology_accessor.current_topology().await else {
-                let js_error =
-                    js_sys::Error::new("Network topology is currently unavailable");
-                return Err(JsValue::from(js_error));
+                return Err(simple_js_error("Network topology is currently unavailable"))
             };
 
-            for (&layer, mixes) in current_topology.mixes() {
-                for mix in mixes {
-                    if mix.identity_key.to_base58_string() == mixnode_identity {
-                        return Ok(JsValue::from(layer));
-                    }
-                }
+            match current_topology.find_mix_by_identity(&mixnode_identity) {
+                None => Err(simple_js_error(format!(
+                    "The current network topology does not contain mixnode {mixnode_identity}"
+                ))),
+                Some(node) => Ok(JsValue::from(MixLayer::from(node.layer))),
             }
+        })
+    }
 
-            let js_error = js_sys::Error::new(&format!(
-                "The current network topology does not contain mixnode {mixnode_identity}"
-            ));
-            Err(JsValue::from(js_error))
+    fn reduced_layer_topology(&self, mixnode_identity: String) -> Promise {
+        let this = Arc::clone(self);
+        future_to_promise(async move {
+            let Some(current_topology) = this.topology_accessor.current_topology().await else {
+                return Err(simple_js_error("Network topology is currently unavailable"))
+            };
+
+            let Some(mix) = current_topology.find_mix_by_identity(&mixnode_identity) else {
+                    return Err(simple_js_error(format!(
+                    "The current network topology does not contain mixnode {mixnode_identity}"
+                )))
+            };
+
+            let mut updated = current_topology.clone();
+            updated.set_mixes_in_layer(mix.layer.into(), vec![mix.to_owned()]);
+
+            Ok(JsValue::from(NodeTesterRequest {
+                testable_topology: updated,
+            }))
         })
     }
 }

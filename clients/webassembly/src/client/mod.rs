@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
-use crate::client::helpers::InputSender;
+use crate::client::helpers::{InputSender, WasmTopologyExt};
 use crate::client::response_pusher::ResponsePusher;
+use crate::tester::NodeTesterRequest;
+use crate::topology::WasmNymTopology;
 use js_sys::Promise;
 use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_bandwidth_controller::BandwidthController;
@@ -17,6 +19,8 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
+use nym_topology::provider_trait::{HardcodedTopologyProvider, TopologyProvider};
+use nym_topology::NymTopology;
 use rand::rngs::OsRng;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
@@ -31,6 +35,11 @@ mod response_pusher;
 pub struct NymClient {
     self_address: String,
     client_input: Arc<ClientInput>,
+    client_state: Arc<ClientState>,
+
+    // keep track of the "old" topology for the purposes of node tester
+    // so that it could be restored after the check is done
+    _full_topology: Option<NymTopology>,
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
@@ -40,7 +49,7 @@ pub struct NymClient {
 #[wasm_bindgen]
 pub struct NymClientBuilder {
     config: Config,
-    custom_topology: Option<()>,
+    custom_topology: Option<NymTopology>,
 
     /// KeyManager object containing smart pointers to all relevant keys used by the client.
     key_manager: KeyManager,
@@ -59,24 +68,61 @@ pub struct NymClientBuilder {
 impl NymClientBuilder {
     #[wasm_bindgen(constructor)]
     pub fn new(config: Config, on_message: js_sys::Function) -> Self {
-        todo!()
         //, key_manager: Option<KeyManager>) {
-        // NymClientBuilder {
-        //     reply_surb_storage_backend: Self::setup_reply_surb_storage_backend(&config),
-        //     config,
-        //     key_manager: Self::setup_key_manager(),
-        //     on_message,
-        //     bandwidth_controller: None,
-        //     disabled_credentials: true,
-        // }
+        NymClientBuilder {
+            reply_surb_storage_backend: Self::setup_reply_surb_storage_backend(&config),
+            config,
+            custom_topology: None,
+            key_manager: Self::setup_key_manager(),
+            on_message,
+            bandwidth_controller: None,
+            disabled_credentials: true,
+        }
     }
 
     // no cover traffic
     // no poisson delay
-    // no surbs
     // hardcoded topology
-    pub fn new_tester(gateway_config: GatewayEndpointConfig) -> Self {
-        todo!()
+    pub fn new_tester(
+        gateway_config: GatewayEndpointConfig,
+        topology: WasmNymTopology,
+        on_message: js_sys::Function,
+    ) -> Self {
+        if !topology.ensure_contains(&gateway_config) {
+            panic!("the specified topology does not contain the gateway used by the client")
+        }
+
+        let full_config = Config {
+            id: "ephemeral-id".to_string(),
+            nym_api_url: None,
+            disabled_credentials_mode: false,
+            gateway_endpoint: gateway_config,
+            debug: DebugConfig {
+                traffic: Traffic {
+                    disable_main_poisson_packet_distribution: true,
+                    ..Default::default()
+                },
+                cover_traffic: CoverTraffic {
+                    disable_loop_cover_traffic_stream: true,
+                    ..Default::default()
+                },
+                topology: Topology {
+                    disable_refreshing: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        };
+
+        NymClientBuilder {
+            reply_surb_storage_backend: Self::setup_reply_surb_storage_backend(&full_config),
+            config: full_config,
+            custom_topology: Some(topology.into()),
+            key_manager: Self::setup_key_manager(),
+            on_message,
+            bandwidth_controller: None,
+            disabled_credentials: true,
+        }
     }
 
     // TODO: once we make keys persistent, we'll require some kind of `init` method to generate
@@ -109,9 +155,19 @@ impl NymClientBuilder {
         ResponsePusher::new(client_output, on_message).start()
     }
 
-    pub async fn start_client(self) -> Promise {
+    fn topology_provider(&mut self) -> Option<Box<dyn TopologyProvider>> {
+        if let Some(hardcoded_topology) = self.custom_topology.take() {
+            Some(Box::new(HardcodedTopologyProvider::new(hardcoded_topology)))
+        } else {
+            None
+        }
+    }
+
+    pub async fn start_client(mut self) -> Promise {
         future_to_promise(async move {
             console_log!("Starting the wasm client");
+
+            let maybe_topology_provider = self.topology_provider();
 
             let disabled_credentials = if self.disabled_credentials {
                 CredentialsToggle::Disabled
@@ -119,15 +175,22 @@ impl NymClientBuilder {
                 CredentialsToggle::Enabled
             };
 
-            let base_builder = BaseClientBuilder::new(
+            let nym_api_endpoints = match self.config.nym_api_url {
+                Some(endpoint) => vec![endpoint],
+                None => Vec::new(),
+            };
+            let mut base_builder = BaseClientBuilder::new(
                 &self.config.gateway_endpoint,
                 &self.config.debug,
                 self.key_manager,
                 self.bandwidth_controller,
                 self.reply_surb_storage_backend,
                 disabled_credentials,
-                vec![self.config.nym_api_url.clone()],
+                nym_api_endpoints,
             );
+            if let Some(topology_provider) = maybe_topology_provider {
+                base_builder = base_builder.with_topology_provider(topology_provider);
+            }
 
             let self_address = base_builder.as_mix_recipient().to_string();
             let mut started_client = match base_builder.start_base().await {
@@ -148,6 +211,8 @@ impl NymClientBuilder {
             Ok(JsValue::from(NymClient {
                 self_address,
                 client_input: Arc::new(client_input),
+                client_state: Arc::new(started_client.client_state),
+                _full_topology: None,
                 _task_manager: started_client.task_manager,
             }))
         })
@@ -182,6 +247,45 @@ impl NymClient {
                 Err(JsValue::from(js_error))
             }
         }
+    }
+
+    pub fn try_construct_test_packet_request(&self, mixnode_identity: String) -> Promise {
+        self.client_state.reduced_layer_topology(mixnode_identity)
+    }
+
+    pub fn try_send_test_packet(&mut self, request: NodeTesterRequest) -> Promise {
+
+        // IDEAL PROCEDURE:
+        // 1. check if mixnode exists
+        // 2. get its layer L
+        // 3. if possible, create ephemeral topology such that it that:
+        //    - layer L only contains this one node
+        //    - other layers contain only very high performance nodes
+        // 4. send a sphinx packet through
+        // 5. ???
+        // 6 PROFIT
+
+        // CURRENT (temporary?) PROCEDURE:
+        // 1. check if mixnode exists
+        // 2. get its layer L
+        // 3. clear other nodes on layer L (other layers are not really guaranteed to be 'good')
+        // 4. send a sphinx packet through
+        // 5. ???
+        // 6 PROFIT
+
+        // check if this mixnode exists in our known topology and if so,
+        // extract its layer
+        // let layer_promise = self
+        //     .client_state
+        //     .check_for_mixnode_existence(mixnode_identity);
+        //
+        // let send_callback = Closure::new(|layer_res| {
+        //     console_log!("RES: {layer_res:?}");
+        // });
+        //
+        // let send_promise = layer_promise.then(&send_callback);
+        // send_callback.forget();
+        // send_promise
     }
 
     /// The simplest message variant where no additional information is attached.
@@ -251,5 +355,9 @@ impl NymClient {
 
         let input_msg = InputMessage::new_reply(sender_tag, message, lane);
         self.client_input.send_message(input_msg)
+    }
+
+    pub fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise {
+        self.client_state.change_hardcoded_topology(topology)
     }
 }

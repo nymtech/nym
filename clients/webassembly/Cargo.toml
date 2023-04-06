@@ -29,6 +29,7 @@ tokio = { version = "1.24.1", features = ["sync"] }
 url = "2.2"
 wasm-bindgen = { version = "=0.2.83", features = ["serde-serialize"]  }
 wasm-bindgen-futures = "0.4"
+thiserror = "1.0.40"
 
 # internal
 nym-client-core = { path = "../../common/client-core", default-features = false, features = ["wasm"] }

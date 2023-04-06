@@ -42,6 +42,28 @@ pub struct Node {
     pub version: String,
 }
 
+impl Node {
+    pub fn parse_host(raw: &str) -> Result<NetworkAddress, MixnodeConversionError> {
+        raw.parse()
+            .map_err(|err| MixnodeConversionError::InvalidAddress {
+                value: raw.to_owned(),
+                source: err,
+            })
+    }
+
+    pub fn extract_mix_host(
+        host: &NetworkAddress,
+        mix_port: u16,
+    ) -> Result<SocketAddr, MixnodeConversionError> {
+        Ok(host.to_socket_addrs(mix_port).map_err(|err| {
+            MixnodeConversionError::InvalidAddress {
+                value: host.to_string(),
+                source: err,
+            }
+        })?[0])
+    }
+}
+
 impl filter::Versioned for Node {
     fn version(&self) -> String {
         self.version.clone()
@@ -62,23 +84,11 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
     type Error = MixnodeConversionError;
 
     fn try_from(bond: &'a MixNodeBond) -> Result<Self, Self::Error> {
-        let host: NetworkAddress =
-            bond.mix_node
-                .host
-                .parse()
-                .map_err(|err| MixnodeConversionError::InvalidAddress {
-                    value: bond.mix_node.host.clone(),
-                    source: err,
-                })?;
+        let host = Self::parse_host(&bond.mix_node.host)?;
 
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
-        let mix_host = host
-            .to_socket_addrs(bond.mix_node.mix_port)
-            .map_err(|err| MixnodeConversionError::InvalidAddress {
-                value: bond.mix_node.host.clone(),
-                source: err,
-            })?[0];
+        let mix_host = Self::extract_mix_host(&host, bond.mix_node.mix_port)?;
 
         Ok(Node {
             mix_id: bond.mix_id,

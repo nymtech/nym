@@ -1,90 +1,137 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_topology::mix::Layer;
-use nym_topology::{gateway, mix, MixLayer, NymTopology};
+use client_core::config::GatewayEndpointConfig;
+use nym_crypto::asymmetric::{encryption, identity};
+use nym_topology::gateway::GatewayConversionError;
+use nym_topology::mix::{Layer, MixnodeConversionError};
+use nym_topology::{gateway, mix, MixLayer, NetworkAddress, NymTopology};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Deref;
+use thiserror::Error;
 use validator_client::client::MixId;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
-
-pub type PlaceholderError = String;
-//
-// // TODO: perhaps move elsewhere
-// #[derive(Clone)]
-// pub struct Base58String(String);
-//
-// impl serde::Serialize for Base58String {
-//     #[inline(always)]
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: serde::Serializer,
-//     {
-//         self.0.serialize(serializer)
-//     }
-// }
-//
-// impl<'de> serde::Deserialize<'de> for Base58String {
-//     #[inline(always)]
-//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//     where
-//         D: serde::Deserializer<'de>,
-//     {
-//         let s = <String>::deserialize(deserializer)?;
-//         // make sure it's a valid bs58 string
-//         let _bytes = bs58::decode(&s)
-//             .into_vec()
-//             .map_err(serde::de::Error::custom)?;
-//         Ok(Base58String(s))
-//     }
-// }
-
-// impl Deref for Base58String {
-//
-// }
+use wasm_utils::console_log;
 
 #[wasm_bindgen]
+pub struct PlaceholderErrorWrapper(String);
+
+impl From<PlaceholderError> for PlaceholderErrorWrapper {
+    fn from(value: PlaceholderError) -> Self {
+        PlaceholderErrorWrapper(value.to_string())
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum PlaceholderError {
+    #[error("got invalid mix layer {value}. Expected 1, 2 or 3.")]
+    InvalidMixLayer { value: u8 },
+
+    #[error(transparent)]
+    GatewayConversion(#[from] GatewayConversionError),
+
+    #[error(transparent)]
+    MixnodeConversion(#[from] MixnodeConversionError),
+}
+
+#[wasm_bindgen]
+#[derive(Debug)]
 pub struct WasmNymTopology {
-    mixnodes: HashMap<Layer, Vec<WasmMixNode>>,
-    gateways: Vec<WasmGateway>,
+    // mixnodes: HashMap<MixLayer, Vec<WasmMixNode>>,
+    // gateways: Vec<WasmGateway>,
+    inner: NymTopology,
 }
 
 #[wasm_bindgen]
 impl WasmNymTopology {
     #[wasm_bindgen(constructor)]
     pub fn new(
-        // expected: HashMap<Layer, Vec<WasmMixNode>>,
+        // expected: HashMap<MixLayer, Vec<WasmMixNode>>,
         mixnodes: JsValue,
         // expected: Vec<WasmGateway>
         gateways: JsValue,
-    ) -> Result<WasmNymTopology, PlaceholderError> {
-        let mixnodes: HashMap<Layer, Vec<WasmMixNode>> =
+    ) -> Result<WasmNymTopology, PlaceholderErrorWrapper> {
+        let mixnodes: HashMap<MixLayer, Vec<WasmMixNode>> =
             serde_wasm_bindgen::from_value(mixnodes).expect("TODO");
 
         let gateways: Vec<WasmGateway> = serde_wasm_bindgen::from_value(gateways).expect("TODO");
 
-        Ok(WasmNymTopology { mixnodes, gateways })
+        let mut converted_mixes = HashMap::new();
+
+        for (layer, nodes) in mixnodes {
+            let layer_nodes = nodes
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?;
+
+            converted_mixes.insert(layer, layer_nodes);
+        }
+
+        let gateways = gateways
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<_, _>>()?;
+
+        Ok(WasmNymTopology {
+            inner: NymTopology::new(converted_mixes, gateways),
+        })
+    }
+
+    pub(crate) fn ensure_contains(&self, gateway_config: &GatewayEndpointConfig) -> bool {
+        self.inner
+            .gateways()
+            .iter()
+            .any(|g| g.identity_key.to_base58_string() == gateway_config.gateway_id)
+    }
+
+    pub fn print(&self) {
+        console_log!("{:?}", self)
     }
 }
 
-impl TryFrom<WasmNymTopology> for NymTopology {
-    type Error = ();
-
-    fn try_from(value: WasmNymTopology) -> Result<Self, Self::Error> {
-        todo!()
+impl From<WasmNymTopology> for NymTopology {
+    fn from(value: WasmNymTopology) -> Self {
+        value.inner
     }
 }
+
+//
+// impl TryFrom<WasmNymTopology> for NymTopology {
+//     type Error = PlaceholderError;
+//
+//     fn try_from(value: WasmNymTopology) -> Result<Self, Self::Error> {
+//         let mut mixnodes = HashMap::new();
+//
+//         for (layer, nodes) in value.mixnodes {
+//             let layer_nodes = nodes
+//                 .into_iter()
+//                 .map(TryInto::try_into)
+//                 .collect::<Result<_, _>>()?;
+//
+//             mixnodes.insert(layer, layer_nodes);
+//         }
+//
+//         let gateways = value
+//             .gateways
+//             .into_iter()
+//             .map(TryInto::try_into)
+//             .collect::<Result<_, _>>()?;
+//
+//         Ok(NymTopology::new(mixnodes, gateways))
+//     }
+// }
 
 #[wasm_bindgen]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WasmMixNode {
     pub mix_id: MixId,
     #[wasm_bindgen(getter_with_clone)]
     pub owner: String,
     #[wasm_bindgen(getter_with_clone)]
     pub host: String,
+    pub mix_port: u16,
     #[wasm_bindgen(getter_with_clone)]
     pub identity_key: String,
     #[wasm_bindgen(getter_with_clone)]
@@ -94,21 +141,66 @@ pub struct WasmMixNode {
     pub version: String,
 }
 
+#[wasm_bindgen]
+impl WasmMixNode {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        mix_id: MixId,
+        owner: String,
+        host: String,
+        mix_port: u16,
+        identity_key: String,
+        sphinx_key: String,
+        layer: MixLayer,
+        version: String,
+    ) -> Self {
+        Self {
+            mix_id,
+            owner,
+            host,
+            mix_port,
+            identity_key,
+            sphinx_key,
+            layer,
+            version,
+        }
+    }
+}
+
 impl TryFrom<WasmMixNode> for mix::Node {
-    type Error = ();
+    type Error = PlaceholderError;
 
     fn try_from(value: WasmMixNode) -> Result<Self, Self::Error> {
-        todo!()
+        let host = mix::Node::parse_host(&value.host)?;
+
+        // try to completely resolve the host in the mix situation to avoid doing it every
+        // single time we want to construct a path
+        let mix_host = mix::Node::extract_mix_host(&host, value.mix_port)?;
+
+        Ok(mix::Node {
+            mix_id: value.mix_id,
+            owner: value.owner,
+            host,
+            mix_host,
+            identity_key: identity::PublicKey::from_base58_string(&value.identity_key)
+                .map_err(MixnodeConversionError::from)?,
+            sphinx_key: encryption::PublicKey::from_base58_string(&value.sphinx_key)
+                .map_err(MixnodeConversionError::from)?,
+            layer: Layer::try_from(value.layer)
+                .map_err(|_| PlaceholderError::InvalidMixLayer { value: value.layer })?,
+            version: value.version,
+        })
     }
 }
 
 #[wasm_bindgen]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WasmGateway {
     #[wasm_bindgen(getter_with_clone)]
     pub owner: String,
     #[wasm_bindgen(getter_with_clone)]
     pub host: String,
+    pub mix_port: u16,
     pub clients_port: u16,
     #[wasm_bindgen(getter_with_clone)]
     pub identity_key: String,
@@ -118,10 +210,50 @@ pub struct WasmGateway {
     pub version: String,
 }
 
+#[wasm_bindgen]
+impl WasmGateway {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        owner: String,
+        host: String,
+        mix_port: u16,
+        clients_port: u16,
+        identity_key: String,
+        sphinx_key: String,
+        version: String,
+    ) -> Self {
+        Self {
+            owner,
+            host,
+            mix_port,
+            clients_port,
+            identity_key,
+            sphinx_key,
+            version,
+        }
+    }
+}
+
 impl TryFrom<WasmGateway> for gateway::Node {
-    type Error = ();
+    type Error = PlaceholderError;
 
     fn try_from(value: WasmGateway) -> Result<Self, Self::Error> {
-        todo!()
+        let host = gateway::Node::parse_host(&value.host)?;
+
+        // try to completely resolve the host in the mix situation to avoid doing it every
+        // single time we want to construct a path
+        let mix_host = gateway::Node::extract_mix_host(&host, value.mix_port)?;
+
+        Ok(gateway::Node {
+            owner: value.owner,
+            host,
+            mix_host,
+            clients_port: value.clients_port,
+            identity_key: identity::PublicKey::from_base58_string(&value.identity_key)
+                .map_err(GatewayConversionError::from)?,
+            sphinx_key: encryption::PublicKey::from_base58_string(&value.sphinx_key)
+                .map_err(GatewayConversionError::from)?,
+            version: value.version,
+        })
     }
 }

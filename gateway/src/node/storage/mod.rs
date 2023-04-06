@@ -314,6 +314,7 @@ pub(crate) struct InMemStorage;
 #[cfg(test)]
 impl InMemStorage {
     #[allow(unused)]
+    #[allow(clippy::extra_unused_type_parameters)]
     async fn init<P: AsRef<Path> + Send>() -> Result<Self, StorageError> {
         todo!()
     }

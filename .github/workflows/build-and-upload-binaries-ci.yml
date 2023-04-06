@@ -69,7 +69,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release --all
+          args: --workspace --release --all --features cpu-cycles
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -79,34 +79,12 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Install wasm-opt
-        run: cargo install --version 0.112.0 wasm-opt
-
-      - name: Build release contracts
-        run: make wasm
-
       - name: Prepare build output
         shell: bash
         env:
           OUTPUT_DIR: ci-builds/${{ github.ref_name }}
         run: |
-          cp target/release/nym-client $OUTPUT_DIR
-          cp target/release/nym-gateway $OUTPUT_DIR
           cp target/release/nym-mixnode $OUTPUT_DIR
-          cp target/release/nym-socks5-client $OUTPUT_DIR
-          cp target/release/nym-api $OUTPUT_DIR
-          cp target/release/nym-network-requester $OUTPUT_DIR
-          cp target/release/nym-network-statistics $OUTPUT_DIR
-          cp target/release/nym-cli $OUTPUT_DIR
-          cp target/release/credential $OUTPUT_DIR
-          cp target/release/explorer-api $OUTPUT_DIR
-          
-          cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_bandwidth.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_dkg.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/cw3_flex_multisig.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/cw4_group.wasm $OUTPUT_DIR
 
       - name: Deploy branch to CI www
         continue-on-error: true

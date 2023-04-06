@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, IconButton } from '@mui/material';
-import { LogoWithText } from 'src/components/LogoWithText';
+import { LogoWithText } from 'src/components/ui';
 import { ArrowBackIosRounded } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,6 +11,8 @@ const layoutStyle = {
   gridTemplaterows: '1fr 2fr 1fr',
   gridColumnGap: '0px',
   gridRowGap: '0px',
+  position: 'relative',
+  p: 2,
 };
 
 export const TopLogoLayout = ({
@@ -26,8 +28,8 @@ export const TopLogoLayout = ({
 }) => {
   const navigate = useNavigate();
   return (
-    <Box style={layoutStyle} position="relative">
-      <Box sx={{ position: 'absolute' }}>
+    <Box sx={layoutStyle}>
+      <Box sx={{ position: 'absolute', top: 16, left: 16 }}>
         <IconButton size="small" onClick={() => navigate(-1)}>
           <ArrowBackIosRounded fontSize="small" />
         </IconButton>

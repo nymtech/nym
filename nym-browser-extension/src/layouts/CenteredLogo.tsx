@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import { LogoWithText } from 'src/components/LogoWithText';
+import { LogoWithText } from 'src/components/ui';
 
 const layoutStyle = {
   height: '100%',
@@ -9,6 +9,7 @@ const layoutStyle = {
   gridTemplateRows: 'repeat(3, 1fr)',
   gridColumnGap: '0px',
   gridRowGap: '0px',
+  p: 2,
 };
 
 export const CenteredLogoLayout = ({
@@ -20,7 +21,7 @@ export const CenteredLogoLayout = ({
   description?: string;
   Actions: React.ReactNode;
 }) => (
-  <Box style={layoutStyle}>
+  <Box sx={layoutStyle}>
     <Box></Box>
     <LogoWithText title={title} description={description} />
     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>{Actions}</Box>

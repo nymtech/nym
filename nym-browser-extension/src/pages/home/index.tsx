@@ -1,6 +1,6 @@
 import React from 'react';
 import { Stack } from '@mui/system';
-import { Button } from 'src/components/Button';
+import { Button } from 'src/components/ui';
 import { CenteredLogoLayout } from 'src/layouts';
 import { Link } from 'react-router-dom';
 

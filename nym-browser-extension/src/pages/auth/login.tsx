@@ -1,6 +1,6 @@
 import { Stack, TextField } from '@mui/material';
 import React from 'react';
-import { Button } from 'src/components/Button';
+import { Button } from 'src/components/ui';
 import { CenteredLogoLayout } from 'src/layouts/CenteredLogo';
 
 export const Login = () => (

@@ -3,7 +3,7 @@ import { FormControlLabel, Checkbox, Stack, Typography, Box } from '@mui/materia
 import { TopLogoLayout } from 'src/layouts/TopLogo';
 import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { PasswordStrength } from '@nymproject/react/password-strength/PasswordStrength';
-import { Button } from 'src/components/Button';
+import { Button } from 'src/components/ui';
 import { useNavigate } from 'react-router-dom';
 
 export const CreatePassword = () => {

@@ -1,6 +1,6 @@
-import { Box } from '@mui/system';
 import React from 'react';
-import { Button } from 'src/components/Button';
+import { Box } from '@mui/material';
+import { Button } from 'src/components/ui';
 import { CenteredLogoLayout } from 'src/layouts';
 
 export const SetupComplete = () => (

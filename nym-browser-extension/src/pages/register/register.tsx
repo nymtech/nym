@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Checkbox, FormControlLabel, Stack, TextField, Typography } from '@mui/material';
 import { TopLogoLayout } from 'src/layouts/TopLogo';
-
-import { Button } from 'src/components/Button';
+import { Button } from 'src/components/ui';
 import { useNavigate } from 'react-router-dom';
 
 export const Register = () => {

@@ -45,8 +45,8 @@ const PasswordForm = ({ mode, onPwdSaved }: { mode: 'create' | 'update'; onPwdSa
         <Stack spacing={3} mt={2}>
           {mode === 'update' && (
             <Error
-              message="Creating a new password will overwrite any old one.
-Make sure your menonics are all wirtten down before creating a new password."
+              message="Creating a new password will overwrite any old one stored on your machine.
+            Make sure you have saved any mnemonics associated with the password before creating a new one."
             />
           )}
           <MnemonicInput mnemonic={mnemonic} onUpdateMnemonic={(m) => setMnemonic(m)} />

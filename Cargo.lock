@@ -913,29 +913,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "credential"
-version = "0.1.0"
-dependencies = [
- "bip39",
- "clap 4.1.11",
- "log",
- "nym-bin-common",
- "nym-coconut-interface",
- "nym-config",
- "nym-credential-storage",
- "nym-credentials",
- "nym-crypto",
- "nym-network-defaults",
- "nym-pemstore",
- "nym-validator-client",
- "rand 0.7.3",
- "serde",
- "thiserror",
- "tokio",
- "url",
-]
-
-[[package]]
 name = "criterion"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3371,6 +3348,29 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "nym-credential-client"
+version = "0.1.0"
+dependencies = [
+ "bip39",
+ "clap 4.1.11",
+ "log",
+ "nym-bin-common",
+ "nym-coconut-interface",
+ "nym-config",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-network-defaults",
+ "nym-pemstore",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "serde",
+ "thiserror",
+ "tokio",
+ "url",
 ]
 
 [[package]]

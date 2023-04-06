@@ -23,7 +23,7 @@ export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handle
       />
       <Typography>Open security tab in settings to create password to your account</Typography>
       <Typography>
-        If you already have password use it to log into wallet and try create/import account again{' '}
+        If you already have password use it to log into wallet and try create/import account again
       </Typography>
     </Stack>
   </ConfirmationModal>

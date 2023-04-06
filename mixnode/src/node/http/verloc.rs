@@ -1,4 +1,4 @@
-use mixnode_common::verloc::{AtomicVerlocResult, VerlocResult};
+use nym_mixnode_common::verloc::{AtomicVerlocResult, VerlocResult};
 use rocket::serde::json::Json;
 use rocket::State;
 

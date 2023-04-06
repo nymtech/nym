@@ -2913,36 +2913,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mixnode-common"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "cfg-if",
- "cpu-cycles",
- "futures",
- "humantime-serde",
- "log",
- "nym-bin-common",
- "nym-crypto",
- "nym-network-defaults",
- "nym-sphinx-acknowledgements",
- "nym-sphinx-addressing",
- "nym-sphinx-forwarding",
- "nym-sphinx-framing",
- "nym-sphinx-params",
- "nym-sphinx-types",
- "nym-task",
- "nym-validator-client",
- "rand 0.8.5",
- "serde",
- "thiserror",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "multer"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3506,7 +3476,6 @@ dependencies = [
  "lazy_static",
  "log",
  "mixnet-client",
- "mixnode-common",
  "nym-api-requests",
  "nym-bin-common",
  "nym-coconut-interface",
@@ -3514,6 +3483,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-mixnode-common",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -3642,11 +3612,11 @@ dependencies = [
  "lazy_static",
  "log",
  "mixnet-client",
- "mixnode-common",
  "nym-bin-common",
  "nym-config",
  "nym-contracts-common",
  "nym-crypto",
+ "nym-mixnode-common",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
@@ -3666,6 +3636,36 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "nym-mixnode-common"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "cfg-if",
+ "cpu-cycles",
+ "futures",
+ "humantime-serde",
+ "log",
+ "nym-bin-common",
+ "nym-crypto",
+ "nym-network-defaults",
+ "nym-sphinx-acknowledgements",
+ "nym-sphinx-addressing",
+ "nym-sphinx-forwarding",
+ "nym-sphinx-framing",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+ "nym-task",
+ "nym-validator-client",
+ "rand 0.8.5",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tokio-util",
  "tracing",
  "url",
 ]

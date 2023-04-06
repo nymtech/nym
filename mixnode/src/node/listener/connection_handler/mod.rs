@@ -7,7 +7,7 @@ use crate::node::listener::connection_handler::packet_processing::{
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use futures::StreamExt;
-use mixnode_common::measure;
+use nym_mixnode_common::measure;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::SphinxCodec;
 use nym_sphinx::framing::packet::FramedSphinxPacket;

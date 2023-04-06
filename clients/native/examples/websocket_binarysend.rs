@@ -4,7 +4,7 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::{
     connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,
 };
-use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
+use nym_client_websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 // just helpers functions that work in this very particular context because we are sending to ourselves
 // and hence will always get a response back (i.e. the message we sent)

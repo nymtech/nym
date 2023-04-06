@@ -3218,6 +3218,7 @@ dependencies = [
  "log",
  "nym-bin-common",
  "nym-client-core",
+ "nym-client-websocket-requests",
  "nym-coconut-interface",
  "nym-config",
  "nym-credential-storage",
@@ -3240,7 +3241,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.14.0",
  "url",
- "websocket-requests",
 ]
 
 [[package]]
@@ -3281,6 +3281,15 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-timer",
  "wasm-utils",
+]
+
+[[package]]
+name = "nym-client-websocket-requests"
+version = "0.1.0"
+dependencies = [
+ "nym-sphinx",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3720,6 +3729,7 @@ dependencies = [
  "log",
  "nym-bin-common",
  "nym-client-core",
+ "nym-client-websocket-requests",
  "nym-config",
  "nym-crypto",
  "nym-network-defaults",
@@ -3743,7 +3753,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.17.2",
  "url",
- "websocket-requests",
 ]
 
 [[package]]
@@ -7236,15 +7245,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c71e40d7d2c34a5106301fb632274ca37242cd0c9d3e64dbece371a40a2d87"
 dependencies = [
  "webpki 0.22.0",
-]
-
-[[package]]
-name = "websocket-requests"
-version = "0.1.0"
-dependencies = [
- "nym-sphinx",
- "serde",
- "serde_json",
 ]
 
 [[package]]

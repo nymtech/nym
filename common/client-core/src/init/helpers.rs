@@ -35,7 +35,7 @@ type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 use nym_credential_storage::storage::Storage;
 
 #[cfg(target_arch = "wasm32")]
-use nym_gateway_client::wasm_mockups::DirectSigningNyxdClient;
+use nym_bandwidth_controller::wasm_mockups::DirectSigningNyxdClient;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer::Instant;
 #[cfg(target_arch = "wasm32")]

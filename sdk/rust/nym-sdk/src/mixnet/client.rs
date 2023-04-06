@@ -3,6 +3,7 @@ use futures::StreamExt;
 use std::{path::Path, sync::Arc};
 use url::Url;
 
+use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::BaseClient;
 use nym_client_core::{
     client::{
@@ -15,7 +16,6 @@ use nym_client_core::{
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_credential_storage::initialise_ephemeral_storage;
 use nym_crypto::asymmetric::identity;
-use nym_gateway_client::bandwidth::BandwidthController;
 
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;

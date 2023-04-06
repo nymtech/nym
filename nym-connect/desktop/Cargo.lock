@@ -3174,6 +3174,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-bandwidth-controller"
+version = "0.1.0"
+dependencies = [
+ "nym-coconut-interface",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-validator-client",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-bin-common"
 version = "0.3.0"
 dependencies = [
@@ -3199,6 +3210,7 @@ dependencies = [
  "gloo-timers",
  "humantime-serde",
  "log",
+ "nym-bandwidth-controller",
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
@@ -3423,9 +3435,9 @@ dependencies = [
  "futures",
  "getrandom 0.2.8",
  "log",
+ "nym-bandwidth-controller",
  "nym-coconut-interface",
  "nym-credential-storage",
- "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
  "nym-network-defaults",
@@ -3580,10 +3592,10 @@ dependencies = [
  "dirs",
  "futures",
  "log",
+ "nym-bandwidth-controller",
  "nym-client-core",
  "nym-config",
  "nym-credential-storage",
- "nym-gateway-client",
  "nym-network-defaults",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",

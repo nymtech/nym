@@ -11,6 +11,7 @@ use crate::socks::{
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nym_bandwidth_controller::BandwidthController;
 #[cfg(target_os = "android")]
 use nym_client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
 #[cfg(not(target_os = "android"))]
@@ -21,7 +22,6 @@ use nym_client_core::client::base_client::{
 use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_credential_storage::storage::Storage;
-use nym_gateway_client::bandwidth::BandwidthController;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::nyxd::QueryNyxdClient;

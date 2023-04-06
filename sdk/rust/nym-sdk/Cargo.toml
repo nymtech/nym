@@ -8,8 +8,8 @@ edition = "2021"
 [dependencies]
 nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage"]}
 nym-crypto = { path = "../../../common/crypto" }
-nym-gateway-client = { path = "../../../common/client-libs/gateway-client" }
 nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
+nym-bandwidth-controller = { path = "../../../common/bandwidth-controller" }
 nym-credential-storage = { path = "../../../common/credential-storage" }
 nym-network-defaults = { path = "../../../common/network-defaults" }
 nym-sphinx = { path = "../../../common/nymsphinx" }

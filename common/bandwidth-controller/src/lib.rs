@@ -1,7 +1,7 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::GatewayClientError;
+use crate::error::BandwidthControllerError;
 
 use nym_credential_storage::error::StorageError;
 use nym_credential_storage::storage::Storage;
@@ -20,6 +20,10 @@ use nym_validator_client::nyxd::traits::DkgQueryClient;
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::DkgQueryClient;
 
+pub mod error;
+#[cfg(target_arch = "wasm32")]
+pub mod wasm_mockups;
+
 pub struct BandwidthController<C, St: Storage> {
     storage: St,
     client: C,
@@ -32,7 +36,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
     pub async fn prepare_coconut_credential(
         &self,
-    ) -> Result<(nym_coconut_interface::Credential, i64), GatewayClientError>
+    ) -> Result<(nym_coconut_interface::Credential, i64), BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
     {
@@ -72,7 +76,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         ))
     }
 
-    pub async fn consume_credential(&self, id: i64) -> Result<(), GatewayClientError> {
+    pub async fn consume_credential(&self, id: i64) -> Result<(), BandwidthControllerError> {
         // JS: shouldn't we send some contract/validator/gateway message here to actually, you know,
         // consume it?
         Ok(self.storage.consume_coconut_credential(id).await?)

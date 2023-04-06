@@ -17,7 +17,7 @@ tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
 
 nym-client-core = { path = "../client-core", features = ["fs-surb-storage"] }
 futures = "0.3"
-nym-gateway-client = { path = "../client-libs/gateway-client" }
+nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-config = { path = "../config" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }

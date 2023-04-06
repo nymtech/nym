@@ -11,7 +11,7 @@ use nym_credential_storage::storage::Storage;
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 #[cfg(target_arch = "wasm32")]
-use nym_gateway_client::wasm_mockups::DkgQueryClient;
+use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;

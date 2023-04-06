@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::bandwidth::BandwidthController;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
 pub use crate::packet_router::{
@@ -11,6 +10,7 @@ use crate::socket_state::{PartiallyDelegated, SocketState};
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
 use log::*;
+use nym_bandwidth_controller::BandwidthController;
 use nym_coconut_interface::Credential;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -33,7 +33,7 @@ use nym_validator_client::nyxd::traits::DkgQueryClient;
 use tokio_tungstenite::connect_async;
 
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::DkgQueryClient;
+use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 #[cfg(target_arch = "wasm32")]

@@ -3031,6 +3031,7 @@ dependencies = [
  "lazy_static",
  "log",
  "nym-api-requests",
+ "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-coconut",
  "nym-coconut-bandwidth-contract-common",
@@ -3087,6 +3088,17 @@ dependencies = [
  "schemars",
  "serde",
  "ts-rs",
+]
+
+[[package]]
+name = "nym-bandwidth-controller"
+version = "0.1.0"
+dependencies = [
+ "nym-coconut-interface",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-validator-client",
+ "thiserror",
 ]
 
 [[package]]
@@ -3193,6 +3205,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "log",
+ "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-client-core",
  "nym-client-websocket-requests",
@@ -3201,7 +3214,6 @@ dependencies = [
  "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
- "nym-gateway-client",
  "nym-gateway-requests",
  "nym-network-defaults",
  "nym-pemstore",
@@ -3231,6 +3243,7 @@ dependencies = [
  "gloo-timers",
  "humantime-serde",
  "log",
+ "nym-bandwidth-controller",
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
@@ -3511,9 +3524,9 @@ dependencies = [
  "futures",
  "getrandom 0.2.8",
  "log",
+ "nym-bandwidth-controller",
  "nym-coconut-interface",
  "nym-credential-storage",
- "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
  "nym-network-defaults",
@@ -3813,11 +3826,11 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "log",
+ "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-client-core",
  "nym-credential-storage",
  "nym-crypto",
- "nym-gateway-client",
  "nym-gateway-requests",
  "nym-network-defaults",
  "nym-socks5-client-core",
@@ -3896,10 +3909,10 @@ dependencies = [
  "dirs",
  "futures",
  "log",
+ "nym-bandwidth-controller",
  "nym-client-core",
  "nym-config",
  "nym-credential-storage",
- "nym-gateway-client",
  "nym-network-defaults",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",

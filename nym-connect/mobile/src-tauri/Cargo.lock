@@ -633,6 +633,7 @@ dependencies = [
  "gloo-timers",
  "humantime-serde",
  "log",
+ "nym-bandwidth-controller",
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
@@ -3184,6 +3185,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-bandwidth-controller"
+version = "0.1.0"
+dependencies = [
+ "nym-coconut-interface",
+ "nym-credential-storage",
+ "nym-credentials",
+ "thiserror",
+ "validator-client",
+]
+
+[[package]]
 name = "nym-bin-common"
 version = "0.3.0"
 dependencies = [
@@ -3597,6 +3609,7 @@ dependencies = [
  "dirs",
  "futures",
  "log",
+ "nym-bandwidth-controller",
  "nym-config",
  "nym-credential-storage",
  "nym-network-defaults",

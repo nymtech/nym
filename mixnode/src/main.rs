@@ -7,13 +7,13 @@ extern crate rocket;
 use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
 use lazy_static::lazy_static;
-#[cfg(feature = "cpucycles")]
-use nym_mixnode_common::measure;
 use nym_bin_common::build_information::BinaryBuildInformation;
 #[allow(unused_imports)]
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 #[cfg(feature = "cpucycles")]
 use nym_bin_common::setup_tracing;
+#[cfg(feature = "cpucycles")]
+use nym_mixnode_common::measure;
 #[cfg(feature = "cpucycles")]
 use tracing::instrument;
 mod commands;

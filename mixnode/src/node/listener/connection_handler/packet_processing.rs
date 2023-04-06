@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::node_statistics;
+use nym_crypto::asymmetric::encryption;
 use nym_mixnode_common::packet_processor::error::MixProcessingError;
 pub use nym_mixnode_common::packet_processor::processor::MixProcessingResult;
 use nym_mixnode_common::packet_processor::processor::SphinxPacketProcessor;
-use nym_crypto::asymmetric::encryption;
 use nym_sphinx::framing::packet::FramedSphinxPacket;
 
 // PacketProcessor contains all data required to correctly unwrap and forward sphinx packets

@@ -10,7 +10,6 @@ use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use log::*;
-use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
@@ -20,6 +19,7 @@ use nym_gateway_requests::registration::handshake::error::HandshakeError;
 use nym_gateway_requests::registration::handshake::{gateway_handshake, SharedKeys};
 use nym_gateway_requests::types::{ClientControlRequest, ServerResponse};
 use nym_gateway_requests::{BinaryResponse, PROTOCOL_VERSION};
+use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;

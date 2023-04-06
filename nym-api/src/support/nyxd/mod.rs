@@ -25,13 +25,9 @@ use nym_mixnet_contract_common::{
     CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment,
     MixId, RewardedSetNodeStatus,
 };
-use nym_vesting_contract_common::AccountVestingCoins;
-use serde::Deserialize;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use validator_client::nyxd::error::NyxdError;
-use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
-use validator_client::nyxd::{
+use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_validator_client::nyxd::{
     cosmwasm_client::types::ExecuteResult,
     traits::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
@@ -39,13 +35,19 @@ use validator_client::nyxd::{
     },
     Fee,
 };
-use validator_client::nyxd::{
+use nym_validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
     AccountId, Coin, DirectSigningNyxdClient, TendermintTime, VestingQueryClient,
 };
-use validator_client::ValidatorClientError;
+use nym_validator_client::ValidatorClientError;
+use nym_vesting_contract_common::AccountVestingCoins;
+use serde::Deserialize;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
-pub(crate) struct Client(pub(crate) Arc<RwLock<validator_client::Client<DirectSigningNyxdClient>>>);
+pub(crate) struct Client(
+    pub(crate) Arc<RwLock<nym_validator_client::Client<DirectSigningNyxdClient>>>,
+);
 
 impl Clone for Client {
     fn clone(&self) -> Self {
@@ -66,13 +68,13 @@ impl Client {
             .with_mixnet_contract(Some(config.get_mixnet_contract_address().as_ref()))
             .with_vesting_contract(Some(config.get_vesting_contract_address().as_ref()));
 
-        let client_config = validator_client::Config::try_from_nym_network_details(&details)
+        let client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct valid validator client config with the provided network")
             .with_urls(nyxd_url, api_url);
 
         let mnemonic = config.get_mnemonic();
 
-        let inner = validator_client::Client::new_signing(client_config, mnemonic)
+        let inner = nym_validator_client::Client::new_signing(client_config, mnemonic)
             .expect("Failed to connect to nyxd!");
 
         Client(Arc::new(RwLock::new(inner)))
@@ -314,9 +316,9 @@ impl crate::coconut::client::Client for Client {
     async fn get_tx(
         &self,
         tx_hash: &str,
-    ) -> crate::coconut::error::Result<validator_client::nyxd::TxResponse> {
+    ) -> crate::coconut::error::Result<nym_validator_client::nyxd::TxResponse> {
         let tx_hash = tx_hash
-            .parse::<validator_client::nyxd::tx::Hash>()
+            .parse::<nym_validator_client::nyxd::tx::Hash>()
             .map_err(|_| CoconutError::TxHashParseError)?;
         Ok(self.0.read().await.nyxd.get_tx(tx_hash).await?)
     }

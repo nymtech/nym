@@ -97,7 +97,7 @@ impl From<Init> for OverrideConfig {
 #[derive(Debug, Serialize)]
 pub struct InitResults {
     #[serde(flatten)]
-    client_core: client_core::init::InitResults,
+    client_core: nym_client_core::init::InitResults,
     socks5_listening_port: String,
     client_address: String,
 }
@@ -105,7 +105,7 @@ pub struct InitResults {
 impl InitResults {
     fn new(config: &Config, address: &Recipient) -> Self {
         Self {
-            client_core: client_core::init::InitResults::new(config.get_base(), address),
+            client_core: nym_client_core::init::InitResults::new(config.get_base(), address),
             socks5_listening_port: config.get_socks5().get_listening_port().to_string(),
             client_address: address.to_string(),
         }
@@ -157,7 +157,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = client_core::init::setup_gateway_from_config::<Config, _>(
+    let gateway = nym_client_core::init::setup_gateway_from_config::<Config, _>(
         register_gateway,
         user_chosen_gateway_id,
         config.get_base(),
@@ -176,7 +176,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
 
     print_saved_config(&config);
 
-    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
+    let address = nym_client_core::init::get_client_address_from_stored_keys(config.get_base())?;
     let init_results = InitResults::new(&config, &address);
     println!("{}", args.output.format(&init_results));
 

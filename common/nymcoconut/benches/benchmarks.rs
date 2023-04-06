@@ -5,7 +5,7 @@ use bls12_381::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared,
 use criterion::{criterion_group, criterion_main, Criterion};
 use ff::Field;
 use group::{Curve, Group};
-use nymcoconut::{
+use nym_coconut::{
     aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
     prepare_blind_sign, prove_bandwidth_credential, setup, ttp_keygen, verify_credential,
     Attribute, BlindedSignature, Parameters, Signature, SignatureShare, VerificationKey,

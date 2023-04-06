@@ -5,8 +5,8 @@ use crate::context::SigningClient;
 use clap::Parser;
 use log::info;
 use nym_mixnet_contract_common::GatewayConfigUpdate;
-use validator_client::nyxd::traits::MixnetQueryClient;
-use validator_client::nyxd::VestingSigningClient;
+use nym_validator_client::nyxd::traits::MixnetQueryClient;
+use nym_validator_client::nyxd::VestingSigningClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {

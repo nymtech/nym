@@ -33,7 +33,7 @@ use {
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 // TODO: make it nicer for wasm (I don't want to touch it for this experiment)
 #[cfg(target_arch = "wasm32")]
@@ -85,7 +85,7 @@ where
 
         #[cfg(not(target_arch = "wasm32"))]
         let coconut_api_clients =
-            validator_client::CoconutApiClient::all_coconut_api_clients(&self.client, epoch_id)
+            nym_validator_client::CoconutApiClient::all_coconut_api_clients(&self.client, epoch_id)
                 .await
                 .expect("Could not query api clients");
         #[cfg(target_arch = "wasm32")]

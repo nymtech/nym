@@ -1,5 +1,5 @@
 use crate::socks::types::SocksProxyError;
-use client_core::error::ClientCoreError;
+use nym_client_core::error::ClientCoreError;
 use nym_socks5_requests::{ConnectionError, ConnectionId};
 
 #[derive(thiserror::Error, Debug)]

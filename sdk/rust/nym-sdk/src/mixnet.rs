@@ -39,17 +39,17 @@ mod paths;
 mod socks5_client;
 
 pub use client::{DisconnectedMixnetClient, IncludedSurbs, MixnetClientBuilder};
-pub use client_core::{
+pub use config::Config;
+pub use keys::{Keys, KeysArc};
+pub use native_client::MixnetClient;
+pub use native_client::MixnetClientSender;
+pub use nym_client_core::{
     client::{
         inbound_messages::InputMessage,
         replies::reply_storage::{fs_backend::Backend as ReplyStorage, Empty as EmptyReplyStorage},
     },
     config::GatewayEndpointConfig,
 };
-pub use config::Config;
-pub use keys::{Keys, KeysArc};
-pub use native_client::MixnetClient;
-pub use native_client::MixnetClientSender;
 pub use nym_socks5_client_core::config::Socks5;
 pub use nym_sphinx::{
     addressing::clients::{ClientIdentity, Recipient},

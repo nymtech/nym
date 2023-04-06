@@ -57,7 +57,7 @@ nym-credentials = { path = "../common/credentials" }
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
-gateway-requests = { path = "gateway-requests" }
+nym-gateway-requests = { path = "gateway-requests" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
 nym-network-defaults = { path = "../common/network-defaults" }
@@ -66,7 +66,7 @@ nym-pemstore = { path = "../common/pemstore" }
 nym-statistics-common = { path = "../common/statistics" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-task = { path = "../common/task" }
-validator-client = { path = "../common/client-libs/validator-client", features = [
+nym-validator-client = { path = "../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }
 nym-types = { path = "../common/types" }

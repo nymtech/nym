@@ -4,11 +4,11 @@
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::node_status_api::models::ErrorResponse;
 use nym_api_requests::models::CirculatingSupplyResponse;
+use nym_validator_client::nyxd::Coin;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
-use validator_client::nyxd::Coin;
 
 // TODO: this is not the best place to put it, it should be more centralised,
 // but for a quick fix, that's good enough for now...

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::client::ThreadsafeValidatorClient;
 use crate::geo_ip::location::ThreadsafeGeoIp;
-use validator_client::models::MixNodeBondAnnotated;
+use nym_validator_client::models::MixNodeBondAnnotated;
 
 use crate::country_statistics::country_nodes_distribution::{
     CountryNodesDistribution, ThreadsafeCountryNodesDistribution,

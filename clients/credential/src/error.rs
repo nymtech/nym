@@ -8,8 +8,8 @@ use nym_credential_storage::error::StorageError;
 use nym_credentials::error::Error as CredentialError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
-use validator_client::nyxd::error::NyxdError;
-use validator_client::ValidatorClientError;
+use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::ValidatorClientError;
 
 pub type Result<T> = std::result::Result<T, CredentialClientError>;
 

@@ -11,11 +11,11 @@ use nym_credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use nym_credentials::coconut::utils::obtain_aggregate_signature;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_defaults::VOUCHER_INFO;
+use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::tx::Hash;
+use nym_validator_client::CoconutApiClient;
 use rand::rngs::OsRng;
 use std::str::FromStr;
-use validator_client::nyxd::traits::DkgQueryClient;
-use validator_client::nyxd::tx::Hash;
-use validator_client::CoconutApiClient;
 
 use crate::client::Client;
 use crate::error::{CredentialClientError, Result};

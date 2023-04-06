@@ -5,8 +5,8 @@ use crate::context::SigningClient;
 use clap::Parser;
 use log::info;
 use nym_crypto::asymmetric::identity;
-use validator_client::nyxd::traits::MixnetSigningClient;
-use validator_client::nyxd::VestingSigningClient;
+use nym_validator_client::nyxd::traits::MixnetSigningClient;
+use nym_validator_client::nyxd::VestingSigningClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {

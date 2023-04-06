@@ -7,6 +7,8 @@ use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
+use nym_coconut::tests::helpers::theta_from_keys_and_attributes;
+use nym_coconut::{prepare_blind_sign, ttp_keygen, Base58, BlindedSignature, Parameters};
 use nym_coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
@@ -22,13 +24,11 @@ use nym_credentials::coconut::params::{
 };
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
-use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
-use nymcoconut::{prepare_blind_sign, ttp_keygen, Base58, BlindedSignature, Parameters};
-use validator_client::nym_api::routes::{
+use nym_validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
-use validator_client::nyxd::Coin;
-use validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
+use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 
 use crate::coconut::State;
 use crate::support::storage::NymApiStorage;
@@ -46,6 +46,8 @@ use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyS
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_dkg::Threshold;
+use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
+use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use rand_07::rngs::OsRng;
 use rand_07::Rng;
 use rocket::http::Status;
@@ -53,8 +55,6 @@ use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
-use validator_client::nyxd::cosmwasm_client::logs::Log;
-use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";

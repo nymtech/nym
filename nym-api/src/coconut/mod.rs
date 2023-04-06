@@ -27,14 +27,14 @@ use nym_credentials::coconut::params::{
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
+use nym_validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
+use nym_validator_client::nyxd::{Coin, Fee};
 use rand_07::rngs::OsRng;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
-use validator_client::nyxd::{Coin, Fee};
 
 pub(crate) mod client;
 pub(crate) mod comm;

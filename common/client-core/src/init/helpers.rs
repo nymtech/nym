@@ -7,11 +7,11 @@ use crate::{
     error::ClientCoreError,
 };
 use futures::{SinkExt, StreamExt};
-use gateway_client::GatewayClient;
-use gateway_requests::registration::handshake::SharedKeys;
 use log::{debug, info, trace, warn};
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
+use nym_gateway_client::GatewayClient;
+use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_topology::{filter::VersionFilterable, gateway};
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::{sync::Arc, time::Duration};
@@ -20,6 +20,8 @@ use tungstenite::Message;
 use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
+use nym_validator_client::nyxd::DirectSigningNyxdClient;
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
@@ -27,14 +29,12 @@ use tokio::time::Instant;
 use tokio_tungstenite::connect_async;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-#[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::DirectSigningNyxdClient;
 
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 #[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_mockups::DirectSigningNyxdClient;
+use nym_gateway_client::wasm_mockups::DirectSigningNyxdClient;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer::Instant;
 #[cfg(target_arch = "wasm32")]
@@ -67,7 +67,7 @@ async fn current_gateways<R: Rng>(
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
-    let client = validator_client::client::NymApiClient::new(nym_api.clone());
+    let client = nym_validator_client::client::NymApiClient::new(nym_api.clone());
 
     log::trace!("Fetching list of gateways from: {}", nym_api);
 

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use error::CoconutInterfaceError;
 
-pub use nymcoconut::*;
+pub use nym_coconut::*;
 
 #[derive(Debug, Serialize, Deserialize, Getters, CopyGetters, Clone, PartialEq, Eq)]
 pub struct Credential {
@@ -64,7 +64,7 @@ impl Credential {
         .iter()
         .map(hash_to_scalar)
         .collect::<Vec<Attribute>>();
-        nymcoconut::verify_credential(&params, verification_key, &self.theta, &public_attributes)
+        nym_coconut::verify_credential(&params, verification_key, &self.theta, &public_attributes)
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {

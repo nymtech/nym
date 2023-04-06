@@ -4,9 +4,8 @@
 use super::authenticated::RequestHandlingError;
 use log::*;
 use nym_coconut_interface::Credential;
-use std::time::{Duration, SystemTime};
-use validator_client::nyxd::traits::DkgQueryClient;
-use validator_client::{
+use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::{
     nyxd::{
         cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
         traits::{CoconutBandwidthSigningClient, MultisigQueryClient, MultisigSigningClient},
@@ -14,6 +13,7 @@ use validator_client::{
     },
     Client, CoconutApiClient,
 };
+use std::time::{Duration, SystemTime};
 
 const ONE_HOUR_SEC: u64 = 3600;
 const MAX_FEEGRANT_UNYM: u128 = 10000;

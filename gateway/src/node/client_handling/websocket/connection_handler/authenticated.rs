@@ -6,10 +6,10 @@ use crate::node::client_handling::websocket::message_receiver::MixMessageReceive
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::StreamExt;
-use gateway_requests::iv::IVConversionError;
-use gateway_requests::types::{BinaryRequest, ServerResponse};
-use gateway_requests::{ClientControlRequest, GatewayRequestsError};
 use log::*;
+use nym_gateway_requests::iv::IVConversionError;
+use nym_gateway_requests::types::{BinaryRequest, ServerResponse};
+use nym_gateway_requests::{ClientControlRequest, GatewayRequestsError};
 use nym_sphinx::forwarding::packet::MixPacket;
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
@@ -20,7 +20,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 
 use crate::node::client_handling::bandwidth::Bandwidth;
 use crate::node::client_handling::FREE_TESTNET_BANDWIDTH_VALUE;
-use gateway_requests::iv::IV;
+use nym_gateway_requests::iv::IV;
 use nym_task::TaskClient;
 
 #[derive(Debug, Error)]
@@ -50,10 +50,10 @@ pub(crate) enum RequestHandlingError {
     OnlyCoconutCredentials,
 
     #[error("Nyxd Error - {0}")]
-    NyxdError(#[from] validator_client::nyxd::error::NyxdError),
+    NyxdError(#[from] nym_validator_client::nyxd::error::NyxdError),
 
     #[error("Validator API error - {0}")]
-    APIError(#[from] validator_client::ValidatorClientError),
+    APIError(#[from] nym_validator_client::ValidatorClientError),
 
     #[error("Not enough nym API endpoints provided. Needed {needed}, received {received}")]
     NotEnoughNymAPIs { received: usize, needed: usize },

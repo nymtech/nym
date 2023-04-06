@@ -1,4 +1,4 @@
-use client_core::error::ClientCoreError;
+use nym_client_core::error::ClientCoreError;
 use nym_socks5_requests::Socks5RequestError;
 
 #[derive(thiserror::Error, Debug)]

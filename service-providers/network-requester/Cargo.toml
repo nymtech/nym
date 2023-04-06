@@ -33,7 +33,7 @@ url = { workspace = true }
 
 # internal
 async-file-watcher = { path = "../../common/async-file-watcher" }
-client-core = { path = "../../common/client-core" }
+nym-client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }

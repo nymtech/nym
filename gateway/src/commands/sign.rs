@@ -13,8 +13,8 @@ use clap::{ArgGroup, Args};
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
+use nym_validator_client::nyxd;
 use std::error::Error;
-use validator_client::nyxd;
 
 #[derive(Args, Clone)]
 #[clap(group(ArgGroup::new("sign").required(true).args(&["wallet_address", "text", "contract_msg"])))]

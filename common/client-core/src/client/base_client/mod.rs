@@ -24,13 +24,13 @@ use crate::config::{Config, DebugConfig, GatewayEndpointConfig};
 use crate::error::ClientCoreError;
 use crate::spawn_future;
 use futures::channel::mpsc;
-use gateway_client::bandwidth::BandwidthController;
-use gateway_client::{
+use log::{debug, info};
+use nym_crypto::asymmetric::{encryption, identity};
+use nym_gateway_client::bandwidth::BandwidthController;
+use nym_gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
 };
-use log::{debug, info};
-use nym_crypto::asymmetric::{encryption, identity};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
@@ -44,10 +44,10 @@ use tap::TapFallible;
 use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 #[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_mockups::DkgQueryClient;
+use nym_gateway_client::wasm_mockups::DkgQueryClient;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod non_wasm_helpers;

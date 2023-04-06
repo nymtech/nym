@@ -6,7 +6,7 @@
 // another issue due to #[wasm_bindgen] and `Copy` trait
 #![allow(clippy::drop_copy)]
 
-use client_core::config::{
+use nym_client_core::config::{
     Acknowledgements as ConfigAcknowledgements, CoverTraffic as ConfigCoverTraffic,
     DebugConfig as ConfigDebug, ExtendedPacketSize, GatewayConnection as ConfigGatewayConnection,
     GatewayEndpointConfig, ReplySurbs as ConfigReplySurbs, Topology as ConfigTopology,

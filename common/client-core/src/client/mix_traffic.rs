@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::spawn_future;
-use gateway_client::GatewayClient;
 use log::*;
+use nym_gateway_client::GatewayClient;
 use nym_sphinx::forwarding::packet::MixPacket;
 
 #[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 #[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_mockups::DkgQueryClient;
+use nym_gateway_client::wasm_mockups::DkgQueryClient;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;

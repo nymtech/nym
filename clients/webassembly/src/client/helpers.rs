@@ -1,9 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_core::client::base_client::ClientInput;
-use client_core::client::inbound_messages::InputMessage;
 use js_sys::Promise;
+use nym_client_core::client::base_client::ClientInput;
+use nym_client_core::client::inbound_messages::InputMessage;
 use std::sync::Arc;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;

@@ -15,11 +15,11 @@ pub(crate) use crate::wallet_storage::password::{AccountId, LoginId, UserPasswor
 use crate::error::BackendError;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use bip39::Mnemonic;
+use nym_validator_client::nyxd::bip32::DerivationPath;
 use std::ffi::OsString;
 use std::fs::{self, create_dir_all, OpenOptions};
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
-use validator_client::nyxd::bip32::DerivationPath;
 
 #[cfg(test)]
 use self::account_data::MnemonicAccount;

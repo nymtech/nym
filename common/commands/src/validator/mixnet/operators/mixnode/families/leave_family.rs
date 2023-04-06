@@ -6,8 +6,8 @@ use clap::Parser;
 use log::info;
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::families::FamilyHead;
-use validator_client::nyxd::traits::MixnetSigningClient;
-use validator_client::nyxd::VestingSigningClient;
+use nym_validator_client::nyxd::traits::MixnetSigningClient;
+use nym_validator_client::nyxd::VestingSigningClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {

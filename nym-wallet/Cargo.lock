@@ -2794,6 +2794,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-coconut"
+version = "0.5.0"
+dependencies = [
+ "bls12_381",
+ "bs58",
+ "digest 0.9.0",
+ "ff",
+ "getrandom 0.2.8",
+ "group",
+ "itertools",
+ "nym-dkg",
+ "nym-pemstore",
+ "rand 0.8.5",
+ "serde",
+ "serde_derive",
+ "sha2 0.9.9",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
@@ -2821,7 +2841,7 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "getset",
- "nymcoconut",
+ "nym-coconut",
  "serde",
  "thiserror",
 ]
@@ -2965,6 +2985,7 @@ dependencies = [
  "nym-coconut-interface",
  "nym-config",
  "nym-mixnet-contract-common",
+ "nym-validator-client",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
  "reqwest",
@@ -2975,7 +2996,46 @@ dependencies = [
  "thiserror",
  "ts-rs",
  "url",
- "validator-client",
+]
+
+[[package]]
+name = "nym-validator-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.13.1",
+ "bip39",
+ "colored 2.0.0",
+ "cosmrs",
+ "cosmwasm-std",
+ "cw3",
+ "cw4",
+ "eyre",
+ "flate2",
+ "futures",
+ "itertools",
+ "log",
+ "nym-api-requests",
+ "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
+ "nym-coconut-interface",
+ "nym-config",
+ "nym-contracts-common",
+ "nym-group-contract-common",
+ "nym-mixnet-contract-common",
+ "nym-multisig-contract-common",
+ "nym-network-defaults",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
+ "prost",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.9.9",
+ "thiserror",
+ "tokio",
+ "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -3034,13 +3094,13 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-types",
+ "nym-validator-client",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
  "serde",
  "serde_json",
  "strum",
  "ts-rs",
- "validator-client",
 ]
 
 [[package]]
@@ -3070,6 +3130,7 @@ dependencies = [
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-types",
+ "nym-validator-client",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
  "nym-wallet-types",
@@ -3093,28 +3154,7 @@ dependencies = [
  "toml",
  "ts-rs",
  "url",
- "validator-client",
  "zeroize",
-]
-
-[[package]]
-name = "nymcoconut"
-version = "0.5.0"
-dependencies = [
- "bls12_381",
- "bs58",
- "digest 0.9.0",
- "ff",
- "getrandom 0.2.8",
- "group",
- "itertools",
- "nym-dkg",
- "nym-pemstore",
- "rand 0.8.5",
- "serde",
- "serde_derive",
- "sha2 0.9.9",
- "thiserror",
 ]
 
 [[package]]
@@ -5438,46 +5478,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1674845326ee10d37ca60470760d4288a6f80f304007d92e5c53bab78c9cfd79"
 dependencies = [
  "getrandom 0.2.8",
-]
-
-[[package]]
-name = "validator-client"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.13.1",
- "bip39",
- "colored 2.0.0",
- "cosmrs",
- "cosmwasm-std",
- "cw3",
- "cw4",
- "eyre",
- "flate2",
- "futures",
- "itertools",
- "log",
- "nym-api-requests",
- "nym-coconut-bandwidth-contract-common",
- "nym-coconut-dkg-common",
- "nym-coconut-interface",
- "nym-config",
- "nym-contracts-common",
- "nym-group-contract-common",
- "nym-mixnet-contract-common",
- "nym-multisig-contract-common",
- "nym-network-defaults",
- "nym-vesting-contract",
- "nym-vesting-contract-common",
- "prost",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.9.9",
- "thiserror",
- "tokio",
- "url",
- "zeroize",
 ]
 
 [[package]]

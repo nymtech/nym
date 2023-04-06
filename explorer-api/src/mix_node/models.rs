@@ -6,12 +6,12 @@ use crate::mix_nodes::location::Location;
 use nym_contracts_common::Percent;
 use nym_mixnet_contract_common::Delegation;
 use nym_mixnet_contract_common::{Addr, Coin, Layer, MixId, MixNode};
+use nym_validator_client::models::{NodePerformance, SelectionChance};
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::sync::RwLock;
-use validator_client::models::{NodePerformance, SelectionChance};
 
 #[derive(Clone, Debug, Serialize, JsonSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]

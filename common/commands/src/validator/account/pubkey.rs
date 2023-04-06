@@ -3,8 +3,8 @@
 
 use clap::Parser;
 use log::{error, info};
-use validator_client::nyxd::AccountId;
-use validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
+use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 
 use crate::context::QueryClient;
 use crate::utils::show_error;

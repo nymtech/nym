@@ -22,8 +22,8 @@ use crate::{
     spawn_future,
 };
 use futures::channel::mpsc;
-use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketSize;

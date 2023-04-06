@@ -3,7 +3,7 @@
 
 use nym_coconut_interface::CoconutError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
-use validator_client::ValidatorClientError;
+use nym_validator_client::ValidatorClientError;
 
 use thiserror::Error;
 

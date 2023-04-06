@@ -7,7 +7,7 @@ use clap::Parser;
 use log::{debug, info};
 
 use nym_coconut_bandwidth_contract_common::msg::InstantiateMsg;
-use validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::AccountId;
 
 #[derive(Debug, Parser)]
 pub struct Args {

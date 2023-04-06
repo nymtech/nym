@@ -97,18 +97,18 @@ pub(crate) mod tests {
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
     use cosmwasm_std::Addr;
+    use nym_coconut::{ttp_keygen, Parameters};
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::InitialReplacementData;
     use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
     use nym_dkg::bte::{Params, PublicKeyWithProof};
-    use nymcoconut::{ttp_keygen, Parameters};
+    use nym_validator_client::nyxd::AccountId;
     use rand::rngs::OsRng;
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::str::FromStr;
     use std::sync::{Arc, RwLock};
     use url::Url;
-    use validator_client::nyxd::AccountId;
 
     const TEST_VALIDATORS_ADDRESS: [&str; 4] = [
         "n1aq9kakfgwqcufr23lsv644apavcntrsqsk4yus",

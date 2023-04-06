@@ -11,7 +11,7 @@ use crate::operations::helpers::{
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::transaction::TransactionExecuteResult;
-use validator_client::nyxd::{Fee, VestingSigningClient};
+use nym_validator_client::nyxd::{Fee, VestingSigningClient};
 
 #[tauri::command]
 pub async fn vesting_bond_gateway(

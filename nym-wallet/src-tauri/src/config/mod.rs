@@ -7,11 +7,11 @@ use std::str::FromStr;
 use std::{fs, io, path::PathBuf};
 
 use itertools::Itertools;
+use nym_validator_client::nyxd::AccountId as CosmosAccountId;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use url::Url;
-use validator_client::nyxd::AccountId as CosmosAccountId;
 
 use nym_config::defaults::{DenomDetailsOwned, NymNetworkDetails, ValidatorDetails};
 use nym_wallet_types::network::Network as WalletNetwork;

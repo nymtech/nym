@@ -14,10 +14,10 @@ use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::{MixNodeCostParams, MixNodeDetails};
 use nym_types::transaction::TransactionExecuteResult;
+use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_validator_client::nyxd::Fee;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
-use validator_client::nyxd::Fee;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NodeDescription {

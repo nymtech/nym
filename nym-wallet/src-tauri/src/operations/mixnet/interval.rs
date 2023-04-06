@@ -5,8 +5,8 @@ use crate::error::BackendError;
 use crate::nyxd_client;
 use crate::state::WalletState;
 use nym_types::pending_events::{PendingEpochEvent, PendingIntervalEvent};
+use nym_validator_client::nyxd::traits::MixnetQueryClient;
 use nym_wallet_types::interval::Interval;
-use validator_client::nyxd::traits::MixnetQueryClient;
 
 #[tauri::command]
 pub async fn get_current_interval(

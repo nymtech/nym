@@ -2,6 +2,7 @@ use crate::error::TypesError;
 use cosmwasm_std::Fraction;
 use cosmwasm_std::{Decimal, Uint128};
 use nym_config::defaults::{DenomDetails, DenomDetailsOwned, NymNetworkDetails};
+use nym_validator_client::nyxd::Coin;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -9,7 +10,6 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use strum::{Display, EnumString, EnumVariantNames};
-use validator_client::nyxd::Coin;
 
 #[cfg(feature = "generate-ts")]
 use ts_rs::{Dependency, TS};

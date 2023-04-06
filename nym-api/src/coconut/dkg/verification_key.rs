@@ -9,6 +9,8 @@ use crate::coconut::helpers::accepted_vote_err;
 use cosmwasm_std::Addr;
 use cw3::{ProposalResponse, Status};
 use log::debug;
+use nym_coconut::tests::helpers::transpose_matrix;
+use nym_coconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
 use nym_coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
 use nym_coconut_dkg_common::types::{NodeIndex, TOTAL_DEALINGS};
 use nym_coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
@@ -18,10 +20,8 @@ use nym_dkg::bte::{decrypt_share, setup};
 use nym_dkg::error::DkgError;
 use nym_dkg::{combine_shares, try_recover_verification_keys, Dealing, Threshold};
 use nym_pemstore::KeyPairPath;
-use nymcoconut::tests::helpers::transpose_matrix;
-use nymcoconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
+use nym_validator_client::nyxd::cosmwasm_client::logs::find_attribute;
 use std::collections::BTreeMap;
-use validator_client::nyxd::cosmwasm_client::logs::find_attribute;
 
 // Filter the dealers based on what dealing they posted (or not) in the contract
 async fn deterministic_filter_dealers(
@@ -306,12 +306,13 @@ pub(crate) mod tests {
     use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
+    use nym_coconut::aggregate_verification_keys;
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::InitialReplacementData;
     use nym_coconut_dkg_common::verification_key::ContractVKShare;
     use nym_contracts_common::dealings::ContractSafeBytes;
     use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
-    use nymcoconut::aggregate_verification_keys;
+    use nym_validator_client::nyxd::AccountId;
     use rand::rngs::OsRng;
     use rand::Rng;
     use std::collections::HashMap;
@@ -320,7 +321,6 @@ pub(crate) mod tests {
     use std::str::FromStr;
     use std::sync::{Arc, RwLock};
     use url::Url;
-    use validator_client::nyxd::AccountId;
 
     struct MockContractDb {
         dealer_details_db: Arc<RwLock<HashMap<String, (DealerDetails, bool)>>>,

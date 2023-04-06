@@ -12,10 +12,10 @@ use nym_mixnet_contract_common::{
     construct_mixnode_bonding_sign_payload, Gateway, GatewayBondingPayload, MixNode,
     MixNodeCostParams, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
 };
-use validator_client::nyxd::error::NyxdError;
-use validator_client::nyxd::traits::MixnetQueryClient;
-use validator_client::nyxd::{Coin, DirectSigningNyxdClient};
-use validator_client::Client;
+use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::traits::MixnetQueryClient;
+use nym_validator_client::nyxd::{Coin, DirectSigningNyxdClient};
+use nym_validator_client::Client;
 
 // define this as a separate trait for mocking purposes
 #[async_trait]

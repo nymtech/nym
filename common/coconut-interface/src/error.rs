@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nymcoconut::CoconutError;
+use nym_coconut::CoconutError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

@@ -10,7 +10,7 @@ use rand::thread_rng;
 use url::Url;
 
 pub(crate) struct NymApiTopologyProvider {
-    validator_client: validator_client::client::NymApiClient,
+    validator_client: nym_validator_client::client::NymApiClient,
     nym_api_urls: Vec<Url>,
 
     client_version: String,
@@ -22,7 +22,9 @@ impl NymApiTopologyProvider {
         nym_api_urls.shuffle(&mut thread_rng());
 
         NymApiTopologyProvider {
-            validator_client: validator_client::client::NymApiClient::new(nym_api_urls[0].clone()),
+            validator_client: nym_validator_client::client::NymApiClient::new(
+                nym_api_urls[0].clone(),
+            ),
             nym_api_urls,
             client_version,
             currently_used_api: 0,

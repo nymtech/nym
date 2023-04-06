@@ -3,8 +3,8 @@
 
 use super::action_controller::{AckActionSender, Action};
 use futures::StreamExt;
-use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::{
     acknowledgements::{identifier::recover_identifier, AckKey},
     chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID},

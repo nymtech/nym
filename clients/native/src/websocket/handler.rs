@@ -1,16 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_core::client::replies::reply_controller::requests::ReplyControllerSender;
-use client_core::client::{
+use futures::channel::mpsc;
+use futures::{SinkExt, StreamExt};
+use log::*;
+use nym_client_core::client::replies::reply_controller::requests::ReplyControllerSender;
+use nym_client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
     },
 };
-use futures::channel::mpsc;
-use futures::{SinkExt, StreamExt};
-use log::*;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::receiver::ReconstructedMessage;

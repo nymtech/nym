@@ -3,7 +3,7 @@
 
 use crate::support::caching::Cache;
 use nym_api_requests::models::CirculatingSupplyResponse;
-use validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::Coin;
 
 pub(crate) struct CirculatingSupplyCacheData {
     // no need to cache that one as it's constant, but let's put it here for consistency sake

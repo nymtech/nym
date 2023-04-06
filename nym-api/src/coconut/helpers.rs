@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::error::CoconutError;
-use validator_client::nyxd::error::NyxdError::AbciError;
+use nym_validator_client::nyxd::error::NyxdError::AbciError;
 
 // If the result is already established, the vote might be redundant and
 // thus the transaction might fail

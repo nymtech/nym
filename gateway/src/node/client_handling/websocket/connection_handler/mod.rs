@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::storage::Storage;
-use gateway_requests::registration::handshake::SharedKeys;
-use gateway_requests::ServerResponse;
 use log::{trace, warn};
+use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};

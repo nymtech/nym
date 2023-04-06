@@ -7,13 +7,13 @@ use nym_topology::{nym_topology_from_detailed, NymTopology};
 use url::Url;
 
 struct MyTopologyProvider {
-    validator_client: validator_client::client::NymApiClient,
+    validator_client: nym_validator_client::client::NymApiClient,
 }
 
 impl MyTopologyProvider {
     fn new(nym_api_url: Url) -> MyTopologyProvider {
         MyTopologyProvider {
-            validator_client: validator_client::client::NymApiClient::new(nym_api_url),
+            validator_client: nym_validator_client::client::NymApiClient::new(nym_api_url),
         }
     }
 

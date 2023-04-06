@@ -6,7 +6,7 @@ use crate::nyxd;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_interface::VerificationKey;
 use nym_credentials::coconut::utils::obtain_aggregate_verification_key;
-use validator_client::CoconutApiClient;
+use nym_validator_client::CoconutApiClient;
 
 #[async_trait]
 pub trait APICommunicationChannel {

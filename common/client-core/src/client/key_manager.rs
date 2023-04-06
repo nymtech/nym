@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
 use rand::{CryptoRng, RngCore};
 use std::io;

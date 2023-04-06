@@ -15,9 +15,9 @@ thiserror = "1.0.34"
 tap = "1.0.1"
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
 
-client-core = { path = "../client-core", features = ["fs-surb-storage"] }
+nym-client-core = { path = "../client-core", features = ["fs-surb-storage"] }
 futures = "0.3"
-gateway-client = { path = "../client-libs/gateway-client" }
+nym-gateway-client = { path = "../client-libs/gateway-client" }
 nym-config = { path = "../config" }
 nym-credential-storage = { path = "../credential-storage", optional = true }
 nym-network-defaults = { path = "../network-defaults" }
@@ -26,7 +26,7 @@ nym-service-providers-common = { path = "../../service-providers/common" }
 nym-socks5-requests = { path = "../socks5/requests" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-task = { path = "../task" }
-validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"] }
+nym-validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"] }
 
 [features]
 default = ["nym-credential-storage"]

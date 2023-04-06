@@ -4,6 +4,8 @@
 use self::data::CirculatingSupplyCacheData;
 use cosmwasm_std::Addr;
 use nym_api_requests::models::CirculatingSupplyResponse;
+use nym_validator_client::nyxd::Coin;
+use nym_validator_client::ValidatorClientError;
 use rocket::fairing::AdHoc;
 use std::ops::Deref;
 use std::{
@@ -13,8 +15,6 @@ use std::{
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tokio::time;
-use validator_client::nyxd::Coin;
-use validator_client::ValidatorClientError;
 
 mod data;
 pub(crate) mod refresher;

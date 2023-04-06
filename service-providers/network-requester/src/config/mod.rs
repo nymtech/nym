@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use client_core::config::ClientCoreConfigTrait;
+use nym_client_core::config::ClientCoreConfigTrait;
 use nym_config::{NymConfig, OptionalSet};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
-pub use client_core::config::Config as BaseConfig;
-pub use client_core::config::MISSING_VALUE;
-pub use client_core::config::{DebugConfig, GatewayEndpointConfig};
+pub use nym_client_core::config::Config as BaseConfig;
+pub use nym_client_core::config::MISSING_VALUE;
+pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
 
 pub const DEFAULT_STANDARD_LIST_UPDATE_INTERVAL: Duration = Duration::from_secs(30 * 60);
 
@@ -64,7 +64,7 @@ impl NymConfig for Config {
 }
 
 impl ClientCoreConfigTrait for Config {
-    fn get_gateway_endpoint(&self) -> &client_core::config::GatewayEndpointConfig {
+    fn get_gateway_endpoint(&self) -> &nym_client_core::config::GatewayEndpointConfig {
         self.base.get_gateway_endpoint()
     }
 }

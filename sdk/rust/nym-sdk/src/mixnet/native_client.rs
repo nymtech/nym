@@ -1,4 +1,4 @@
-use client_core::client::{
+use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
     inbound_messages::InputMessage,
     key_manager::KeyManager,

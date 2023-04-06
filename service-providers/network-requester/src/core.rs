@@ -466,7 +466,7 @@ impl NRServiceProvider {
 // This is NOT in the SDK since we don't want to expose any of the client-core config types.
 // We could however consider moving it to a crate in common in the future.
 async fn create_mixnet_client<T>(
-    config: &client_core::config::Config<T>,
+    config: &nym_client_core::config::Config<T>,
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
     let nym_api_endpoints = config.get_nym_api_endpoints();
     let debug_config = *config.get_debug_config();

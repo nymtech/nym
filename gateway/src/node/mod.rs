@@ -18,12 +18,12 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_defaults::NymNetworkDetails;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
+use nym_validator_client::Client;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use validator_client::Client;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -205,25 +205,25 @@ where
         res
     }
 
-    fn random_api_client(&self) -> validator_client::NymApiClient {
+    fn random_api_client(&self) -> nym_validator_client::NymApiClient {
         let endpoints = self.config.get_nym_api_endpoints();
         let nym_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
 
-        validator_client::NymApiClient::new(nym_api.clone())
+        nym_validator_client::NymApiClient::new(nym_api.clone())
     }
 
     fn random_nyxd_client(
         &self,
-    ) -> validator_client::Client<validator_client::nyxd::DirectSigningNyxdClient> {
+    ) -> nym_validator_client::Client<nym_validator_client::nyxd::DirectSigningNyxdClient> {
         let endpoints = self.config.get_nyxd_urls();
         let validator_nyxd = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validators is empty");
 
         let network_details = NymNetworkDetails::new_from_env();
-        let client_config = validator_client::Config::try_from_nym_network_details(
+        let client_config = nym_validator_client::Config::try_from_nym_network_details(
             &network_details,
         )
         .expect("failed to construct valid validator client config with the provided network");

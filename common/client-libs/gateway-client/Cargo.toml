@@ -1,5 +1,5 @@
 [package]
-name = "gateway-client"
+name = "nym-gateway-client"
 version = "0.1.0"
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
@@ -21,14 +21,14 @@ tokio = { version = "1.24.1", features = ["macros"] }
 nym-coconut-interface = { path = "../../coconut-interface" }
 nym-credentials = { path = "../../credentials" }
 nym-crypto = { path = "../../crypto" }
-gateway-requests = { path = "../../../gateway/gateway-requests" }
+nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-sphinx = { path = "../../nymsphinx" }
 nym-pemstore = { path = "../../pemstore" }
-validator-client = { path = "../validator-client" }
+nym-validator-client = { path = "../validator-client" }
 nym-task = { path = "../../task" }
 serde = { workspace = true, features = ["derive"] }
-mobile-storage = { path = "../../mobile-storage" }
+nym-mobile-storage = { path = "../../mobile-storage" }
 
 
 [dependencies.tungstenite]

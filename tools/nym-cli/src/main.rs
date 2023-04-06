@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use log::{error, warn};
 use nym_bin_common::logging::setup_logging;
 use nym_cli_commands::context::{get_network_details, ClientArgs};
-use validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::AccountId;
 
 mod completion;
 mod validator;

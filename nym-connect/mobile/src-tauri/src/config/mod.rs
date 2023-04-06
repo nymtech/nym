@@ -2,7 +2,7 @@ use crate::{
     error::{BackendError, Result},
     state::State,
 };
-use client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
+use nym_client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
 use nym_config_common::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::config::{Config as Socks5Config, Socks5};
@@ -115,10 +115,10 @@ pub async fn init_socks5_config(
     let chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
-    let mut key_manager = client_core::init::new_client_keys();
+    let mut key_manager = nym_client_core::init::new_client_keys();
 
     // Setup gateway and register a new key each time
-    let gateway = client_core::init::register_with_gateway(
+    let gateway = nym_client_core::init::register_with_gateway(
         &mut key_manager,
         nym_api_endpoints,
         Some(chosen_gateway_id),

@@ -1,12 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_core::config::GatewayEndpointConfig;
+use nym_client_core::config::GatewayEndpointConfig;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub async fn get_gateway(api_server: String, preferred: Option<String>) -> GatewayEndpointConfig {
-    let validator_client = validator_client::client::NymApiClient::new(api_server.parse().unwrap());
+    let validator_client =
+        nym_validator_client::client::NymApiClient::new(api_server.parse().unwrap());
 
     let gateways = match validator_client.get_cached_gateways().await {
         Err(err) => panic!("failed to obtain list of all gateways - {err}"),

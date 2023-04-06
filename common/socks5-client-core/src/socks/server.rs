@@ -4,10 +4,10 @@ use super::{
     authentication::Authenticator, client::SocksClient, mixnet_responses::MixnetResponseListener,
 };
 use crate::socks::client;
-use client_core::client::{
+use log::*;
+use nym_client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
-use log::*;
 use nym_socks5_proxy_helpers::connection_controller::Controller;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};

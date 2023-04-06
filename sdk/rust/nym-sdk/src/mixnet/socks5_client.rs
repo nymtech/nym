@@ -1,4 +1,4 @@
-use client_core::client::{base_client::ClientState, key_manager::KeyManager};
+use nym_client_core::client::{base_client::ClientState, key_manager::KeyManager};
 use nym_socks5_client_core::config::Socks5;
 use nym_sphinx::addressing::clients::{ClientIdentity, Recipient};
 use nym_task::{connections::LaneQueueLengths, TaskManager};

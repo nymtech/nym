@@ -14,7 +14,7 @@ eyre = "0.6.5"
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
 
 nym-cli-commands = { path = "../../common/commands" }
-validator-client = { path = "../../common/client-libs/validator-client", features = [
+nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }
 

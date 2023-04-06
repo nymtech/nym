@@ -13,8 +13,8 @@ use crate::client::replies::reply_controller::ReplyControllerSender;
 use crate::spawn_future;
 use action_controller::AckActionReceiver;
 use futures::channel::mpsc;
-use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::{

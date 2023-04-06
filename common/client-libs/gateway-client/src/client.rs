@@ -10,13 +10,13 @@ pub use crate::packet_router::{
 use crate::socket_state::{PartiallyDelegated, SocketState};
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
-use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
-use gateway_requests::iv::IV;
-use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
-use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, PROTOCOL_VERSION};
 use log::*;
 use nym_coconut_interface::Credential;
 use nym_crypto::asymmetric::identity;
+use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
+use nym_gateway_requests::iv::IV;
+use nym_gateway_requests::registration::handshake::{client_handshake, SharedKeys};
+use nym_gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, PROTOCOL_VERSION};
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
@@ -27,7 +27,7 @@ use std::time::Duration;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;

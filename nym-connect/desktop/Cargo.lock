@@ -3749,6 +3749,7 @@ version = "0.1.0"
 dependencies = [
  "nym-crypto",
  "nym-sphinx-types",
+ "serde",
  "thiserror",
 ]
 

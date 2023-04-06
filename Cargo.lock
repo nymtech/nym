@@ -3999,6 +3999,7 @@ dependencies = [
  "nym-sphinx-types",
  "nym-topology",
  "rand 0.7.3",
+ "rand_chacha 0.2.2",
  "serde",
  "thiserror",
  "wasm-bindgen",
@@ -4058,6 +4059,7 @@ version = "0.1.0"
 dependencies = [
  "nym-crypto",
  "nym-sphinx-types",
+ "serde",
  "thiserror",
 ]
 

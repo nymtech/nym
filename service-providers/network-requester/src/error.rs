@@ -21,6 +21,10 @@ pub enum NetworkRequesterError {
     #[error("failed to load configuration file: {0}")]
     FailedToLoadConfig(String),
 
+    // TODO: add more details here
+    #[error("Failed to validate the loaded config")]
+    ConfigValidationFailure,
+
     #[error("failed local version check, client and config mismatch")]
     FailedLocalVersionCheck,
 

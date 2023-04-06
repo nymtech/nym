@@ -5,6 +5,8 @@ use crate::fragment::{linked_fragment_payload_max_len, unlinked_fragment_payload
 pub use set::split_into_sets;
 use thiserror::Error;
 
+pub const MIN_PADDING_OVERHEAD: usize = 1;
+
 // Future consideration: currently in a lot of places, the payloads have randomised content
 // which is not a perfect testing strategy as it might not detect some edge cases I never would
 // have assumed could be possible. A better approach would be to research some Fuzz testing

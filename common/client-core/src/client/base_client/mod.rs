@@ -235,20 +235,15 @@ where
     ) {
         info!("Starting loop cover traffic stream...");
 
-        let mut stream = LoopCoverTrafficStream::new(
+        let stream = LoopCoverTrafficStream::new(
             ack_key,
             debug_config.acknowledgements.average_ack_delay,
-            debug_config.traffic.average_packet_delay,
-            debug_config.cover_traffic.loop_cover_traffic_average_delay,
             mix_tx,
             self_address,
             topology_accessor,
+            debug_config.traffic,
+            debug_config.cover_traffic,
         );
-
-        if let Some(size) = debug_config.traffic.use_extended_packet_size {
-            log::debug!("Setting extended packet size: {:?}", size);
-            stream.set_custom_packet_size(size.into());
-        }
 
         stream.start_with_shutdown(shutdown);
     }
@@ -533,16 +528,11 @@ where
         // primarily to throttle incoming connections (e.g socks5 for attached network-requesters)
         let shared_lane_queue_lengths = LaneQueueLengths::new();
 
-        let mut controller_config = real_messages_control::Config::new(
+        let controller_config = real_messages_control::Config::new(
             self.debug_config,
             self.key_manager.ack_key(),
             self_address,
         );
-
-        if let Some(size) = self.debug_config.traffic.use_extended_packet_size {
-            log::debug!("Setting extended packet size: {:?}", size);
-            controller_config.set_custom_packet_size(size.into());
-        }
 
         Self::start_real_traffic_controller(
             controller_config,

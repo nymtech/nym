@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::{
-    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, ExtendedPacketSize,
-    GatewayConnection, Logging, ReplySurbs, Topology, Traffic, DEFAULT_ACK_WAIT_ADDITION,
-    DEFAULT_ACK_WAIT_MULTIPLIER, DEFAULT_AVERAGE_PACKET_DELAY, DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
+    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, GatewayConnection, Logging,
+    ReplySurbs, Topology, Traffic, DEFAULT_ACK_WAIT_ADDITION, DEFAULT_ACK_WAIT_MULTIPLIER,
+    DEFAULT_AVERAGE_PACKET_DELAY, DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
     DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY, DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
     DEFAULT_MAXIMUM_REPLY_KEY_AGE, DEFAULT_MAXIMUM_REPLY_SURB_AGE,
     DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD, DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
@@ -14,9 +14,28 @@ use crate::config::{
     DEFAULT_TOPOLOGY_REFRESH_RATE, DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
 };
 use nym_config::NymConfig;
+use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::time::Duration;
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ExtendedPacketSize {
+    Extended8,
+    Extended16,
+    Extended32,
+}
+
+impl From<ExtendedPacketSize> for PacketSize {
+    fn from(size: ExtendedPacketSize) -> PacketSize {
+        match size {
+            ExtendedPacketSize::Extended8 => PacketSize::ExtendedPacket8,
+            ExtendedPacketSize::Extended16 => PacketSize::ExtendedPacket16,
+            ExtendedPacketSize::Extended32 => PacketSize::ExtendedPacket32,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -104,11 +123,13 @@ impl From<OldDebugConfigV1_1_13> for DebugConfig {
                 message_sending_average_delay: value.message_sending_average_delay,
                 disable_main_poisson_packet_distribution: value
                     .disable_main_poisson_packet_distribution,
-                use_extended_packet_size: value.use_extended_packet_size,
+                primary_packet_size: PacketSize::RegularPacket,
+                secondary_packet_size: value.use_extended_packet_size.map(Into::into),
             },
             cover_traffic: CoverTraffic {
                 loop_cover_traffic_average_delay: value.loop_cover_traffic_average_delay,
                 disable_loop_cover_traffic_stream: value.disable_loop_cover_traffic_stream,
+                ..CoverTraffic::default()
             },
             gateway_connection: GatewayConnection {
                 gateway_response_timeout: value.gateway_response_timeout,

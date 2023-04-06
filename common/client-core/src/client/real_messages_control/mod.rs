@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 // INPUT: InputMessage from user
@@ -26,11 +26,9 @@ use log::*;
 use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::params::PacketSize;
 use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
-use std::time::Duration;
 
 use crate::client::replies::reply_controller;
 use crate::config;
@@ -45,61 +43,29 @@ pub struct Config {
     /// Key used to decrypt contents of received SURBAcks
     ack_key: Arc<AckKey>,
 
-    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the additive part `b`
-    ack_wait_addition: Duration,
-
-    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the multiplier `a`
-    ack_wait_multiplier: f64,
-
     /// Address of `this` client.
     self_recipient: Recipient,
 
-    /// Average delay between sending subsequent packets from this client.
-    average_message_sending_delay: Duration,
+    /// Specifies all traffic related configuration options.
+    traffic: config::Traffic,
 
-    /// Average delay a data packet is going to get delayed at a single mixnode.
-    average_packet_delay_duration: Duration,
+    /// Specifies all cover traffic related configuration options.
+    cover_traffic: config::CoverTraffic,
 
-    /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
-    average_ack_delay_duration: Duration,
+    /// Specifies all acknowledgements related configuration options.
+    acks: config::Acknowledgements,
 
-    /// Controls whether the main packet stream constantly produces packets according to the predefined
-    /// poisson distribution.
-    disable_main_poisson_packet_distribution: bool,
-
-    /// Predefined packet size used for the encapsulated messages.
-    packet_size: PacketSize,
-
-    /// Defines the minimum number of reply surbs the client would request.
-    minimum_reply_surb_request_size: u32,
-
-    /// Defines the maximum number of reply surbs the client would request.
-    maximum_reply_surb_request_size: u32,
-
-    /// Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
-    maximum_allowed_reply_surb_request_size: u32,
-
-    /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
-    /// for more even though in theory they wouldn't need to.
-    maximum_reply_surb_rerequest_waiting_period: Duration,
-
-    /// Defines maximum amount of time the client is going to wait for reply surbs before
-    /// deciding it's never going to get them and would drop all pending messages
-    maximum_reply_surb_drop_waiting_period: Duration,
-
-    /// Defines maximum amount of time given reply surb is going to be valid for.
-    /// This is going to be superseded by key rotation once implemented.
-    maximum_reply_surb_age: Duration,
-
-    /// Defines maximum amount of time given reply key is going to be valid for.
-    /// This is going to be superseded by key rotation once implemented.
-    maximum_reply_key_age: Duration,
+    /// Specifies all reply SURBs related configuration options.
+    reply_surbs: config::ReplySurbs,
 }
 
 impl<'a> From<&'a Config> for acknowledgement_control::Config {
     fn from(cfg: &'a Config) -> Self {
-        acknowledgement_control::Config::new(cfg.ack_wait_addition, cfg.ack_wait_multiplier)
-            .with_custom_packet_size(cfg.packet_size)
+        acknowledgement_control::Config::new(
+            cfg.acks.ack_wait_addition,
+            cfg.acks.ack_wait_multiplier,
+        )
+        .with_custom_packet_size(cfg.traffic.primary_packet_size)
     }
 }
 
@@ -108,26 +74,16 @@ impl<'a> From<&'a Config> for real_traffic_stream::Config {
         real_traffic_stream::Config::new(
             Arc::clone(&cfg.ack_key),
             cfg.self_recipient,
-            cfg.average_ack_delay_duration,
-            cfg.average_packet_delay_duration,
-            cfg.average_message_sending_delay,
-            cfg.disable_main_poisson_packet_distribution,
+            cfg.acks.average_ack_delay,
+            cfg.traffic,
+            cfg.cover_traffic.cover_traffic_primary_size_ratio,
         )
-        .with_custom_cover_packet_size(cfg.packet_size)
     }
 }
 
 impl<'a> From<&'a Config> for reply_controller::Config {
     fn from(cfg: &'a Config) -> Self {
-        reply_controller::Config::new(
-            cfg.minimum_reply_surb_request_size,
-            cfg.maximum_reply_surb_request_size,
-            cfg.maximum_allowed_reply_surb_request_size,
-            cfg.maximum_reply_surb_rerequest_waiting_period,
-            cfg.maximum_reply_surb_drop_waiting_period,
-            cfg.maximum_reply_surb_age,
-            cfg.maximum_reply_key_age,
-        )
+        reply_controller::Config::new(cfg.reply_surbs)
     }
 }
 
@@ -136,10 +92,11 @@ impl<'a> From<&'a Config> for message_handler::Config {
         message_handler::Config::new(
             Arc::clone(&cfg.ack_key),
             cfg.self_recipient,
-            cfg.average_packet_delay_duration,
-            cfg.average_ack_delay_duration,
+            cfg.traffic.average_packet_delay,
+            cfg.acks.average_ack_delay,
         )
-        .with_custom_packet_size(cfg.packet_size)
+        .with_custom_primary_packet_size(cfg.traffic.primary_packet_size)
+        .with_custom_secondary_packet_size(cfg.traffic.secondary_packet_size)
     }
 }
 
@@ -152,41 +109,11 @@ impl Config {
         Config {
             ack_key,
             self_recipient,
-            packet_size: Default::default(),
-            ack_wait_addition: base_client_debug_config.acknowledgements.ack_wait_addition,
-            ack_wait_multiplier: base_client_debug_config
-                .acknowledgements
-                .ack_wait_multiplier,
-            average_message_sending_delay: base_client_debug_config
-                .traffic
-                .message_sending_average_delay,
-            average_packet_delay_duration: base_client_debug_config.traffic.average_packet_delay,
-            average_ack_delay_duration: base_client_debug_config.acknowledgements.average_ack_delay,
-            disable_main_poisson_packet_distribution: base_client_debug_config
-                .traffic
-                .disable_main_poisson_packet_distribution,
-            minimum_reply_surb_request_size: base_client_debug_config
-                .reply_surbs
-                .minimum_reply_surb_request_size,
-            maximum_reply_surb_request_size: base_client_debug_config
-                .reply_surbs
-                .maximum_reply_surb_request_size,
-            maximum_allowed_reply_surb_request_size: base_client_debug_config
-                .reply_surbs
-                .maximum_allowed_reply_surb_request_size,
-            maximum_reply_surb_rerequest_waiting_period: base_client_debug_config
-                .reply_surbs
-                .maximum_reply_surb_rerequest_waiting_period,
-            maximum_reply_surb_drop_waiting_period: base_client_debug_config
-                .reply_surbs
-                .maximum_reply_surb_drop_waiting_period,
-            maximum_reply_surb_age: base_client_debug_config.reply_surbs.maximum_reply_surb_age,
-            maximum_reply_key_age: base_client_debug_config.reply_surbs.maximum_reply_key_age,
+            traffic: base_client_debug_config.traffic,
+            cover_traffic: base_client_debug_config.cover_traffic,
+            acks: base_client_debug_config.acknowledgements,
+            reply_surbs: base_client_debug_config.reply_surbs,
         }
-    }
-
-    pub fn set_custom_packet_size(&mut self, packet_size: PacketSize) {
-        self.packet_size = packet_size;
     }
 }
 

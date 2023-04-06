@@ -22,38 +22,21 @@ use time::OffsetDateTime;
 
 use crate::client::helpers::new_interval_stream;
 use crate::client::transmission_buffer::TransmissionBuffer;
+use crate::config;
 pub(crate) use requests::{ReplyControllerMessage, ReplyControllerReceiver, ReplyControllerSender};
 
 pub mod requests;
 
+// this is still left as a separate config so I wouldn't need to replace it everywhere
+// plus its not unreasonable to think that we might need something outside config::ReplySurbs struct
 pub struct Config {
-    min_surb_request_size: u32,
-    max_surb_request_size: u32,
-    maximum_allowed_reply_surb_request_size: u32,
-    max_surb_rerequest_waiting_period: Duration,
-    max_surb_drop_waiting_period: Duration,
-    max_reply_surb_age: Duration,
-    max_reply_key_age: Duration,
+    reply_surbs: config::ReplySurbs,
 }
 
 impl Config {
-    pub(crate) fn new(
-        min_surb_request_size: u32,
-        max_surb_request_size: u32,
-        maximum_allowed_reply_surb_request_size: u32,
-        max_surb_rerequest_waiting_period: Duration,
-        max_surb_drop_waiting_period: Duration,
-        max_reply_surb_age: Duration,
-        max_reply_key_age: Duration,
-    ) -> Self {
+    pub(crate) fn new(reply_surbs_cfg: config::ReplySurbs) -> Self {
         Self {
-            min_surb_request_size,
-            max_surb_request_size,
-            maximum_allowed_reply_surb_request_size,
-            max_surb_rerequest_waiting_period,
-            max_surb_drop_waiting_period,
-            max_reply_surb_age,
-            max_reply_key_age,
+            reply_surbs: reply_surbs_cfg,
         }
     }
 }
@@ -509,9 +492,17 @@ where
         }
 
         // 2. check whether the requested amount is within sane range
-        if amount > self.config.maximum_allowed_reply_surb_request_size {
-            warn!("The requested reply surb amount is larger than our maximum allowed ({amount} > {}). Lowering it to a more sane value...", self.config.maximum_allowed_reply_surb_request_size);
-            amount = self.config.maximum_allowed_reply_surb_request_size;
+        if amount
+            > self
+                .config
+                .reply_surbs
+                .maximum_allowed_reply_surb_request_size
+        {
+            warn!("The requested reply surb amount is larger than our maximum allowed ({amount} > {}). Lowering it to a more sane value...", self.config.reply_surbs.maximum_allowed_reply_surb_request_size);
+            amount = self
+                .config
+                .reply_surbs
+                .maximum_allowed_reply_surb_request_size;
         }
 
         // 3. construct and send the surbs away
@@ -707,8 +698,11 @@ where
         }
 
         let request_size = min(
-            self.config.max_surb_request_size,
-            max(total_queue, self.config.min_surb_request_size),
+            self.config.reply_surbs.maximum_reply_surb_request_size,
+            max(
+                total_queue,
+                self.config.reply_surbs.minimum_reply_surb_request_size,
+            ),
         );
 
         if let Err(err) = self
@@ -744,9 +738,17 @@ where
             };
 
             let diff = now - last_received_time;
+            let max_rerequest_wait = self
+                .config
+                .reply_surbs
+                .maximum_reply_surb_rerequest_waiting_period;
+            let max_drop_wait = self
+                .config
+                .reply_surbs
+                .maximum_reply_surb_drop_waiting_period;
 
-            if diff > self.config.max_surb_rerequest_waiting_period {
-                if diff > self.config.max_surb_drop_waiting_period {
+            if diff > max_rerequest_wait {
+                if diff > max_drop_wait {
                     to_remove.push(*pending_reply_target)
                 } else {
                     debug!("We haven't received any surbs in {:?} from {pending_reply_target}. Going to explicitly ask for more", diff);
@@ -793,7 +795,7 @@ where
             };
             let diff = now - last_received_time;
 
-            if diff > self.config.max_reply_surb_age {
+            if diff > self.config.reply_surbs.maximum_reply_surb_age {
                 info!("it's been {diff:?} since we last received any reply surb from {sender}. Going to remove all stored entries...");
 
                 to_remove_surbs.push(*sender);
@@ -813,7 +815,7 @@ where
 
             let diff = now - sent_at;
 
-            if diff > self.config.max_reply_key_age {
+            if diff > self.config.reply_surbs.maximum_reply_key_age {
                 debug!("it's been {diff:?} since we created this reply key. it's probably never going to get used, so we're going to purge it...");
                 to_remove_keys.push(*digest);
             }
@@ -842,7 +844,8 @@ where
         let mut stale_inspection = new_interval_stream(polling_rate);
 
         // this is in the order of hours/days so we don't have to poll it that often
-        let polling_rate = Duration::from_secs(self.config.max_reply_surb_age.as_secs() / 10);
+        let polling_rate =
+            Duration::from_secs(self.config.reply_surbs.maximum_reply_surb_age.as_secs() / 10);
         let mut invalidation_inspection = new_interval_stream(polling_rate);
 
         while !shutdown.is_shutdown() {

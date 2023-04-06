@@ -21,3 +21,6 @@ nym-topology = { path = "../../topology" }
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
 version = "0.2.83"
+
+[dev-dependencies]
+rand_chacha = "0.2"

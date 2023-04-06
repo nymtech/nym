@@ -3,7 +3,7 @@
 
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::topology_control::TopologyAccessor;
-use crate::spawn_future;
+use crate::{config, spawn_future};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
@@ -34,11 +34,8 @@ where
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
-    /// Average delay a data packet is going to get delay at a single mixnode.
-    average_packet_delay: Duration,
-
-    /// Average delay between sending subsequent cover packets.
-    average_cover_message_sending_delay: Duration,
+    /// Defines configuration options related to cover traffic.
+    cover_traffic: config::CoverTraffic,
 
     /// Internal state, determined by `average_message_sending_delay`,
     /// used to keep track of when a next packet should be sent out.
@@ -61,8 +58,11 @@ where
     /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor,
 
-    /// Predefined packet size used for the loop cover messages.
-    packet_size: PacketSize,
+    /// Primary predefined packet size used for the loop cover messages.
+    primary_packet_size: PacketSize,
+
+    /// Optional secondary predefined packet size used for the loop cover messages.
+    secondary_packet_size: Option<PacketSize>,
 }
 
 impl<R> Stream for LoopCoverTrafficStream<R>
@@ -83,7 +83,7 @@ where
 
         // we know it's time to send a message, so let's prepare delay for the next one
         // Get the `now` by looking at the current `delay` deadline
-        let avg_delay = self.average_cover_message_sending_delay;
+        let avg_delay = self.cover_traffic.loop_cover_traffic_average_delay;
         let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
 
         // The next interval value is `next_poisson_delay` after the one that just
@@ -107,15 +107,14 @@ where
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
 impl LoopCoverTrafficStream<OsRng> {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         ack_key: Arc<AckKey>,
         average_ack_delay: Duration,
-        average_packet_delay: Duration,
-        average_cover_message_sending_delay: Duration,
         mix_tx: BatchMixMessageSender,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
+        traffic_config: config::Traffic,
+        cover_config: config::CoverTraffic,
     ) -> Self {
         let rng = OsRng;
 
@@ -128,19 +127,15 @@ impl LoopCoverTrafficStream<OsRng> {
         LoopCoverTrafficStream {
             ack_key,
             average_ack_delay,
-            average_packet_delay,
-            average_cover_message_sending_delay,
+            cover_traffic: cover_config,
             next_delay,
             mix_tx,
             our_full_destination,
             rng,
             topology_access,
-            packet_size: Default::default(),
+            primary_packet_size: traffic_config.primary_packet_size,
+            secondary_packet_size: traffic_config.secondary_packet_size,
         }
-    }
-
-    pub fn set_custom_packet_size(&mut self, packet_size: PacketSize) {
-        self.packet_size = packet_size;
     }
 
     fn set_next_delay(&mut self, amount: Duration) {
@@ -153,8 +148,27 @@ impl LoopCoverTrafficStream<OsRng> {
         self.next_delay = next_delay;
     }
 
+    fn loop_cover_message_size(&mut self) -> PacketSize {
+        let Some(secondary_packet_size) = self.secondary_packet_size else {
+            return self.primary_packet_size
+        };
+
+        let use_primary = self
+            .rng
+            .gen_bool(self.cover_traffic.cover_traffic_primary_size_ratio);
+
+        if use_primary {
+            self.primary_packet_size
+        } else {
+            secondary_packet_size
+        }
+    }
+
     async fn on_new_message(&mut self) {
         trace!("next cover message!");
+
+        let cover_traffic_packet_size = self.loop_cover_message_size();
+        trace!("the next loop cover message will be put in a {cover_traffic_packet_size} packet");
 
         // TODO for way down the line: in very rare cases (during topology update) we might have
         // to wait a really tiny bit before actually obtaining the permit hence messing with our
@@ -178,8 +192,8 @@ impl LoopCoverTrafficStream<OsRng> {
             &self.ack_key,
             &self.our_full_destination,
             self.average_ack_delay,
-            self.average_packet_delay,
-            self.packet_size,
+            self.cover_traffic.loop_cover_traffic_average_delay,
+            cover_traffic_packet_size,
         )
         .expect("Somehow failed to generate a loop cover message with a valid topology");
 
@@ -214,9 +228,17 @@ impl LoopCoverTrafficStream<OsRng> {
     }
 
     pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
+        if self.cover_traffic.disable_loop_cover_traffic_stream {
+            // we should have never got here in the first place - the task should have never been created to begin with
+            // so panic and review the code that lead to this branch
+            panic!("attempted to start LoopCoverTrafficStream while config explicitly disabled it.")
+        }
+
         // we should set initial delay only when we actually start the stream
-        let sampled =
-            sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);
+        let sampled = sample_poisson_duration(
+            &mut self.rng,
+            self.cover_traffic.loop_cover_traffic_average_delay,
+        );
         self.set_next_delay(sampled);
 
         spawn_future(async move {

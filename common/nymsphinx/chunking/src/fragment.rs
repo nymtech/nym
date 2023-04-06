@@ -191,6 +191,14 @@ impl Fragment {
         })
     }
 
+    /// based on the size of the embedded data, determines which predefined `PacketSize`
+    /// was used for construction of this `Fragment`
+    pub fn serialized_size(&self) -> usize {
+        // TODO: optimisation: determine the size of the header without actually serializing it...
+        let header_size = self.header.to_bytes().len();
+        header_size + self.payload_size()
+    }
+
     /// Convert this `Fragment` into vector of bytes which can be put into a sphinx packet.
     pub fn into_bytes(self) -> Vec<u8> {
         self.header
@@ -434,8 +442,7 @@ impl FragmentHeader {
         let frag_id = self.id | (1 << 31);
         let frag_id_bytes = frag_id.to_be_bytes();
         let bytes_prefix_iter = frag_id_bytes
-            .iter()
-            .cloned()
+            .into_iter()
             .chain(std::iter::once(self.total_fragments))
             .chain(std::iter::once(self.current_fragment));
 

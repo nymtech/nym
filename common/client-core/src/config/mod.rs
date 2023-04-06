@@ -32,6 +32,8 @@ const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_00
 // bandwidth bridging protocol, we can come back to a smaller timeout value
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
+const DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO: f64 = 0.70;
+
 // reply-surbs related:
 
 // define when to request
@@ -88,6 +90,11 @@ impl<T> Config<T> {
         T: NymConfig,
     {
         Config::default().with_id(id)
+    }
+
+    pub fn validate(&self) -> bool {
+        // no other sections have explicit requirements (yet)
+        self.debug.validate()
     }
 
     #[must_use]
@@ -356,10 +363,6 @@ impl<T> Config<T> {
         self.debug.traffic.disable_main_poisson_packet_distribution
     }
 
-    pub fn get_use_extended_packet_size(&self) -> Option<ExtendedPacketSize> {
-        self.debug.traffic.use_extended_packet_size
-    }
-
     pub fn get_minimum_reply_surb_storage_threshold(&self) -> usize {
         self.debug.reply_surbs.minimum_reply_surb_storage_threshold
     }
@@ -596,7 +599,7 @@ impl<T: NymConfig> Client<T> {
 pub struct Logging {}
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct Traffic {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
@@ -616,8 +619,27 @@ pub struct Traffic {
     /// poisson distribution.
     pub disable_main_poisson_packet_distribution: bool,
 
-    /// Controls whether the sent sphinx packet use a NON-DEFAULT bigger size.
-    pub use_extended_packet_size: Option<ExtendedPacketSize>,
+    /// Specifies the packet size used for sent messages.
+    /// Do not override it unless you understand the consequences of that change.
+    pub primary_packet_size: PacketSize,
+
+    /// Specifies the optional auxiliary packet size for optimizing message streams.
+    /// Note that its use decreases overall anonymity.
+    /// Do not set it it unless you understand the consequences of that change.
+    pub secondary_packet_size: Option<PacketSize>,
+}
+
+impl Traffic {
+    pub fn validate(&self) -> bool {
+        if let Some(secondary_packet_size) = self.secondary_packet_size {
+            if secondary_packet_size == PacketSize::AckPacket
+                || secondary_packet_size == self.primary_packet_size
+            {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 impl Default for Traffic {
@@ -626,7 +648,8 @@ impl Default for Traffic {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
             disable_main_poisson_packet_distribution: false,
-            use_extended_packet_size: None,
+            primary_packet_size: PacketSize::RegularPacket,
+            secondary_packet_size: None,
         }
     }
 }
@@ -639,6 +662,10 @@ pub struct CoverTraffic {
     #[serde(with = "humantime_serde")]
     pub loop_cover_traffic_average_delay: Duration,
 
+    /// Specifies the ratio of `primary_packet_size` to `secondary_packet_size` used in cover traffic.
+    /// Only applicable if `secondary_packet_size` is enabled.
+    pub cover_traffic_primary_size_ratio: f64,
+
     /// Controls whether the dedicated loop cover traffic stream should be enabled.
     /// (and sending packets, on average, every [Self::loop_cover_traffic_average_delay])
     pub disable_loop_cover_traffic_stream: bool,
@@ -648,6 +675,7 @@ impl Default for CoverTraffic {
     fn default() -> Self {
         CoverTraffic {
             loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
+            cover_traffic_primary_size_ratio: DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO,
             disable_loop_cover_traffic_stream: false,
         }
     }
@@ -805,12 +833,11 @@ pub struct DebugConfig {
     pub reply_surbs: ReplySurbs,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum ExtendedPacketSize {
-    Extended8,
-    Extended16,
-    Extended32,
+impl DebugConfig {
+    pub fn validate(&self) -> bool {
+        // no other sections have explicit requirements (yet)
+        self.traffic.validate()
+    }
 }
 
 // it could be derived, sure, but I'd rather have an explicit implementation in case we had to change
@@ -825,16 +852,6 @@ impl Default for DebugConfig {
             acknowledgements: Default::default(),
             topology: Default::default(),
             reply_surbs: Default::default(),
-        }
-    }
-}
-
-impl From<ExtendedPacketSize> for PacketSize {
-    fn from(size: ExtendedPacketSize) -> PacketSize {
-        match size {
-            ExtendedPacketSize::Extended8 => PacketSize::ExtendedPacket8,
-            ExtendedPacketSize::Extended16 => PacketSize::ExtendedPacket16,
-            ExtendedPacketSize::Extended32 => PacketSize::ExtendedPacket32,
         }
     }
 }

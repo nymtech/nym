@@ -12,7 +12,7 @@ use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandle
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use log::*;
-use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_defaults::NymNetworkDetails;

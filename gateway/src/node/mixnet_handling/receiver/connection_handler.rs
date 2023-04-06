@@ -8,7 +8,7 @@ use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::StreamExt;
 use log::*;
-use mixnet_client::forwarder::MixForwardingSender;
+use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::SphinxCodec;

@@ -6,7 +6,7 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
 use crate::node::storage::Storage;
 use log::*;
-use mixnet_client::forwarder::MixForwardingSender;
+use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_crypto::asymmetric::identity;
 use rand::rngs::OsRng;
 use std::net::SocketAddr;

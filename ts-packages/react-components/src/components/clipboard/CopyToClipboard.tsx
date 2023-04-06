@@ -9,8 +9,9 @@ export const CopyToClipboard: FCWithChildren<{
   value: string;
   tooltip?: React.ReactNode;
   onCopy?: (value: string) => void;
+  smallIcons?: boolean;
   sx?: SxProps;
-}> = ({ value, tooltip, onCopy, sx }) => {
+}> = ({ value, tooltip, onCopy, smallIcons, sx }) => {
   const copy = useClipboard();
   const [showConfirmation, setShowConfirmation] = React.useState<boolean>(false);
   const handleCopy = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -25,9 +26,13 @@ export const CopyToClipboard: FCWithChildren<{
   return (
     <Tooltip title={tooltip || `Click to copy ${value} to clipboard`}>
       {showConfirmation ? (
-        <DoneIcon color="success" sx={sx} />
+        <DoneIcon color="success" sx={sx} fontSize={smallIcons ? 'small' : 'medium'} />
       ) : (
-        <ContentCopyIcon onClick={handleCopy} sx={{ cursor: 'pointer', ...sx }} />
+        <ContentCopyIcon
+          onClick={handleCopy}
+          sx={{ cursor: 'pointer', ...sx }}
+          fontSize={smallIcons ? 'small' : 'medium'}
+        />
       )}
     </Tooltip>
   );

@@ -1,5 +1,4 @@
 export * from './AppBar';
-export * from './ClientAddress';
 export * from './ConfirmPassword';
 export * from './CopyToClipboard';
 export * from './ErrorFallback';

@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { AppContext } from 'src/context';
 import { Box, Stack, SxProps } from '@mui/material';
 import QRCode from 'qrcode.react';
-import { ClientAddress } from '../ClientAddress';
+import { ClientAddress } from '@nymproject/react/client-address/ClientAddress';
 import { ModalListItem } from '../Modals/ModalListItem';
 import { SimpleModal } from '../Modals/SimpleModal';
 
@@ -27,7 +27,14 @@ export const ReceiveModal = ({
       subHeaderStyles={{ mb: 0 }}
     >
       <Stack gap={3} sx={{ position: 'relative', top: '32px' }}>
-        <ModalListItem label="Your address" value={<ClientAddress withCopy showEntireAddress />} />
+        <ModalListItem
+          label="Your address"
+          value={
+            clientDetails?.client_address && (
+              <ClientAddress address={clientDetails?.client_address} withCopy showEntireAddress />
+            )
+          }
+        />
         <Stack
           alignItems="center"
           sx={{

@@ -16,11 +16,11 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
-use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::version_checker::parse_version;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_task::{TaskClient, TaskManager};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -173,7 +173,7 @@ impl MixNode {
     ) -> PacketDelayForwardSender {
         info!("Starting packet delay-forwarder...");
 
-        let client_config = mixnet_client::Config::new(
+        let client_config = nym_mixnet_client::Config::new(
             self.config.get_packet_forwarding_initial_backoff(),
             self.config.get_packet_forwarding_maximum_backoff(),
             self.config.get_initial_connection_timeout(),
@@ -182,7 +182,7 @@ impl MixNode {
         );
 
         let mut packet_forwarder = DelayForwarder::new(
-            mixnet_client::Client::new(client_config),
+            nym_mixnet_client::Client::new(client_config),
             node_stats_update_sender,
             shutdown,
         );

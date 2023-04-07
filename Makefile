@@ -26,6 +26,9 @@ clippy-$(1):
 clippy-$(1)-examples:
 	cargo clippy --manifest-path $(2)/Cargo.toml --workspace --examples -- -D warnings
 
+check-$(1):
+	cargo check --manifest-path $(2)/Cargo.toml --workspace $(3)
+
 test-$(1):
 	cargo test --manifest-path $(2)/Cargo.toml --workspace
 
@@ -43,6 +46,7 @@ fmt-$(1):
 
 clippy-happy: clippy-happy-$(1)
 clippy-all: clippy-$(1) clippy-$(1)-examples
+check: check-$(1)
 cargo-test: test-$(1)
 cargo-test-expensive: test-$(1)-expensive
 build: build-$(1) build-$(1)-examples

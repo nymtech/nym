@@ -98,7 +98,7 @@ jobs:
           cp target/release/nym-network-requester $OUTPUT_DIR
           cp target/release/nym-network-statistics $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
-          cp target/release/credential $OUTPUT_DIR
+          cp target/release/nym-credential-client $OUTPUT_DIR
           cp target/release/explorer-api $OUTPUT_DIR
           
           cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm $OUTPUT_DIR

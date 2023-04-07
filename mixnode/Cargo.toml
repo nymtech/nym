@@ -47,8 +47,8 @@ opentelemetry = { version = "0.19.0", optional = true }
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
-mixnet-client = { path = "../common/client-libs/mixnet-client" }
-mixnode-common = { path = "../common/mixnode-common" }
+nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
+nym-mixnode-common = { path = "../common/mixnode-common" }
 nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-pemstore = { path = "../common/pemstore", version = "0.2.0" }
@@ -72,7 +72,7 @@ nym-sphinx-params = { path = "../common/nymsphinx/params" }
 
 [features]
 cpucycles = [
-    "mixnode-common/cpucycles",
+    "nym-mixnode-common/cpucycles",
     "tracing",
     "opentelemetry",
     "nym-bin-common/tracing",

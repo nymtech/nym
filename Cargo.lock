@@ -913,29 +913,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "credential"
-version = "0.1.0"
-dependencies = [
- "bip39",
- "clap 4.1.11",
- "log",
- "nym-bin-common",
- "nym-coconut-interface",
- "nym-config",
- "nym-credential-storage",
- "nym-credentials",
- "nym-crypto",
- "nym-network-defaults",
- "nym-pemstore",
- "nym-validator-client",
- "rand 0.7.3",
- "serde",
- "thiserror",
- "tokio",
- "url",
-]
-
-[[package]]
 name = "criterion"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2901,48 +2878,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mixnet-client"
-version = "0.1.0"
-dependencies = [
- "futures",
- "log",
- "nym-sphinx",
- "nym-task",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "mixnode-common"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "cfg-if",
- "cpu-cycles",
- "futures",
- "humantime-serde",
- "log",
- "nym-bin-common",
- "nym-crypto",
- "nym-network-defaults",
- "nym-sphinx-acknowledgements",
- "nym-sphinx-addressing",
- "nym-sphinx-forwarding",
- "nym-sphinx-framing",
- "nym-sphinx-params",
- "nym-sphinx-types",
- "nym-task",
- "nym-validator-client",
- "rand 0.8.5",
- "serde",
- "thiserror",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "multer"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3260,6 +3195,7 @@ dependencies = [
  "log",
  "nym-bin-common",
  "nym-client-core",
+ "nym-client-websocket-requests",
  "nym-coconut-interface",
  "nym-config",
  "nym-credential-storage",
@@ -3282,7 +3218,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.14.0",
  "url",
- "websocket-requests",
 ]
 
 [[package]]
@@ -3323,6 +3258,15 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-timer",
  "wasm-utils",
+]
+
+[[package]]
+name = "nym-client-websocket-requests"
+version = "0.1.0"
+dependencies = [
+ "nym-sphinx",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3404,6 +3348,29 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "nym-credential-client"
+version = "0.1.0"
+dependencies = [
+ "bip39",
+ "clap 4.1.11",
+ "log",
+ "nym-bin-common",
+ "nym-coconut-interface",
+ "nym-config",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-network-defaults",
+ "nym-pemstore",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "serde",
+ "thiserror",
+ "tokio",
+ "url",
 ]
 
 [[package]]
@@ -3505,8 +3472,6 @@ dependencies = [
  "humantime-serde",
  "lazy_static",
  "log",
- "mixnet-client",
- "mixnode-common",
  "nym-api-requests",
  "nym-bin-common",
  "nym-coconut-interface",
@@ -3514,6 +3479,8 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-mixnet-client",
+ "nym-mixnode-common",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -3607,6 +3574,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-mixnet-client"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "log",
+ "nym-sphinx",
+ "nym-task",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "nym-mixnet-contract-common"
 version = "0.3.0"
 dependencies = [
@@ -3641,12 +3620,12 @@ dependencies = [
  "humantime-serde",
  "lazy_static",
  "log",
- "mixnet-client",
- "mixnode-common",
  "nym-bin-common",
  "nym-config",
  "nym-contracts-common",
  "nym-crypto",
+ "nym-mixnet-client",
+ "nym-mixnode-common",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
@@ -3666,6 +3645,36 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "nym-mixnode-common"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "cfg-if",
+ "cpu-cycles",
+ "futures",
+ "humantime-serde",
+ "log",
+ "nym-bin-common",
+ "nym-crypto",
+ "nym-network-defaults",
+ "nym-sphinx-acknowledgements",
+ "nym-sphinx-addressing",
+ "nym-sphinx-forwarding",
+ "nym-sphinx-framing",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+ "nym-task",
+ "nym-validator-client",
+ "rand 0.8.5",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tokio-util",
  "tracing",
  "url",
 ]
@@ -3720,6 +3729,7 @@ dependencies = [
  "log",
  "nym-bin-common",
  "nym-client-core",
+ "nym-client-websocket-requests",
  "nym-config",
  "nym-crypto",
  "nym-network-defaults",
@@ -3743,7 +3753,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.17.2",
  "url",
- "websocket-requests",
 ]
 
 [[package]]
@@ -7236,15 +7245,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c71e40d7d2c34a5106301fb632274ca37242cd0c9d3e64dbece371a40a2d87"
 dependencies = [
  "webpki 0.22.0",
-]
-
-[[package]]
-name = "websocket-requests"
-version = "0.1.0"
-dependencies = [
- "nym-sphinx",
- "serde",
- "serde_json",
 ]
 
 [[package]]

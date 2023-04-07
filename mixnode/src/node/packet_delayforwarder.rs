@@ -21,7 +21,7 @@ type PacketDelayForwardReceiver = mpsc::UnboundedReceiver<(MixPacket, Option<Ins
 /// Entity responsible for delaying received sphinx packet and forwarding it to next node.
 pub(crate) struct DelayForwarder<C>
 where
-    C: mixnet_client::SendWithoutResponse,
+    C: nym_mixnet_client::SendWithoutResponse,
 {
     delay_queue: NonExhaustiveDelayQueue<MixPacket>,
     mixnet_client: C,
@@ -33,7 +33,7 @@ where
 
 impl<C> DelayForwarder<C>
 where
-    C: mixnet_client::SendWithoutResponse,
+    C: nym_mixnet_client::SendWithoutResponse,
 {
     pub(crate) fn new(
         client: C,
@@ -150,7 +150,7 @@ mod tests {
         pub packets_sent: Arc<Mutex<Vec<(NymNodeRoutingAddress, SphinxPacket, PacketMode)>>>,
     }
 
-    impl mixnet_client::SendWithoutResponse for TestClient {
+    impl nym_mixnet_client::SendWithoutResponse for TestClient {
         fn send_without_response(
             &mut self,
             address: NymNodeRoutingAddress,

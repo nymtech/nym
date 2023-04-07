@@ -36,10 +36,6 @@ pub(crate) struct Run {
     #[clap(long)]
     pub(crate) client_home_directory: std::path::PathBuf,
 
-    /// The nyxd URL that should be used
-    #[clap(long)]
-    pub(crate) nyxd_url: String,
-
     /// A mnemonic for the account that buys the credential
     #[clap(long)]
     pub(crate) mnemonic: String,
@@ -61,19 +57,15 @@ pub(crate) struct Run {
 pub(crate) async fn recover_credentials<C: DkgQueryClient + Send + Sync>(
     client: &C,
     recovery_storage: &RecoveryStorage,
-    shared_storage: PersistentStorage,
+    shared_storage: &PersistentStorage,
 ) -> Result<()> {
     for voucher in recovery_storage.unconsumed_vouchers()? {
         let state = State {
             voucher,
             params: Parameters::new(TOTAL_ATTRIBUTES).unwrap(),
         };
-        if let Err(e) = nym_bandwidth_controller::acquire::get_credential(
-            &state,
-            client,
-            shared_storage.clone(),
-        )
-        .await
+        if let Err(e) =
+            nym_bandwidth_controller::acquire::get_credential(&state, client, shared_storage).await
         {
             error!(
                 "Could not recover deposit {} due to {:?}, try again later",

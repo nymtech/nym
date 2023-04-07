@@ -5,7 +5,6 @@ mod commands;
 mod error;
 mod recovery_storage;
 
-use bip39::Mnemonic;
 use commands::*;
 use error::Result;
 use log::*;
@@ -13,15 +12,13 @@ use nym_bin_common::completions::fig_generate;
 use nym_config::{CRED_DB_FILE_NAME, DATA_DIR};
 use nym_network_defaults::{setup_env, NymNetworkDetails};
 use std::process::exit;
-use std::str::FromStr;
 use std::time::{Duration, SystemTime};
 
 use clap::{CommandFactory, Parser};
 use nym_bin_common::logging::setup_logging;
 use nym_validator_client::nyxd::traits::DkgQueryClient;
-use nym_validator_client::nyxd::{Coin, CosmWasmClient, NyxdClient};
-use nym_validator_client::{nyxd, Config};
-use url::Url;
+use nym_validator_client::nyxd::{Coin, CosmWasmClient};
+use nym_validator_client::Config;
 
 const SAFETY_BUFFER_SECS: u64 = 60; // 1 minute
 
@@ -36,7 +33,7 @@ struct Cli {
     pub(crate) command: Command,
 }
 
-async fn block_until_coconut_is_available<C: Clone + CosmWasmClient + Send + Sync>(
+async fn block_until_coconut_is_available<C: CosmWasmClient + Send + Sync>(
     client: &nym_validator_client::Client<C>,
 ) -> Result<()> {
     loop {
@@ -83,36 +80,26 @@ async fn main() -> Result<()> {
             let recovery_storage = recovery_storage::RecoveryStorage::new(r.recovery_dir)?;
 
             let network_details = NymNetworkDetails::new_from_env();
-            let config = Config::try_from_nym_network_details(&network_details)?;
-            let client = nym_validator_client::Client::new_query(config)?;
+            let config = Config::try_from_nym_network_details(&network_details).expect(
+                "failed to construct valid validator client config with the provided network",
+            );
+            let amount = Coin::new(
+                r.amount as u128,
+                network_details.chain_details.mix_denom.base,
+            );
+            let client =
+                nym_validator_client::Client::new_signing(config, r.mnemonic.parse().unwrap())?;
 
             block_until_coconut_is_available(&client).await?;
             info!("Starting depositing funds, don't kill the process");
 
             if !r.recovery_mode {
-                let nyxd_url = Url::from_str(&r.nyxd_url).unwrap();
-                let mnemonic = Mnemonic::from_str(&r.mnemonic).unwrap();
-                let network_details = NymNetworkDetails::new_from_env();
-                let config = nyxd::Config::try_from_nym_network_details(&network_details).expect(
-                    "failed to construct valid validator client config with the provided network",
-                );
-                let nyxd_client = NyxdClient::connect_with_mnemonic(
-                    config,
-                    nyxd_url.as_ref(),
-                    mnemonic.clone(),
-                    None,
-                )
-                .unwrap();
-                let amount = Coin::new(
-                    r.amount as u128,
-                    network_details.chain_details.mix_denom.base,
-                );
-
-                let state = nym_bandwidth_controller::acquire::deposit(nyxd_client, amount).await?;
+                let state =
+                    nym_bandwidth_controller::acquire::deposit(&client.nyxd, amount).await?;
                 if nym_bandwidth_controller::acquire::get_credential(
                     &state,
                     &client,
-                    shared_storage,
+                    &shared_storage,
                 )
                 .await
                 .is_err()
@@ -128,7 +115,7 @@ async fn main() -> Result<()> {
                     }
                 }
             } else {
-                recover_credentials(&client.nyxd, &recovery_storage, shared_storage).await?;
+                recover_credentials(&client.nyxd, &recovery_storage, &shared_storage).await?;
             }
         }
         Command::Completions(c) => c.generate(&mut Cli::command(), bin_name),

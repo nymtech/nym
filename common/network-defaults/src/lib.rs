@@ -47,12 +47,28 @@ impl Default for NymNetworkDetails {
 }
 
 impl NymNetworkDetails {
-    pub fn new() -> Self {
-        NymNetworkDetails::default()
+    pub fn new_empty() -> Self {
+        NymNetworkDetails {
+            chain_details: ChainDetails {
+                bech32_account_prefix: Default::default(),
+                mix_denom: DenomDetailsOwned {
+                    base: Default::default(),
+                    display: Default::default(),
+                    display_exponent: Default::default(),
+                },
+                stake_denom: DenomDetailsOwned {
+                    base: Default::default(),
+                    display: Default::default(),
+                    display_exponent: Default::default(),
+                },
+            },
+            endpoints: Default::default(),
+            contracts: Default::default(),
+        }
     }
 
     pub fn new_from_env() -> Self {
-        NymNetworkDetails::new()
+        NymNetworkDetails::new_empty()
             .with_bech32_account_prefix(
                 var(var_names::BECH32_PREFIX).expect("bech32 prefix not set"),
             )

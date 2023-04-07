@@ -3373,7 +3373,6 @@ dependencies = [
 name = "nym-credential-client"
 version = "0.1.0"
 dependencies = [
- "bip39",
  "clap 4.1.11",
  "log",
  "nym-bandwidth-controller",
@@ -3385,11 +3384,9 @@ dependencies = [
  "nym-network-defaults",
  "nym-pemstore",
  "nym-validator-client",
- "rand 0.7.3",
  "serde",
  "thiserror",
  "tokio",
- "url",
 ]
 
 [[package]]

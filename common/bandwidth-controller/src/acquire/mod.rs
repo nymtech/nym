@@ -19,7 +19,7 @@ use std::str::FromStr;
 
 pub mod state;
 
-pub async fn deposit<C>(client: C, amount: Coin) -> Result<State, BandwidthControllerError>
+pub async fn deposit<C>(client: &C, amount: Coin) -> Result<State, BandwidthControllerError>
 where
     C: CoconutBandwidthSigningClient,
 {
@@ -58,7 +58,7 @@ where
 pub async fn get_credential<C: DkgQueryClient + Send + Sync, St: Storage>(
     state: &State,
     client: &C,
-    storage: St,
+    storage: &St,
 ) -> Result<(), BandwidthControllerError> {
     let epoch_id = client.get_current_epoch().await?.epoch_id;
     let threshold = client

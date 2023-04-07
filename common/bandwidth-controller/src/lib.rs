@@ -20,6 +20,8 @@ use nym_validator_client::nyxd::traits::DkgQueryClient;
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::DkgQueryClient;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod acquire;
 pub mod error;
 #[cfg(target_arch = "wasm32")]
 pub mod wasm_mockups;

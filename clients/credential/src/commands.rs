@@ -3,24 +3,15 @@
 
 use clap::{ArgGroup, Args, Subcommand};
 use log::*;
+use nym_bandwidth_controller::acquire::state::State;
 use nym_bin_common::completions::ArgShell;
-use nym_coconut_interface::{Base58, Parameters};
+use nym_coconut_interface::Parameters;
 use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_credential_storage::storage::Storage;
-use nym_credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
-use nym_credentials::coconut::utils::obtain_aggregate_signature;
-use nym_crypto::asymmetric::{encryption, identity};
-use nym_network_defaults::VOUCHER_INFO;
+use nym_credentials::coconut::bandwidth::TOTAL_ATTRIBUTES;
 use nym_validator_client::nyxd::traits::DkgQueryClient;
-use nym_validator_client::nyxd::tx::Hash;
-use nym_validator_client::CoconutApiClient;
-use rand::rngs::OsRng;
-use std::str::FromStr;
 
-use crate::client::Client;
-use crate::error::{CredentialClientError, Result};
+use crate::error::Result;
 use crate::recovery_storage::RecoveryStorage;
-use crate::state::{KeyPair, State};
 
 #[derive(Subcommand)]
 pub(crate) enum Command {
@@ -67,70 +58,6 @@ pub(crate) struct Run {
     pub(crate) recovery_mode: bool,
 }
 
-pub(crate) async fn deposit(nyxd_url: &str, mnemonic: &str, amount: u64) -> Result<State> {
-    let mut rng = OsRng;
-    let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
-    let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
-    let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-
-    let client = Client::new(nyxd_url, mnemonic);
-    let tx_hash = client
-        .deposit(
-            amount,
-            signing_keypair.public_key.clone(),
-            encryption_keypair.public_key.clone(),
-            None,
-        )
-        .await?;
-
-    let voucher = BandwidthVoucher::new(
-        &params,
-        amount.to_string(),
-        VOUCHER_INFO.to_string(),
-        Hash::from_str(&tx_hash).map_err(|_| CredentialClientError::InvalidTxHash)?,
-        identity::PrivateKey::from_base58_string(&signing_keypair.private_key)?,
-        encryption::PrivateKey::from_base58_string(&encryption_keypair.private_key)?,
-    );
-
-    let state = State { voucher, params };
-
-    Ok(state)
-}
-
-pub(crate) async fn get_credential<C: DkgQueryClient + Send + Sync>(
-    state: &State,
-    client: &C,
-    shared_storage: PersistentStorage,
-) -> Result<()> {
-    let epoch_id = client.get_current_epoch().await?.epoch_id;
-    let threshold = client
-        .get_current_epoch_threshold()
-        .await?
-        .ok_or(CredentialClientError::NoThreshold)?;
-    let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(client, epoch_id).await?;
-
-    let signature = obtain_aggregate_signature(
-        &state.params,
-        &state.voucher,
-        &coconut_api_clients,
-        threshold,
-    )
-    .await?;
-    info!("Signature: {:?}", signature.to_bs58());
-    shared_storage
-        .insert_coconut_credential(
-            state.voucher.get_voucher_value(),
-            VOUCHER_INFO.to_string(),
-            state.voucher.get_private_attributes()[0].to_bs58(),
-            state.voucher.get_private_attributes()[1].to_bs58(),
-            signature.to_bs58(),
-            epoch_id.to_string(),
-        )
-        .await?;
-
-    Ok(())
-}
-
 pub(crate) async fn recover_credentials<C: DkgQueryClient + Send + Sync>(
     client: &C,
     recovery_storage: &RecoveryStorage,
@@ -141,7 +68,13 @@ pub(crate) async fn recover_credentials<C: DkgQueryClient + Send + Sync>(
             voucher,
             params: Parameters::new(TOTAL_ATTRIBUTES).unwrap(),
         };
-        if let Err(e) = get_credential(&state, client, shared_storage.clone()).await {
+        if let Err(e) = nym_bandwidth_controller::acquire::get_credential(
+            &state,
+            client,
+            shared_storage.clone(),
+        )
+        .await
+        {
             error!(
                 "Could not recover deposit {} due to {:?}, try again later",
                 state.voucher.tx_hash(),

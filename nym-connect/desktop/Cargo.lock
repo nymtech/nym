@@ -3177,11 +3177,16 @@ dependencies = [
 name = "nym-bandwidth-controller"
 version = "0.1.0"
 dependencies = [
+ "bip39",
  "nym-coconut-interface",
  "nym-credential-storage",
  "nym-credentials",
+ "nym-crypto",
+ "nym-network-defaults",
  "nym-validator-client",
+ "rand 0.7.3",
  "thiserror",
+ "url",
 ]
 
 [[package]]

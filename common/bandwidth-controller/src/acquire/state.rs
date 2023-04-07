@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_coconut_interface::Parameters;
@@ -29,7 +29,7 @@ impl From<encryption::KeyPair> for KeyPair {
     }
 }
 
-pub(crate) struct State {
+pub struct State {
     pub voucher: BandwidthVoucher,
     pub params: Parameters,
 }

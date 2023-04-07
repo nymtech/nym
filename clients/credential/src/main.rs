@@ -1,12 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-mod client;
 mod commands;
 mod error;
 mod recovery_storage;
-mod state;
 
+use bip39::Mnemonic;
 use commands::*;
 use error::Result;
 use log::*;
@@ -14,13 +13,15 @@ use nym_bin_common::completions::fig_generate;
 use nym_config::{CRED_DB_FILE_NAME, DATA_DIR};
 use nym_network_defaults::{setup_env, NymNetworkDetails};
 use std::process::exit;
+use std::str::FromStr;
 use std::time::{Duration, SystemTime};
 
 use clap::{CommandFactory, Parser};
 use nym_bin_common::logging::setup_logging;
 use nym_validator_client::nyxd::traits::DkgQueryClient;
-use nym_validator_client::nyxd::CosmWasmClient;
-use nym_validator_client::Config;
+use nym_validator_client::nyxd::{Coin, CosmWasmClient, NyxdClient};
+use nym_validator_client::{nyxd, Config};
+use url::Url;
 
 const SAFETY_BUFFER_SECS: u64 = 60; // 1 minute
 
@@ -89,10 +90,32 @@ async fn main() -> Result<()> {
             info!("Starting depositing funds, don't kill the process");
 
             if !r.recovery_mode {
-                let state = deposit(&r.nyxd_url, &r.mnemonic, r.amount).await?;
-                if get_credential(&state, &client.nyxd, shared_storage)
-                    .await
-                    .is_err()
+                let nyxd_url = Url::from_str(&r.nyxd_url).unwrap();
+                let mnemonic = Mnemonic::from_str(&r.mnemonic).unwrap();
+                let network_details = NymNetworkDetails::new_from_env();
+                let config = nyxd::Config::try_from_nym_network_details(&network_details).expect(
+                    "failed to construct valid validator client config with the provided network",
+                );
+                let nyxd_client = NyxdClient::connect_with_mnemonic(
+                    config,
+                    nyxd_url.as_ref(),
+                    mnemonic.clone(),
+                    None,
+                )
+                .unwrap();
+                let amount = Coin::new(
+                    r.amount as u128,
+                    network_details.chain_details.mix_denom.base,
+                );
+
+                let state = nym_bandwidth_controller::acquire::deposit(nyxd_client, amount).await?;
+                if nym_bandwidth_controller::acquire::get_credential(
+                    &state,
+                    &client,
+                    shared_storage,
+                )
+                .await
+                .is_err()
                 {
                     warn!("Failed to obtain credential. Dumping recovery data.",);
                     match recovery_storage.insert_voucher(&state.voucher) {
@@ -108,8 +131,8 @@ async fn main() -> Result<()> {
                 recover_credentials(&client.nyxd, &recovery_storage, shared_storage).await?;
             }
         }
-        Command::Completions(c) => c.generate(&mut crate::Cli::command(), bin_name),
-        Command::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),
+        Command::Completions(c) => c.generate(&mut Cli::command(), bin_name),
+        Command::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
     }
 
     Ok(())

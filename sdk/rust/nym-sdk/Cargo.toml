@@ -6,10 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bip39 = { workspace = true }
 nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage"]}
 nym-crypto = { path = "../../../common/crypto" }
 nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
 nym-bandwidth-controller = { path = "../../../common/bandwidth-controller" }
+nym-credentials = { path = "../../../common/credentials" }
 nym-credential-storage = { path = "../../../common/credential-storage" }
 nym-network-defaults = { path = "../../../common/network-defaults" }
 nym-sphinx = { path = "../../../common/nymsphinx" }

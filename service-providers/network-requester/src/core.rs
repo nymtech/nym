@@ -471,16 +471,11 @@ async fn create_mixnet_client<T>(
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
     let debug_config = *config.get_debug_config();
 
-    let mixnet_config = nym_sdk::mixnet::Config {
-        user_chosen_gateway: None,
-        network_details: NymNetworkDetails::new_from_env(),
-        debug_config,
-    };
-
     let storage_paths = nym_sdk::mixnet::StoragePaths::from(config);
 
     let mixnet_client = nym_sdk::mixnet::MixnetClientBuilder::new()
-        .config(mixnet_config)
+        .network_details(NymNetworkDetails::new_from_env())
+        .debug_config(debug_config)
         .enable_storage(storage_paths)
         .gateway_config(config.get_gateway_endpoint_config().clone())
         .build::<nym_sdk::mixnet::ReplyStorage>()

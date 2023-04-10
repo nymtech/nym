@@ -5,9 +5,7 @@ use clap::{ArgGroup, Args, Subcommand};
 use log::*;
 use nym_bandwidth_controller::acquire::state::State;
 use nym_bin_common::completions::ArgShell;
-use nym_coconut_interface::Parameters;
 use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_credentials::coconut::bandwidth::TOTAL_ATTRIBUTES;
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 use crate::error::Result;
@@ -60,10 +58,7 @@ pub(crate) async fn recover_credentials<C: DkgQueryClient + Send + Sync>(
     shared_storage: &PersistentStorage,
 ) -> Result<()> {
     for voucher in recovery_storage.unconsumed_vouchers()? {
-        let state = State {
-            voucher,
-            params: Parameters::new(TOTAL_ATTRIBUTES).unwrap(),
-        };
+        let state = State::new(voucher);
         if let Err(e) =
             nym_bandwidth_controller::acquire::get_credential(&state, client, shared_storage).await
         {

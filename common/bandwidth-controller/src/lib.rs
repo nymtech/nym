@@ -36,6 +36,10 @@ impl<C, St: Storage> BandwidthController<C, St> {
         BandwidthController { storage, client }
     }
 
+    pub fn storage(&self) -> &St {
+        &self.storage
+    }
+
     pub async fn prepare_coconut_credential(
         &self,
     ) -> Result<(nym_coconut_interface::Credential, i64), BandwidthControllerError>

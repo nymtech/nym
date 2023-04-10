@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_coconut_interface::Parameters;
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 
 use nym_crypto::asymmetric::{encryption, identity};
 
@@ -32,4 +32,13 @@ impl From<encryption::KeyPair> for KeyPair {
 pub struct State {
     pub voucher: BandwidthVoucher,
     pub params: Parameters,
+}
+
+impl State {
+    pub fn new(voucher: BandwidthVoucher) -> Self {
+        State {
+            voucher,
+            params: Parameters::new(TOTAL_ATTRIBUTES).unwrap(),
+        }
+    }
 }

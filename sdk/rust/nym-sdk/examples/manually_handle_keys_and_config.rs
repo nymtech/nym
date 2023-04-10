@@ -4,10 +4,6 @@ use nym_sdk::mixnet;
 async fn main() {
     nym_bin_common::logging::setup_logging();
 
-    let user_chosen_gateway_id = None;
-
-    let config = mixnet::Config::new(user_chosen_gateway_id, None);
-
     // Just some plain data to pretend we have some external storage that the application
     // implementer is using.
     let mut mock_storage = MockStorage::empty();
@@ -17,7 +13,6 @@ async fn main() {
     let client = if first_run {
         // Create a client without a storage backend
         let mut client = mixnet::MixnetClientBuilder::new()
-            .config(config)
             .build::<mixnet::EmptyReplyStorage>()
             .await
             .unwrap();
@@ -33,7 +28,6 @@ async fn main() {
         // Create a client without a storage backend, but with explicitly set keys and gateway
         // configuration. This creates the client in a registered state.
         mixnet::MixnetClientBuilder::new()
-            .config(config)
             .keys(keys)
             .gateway_config(gateway_config)
             .build::<mixnet::EmptyReplyStorage>()

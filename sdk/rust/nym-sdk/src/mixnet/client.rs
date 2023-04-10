@@ -5,6 +5,7 @@ use url::Url;
 
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::BaseClient;
+use nym_client_core::config::DebugConfig;
 use nym_client_core::{
     client::{
         base_client::{BaseClientBuilder, CredentialsToggle},
@@ -16,6 +17,7 @@ use nym_client_core::{
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_credential_storage::initialise_ephemeral_storage;
 use nym_crypto::asymmetric::identity;
+use nym_network_defaults::NymNetworkDetails;
 
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
@@ -23,6 +25,7 @@ use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::nyxd::QueryNyxdClient;
 use nym_validator_client::Client;
 
+use crate::bandwidth::BandwidthAcquireClient;
 use crate::mixnet::native_client::MixnetClient;
 use crate::mixnet::socks5_client::Socks5MixnetClient;
 use crate::mixnet::Recipient;
@@ -35,7 +38,7 @@ const DEFAULT_NUMBER_OF_SURBS: u32 = 5;
 
 #[derive(Default)]
 pub struct MixnetClientBuilder {
-    config: Option<Config>,
+    config: Config,
     storage_paths: Option<StoragePaths>,
     keys: Option<Keys>,
     gateway_config: Option<GatewayEndpointConfig>,
@@ -49,8 +52,26 @@ impl MixnetClientBuilder {
     }
 
     #[must_use]
-    pub fn config(mut self, config: Config) -> Self {
-        self.config = Some(config);
+    pub fn gateway(mut self, user_chosen_gateway: String) -> Self {
+        self.config.user_chosen_gateway = Some(user_chosen_gateway);
+        self
+    }
+
+    #[must_use]
+    pub fn network_details(mut self, network_details: NymNetworkDetails) -> Self {
+        self.config.network_details = network_details;
+        self
+    }
+
+    #[must_use]
+    pub fn enable_credentials_mode(mut self) -> Self {
+        self.config.enabled_credentials_mode = true;
+        self
+    }
+
+    #[must_use]
+    pub fn debug_config(mut self, debug_config: DebugConfig) -> Self {
+        self.config.debug_config = debug_config;
         self
     }
 
@@ -94,11 +115,10 @@ impl MixnetClientBuilder {
         B: ReplyStorageBackend + Send + Sync + 'static,
         <B as ReplyStorageBackend>::StorageError: Send + Sync,
     {
-        let config = self.config.unwrap_or_default();
         let storage_paths = self.storage_paths;
 
         let mut client = DisconnectedMixnetClient::new(
-            Some(config),
+            self.config,
             self.socks5_config,
             storage_paths,
             self.custom_topology_provider,
@@ -158,7 +178,7 @@ impl<B> DisconnectedMixnetClient<B>
 where
     B: ReplyStorageBackend + Sync + Send + 'static,
 {
-    /// Create a new mixnet client in a disconnected state. If no config options are supplied,
+    /// Create a new mixnet client in a disconnected state. The default configuration,
     /// creates a new mainnet client with ephemeral keys stored in RAM, which will be discarded at
     /// application close.
     ///
@@ -166,7 +186,7 @@ where
     /// - store persistent identities at a location on-disk, if desired;
     /// - use SOCKS5 mode
     async fn new(
-        config: Option<Config>,
+        config: Config,
         socks5_config: Option<Socks5>,
         paths: Option<StoragePaths>,
         custom_topology_provider: Option<Box<dyn TopologyProvider>>,
@@ -174,7 +194,6 @@ where
     where
         <B as ReplyStorageBackend>::StorageError: Send + Sync,
     {
-        let config = config.unwrap_or_default();
         let reply_surb_database_path = paths.as_ref().map(|p| p.reply_surb_database_path.clone());
 
         let client_config =
@@ -365,6 +384,19 @@ where
             gateway_endpoint_config,
         };
         Ok(())
+    }
+
+    /// Creates an associated [`BandwidthAcquireClient`] that can be used to acquire bandwidth
+    /// credentials for this client to consume.
+    pub fn create_bandwidth_client(&self, mnemonic: String) -> Result<BandwidthAcquireClient> {
+        if !self.config.enabled_credentials_mode {
+            return Err(Error::DisabledCredentialsMode);
+        }
+        BandwidthAcquireClient::new(
+            self.config.network_details.clone(),
+            mnemonic,
+            self.bandwidth_controller.storage().clone(),
+        )
     }
 
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)>

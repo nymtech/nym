@@ -4,6 +4,7 @@
 
 mod error;
 
+pub mod bandwidth;
 pub mod mixnet;
 
 pub use error::{Error, Result};

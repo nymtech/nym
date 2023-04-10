@@ -3377,7 +3377,6 @@ dependencies = [
  "log",
  "nym-bandwidth-controller",
  "nym-bin-common",
- "nym-coconut-interface",
  "nym-config",
  "nym-credential-storage",
  "nym-credentials",
@@ -3826,12 +3825,14 @@ dependencies = [
 name = "nym-sdk"
 version = "0.1.0"
 dependencies = [
+ "bip39",
  "futures",
  "log",
  "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-client-core",
  "nym-credential-storage",
+ "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
  "nym-network-defaults",

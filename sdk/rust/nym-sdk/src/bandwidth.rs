@@ -7,7 +7,6 @@
 //!
 //! ```no_run
 //! use nym_sdk::mixnet;
-//! use nym_sdk::bandwidth;
 //!
 //! #[tokio::main]
 //! async fn main() {

@@ -29,6 +29,7 @@ url = "2.2"
 toml = "0.5.10"
 
 [dev-dependencies]
+dotenvy = { workspace = true }
 pretty_env_logger = "0.4.0"
 reqwest = { version = "0.11", features = ["json", "socks"] }
 tokio = { version = "1", features = ["full"] }

@@ -55,10 +55,11 @@ pub enum Error {
     Socks5NotStarted,
 
     #[error(
-        "deposited funds were not converted to a deposit; the voucher blob can be used for \
+        "deposited funds were not converted to a deposit - {reason}; the voucher blob can be used for \
     later retry"
     )]
     UnconvertedDeposit {
+        reason: nym_bandwidth_controller::error::BandwidthControllerError,
         voucher_blob: crate::bandwidth::VoucherBlob,
     },
 

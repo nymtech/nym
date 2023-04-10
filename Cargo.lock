@@ -3826,6 +3826,7 @@ name = "nym-sdk"
 version = "0.1.0"
 dependencies = [
  "bip39",
+ "dotenvy",
  "futures",
  "log",
  "nym-bandwidth-controller",

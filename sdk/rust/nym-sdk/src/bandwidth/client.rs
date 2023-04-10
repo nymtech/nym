@@ -47,7 +47,8 @@ impl BandwidthAcquireClient {
         let state = nym_bandwidth_controller::acquire::deposit(&self.client.nyxd, amount).await?;
         nym_bandwidth_controller::acquire::get_credential(&state, &self.client, &self.storage)
             .await
-            .map_err(|_| Error::UnconvertedDeposit {
+            .map_err(|reason| Error::UnconvertedDeposit {
+                reason,
                 voucher_blob: state.voucher.to_bytes(),
             })
     }

@@ -3,24 +3,23 @@
 The validator is built using [Cosmos SDK](https://cosmos.network) and [Tendermint](https://tendermint.com), with a [CosmWasm](https://cosmwasm.com) smart contract controlling the directory service, node bonding, and delegated mixnet staking.
 
 ## Building your validator
-
 ### Prerequisites
-- `git`
-
+#### `git`, `gcc`
+* Debian-based systems:
 ```
-sudo apt update
-sudo apt install git
-```
+apt install git, build-essential
 
-Verify `git` is installed with:
-
-```
-git version
-# Should return: git version X.Y.Z
+# optional additional manual pages can be installed with:
+apt-get install manpages-dev
 ```
 
-- `Go`
+* Arch-based systems:
+Install `git` and `gcc` with the following:
+```
+pacman -S git, gcc
+```
 
+#### `Go`
 `Go` can be installed via the following commands (taken from the [Agoric SDK docs](https://github.com/Agoric/agoric-sdk/wiki/Validator-Guide-for-Incentivized-Testnet#install-go)):
 
 ```
@@ -44,39 +43,15 @@ Verify `Go` is installed with:
 
 ```
 go version
-# Should return: go version go1.19.2 linux/amd64
-```
-
-- `gcc`
-
-`gcc` can be installed with:
-
-```
-sudo apt install build-essential
-# Optional additional manual pages can be installed with:
-sudo apt-get install manpages-dev
-```
-
-Verify `gcc` is installed with:
-
-```
-gcc --version
-```
-
-Which should return something like:
-
-```
-gcc (Ubuntu 7.4.0-1ubuntu1~18.04) 7.4.0
-Copyright (C) 2017 Free Software Foundation, Inc.
-This is free software; see the source for copying conditions.  There is NO
-warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# Should return something like:
+go version go1.19.2 linux/amd64
 ```
 
 ### Building your validator
-We use the `wasmd` version of the Cosmos validator to run our blockchain. First define the correct variables by selecting the correct network below, as the instructions, files, and endpoints differ in the instructions from here on in: 
+We use the `wasmd` version of the Cosmos validator to run our blockchain. First define the correct variables by selecting the correct network below, as the instructions, files, and endpoints differ in the instructions from here on in:
 
 ```
-# Mainnet 
+# Mainnet
 BECH32_PREFIX=n
 WASMD_VERSION=v0.26.1
 NYM_APP_NAME=nyxd
@@ -117,7 +92,7 @@ To locate these files on your local system run (replace `nyxd` with `nymd` for S
 
 ```
 WASMVM_SO=$(ldd build/nyxd | grep libwasmvm.so | awk '{ print $3 }')
-ls ${WASMVM_SO}      
+ls ${WASMVM_SO}
 ```
 
 This will output something like:
@@ -149,7 +124,7 @@ You'll need to set `LD_LIBRARY_PATH` in your user's `~/.bashrc` file, and add th
 ```
 NYX_BINARIES=/home/youruser/path/to/nym/binaries
 # if you are using another shell like zsh replace '.bashrc' with the relevant config file
-echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:'NYX_BINARIES >> ~/.bashrc 
+echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:'NYX_BINARIES >> ~/.bashrc
 echo 'export PATH=$PATH:'${NYX_BINARIES} >> ~/.bashrc
 source ~/.bashrc
 ```
@@ -157,11 +132,11 @@ source ~/.bashrc
 Test everything worked:
 
 ```
-# Mainnet 
+# Mainnet
 nyxd
 ```
 ```
-# Sandbox 
+# Sandbox
 nymd
 ```
 
@@ -176,26 +151,26 @@ Prerequisites:
 Choose a name for your validator and use it in place of `<ID>` in the following command:
 
 ```
-nyxd init <ID> --chain-id=nyx 
+nyxd init <ID> --chain-id=nyx
 ```
 
 ```admonish caution
-`init` generates `priv_validator_key.json` and `node_key.json`.  
+`init` generates `priv_validator_key.json` and `node_key.json`.
 
-If you have already set up a validator on a previous testnet, **make sure to back up the key located at** 
-`~/.nymd/config/priv_validator_key.json`. 
+If you have already set up a validator on a previous testnet, **make sure to back up the key located at**
+`~/.nymd/config/priv_validator_key.json`.
 
 If you don't save the validator key, then it can't sign blocks and will be jailed all the time, and
-there is no way to deterministically (re)generate this key.  
+there is no way to deterministically (re)generate this key.
 ```
 
 
-At this point, you have a new validator, with its own genesis file located at <code>$HOME/${NYM_APP_NAME}/config/genesis.json</code>. You will need to replace the contents of that file that with either the Nyx Mainnet <a href="https://nymtech.net/genesis/genesis.json">genesis file</a> or Sandbox Sandbox Testnet <a href="https://nymtech.net/testnets/sandbox/genesis.json">genesis file</a>. 
+At this point, you have a new validator, with its own genesis file located at <code>$HOME/${NYM_APP_NAME}/config/genesis.json</code>. You will need to replace the contents of that file that with either the Nyx Mainnet <a href="https://nymtech.net/genesis/genesis.json">genesis file</a> or Sandbox Sandbox Testnet <a href="https://nymtech.net/testnets/sandbox/genesis.json">genesis file</a>.
 
 You can use the following command to download them for the correct network:
 
 ```
-# Mainnet 
+# Mainnet
 wget  -O $HOME/.nyxd/config/genesis.json https://nymtech.net/genesis/genesis.json
 ```
 
@@ -210,23 +185,23 @@ Edit the following config options in `$HOME/.nyxd/config/config.toml` to match t
 
 ```
 # Mainnet
-persistent_peers = "ee03a6777fb76a2efd0106c3769daaa064a3fcb5@51.79.21.187:26656" 
-create_empty_blocks = false 
-laddr = "tcp://0.0.0.0:26656" 
+persistent_peers = "ee03a6777fb76a2efd0106c3769daaa064a3fcb5@51.79.21.187:26656"
+create_empty_blocks = false
+laddr = "tcp://0.0.0.0:26656"
 ```
 
 ```
-# Sandbox Testnet 
-cors_allowed_origins = ["*"] 
-persistent_peers = "d24ee58d85a65d34ad5adfc3302c3614b36e8b14@sandbox-validator.nymtech.net:26656" 
-create_empty_blocks = false 
-laddr = "tcp://0.0.0.0:26656" 
+# Sandbox Testnet
+cors_allowed_origins = ["*"]
+persistent_peers = "d24ee58d85a65d34ad5adfc3302c3614b36e8b14@sandbox-validator.nymtech.net:26656"
+create_empty_blocks = false
+laddr = "tcp://0.0.0.0:26656"
 ```
 
-These affect the following: 
+These affect the following:
 * `persistent_peers = "<PEER_ADDRESS>@<DOMAIN>.nymtech.net:26656"` allows your validator to start pulling blocks from other validators
-* `create_empty_blocks = false` will save space 
-* `laddr = "tcp://0.0.0.0:26656"` is in your p2p configuration options 
+* `create_empty_blocks = false` will save space
+* `laddr = "tcp://0.0.0.0:26656"` is in your p2p configuration options
 
 Optionally, if you want to enable [Prometheus](https://prometheus.io/) metrics then the following must also match in the `config.toml`:
 
@@ -245,13 +220,13 @@ Finally, if you plan on using [Cockpit](https://cockpit-project.org/documentatio
 In the file `$HOME/.${NYM_APP_NAME}/config/app.toml`, set the following values:
 
 ```
-# Mainnet 
-minimum-gas-prices = "0.025unym" 
+# Mainnet
+minimum-gas-prices = "0.025unym"
 enable = true in the `[api]` section to get the API server running
 ```
 ```
 # Sandbox Testnet
-minimum-gas-prices = "0.025unymt" 
+minimum-gas-prices = "0.025unymt"
 enable = true` in the `[api]` section to get the API server running
 ```
 
@@ -270,7 +245,7 @@ You can get the admin account's address with:
 ${NYM_APP_NAME} keys show nyxd-admin -a
 ```
 
-Type in your keychain **password**, not the mnemonic, when asked. 
+Type in your keychain **password**, not the mnemonic, when asked.
 
 ### Starting your validator
 Everything should now be ready to go. You've got the validator set up, all changes made in `config.toml` and `app.toml`, the Nym genesis file copied into place (replacing the initial auto-generated one). Now let's validate the whole setup:
@@ -310,21 +285,21 @@ Start the validator:
 ${NYM_APP_NAME} start
 ```
 
-Once your validator starts, it will start requesting blocks from other validators. This may take several hours. Once it's up to date, you can issue a request to join the validator set with the command below. 
+Once your validator starts, it will start requesting blocks from other validators. This may take several hours. Once it's up to date, you can issue a request to join the validator set with the command below.
 
 > If you are having trouble upgrading your validator binary, try replacing (or re-compile) the `libwasmvm.so` file and replace it on your validator server.
 
-```admonish caution 
-When joining consensus, make sure that you do not disrupt (or worse - halt) the network by coming in with a disproportionately large amount of staked tokens. 
+```admonish caution
+When joining consensus, make sure that you do not disrupt (or worse - halt) the network by coming in with a disproportionately large amount of staked tokens.
 
-Please initially stake a small amount of tokens compared to existing validators, then delegate to yourself in tranches over time. 
+Please initially stake a small amount of tokens compared to existing validators, then delegate to yourself in tranches over time.
 ```
 
 ```
-# Mainnet 
+# Mainnet
 nyxd tx staking create-validator
   --amount=10000000unyx
-  --fees=0unyx 
+  --fees=0unyx
   --pubkey=$(/home/youruser/path/to/nyxd/binaries/nyxd tendermint show-validator | jq -r '.["key"]')
   --moniker="whatever you called your validator"
   --chain-id=nyx
@@ -335,10 +310,10 @@ nyxd tx staking create-validator
   --gas="auto"
   --gas-adjustment=1.15
   --from="KEYRING_NAME"
-  --node https://rpc-1.nyx.nodes.guru:443     
+  --node https://rpc-1.nyx.nodes.guru:443
 ```
 ```
-# Sandbox Testnet 
+# Sandbox Testnet
 nymd tx staking create-validator
   --amount=10000000unyxt
   --fees=5000unyxt
@@ -352,7 +327,7 @@ nymd tx staking create-validator
   --gas="auto"
   --gas-adjustment=1.15
   --from="KEYRING_NAME"
-  --node https://sandbox-validator.nymtech.net:443 
+  --node https://sandbox-validator.nymtech.net:443
 ```
 
 You'll need either `unyxt` tokens on Sandbox, or `unyx` tokens on mainnet to perform this command.
@@ -363,32 +338,32 @@ If you want to edit some details for your node you will use a command like this:
 
 ```
 # Mainnet
-nymd tx staking edit-validator   
-  --chain-id=nym   
+nymd tx staking edit-validator
+  --chain-id=nym
   --moniker="whatever you called your validator"
-  --details="Nym validator"   
-  --security-contact="your email"   
-  --identity="your identity"   
-  --gas="auto"   
-  --gas-adjustment=1.15   
+  --details="Nym validator"
+  --security-contact="your email"
+  --identity="your identity"
+  --gas="auto"
+  --gas-adjustment=1.15
   --from="KEYRING_NAME"
   --fees 2000unyx
 ```
 ```
 # Sandbox Testnet
-nymd tx staking edit-validator   
-  --chain-id=nym-sandbox   
+nymd tx staking edit-validator
+  --chain-id=nym-sandbox
   --moniker="whatever you called your validator"
-  --details="Nym validator"   
-  --security-contact="your email"   
-  --identity="your identity"   
-  --gas="auto"   
-  --gas-adjustment=1.15   
+  --details="Nym validator"
+  --security-contact="your email"
+  --identity="your identity"
+  --gas="auto"
+  --gas-adjustment=1.15
   --from="KEYRING_NAME"
   --fees 2000unyxt
 ```
 
-With above command you can specify the `gpg` key last numbers (as used in `keybase`) as well as validator details and your email for security contact. 
+With above command you can specify the `gpg` key last numbers (as used in `keybase`) as well as validator details and your email for security contact.
 
 ### Automating your validator with systemd
 You will most likely want to automate your validator restarting if your server reboots. Below is a systemd unit file to place at `/etc/systemd/system/nymd.service`:
@@ -601,22 +576,22 @@ If your validator gets jailed, you can fix it with the following command:
 
 ```
 # Mainnet
-nyxd tx slashing unjail 
-  --broadcast-mode=block 
+nyxd tx slashing unjail
+  --broadcast-mode=block
   --from="KEYRING_NAME"
-  --chain-id=nyx 
-  --gas=auto 
-  --gas-adjustment=1.4 
+  --chain-id=nyx
+  --gas=auto
+  --gas-adjustment=1.4
   --fees=7000unyx
 ```
 ```
 # Sandbox Testnet
-nymd tx slashing unjail 
-  --broadcast-mode=block 
+nymd tx slashing unjail
+  --broadcast-mode=block
   --from="KEYRING_NAME"
-  --chain-id=nym-sandbox 
-  --gas=auto 
-  --gas-adjustment=1.4 
+  --chain-id=nym-sandbox
+  --gas=auto
+  --gas-adjustment=1.4
   --fees=7000unyxt
 ```
 
@@ -647,28 +622,28 @@ next_key: null
 total: "0"
 ```
 
-You can, of course, stake back the available balance to your validator with the following command. 
+You can, of course, stake back the available balance to your validator with the following command.
 
-> Remember to save some tokens for gas costs! 
+> Remember to save some tokens for gas costs!
 
 ```
 # Mainnet
-nyxd tx staking delegate VALOPERADDRESS AMOUNTunym 
+nyxd tx staking delegate VALOPERADDRESS AMOUNTunym
   --from="KEYRING_NAME"
-  --keyring-backend=os 
-  --chain-id=nyx 
-  --gas="auto" 
-  --gas-adjustment=1.15 
+  --keyring-backend=os
+  --chain-id=nyx
+  --gas="auto"
+  --gas-adjustment=1.15
   --fees 5000unyx
 ```
 ```
 # Sandbox Testnet
-nymd tx staking delegate VALOPERADDRESS AMOUNTunymt 
+nymd tx staking delegate VALOPERADDRESS AMOUNTunymt
   --from="KEYRING_NAME"
-  --keyring-backend=os 
+  --keyring-backend=os
   --chain-id=nym-sandbox
-  --gas="auto" 
-  --gas-adjustment=1.15 
+  --gas="auto"
+  --gas-adjustment=1.15
   --fees 5000unyxt
 ```
 

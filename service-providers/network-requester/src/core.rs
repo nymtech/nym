@@ -477,7 +477,7 @@ async fn create_mixnet_client<T>(
         .network_details(NymNetworkDetails::new_from_env())
         .debug_config(debug_config)
         .enable_storage(storage_paths)
-        .gateway_config(config.get_gateway_endpoint_config().clone())
+        .registered_gateway(config.get_gateway_endpoint_config().clone())
         .build::<nym_sdk::mixnet::ReplyStorage>()
         .await
         .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?;

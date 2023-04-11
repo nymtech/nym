@@ -29,7 +29,7 @@ async fn main() {
         // configuration. This creates the client in a registered state.
         mixnet::MixnetClientBuilder::new()
             .keys(keys)
-            .gateway_config(gateway_config)
+            .registered_gateway(gateway_config)
             .build::<mixnet::EmptyReplyStorage>()
             .await
             .unwrap()

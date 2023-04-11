@@ -47,59 +47,68 @@ pub struct MixnetClientBuilder {
 }
 
 impl MixnetClientBuilder {
+    /// Create a client builder with default values.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Request a specific gateway instead of a random one.
     #[must_use]
-    pub fn gateway(mut self, user_chosen_gateway: String) -> Self {
+    pub fn request_gateway(mut self, user_chosen_gateway: String) -> Self {
         self.config.user_chosen_gateway = Some(user_chosen_gateway);
         self
     }
 
+    /// Use a specific network instead of the default (mainnet) one.
     #[must_use]
     pub fn network_details(mut self, network_details: NymNetworkDetails) -> Self {
         self.config.network_details = network_details;
         self
     }
 
+    /// Enable paid coconut bandwidth credentials mode.
     #[must_use]
     pub fn enable_credentials_mode(mut self) -> Self {
         self.config.enabled_credentials_mode = true;
         self
     }
 
+    /// Use a custom debugging configuration.
     #[must_use]
     pub fn debug_config(mut self, debug_config: DebugConfig) -> Self {
         self.config.debug_config = debug_config;
         self
     }
 
-    /// Enabled storage
+    /// Enabled storage.
     #[must_use]
     pub fn enable_storage(mut self, paths: StoragePaths) -> Self {
         self.storage_paths = Some(paths);
         self
     }
 
+    /// Use a previously generated set of client keys.
     #[must_use]
     pub fn keys(mut self, keys: Keys) -> Self {
         self.keys = Some(keys);
         self
     }
 
+    /// Use a gateway that you previously registered with.
     #[must_use]
-    pub fn gateway_config(mut self, gateway_config: GatewayEndpointConfig) -> Self {
+    pub fn registered_gateway(mut self, gateway_config: GatewayEndpointConfig) -> Self {
         self.gateway_config = Some(gateway_config);
         self
     }
 
+    /// Configure the SOCKS5 mode.
     #[must_use]
     pub fn socks5_config(mut self, socks5_config: Socks5) -> Self {
         self.socks5_config = Some(socks5_config);
         self
     }
 
+    /// Use a custom topology provider.
     #[must_use]
     pub fn custom_topology_provider(
         mut self,

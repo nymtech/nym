@@ -106,6 +106,7 @@ where
             } => {
                 self.handle_reply(recipient_tag, data, lane).await;
             }
+            InputMessage::Premade { msg, lane } => todo!(),
         };
     }
 

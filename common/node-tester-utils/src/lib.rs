@@ -3,37 +3,115 @@
 
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::PacketSize;
-use nym_topology::{gateway, mix, NymTopology};
-use rand::{Rng, RngCore};
-use serde::Serialize;
+use nym_sphinx::preparer::{FragmentPreparer, PreparedFragment};
+use nym_topology::{gateway, mix, MixLayer, NymTopology, NymTopologyError};
+use rand::{CryptoRng, Rng, RngCore};
+use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+use std::time::Duration;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum PlaceholderError {
-    #[error("TEMP")]
-    SerdeJsonPlaceholder(#[from] serde_json::Error),
+// it feels wrong to redefine it, but I don't want to import the whole of contract commons just for this one type
+type MixId = u32;
+
+#[derive(Serialize, Deserialize, Hash, Clone, Copy)]
+pub enum NodeType {
+    Mixnode(MixId),
+    Gateway,
 }
 
-// no need for strong(crypto) rng here
+#[derive(Serialize, Deserialize, Hash)]
+pub struct Empty;
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TestMessage<T = Empty> {
+    pub encoded_node_identity: String,
+    pub node_owner: String,
+    pub node_type: NodeType,
+
+    // any additional fields that might be required by a specific tester.
+    // For example nym-api might want to attach route ids
+    #[serde(flatten)]
+    pub ext: T,
+}
+
+impl<T> TestMessage<T> {
+    fn new_mix(node: &mix::Node, ext: T) -> Self {
+        TestMessage {
+            encoded_node_identity: node.identity_key.to_base58_string(),
+            node_owner: node.owner.clone(),
+            node_type: NodeType::Mixnode(node.mix_id),
+            ext,
+        }
+    }
+
+    fn new_gateway(node: &gateway::Node, ext: T) -> Self {
+        TestMessage {
+            encoded_node_identity: node.identity_key.to_base58_string(),
+            node_owner: node.owner.clone(),
+            node_type: NodeType::Gateway,
+            ext,
+        }
+    }
+}
+
+impl<T: Hash> Hash for TestMessage<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.encoded_node_identity.hash(state);
+        self.node_owner.hash(state);
+        self.node_type.hash(state);
+        self.ext.hash(state)
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum NetworkTestingError {
+    #[error(transparent)]
+    SerializationFailure(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    InvalidTopology(#[from] NymTopologyError),
+
+    #[error("The specified mixnode (id: {mix_id}) doesn't exist")]
+    NonExistentMixnode { mix_id: MixId },
+
+    #[error("The specified gateway (id: {gateway_identity}) doesn't exist")]
+    NonExistentGateway { gateway_identity: String },
+}
+
 pub struct NodeTester<R> {
     rng: R,
 
     base_topology: NymTopology,
+
     recipient: Recipient,
 
     packet_size: PacketSize,
+
+    /// Average delay a data packet is going to get delay at a single mixnode.
+    average_packet_delay: Duration,
+
+    /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
+    average_ack_delay: Duration,
+
+    /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
+    /// Note that it does not include gateway hops.
     num_mix_hops: u8,
 
     // while acks are going to be ignored they still need to be constructed
-    // so that the gateway would be able to correctly processed the message
+    // so that the gateway would be able to correctly process and forward the message
     ack_key: Arc<AckKey>,
 }
 
-impl<R> NodeTester<R> {
+impl<R> NodeTester<R>
+where
+    R: Rng + CryptoRng,
+{
     fn testable_mix_topology(&self, node: &mix::Node) -> NymTopology {
         let mut topology = self.base_topology.clone();
         topology.set_mixes_in_layer(node.layer as u8, vec![node.clone()]);
@@ -46,29 +124,50 @@ impl<R> NodeTester<R> {
         topology
     }
 
-    fn test_mixnode(&self, mix_id: u32) -> Result<(), PlaceholderError> {
-        let Some(node) = self.base_topology.find_mix(mix_id) else {
-            todo!()
-        };
+    fn test_mixnode_simple(&mut self, mix: &mix::Node) -> Result<(), NetworkTestingError> {
+        self.test_mixnode(mix, Empty)
+    }
+
+    fn test_mixnode<T>(&mut self, mix: &mix::Node, msg_ext: T) -> Result<(), NetworkTestingError>
+    where
+        T: Serialize,
+    {
+        let msg = TestMessage::new_mix(mix, msg_ext);
+        let ephemeral_topology = self.testable_mix_topology(mix);
+        self.create_test_packet(msg, &ephemeral_topology)?;
 
         todo!()
     }
 
-    fn temp<T>(&mut self, data: &T) -> Result<MixPacket, PlaceholderError>
+    fn test_existing_mixnode<T>(
+        &mut self,
+        mix_id: MixId,
+        msg_ext: T,
+    ) -> Result<(), NetworkTestingError>
     where
         T: Serialize,
-        R: Rng + RngCore,
+    {
+        let Some(node) = self.base_topology.find_mix(mix_id) else {
+            return Err(NetworkTestingError::NonExistentMixnode {mix_id})
+        };
+
+        self.test_mixnode(&node.clone(), msg_ext)
+    }
+
+    fn create_test_packet<T>(
+        &mut self,
+        message: TestMessage<T>,
+        topology: &NymTopology,
+    ) -> Result<PreparedFragment, NetworkTestingError>
+    where
+        T: Serialize,
     {
         // the test messages are supposed to be rather small so we can use the good old serde_json
         // (the performance penalty over bincode or custom serialization should be minimal)
-        let serialized = serde_json::to_vec(data)?;
+        let serialized = serde_json::to_vec(&message)?;
         let message = NymMessage::new_plain(serialized);
 
-        let plaintext_per_packet = message.available_plaintext_per_packet(self.packet_size);
-
-        let mut fragments = message
-            .pad_to_full_packet_lengths(plaintext_per_packet)
-            .split_into_fragments(&mut self.rng, plaintext_per_packet);
+        let mut fragments = self.pad_and_split_message(message, self.packet_size);
 
         if fragments.len() != 1 {
             panic!("todo")
@@ -78,17 +177,32 @@ impl<R> NodeTester<R> {
         // we would have returned the error when checking for its length
         let fragment = fragments.pop().unwrap();
 
-        todo!()
+        // the packet is designed to be sent from ourselves to ourselves
+        let address = self.recipient;
+
+        // TODO: can we avoid this arc clone?
+        let ack_key = Arc::clone(&self.ack_key);
+        Ok(self.prepare_chunk_for_sending(fragment, topology, &ack_key, &address, &address)?)
+    }
+}
+
+impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
+    type Rng = R;
+
+    fn rng(&mut self) -> &mut Self::Rng {
+        &mut self.rng
     }
 
-    fn as_raw(&self) {
-        todo!()
+    fn num_mix_hops(&self) -> u8 {
+        self.num_mix_hops
     }
 
-    /// Intended to be used inside a pre-existing processing pipeline.
-    /// It's supposed to 'trick' the receiver to think its a properly fragmented message.
-    fn as_fragmented(&self) {
-        //
+    fn average_packet_delay(&self) -> Duration {
+        self.average_packet_delay
+    }
+
+    fn average_ack_delay(&self) -> Duration {
+        self.average_ack_delay
     }
 }
 

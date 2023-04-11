@@ -3,7 +3,6 @@
 
 use crate::tester::NodeTesterRequest;
 use crate::topology::WasmNymTopology;
-use crate::topology::WasmNymTopology;
 use js_sys::Promise;
 use nym_client_core::client::base_client::{ClientInput, ClientState};
 use nym_client_core::client::inbound_messages::InputMessage;
@@ -86,6 +85,7 @@ impl WasmTopologyExt for Arc<ClientState> {
             updated.set_mixes_in_layer(mix.layer.into(), vec![mix.to_owned()]);
 
             Ok(JsValue::from(NodeTesterRequest {
+                id: todo!(),
                 testable_topology: updated,
             }))
         })

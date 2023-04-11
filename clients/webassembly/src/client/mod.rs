@@ -10,10 +10,13 @@ use js_sys::Promise;
 use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::{
-    BaseClientBuilder, ClientInput, ClientOutput, CredentialsToggle,
+    BaseClientBuilder, ClientInput, ClientOutput, ClientState, CredentialsToggle,
 };
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
+use nym_client_core::config::{
+    CoverTraffic, DebugConfig, GatewayEndpointConfig, Topology, Traffic,
+};
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
@@ -254,6 +257,7 @@ impl NymClient {
     }
 
     pub fn try_send_test_packet(&mut self, request: NodeTesterRequest) -> Promise {
+        todo!()
 
         // IDEAL PROCEDURE:
         // 1. check if mixnode exists

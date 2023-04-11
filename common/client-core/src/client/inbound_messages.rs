@@ -1,6 +1,7 @@
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::connections::TransmissionLane;
 
 pub type InputMessageSender = tokio::sync::mpsc::Sender<InputMessage>;
@@ -12,7 +13,7 @@ pub enum InputMessage {
     /// No guarantees are made about it. For example no retransmssion
     /// will be attempted if it gets dropped.
     Premade {
-        msg: RealMessage,
+        msg: MixPacket,
         lane: TransmissionLane,
     },
 
@@ -53,7 +54,7 @@ pub enum InputMessage {
 }
 
 impl InputMessage {
-    pub fn new_premade(msg: RealMessage, lane: TransmissionLane) -> Self {
+    pub fn new_premade(msg: MixPacket, lane: TransmissionLane) -> Self {
         InputMessage::Premade { msg, lane }
     }
 

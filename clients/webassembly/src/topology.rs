@@ -1,16 +1,16 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_core::config::GatewayEndpointConfig;
+use nym_client_core::config::GatewayEndpointConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::mix::{Layer, MixnodeConversionError};
 use nym_topology::{gateway, mix, MixLayer, NetworkAddress, NymTopology};
+use nym_validator_client::client::MixId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Deref;
 use thiserror::Error;
-use validator_client::client::MixId;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use wasm_utils::console_log;

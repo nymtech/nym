@@ -15,7 +15,7 @@ macro_rules! console_log {
     ($($t:tt)*) => ($crate::log(&format_args!($($t)*).to_string()))
 }
 
-// will cause messages to be written as if console.warm("...") was called
+// will cause messages to be written as if console.warn("...") was called
 #[macro_export]
 macro_rules! console_warn {
     ($($t:tt)*) => ($crate::warn(&format_args!($($t)*).to_string()))

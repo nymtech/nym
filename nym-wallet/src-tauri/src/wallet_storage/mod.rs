@@ -139,27 +139,39 @@ fn store_login_at_file(
 }
 
 /// Store the login with multiple accounts support
-///
-/// Set `overwrite` to true to overwrite the wallet file in case of password update
-pub(crate) fn save_login(
+pub(crate) fn save_encrypted_login(
     mnemonic: Mnemonic,
     hd_path: DerivationPath,
     id: LoginId,
     password: &UserPassword,
-    overwrite: bool,
 ) -> Result<(), BackendError> {
     // make sure the entire directory structure exists
     let store_dir = get_storage_directory()?;
     create_dir_all(&store_dir)?;
     let filepath = store_dir.join(WALLET_INFO_FILENAME);
 
-    if overwrite {
-        store_login_with_multiple_accounts_at_file_overwrite(
-            &filepath, mnemonic, hd_path, id, password,
-        )
-    } else {
-        store_login_with_multiple_accounts_at_file(&filepath, mnemonic, hd_path, id, password)
-    }
+    store_login_with_multiple_accounts_at_file(&filepath, mnemonic, hd_path, id, password)
+}
+
+/// Update a login with multiple accounts support
+pub(crate) fn update_encrypted_login(
+    id: LoginId,
+    current_password: &UserPassword,
+    new_password: &UserPassword,
+) -> Result<(), BackendError> {
+    // make sure the entire directory structure exists
+    let store_dir = get_storage_directory()?;
+    create_dir_all(&store_dir)?;
+    let filepath = store_dir.join(WALLET_INFO_FILENAME);
+
+    let mut stored_wallet = match load_existing_wallet_at_file(&filepath) {
+        Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
+        result => result?,
+    };
+
+    dbg!(&stored_wallet);
+    stored_wallet.reencrypt_login(&id, current_password, new_password)?;
+    write_to_file(&filepath, &stored_wallet)
 }
 
 fn get_new_encrypted_login(
@@ -194,25 +206,7 @@ fn store_login_with_multiple_accounts_at_file(
 
     let new_login = get_new_encrypted_login(mnemonic, hd_path, id, password)?;
     stored_wallet.add_encrypted_login(new_login)?;
-
-    write_to_file(filepath, &stored_wallet)
-}
-
-fn store_login_with_multiple_accounts_at_file_overwrite(
-    filepath: &Path,
-    mnemonic: Mnemonic,
-    hd_path: DerivationPath,
-    id: LoginId,
-    password: &UserPassword,
-) -> Result<(), BackendError> {
-    let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
-        Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
-        result => result?,
-    };
-
-    archive_wallet_file()?;
-    let new_login = get_new_encrypted_login(mnemonic, hd_path, id, password)?;
-    stored_wallet.replace_encrypted_login(new_login)?;
+    dbg!(&stored_wallet);
 
     write_to_file(filepath, &stored_wallet)
 }

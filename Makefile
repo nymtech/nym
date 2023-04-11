@@ -9,6 +9,10 @@ no-clippy: build cargo-test wasm fmt
 
 happy: fmt clippy-happy test
 
+# Building release binaries is a little manual as we can't just build --release
+# on all workspaces.
+build-release: build-release-main wasm
+
 # -----------------------------------------------------------------------------
 # Define targets for a given workspace
 #  $(1): name
@@ -23,7 +27,7 @@ clippy-happy-$(1):
 clippy-$(1):
 	cargo clippy --manifest-path $(2)/Cargo.toml --workspace $(3) -- -D warnings
 
-clippy-$(1)-examples:
+clippy-examples-$(1):
 	cargo clippy --manifest-path $(2)/Cargo.toml --workspace --examples -- -D warnings
 
 check-$(1):
@@ -32,24 +36,28 @@ check-$(1):
 test-$(1):
 	cargo test --manifest-path $(2)/Cargo.toml --workspace
 
-test-$(1)-expensive:
+test-expensive-$(1):
 	cargo test --manifest-path $(2)/Cargo.toml --workspace -- --ignored
 
 build-$(1):
 	cargo build --manifest-path $(2)/Cargo.toml --workspace $(3)
 
-build-$(1)-examples:
+build-examples-$(1):
 	cargo build --manifest-path $(2)/Cargo.toml --workspace --examples
+
+build-release-$(1):
+	cargo build --manifest-path $(2)/Cargo.toml --workspace --release $(3)
 
 fmt-$(1):
 	cargo fmt --manifest-path $(2)/Cargo.toml --all
 
 clippy-happy: clippy-happy-$(1)
-clippy-all: clippy-$(1) clippy-$(1)-examples
+clippy-all: clippy-$(1) clippy-examples-$(1)
 check: check-$(1)
 cargo-test: test-$(1)
-cargo-test-expensive: test-$(1)-expensive
+cargo-test-expensive: test-expensive-$(1)
 build: build-$(1) build-$(1)-examples
+build-release-all: build-release-$(1)
 fmt: fmt-$(1)
 
 endef
@@ -80,14 +88,27 @@ build-nym-cli:
 	cargo build -p nym-cli --release
 
 # -----------------------------------------------------------------------------
-# Misc
+# Build contracts ready for deploy
 # -----------------------------------------------------------------------------
 
-wasm:
+CONTRACTS_OUT_DIR=contracts/target/wasm32-unknown-unknown/release
+VESTING_CONTRACT=$(CONTRACTS_OUT_DIR)/vesting_contract.wasm
+MIXNET_CONTRACT=$(CONTRACTS_OUT_DIR)/mixnet_contract.wasm
+SERVICE_PROVIDER_DIRECTORY_CONTRACT=$(CONTRACTS_OUT_DIR)/nym_service_provider_directory.wasm
+
+wasm: wasm-build wasm-opt
+
+wasm-build:
 	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
-	wasm-opt --disable-sign-ext -Os contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm -o contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm
-	wasm-opt --disable-sign-ext -Os contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm -o contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm
-	wasm-opt --disable-sign-ext -Os contracts/target/wasm32-unknown-unknown/release/nym_service_provider_directory.wasm -o contracts/target/wasm32-unknown-unknown/release/nym_service_provider_directory.wasm
+
+wasm-opt:
+	wasm-opt --disable-sign-ext -Os $(VESTING_CONTRACT) -o $(VESTING_CONTRACT)
+	wasm-opt --disable-sign-ext -Os $(MIXNET_CONTRACT) -o $(MIXNET_CONTRACT)
+	wasm-opt --disable-sign-ext -Os $(SERVICE_PROVIDER_DIRECTORY_CONTRACT) -o $(SERVICE_PROVIDER_DIRECTORY_CONTRACT)
+
+# -----------------------------------------------------------------------------
+# Misc
+# -----------------------------------------------------------------------------
 
 # NOTE: this seems deprecated an not needed anymore?
 mixnet-opt: wasm

@@ -1,17 +1,11 @@
 # mdbook files
 book
-book/* 
+book/*
 theme/index.hbs
 theme/pagetoc.css
 theme/pagetoc.js
-theme/* 
-theme 
-
-# -----------------------
-# Local Development Tools
-# -----------------------
-/node_modules
-/npm-debug.log
+theme/*
+theme
 
 # ---------------
 # Compiled assets
@@ -20,14 +14,14 @@ theme
 _site
 
 # ----------
-# Docusaurus
-# ----------
-.docusaurus
-build
-dist
-
-# ----------
 # Developing
 # ----------
 todo.md
-.vscode 
+.vscode
+
+# OSX
+.DS_Store
+
+theme/
+theme
+theme/*

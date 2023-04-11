@@ -11,27 +11,19 @@ Nym has two main codebases:
 > This page details how to build the main Nym platform code. **If you want to build and run a validator, [go here](../nodes/validator-setup.md) instead.**
 
 ## Prerequisites
-- (Debian/Ubuntu) `pkg-config`, `build-essential`, `libssl-dev`, `curl`, `jq`, `git`
+- Debian/Ubuntu: `pkg-config`, `build-essential`, `libssl-dev`, `curl`, `jq`, `git`
 
 ```
-sudo apt update
-sudo apt install pkg-config build-essential libssl-dev curl jq git
+apt install pkg-config build-essential libssl-dev curl jq git
 ```
 
-- (Arch/Manjaro) `base-devel`
+- Arch/Manjaro: `base-devel`
 
 ```
 pacman -S base-devel
 ```
 
-- (Mac OS X) `pkg-config` , `brew`, `openss1`, `protobuf`, `curl`, `git`
-
-`curl` - required for transferring data over various protocols. It's used for downloading files or send requests to a server.
-
-`openssl` - used for encryption, decryption, and secure communication over the internet.
-
-`protobuf` - for serialising and deserialising structured data in a fast and efficient way.
-
+- Mac OS X: `pkg-config` , `brew`, `openss1`, `protobuf`, `curl`, `git`
 Running the following the script installs Homebrew and the above dependencies:
 
 ```
@@ -70,11 +62,11 @@ Quite a bit of stuff gets built. The key working parts are:
 * [network requester](../nodes/network-requester-setup.md): `nym-network-requester`
 * [nym-cli tool](../tools/nym-cli.md): `nym-cli`
 
-The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.  
-* [Nym Wallet](../wallet/desktop-wallet.md) 
+The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.
+* [Nym Wallet](../wallet/desktop-wallet.md)
 * [Nym Connect](https://nymtech.net/developers/quickstart/nymconnect-gui.html)
-* [Network Explorer UI](../explorers/mixnet-explorer.md) 
+* [Network Explorer UI](../explorers/mixnet-explorer.md)
 
-> You cannot build from GitHub's .zip or .tar.gz archive files on the releases page - the Nym build scripts automatically include the current git commit hash in the built binary during compilation, so the build will fail if you use the archive code (which isn't a Git repository). Check the code out from github using `git clone` instead. 
+> You cannot build from GitHub's .zip or .tar.gz archive files on the releases page - the Nym build scripts automatically include the current git commit hash in the built binary during compilation, so the build will fail if you use the archive code (which isn't a Git repository). Check the code out from github using `git clone` instead.
 
 > You cannot build from GitHub's .zip or .tar.gz archive files on the releases page - the Nym build scripts automatically include the current git commit hash in the built binary during compilation, so the build will fail if you use the archive code (which isn't a Git repository). Check the code out from github using `git clone` instead.

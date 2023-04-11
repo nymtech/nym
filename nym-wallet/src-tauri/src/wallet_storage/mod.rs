@@ -169,7 +169,6 @@ pub(crate) fn update_encrypted_login(
         result => result?,
     };
 
-    dbg!(&stored_wallet);
     stored_wallet.reencrypt_login(&id, current_password, new_password)?;
     write_to_file(&filepath, &stored_wallet)
 }
@@ -206,7 +205,6 @@ fn store_login_with_multiple_accounts_at_file(
 
     let new_login = get_new_encrypted_login(mnemonic, hd_path, id, password)?;
     stored_wallet.add_encrypted_login(new_login)?;
-    dbg!(&stored_wallet);
 
     write_to_file(filepath, &stored_wallet)
 }

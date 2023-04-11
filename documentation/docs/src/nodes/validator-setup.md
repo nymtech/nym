@@ -48,47 +48,30 @@ go version go1.19.2 linux/amd64
 ```
 
 ### Building your validator
-We use the `wasmd` version of the Cosmos validator to run our blockchain. First define the correct variables by selecting the correct network below, as the instructions, files, and endpoints differ in the instructions from here on in:
+The codebase for the Nyx validators can be found [here](https://github.com/nymtech/nyxd).
 
-```
-# Mainnet
-BECH32_PREFIX=n
-WASMD_VERSION=v0.26.1
-NYM_APP_NAME=nyxd
-```
-```
-# Sandbox
-BECH32_PREFIX=nymt
-WASMD_VERSION=v0.26.1
-NYM_APP_NAME=nymd
-```
-
-Then run this to clone, compile, and build your validator:
-
+The validator binary can be compiled by running the following commands:
 ```
 git clone https://github.com/nymtech/nyxd.git
 cd nyxd
-git checkout ${WASMD_VERSION}
-mkdir build
-go build -o ./build/${NYM_APP_NAME} -mod=readonly -tags "netgo,ledger" -ldflags "-X github.com/cosmos/cosmos-sdk/version.Name=${NYM_APP_NAME} -X github.com/cosmos/cosmos-sdk/version.AppName=${NYM_APP_NAME} -X github.com/CosmWasm/wasmd/app.NodeDir=.${NYM_APP_NAME} -X github.com/cosmos/cosmos-sdk/version.Version=${WASMD_VERSION} -X github.com/cosmos/cosmos-sdk/version.Commit=2582f0aab7b2cbf66ade066fe570a4622cf0b098 -X github.com/CosmWasm/wasmd/app.Bech32Prefix=${BECH32_PREFIX} -X \"github.com/cosmos/cosmos-sdk/version.BuildTags=netgo,ledger\"" -trimpath ./cmd/wasmd
+make install
 ```
 
-At this point, you will have a copy of the `nymd` (for sandbox) or `nyxd` (for mainnet) binary in your `build/` directory. Test that it's compiled properly by running:
+At this point, you will have a copy of the `nyxd` binary in your `build/` directory. Test that it's compiled properly by running:
 
 ```
-./build/${NYM_APP_NAME}
+./build/nyxd
 ```
 
 You should see help text print out.
 
-Both the `nymd` or `nyxd` binary and the `libwasmvm.so` shared object library binary have been compiled. `libwasmvm.so` is the wasm virtual machine which is needed to execute smart contracts.
-
+The `nyxd` binary and the `libwasmvm.so` shared object library binary have been compiled. `libwasmvm.so` is the wasm virtual machine which is needed to execute smart contracts.
 
 ```admonish caution
 If you have compiled these files locally you need to upload both of them to the server on which the validator will run. **If you have instead compiled them on the server skip to the step outlining setting `LD_LIBRARY PATH` below.**
 ```
 
-To locate these files on your local system run (replace `nyxd` with `nymd` for Sandbox testnet builds):
+To locate these files on your local system run:
 
 ```
 WASMVM_SO=$(ldd build/nyxd | grep libwasmvm.so | awk '{ print $3 }')
@@ -102,8 +85,7 @@ This will output something like:
 ```
 
 ~~~admonish note
-
-if you are on Mac OSX use this command instead:
+If you are on Mac OSX use this command instead:
 ```
 WASMVM_SO=$(otool -L build/nymd | grep libwasmvm.so | awk '{ print $3 }')
 ls ${WASMVM_SO}
@@ -111,9 +93,9 @@ ls ${WASMVM_SO}
 To get the location of the `libwasmvm.so` file.
 ~~~
 
-When you upload your `nymd`/`nyxd` binary, you'll need to tell it where `libwasmvm.so` is when you start your validator, or it will not run. If you have compiled them on your server then this is not necessary, as the compiled `nymd`/`nyxd` already has access to `libwasmvm.so`.
+When you upload your `nyxd` binary, you'll need to tell it where `libwasmvm.so` is when you start your validator, or it will not run. If you have compiled them on your server then this is not necessary, as the compiled `nyxd` already has access to `libwasmvm.so`.
 
-Upload both `nymd`/`nyxd` and `libwasmvm.so` to your validator machine. If `nymd`/`nyxd` can't find `libwasmvm.so` you will see an error like the following:
+Upload both `nyxd` and `libwasmvm.so` to your validator machine. If `nyxd` can't find `libwasmvm.so` you will see an error like the following:
 
 ```
 ./nyxd: error while loading shared libraries: libwasmvm.so: cannot open shared object file: No such file or directory
@@ -122,7 +104,7 @@ Upload both `nymd`/`nyxd` and `libwasmvm.so` to your validator machine. If `nymd
 You'll need to set `LD_LIBRARY_PATH` in your user's `~/.bashrc` file, and add that to our path. Replace `/home/youruser/path/to/nym/binaries` in the command below to the locations of `nymd` and `libwasmvm.so` and run it. If you have compiled these on the server, they will be in the `build/` folder:
 
 ```
-NYX_BINARIES=/home/youruser/path/to/nym/binaries
+NYX_BINARIES=/home/youruser/path/to/validator/binary
 # if you are using another shell like zsh replace '.bashrc' with the relevant config file
 echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:'NYX_BINARIES >> ~/.bashrc
 echo 'export PATH=$PATH:'${NYX_BINARIES} >> ~/.bashrc
@@ -132,12 +114,7 @@ source ~/.bashrc
 Test everything worked:
 
 ```
-# Mainnet
 nyxd
-```
-```
-# Sandbox
-nymd
 ```
 
 This should return the regular help text.
@@ -158,23 +135,20 @@ nyxd init <ID> --chain-id=nyx
 `init` generates `priv_validator_key.json` and `node_key.json`.
 
 If you have already set up a validator on a previous testnet, **make sure to back up the key located at**
-`~/.nymd/config/priv_validator_key.json`.
+`~/.nyxd/config/priv_validator_key.json`.
 
 If you don't save the validator key, then it can't sign blocks and will be jailed all the time, and
 there is no way to deterministically (re)generate this key.
 ```
 
-
-At this point, you have a new validator, with its own genesis file located at <code>$HOME/${NYM_APP_NAME}/config/genesis.json</code>. You will need to replace the contents of that file that with either the Nyx Mainnet <a href="https://nymtech.net/genesis/genesis.json">genesis file</a> or Sandbox Sandbox Testnet <a href="https://nymtech.net/testnets/sandbox/genesis.json">genesis file</a>.
+At this point, you have a new validator, with its own genesis file located at `$HOME/.nyxd/config/genesis.json`. You will need to replace the contents of that file that with either the Nyx Mainnet <a href="https://nymtech.net/genesis/genesis.json">genesis file</a> or Sandbox Sandbox Testnet <a href="https://nymtech.net/testnets/sandbox/genesis.json">genesis file</a>.
 
 You can use the following command to download them for the correct network:
 
 ```
 # Mainnet
 wget  -O $HOME/.nyxd/config/genesis.json https://nymtech.net/genesis/genesis.json
-```
 
-```
 # Sandbox Testnet
 wget  -O $HOME/.nymd/config/genesis.json https://nymtech.net/testnets/sandbox/genesis.json
 ```
@@ -234,7 +208,7 @@ enable = true` in the `[api]` section to get the API server running
 You'll need an admin account to be in charge of your validator. Set that up with:
 
 ```
-${NYM_APP_NAME} keys add nyxd-admin
+nyxd keys add nyxd-admin
 ```
 
 This will add keys for your administrator account to your system's keychain and log your name, address, public key, and mnemonic. As the instructions say, remember to **write down your mnemonic**.
@@ -242,7 +216,7 @@ This will add keys for your administrator account to your system's keychain and 
 You can get the admin account's address with:
 
 ```
-${NYM_APP_NAME} keys show nyxd-admin -a
+nyxd keys show nyxd-admin -a
 ```
 
 Type in your keychain **password**, not the mnemonic, when asked.
@@ -251,7 +225,7 @@ Type in your keychain **password**, not the mnemonic, when asked.
 Everything should now be ready to go. You've got the validator set up, all changes made in `config.toml` and `app.toml`, the Nym genesis file copied into place (replacing the initial auto-generated one). Now let's validate the whole setup:
 
 ```
-${NYM_APP_NAME} validate-genesis
+nyxd validate-genesis
 ```
 
 If this check passes, you should receive the following output:
@@ -282,7 +256,7 @@ For more information about your validator's port configuration, check the [valid
 Start the validator:
 
 ```
-${NYM_APP_NAME} start
+nyxd start
 ```
 
 Once your validator starts, it will start requesting blocks from other validators. This may take several hours. Once it's up to date, you can issue a request to join the validator set with the command below.
@@ -300,7 +274,7 @@ Please initially stake a small amount of tokens compared to existing validators,
 nyxd tx staking create-validator
   --amount=10000000unyx
   --fees=0unyx
-  --pubkey=$(/home/youruser/path/to/nyxd/binaries/nyxd tendermint show-validator | jq -r '.["key"]')
+  --pubkey=$(/home/youruser/path/to/nyxd/binaries/nyxd tendermint show-validator)
   --moniker="whatever you called your validator"
   --chain-id=nyx
   --commission-rate="0.10"
@@ -338,10 +312,10 @@ If you want to edit some details for your node you will use a command like this:
 
 ```
 # Mainnet
-nymd tx staking edit-validator
-  --chain-id=nym
+nyxd tx staking edit-validator
+  --chain-id=nyx
   --moniker="whatever you called your validator"
-  --details="Nym validator"
+  --details="Nyx validator"
   --security-contact="your email"
   --identity="your identity"
   --gas="auto"
@@ -351,8 +325,8 @@ nymd tx staking edit-validator
 ```
 ```
 # Sandbox Testnet
-nymd tx staking edit-validator
-  --chain-id=nym-sandbox
+nyxd tx staking edit-validator
+  --chain-id=nyx-sandbox
   --moniker="whatever you called your validator"
   --details="Nym validator"
   --security-contact="your email"
@@ -370,15 +344,15 @@ You will most likely want to automate your validator restarting if your server r
 
 ```ini
 [Unit]
-Description=Nymd (1.1.0)
+Description=Nyxd
 StartLimitInterval=350
 StartLimitBurst=10
 
 [Service]
-User=nym                                                          # change to your user
+User=nyx                                                          # change to your user
 Type=simple
-Environment="LD_LIBRARY_PATH=/home/youruser/path/to/nym/binaries" # change to correct path
-ExecStart=/home/youruser/path/to/nym/binaries/nymd start          # change to correct path
+Environment="LD_LIBRARY_PATH=/home/youruser/path/to/nyx/binaries" # change to correct path
+ExecStart=/home/youruser/path/to/nyx/binaries/nymd start          # change to correct path
 Restart=on-failure
 RestartSec=30
 LimitNOFILE=infinity
@@ -586,7 +560,7 @@ nyxd tx slashing unjail
 ```
 ```
 # Sandbox Testnet
-nymd tx slashing unjail
+nyxd tx slashing unjail
   --broadcast-mode=block
   --from="KEYRING_NAME"
   --chain-id=nym-sandbox
@@ -638,7 +612,7 @@ nyxd tx staking delegate VALOPERADDRESS AMOUNTunym
 ```
 ```
 # Sandbox Testnet
-nymd tx staking delegate VALOPERADDRESS AMOUNTunymt
+nyxd tx staking delegate VALOPERADDRESS AMOUNTunymt
   --from="KEYRING_NAME"
   --keyring-backend=os
   --chain-id=nym-sandbox

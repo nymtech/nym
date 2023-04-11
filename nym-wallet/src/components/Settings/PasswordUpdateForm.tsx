@@ -24,7 +24,6 @@ const PasswordUpdateForm = ({ onPwdSaved }: { onPwdSaved: () => void }) => {
     try {
       setIsLoading(true);
       await updatePassword({ currentPassword, newPassword });
-      enqueueSnackbar('Password successfully created', { variant: 'success' });
       reset();
       onPwdSaved();
     } catch (e) {
@@ -42,13 +41,9 @@ const PasswordUpdateForm = ({ onPwdSaved }: { onPwdSaved: () => void }) => {
             password={currentPassword}
             onUpdatePassword={(pwd) => setCurrentPassword(pwd)}
             label="Current password"
-          />
-          <PasswordInput
-            password={newPassword}
-            onUpdatePassword={(pwd) => setNewPassword(pwd)}
-            label="New password"
             autoFocus
           />
+          <PasswordInput password={newPassword} onUpdatePassword={(pwd) => setNewPassword(pwd)} label="New password" />
           <PasswordStrength password={newPassword} handleIsSafePassword={setIsSafePassword} withWarnings />
           <PasswordInput
             password={confirmedPassword}

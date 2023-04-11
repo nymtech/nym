@@ -24,7 +24,6 @@ const PasswordCreateForm = ({ onPwdSaved }: { onPwdSaved: () => void }) => {
     try {
       setIsLoading(true);
       await createPassword({ mnemonic, password });
-      enqueueSnackbar('Password successfully created', { variant: 'success' });
       reset();
       onPwdSaved();
     } catch (e) {
@@ -39,12 +38,7 @@ const PasswordCreateForm = ({ onPwdSaved }: { onPwdSaved: () => void }) => {
       <FormControl fullWidth>
         <Stack spacing={3} mt={2}>
           <MnemonicInput mnemonic={mnemonic} onUpdateMnemonic={(m) => setMnemonic(m)} />
-          <PasswordInput
-            password={password}
-            onUpdatePassword={(pwd) => setPassword(pwd)}
-            label="New password"
-            autoFocus
-          />
+          <PasswordInput password={password} onUpdatePassword={(pwd) => setPassword(pwd)} label="Password" />
           <PasswordStrength password={password} handleIsSafePassword={setIsSafePassword} withWarnings />
           <PasswordInput
             password={confirmedPassword}
@@ -63,7 +57,7 @@ const PasswordCreateForm = ({ onPwdSaved }: { onPwdSaved: () => void }) => {
             }
             onClick={savePassword}
           >
-            Save New Password
+            Save Password
           </Button>
         </Stack>
       </FormControl>

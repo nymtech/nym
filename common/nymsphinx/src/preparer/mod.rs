@@ -41,11 +41,29 @@ pub struct PreparedFragment {
 // this is extracted into a trait with default implementation to remove duplicate code
 // (which we REALLY want to avoid with crypto)
 pub trait FragmentPreparer {
-    type Rng: RngCore + CryptoRng;
+    type Rng: CryptoRng + Rng;
 
     fn rng(&mut self) -> &mut Self::Rng;
     fn num_mix_hops(&self) -> u8;
+    fn average_packet_delay(&self) -> Duration;
     fn average_ack_delay(&self) -> Duration;
+
+    fn generate_reply_surbs(
+        &mut self,
+        amount: usize,
+        topology: &NymTopology,
+        reply_recipient: &Recipient,
+    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
+        let mut reply_surbs = Vec::with_capacity(amount);
+        let packet_delay = self.average_packet_delay();
+        for _ in 0..amount {
+            let reply_surb =
+                ReplySurb::construct(self.rng(), reply_recipient, packet_delay, topology)?;
+            reply_surbs.push(reply_surb)
+        }
+
+        Ok(reply_surbs)
+    }
 
     fn generate_surb_ack(
         &mut self,
@@ -64,6 +82,153 @@ pub trait FragmentPreparer {
             ack_delay,
             topology,
         )
+    }
+
+    /// The procedure is as follows:
+    /// For each fragment:
+    /// - compute SURB_ACK
+    /// - generate (x, g^x)
+    /// - obtain key k from the reply-surb which was computed as follows:
+    ///     k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
+    /// - compute v_b = AES-128-CTR(k, serialized_fragment)
+    /// - compute vk_b = H(k) || v_b
+    /// - compute sphinx_plaintext = SURB_ACK || H(k) || v_b
+    /// - compute sphinx_packet by applying the reply surb on the sphinx_plaintext
+    fn prepare_reply_chunk_for_sending(
+        &mut self,
+        fragment: Fragment,
+        topology: &NymTopology,
+        ack_key: &AckKey,
+        reply_surb: ReplySurb,
+        packet_sender: &Recipient,
+    ) -> Result<PreparedFragment, NymTopologyError> {
+        // each reply attaches the digest of the encryption key so that the recipient could
+        // lookup correct key for decryption,
+        let reply_overhead = ReplySurbKeyDigestAlgorithm::output_size();
+        let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + reply_overhead;
+
+        // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
+        // more gracefully is that this error should never be reached as it implies incorrect chunking
+        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext)
+            .expect("the message has been incorrectly fragmented");
+
+        // this is not going to be accurate by any means. but that's the best estimation we can do
+        let expected_forward_delay = Delay::new_from_millis(
+            (self.average_packet_delay().as_millis() * self.num_mix_hops() as u128) as u64,
+        );
+
+        let fragment_identifier = fragment.fragment_identifier();
+
+        // create an ack
+        let surb_ack =
+            self.generate_surb_ack(packet_sender, fragment_identifier, topology, ack_key)?;
+        let ack_delay = surb_ack.expected_total_delay();
+
+        let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
+            .build_reply(reply_surb.encryption_key());
+
+        // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lengths
+        // and we just very carefully constructed a (presumably) valid one
+        let (sphinx_packet, first_hop_address) =
+            reply_surb.apply_surb(packet_payload, packet_size).unwrap();
+
+        Ok(PreparedFragment {
+            // the round-trip delay is the sum of delays of all hops on the forward route as
+            // well as the total delay of the ack packet.
+            // we don't know the delays inside the reply surbs so we use best-effort estimation from our poisson distribution
+            total_delay: expected_forward_delay + ack_delay,
+            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, Default::default()),
+            fragment_identifier,
+        })
+    }
+
+    /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
+    /// such that it contains required SURB-ACK and public component of the ephemeral key used to
+    /// derive the shared key.
+    /// Also all the data, apart from the said public component, is encrypted with an ephemeral shared key.
+    /// This method can fail if the provided network topology is invalid.
+    /// It returns total expected delay as well as the [`SphinxPacket`] (including first hop address)
+    /// to be sent through the network.
+    ///
+    /// The procedure is as follows:
+    /// For each fragment:
+    /// - compute SURB_ACK
+    /// - generate (x, g^x)
+    /// - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
+    /// - compute v_b = AES-128-CTR(k, serialized_fragment)
+    /// - compute vk_b = g^x || v_b
+    /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
+    /// - compute sphinx_packet = Sphinx(recipient, sphinx_plaintext)
+    fn prepare_chunk_for_sending(
+        &mut self,
+        fragment: Fragment,
+        topology: &NymTopology,
+        ack_key: &AckKey,
+        packet_sender: &Recipient,
+        packet_recipient: &Recipient,
+    ) -> Result<PreparedFragment, NymTopologyError> {
+        // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
+        // could perform diffie-hellman with its own keys followed by a kdf to re-derive
+        // the packet encryption key
+        let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
+        let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + non_reply_overhead;
+
+        // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
+        // more gracefully is that this error should never be reached as it implies incorrect chunking
+        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext)
+            .expect("the message has been incorrectly fragmented");
+
+        let fragment_identifier = fragment.fragment_identifier();
+
+        // create an ack
+        let surb_ack =
+            self.generate_surb_ack(packet_sender, fragment_identifier, topology, ack_key)?;
+        let ack_delay = surb_ack.expected_total_delay();
+
+        let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
+            .build_regular(self.rng(), packet_recipient.encryption_key());
+
+        // generate pseudorandom route for the packet
+        let hops = self.num_mix_hops();
+        let route =
+            topology.random_route_to_gateway(self.rng(), hops, packet_recipient.gateway())?;
+        let destination = packet_recipient.as_sphinx_destination();
+
+        // including set of delays
+        let delays =
+            delays::generate_from_average_duration(route.len(), self.average_packet_delay());
+
+        // create the actual sphinx packet here. With valid route and correct payload size,
+        // there's absolutely no reason for this call to fail.
+        let sphinx_packet = SphinxPacketBuilder::new()
+            .with_payload_size(packet_size.payload_size())
+            .build_packet(packet_payload, &route, &destination, &delays)
+            .unwrap();
+
+        // from the previously constructed route extract the first hop
+        let first_hop_address =
+            NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
+
+        Ok(PreparedFragment {
+            // the round-trip delay is the sum of delays of all hops on the forward route as
+            // well as the total delay of the ack packet.
+            // note that the last hop of the packet is a gateway that does not do any delays
+            total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
+            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, Default::default()),
+            fragment_identifier,
+        })
+    }
+
+    fn pad_and_split_message(
+        &mut self,
+        message: NymMessage,
+        packet_size: PacketSize,
+    ) -> Vec<Fragment> {
+        let plaintext_per_packet = message.available_sphinx_plaintext_per_packet(packet_size);
+
+        message
+            .pad_to_full_packet_lengths(plaintext_per_packet)
+            .split_into_fragments(self.rng(), plaintext_per_packet)
     }
 }
 
@@ -140,16 +305,6 @@ where
         Ok(reply_surbs)
     }
 
-    /// The procedure is as follows:
-    /// For each fragment:
-    /// - compute SURB_ACK
-    /// - generate (x, g^x)
-    /// - obtain key k from the reply-surb which was computed as follows:
-    ///     k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
-    /// - compute v_b = AES-128-CTR(k, serialized_fragment)
-    /// - compute vk_b = H(k) || v_b
-    /// - compute sphinx_plaintext = SURB_ACK || H(k) || v_b
-    /// - compute sphinx_packet by applying the reply surb on the sphinx_plaintext
     pub fn prepare_reply_chunk_for_sending(
         &mut self,
         fragment: Fragment,
@@ -157,62 +312,13 @@ where
         ack_key: &AckKey,
         reply_surb: ReplySurb,
     ) -> Result<PreparedFragment, NymTopologyError> {
-        // each reply attaches the digest of the encryption key so that the recipient could
-        // lookup correct key for decryption,
-        let reply_overhead = ReplySurbKeyDigestAlgorithm::output_size();
-        let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + reply_overhead;
+        let sender = self.sender_address;
 
-        // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
-        // more gracefully is that this error should never be reached as it implies incorrect chunking
-        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext)
-            .expect("the message has been incorrectly fragmented");
-
-        // this is not going to be accurate by any means. but that's the best estimation we can do
-        let expected_forward_delay = Delay::new_from_millis(
-            (self.average_packet_delay.as_millis() * self.num_mix_hops as u128) as u64,
-        );
-
-        let fragment_identifier = fragment.fragment_identifier();
-
-        // create an ack
-        let surb_ack = self.generate_surb_ack(fragment_identifier, topology, ack_key)?;
-        let ack_delay = surb_ack.expected_total_delay();
-
-        let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
-            .build_reply(reply_surb.encryption_key());
-
-        // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lengths
-        // and we just very carefully constructed a (presumably) valid one
-        let (sphinx_packet, first_hop_address) =
-            reply_surb.apply_surb(packet_payload, packet_size).unwrap();
-
-        Ok(PreparedFragment {
-            // the round-trip delay is the sum of delays of all hops on the forward route as
-            // well as the total delay of the ack packet.
-            // we don't know the delays inside the reply surbs so we use best-effort estimation from our poisson distribution
-            total_delay: expected_forward_delay + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, Default::default()),
-            fragment_identifier,
-        })
+        <Self as FragmentPreparer>::prepare_reply_chunk_for_sending(
+            self, fragment, topology, ack_key, reply_surb, &sender,
+        )
     }
 
-    /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
-    /// such that it contains required SURB-ACK and public component of the ephemeral key used to
-    /// derive the shared key.
-    /// Also all the data, apart from the said public component, is encrypted with an ephemeral shared key.
-    /// This method can fail if the provided network topology is invalid.
-    /// It returns total expected delay as well as the [`SphinxPacket`] (including first hop address)
-    /// to be sent through the network.
-    ///
-    /// The procedure is as follows:
-    /// For each fragment:
-    /// - compute SURB_ACK
-    /// - generate (x, g^x)
-    /// - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
-    /// - compute v_b = AES-128-CTR(k, serialized_fragment)
-    /// - compute vk_b = g^x || v_b
-    /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
-    /// - compute sphinx_packet = Sphinx(recipient, sphinx_plaintext)
     pub fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,
@@ -220,73 +326,27 @@ where
         ack_key: &AckKey,
         packet_recipient: &Recipient,
     ) -> Result<PreparedFragment, NymTopologyError> {
-        // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
-        // could perform diffie-hellman with its own keys followed by a kdf to re-derive
-        // the packet encryption key
-        let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
-        let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + non_reply_overhead;
+        let sender = self.sender_address;
 
-        // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
-        // more gracefully is that this error should never be reached as it implies incorrect chunking
-        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext)
-            .expect("the message has been incorrectly fragmented");
-
-        let fragment_identifier = fragment.fragment_identifier();
-
-        // create an ack
-        let surb_ack = self.generate_surb_ack(fragment_identifier, topology, ack_key)?;
-        let ack_delay = surb_ack.expected_total_delay();
-
-        let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
-            .build_regular(&mut self.rng, packet_recipient.encryption_key());
-
-        // generate pseudorandom route for the packet
-        let route = topology.random_route_to_gateway(
-            &mut self.rng,
-            self.num_mix_hops,
-            packet_recipient.gateway(),
-        )?;
-        let destination = packet_recipient.as_sphinx_destination();
-
-        // including set of delays
-        let delays = delays::generate_from_average_duration(route.len(), self.average_packet_delay);
-
-        // create the actual sphinx packet here. With valid route and correct payload size,
-        // there's absolutely no reason for this call to fail.
-        let sphinx_packet = SphinxPacketBuilder::new()
-            .with_payload_size(packet_size.payload_size())
-            .build_packet(packet_payload, &route, &destination, &delays)
-            .unwrap();
-
-        // from the previously constructed route extract the first hop
-        let first_hop_address =
-            NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
-
-        Ok(PreparedFragment {
-            // the round-trip delay is the sum of delays of all hops on the forward route as
-            // well as the total delay of the ack packet.
-            // note that the last hop of the packet is a gateway that does not do any delays
-            total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, Default::default()),
-            fragment_identifier,
-        })
+        <Self as FragmentPreparer>::prepare_chunk_for_sending(
+            self,
+            fragment,
+            topology,
+            ack_key,
+            &sender,
+            packet_recipient,
+        )
     }
 
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
-    fn generate_surb_ack(
+    pub fn generate_surb_ack(
         &mut self,
         fragment_id: FragmentIdentifier,
         topology: &NymTopology,
         ack_key: &AckKey,
     ) -> Result<SurbAck, NymTopologyError> {
-        SurbAck::construct(
-            &mut self.rng,
-            &self.sender_address,
-            ack_key,
-            fragment_id.to_bytes(),
-            self.average_ack_delay,
-            topology,
-        )
+        let sender = self.sender_address;
+        <Self as FragmentPreparer>::generate_surb_ack(self, &sender, fragment_id, topology, ack_key)
     }
 
     pub fn pad_and_split_message(
@@ -294,11 +354,27 @@ where
         message: NymMessage,
         packet_size: PacketSize,
     ) -> Vec<Fragment> {
-        let plaintext_per_packet = message.available_sphinx_plaintext_per_packet(packet_size);
+        <Self as FragmentPreparer>::pad_and_split_message(self, message, packet_size)
+    }
+}
 
-        message
-            .pad_to_full_packet_lengths(plaintext_per_packet)
-            .split_into_fragments(&mut self.rng, plaintext_per_packet)
+impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
+    type Rng = R;
+
+    fn rng(&mut self) -> &mut Self::Rng {
+        &mut self.rng
+    }
+
+    fn num_mix_hops(&self) -> u8 {
+        self.num_mix_hops
+    }
+
+    fn average_packet_delay(&self) -> Duration {
+        self.average_packet_delay
+    }
+
+    fn average_ack_delay(&self) -> Duration {
+        self.average_ack_delay
     }
 }
 

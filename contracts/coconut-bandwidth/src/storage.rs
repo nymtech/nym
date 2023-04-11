@@ -86,9 +86,9 @@ mod tests {
         assert!(res.is_none());
 
         let mut spend_credential = SpendCredential::new(
-            funds.clone(),
+            funds,
             blind_serial_number.to_string(),
-            gateway_cosmos_address.clone(),
+            gateway_cosmos_address,
         );
         spend_credential.mark_as_spent();
 

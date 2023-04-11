@@ -262,7 +262,7 @@ fn paging_works() {
             services: vec![
                 service_info(1, nym_address1.clone(), announcer1.clone()),
                 service_info(2, nym_address1.clone(), announcer1.clone()),
-                service_info(3, nym_address2.clone(), announcer1.clone()),
+                service_info(3, nym_address2.clone(), announcer1),
             ],
             per_page: 3,
             start_next_after: Some(3),
@@ -272,8 +272,8 @@ fn paging_works() {
         setup.query_all_with_limit(Some(3), Some(3)),
         PagedServicesListResponse {
             services: vec![
-                service_info(4, nym_address1.clone(), announcer2.clone()),
-                service_info(5, nym_address2.clone(), announcer2.clone()),
+                service_info(4, nym_address1, announcer2.clone()),
+                service_info(5, nym_address2, announcer2),
             ],
             per_page: 3,
             start_next_after: Some(5),

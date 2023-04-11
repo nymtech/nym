@@ -90,6 +90,6 @@ pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> 
     };
     let env = mock_env();
     let info = mock_info(ADMIN_ADDRESS, &[]);
-    instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
+    instantiate(deps.as_mut(), env, info, msg).unwrap();
     deps
 }

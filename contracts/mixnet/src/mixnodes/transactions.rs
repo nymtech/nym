@@ -531,7 +531,7 @@ pub mod tests {
         let res = try_add_mixnode(
             test.deps_mut(),
             env.clone(),
-            info.clone(),
+            info,
             mixnode.clone(),
             cost_params.clone(),
             signature.clone(),

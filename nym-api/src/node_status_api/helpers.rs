@@ -27,10 +27,7 @@ async fn get_gateway_bond_annotated(
     let gateways = cache
         .gateways_annotated_filtered()
         .await
-        .ok_or(ErrorResponse::new(
-            "no data available",
-            Status::ServiceUnavailable,
-        ))?;
+        .ok_or_else(|| ErrorResponse::new("no data available", Status::ServiceUnavailable))?;
 
     gateways
         .into_iter()

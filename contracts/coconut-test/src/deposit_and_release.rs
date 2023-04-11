@@ -89,13 +89,8 @@ fn deposit_and_release() {
     let msg = ExecuteMsg::ReleaseFunds {
         funds: deposit_funds[0].clone(),
     };
-    app.execute_contract(
-        Addr::unchecked(multisig_addr),
-        contract_addr.clone(),
-        &msg,
-        &[],
-    )
-    .unwrap();
+    app.execute_contract(Addr::unchecked(multisig_addr), contract_addr, &msg, &[])
+        .unwrap();
     let pool_bal = app.wrap().query_balance(pool_addr, TEST_MIX_DENOM).unwrap();
     assert_eq!(pool_bal, deposit_funds[0]);
 }

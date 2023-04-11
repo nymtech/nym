@@ -325,12 +325,12 @@ pub mod helpers {
         };
         let env = mock_env();
         let info = mock_info("admin", &[]);
-        instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
+        instantiate(deps.as_mut(), env, info, msg).unwrap();
         deps
     }
 
     pub fn vesting_account_mid_fixture(storage: &mut dyn Storage, env: &Env) -> Account {
-        let start_time_ts = env.block.time.clone();
+        let start_time_ts = env.block.time;
         let start_time = env.block.time.seconds() - 7200;
         let periods = populate_vesting_periods(
             start_time,

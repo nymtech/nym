@@ -56,11 +56,11 @@ pub(crate) mod tests {
         for n in 0..size {
             let dealing_share = dealing_bytes_fixture();
             let sender = Addr::unchecked(format!("owner{}", n));
-            for idx in 0..TOTAL_DEALINGS {
+            (0..TOTAL_DEALINGS).for_each(|idx| {
                 DEALINGS_BYTES[idx]
                     .save(deps.storage, &sender, &dealing_share)
                     .unwrap();
-            }
+            });
         }
     }
 

@@ -486,8 +486,8 @@ pub mod tests {
 
                 try_reward_mixnode(
                     test.deps_mut(),
-                    env.clone(),
-                    sender.clone(),
+                    env,
+                    sender,
                     mix_id_never_existed,
                     performance,
                 )
@@ -2094,7 +2094,7 @@ pub mod tests {
                 .unwrap()
                 .active_set_size;
             let env = test.env();
-            let res = try_update_active_set_size(test.deps_mut(), env, owner.clone(), 42, true);
+            let res = try_update_active_set_size(test.deps_mut(), env, owner, 42, true);
             assert!(res.is_ok());
             let new = storage::REWARDING_PARAMS
                 .load(test.deps().storage)
@@ -2181,7 +2181,7 @@ pub mod tests {
                     test.deps_mut(),
                     env.clone(),
                     owner.clone(),
-                    update.clone(),
+                    update,
                     false,
                 );
                 assert!(matches!(
@@ -2193,7 +2193,7 @@ pub mod tests {
                     test.deps_mut(),
                     env.clone(),
                     owner,
-                    update.clone(),
+                    update,
                     true,
                 );
                 assert!(res_forced.is_ok())
@@ -2309,7 +2309,7 @@ pub mod tests {
             let old = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
             let env = test.env();
             let res =
-                try_update_rewarding_params(test.deps_mut(), env, owner.clone(), update, true);
+                try_update_rewarding_params(test.deps_mut(), env, owner, update, true);
             assert!(res.is_ok());
             let new = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
             assert_ne!(old, new);

@@ -253,8 +253,8 @@ mod tests {
     fn withdrawing_delegator_reward() {
         let mut test = TestSetup::new();
 
-        let delegation_amount = Uint128::new(2500_000_000);
-        let delegation_dec = 2500_000_000u32.into_base_decimal().unwrap();
+        let delegation_amount = Uint128::new(2_500_000_000);
+        let delegation_dec = 2_500_000_000_u32.into_base_decimal().unwrap();
         let mix_id = test.add_dummy_mixnode("mix-owner", None);
         let delegator = "delegator";
         test.add_immediate_delegation(delegator, delegation_amount, mix_id);

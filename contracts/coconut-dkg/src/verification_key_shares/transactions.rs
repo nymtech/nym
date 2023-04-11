@@ -129,14 +129,8 @@ mod tests {
             .save(deps.as_mut().storage, &dealer, &dealer_details)
             .unwrap();
 
-        try_commit_verification_key_share(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            share.clone(),
-            false,
-        )
-        .unwrap();
+        try_commit_verification_key_share(deps.as_mut(), env, info.clone(), share.clone(), false)
+            .unwrap();
         let vk_share = vk_shares().load(&deps.storage, (&info.sender, 0)).unwrap();
         assert_eq!(
             vk_share,
@@ -215,14 +209,8 @@ mod tests {
         )
         .unwrap();
 
-        let ret = try_commit_verification_key_share(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            share.clone(),
-            false,
-        )
-        .unwrap_err();
+        let ret =
+            try_commit_verification_key_share(deps.as_mut(), env, info, share, false).unwrap_err();
         assert_eq!(
             ret,
             ContractError::AlreadyCommitted {
@@ -318,14 +306,7 @@ mod tests {
         dealers_storage::current_dealers()
             .save(deps.as_mut().storage, &owner, &dealer_details)
             .unwrap();
-        try_commit_verification_key_share(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            share.clone(),
-            false,
-        )
-        .unwrap();
+        try_commit_verification_key_share(deps.as_mut(), env.clone(), info, share, false).unwrap();
 
         env.block.time = env
             .block
@@ -338,7 +319,6 @@ mod tests {
             .plus_seconds(TimeConfiguration::default().verification_key_validation_time_secs);
         advance_epoch_state(deps.as_mut(), env).unwrap();
 
-        try_verify_verification_key_share(deps.as_mut(), multisig_info, owner.clone(), false)
-            .unwrap();
+        try_verify_verification_key_share(deps.as_mut(), multisig_info, owner, false).unwrap();
     }
 }

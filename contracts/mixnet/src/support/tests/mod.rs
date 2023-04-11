@@ -190,7 +190,7 @@ pub mod test_helpers {
             let owner = head_mixnode.owner;
 
             let nonce =
-                signing_storage::get_signing_nonce(self.deps().storage, owner.clone()).unwrap();
+                signing_storage::get_signing_nonce(self.deps().storage, owner).unwrap();
 
             let proxy = if vesting {
                 Some(self.vesting_contract())
@@ -546,7 +546,7 @@ pub mod test_helpers {
                 sender,
                 None,
                 mixnode.clone(),
-                stake.clone(),
+                stake,
             );
             let owner_signature = ed25519_sign_message(msg, keypair.private_key());
 
@@ -575,7 +575,7 @@ pub mod test_helpers {
                 sender,
                 None,
                 gateway.clone(),
-                stake.clone(),
+                stake,
             );
             let owner_signature = ed25519_sign_message(msg, keypair.private_key());
 
@@ -1102,7 +1102,7 @@ pub mod test_helpers {
                 deps.branch(),
                 &env,
                 env.block.height,
-                Addr::unchecked(&format!("owner{}", i)),
+                Addr::unchecked(format!("owner{}", i)),
                 mix_id,
                 tests::fixtures::good_mixnode_pledge().pop().unwrap(),
                 None,

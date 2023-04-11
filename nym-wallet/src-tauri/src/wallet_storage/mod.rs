@@ -139,7 +139,7 @@ fn store_login_at_file(
 }
 
 /// Store the login with multiple accounts support
-pub(crate) fn save_encrypted_login(
+pub(crate) fn store_encrypted_login(
     mnemonic: Mnemonic,
     hd_path: DerivationPath,
     id: LoginId,
@@ -173,7 +173,7 @@ pub(crate) fn update_encrypted_login(
     write_to_file(&filepath, &stored_wallet)
 }
 
-fn get_new_encrypted_login(
+fn new_encrypted_login(
     mnemonic: Mnemonic,
     hd_path: DerivationPath,
     id: LoginId,
@@ -203,7 +203,7 @@ fn store_login_with_multiple_accounts_at_file(
         return Err(BackendError::WalletDifferentPasswordDetected);
     }
 
-    let new_login = get_new_encrypted_login(mnemonic, hd_path, id, password)?;
+    let new_login = new_encrypted_login(mnemonic, hd_path, id, password)?;
     stored_wallet.add_encrypted_login(new_login)?;
 
     write_to_file(filepath, &stored_wallet)

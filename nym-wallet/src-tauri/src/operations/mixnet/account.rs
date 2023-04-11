@@ -304,7 +304,7 @@ pub fn create_password(mnemonic: Mnemonic, password: UserPassword) -> Result<(),
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     // Currently we only support a single, default, login id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
-    wallet_storage::save_encrypted_login(mnemonic, hd_path, login_id, &password)
+    wallet_storage::store_encrypted_login(mnemonic, hd_path, login_id, &password)
 }
 
 #[tauri::command]

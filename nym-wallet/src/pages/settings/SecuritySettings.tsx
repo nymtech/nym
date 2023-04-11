@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Grid, Stack, Typography } from '@mui/material';
 import { AuthProvider } from '../../context';
 import { isPasswordCreated } from '../../requests';
-import { PasswordForm } from '../../components/Settings';
+import { PasswordCreateForm, PasswordUpdateForm } from '../../components/Settings';
 
 const SecuritySettings = () => {
   const [passwordExists, setPasswordExists] = useState(false);
@@ -32,7 +32,8 @@ const SecuritySettings = () => {
           </Stack>
         </Grid>
         <Grid item sm={12} md={6} lg={4}>
-          <PasswordForm mode={passwordExists ? 'update' : 'create'} onPwdSaved={() => setPasswordExists(true)} />
+          {!passwordExists && <PasswordCreateForm onPwdSaved={() => setPasswordExists(true)} />}
+          {passwordExists && <PasswordUpdateForm onPwdSaved={() => {}} />}
         </Grid>
       </Grid>
     </AuthProvider>

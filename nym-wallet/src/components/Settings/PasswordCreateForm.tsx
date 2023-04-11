@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { createPassword, updatePassword } from '../../requests';
+import { createPassword } from '../../requests';
 import { PasswordStrength } from '../../pages/auth/components';
 import { MnemonicInput, PasswordInput } from '../textfields';
-import { Error } from '../Error';
 
-const PasswordForm = ({ mode, onPwdSaved }: { mode: 'create' | 'update'; onPwdSaved: () => void }) => {
+const PasswordCreateForm = ({ onPwdSaved }: { onPwdSaved: () => void }) => {
   const [mnemonic, setMnemonic] = useState('');
   const [password, setPassword] = useState('');
   const [confirmedPassword, setConfirmedPassword] = useState<string>('');
@@ -24,12 +23,8 @@ const PasswordForm = ({ mode, onPwdSaved }: { mode: 'create' | 'update'; onPwdSa
   const savePassword = async () => {
     try {
       setIsLoading(true);
-      if (mode === 'create') {
-        await createPassword({ mnemonic, password });
-      } else {
-        await updatePassword({ mnemonic, password });
-      }
-      enqueueSnackbar(`Password successfully ${mode === 'create' ? 'created' : 'updated'}`, { variant: 'success' });
+      await createPassword({ mnemonic, password });
+      enqueueSnackbar('Password successfully created', { variant: 'success' });
       reset();
       onPwdSaved();
     } catch (e) {
@@ -43,12 +38,6 @@ const PasswordForm = ({ mode, onPwdSaved }: { mode: 'create' | 'update'; onPwdSa
     <Stack spacing={3} alignItems="center">
       <FormControl fullWidth>
         <Stack spacing={3} mt={2}>
-          {mode === 'update' && (
-            <Error
-              message="Creating a new password will overwrite any old one stored on your machine.
-            Make sure you have saved any mnemonics associated with the password before creating a new one."
-            />
-          )}
           <MnemonicInput mnemonic={mnemonic} onUpdateMnemonic={(m) => setMnemonic(m)} />
           <PasswordInput
             password={password}
@@ -65,7 +54,13 @@ const PasswordForm = ({ mode, onPwdSaved }: { mode: 'create' | 'update'; onPwdSa
           <Button
             size="large"
             variant="contained"
-            disabled={password !== confirmedPassword || password.length === 0 || isLoading || !isSafePassword}
+            disabled={
+              mnemonic.length === 0 ||
+              password !== confirmedPassword ||
+              password.length === 0 ||
+              isLoading ||
+              !isSafePassword
+            }
             onClick={savePassword}
           >
             Save New Password
@@ -76,4 +71,4 @@ const PasswordForm = ({ mode, onPwdSaved }: { mode: 'create' | 'update'; onPwdSa
   );
 };
 
-export default PasswordForm;
+export default PasswordCreateForm;

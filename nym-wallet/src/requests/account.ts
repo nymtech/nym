@@ -17,8 +17,13 @@ export const isPasswordCreated = async () => invokeWrapper<boolean>('does_passwo
 export const createPassword = async ({ mnemonic, password }: { mnemonic: string; password: string }) =>
   invokeWrapper<void>('create_password', { mnemonic, password });
 
-export const updatePassword = async ({ mnemonic, password }: { mnemonic: string; password: string }) =>
-  invokeWrapper<void>('update_password', { mnemonic, password });
+export const updatePassword = async ({
+  currentPassword,
+  newPassword,
+}: {
+  currentPassword: string;
+  newPassword: string;
+}) => invokeWrapper<void>('update_password', { currentPassword, newPassword });
 
 export const signInWithPassword = async (password: string) =>
   invokeWrapper<Account>('sign_in_with_password', { password });

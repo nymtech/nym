@@ -8,31 +8,31 @@ There are a couple of steps that need completing before starting to set up your 
 - preparing your wallet
 - requisitioning a VPS (Virtual Private Server)
 
-### Wallet preparation 
+### Wallet preparation
 #### Mainnet
-Before you initialise and run your gateway, head to our [website](https://nymtech.net/download/) and download the Nym wallet for your operating system. If pre-compiled binaries for your operating system aren't availiable, you can build the wallet yourself with instructions [here](../wallet/desktop-wallet.md). 
+Before you initialise and run your gateway, head to our [website](https://nymtech.net/download/) and download the Nym wallet for your operating system. If pre-compiled binaries for your operating system aren't availiable, you can build the wallet yourself with instructions [here](../wallet/desktop-wallet.md).
 
 If you don't already have one, please create a Nym address using the wallet, and fund it with tokens. The minimum amount required to bond a gateway is 100 `NYM`, but make sure you have a bit more to account for gas costs.
 
-`NYM` can be purchased via Bity from the wallet itself, and is currently present on several exchanges. Head to our [telegram channels](https://t.me/nymchan) to find out where to get `NYM` tokens.
+`NYM` can be purchased via Bity from the wallet itself, and is currently present on several exchanges.
 
-> Remember that you can **only** use native Cosmos `NYM` tokens to bond your gateway. You **cannot** use ERC20 representations of `NYM` to run a node. 
+> Remember that you can **only** use native Cosmos `NYM` tokens to bond your gateway. You **cannot** use ERC20 representations of `NYM` to run a node.
 
 
 #### Sandbox testnet
-Make sure to download a wallet and create an account as outlined above. Then head to our [token faucet](https://faucet.nymtech.net/) and get some tokens to use to bond it. 
+Make sure to download a wallet and create an account as outlined above. Then head to our [token faucet](https://faucet.nymtech.net/) and get some tokens to use to bond it.
 
 ### VPS Hardware Specs
 You will need to rent a VPS to run your mix node on. One key reason for this is that your node **must be able to send TCP data using both IPv4 and IPv6** (as other nodes you talk to may use either protocol.
 
-We currently have these _rough_ specs for VPS hardware: 
+We currently have these _rough_ specs for VPS hardware:
 
 - Processors: 2 cores are fine. Get the fastest CPUs you can afford.
-- RAM: Memory requirements depend on the amount of users your Gateway will be serving at any one time. If you're just going to be using it yourself, then minimal RAM is fine. **If you're running your Gateway as part of a Service Grant, get something with at least 4GB RAM.** 
-- Disks: much like the amount of RAM your Gateway could use, the amount of disk space required will vary with the amount of users your Gateway is serving. **If you're running your Gateway as part of a Service Grant, get something with at least 40GB storage.** 
+- RAM: Memory requirements depend on the amount of users your Gateway will be serving at any one time. If you're just going to be using it yourself, then minimal RAM is fine. **If you're running your Gateway as part of a Service Grant, get something with at least 4GB RAM.**
+- Disks: much like the amount of RAM your Gateway could use, the amount of disk space required will vary with the amount of users your Gateway is serving. **If you're running your Gateway as part of a Service Grant, get something with at least 40GB storage.**
 
 
-## Gateway setup 
+## Gateway setup
 Now that you have built the codebase, set up your wallet, and have a VPS with the `nym-gateway` binary, you can set up your gateway with the instructions below.
 
 ### Viewing command help
@@ -40,6 +40,10 @@ You can check that your binaries are properly compiled with:
 
 ```
 ./nym-gateway --help
+```
+
+```console
+<!-- cmdrun ../../../../target/release/nym-gateway init --help -->
 ```
 
 ~~~admonish example collapsible=true title="Console output"
@@ -52,7 +56,7 @@ You can check that your binaries are properly compiled with:
 
          (gateway - version {{platform_release_version}})
 
-    
+
 nym-gateway {{platform_release_version}}
 Nymtech
 Implementation of the Nym Mixnet Gateway
@@ -79,18 +83,18 @@ SUBCOMMANDS:
     run                  Starts the gateway
     sign                 Sign text to prove ownership of this mixnode
     upgrade              Try to upgrade the gateway
-    
+
 ```
 ~~~
 
-You can also check the various arguments required for individual commands with: 
+You can also check the various arguments required for individual commands with:
 
 ```
 ./nym-gateway <command> --help
 ```
 
 
-### Initialising your gateway 
+### Initialising your gateway
 To check available configuration options use:
 
 ```
@@ -108,8 +112,8 @@ To check available configuration options use:
 
          (gateway - version {{platform_release_version}})
 
-    
-nym-gateway-init 
+
+nym-gateway-init
 Initialise the gateway
 
 USAGE:
@@ -168,11 +172,11 @@ The `$(curl ifconfig.me)` command above returns your IP automatically using an e
 
 ### Bonding your gateway
 #### Via the Desktop wallet
-You can bond your gateway via the Desktop wallet. 
+You can bond your gateway via the Desktop wallet.
 
-* Open your wallet, and head to the `Bond` page, then select the node type and input your node details. Press `continue` 
+* Open your wallet, and head to the `Bond` page, then select the node type and input your node details. Press `continue`
 
-* You will be asked to run a the `sign` command with your `gateway` - copy and paste the long signature as the value of `--contract-msg` and run it. It will look something like this: 
+* You will be asked to run a the `sign` command with your `gateway` - copy and paste the long signature as the value of `--contract-msg` and run it. It will look something like this:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
@@ -187,7 +191,7 @@ You can bond your gateway via the Desktop wallet.
 
              (nym-gateway - version 1.1.13)
 
-    
+
 >>> attempting to sign 2Mf8xYytgEeyJke9LA7TjhHoGQWNBEfgHZtTyy2krFJfGHSiqy7FLgTnauSkQepCZTqKN5Yfi34JQCuog9k6FGA2EjsdpNGAWHZiuUGDipyJ6UksNKRxnFKhYW7ri4MRduyZwbR98y5fQMLAwHne1Tjm9cXYCn8McfigNt77WAYwBk5bRRKmC34BJMmWcAxphcLES2v9RdSR68tkHSpy2C8STfdmAQs3tZg8bJS5Qa8pQdqx14TnfQAPLk3QYCynfUJvgcQTrg29aqCasceGRpKdQ3Tbn81MLXAGAs7JLBbiMEAhCezAr2kEN8kET1q54zXtKz6znTPgeTZoSbP8rzf4k2JKHZYWrHYF9JriXepuZTnyxAKAxvGFPBk8Z6KAQi33NRQkwd7MPyttatHna6kG9x7knffV6ebGzgRBf7NV27LurH8x4L1uUXwm1v1UYCA1WSBQ9Pp2JW69k5v5v7G9gBy8RUcZnMbeL26Qqb8WkuGcmuHhaFfoqSfV7PRHPpPT4M8uRqUyR4bjUtSJJM1yh6QSeZk9BEazzoJqPeYeGoiFDZ3LMj2jesbJweQR4caaYuRczK92UGSSqu9zBKmE45a
 >>> decoding the message...
 >>> message to sign: {"nonce":0,"algorithm":"ed25519","message_type":"gateway-bonding","content":{"sender":"n1ewmme88q22l8syvgshqma02jv0vqrug9zq9dy8","proxy":null,"funds":[{"denom":"unym","amount":"100000000"}],"data":{"gateway":{"host":"62.240.134.189","mix_port":1789,"clients_port":9000,"location":"62.240.134.189","sphinx_key":"FKbuN7mPdoCG9jA3CkAfXxC5X4rHhqeMVtmfRtJ3cFZd","identity_key":"3RoAhR8gEdfBETMjm2vbMFzKddxXDdE9ygBAnJHWqSzD","version":"1.1.13"}}}}
@@ -205,7 +209,7 @@ You can bond your gateway via the Desktop wallet.
 
 ![Paste Signature](../images/wallet-sign.png)
 
-* Your gateway is now bonded. 
+* Your gateway is now bonded.
 
 > You are asked to `sign` a transaction on bonding so that the mixnet smart contract is able to map your nym address to your node. This allows us to create a nonce for each account and defend against replay attacks.
 
@@ -225,7 +229,7 @@ The `run` command starts the gateway:
 Starting gateway supergateway...
 
 To bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.
-Select the correct version and install it to your machine. You will need to provide the following: 
+Select the correct version and install it to your machine. You will need to provide the following:
 
 Identity Key: 6jWSJZsQ888jwzi1CBfkHefiDdUEjgwfeMfJU4RNhDuk
 Sphinx Key: HbqYJwjmtzDi4WzGp7ehj8Ns394sRvJnxtanX28upon
@@ -237,25 +241,25 @@ Data store is at: "/home/mx/.nym/gateways/supergateway/data/db.sqlite"
 2022-04-27T16:04:34.268Z INFO  nym_gateway::node > Starting mix packet forwarder...
 2022-04-27T16:04:34.269Z INFO  nym_gateway::node > Starting mix socket listener...
 2022-04-27T16:04:34.269Z INFO  nym_gateway::node::mixnet_handling::receiver::listener > Running mix listener on "62.240.134.46:1789"
-2022-04-27T16:04:34.269Z INFO  nym_gateway::node              
+2022-04-27T16:04:34.269Z INFO  nym_gateway::node
 > Starting client [web]socket listener...
 2022-04-27T16:04:34.269Z INFO  nym_gateway::node                                      > Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!
 
 ```
 ~~~
 
-### Upgrading your gateway 
+### Upgrading your gateway
 
 >These instructions are specifically regarding upgrading your gateway binary from one version to another. If you want to change node information such as the listening port, you can do this by clicking the `node settings` tab in the `bond` page of the wallet.
 
-Upgrade your gateway by doing the following: 
-* pause your gateway process. 
+Upgrade your gateway by doing the following:
+* pause your gateway process.
 * replace the existing binary with the newest binary (which you can either compile yourself or grab from our [releases page](https://github.com/nymtech/nym/releases)).
-* re-run `init` to pull in changes to `config.toml`. **`init` will never overwrite keys** so don't worry about your address changing.  
+* re-run `init` to pull in changes to `config.toml`. **`init` will never overwrite keys** so don't worry about your address changing.
 * restart your gateway process with the new binary.
-* rebond your gateway, updating the version number.  
+* rebond your gateway, updating the version number.
 
-> Do **not** use the `upgrade` command: there is a known error with the command that will be fixed in a subsequent release.  
+> Do **not** use the `upgrade` command: there is a known error with the command that will be fixed in a subsequent release.
 
 ## VPS Setup and Automation
 ### Configure your firewall
@@ -310,7 +314,7 @@ Change the path in `ExecStart` to point at your gateway binary (`nym-gateway`), 
 If you have built nym on your server, and your username is `jetpanther`, then the start command might look like this:
 
 `ExecStart=/home/jetpanther/nym/target/release/nym-gateway run --id your-id`. Basically, you want the full `/path/to/nym-gateway run --id whatever-your-node-id-is`
-  
+
 
 Then run:
 
@@ -336,10 +340,10 @@ systemctl daemon-reload
 
 This lets your operating system know it's ok to reload the service configuration.
 
-## Gateway related Validator API endpoints 
-Numerous gateway related API endpoints are documented on the Validator API's [Swagger Documentation](https://validator.nymtech.net/api/swagger/index.html). There you can also try out various requests from your broswer, and download the response from the API. Swagger will also show you what commands it is running, so that you can run these from an app or from your CLI if you prefer. 
+## Gateway related Validator API endpoints
+Numerous gateway related API endpoints are documented on the Validator API's [Swagger Documentation](https://validator.nymtech.net/api/swagger/index.html). There you can also try out various requests from your broswer, and download the response from the API. Swagger will also show you what commands it is running, so that you can run these from an app or from your CLI if you prefer.
 
-## Ports 
+## Ports
 All gateway specific port configuration can be found in `$HOME/.nym/gateways/<your-id>/config/config.toml`. If you do edit any port configs, remember to restart your gateway.
 
 ### Gateway port reference

@@ -2189,13 +2189,8 @@ pub mod tests {
                     Err(MixnetContractError::EpochAdvancementInProgress { .. })
                 ));
 
-                let res_forced = try_update_rewarding_params(
-                    test.deps_mut(),
-                    env.clone(),
-                    owner,
-                    update,
-                    true,
-                );
+                let res_forced =
+                    try_update_rewarding_params(test.deps_mut(), env.clone(), owner, update, true);
                 assert!(res_forced.is_ok())
             }
         }
@@ -2308,8 +2303,7 @@ pub mod tests {
 
             let old = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
             let env = test.env();
-            let res =
-                try_update_rewarding_params(test.deps_mut(), env, owner, update, true);
+            let res = try_update_rewarding_params(test.deps_mut(), env, owner, update, true);
             assert!(res.is_ok());
             let new = storage::REWARDING_PARAMS.load(test.deps().storage).unwrap();
             assert_ne!(old, new);

@@ -189,8 +189,7 @@ pub mod test_helpers {
             let family_head = FamilyHead::new(&identity);
             let owner = head_mixnode.owner;
 
-            let nonce =
-                signing_storage::get_signing_nonce(self.deps().storage, owner).unwrap();
+            let nonce = signing_storage::get_signing_nonce(self.deps().storage, owner).unwrap();
 
             let proxy = if vesting {
                 Some(self.vesting_contract())
@@ -541,13 +540,8 @@ pub mod test_helpers {
                 sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
                 ..tests::fixtures::mix_node_fixture()
             };
-            let msg = mixnode_bonding_sign_payload(
-                self.deps(),
-                sender,
-                None,
-                mixnode.clone(),
-                stake,
-            );
+            let msg =
+                mixnode_bonding_sign_payload(self.deps(), sender, None, mixnode.clone(), stake);
             let owner_signature = ed25519_sign_message(msg, keypair.private_key());
 
             (mixnode, owner_signature, keypair)
@@ -570,13 +564,8 @@ pub mod test_helpers {
                 ..tests::fixtures::gateway_fixture()
             };
 
-            let msg = gateway_bonding_sign_payload(
-                self.deps(),
-                sender,
-                None,
-                gateway.clone(),
-                stake,
-            );
+            let msg =
+                gateway_bonding_sign_payload(self.deps(), sender, None, gateway.clone(), stake);
             let owner_signature = ed25519_sign_message(msg, keypair.private_key());
 
             (gateway, owner_signature)

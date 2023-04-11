@@ -27,7 +27,7 @@ where
     let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
     let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
     let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-    let voucher_value = amount.to_string();
+    let voucher_value = amount.amount.to_string();
 
     let tx_hash = client
         .deposit(

@@ -314,9 +314,7 @@ pub fn update_password(
 ) -> Result<(), BackendError> {
     log::info!("Updating password");
 
-    // Currently we only support a single, default, login id in the wallet
-    let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
-    wallet_storage::update_encrypted_login(login_id, &current_password, &new_password)
+    wallet_storage::update_encrypted_logins(&current_password, &new_password)
 }
 
 #[tauri::command]

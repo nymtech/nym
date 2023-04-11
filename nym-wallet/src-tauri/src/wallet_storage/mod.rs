@@ -153,9 +153,8 @@ pub(crate) fn store_encrypted_login(
     store_login_with_multiple_accounts_at_file(&filepath, mnemonic, hd_path, id, password)
 }
 
-/// Update a login with multiple accounts support
-pub(crate) fn update_encrypted_login(
-    id: LoginId,
+/// Update all logins with multiple accounts support
+pub(crate) fn update_encrypted_logins(
     current_password: &UserPassword,
     new_password: &UserPassword,
 ) -> Result<(), BackendError> {
@@ -169,7 +168,7 @@ pub(crate) fn update_encrypted_login(
         result => result?,
     };
 
-    stored_wallet.reencrypt_login(&id, current_password, new_password)?;
+    stored_wallet.reencrypt_all(current_password, new_password)?;
     write_to_file(&filepath, &stored_wallet)
 }
 

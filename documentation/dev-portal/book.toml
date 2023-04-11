@@ -1,21 +1,21 @@
 [book]
 title = "Nym Developer Portal"
-authors = ["Oliver Anyanwu", "Max Hampshire"]
+authors = ["Max Hampshire"]
 language = "en"
 multilingual = false
 src = "src"
 
 #################
 # PREPROCESSORS #
-################# 
+#################
 
-# Note if changing these fields: 
-# - make sure you aren't running `mdbook serve` 
+# Note if changing these fields:
+# - make sure you aren't running `mdbook serve`
 # - change value of `turn-off = true` to `false`. This is set to `true` usually to avoid a known constant-reload bug with `mdbook serve` and this preprocessor
-# - delete `./theme/` dir 
-# - change the preprocessor values that you want to edit 
-# - run `mdbook build`: this will rebuild the `./theme` directory 
-# - change value of `turn-off` back to `true` 
+# - delete `./theme/` dir
+# - change the preprocessor values that you want to edit
+# - run `mdbook build`: this will rebuild the `./theme` directory
+# - change value of `turn-off` back to `true`
 [preprocessor.theme]
 pagetoc        = true
 # some variables related (defined in theme/css/variables.css)
@@ -38,28 +38,24 @@ chapter-line-height       = "2em"
 section-line-height       = "1.5em"
 
 # # if true, never read and touch the files in theme dir
-turn-off = true 
+turn-off = true
 
 [preprocessor.admonish]
 command = "mdbook-admonish"
 assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 
-# variables preprocessor: import variables into files 
+# variables preprocessor: import variables into files
 # https://gitlab.com/tglman/mdbook-variables/
 [preprocessor.variables.variables]
 # code prerequisites versions
 minimum_rust_version = "1.66"
 # minimum_node_version = ""
-# nym platform code most recent release 
-platform_release_version = "v1.1.11"
+# nym platform code most recent release
+platform_release_version = "v1.1.14"
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"
 renderer = ["html"]
-
-# more pre-processor plugins to look into from https://github.com/rust-lang/mdBook/wiki/Third-party-plugins & https://lib.rs/keywords/mdbook-preprocessor
-# mdbook-mermaid - use mermaid to make diagrams from text!
-# mdbook-i18n
 
 #########
 # BUILD #
@@ -73,16 +69,16 @@ extra-watch-dirs = []             # directories to watch for triggering builds
 
 ##########
 # OUTPUT #
-########## 
+##########
 
 [output.html]
 default-theme = "coal"
 preferred-dark-theme = "coal"
 curly-quotes = true
-# mathjax-support = false # useful if we want to pull equations in ? 
+# mathjax-support = false # useful if we want to pull equations in ?
 copy-fonts = true
 no-section-label = false
-additional-css = ["theme/pagetoc.css", "././mdbook-admonish.css", "last-changed.css", "ama-layout.css"]
+additional-css = ["theme/pagetoc.css", "././mdbook-admonish.css", "last-changed.css"]
 additional-js  = ["theme/pagetoc.js"]
 git-repository-url = "https://github.com/nymtech/dev-portal"
 git-repository-icon = "fa-github"
@@ -95,7 +91,7 @@ site-url = "/developers/"
 enable = true    # whether or not to enable section folding
 level = 0        # the depth to start folding
 
-# controlling rust sample code blocks 
+# controlling rust sample code blocks
 [output.html.playground]
 editable = false         # allows editing the source code
 copyable = true          # include the copy button for copying code snippets
@@ -103,7 +99,7 @@ copy-js = true           # includes the JavaScript for the code editor
 line-numbers = false     # displays line numbers for editable code
 runnable = true          # displays a run button for rust code
 
-# options for the built in text search 
+# options for the built in text search
 [output.html.search]
 enable = true            # enables the search feature
 limit-results = 30       # maximum number of search results

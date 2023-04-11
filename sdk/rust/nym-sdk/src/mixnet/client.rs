@@ -459,7 +459,7 @@ where
                 self.key_manager.clone(),
                 Some(self.bandwidth_controller),
                 self.reply_storage_backend,
-                CredentialsToggle::Disabled,
+                CredentialsToggle::from(self.config.enabled_credentials_mode),
                 api_endpoints,
             );
 

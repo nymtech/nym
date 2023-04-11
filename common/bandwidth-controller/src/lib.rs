@@ -1,28 +1,10 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::GatewayClientError;
+use crate::error::BandwidthControllerError;
 
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::Storage;
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(target_os = "android"))]
-use nym_credential_storage::storage::Storage;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(target_os = "android")]
-use mobile_storage::Storage;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(target_os = "android")]
-use mobile_storage::StorageError;
-
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::StorageError;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(target_os = "android"))]
 use nym_credential_storage::error::StorageError;
+use nym_credential_storage::storage::Storage;
 
 use std::str::FromStr;
 use {
@@ -35,38 +17,32 @@ use {
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
-// TODO: make it nicer for wasm (I don't want to touch it for this experiment)
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::PersistentStorage;
-
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::DkgQueryClient;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(target_os = "android"))]
-use nym_credential_storage::PersistentStorage;
+pub mod acquire;
+pub mod error;
+#[cfg(target_arch = "wasm32")]
+pub mod wasm_mockups;
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(target_os = "android")]
-use mobile_storage::PersistentStorage;
-
-#[allow(dead_code)]
-pub struct BandwidthController<C, St: Storage = PersistentStorage> {
+pub struct BandwidthController<C, St: Storage> {
     storage: St,
     client: C,
 }
 
-impl<C, St> BandwidthController<C, St>
-where
-    St: Storage + 'static,
-{
+impl<C, St: Storage> BandwidthController<C, St> {
     pub fn new(storage: St, client: C) -> Self {
         BandwidthController { storage, client }
     }
 
+    pub fn storage(&self) -> &St {
+        &self.storage
+    }
+
     pub async fn prepare_coconut_credential(
         &self,
-    ) -> Result<(nym_coconut_interface::Credential, i64), GatewayClientError>
+    ) -> Result<(nym_coconut_interface::Credential, i64), BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
     {
@@ -86,8 +62,7 @@ where
         #[cfg(not(target_arch = "wasm32"))]
         let coconut_api_clients =
             nym_validator_client::CoconutApiClient::all_coconut_api_clients(&self.client, epoch_id)
-                .await
-                .expect("Could not query api clients");
+                .await?;
         #[cfg(target_arch = "wasm32")]
         let coconut_api_clients = vec![];
         let verification_key = obtain_aggregate_verification_key(&coconut_api_clients).await?;
@@ -107,7 +82,7 @@ where
         ))
     }
 
-    pub async fn consume_credential(&self, id: i64) -> Result<(), GatewayClientError> {
+    pub async fn consume_credential(&self, id: i64) -> Result<(), BandwidthControllerError> {
         // JS: shouldn't we send some contract/validator/gateway message here to actually, you know,
         // consume it?
         Ok(self.storage.consume_coconut_credential(id).await?)

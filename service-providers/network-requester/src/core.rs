@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use futures::channel::mpsc;
 use log::warn;
 use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_network_defaults::NymNetworkDetails;
 use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };
@@ -468,21 +469,15 @@ impl NRServiceProvider {
 async fn create_mixnet_client<T>(
     config: &nym_client_core::config::Config<T>,
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
-    let nym_api_endpoints = config.get_nym_api_endpoints();
     let debug_config = *config.get_debug_config();
-
-    let mixnet_config = nym_sdk::mixnet::Config {
-        user_chosen_gateway: None,
-        nym_api_endpoints,
-        debug_config,
-    };
 
     let storage_paths = nym_sdk::mixnet::StoragePaths::from(config);
 
     let mixnet_client = nym_sdk::mixnet::MixnetClientBuilder::new()
-        .config(mixnet_config)
+        .network_details(NymNetworkDetails::new_from_env())
+        .debug_config(debug_config)
         .enable_storage(storage_paths)
-        .gateway_config(config.get_gateway_endpoint_config().clone())
+        .registered_gateway(config.get_gateway_endpoint_config().clone())
         .build::<nym_sdk::mixnet::ReplyStorage>()
         .await
         .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?;

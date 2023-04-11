@@ -4,7 +4,7 @@
 pub mod client;
 #[cfg(feature = "nyxd-client")]
 pub mod connection_tester;
-mod error;
+pub mod error;
 pub mod nym_api;
 #[cfg(feature = "nyxd-client")]
 pub mod nyxd;

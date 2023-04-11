@@ -31,11 +31,12 @@ wasm-bindgen-futures = "0.4"
 
 # internal
 nym-client-core = { path = "../../common/client-core", default-features = false, features = ["wasm"] }
+nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-credentials = { path = "../../common/credentials" }
+nym-credential-storage = { path = "../../common/credential-storage" }
 nym-crypto = { path = "../../common/crypto" }
 nym-sphinx = { path = "../../common/nymsphinx" }
-nym-gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm"] }
 nym-validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 wasm-utils = { path = "../../common/wasm-utils" }
 nym-task = { path = "../../common/task" }

@@ -17,9 +17,9 @@ use crate::storage::NymApiStorage;
 use crate::support::config::Config;
 use crate::support::nyxd;
 use futures::channel::mpsc;
-use nym_credential_storage::PersistentStorage;
+use nym_bandwidth_controller::BandwidthController;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_gateway_client::bandwidth::BandwidthController;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskManager;
 use std::sync::Arc;
@@ -98,7 +98,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
         let bandwidth_controller = {
             BandwidthController::new(
-                nym_credential_storage::initialise_storage(
+                nym_credential_storage::initialise_persistent_storage(
                     self.config.get_credentials_database_path(),
                 )
                 .await,

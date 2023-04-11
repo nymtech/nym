@@ -3174,6 +3174,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-bandwidth-controller"
+version = "0.1.0"
+dependencies = [
+ "bip39",
+ "nym-coconut-interface",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-network-defaults",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "thiserror",
+ "url",
+]
+
+[[package]]
 name = "nym-bin-common"
 version = "0.3.0"
 dependencies = [
@@ -3199,7 +3215,9 @@ dependencies = [
  "gloo-timers",
  "humantime-serde",
  "log",
+ "nym-bandwidth-controller",
  "nym-config",
+ "nym-credential-storage",
  "nym-crypto",
  "nym-gateway-client",
  "nym-gateway-requests",
@@ -3311,6 +3329,7 @@ dependencies = [
  "nym-client-core",
  "nym-config",
  "nym-contracts-common",
+ "nym-credential-storage",
  "nym-crypto",
  "nym-socks5-client-core",
  "nym-task",
@@ -3418,16 +3437,14 @@ dependencies = [
 name = "nym-gateway-client"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "futures",
  "getrandom 0.2.8",
  "log",
+ "nym-bandwidth-controller",
  "nym-coconut-interface",
  "nym-credential-storage",
- "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
- "nym-mobile-storage",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -3490,14 +3507,6 @@ dependencies = [
  "serde_repr",
  "thiserror",
  "time",
-]
-
-[[package]]
-name = "nym-mobile-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "thiserror",
 ]
 
 [[package]]
@@ -3588,10 +3597,10 @@ dependencies = [
  "dirs",
  "futures",
  "log",
+ "nym-bandwidth-controller",
  "nym-client-core",
  "nym-config",
  "nym-credential-storage",
- "nym-gateway-client",
  "nym-network-defaults",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",

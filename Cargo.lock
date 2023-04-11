@@ -3031,6 +3031,7 @@ dependencies = [
  "lazy_static",
  "log",
  "nym-api-requests",
+ "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-coconut",
  "nym-coconut-bandwidth-contract-common",
@@ -3087,6 +3088,22 @@ dependencies = [
  "schemars",
  "serde",
  "ts-rs",
+]
+
+[[package]]
+name = "nym-bandwidth-controller"
+version = "0.1.0"
+dependencies = [
+ "bip39",
+ "nym-coconut-interface",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-network-defaults",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "thiserror",
+ "url",
 ]
 
 [[package]]
@@ -3193,6 +3210,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "log",
+ "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-client-core",
  "nym-client-websocket-requests",
@@ -3201,7 +3219,6 @@ dependencies = [
  "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
- "nym-gateway-client",
  "nym-gateway-requests",
  "nym-network-defaults",
  "nym-pemstore",
@@ -3231,7 +3248,9 @@ dependencies = [
  "gloo-timers",
  "humantime-serde",
  "log",
+ "nym-bandwidth-controller",
  "nym-config",
+ "nym-credential-storage",
  "nym-crypto",
  "nym-gateway-client",
  "nym-gateway-requests",
@@ -3354,23 +3373,19 @@ dependencies = [
 name = "nym-credential-client"
 version = "0.1.0"
 dependencies = [
- "bip39",
  "clap 4.1.11",
  "log",
+ "nym-bandwidth-controller",
  "nym-bin-common",
- "nym-coconut-interface",
  "nym-config",
  "nym-credential-storage",
  "nym-credentials",
- "nym-crypto",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-validator-client",
- "rand 0.7.3",
  "serde",
  "thiserror",
  "tokio",
- "url",
 ]
 
 [[package]]
@@ -3507,16 +3522,14 @@ dependencies = [
 name = "nym-gateway-client"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "futures",
  "getrandom 0.2.8",
  "log",
+ "nym-bandwidth-controller",
  "nym-coconut-interface",
  "nym-credential-storage",
- "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
- "nym-mobile-storage",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -3680,14 +3693,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-mobile-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "thiserror",
-]
-
-[[package]]
 name = "nym-multisig-contract-common"
 version = "0.1.0"
 dependencies = [
@@ -3731,6 +3736,7 @@ dependencies = [
  "nym-client-core",
  "nym-client-websocket-requests",
  "nym-config",
+ "nym-credential-storage",
  "nym-crypto",
  "nym-network-defaults",
  "nym-ordered-buffer",
@@ -3819,12 +3825,16 @@ dependencies = [
 name = "nym-sdk"
 version = "0.1.0"
 dependencies = [
+ "bip39",
+ "dotenvy",
  "futures",
  "log",
+ "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-client-core",
+ "nym-credential-storage",
+ "nym-credentials",
  "nym-crypto",
- "nym-gateway-client",
  "nym-gateway-requests",
  "nym-network-defaults",
  "nym-socks5-client-core",
@@ -3877,10 +3887,10 @@ dependencies = [
  "nym-client-core",
  "nym-coconut-interface",
  "nym-config",
+ "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
- "nym-mobile-storage",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-pemstore",
@@ -3903,10 +3913,10 @@ dependencies = [
  "dirs",
  "futures",
  "log",
+ "nym-bandwidth-controller",
  "nym-client-core",
  "nym-config",
  "nym-credential-storage",
- "nym-gateway-client",
  "nym-network-defaults",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",

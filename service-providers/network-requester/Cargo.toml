@@ -35,6 +35,7 @@ url = { workspace = true }
 async-file-watcher = { path = "../../common/async-file-watcher" }
 nym-client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }
+nym-credential-storage = { path = "../../common/credential-storage" }
 nym-crypto = { path = "../../common/crypto" }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-network-defaults = { path = "../../common/network-defaults" }

@@ -42,11 +42,35 @@ pub enum Error {
     #[error("no gateway key set")]
     NoGatewayKeySet,
 
+    #[error("credentials mode not enabled")]
+    DisabledCredentialsMode,
+
+    #[error("bad validator details: {0}")]
+    BadValidatorDetails(#[from] nym_validator_client::ValidatorClientError),
+
     #[error("socks5 configuration set: {}, but expected to be {}", set, !set)]
     Socks5Config { set: bool },
 
     #[error("socks5 channel could not be started")]
     Socks5NotStarted,
+
+    #[error(
+        "deposited funds were not converted to a deposit - {reason}; the voucher blob can be used for \
+    later retry"
+    )]
+    UnconvertedDeposit {
+        reason: nym_bandwidth_controller::error::BandwidthControllerError,
+        voucher_blob: crate::bandwidth::VoucherBlob,
+    },
+
+    #[error("bandwidth controller error: {0}")]
+    BandwidthControllerError(#[from] nym_bandwidth_controller::error::BandwidthControllerError),
+
+    #[error("invalid voucher blob")]
+    InvalidVoucherBlob,
+
+    #[error("invalid mnemonic: {0}")]
+    InvalidMnemonic(#[from] bip39::Error),
 
     #[error("failed to create reply storage backend: {source}")]
     StorageError {

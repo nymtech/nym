@@ -50,6 +50,7 @@ nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common"}
 nym-config-common = { path = "../../../common/config", package = "nym-config" }
 nym-crypto = { path = "../../../common/crypto" }
+nym-credential-storage = { path = "../../../common/credential-storage" }
 nym-bin-common = { path = "../../../common/bin-common"}
 nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
 nym-task = { path = "../../../common/task" }

@@ -1,8 +1,11 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use std::{path::Path, sync::Arc};
+use url::Url;
 
+use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::BaseClient;
+use nym_client_core::config::DebugConfig;
 use nym_client_core::{
     client::{
         base_client::{BaseClientBuilder, CredentialsToggle},
@@ -11,14 +14,18 @@ use nym_client_core::{
     },
     config::{persistence::key_pathfinder::ClientKeyPathfinder, GatewayEndpointConfig},
 };
+use nym_credential_storage::ephemeral_storage::EphemeralStorage;
+use nym_credential_storage::initialise_ephemeral_storage;
 use nym_crypto::asymmetric::identity;
+use nym_network_defaults::NymNetworkDetails;
 
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
 use nym_topology::provider_trait::TopologyProvider;
-use nym_validator_client::nyxd::DirectSigningNyxdClient;
+use nym_validator_client::nyxd::QueryNyxdClient;
 use nym_validator_client::Client;
 
+use crate::bandwidth::BandwidthAcquireClient;
 use crate::mixnet::native_client::MixnetClient;
 use crate::mixnet::socks5_client::Socks5MixnetClient;
 use crate::mixnet::Recipient;
@@ -31,7 +38,7 @@ const DEFAULT_NUMBER_OF_SURBS: u32 = 5;
 
 #[derive(Default)]
 pub struct MixnetClientBuilder {
-    config: Option<Config>,
+    config: Config,
     storage_paths: Option<StoragePaths>,
     keys: Option<Keys>,
     gateway_config: Option<GatewayEndpointConfig>,
@@ -40,41 +47,68 @@ pub struct MixnetClientBuilder {
 }
 
 impl MixnetClientBuilder {
+    /// Create a client builder with default values.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Request a specific gateway instead of a random one.
     #[must_use]
-    pub fn config(mut self, config: Config) -> Self {
-        self.config = Some(config);
+    pub fn request_gateway(mut self, user_chosen_gateway: String) -> Self {
+        self.config.user_chosen_gateway = Some(user_chosen_gateway);
         self
     }
 
-    /// Enabled storage
+    /// Use a specific network instead of the default (mainnet) one.
+    #[must_use]
+    pub fn network_details(mut self, network_details: NymNetworkDetails) -> Self {
+        self.config.network_details = network_details;
+        self
+    }
+
+    /// Enable paid coconut bandwidth credentials mode.
+    #[must_use]
+    pub fn enable_credentials_mode(mut self) -> Self {
+        self.config.enabled_credentials_mode = true;
+        self
+    }
+
+    /// Use a custom debugging configuration.
+    #[must_use]
+    pub fn debug_config(mut self, debug_config: DebugConfig) -> Self {
+        self.config.debug_config = debug_config;
+        self
+    }
+
+    /// Enabled storage.
     #[must_use]
     pub fn enable_storage(mut self, paths: StoragePaths) -> Self {
         self.storage_paths = Some(paths);
         self
     }
 
+    /// Use a previously generated set of client keys.
     #[must_use]
     pub fn keys(mut self, keys: Keys) -> Self {
         self.keys = Some(keys);
         self
     }
 
+    /// Use a gateway that you previously registered with.
     #[must_use]
-    pub fn gateway_config(mut self, gateway_config: GatewayEndpointConfig) -> Self {
+    pub fn registered_gateway(mut self, gateway_config: GatewayEndpointConfig) -> Self {
         self.gateway_config = Some(gateway_config);
         self
     }
 
+    /// Configure the SOCKS5 mode.
     #[must_use]
     pub fn socks5_config(mut self, socks5_config: Socks5) -> Self {
         self.socks5_config = Some(socks5_config);
         self
     }
 
+    /// Use a custom topology provider.
     #[must_use]
     pub fn custom_topology_provider(
         mut self,
@@ -90,11 +124,10 @@ impl MixnetClientBuilder {
         B: ReplyStorageBackend + Send + Sync + 'static,
         <B as ReplyStorageBackend>::StorageError: Send + Sync,
     {
-        let config = self.config.unwrap_or_default();
         let storage_paths = self.storage_paths;
 
         let mut client = DisconnectedMixnetClient::new(
-            Some(config),
+            self.config,
             self.socks5_config,
             storage_paths,
             self.custom_topology_provider,
@@ -140,6 +173,9 @@ where
     /// connected to the mixnet.
     state: BuilderState,
 
+    /// Controller of bandwidth credentials that the mixnet client can use to connect
+    bandwidth_controller: BandwidthController<Client<QueryNyxdClient>, EphemeralStorage>,
+
     /// The storage backend for reply-SURBs
     reply_storage_backend: B,
 
@@ -151,14 +187,15 @@ impl<B> DisconnectedMixnetClient<B>
 where
     B: ReplyStorageBackend + Sync + Send + 'static,
 {
-    /// Create a new mixnet client in a disconnected state. If no config options are supplied,
-    /// creates a new client with ephemeral keys stored in RAM, which will be discarded at
+    /// Create a new mixnet client in a disconnected state. The default configuration,
+    /// creates a new mainnet client with ephemeral keys stored in RAM, which will be discarded at
     /// application close.
     ///
-    /// Callers have the option of supplying futher parameters to store persistent identities at a
-    /// location on-disk, if desired.
+    /// Callers have the option of supplying further parameters to:
+    /// - store persistent identities at a location on-disk, if desired;
+    /// - use SOCKS5 mode
     async fn new(
-        config: Option<Config>,
+        config: Config,
         socks5_config: Option<Socks5>,
         paths: Option<StoragePaths>,
         custom_topology_provider: Option<Box<dyn TopologyProvider>>,
@@ -166,8 +203,12 @@ where
     where
         <B as ReplyStorageBackend>::StorageError: Send + Sync,
     {
-        let config = config.unwrap_or_default();
         let reply_surb_database_path = paths.as_ref().map(|p| p.reply_surb_database_path.clone());
+
+        let client_config =
+            nym_validator_client::Config::try_from_nym_network_details(&config.network_details)?;
+        let client = nym_validator_client::Client::new_query(client_config)?;
+        let bandwidth_controller = BandwidthController::new(initialise_ephemeral_storage(), client);
 
         // The reply storage backend is generic, and can be set by the caller/instantiator
         let reply_storage_backend = B::new(&config.debug_config, reply_surb_database_path)
@@ -219,8 +260,19 @@ where
             storage_paths: paths,
             state: BuilderState::New,
             reply_storage_backend,
+            bandwidth_controller,
             custom_topology_provider,
         })
+    }
+
+    fn get_api_endpoints(&self) -> Vec<Url> {
+        self.config
+            .network_details
+            .endpoints
+            .iter()
+            .filter_map(|details| details.api_url.as_ref())
+            .filter_map(|s| Url::parse(s).ok())
+            .collect()
     }
 
     /// Client keys are generated at client creation if none were found. The gateway shared
@@ -286,9 +338,10 @@ where
             .map(identity::PublicKey::from_base58_string)
             .transpose()?;
 
-        let gateway_config = nym_client_core::init::register_with_gateway(
+        let api_endpoints = self.get_api_endpoints();
+        let gateway_config = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
             &mut self.key_manager,
-            self.config.nym_api_endpoints.clone(),
+            api_endpoints,
             user_chosen_gateway,
             // TODO: this should probably be configurable with the config
             false,
@@ -342,6 +395,19 @@ where
         Ok(())
     }
 
+    /// Creates an associated [`BandwidthAcquireClient`] that can be used to acquire bandwidth
+    /// credentials for this client to consume.
+    pub fn create_bandwidth_client(&self, mnemonic: String) -> Result<BandwidthAcquireClient> {
+        if !self.config.enabled_credentials_mode {
+            return Err(Error::DisabledCredentialsMode);
+        }
+        BandwidthAcquireClient::new(
+            self.config.network_details.clone(),
+            mnemonic,
+            self.bandwidth_controller.storage().clone(),
+        )
+    }
+
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)>
     where
         <B as ReplyStorageBackend>::StorageError: Sync + Send,
@@ -375,6 +441,8 @@ where
             return Err(Error::NoGatewayKeySet);
         }
 
+        let api_endpoints = self.get_api_endpoints();
+
         // At this point we should be in a registered state, either at function entry or by the
         // above convenience logic.
         let BuilderState::Registered { gateway_endpoint_config } = self.state else {
@@ -384,18 +452,15 @@ where
         let nym_address =
             nym_client_core::init::get_client_address(&self.key_manager, &gateway_endpoint_config);
 
-        // TODO: we currently don't support having a bandwidth controller
-        let bandwidth_controller = None;
-
-        let mut base_builder: BaseClientBuilder<'_, _, Client<DirectSigningNyxdClient>> =
+        let mut base_builder: BaseClientBuilder<'_, _, Client<QueryNyxdClient>, EphemeralStorage> =
             BaseClientBuilder::new(
                 &gateway_endpoint_config,
                 &self.config.debug_config,
                 self.key_manager.clone(),
-                bandwidth_controller,
+                Some(self.bandwidth_controller),
                 self.reply_storage_backend,
-                CredentialsToggle::Disabled,
-                self.config.nym_api_endpoints.clone(),
+                CredentialsToggle::from(self.config.enabled_credentials_mode),
+                api_endpoints,
             );
 
         if let Some(topology_provider) = self.custom_topology_provider {

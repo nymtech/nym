@@ -48,8 +48,8 @@ pub enum QueryMsg {
     ServiceId {
         service_id: ServiceId,
     },
-    Owner {
-        owner: Addr,
+    Announcer {
+        announcer: Addr,
     },
     NymAddress {
         nym_address: NymAddress,

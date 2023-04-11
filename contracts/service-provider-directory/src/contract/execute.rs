@@ -1,5 +1,5 @@
 use crate::{
-    constants::{MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS, MAX_NUMBER_OF_PROVIDERS_PER_OWNER},
+    constants::{MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS, MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER},
     error::{ContractError, Result},
     state,
 };
@@ -25,14 +25,14 @@ fn ensure_correct_deposit(will_deposit: Uint128, deposit_required: Uint128) -> R
     }
 }
 
-fn ensure_max_services_per_owner(deps: Deps, owner: Addr) -> Result<()> {
-    let current_entries = query::query_owner(deps, owner.clone())?;
-    if current_entries.services.len() < MAX_NUMBER_OF_PROVIDERS_PER_OWNER as usize {
+fn ensure_max_services_per_announcer(deps: Deps, announcer: Addr) -> Result<()> {
+    let current_entries = query::query_announcer(deps, announcer.clone())?;
+    if current_entries.services.len() < MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER as usize {
         Ok(())
     } else {
         Err(ContractError::ReachedMaxProvidersForAdmin {
-            max_providers: MAX_NUMBER_OF_PROVIDERS_PER_OWNER,
-            owner,
+            max_providers: MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER,
+            announcer,
         })
     }
 }
@@ -58,7 +58,7 @@ fn ensure_service_exists(deps: Deps, service_id: ServiceId) -> Result<()> {
 }
 
 fn ensure_sender_authorized(info: MessageInfo, service: &Service) -> Result<()> {
-    if info.sender == service.owner {
+    if info.sender == service.announcer {
         Ok(())
     } else {
         Err(ContractError::Unauthorized {
@@ -69,7 +69,7 @@ fn ensure_sender_authorized(info: MessageInfo, service: &Service) -> Result<()> 
 
 fn return_deposit(service_to_delete: &Service) -> BankMsg {
     BankMsg::Send {
-        to_address: service_to_delete.owner.to_string(),
+        to_address: service_to_delete.announcer.to_string(),
         amount: vec![service_to_delete.deposit.clone()],
     }
 }
@@ -82,7 +82,7 @@ pub fn announce(
     nym_address: NymAddress,
     service_type: ServiceType,
 ) -> Result<Response> {
-    ensure_max_services_per_owner(deps.as_ref(), info.sender.clone())?;
+    ensure_max_services_per_announcer(deps.as_ref(), info.sender.clone())?;
     ensure_max_aliases_per_nym_address(deps.as_ref(), nym_address.clone())?;
 
     let deposit_required = state::deposit_required(deps.storage)?;
@@ -94,7 +94,7 @@ pub fn announce(
     let new_service = Service {
         nym_address,
         service_type,
-        owner: info.sender,
+        announcer: info.sender,
         block_height: env.block.height,
         deposit: Coin::new(will_deposit.u128(), denom),
     };
@@ -118,7 +118,7 @@ pub fn delete_id(deps: DepsMut, info: MessageInfo, service_id: ServiceId) -> Res
 }
 
 /// Delete an existing service by nym address. If there are multiple entries for a given nym
-/// address then all entries with the matching owner will be attempted to removed.
+/// address then all entries with the matching announcer will be attempted to removed.
 pub(crate) fn delete_nym_address(
     deps: DepsMut,
     info: MessageInfo,
@@ -128,7 +128,7 @@ pub(crate) fn delete_nym_address(
     let services_to_delete = query::query_nym_address(deps.as_ref(), nym_address)?.services;
 
     for service_to_delete in services_to_delete {
-        if info.sender == service_to_delete.service.owner {
+        if info.sender == service_to_delete.service.announcer {
             state::services::remove(deps.storage, service_to_delete.service_id)?;
             let return_deposit_msg = return_deposit(&service_to_delete.service);
             response = response

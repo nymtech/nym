@@ -7,6 +7,7 @@ use crate::client::response_pusher::ResponsePusher;
 use crate::tester::NodeTesterRequest;
 use crate::topology::WasmNymTopology;
 use js_sys::Promise;
+use node_tester_utils::NodeTester;
 use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::{
@@ -25,10 +26,11 @@ use nym_task::TaskManager;
 use nym_topology::provider_trait::{HardcodedTopologyProvider, TopologyProvider};
 use nym_topology::NymTopology;
 use rand::rngs::OsRng;
+use rand::RngCore;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::{console_error, console_log};
+use wasm_utils::{console_error, console_log, js_error};
 
 pub mod config;
 mod helpers;
@@ -98,7 +100,7 @@ impl NymClientBuilder {
         let full_config = Config {
             id: "ephemeral-id".to_string(),
             nym_api_url: None,
-            disabled_credentials_mode: false,
+            disabled_credentials_mode: true,
             gateway_endpoint: gateway_config,
             debug: DebugConfig {
                 traffic: Traffic {
@@ -253,11 +255,40 @@ impl NymClient {
     }
 
     pub fn try_construct_test_packet_request(&self, mixnode_identity: String) -> Promise {
-        self.client_state.reduced_layer_topology(mixnode_identity)
+        // TODO: improve the source of rng (i.e. don't make it ephemeral...
+        let mut ephemeral_rng = OsRng;
+        let test_id = ephemeral_rng.next_u64();
+        self.client_state
+            .mix_test_request(test_id, mixnode_identity)
     }
 
+    pub fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise {
+        self.client_state.change_hardcoded_topology(topology)
+    }
+
+    pub fn current_network_topology(&self) -> Promise {
+        self.client_state.current_topology()
+    }
+
+    /// Sends a test packet through the current network topology.
+    /// It's the responsibility of the caller to ensure the correct topology has been injected and
+    /// correct onmessage handlers have been setup.
     pub fn try_send_test_packet(&mut self, request: NodeTesterRequest) -> Promise {
-        todo!()
+        // TOOD: use the premade packets instead
+        let serialized = match request.test_msg.as_bytes() {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                return Promise::reject(&js_error!("failed to serialize test message: {err}"))
+            }
+        };
+
+        self.send_regular_message(serialized, self.self_address())
+
+        // let mut rng = OsRng;
+        // let foomp = NodeTester::new(
+        //         &mut rng,
+        //
+        // )
 
         // IDEAL PROCEDURE:
         // 1. check if mixnode exists
@@ -359,9 +390,5 @@ impl NymClient {
 
         let input_msg = InputMessage::new_reply(sender_tag, message, lane);
         self.client_input.send_message(input_msg)
-    }
-
-    pub fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise {
-        self.client_state.change_hardcoded_topology(topology)
     }
 }

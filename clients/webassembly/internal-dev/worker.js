@@ -82,8 +82,8 @@ async function main() {
       1789,
       9000,
       '336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9',
-      '336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9',
-      '1.1.1',
+      'BtYjoWihiuFihGKQypmpSspbhmWDPxzqeTVSd8ciCpWL',
+      '1.10.1',
     );
 
     const mixnodes = new Map();
@@ -121,7 +121,7 @@ async function main() {
     client = local_client;
 
 
-    await client.send_test_packet("FoM5Mx9Pxk1g3zEqkS3APgtBeTtTo3M8k7Yu4bV6kK1R")
+    // await client.send_test_packet("FoM5Mx9Pxk1g3zEqkS3APgtBeTtTo3M8k7Yu4bV6kK1R")
 
     console.log(`Client address is ${selfAddress}`);
     self.postMessage({
@@ -139,9 +139,14 @@ async function main() {
                 case 'SendMessage': {
                     const { message, recipient } = event.data.args;
                     let uint8Array = new TextEncoder().encode(message);
-                    console.log("client: ", client)
-                    console.log(message)
                     await client.send_regular_message(uint8Array, recipient);
+                }
+                case 'TestPacket': {
+                    const { mixnodeIdentity } = event.data.args;
+                    const req = await client.try_construct_test_packet_request(mixnodeIdentity);
+                    await client.change_hardcoded_topology(req.injectable_topology());
+                    await client.try_send_test_packet(req);
+                    // console.error("TODO HERE")
                 }
             }
         }

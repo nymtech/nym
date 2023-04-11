@@ -56,3 +56,11 @@ pub fn simple_js_error<S: AsRef<str>>(message: S) -> JsValue {
     let js_error = js_sys::Error::new(message.as_ref());
     JsValue::from(js_error)
 }
+
+#[macro_export]
+macro_rules! js_error {
+    ($($t:tt)*) => {{
+        let js_error = js_sys::Error::new(&format!($($t)*));
+        wasm_bindgen::JsValue::from(js_error)
+    }}
+}

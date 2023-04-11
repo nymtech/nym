@@ -1,12 +1,13 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::tester::NodeTesterRequest;
+use crate::tester::{NodeTesterRequest, TestMessageExt};
 use crate::topology::WasmNymTopology;
 use js_sys::Promise;
+use node_tester_utils::TestMessage;
 use nym_client_core::client::base_client::{ClientInput, ClientState};
 use nym_client_core::client::inbound_messages::InputMessage;
-use nym_topology::MixLayer;
+use nym_topology::{MixLayer, NymTopology};
 use std::sync::Arc;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
@@ -32,22 +33,39 @@ impl InputSender for Arc<ClientInput> {
 }
 
 pub(crate) trait WasmTopologyExt {
+    /// Changes the current network topology to the provided value.
     fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise;
 
+    /// Returns the current network topology.
+    fn current_topology(&self) -> Promise;
+
+    /// Checks whether the provided node exists in the known network topology and if so, returns its layer.
     fn check_for_mixnode_existence(&self, mixnode_identity: String) -> Promise;
 
-    /// Gets a variant of `this` topology where the target node is the only one on its layer
-    fn reduced_layer_topology(&self, mixnode_identity: String) -> Promise;
+    /// Creates a `NodeTesterRequest` with a variant of `this` topology where the target node is the only one on its layer.
+    fn mix_test_request(&self, test_id: u64, mixnode_identity: String) -> Promise;
 }
 
 impl WasmTopologyExt for Arc<ClientState> {
     fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise {
         let this = Arc::clone(self);
         future_to_promise(async move {
+            let nym_topology: NymTopology = topology.into();
+            console_log!("changing topology to {nym_topology:?}");
             this.topology_accessor
-                .manually_change_topology(topology.into())
+                .manually_change_topology(nym_topology)
                 .await;
             Ok(JsValue::null())
+        })
+    }
+
+    fn current_topology(&self) -> Promise {
+        let this = Arc::clone(self);
+        future_to_promise(async move {
+            match this.topology_accessor.current_topology().await {
+                Some(topology) => Ok(JsValue::from(WasmNymTopology::from(topology))),
+                None => Err(simple_js_error("Network topology is currently unavailable")),
+            }
         })
     }
 
@@ -68,7 +86,7 @@ impl WasmTopologyExt for Arc<ClientState> {
         })
     }
 
-    fn reduced_layer_topology(&self, mixnode_identity: String) -> Promise {
+    fn mix_test_request(&self, test_id: u64, mixnode_identity: String) -> Promise {
         let this = Arc::clone(self);
         future_to_promise(async move {
             let Some(current_topology) = this.topology_accessor.current_topology().await else {
@@ -81,11 +99,13 @@ impl WasmTopologyExt for Arc<ClientState> {
                 )))
             };
 
+            let test_msg = TestMessage::new_mix(mix, TestMessageExt::new(test_id));
+
             let mut updated = current_topology.clone();
             updated.set_mixes_in_layer(mix.layer.into(), vec![mix.to_owned()]);
 
             Ok(JsValue::from(NodeTesterRequest {
-                id: todo!(),
+                test_msg,
                 testable_topology: updated,
             }))
         })

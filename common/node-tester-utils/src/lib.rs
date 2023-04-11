@@ -3,10 +3,8 @@
 
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::chunking::fragment::FragmentIdentifier;
-use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::message::NymMessage;
-use nym_sphinx::params::PacketSize;
+use nym_sphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx::preparer::{FragmentPreparer, PreparedFragment};
 use nym_topology::{gateway, mix, MixLayer, NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng, RngCore};
@@ -25,7 +23,7 @@ pub enum NodeType {
     Gateway,
 }
 
-#[derive(Serialize, Deserialize, Hash)]
+#[derive(Serialize, Deserialize, Hash, Clone, Copy)]
 pub struct Empty;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -41,7 +39,7 @@ pub struct TestMessage<T = Empty> {
 }
 
 impl<T> TestMessage<T> {
-    fn new_mix(node: &mix::Node, ext: T) -> Self {
+    pub fn new_mix(node: &mix::Node, ext: T) -> Self {
         TestMessage {
             encoded_node_identity: node.identity_key.to_base58_string(),
             node_owner: node.owner.clone(),
@@ -50,13 +48,29 @@ impl<T> TestMessage<T> {
         }
     }
 
-    fn new_gateway(node: &gateway::Node, ext: T) -> Self {
+    pub fn new_gateway(node: &gateway::Node, ext: T) -> Self {
         TestMessage {
             encoded_node_identity: node.identity_key.to_base58_string(),
             node_owner: node.owner.clone(),
             node_type: NodeType::Gateway,
             ext,
         }
+    }
+
+    pub fn as_json_string(&self) -> Result<String, NetworkTestingError>
+    where
+        T: Serialize,
+    {
+        serde_json::to_string(self).map_err(Into::into)
+    }
+
+    pub fn as_bytes(&self) -> Result<Vec<u8>, NetworkTestingError>
+    where
+        T: Serialize,
+    {
+        // the test messages are supposed to be rather small so we can use the good old serde_json
+        // (the performance penalty over bincode or custom serialization should be minimal)
+        serde_json::to_vec(self).map_err(Into::into)
     }
 }
 
@@ -82,6 +96,9 @@ pub enum NetworkTestingError {
 
     #[error("The specified gateway (id: {gateway_identity}) doesn't exist")]
     NonExistentGateway { gateway_identity: String },
+
+    #[error("The provided test message is too long to fit in a single sphinx packet")]
+    TestMessageTooLong,
 }
 
 pub struct NodeTester<R> {
@@ -108,10 +125,40 @@ pub struct NodeTester<R> {
     ack_key: Arc<AckKey>,
 }
 
+// TODO: to use it in the following PR
+#[allow(dead_code)]
 impl<R> NodeTester<R>
 where
     R: Rng + CryptoRng,
 {
+    pub fn new(
+        rng: R,
+        base_topology: NymTopology,
+        recipient: Recipient,
+        packet_size: PacketSize,
+        average_packet_delay: Duration,
+        average_ack_delay: Duration,
+        ack_key: Arc<AckKey>,
+    ) -> Self {
+        Self {
+            rng,
+            base_topology,
+            recipient,
+            packet_size,
+            average_packet_delay,
+            average_ack_delay,
+            num_mix_hops: DEFAULT_NUM_MIX_HOPS,
+            ack_key,
+        }
+    }
+
+    /// Allows setting non-default number of expected mix hops in the network.
+    #[allow(dead_code)]
+    pub fn with_mix_hops(mut self, hops: u8) -> Self {
+        self.num_mix_hops = hops;
+        self
+    }
+
     fn testable_mix_topology(&self, node: &mix::Node) -> NymTopology {
         let mut topology = self.base_topology.clone();
         topology.set_mixes_in_layer(node.layer as u8, vec![node.clone()]);
@@ -162,15 +209,13 @@ where
     where
         T: Serialize,
     {
-        // the test messages are supposed to be rather small so we can use the good old serde_json
-        // (the performance penalty over bincode or custom serialization should be minimal)
-        let serialized = serde_json::to_vec(&message)?;
+        let serialized = message.as_bytes()?;
         let message = NymMessage::new_plain(serialized);
 
         let mut fragments = self.pad_and_split_message(message, self.packet_size);
 
         if fragments.len() != 1 {
-            panic!("todo")
+            return Err(NetworkTestingError::TestMessageTooLong);
         }
 
         // SAFETY: the unwrap here is fine as if the vec was somehow empty
@@ -205,5 +250,3 @@ impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
         self.average_ack_delay
     }
 }
-
-// TestMessage: Serialize

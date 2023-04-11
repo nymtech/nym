@@ -32,6 +32,7 @@ wasm-bindgen-futures = "0.4"
 thiserror = "1.0.40"
 
 # internal
+node-tester-utils = { path = "../../common/node-tester-utils" }
 nym-client-core = { path = "../../common/client-core", default-features = false, features = ["wasm"] }
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-coconut-interface = { path = "../../common/coconut-interface" }

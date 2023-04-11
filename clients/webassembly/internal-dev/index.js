@@ -22,12 +22,12 @@ class WebWorkerClient {
             if (ev.data && ev.data.kind) {
                 switch (ev.data.kind) {
                     case 'Ready':
-                        const { selfAddress } = ev.data.args;
+                        const {selfAddress} = ev.data.args;
                         displaySenderAddress(selfAddress);
                         break;
                     case 'ReceiveMessage':
                         console.log("foomp")
-                        const { message } = ev.data.args;
+                        const {message} = ev.data.args;
                         displayReceived(message);
                         break;
                 }
@@ -48,6 +48,20 @@ class WebWorkerClient {
             },
         });
     };
+
+    sendTestPacket = (mixnodeIdentity) => {
+        if (!this.worker) {
+            console.error('Could not send message because worker does not exist');
+            return;
+        }
+
+        this.worker.postMessage({
+            kind: 'TestPacket',
+            args: {
+                mixnodeIdentity,
+            },
+        });
+    }
 }
 
 let client = null;
@@ -56,9 +70,14 @@ async function main() {
     client = new WebWorkerClient();
 
     const sendButton = document.querySelector('#send-button');
-    sendButton.onclick = function() {
+    sendButton.onclick = function () {
         sendMessageTo();
     };
+
+    const magicButton = document.querySelector('#magic-button');
+    magicButton.onclick = function () {
+        sendTestPacket();
+    }
 }
 
 /**
@@ -73,6 +92,13 @@ async function sendMessageTo() {
 
     await client.sendMessage(message, recipient);
     displaySend(message);
+}
+
+async function sendTestPacket() {
+    const mixnodeIdentity = document.getElementById('mixnode_identity').value;
+
+    await client.sendTestPacket(mixnodeIdentity)
+    displaySend(`sending test packet to: ${mixnodeIdentity}...`);
 }
 
 /**

@@ -5,15 +5,15 @@ use nym_client_core::config::GatewayEndpointConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::mix::{Layer, MixnodeConversionError};
-use nym_topology::{gateway, mix, MixLayer, NetworkAddress, NymTopology};
+use nym_topology::{gateway, mix, nym_topology_from_detailed, MixLayer, NymTopology};
 use nym_validator_client::client::MixId;
+use nym_validator_client::client::NymApiClient;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::ops::Deref;
 use thiserror::Error;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
-use wasm_utils::console_log;
+use wasm_utils::{console_log, js_error};
 
 #[wasm_bindgen]
 pub struct PlaceholderErrorWrapper(String);
@@ -79,6 +79,26 @@ impl WasmNymTopology {
         })
     }
 
+    pub async fn current(api_url: String) -> Result<WasmNymTopology, JsValue> {
+        let url = match api_url.parse() {
+            Ok(url) => url,
+            Err(err) => return Err(js_error!("the provided api URL was invalid: {err}")),
+        };
+        let client = NymApiClient::new(url);
+        let mixnodes = match client.get_cached_active_mixnodes().await {
+            Ok(mixnodes) => mixnodes,
+            Err(err) => return Err(js_error!("failed to get network mixnodes: {err}")),
+        };
+
+        let gateways = match client.get_cached_gateways().await {
+            Ok(gateways) => gateways,
+            Err(err) => return Err(js_error!("failed to get network gateways: {err}")),
+        };
+
+        let topology = nym_topology_from_detailed(mixnodes, gateways);
+        Ok(topology.into())
+    }
+
     pub(crate) fn ensure_contains(&self, gateway_config: &GatewayEndpointConfig) -> bool {
         self.inner
             .gateways()
@@ -86,6 +106,8 @@ impl WasmNymTopology {
             .any(|g| g.identity_key.to_base58_string() == gateway_config.gateway_id)
     }
 
+    // I've marked it as deprecated so that I'd be reminded to remove it before making a PR
+    #[deprecated]
     pub fn print(&self) {
         console_log!("{:?}", self)
     }
@@ -94,6 +116,12 @@ impl WasmNymTopology {
 impl From<WasmNymTopology> for NymTopology {
     fn from(value: WasmNymTopology) -> Self {
         value.inner
+    }
+}
+
+impl From<NymTopology> for WasmNymTopology {
+    fn from(value: NymTopology) -> Self {
+        WasmNymTopology { inner: value }
     }
 }
 
@@ -144,6 +172,7 @@ pub struct WasmMixNode {
 #[wasm_bindgen]
 impl WasmMixNode {
     #[wasm_bindgen(constructor)]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         mix_id: MixId,
         owner: String,

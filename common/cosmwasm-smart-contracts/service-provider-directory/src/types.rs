@@ -65,3 +65,19 @@ impl std::fmt::Display for ServiceType {
         write!(f, "{service_type}")
     }
 }
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct ServiceInfo {
+    pub service_id: ServiceId,
+    pub service: Service,
+}
+
+impl ServiceInfo {
+    pub fn new(service_id: ServiceId, service: Service) -> Self {
+        Self {
+            service_id,
+            service,
+        }
+    }
+}

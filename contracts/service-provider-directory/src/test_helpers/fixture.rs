@@ -1,6 +1,6 @@
 use cosmwasm_std::Addr;
 use nym_service_provider_directory_common::{
-    msg::ServiceInfo, NymAddress, Service, ServiceId, ServiceType,
+    NymAddress, Service, ServiceId, ServiceInfo, ServiceType,
 };
 
 use super::helpers::nyms;

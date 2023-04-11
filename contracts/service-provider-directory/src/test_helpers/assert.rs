@@ -1,7 +1,8 @@
 use cosmwasm_std::{from_binary, testing::mock_env, Addr, Coin, Deps};
 use nym_service_provider_directory_common::{
-    msg::{ConfigResponse, PagedServicesListResponse, QueryMsg, ServiceInfo},
-    ServiceId,
+    msg::QueryMsg,
+    response::{ConfigResponse, PagedServicesListResponse},
+    ServiceId, ServiceInfo,
 };
 
 use crate::{constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT, error::ContractError};

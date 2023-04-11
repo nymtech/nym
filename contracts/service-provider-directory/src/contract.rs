@@ -88,8 +88,8 @@ pub fn execute(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
     let response = match msg {
         QueryMsg::ServiceId { service_id } => to_binary(&query::query_id(deps, service_id)?),
-        QueryMsg::Announcer { announcer } => to_binary(&query::query_announcer(deps, announcer)?),
-        QueryMsg::NymAddress { nym_address } => {
+        QueryMsg::ByAnnouncer { announcer } => to_binary(&query::query_announcer(deps, announcer)?),
+        QueryMsg::ByNymAddress { nym_address } => {
             to_binary(&query::query_nym_address(deps, nym_address)?)
         }
         QueryMsg::All { limit, start_after } => {
@@ -116,10 +116,7 @@ mod tests {
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Coin,
     };
-    use nym_service_provider_directory_common::{
-        msg::{ExecuteMsg, ServiceInfo},
-        ServiceId,
-    };
+    use nym_service_provider_directory_common::{msg::ExecuteMsg, ServiceId, ServiceInfo};
 
     const DENOM: &str = "unym";
 

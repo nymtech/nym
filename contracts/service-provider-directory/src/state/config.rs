@@ -1,6 +1,6 @@
 use cosmwasm_std::{Coin, Storage};
 use cw_storage_plus::Item;
-use nym_service_provider_directory_common::msg::ConfigResponse;
+use nym_service_provider_directory_common::response::ConfigResponse;
 use serde::{Deserialize, Serialize};
 
 use crate::{constants::CONFIG_KEY, error::Result};

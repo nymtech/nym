@@ -1,8 +1,8 @@
-use cosmwasm_std::{Addr, Deps};
+use cosmwasm_std::Deps;
 use nym_contracts_common::ContractBuildInformation;
 use nym_service_provider_directory_common::{
-    msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo, ServicesListResponse},
-    NymAddress, ServiceId,
+    response::{ConfigResponse, PagedServicesListResponse, ServicesListResponse},
+    NymAddress, ServiceId, ServiceInfo,
 };
 
 use crate::{
@@ -18,7 +18,8 @@ pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<ServiceInfo> {
     })
 }
 
-pub fn query_announcer(deps: Deps, announcer: Addr) -> Result<ServicesListResponse> {
+pub fn query_announcer(deps: Deps, announcer: String) -> Result<ServicesListResponse> {
+    let announcer = deps.api.addr_validate(&announcer)?;
     let services = state::services::load_announcer(deps.storage, announcer)?;
     Ok(ServicesListResponse::new(services))
 }

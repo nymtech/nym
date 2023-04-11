@@ -2,8 +2,8 @@
 
 use cosmwasm_std::Addr;
 use nym_service_provider_directory_common::{
-    msg::{ConfigResponse, PagedServicesListResponse, ServiceInfo},
-    NymAddress, Service, ServiceType,
+    response::{ConfigResponse, PagedServicesListResponse},
+    NymAddress, Service, ServiceInfo, ServiceType,
 };
 
 use crate::{

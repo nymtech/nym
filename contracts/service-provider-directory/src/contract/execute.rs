@@ -26,7 +26,7 @@ fn ensure_correct_deposit(will_deposit: Uint128, deposit_required: Uint128) -> R
 }
 
 fn ensure_max_services_per_announcer(deps: Deps, announcer: Addr) -> Result<()> {
-    let current_entries = query::query_announcer(deps, announcer.clone())?;
+    let current_entries = query::query_announcer(deps, announcer.to_string())?;
     if current_entries.services.len() < MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER as usize {
         Ok(())
     } else {

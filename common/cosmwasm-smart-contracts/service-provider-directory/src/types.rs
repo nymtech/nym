@@ -13,7 +13,7 @@ pub struct Service {
     /// The service type.
     pub service_type: ServiceType,
     /// Service owner.
-    pub owner: Addr,
+    pub announcer: Addr,
     /// Block height at which the service was added.
     pub block_height: u64,
     /// The deposit used to announce the service.

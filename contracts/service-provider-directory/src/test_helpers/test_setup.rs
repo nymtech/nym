@@ -14,9 +14,15 @@ use crate::test_helpers::helpers::get_app_attribute;
 
 const DENOM: &str = "unym";
 const ADDRESSES: &[&str] = &[
-    "user", "admin", "owner", "owner1", "owner2", "owner3", "owner4",
+    "user",
+    "admin",
+    "announcer",
+    "announcer1",
+    "announcer2",
+    "announcer3",
+    "announcer4",
 ];
-const WEALTHY_ADDRESSES: &[&str] = &["wealthy_owner_1", "wealthy_owner_2"];
+const WEALTHY_ADDRESSES: &[&str] = &["wealthy_announcer_1", "wealthy_announcer_2"];
 
 /// Helper for being able to systematic integration tests
 pub struct TestSetup {
@@ -100,11 +106,11 @@ impl TestSetup {
         self.query(&QueryMsg::All { limit, start_after })
     }
 
-    pub fn announce_net_req(&mut self, address: NymAddress, owner: Addr) -> AppResponse {
+    pub fn announce_net_req(&mut self, address: NymAddress, announcer: Addr) -> AppResponse {
         let resp = self
             .app
             .execute_contract(
-                owner,
+                announcer,
                 self.addr.clone(),
                 &ExecuteMsg::Announce {
                     nym_address: address,
@@ -123,17 +129,17 @@ impl TestSetup {
         resp
     }
 
-    pub fn try_delete(&mut self, service_id: ServiceId, owner: Addr) -> Result<AppResponse> {
+    pub fn try_delete(&mut self, service_id: ServiceId, announcer: Addr) -> Result<AppResponse> {
         self.app.execute_contract(
-            owner,
+            announcer,
             self.addr.clone(),
             &ExecuteMsg::DeleteId { service_id },
             &[],
         )
     }
 
-    pub fn delete(&mut self, service_id: ServiceId, owner: Addr) -> AppResponse {
-        let delete_resp = self.try_delete(service_id, owner).unwrap();
+    pub fn delete(&mut self, service_id: ServiceId, announcer: Addr) -> AppResponse {
+        let delete_resp = self.try_delete(service_id, announcer).unwrap();
         assert_eq!(
             get_app_attribute(&delete_resp, "wasm-delete_id", "action"),
             "delete_id"
@@ -141,10 +147,10 @@ impl TestSetup {
         delete_resp
     }
 
-    pub fn delete_nym_address(&mut self, nym_address: NymAddress, owner: Addr) -> AppResponse {
+    pub fn delete_nym_address(&mut self, nym_address: NymAddress, announcer: Addr) -> AppResponse {
         self.app
             .execute_contract(
-                owner,
+                announcer,
                 self.addr.clone(),
                 &ExecuteMsg::DeleteNymAddress { nym_address },
                 &[],

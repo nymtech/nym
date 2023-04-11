@@ -4,21 +4,21 @@ use nym_service_provider_directory_common::{NymAddress, Service, ServiceId};
 
 use crate::{
     constants::{
-        MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS, MAX_NUMBER_OF_PROVIDERS_PER_OWNER,
-        SERVICES_NYM_ADDRESS_IDX_NAMESPACE, SERVICES_OWNER_IDX_NAMESPACE, SERVICES_PK_NAMESPACE,
-        SERVICE_DEFAULT_RETRIEVAL_LIMIT, SERVICE_MAX_RETRIEVAL_LIMIT,
+        MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS, MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER,
+        SERVICES_ANNOUNCER_IDX_NAMESPACE, SERVICES_NYM_ADDRESS_IDX_NAMESPACE,
+        SERVICES_PK_NAMESPACE, SERVICE_DEFAULT_RETRIEVAL_LIMIT, SERVICE_MAX_RETRIEVAL_LIMIT,
     },
     error::{ContractError, Result},
 };
 
 struct ServiceIndex<'a> {
     pub(crate) nym_address: MultiIndex<'a, String, Service, ServiceId>,
-    pub(crate) owner: MultiIndex<'a, Addr, Service, ServiceId>,
+    pub(crate) announcer: MultiIndex<'a, Addr, Service, ServiceId>,
 }
 
 impl<'a> IndexList<Service> for ServiceIndex<'a> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Service>> + '_> {
-        let v: Vec<&dyn Index<Service>> = vec![&self.nym_address, &self.owner];
+        let v: Vec<&dyn Index<Service>> = vec![&self.nym_address, &self.announcer];
         Box::new(v.into_iter())
     }
 }
@@ -30,10 +30,10 @@ fn services<'a>() -> IndexedMap<'a, ServiceId, Service, ServiceIndex<'a>> {
             SERVICES_PK_NAMESPACE,
             SERVICES_NYM_ADDRESS_IDX_NAMESPACE,
         ),
-        owner: MultiIndex::new(
-            |d| d.owner.clone(),
+        announcer: MultiIndex::new(
+            |d| d.announcer.clone(),
             SERVICES_PK_NAMESPACE,
-            SERVICES_OWNER_IDX_NAMESPACE,
+            SERVICES_ANNOUNCER_IDX_NAMESPACE,
         ),
     };
     IndexedMap::new(SERVICES_PK_NAMESPACE, indexes)
@@ -60,13 +60,13 @@ pub fn load_id(store: &dyn Storage, service_id: ServiceId) -> Result<Service> {
     })
 }
 
-pub fn load_owner(store: &dyn Storage, owner: Addr) -> Result<Vec<(ServiceId, Service)>> {
+pub fn load_announcer(store: &dyn Storage, announcer: Addr) -> Result<Vec<(ServiceId, Service)>> {
     let services = services()
         .idx
-        .owner
-        .prefix(owner)
+        .announcer
+        .prefix(announcer)
         .range(store, None, None, Order::Ascending)
-        .take(MAX_NUMBER_OF_PROVIDERS_PER_OWNER as usize)
+        .take(MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER as usize)
         .collect::<StdResult<Vec<_>>>()?;
     Ok(services)
 }
@@ -173,13 +173,13 @@ mod tests {
     }
 
     #[test]
-    fn load_by_owner_works() {
+    fn load_by_announcer_works() {
         let mut deps = instantiate_test_contract();
         save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
         assert_eq!(
-            load_owner(&deps.storage, Addr::unchecked("steve")).unwrap(),
+            load_announcer(&deps.storage, Addr::unchecked("steve")).unwrap(),
             vec![
                 (1, service_fixture_with_address("a")),
                 (2, service_fixture_with_address("b")),
@@ -189,13 +189,13 @@ mod tests {
     }
 
     #[test]
-    fn load_by_wrong_owner_returns_empty() {
+    fn load_by_wrong_announcer_returns_empty() {
         let mut deps = instantiate_test_contract();
         save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
         assert_eq!(
-            load_owner(&deps.storage, Addr::unchecked("timmy")).unwrap(),
+            load_announcer(&deps.storage, Addr::unchecked("timmy")).unwrap(),
             vec![]
         );
     }

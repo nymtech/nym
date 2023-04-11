@@ -18,8 +18,8 @@ pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<ServiceInfo> {
     })
 }
 
-pub fn query_owner(deps: Deps, owner: Addr) -> Result<ServicesListResponse> {
-    let services = state::services::load_owner(deps.storage, owner)?;
+pub fn query_announcer(deps: Deps, announcer: Addr) -> Result<ServicesListResponse> {
+    let services = state::services::load_announcer(deps.storage, announcer)?;
     Ok(ServicesListResponse::new(services))
 }
 

@@ -37,6 +37,7 @@ impl RewardedSetNodeStatus {
 pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
     pub rewarding_details: MixNodeRewarding,
+    #[serde(default)]
     pub pending_changes: PendingMixNodeChanges,
 }
 

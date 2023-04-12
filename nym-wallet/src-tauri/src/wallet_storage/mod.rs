@@ -163,6 +163,17 @@ pub(crate) fn update_encrypted_logins(
     create_dir_all(&store_dir)?;
     let filepath = store_dir.join(WALLET_INFO_FILENAME);
 
+    update_encrypted_logins_at_file(&filepath, &current_password, &new_password)
+}
+
+fn update_encrypted_logins_at_file(
+    filepath: &Path,
+    current_password: &UserPassword,
+    new_password: &UserPassword,
+) -> Result<(), BackendError> {
+    if current_password == new_password {
+        return Ok(());
+    }
     let mut stored_wallet = match load_existing_wallet_at_file(&filepath) {
         Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
         result => result?,
@@ -662,6 +673,108 @@ mod tests {
     }
 
     #[test]
+    fn store_a_single_login_then_update_pwd_and_load() {
+        let store_dir = tempdir().unwrap();
+        let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+        let account1 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let new_password = UserPassword::new("new_password".to_string());
+        let id1 = LoginId::new("first".to_string());
+
+        store_login_at_file(
+            &wallet_file,
+            account1.clone(),
+            hd_path.clone(),
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
+
+        update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
+
+        let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &new_password).unwrap();
+        let acc = loaded_login.as_mnemonic_account().unwrap();
+        assert_eq!(&account1, acc.mnemonic());
+        assert_eq!(&hd_path, acc.hd_path());
+    }
+
+    #[test]
+    fn store_a_single_login_then_update_pwd_with_identical_pwd_is_noop_but_okay() {
+        let store_dir = tempdir().unwrap();
+        let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+        let account1 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let id1 = LoginId::new("first".to_string());
+
+        store_login_at_file(
+            &wallet_file,
+            account1.clone(),
+            hd_path.clone(),
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
+
+        update_encrypted_logins_at_file(&wallet_file, &password, &password).unwrap();
+
+        let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
+        let acc = loaded_login.as_mnemonic_account().unwrap();
+        assert_eq!(&account1, acc.mnemonic());
+        assert_eq!(&hd_path, acc.hd_path());
+    }
+
+    #[test]
+    #[should_panic]
+    fn store_a_single_login_then_update_pwd_with_wrong_current_pwd_fails() {
+        let store_dir = tempdir().unwrap();
+        let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+        let account1 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let new_password = UserPassword::new("new_password".to_string());
+        let wrong_password = UserPassword::new("wrong_password".to_string());
+        let id1 = LoginId::new("first".to_string());
+
+        store_login_at_file(
+            &wallet_file,
+            account1.clone(),
+            hd_path.clone(),
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
+
+        update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn store_a_single_login_then_update_pwd_and_load_with_wrong_pwd_fails() {
+        let store_dir = tempdir().unwrap();
+        let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+        let account1 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let new_password = UserPassword::new("new_password".to_string());
+        let id1 = LoginId::new("first".to_string());
+
+        store_login_at_file(
+            &wallet_file,
+            account1.clone(),
+            hd_path.clone(),
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
+
+        update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
+
+        load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
+    }
+
+    #[test]
     fn store_and_load_a_single_login_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
@@ -688,6 +801,87 @@ mod tests {
         assert_eq!(account.id().as_ref(), DEFAULT_FIRST_ACCOUNT_NAME);
         assert_eq!(account.mnemonic(), &acc1);
         assert_eq!(account.hd_path(), &hd_path);
+    }
+
+    #[test]
+    fn store_a_single_login_with_multi_then_update_pwd_and_load() {
+        let store_dir = tempdir().unwrap();
+        let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+        let acc1 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let new_password = UserPassword::new("new_password".to_string());
+        let id1 = LoginId::new("first".to_string());
+
+        store_login_with_multiple_accounts_at_file(
+            &wallet_file,
+            acc1.clone(),
+            hd_path.clone(),
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
+
+        update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
+
+        let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &new_password).unwrap();
+        let accounts = loaded_login.as_multiple_accounts().unwrap();
+        assert_eq!(accounts.len(), 1);
+        let account = accounts
+            .get_account(&DEFAULT_FIRST_ACCOUNT_NAME.into())
+            .unwrap();
+        assert_eq!(account.id().as_ref(), DEFAULT_FIRST_ACCOUNT_NAME);
+        assert_eq!(account.mnemonic(), &acc1);
+        assert_eq!(account.hd_path(), &hd_path);
+    }
+
+    #[test]
+    #[should_panic]
+    fn store_a_single_login_with_multi_then_update_pwd_with_wrong_current_pwd_fails() {
+        let store_dir = tempdir().unwrap();
+        let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+        let acc1 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let new_password = UserPassword::new("new_password".to_string());
+        let wrong_password = UserPassword::new("wrong_password".to_string());
+        let id1 = LoginId::new("first".to_string());
+
+        store_login_with_multiple_accounts_at_file(
+            &wallet_file,
+            acc1.clone(),
+            hd_path.clone(),
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
+
+        update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn store_a_single_login_with_multi_then_update_pwd_and_load_with_wrong_pwd_fails() {
+        let store_dir = tempdir().unwrap();
+        let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+        let acc1 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let new_password = UserPassword::new("new_password".to_string());
+        let id1 = LoginId::new("first".to_string());
+
+        store_login_with_multiple_accounts_at_file(
+            &wallet_file,
+            acc1.clone(),
+            hd_path.clone(),
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
+
+        update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
+
+        load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
     }
 
     #[test]
@@ -836,6 +1030,58 @@ mod tests {
         assert_eq!(&cosmos_hd_path, acc1.hd_path());
 
         let loaded_login = load_existing_login_at_file(&wallet, &id2, &password).unwrap();
+        let acc2 = loaded_login.as_mnemonic_account().unwrap();
+        assert_eq!(&account2, acc2.mnemonic());
+        assert_eq!(&different_hd_path, acc2.hd_path());
+    }
+
+    #[test]
+    fn store_two_mnemonic_accounts_using_two_logins_then_update_pwd_and_load() {
+        let store_dir = tempdir().unwrap();
+        let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
+        let account1 = Mnemonic::generate(24).unwrap();
+        let account2 = Mnemonic::generate(24).unwrap();
+        let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let different_hd_path: DerivationPath = "m".parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let new_password = UserPassword::new("new_password".to_string());
+        let id1 = LoginId::new("first".to_string());
+        let id2 = LoginId::new("second".to_string());
+
+        // Store the first account
+        store_login_at_file(
+            &wallet,
+            account1.clone(),
+            cosmos_hd_path.clone(),
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
+
+        let login = load_existing_login_at_file(&wallet, &id1, &password).unwrap();
+        let acc = login.as_mnemonic_account().unwrap();
+        assert_eq!(&account1, acc.mnemonic());
+        assert_eq!(&cosmos_hd_path, acc.hd_path());
+
+        // Add an extra account
+        store_login_at_file(
+            &wallet,
+            account2.clone(),
+            different_hd_path.clone(),
+            id2.clone(),
+            &password,
+        )
+        .unwrap();
+
+        update_encrypted_logins_at_file(&wallet, &password, &new_password).unwrap();
+
+        // first account should be unchanged
+        let loaded_login = load_existing_login_at_file(&wallet, &id1, &new_password).unwrap();
+        let acc1 = loaded_login.as_mnemonic_account().unwrap();
+        assert_eq!(&account1, acc1.mnemonic());
+        assert_eq!(&cosmos_hd_path, acc1.hd_path());
+
+        let loaded_login = load_existing_login_at_file(&wallet, &id2, &new_password).unwrap();
         let acc2 = loaded_login.as_mnemonic_account().unwrap();
         assert_eq!(&account2, acc2.mnemonic());
         assert_eq!(&different_hd_path, acc2.hd_path());

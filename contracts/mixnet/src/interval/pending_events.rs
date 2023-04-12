@@ -250,6 +250,13 @@ pub(crate) fn increase_pledge(
                     .into(),
         },
     )?;
+    if mix_details.pending_changes.pledge_change.is_none() {
+        return Err(MixnetContractError::InconsistentState {
+            comment:
+                "attempted to increase mixnode pledge while there are no associated pending changes"
+                    .into(),
+        });
+    }
 
     let mut updated_bond = mix_details.bond_information.clone();
     let mut updated_rewarding = mix_details.rewarding_details;
@@ -257,7 +264,10 @@ pub(crate) fn increase_pledge(
     updated_bond.original_pledge.amount += increase.amount;
     updated_rewarding.increase_operator_uint128(increase.amount)?;
 
-    // update both, bond information and rewarding details
+    let mut pending_changes = mix_details.pending_changes;
+    pending_changes.pledge_change = None;
+
+    // update all: bond information, rewarding details and pending pledge changes
     mixnodes_storage::mixnode_bonds().replace(
         deps.storage,
         mix_id,
@@ -265,6 +275,7 @@ pub(crate) fn increase_pledge(
         Some(&mix_details.bond_information),
     )?;
     rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &updated_rewarding)?;
+    mixnodes_storage::PENDING_MIXNODE_CHANGES.save(deps.storage, mix_id, &pending_changes)?;
 
     Ok(Response::new().add_event(new_pledge_increase_event(created_at, mix_id, &increase)))
 }
@@ -284,9 +295,19 @@ pub(crate) fn decrease_pledge(
                     .into(),
         },
     )?;
+    if mix_details.pending_changes.pledge_change.is_none() {
+        return Err(MixnetContractError::InconsistentState {
+            comment:
+                "attempted to decrease mixnode pledge while there are no associated pending changes"
+                    .into(),
+        });
+    }
 
     let mut updated_bond = mix_details.bond_information.clone();
     let mut updated_rewarding = mix_details.rewarding_details;
+
+    let mut pending_changes = mix_details.pending_changes;
+    pending_changes.pledge_change = None;
 
     // SAFETY: the subtraction here can't overflow as before the event was pushed into the queue,
     // we checked that the new value will be higher than minimum pledge (which is also strictly positive)
@@ -299,7 +320,7 @@ pub(crate) fn decrease_pledge(
     // send the removed tokens back to the operator
     let return_tokens = send_to_proxy_or_owner(proxy, owner, vec![decrease_by.clone()]);
 
-    // update both, bond information and rewarding details
+    // update all: bond information, rewarding details and pending pledge changes
     mixnodes_storage::mixnode_bonds().replace(
         deps.storage,
         mix_id,
@@ -307,6 +328,7 @@ pub(crate) fn decrease_pledge(
         Some(&mix_details.bond_information),
     )?;
     rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &updated_rewarding)?;
+    mixnodes_storage::PENDING_MIXNODE_CHANGES.save(deps.storage, mix_id, &pending_changes)?;
 
     let response = Response::new()
         .add_message(return_tokens)

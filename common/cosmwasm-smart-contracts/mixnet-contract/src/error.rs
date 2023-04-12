@@ -8,6 +8,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum MixnetContractError {
+    #[error("could not perform contract migration: {comment}")]
+    FailedMigration { comment: String },
+
     #[error("{source}")]
     StdErr {
         #[from]

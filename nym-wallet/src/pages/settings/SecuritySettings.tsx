@@ -1,18 +1,12 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Grid, Stack, Typography, Alert, AlertTitle } from '@mui/material';
-import { AppContext } from '../../context';
+import React, { useEffect, useState } from 'react';
+import { Grid, Stack, Typography } from '@mui/material';
 import { isPasswordCreated } from '../../requests';
 import { PasswordCreateForm, PasswordUpdateForm } from '../../components/Settings';
 import { ConfirmationModal } from '../../components';
 
 const SecuritySettings = () => {
   const [passwordExists, setPasswordExists] = useState(false);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [updateModalOpen, setUpdateModalOpen] = useState(false);
-
-  const navigate = useNavigate();
-  const { logOut } = useContext(AppContext);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const checkForPassword = async () => {
     const hasPassword = await isPasswordCreated();
@@ -21,7 +15,7 @@ const SecuritySettings = () => {
 
   const onPasswordCreated = () => {
     setPasswordExists(true);
-    setCreateModalOpen(true);
+    setModalOpen(true);
   };
 
   useEffect(() => {
@@ -31,38 +25,12 @@ const SecuritySettings = () => {
   return (
     <>
       <ConfirmationModal
-        title={
-          <Alert severity="success" sx={{ p: 2 }}>
-            <AlertTitle> Password successfully created</AlertTitle>
-          </Alert>
-        }
-        onClose={() => setCreateModalOpen(false)}
-        onConfirm={async () => {
-          await logOut();
-          navigate('/');
-        }}
+        title={`Password successfully ${passwordExists ? 'changed' : 'created'}`}
+        onClose={() => setModalOpen(false)}
+        onConfirm={() => setModalOpen(false)}
         maxWidth="xs"
-        confirmButton="Log out"
-        open={createModalOpen}
-      >
-        <Stack alignItems="center" spacing={2}>
-          <Typography>To use all the features of the wallet now, log in to it with your new password</Typography>
-        </Stack>
-      </ConfirmationModal>
-      <ConfirmationModal
-        title={
-          <Alert severity="success" sx={{ p: 2 }}>
-            <AlertTitle> Password successfully updated</AlertTitle>
-          </Alert>
-        }
-        onClose={() => setUpdateModalOpen(false)}
-        onConfirm={async () => {
-          await logOut();
-          navigate('/');
-        }}
-        maxWidth="xs"
-        confirmButton="Log out"
-        open={updateModalOpen}
+        confirmButton="OK"
+        open={modalOpen}
       >
         <Stack alignItems="center" spacing={2}>
           <Typography>To use all the features of the wallet now, log in to it with your new password</Typography>
@@ -92,7 +60,7 @@ const SecuritySettings = () => {
         </Grid>
         <Grid item sm={12} md={6} lg={4}>
           {!passwordExists && <PasswordCreateForm onPwdSaved={() => onPasswordCreated()} />}
-          {passwordExists && <PasswordUpdateForm onPwdSaved={() => setUpdateModalOpen(true)} />}
+          {passwordExists && <PasswordUpdateForm onPwdSaved={() => setModalOpen(true)} />}
         </Grid>
       </Grid>
     </>

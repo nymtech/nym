@@ -6,6 +6,7 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::{wasm_execute, Addr, BankMsg, Coin, CosmosMsg, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::mixnode::PendingMixNodeChanges;
 use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixId, MixNodeBond};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
@@ -373,6 +374,15 @@ pub(crate) fn ensure_bonded(bond: &MixNodeBond) -> Result<(), MixnetContractErro
         return Err(MixnetContractError::MixnodeIsUnbonding {
             mix_id: bond.mix_id,
         });
+    }
+    Ok(())
+}
+
+pub(crate) fn ensure_no_pending_pledge_changes(
+    pending_changes: &PendingMixNodeChanges,
+) -> Result<(), MixnetContractError> {
+    if let Some(pending_event_id) = pending_changes.pledge_change {
+        return Err(MixnetContractError::PendingPledgeChange { pending_event_id });
     }
     Ok(())
 }

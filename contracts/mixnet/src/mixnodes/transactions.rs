@@ -13,7 +13,8 @@ use crate::mixnodes::signature_helpers::verify_mixnode_bonding_signature;
 use crate::signing::storage as signing_storage;
 use crate::support::helpers::{
     ensure_bonded, ensure_epoch_in_progress_state, ensure_is_authorized, ensure_no_existing_bond,
-    ensure_proxy_match, ensure_sent_by_vesting_contract, validate_pledge,
+    ensure_no_pending_pledge_changes, ensure_proxy_match, ensure_sent_by_vesting_contract,
+    validate_pledge,
 };
 use cosmwasm_std::{coin, Addr, Coin, DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
@@ -195,6 +196,7 @@ pub fn _try_increase_pledge(
 ) -> Result<Response, MixnetContractError> {
     let mix_details = get_mixnode_details_by_owner(deps.storage, owner.clone())?
         .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?;
+    let mut pending_changes = mix_details.pending_changes;
     let mix_id = mix_details.mix_id();
 
     // increasing pledge is only allowed if the epoch is currently not in the process of being advanced
@@ -202,6 +204,7 @@ pub fn _try_increase_pledge(
 
     ensure_proxy_match(&proxy, &mix_details.bond_information.proxy)?;
     ensure_bonded(&mix_details.bond_information)?;
+    ensure_no_pending_pledge_changes(&pending_changes)?;
 
     let rewarding_denom = rewarding_denom(deps.storage)?;
     let pledge_increase = validate_pledge(increase, coin(1, rewarding_denom))?;
@@ -213,7 +216,9 @@ pub fn _try_increase_pledge(
         mix_id,
         amount: pledge_increase,
     };
-    interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
+    let epoch_event_id = interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
+    pending_changes.pledge_change = Some(epoch_event_id);
+    storage::PENDING_MIXNODE_CHANGES.save(deps.storage, mix_id, &pending_changes)?;
 
     Ok(Response::new().add_event(cosmos_event))
 }
@@ -250,6 +255,7 @@ pub fn _try_decrease_pledge(
 ) -> Result<Response, MixnetContractError> {
     let mix_details = get_mixnode_details_by_owner(deps.storage, owner.clone())?
         .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?;
+    let mut pending_changes = mix_details.pending_changes;
     let mix_id = mix_details.mix_id();
 
     // decreasing pledge is only allowed if the epoch is currently not in the process of being advanced
@@ -257,6 +263,7 @@ pub fn _try_decrease_pledge(
 
     ensure_proxy_match(&proxy, &mix_details.bond_information.proxy)?;
     ensure_bonded(&mix_details.bond_information)?;
+    ensure_no_pending_pledge_changes(&pending_changes)?;
 
     let minimum_pledge = mixnet_params_storage::minimum_mixnode_pledge(deps.storage)?;
 
@@ -295,7 +302,9 @@ pub fn _try_decrease_pledge(
         mix_id,
         decrease_by,
     };
-    interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
+    let epoch_event_id = interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
+    pending_changes.pledge_change = Some(epoch_event_id);
+    storage::PENDING_MIXNODE_CHANGES.save(deps.storage, mix_id, &pending_changes)?;
 
     Ok(Response::new().add_event(cosmos_event))
 }
@@ -328,6 +337,9 @@ pub(crate) fn _try_remove_mixnode(
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond = must_get_mixnode_bond_by_owner(deps.storage, &owner)?;
+    let pending_changes = storage::PENDING_MIXNODE_CHANGES
+        .may_load(deps.storage, existing_bond.mix_id)?
+        .unwrap_or_default();
 
     // unbonding is only allowed if the epoch is currently not in the process of being advanced
     ensure_epoch_in_progress_state(deps.storage)?;
@@ -335,6 +347,9 @@ pub(crate) fn _try_remove_mixnode(
     // see if the proxy matches
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
     ensure_bonded(&existing_bond)?;
+
+    // if there are any pending requests to change the pledge, wait for them to resolve before allowing the unbonding
+    ensure_no_pending_pledge_changes(&pending_changes)?;
 
     // set `is_unbonding` field
     let mut updated_bond = existing_bond.clone();

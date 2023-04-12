@@ -37,17 +37,19 @@ impl RewardedSetNodeStatus {
 pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
     pub rewarding_details: MixNodeRewarding,
-
-    #[serde(default)]
     pub pending_changes: PendingMixNodeChanges,
 }
 
 impl MixNodeDetails {
-    pub fn new(bond_information: MixNodeBond, rewarding_details: MixNodeRewarding) -> Self {
+    pub fn new(
+        bond_information: MixNodeBond,
+        rewarding_details: MixNodeRewarding,
+        pending_changes: PendingMixNodeChanges,
+    ) -> Self {
         MixNodeDetails {
             bond_information,
             rewarding_details,
-            pending_changes: PendingMixNodeChanges::new_empty(),
+            pending_changes,
         }
     }
 
@@ -76,6 +78,10 @@ impl MixNodeDetails {
 
     pub fn total_stake(&self) -> Decimal {
         self.rewarding_details.node_bond()
+    }
+
+    pub fn pending_pledge_change(&self) -> Option<EpochEventId> {
+        self.pending_changes.pledge_change
     }
 }
 

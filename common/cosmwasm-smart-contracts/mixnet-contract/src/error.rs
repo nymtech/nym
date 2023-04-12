@@ -1,7 +1,7 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{EpochState, IdentityKey, MixId};
+use crate::{EpochEventId, EpochState, IdentityKey, MixId};
 use contracts_common::signing::verifier::ApiVerifierError;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use thiserror::Error;
@@ -33,6 +33,9 @@ pub enum MixnetContractError {
         minimum: Uint128,
         denom: String,
     },
+
+    #[error("A pledge change is already pending in this epoch. The event id: {pending_event_id}")]
+    PendingPledgeChange { pending_event_id: EpochEventId },
 
     #[error("Not enough funds sent for node delegation. (received {received}, minimum {minimum})")]
     InsufficientDelegation { received: Coin, minimum: Coin },

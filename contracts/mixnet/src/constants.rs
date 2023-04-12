@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::Uint128;
@@ -61,6 +61,7 @@ pub const CONTRACT_STATE_KEY: &str = "state";
 
 pub const LAYER_DISTRIBUTION_KEY: &str = "layers";
 pub const NODE_ID_COUNTER_KEY: &str = "nic";
+pub const PENDING_MIXNODE_CHANGES_NAMESPACE: &str = "pmc";
 pub const MIXNODES_PK_NAMESPACE: &str = "mnn";
 pub const MIXNODES_OWNER_IDX_NAMESPACE: &str = "mno";
 pub const MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "mni";

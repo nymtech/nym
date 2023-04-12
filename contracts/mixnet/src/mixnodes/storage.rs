@@ -1,23 +1,27 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{
     LAYER_DISTRIBUTION_KEY, MIXNODES_IDENTITY_IDX_NAMESPACE, MIXNODES_OWNER_IDX_NAMESPACE,
     MIXNODES_PK_NAMESPACE, MIXNODES_SPHINX_IDX_NAMESPACE, NODE_ID_COUNTER_KEY,
-    UNBONDED_MIXNODES_IDENTITY_IDX_NAMESPACE, UNBONDED_MIXNODES_OWNER_IDX_NAMESPACE,
-    UNBONDED_MIXNODES_PK_NAMESPACE,
+    PENDING_MIXNODE_CHANGES_NAMESPACE, UNBONDED_MIXNODES_IDENTITY_IDX_NAMESPACE,
+    UNBONDED_MIXNODES_OWNER_IDX_NAMESPACE, UNBONDED_MIXNODES_PK_NAMESPACE,
 };
 use cosmwasm_std::{StdResult, Storage};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex, UniqueIndex};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex, UniqueIndex};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::mixnode::UnbondedMixnode;
+use mixnet_contract_common::mixnode::{PendingMixNodeChanges, UnbondedMixnode};
 use mixnet_contract_common::SphinxKey;
 use mixnet_contract_common::{Addr, IdentityKey, Layer, LayerDistribution, MixId, MixNodeBond};
+
+pub const LAYERS: Item<'_, LayerDistribution> = Item::new(LAYER_DISTRIBUTION_KEY);
+pub const MIXNODE_ID_COUNTER: Item<MixId> = Item::new(NODE_ID_COUNTER_KEY);
+pub const PENDING_MIXNODE_CHANGES: Map<MixId, PendingMixNodeChanges> =
+    Map::new(PENDING_MIXNODE_CHANGES_NAMESPACE);
 
 // keeps track of `node_id -> IdentityKey, Owner, unbonding_height` so we'd known a bit more about past mixnodes
 // if we ever decide it's too bloaty, we can deprecate it and start removing all data in
 // subsequent migrations
-
 pub(crate) struct UnbondedMixnodeIndex<'a> {
     pub(crate) owner: MultiIndex<'a, Addr, UnbondedMixnode, MixId>,
 
@@ -47,9 +51,6 @@ pub(crate) fn unbonded_mixnodes<'a>(
     };
     IndexedMap::new(UNBONDED_MIXNODES_PK_NAMESPACE, indexes)
 }
-
-pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new(LAYER_DISTRIBUTION_KEY);
-pub const MIXNODE_ID_COUNTER: Item<MixId> = Item::new(NODE_ID_COUNTER_KEY);
 
 pub(crate) struct MixnodeBondIndex<'a> {
     pub(crate) owner: UniqueIndex<'a, Addr, MixNodeBond>,

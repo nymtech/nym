@@ -139,7 +139,7 @@ fn store_login_at_file(
 }
 
 /// Store the login with multiple accounts support
-pub(crate) fn store_encrypted_login(
+pub(crate) fn store_login_with_multiple_accounts(
     mnemonic: Mnemonic,
     hd_path: DerivationPath,
     id: LoginId,
@@ -158,10 +158,15 @@ pub(crate) fn update_encrypted_logins(
     current_password: &UserPassword,
     new_password: &UserPassword,
 ) -> Result<(), BackendError> {
-    // make sure the entire directory structure exists
     let store_dir = get_storage_directory()?;
-    create_dir_all(&store_dir)?;
     let filepath = store_dir.join(WALLET_INFO_FILENAME);
+    match filepath
+        .try_exists()
+        .map_err(|_| BackendError::WalletFileUnableToRead)?
+    {
+        false => return Err(BackendError::WalletFileUnableToRead),
+        _ => {}
+    }
 
     update_encrypted_logins_at_file(&filepath, &current_password, &new_password)
 }
@@ -507,6 +512,37 @@ mod tests {
     }
 
     #[test]
+    fn store_single_login_with_multi_then_update_pwd_and_load() {
+        let store_dir = tempdir().unwrap();
+        let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+        let account1 = Mnemonic::generate(24).unwrap();
+        let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let new_password = UserPassword::new("new_password".to_string());
+        let id1 = LoginId::new("first".to_string());
+
+        store_login_with_multiple_accounts_at_file(
+            &wallet_file,
+            account1,
+            cosmos_hd_path,
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
+
+        update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
+
+        let stored_wallet = load_existing_wallet_at_file(&wallet_file).unwrap();
+        assert_eq!(stored_wallet.len(), 1);
+
+        let login = stored_wallet.get_encrypted_login_by_index(0).unwrap();
+        assert_eq!(login.id, id1);
+
+        // some actual ciphertext was saved
+        assert!(!login.account.ciphertext().is_empty());
+    }
+
+    #[test]
     fn store_twice_for_the_same_id_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
@@ -726,7 +762,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn store_a_single_login_then_update_pwd_with_wrong_current_pwd_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
@@ -746,11 +781,15 @@ mod tests {
         )
         .unwrap();
 
-        update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password).unwrap();
+        match update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password)
+            .unwrap_err()
+        {
+            BackendError::DecryptionError => assert!(true),
+            _ => panic!("BackendError::DecryptionError expected"),
+        };
     }
 
     #[test]
-    #[should_panic]
     fn store_a_single_login_then_update_pwd_and_load_with_wrong_pwd_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
@@ -771,7 +810,10 @@ mod tests {
 
         update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
 
-        load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
+        match load_existing_login_at_file(&wallet_file, &id1, &password).unwrap_err() {
+            BackendError::DecryptionError => assert!(true),
+            _ => panic!("BackendError::DecryptionError expected"),
+        };
     }
 
     #[test]
@@ -836,7 +878,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn store_a_single_login_with_multi_then_update_pwd_with_wrong_current_pwd_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
@@ -856,11 +897,15 @@ mod tests {
         )
         .unwrap();
 
-        update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password).unwrap();
+        match update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password)
+            .unwrap_err()
+        {
+            BackendError::DecryptionError => assert!(true),
+            _ => panic!("BackendError::DecryptionError expected"),
+        };
     }
 
     #[test]
-    #[should_panic]
     fn store_a_single_login_with_multi_then_update_pwd_and_load_with_wrong_pwd_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
@@ -881,7 +926,10 @@ mod tests {
 
         update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
 
-        load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
+        match load_existing_login_at_file(&wallet_file, &id1, &password).unwrap_err() {
+            BackendError::DecryptionError => assert!(true),
+            _ => panic!("BackendError::DecryptionError expected"),
+        };
     }
 
     #[test]

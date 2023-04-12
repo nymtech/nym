@@ -94,6 +94,8 @@ pub enum BackendError {
     WalletFileAlreadyExists,
     #[error("The wallet file is not found")]
     WalletFileNotFound,
+    #[error("The wallet file cannot be read")]
+    WalletFileUnableToRead,
     #[error("The wallet file has a malformed name")]
     WalletFileMalformedFilename,
     #[error("Unable to archive wallet file")]

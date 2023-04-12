@@ -3,7 +3,7 @@ require('dotenv').config();
 const { sendMatrixMessage } = require('./send_message_to_matrix');
 
 let context = {
-  kinds: ['nym-wallet', 'ts-packages', 'network-explorer', 'nightly', 'nym-connect','security'],
+  kinds: ['nym-wallet', 'ts-packages', 'network-explorer', 'nightly', 'nym-connect','security','ci-docs','cd-docs'],
 };
 
 /**

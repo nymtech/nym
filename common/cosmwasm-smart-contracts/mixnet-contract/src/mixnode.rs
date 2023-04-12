@@ -10,7 +10,7 @@ use crate::helpers::IntoBaseDecimal;
 use crate::reward_params::{NodeRewardParams, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::RewardDistribution;
-use crate::{Delegation, EpochId, IdentityKey, MixId, Percent, SphinxKey};
+use crate::{Delegation, EpochEventId, EpochId, IdentityKey, MixId, Percent, SphinxKey};
 use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -37,6 +37,9 @@ impl RewardedSetNodeStatus {
 pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
     pub rewarding_details: MixNodeRewarding,
+
+    #[serde(default)]
+    pub pending_changes: PendingMixNodeChanges,
 }
 
 impl MixNodeDetails {
@@ -44,6 +47,7 @@ impl MixNodeDetails {
         MixNodeDetails {
             bond_information,
             rewarding_details,
+            pending_changes: PendingMixNodeChanges::new_empty(),
         }
     }
 
@@ -613,6 +617,25 @@ impl From<Layer> for u8 {
             Layer::One => 1,
             Layer::Two => 2,
             Layer::Three => 3,
+        }
+    }
+}
+
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/PendingMixnodeChanges.ts")
+)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct PendingMixNodeChanges {
+    pub pledge_change: Option<EpochEventId>,
+    // pub cost_params_change: Option<IntervalEventId>,
+}
+
+impl PendingMixNodeChanges {
+    pub fn new_empty() -> PendingMixNodeChanges {
+        PendingMixNodeChanges {
+            pledge_change: None,
         }
     }
 }

@@ -1,7 +1,19 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::storage;
+use cosmwasm_std::{coin, Addr, Coin, DepsMut, Env, MessageInfo, Response, Storage};
+
+use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::events::{
+    new_mixnode_bonding_event, new_mixnode_config_update_event,
+    new_mixnode_pending_cost_params_update_event, new_pending_mixnode_unbonding_event,
+    new_pending_pledge_decrease_event, new_pending_pledge_increase_event,
+};
+use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
+use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
+use mixnet_contract_common::{Layer, MixId, MixNode};
+use nym_contracts_common::signing::MessageSignature;
+
 use crate::interval::storage as interval_storage;
 use crate::interval::storage::push_new_interval_event;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -16,17 +28,8 @@ use crate::support::helpers::{
     ensure_no_pending_pledge_changes, ensure_proxy_match, ensure_sent_by_vesting_contract,
     validate_pledge,
 };
-use cosmwasm_std::{coin, Addr, Coin, DepsMut, Env, MessageInfo, Response, Storage};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{
-    new_mixnode_bonding_event, new_mixnode_config_update_event,
-    new_mixnode_pending_cost_params_update_event, new_pending_mixnode_unbonding_event,
-    new_pending_pledge_decrease_event, new_pending_pledge_increase_event,
-};
-use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
-use mixnet_contract_common::{Layer, MixId, MixNode};
-use nym_contracts_common::signing::MessageSignature;
+
+use super::storage;
 
 pub(crate) fn update_mixnode_layer(
     mix_id: MixId,
@@ -489,18 +492,22 @@ pub(crate) fn _try_update_mixnode_cost_params(
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
+    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::{Order, StdResult, Uint128};
+
+    use mixnet_contract_common::mixnode::PendingMixNodeChanges;
+    use mixnet_contract_common::{
+        EpochState, EpochStatus, ExecuteMsg, Layer, LayerDistribution, Percent,
+    };
+
     use crate::contract::execute;
     use crate::mixnet_contract_settings::storage::minimum_mixnode_pledge;
     use crate::mixnodes::helpers::get_mixnode_details_by_id;
     use crate::support::tests::fixtures::{good_mixnode_pledge, TEST_COIN_DENOM};
     use crate::support::tests::test_helpers::TestSetup;
     use crate::support::tests::{fixtures, test_helpers};
-    use cosmwasm_std::testing::mock_info;
-    use cosmwasm_std::{Order, StdResult, Uint128};
-    use mixnet_contract_common::{
-        EpochState, EpochStatus, ExecuteMsg, Layer, LayerDistribution, Percent,
-    };
+
+    use super::*;
 
     #[test]
     fn mixnode_add() {
@@ -698,7 +705,7 @@ pub mod tests {
             res,
             MixnetContractError::SenderIsNotVestingContract {
                 received: illegal_proxy,
-                vesting_contract
+                vesting_contract,
             }
         )
     }
@@ -766,7 +773,7 @@ pub mod tests {
             res,
             Err(MixnetContractError::ProxyMismatch {
                 existing: "None".to_string(),
-                incoming: vesting_contract.into_string()
+                incoming: vesting_contract.into_string(),
             })
         );
 
@@ -814,9 +821,64 @@ pub mod tests {
             res,
             MixnetContractError::SenderIsNotVestingContract {
                 received: illegal_proxy,
-                vesting_contract
+                vesting_contract,
             }
         )
+    }
+
+    #[test]
+    fn mixnode_remove_is_not_allowed_if_there_are_pending_pledge_changes() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        // prior increase
+        let owner = "mix-owner1";
+        test.add_dummy_mixnode(owner, None);
+        let sender = mock_info(owner, &[test.coin(1000)]);
+        try_increase_pledge(test.deps_mut(), env.clone(), sender.clone()).unwrap();
+
+        let res = try_remove_mixnode(test.deps_mut(), env.clone(), sender.clone());
+        assert_eq!(
+            res,
+            Err(MixnetContractError::PendingPledgeChange {
+                pending_event_id: 1
+            })
+        );
+
+        // prior decrease
+        let owner = "mix-owner2";
+        test.add_dummy_mixnode(owner, Some(Uint128::new(10000000000)));
+        let sender = mock_info(owner, &[]);
+        let amount = test.coin(1000);
+        try_decrease_pledge(test.deps_mut(), env.clone(), sender.clone(), amount).unwrap();
+
+        let sender = mock_info(owner, &[test.coin(1000)]);
+        let res = try_remove_mixnode(test.deps_mut(), env.clone(), sender.clone());
+        assert_eq!(
+            res,
+            Err(MixnetContractError::PendingPledgeChange {
+                pending_event_id: 2
+            })
+        );
+
+        // artificial event
+        let owner = "mix-owner3";
+        let mix_id = test.add_dummy_mixnode(owner, None);
+        let pending_change = PendingMixNodeChanges {
+            pledge_change: Some(1234),
+        };
+        storage::PENDING_MIXNODE_CHANGES
+            .save(test.deps_mut().storage, mix_id, &pending_change)
+            .unwrap();
+
+        let sender = mock_info(owner, &[test.coin(1000)]);
+        let res = try_remove_mixnode(test.deps_mut(), env, sender);
+        assert_eq!(
+            res,
+            Err(MixnetContractError::PendingPledgeChange {
+                pending_event_id: 1234
+            })
+        );
     }
 
     #[test]
@@ -857,7 +919,7 @@ pub mod tests {
             res,
             Err(MixnetContractError::ProxyMismatch {
                 existing: "None".to_string(),
-                incoming: vesting_contract.into_string()
+                incoming: vesting_contract.into_string(),
             })
         );
         // "normal" update succeeds
@@ -909,7 +971,7 @@ pub mod tests {
             res,
             MixnetContractError::SenderIsNotVestingContract {
                 received: illegal_proxy,
-                vesting_contract
+                vesting_contract,
             }
         )
     }
@@ -992,7 +1054,7 @@ pub mod tests {
             res,
             Err(MixnetContractError::ProxyMismatch {
                 existing: "None".to_string(),
-                incoming: vesting_contract.into_string()
+                incoming: vesting_contract.into_string(),
             })
         );
         // "normal" update succeeds
@@ -1015,7 +1077,7 @@ pub mod tests {
         assert_eq!(
             PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id,
-                new_costs: update.clone()
+                new_costs: update.clone(),
             },
             event.1.kind
         );
@@ -1064,7 +1126,7 @@ pub mod tests {
             res,
             MixnetContractError::SenderIsNotVestingContract {
                 received: illegal_proxy,
-                vesting_contract
+                vesting_contract,
             }
         )
     }
@@ -1110,7 +1172,7 @@ pub mod tests {
             info_alice,
             mixnode1,
             cost_params.clone(),
-            sig1
+            sig1,
         )
         .is_ok());
 
@@ -1122,12 +1184,15 @@ pub mod tests {
 
     #[cfg(test)]
     mod increasing_mixnode_pledge {
-        use super::*;
+        use mixnet_contract_common::mixnode::PendingMixNodeChanges;
+        use mixnet_contract_common::{EpochState, EpochStatus};
+
         use crate::mixnodes::helpers::tests::{
             setup_mix_combinations, OWNER_UNBONDED, OWNER_UNBONDED_LEFTOVER, OWNER_UNBONDING,
         };
         use crate::support::tests::test_helpers::TestSetup;
-        use mixnet_contract_common::{EpochState, EpochStatus};
+
+        use super::*;
 
         #[test]
         fn cant_be_performed_if_epoch_transition_is_in_progress() {
@@ -1205,7 +1270,7 @@ pub mod tests {
                 res,
                 Err(MixnetContractError::ProxyMismatch {
                     existing: "None".to_string(),
-                    incoming: "proxy".to_string()
+                    incoming: "proxy".to_string(),
                 })
             );
 
@@ -1220,7 +1285,7 @@ pub mod tests {
                 res,
                 Err(MixnetContractError::ProxyMismatch {
                     existing: "proxy".to_string(),
-                    incoming: "None".to_string()
+                    incoming: "None".to_string(),
                 })
             );
 
@@ -1235,7 +1300,7 @@ pub mod tests {
                 res,
                 Err(MixnetContractError::ProxyMismatch {
                     existing: "proxy".to_string(),
-                    incoming: "unrelated-proxy".to_string()
+                    incoming: "unrelated-proxy".to_string(),
                 })
             )
         }
@@ -1311,9 +1376,64 @@ pub mod tests {
                 res,
                 Err(MixnetContractError::InsufficientPledge {
                     received: test.coin(0),
-                    minimum: test.coin(1)
+                    minimum: test.coin(1),
                 })
             )
+        }
+
+        #[test]
+        fn is_not_allowed_if_there_are_pending_pledge_changes() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            // prior increase
+            let owner = "mix-owner1";
+            test.add_dummy_mixnode(owner, None);
+            let sender = mock_info(owner, &[test.coin(1000)]);
+            try_increase_pledge(test.deps_mut(), env.clone(), sender.clone()).unwrap();
+
+            let res = try_increase_pledge(test.deps_mut(), env.clone(), sender.clone());
+            assert_eq!(
+                res,
+                Err(MixnetContractError::PendingPledgeChange {
+                    pending_event_id: 1
+                })
+            );
+
+            // prior decrease
+            let owner = "mix-owner2";
+            test.add_dummy_mixnode(owner, Some(Uint128::new(10000000000)));
+            let sender = mock_info(owner, &[]);
+            let amount = test.coin(1000);
+            try_decrease_pledge(test.deps_mut(), env.clone(), sender.clone(), amount).unwrap();
+
+            let sender = mock_info(owner, &[test.coin(1000)]);
+            let res = try_increase_pledge(test.deps_mut(), env.clone(), sender.clone());
+            assert_eq!(
+                res,
+                Err(MixnetContractError::PendingPledgeChange {
+                    pending_event_id: 2
+                })
+            );
+
+            // artificial event
+            let owner = "mix-owner3";
+            let mix_id = test.add_dummy_mixnode(owner, None);
+            let pending_change = PendingMixNodeChanges {
+                pledge_change: Some(1234),
+            };
+            storage::PENDING_MIXNODE_CHANGES
+                .save(test.deps_mut().storage, mix_id, &pending_change)
+                .unwrap();
+
+            let sender = mock_info(owner, &[test.coin(1000)]);
+            let res = try_increase_pledge(test.deps_mut(), env, sender);
+            assert_eq!(
+                res,
+                Err(MixnetContractError::PendingPledgeChange {
+                    pending_event_id: 1234
+                })
+            );
         }
 
         #[test]
@@ -1335,7 +1455,7 @@ pub mod tests {
                 events[0].kind,
                 PendingEpochEventKind::PledgeMore {
                     mix_id,
-                    amount: test.coin(1000)
+                    amount: test.coin(1000),
                 }
             );
         }
@@ -1364,7 +1484,7 @@ pub mod tests {
                 res,
                 MixnetContractError::SenderIsNotVestingContract {
                     received: illegal_proxy,
-                    vesting_contract
+                    vesting_contract,
                 }
             )
         }
@@ -1372,12 +1492,15 @@ pub mod tests {
 
     #[cfg(test)]
     mod decreasing_mixnode_pledge {
-        use super::*;
+        use mixnet_contract_common::mixnode::PendingMixNodeChanges;
+        use mixnet_contract_common::{EpochState, EpochStatus};
+
         use crate::mixnodes::helpers::tests::{
             setup_mix_combinations, OWNER_UNBONDED, OWNER_UNBONDED_LEFTOVER, OWNER_UNBONDING,
         };
         use crate::support::tests::test_helpers::TestSetup;
-        use mixnet_contract_common::{EpochState, EpochStatus};
+
+        use super::*;
 
         #[test]
         fn cant_be_performed_if_epoch_transition_is_in_progress() {
@@ -1461,7 +1584,7 @@ pub mod tests {
                 res,
                 Err(MixnetContractError::ProxyMismatch {
                     existing: "None".to_string(),
-                    incoming: "proxy".to_string()
+                    incoming: "proxy".to_string(),
                 })
             );
 
@@ -1476,7 +1599,7 @@ pub mod tests {
                 res,
                 Err(MixnetContractError::ProxyMismatch {
                     existing: "proxy".to_string(),
-                    incoming: "None".to_string()
+                    incoming: "None".to_string(),
                 })
             );
 
@@ -1491,7 +1614,7 @@ pub mod tests {
                 res,
                 Err(MixnetContractError::ProxyMismatch {
                     existing: "proxy".to_string(),
-                    incoming: "unrelated-proxy".to_string()
+                    incoming: "unrelated-proxy".to_string(),
                 })
             )
         }
@@ -1583,7 +1706,7 @@ pub mod tests {
                     current: pledged.amount,
                     decrease_by: invalid_decrease.amount,
                     minimum: minimum_pledge.amount,
-                    denom: minimum_pledge.denom
+                    denom: minimum_pledge.denom,
                 })
             );
 
@@ -1605,6 +1728,63 @@ pub mod tests {
             let sender = mock_info(owner, &[]);
             let res = try_decrease_pledge(test.deps_mut(), env, sender, decrease.clone());
             assert_eq!(res, Err(MixnetContractError::ZeroCoinAmount))
+        }
+
+        #[test]
+        fn is_not_allowed_if_there_are_pending_pledge_changes() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let stake = Uint128::new(100_000_000_000);
+            let decrease = test.coin(1000);
+
+            // prior increase
+            let owner = "mix-owner1";
+            test.add_dummy_mixnode(owner, Some(stake));
+            let sender = mock_info(owner, &[test.coin(1000)]);
+            try_increase_pledge(test.deps_mut(), env.clone(), sender.clone()).unwrap();
+
+            let res = try_decrease_pledge(test.deps_mut(), env.clone(), sender, decrease.clone());
+            assert_eq!(
+                res,
+                Err(MixnetContractError::PendingPledgeChange {
+                    pending_event_id: 1
+                })
+            );
+
+            // prior decrease
+            let owner = "mix-owner2";
+            test.add_dummy_mixnode(owner, Some(stake));
+            let sender = mock_info(owner, &[]);
+            let amount = test.coin(1000);
+            try_decrease_pledge(test.deps_mut(), env.clone(), sender.clone(), amount).unwrap();
+
+            let sender = mock_info(owner, &[test.coin(1000)]);
+            let res = try_decrease_pledge(test.deps_mut(), env.clone(), sender, decrease.clone());
+            assert_eq!(
+                res,
+                Err(MixnetContractError::PendingPledgeChange {
+                    pending_event_id: 2
+                })
+            );
+
+            // artificial event
+            let owner = "mix-owner3";
+            let mix_id = test.add_dummy_mixnode(owner, Some(stake));
+            let pending_change = PendingMixNodeChanges {
+                pledge_change: Some(1234),
+            };
+            storage::PENDING_MIXNODE_CHANGES
+                .save(test.deps_mut().storage, mix_id, &pending_change)
+                .unwrap();
+
+            let sender = mock_info(owner, &[test.coin(1000)]);
+            let res = try_decrease_pledge(test.deps_mut(), env, sender, decrease);
+            assert_eq!(
+                res,
+                Err(MixnetContractError::PendingPledgeChange {
+                    pending_event_id: 1234
+                })
+            );
         }
 
         #[test]
@@ -1631,7 +1811,7 @@ pub mod tests {
                 events[0].kind,
                 PendingEpochEventKind::DecreasePledge {
                     mix_id,
-                    decrease_by: decrease
+                    decrease_by: decrease,
                 }
             );
         }
@@ -1664,7 +1844,7 @@ pub mod tests {
                 res,
                 MixnetContractError::SenderIsNotVestingContract {
                     received: illegal_proxy,
-                    vesting_contract
+                    vesting_contract,
                 }
             )
         }

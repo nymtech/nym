@@ -781,12 +781,9 @@ mod tests {
         )
         .unwrap();
 
-        match update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password)
-            .unwrap_err()
-        {
-            BackendError::DecryptionError => assert!(true),
-            _ => panic!("BackendError::DecryptionError expected"),
-        };
+        let err = update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password)
+            .unwrap_err();
+        assert!(matches!(err, BackendError::DecryptionError));
     }
 
     #[test]
@@ -810,10 +807,8 @@ mod tests {
 
         update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
 
-        match load_existing_login_at_file(&wallet_file, &id1, &password).unwrap_err() {
-            BackendError::DecryptionError => assert!(true),
-            _ => panic!("BackendError::DecryptionError expected"),
-        };
+        let err = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap_err();
+        assert!(matches!(err, BackendError::DecryptionError));
     }
 
     #[test]
@@ -897,12 +892,9 @@ mod tests {
         )
         .unwrap();
 
-        match update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password)
-            .unwrap_err()
-        {
-            BackendError::DecryptionError => assert!(true),
-            _ => panic!("BackendError::DecryptionError expected"),
-        };
+        let err = update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password)
+            .unwrap_err();
+        assert!(matches!(err, BackendError::DecryptionError));
     }
 
     #[test]
@@ -926,10 +918,8 @@ mod tests {
 
         update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
 
-        match load_existing_login_at_file(&wallet_file, &id1, &password).unwrap_err() {
-            BackendError::DecryptionError => assert!(true),
-            _ => panic!("BackendError::DecryptionError expected"),
-        };
+        let err = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap_err();
+        assert!(matches!(err, BackendError::DecryptionError));
     }
 
     #[test]
@@ -1096,7 +1086,7 @@ mod tests {
         let id1 = LoginId::new("first".to_string());
         let id2 = LoginId::new("second".to_string());
 
-        // Store the first account
+        // Store the first login with an account
         store_login_at_file(
             &wallet,
             account1.clone(),
@@ -1111,7 +1101,7 @@ mod tests {
         assert_eq!(&account1, acc.mnemonic());
         assert_eq!(&cosmos_hd_path, acc.hd_path());
 
-        // Add an extra account
+        // Store a second login, also with an account
         store_login_at_file(
             &wallet,
             account2.clone(),

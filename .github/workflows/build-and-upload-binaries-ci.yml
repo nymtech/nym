@@ -4,34 +4,11 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'clients/**'
-      - 'common/**'
-      - 'contracts/**'
-      - 'explorer-api/**'
-      - 'gateway/**'
-      - 'integrations/**'
       - 'mixnode/**'
-      - 'sdk/rust/nym-sdk/**'
-      - 'service-providers/**'
-      - 'nym-api/**'
-      - 'nym-outfox/**'
-      - 'tools/nym-cli/**'
-      - 'tools/ts-rs-cli/**'
+
   pull_request:
     paths:
-      - 'clients/**'
-      - 'common/**'
-      - 'contracts/**'
-      - 'explorer-api/**'
-      - 'gateway/**'
-      - 'integrations/**'
       - 'mixnode/**'
-      - 'sdk/rust/nym-sdk/**'
-      - 'service-providers/**'
-      - 'nym-api/**'
-      - 'nym-outfox/**'
-      - 'tools/nym-cli/**'
-      - 'tools/ts-rs-cli/**'
 
 env:
   NETWORK: mainnet
@@ -65,11 +42,11 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Build all binaries
+      - name: Build all mixnode binary
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release --all --features cpu-cycles
+          args: --manifest-path mixnode/Cargo.toml --release --features cpu-cycles
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1

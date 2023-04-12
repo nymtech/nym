@@ -46,7 +46,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path mixnode/Cargo.toml --release --features cpu-cycles
+          args: --manifest-path mixnode/Cargo.toml --release --features cpucycles
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1

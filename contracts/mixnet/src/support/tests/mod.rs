@@ -45,7 +45,7 @@ pub mod test_helpers {
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::{coin, Addr, Api, BankMsg, CosmosMsg, Storage};
+    use cosmwasm_std::{coin, coins, Addr, Api, BankMsg, CosmosMsg, Storage};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use cosmwasm_std::{Deps, OwnedDeps};
@@ -157,6 +157,10 @@ pub mod test_helpers {
 
         pub fn coin(&self, amount: u128) -> Coin {
             coin(amount, rewarding_denom(self.deps().storage).unwrap())
+        }
+
+        pub fn coins(&self, amount: u128) -> Vec<Coin> {
+            coins(amount, rewarding_denom(self.deps().storage).unwrap())
         }
 
         pub fn current_interval(&self) -> Interval {

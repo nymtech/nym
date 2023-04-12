@@ -1,15 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::delegations;
-use crate::delegations::storage as delegations_storage;
-use crate::interval::helpers::change_interval_config;
-use crate::interval::storage;
-use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
-use crate::mixnodes::storage as mixnodes_storage;
-use crate::rewards::storage as rewards_storage;
-use crate::support::helpers::{send_to_proxy_or_owner, VestingTracking};
 use cosmwasm_std::{Addr, Coin, DepsMut, Env, Response};
+
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_active_set_update_event, new_delegation_event, new_delegation_on_unbonded_node_event,
@@ -23,6 +16,15 @@ use mixnet_contract_common::pending_events::{
 };
 use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
 use mixnet_contract_common::{BlockHeight, Delegation, MixId};
+
+use crate::delegations;
+use crate::delegations::storage as delegations_storage;
+use crate::interval::helpers::change_interval_config;
+use crate::interval::storage;
+use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
+use crate::mixnodes::storage as mixnodes_storage;
+use crate::rewards::storage as rewards_storage;
+use crate::support::helpers::{send_to_proxy_or_owner, VestingTracking};
 
 pub(crate) trait ContractExecutableEvent {
     // note: the error only means a HARD error like we failed to read from storage.
@@ -146,10 +148,9 @@ pub(crate) fn undelegate(
         Some(delegation) => delegation,
     };
     let mix_rewarding =
-        rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?.ok_or(MixnetContractError::InconsistentState {
-            comment: "mixnode rewarding got removed from the storage whilst there's still an existing delegation"
-                .into(),
-        })?;
+        rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?.ok_or(MixnetContractError::inconsistent_state(
+            "mixnode rewarding got removed from the storage whilst there's still an existing delegation",
+        ))?;
     // this also appropriately adjusts the storage
     let tokens_to_return =
         delegations::helpers::undelegate(deps.storage, delegation, mix_rewarding)?;
@@ -180,11 +181,15 @@ pub(crate) fn unbond_mixnode(
     // in unbonding state and thus nothing could have been done to it (such as attempting to double unbond it)
     // thus the node with all its associated information MUST exist in the storage.
     let node_details = get_mixnode_details_by_id(deps.storage, mix_id)?.ok_or(
-        MixnetContractError::InconsistentState {
-            comment: "mixnode getting processed to get unbonded doesn't exist in the storage"
-                .into(),
-        },
+        MixnetContractError::inconsistent_state(
+            "mixnode getting processed to get unbonded doesn't exist in the storage",
+        ),
     )?;
+    if node_details.pending_changes.pledge_change.is_some() {
+        return Err(MixnetContractError::inconsistent_state(
+            "attempted to unbond mixnode while there are associated pending pledge changes",
+        ));
+    }
 
     // the denom on the original pledge was validated at the time of bonding so we can safely reuse it here
     let rewarding_denom = &node_details.bond_information.original_pledge.denom;
@@ -244,18 +249,14 @@ pub(crate) fn increase_pledge(
     // the target node MUST exist - we have checked it at the time of putting this event onto the queue
     // we have also verified there were no preceding unbond events
     let mix_details = get_mixnode_details_by_id(deps.storage, mix_id)?.ok_or(
-        MixnetContractError::InconsistentState {
-            comment:
-                "mixnode getting processed to increase its pledge doesn't exist in the storage"
-                    .into(),
-        },
+        MixnetContractError::inconsistent_state(
+            "mixnode getting processed to increase its pledge doesn't exist in the storage",
+        ),
     )?;
     if mix_details.pending_changes.pledge_change.is_none() {
-        return Err(MixnetContractError::InconsistentState {
-            comment:
-                "attempted to increase mixnode pledge while there are no associated pending changes"
-                    .into(),
-        });
+        return Err(MixnetContractError::inconsistent_state(
+            "attempted to increase mixnode pledge while there are no associated pending changes",
+        ));
     }
 
     let mut updated_bond = mix_details.bond_information.clone();
@@ -289,18 +290,14 @@ pub(crate) fn decrease_pledge(
     // the target node MUST exist - we have checked it at the time of putting this event onto the queue
     // we have also verified there were no preceding unbond events
     let mix_details = get_mixnode_details_by_id(deps.storage, mix_id)?.ok_or(
-        MixnetContractError::InconsistentState {
-            comment:
-                "mixnode getting processed to increase its pledge doesn't exist in the storage"
-                    .into(),
-        },
+        MixnetContractError::inconsistent_state(
+            "mixnode getting processed to increase its pledge doesn't exist in the storage",
+        ),
     )?;
     if mix_details.pending_changes.pledge_change.is_none() {
-        return Err(MixnetContractError::InconsistentState {
-            comment:
-                "attempted to decrease mixnode pledge while there are no associated pending changes"
-                    .into(),
-        });
+        return Err(MixnetContractError::inconsistent_state(
+            "attempted to decrease mixnode pledge while there are no associated pending changes",
+        ));
     }
 
     let mut updated_bond = mix_details.bond_information.clone();
@@ -475,26 +472,33 @@ impl ContractExecutableEvent for PendingIntervalEventData {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::time::Duration;
+
+    use cosmwasm_std::Decimal;
+
+    use mixnet_contract_common::Percent;
+    use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
+
     use crate::support::tests::test_helpers;
     use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
-    use cosmwasm_std::Decimal;
-    use mixnet_contract_common::Percent;
-    use std::time::Duration;
-    use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
+
+    use super::*;
 
     // note that authorization and basic validation has already been performed for all of those
     // before being pushed onto the event queues
 
     #[cfg(test)]
     mod delegating {
-        use super::*;
+        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::{coin, to_binary, CosmosMsg, Decimal, WasmMsg};
+
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
         use crate::mixnodes::transactions::try_remove_mixnode;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::get_bank_send_msg;
-        use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{coin, to_binary, CosmosMsg, Decimal, WasmMsg};
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        use super::*;
 
         #[test]
         fn returns_the_tokens_if_mixnode_has_unbonded() {
@@ -907,7 +911,7 @@ mod tests {
                 res_other_proxy,
                 MixnetContractError::ProxyIsNotVestingContract {
                     received: dummy_proxy,
-                    vesting_contract
+                    vesting_contract,
                 }
             );
         }
@@ -915,11 +919,14 @@ mod tests {
 
     #[cfg(test)]
     mod undelegating {
-        use super::*;
+        use cosmwasm_std::{coin, to_binary, CosmosMsg, WasmMsg};
+
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::get_bank_send_msg;
-        use cosmwasm_std::{coin, to_binary, CosmosMsg, WasmMsg};
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        use super::*;
 
         #[test]
         fn doesnt_return_any_tokens_if_it_doesnt_exist() {
@@ -1099,7 +1106,7 @@ mod tests {
                 res_other_proxy,
                 MixnetContractError::ProxyIsNotVestingContract {
                     received: dummy_proxy,
-                    vesting_contract
+                    vesting_contract,
                 }
             );
         }
@@ -1107,13 +1114,17 @@ mod tests {
 
     #[cfg(test)]
     mod mixnode_unbonding {
-        use super::*;
-        use crate::mixnodes::storage as mixnodes_storage;
-        use crate::support::tests::fixtures::TEST_COIN_DENOM;
-        use crate::support::tests::test_helpers::get_bank_send_msg;
         use cosmwasm_std::{coin, to_binary, CosmosMsg, Uint128, WasmMsg};
+
         use mixnet_contract_common::mixnode::UnbondedMixnode;
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        use crate::mixnodes::storage as mixnodes_storage;
+        use crate::mixnodes::transactions::{_try_decrease_pledge, _try_increase_pledge};
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use crate::support::tests::test_helpers::get_bank_send_msg;
+
+        use super::*;
 
         #[test]
         fn returns_hard_error_if_mixnode_doesnt_exist() {
@@ -1122,6 +1133,72 @@ mod tests {
             let env = test.env();
 
             let res = unbond_mixnode(test.deps_mut(), &env, 123, 1);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+        }
+
+        #[test]
+        fn returns_hard_error_if_there_are_pending_pledge_changes() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let change = test.coins(1234);
+
+            // increase
+            let owner = "mix-owner1";
+            let pledge = Uint128::new(250_000_000);
+            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+
+            _try_increase_pledge(
+                test.deps_mut(),
+                env.clone(),
+                change.clone(),
+                Addr::unchecked(owner),
+                None,
+            )
+            .unwrap();
+
+            let res = unbond_mixnode(test.deps_mut(), &env, 123, mix_id);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+
+            // decrease
+            let owner = "mix-owner2";
+            let pledge = Uint128::new(250_000_000);
+            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+
+            _try_decrease_pledge(
+                test.deps_mut(),
+                env.clone(),
+                change[0].clone(),
+                Addr::unchecked(owner),
+                None,
+            )
+            .unwrap();
+
+            let res = unbond_mixnode(test.deps_mut(), &env, 123, mix_id);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+
+            // artificial
+            let owner = "mix-owner3";
+            let pledge = Uint128::new(250_000_000);
+            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+
+            let mut changes = mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .load(test.deps().storage, mix_id)
+                .unwrap();
+            changes.pledge_change = Some(1234);
+
+            mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .save(test.deps_mut().storage, mix_id, &changes)
+                .unwrap();
+            let res = unbond_mixnode(test.deps_mut(), &env, 123, mix_id);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::InconsistentState { .. })
@@ -1256,7 +1333,7 @@ mod tests {
                 res_other_proxy,
                 MixnetContractError::ProxyIsNotVestingContract {
                     received: dummy_proxy,
-                    vesting_contract
+                    vesting_contract,
                 }
             );
         }
@@ -1264,9 +1341,11 @@ mod tests {
 
     #[cfg(test)]
     mod increasing_pledge {
-        use super::*;
         use cosmwasm_std::Uint128;
+
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        use super::*;
 
         #[test]
         fn returns_hard_error_if_mixnode_doesnt_exist() {
@@ -1275,6 +1354,23 @@ mod tests {
 
             let amount = test.coin(123);
             let res = increase_pledge(test.deps_mut(), 123, 1, amount);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+        }
+
+        #[test]
+        fn returns_hard_error_if_there_are_no_pending_pledge_changes() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let change = test.coin(1234);
+
+            let owner = "mix-owner";
+            let pledge = Uint128::new(250_000_000);
+            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+
+            let res = increase_pledge(test.deps_mut(), 123, mix_id, change);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::InconsistentState { .. })
@@ -1502,9 +1598,11 @@ mod tests {
 
     #[cfg(test)]
     mod decreasing_pledge {
-        use super::*;
         use cosmwasm_std::{to_binary, BankMsg, CosmosMsg, Uint128, WasmMsg};
+
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        use super::*;
 
         #[test]
         fn returns_hard_error_if_mixnode_doesnt_exist() {
@@ -1513,6 +1611,23 @@ mod tests {
 
             let amount = test.coin(123);
             let res = decrease_pledge(test.deps_mut(), 123, 1, amount);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+        }
+
+        #[test]
+        fn returns_hard_error_if_there_are_no_pending_pledge_changes() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let change = test.coin(1234);
+
+            let owner = "mix-owner";
+            let pledge = Uint128::new(250_000_000);
+            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+
+            let res = decrease_pledge(test.deps_mut(), 123, mix_id, change);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::InconsistentState { .. })
@@ -1561,7 +1676,7 @@ mod tests {
                 res.messages[0].msg,
                 CosmosMsg::Bank(BankMsg::Send {
                     to_address: owner.to_string(),
-                    amount: vec![amount]
+                    amount: vec![amount],
                 })
             )
         }
@@ -1581,7 +1696,7 @@ mod tests {
                 res.messages[0].msg,
                 CosmosMsg::Bank(BankMsg::Send {
                     to_address: vesting_contract.to_string(),
-                    amount: vec![amount]
+                    amount: vec![amount],
                 })
             )
         }
@@ -1610,7 +1725,7 @@ mod tests {
                     contract_addr: vesting_contract.to_string(),
                     msg: to_binary(&VestingContractExecuteMsg::TrackDecreasePledge {
                         owner: "mix-owner2".to_string(),
-                        amount
+                        amount,
                     })
                     .unwrap(),
                     funds: vec![],
@@ -1826,10 +1941,13 @@ mod tests {
 
     #[cfg(test)]
     mod changing_mix_cost_params {
-        use super::*;
-        use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use cosmwasm_std::coin;
+
         use mixnet_contract_common::Percent;
+
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
+
+        use super::*;
 
         #[test]
         fn doesnt_do_anything_if_mixnode_has_unbonded() {
@@ -1867,7 +1985,7 @@ mod tests {
                     Response::new().add_event(new_mixnode_cost_params_update_event(
                         123,
                         mix_id,
-                        &new_params
+                        &new_params,
                     ))
                 )
             );

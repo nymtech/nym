@@ -240,3 +240,11 @@ pub enum MixnetContractError {
         source: ApiVerifierError,
     },
 }
+
+impl MixnetContractError {
+    pub fn inconsistent_state<S: Into<String>>(comment: S) -> Self {
+        MixnetContractError::InconsistentState {
+            comment: comment.into(),
+        }
+    }
+}

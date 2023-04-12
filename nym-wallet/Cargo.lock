@@ -2967,6 +2967,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-service-provider-directory-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "serde",
+]
+
+[[package]]
 name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
@@ -3025,6 +3033,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
+ "nym-service-provider-directory-common",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
  "prost",

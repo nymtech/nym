@@ -67,6 +67,7 @@ pub struct Config {
     pub(crate) group_contract_address: Option<AccountId>,
     pub(crate) multisig_contract_address: Option<AccountId>,
     pub(crate) coconut_dkg_contract_address: Option<AccountId>,
+    pub(crate) service_provider_contract_address: Option<AccountId>,
     // TODO: add this in later commits
     // pub(crate) gas_price: GasPrice,
 }
@@ -129,6 +130,10 @@ impl Config {
             )?,
             coconut_dkg_contract_address: Self::parse_optional_account(
                 details.contracts.coconut_dkg_contract_address.as_ref(),
+                prefix,
+            )?,
+            service_provider_contract_address: Self::parse_optional_account(
+                details.contracts.service_provider_directory_contract_address.as_ref(),
                 prefix,
             )?,
         })
@@ -246,6 +251,10 @@ impl<C> NyxdClient<C> {
         self.config.multisig_contract_address = Some(address);
     }
 
+    pub fn set_service_provider_contract_address(&mut self, address: AccountId) {
+        self.config.service_provider_contract_address = Some(address);
+    }
+
     // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
     // note: what unwrap is doing here is just moving a failure that would have normally
     // occurred in `connect` when attempting to parse an empty address,
@@ -302,6 +311,13 @@ impl<C> NyxdClient<C> {
     // so it's not introducing new source of failure (just moves it)
     pub fn coconut_dkg_contract_address(&self) -> &AccountId {
         self.config.coconut_dkg_contract_address.as_ref().unwrap()
+    }
+
+    pub fn service_provider_contract_address(&self) -> &AccountId {
+        self.config
+            .service_provider_contract_address
+            .as_ref()
+            .expect("no service provider contract address set")
     }
 
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {

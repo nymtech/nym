@@ -3,7 +3,7 @@
 > The Nym mix node binary was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 ```admonish info
-The `nym-mixnode` binary is currently one point version ahead of the rest of the platform binaries due to a patch applied between releases. 
+The `nym-mixnode` binary is currently one point version ahead of the rest of the platform binaries due to a patch applied between releases.
 ```
 
 ## Preliminary steps
@@ -21,7 +21,7 @@ Before you initialise and run your mixnode, head to our [website](https://nymtec
 
 If you don't already have one, please create a Nym address using the wallet, and fund it with tokens. The minimum amount required to bond a mixnode is 100 `NYM`, but make sure you have a bit more to account for gas costs.
 
-`NYM` can be purchased via Bity from the wallet itself, and is currently present on several exchanges. Head to our [telegram channels](https://t.me/nymchan) to find out where to get `NYM` tokens.
+`NYM` can be purchased via Bity from the wallet itself, and is currently present on several exchanges.
 
 > Remember that you can **only** use Cosmos `NYM` tokens to bond your mixnode. You **cannot** use ERC20 representations of `NYM` to run a node.
 
@@ -181,9 +181,9 @@ From `v1.1.3`, if you unbond your mixnode that means you are leaving the mix
 
 You can bond your mix node via the Desktop wallet.
 
-* Open your wallet, and head to the `Bond` page, then select the node type and input your node details. Press `continue` 
+* Open your wallet, and head to the `Bond` page, then select the node type and input your node details. Press `continue`
 
-* You will be asked to run a the `sign` command with your `gateway` - copy and paste the long signature as the value of `--contract-msg` and run it. It will look something like this: 
+* You will be asked to run a the `sign` command with your `gateway` - copy and paste the long signature as the value of `--contract-msg` and run it. It will look something like this:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
@@ -195,10 +195,10 @@ You can bond your mix node via the Desktop wallet.
      | | | | |_| | | | | | |
      |_| |_|\__, |_| |_| |_|
             |___/
-        
+
              (nym-mixnode - version 1.1.14)
 
-    
+
 >>> attempting to sign 5XrvVEMzRJk2AcT2h1o6ErZNb8z1ZzD3h7teipBW3NUtrtYq7vu4DRMgzZRTPVPnyr2YWCxpmKCMFaEXvksnJ4jt7np3NMLxsLMrFjEBhh67Crtjy4868vCzAivUqzdc365RiqxQQKtv4r9eTk9mTbE9JY8U3TxzKJCSGcBqbrb9JX3HrZVWm6tqbUYbsnku9pqnfeyeUiaYKY44Lm72TYrkZfRrMAZLMATiXT1ntmiKqT37HzRxNZjiH8qHeQEoRHkgDsmXDXRbfppGTpPrN7R4sjynJzehzUBZ8Ug7ovT9FoAHb8kuVQhUiMs1js6tdwtthzQMbPi9vwxUtVvjYknN2fnJgMnckEhzJJpJDCNdH7YhpPaWQnGVVS334mskiuqkbRVrFPJN2nnwArHr3L2cLxSMk9toKfw7ViKJ2p5E5JxiSmKY1cFGZ7uRLsuQ833PJN9JE8crPtkBNefqkbFNz68S5jPmzUShSvAc4TqXKeovDASFmmhKaPqLUrfsSWm7nzuKnzJSMADF6xSuwr9cknMoirqkRkLe7ybJ2ERwSdf5cUxMjF7yjS8tW9hZudnTUb1uPNDuSmPPVrCR12XZyFzBvVgxH51ZNJTym46nqnfA881LQcmFMnCwJf39rVJ4ASLnzEzmuwXj75QoB9ce9kiLmoBNLYe4QKSB6gDd858VnBtBNQELVuCCZbrTYuSCeNdUFhvMwD4kryc1pBYUa8Ro81F3QVfiKN
 >>> decoding the message...
 >>> message to sign: {"nonce":0,"algorithm":"ed25519","message_type":"mixnode-bonding","content":{"sender":"n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq","proxy":null,"funds":[{"denom":"unym","amount":"100000000"}],"data":{"mix_node":{"host":"62.240.134.189","mix_port":1789,"verloc_port":1790,"http_api_port":8000,"sphinx_key":"CfZSy1jRfrfiVi9JYexjFWPqWkKoY72t7NdpWaq37K8Z","identity_key":"DhmUYedPZvhP9MMwXdNpPaqCxxTQgjAg78s2nqtTTiNF","version":"1.1.14"},"cost_params":{"profit_margin_percent":"0.1","interval_operating_cost":{"denom":"unym","amount":"40000000"}}}}}
@@ -216,7 +216,7 @@ You can bond your mix node via the Desktop wallet.
 
 ![Paste Signature](../images/wallet-sign.png)
 
-* Your node will now be bonded and ready to mix at the beginning of the next epoch (at most 1 hour). 
+* Your node will now be bonded and ready to mix at the beginning of the next epoch (at most 1 hour).
 
 > You are asked to `sign` a transaction on bonding so that the mixnet smart contract is able to map your nym address to your node. This allows us to create a nonce for each account and defend against replay attacks.
 

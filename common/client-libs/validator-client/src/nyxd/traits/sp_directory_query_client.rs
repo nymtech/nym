@@ -3,7 +3,9 @@ use cosmrs::AccountId;
 use nym_contracts_common::ContractBuildInformation;
 use nym_service_provider_directory_common::{
     msg::QueryMsg as SpQuery,
-    response::{ConfigResponse, PagedServicesListResponse, ServiceInfoResponse, ServicesListResponse},
+    response::{
+        ConfigResponse, PagedServicesListResponse, ServiceInfoResponse, ServicesListResponse,
+    },
     NymAddress, ServiceId, ServiceInfo,
 };
 use serde::Deserialize;

@@ -133,7 +133,10 @@ impl Config {
                 prefix,
             )?,
             service_provider_contract_address: Self::parse_optional_account(
-                details.contracts.service_provider_directory_contract_address.as_ref(),
+                details
+                    .contracts
+                    .service_provider_directory_contract_address
+                    .as_ref(),
                 prefix,
             )?,
         })

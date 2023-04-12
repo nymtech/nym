@@ -1237,7 +1237,7 @@ pub mod tests {
             let owner_unbonded_leftover = Addr::unchecked(OWNER_UNBONDED_LEFTOVER);
 
             let ids = setup_mix_combinations(&mut test, None);
-            let mix_id_unbonding = ids[1];
+            let mix_id_unbonding = ids[1].mix_id;
 
             let res = try_increase_pledge(
                 test.deps_mut(),
@@ -1497,7 +1497,7 @@ pub mod tests {
             let owner_unbonded_leftover = Addr::unchecked(OWNER_UNBONDED_LEFTOVER);
 
             let ids = setup_mix_combinations(&mut test, Some(stake));
-            let mix_id_unbonding = ids[1];
+            let mix_id_unbonding = ids[1].mix_id;
 
             let res = try_decrease_pledge(
                 test.deps_mut(),

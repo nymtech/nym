@@ -10,7 +10,7 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::{
     MixNodeCostParams, MixNodeDetails, MixNodeRewarding, UnbondedMixnode,
 };
-use mixnet_contract_common::{Layer, MixId, MixNode, MixNodeBond};
+use mixnet_contract_common::{IdentityKey, Layer, MixId, MixNode, MixNodeBond};
 
 pub(crate) fn must_get_mixnode_bond_by_owner(
     store: &dyn Storage,
@@ -26,18 +26,34 @@ pub(crate) fn must_get_mixnode_bond_by_owner(
         .1)
 }
 
+pub(crate) fn attach_mix_details(
+    store: &dyn Storage,
+    bond_information: MixNodeBond,
+) -> StdResult<MixNodeDetails> {
+    // if bond exists, rewarding details MUST also exist
+    let rewarding_details =
+        rewards_storage::MIXNODE_REWARDING.load(store, bond_information.mix_id)?;
+
+    // since this `Map` hasn't existed when contract was instantiated, some mixnodes might not
+    // have an entry here. But that's fine, because it means they have no pending changes
+    // (if there were supposed to be any changes, they would have been added during migration)
+    let pending_changes = storage::PENDING_MIXNODE_CHANGES
+        .may_load(store, bond_information.mix_id)?
+        .unwrap_or_default();
+
+    Ok(MixNodeDetails::new(
+        bond_information,
+        rewarding_details,
+        pending_changes,
+    ))
+}
+
 pub(crate) fn get_mixnode_details_by_id(
     store: &dyn Storage,
     mix_id: MixId,
 ) -> StdResult<Option<MixNodeDetails>> {
     if let Some(bond_information) = storage::mixnode_bonds().may_load(store, mix_id)? {
-        // if bond exists, rewarding details MUST also exist
-        let rewarding_details =
-            rewards_storage::MIXNODE_REWARDING.load(store, bond_information.mix_id)?;
-        Ok(Some(MixNodeDetails::new(
-            bond_information,
-            rewarding_details,
-        )))
+        attach_mix_details(store, bond_information).map(Some)
     } else {
         Ok(None)
     }
@@ -53,13 +69,23 @@ pub(crate) fn get_mixnode_details_by_owner(
         .item(store, address)?
         .map(|record| record.1)
     {
-        // if bond exists, rewarding details MUST also exist
-        let rewarding_details =
-            rewards_storage::MIXNODE_REWARDING.load(store, bond_information.mix_id)?;
-        Ok(Some(MixNodeDetails::new(
-            bond_information,
-            rewarding_details,
-        )))
+        attach_mix_details(store, bond_information).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
+pub(crate) fn get_mixnode_details_by_identity(
+    store: &dyn Storage,
+    mix_identity: IdentityKey,
+) -> StdResult<Option<MixNodeDetails>> {
+    if let Some(bond_information) = storage::mixnode_bonds()
+        .idx
+        .identity_key
+        .item(store, mix_identity)?
+        .map(|record| record.1)
+    {
+        attach_mix_details(store, bond_information).map(Some)
     } else {
         Ok(None)
     }
@@ -155,6 +181,12 @@ pub(crate) mod tests {
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::{coin, Uint128};
 
+    pub(crate) struct DummyMixnode {
+        pub mix_id: MixId,
+        pub owner: Addr,
+        pub identity: IdentityKey,
+    }
+
     pub(crate) const OWNER_EXISTS: &str = "mix-owner-existing";
     pub(crate) const OWNER_UNBONDING: &str = "mix-owner-unbonding";
     pub(crate) const OWNER_UNBONDED: &str = "mix-owner-unbonded";
@@ -164,33 +196,56 @@ pub(crate) mod tests {
     pub(crate) fn setup_mix_combinations(
         test: &mut TestSetup,
         stake: Option<Uint128>,
-    ) -> Vec<MixId> {
-        let mix_id_exists = test.add_dummy_mixnode(OWNER_EXISTS, stake);
-        let mix_id_unbonding = test.add_dummy_mixnode(OWNER_UNBONDING, stake);
-        let mix_id_unbonded = test.add_dummy_mixnode(OWNER_UNBONDED, stake);
-        let mix_id_unbonded_leftover = test.add_dummy_mixnode(OWNER_UNBONDED_LEFTOVER, stake);
+    ) -> Vec<DummyMixnode> {
+        let (mix_id, keypair) = test.add_dummy_mixnode_with_keypair(OWNER_EXISTS, stake);
+        let mix_exists = DummyMixnode {
+            mix_id,
+            owner: Addr::unchecked(OWNER_EXISTS),
+            identity: keypair.public_key().to_base58_string(),
+        };
+
+        let (mix_id, keypair) = test.add_dummy_mixnode_with_keypair(OWNER_UNBONDING, stake);
+        let mix_unbonding = DummyMixnode {
+            mix_id,
+            owner: Addr::unchecked(OWNER_UNBONDING),
+            identity: keypair.public_key().to_base58_string(),
+        };
+
+        let (mix_id, keypair) = test.add_dummy_mixnode_with_keypair(OWNER_UNBONDED, stake);
+        let mix_unbonded = DummyMixnode {
+            mix_id,
+            owner: Addr::unchecked(OWNER_UNBONDED),
+            identity: keypair.public_key().to_base58_string(),
+        };
+
+        let (mix_id, keypair) = test.add_dummy_mixnode_with_keypair(OWNER_UNBONDED_LEFTOVER, stake);
+        let mix_unbonded_leftover = DummyMixnode {
+            mix_id,
+            owner: Addr::unchecked(OWNER_UNBONDED_LEFTOVER),
+            identity: keypair.public_key().to_base58_string(),
+        };
 
         // manually adjust delegation info as to indicate the rewarding information shouldnt get removed
-        let mut rewarding_details = test.mix_rewarding(mix_id_unbonded_leftover);
+        let mut rewarding_details = test.mix_rewarding(mix_unbonded_leftover.mix_id);
         rewarding_details.delegates = Decimal::raw(12345);
         rewarding_details.unique_delegations = 1;
         rewards_storage::MIXNODE_REWARDING
             .save(
                 test.deps_mut().storage,
-                mix_id_unbonded_leftover,
+                mix_unbonded_leftover.mix_id,
                 &rewarding_details,
             )
             .unwrap();
 
-        test.immediately_unbond_mixnode(mix_id_unbonded);
-        test.immediately_unbond_mixnode(mix_id_unbonded_leftover);
-        test.start_unbonding_mixnode(mix_id_unbonding);
+        test.immediately_unbond_mixnode(mix_unbonded.mix_id);
+        test.immediately_unbond_mixnode(mix_unbonded_leftover.mix_id);
+        test.start_unbonding_mixnode(mix_unbonding.mix_id);
 
         vec![
-            mix_id_exists,
-            mix_id_unbonding,
-            mix_id_unbonded,
-            mix_id_unbonded_leftover,
+            mix_exists,
+            mix_unbonding,
+            mix_unbonded,
+            mix_unbonded_leftover,
         ]
     }
 
@@ -198,37 +253,35 @@ pub(crate) mod tests {
     fn getting_mixnode_bond_by_owner() {
         let mut test = TestSetup::new();
 
-        let owner_exists = Addr::unchecked(OWNER_EXISTS);
-        let owner_unbonding = Addr::unchecked(OWNER_UNBONDING);
-        let owner_unbonded = Addr::unchecked(OWNER_UNBONDED);
-        let owner_unbonded_leftover = Addr::unchecked(OWNER_UNBONDED_LEFTOVER);
-
-        let ids = setup_mix_combinations(&mut test, None);
-        let mix_id_exists = ids[0];
-        let mix_id_unbonding = ids[1];
+        let nodes = setup_mix_combinations(&mut test, None);
+        let mix_exists = &nodes[0];
+        let mix_unbonding = &nodes[1];
+        let mix_unbonded = &nodes[2];
+        let mix_unbonded_leftover = &nodes[3];
 
         // if this is a normally bonded mixnode, all should be fine
-        let res = must_get_mixnode_bond_by_owner(test.deps().storage, &owner_exists).unwrap();
-        assert_eq!(res.mix_id, mix_id_exists);
+        let res = must_get_mixnode_bond_by_owner(test.deps().storage, &mix_exists.owner).unwrap();
+        assert_eq!(res.mix_id, mix_exists.mix_id);
 
         // if node is in the process of unbonding, we still should be capable of retrieving its details
-        let res = must_get_mixnode_bond_by_owner(test.deps().storage, &owner_unbonding).unwrap();
-        assert_eq!(res.mix_id, mix_id_unbonding);
+        let res =
+            must_get_mixnode_bond_by_owner(test.deps().storage, &mix_unbonding.owner).unwrap();
+        assert_eq!(res.mix_id, mix_unbonding.mix_id);
 
         // but if node has unbonded, the information is purged and query fails
-        let res = must_get_mixnode_bond_by_owner(test.deps().storage, &owner_unbonded);
+        let res = must_get_mixnode_bond_by_owner(test.deps().storage, &mix_unbonded.owner);
         assert_eq!(
             res,
             Err(MixnetContractError::NoAssociatedMixNodeBond {
-                owner: owner_unbonded
+                owner: mix_unbonded.owner.clone()
             })
         );
 
-        let res = must_get_mixnode_bond_by_owner(test.deps().storage, &owner_unbonded_leftover);
+        let res = must_get_mixnode_bond_by_owner(test.deps().storage, &mix_unbonded_leftover.owner);
         assert_eq!(
             res,
             Err(MixnetContractError::NoAssociatedMixNodeBond {
-                owner: owner_unbonded_leftover
+                owner: mix_unbonded_leftover.owner.clone()
             })
         );
     }
@@ -237,26 +290,27 @@ pub(crate) mod tests {
     fn getting_mixnode_details_by_id() {
         let mut test = TestSetup::new();
 
-        let ids = setup_mix_combinations(&mut test, None);
-        let mix_id_exists = ids[0];
-        let mix_id_unbonding = ids[1];
-        let mix_id_unbonded = ids[2];
-        let mix_id_unbonded_leftover = ids[3];
+        let nodes = setup_mix_combinations(&mut test, None);
+        let mix_exists = &nodes[0];
+        let mix_unbonding = &nodes[1];
+        let mix_unbonded = &nodes[2];
+        let mix_unbonded_leftover = &nodes[3];
 
-        let res = get_mixnode_details_by_id(test.deps().storage, mix_id_exists)
+        let res = get_mixnode_details_by_id(test.deps().storage, mix_exists.mix_id)
             .unwrap()
             .unwrap();
-        assert_eq!(res.bond_information.mix_id, mix_id_exists);
+        assert_eq!(res.bond_information.mix_id, mix_exists.mix_id);
 
-        let res = get_mixnode_details_by_id(test.deps().storage, mix_id_unbonding)
+        let res = get_mixnode_details_by_id(test.deps().storage, mix_unbonding.mix_id)
             .unwrap()
             .unwrap();
-        assert_eq!(res.bond_information.mix_id, mix_id_unbonding);
+        assert_eq!(res.bond_information.mix_id, mix_unbonding.mix_id);
 
-        let res = get_mixnode_details_by_id(test.deps().storage, mix_id_unbonded).unwrap();
+        let res = get_mixnode_details_by_id(test.deps().storage, mix_unbonded.mix_id).unwrap();
         assert!(res.is_none());
 
-        let res = get_mixnode_details_by_id(test.deps().storage, mix_id_unbonded_leftover).unwrap();
+        let res =
+            get_mixnode_details_by_id(test.deps().storage, mix_unbonded_leftover.mix_id).unwrap();
         assert!(res.is_none())
     }
 
@@ -264,33 +318,69 @@ pub(crate) mod tests {
     fn getting_mixnode_details_by_owner() {
         let mut test = TestSetup::new();
 
-        let owner_exists = Addr::unchecked(OWNER_EXISTS);
-        let owner_unbonding = Addr::unchecked(OWNER_UNBONDING);
-        let owner_unbonded = Addr::unchecked(OWNER_UNBONDED);
-        let owner_unbonded_leftover = Addr::unchecked(OWNER_UNBONDED_LEFTOVER);
-
-        let ids = setup_mix_combinations(&mut test, None);
-        let mix_id_exists = ids[0];
-        let mix_id_unbonding = ids[1];
+        let nodes = setup_mix_combinations(&mut test, None);
+        let mix_exists = &nodes[0];
+        let mix_unbonding = &nodes[1];
+        let mix_unbonded = &nodes[2];
+        let mix_unbonded_leftover = &nodes[3];
 
         // if this is a normally bonded mixnode, all should be fine
-        let res = get_mixnode_details_by_owner(test.deps().storage, owner_exists)
+        let res = get_mixnode_details_by_owner(test.deps().storage, mix_exists.owner.clone())
             .unwrap()
             .unwrap();
-        assert_eq!(res.bond_information.mix_id, mix_id_exists);
+        assert_eq!(res.bond_information.mix_id, mix_exists.mix_id);
 
         // if node is in the process of unbonding, we still should be capable of retrieving its details
-        let res = get_mixnode_details_by_owner(test.deps().storage, owner_unbonding)
+        let res = get_mixnode_details_by_owner(test.deps().storage, mix_unbonding.owner.clone())
             .unwrap()
             .unwrap();
-        assert_eq!(res.bond_information.mix_id, mix_id_unbonding);
+        assert_eq!(res.bond_information.mix_id, mix_unbonding.mix_id);
 
         // but if node has unbonded, the information is purged and query fails
-        let res = get_mixnode_details_by_owner(test.deps().storage, owner_unbonded).unwrap();
+        let res =
+            get_mixnode_details_by_owner(test.deps().storage, mix_unbonded.owner.clone()).unwrap();
         assert!(res.is_none());
 
         let res =
-            get_mixnode_details_by_owner(test.deps().storage, owner_unbonded_leftover).unwrap();
+            get_mixnode_details_by_owner(test.deps().storage, mix_unbonded_leftover.owner.clone())
+                .unwrap();
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn getting_mixnode_details_by_identity() {
+        let mut test = TestSetup::new();
+
+        let nodes = setup_mix_combinations(&mut test, None);
+        let mix_exists = &nodes[0];
+        let mix_unbonding = &nodes[1];
+        let mix_unbonded = &nodes[2];
+        let mix_unbonded_leftover = &nodes[3];
+
+        // if this is a normally bonded mixnode, all should be fine
+        let res = get_mixnode_details_by_identity(test.deps().storage, mix_exists.identity.clone())
+            .unwrap()
+            .unwrap();
+        assert_eq!(res.bond_information.mix_id, mix_exists.mix_id);
+
+        // if node is in the process of unbonding, we still should be capable of retrieving its details
+        let res =
+            get_mixnode_details_by_identity(test.deps().storage, mix_unbonding.identity.clone())
+                .unwrap()
+                .unwrap();
+        assert_eq!(res.bond_information.mix_id, mix_unbonding.mix_id);
+
+        // but if node has unbonded, the information is purged and query fails
+        let res =
+            get_mixnode_details_by_identity(test.deps().storage, mix_unbonded.identity.clone())
+                .unwrap();
+        assert!(res.is_none());
+
+        let res = get_mixnode_details_by_identity(
+            test.deps().storage,
+            mix_unbonded_leftover.identity.clone(),
+        )
+        .unwrap();
         assert!(res.is_none());
     }
 

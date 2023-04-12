@@ -155,17 +155,35 @@ Data store is at: "/home/mx/.nym/gateways/supergateway/data/db.sqlite"
 ~~~
 
 ### Upgrading your gateway
+Upgrading your node is a two-step process:
+* Updating the binary and `config.toml` on your VPS
+* Updating the node information in the [mixnet smart contract](../nyx/mixnet-contract.md). **This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net)**.
 
 >These instructions are specifically regarding upgrading your gateway binary from one version to another. If you want to change node information such as the listening port, you can do this by clicking the `node settings` tab in the `bond` page of the wallet.
 
-Upgrade your gateway by doing the following:
+#### Step 1: upgrading your binary
+Follow these steps to upgrade your binary and update its config file:
 * pause your gateway process.
 * replace the existing binary with the newest binary (which you can either compile yourself or grab from our [releases page](https://github.com/nymtech/nym/releases)).
-* re-run `init` to pull in changes to `config.toml`. **`init` will never overwrite keys** so don't worry about your address changing.
+* re-run `init` with the same values as you used initially. **This will just update the config file, it will not overwrite existing keys**.
 * restart your gateway process with the new binary.
-* rebond your gateway, updating the version number.
 
 > Do **not** use the `upgrade` command: there is a known error with the command that will be fixed in a subsequent release.
+
+#### Step 2: updating your node information in the smart contract
+Follow these steps to update the information about your node which is publically avaliable from the [Nym API](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [mixnet explorer](https://explorer.nymtech.net).
+
+You can either do this graphically via the Desktop Wallet, or the CLI.
+
+#### Updating node information via the Desktop Wallet
+* Navigate to the `Bonding` page and click the `Node Settings` link in the top right corner:
+![Bonding page](../images/wallet-screenshots/bonding.png)
+
+* Update the fields in the `Node Settings` page and click `Submit changes to the blockchain`.
+![Node Settings Page](../images/wallet-screenshots/node_settings.png)
+
+#### Updating node information via the CLI
+If you want to bond your mix node via the CLI, then check out the [relevant section in the Nym CLI](../tools/nym-cli.md#upgrade-a-mix-node) docs.
 
 ## VPS Setup and Automation
 ### Configure your firewall

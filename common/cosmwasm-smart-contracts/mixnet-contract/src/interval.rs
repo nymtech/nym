@@ -3,7 +3,10 @@
 
 use crate::error::MixnetContractError;
 use crate::pending_events::{PendingEpochEvent, PendingIntervalEvent};
-use crate::{EpochId, IntervalId, MixId};
+use crate::{
+    EpochEventId, EpochId, IntervalEventId, IntervalId, MixId, PendingEpochEventData,
+    PendingIntervalEventData,
+};
 use cosmwasm_std::{Addr, Env};
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
@@ -525,6 +528,30 @@ impl PendingIntervalEventsResponse {
             events,
             start_next_after,
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct PendingEpochEventResponse {
+    pub event_id: EpochEventId,
+    pub event: Option<PendingEpochEventData>,
+}
+
+impl PendingEpochEventResponse {
+    pub fn new(event_id: EpochEventId, event: Option<PendingEpochEventData>) -> Self {
+        PendingEpochEventResponse { event_id, event }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct PendingIntervalEventResponse {
+    pub event_id: IntervalEventId,
+    pub event: Option<PendingIntervalEventData>,
+}
+
+impl PendingIntervalEventResponse {
+    pub fn new(event_id: IntervalEventId, event: Option<PendingIntervalEventData>) -> Self {
+        PendingIntervalEventResponse { event_id, event }
     }
 }
 

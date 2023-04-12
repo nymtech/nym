@@ -13,8 +13,8 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::{
     CurrentIntervalResponse, EpochEventId, EpochStatus, IntervalEventId, MixId,
-    NumberOfPendingEventsResponse, PagedRewardedSetResponse, PendingEpochEventsResponse,
-    PendingIntervalEventsResponse,
+    NumberOfPendingEventsResponse, PagedRewardedSetResponse, PendingEpochEventResponse,
+    PendingEpochEventsResponse, PendingIntervalEventResponse, PendingIntervalEventsResponse,
 };
 
 pub fn query_epoch_status(deps: Deps<'_>) -> StdResult<EpochStatus> {
@@ -110,6 +110,22 @@ pub fn query_pending_interval_events_paged(
         events,
         start_next_after,
     })
+}
+
+pub fn query_pending_epoch_event(
+    deps: Deps<'_>,
+    event_id: EpochEventId,
+) -> Result<PendingEpochEventResponse, MixnetContractError> {
+    let event = storage::PENDING_EPOCH_EVENTS.may_load(deps.storage, event_id)?;
+    Ok(PendingEpochEventResponse { event_id, event })
+}
+
+pub fn query_pending_interval_event(
+    deps: Deps<'_>,
+    event_id: IntervalEventId,
+) -> Result<PendingIntervalEventResponse, MixnetContractError> {
+    let event = storage::PENDING_INTERVAL_EVENTS.may_load(deps.storage, event_id)?;
+    Ok(PendingIntervalEventResponse { event_id, event })
 }
 
 pub fn query_number_of_pending_events(
@@ -538,6 +554,88 @@ mod tests {
                 interval.secs_until_current_interval_end(&env)
             )
         }
+    }
+
+    #[test]
+    fn query_for_pending_epoch_event() {
+        let mut test = TestSetup::new();
+
+        // it doesn't exist
+        let expected = PendingEpochEventResponse {
+            event_id: 123,
+            event: None,
+        };
+        assert_eq!(
+            expected,
+            query_pending_epoch_event(test.deps(), 123).unwrap()
+        );
+
+        // it exists
+        let dummy_action = PendingEpochEventKind::Undelegate {
+            owner: Addr::unchecked("foomp"),
+            mix_id: test.rng.next_u32(),
+            proxy: None,
+        };
+        let env = test.env();
+        storage::push_new_epoch_event(test.deps_mut().storage, &env, dummy_action.clone()).unwrap();
+        let expected = PendingEpochEventResponse {
+            event_id: 1,
+            event: Some(dummy_action.attach_source_height(env.block.height)),
+        };
+
+        assert_eq!(expected, query_pending_epoch_event(test.deps(), 1).unwrap());
+
+        // it no longer exist (but used to)
+        test.execute_all_pending_events();
+        let expected = PendingEpochEventResponse {
+            event_id: 1,
+            event: None,
+        };
+        assert_eq!(expected, query_pending_epoch_event(test.deps(), 1).unwrap());
+    }
+
+    #[test]
+    fn query_for_pending_interval_event() {
+        let mut test = TestSetup::new();
+
+        // it doesn't exist
+        let expected = PendingIntervalEventResponse {
+            event_id: 123,
+            event: None,
+        };
+        assert_eq!(
+            expected,
+            query_pending_interval_event(test.deps(), 123).unwrap()
+        );
+
+        // it exists
+        let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
+            mix_id: test.rng.next_u32(),
+            new_costs: fixtures::mix_node_cost_params_fixture(),
+        };
+        let env = test.env();
+        storage::push_new_interval_event(test.deps_mut().storage, &env, dummy_action.clone())
+            .unwrap();
+        let expected = PendingIntervalEventResponse {
+            event_id: 1,
+            event: Some(dummy_action.attach_source_height(env.block.height)),
+        };
+
+        assert_eq!(
+            expected,
+            query_pending_interval_event(test.deps(), 1).unwrap()
+        );
+
+        // it no longer exist (but used to)
+        test.execute_all_pending_events();
+        let expected = PendingIntervalEventResponse {
+            event_id: 1,
+            event: None,
+        };
+        assert_eq!(
+            expected,
+            query_pending_interval_event(test.deps(), 1).unwrap()
+        );
     }
 
     #[test]

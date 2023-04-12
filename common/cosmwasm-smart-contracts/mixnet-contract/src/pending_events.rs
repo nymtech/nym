@@ -70,7 +70,7 @@ impl From<(EpochEventId, PendingEpochEventData)> for PendingEpochEvent {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PendingIntervalEvent {
-    pub id: EpochEventId,
+    pub id: IntervalEventId,
     pub event: PendingIntervalEventData,
 }
 

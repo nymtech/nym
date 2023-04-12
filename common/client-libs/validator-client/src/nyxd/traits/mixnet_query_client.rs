@@ -24,8 +24,9 @@ use nym_mixnet_contract_common::{
     MixOwnershipResponse, MixnodeDetailsResponse, NumberOfPendingEventsResponse,
     PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedFamiliesResponse,
     PagedGatewayResponse, PagedMembersResponse, PagedMixNodeDelegationsResponse,
-    PagedMixnodeBondsResponse, PagedRewardedSetResponse, PendingEpochEventsResponse,
-    PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
+    PagedMixnodeBondsResponse, PagedRewardedSetResponse, PendingEpochEventResponse,
+    PendingEpochEventsResponse, PendingIntervalEventResponse, PendingIntervalEventsResponse,
+    QueryMsg as MixnetQueryMsg,
 };
 use serde::Deserialize;
 
@@ -172,6 +173,16 @@ pub trait MixnetQueryClient {
     ) -> Result<MixnodeDetailsResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetMixnodeDetails { mix_id })
             .await
+    }
+
+    async fn get_mixnode_details_by_identity(
+        &self,
+        mix_identity: IdentityKey,
+    ) -> Result<Option<MixNodeDetails>, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity {
+            mix_identity,
+        })
+        .await
     }
 
     async fn get_mixnode_rewarding_details(
@@ -374,14 +385,20 @@ pub trait MixnetQueryClient {
             .await
     }
 
-    async fn get_mixnode_details_by_identity(
+    async fn get_pending_epoch_event(
         &self,
-        mix_identity: IdentityKey,
-    ) -> Result<Option<MixNodeDetails>, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity {
-            mix_identity,
-        })
-        .await
+        event_id: EpochEventId,
+    ) -> Result<PendingEpochEventResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetPendingEpochEvent { event_id })
+            .await
+    }
+
+    async fn get_pending_interval_event(
+        &self,
+        event_id: IntervalEventId,
+    ) -> Result<PendingIntervalEventResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetPendingIntervalEvent { event_id })
+            .await
     }
 
     async fn get_number_of_pending_events(

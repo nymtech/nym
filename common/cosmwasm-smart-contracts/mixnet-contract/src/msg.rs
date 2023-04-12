@@ -10,7 +10,10 @@ use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
-use crate::{delegation, ContractStateParams, Layer, LayerAssignment, MixId, Percent};
+use crate::{
+    delegation, ContractStateParams, EpochEventId, IntervalEventId, Layer, LayerAssignment, MixId,
+    Percent,
+};
 use crate::{Gateway, IdentityKey, MixNode};
 use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{Coin, Decimal};
@@ -516,6 +519,12 @@ pub enum QueryMsg {
     GetPendingIntervalEvents {
         limit: Option<u32>,
         start_after: Option<u32>,
+    },
+    GetPendingEpochEvent {
+        event_id: EpochEventId,
+    },
+    GetPendingIntervalEvent {
+        event_id: IntervalEventId,
     },
     GetNumberOfPendingEvents {},
 

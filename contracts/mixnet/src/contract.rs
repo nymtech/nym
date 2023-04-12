@@ -585,6 +585,12 @@ pub fn query(
                 limit,
             )?,
         ),
+        QueryMsg::GetPendingEpochEvent { event_id } => to_binary(
+            &crate::interval::queries::query_pending_epoch_event(deps, event_id)?,
+        ),
+        QueryMsg::GetPendingIntervalEvent { event_id } => to_binary(
+            &crate::interval::queries::query_pending_interval_event(deps, event_id)?,
+        ),
         QueryMsg::GetNumberOfPendingEvents {} => to_binary(
             &crate::interval::queries::query_number_of_pending_events(deps)?,
         ),

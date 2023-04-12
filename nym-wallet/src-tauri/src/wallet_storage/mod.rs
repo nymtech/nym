@@ -160,15 +160,14 @@ pub(crate) fn update_encrypted_logins(
 ) -> Result<(), BackendError> {
     let store_dir = get_storage_directory()?;
     let filepath = store_dir.join(WALLET_INFO_FILENAME);
-    match filepath
+    if let false = filepath
         .try_exists()
         .map_err(|_| BackendError::WalletFileUnableToRead)?
     {
-        false => return Err(BackendError::WalletFileUnableToRead),
-        _ => {}
+        return Err(BackendError::WalletFileUnableToRead);
     }
 
-    update_encrypted_logins_at_file(&filepath, &current_password, &new_password)
+    update_encrypted_logins_at_file(&filepath, current_password, new_password)
 }
 
 fn update_encrypted_logins_at_file(
@@ -179,13 +178,13 @@ fn update_encrypted_logins_at_file(
     if current_password == new_password {
         return Ok(());
     }
-    let mut stored_wallet = match load_existing_wallet_at_file(&filepath) {
+    let mut stored_wallet = match load_existing_wallet_at_file(filepath) {
         Err(BackendError::WalletFileNotFound) => StoredWallet::default(),
         result => result?,
     };
 
     stored_wallet.reencrypt_all(current_password, new_password)?;
-    write_to_file(&filepath, &stored_wallet)
+    write_to_file(filepath, &stored_wallet)
 }
 
 fn new_encrypted_login(

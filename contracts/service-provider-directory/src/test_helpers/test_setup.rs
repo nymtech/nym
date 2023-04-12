@@ -2,11 +2,9 @@ use anyhow::Result;
 use cosmwasm_std::{coins, Addr, Coin, Uint128};
 use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
 use nym_service_provider_directory_common::{
-    msg::{
-        ConfigResponse, ExecuteMsg, InstantiateMsg, PagedServicesListResponse, QueryMsg,
-        ServiceInfo,
-    },
-    NymAddress, ServiceId, ServiceType,
+    msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
+    response::{ConfigResponse, PagedServicesListResponse},
+    NymAddress, ServiceId, ServiceInfo, ServiceType,
 };
 use serde::de::DeserializeOwned;
 

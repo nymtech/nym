@@ -1116,7 +1116,7 @@ mod tests {
     mod mixnode_unbonding {
         use cosmwasm_std::{coin, to_binary, CosmosMsg, Uint128, WasmMsg};
 
-        use mixnet_contract_common::mixnode::UnbondedMixnode;
+        use mixnet_contract_common::mixnode::{PendingMixNodeChanges, UnbondedMixnode};
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         use crate::mixnodes::storage as mixnodes_storage;
@@ -1190,10 +1190,9 @@ mod tests {
             let pledge = Uint128::new(250_000_000);
             let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
 
-            let mut changes = mixnodes_storage::PENDING_MIXNODE_CHANGES
-                .load(test.deps().storage, mix_id)
-                .unwrap();
-            changes.pledge_change = Some(1234);
+            let changes = PendingMixNodeChanges {
+                pledge_change: Some(1234),
+            };
 
             mixnodes_storage::PENDING_MIXNODE_CHANGES
                 .save(test.deps_mut().storage, mix_id, &changes)
@@ -1363,7 +1362,6 @@ mod tests {
         #[test]
         fn returns_hard_error_if_there_are_no_pending_pledge_changes() {
             let mut test = TestSetup::new();
-            let env = test.env();
             let change = test.coin(1234);
 
             let owner = "mix-owner";
@@ -1381,6 +1379,7 @@ mod tests {
         fn updates_stored_bond_information_and_rewarding_details() {
             let mut test = TestSetup::new();
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            test.set_pending_pledge_change(mix_id, None);
 
             let old_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
                 .unwrap()
@@ -1413,6 +1412,8 @@ mod tests {
             let pledge3 = Uint128::new(200_000_000);
 
             let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
+
             let increase = test.coin(pledge2.u128());
             increase_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
 
@@ -1448,6 +1449,7 @@ mod tests {
             let pledge2 = Uint128::new(50_000_000_000);
 
             let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
             test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
@@ -1520,6 +1522,7 @@ mod tests {
             let pledge2 = Uint128::new(50_000_000_000);
 
             let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
             test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
@@ -1594,6 +1597,20 @@ mod tests {
                 assert_eq!(dist1, dist2)
             }
         }
+
+        #[test]
+        fn updates_the_pending_pledge_changes_field() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            test.set_pending_pledge_change(mix_id, None);
+
+            let amount = test.coin(12345);
+            increase_pledge(test.deps_mut(), 123, mix_id, amount).unwrap();
+            let pending = mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .load(test.deps().storage, mix_id)
+                .unwrap();
+            assert!(pending.pledge_change.is_none())
+        }
     }
 
     #[cfg(test)]
@@ -1620,7 +1637,6 @@ mod tests {
         #[test]
         fn returns_hard_error_if_there_are_no_pending_pledge_changes() {
             let mut test = TestSetup::new();
-            let env = test.env();
             let change = test.coin(1234);
 
             let owner = "mix-owner";
@@ -1638,6 +1654,7 @@ mod tests {
         fn updates_stored_bond_information_and_rewarding_details() {
             let mut test = TestSetup::new();
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            test.set_pending_pledge_change(mix_id, None);
 
             let old_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
                 .unwrap()
@@ -1667,6 +1684,7 @@ mod tests {
             let mut test = TestSetup::new();
             let owner = "mix-owner";
             let mix_id = test.add_dummy_mixnode(owner, None);
+            test.set_pending_pledge_change(mix_id, None);
 
             let amount = test.coin(12345);
             let res = decrease_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
@@ -1686,6 +1704,8 @@ mod tests {
             let mut test = TestSetup::new();
             let owner = "mix-owner";
             let mix_id = test.add_dummy_mixnode_with_legal_proxy(owner, None);
+            test.set_pending_pledge_change(mix_id, None);
+
             let vesting_contract = test.vesting_contract();
 
             let amount = test.coin(12345);
@@ -1705,7 +1725,11 @@ mod tests {
         fn attaches_vesting_track_message() {
             let mut test = TestSetup::new();
             let mix_id_no_proxy = test.add_dummy_mixnode("mix-owner1", None);
+            test.set_pending_pledge_change(mix_id_no_proxy, None);
+
             let mix_id_proxy = test.add_dummy_mixnode_with_legal_proxy("mix-owner2", None);
+            test.set_pending_pledge_change(mix_id_proxy, None);
+
             let vesting_contract = test.vesting_contract();
 
             let amount = test.coin(12345);
@@ -1741,6 +1765,8 @@ mod tests {
             let pledge3 = Uint128::new(150_000_000);
 
             let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
+
             let decrease = test.coin(pledge_change.u128());
             decrease_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
 
@@ -1776,6 +1802,7 @@ mod tests {
             let pledge_change = Uint128::new(50_000_000_000);
 
             let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
             test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
@@ -1848,6 +1875,7 @@ mod tests {
             let pledge_change = Uint128::new(50_000_000_000);
 
             let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
             test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
@@ -1921,6 +1949,20 @@ mod tests {
 
                 assert_eq!(dist1, dist2)
             }
+        }
+
+        #[test]
+        fn updates_the_pending_pledge_changes_field() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            test.set_pending_pledge_change(mix_id, None);
+
+            let amount = test.coin(12345);
+            decrease_pledge(test.deps_mut(), 123, mix_id, amount).unwrap();
+            let pending = mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .load(test.deps().storage, mix_id)
+                .unwrap();
+            assert!(pending.pledge_change.is_none())
         }
     }
 

@@ -62,7 +62,7 @@ pub mod test_helpers {
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
-        construct_family_join_permit, Delegation, EpochState, EpochStatus, Gateway,
+        construct_family_join_permit, Delegation, EpochEventId, EpochState, EpochStatus, Gateway,
         GatewayBondingPayload, IdentityKey, IdentityKeyRef, InitialRewardingParams, InstantiateMsg,
         Interval, MixId, MixNode, MixNodeBond, MixnodeBondingPayload, Percent,
         RewardedSetNodeStatus, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
@@ -245,6 +245,17 @@ pub mod test_helpers {
 
             try_create_family(self.deps_mut(), mock_info(head, &[]), label.to_string()).unwrap();
             (mix_id, keys)
+        }
+
+        pub fn set_pending_pledge_change(&mut self, mix_id: MixId, event_id: Option<EpochEventId>) {
+            let mut changes = mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .load(self.deps().storage, mix_id)
+                .unwrap_or_default();
+            changes.pledge_change = Some(event_id.unwrap_or(12345));
+
+            mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .save(self.deps_mut().storage, mix_id, &changes)
+                .unwrap();
         }
 
         pub fn add_dummy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> MixId {

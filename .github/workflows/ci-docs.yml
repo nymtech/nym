@@ -27,16 +27,17 @@ jobs:
           cargo install --vers "^0.2.0" mdbook-variables && cargo install \
             --vers "^1.8.0" mdbook-admonish && cargo install --vers \
             "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" \
-            mdbook-theme && cargo install --vers "^0.7.7" mdbook-linkcheck
+            mdbook-theme && cargo install --vers "^0.7.7" mdbook-linkcheck && \
+            cargo install --vers "^0.5.0" mdbook-cmdrun
       - name: Build website
-        run: mdbook build
+        run: cd documentation/docs && mdbook build
       - name: Deploy branch to CI www
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-rltgoDzvO --delete"
-          SOURCE: "book/"
+          SOURCE: "documentation/docs/book/"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/docs-${{ env.GITHUB_REF_SLUG }}

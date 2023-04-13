@@ -38,7 +38,7 @@ chapter-line-height       = "2em"
 section-line-height       = "1.5em"
 
 # # if true, never read and touch the files in theme dir
-turn-off = true
+turn-off = false
 
 [preprocessor.admonish]
 command = "mdbook-admonish"

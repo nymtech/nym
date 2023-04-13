@@ -6,7 +6,9 @@ import { ConfirmationModal } from '../../components';
 
 const SecuritySettings = () => {
   const [passwordExists, setPasswordExists] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState<{ open: boolean; state?: 'created' | 'changed' }>({
+    open: false,
+  });
 
   const checkForPassword = async () => {
     const hasPassword = await isPasswordCreated();
@@ -15,7 +17,7 @@ const SecuritySettings = () => {
 
   const onPasswordCreated = () => {
     setPasswordExists(true);
-    setModalOpen(true);
+    setModalOpen({ open: true, state: 'created' });
   };
 
   useEffect(() => {
@@ -25,17 +27,13 @@ const SecuritySettings = () => {
   return (
     <>
       <ConfirmationModal
-        title={`Password successfully ${passwordExists ? 'changed' : 'created'}`}
-        onClose={() => setModalOpen(false)}
-        onConfirm={() => setModalOpen(false)}
+        title={`Password successfully ${modalOpen.state}`}
+        onClose={() => setModalOpen({ open: false })}
+        onConfirm={() => setModalOpen({ open: false })}
         maxWidth="xs"
         confirmButton="OK"
-        open={modalOpen}
-      >
-        <Stack alignItems="center" spacing={2}>
-          <Typography>To use all the features of the wallet now, log in to it with your new password</Typography>
-        </Stack>
-      </ConfirmationModal>
+        open={modalOpen.open}
+      />
       <Grid container spacing={2} padding={3}>
         <Grid item sm={12} md={6} lg={8}>
           <Stack direction="column" gap={1}>
@@ -60,7 +58,7 @@ const SecuritySettings = () => {
         </Grid>
         <Grid item sm={12} md={6} lg={4}>
           {!passwordExists && <PasswordCreateForm onPwdSaved={() => onPasswordCreated()} />}
-          {passwordExists && <PasswordUpdateForm onPwdSaved={() => setModalOpen(true)} />}
+          {passwordExists && <PasswordUpdateForm onPwdSaved={() => setModalOpen({ open: true, state: 'changed' })} />}
         </Grid>
       </Grid>
     </>

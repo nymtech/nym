@@ -16,14 +16,16 @@ export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handle
       <Alert
         title={
           <Typography sx={{ fontWeight: 600 }}>
-            In order to import or create account(s) you first need to create a password
+            In order to import or create account(s) you need to log in with password
           </Typography>
         }
         bgColor="#fff"
       />
-      <Typography>Open security tab in settings to create password to your account</Typography>
       <Typography>
-        If you already have password use it to log into wallet and try create/import account again
+        If you don’t have a password set for your account, go to the Settings, under Security tab create a password
+      </Typography>
+      <Typography>
+        If you already have a password, log in to the wallet using your password then try create/import accounts
       </Typography>
     </Stack>
   </ConfirmationModal>

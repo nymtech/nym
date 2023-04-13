@@ -172,8 +172,7 @@ fn update_encrypted_logins_at_file(
     if current_password == new_password {
         return Ok(());
     }
-    let mut stored_wallet =
-        load_existing_wallet_at_file(filepath).map_err(|_| BackendError::WalletFileNotFound)?;
+    let mut stored_wallet = load_existing_wallet_at_file(filepath)?;
 
     stored_wallet.reencrypt_all(current_password, new_password)?;
     write_to_file(filepath, &stored_wallet)

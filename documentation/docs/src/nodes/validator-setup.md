@@ -47,7 +47,7 @@ go version
 go version go1.19.2 linux/amd64
 ```
 
-### Building your validator
+### Compiling your validator binary
 The codebase for the Nyx validators can be found [here](https://github.com/nymtech/nyxd).
 
 The validator binary can be compiled by running the following commands:
@@ -119,8 +119,8 @@ nyxd
 
 This should return the regular help text.
 
-### Initialising your validator
-Prerequisites:
+## Initialising your validator
+### Prerequisites:
 
 - FQDN Domain name
 - IPv4 and IPv6 connectivity
@@ -221,7 +221,7 @@ nyxd keys show nyxd-admin -a
 
 Type in your keychain **password**, not the mnemonic, when asked.
 
-### Starting your validator
+## Starting your validator
 Everything should now be ready to go. You've got the validator set up, all changes made in `config.toml` and `app.toml`, the Nym genesis file copied into place (replacing the initial auto-generated one). Now let's validate the whole setup:
 
 ```
@@ -545,6 +545,7 @@ username        soft nofile 4096
 
 Then reboot your server and restart your validator.
 
+## Using your validator
 ### Unjailing your validator
 If your validator gets jailed, you can fix it with the following command:
 
@@ -621,7 +622,7 @@ nyxd tx staking delegate VALOPERADDRESS AMOUNTunymt
   --fees 5000unyxt
 ```
 
-### Validator port reference
+## Validator port reference
 All validator-specific port configuration can be found in `$HOME/.nymd/config/config.toml`. If you do edit any port configs, remember to restart your validator.
 
 | Default port | Use                                  |

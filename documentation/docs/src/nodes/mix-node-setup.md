@@ -57,45 +57,7 @@ Which should return a list of all avaliable commands.
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-  _ __  _   _ _ __ ___
- | '_ \| | | | '_ \ _ \
- | | | | |_| | | | | | |
- |_| |_|\__, |_| |_| |_|
-        |___/
-
-         (mixnode - version {{mix_node_release_version}})
-
-
-nym-mixnode {{mix_node_release_version}}
-Nymtech
-Implementation of a Loopix-based Mixnode
-
-USAGE:
-    nym-mixnode [OPTIONS] <SUBCOMMAND>
-
-OPTIONS:
-        --config-env-file <CONFIG_ENV_FILE>
-            Path pointing to an env file that configures the mixnode
-
-    -h, --help
-            Print help information
-
-    -V, --version
-            Print version information
-
-SUBCOMMANDS:
-    completions          Generate shell completions
-    describe             Describe your mixnode and tell people why they should delegate state to you
-    generate-fig-spec    Generate Fig specification
-    help                 Print this message or the help of the given subcommand(s)
-    init                 Initialise the mixnode
-    node-details         Show details of this mixnode
-    run                  Starts the mixnode
-    sign                 Sign text to prove ownership of this mixnode
-    upgrade              Try to upgrade the mixnode
-
-    nym-mixnode {{mix_node_release_version}}
-    Nymtech
+<!-- cmdrun ../../../../target/release/nym-mixnode --help -->
 ```
 ~~~
 
@@ -115,57 +77,21 @@ To check available configuration options for initializing your node use:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-  _ __  _   _ _ __ ___
- | '_ \| | | | '_ \ _ \
- | | | | |_| | | | | | |
- |_| |_|\__, |_| |_| |_|
-        |___/
-
-         (mixnode - version {{mix_node_release_version}})
-
-
-nym-mixnode-init
-Initialise the mixnode
-
-USAGE:
-    nym-mixnode init [OPTIONS] --id <ID> --host <HOST> --wallet-address <WALLET_ADDRESS>
-
-OPTIONS:
-        --announce-host <ANNOUNCE_HOST>
-            The custom host that will be reported to the directory server
-
-    -h, --help
-            Print help information
-
-        --host <HOST>
-            The host on which the mixnode will be running
-
-        --http-api-port <HTTP_API_PORT>
-            The port on which the mixnode will be listening for http requests
-
-        --id <ID>
-            Id of the mixnode we want to create config for
-
-        --mix-port <MIX_PORT>
-            The port on which the mixnode will be listening for mix packets
-
-        --validators <VALIDATORS>
-            Comma separated list of rest endpoints of the validators
-
-        --verloc-port <VERLOC_PORT>
-            The port on which the mixnode will be listening for verloc packets
-
-        --wallet-address <WALLET_ADDRESS>
-            The wallet address you will use to bond this mixnode, e.g.
-            nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
+ <!-- cmdrun ../../../../target/release/nym-mixnode init --help -->
 ```
 ~~~
 
 Initalise your mixnode with the following command, replacing the value of `--id` with the moniker you wish to give your mixnode, and the `--wallet-address` with the Nym address you created earlier. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
 
 ```
-./nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) --wallet-address <wallet-address>
+./nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq
 ```
+
+~~~admonish example collapsible=true title="Console output"
+```
+ <!-- cmdrun ../../../../target/release/nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq -->
+```
+~~~
 
 > The `init` command will refuse to destroy existing mix node keys.
 
@@ -233,27 +159,7 @@ Now you've bonded your mix node, run it with:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-
-Starting mixnode winston-smithnode...
-
-To bond your mixnode you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.
-Select the correct version and install it to your machine. You will need to provide the following:
-
-Identity Key: GWrymUuLaxVHSs8iE7YW48MB81npnKjrVuJzJsGkeji6
-Sphinx Key: FU89ULkS4YYDXcm5jShhJvoit7H4jG4EXHxRKbS9cXSJ
-Host: 62.240.134.46 (bind address: 62.240.134.46)
-Version: {{mix_node_release_version}}
-Mix Port: 1789, Verloc port: 1790, Http Port: 8000
-
-You are bonding to wallet address: n1x42mm3gsdg808qu2n3ah4l4r9y7vfdvwkw8az6
-
-2022-04-27T16:08:01.159Z INFO  nym_mixnode::node > Starting nym mixnode
-2022-04-27T16:08:01.490Z INFO  nym_mixnode::node > Starting node stats controller...
-2022-04-27T16:08:01.490Z INFO  nym_mixnode::node > Starting packet delay-forwarder...
-2022-04-27T16:08:01.490Z INFO  nym_mixnode::node > Starting socket listener...
-2022-04-27T16:08:01.490Z INFO  nym_mixnode::node::listener > Running mix listener on "62.240.134.46:1789"
-2022-04-27T16:08:01.490Z INFO  nym_mixnode::node           > Starting the round-trip-time measurer...
-
+ <!-- cmdrun ../../../../target/release/nym-mixnode run --id winston-smithnode -->
 ```
 ~~~
 
@@ -273,18 +179,7 @@ In order to easily identify your node via human-readable information later on in
 ./nym-mixnode describe --id winston-smithnode
 ```
 
-~~~admonish example collapsible=true title="Console output"
-```
-name: winston-smithnode
-description: nym-mixnode hosted on Linode VPS in <location> with the following specs: <specs>.
-link, e.g. https://mixnode.yourdomain.com: mixnode.mydomain.net
-location, e.g. City: London, Country: UK: <your_location>
-
-This information will be shown in the mixnode's page in the Network Explorer, and help people make delegated staking decisions.
-```
-~~~
-
-> Remember to restart your mix node process in order for the new description to be propogated
+> Remember to restart your mix node process in order for the new description to be propogated.
 
 ### Upgrading your mix node
 
@@ -323,20 +218,6 @@ You can always check the details of your mix node with the `node-details` comman
 ```
 ./nym-mixnode node-details --id winston-smithnode
 ```
-
-~~~admonish example collapsible=true title="Console output"
-```
-
-Identity Key: GWrymUuLaxVHSs8iE7YW48MB81npnKjrVuJzJsGkeji6
-Sphinx Key: FU89ULkS4YYDXcm5jShhJvoit7H4jG4EXHxRKbS9cXSJ
-Host: 62.240.134.46 (bind address: 62.240.134.46)
-Version: {{mix_node_release_version}}
-Mix Port: 1789, Verloc port: 1790, Http Port: 8000
-
-You are bonding to wallet address: n1x42mm3gsdg808qu2n3ah4l4r9y7vfdvwkw8az6
-
-```
-~~~
 
 ## VPS Setup and Automation
 ### Configure your firewall
@@ -499,20 +380,7 @@ You can use either `nym-cli` which can be downloaded from the [release page](htt
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-
-
-
-      _ __  _   _ _ __ ___
-     | '_ \| | | | '_ \ _ \
-     | | | | |_| | | | | | |
-     |_| |_|\__, |_| |_| |_|
-            |___/
-
-             (nym-mixnode - version {{mix_node_release_version}})
-
-Signing the text "APxUbCmGp4K9qDzvwVADJFNu8S3JV1AJBw7q6bS5KN9E" using your mixnode's Ed25519 identity key...
-The base58-encoded signature on 'APxUbCmGp4K9qDzvwVADJFNu8S3JV1AJBw7q6bS5KN9E' is: 2ZuCFYU91pvEcgAj6EzU33oozazvsRAoxP7NQHFM6Xy6AkJrzgCZdnsnZYAmxFtqe8Su17KXwpTHQtkVmAnAiV4H
-
+ <!-- cmdrun ../../../../target/release/nym-mixnode sign --id winston-smithnode --text "the text to sign" -->
 ```
 ~~~
 
@@ -545,17 +413,9 @@ To get the node owner signature, use:
 ```
 
 ~~~admonish example collapsible=true title="Console output"
-      _ __  _   _ _ __ ___
-     | '_ \| | | | '_ \ _ \
-     | | | | |_| | | | | | |
-     |_| |_|\__, |_| |_| |_|
-            |___/
-
-             (nym-mixnode - version {{mix_node_release_version}})
-
-
-Signing the text "4yRfauFzZnejJhG2FACTVQ7UnYEcFUYw3HzXrmuwLMaR" using your mixnode's Ed25519 identity key...
-The base58-encoded signature on '4yRfauFzZnejJhG2FACTVQ7UnYEcFUYw3HzXrmuwLMaR' is: 4By7EQEMM8BAt6ptxJyeGqpoxHWxeRUhyJ4wMr2x3mXSQD9nvttkvd7tgP1uKu2ktJjB2bLzD1oaZ33d2Wv5eYWp
+```
+ <!-- cmdrun ../../../../target/release/nym-mixnode sign --id winston-smithnode --text "the text to sign" -->
+```
 ~~~
 
 Using `nym-cli`:
@@ -591,10 +451,7 @@ Using `nyxd`:
 ./nyxd tx wasm execute ${MIXNET-CONTRACT} '{"join_family": {"signature": "<base58-encoded-signature>","family_head": "<text>"}}' --node ${VALIDATOR-ENDPOINT} --from mix1 --chain-id nyx --gas-prices 0.025unym --gas auto --gas-adjustment 1.3 -y -b block
 ```
 
-
-
 ## Checking that your node is mixing correctly
-
 ### Network explorers
 Once you've started your mix node and it connects to the validator, your node will automatically show up in the 'Mix nodes' section of either the Nym Network Explorers:
 

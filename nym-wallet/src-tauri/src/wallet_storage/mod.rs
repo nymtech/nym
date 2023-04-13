@@ -1469,6 +1469,63 @@ mod tests {
     }
 
     #[test]
+    fn append_account_to_existing_login_with_multi_then_update_pwd_and_load() {
+        let store_dir = tempdir().unwrap();
+        let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+        let account1 = Mnemonic::generate(24).unwrap();
+        let account2 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let new_password = UserPassword::new("new_password".to_string());
+        let login_id = LoginId::new("first".to_string());
+        let appended_account = AccountId::new("second".to_string());
+
+        store_login_with_multiple_accounts_at_file(
+            &wallet_file,
+            account1.clone(),
+            hd_path.clone(),
+            login_id.clone(),
+            &password,
+        )
+        .unwrap();
+
+        // Append a second mnenonic to the same login
+        append_account_to_login_at_file(
+            &wallet_file,
+            account2.clone(),
+            hd_path.clone(),
+            login_id.clone(),
+            appended_account.clone(),
+            &password,
+        )
+        .unwrap();
+
+        // Update the password
+        update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
+
+        // Expect that we can load these 2 accounts with the new password
+        let loaded_login =
+            load_existing_login_at_file(&wallet_file, &login_id, &new_password).unwrap();
+        let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
+        let expected = vec![
+            WalletAccount::new(
+                DEFAULT_FIRST_ACCOUNT_NAME.into(),
+                MnemonicAccount::new(account1, hd_path.clone()),
+            ),
+            WalletAccount::new(
+                appended_account,
+                MnemonicAccount::new(account2, hd_path.clone()),
+            ),
+        ]
+        .into();
+        assert_eq!(loaded_accounts, &expected);
+
+        // Expect that trying to load these 2 accounts with the old password fails
+        let err = load_existing_login_at_file(&wallet_file, &login_id, &password).unwrap_err();
+        assert!(matches!(err, BackendError::DecryptionError));
+    }
+
+    #[test]
     fn append_the_same_mnemonic_twice_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);

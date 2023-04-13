@@ -211,8 +211,22 @@ fn decrease_mixnode_pledge_from_vesting_account_with_sufficient_pledge() {
         )
         .unwrap();
 
-    // note: nothing has changed because the event hasn't been resolved yet!
-    assert_eq!(before, after_decrease);
+    // note: nothing has changed with the pledge because the event hasn't been resolved yet!
+    assert_eq!(before.address, after_decrease.address);
+    let before_details = before.mixnode_details.unwrap();
+    let after_details = after_decrease.mixnode_details.unwrap();
+    assert_eq!(
+        before_details.rewarding_details,
+        after_details.rewarding_details
+    );
+    assert_eq!(
+        before_details.bond_information,
+        after_details.bond_information
+    );
+
+    // but we have the pending change saved now!
+    assert!(before_details.pending_changes.pledge_change.is_none());
+    assert_eq!(Some(1), after_details.pending_changes.pledge_change);
 
     // 4. resolve events
     test.advance_mixnet_epoch();

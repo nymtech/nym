@@ -67,46 +67,11 @@ You can check that your binaries are properly compiled with:
 ./nym-socks5-client --help
 ```
 
-```admonish example collapsible=true title="Console output"
-
-
-         _ __  _   _ _ __ ___
-        | '_ \| | | | '_ \ _ \
-        | | | | |_| | | | | | |
-        |_| |_|\__, |_| |_| |_|
-                |___/
-
-                (socks5 proxy - version {{platform_release_version}})
-
-
-        nym-socks5-client {{platform_release_version}}
-        Nymtech
-        A SOCKS5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address
-
-        USAGE:
-        nym-socks5-client [OPTIONS] <SUBCOMMAND>
-
-        OPTIONS:
-                --config-env-file <CONFIG_ENV_FILE>
-                Path pointing to an env file that configures the client
-
-        -h, --help
-                Print help information
-
-        -V, --version
-                Print version information
-
-        SUBCOMMANDS:
-        completions          Generate shell completions
-        generate-fig-spec    Generate Fig specification
-        help                 Print this message or the help of the given subcommand(s)
-        init                 Initialise a Nym client. Do this first!
-        run                  Run the Nym client with provided configuration client optionally
-                             overriding set parameters
-        upgrade              Try to upgrade the client
-
-
+~~~admonish example collapsible=true title="Console output"
 ```
+# <!-- cmdrun ../../../../target/release/nym-socks5-client --help -->
+```
+~~~
 
 You can check the necessary parameters for the available commands by running:
 
@@ -115,14 +80,19 @@ You can check the necessary parameters for the available commands by running:
 ```
 
 ### Initialising a new client instance
-
 Before you can use the client, you need to initalise a new instance of it, which can be done with the following command:
 
 ```
-./nym-socks5-client init --id <id> --provider <provider>
+./nym-socks5-client init --id docs-example --provider Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf
 ```
 
-The `--id` in the example above is a local identifier so that you can name your clients; it is **never** transmitted over the network.
+~~~admonish example collapsible=true title="Console output"
+```
+# <!-- cmdrun ../../../../target/release/nym-socks5-client init --id docs-example --provider Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf -->
+```
+~~~
+
+The `--id` in the example above is a local identifier so that you can name your clients and keep track of them on your local system; it is **never** transmitted over the network.
 
 The `--provider` field needs to be filled with the Nym address of a Network Requester that can make network requests on your behalf. If you don't want to [run your own](../nodes/network-requester-setup.md) you can select one from the [mixnet explorer](https://explorer.nymtech.net/network-components/service-providers) by copying its `Client ID` and using this as the value of the `--provider` flag. Alternatively, you could use [this list](https://harbourmaster.nymtech.net/).
 
@@ -145,27 +115,13 @@ However, there are several options for choosing a gateway, if you do not want on
 You can run the initalised client by doing this:
 
 ```
-./nym-socks5-client run --id <id>
+./nym-socks5-client run --id docs-example
 ```
 
 ~~~admonish example collapsible=true title="Console output"
 
 ```
-2022-04-27T16:15:45.843Z INFO  nym_socks5_client::client > Starting nym client
-2022-04-27T16:15:45.889Z INFO  nym_socks5_client::client > Obtaining initial network topology
-2022-04-27T16:15:51.470Z INFO  nym_socks5_client::client > Starting topology refresher...
-2022-04-27T16:15:51.470Z INFO  nym_socks5_client::client > Starting received messages buffer controller...
-2022-04-27T16:15:51.648Z INFO  gateway_client::client    > Claiming more bandwidth for your tokens. This will use 1 token(s) from your wallet. Stop the process now if you don't want that to happen.
-2022-04-27T16:15:51.648Z WARN  gateway_client::client    > Not enough bandwidth. Trying to get more bandwidth, this might take a while
-2022-04-27T16:15:51.648Z INFO  gateway_client::client    > The client is running in disabled credentials mode - attempting to claim bandwidth without a credential
-2022-04-27T16:15:51.706Z INFO  nym_socks5_client::client > Starting mix traffic controller...
-2022-04-27T16:15:51.706Z INFO  nym_socks5_client::client > Starting real traffic stream...
-2022-04-27T16:15:51.706Z INFO  nym_socks5_client::client > Starting loop cover traffic stream...
-2022-04-27T16:15:51.707Z INFO  nym_socks5_client::client > Starting socks5 listener...
-2022-04-27T16:15:51.707Z INFO  nym_socks5_client::socks::server > Listening on 127.0.0.1:1080
-2022-04-27T16:15:51.707Z INFO  nym_socks5_client::client> Client startup finished!
-2022-04-27T16:15:51.707Z INFO  nym_socks5_client::client> The address of this client is: BFKhbyNsSVwbsGSLwHDkfwH5mwZqZYpnpNjjV7Xo25Xc.EFWd1geWspzyVeinwXrY5fCBMRtAKV1QmK1CNFhAA8VG@BNjYZPxzcJwczXHHgBxCAyVJKxN6LPteDRrKapxWmexv
-2022-04-27T16:15:51.707Z INFO  nym_socks5_client::socks::server > Serving Connections...
+# <!-- cmdrun ../../../../target/release/nym-socks5-client run --id docs-example -->
 ```
 ~~~
 

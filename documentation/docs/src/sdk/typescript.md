@@ -53,10 +53,10 @@ The best place to start if you just want to quickly get a basic frontend up and 
 As you can see, all that is required to create an ephemeral keypair and connect to the mixnet is creating a client and then subscribing to the mixnet events coming down the websocket, and adding logic to deal with them.
 
 #### Parcel
-If you don't want to use `Webpack` as your app bundler, we have an example with `Parcel` located at `[examples/parcel](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/typescript/examples/react-webpack-with-theme-example/parcel/)`.
+If you don't want to use `Webpack` as your app bundler, we have an example with `Parcel` located at [`examples/parcel/`](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/typescript/examples/react-webpack-with-theme-example/parcel/).
 
 #### Create React App
-For React developers we have an example which is a basic React app scaffold with the additional logic for creating a client and subscribing to mixnet events in `[examples/react-webpack-with-theme-example](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/typescript/examples/react-webpack-with-theme-example/)`.
+For React developers we have an example which is a basic React app scaffold with the additional logic for creating a client and subscribing to mixnet events in [`examples/react-webpack-with-theme-example/`](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/typescript/examples/react-webpack-with-theme-example/).
 
 ### Developers: think about what you're sending (and importing)!
 Think about what information your app sends. That goes for whatever you put into your Sphinx packet messages as well as what your app's environment may leak.

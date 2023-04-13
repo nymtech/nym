@@ -69,7 +69,7 @@ You can check that your binaries are properly compiled with:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-# <!-- cmdrun ../../../../target/release/nym-socks5-client --help -->
+<!-- cmdrun ../../../../target/release/nym-socks5-client --help -->
 ```
 ~~~
 
@@ -88,7 +88,7 @@ Before you can use the client, you need to initalise a new instance of it, which
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-# <!-- cmdrun ../../../../target/release/nym-socks5-client init --id docs-example --provider Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf -->
+<!-- cmdrun ../../../../target/release/nym-socks5-client init --id docs-example --provider Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf -->
 ```
 ~~~
 
@@ -117,13 +117,6 @@ You can run the initalised client by doing this:
 ```
 ./nym-socks5-client run --id docs-example
 ```
-
-~~~admonish example collapsible=true title="Console output"
-
-```
-# <!-- cmdrun ../../../../target/release/nym-socks5-client run --id docs-example -->
-```
-~~~
 
 ## Using your Socks5 Client
 

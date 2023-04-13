@@ -38,6 +38,8 @@ jobs:
             "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" \
             mdbook-theme && cargo install --vers "^0.7.7" mdbook-linkcheck && \
             cargo install --vers "^0.5.0" mdbook-cmdrun
+      - name: Clean website
+        run: cd documentation/docs && mdbook clean
       - name: Build website
         run: cd documentation/docs && mdbook build
       - name: Deploy branch to CI www

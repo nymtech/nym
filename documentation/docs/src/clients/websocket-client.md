@@ -190,11 +190,11 @@ In some applications, e.g. where people are chatting with friends who they know,
 }
 ```
 
-If that fits your security model, good. However, it may be the case that you want to send **anonymous replies using Single Use Reply Blocks (SURBs)**.
+If that fits your security model, good. However, will probably be the case that you want to send **anonymous replies using Single Use Reply Blocks (SURBs)**.
 
 You can read more about SURBs [here](../architecture/traffic-flow.md#private-replies-using-surbs) but in short they are ways for the receiver of this message to anonymously reply to you - the sender - without them having to know your nym address.
 
-Your client will send along a number of `replySurbs` to the recipient of the message. These are pre-addressed Sphinx packets that the recipient can write to, but not view the address. If the recipient is unable to fit the response data into the bucket of SURBs sent to it, it will use a SURB to request more SURBs be sent to it.
+Your client will send along a number of `replySurbs` to the recipient of the message. These are pre-addressed Sphinx packets that the recipient can write to the payload of (i.e. write response data to), but not view the address. If the recipient is unable to fit the response data into the bucket of SURBs sent to it, it will use a SURB to request more SURBs be sent to it from your client.
 
 ```json
 {

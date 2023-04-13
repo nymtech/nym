@@ -97,21 +97,6 @@ When running the above commands, the `./nym-network-requester --help ` command c
 <!-- cmdrun ../../../../target/release/nym-network-requester --help -->
 ```
 ~~~
-## Running your network requester
-
-Once an network-requester has been initialized, we can start it with the following command:
-
-```
- ./nym-network-requester run --id example
-```
-
-Expected output:
-
-~~~admonish example collapsible=true title="Console output"
-```
- <!-- cmdrun ../../../../target/release/nym-network-requester run --id example -->
- ```
-~~~
 
 ## Upgrading your network requester
 You can upgrade your network requester by following these steps:
@@ -120,7 +105,7 @@ You can upgrade your network requester by following these steps:
 * replace the old binary with the new binary
 * restart your service using the commands in the previous section of the document
 
-### Upgrading to version 1.1.10
+### Upgrading to >= v1.1.10 from <v1.1.9
 
 In the previous version of the network-requester, users were required to run a nym-client along side it to function. As of `v1.1.10`, the network-requester now has a nym client embedded into the binary, so it can run standalone.
 
@@ -208,7 +193,7 @@ For more information about your requester's port configuration, check the [reque
 
 ## Using your network requester
 
-The next thing to do is: use your requester, share its address with friends (or whoever you want to help privacy-enhance their app traffic). Is this safe to do? If it was an open proxy, this would be unsafe, because any Nym user could make network requests to any system on the internet.
+The next thing to do is use your requester, share its address with friends (or whoever you want to help privacy-enhance their app traffic). Is this safe to do? If it was an open proxy, this would be unsafe, because any Nym user could make network requests to any system on the internet.
 
 To make things a bit less stressful for administrators, the Network Requester drops all incoming requests by default. In order for it to make requests, you need to add specific domains to the `allowed.list` file at `$HOME/.nym/service-providers/network-requester/allowed.list`.
 

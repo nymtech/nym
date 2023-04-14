@@ -438,6 +438,11 @@ impl NymNodeTester {
                                 }
                             }
                         }
+
+                        if received_valid_acks == received_valid_messages && received_valid_messages == num_test_packets {
+                            console_log!("already received all the packets! finishing the test...");
+                            break
+                        }
                     }
                 }
             }

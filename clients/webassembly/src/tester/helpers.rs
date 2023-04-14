@@ -1,6 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// due to expansion of #[wasm_bindgen] macro on NodeTestResult
+#![allow(clippy::drop_non_drop)]
+
 use node_tester_utils::receiver::{Received, ReceivedReceiver};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};

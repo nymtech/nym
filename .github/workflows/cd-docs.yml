@@ -2,7 +2,7 @@ name: CD docs
 
 on:
   push:
-    branches: feature/add-workflows-documentation
+    branches: master
     paths:
       - 'documentation/docs/**'
 

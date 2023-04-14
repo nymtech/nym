@@ -19,8 +19,6 @@ This default whitelist is useful for knowing that the majority of network reques
 
 The domains and IPs on the default whitelist can be broken down by application as follows:
 
-# TODO pull this in from monorepo
-
 ```
 # Keybase
 keybaseapi.com

@@ -1,19 +1,16 @@
 # Nym Developer Portal
-Developer Portal for the Nym privacy platform built using the [mdBook](https://rust-lang.github.io/mdBook/) docs framework.
-
-<!-- not deployed yet  -->
-<!-- This site can be found at https://nymtech.net/developers/ -->
+Developer Portal for the Nym privacy platform built using the [mdBook](https://rust-lang.github.io/mdBook/) docs framework. Deployed version can be found [here](https://nymtech.net/developers).
 
 ## Contributing
-Contributions to our documentation are very welcome. Please work on your contribution in either a `feature/<feature-name>` or `chore/<chore-name>` branch from `master` and target your pull request at `master`. 
+Contributions to our documentation are very welcome. Please work on your contribution in either a `feature/<feature-name>` or `chore/<chore-name>` branch from `master` and target your pull request at `master`.
 
 Changes merged to `master` will be autodeployed to the production site.
 
 ### Adding community projects and resources
-If you have built a project with Nym or are compiling and writing resources about Nym, we want to include your work in the `community-resources/` section to share with the rest of the community! Just follow the existing formatting and add your project to the page, then put in a pull request. 
+If you have built a project with Nym or are compiling and writing resources about Nym, we want to include your work in the `community-resources/` section to share with the rest of the community! Just follow the existing formatting and add your project to the page, then put in a pull request.
 
 ## Variables
-There are some variables that are shared across this book, such as the current latest software version. 
+There are some variables that are shared across this book, such as the current latest software version.
 
 Variables are denoted in the `.md` files wrapped in `{{}}` (e.g `{{platform_release_version}}` is the most recent release), and are located in the `book.toml` file under the `[preprocessor.variables.variables]` heading. If you are changing something like the software release version, minimum code versions in prerequisites, etc, **check in here first!**
 

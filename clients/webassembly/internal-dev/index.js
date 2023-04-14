@@ -26,9 +26,17 @@ class WebWorkerClient {
                         displaySenderAddress(selfAddress);
                         break;
                     case 'ReceiveMessage':
-                        console.log("foomp")
-                        const {message} = ev.data.args;
-                        displayReceived(message);
+                        const {message, senderTag, isTestPacket } = ev.data.args;
+                        displayReceived(message, senderTag, isTestPacket);
+                        break;
+                    case 'DisableMagicTestButton':
+                        const magicButton = document.querySelector('#magic-button');
+                        magicButton.setAttribute('disabled', "true")
+                        break;
+                    case 'DisplayTesterResults':
+                        const {score, sentPackets, receivedPackets, receivedAcks, duplicatePackets, duplicateAcks} = ev.data.args;
+                        const resultText = `Test score: ${score}. Sent ${sentPackets} packets. Received ${receivedPackets} packets and ${receivedAcks} acks back. We also got ${duplicatePackets} duplicate packets and ${duplicateAcks} duplicate acks.`
+                        displayReceivedRawString(resultText)
                         break;
                 }
             }
@@ -98,7 +106,7 @@ async function sendTestPacket() {
     const mixnodeIdentity = document.getElementById('mixnode_identity').value;
 
     await client.sendTestPacket(mixnodeIdentity)
-    displaySend(`sending test packet to: ${mixnodeIdentity}...`);
+    displaySend(`sending test packets to: ${mixnodeIdentity}...`);
 }
 
 /**
@@ -124,23 +132,31 @@ function displaySend(message) {
  *
  * @param {Uint8Array} raw
  */
-function displayReceived(raw, sender_tag) {
-    const content = new TextDecoder().decode(raw);
+function displayReceived(raw, sender_tag, isTestPacket) {
+    let content = new TextDecoder().decode(raw);
     if (sender_tag !== undefined) {
         console.log("this message also contained some surbs from", sender_tag)
     }
 
+    if (isTestPacket) {
+        const decoded = JSON.parse(content)
+        content = `Received packet ${decoded.msg_id} / ${decoded.total_msgs} for node ${decoded.encoded_node_identity} (test: ${decoded.test_id})`
+    }
+
+    displayReceivedRawString(content)
+}
+
+
+function displayReceivedRawString(raw) {
     let timestamp = new Date().toISOString().substr(11, 12);
     let receivedDiv = document.createElement('div');
     let paragraph = document.createElement('p');
     paragraph.setAttribute('style', 'color: green');
-    let paragraphContent = document.createTextNode(timestamp + ' received >>> ' + content);
-    // let paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
+    let paragraphContent = document.createTextNode(timestamp + ' received >>> ' + raw);
     paragraph.appendChild(paragraphContent);
     receivedDiv.appendChild(paragraph);
     document.getElementById('output').appendChild(receivedDiv);
 }
-
 
 /**
  * Display the nymClient's sender address in the user interface

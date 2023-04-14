@@ -244,6 +244,8 @@ impl NymNodeTester {
 
             let mut received_valid_messages = 0;
             let mut received_valid_acks = 0;
+            let mut duplicate_packets = 0;
+            let mut duplicate_acks = 0;
 
             let mut timeout_fut = wasm_timer::Delay::new(timeout);
             let mut receiver_permit = processed_receiver_clone.lock().await;
@@ -289,6 +291,8 @@ impl NymNodeTester {
                 sent_packets: num_test_packets,
                 received_packets: received_valid_messages,
                 received_acks: received_valid_acks,
+                duplicate_packets,
+                duplicate_acks,
             }))
         })
     }

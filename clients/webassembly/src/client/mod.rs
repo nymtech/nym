@@ -259,7 +259,7 @@ impl NymClient {
     /// Sends a test packet through the current network topology.
     /// It's the responsibility of the caller to ensure the correct topology has been injected and
     /// correct onmessage handlers have been setup.
-    pub fn try_send_test_packet(&mut self, request: NymClientTestRequest) -> Promise {
+    pub fn try_send_test_packets(&mut self, request: NymClientTestRequest) -> Promise {
         // TOOD: use the premade packets instead
         console_log!(
             "Attempting to send {} test packets",

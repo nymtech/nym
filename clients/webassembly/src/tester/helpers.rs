@@ -3,6 +3,7 @@
 
 use node_tester_utils::receiver::{Received, ReceivedReceiver};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
 use wasm_bindgen::prelude::*;
@@ -53,6 +54,9 @@ pub struct NodeTestResult {
     pub sent_packets: u32,
     pub received_packets: u32,
     pub received_acks: u32,
+
+    pub duplicate_packets: u32,
+    pub duplicate_acks: u32,
 }
 
 #[wasm_bindgen]

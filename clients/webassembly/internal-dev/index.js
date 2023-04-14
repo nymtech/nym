@@ -1,4 +1,4 @@
-// Copyright 2020-2022 Nym Technologies SA
+// Copyright 2020-2023 Nym Technologies SA
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.

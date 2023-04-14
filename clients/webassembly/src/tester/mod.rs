@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::WasmClientError;
-use crate::helpers::setup_new_key_manager;
+use crate::helpers::{
+    current_network_topology, current_network_topology_async, setup_new_key_manager,
+};
 use crate::tester::helpers::{NodeTestResult, ReceivedReceiverWrapper, WasmTestMessageExt};
 use crate::topology::WasmNymTopology;
 use futures::channel::mpsc;
@@ -29,7 +31,7 @@ use std::time::Duration;
 use tokio::sync::Mutex as AsyncMutex;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::{console_log, console_warn};
+use wasm_utils::{console_log, console_warn, PromisableResult};
 
 pub(crate) mod helpers;
 
@@ -94,11 +96,20 @@ impl NymNodeTesterBuilder {
         }
     }
 
-    pub fn new_with_api(
+    async fn _new_with_api(
         gateway_config: GatewayEndpointConfig,
         api_url: String,
-    ) -> NymNodeTesterBuilder {
-        todo!()
+    ) -> Result<Self, WasmClientError> {
+        let topology = current_network_topology_async(api_url).await?;
+        Ok(NymNodeTesterBuilder::new(gateway_config, topology))
+    }
+
+    pub fn new_with_api(gateway_config: GatewayEndpointConfig, api_url: String) -> Promise {
+        future_to_promise(async move {
+            Self::_new_with_api(gateway_config, api_url)
+                .await
+                .into_promise_result()
+        })
     }
 
     async fn _setup_client(mut self) -> Result<NymNodeTester, WasmClientError> {
@@ -171,7 +182,7 @@ impl NymNodeTesterBuilder {
         })
     }
 
-    pub fn start_client(self) -> Promise {
+    pub fn setup_client(self) -> Promise {
         future_to_promise(async move {
             match self._setup_client().await {
                 Ok(client) => Ok(JsValue::from(client)),
@@ -187,11 +198,25 @@ impl NymNodeTester {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(gateway_config: GatewayEndpointConfig, topology: WasmNymTopology) -> Promise {
         console_log!("constructing node tester!");
-        NymNodeTesterBuilder::new(gateway_config, topology).start_client()
+        NymNodeTesterBuilder::new(gateway_config, topology).setup_client()
     }
 
-    pub fn new_with_api() {
-        todo!()
+    async fn _new_with_api(
+        gateway_config: GatewayEndpointConfig,
+        api_url: String,
+    ) -> Result<Self, WasmClientError> {
+        NymNodeTesterBuilder::_new_with_api(gateway_config, api_url)
+            .await?
+            ._setup_client()
+            .await
+    }
+
+    pub fn new_with_api(gateway_config: GatewayEndpointConfig, api_url: String) -> Promise {
+        future_to_promise(async move {
+            Self::_new_with_api(gateway_config, api_url)
+                .await
+                .into_promise_result()
+        })
     }
 
     pub fn test_node(

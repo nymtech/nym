@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use futures::TryFutureExt;
 use js_sys::Promise;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
@@ -63,4 +64,26 @@ macro_rules! js_error {
         let js_error = js_sys::Error::new(&format!($($t)*));
         wasm_bindgen::JsValue::from(js_error)
     }}
+}
+
+pub fn into_promise_result<T, E>(res: Result<T, E>) -> Result<JsValue, JsValue>
+where
+    T: Into<JsValue>,
+    E: Into<JsValue>,
+{
+    res.map(Into::into).map_err(Into::into)
+}
+
+pub trait PromisableResult {
+    fn into_promise_result(self) -> Result<JsValue, JsValue>;
+}
+
+impl<T, E> PromisableResult for Result<T, E>
+where
+    T: Into<JsValue>,
+    E: Into<JsValue>,
+{
+    fn into_promise_result(self) -> Result<JsValue, JsValue> {
+        into_promise_result(self)
+    }
 }

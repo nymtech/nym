@@ -1,4 +1,4 @@
-// Copyright 2020-2022 Nym Technologies SA
+// Copyright 2020-2023 Nym Technologies SA
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,8 @@ const {
     NymClientBuilder,
     set_panic_hook,
     Config,
-    GatewayEndpointConfig
+    GatewayEndpointConfig,
+    current_network_topology,
 } = wasm_bindgen;
 
 let client = null;
@@ -117,9 +118,19 @@ function dummyGatewayConfig() {
 
 async function testWithTester() {
     const gatewayConfig = dummyGatewayConfig();
-    const topology = dummyTopology()
 
+    // A) construct with hardcoded topology
+    const topology = dummyTopology()
     const nodeTester = await new NymNodeTester(gatewayConfig, topology);
+
+    // B) first get topology directly from nym-api
+    // const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
+    // const topology = await current_network_topology(validator)
+    // const nodeTester = await new NymNodeTester(gatewayConfig, topology);
+    // 
+    // C) use nym-api in the constructor (note: it does no filtering for 'good' nodes on other layers)
+    // const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
+    // const nodeTester = await NymNodeTester.new_with_api(gatewayConfig, validator)
 
     self.onmessage = async event => {
         console.log(event)
@@ -135,9 +146,6 @@ async function testWithTester() {
             }
         }
     };
-
-
-
 }
 
 async function testWithNymClient() {

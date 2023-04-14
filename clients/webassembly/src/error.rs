@@ -6,6 +6,7 @@ use js_sys::Promise;
 use node_tester_utils::error::NetworkTestingError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
+use nym_validator_client::ValidatorClientError;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
 use wasm_utils::simple_js_error;
@@ -22,6 +23,12 @@ pub enum WasmClientError {
         source: GatewayClientError,
     },
 
+    #[error("failed to query nym api: {source}")]
+    NymApiError {
+        #[from]
+        source: ValidatorClientError,
+    },
+
     #[error("The provided topology was invalid: {source}")]
     WasmTopologyError {
         #[from]
@@ -32,6 +39,12 @@ pub enum WasmClientError {
     NodeTestingFailure {
         #[from]
         source: NetworkTestingError,
+    },
+
+    #[error("{raw} is not a valid url: {source}")]
+    MalformedUrl {
+        raw: String,
+        source: url::ParseError,
     },
 }
 

@@ -105,6 +105,13 @@ impl NymTopology {
         NymTopology { mixes, gateways }
     }
 
+    pub fn from_detailed(
+        mix_details: Vec<MixNodeDetails>,
+        gateway_bonds: Vec<GatewayBond>,
+    ) -> Self {
+        nym_topology_from_detailed(mix_details, gateway_bonds)
+    }
+
     pub fn find_mix(&self, mix_id: MixId) -> Option<&mix::Node> {
         for nodes in self.mixes.values() {
             for node in nodes {

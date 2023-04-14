@@ -119,14 +119,24 @@ async function testWithTester() {
     const gatewayConfig = dummyGatewayConfig();
     const topology = dummyTopology()
 
-    // note: this mixnode is present in the dummy topology!
-    const mixnode = "4Yr4qmEHd9sgsuQ83191FR2hD88RfsbMmB4tzhhZWriz"
-
     const nodeTester = await new NymNodeTester(gatewayConfig, topology);
-    console.log("starting node test...");
 
-    let result = await nodeTester.test_node(mixnode);
-    printAndDisplayTestResult(result)
+    self.onmessage = async event => {
+        console.log(event)
+        if (event.data && event.data.kind) {
+            switch (event.data.kind) {
+                case 'TestPacket': {
+                    const {mixnodeIdentity} = event.data.args;
+                    console.log("starting node test...");
+
+                    let result = await nodeTester.test_node(mixnodeIdentity);
+                    printAndDisplayTestResult(result)
+                }
+            }
+        }
+    };
+
+
 
 }
 

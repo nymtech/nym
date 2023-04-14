@@ -3,6 +3,7 @@
 
 use crate::error::NetworkTestingError;
 use crate::MixId;
+use nym_sphinx::message::NymMessage;
 use nym_topology::{gateway, mix};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -71,7 +72,15 @@ impl<T> TestMessage<T> {
         serde_json::to_vec(self).map_err(Into::into)
     }
 
-    pub fn try_recover(raw: &[u8]) -> Result<Self, NetworkTestingError>
+    pub fn try_recover(msg: NymMessage) -> Result<Self, NetworkTestingError>
+    where
+        T: DeserializeOwned,
+    {
+        let inner = msg.into_inner_data();
+        Self::try_recover_from_bytes(&inner)
+    }
+
+    pub fn try_recover_from_bytes(raw: &[u8]) -> Result<Self, NetworkTestingError>
     where
         T: DeserializeOwned,
     {

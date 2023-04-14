@@ -88,13 +88,7 @@ function dummyTopology() {
 }
 
 function printAndDisplayTestResult(result) {
-    console.log("test result: ")
-    console.log("total score: ", result.score());
-    console.log("sent packets: ", result.sent_packets);
-    console.log("received packets: ", result.received_packets);
-    console.log("received acks: ", result.received_acks);
-    console.log("received duplicate packets: ", result.duplicate_packets);
-    console.log("received duplicate acks: ", result.duplicate_acks);
+    result.log_details();
 
     self.postMessage({
         kind: 'DisplayTesterResults',
@@ -134,7 +128,6 @@ async function testWithTester() {
     // const nodeTester = await NymNodeTester.new_with_api(gatewayConfig, validator)
 
     self.onmessage = async event => {
-        console.log(event)
         if (event.data && event.data.kind) {
             switch (event.data.kind) {
                 case 'TestPacket': {

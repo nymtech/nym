@@ -3,12 +3,12 @@
 
 use crate::error::WasmClientError;
 use crate::helpers::{current_network_topology_async, setup_new_key_manager};
+use crate::tester::ephemeral_receiver::EphemeralTestReceiver;
 use crate::tester::helpers::{NodeTestResult, ReceivedReceiverWrapper, WasmTestMessageExt};
 use crate::topology::WasmNymTopology;
 use futures::channel::mpsc;
-use futures::StreamExt;
 use js_sys::Promise;
-use node_tester_utils::receiver::{Received, SimpleMessageReceiver};
+use node_tester_utils::receiver::SimpleMessageReceiver;
 use node_tester_utils::{NodeTester, TestMessage};
 use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::config::GatewayEndpointConfig;
@@ -32,6 +32,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::{check_promise_result, console_log, console_warn, PromisableResult};
 
+mod ephemeral_receiver;
 pub(crate) mod helpers;
 
 pub type NodeTestMessage = TestMessage<WasmTestMessageExt>;
@@ -210,58 +211,13 @@ async fn test_mixnode(
     let mut gateway_permit = gateway_client.lock().await;
     gateway_permit.batch_send_mix_packets(mix_packets).await?;
 
-    let mut received_valid_messages = 0;
-    let mut received_valid_acks = 0;
-    let mut duplicate_packets = 0;
-    let mut duplicate_acks = 0;
+    let receiver_permit = processed_receiver.lock().await;
+    let result =
+        EphemeralTestReceiver::new(num_test_packets, expected_ack_ids, receiver_permit, timeout)
+            .perform_test()
+            .await;
 
-    let mut timeout_fut = wasm_timer::Delay::new(timeout);
-    let mut receiver_permit = processed_receiver.lock().await;
-
-    loop {
-        tokio::select! {
-            _ = &mut timeout_fut => {
-                break
-            }
-            received_packet = receiver_permit.next() => {
-                let Some(received_packet) = received_packet else {
-                    todo!()
-                };
-                match received_packet {
-                    Received::Message(msg) => {
-                        console_log!("received msg! raw: {msg}");
-                        let inner = msg.into_inner_data();
-                        let foo = String::from_utf8_lossy(&inner);
-                        console_log!("inner: {foo}");
-                        // TODO: parsing, validating etc
-                        received_valid_messages += 1;
-                    },
-                    Received::Ack(frag_id) => {
-                        console_log!("received ack! raw: {frag_id}");
-
-                        if expected_ack_ids.contains(&frag_id) {
-                            received_valid_acks += 1;
-                        } else {
-                            console_warn!("received an ack that was not part of the test! (id: {frag_id})")
-                        }
-                    }
-                }
-
-                if received_valid_acks == received_valid_messages && received_valid_messages == num_test_packets {
-                    console_log!("already received all the packets! finishing the test...");
-                    break
-                }
-            }
-        }
-    }
-
-    Ok(NodeTestResult {
-        sent_packets: num_test_packets,
-        received_packets: received_valid_messages,
-        received_acks: received_valid_acks,
-        duplicate_packets,
-        duplicate_acks,
-    })
+    Ok(result)
 }
 
 #[wasm_bindgen]
@@ -310,12 +266,14 @@ impl NymNodeTester {
         timeout_millis: Option<u64>,
         num_test_packets: Option<u32>,
     ) -> Promise {
+        // establish test parameters
         let timeout = timeout_millis
             .map(Duration::from_millis)
             .unwrap_or(DEFAULT_TEST_TIMEOUT);
         let num_test_packets = num_test_packets.unwrap_or(DEFAULT_TEST_PACKETS);
 
-        // I simultaneously feel both disgusted and amazed by this workaround
+        // prepare test packets
+        // (I simultaneously feel both disgusted and amazed by this workaround)
         let test_nonce = self.current_test_nonce.fetch_add(1, Ordering::Relaxed);
         let test_packets = check_promise_result!(self.prepare_test_packets(
             mixnode_identity,
@@ -326,6 +284,7 @@ impl NymNodeTester {
         let processed_receiver_clone = self.processed_receiver.clone();
         let gateway_client_clone = Arc::clone(&self.gateway_client);
 
+        // start doing async things (send packets and watch for anything coming back)
         future_to_promise(async move {
             test_mixnode(
                 test_packets,

@@ -3,10 +3,11 @@
 
 use node_tester_utils::receiver::{Received, ReceivedReceiver};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
 use wasm_bindgen::prelude::*;
-use wasm_utils::console_warn;
+use wasm_utils::{console_log, console_warn};
 
 #[derive(Clone)]
 pub(super) struct ReceivedReceiverWrapper(Arc<AsyncMutex<ReceivedReceiver>>);
@@ -58,9 +59,29 @@ pub struct NodeTestResult {
     pub duplicate_acks: u32,
 }
 
+impl Display for NodeTestResult {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Test results: ")?;
+        writeln!(f, "Total score: {:.2}%", self.score())?;
+        writeln!(f, "Sent packets: {}", self.sent_packets)?;
+        writeln!(f, "Received (valid) packets: {}", self.received_packets)?;
+        writeln!(f, "Received (valid) acks: {}", self.received_acks)?;
+        writeln!(f, "Received duplicate packets: {}", self.duplicate_packets)?;
+        write!(f, "Received duplicate acks: {}", self.duplicate_acks)
+    }
+}
+
 #[wasm_bindgen]
 impl NodeTestResult {
+    pub fn log_details(&self) {
+        console_log!("{}", self)
+    }
+
     pub fn score(&self) -> f32 {
-        (self.received_packets + self.received_acks) as f32 / (self.sent_packets * 2) as f32 * 100.
+        let expected = self.sent_packets * 2;
+        let actual = (self.received_packets + self.received_acks)
+            .saturating_sub(self.duplicate_packets + self.duplicate_acks);
+
+        actual as f32 / expected as f32 * 100.
     }
 }

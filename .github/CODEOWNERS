@@ -11,30 +11,12 @@
 # In each subsection folders are ordered first by depth, then alphabetically.
 # This should make it easy to add new rules without breaking existing ones.
 
-# Something weird not covered by anything else
-* @futurechimp @mmsinclair
+# contracts
+/contracts/mixnet @durch @jstuczyn
+/contracts/vesting @durch @jstuczyn
 
-# Rust rules:
-*.rs @durch @futurechimp @jstuczyn @neacsu @octol
-Cargo.* @durch @futurechimp @jstuczyn @neacsu @octol
-
-# JS rules:
-*.js @mmsinclair @fmtabbara
-*.ts @mmsinclair @fmtabbara
-*.tsx @mmsinclair @fmtabbara
-*.jsx @mmsinclair @fmtabbara
-
-# Something looking like possible documentation rules:
-*.md @mfahampshire
-
-# our docker scripts
-/docker/ @neacsu
-
-# if there are any changes in the core crypto, I feel like Ania should take a look:
-/common/crypto/ @aniampio
-/common/nymsphinx/ @aniampio
-
-# Explorer and wallet should probably get looked by the product team
-/explorer/ @nymtech/product 
-/nym-wallet/ @nymtech/product 
-/wallet-web/ @nymtech/product
+# crypto code
+/common/crypto/ @jstuczyn
+/common/nymcoconut/ @jstuczyn
+/common/dkg/ @jstuczyn
+/common/nymsphinx/ @jstuczyn

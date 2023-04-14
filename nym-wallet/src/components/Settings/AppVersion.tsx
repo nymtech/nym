@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Stack, Typography } from '@mui/material';
-import { Link } from '@nymproject/react/link/Link';
+import { Button, Stack, Typography } from '@mui/material';
+import { checkUpdate } from '@tauri-apps/api/updater';
 import { AppContext } from '../../context';
 import { checkVersion } from '../../requests';
 
@@ -19,6 +19,12 @@ const AppVersion = () => {
     updateCheck();
   }, [appVersion]);
 
+  const updateHandler = async () => {
+    // despite the name, this will spawn an external native window with
+    // an embedded "download and install" flow
+    checkUpdate();
+  };
+
   return (
     <Stack direction="column" alignItems="flex-end" gap={1}>
       <Stack direction="row" gap={1} alignItems="center">
@@ -28,12 +34,9 @@ const AppVersion = () => {
         <Typography>{`Nym Wallet ${appVersion}`}</Typography>
       </Stack>
       {updateAvailable && (
-        <Link
-          href="https://nymtech.net/download-nym-wallet/"
-          target="_blank"
-          text="Update available"
-          fontWeight={600}
-        />
+        <Button variant="text" onClick={() => updateHandler()}>
+          Update available
+        </Button>
       )}
     </Stack>
   );

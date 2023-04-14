@@ -18,11 +18,6 @@ use std::time::Duration;
 use url::Url;
 use wasm_bindgen::prelude::*;
 
-pub enum ClientConfig {
-    Full(Config),
-    Basic(GatewayEndpointConfig),
-}
-
 #[wasm_bindgen]
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -51,9 +46,11 @@ impl Config {
     ) -> Self {
         Config {
             id,
-            nym_api_url: Some(validator_server
-                .parse()
-                .expect("provided url was malformed")),
+            nym_api_url: Some(
+                validator_server
+                    .parse()
+                    .expect("provided url was malformed"),
+            ),
             disabled_credentials_mode: true,
             gateway_endpoint,
             debug: debug.map(Into::into).unwrap_or_default(),

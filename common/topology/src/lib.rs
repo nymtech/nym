@@ -1,4 +1,4 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::filter::VersionFilterable;
@@ -8,7 +8,7 @@ use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
 use rand::{CryptoRng, Rng};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::io;
@@ -96,12 +96,12 @@ pub type MixLayer = u8;
 
 #[derive(Debug, Clone)]
 pub struct NymTopology {
-    mixes: HashMap<MixLayer, Vec<mix::Node>>,
+    mixes: BTreeMap<MixLayer, Vec<mix::Node>>,
     gateways: Vec<gateway::Node>,
 }
 
 impl NymTopology {
-    pub fn new(mixes: HashMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
+    pub fn new(mixes: BTreeMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
         NymTopology { mixes, gateways }
     }
 
@@ -134,7 +134,7 @@ impl NymTopology {
         None
     }
 
-    pub fn mixes(&self) -> &HashMap<MixLayer, Vec<mix::Node>> {
+    pub fn mixes(&self) -> &BTreeMap<MixLayer, Vec<mix::Node>> {
         &self.mixes
     }
 
@@ -337,7 +337,7 @@ pub fn nym_topology_from_detailed(
     mix_details: Vec<MixNodeDetails>,
     gateway_bonds: Vec<GatewayBond>,
 ) -> NymTopology {
-    let mut mixes = HashMap::new();
+    let mut mixes = BTreeMap::new();
     for bond in mix_details
         .into_iter()
         .map(|details| details.bond_information)
@@ -418,7 +418,7 @@ mod converting_mixes_to_vec {
                 ..node1.clone()
             };
 
-            let mut mixes: HashMap<MixLayer, Vec<mix::Node>> = HashMap::new();
+            let mut mixes: BTreeMap<MixLayer, Vec<mix::Node>> = BTreeMap::new();
             mixes.insert(1, vec![node1, node2]);
             mixes.insert(2, vec![node3]);
 
@@ -434,7 +434,7 @@ mod converting_mixes_to_vec {
 
         #[test]
         fn returns_an_empty_vec() {
-            let topology = NymTopology::new(HashMap::new(), vec![]);
+            let topology = NymTopology::new(BTreeMap::new(), vec![]);
             let mixvec = topology.mixes_as_vec();
             assert!(mixvec.is_empty());
         }

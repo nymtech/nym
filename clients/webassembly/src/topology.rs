@@ -5,15 +5,14 @@ use nym_client_core::config::GatewayEndpointConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::mix::{Layer, MixnodeConversionError};
-use nym_topology::{gateway, mix, nym_topology_from_detailed, MixLayer, NymTopology};
+use nym_topology::{gateway, mix, MixLayer, NymTopology};
 use nym_validator_client::client::MixId;
-use nym_validator_client::client::NymApiClient;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use thiserror::Error;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
-use wasm_utils::{console_log, js_error, simple_js_error};
+use wasm_utils::{console_log, simple_js_error};
 
 #[derive(Debug, Error)]
 pub enum WasmTopologyError {
@@ -43,17 +42,18 @@ pub struct WasmNymTopology {
 impl WasmNymTopology {
     #[wasm_bindgen(constructor)]
     pub fn new(
-        // expected: HashMap<MixLayer, Vec<WasmMixNode>>,
+        // expected: BTreeMap<MixLayer, Vec<WasmMixNode>>,
+        // HashMap<MixLayer, Vec<WasmMixNode>> will also work because it has the same json representation
         mixnodes: JsValue,
         // expected: Vec<WasmGateway>
         gateways: JsValue,
     ) -> Result<WasmNymTopology, WasmTopologyError> {
-        let mixnodes: HashMap<MixLayer, Vec<WasmMixNode>> =
+        let mixnodes: BTreeMap<MixLayer, Vec<WasmMixNode>> =
             serde_wasm_bindgen::from_value(mixnodes).expect("TODO");
 
         let gateways: Vec<WasmGateway> = serde_wasm_bindgen::from_value(gateways).expect("TODO");
 
-        let mut converted_mixes = HashMap::new();
+        let mut converted_mixes = BTreeMap::new();
 
         for (layer, nodes) in mixnodes {
             let layer_nodes = nodes
@@ -74,26 +74,6 @@ impl WasmNymTopology {
         })
     }
 
-    pub async fn current(api_url: String) -> Result<WasmNymTopology, JsValue> {
-        let url = match api_url.parse() {
-            Ok(url) => url,
-            Err(err) => return Err(js_error!("the provided api URL was invalid: {err}")),
-        };
-        let client = NymApiClient::new(url);
-        let mixnodes = match client.get_cached_active_mixnodes().await {
-            Ok(mixnodes) => mixnodes,
-            Err(err) => return Err(js_error!("failed to get network mixnodes: {err}")),
-        };
-
-        let gateways = match client.get_cached_gateways().await {
-            Ok(gateways) => gateways,
-            Err(err) => return Err(js_error!("failed to get network gateways: {err}")),
-        };
-
-        let topology = nym_topology_from_detailed(mixnodes, gateways);
-        Ok(topology.into())
-    }
-
     pub(crate) fn ensure_contains(&self, gateway_config: &GatewayEndpointConfig) -> bool {
         self.inner
             .gateways()
@@ -101,10 +81,27 @@ impl WasmNymTopology {
             .any(|g| g.identity_key.to_base58_string() == gateway_config.gateway_id)
     }
 
-    // I've marked it as deprecated so that I'd be reminded to remove it before making a PR
-    #[deprecated]
     pub fn print(&self) {
-        console_log!("{:?}", self)
+        if !self.inner.mixes().is_empty() {
+            console_log!("mixnodes:");
+            for (layer, nodes) in self.inner.mixes() {
+                console_log!("\tlayer {layer}:");
+                for node in nodes {
+                    console_log!("\t\t{} - {}", node.mix_id, node.identity_key)
+                }
+            }
+        } else {
+            console_log!("NO MIXNODES")
+        }
+
+        if !self.inner.gateways().is_empty() {
+            console_log!("gateways:");
+            for gateway in self.inner.gateways() {
+                console_log!("\t{}", gateway.identity_key)
+            }
+        } else {
+            console_log!("NO GATEWAYS")
+        }
     }
 }
 
@@ -119,32 +116,6 @@ impl From<NymTopology> for WasmNymTopology {
         WasmNymTopology { inner: value }
     }
 }
-
-//
-// impl TryFrom<WasmNymTopology> for NymTopology {
-//     type Error = WasmTopologyError;
-//
-//     fn try_from(value: WasmNymTopology) -> Result<Self, Self::Error> {
-//         let mut mixnodes = HashMap::new();
-//
-//         for (layer, nodes) in value.mixnodes {
-//             let layer_nodes = nodes
-//                 .into_iter()
-//                 .map(TryInto::try_into)
-//                 .collect::<Result<_, _>>()?;
-//
-//             mixnodes.insert(layer, layer_nodes);
-//         }
-//
-//         let gateways = value
-//             .gateways
-//             .into_iter()
-//             .map(TryInto::try_into)
-//             .collect::<Result<_, _>>()?;
-//
-//         Ok(NymTopology::new(mixnodes, gateways))
-//     }
-// }
 
 #[wasm_bindgen]
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -133,12 +133,6 @@ The `run` command starts the gateway:
 ./nym-gateway run --id supergateway
 ```
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-gateway run --id supergateway -->
-```
-~~~
-
 ### Upgrading your gateway
 Upgrading your node is a two-step process:
 * Updating the binary and `config.toml` on your VPS

@@ -69,6 +69,21 @@ You can find a list of Network Requesters running the default whitelist [here](h
 
 > We are currently working on a smart-contract based solution more in line with how Mix nodes and Gateways announce themselves to the network.
 
+## Viewing command help
+
+The `./nym-network-requester --help ` command can be used to show a list of available parameters.
+
+~~~admonish example collapsible=true title="Console output"
+```
+<!-- cmdrun ../../../../target/release/nym-network-requester --help -->
+```
+~~~
+
+You can check the required parameters for available commands by running:
+
+```
+./nym-network-requester <command> --help
+```
 
 ## Initializing and running your network requester
 
@@ -78,25 +93,18 @@ The network-requester needs to be initialized before it can be run. This is requ
  ./nym-network-requester init --id example
 ```
 
+~~~admonish example collapsible=true title="Console output"
+```
+<!-- cmdrun timeout 20s ../../../../target/release/nym-network-requester init --id example -->
+```
+~~~
+
+
 Now that we have initialized our network-requester, we can start it with the following command:
 
 ```
  ./nym-network-requester run --id example
 ```
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-network-requester run --id example -->
-```
-~~~
-
-When running the above commands, the `./nym-network-requester --help ` command can be used to show a list of available parameters.
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-network-requester --help -->
-```
-~~~
 
 ## Upgrading your network requester
 You can upgrade your network requester by following these steps:

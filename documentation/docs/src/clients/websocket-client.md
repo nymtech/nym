@@ -62,15 +62,30 @@ However, there are several options for choosing a gateway, if you do not want on
 
 > Note this doesn't mean that your client will pick the closest gateway to you, but it will be far more likely to connect to gateway with a 20ms ping rather than 200ms
 
+### Running your client
+You can run the initalised client by doing this:
+
+```
+./nym-client run --id example-client
+```
+
+When you run the client, it immediately starts generating (fake) cover traffic and sending it to the mixnet.
+
+When the client is first started, it will reach out to the Nym network's validators, and get a list of available Nym nodes (gateways, mixnodes, and validators). We call this list of nodes the network _topology_. The client does this so that it knows how to connect, register itself with the network, and know which mixnodes it can route Sphinx packets through.
+
 ### Configuring your client
 When you initalise a client instance, a configuration directory will be generated and stored in `$HOME_DIR/.nym/clients/<client-name>/`.
 
 ```
-/home/<user>/.nym/clients/<client_id>/
+tree $HOME/<user>/.nym/clients/example-client
 ├── config
 │   └── config.toml
 └── data
+    ├── ack_key.pem
+    ├── gateway_shared.pem
+    ├── private_encryption.pem
     ├── private_identity.pem
+    ├── public_encryption.pem
     └── public_identity.pem
 ```
 
@@ -85,26 +100,13 @@ You can set this via the `--host` flag during either the `init` or `run` command
 
 Alternatively, a custom host can be set in the `config.toml` file under the `socket` section. If you do this, remember to restart your client process.
 
-
-### Running your client
-You can run the initalised client by doing this:
-
-```
-./nym-client run --id <client_id>
-```
-
-When you run the client, it immediately starts generating (fake) cover traffic and sending it to the mixnet.
-
-When the client is first started, it will reach out to the Nym network's validators, and get a list of available Nym nodes (gateways, mixnodes, and validators). We call this list of nodes the network _topology_. The client does this so that it knows how to connect, register itself with the network, and know which mixnodes it can route Sphinx packets through.
-
 ## Using your client
 ### Connecting to the local websocket
 The Nym native client exposes a websocket interface that your code connects to. To program your app, choose a websocket library for whatever language you're using. The **default** websocket port is `1977`, you can override that in the client config if you want.
 
-The Nym monorepo includes websocket client example code for Rust, Go, Javacript, and Python, all of which can be found [here](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/clients/native/examples)
+The Nym monorepo includes websocket client example code for Rust, Go, Javacript, and Python, all of which can be found [here](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/clients/native/examples).
 
 > Rust users can run the examples with `cargo run --example <rust_file>.rs`, as the examples are not organised in the same way as the other examples, due to already being inside a Cargo project.
-
 
 All of these code examples will do the following:
 * connect to a running websocket client on port `1977`

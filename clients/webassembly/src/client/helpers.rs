@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::tester::helpers::WasmTestMessageExt;
-use crate::tester::NodeTestMessage;
+use crate::tester::{NodeTestMessage, DEFAULT_TEST_PACKETS};
 use crate::topology::WasmNymTopology;
 use js_sys::Promise;
 use nym_client_core::client::base_client::{ClientInput, ClientState};
@@ -12,11 +12,12 @@ use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::{console_log, simple_js_error};
+use wasm_utils::{console_log, js_error, simple_js_error};
 
 #[wasm_bindgen]
 pub struct NymClientTestRequest {
-    pub(crate) test_msg: NodeTestMessage,
+    // serialized NodeTestMessage
+    pub(crate) test_msgs: Vec<Vec<u8>>,
 
     // specially constructed network topology that only contains the target
     // node on the tested layer
@@ -33,6 +34,8 @@ impl NymClientTestRequest {
 // defining helper trait as we could directly call the method on the wrapper
 pub(crate) trait InputSender {
     fn send_message(&self, message: InputMessage) -> Promise;
+
+    fn send_messages(&self, messages: Vec<InputMessage>) -> Promise;
 }
 
 impl InputSender for Arc<ClientInput> {
@@ -45,6 +48,20 @@ impl InputSender for Arc<ClientInput> {
                     "InputMessageReceiver has stopped receiving!",
                 )),
             }
+        })
+    }
+
+    fn send_messages(&self, messages: Vec<InputMessage>) -> Promise {
+        let this = Arc::clone(self);
+        future_to_promise(async move {
+            for message in messages {
+                if this.input_sender.send(message).await.is_err() {
+                    return Err(simple_js_error(
+                        "InputMessageReceiver has stopped receiving!",
+                    ));
+                }
+            }
+            Ok(JsValue::null())
         })
     }
 }
@@ -60,7 +77,12 @@ pub(crate) trait WasmTopologyExt {
     fn check_for_mixnode_existence(&self, mixnode_identity: String) -> Promise;
 
     /// Creates a `NymClientTestRequest` with a variant of `this` topology where the target node is the only one on its layer.
-    fn mix_test_request(&self, test_id: u32, mixnode_identity: String) -> Promise;
+    fn mix_test_request(
+        &self,
+        test_id: u32,
+        mixnode_identity: String,
+        num_test_packets: Option<u32>,
+    ) -> Promise;
 }
 
 impl WasmTopologyExt for Arc<ClientState> {
@@ -103,7 +125,14 @@ impl WasmTopologyExt for Arc<ClientState> {
         })
     }
 
-    fn mix_test_request(&self, test_id: u32, mixnode_identity: String) -> Promise {
+    fn mix_test_request(
+        &self,
+        test_id: u32,
+        mixnode_identity: String,
+        num_test_packets: Option<u32>,
+    ) -> Promise {
+        let num_test_packets = num_test_packets.unwrap_or(DEFAULT_TEST_PACKETS);
+
         let this = Arc::clone(self);
         future_to_promise(async move {
             let Some(current_topology) = this.topology_accessor.current_topology().await else {
@@ -116,14 +145,26 @@ impl WasmTopologyExt for Arc<ClientState> {
                 )))
             };
 
-            // TODO: more packets
-            let test_msg = NodeTestMessage::new_mix(mix, 1, 1, WasmTestMessageExt::new(test_id));
+            let mut test_msgs = Vec::with_capacity(num_test_packets as usize);
+            for i in 1..=num_test_packets {
+                let msg = NodeTestMessage::new_mix(
+                    mix,
+                    i,
+                    num_test_packets,
+                    WasmTestMessageExt::new(test_id),
+                );
+                let serialized = match msg.as_bytes() {
+                    Ok(bytes) => bytes,
+                    Err(err) => return Err(js_error!("failed to serialize test message: {err}")),
+                };
+                test_msgs.push(serialized);
+            }
 
             let mut updated = current_topology.clone();
             updated.set_mixes_in_layer(mix.layer.into(), vec![mix.to_owned()]);
 
             Ok(JsValue::from(NymClientTestRequest {
-                test_msg,
+                test_msgs,
                 testable_topology: updated,
             }))
         })

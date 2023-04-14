@@ -11,11 +11,11 @@ pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
 
 #[derive(Debug)]
 pub enum InputMessage {
-    /// Fire an already prepared mix packet into the network.
+    /// Fire an already prepared mix packets into the network.
     /// No guarantees are made about it. For example no retransmssion
     /// will be attempted if it gets dropped.
     Premade {
-        msg: MixPacket,
+        msgs: Vec<MixPacket>,
         lane: TransmissionLane,
     },
 
@@ -56,8 +56,8 @@ pub enum InputMessage {
 }
 
 impl InputMessage {
-    pub fn new_premade(msg: MixPacket, lane: TransmissionLane) -> Self {
-        InputMessage::Premade { msg, lane }
+    pub fn new_premade(msgs: Vec<MixPacket>, lane: TransmissionLane) -> Self {
+        InputMessage::Premade { msgs, lane }
     }
 
     pub fn new_regular(recipient: Recipient, data: Vec<u8>, lane: TransmissionLane) -> Self {

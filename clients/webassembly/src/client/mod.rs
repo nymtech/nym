@@ -236,12 +236,16 @@ impl NymClient {
         }
     }
 
-    pub fn try_construct_test_packet_request(&self, mixnode_identity: String) -> Promise {
+    pub fn try_construct_test_packet_request(
+        &self,
+        mixnode_identity: String,
+        num_test_packets: Option<u32>,
+    ) -> Promise {
         // TODO: improve the source of rng (i.e. don't make it ephemeral...)
         let mut ephemeral_rng = OsRng;
         let test_id = ephemeral_rng.next_u32();
         self.client_state
-            .mix_test_request(test_id, mixnode_identity)
+            .mix_test_request(test_id, mixnode_identity, num_test_packets)
     }
 
     pub fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise {
@@ -257,14 +261,22 @@ impl NymClient {
     /// correct onmessage handlers have been setup.
     pub fn try_send_test_packet(&mut self, request: NymClientTestRequest) -> Promise {
         // TOOD: use the premade packets instead
-        let serialized = match request.test_msg.as_bytes() {
-            Ok(bytes) => bytes,
-            Err(err) => {
-                return Promise::reject(&js_error!("failed to serialize test message: {err}"))
-            }
-        };
+        console_log!(
+            "Attempting to send {} test packets",
+            request.test_msgs.len()
+        );
 
-        self.send_regular_message(serialized, self.self_address())
+        // our address MUST BE valid
+        let recipient = Self::parse_recipient(&self.self_address()).unwrap();
+
+        let lane = TransmissionLane::General;
+        let input_msgs = request
+            .test_msgs
+            .into_iter()
+            .map(|p| InputMessage::new_regular(recipient, p, lane))
+            .collect();
+
+        self.client_input.send_messages(input_msgs)
     }
 
     /// The simplest message variant where no additional information is attached.

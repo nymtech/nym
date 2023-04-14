@@ -43,9 +43,15 @@ where
         }
     }
 
-    async fn handle_premade_packet(&mut self, packet: MixPacket, lane: TransmissionLane) {
+    async fn handle_premade_packets(&mut self, packets: Vec<MixPacket>, lane: TransmissionLane) {
         self.message_handler
-            .send_premade_mix_packet(RealMessage::new(packet, None), lane)
+            .send_premade_mix_packets(
+                packets
+                    .into_iter()
+                    .map(|p| RealMessage::new(p, None))
+                    .collect(),
+                lane,
+            )
             .await
     }
 
@@ -114,7 +120,7 @@ where
             } => {
                 self.handle_reply(recipient_tag, data, lane).await;
             }
-            InputMessage::Premade { msg, lane } => self.handle_premade_packet(msg, lane).await,
+            InputMessage::Premade { msgs, lane } => self.handle_premade_packets(msgs, lane).await,
         };
     }
 

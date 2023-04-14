@@ -35,8 +35,8 @@ pub(crate) mod helpers;
 
 pub type NodeTestMessage = TestMessage<WasmTestMessageExt>;
 
-const DEFAULT_TEST_TIMEOUT: Duration = Duration::from_secs(10);
-const DEFAULT_TEST_PACKETS: u32 = 20;
+pub(crate) const DEFAULT_TEST_TIMEOUT: Duration = Duration::from_secs(10);
+pub(crate) const DEFAULT_TEST_PACKETS: u32 = 20;
 
 #[wasm_bindgen]
 pub struct NymNodeTester {

@@ -190,7 +190,7 @@ where
         let ephemeral_topology = self.testable_mix_topology(mix);
 
         let mut packets = Vec::with_capacity(test_packets as usize);
-        for i in 0..test_packets {
+        for i in 1..=test_packets {
             let msg = TestMessage::new_mix(mix, i, test_packets, msg_ext.clone());
             packets.push(self.create_test_packet(&msg, &ephemeral_topology)?);
         }

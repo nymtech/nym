@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use futures::TryFutureExt;
 use js_sys::Promise;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
@@ -66,6 +65,8 @@ macro_rules! js_error {
     }}
 }
 
+/// Maps provided `Result`'s inner values into a pair of `JsValue` that can be returned 
+/// inside a promise (and in particular from inside `future_to_promise`)
 pub fn into_promise_result<T, E>(res: Result<T, E>) -> Result<JsValue, JsValue>
 where
     T: Into<JsValue>,
@@ -74,8 +75,22 @@ where
     res.map(Into::into).map_err(Into::into)
 }
 
+pub fn map_promise_err<T, E>(res: Result<T, E>) -> Result<T, JsValue>
+where
+    E: Into<JsValue>,
+{
+    res.map_err(Into::into)
+}
+
 pub trait PromisableResult {
     fn into_promise_result(self) -> Result<JsValue, JsValue>;
+}
+
+// this should probably get renamed : )
+pub trait PromisableResultError {
+    type Ok;
+
+    fn map_promise_err(self) -> Result<Self::Ok, JsValue>;
 }
 
 impl<T, E> PromisableResult for Result<T, E>
@@ -86,4 +101,25 @@ where
     fn into_promise_result(self) -> Result<JsValue, JsValue> {
         into_promise_result(self)
     }
+}
+
+impl<T, E> PromisableResultError for Result<T, E>
+where
+    E: Into<JsValue>,
+{
+    type Ok = T;
+
+    fn map_promise_err(self) -> Result<T, JsValue> {
+        map_promise_err(self)
+    }
+}
+
+#[macro_export]
+macro_rules! check_promise_result {
+    ( $x:expr ) => {
+        match $crate::PromisableResultError::map_promise_err($x) {
+            Ok(r) => r,
+            Err(err) => return js_sys::Promise::reject(&err),
+        }
+    };
 }

@@ -4,8 +4,11 @@
 use crate::topology::WasmTopologyError;
 use js_sys::Promise;
 use node_tester_utils::error::NetworkTestingError;
+use nym_client_core::error::ClientCoreError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
+use nym_sphinx::addressing::clients::RecipientFormattingError;
+use nym_sphinx::anonymous_replies::requests::InvalidAnonymousSenderTagRepresentation;
 use nym_validator_client::ValidatorClientError;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
@@ -14,6 +17,12 @@ use wasm_utils::simple_js_error;
 // might as well start using well-defined error enum...
 #[derive(Debug, Error)]
 pub enum WasmClientError {
+    #[error("experienced an issue with internal client components: {source}")]
+    BaseClientError {
+        #[from]
+        source: ClientCoreError,
+    },
+
     #[error("The provided gateway identity is invalid: {source}")]
     InvalidGatewayIdentity { source: Ed25519RecoveryError },
 
@@ -45,6 +54,24 @@ pub enum WasmClientError {
     MalformedUrl {
         raw: String,
         source: url::ParseError,
+    },
+
+    #[error("Network topology is currently unavailable")]
+    UnavailableNetworkTopology,
+
+    #[error("Mixnode {mixnode_identity} is not present in the current network topology")]
+    NonExistentMixnode { mixnode_identity: String },
+
+    #[error("{raw} is not a valid Nym network recipient: {source}")]
+    MalformedRecipient {
+        raw: String,
+        source: RecipientFormattingError,
+    },
+
+    #[error("{raw} is not a valid Nym AnonymousSenderTag: {source}")]
+    MalformedSenderTag {
+        raw: String,
+        source: InvalidAnonymousSenderTagRepresentation,
     },
 }
 

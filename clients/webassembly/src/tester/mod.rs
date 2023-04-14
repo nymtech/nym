@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::WasmClientError;
-use crate::helpers::{
-    current_network_topology, current_network_topology_async, setup_new_key_manager,
-};
+use crate::helpers::{current_network_topology_async, setup_new_key_manager};
 use crate::tester::helpers::{NodeTestResult, ReceivedReceiverWrapper, WasmTestMessageExt};
 use crate::topology::WasmNymTopology;
 use futures::channel::mpsc;
@@ -183,12 +181,7 @@ impl NymNodeTesterBuilder {
     }
 
     pub fn setup_client(self) -> Promise {
-        future_to_promise(async move {
-            match self._setup_client().await {
-                Ok(client) => Ok(JsValue::from(client)),
-                Err(err) => Err(err.into()),
-            }
-        })
+        future_to_promise(async move { self._setup_client().await.into_promise_result() })
     }
 }
 

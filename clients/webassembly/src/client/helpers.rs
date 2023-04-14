@@ -1,6 +1,7 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::WasmClientError;
 use crate::tester::helpers::WasmTestMessageExt;
 use crate::tester::{NodeTestMessage, DEFAULT_TEST_PACKETS};
 use crate::topology::WasmNymTopology;
@@ -103,7 +104,7 @@ impl WasmTopologyExt for Arc<ClientState> {
         future_to_promise(async move {
             match this.topology_accessor.current_topology().await {
                 Some(topology) => Ok(JsValue::from(WasmNymTopology::from(topology))),
-                None => Err(simple_js_error("Network topology is currently unavailable")),
+                None => Err(WasmClientError::UnavailableNetworkTopology.into()),
             }
         })
     }
@@ -113,13 +114,11 @@ impl WasmTopologyExt for Arc<ClientState> {
         let this = Arc::clone(self);
         future_to_promise(async move {
             let Some(current_topology) = this.topology_accessor.current_topology().await else {
-                return Err(simple_js_error("Network topology is currently unavailable"))
+                return Err(WasmClientError::UnavailableNetworkTopology.into())
             };
 
             match current_topology.find_mix_by_identity(&mixnode_identity) {
-                None => Err(simple_js_error(format!(
-                    "The current network topology does not contain mixnode {mixnode_identity}"
-                ))),
+                None => Err(WasmClientError::NonExistentMixnode { mixnode_identity }.into()),
                 Some(node) => Ok(JsValue::from(MixLayer::from(node.layer))),
             }
         })
@@ -136,13 +135,11 @@ impl WasmTopologyExt for Arc<ClientState> {
         let this = Arc::clone(self);
         future_to_promise(async move {
             let Some(current_topology) = this.topology_accessor.current_topology().await else {
-                return Err(simple_js_error("Network topology is currently unavailable"))
+                return Err(WasmClientError::UnavailableNetworkTopology.into())
             };
 
             let Some(mix) = current_topology.find_mix_by_identity(&mixnode_identity) else {
-                    return Err(simple_js_error(format!(
-                    "The current network topology does not contain mixnode {mixnode_identity}"
-                )))
+                return Err(WasmClientError::NonExistentMixnode { mixnode_identity }.into());
             };
 
             let mut test_msgs = Vec::with_capacity(num_test_packets as usize);

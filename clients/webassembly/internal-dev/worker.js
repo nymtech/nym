@@ -24,6 +24,7 @@ const {
     WasmNymTopology,
     default_debug,
     NymClientBuilder,
+    NymClient,
     set_panic_hook,
     Config,
     GatewayEndpointConfig,
@@ -127,7 +128,7 @@ async function testWithTester() {
     // const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
     // const topology = await current_network_topology(validator)
     // const nodeTester = await new NymNodeTester(gatewayConfig, topology);
-    // 
+    //
     // C) use nym-api in the constructor (note: it does no filtering for 'good' nodes on other layers)
     // const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
     // const nodeTester = await NymNodeTester.new_with_api(gatewayConfig, validator)
@@ -246,15 +247,13 @@ async function normalNymClientUsage() {
 
     console.log('Instantiating WASM client...');
 
-    let clientBuilder = new NymClientBuilder(config, onMessageHandler)
-    console.log('Web worker creating WASM client...');
-    let local_client = await clientBuilder.start_client();
+    let localClient = await new NymClient(config, onMessageHandler)
     console.log('WASM client running!');
 
-    const selfAddress = local_client.self_address();
+    const selfAddress = localClient.self_address();
 
     // set the global (I guess we don't have to anymore?)
-    client = local_client;
+    client = localClient;
 
     console.log(`Client address is ${selfAddress}`);
     self.postMessage({

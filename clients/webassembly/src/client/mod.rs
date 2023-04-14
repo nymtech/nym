@@ -1,13 +1,13 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
 use crate::client::helpers::{InputSender, WasmTopologyExt};
 use crate::client::response_pusher::ResponsePusher;
+use crate::helpers::{setup_new_key_manager, setup_reply_surb_storage_backend};
 use crate::tester::NodeTesterRequest;
 use crate::topology::WasmNymTopology;
 use js_sys::Promise;
-use node_tester_utils::NodeTester;
 use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::{
@@ -75,10 +75,10 @@ impl NymClientBuilder {
     pub fn new(config: Config, on_message: js_sys::Function) -> Self {
         //, key_manager: Option<KeyManager>) {
         NymClientBuilder {
-            reply_surb_storage_backend: Self::setup_reply_surb_storage_backend(&config),
+            reply_surb_storage_backend: setup_reply_surb_storage_backend(config.debug.reply_surbs),
             config,
             custom_topology: None,
-            key_manager: Self::setup_key_manager(),
+            key_manager: setup_new_key_manager(),
             on_message,
             bandwidth_controller: None,
             disabled_credentials: true,
@@ -120,40 +120,18 @@ impl NymClientBuilder {
         };
 
         NymClientBuilder {
-            reply_surb_storage_backend: Self::setup_reply_surb_storage_backend(&full_config),
+            reply_surb_storage_backend: setup_reply_surb_storage_backend(
+                full_config.debug.reply_surbs,
+            ),
             config: full_config,
             custom_topology: Some(topology.into()),
-            key_manager: Self::setup_key_manager(),
+            // TODO: once we make keys persistent, we'll require some kind of `init` method to generate
+            // a prior shared keypair between the client and the gateway
+            key_manager: setup_new_key_manager(),
             on_message,
             bandwidth_controller: None,
             disabled_credentials: true,
         }
-    }
-
-    // TODO: once we make keys persistent, we'll require some kind of `init` method to generate
-    // a prior shared keypair between the client and the gateway
-
-    // perhaps this should be public?
-    fn setup_key_manager() -> KeyManager {
-        let mut rng = OsRng;
-        // for time being generate new keys each time...
-        console_log!("generated new set of keys");
-        KeyManager::new(&mut rng)
-    }
-
-    // don't get too excited about the name, under the hood it's just a big fat placeholder
-    // with no persistence
-    fn setup_reply_surb_storage_backend(config: &Config) -> browser_backend::Backend {
-        browser_backend::Backend::new(
-            config
-                .debug
-                .reply_surbs
-                .minimum_reply_surb_storage_threshold,
-            config
-                .debug
-                .reply_surbs
-                .maximum_reply_surb_storage_threshold,
-        )
     }
 
     fn start_reconstructed_pusher(client_output: ClientOutput, on_message: js_sys::Function) {
@@ -168,7 +146,7 @@ impl NymClientBuilder {
         }
     }
 
-    pub async fn start_client(mut self) -> Promise {
+    pub fn start_client(mut self) -> Promise {
         future_to_promise(async move {
             console_log!("Starting the wasm client");
 
@@ -257,7 +235,7 @@ impl NymClient {
     pub fn try_construct_test_packet_request(&self, mixnode_identity: String) -> Promise {
         // TODO: improve the source of rng (i.e. don't make it ephemeral...
         let mut ephemeral_rng = OsRng;
-        let test_id = ephemeral_rng.next_u64();
+        let test_id = ephemeral_rng.next_u32();
         self.client_state
             .mix_test_request(test_id, mixnode_identity)
     }

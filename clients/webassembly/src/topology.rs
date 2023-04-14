@@ -13,19 +13,10 @@ use std::collections::HashMap;
 use thiserror::Error;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
-use wasm_utils::{console_log, js_error};
-
-#[wasm_bindgen]
-pub struct PlaceholderErrorWrapper(String);
-
-impl From<PlaceholderError> for PlaceholderErrorWrapper {
-    fn from(value: PlaceholderError) -> Self {
-        PlaceholderErrorWrapper(value.to_string())
-    }
-}
+use wasm_utils::{console_log, js_error, simple_js_error};
 
 #[derive(Debug, Error)]
-pub enum PlaceholderError {
+pub enum WasmTopologyError {
     #[error("got invalid mix layer {value}. Expected 1, 2 or 3.")]
     InvalidMixLayer { value: u8 },
 
@@ -36,11 +27,15 @@ pub enum PlaceholderError {
     MixnodeConversion(#[from] MixnodeConversionError),
 }
 
+impl From<WasmTopologyError> for JsValue {
+    fn from(value: WasmTopologyError) -> Self {
+        simple_js_error(value.to_string())
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Debug)]
 pub struct WasmNymTopology {
-    // mixnodes: HashMap<MixLayer, Vec<WasmMixNode>>,
-    // gateways: Vec<WasmGateway>,
     inner: NymTopology,
 }
 
@@ -52,7 +47,7 @@ impl WasmNymTopology {
         mixnodes: JsValue,
         // expected: Vec<WasmGateway>
         gateways: JsValue,
-    ) -> Result<WasmNymTopology, PlaceholderErrorWrapper> {
+    ) -> Result<WasmNymTopology, WasmTopologyError> {
         let mixnodes: HashMap<MixLayer, Vec<WasmMixNode>> =
             serde_wasm_bindgen::from_value(mixnodes).expect("TODO");
 
@@ -127,7 +122,7 @@ impl From<NymTopology> for WasmNymTopology {
 
 //
 // impl TryFrom<WasmNymTopology> for NymTopology {
-//     type Error = PlaceholderError;
+//     type Error = WasmTopologyError;
 //
 //     fn try_from(value: WasmNymTopology) -> Result<Self, Self::Error> {
 //         let mut mixnodes = HashMap::new();
@@ -197,7 +192,7 @@ impl WasmMixNode {
 }
 
 impl TryFrom<WasmMixNode> for mix::Node {
-    type Error = PlaceholderError;
+    type Error = WasmTopologyError;
 
     fn try_from(value: WasmMixNode) -> Result<Self, Self::Error> {
         let host = mix::Node::parse_host(&value.host)?;
@@ -216,7 +211,7 @@ impl TryFrom<WasmMixNode> for mix::Node {
             sphinx_key: encryption::PublicKey::from_base58_string(&value.sphinx_key)
                 .map_err(MixnodeConversionError::from)?,
             layer: Layer::try_from(value.layer)
-                .map_err(|_| PlaceholderError::InvalidMixLayer { value: value.layer })?,
+                .map_err(|_| WasmTopologyError::InvalidMixLayer { value: value.layer })?,
             version: value.version,
         })
     }
@@ -264,7 +259,7 @@ impl WasmGateway {
 }
 
 impl TryFrom<WasmGateway> for gateway::Node {
-    type Error = PlaceholderError;
+    type Error = WasmTopologyError;
 
     fn try_from(value: WasmGateway) -> Result<Self, Self::Error> {
         let host = gateway::Node::parse_host(&value.host)?;

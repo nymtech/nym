@@ -2,7 +2,7 @@ use crate::TaskClient;
 use std::future::Future;
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) fn spawn<F>(future: F)
+pub fn spawn<F>(future: F)
 where
     F: Future<Output = ()> + 'static,
 {
@@ -10,7 +10,7 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn spawn<F>(future: F)
+pub fn spawn<F>(future: F)
 where
     F: Future + Send + 'static,
     F::Output: Send + 'static,

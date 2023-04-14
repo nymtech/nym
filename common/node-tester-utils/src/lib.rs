@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::NetworkTestingError;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::message::NymMessage;
@@ -12,10 +13,12 @@ use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::time::Duration;
-use thiserror::Error;
+
+pub mod error;
+pub mod receiver;
 
 // it feels wrong to redefine it, but I don't want to import the whole of contract commons just for this one type
-type MixId = u32;
+pub(crate) type MixId = u32;
 
 #[derive(Serialize, Deserialize, Hash, Clone, Copy)]
 pub enum NodeType {
@@ -83,24 +86,6 @@ impl<T: Hash> Hash for TestMessage<T> {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum NetworkTestingError {
-    #[error(transparent)]
-    SerializationFailure(#[from] serde_json::Error),
-
-    #[error(transparent)]
-    InvalidTopology(#[from] NymTopologyError),
-
-    #[error("The specified mixnode (id: {mix_id}) doesn't exist")]
-    NonExistentMixnode { mix_id: MixId },
-
-    #[error("The specified gateway (id: {gateway_identity}) doesn't exist")]
-    NonExistentGateway { gateway_identity: String },
-
-    #[error("The provided test message is too long to fit in a single sphinx packet")]
-    TestMessageTooLong,
-}
-
 pub struct NodeTester<R> {
     rng: R,
 
@@ -125,8 +110,6 @@ pub struct NodeTester<R> {
     ack_key: Arc<AckKey>,
 }
 
-// TODO: to use it in the following PR
-#[allow(dead_code)]
 impl<R> NodeTester<R>
 where
     R: Rng + CryptoRng,
@@ -159,38 +142,52 @@ where
         self
     }
 
-    fn testable_mix_topology(&self, node: &mix::Node) -> NymTopology {
+    pub fn testable_mix_topology(&self, node: &mix::Node) -> NymTopology {
         let mut topology = self.base_topology.clone();
         topology.set_mixes_in_layer(node.layer as u8, vec![node.clone()]);
         topology
     }
 
-    fn testable_gateway_topology(&self, gateway: &gateway::Node) -> NymTopology {
+    pub fn testable_gateway_topology(&self, gateway: &gateway::Node) -> NymTopology {
         let mut topology = self.base_topology.clone();
         topology.set_gateways(vec![gateway.clone()]);
         topology
     }
 
-    fn test_mixnode_simple(&mut self, mix: &mix::Node) -> Result<(), NetworkTestingError> {
-        self.test_mixnode(mix, Empty)
+    pub fn simple_mixnode_test_packets(
+        &mut self,
+        mix: &mix::Node,
+        test_packets: u32,
+    ) -> Result<Vec<PreparedFragment>, NetworkTestingError> {
+        self.mixnode_test_packets(mix, Empty, test_packets)
     }
 
-    fn test_mixnode<T>(&mut self, mix: &mix::Node, msg_ext: T) -> Result<(), NetworkTestingError>
+    pub fn mixnode_test_packets<T>(
+        &mut self,
+        mix: &mix::Node,
+        msg_ext: T,
+        test_packets: u32,
+    ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
     where
         T: Serialize,
     {
         let msg = TestMessage::new_mix(mix, msg_ext);
         let ephemeral_topology = self.testable_mix_topology(mix);
-        self.create_test_packet(msg, &ephemeral_topology)?;
 
-        todo!()
+        let mut packets = Vec::with_capacity(test_packets as usize);
+        for _ in 0..test_packets {
+            packets.push(self.create_test_packet(&msg, &ephemeral_topology)?);
+        }
+
+        Ok(packets)
     }
 
-    fn test_existing_mixnode<T>(
+    pub fn existing_mixnode_test_packets<T>(
         &mut self,
         mix_id: MixId,
         msg_ext: T,
-    ) -> Result<(), NetworkTestingError>
+        test_packets: u32,
+    ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
     where
         T: Serialize,
     {
@@ -198,12 +195,28 @@ where
             return Err(NetworkTestingError::NonExistentMixnode {mix_id})
         };
 
-        self.test_mixnode(&node.clone(), msg_ext)
+        self.mixnode_test_packets(&node.clone(), msg_ext, test_packets)
     }
 
-    fn create_test_packet<T>(
+    pub fn existing_identity_mixnode_test_packets<T>(
         &mut self,
-        message: TestMessage<T>,
+        encoded_mix_identity: String,
+        msg_ext: T,
+        test_packets: u32,
+    ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
+    where
+        T: Serialize,
+    {
+        let Some(node) = self.base_topology.find_mix_by_identity(&encoded_mix_identity) else {
+            return Err(NetworkTestingError::NonExistentMixnodeIdentity { mix_identity: encoded_mix_identity })
+        };
+
+        self.mixnode_test_packets(&node.clone(), msg_ext, test_packets)
+    }
+
+    pub fn create_test_packet<T>(
+        &mut self,
+        message: &TestMessage<T>,
         topology: &NymTopology,
     ) -> Result<PreparedFragment, NetworkTestingError>
     where

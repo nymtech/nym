@@ -17,9 +17,10 @@ importScripts('nym_client_wasm.js');
 console.log('Initializing worker');
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
-const { WasmGateway, WasmMixNode, WasmNymTopology, default_debug, NymClientBuilder, set_panic_hook, Config, GatewayEndpointConfig } = wasm_bindgen;
+const { NymNodeTester, WasmGateway, WasmMixNode, WasmNymTopology, default_debug, NymClientBuilder, set_panic_hook, Config, GatewayEndpointConfig } = wasm_bindgen;
 
 let client = null;
+let tester = null;
 
 async function main() {
     // load WASM package
@@ -96,61 +97,76 @@ async function main() {
 
     const topology = new WasmNymTopology(mixnodes, gateways);
 
+    let foomp = await new NymNodeTester(gatewayConfig, topology)
+    console.log(foomp)
 
-    const onMessageHandler = (message) => {
-        console.log(message);
-        self.postMessage({
-            kind: 'ReceiveMessage',
-            args: {
-                message,
-            },
-        });
-    };
+    console.log("testing...");
+
+    let result = await foomp.test_node('FoM5Mx9Pxk1g3zEqkS3APgtBeTtTo3M8k7Yu4bV6kK1R');
+    console.log("RESULT:", result);
+    console.log("RESULT sent:", result.sent_packets);
+    console.log("RESULT packets:", result.received_packets);
+    console.log("RESULT acks:", result.received_acks);
+    console.log("RESULT score:", result.score());
+
+    //
+    // const onMessageHandler = (message) => {
+    //     console.log(message);
+    //     self.postMessage({
+    //         kind: 'ReceiveMessage',
+    //         args: {
+    //             message,
+    //         },
+    //     });
+    // };
+    //
+    //
+    // console.log('Instantiating WASM client...');
+    //
+    // let clientBuilder = NymClientBuilder.new_tester(gatewayConfig, topology, onMessageHandler)
+    // console.log('Web worker creating WASM client...');
+    // let local_client = await clientBuilder.start_client();
+    // console.log('WASM client running!');
+    //
+    // const selfAddress = local_client.self_address();
+    //
+    // // set the global (I guess we don't have to anymore?)
+    // client = local_client;
+    //
+    //
+    // // await client.send_test_packet("FoM5Mx9Pxk1g3zEqkS3APgtBeTtTo3M8k7Yu4bV6kK1R")
+    //
+    // console.log(`Client address is ${selfAddress}`);
+    // self.postMessage({
+    //     kind: 'Ready',
+    //     args: {
+    //         selfAddress,
+    //     },
+    // });
+    //
+    // // Set callback to handle messages passed to the worker.
+    // self.onmessage = async event => {
+    //     console.log(event)
+    //     if (event.data && event.data.kind) {
+    //         switch (event.data.kind) {
+    //             case 'SendMessage': {
+    //                 const { message, recipient } = event.data.args;
+    //                 let uint8Array = new TextEncoder().encode(message);
+    //                 await client.send_regular_message(uint8Array, recipient);
+    //             }
+    //             case 'TestPacket': {
+    //                 const { mixnodeIdentity } = event.data.args;
+    //                 const req = await client.try_construct_test_packet_request(mixnodeIdentity);
+    //                 await client.change_hardcoded_topology(req.injectable_topology());
+    //                 await client.try_send_test_packet(req);
+    //                 // console.error("TODO HERE")
+    //             }
+    //         }
+    //     }
+    // };
 
 
-    console.log('Instantiating WASM client...');
 
-    let clientBuilder = NymClientBuilder.new_tester(gatewayConfig, topology, onMessageHandler)
-    console.log('Web worker creating WASM client...');
-    let local_client = await clientBuilder.start_client();
-    console.log('WASM client running!');
-
-    const selfAddress = local_client.self_address();
-
-    // set the global (I guess we don't have to anymore?)
-    client = local_client;
-
-
-    // await client.send_test_packet("FoM5Mx9Pxk1g3zEqkS3APgtBeTtTo3M8k7Yu4bV6kK1R")
-
-    console.log(`Client address is ${selfAddress}`);
-    self.postMessage({
-        kind: 'Ready',
-        args: {
-            selfAddress,
-        },
-    });
-
-    // Set callback to handle messages passed to the worker.
-    self.onmessage = async event => {
-        console.log(event)
-        if (event.data && event.data.kind) {
-            switch (event.data.kind) {
-                case 'SendMessage': {
-                    const { message, recipient } = event.data.args;
-                    let uint8Array = new TextEncoder().encode(message);
-                    await client.send_regular_message(uint8Array, recipient);
-                }
-                case 'TestPacket': {
-                    const { mixnodeIdentity } = event.data.args;
-                    const req = await client.try_construct_test_packet_request(mixnodeIdentity);
-                    await client.change_hardcoded_topology(req.injectable_topology());
-                    await client.try_send_test_packet(req);
-                    // console.error("TODO HERE")
-                }
-            }
-        }
-    };
 
     //
     //

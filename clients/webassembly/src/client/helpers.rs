@@ -43,7 +43,7 @@ pub(crate) trait WasmTopologyExt {
     fn check_for_mixnode_existence(&self, mixnode_identity: String) -> Promise;
 
     /// Creates a `NodeTesterRequest` with a variant of `this` topology where the target node is the only one on its layer.
-    fn mix_test_request(&self, test_id: u64, mixnode_identity: String) -> Promise;
+    fn mix_test_request(&self, test_id: u32, mixnode_identity: String) -> Promise;
 }
 
 impl WasmTopologyExt for Arc<ClientState> {
@@ -86,7 +86,7 @@ impl WasmTopologyExt for Arc<ClientState> {
         })
     }
 
-    fn mix_test_request(&self, test_id: u64, mixnode_identity: String) -> Promise {
+    fn mix_test_request(&self, test_id: u32, mixnode_identity: String) -> Promise {
         let this = Arc::clone(self);
         future_to_promise(async move {
             let Some(current_topology) = this.topology_accessor.current_topology().await else {

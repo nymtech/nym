@@ -31,6 +31,8 @@ wasm-bindgen = { version = "=0.2.83", features = ["serde-serialize"]  }
 wasm-bindgen-futures = "0.4"
 thiserror = "1.0.40"
 
+wasm-timer = { git = "https://github.com/mmsinclair/wasm-timer", rev = "b9d1a54ad514c2f230a026afe0dde341e98cd7b6"}
+
 # internal
 node-tester-utils = { path = "../../common/node-tester-utils" }
 nym-client-core = { path = "../../common/client-core", default-features = false, features = ["wasm"] }

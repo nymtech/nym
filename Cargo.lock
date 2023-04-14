@@ -2925,12 +2925,16 @@ checksum = "b93853da6d84c2e3c7d730d6473e8817692dd89be387eb01b94d7f108ecb5b8c"
 name = "node-tester-utils"
 version = "0.1.0"
 dependencies = [
+ "futures",
+ "nym-crypto",
  "nym-sphinx",
+ "nym-task",
  "nym-topology",
  "rand 0.7.3",
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

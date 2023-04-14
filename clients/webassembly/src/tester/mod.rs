@@ -10,11 +10,12 @@ use futures::channel::mpsc;
 use js_sys::Promise;
 use node_tester_utils::receiver::SimpleMessageReceiver;
 use node_tester_utils::{NodeTester, TestMessage};
+use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
+use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::config::GatewayEndpointConfig;
+use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_crypto::asymmetric::identity;
-use nym_gateway_client::bandwidth::BandwidthController;
-use nym_gateway_client::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_gateway_client::GatewayClient;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
@@ -36,7 +37,8 @@ mod ephemeral_receiver;
 pub(crate) mod helpers;
 
 pub type NodeTestMessage = TestMessage<WasmTestMessageExt>;
-type LockedGatewayClient = Arc<AsyncMutex<GatewayClient<FakeClient<DirectSigningNyxdClient>>>>;
+type LockedGatewayClient =
+    Arc<AsyncMutex<GatewayClient<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>>;
 
 pub(crate) const DEFAULT_TEST_TIMEOUT: Duration = Duration::from_secs(10);
 pub(crate) const DEFAULT_TEST_PACKETS: u32 = 20;
@@ -71,7 +73,9 @@ pub struct NymNodeTesterBuilder {
     /// KeyManager object containing smart pointers to all relevant keys used by the client.
     key_manager: KeyManager,
 
-    bandwidth_controller: Option<BandwidthController<FakeClient<DirectSigningNyxdClient>>>,
+    // unimplemented
+    bandwidth_controller:
+        Option<BandwidthController<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>,
 }
 
 fn address(keys: &KeyManager, gateway_identity: NodeIdentity) -> Recipient {

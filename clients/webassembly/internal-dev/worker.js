@@ -284,7 +284,7 @@ async function main() {
     await testWithTester()
 
     // hook-up the whole client for testing
-    // testWithNymClient()
+    // await testWithNymClient()
 
     // 'Normal' client setup (to send 'normal' messages)
     // await normalNymClientUsage()

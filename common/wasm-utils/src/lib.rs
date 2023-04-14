@@ -65,7 +65,7 @@ macro_rules! js_error {
     }}
 }
 
-/// Maps provided `Result`'s inner values into a pair of `JsValue` that can be returned 
+/// Maps provided `Result`'s inner values into a pair of `JsValue` that can be returned
 /// inside a promise (and in particular from inside `future_to_promise`)
 pub fn into_promise_result<T, E>(res: Result<T, E>) -> Result<JsValue, JsValue>
 where

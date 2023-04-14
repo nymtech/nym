@@ -1,18 +1,17 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Stack, Typography } from '@mui/material';
-import { checkUpdate } from '@tauri-apps/api/updater';
+import { Link } from '@nymproject/react/link/Link';
 import { AppContext } from '../../context';
+import { checkVersion } from '../../requests';
 
 const AppVersion = () => {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const { appVersion } = useContext(AppContext);
 
   const updateCheck = async () => {
-    const update = await checkUpdate();
-    if (update.shouldUpdate && update.manifest) {
+    const res = await checkVersion();
+    if (res.is_update_available) {
       setUpdateAvailable(true);
-    } else {
-      setUpdateAvailable(false);
     }
   };
 
@@ -29,9 +28,12 @@ const AppVersion = () => {
         <Typography>{`Nym Wallet ${appVersion}`}</Typography>
       </Stack>
       {updateAvailable && (
-        <Typography color="primary" fontWeight={600}>
-          Update available
-        </Typography>
+        <Link
+          href="https://nymtech.net/download-nym-wallet/"
+          target="_blank"
+          text="Update available"
+          fontWeight={600}
+        />
       )}
     </Stack>
   );

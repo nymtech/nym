@@ -1,8 +1,8 @@
-name: CI docs
+name: CD docs
 
 on:
   push:
-    branches-ignore: master
+    branches: feature/add-workflows-documentation
     paths:
       - 'documentation/docs/**'
 
@@ -39,30 +39,40 @@ jobs:
         run: cd documentation/docs && mdbook clean
       - name: Build website
         run: cd documentation/docs && mdbook build
-      - name: Deploy branch to CI www
+      - name: Deploy branch master to dev
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.CD_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-rltgoDzvO --delete"
           SOURCE: "documentation/docs/book/"
-          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/docs-${{ env.GITHUB_REF_SLUG }}
+          REMOTE_HOST: ${{ secrets.CD_WWW_REMOTE_HOST_DEV }}
+          REMOTE_USER: ${{ secrets.CD_WWW_REMOTE_USER }}
+          TARGET: ${{ secrets.CD_WWW_REMOTE_TARGET }}/
+          EXCLUDE: "/dist/, /node_modules/"
+      - name: Deploy branch master to prod
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CD_WWW_SSH_PRIVATE_KEY }}
+          ARGS: "-rltgoDzvO --delete"
+          SOURCE: "documentation/docs/book/"
+          REMOTE_HOST: ${{ secrets.CD_WWW_REMOTE_HOST_PROD }}
+          REMOTE_USER: ${{ secrets.CD_WWW_REMOTE_USER }}
+          TARGET: ${{ secrets.CD_WWW_REMOTE_TARGET }}/
           EXCLUDE: "/dist/, /node_modules/"
       - name: Matrix - Node Install
         run: npm install
         working-directory: .github/workflows/support-files
       - name: Matrix - Send Notification
         env:
-          NYM_NOTIFICATION_KIND: ci-docs
-          NYM_PROJECT_NAME: "Docs CI"
-          NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
-          NYM_CI_WWW_LOCATION: "docs-${{ env.GITHUB_REF_SLUG }}"
+          NYM_NOTIFICATION_KIND: cd-docs
+          NYM_PROJECT_NAME: "Docs CD"
+          NYM_CI_WWW_BASE: "${{ secrets.NYM_CD_WWW_BASE }}"
+          NYM_CI_WWW_LOCATION: "${{ env.GITHUB_REF_SLUG }}"
           GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
           GIT_BRANCH: "${GITHUB_REF##*/}"
           MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
-          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM_DOCS }}"
+          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
           MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
           MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
           MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"

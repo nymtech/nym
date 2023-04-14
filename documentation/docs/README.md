@@ -43,3 +43,4 @@ Looping reload is a known issue with the `mdbook-theme` preprocessor used for th
 To check the version of mdBook installed on your system, you can use the `mdbook --version` command. This will print the version number of mdBook installed on your system in the terminal.
 
 The latest release of the binary of the pre-compiled binaries can be found on [GitHub](https://github.com/rust-lang/mdBook/releases).
+

@@ -24,6 +24,12 @@ pub enum WasmTopologyError {
 
     #[error(transparent)]
     MixnodeConversion(#[from] MixnodeConversionError),
+
+    #[error("The provided mixnode map was malformed: {source}")]
+    MalformedMixnodeMap { source: serde_wasm_bindgen::Error },
+
+    #[error("The provided gateway list was malformed: {source}")]
+    MalformedGatewayList { source: serde_wasm_bindgen::Error },
 }
 
 impl From<WasmTopologyError> for JsValue {
@@ -49,9 +55,11 @@ impl WasmNymTopology {
         gateways: JsValue,
     ) -> Result<WasmNymTopology, WasmTopologyError> {
         let mixnodes: BTreeMap<MixLayer, Vec<WasmMixNode>> =
-            serde_wasm_bindgen::from_value(mixnodes).expect("TODO");
+            serde_wasm_bindgen::from_value(mixnodes)
+                .map_err(|source| WasmTopologyError::MalformedMixnodeMap { source })?;
 
-        let gateways: Vec<WasmGateway> = serde_wasm_bindgen::from_value(gateways).expect("TODO");
+        let gateways: Vec<WasmGateway> = serde_wasm_bindgen::from_value(gateways)
+            .map_err(|source| WasmTopologyError::MalformedGatewayList { source })?;
 
         let mut converted_mixes = BTreeMap::new();
 

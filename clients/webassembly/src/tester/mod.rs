@@ -3,193 +3,40 @@
 
 use crate::error::WasmClientError;
 use crate::helpers::setup_new_key_manager;
+use crate::tester::helpers::{NodeTestResult, ReceivedReceiverWrapper, WasmTestMessageExt};
 use crate::topology::WasmNymTopology;
 use futures::channel::mpsc;
-use futures::channel::mpsc::UnboundedSender;
 use futures::StreamExt;
 use js_sys::Promise;
-use node_tester_utils::receiver::{Received, ReceivedReceiver, SimpleMessageReceiver};
-use node_tester_utils::{Empty, NodeTester, TestMessage};
+use node_tester_utils::receiver::{Received, SimpleMessageReceiver};
+use node_tester_utils::{NodeTester, TestMessage};
 use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::bandwidth::BandwidthController;
 use nym_gateway_client::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
-use nym_gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
+use nym_gateway_client::GatewayClient;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketSize;
-use nym_task::{TaskClient, TaskManager};
+use nym_task::TaskManager;
 use nym_topology::NymTopology;
 use rand::rngs::OsRng;
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex as SyncMutex};
 use std::time::Duration;
-use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
+use tokio::sync::Mutex as AsyncMutex;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::{future_to_promise, spawn_local};
+use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::{console_log, console_warn};
 
-// TODO: split this file
+pub(crate) mod helpers;
+
+pub type NodeTestMessage = TestMessage<WasmTestMessageExt>;
 
 const DEFAULT_TEST_TIMEOUT: Duration = Duration::from_secs(10);
 const DEFAULT_TEST_PACKETS: u32 = 20;
-
-#[derive(Clone)]
-struct ReceivedReceiverWrapper(Arc<AsyncMutex<ReceivedReceiver>>);
-
-impl ReceivedReceiverWrapper {
-    fn new(inner: ReceivedReceiver) -> Self {
-        ReceivedReceiverWrapper(Arc::new(AsyncMutex::new(inner)))
-    }
-
-    async fn clear_received_channel(&self) {
-        let mut lost_msgs = 0;
-        let mut lost_acks = 0;
-        let mut permit = self.0.lock().await;
-        while let Ok(Some(received)) = permit.try_next() {
-            match received {
-                Received::Message(_) => lost_msgs += 1,
-                Received::Ack(_) => lost_acks += 1,
-            }
-        }
-        if lost_msgs > 0 || lost_acks > 0 {
-            console_warn!("while preparing for the test run, we cleared {lost_msgs} messages and {lost_acks} acks that were received in the meantime.")
-        }
-    }
-
-    async fn lock(&self) -> AsyncMutexGuard<'_, ReceivedReceiver> {
-        self.0.lock().await
-    }
-}
-
-// type TesterCommandReceiver = mpsc::UnboundedReceiver<TesterCommand>;
-// struct TesterCommandSender(mpsc::UnboundedSender<TesterCommand>);
-//
-// impl From<mpsc::UnboundedSender<TesterCommand>> for TesterCommandSender {
-//     fn from(value: UnboundedSender<TesterCommand>) -> Self {
-//         TesterCommandSender(value)
-//     }
-// }
-//
-// impl TesterCommandSender {
-//     fn send_command(&self, cmd: TesterCommand) {
-//         self.0
-//             .unbounded_send(cmd)
-//             .expect("The TesterCommandReceiver has stopped receiving - the node tester is dead")
-//     }
-// }
-//
-// struct TesterCommand {
-//     test_nonce: u32,
-//     mixnode_identity: String,
-//     test_packets: u32,
-// }
-//
-// impl TesterCommand {
-//     fn new(test_nonce: u32, mixnode_identity: String, test_packets: u32) -> Self {
-//         Self {
-//             test_nonce,
-//             mixnode_identity,
-//             test_packets,
-//         }
-//     }
-// }
-
-#[derive(Serialize, Deserialize)]
-pub struct TestMessageExt {
-    pub test_id: u32,
-}
-
-impl TestMessageExt {
-    pub fn new(test_id: u32) -> Self {
-        TestMessageExt { test_id }
-    }
-}
-
-#[wasm_bindgen]
-pub struct NodeTesterRequest {
-    pub(crate) test_msg: TestMessage<TestMessageExt>,
-
-    // specially constructed network topology that only contains the target
-    // node on the tested layer
-    pub(crate) testable_topology: NymTopology,
-}
-
-#[wasm_bindgen]
-impl NodeTesterRequest {
-    pub fn injectable_topology(&self) -> WasmNymTopology {
-        self.testable_topology.clone().into()
-    }
-}
-
-// TODO: maybe put it in the tester utils
-#[wasm_bindgen]
-pub struct NodeTestResult {
-    pub sent_packets: u32,
-    pub received_packets: u32,
-    pub received_acks: u32,
-}
-
-#[wasm_bindgen]
-impl NodeTestResult {
-    pub fn score(&self) -> f32 {
-        (self.received_packets + self.received_acks) as f32 / (self.sent_packets * 2) as f32 * 100.
-    }
-}
-
-// // we need to keep this guy in separate task so that we wouldn't need to mutate our NymNodeTester
-// // (gotta love async wasm)
-// struct NodeTesterWrapper<R> {
-//     tester: NodeTester<R>,
-//     gateway_client: GatewayClient<FakeClient<DirectSigningNyxdClient>>,
-//     command_receiver: TesterCommandReceiver,
-//     shutdown: TaskClient,
-// }
-//
-// impl<R> NodeTesterWrapper<R> {
-//     fn new(
-//         tester: NodeTester<R>,
-//         gateway_client: GatewayClient<FakeClient<DirectSigningNyxdClient>>,
-//         command_receiver: TesterCommandReceiver,
-//         shutdown: TaskClient,
-//     ) -> Self {
-//         NodeTesterWrapper {
-//             tester,
-//             gateway_client,
-//             command_receiver,
-//             shutdown,
-//         }
-//     }
-//
-//     fn on_command(&mut self, command: TesterCommand) {
-//         todo!()
-//     }
-//
-//     async fn run(&mut self) {
-//         while !self.shutdown.is_shutdown() {
-//             tokio::select! {
-//                 biased;
-//                 _ = self.shutdown.recv() => {
-//                     todo!()
-//                 }
-//                 cmd = self.command_receiver.next() => {
-//                     let Some(cmd) = cmd else {
-//                         todo!()
-//                     };
-//                     self.on_command(cmd)
-//                 }
-//             }
-//         }
-//     }
-// }
-
-// struct TestingInner<R> {
-//     tester: NodeTester<R>,
-//     gateway_client: GatewayClient<FakeClient<DirectSigningNyxdClient>>,
-// }
 
 #[wasm_bindgen]
 pub struct NymNodeTester {
@@ -202,8 +49,6 @@ pub struct NymNodeTester {
     tester: Arc<SyncMutex<NodeTester<OsRng>>>,
     gateway_client: Arc<AsyncMutex<GatewayClient<FakeClient<DirectSigningNyxdClient>>>>,
 
-    // tester_command_sender: TesterCommandSender,
-
     // we have to put it behind the lock due to wasm limitations and borrowing...
     // the mutex acquisition should be instant as there aren't going to be any threads attempting
     // to get simultaneous access
@@ -212,7 +57,6 @@ pub struct NymNodeTester {
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
     _task_manager: TaskManager,
-    // TODO: do we need any callbacks here?
 }
 
 #[wasm_bindgen]
@@ -320,11 +164,6 @@ impl NymNodeTesterBuilder {
 
         Ok(NymNodeTester {
             current_test_nonce: Default::default(),
-            // tester_command_sender: tester_command_sender.into(),
-            // testing: Arc::new(Mutex::new(TestingInner {
-            //     tester,
-            //     gateway_client,
-            // })),
             tester: Arc::new(SyncMutex::new(tester)),
             gateway_client: Arc::new(AsyncMutex::new(gateway_client)),
             processed_receiver: ReceivedReceiverWrapper::new(processed_receiver),
@@ -332,7 +171,7 @@ impl NymNodeTesterBuilder {
         })
     }
 
-    pub fn setup_client(self) -> Promise {
+    pub fn start_client(self) -> Promise {
         future_to_promise(async move {
             match self._setup_client().await {
                 Ok(client) => Ok(JsValue::from(client)),
@@ -345,15 +184,14 @@ impl NymNodeTesterBuilder {
 #[wasm_bindgen]
 impl NymNodeTester {
     #[wasm_bindgen(constructor)]
-    // TODO: see if this constructor actually works...
     #[allow(clippy::new_ret_no_self)]
     pub fn new(gateway_config: GatewayEndpointConfig, topology: WasmNymTopology) -> Promise {
         console_log!("constructing node tester!");
-        NymNodeTesterBuilder::new(gateway_config, topology).setup_client()
+        NymNodeTesterBuilder::new(gateway_config, topology).start_client()
     }
 
     pub fn new_with_api() {
-        //
+        todo!()
     }
 
     pub fn test_node(
@@ -371,10 +209,7 @@ impl NymNodeTester {
         // I simultaneously feel both disgusted and amazed by this workaround
         let test_nonce = self.current_test_nonce.fetch_add(1, Ordering::Relaxed);
 
-        // let new_test = TesterCommand::new(test_nonce, mixnode_identity, test_packets);
-        // self.tester_command_sender.send_command(new_test);
-
-        let test_ext = TestMessageExt::new(test_nonce);
+        let test_ext = WasmTestMessageExt::new(test_nonce);
 
         let mut tester_permit = self.tester.lock().expect("mutex got poisoned");
         let test_packets = match tester_permit.existing_identity_mixnode_test_packets(
@@ -383,7 +218,7 @@ impl NymNodeTester {
             num_test_packets,
         ) {
             Ok(packets) => packets,
-            Err(err) => return Promise::reject(&WasmClientError::from(err).into()),
+            Err(err) => return WasmClientError::from(err).into_rejected_promise(),
         };
 
         let expected_ack_ids = test_packets
@@ -397,8 +232,11 @@ impl NymNodeTester {
         let gateway_client_clone = Arc::clone(&self.gateway_client);
 
         future_to_promise(async move {
+            // start by clearing any messages that might have been received between tests
             processed_receiver_clone.clear_received_channel().await;
 
+            // locking the gateway client so that we could get mutable access to data without having to declare
+            // self mutable
             let mut gateway_permit = gateway_client_clone.lock().await;
             if let Err(err) = gateway_permit.batch_send_mix_packets(mix_packets).await {
                 return Err(WasmClientError::from(err).into());
@@ -425,7 +263,7 @@ impl NymNodeTester {
                                 let inner = msg.into_inner_data();
                                 let foo = String::from_utf8_lossy(&inner);
                                 console_log!("inner: {foo}");
-                                // TODO: parsing etc
+                                // TODO: parsing, validating etc
                                 received_valid_messages += 1;
                             },
                             Received::Ack(frag_id) => {

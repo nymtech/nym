@@ -131,7 +131,10 @@ where
         // send to `OutQueueControl` to eventually send to the mix network
         self.message_handler
             .forward_messages(
-                vec![RealMessage::new(prepared_fragment.mix_packet, frag_id)],
+                vec![RealMessage::new(
+                    prepared_fragment.mix_packet,
+                    Some(frag_id),
+                )],
                 TransmissionLane::Retransmission,
             )
             .await

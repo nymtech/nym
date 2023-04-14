@@ -7,8 +7,9 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx::preparer::{FragmentPreparer, PreparedFragment};
-use nym_topology::{gateway, mix, MixLayer, NymTopology, NymTopologyError};
-use rand::{CryptoRng, Rng, RngCore};
+use nym_topology::{gateway, mix, NymTopology};
+use rand::{CryptoRng, Rng};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -35,6 +36,9 @@ pub struct TestMessage<T = Empty> {
     pub node_owner: String,
     pub node_type: NodeType,
 
+    pub msg_id: u32,
+    pub total_msgs: u32,
+
     // any additional fields that might be required by a specific tester.
     // For example nym-api might want to attach route ids
     #[serde(flatten)]
@@ -42,20 +46,24 @@ pub struct TestMessage<T = Empty> {
 }
 
 impl<T> TestMessage<T> {
-    pub fn new_mix(node: &mix::Node, ext: T) -> Self {
+    pub fn new_mix(node: &mix::Node, msg_id: u32, total_msgs: u32, ext: T) -> Self {
         TestMessage {
             encoded_node_identity: node.identity_key.to_base58_string(),
             node_owner: node.owner.clone(),
             node_type: NodeType::Mixnode(node.mix_id),
+            msg_id,
+            total_msgs,
             ext,
         }
     }
 
-    pub fn new_gateway(node: &gateway::Node, ext: T) -> Self {
+    pub fn new_gateway(node: &gateway::Node, msg_id: u32, total_msgs: u32, ext: T) -> Self {
         TestMessage {
             encoded_node_identity: node.identity_key.to_base58_string(),
             node_owner: node.owner.clone(),
             node_type: NodeType::Gateway,
+            msg_id,
+            total_msgs,
             ext,
         }
     }
@@ -74,6 +82,14 @@ impl<T> TestMessage<T> {
         // the test messages are supposed to be rather small so we can use the good old serde_json
         // (the performance penalty over bincode or custom serialization should be minimal)
         serde_json::to_vec(self).map_err(Into::into)
+    }
+
+    pub fn try_recover(raw: &[u8]) -> Result<Self, NetworkTestingError>
+    where
+        T: DeserializeOwned,
+    {
+        serde_json::from_slice(raw)
+            .map_err(|source| NetworkTestingError::MalformedTestMessageReceived { source })
     }
 }
 
@@ -169,13 +185,13 @@ where
         test_packets: u32,
     ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
     where
-        T: Serialize,
+        T: Serialize + Clone,
     {
-        let msg = TestMessage::new_mix(mix, msg_ext);
         let ephemeral_topology = self.testable_mix_topology(mix);
 
         let mut packets = Vec::with_capacity(test_packets as usize);
-        for _ in 0..test_packets {
+        for i in 0..test_packets {
+            let msg = TestMessage::new_mix(mix, i, test_packets, msg_ext.clone());
             packets.push(self.create_test_packet(&msg, &ephemeral_topology)?);
         }
 
@@ -189,7 +205,7 @@ where
         test_packets: u32,
     ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
     where
-        T: Serialize,
+        T: Serialize + Clone,
     {
         let Some(node) = self.base_topology.find_mix(mix_id) else {
             return Err(NetworkTestingError::NonExistentMixnode {mix_id})
@@ -205,7 +221,7 @@ where
         test_packets: u32,
     ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
     where
-        T: Serialize,
+        T: Serialize + Clone,
     {
         let Some(node) = self.base_topology.find_mix_by_identity(&encoded_mix_identity) else {
             return Err(NetworkTestingError::NonExistentMixnodeIdentity { mix_identity: encoded_mix_identity })

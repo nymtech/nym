@@ -17,7 +17,7 @@ use nym_sphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::builder::SphinxPacketBuilder;
 use nym_sphinx_types::{delays, Delay};
 use nym_topology::{NymTopology, NymTopologyError};
-use rand::{CryptoRng, Rng, RngCore};
+use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::time::Duration;
 

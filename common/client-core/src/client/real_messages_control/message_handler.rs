@@ -291,8 +291,10 @@ where
             .try_prepare_single_reply_chunk_for_sending(reply_surb, chunk_clone)
             .await?;
 
-        let real_messages =
-            RealMessage::new(prepared_fragment.mix_packet, chunk.fragment_identifier());
+        let real_messages = RealMessage::new(
+            prepared_fragment.mix_packet,
+            Some(chunk.fragment_identifier()),
+        );
         let delay = prepared_fragment.total_delay;
         let pending_ack =
             PendingAcknowledgement::new_anonymous(chunk, delay, target, is_extra_surb_request);
@@ -384,7 +386,8 @@ where
             let lane = raw.0;
             let fragment = raw.1;
 
-            let real_message = RealMessage::new(prepared.mix_packet, prepared.fragment_identifier);
+            let real_message =
+                RealMessage::new(prepared.mix_packet, Some(prepared.fragment_identifier));
             let delay = prepared.total_delay;
             let pending_ack = PendingAcknowledgement::new_anonymous(fragment, delay, target, false);
 
@@ -452,8 +455,10 @@ where
                 &recipient,
             )?;
 
-            let real_message =
-                RealMessage::new(prepared_fragment.mix_packet, fragment.fragment_identifier());
+            let real_message = RealMessage::new(
+                prepared_fragment.mix_packet,
+                Some(fragment.fragment_identifier()),
+            );
             let delay = prepared_fragment.total_delay;
             let pending_ack = PendingAcknowledgement::new_known(fragment, delay, recipient);
 

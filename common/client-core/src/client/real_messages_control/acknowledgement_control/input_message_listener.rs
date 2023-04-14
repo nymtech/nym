@@ -3,10 +3,12 @@
 
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver};
 use crate::client::real_messages_control::message_handler::MessageHandler;
+use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use crate::client::replies::reply_controller::ReplyControllerSender;
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::connections::TransmissionLane;
 use rand::{CryptoRng, Rng};
 
@@ -39,6 +41,12 @@ where
             message_handler,
             reply_controller_sender,
         }
+    }
+
+    async fn handle_premade_packet(&mut self, packet: MixPacket, lane: TransmissionLane) {
+        self.message_handler
+            .send_premade_mix_packet(RealMessage::new(packet, None), lane)
+            .await
     }
 
     async fn handle_reply(
@@ -106,7 +114,7 @@ where
             } => {
                 self.handle_reply(recipient_tag, data, lane).await;
             }
-            InputMessage::Premade { msg, lane } => todo!(),
+            InputMessage::Premade { msg, lane } => self.handle_premade_packet(msg, lane).await,
         };
     }
 

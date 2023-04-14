@@ -12,6 +12,9 @@ pub enum NetworkTestingError {
     #[error(transparent)]
     SerializationFailure(#[from] serde_json::Error),
 
+    #[error("could not recover received test message: {source}")]
+    MalformedTestMessageReceived { source: serde_json::Error },
+
     #[error(transparent)]
     InvalidTopology(#[from] NymTopologyError),
 

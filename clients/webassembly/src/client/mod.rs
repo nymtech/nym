@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
-use crate::client::helpers::{InputSender, WasmTopologyExt};
+use crate::client::helpers::{InputSender, NymClientTestRequest, WasmTopologyExt};
 use crate::client::response_pusher::ResponsePusher;
 use crate::helpers::{setup_new_key_manager, setup_reply_surb_storage_backend};
-use crate::tester::NodeTesterRequest;
 use crate::topology::WasmNymTopology;
 use js_sys::Promise;
 use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
@@ -88,6 +87,7 @@ impl NymClientBuilder {
     // no cover traffic
     // no poisson delay
     // hardcoded topology
+    // NOTE: you most likely want to use `[NymNodeTester]` instead.
     pub fn new_tester(
         gateway_config: GatewayEndpointConfig,
         topology: WasmNymTopology,
@@ -204,6 +204,10 @@ impl NymClientBuilder {
 
 #[wasm_bindgen]
 impl NymClient {
+    pub fn new() -> Promise {
+        todo!()
+    }
+
     pub fn self_address(&self) -> String {
         self.self_address.clone()
     }
@@ -233,7 +237,7 @@ impl NymClient {
     }
 
     pub fn try_construct_test_packet_request(&self, mixnode_identity: String) -> Promise {
-        // TODO: improve the source of rng (i.e. don't make it ephemeral...
+        // TODO: improve the source of rng (i.e. don't make it ephemeral...)
         let mut ephemeral_rng = OsRng;
         let test_id = ephemeral_rng.next_u32();
         self.client_state
@@ -251,7 +255,7 @@ impl NymClient {
     /// Sends a test packet through the current network topology.
     /// It's the responsibility of the caller to ensure the correct topology has been injected and
     /// correct onmessage handlers have been setup.
-    pub fn try_send_test_packet(&mut self, request: NodeTesterRequest) -> Promise {
+    pub fn try_send_test_packet(&mut self, request: NymClientTestRequest) -> Promise {
         // TOOD: use the premade packets instead
         let serialized = match request.test_msg.as_bytes() {
             Ok(bytes) => bytes,
@@ -261,44 +265,6 @@ impl NymClient {
         };
 
         self.send_regular_message(serialized, self.self_address())
-
-        // let mut rng = OsRng;
-        // let foomp = NodeTester::new(
-        //         &mut rng,
-        //
-        // )
-
-        // IDEAL PROCEDURE:
-        // 1. check if mixnode exists
-        // 2. get its layer L
-        // 3. if possible, create ephemeral topology such that it that:
-        //    - layer L only contains this one node
-        //    - other layers contain only very high performance nodes
-        // 4. send a sphinx packet through
-        // 5. ???
-        // 6 PROFIT
-
-        // CURRENT (temporary?) PROCEDURE:
-        // 1. check if mixnode exists
-        // 2. get its layer L
-        // 3. clear other nodes on layer L (other layers are not really guaranteed to be 'good')
-        // 4. send a sphinx packet through
-        // 5. ???
-        // 6 PROFIT
-
-        // check if this mixnode exists in our known topology and if so,
-        // extract its layer
-        // let layer_promise = self
-        //     .client_state
-        //     .check_for_mixnode_existence(mixnode_identity);
-        //
-        // let send_callback = Closure::new(|layer_res| {
-        //     console_log!("RES: {layer_res:?}");
-        // });
-        //
-        // let send_promise = layer_promise.then(&send_callback);
-        // send_callback.forget();
-        // send_promise
     }
 
     /// The simplest message variant where no additional information is attached.

@@ -4,7 +4,9 @@
 use crate::error::WasmClientError;
 use crate::helpers::{current_network_topology_async, setup_new_key_manager};
 use crate::tester::ephemeral_receiver::EphemeralTestReceiver;
-use crate::tester::helpers::{NodeTestResult, ReceivedReceiverWrapper, WasmTestMessageExt};
+use crate::tester::helpers::{
+    NodeTestResult, ReceivedReceiverWrapper, TestMarker, WasmTestMessageExt,
+};
 use crate::topology::WasmNymTopology;
 use futures::channel::mpsc;
 use js_sys::Promise;
@@ -25,7 +27,7 @@ use nym_task::TaskManager;
 use nym_topology::NymTopology;
 use rand::rngs::OsRng;
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex as SyncMutex};
 use std::time::Duration;
 use tokio::sync::Mutex as AsyncMutex;
@@ -45,6 +47,8 @@ pub(crate) const DEFAULT_TEST_PACKETS: u32 = 20;
 
 #[wasm_bindgen]
 pub struct NymNodeTester {
+    test_in_progress: Arc<AtomicBool>,
+
     // we need to increment the nonce between tests to distinguish the packets
     // but we can't make the tester mutable because of wasm...
     // so we're using the atomics
@@ -179,6 +183,7 @@ impl NymNodeTesterBuilder {
         nym_task::spawn(async move { receiver.run().await });
 
         Ok(NymNodeTester {
+            test_in_progress: Arc::new(AtomicBool::new(false)),
             current_test_nonce: Default::default(),
             tester: Arc::new(SyncMutex::new(tester)),
             gateway_client: Arc::new(AsyncMutex::new(gateway_client)),
@@ -196,6 +201,7 @@ async fn test_mixnode(
     test_packets: Vec<PreparedFragment>,
     gateway_client: LockedGatewayClient,
     processed_receiver: ReceivedReceiverWrapper,
+    _test_marker: TestMarker,
     timeout: Duration,
 ) -> Result<NodeTestResult, WasmClientError> {
     let num_test_packets = test_packets.len() as u32;
@@ -276,6 +282,11 @@ impl NymNodeTester {
             .unwrap_or(DEFAULT_TEST_TIMEOUT);
         let num_test_packets = num_test_packets.unwrap_or(DEFAULT_TEST_PACKETS);
 
+        // mark start of the test
+        if self.test_in_progress.swap(true, Ordering::SeqCst) {
+            return WasmClientError::TestInProgress.into_rejected_promise();
+        }
+
         // prepare test packets
         // (I simultaneously feel both disgusted and amazed by this workaround)
         let test_nonce = self.current_test_nonce.fetch_add(1, Ordering::Relaxed);
@@ -287,6 +298,7 @@ impl NymNodeTester {
 
         let processed_receiver_clone = self.processed_receiver.clone();
         let gateway_client_clone = Arc::clone(&self.gateway_client);
+        let tester_marker = TestMarker::new(Arc::clone(&self.test_in_progress));
 
         // start doing async things (send packets and watch for anything coming back)
         future_to_promise(async move {
@@ -294,6 +306,7 @@ impl NymNodeTester {
                 test_packets,
                 gateway_client_clone,
                 processed_receiver_clone,
+                tester_marker,
                 timeout,
             )
             .await

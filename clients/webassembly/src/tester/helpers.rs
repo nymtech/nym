@@ -7,6 +7,7 @@
 use node_tester_utils::receiver::{Received, ReceivedReceiver};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
 use wasm_bindgen::prelude::*;
@@ -86,5 +87,22 @@ impl NodeTestResult {
             .saturating_sub(self.duplicate_packets + self.duplicate_acks);
 
         actual as f32 / expected as f32 * 100.
+    }
+}
+
+pub(crate) struct TestMarker {
+    value: Arc<AtomicBool>,
+}
+
+impl TestMarker {
+    pub fn new(value: Arc<AtomicBool>) -> Self {
+        Self { value }
+    }
+}
+
+impl Drop for TestMarker {
+    // make sure to clear the test flag when the marker is dropped
+    fn drop(&mut self) {
+        self.value.store(false, Ordering::SeqCst)
     }
 }

@@ -17,6 +17,9 @@ use wasm_utils::simple_js_error;
 // might as well start using well-defined error enum...
 #[derive(Debug, Error)]
 pub enum WasmClientError {
+    #[error("A node test is already in progress. Wait for it to finish before starting another one.")]
+    TestInProgress,    
+    
     #[error("experienced an issue with internal client components: {source}")]
     BaseClientError {
         #[from]

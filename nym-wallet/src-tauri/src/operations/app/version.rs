@@ -6,7 +6,7 @@ use nym_wallet_types::app::AppVersion;
 
 #[tauri::command]
 pub async fn check_version(handle: tauri::AppHandle) -> Result<AppVersion, BackendError> {
-    log::info!(">>> Getting latest version");
+    log::info!(">>> Getting app version info");
     let res = tauri::updater::builder(handle)
         .check()
         .await

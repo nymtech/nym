@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkTestingError;
+use crate::{log_err, log_info, log_warn};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use nym_crypto::asymmetric::encryption;
@@ -66,7 +67,8 @@ impl SimpleMessageReceiver<SphinxMessageReceiver> {
             message_receiver: SphinxMessageReceiver::new(),
             mixnet_message_receiver,
             acks_receiver,
-            received_sender,shutdown
+            received_sender,
+            shutdown,
         }
     }
 }
@@ -107,39 +109,40 @@ impl<R: MessageReceiver> SimpleMessageReceiver<R> {
         Ok(())
     }
 
-    // fn clear_channels(&mut self) {
-    //     while self.mixnet_message_receiver.try_next().is_ok() {}
-    //     while self.acks_receiver.try_next().is_ok() {}
-    // }
-
     pub async fn run(&mut self) {
         while !self.shutdown.is_shutdown() {
             tokio::select! {
                 biased;
                 _ = self.shutdown.recv() => {
-                    todo!()
+                    log_info!("SimpleMessageReceiver: received shutdown")
                 }
                 mixnet_messages = self.mixnet_message_receiver.next() => {
                     let Some(mixnet_messages) = mixnet_messages else {
-                        todo!()
+                        log_err!("the mixnet messages stream has terminated!");
+                        // note: this will cause global shutdown, but we have no choice if we stopped receiving mixnet messages
+                        break
                     };
                     for message in mixnet_messages {
                         if let Err(err) = self.on_mixnet_message(message) {
-                            todo!()
+                            log_warn!("failed to process received mixnet message: {err}")
                         }
                     }
                 }
                 acks = self.acks_receiver.next() => {
                     let Some(acks) = acks else {
-                        todo!()
+                        log_err!("the ack messages stream has terminated!");
+                        // note: this will cause global shutdown, but we have no choice if we stopped receiving mixnet messages
+                        break
                     };
                     for ack in acks {
                         if let Err(err) = self.on_ack(ack) {
-                            todo!()
+                            log_warn!("failed to process received ack message: {err}")
                         }
                     }
                 }
             }
         }
+
+        log_info!("SimpleMessageReceiver: Exiting")
     }
 }

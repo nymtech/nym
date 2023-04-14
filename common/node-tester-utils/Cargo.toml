@@ -20,7 +20,10 @@ nym-topology = { path = "../topology" }
 # TODO: do we need the whole nymsphinx?
 nym-sphinx = { path = "../nymsphinx" }
 
+## non-wasm-only dependencies
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.log]
+workspace = true
 
 ## wasm-only dependencies
-#[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
-#version = "0.2"
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
+path = "../wasm-utils"

@@ -2926,6 +2926,7 @@ name = "node-tester-utils"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "log",
  "nym-crypto",
  "nym-sphinx",
  "nym-task",
@@ -2935,6 +2936,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "wasm-utils",
 ]
 
 [[package]]

@@ -233,8 +233,8 @@ function displayJsonSend(message) {
 Lets add the finishing touches to the UI by adding in the stylesheet which we specified at the top of `index.html`: 
 
 ```
-mkdir -p src/assets
-touch src/assets/styles.css
+mkdir -p assets
+touch assets/styles.css
 
 # grab the stylesheet from the remote repo and save it to the newly created css file
 curl https://raw.githubusercontent.com/nymtech/developer-tutorials/main/simple-service-provider-tutorial/user-client/assets/styles.css -o assets/styles.css

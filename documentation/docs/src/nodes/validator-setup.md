@@ -150,7 +150,7 @@ You can use the following command to download them for the correct network:
 wget  -O $HOME/.nyxd/config/genesis.json https://nymtech.net/genesis/genesis.json
 
 # Sandbox Testnet
-wget  -O $HOME/.nymd/config/genesis.json https://nymtech.net/testnets/sandbox/genesis.json
+wget  -O $HOME/.nymd/config/genesis.json https://sandbox-validator1.nymtech.net/genesis
 ```
 
 ### `config.toml` configuration

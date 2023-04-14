@@ -157,12 +157,6 @@ Now you've bonded your mix node, run it with:
 ./nym-mixnode run --id winston-smithnode
 ```
 
-~~~admonish example collapsible=true title="Console output"
-```
- <!-- cmdrun ../../../../target/release/nym-mixnode run --id winston-smithnode -->
-```
-~~~
-
 If everything worked, you'll see your node running on the either the [Sandbox testnet network explorer](https://sandbox-explorer.nymtech.net) or the [mainnet network explorer](https://explorer.nymtech.net), depending on which network you're running.
 
 Note that your node's public identity key is displayed during startup, you can use it to identify your node in the list.

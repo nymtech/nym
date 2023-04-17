@@ -45,11 +45,13 @@ export type TBondMixnodeSignatureArgs = {
   mixnode: MixNode;
   costParams: MixNodeCostParams;
   pledge: DecCoin;
+  tokenPool: 'balance' | 'locked';
 };
 
 export type TBondGatewaySignatureArgs = {
   gateway: Gateway;
   pledge: DecCoin;
+  tokenPool: 'balance' | 'locked';
 };
 
 export type TBondMoreArgs = {

@@ -140,7 +140,7 @@ nyxd init <ID> --chain-id=nyx
 ```admonish caution
 `init` generates `priv_validator_key.json` and `node_key.json`.
 
-If you have already set up a validator on a previous testnet, **make sure to back up the key located at**
+If you have already set up a validator on a network, **make sure to back up the key located at**
 `~/.nyxd/config/priv_validator_key.json`.
 
 If you don't save the validator key, then it can't sign blocks and will be jailed all the time, and

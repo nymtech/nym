@@ -1,5 +1,5 @@
 [package]
-name = "node-tester-utils"
+name = "nym-node-tester-utils"
 version = "0.1.0"
 edition = "2021"
 

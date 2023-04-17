@@ -4,7 +4,7 @@
 use crate::tester::helpers::NodeTestResult;
 use crate::tester::NodeTestMessage;
 use futures::StreamExt;
-use node_tester_utils::receiver::{Received, ReceivedReceiver};
+use nym_node_tester_utils::receiver::{Received, ReceivedReceiver};
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use std::collections::HashSet;
 use std::time::Duration;

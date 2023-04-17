@@ -3,10 +3,10 @@
 
 use crate::topology::WasmTopologyError;
 use js_sys::Promise;
-use node_tester_utils::error::NetworkTestingError;
 use nym_client_core::error::ClientCoreError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
+use nym_node_tester_utils::error::NetworkTestingError;
 use nym_sphinx::addressing::clients::RecipientFormattingError;
 use nym_sphinx::anonymous_replies::requests::InvalidAnonymousSenderTagRepresentation;
 use nym_validator_client::ValidatorClientError;

@@ -4,7 +4,7 @@
 // due to expansion of #[wasm_bindgen] macro on NodeTestResult
 #![allow(clippy::drop_non_drop)]
 
-use node_tester_utils::receiver::{Received, ReceivedReceiver};
+use nym_node_tester_utils::receiver::{Received, ReceivedReceiver};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::sync::atomic::{AtomicBool, Ordering};

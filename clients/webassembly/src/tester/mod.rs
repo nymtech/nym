@@ -10,8 +10,6 @@ use crate::tester::helpers::{
 use crate::topology::WasmNymTopology;
 use futures::channel::mpsc;
 use js_sys::Promise;
-use node_tester_utils::receiver::SimpleMessageReceiver;
-use node_tester_utils::{NodeTester, TestMessage};
 use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::key_manager::KeyManager;
@@ -19,6 +17,8 @@ use nym_client_core::config::GatewayEndpointConfig;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
+use nym_node_tester_utils::receiver::SimpleMessageReceiver;
+use nym_node_tester_utils::{NodeTester, TestMessage};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketSize;

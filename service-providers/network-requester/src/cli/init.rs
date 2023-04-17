@@ -87,7 +87,7 @@ impl InitResults {
 impl Display for InitResults {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.client_core)?;
-        write!(f, "Address of this client: {}", self.client_address)
+        write!(f, "Address of this network-requester: {}", self.client_address)
     }
 }
 

@@ -116,8 +116,8 @@ impl InitResults {
 impl Display for InitResults {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.client_core)?;
-        write!(f, "SOCKS5 listening port: {}", self.socks5_listening_port)?;
-        write!(f, "address of this client: {}", self.client_address)
+        writeln!(f, "SOCKS5 listening port: {}", self.socks5_listening_port)?;
+        write!(f, "Address of this client: {}", self.client_address)
     }
 }
 
@@ -181,7 +181,6 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     let init_results = InitResults::new(&config, &address);
     println!("{}", args.output.format(&init_results));
 
-    eprintln!("\nThe address of this client is: {}\n", address);
     Ok(())
 }
 

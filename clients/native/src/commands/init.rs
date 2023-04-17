@@ -115,7 +115,7 @@ impl Display for InitResults {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.client_core)?;
         writeln!(f, "Client listening port: {}", self.client_listening_port)?;
-        write!(f, "address of this client: {}", self.client_address)
+        write!(f, "Address of this client: {}", self.client_address)
     }
 }
 

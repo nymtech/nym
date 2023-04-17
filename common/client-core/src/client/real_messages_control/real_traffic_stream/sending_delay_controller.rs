@@ -134,27 +134,27 @@ impl SendingDelayController {
         let multiple_elevated = self.current_multiplier - self.lower_bound;
         if multiple_elevated == 0 {
             self.multiplier_elevated_counter = 0;
-        } else if multiple_elevated > 0 {
+        } else {
             self.multiplier_elevated_counter += 1;
         }
 
         // If needed, log about the elevated multiplier.
         let now = get_time_now();
-        if self.multiplier_elevated_counter > 20 {
-            if now > self.time_when_logged_about_elevated_multiplier + Duration::from_secs(60) {
-                let status_str = format!(
-                    "Poisson delay currently scaled by: {}",
-                    self.current_multiplier()
-                );
-                if self.current_multiplier() > 0 {
-                    log::debug!("{}", status_str);
-                } else if self.current_multiplier() > 1 {
-                    log::info!("{}", status_str);
-                } else if self.current_multiplier() > 2 {
-                    log::warn!("{}", status_str);
-                }
-                self.time_when_logged_about_elevated_multiplier = now;
+        if self.multiplier_elevated_counter > 20
+            && now > self.time_when_logged_about_elevated_multiplier + Duration::from_secs(60)
+        {
+            let status_str = format!(
+                "Poisson delay currently scaled by: {}",
+                self.current_multiplier()
+            );
+            if self.current_multiplier() > 0 {
+                log::debug!("{}", status_str);
+            } else if self.current_multiplier() > 1 {
+                log::info!("{}", status_str);
+            } else if self.current_multiplier() > 2 {
+                log::warn!("{}", status_str);
             }
+            self.time_when_logged_about_elevated_multiplier = now;
         }
     }
 }

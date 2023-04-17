@@ -1,24 +1,29 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Button, Stack, Typography } from '@mui/material';
 import { checkUpdate } from '@tauri-apps/api/updater';
 import { AppContext } from '../../context';
+import { checkVersion } from '../../requests';
 
 const AppVersion = () => {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const { appVersion } = useContext(AppContext);
 
   const updateCheck = async () => {
-    const update = await checkUpdate();
-    if (update.shouldUpdate && update.manifest) {
+    const res = await checkVersion();
+    if (res.is_update_available) {
       setUpdateAvailable(true);
-    } else {
-      setUpdateAvailable(false);
     }
   };
 
   useEffect(() => {
     updateCheck();
   }, [appVersion]);
+
+  const updateHandler = async () => {
+    // despite the name, this will spawn an external native window with
+    // an embedded "download and install" flow
+    checkUpdate();
+  };
 
   return (
     <Stack direction="column" alignItems="flex-end" gap={1}>
@@ -29,9 +34,9 @@ const AppVersion = () => {
         <Typography>{`Nym Wallet ${appVersion}`}</Typography>
       </Stack>
       {updateAvailable && (
-        <Typography color="primary" fontWeight={600}>
+        <Button variant="text" onClick={() => updateHandler()}>
           Update available
-        </Typography>
+        </Button>
       )}
     </Stack>
   );

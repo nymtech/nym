@@ -124,6 +124,8 @@ pub enum BackendError {
     SignatureError(String),
     #[error("Unable to open a new window")]
     NewWindowError,
+    #[error("Failed to check for application update")]
+    CheckAppVersionError,
 
     #[error(transparent)]
     WalletError {

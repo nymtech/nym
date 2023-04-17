@@ -1,0 +1,19 @@
+on:
+  schedule:
+    - cron: "0 0 * * *" # daily
+  repository_dispatch: # run manually
+    types: [check-link]
+
+env:
+  TARGET: https://nymtech.net/docs/
+  RECURSIVE: true
+  ASSIGNEES: mfahampshire
+
+name: Broken Link Check
+jobs:
+  check:
+    name: Broken Link Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Broken Link Check
+        uses: technote-space/broken-link-checker-action@v2

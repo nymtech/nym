@@ -108,6 +108,22 @@ impl StoredWallet {
         self.get_encrypted_login(id)?.decrypt_struct(password)
     }
 
+    pub fn reencrypt_all(
+        &mut self,
+        current_password: &UserPassword,
+        new_password: &UserPassword,
+    ) -> Result<(), BackendError> {
+        if current_password == new_password {
+            return Ok(());
+        }
+        for encrypted_login in &mut self.accounts {
+            let login = encrypted_login.account.decrypt_struct(current_password)?;
+            *encrypted_login =
+                EncryptedLogin::encrypt(encrypted_login.id.clone(), &login, new_password)?;
+        }
+        Ok(())
+    }
+
     pub fn decrypt_all(&self, password: &UserPassword) -> Result<Vec<StoredLogin>, BackendError> {
         self.accounts
             .iter()

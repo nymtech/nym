@@ -12,7 +12,7 @@ export type TAuthContext = {
   setError: (err?: string) => void;
   setMnemonic: (mnc: string) => void;
   generateMnemonic: () => Promise<void>;
-  setPassword: (paswd: string) => void;
+  setPassword: (pwd: string) => void;
   resetState: () => void;
 };
 

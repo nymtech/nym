@@ -8,8 +8,9 @@ import { PageLayout } from '../../layouts';
 import { Tabs } from '../../components/Tabs';
 import GeneralSettings from './GeneralSettings';
 import AdvancedSettings from './AdvancedSettings';
+import SecuritySettings from './SecuritySettings';
 
-const tabs = ['General', 'Advanced'] as const;
+const tabs = ['General', 'Security', 'Advanced'] as const;
 type SettingsTabs = (typeof tabs)[number];
 
 const Settings = () => {
@@ -78,6 +79,7 @@ const Settings = () => {
       >
         <Divider />
         {currentTab === 'General' && <GeneralSettings />}
+        {currentTab === 'Security' && <SecuritySettings />}
         {currentTab === 'Advanced' && <AdvancedSettings />}
       </NymCard>
     </PageLayout>

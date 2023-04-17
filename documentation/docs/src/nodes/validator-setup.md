@@ -147,7 +147,7 @@ If you don't save the validator key, then it can't sign blocks and will be jaile
 there is no way to deterministically (re)generate this key.
 ```
 
-At this point, you have a new validator, with its own genesis file located at `$HOME/.nyxd/config/genesis.json`. You will need to replace the contents of that file that with either the Nyx Mainnet <a href="https://nymtech.net/genesis/genesis.json">genesis file</a> or Sandbox Sandbox Testnet <a href="https://nymtech.net/testnets/sandbox/genesis.json">genesis file</a>.
+At this point, you have a new validator, with its own genesis file located at `$HOME/.nyxd/config/genesis.json`. You will need to replace the contents of that file that with either the Nyx Mainnet or Sandbox Testnet genesis file.
 
 You can use the following command to download them for the correct network:
 

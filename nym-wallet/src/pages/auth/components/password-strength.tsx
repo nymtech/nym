@@ -62,7 +62,7 @@ const getPasswordStrength = (score: ZXCVBNScore) => {
 };
 
 export const PasswordStrength = ({
-  password,
+  password = '',
   withWarnings,
   handleIsSafePassword,
 }: {

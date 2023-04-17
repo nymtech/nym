@@ -42,6 +42,7 @@ fn main() {
             mixnet::account::connect_with_mnemonic,
             mixnet::account::create_new_mnemonic,
             mixnet::account::create_password,
+            mixnet::account::update_password,
             mixnet::account::does_password_file_exist,
             mixnet::account::get_balance,
             mixnet::account::list_accounts,

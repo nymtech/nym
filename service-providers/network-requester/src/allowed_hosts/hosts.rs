@@ -23,7 +23,7 @@ impl HostsStore {
     /// in the user-defined storefile.
     pub(crate) fn new<P: AsRef<Path>>(storefile: P) -> HostsStore {
         let storefile = storefile.as_ref().to_path_buf();
-        if !storefile.is_file() {
+        if storefile.exists() && !storefile.is_file() {
             // there's no error handling in here and I'm not going to be changing it right now.
             panic!(
                 "the provided storefile {:?} is not a valid file!",
@@ -115,6 +115,7 @@ impl HostsStore {
                 .expect("parent dir does not exist for {file:?}");
             fs::create_dir_all(parent_dir)
                 .unwrap_or_else(|_| panic!("could not create storage directory at {parent_dir:?}"));
+            log::trace!("Creating: {file:?}");
             File::create(file).unwrap();
         }
     }
@@ -124,6 +125,7 @@ impl HostsStore {
     where
         P: AsRef<Path>,
     {
+        log::trace!("Loading from storefile: {}", filename.as_ref().display());
         let file = File::open(filename)?;
         let reader = BufReader::new(&file);
         Ok(reader

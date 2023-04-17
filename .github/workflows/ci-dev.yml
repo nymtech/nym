@@ -56,7 +56,7 @@ jobs:
           GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
           GIT_BRANCH: "${GITHUB_REF##*/}"
           MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
-          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
+          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM_DEVP }}"
           MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
           MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
           MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"

@@ -40,6 +40,7 @@ const GatewaySignatureForm = ({
         await generateGatewayMsgPayload({
           pledge: amount.amount,
           gateway: gatewayToTauri(gateway),
+          tokenPool: amount.tokenPool as 'balance' | 'locked',
         }),
       );
     } catch (e) {

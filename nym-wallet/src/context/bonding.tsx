@@ -123,6 +123,7 @@ export type TBondingContext = {
   checkOwnership: () => Promise<void>;
   generateMixnodeMsgPayload: (data: TBondMixnodeSignatureArgs) => Promise<string | undefined>;
   generateGatewayMsgPayload: (data: TBondGatewaySignatureArgs) => Promise<string | undefined>;
+  isVestingAccount: boolean;
 };
 
 export const BondingContext = createContext<TBondingContext>({
@@ -155,17 +156,27 @@ export const BondingContext = createContext<TBondingContext>({
   generateGatewayMsgPayload: async () => {
     throw new Error('Not implemented');
   },
+  isVestingAccount: false,
 });
 
 export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Element => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [bondedNode, setBondedNode] = useState<TBondedMixnode | TBondedGateway>();
+  const [isVestingAccount, setIsVestingAccount] = useState(false);
 
   const { userBalance, clientDetails } = useContext(AppContext);
   const { ownership, isLoading: isOwnershipLoading, checkOwnership } = useCheckOwnership();
 
-  const isVesting = Boolean(ownership.vestingPledge);
+  useEffect(() => {
+    userBalance.fetchBalance();
+  }, [clientDetails]);
+
+  useEffect(() => {
+    if (userBalance.originalVesting) {
+      setIsVestingAccount(true);
+    }
+  }, [userBalance]);
 
   const resetState = () => {
     setError(undefined);
@@ -493,7 +504,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     let message;
     setIsLoading(true);
     try {
-      if (isVesting) {
+      if (data.tokenPool === 'locked') {
         message = await vestingGenerateMixnodeMsgPayloadReq(data);
       } else {
         message = await generateMixnodeMsgPayloadReq(data);
@@ -511,7 +522,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     let message;
     setIsLoading(true);
     try {
-      if (isVesting) {
+      if (data.tokenPool === 'locked') {
         message = await vestingGenerateGatewayMsgPayloadReq(data);
       } else {
         message = await generateGatewayMsgPayloadReq(data);
@@ -540,8 +551,9 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       checkOwnership,
       generateMixnodeMsgPayload,
       generateGatewayMsgPayload,
+      isVestingAccount,
     }),
-    [isLoading, isOwnershipLoading, error, bondedNode, isVesting],
+    [isLoading, isOwnershipLoading, error, bondedNode, isVestingAccount],
   );
 
   return <BondingContext.Provider value={memoizedValue}>{children}</BondingContext.Provider>;

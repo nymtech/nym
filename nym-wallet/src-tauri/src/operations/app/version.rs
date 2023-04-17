@@ -19,7 +19,7 @@ pub async fn check_version(handle: tauri::AppHandle) -> Result<AppVersion, Backe
             log::error!("An error ocurred while checking for app update {}", e);
             BackendError::CheckAppVersionError
         })?;
-    log::trace!(
+    log::debug!(
         "<<< update available: [{}], current version {}, latest version {}",
         res.is_update_available,
         res.current_version,

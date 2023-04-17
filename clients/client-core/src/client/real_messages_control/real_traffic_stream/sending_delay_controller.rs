@@ -11,11 +11,14 @@ const INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 1;
 // The minimum time between decreasing the average delay between packets. We don't want to change
 // to quickly to keep things somewhat stable. Also there are buffers downstreams meaning we need to
 // wait a little to see the effect before we decrease further.
-const DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 30;
+const DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 3;
+// The queue length that is required for us to register that backpressure occured. If there are
+// more than this many packets waiting to be sent, we consider the channel to be under
+// backpressure.
+const BACKPRESSURE_THRESHOLD: usize = 10;
 // If we enough time passes without any sign of backpressure in the channel, we can consider
-// lowering the average delay. The goal is to keep somewhat stable, rather than maxing out
-// bandwidth at all times.
-const ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS: u64 = 30;
+// lowering the average delay.
+const ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS: u64 = 1;
 // The maximum multiplier we apply to the base average Poisson delay.
 const MAX_DELAY_MULTIPLIER: u32 = 6;
 // The minium multiplier we apply to the base average Poisson delay.
@@ -100,22 +103,27 @@ impl SendingDelayController {
         }
     }
 
-    pub(crate) fn record_backpressure_detected(&mut self) {
-        self.time_when_backpressure_detected = get_time_now();
-    }
-
     pub(crate) fn not_increased_delay_recently(&self) -> bool {
         get_time_now()
             > self.time_when_changed + Duration::from_secs(INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS)
     }
 
-    pub(crate) fn is_sending_reliable(&self) -> bool {
-        let now = get_time_now();
-        let delay_change_interval = Duration::from_secs(DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS);
-        let acceptable_time_without_backpressure =
-            Duration::from_secs(ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS);
+    pub(crate) fn not_decreased_delay_recently(&self) -> bool {
+        get_time_now()
+            > self.time_when_changed + Duration::from_secs(DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS)
+    }
 
-        now > self.time_when_backpressure_detected + acceptable_time_without_backpressure
-            && now > self.time_when_changed + delay_change_interval
+    pub(crate) fn is_backpressure_currently_detected(&self, queue_length: usize) -> bool {
+        queue_length > BACKPRESSURE_THRESHOLD
+    }
+
+    pub(crate) fn record_backpressure_detected(&mut self) {
+        self.time_when_backpressure_detected = get_time_now();
+    }
+
+    pub(crate) fn was_backpressure_detected_recently(&self) -> bool {
+        get_time_now()
+            < self.time_when_backpressure_detected
+                + Duration::from_secs(ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS)
     }
 }

@@ -303,22 +303,29 @@ where
             self.sending_delay_controller.current_multiplier()
         );
 
-        // Even just a single used slot is enough to signal backpressure
-        if used_slots > 0 {
+        if self
+            .sending_delay_controller
+            .is_backpressure_currently_detected(used_slots)
+        {
             log::trace!("Backpressure detected");
             self.sending_delay_controller.record_backpressure_detected();
         }
 
-        // If the buffer is running out, slow down the sending rate
+        // If the buffer is running out, slow down the sending rate by increasing the delay
+        // multiplier.
         if self.mix_tx.capacity() == 0
             && self.sending_delay_controller.not_increased_delay_recently()
         {
             self.sending_delay_controller.increase_delay_multiplier();
         }
 
-        // Very carefully step up the sending rate in case it seems like we can solidly handle the
-        // current rate.
-        if self.sending_delay_controller.is_sending_reliable() {
+        // If it looks like we are sending reliably, increase the sending rate by decreasing the
+        // sending delay multiplier.
+        if !self
+            .sending_delay_controller
+            .was_backpressure_detected_recently()
+            && self.sending_delay_controller.not_decreased_delay_recently()
+        {
             self.sending_delay_controller.decrease_delay_multiplier();
         }
     }

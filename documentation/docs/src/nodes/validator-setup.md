@@ -54,7 +54,12 @@ The validator binary can be compiled by running the following commands:
 ```
 git clone https://github.com/nymtech/nyxd.git
 cd nyxd
-make install
+
+# Mainnet
+make build
+
+# Sandbox testnet
+BECH32_PREFIX=nyxt make build
 ```
 
 At this point, you will have a copy of the `nyxd` binary in your `build/` directory. Test that it's compiled properly by running:
@@ -105,6 +110,7 @@ You'll need to set `LD_LIBRARY_PATH` in your user's `~/.bashrc` file, and add th
 
 ```
 NYX_BINARIES=/home/youruser/path/to/validator/binary
+
 # if you are using another shell like zsh replace '.bashrc' with the relevant config file
 echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:'NYX_BINARIES >> ~/.bashrc
 echo 'export PATH=$PATH:'${NYX_BINARIES} >> ~/.bashrc
@@ -167,7 +173,7 @@ laddr = "tcp://0.0.0.0:26656"
 ```
 # Sandbox Testnet
 cors_allowed_origins = ["*"]
-persistent_peers = "d24ee58d85a65d34ad5adfc3302c3614b36e8b14@sandbox-validator.nymtech.net:26656"
+persistent_peers = "[8421c0a3d90d490e27e8061f2abcb1276c8358b6@sandbox validator1 nymtech net](8421c0a3d90d490e27e8061f2abcb1276c8358b6@sandbox-validator1.nymtech.net):26656"
 create_empty_blocks = false
 laddr = "tcp://0.0.0.0:26656"
 ```

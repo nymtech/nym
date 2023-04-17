@@ -500,11 +500,20 @@ where
 
     #[cfg(not(target_arch = "wasm32"))]
     fn log_status_infrequent(&self) {
-        if self.sending_delay_controller.current_multiplier() > 1 {
-            log::warn!(
-                "Unable to send packets at the default rate - rate reduced by setting the delay multiplier set to: {}",
+        let multiplier_change = self.sending_delay_controller.current_multiplier()
+            - self.sending_delay_controller.min_multiplier();
+        if multiplier_change > 0 {
+            let status_str = format!(
+                "Poisson delay currently scaled by: {}",
                 self.sending_delay_controller.current_multiplier()
             );
+            if multiplier_change > 0 {
+                log::debug!("{status_str}");
+            } else if multiplier_change > 1 {
+                log::info!("{status_str}");
+            } else if multiplier_change > 2 {
+                log::warn!("{status_str}");
+            }
         }
     }
 

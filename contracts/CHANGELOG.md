@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## [v1.3.0] (2023-04-04)
+- change in-contract signatures to include nonces and to sign entire payloads for family-related operations ([#3125])
+- change in-contract signatures to include nonces and to sign entire payloads for node bonding (will require wallet changes) ([#3067])
+- removed migration code from mixnet and vesting contracts ([#3207])
+
+[#3125]: https://github.com/nymtech/nym/issues/3125
+[#3067]: https://github.com/nymtech/nym/issues/3067
+[#3207]: https://github.com/nymtech/nym/pull/3207
+
+## [v1.2.0] (2023-03-21)
+
+- Fix contracts and nym-api audit findings ([#3026])
+
+[#3026]: https://github.com/nymtech/nym/issues/3026
+
 ## [v1.1.4] (2023-02-21)
 
 - Problem 142 (rust-side) ([#3024])

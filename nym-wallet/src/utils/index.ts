@@ -62,9 +62,10 @@ export const validateVersion = (version: string): boolean => {
   }
 };
 
-export const validateLocation = (location: string): boolean =>
-  // right now only perform the stupid check of whether the user copy-pasted the tooltip... (with or without brackets)
-  !location.trim().includes('physical location of your node');
+export const validateLocation = (location: string): boolean => {
+  const locationRegex = /^[a-z]+$/i;
+  return locationRegex.test(location);
+};
 
 export const validateRawPort = (rawPort: number): boolean => !Number.isNaN(rawPort) && rawPort >= 1 && rawPort <= 65535;
 

@@ -11,12 +11,25 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#3226]: https://github.com/nymtech/nym/pull/3226
 [#3255]: https://github.com/nymtech/nym/pull/3255
 
+## [v1.1.14] (2023-04-04)
+
+- Investigate cause of qwerty validator being in invalid rewarding state ([#3224])
+- Fix NR config due to changes in #3199 ([#3223])
+- [Issue] Mixnodes and gateway do not close connections properly  ([#3187])
+- disable sign-ext when using wasm-opt + update wasm-opt ([#3203])
+- chore: tidy up client `Debug` config section ([#3199])
+
+[#3224]: https://github.com/nymtech/nym/issues/3224
+[#3223]: https://github.com/nymtech/nym/issues/3223
+[#3187]: https://github.com/nymtech/nym/issues/3187
+[#3203]: https://github.com/nymtech/nym/pull/3203
+[#3199]: https://github.com/nymtech/nym/pull/3199
+
 ## [v1.1.13] (2023-03-15)
 
 - NE - instead of throwing a "Mixnode/Gateway not found" error for blacklisted nodes due to bad performance, show their history but tag them as "Having poor performance" ([#2979])
 - NE - Upgrade Sandbox and make below changes:  ([#2332])
 - Explorer - Updates ([#3168])
-- Fix contracts and nym-api audit findings ([#3026])
 - Website v2 - deploy infrastructure for strapi and CI ([#2213])
 - add blockstream green to sp list ([#3180])
 - mock-nym-api: fix .storybook lint error ([#3178])
@@ -25,7 +38,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2979]: https://github.com/nymtech/nym/issues/2979
 [#2332]: https://github.com/nymtech/nym/issues/2332
 [#3168]: https://github.com/nymtech/nym/issues/3168
-[#3026]: https://github.com/nymtech/nym/issues/3026
 [#2213]: https://github.com/nymtech/nym/issues/2213
 [#3180]: https://github.com/nymtech/nym/pull/3180
 [#3178]: https://github.com/nymtech/nym/pull/3178

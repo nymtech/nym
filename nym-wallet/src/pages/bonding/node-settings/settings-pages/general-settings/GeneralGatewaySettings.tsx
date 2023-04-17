@@ -36,20 +36,22 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
       host: bondedNode.host,
       mixPort: bondedNode.mixPort,
       httpApiPort: bondedNode.httpApiPort,
+      version: bondedNode.version,
+      location: bondedNode.location,
     },
   });
 
   const onSubmit = async (data: any) => {
     resetFeeState();
-    const { host, mixPort, httpApiPort } = data;
+    const { host, mixPort, httpApiPort, version, location } = data;
 
     try {
       const GatewayConfigParams = {
         host,
         mix_port: mixPort,
+        location,
+        version,
         clients_port: httpApiPort,
-        location: bondedNode.location!,
-        version: bondedNode.version,
         verloc_port: bondedNode.verlocPort,
       };
 
@@ -111,7 +113,7 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
               <TextField
                 {...register('httpApiPort')}
                 name="httpApiPort"
-                label="Client WS API Port"
+                label="Client Port"
                 fullWidth
                 error={!!errors.httpApiPort}
                 helperText={errors.httpApiPort?.message}
@@ -141,6 +143,46 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
             </Grid>
           </Grid>
         </Grid>
+        <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
+          <Grid item>
+            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+              Version
+            </Typography>
+          </Grid>
+          <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
+            <Grid item width={1}>
+              <TextField
+                {...register('version')}
+                name="version"
+                label="Version"
+                fullWidth
+                error={!!errors.version}
+                helperText={errors.version?.message}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
+        </Grid>
+        <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
+          <Grid item>
+            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+              Location
+            </Typography>
+          </Grid>
+          <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
+            <Grid item width={1}>
+              <TextField
+                {...register('location')}
+                name="location"
+                label="Location"
+                fullWidth
+                error={!!errors.location}
+                helperText={errors.location?.message}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
+        </Grid>
         <Divider flexItem />
         <Grid container justifyContent="end">
           <Button
@@ -153,7 +195,7 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
                 mix_port: data.mixPort,
                 clients_port: data.httpApiPort,
                 location: bondedNode.location!,
-                version: bondedNode.version,
+                version: data.version,
                 verloc_port: bondedNode.verlocPort,
               }),
             )}

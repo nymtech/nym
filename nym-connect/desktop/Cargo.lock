@@ -3175,7 +3175,7 @@ dependencies = [
 
 [[package]]
 name = "nym-bin-common"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "atty",
  "clap",
@@ -3190,7 +3190,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-core"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "async-trait",
  "dashmap",
@@ -3295,7 +3295,7 @@ dependencies = [
 
 [[package]]
 name = "nym-connect"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "anyhow",
  "bip39",
@@ -3338,7 +3338,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3477,7 +3477,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3830,7 +3830,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "cosmwasm-derive",
  "cosmwasm-std",
@@ -3848,7 +3848,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",

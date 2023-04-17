@@ -1,6 +1,6 @@
 [package]
 name = "nym-mixnet-contract"
-version = "1.2.0"
+version = "1.3.0"
 description = "Nym mixnet contract"
 edition = { workspace = true }
 authors = { workspace = true }
@@ -22,9 +22,9 @@ name = "mixnet_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.3.0" }
-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.3.0" }
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", version = "0.3.0" }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.4.0" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.4.0" }
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", version = "0.4.0" }
 
 cosmwasm-std = { workspace = true }
 cosmwasm-storage = { workspace = true }

@@ -173,7 +173,7 @@ laddr = "tcp://0.0.0.0:26656"
 ```
 # Sandbox Testnet
 cors_allowed_origins = ["*"]
-persistent_peers = "[8421c0a3d90d490e27e8061f2abcb1276c8358b6@sandbox validator1 nymtech net](8421c0a3d90d490e27e8061f2abcb1276c8358b6@sandbox-validator1.nymtech.net):26656"
+persistent_peers = "8421c0a3d90d490e27e8061f2abcb1276c8358b6@sandbox-validator1.nymtech.net:26656"
 create_empty_blocks = false
 laddr = "tcp://0.0.0.0:26656"
 ```

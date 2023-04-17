@@ -1,8 +1,8 @@
-name: Continous deployment
+name: CD dev-portal
 
 on:
   push:
-    branches: feature/add-workflows-devportal
+    branches: master
     paths:
       - 'documentation/dev-portal/**'
 

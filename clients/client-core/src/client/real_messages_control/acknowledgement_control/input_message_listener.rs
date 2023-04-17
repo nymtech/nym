@@ -9,6 +9,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
 use rand::{CryptoRng, Rng};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
@@ -48,6 +49,11 @@ where
         lane: TransmissionLane,
     ) {
         // offload reply handling to the dedicated task
+        let time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+        println!("sending reply: _{}_{}", time, data.len());
         self.reply_controller_sender
             .send_reply(recipient_tag, data, lane)
     }
@@ -58,6 +64,11 @@ where
         content: Vec<u8>,
         lane: TransmissionLane,
     ) {
+        let time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+        println!("sending plain: _{}_{}", time, content.len());
         if let Err(err) = self
             .message_handler
             .try_send_plain_message(recipient, content, lane)
@@ -74,6 +85,11 @@ where
         reply_surbs: u32,
         lane: TransmissionLane,
     ) {
+        let time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+        println!("sending anonymous: _{}_{}", time, content.len());
         if let Err(err) = self
             .message_handler
             .try_send_message_with_reply_surbs(recipient, content, reply_surbs, lane)

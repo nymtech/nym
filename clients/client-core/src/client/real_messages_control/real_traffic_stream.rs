@@ -24,6 +24,7 @@ use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
@@ -232,7 +233,7 @@ where
                         return;
                     }
                 };
-
+                println!("cover sent_{:?}",self.config.cover_packet_size.size());
                 (
                     generate_loop_cover_packet(
                         &mut self.rng,
@@ -250,6 +251,11 @@ where
                 )
             }
             StreamMessage::Real(real_message) => {
+                let time = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+                println!("real sent: _{:?}_{}_{}", real_message.fragment_id, time, real_message.mix_packet.sphinx_packet().payload.len());
                 (real_message.mix_packet, Some(real_message.fragment_id))
             }
         };

@@ -6,10 +6,13 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - nym-network-statistics properly handles signals ([#3209])
 - add socks5 support for Rust SDK ([#3226], [#3255])
+- add docs and dev-portal to monorepo ([#3291])
 
 [#3209]: https://github.com/nymtech/nym/issues/3209
 [#3226]: https://github.com/nymtech/nym/pull/3226
 [#3255]: https://github.com/nymtech/nym/pull/3255
+[#3291]: https://github.com/nymtech/nym/pull/3291
+
 
 ## [v1.1.14] (2023-04-04)
 

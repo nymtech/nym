@@ -320,6 +320,9 @@ where
         if self.sending_delay_controller.is_sending_reliable() {
             self.sending_delay_controller.decrease_delay_multiplier();
         }
+
+        // Keep track of multiplier changes, and log if necessary.
+        self.sending_delay_controller.record_delay_multiplier();
     }
 
     fn pop_next_message(&mut self) -> Option<RealMessage> {
@@ -498,32 +501,12 @@ where
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    fn log_status_infrequent(&self) {
-        let multiplier_change = self.sending_delay_controller.current_multiplier()
-            - self.sending_delay_controller.min_multiplier();
-        if multiplier_change > 0 {
-            let status_str = format!(
-                "Poisson delay currently scaled by: {}",
-                self.sending_delay_controller.current_multiplier()
-            );
-            if multiplier_change > 0 {
-                log::debug!("{status_str}");
-            } else if multiplier_change > 1 {
-                log::info!("{status_str}");
-            } else if multiplier_change > 2 {
-                log::warn!("{status_str}");
-            }
-        }
-    }
-
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut status_timer = tokio::time::interval(Duration::from_secs(5));
-            let mut infrequent_status_timer = tokio::time::interval(Duration::from_secs(60));
 
             while !shutdown.is_shutdown() {
                 tokio::select! {
@@ -533,9 +516,6 @@ where
                     }
                     _ = status_timer.tick() => {
                         self.log_status(&mut shutdown);
-                    }
-                    _ = infrequent_status_timer.tick() => {
-                        self.log_status_infrequent();
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
                         self.on_message(next_message).await;

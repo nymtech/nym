@@ -33,6 +33,14 @@ pub(crate) struct SendingDelayController {
     /// Minimum delay multiplier
     lower_bound: u32,
 
+    /// We counter the number of times the multiplier has been elevated. If it is elevated for long
+    /// enough we need to log about it.
+    multiplier_elevated_counter: u32,
+
+    /// We can't log about the elevated multiplier too often, so we keep track of the last time we
+    /// did,
+    time_when_logged_about_elevated_multiplier: Instant,
+
     /// To make sure we don't change the multiplier to fast, we limit a change to some duration
     time_when_changed: Instant,
 
@@ -55,6 +63,8 @@ impl SendingDelayController {
             current_multiplier: MIN_DELAY_MULTIPLIER,
             upper_bound,
             lower_bound,
+            multiplier_elevated_counter: 0,
+            time_when_logged_about_elevated_multiplier: now,
             time_when_changed: now,
             time_when_backpressure_detected: now,
         }
@@ -117,5 +127,34 @@ impl SendingDelayController {
 
         now > self.time_when_backpressure_detected + acceptable_time_without_backpressure
             && now > self.time_when_changed + delay_change_interval
+    }
+
+    pub(crate) fn record_delay_multiplier(&mut self) {
+        // Count the number of times the multiplier has been elevated.
+        let multiple_elevated = self.current_multiplier - self.lower_bound;
+        if multiple_elevated == 0 {
+            self.multiplier_elevated_counter = 0;
+        } else if multiple_elevated > 0 {
+            self.multiplier_elevated_counter += 1;
+        }
+
+        // If needed, log about the elevated multiplier.
+        let now = get_time_now();
+        if self.multiplier_elevated_counter > 20 {
+            if now > self.time_when_logged_about_elevated_multiplier + Duration::from_secs(60) {
+                let status_str = format!(
+                    "Poisson delay currently scaled by: {}",
+                    self.current_multiplier()
+                );
+                if self.current_multiplier() > 0 {
+                    log::debug!("{}", status_str);
+                } else if self.current_multiplier() > 1 {
+                    log::info!("{}", status_str);
+                } else if self.current_multiplier() > 2 {
+                    log::warn!("{}", status_str);
+                }
+                self.time_when_logged_about_elevated_multiplier = now;
+            }
+        }
     }
 }

@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [v1.1.15] (2023-04-18)
+## [v1.2.1] (2023-04-18)
 
 - [bug] bonding signature with vesting account ([#3315])
 - Wallet - settings: fix version check ([#3306])

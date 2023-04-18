@@ -59,7 +59,11 @@ cd nyxd
 make build
 
 # Sandbox testnet
-BECH32_PREFIX=nyxt make build
+BECH32_PREFIX=nymt make build
+```
+
+```admonish info title="Information for Sandbox validator operators"
+If you are running a **Sandbox testnet validator** please replace `nyxd` with `nymt` in the rest of the commands in this documentation
 ```
 
 At this point, you will have a copy of the `nyxd` binary in your `build/` directory. Test that it's compiled properly by running:
@@ -89,15 +93,6 @@ This will output something like:
 '/home/username/go/pkg/mod/github.com/!cosm!wasm/wasmvm@v0.13.0/api/libwasmvm.so'
 ```
 
-~~~admonish note
-If you are on Mac OSX use this command instead:
-```
-WASMVM_SO=$(otool -L build/nymd | grep libwasmvm.so | awk '{ print $3 }')
-ls ${WASMVM_SO}
-```
-To get the location of the `libwasmvm.so` file.
-~~~
-
 When you upload your `nyxd` binary, you'll need to tell it where `libwasmvm.so` is when you start your validator, or it will not run. If you have compiled them on your server then this is not necessary, as the compiled `nyxd` already has access to `libwasmvm.so`.
 
 Upload both `nyxd` and `libwasmvm.so` to your validator machine. If `nyxd` can't find `libwasmvm.so` you will see an error like the following:
@@ -106,7 +101,7 @@ Upload both `nyxd` and `libwasmvm.so` to your validator machine. If `nyxd` can't
 ./nyxd: error while loading shared libraries: libwasmvm.so: cannot open shared object file: No such file or directory
 ```
 
-You'll need to set `LD_LIBRARY_PATH` in your user's `~/.bashrc` file, and add that to our path. Replace `/home/youruser/path/to/nym/binaries` in the command below to the locations of `nymd` and `libwasmvm.so` and run it. If you have compiled these on the server, they will be in the `build/` folder:
+You'll need to set `LD_LIBRARY_PATH` in your user's `~/.bashrc` file, and add that to our path. Replace `/home/youruser/path/to/nym/binaries` in the command below to the locations of `nyxd` and `libwasmvm.so` and run it. If you have compiled these on the server, they will be in the `build/` folder:
 
 ```
 NYX_BINARIES=/home/youruser/path/to/validator/binary
@@ -134,7 +129,11 @@ This should return the regular help text.
 Choose a name for your validator and use it in place of `<ID>` in the following command:
 
 ```
+# Mainnet
 nyxd init <ID> --chain-id=nyx
+
+# Sandbox testnet
+nymt init <ID> --chain-id=sandbox
 ```
 
 ```admonish caution
@@ -155,8 +154,8 @@ You can use the following command to download them for the correct network:
 # Mainnet
 wget  -O $HOME/.nyxd/config/genesis.json https://nymtech.net/genesis/genesis.json
 
-# Sandbox Testnet
-wget  -O $HOME/.nymd/config/genesis.json https://sandbox-validator1.nymtech.net/genesis
+# Sandbox testnet
+curl "https://sandbox-validator1.nymtech.net/genesis" | jq .result.genesis > ~/.nymt/config/genesis.json
 ```
 
 ### `config.toml` configuration
@@ -171,7 +170,7 @@ laddr = "tcp://0.0.0.0:26656"
 ```
 
 ```
-# Sandbox Testnet
+# Sandbox testnet
 cors_allowed_origins = ["*"]
 persistent_peers = "8421c0a3d90d490e27e8061f2abcb1276c8358b6@sandbox-validator1.nymtech.net:26656"
 create_empty_blocks = false
@@ -197,16 +196,16 @@ And if you wish to add a human-readable moniker to your node:
 Finally, if you plan on using [Cockpit](https://cockpit-project.org/documentation.html) on your server, change the `grpc` port from `9090` as this is the port used by Cockpit.
 
 ### `app.toml` configuration
-In the file `$HOME/.${NYM_APP_NAME}/config/app.toml`, set the following values:
+In the file `$HOME/nyxd/config/app.toml`, set the following values:
 
 ```
 # Mainnet
-minimum-gas-prices = "0.025unym"
+minimum-gas-prices = "0.025unym,0.025unyx"
 enable = true in the `[api]` section to get the API server running
 ```
 ```
 # Sandbox Testnet
-minimum-gas-prices = "0.025unymt"
+minimum-gas-prices = "0.025unymt,0.025unyxt"
 enable = true` in the `[api]` section to get the API server running
 ```
 
@@ -294,12 +293,12 @@ nyxd tx staking create-validator
 ```
 ```
 # Sandbox Testnet
-nymd tx staking create-validator
+nymt tx staking create-validator
   --amount=10000000unyxt
   --fees=5000unyxt
-  --pubkey=$(/home/youruser/path/to/nym/binaries/nymd tendermint show-validator)
+  --pubkey=$(/home/youruser/path/to/nym/binaries/nymt tendermint show-validator)
   --moniker="whatever you called your validator"
-  --chain-id=nym-sandbox
+  --chain-id=sandbox
   --commission-rate="0.10"
   --commission-max-rate="0.20"
   --commission-max-change-rate="0.01"
@@ -307,7 +306,7 @@ nymd tx staking create-validator
   --gas="auto"
   --gas-adjustment=1.15
   --from="KEYRING_NAME"
-  --node https://sandbox-validator.nymtech.net:443
+  --node https://sandbox-validator1.nymtech.net:443
 ```
 
 You'll need either `unyxt` tokens on Sandbox, or `unyx` tokens on mainnet to perform this command.
@@ -330,11 +329,11 @@ nyxd tx staking edit-validator
   --fees 2000unyx
 ```
 ```
-# Sandbox Testnet
-nyxd tx staking edit-validator
-  --chain-id=nyx-sandbox
+# Sandbox testnet
+nymt tx staking edit-validator
+  --chain-id=sandbox
   --moniker="whatever you called your validator"
-  --details="Nym validator"
+  --details="Sandbox testnet validator"
   --security-contact="your email"
   --identity="your identity"
   --gas="auto"
@@ -414,7 +413,7 @@ Proxying your validator's port `26657` to nginx port `80` can then be done by cr
 server {
   listen 80;
   listen [::]:80;
-  server_name "{{ domain }}";
+  server_name "domain_name";
 
   location / {
     proxy_pass http://127.0.0.1:26657;
@@ -567,10 +566,10 @@ nyxd tx slashing unjail
 ```
 ```
 # Sandbox Testnet
-nyxd tx slashing unjail
+nymt tx slashing unjail
   --broadcast-mode=block
   --from="KEYRING_NAME"
-  --chain-id=nym-sandbox
+  --chain-id=sandbox
   --gas=auto
   --gas-adjustment=1.4
   --fees=7000unyxt
@@ -619,10 +618,10 @@ nyxd tx staking delegate VALOPERADDRESS AMOUNTunym
 ```
 ```
 # Sandbox Testnet
-nyxd tx staking delegate VALOPERADDRESS AMOUNTunymt
+nymt tx staking delegate VALOPERADDRESS AMOUNTunymt
   --from="KEYRING_NAME"
   --keyring-backend=os
-  --chain-id=nym-sandbox
+  --chain-id=sandbox
   --gas="auto"
   --gas-adjustment=1.15
   --fees 5000unyxt

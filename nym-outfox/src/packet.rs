@@ -3,10 +3,13 @@ use std::ops::Range;
 
 use crate::{
     error::OutfoxError,
-    format::{MixCreationParameters, MixStageParameters},
+    format::{MixCreationParameters, MixStageParameters, GROUPELEMENTBYTES, TAGBYTES},
 };
 
 use sphinx_packet::{packet::builder::DEFAULT_PAYLOAD_SIZE, route::Node};
+
+pub const OUTFOX_PACKET_OVERHEAD: usize =
+    3 * DEFAULT_ROUTING_INFO_SIZE + GROUPELEMENTBYTES + TAGBYTES;
 
 #[derive(Serialize, Deserialize)]
 pub struct OutfoxPacket {
@@ -18,15 +21,20 @@ pub const DEFAULT_ROUTING_INFO_SIZE: usize = 32;
 
 impl OutfoxPacket {
     pub fn len(&self) -> usize {
-        self.mix_params().total_packet_length()
+        self.mix_params().total_packet_length() + self.payload.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    // TODO: Replace with lightweight methods
     pub fn to_bytes(&self) -> Result<Vec<u8>, OutfoxError> {
         bincode::serialize(self).map_err(|_e| OutfoxError::Bincode)
     }
 
     pub fn from_bytes(v: &[u8]) -> Result<Self, OutfoxError> {
-        Ok(bincode::deserialize(v).map_err(|_| OutfoxError::Bincode)?)
+        bincode::deserialize(v).map_err(|_| OutfoxError::Bincode)
     }
 
     pub fn build(
@@ -34,11 +42,11 @@ impl OutfoxPacket {
         route: &[Node; 3],
         user_secret_key: &[u8],
     ) -> Result<OutfoxPacket, OutfoxError> {
-        let mut mix_params = MixCreationParameters::new(DEFAULT_PAYLOAD_SIZE);
+        let mix_params = MixCreationParameters::new(DEFAULT_PAYLOAD_SIZE);
 
-        for node in route.iter() {
-            mix_params.add_outer_layer(node.address.as_bytes_ref().len());
-        }
+        // for node in route.iter() {
+        //     mix_params.add_outer_layer(node.address.as_bytes_ref().len());
+        // }
 
         let padding = mix_params.total_packet_length() - payload.len();
         let mut buffer = vec![0; padding];

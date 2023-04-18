@@ -5,7 +5,7 @@ use nym_crypto::asymmetric::encryption;
 use nym_mixnode_common::packet_processor::error::MixProcessingError;
 pub use nym_mixnode_common::packet_processor::processor::MixProcessingResult;
 use nym_mixnode_common::packet_processor::processor::{ProcessedFinalHop, SphinxPacketProcessor};
-use nym_sphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::framing::packet::FramedNymPacket;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -32,7 +32,7 @@ impl PacketProcessor {
 
     pub(crate) fn process_received(
         &self,
-        received: FramedSphinxPacket,
+        received: FramedNymPacket,
     ) -> Result<ProcessedFinalHop, GatewayProcessingError> {
         match self.inner_processor.process_received(received)? {
             MixProcessingResult::ForwardHop(..) => {

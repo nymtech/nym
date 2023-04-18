@@ -10,7 +10,7 @@ use nym_sphinx_addressing::nodes::{
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nym_sphinx_types::builder::SphinxPacketBuilder;
-use nym_sphinx_types::Error as SphinxError;
+use nym_sphinx_types::SphinxError;
 use nym_sphinx_types::{
     delays::{self, Delay},
     SphinxPacket,

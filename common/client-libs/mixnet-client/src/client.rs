@@ -4,10 +4,11 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use nym_sphinx::framing::codec::SphinxCodec;
-use nym_sphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
+use nym_sphinx::framing::codec::NymCodec;
+use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::params::PacketMode;
-use nym_sphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
+use nym_sphinx::NymPacket;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
@@ -50,7 +51,7 @@ pub trait SendWithoutResponse {
     fn send_without_response(
         &mut self,
         address: NymNodeRoutingAddress,
-        packet: SphinxPacket,
+        packet: NymPacket,
         packet_mode: PacketMode,
     ) -> io::Result<()>;
 }
@@ -61,12 +62,12 @@ pub struct Client {
 }
 
 struct ConnectionSender {
-    channel: mpsc::Sender<FramedSphinxPacket>,
+    channel: mpsc::Sender<FramedNymPacket>,
     current_reconnection_attempt: Arc<AtomicU32>,
 }
 
 impl ConnectionSender {
-    fn new(channel: mpsc::Sender<FramedSphinxPacket>) -> Self {
+    fn new(channel: mpsc::Sender<FramedNymPacket>) -> Self {
         ConnectionSender {
             channel,
             current_reconnection_attempt: Arc::new(AtomicU32::new(0)),
@@ -84,7 +85,7 @@ impl Client {
 
     async fn manage_connection(
         address: SocketAddr,
-        receiver: mpsc::Receiver<FramedSphinxPacket>,
+        receiver: mpsc::Receiver<FramedNymPacket>,
         connection_timeout: Duration,
         current_reconnection: &AtomicU32,
     ) {
@@ -96,7 +97,7 @@ impl Client {
                     debug!("Managed to establish connection to {}", address);
                     // if we managed to connect, reset the reconnection count (whatever it might have been)
                     current_reconnection.store(0, Ordering::Release);
-                    Framed::new(stream, SphinxCodec)
+                    Framed::new(stream, NymCodec)
                 }
                 Err(err) => {
                     debug!(
@@ -148,11 +149,7 @@ impl Client {
         }
     }
 
-    fn make_connection(
-        &mut self,
-        address: NymNodeRoutingAddress,
-        pending_packet: FramedSphinxPacket,
-    ) {
+    fn make_connection(&mut self, address: NymNodeRoutingAddress, pending_packet: FramedNymPacket) {
         let (mut sender, receiver) = mpsc::channel(self.config.maximum_connection_buffer_size);
 
         // this CAN'T fail because we just created the channel which has a non-zero capacity
@@ -200,12 +197,12 @@ impl SendWithoutResponse for Client {
     fn send_without_response(
         &mut self,
         address: NymNodeRoutingAddress,
-        packet: SphinxPacket,
+        packet: NymPacket,
         packet_mode: PacketMode,
     ) -> io::Result<()> {
         trace!("Sending packet to {:?}", address);
         let framed_packet =
-            FramedSphinxPacket::new(packet, packet_mode, self.config.use_legacy_version);
+            FramedNymPacket::new(packet, packet_mode, self.config.use_legacy_version);
 
         if let Some(sender) = self.conn_new.get_mut(&address) {
             if let Err(err) = sender.channel.try_send(framed_packet) {

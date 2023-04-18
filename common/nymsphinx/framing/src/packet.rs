@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::codec::SphinxCodecError;
+use crate::codec::NymCodecError;
 use bytes::{BufMut, BytesMut};
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::packet_version::PacketVersion;
@@ -16,7 +16,7 @@ pub struct FramedNymPacket {
     pub(crate) header: Header,
 
     /// The actual SphinxPacket being sent.
-    pub(crate) packet: Option<NymPacket>,
+    pub(crate) packet: NymPacket,
 }
 
 impl FramedNymPacket {
@@ -31,7 +31,7 @@ impl FramedNymPacket {
                 packet_size,
                 packet_mode,
             },
-            packet: Some(packet),
+            packet,
         }
     }
 
@@ -48,7 +48,7 @@ impl FramedNymPacket {
     }
 
     pub fn into_inner(self) -> NymPacket {
-        self.packet.unwrap()
+        self.packet
     }
 }
 
@@ -101,7 +101,7 @@ impl Header {
         dst.reserve(self.packet_size.size());
     }
 
-    pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, SphinxCodecError> {
+    pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, NymCodecError> {
         if src.len() < Self::LEGACY_SIZE {
             // can't do anything if we don't have enough bytes - but reserve enough for the next call
             src.reserve(Self::LEGACY_SIZE);
@@ -197,7 +197,7 @@ mod header_encoding {
             let header = Header {
                 packet_version: PacketVersion::Legacy,
                 packet_size,
-                packet_mode: Default::default(),
+                ..Default::default()
             };
             let mut bytes = BytesMut::new();
             header.encode(&mut bytes);
@@ -218,7 +218,7 @@ mod header_encoding {
             let header = Header {
                 packet_version: PacketVersion::Versioned(123),
                 packet_size,
-                packet_mode: Default::default(),
+                ..Default::default()
             };
             let mut bytes = BytesMut::new();
             header.encode(&mut bytes);

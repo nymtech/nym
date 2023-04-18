@@ -11,8 +11,8 @@ use log::*;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_sphinx::framing::codec::SphinxCodec;
-use nym_sphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::framing::codec::NymCodec;
+use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use std::collections::HashMap;
@@ -155,7 +155,7 @@ impl<St: Storage> ConnectionHandler<St> {
         self.forward_ack(forward_ack, client_address);
     }
 
-    async fn handle_received_packet(&mut self, framed_sphinx_packet: FramedSphinxPacket) {
+    async fn handle_received_packet(&mut self, framed_sphinx_packet: FramedNymPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
         // packet processor for vpn packets,
@@ -182,7 +182,7 @@ impl<St: Storage> ConnectionHandler<St> {
     ) {
         debug!("Starting connection handler for {:?}", remote);
         shutdown.mark_as_success();
-        let mut framed_conn = Framed::new(conn, SphinxCodec);
+        let mut framed_conn = Framed::new(conn, NymCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;

@@ -14,7 +14,7 @@ use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketMode, DEFAULT_NUM_MIX_HOPS,
 };
 use nym_sphinx_types::builder::SphinxPacketBuilder;
-use nym_sphinx_types::{delays, Error as SphinxError};
+use nym_sphinx_types::{delays, SphinxError};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;

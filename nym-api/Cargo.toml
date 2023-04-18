@@ -92,6 +92,7 @@ nym-validator-client = { path = "../common/client-libs/validator-client", featur
     "nyxd-client",
 ] }
 nym-bin-common = { path = "../common/bin-common" }
+nym-node-tester-utils = { path = "../common/node-tester-utils" }
 
 [features]
 no-reward = []

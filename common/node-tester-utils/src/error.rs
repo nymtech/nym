@@ -46,4 +46,7 @@ pub enum NetworkTestingError {
 
     #[error("received a packet that could not be reconstructed into a full message with a single fragment")]
     NonReconstructablePacket,
+    
+    #[error("the recipient of the test packet was never specified")]
+    UnknownPacketRecipient,
 }

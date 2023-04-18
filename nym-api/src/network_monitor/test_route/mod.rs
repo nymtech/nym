@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_monitor::test_packet::{NodeType, TestPacket};
+use crate::network_monitor::test_packet::NymApiTestMessageExt;
 use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
 use nym_crypto::asymmetric::identity;
 use nym_topology::{gateway, mix, NymTopology};
@@ -70,30 +70,21 @@ impl TestRoute {
         &self.nodes
     }
 
-    pub(crate) fn self_test_packet(&self) -> TestPacket {
+    pub(crate) fn test_message_ext(&self, test_nonce: u64) -> NymApiTestMessageExt {
+        NymApiTestMessageExt::new(self.id, test_nonce)
+    }
+
+    pub(crate) fn self_test_messages(&self, count: usize) -> Vec<Vec<u8>> {
         // it doesn't really matter which node is "chosen" as the packet has to always
         // go through the same sequence of hops.
         // let's just use layer 1 mixnode for this (this choice is completely arbitrary)
-        let mix = &self.nodes.mixes()[&1][0];
-        TestPacket::new(
-            mix.identity_key,
-            mix.owner.clone(),
-            self.id,
-            ROUTE_TESTING_TEST_NONCE,
-            NodeType::Mixnode(mix.mix_id),
-        )
-    }
+        let mix = self.layer_one_mix();
 
-    pub(crate) fn substitute_mix(&self, node: &mix::Node) -> NymTopology {
-        let mut topology = self.nodes.clone();
-        topology.set_mixes_in_layer(node.layer as u8, vec![node.clone()]);
-        topology
-    }
-
-    pub(crate) fn substitute_gateway(&self, gateway: &gateway::Node) -> NymTopology {
-        let mut topology = self.nodes.clone();
-        topology.set_gateways(vec![gateway.clone()]);
-        topology
+        // the unwrap here is fine as the failure can only occur due to serialization and we're not
+        // using any custom implementations
+        NymApiTestMessageExt::new(self.id, ROUTE_TESTING_TEST_NONCE)
+            .mix_plaintexts(mix, count as u32)
+            .unwrap()
     }
 }
 
@@ -104,16 +95,10 @@ impl Debug for TestRoute {
             "[v{}] Route {}: [G] {} => [M1] {} => [M2] {} => [M3] {}",
             self.system_version,
             self.id,
-            self.nodes.gateways()[0].identity().to_base58_string(),
-            self.nodes.mixes_in_layer(1)[0]
-                .identity_key
-                .to_base58_string(),
-            self.nodes.mixes_in_layer(2)[0]
-                .identity_key
-                .to_base58_string(),
-            self.nodes.mixes_in_layer(3)[0]
-                .identity_key
-                .to_base58_string()
+            self.gateway().identity().to_base58_string(),
+            self.layer_one_mix().identity_key.to_base58_string(),
+            self.layer_two_mix().identity_key.to_base58_string(),
+            self.layer_three_mix().identity_key.to_base58_string()
         )
     }
 }

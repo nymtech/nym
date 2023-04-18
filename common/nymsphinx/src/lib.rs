@@ -13,10 +13,12 @@ pub use nym_sphinx_anonymous_replies as anonymous_replies;
 pub use nym_sphinx_chunking as chunking;
 pub use nym_sphinx_cover as cover;
 pub use nym_sphinx_forwarding as forwarding;
+pub use nym_sphinx_params as params;
+pub use nym_sphinx_routing as routing;
+pub use nym_sphinx_types::*;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use nym_sphinx_framing as framing;
-pub use nym_sphinx_params as params;
-pub use nym_sphinx_types::*;
 
 // TEMP UNTIL FURTHER REFACTORING
 pub use preparer::payload::NymsphinxPayloadBuilder;

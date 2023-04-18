@@ -14,10 +14,10 @@ use wasm_bindgen::prelude::*;
 use wasm_utils::{console_log, console_warn};
 
 #[derive(Clone)]
-pub(super) struct ReceivedReceiverWrapper(Arc<AsyncMutex<ReceivedReceiver>>);
+pub(super) struct ReceivedReceiverWrapper(Arc<AsyncMutex<ReceivedReceiver<WasmTestMessageExt>>>);
 
 impl ReceivedReceiverWrapper {
-    pub(super) fn new(inner: ReceivedReceiver) -> Self {
+    pub(super) fn new(inner: ReceivedReceiver<WasmTestMessageExt>) -> Self {
         ReceivedReceiverWrapper(Arc::new(AsyncMutex::new(inner)))
     }
 
@@ -36,7 +36,7 @@ impl ReceivedReceiverWrapper {
         }
     }
 
-    pub(super) async fn lock(&self) -> AsyncMutexGuard<'_, ReceivedReceiver> {
+    pub(super) async fn lock(&self) -> AsyncMutexGuard<'_, ReceivedReceiver<WasmTestMessageExt>> {
         self.0.lock().await
     }
 }

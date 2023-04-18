@@ -1,8 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::tester::helpers::NodeTestResult;
-use crate::tester::NodeTestMessage;
+use crate::tester::helpers::{NodeTestResult, WasmTestMessageExt};
 use futures::StreamExt;
 use nym_node_tester_utils::receiver::{Received, ReceivedReceiver};
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
@@ -21,7 +20,7 @@ pub(crate) struct EphemeralTestReceiver<'a> {
     duplicate_acks: u32,
 
     timeout_duration: Duration,
-    receiver_permit: AsyncMutexGuard<'a, ReceivedReceiver>,
+    receiver_permit: AsyncMutexGuard<'a, ReceivedReceiver<WasmTestMessageExt>>,
 }
 
 impl<'a> EphemeralTestReceiver<'a> {
@@ -38,7 +37,7 @@ impl<'a> EphemeralTestReceiver<'a> {
     pub(crate) fn new(
         sent_packets: u32,
         expected_acks: HashSet<FragmentIdentifier>,
-        receiver_permit: AsyncMutexGuard<'a, ReceivedReceiver>,
+        receiver_permit: AsyncMutexGuard<'a, ReceivedReceiver<WasmTestMessageExt>>,
         timeout: Duration,
     ) -> Self {
         EphemeralTestReceiver {
@@ -53,23 +52,18 @@ impl<'a> EphemeralTestReceiver<'a> {
         }
     }
 
-    fn on_next_received_packet(&mut self, packet: Option<Received>) -> bool {
+    fn on_next_received_packet(&mut self, packet: Option<Received<WasmTestMessageExt>>) -> bool {
         let Some(received_packet) = packet else {
             // can't do anything more...
             console_error!("packet receiver has stopped processing results!");
             return true
         };
         match received_packet {
-            Received::Message(msg) => match NodeTestMessage::try_recover(msg) {
-                Ok(test_msg) => {
-                    if !self.received_valid_messages.insert(test_msg.msg_id) {
-                        self.duplicate_packets += 1;
-                    }
+            Received::Message(msg) => {
+                if !self.received_valid_messages.insert(msg.msg_id) {
+                    self.duplicate_packets += 1;
                 }
-                Err(err) => {
-                    console_warn!("failed to recover test message from received packet: {err}")
-                }
-            },
+            }
             Received::Ack(frag_id) => {
                 if self.expected_acks.contains(&frag_id) {
                     if !self.received_valid_acks.insert(frag_id) {

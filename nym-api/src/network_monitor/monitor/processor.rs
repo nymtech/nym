@@ -1,14 +1,16 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::gateways_reader::GatewayMessages;
-use crate::network_monitor::test_packet::{TestPacket, TestPacketError};
+use crate::network_monitor::test_packet::NymApiTestMessageExt;
 use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
 use futures::channel::mpsc;
 use futures::lock::{Mutex, MutexGuard};
 use futures::{SinkExt, StreamExt};
 use log::warn;
 use nym_crypto::asymmetric::encryption;
+use nym_node_tester_utils::error::NetworkTestingError;
+use nym_node_tester_utils::processor::TestPacketProcessor;
 use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError};
 use std::mem;
 use std::sync::Arc;
@@ -20,15 +22,15 @@ pub(crate) type ReceivedProcessorReceiver = mpsc::UnboundedReceiver<GatewayMessa
 #[derive(Error, Debug)]
 enum ProcessingError {
     #[error(
-        "could not recover underlying data from the received packet since it was malformed - {0}"
+        "could not recover underlying data from the received packet since it was malformed: {0}"
     )]
     MalformedPacketReceived(#[from] MessageRecoveryError),
 
     #[error("received a mix packet that was NOT a proper network monitor test packet")]
     NonTestPacketReceived,
 
-    #[error("the received test packet was malformed - {0}")]
-    MalformedTestPacket(#[from] TestPacketError),
+    #[error("the received test packet was malformed: {0}")]
+    MalformedTestPacket(#[from] NetworkTestingError),
 
     #[error("received packet with an unexpected nonce. Got: {received}, expected: {expected}")]
     NonMatchingNonce { received: u64, expected: u64 },
@@ -50,18 +52,57 @@ struct ReceivedProcessorInner<R: MessageReceiver> {
     /// Channel for receiving packets/messages from the gateway clients
     packets_receiver: ReceivedProcessorReceiver,
 
-    // TODO: right now it's identical for each gateway we send through, but should it?
-    /// Encryption key of the clients sending through the gateways.
-    client_encryption_keypair: Arc<encryption::KeyPair>,
-
-    /// Structure responsible for decrypting and recovering plaintext message from received ciphertexts.
-    message_receiver: R,
-
-    /// Vector containing all received (and decrypted) packets in the current test run.
-    received_packets: Vec<TestPacket>,
+    test_processor: TestPacketProcessor<NymApiTestMessageExt, R>,
+    // TODO: rethinking
+    // /// Vector containing all received (and decrypted) packets in the current test run.
+    // received_packets: Vec<TestPacket>,
 }
 
 impl<R: MessageReceiver> ReceivedProcessorInner<R> {
+    fn recover_test_message(&mut self, raw_message: Vec<u8>) {
+        //
+    }
+
+    fn on_received_data(&mut self, raw_message: Vec<u8>) -> Result<(), ProcessingError> {
+        let test_msg = self.test_processor.process_mixnet_message(raw_message)?;
+
+        if test_msg.ext.test_nonce != self.test_nonce.unwrap() {
+            return Err(ProcessingError::NonMatchingNonce {
+                received: test_msg.ext.test_nonce,
+                expected: self.test_nonce.unwrap(),
+            });
+        }
+
+        todo!()
+    }
+
+    fn on_received_ack(&mut self, raw_ack: Vec<u8>) -> Result<(), ProcessingError> {
+        let frag_id = self.test_processor.process_ack(raw_ack)?;
+        // TODO: hook it up at some point
+        trace!("received a test ack with id {frag_id}. However, we're not goingn to do anything about it (just yet)");
+
+        Ok(())
+    }
+
+    fn on_received(&mut self, messages: GatewayMessages) {
+        match messages {
+            GatewayMessages::Data(data_msgs) => {
+                for raw in data_msgs {
+                    if let Err(err) = self.on_received_data(raw) {
+                        warn!(target: "Monitor", "failed to process received gateway message: {err}")
+                    }
+                }
+            }
+            GatewayMessages::Acks(acks) => {
+                for raw in acks {
+                    if let Err(err) = self.on_received_ack(raw) {
+                        warn!(target: "Monitor", "failed to process received gateway ack: {err}")
+                    }
+                }
+            }
+        }
+    }
+
     fn on_message(&mut self, mut message: Vec<u8>) -> Result<(), ProcessingError> {
         // if the nonce is none it means the packet was received during the 'waiting' for the
         // next test run
@@ -111,19 +152,21 @@ impl<R: MessageReceiver + Send + 'static> ReceivedProcessor<R> {
         packets_receiver: ReceivedProcessorReceiver,
         client_encryption_keypair: Arc<encryption::KeyPair>,
     ) -> Self {
-        let inner: Arc<Mutex<ReceivedProcessorInner<R>>> =
-            Arc::new(Mutex::new(ReceivedProcessorInner {
-                test_nonce: None,
-                packets_receiver,
-                client_encryption_keypair,
-                message_receiver: R::new(),
-                received_packets: Vec::new(),
-            }));
-
-        ReceivedProcessor {
-            permit_changer: None,
-            inner,
-        }
+        todo!()
+        //
+        // let inner: Arc<Mutex<ReceivedProcessorInner<R>>> =
+        //     Arc::new(Mutex::new(ReceivedProcessorInner {
+        //         test_nonce: None,
+        //         packets_receiver,
+        //         client_encryption_keypair,
+        //         message_receiver: R::new(),
+        //         received_packets: Vec::new(),
+        //     }));
+        //
+        // ReceivedProcessor {
+        //     permit_changer: None,
+        //     inner,
+        // }
     }
 
     pub(crate) fn start_receiving(&mut self) {
@@ -150,13 +193,7 @@ impl<R: MessageReceiver + Send + 'static> ReceivedProcessor<R> {
                             None => return,
                         },
                         messages = inner.packets_receiver.next() => match messages {
-                            Some(messages) => {
-                                for message in messages {
-                                    if let Err(err) = inner.on_message(message) {
-                                        warn!(target: "Monitor", "failed to process received gateway message - {err}")
-                                    }
-                                }
-                            }
+                            Some(messages) => inner.on_received(messages),
                             None => return,
                         },
                     }

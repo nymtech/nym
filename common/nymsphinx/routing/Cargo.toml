@@ -1,0 +1,14 @@
+[package]
+name = "nym-sphinx-routing"
+version = "0.1.0"
+description = "Sphinx packet routing as Nym mix packets"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+thiserror = { workspace = true }
+
+nym-sphinx-addressing = { path = "../addressing" }
+nym-sphinx-types = { path = "../types" }

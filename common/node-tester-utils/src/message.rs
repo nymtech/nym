@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkTestingError;
-use crate::MixId;
+use crate::node::TestableNode;
 use nym_sphinx::message::NymMessage;
 use nym_topology::{gateway, mix};
 use serde::de::DeserializeOwned;
@@ -10,19 +10,11 @@ use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 #[derive(Serialize, Deserialize, Hash, Clone, Copy)]
-pub enum NodeType {
-    Mixnode(MixId),
-    Gateway,
-}
-
-#[derive(Serialize, Deserialize, Hash, Clone, Copy)]
 pub struct Empty;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TestMessage<T = Empty> {
-    pub encoded_node_identity: String,
-    pub node_owner: String,
-    pub node_type: NodeType,
+    pub tested_node: TestableNode,
 
     pub msg_id: u32,
     pub total_msgs: u32,
@@ -34,26 +26,72 @@ pub struct TestMessage<T = Empty> {
 }
 
 impl<T> TestMessage<T> {
-    pub fn new_mix(node: &mix::Node, msg_id: u32, total_msgs: u32, ext: T) -> Self {
+    pub fn new<N: Into<TestableNode>>(node: N, msg_id: u32, total_msgs: u32, ext: T) -> Self {
         TestMessage {
-            encoded_node_identity: node.identity_key.to_base58_string(),
-            node_owner: node.owner.clone(),
-            node_type: NodeType::Mixnode(node.mix_id),
+            tested_node: node.into(),
             msg_id,
             total_msgs,
             ext,
         }
     }
 
+    pub fn new_mix(node: &mix::Node, msg_id: u32, total_msgs: u32, ext: T) -> Self {
+        Self::new(node, msg_id, total_msgs, ext)
+    }
+
     pub fn new_gateway(node: &gateway::Node, msg_id: u32, total_msgs: u32, ext: T) -> Self {
-        TestMessage {
-            encoded_node_identity: node.identity_key.to_base58_string(),
-            node_owner: node.owner.clone(),
-            node_type: NodeType::Gateway,
-            msg_id,
-            total_msgs,
-            ext,
+        Self::new(node, msg_id, total_msgs, ext)
+    }
+
+    pub fn new_serialized<N>(
+        node: N,
+        msg_id: u32,
+        total_msgs: u32,
+        ext: T,
+    ) -> Result<Vec<u8>, NetworkTestingError>
+    where
+        N: Into<TestableNode>,
+        T: Serialize,
+    {
+        Self::new(node, msg_id, total_msgs, ext).as_bytes()
+    }
+
+    pub fn new_plaintexts<N>(
+        node: &N,
+        total_msgs: u32,
+        ext: T,
+    ) -> Result<Vec<Vec<u8>>, NetworkTestingError>
+    where
+        for<'a> &'a N: Into<TestableNode>,
+        T: Serialize + Clone,
+    {
+        let mut msgs = Vec::with_capacity(total_msgs as usize);
+        for msg_id in 1..=total_msgs {
+            msgs.push(Self::new(node, msg_id, total_msgs, ext.clone()).as_bytes()?)
         }
+        Ok(msgs)
+    }
+
+    pub fn mix_plaintexts(
+        node: &mix::Node,
+        total_msgs: u32,
+        ext: T,
+    ) -> Result<Vec<Vec<u8>>, NetworkTestingError>
+    where
+        T: Serialize + Clone,
+    {
+        Self::new_plaintexts(node, total_msgs, ext)
+    }
+
+    pub fn gateway_plaintexts(
+        node: &gateway::Node,
+        total_msgs: u32,
+        ext: T,
+    ) -> Result<Vec<Vec<u8>>, NetworkTestingError>
+    where
+        T: Serialize + Clone,
+    {
+        Self::new_plaintexts(node, total_msgs, ext)
     }
 
     pub fn as_json_string(&self) -> Result<String, NetworkTestingError>
@@ -91,9 +129,9 @@ impl<T> TestMessage<T> {
 
 impl<T: Hash> Hash for TestMessage<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.encoded_node_identity.hash(state);
-        self.node_owner.hash(state);
-        self.node_type.hash(state);
+        self.tested_node.hash(state);
+        self.msg_id.hash(state);
+        self.total_msgs.hash(state);
         self.ext.hash(state)
     }
 }

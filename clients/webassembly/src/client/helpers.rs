@@ -13,7 +13,7 @@ use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::{console_log, js_error, simple_js_error};
+use wasm_utils::{console_log, simple_js_error};
 
 #[wasm_bindgen]
 pub struct NymClientTestRequest {
@@ -142,20 +142,9 @@ impl WasmTopologyExt for Arc<ClientState> {
                 return Err(WasmClientError::NonExistentMixnode { mixnode_identity }.into());
             };
 
-            let mut test_msgs = Vec::with_capacity(num_test_packets as usize);
-            for i in 1..=num_test_packets {
-                let msg = NodeTestMessage::new_mix(
-                    mix,
-                    i,
-                    num_test_packets,
-                    WasmTestMessageExt::new(test_id),
-                );
-                let serialized = match msg.as_bytes() {
-                    Ok(bytes) => bytes,
-                    Err(err) => return Err(js_error!("failed to serialize test message: {err}")),
-                };
-                test_msgs.push(serialized);
-            }
+            let ext = WasmTestMessageExt::new(test_id);
+            let test_msgs = NodeTestMessage::mix_plaintexts(mix, num_test_packets, ext)
+                .map_err(WasmClientError::from)?;
 
             let mut updated = current_topology.clone();
             updated.set_mixes_in_layer(mix.layer.into(), vec![mix.to_owned()]);

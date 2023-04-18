@@ -1,10 +1,10 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_monitor::monitor::preparer::{InvalidNode, TestedNode};
-use crate::network_monitor::test_packet::{NodeType, TestPacket};
+use crate::network_monitor::monitor::preparer::InvalidNode;
 use crate::network_monitor::test_route::TestRoute;
 use nym_mixnet_contract_common::MixId;
+use nym_node_tester_utils::node::TestableNode;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
@@ -281,8 +281,8 @@ impl SummaryProducer {
 
     pub(super) fn produce_summary(
         &self,
-        tested_mixnodes: Vec<TestedNode>,
-        tested_gateways: Vec<TestedNode>,
+        tested_mixnodes: Vec<TestableNode>,
+        tested_gateways: Vec<TestableNode>,
         received_packets: Vec<TestPacket>,
         invalid_mixnodes: Vec<InvalidNode>,
         invalid_gateways: Vec<InvalidNode>,

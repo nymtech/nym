@@ -762,14 +762,7 @@ mod tests {
         let wrong_password = UserPassword::new("wrong_password".to_string());
         let id1 = LoginId::new("first".to_string());
 
-        store_login_at_file(
-            &wallet_file,
-            account1.clone(),
-            hd_path.clone(),
-            id1.clone(),
-            &password,
-        )
-        .unwrap();
+        store_login_at_file(&wallet_file, account1, hd_path, id1, &password).unwrap();
 
         let err = update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password)
             .unwrap_err();
@@ -786,14 +779,7 @@ mod tests {
         let new_password = UserPassword::new("new_password".to_string());
         let id1 = LoginId::new("first".to_string());
 
-        store_login_at_file(
-            &wallet_file,
-            account1.clone(),
-            hd_path.clone(),
-            id1.clone(),
-            &password,
-        )
-        .unwrap();
+        store_login_at_file(&wallet_file, account1, hd_path, id1.clone(), &password).unwrap();
 
         update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
 
@@ -873,14 +859,8 @@ mod tests {
         let wrong_password = UserPassword::new("wrong_password".to_string());
         let id1 = LoginId::new("first".to_string());
 
-        store_login_with_multiple_accounts_at_file(
-            &wallet_file,
-            acc1.clone(),
-            hd_path.clone(),
-            id1.clone(),
-            &password,
-        )
-        .unwrap();
+        store_login_with_multiple_accounts_at_file(&wallet_file, acc1, hd_path, id1, &password)
+            .unwrap();
 
         let err = update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password)
             .unwrap_err();
@@ -899,8 +879,8 @@ mod tests {
 
         store_login_with_multiple_accounts_at_file(
             &wallet_file,
-            acc1.clone(),
-            hd_path.clone(),
+            acc1,
+            hd_path,
             id1.clone(),
             &password,
         )
@@ -1503,10 +1483,7 @@ mod tests {
                 DEFAULT_FIRST_ACCOUNT_NAME.into(),
                 MnemonicAccount::new(account1, hd_path.clone()),
             ),
-            WalletAccount::new(
-                appended_account,
-                MnemonicAccount::new(account2, hd_path.clone()),
-            ),
+            WalletAccount::new(appended_account, MnemonicAccount::new(account2, hd_path)),
         ]
         .into();
         assert_eq!(loaded_accounts, &expected);

@@ -3,15 +3,20 @@ import { Button, Stack, Typography } from '@mui/material';
 import { checkUpdate } from '@tauri-apps/api/updater';
 import { AppContext } from '../../context';
 import { checkVersion } from '../../requests';
+import { Console } from '../../utils/console';
 
 const AppVersion = () => {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const { appVersion } = useContext(AppContext);
 
   const updateCheck = async () => {
-    const res = await checkVersion();
-    if (res.is_update_available) {
-      setUpdateAvailable(true);
+    try {
+      const res = await checkVersion();
+      if (res.is_update_available) {
+        setUpdateAvailable(true);
+      }
+    } catch (e) {
+      Console.error(e);
     }
   };
 
@@ -20,9 +25,13 @@ const AppVersion = () => {
   }, [appVersion]);
 
   const updateHandler = async () => {
-    // despite the name, this will spawn an external native window with
-    // an embedded "download and install" flow
-    checkUpdate();
+    try {
+      // despite the name, this will spawn an external native window with
+      // an embedded "download and update the Wallet" flow
+      checkUpdate();
+    } catch (e) {
+      Console.error(e);
+    }
   };
 
   return (

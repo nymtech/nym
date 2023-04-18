@@ -13,12 +13,50 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#3255]: https://github.com/nymtech/nym/pull/3255
 [#3273]: https://github.com/nymtech/nym/pull/3273
 
+## [v1.1.15] (2023-04-18)
+
+- Fix verloc being stuck waiting for shutdown signal ([#3250])
+- Introduce `--output json` flag to `sign` command to allow to more easily capture the output ([#3249])
+- Explorer - Dont fetch Service Provider list on Testnet ([#3245])
+- When determining active set, rather than weighting the nodes by just the `stake`, use `stake * performance` ([#3234])
+- Introduce dual packet sizes to our clients (as in use two packet sizes at the same time depending on message size) ([#3189])
+- Experiment with offline signing in our validator client ([#3174])
+- Modify network requester binary to reload `allowed.list` periodically to pull in any changes made upstream without having to restart the service ([#3149])
+- Standardise all `--output json` on binary inits, we pass the output json at different points for different binaries. ([#3080])
+- Service provider directory contract: initial version ([#2759])
+- Fix issue where network-requester run failed on fresh init due to missing allow file ([#3316])
+
+[#3250]: https://github.com/nymtech/nym/issues/3250
+[#3249]: https://github.com/nymtech/nym/issues/3249
+[#3245]: https://github.com/nymtech/nym/issues/3245
+[#3234]: https://github.com/nymtech/nym/issues/3234
+[#3189]: https://github.com/nymtech/nym/issues/3189
+[#3174]: https://github.com/nymtech/nym/issues/3174
+[#3149]: https://github.com/nymtech/nym/issues/3149
+[#3080]: https://github.com/nymtech/nym/issues/3080
+[#2759]: https://github.com/nymtech/nym/issues/2759
+[#3316]: https://github.com/nymtech/nym/pull/3316
+
+## [v1.1.14] (2023-04-04)
+
+- Investigate cause of qwerty validator being in invalid rewarding state ([#3224])
+- Fix NR config due to changes in #3199 ([#3223])
+- [Issue] Mixnodes and gateway do not close connections properly  ([#3187])
+- disable sign-ext when using wasm-opt + update wasm-opt ([#3203])
+- chore: tidy up client `Debug` config section ([#3199])
+
+[#3224]: https://github.com/nymtech/nym/issues/3224
+[#3223]: https://github.com/nymtech/nym/issues/3223
+[#3187]: https://github.com/nymtech/nym/issues/3187
+[#3203]: https://github.com/nymtech/nym/pull/3203
+[#3199]: https://github.com/nymtech/nym/pull/3199
+>>>>>>> master
+
 ## [v1.1.13] (2023-03-15)
 
 - NE - instead of throwing a "Mixnode/Gateway not found" error for blacklisted nodes due to bad performance, show their history but tag them as "Having poor performance" ([#2979])
 - NE - Upgrade Sandbox and make below changes:  ([#2332])
 - Explorer - Updates ([#3168])
-- Fix contracts and nym-api audit findings ([#3026])
 - Website v2 - deploy infrastructure for strapi and CI ([#2213])
 - add blockstream green to sp list ([#3180])
 - mock-nym-api: fix .storybook lint error ([#3178])
@@ -27,7 +65,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2979]: https://github.com/nymtech/nym/issues/2979
 [#2332]: https://github.com/nymtech/nym/issues/2332
 [#3168]: https://github.com/nymtech/nym/issues/3168
-[#3026]: https://github.com/nymtech/nym/issues/3026
 [#2213]: https://github.com/nymtech/nym/issues/2213
 [#3180]: https://github.com/nymtech/nym/pull/3180
 [#3178]: https://github.com/nymtech/nym/pull/3178

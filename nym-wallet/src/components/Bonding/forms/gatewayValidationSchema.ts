@@ -79,4 +79,10 @@ export const updateGatewayValidationSchema = Yup.object().shape({
   httpApiPort: Yup.number()
     .required('A clients port is required')
     .test('valid-clients', 'A valid clients port is required', (value) => (value ? validateRawPort(value) : false)),
+  location: Yup.string().test('valid-location', 'A valid location is required', (value) =>
+    value ? validateLocation(value) : false,
+  ),
+  version: Yup.string().test('valid-version', 'A valid version is required', (value) =>
+    value ? validateVersion(value) : false,
+  ),
 });

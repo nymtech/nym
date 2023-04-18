@@ -41,6 +41,7 @@ const MixnodeSignatureForm = ({
           pledge: amount.amount,
           mixnode: mixnodeToTauri(mixnode),
           costParams: costParamsToTauri(amount),
+          tokenPool: amount.tokenPool as 'balance' | 'locked',
         })) as string,
       );
     } catch (e) {

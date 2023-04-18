@@ -48,7 +48,7 @@ export const vestingBondGateway = async ({
   msgSignature: string;
 }) => invokeWrapper<TransactionExecuteResult>('vesting_bond_gateway', { gateway, msgSignature, pledge });
 
-export const vestingGenerateGatewayMsgPayload = async (args: TBondGatewaySignatureArgs) =>
+export const vestingGenerateGatewayMsgPayload = async (args: Omit<TBondGatewaySignatureArgs, 'tokenPool'>) =>
   invokeWrapper<string>('vesting_generate_gateway_bonding_msg_payload', args);
 
 export const vestingUnbondGateway = async (fee?: Fee) =>
@@ -66,7 +66,7 @@ export const vestingBondMixNode = async ({
   msgSignature: string;
 }) => invokeWrapper<TransactionExecuteResult>('vesting_bond_mixnode', { mixnode, costParams, msgSignature, pledge });
 
-export const vestingGenerateMixnodeMsgPayload = async (args: TBondMixnodeSignatureArgs) =>
+export const vestingGenerateMixnodeMsgPayload = async (args: Omit<TBondMixnodeSignatureArgs, 'tokenPool'>) =>
   invokeWrapper<string>('vesting_generate_mixnode_bonding_msg_payload', args);
 
 export const vestingUnbondMixnode = async (fee?: Fee) =>

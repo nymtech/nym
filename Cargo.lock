@@ -371,6 +371,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "383d29d513d8764dcdc42ea295d979eb99c3c9f00607b3692cf68a431f7dca72"
 
 [[package]]
+name = "bincode"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "bip32"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -874,7 +883,7 @@ dependencies = [
  "rand 0.8.5",
  "sha2 0.10.6",
  "subtle 2.4.1",
- "time 0.3.20",
+ "time 0.3.21",
  "version_check",
 ]
 
@@ -2886,9 +2895,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.142"
+version = "0.2.144"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a987beff54b60ffa6d51982e1aa1146bc42f19bd26be28b0586f252fccf5317"
+checksum = "2b00cc1c228a6782d0f076e7b232802e0c5689d41bb5df366f2a6b6621cfdfe1"
 
 [[package]]
 name = "libgit2-sys"
@@ -3283,7 +3292,7 @@ dependencies = [
  "sqlx 0.6.3",
  "tap",
  "thiserror",
- "time 0.3.20",
+ "time 0.3.21",
  "tokio",
  "tokio-stream",
  "ts-rs",
@@ -3413,7 +3422,7 @@ dependencies = [
  "serde_json",
  "tap",
  "thiserror",
- "time 0.3.20",
+ "time 0.3.21",
  "toml",
  "url",
 ]
@@ -3485,7 +3494,7 @@ dependencies = [
  "tap",
  "tempfile",
  "thiserror",
- "time 0.3.20",
+ "time 0.3.21",
  "tokio",
  "tokio-stream",
  "tokio-tungstenite 0.14.0",
@@ -3836,7 +3845,7 @@ dependencies = [
  "serde-json-wasm",
  "serde_repr",
  "thiserror",
- "time 0.3.20",
+ "time 0.3.21",
  "ts-rs",
 ]
 
@@ -4051,6 +4060,7 @@ dependencies = [
 name = "nym-outfox"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "blake3",
  "chacha20",
  "chacha20poly1305",
@@ -4059,7 +4069,8 @@ dependencies = [
  "fastrand",
  "getrandom 0.2.9",
  "rayon",
- "sphinx-packet 0.1.0 (git+https://github.com/nymtech/sphinx.git)",
+ "serde",
+ "sphinx-packet",
  "thiserror",
  "zeroize",
 ]
@@ -4342,9 +4353,11 @@ dependencies = [
 name = "nym-sphinx-framing"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "bytes",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "serde",
  "thiserror",
  "tokio-util",
 ]
@@ -4372,7 +4385,9 @@ dependencies = [
 name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
- "sphinx-packet 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nym-outfox",
+ "serde",
+ "sphinx-packet",
 ]
 
 [[package]]
@@ -5175,9 +5190,9 @@ checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
 
 [[package]]
 name = "quote"
-version = "1.0.26"
+version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4424af4bf778aae2051a77b60283332f386554255d722233d09fbfc7e30da2fc"
+checksum = "8f4f29d145265ec1c483c7c654450edde0bfe043d3938d6972630663356d9500"
 dependencies = [
  "proc-macro2",
 ]
@@ -5610,7 +5625,7 @@ dependencies = [
  "serde_json",
  "state",
  "tempfile",
- "time 0.3.20",
+ "time 0.3.21",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -5672,7 +5687,7 @@ dependencies = [
  "smallvec",
  "stable-pattern",
  "state",
- "time 0.3.20",
+ "time 0.3.21",
  "tokio",
  "uncased",
 ]
@@ -6268,29 +6283,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sphinx-packet"
-version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx.git#ca107d94360cdf8bbfbdb12fe5320ed74f80e40c"
-dependencies = [
- "aes 0.7.5",
- "arrayref",
- "blake2 0.8.1",
- "bs58",
- "byteorder",
- "chacha",
- "curve25519-dalek",
- "digest 0.9.0",
- "hkdf 0.11.0",
- "hmac 0.11.0",
- "lioness",
- "log",
- "rand 0.7.3",
- "rand_distr",
- "sha2 0.9.9",
- "subtle 2.4.1",
-]
-
-[[package]]
 name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6701,7 +6693,7 @@ dependencies = [
  "subtle 2.4.1",
  "subtle-encoding",
  "tendermint-proto",
- "time 0.3.20",
+ "time 0.3.21",
  "zeroize",
 ]
 
@@ -6734,7 +6726,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "subtle-encoding",
- "time 0.3.20",
+ "time 0.3.21",
 ]
 
 [[package]]
@@ -6762,7 +6754,7 @@ dependencies = [
  "tendermint-config",
  "tendermint-proto",
  "thiserror",
- "time 0.3.20",
+ "time 0.3.21",
  "tokio",
  "tracing",
  "url",
@@ -6828,9 +6820,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.20"
+version = "0.3.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd0cbfecb4d19b5ea75bb31ad904eb5b9fa13f21079c3b92017ebdf4999a5890"
+checksum = "8f3403384eaacbca9923fa06940178ac13e4edb725486d70e8e15881d0c836cc"
 dependencies = [
  "itoa",
  "js-sys",
@@ -6841,15 +6833,15 @@ dependencies = [
 
 [[package]]
 name = "time-core"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e153e1f1acaef8acc537e68b44906d2db6436e2b35ac2c6b42640fff91f00fd"
+checksum = "7300fbefb4dadc1af235a9cef3737cea692a9d97e1b9cbcd4ebdae6f8868e6fb"
 
 [[package]]
 name = "time-macros"
-version = "0.2.8"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd80a657e71da814b8e5d60d3374fc6d35045062245d80224748ae522dd76f36"
+checksum = "372950940a5f07bf38dbe211d7283c9e6d7327df53794992d293e534c733d09b"
 dependencies = [
  "time-core",
 ]
@@ -7121,7 +7113,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09d48f71a791638519505cefafe162606f706c25592e4bde4d97600c0195312e"
 dependencies = [
  "crossbeam-channel",
- "time 0.3.20",
+ "time 0.3.21",
  "tracing-subscriber",
 ]
 
@@ -7316,9 +7308,9 @@ dependencies = [
 
 [[package]]
 name = "uncased"
-version = "0.9.7"
+version = "0.9.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09b01702b0fd0b3fadcf98e098780badda8742d4f4a7676615cad90e8ac73622"
+checksum = "9b9bc53168a4be7402ab86c3aad243a84dd7381d09be0eddc81280c1da95ca68"
 dependencies = [
  "serde",
  "version_check",
@@ -7491,7 +7483,7 @@ dependencies = [
  "rustc_version 0.4.0",
  "rustversion",
  "thiserror",
- "time 0.3.20",
+ "time 0.3.21",
 ]
 
 [[package]]

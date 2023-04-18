@@ -62,6 +62,8 @@ use chacha20poly1305::Tag;
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
+use serde::Deserialize;
+use serde::Serialize;
 use sphinx_packet::route::Node;
 
 use std::convert::TryInto;
@@ -77,6 +79,7 @@ use crate::lion::*;
 
 /// A structure that holds mix packet construction parameters. These incluse the length
 /// of the routing information at each hop, the number of hops, and the payload length.
+#[derive(Serialize, Deserialize)]
 pub struct MixCreationParameters {
     /// The routing length is inner first, so \[0\] is the innermost routing length, etc (in bytes)
     pub routing_information_length_by_stage: Vec<usize>,

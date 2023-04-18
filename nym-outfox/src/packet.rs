@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
 use crate::{
@@ -7,6 +8,7 @@ use crate::{
 
 use sphinx_packet::{packet::builder::DEFAULT_PAYLOAD_SIZE, route::Node};
 
+#[derive(Serialize, Deserialize)]
 pub struct OutfoxPacket {
     mix_params: MixCreationParameters,
     payload: Vec<u8>,
@@ -15,6 +17,18 @@ pub struct OutfoxPacket {
 pub const DEFAULT_ROUTING_INFO_SIZE: usize = 32;
 
 impl OutfoxPacket {
+    pub fn len(&self) -> usize {
+        self.mix_params().total_packet_length()
+    }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>, OutfoxError> {
+        bincode::serialize(self).map_err(|_e| OutfoxError::Bincode)
+    }
+
+    pub fn from_bytes(v: &[u8]) -> Result<Self, OutfoxError> {
+        Ok(bincode::deserialize(v).map_err(|_| OutfoxError::Bincode)?)
+    }
+
     pub fn build(
         payload: &[u8],
         route: &[Node; 3],

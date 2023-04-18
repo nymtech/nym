@@ -62,10 +62,6 @@ make build
 BECH32_PREFIX=nymt make build
 ```
 
-```admonish info title="Information for Sandbox validator operators"
-If you are running a **Sandbox testnet validator** please replace `nyxd` with `nymt` in the rest of the commands in this documentation
-```
-
 At this point, you will have a copy of the `nyxd` binary in your `build/` directory. Test that it's compiled properly by running:
 
 ```
@@ -133,7 +129,7 @@ Choose a name for your validator and use it in place of `<ID>` in the following 
 nyxd init <ID> --chain-id=nyx
 
 # Sandbox testnet
-nymt init <ID> --chain-id=sandbox
+nyxd init <ID> --chain-id=sandbox
 ```
 
 ```admonish caution
@@ -155,7 +151,7 @@ You can use the following command to download them for the correct network:
 wget  -O $HOME/.nyxd/config/genesis.json https://nymtech.net/genesis/genesis.json
 
 # Sandbox testnet
-curl "https://sandbox-validator1.nymtech.net/genesis" | jq .result.genesis > ~/.nymt/config/genesis.json
+curl "https://sandbox-validator1.nymtech.net/genesis" | jq .result.genesis > ~/.nyxd/config/genesis.json
 ```
 
 ### `config.toml` configuration
@@ -293,10 +289,10 @@ nyxd tx staking create-validator
 ```
 ```
 # Sandbox Testnet
-nymt tx staking create-validator
+nyxd tx staking create-validator
   --amount=10000000unyxt
   --fees=5000unyxt
-  --pubkey=$(/home/youruser/path/to/nym/binaries/nymt tendermint show-validator)
+  --pubkey=$(/home/youruser/path/to/nym/binaries/nyxd tendermint show-validator)
   --moniker="whatever you called your validator"
   --chain-id=sandbox
   --commission-rate="0.10"
@@ -330,7 +326,7 @@ nyxd tx staking edit-validator
 ```
 ```
 # Sandbox testnet
-nymt tx staking edit-validator
+nyxd tx staking edit-validator
   --chain-id=sandbox
   --moniker="whatever you called your validator"
   --details="Sandbox testnet validator"
@@ -566,7 +562,7 @@ nyxd tx slashing unjail
 ```
 ```
 # Sandbox Testnet
-nymt tx slashing unjail
+nyxd tx slashing unjail
   --broadcast-mode=block
   --from="KEYRING_NAME"
   --chain-id=sandbox
@@ -618,7 +614,7 @@ nyxd tx staking delegate VALOPERADDRESS AMOUNTunym
 ```
 ```
 # Sandbox Testnet
-nymt tx staking delegate VALOPERADDRESS AMOUNTunymt
+nyxd tx staking delegate VALOPERADDRESS AMOUNTunymt
   --from="KEYRING_NAME"
   --keyring-backend=os
   --chain-id=sandbox

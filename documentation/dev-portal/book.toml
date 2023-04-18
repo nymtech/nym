@@ -51,7 +51,7 @@ assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 minimum_rust_version = "1.66"
 # minimum_node_version = ""
 # nym platform code most recent release
-platform_release_version = "v1.1.14"
+platform_release_version = "v1.1.15"
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"

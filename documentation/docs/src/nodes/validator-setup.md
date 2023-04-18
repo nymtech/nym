@@ -4,19 +4,19 @@ The validator is built using [Cosmos SDK](https://cosmos.network) and [Tendermin
 
 ## Building your validator
 ### Prerequisites
-#### `git`, `gcc`
+#### `git`, `gcc`, `jq`
 * Debian-based systems:
 ```
-apt install git, build-essential
+apt install git build-essential jq
 
 # optional additional manual pages can be installed with:
 apt-get install manpages-dev
 ```
 
 * Arch-based systems:
-Install `git` and `gcc` with the following:
+Install `git`, `gcc` and `jq` with the following:
 ```
-pacman -S git, gcc
+pacman -S git gcc jq
 ```
 
 #### `Go`
@@ -170,7 +170,6 @@ laddr = "tcp://0.0.0.0:26656"
 cors_allowed_origins = ["*"]
 persistent_peers = "8421c0a3d90d490e27e8061f2abcb1276c8358b6@sandbox-validator1.nymtech.net:26656"
 create_empty_blocks = false
-laddr = "tcp://0.0.0.0:26656"
 ```
 
 These affect the following:

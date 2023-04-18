@@ -20,8 +20,10 @@ pub enum OutfoxError {
     #[error("Message length must be greater then {MIN_MESSAGE_LEN} bytes")]
     InvalidMessageLength,
     #[error("{source}")]
-    TryFromSluce {
+    TryFromSlice {
         #[from]
         source: TryFromSliceError,
     },
+    #[error("Could not serialize OutfoxPacket!")]
+    Bincode,
 }

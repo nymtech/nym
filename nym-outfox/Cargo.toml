@@ -15,8 +15,13 @@ chacha20poly1305 = "0.10.1"
 # Need this star over here to pull in js into getrandom
 getrandom = { version = "*", features = ["js"] }
 thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+bincode = "1"
 
-sphinx-packet = { git = "https://github.com/nymtech/sphinx.git" }
+sphinx-packet = "0.1.0"
+
+[patch.crates-io]
+sphinx-packet = { path = "../../../../sphinx" }
 
 
 [dev-dependencies]

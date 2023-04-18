@@ -4367,6 +4367,7 @@ name = "nym-sphinx-params"
 version = "0.1.0"
 dependencies = [
  "nym-crypto",
+ "nym-outfox",
  "nym-sphinx-types",
  "serde",
  "thiserror",
@@ -4388,6 +4389,7 @@ dependencies = [
  "nym-outfox",
  "serde",
  "sphinx-packet",
+ "thiserror",
 ]
 
 [[package]]

@@ -15,12 +15,38 @@ pub use sphinx_packet::{
     payload::{Payload, PAYLOAD_OVERHEAD_SIZE},
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
     surb::{SURBMaterial, SURB},
-    Error, ProcessedPacket, SphinxPacket,
+    Error as SphinxError, ProcessedPacket, SphinxPacket,
 };
+use thiserror::Error;
 
+#[derive(Error, Debug)]
+pub enum NymPacketError {
+    #[error("Sphinx error: {0}")]
+    Sphinx(#[from] sphinx_packet::Error),
+
+    #[error("Outfox error: {0}")]
+    Outfox(#[from] nym_outfox::error::OutfoxError),
+}
+
+#[allow(clippy::large_enum_variant)]
 pub enum NymPacket {
     Sphinx(SphinxPacket),
     Outfox(OutfoxPacket),
+}
+
+impl fmt::Debug for NymPacket {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            NymPacket::Sphinx(packet) => f
+                .debug_struct("NymPacket::Sphinx")
+                .field("len", &packet.len())
+                .finish(),
+            NymPacket::Outfox(packet) => f
+                .debug_struct("NymPacket::Outfox")
+                .field("len", &packet.len())
+                .finish(),
+        }
+    }
 }
 
 impl NymPacket {
@@ -35,10 +61,17 @@ impl NymPacket {
         self.len() == 0
     }
 
-    pub fn to_bytes(&self) -> Result<Vec<u8>, OutfoxError> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, NymPacketError> {
         match self {
             NymPacket::Sphinx(packet) => Ok(packet.to_bytes()),
-            NymPacket::Outfox(packet) => packet.to_bytes(),
+            NymPacket::Outfox(packet) => Ok(packet.to_bytes()?),
+        }
+    }
+
+    pub fn process(self, node_secret_key: &PrivateKey) -> Result<ProcessedPacket, NymPacketError> {
+        match self {
+            NymPacket::Sphinx(packet) => Ok(packet.process(node_secret_key)?),
+            NymPacket::Outfox(_packet) => todo!(),
         }
     }
 }

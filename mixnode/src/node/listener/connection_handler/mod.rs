@@ -9,8 +9,8 @@ use crate::node::TaskClient;
 use futures::StreamExt;
 use nym_mixnode_common::measure;
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_sphinx::framing::codec::SphinxCodec;
-use nym_sphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::framing::codec::NymCodec;
+use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::Delay as SphinxDelay;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
@@ -54,7 +54,7 @@ impl ConnectionHandler {
         feature = "cpucycles",
         instrument(skip(self, framed_sphinx_packet), fields(cpucycles))
     )]
-    fn handle_received_packet(&self, framed_sphinx_packet: FramedSphinxPacket) {
+    fn handle_received_packet(&self, framed_sphinx_packet: FramedNymPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
         // packet processor for vpn packets,
@@ -86,7 +86,7 @@ impl ConnectionHandler {
     ) {
         debug!("Starting connection handler for {:?}", remote);
         shutdown.mark_as_success();
-        let mut framed_conn = Framed::new(conn, SphinxCodec);
+        let mut framed_conn = Framed::new(conn, NymCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;

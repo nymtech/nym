@@ -1,16 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::codec::SphinxCodecError;
+use crate::codec::NymCodecError;
 use bytes::{BufMut, BytesMut};
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::packet_version::PacketVersion;
 use nym_sphinx_params::PacketMode;
 use nym_sphinx_types::NymPacket;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct FramedNymPacket {
     /// Contains any metadata helping receiver to handle the underlying packet.
     pub(crate) header: Header,
@@ -101,7 +101,7 @@ impl Header {
         dst.reserve(self.packet_size.size());
     }
 
-    pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, SphinxCodecError> {
+    pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, NymCodecError> {
         if src.len() < Self::LEGACY_SIZE {
             // can't do anything if we don't have enough bytes - but reserve enough for the next call
             src.reserve(Self::LEGACY_SIZE);
@@ -197,7 +197,7 @@ mod header_encoding {
             let header = Header {
                 packet_version: PacketVersion::Legacy,
                 packet_size,
-                packet_mode: Default::default(),
+                ..Default::default()
             };
             let mut bytes = BytesMut::new();
             header.encode(&mut bytes);
@@ -218,7 +218,7 @@ mod header_encoding {
             let header = Header {
                 packet_version: PacketVersion::Versioned(123),
                 packet_size,
-                packet_mode: Default::default(),
+                ..Default::default()
             };
             let mut bytes = BytesMut::new();
             header.encode(&mut bytes);

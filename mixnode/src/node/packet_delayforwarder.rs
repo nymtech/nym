@@ -5,7 +5,7 @@ use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
-use nym_sphinx::forwarding::packet::MixPacket;
+use nym_sphinx::{forwarding::packet::MixPacket, NymPacket};
 use std::io;
 use tokio::time::Instant;
 
@@ -61,10 +61,11 @@ where
         let packet_mode = packet.packet_mode();
         let sphinx_packet = packet.into_sphinx_packet();
 
-        if let Err(err) =
-            self.mixnet_client
-                .send_without_response(next_hop, sphinx_packet, packet_mode)
-        {
+        if let Err(err) = self.mixnet_client.send_without_response(
+            next_hop,
+            NymPacket::Sphinx(sphinx_packet),
+            packet_mode,
+        ) {
             if err.kind() == io::ErrorKind::WouldBlock {
                 // we only know for sure if we dropped a packet if our sending queue was full
                 // in any other case the connection might still be re-established (or created for the first time)
@@ -147,14 +148,14 @@ mod tests {
 
     #[derive(Default)]
     struct TestClient {
-        pub packets_sent: Arc<Mutex<Vec<(NymNodeRoutingAddress, SphinxPacket, PacketMode)>>>,
+        pub packets_sent: Arc<Mutex<Vec<(NymNodeRoutingAddress, NymPacket, PacketMode)>>>,
     }
 
     impl nym_mixnet_client::SendWithoutResponse for TestClient {
         fn send_without_response(
             &mut self,
             address: NymNodeRoutingAddress,
-            packet: SphinxPacket,
+            packet: NymPacket,
             packet_mode: PacketMode,
         ) -> io::Result<()> {
             self.packets_sent

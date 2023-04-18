@@ -20,6 +20,8 @@ const ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS: u64 = 30;
 const MAX_DELAY_MULTIPLIER: u32 = 6;
 // The minium multiplier we apply to the base average Poisson delay.
 const MIN_DELAY_MULTIPLIER: u32 = 1;
+// If the multipler increases we log it, but we don't want to log about it too often.
+const INTERVAL_BETWEEN_WARNING_ABOUT_ELEVATED_MULTIPLIER_SECS: u64 = 60;
 
 pub(crate) struct SendingDelayController {
     /// Multiply the average sending delay.
@@ -64,7 +66,8 @@ impl SendingDelayController {
             upper_bound,
             lower_bound,
             multiplier_elevated_counter: 0,
-            time_when_logged_about_elevated_multiplier: now,
+            time_when_logged_about_elevated_multiplier: now
+                - Duration::from_secs(INTERVAL_BETWEEN_WARNING_ABOUT_ELEVATED_MULTIPLIER_SECS),
             time_when_changed: now,
             time_when_backpressure_detected: now,
         }
@@ -131,8 +134,8 @@ impl SendingDelayController {
 
     pub(crate) fn record_delay_multiplier(&mut self) {
         // Count the number of times the multiplier has been elevated.
-        let multiple_elevated = self.current_multiplier - self.lower_bound;
-        if multiple_elevated == 0 {
+        let multiplier_elevated = self.current_multiplier - self.lower_bound;
+        if multiplier_elevated == 0 {
             self.multiplier_elevated_counter = 0;
         } else {
             self.multiplier_elevated_counter += 1;
@@ -141,7 +144,9 @@ impl SendingDelayController {
         // If needed, log about the elevated multiplier.
         let now = get_time_now();
         if self.multiplier_elevated_counter > 20
-            && now > self.time_when_logged_about_elevated_multiplier + Duration::from_secs(60)
+            && now
+                > self.time_when_logged_about_elevated_multiplier
+                    + Duration::from_secs(INTERVAL_BETWEEN_WARNING_ABOUT_ELEVATED_MULTIPLIER_SECS)
         {
             let status_str = format!(
                 "Poisson delay currently scaled by: {}",

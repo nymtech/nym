@@ -7,16 +7,16 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::packet_version::PacketVersion;
 use nym_sphinx_params::PacketMode;
 use nym_sphinx_types::NymPacket;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct FramedNymPacket {
     /// Contains any metadata helping receiver to handle the underlying packet.
     pub(crate) header: Header,
 
     /// The actual SphinxPacket being sent.
-    pub(crate) packet: NymPacket,
+    pub(crate) packet: Option<NymPacket>,
 }
 
 impl FramedNymPacket {
@@ -31,7 +31,7 @@ impl FramedNymPacket {
                 packet_size,
                 packet_mode,
             },
-            packet,
+            packet: Some(packet),
         }
     }
 
@@ -48,7 +48,7 @@ impl FramedNymPacket {
     }
 
     pub fn into_inner(self) -> NymPacket {
-        self.packet
+        self.packet.unwrap()
     }
 }
 

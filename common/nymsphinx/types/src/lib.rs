@@ -23,6 +23,21 @@ pub enum NymPacket {
     Outfox(OutfoxPacket),
 }
 
+impl fmt::Debug for NymPacket {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            NymPacket::Sphinx(packet) => f
+                .debug_struct("NymPacket::Sphinx")
+                .field("len", &packet.len())
+                .finish(),
+            NymPacket::Outfox(packet) => f
+                .debug_struct("NymPacket::Outfox")
+                .field("len", &packet.len())
+                .finish(),
+        }
+    }
+}
+
 impl NymPacket {
     pub fn len(&self) -> usize {
         match self {

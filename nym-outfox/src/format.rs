@@ -19,7 +19,7 @@
 //! traffic or dropping messages can be empued at each mix to frustrate traffic analysis.
 //!
 //!
-//! A layer of mix processing is defined by three parameters, includes in the structure [MixStageParameters]:
+//! A layer of mix processing is defined by three parameters, included in the structure [MixStageParameters]:
 //! * The `routing_information_length_bytes` (`R`) states the number of bytes representing
 //!   routing information at this layer.
 //! * The `remaining_header_length_bytes` (`H`) represents the remaining bytes of the packet header.
@@ -62,6 +62,7 @@ use chacha20poly1305::Tag;
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
+use sphinx_packet::route::Node;
 
 use std::convert::TryInto;
 
@@ -69,6 +70,7 @@ const GROUPELEMENTBYTES: usize = 32;
 const TAGBYTES: usize = 16;
 
 use std::ops::Range;
+use std::u8;
 
 use crate::error::OutfoxError;
 use crate::lion::*;
@@ -181,10 +183,13 @@ impl MixStageParameters {
     pub fn encode_mix_layer(
         &self,
         buffer: &mut [u8],
-        user_secret_key: &Scalar,
-        mix_public_key: &MontgomeryPoint,
-        routing_data: &[u8],
+        user_secret_key: &[u8],
+        node: &Node,
     ) -> Result<MontgomeryPoint, OutfoxError> {
+        let routing_data = node.address.as_bytes().to_vec();
+        let mix_public_key = MontgomeryPoint(*node.pub_key.as_bytes());
+        let user_secret_key = Scalar::from_bytes_mod_order(user_secret_key.try_into()?);
+
         if buffer.len() != self.incoming_packet_length() {
             return Err(OutfoxError::LenMismatch {
                 expected: buffer.len(),
@@ -199,20 +204,19 @@ impl MixStageParameters {
             });
         }
 
-        let user_public_key = (&ED25519_BASEPOINT_TABLE * user_secret_key).to_montgomery();
+        let user_public_key = (&ED25519_BASEPOINT_TABLE * &user_secret_key).to_montgomery();
         let shared_key = user_secret_key * mix_public_key;
 
         // Copy rounting data into buffer
-        buffer[self.routing_data_range()].copy_from_slice(routing_data);
+        buffer[self.routing_data_range()].copy_from_slice(&routing_data);
 
         // Perform the AEAD
         let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key.0[..])?;
-        // TODO: Should this be all 0s?
-        let nonce = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let nonce = [0u8; 12];
 
         let tag = header_aead_key
             .encrypt_in_place_detached(&nonce.into(), &[], &mut buffer[self.header_range()])
-            .map_err(|_| OutfoxError::ChaCha20Poly1305Error)?;
+            .map_err(|e| OutfoxError::ChaCha20Poly1305Error(e.to_string()))?;
 
         // Copy Tag into buffer
         buffer[self.tag_range()].copy_from_slice(&tag[..]);
@@ -229,9 +233,12 @@ impl MixStageParameters {
     pub fn decode_mix_layer(
         &self,
         buffer: &mut [u8],
-        mix_secret_key: &Scalar,
+        mix_secret_key: &[u8],
     ) -> Result<MontgomeryPoint, OutfoxError> {
         // Check the length of the incoming buffer is correct.
+
+        let mix_secret_key = Scalar::from_bytes_mod_order(mix_secret_key.try_into()?);
+
         if buffer.len() != self.incoming_packet_length() {
             return Err(OutfoxError::LenMismatch {
                 expected: buffer.len(),
@@ -240,12 +247,12 @@ impl MixStageParameters {
         }
 
         // Derive the shared key for this packet
-        let user_public_key = MontgomeryPoint(buffer[self.pub_element_range()].try_into().unwrap());
+        let user_public_key = MontgomeryPoint(buffer[self.pub_element_range()].try_into()?);
         let shared_key = mix_secret_key * user_public_key;
 
         // Compute the AEAD and check the Tag, if wrong return Err
-        let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key.0[..]).unwrap();
-        let nonce = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key.0[..])?;
+        let nonce = [0; 12];
 
         let tag_bytes = buffer[self.tag_range()].to_vec();
         let tag = Tag::from_slice(&tag_bytes);
@@ -257,7 +264,7 @@ impl MixStageParameters {
                 &mut buffer[self.header_range()],
                 tag.as_slice().try_into().unwrap(),
             )
-            .map_err(|_| OutfoxError::ChaCha20Poly1305Error)?;
+            .map_err(|e| OutfoxError::ChaCha20Poly1305Error(e.to_string()))?;
 
         // Do a round of LION on the payload
         lion_transform_decrypt(&mut buffer[self.payload_range()], &shared_key.0)?;

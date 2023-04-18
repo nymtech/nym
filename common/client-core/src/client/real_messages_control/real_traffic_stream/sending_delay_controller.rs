@@ -11,14 +11,14 @@ const INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 1;
 // The minimum time between decreasing the average delay between packets. We don't want to change
 // to quickly to keep things somewhat stable. Also there are buffers downstreams meaning we need to
 // wait a little to see the effect before we decrease further.
-const DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 3;
+const DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 2;
 // The queue length that is required for us to register that backpressure occured. If there are
 // more than this many packets waiting to be sent, we consider the channel to be under
 // backpressure.
 const BACKPRESSURE_THRESHOLD: usize = 10;
 // If we enough time passes without any sign of backpressure in the channel, we can consider
 // lowering the average delay.
-const ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS: u64 = 1;
+const ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS: u64 = 2;
 // The maximum multiplier we apply to the base average Poisson delay.
 const MAX_DELAY_MULTIPLIER: u32 = 6;
 // The minium multiplier we apply to the base average Poisson delay.

@@ -29,6 +29,7 @@ use nym_types::vesting::{OriginalVestingResponse, PledgeData, VestingAccountInfo
 use nym_vesting_contract_common::Period;
 use nym_wallet_types::admin::TauriContractStateParams;
 use nym_wallet_types::app::AppEnv;
+use nym_wallet_types::app::AppVersion;
 use nym_wallet_types::interval::Interval;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
@@ -126,6 +127,7 @@ fn main() {
 
     // nym-wallet
     do_export!(AppEnv);
+    do_export!(AppVersion);
     do_export!(Interval);
     do_export!(Network);
     do_export!(TauriContractStateParams);

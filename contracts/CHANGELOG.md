@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## [v1.3.1] (2023-04-18)
+- Add a query to the vesting contract for the amount of delegated tokens towards a particular `mix_id` (might be needed by NG) ([#3228])
+
+[#3228]: https://github.com/nymtech/nym/issues/3228
+
 ## [v1.3.0] (2023-04-04)
 - change in-contract signatures to include nonces and to sign entire payloads for family-related operations ([#3125])
 - change in-contract signatures to include nonces and to sign entire payloads for node bonding (will require wallet changes) ([#3067])

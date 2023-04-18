@@ -293,6 +293,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "383d29d513d8764dcdc42ea295d979eb99c3c9f00607b3692cf68a431f7dca72"
 
 [[package]]
+name = "bincode"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "bip32"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3820,6 +3829,7 @@ dependencies = [
 name = "nym-outfox"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "blake3",
  "chacha20",
  "chacha20poly1305",
@@ -3828,7 +3838,8 @@ dependencies = [
  "fastrand",
  "getrandom 0.2.8",
  "rayon",
- "sphinx-packet 0.1.0 (git+https://github.com/nymtech/sphinx.git)",
+ "serde",
+ "sphinx-packet",
  "thiserror",
  "zeroize",
 ]
@@ -4085,9 +4096,11 @@ dependencies = [
 name = "nym-sphinx-framing"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "bytes",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "serde",
  "thiserror",
  "tokio-util",
 ]
@@ -4106,7 +4119,9 @@ dependencies = [
 name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
- "sphinx-packet 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nym-outfox",
+ "serde",
+ "sphinx-packet",
 ]
 
 [[package]]
@@ -5888,29 +5903,6 @@ name = "sphinx-packet"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc43eda802856ee82a7555c7b75ceb9e07451741c7a2f5f23d036020e01189d4"
-dependencies = [
- "aes 0.7.5",
- "arrayref",
- "blake2",
- "bs58",
- "byteorder",
- "chacha",
- "curve25519-dalek",
- "digest 0.9.0",
- "hkdf 0.11.0",
- "hmac 0.11.0",
- "lioness",
- "log",
- "rand 0.7.3",
- "rand_distr",
- "sha2 0.9.9",
- "subtle 2.4.1",
-]
-
-[[package]]
-name = "sphinx-packet"
-version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx.git#ca107d94360cdf8bbfbdb12fe5320ed74f80e40c"
 dependencies = [
  "aes 0.7.5",
  "arrayref",

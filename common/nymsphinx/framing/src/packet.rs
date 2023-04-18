@@ -6,24 +6,26 @@ use bytes::{BufMut, BytesMut};
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::packet_version::PacketVersion;
 use nym_sphinx_params::PacketMode;
-use nym_sphinx_types::SphinxPacket;
+use nym_sphinx_types::NymPacket;
+use serde::{Serialize, Deserialize};
 use std::convert::TryFrom;
 
-pub struct FramedSphinxPacket {
+#[derive(Serialize, Deserialize)]
+pub struct FramedNymPacket {
     /// Contains any metadata helping receiver to handle the underlying packet.
     pub(crate) header: Header,
 
     /// The actual SphinxPacket being sent.
-    pub(crate) packet: SphinxPacket,
+    pub(crate) packet: NymPacket,
 }
 
-impl FramedSphinxPacket {
-    pub fn new(packet: SphinxPacket, packet_mode: PacketMode, use_legacy_version: bool) -> Self {
+impl FramedNymPacket {
+    pub fn new(packet: NymPacket, packet_mode: PacketMode, use_legacy_version: bool) -> Self {
         // If this fails somebody is using the library in a super incorrect way, because they
         // already managed to somehow create a sphinx packet
         let packet_size = PacketSize::get_type(packet.len()).unwrap();
 
-        FramedSphinxPacket {
+        FramedNymPacket {
             header: Header {
                 packet_version: PacketVersion::new(use_legacy_version),
                 packet_size,
@@ -31,6 +33,10 @@ impl FramedSphinxPacket {
             },
             packet,
         }
+    }
+
+    pub fn header(&self) -> Header {
+        self.header
     }
 
     pub fn packet_size(&self) -> PacketSize {
@@ -41,7 +47,7 @@ impl FramedSphinxPacket {
         self.header.packet_mode
     }
 
-    pub fn into_inner(self) -> SphinxPacket {
+    pub fn into_inner(self) -> NymPacket {
         self.packet
     }
 }
@@ -49,7 +55,7 @@ impl FramedSphinxPacket {
 // Contains any metadata that might be useful for sending between mix nodes.
 // TODO: in theory all those data could be put in a single `u8` by setting appropriate bits,
 // but would that really be worth it?
-#[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct Header {
     /// Represents the wire format version used to construct this packet.
     pub(crate) packet_version: PacketVersion,

@@ -262,6 +262,8 @@ nyxd start
 
 Once your validator starts, it will start requesting blocks from other validators. This may take several hours. Once it's up to date, you can issue a request to join the validator set with the command below.
 
+If you wish to sync from a snapshot or via state-sync please check out the Polkachu [mainnet](https://polkachu.com/networks/nym) or [testnet](https://polkachu.com/testnets/nym/) resources.
+
 > If you are having trouble upgrading your validator binary, try replacing (or re-compile) the `libwasmvm.so` file and replace it on your validator server.
 
 ```admonish caution

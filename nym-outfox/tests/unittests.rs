@@ -8,6 +8,7 @@ mod tests {
     use nym_outfox::packet::OutfoxPacket;
     use sphinx_packet::constants::NODE_ADDRESS_LENGTH;
     use sphinx_packet::crypto::PublicKey;
+    use sphinx_packet::packet::builder::DEFAULT_PAYLOAD_SIZE;
     use sphinx_packet::route::Node;
     use sphinx_packet::route::NodeAddressBytes;
     use std::convert::TryInto;
@@ -100,7 +101,7 @@ mod tests {
 
         let route = [node1, node2, node3];
 
-        let payload = "mama skuhala strukle, strukle, strukle, struklice".as_bytes();
+        let payload = randombytes(DEFAULT_PAYLOAD_SIZE);
 
         let mut packet = OutfoxPacket::build(&payload, &route, &user_secret).unwrap();
 
@@ -109,10 +110,5 @@ mod tests {
         packet.decode_mix_layer(0, &node3_pk.to_bytes()).unwrap();
 
         assert_eq!(payload, &packet.payload()[packet.payload_range()]);
-
-        assert_eq!(
-            "mama skuhala strukle, strukle, strukle, struklice",
-            std::str::from_utf8(&packet.payload()[packet.payload_range()]).unwrap()
-        )
     }
 }

@@ -5,7 +5,7 @@ use crate::{
     format::{MixCreationParameters, MixStageParameters},
 };
 
-use sphinx_packet::route::Node;
+use sphinx_packet::{packet::builder::DEFAULT_PAYLOAD_SIZE, route::Node};
 
 pub struct OutfoxPacket {
     mix_params: MixCreationParameters,
@@ -20,7 +20,7 @@ impl OutfoxPacket {
         route: &[Node; 3],
         user_secret_key: &[u8],
     ) -> Result<OutfoxPacket, OutfoxError> {
-        let mut mix_params = MixCreationParameters::new(payload.len());
+        let mut mix_params = MixCreationParameters::new(DEFAULT_PAYLOAD_SIZE);
 
         for node in route.iter() {
             mix_params.add_outer_layer(node.address.as_bytes_ref().len());

@@ -4,12 +4,29 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-- nym-network-statistics properly handles signals ([#3209])
-- add socks5 support for Rust SDK ([#3226], [#3255])
+## [v1.1.15] (2023-04-18)
 
-[#3209]: https://github.com/nymtech/nym/issues/3209
-[#3226]: https://github.com/nymtech/nym/pull/3226
-[#3255]: https://github.com/nymtech/nym/pull/3255
+- Fix verloc being stuck waiting for shutdown signal ([#3250])
+- Introduce `--output json` flag to `sign` command to allow to more easily capture the output ([#3249])
+- Explorer - Dont fetch Service Provider list on Testnet ([#3245])
+- When determining active set, rather than weighting the nodes by just the `stake`, use `stake * performance` ([#3234])
+- Introduce dual packet sizes to our clients (as in use two packet sizes at the same time depending on message size) ([#3189])
+- Experiment with offline signing in our validator client ([#3174])
+- Modify network requester binary to reload `allowed.list` periodically to pull in any changes made upstream without having to restart the service ([#3149])
+- Standardise all `--output json` on binary inits, we pass the output json at different points for different binaries. ([#3080])
+- Service provider directory contract: initial version ([#2759])
+- Fix issue where network-requester run failed on fresh init due to missing allow file ([#3316])
+
+[#3250]: https://github.com/nymtech/nym/issues/3250
+[#3249]: https://github.com/nymtech/nym/issues/3249
+[#3245]: https://github.com/nymtech/nym/issues/3245
+[#3234]: https://github.com/nymtech/nym/issues/3234
+[#3189]: https://github.com/nymtech/nym/issues/3189
+[#3174]: https://github.com/nymtech/nym/issues/3174
+[#3149]: https://github.com/nymtech/nym/issues/3149
+[#3080]: https://github.com/nymtech/nym/issues/3080
+[#2759]: https://github.com/nymtech/nym/issues/2759
+[#3316]: https://github.com/nymtech/nym/pull/3316
 
 ## [v1.1.14] (2023-04-04)
 

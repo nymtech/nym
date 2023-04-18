@@ -22,7 +22,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.4.0" }
 contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common", version = "0.4.0" }
-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.4.0" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.5.0" }
 
 cosmwasm-std = { workspace = true }
 cosmwasm-derive = { workspace = true }

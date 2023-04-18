@@ -7,11 +7,11 @@ use log::*;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_forwarding::packet::MixPacket;
-use nym_sphinx_framing::packet::FramedSphinxPacket;
+use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_params::{PacketMode, PacketSize};
 use nym_sphinx_types::{
-    Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, Payload, PrivateKey,
-    ProcessedPacket, SphinxPacket,
+    Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, NymPacket, Payload,
+    PrivateKey, ProcessedPacket, SphinxPacket,
 };
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -55,12 +55,12 @@ impl SphinxPacketProcessor {
     )]
     fn perform_initial_sphinx_packet_processing(
         &self,
-        packet: SphinxPacket,
+        packet: NymPacket,
     ) -> Result<ProcessedPacket, MixProcessingError> {
         measure!({
             packet.process(&self.sphinx_key).map_err(|err| {
                 debug!("Failed to unwrap Sphinx packet: {err}");
-                MixProcessingError::SphinxProcessingError(err)
+                MixProcessingError::NymPacketProcessingError(err)
             })
         })
     }
@@ -72,17 +72,17 @@ impl SphinxPacketProcessor {
     )]
     fn perform_initial_unwrapping(
         &self,
-        received: FramedSphinxPacket,
+        received: FramedNymPacket,
     ) -> Result<ProcessedPacket, MixProcessingError> {
         measure!({
             let packet_mode = received.packet_mode();
-            let sphinx_packet = received.into_inner();
+            let packet = received.into_inner();
 
             if packet_mode.is_old_vpn() {
                 return Err(MixProcessingError::ReceivedOldTypeVpnPacket);
             }
 
-            self.perform_initial_sphinx_packet_processing(sphinx_packet)
+            self.perform_initial_sphinx_packet_processing(packet)
         })
     }
 
@@ -127,14 +127,18 @@ impl SphinxPacketProcessor {
         packet_mode: PacketMode,
     ) -> Result<(Option<MixPacket>, Vec<u8>), MixProcessingError> {
         match packet_size {
-            PacketSize::AckPacket => {
+            PacketSize::AckPacket | PacketSize::OutfoxAckPacket => {
                 trace!("received an ack packet!");
                 Ok((None, data))
             }
             PacketSize::RegularPacket
             | PacketSize::ExtendedPacket8
             | PacketSize::ExtendedPacket16
-            | PacketSize::ExtendedPacket32 => {
+            | PacketSize::ExtendedPacket32
+            | PacketSize::OutfoxRegularPacket
+            | PacketSize::OutfoxExtendedPacket8
+            | PacketSize::OutfoxExtendedPacket16
+            | PacketSize::OutfoxExtendedPacket32 => {
                 trace!("received a normal packet!");
                 let (ack_data, message) = self.split_hop_data_into_ack_and_message(data)?;
                 let (ack_first_hop, ack_packet) = SurbAck::try_recover_first_hop_packet(&ack_data)?;
@@ -192,7 +196,7 @@ impl SphinxPacketProcessor {
     )]
     pub fn process_received(
         &self,
-        received: FramedSphinxPacket,
+        received: FramedNymPacket,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         // explicit packet size will help to correctly parse final hop
         measure!({

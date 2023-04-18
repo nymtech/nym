@@ -7,7 +7,7 @@ use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
-use nym_sphinx_types::{delays, Error as SphinxError, SURBMaterial, SphinxPacket, SURB};
+use nym_sphinx_types::{delays, SURBMaterial, SphinxError, SphinxPacket, SURB};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use serde::de::{Error as SerdeError, Visitor};

@@ -68,21 +68,23 @@ use sphinx_packet::route::Node;
 
 use std::convert::TryInto;
 
-const GROUPELEMENTBYTES: usize = 32;
-const TAGBYTES: usize = 16;
+pub const GROUPELEMENTBYTES: usize = 32;
+pub const TAGBYTES: usize = 16;
 
 use std::ops::Range;
 use std::u8;
 
 use crate::error::OutfoxError;
 use crate::lion::*;
+use crate::packet::DEFAULT_ROUTING_INFO_SIZE;
 
 /// A structure that holds mix packet construction parameters. These incluse the length
 /// of the routing information at each hop, the number of hops, and the payload length.
 #[derive(Serialize, Deserialize)]
 pub struct MixCreationParameters {
     /// The routing length is inner first, so \[0\] is the innermost routing length, etc (in bytes)
-    pub routing_information_length_by_stage: Vec<usize>,
+    /// In our stratified topology this will always be 3
+    pub routing_information_length_by_stage: [usize; 3],
     /// The payload length (in bytes)
     pub payload_length_bytes: usize,
 }
@@ -91,16 +93,16 @@ impl MixCreationParameters {
     /// Create a set of parameters for a mix packet format.
     pub fn new(payload_length_bytes: usize) -> MixCreationParameters {
         MixCreationParameters {
-            routing_information_length_by_stage: Vec::new(),
+            routing_information_length_by_stage: [DEFAULT_ROUTING_INFO_SIZE; 3],
             payload_length_bytes,
         }
     }
 
     /// Add another outer layer containing some byte length of routing data.
-    pub fn add_outer_layer(&mut self, routing_information_length_bytes: usize) {
-        self.routing_information_length_by_stage
-            .push(routing_information_length_bytes);
-    }
+    // pub fn add_outer_layer(&mut self, routing_information_length_bytes: usize) {
+    //     self.routing_information_length_by_stage
+    //         .push(routing_information_length_bytes);
+    // }
 
     /// The length of the buffer needed to build a packet.
     pub fn total_packet_length(&self) -> usize {

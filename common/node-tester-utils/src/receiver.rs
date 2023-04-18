@@ -36,20 +36,35 @@ impl<T> SimpleMessageReceiver<T, SphinxMessageReceiver> {
         received_sender: ReceivedSender<T>,
         shutdown: TaskClient,
     ) -> Self {
+        Self::new(
+            local_encryption_keypair,
+            ack_key,
+            mixnet_message_receiver,
+            acks_receiver,
+            received_sender,
+            shutdown,
+        )
+    }
+}
+
+impl<T, R: MessageReceiver> SimpleMessageReceiver<T, R> {
+    pub fn new(
+        local_encryption_keypair: Arc<encryption::KeyPair>,
+        ack_key: Arc<AckKey>,
+        mixnet_message_receiver: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
+        acks_receiver: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
+        received_sender: ReceivedSender<T>,
+        shutdown: TaskClient,
+    ) -> Self {
         SimpleMessageReceiver {
-            message_processor: TestPacketProcessor::new_sphinx_processor(
-                local_encryption_keypair,
-                ack_key,
-            ),
+            message_processor: TestPacketProcessor::new(local_encryption_keypair, ack_key),
             mixnet_message_receiver,
             acks_receiver,
             received_sender,
             shutdown,
         }
     }
-}
 
-impl<T, R: MessageReceiver> SimpleMessageReceiver<T, R> {
     fn forward_received<U: Into<Received<T>>>(&self, received: U) {
         // TODO: remove the unwrap once/if we do graceful shutdowns here
         self.received_sender

@@ -45,12 +45,7 @@ impl<T> TestPacketProcessor<T, SphinxMessageReceiver> {
         local_encryption_keypair: Arc<encryption::KeyPair>,
         ack_key: Arc<AckKey>,
     ) -> Self {
-        TestPacketProcessor {
-            local_encryption_keypair,
-            ack_key,
-            message_receiver: SphinxMessageReceiver::new(),
-            _ext_phantom: PhantomData,
-        }
+        Self::new(local_encryption_keypair, ack_key)
     }
 }
 
@@ -58,6 +53,15 @@ impl<T, R> TestPacketProcessor<T, R>
 where
     R: MessageReceiver,
 {
+    pub fn new(local_encryption_keypair: Arc<encryption::KeyPair>, ack_key: Arc<AckKey>) -> Self {
+        TestPacketProcessor {
+            local_encryption_keypair,
+            ack_key,
+            message_receiver: R::new(),
+            _ext_phantom: PhantomData,
+        }
+    }
+
     pub fn process_mixnet_message(
         &mut self,
         mut raw_message: Vec<u8>,

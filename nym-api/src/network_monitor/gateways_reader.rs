@@ -48,7 +48,6 @@ impl Stream for GatewaysReader {
     type Item = (IdentityKey, GatewayMessages);
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // exhaust the ack map if possible
         match Pin::new(&mut self.ack_map).poll_next(cx) {
             Poll::Ready(None) => {
                 // this should have never happened!
@@ -56,7 +55,7 @@ impl Stream for GatewaysReader {
             }
             Poll::Ready(Some(ack_item)) => {
                 // wake immediately in case there's an associated data message
-                cx.waker().wake();
+                cx.waker().wake_by_ref();
                 return Poll::Ready(Some((ack_item.0, GatewayMessages::Acks(ack_item.1))));
             }
             Poll::Pending => (),

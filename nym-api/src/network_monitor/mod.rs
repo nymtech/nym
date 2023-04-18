@@ -20,11 +20,11 @@ use futures::channel::mpsc;
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskManager;
 use std::sync::Arc;
 
-pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
 pub(crate) mod monitor;
 pub(crate) mod test_packet;
@@ -83,6 +83,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
         let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
         let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
+        let ack_key = Arc::new(AckKey::new(&mut rng));
 
         let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
         let (received_processor_sender_channel, received_processor_receiver_channel) =
@@ -92,6 +93,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             &self.system_version,
             self.validator_cache,
             self.config.get_per_node_test_packets(),
+            Arc::clone(&ack_key),
             *identity_keypair.public_key(),
             *encryption_keypair.public_key(),
         );
@@ -118,6 +120,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let received_processor = new_received_processor(
             received_processor_receiver_channel,
             Arc::clone(&encryption_keypair),
+            ack_key,
         );
         let summary_producer = new_summary_producer(self.config.get_per_node_test_packets());
         let packet_receiver = new_packet_receiver(
@@ -164,6 +167,7 @@ fn new_packet_preparer(
     system_version: &str,
     validator_cache: NymContractCache,
     per_node_test_packets: usize,
+    ack_key: Arc<AckKey>,
     self_public_identity: identity::PublicKey,
     self_public_encryption: encryption::PublicKey,
 ) -> PacketPreparer {
@@ -171,6 +175,7 @@ fn new_packet_preparer(
         system_version,
         validator_cache,
         per_node_test_packets,
+        ack_key,
         self_public_identity,
         self_public_encryption,
     )
@@ -199,8 +204,9 @@ fn new_packet_sender(
 fn new_received_processor<R: MessageReceiver + Send + 'static>(
     packets_receiver: ReceivedProcessorReceiver,
     client_encryption_keypair: Arc<encryption::KeyPair>,
+    ack_key: Arc<AckKey>,
 ) -> ReceivedProcessor<R> {
-    ReceivedProcessor::new(packets_receiver, client_encryption_keypair)
+    ReceivedProcessor::new(packets_receiver, client_encryption_keypair, ack_key)
 }
 
 fn new_summary_producer(per_node_test_packets: usize) -> SummaryProducer {

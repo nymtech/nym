@@ -1,21 +1,19 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_monitor::chunker::Chunker;
 use crate::network_monitor::monitor::sender::GatewayPackets;
-use crate::network_monitor::test_packet::{NodeTestMessage, NymApiTestMessageExt};
 use crate::network_monitor::test_route::TestRoute;
 use crate::nym_contract_cache::cache::NymContractCache;
 use log::info;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_mixnet_contract_common::{Addr, GatewayBond, IdentityKey, Layer, MixId, MixNodeBond};
-use nym_node_tester_utils::node::{NodeType, TestableNode};
+use nym_mixnet_contract_common::{GatewayBond, Layer, MixNodeBond};
+use nym_node_tester_utils::node::TestableNode;
 use nym_node_tester_utils::NodeTester;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketSize;
-use nym_topology::{gateway, mix, NymTopology};
+use nym_topology::{gateway, mix};
 use rand_07::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
@@ -45,28 +43,14 @@ impl Display for InvalidNode {
     }
 }
 
-// impl InvalidNode {
-//     pub(crate) fn mix_id(&self) -> Option<MixId> {
-//         match self {
-//             InvalidNode::Outdated(_, _, node_type, _) => node_type.mix_id(),
-//             InvalidNode::Malformed(_, _, node_type) => node_type.mix_id(),
-//         }
-//     }
-//
-//     pub(crate) fn identity(&self) -> String {
-//         match self {
-//             InvalidNode::Outdated(id, _, _, _) => id.clone(),
-//             InvalidNode::Malformed(id, _, _) => id.clone(),
-//         }
-//     }
-//
-//     pub(crate) fn owner(&self) -> String {
-//         match self {
-//             InvalidNode::Outdated(_, owner, _, _) => owner.into(),
-//             InvalidNode::Malformed(_, owner, _) => owner.into(),
-//         }
-//     }
-// }
+impl From<InvalidNode> for TestableNode {
+    fn from(value: InvalidNode) -> Self {
+        match value {
+            InvalidNode::Outdated { node, .. } => node,
+            InvalidNode::Malformed { node } => node,
+        }
+    }
+}
 
 pub(crate) struct PreparedPackets {
     /// All packets that are going to get sent during the test as well as the gateways through
@@ -96,6 +80,7 @@ pub(crate) struct PacketPreparer {
     /// Number of test packets sent to each node
     per_node_test_packets: usize,
 
+    ack_key: Arc<AckKey>,
     // TODO: security:
     // in the future we should really create unique set of keys every time otherwise
     // gateways might recognise our "test" keys and take special care to always forward those packets
@@ -109,18 +94,18 @@ impl PacketPreparer {
         system_version: &str,
         validator_cache: NymContractCache,
         per_node_test_packets: usize,
+        ack_key: Arc<AckKey>,
         self_public_identity: identity::PublicKey,
         self_public_encryption: encryption::PublicKey,
     ) -> Self {
-        todo!()
-        // PacketPreparer {
-        //     system_version: system_version.to_owned(),
-        //     chunker: None,
-        //     validator_cache,
-        //     per_node_test_packets,
-        //     self_public_identity,
-        //     self_public_encryption,
-        // }
+        PacketPreparer {
+            system_version: system_version.to_owned(),
+            validator_cache,
+            per_node_test_packets,
+            ack_key,
+            self_public_identity,
+            self_public_encryption,
+        }
     }
 
     fn ephemeral_tester(
@@ -128,11 +113,7 @@ impl PacketPreparer {
         test_route: &TestRoute,
         self_address: Option<Recipient>,
     ) -> NodeTester<ThreadRng> {
-        let mut rng = thread_rng();
-
-        // TODO: we should make this key more long-term
-        let ack_key = Arc::new(AckKey::new(&mut rng));
-
+        let rng = thread_rng();
         NodeTester::new(
             rng,
             // the topology here contains 3 mixnodes and 1 gateway so its cheap to clone it
@@ -141,7 +122,7 @@ impl PacketPreparer {
             PacketSize::RegularPacket,
             DEFAULT_AVERAGE_PACKET_DELAY,
             DEFAULT_AVERAGE_ACK_DELAY,
-            ack_key,
+            self.ack_key.clone(),
         )
     }
 
@@ -342,26 +323,6 @@ impl PacketPreparer {
         )
     }
 
-    // pub(crate) fn prepare_test_route_viability_packets(
-    //     &mut self,
-    //     route: &TestRoute,
-    //     num: usize,
-    // ) -> GatewayPackets {
-    //     let mut mix_packets = Vec::with_capacity(num);
-    //     let test_packet = route.self_test_packet();
-    //     let recipient = self.create_packet_sender(route.gateway());
-    //     for _ in 0..num {
-    //         let mix_packet = self.wrap_test_packet(&test_packet, route.topology(), recipient);
-    //         mix_packets.push(mix_packet)
-    //     }
-    //
-    //     GatewayPackets::new(
-    //         route.gateway_clients_address(),
-    //         route.gateway_identity(),
-    //         mix_packets,
-    //     )
-    // }
-
     fn filter_outdated_and_malformed_mixnodes(
         &self,
         nodes: Vec<MixNodeBond>,
@@ -434,7 +395,6 @@ impl PacketPreparer {
             let gateway_address = test_route.gateway_clients_address();
             let gateway_identity = test_route.gateway_identity();
 
-            let recipient = self.create_packet_sender(test_route.gateway());
             let mut mix_tester = self.ephemeral_mix_tester(test_route);
 
             // generate test packets for mixnodes
@@ -486,54 +446,6 @@ impl PacketPreparer {
                     .or_insert_with(|| GatewayPackets::empty(gateway_address, gateway_identity));
                 gateway_packets.push_packets(gateway_mix_packets);
             }
-
-            //
-            //
-            //
-
-            // // let gateway_identity = test_route.gateway_identity();
-            // let gateway_address = test_route.gateway_clients_address();
-            //
-            // // it's actually going to be a tiny bit more due to gateway testing, but it's a good enough approximation
-            // let mut mix_packets = Vec::with_capacity(mixnodes.len() * self.per_node_test_packets);
-            //
-            // // and for each mixnode...
-            // for mixnode in &mixnodes {
-            //     let test_packet = TestPacket::from_mixnode(mixnode, test_route.id(), test_nonce);
-            //     let topology = test_route.substitute_mix(mixnode);
-            //     // produce n mix packets
-            //     for _ in 0..self.per_node_test_packets {
-            //         let mix_packet = self.wrap_test_packet(&test_packet, &topology, recipient);
-            //         mix_packets.push(mix_packet);
-            //     }
-            // }
-            //
-            // let gateway_packets = all_gateway_packets
-            //     .entry(gateway_identity.to_bytes())
-            //     .or_insert_with(|| GatewayPackets::empty(gateway_address, gateway_identity));
-            // gateway_packets.push_packets(mix_packets);
-            //
-            // // and for each gateway...
-            // for gateway in &gateways {
-            //     let mut gateway_mix_packets = Vec::new();
-            //     let test_packet = TestPacket::from_gateway(gateway, test_route.id(), test_nonce);
-            //     let gateway_identity = gateway.identity_key;
-            //     let gateway_address = gateway.clients_address();
-            //     let recipient = self.create_packet_sender(gateway);
-            //     let topology = test_route.substitute_gateway(gateway);
-            //     // produce n mix packets
-            //     for _ in 0..self.per_node_test_packets {
-            //         let mix_packet = self.wrap_test_packet(&test_packet, &topology, recipient);
-            //         gateway_mix_packets.push(mix_packet);
-            //     }
-            //
-            //     // and push it into existing struct (if it's a "core" gateway being tested against another route)
-            //     // or create a new one
-            //     let gateway_packets = all_gateway_packets
-            //         .entry(gateway_identity.to_bytes())
-            //         .or_insert_with(|| GatewayPackets::empty(gateway_address, gateway_identity));
-            //     gateway_packets.push_packets(gateway_mix_packets);
-            // }
         }
 
         // convert our hashmap back into a vec

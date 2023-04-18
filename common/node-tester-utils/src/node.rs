@@ -6,7 +6,7 @@ use nym_topology::{gateway, mix};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq)]
 pub struct TestableNode {
     pub encoded_identity: String,
     pub owner: String,
@@ -30,6 +30,10 @@ impl TestableNode {
 
     pub fn new_gateway(encoded_identity: String, owner: String) -> Self {
         TestableNode::new(encoded_identity, owner, NodeType::Gateway)
+    }
+
+    pub fn is_mixnode(&self) -> bool {
+        self.typ.is_mixnode()
     }
 }
 
@@ -65,11 +69,17 @@ impl Display for TestableNode {
     }
 }
 
-#[derive(Serialize, Deserialize, Hash, Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, Hash, Clone, Copy, Debug, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum NodeType {
     Mixnode { mix_id: MixId },
     Gateway,
+}
+
+impl NodeType {
+    pub fn is_mixnode(&self) -> bool {
+        matches!(self, NodeType::Mixnode { .. })
+    }
 }
 
 impl Display for NodeType {

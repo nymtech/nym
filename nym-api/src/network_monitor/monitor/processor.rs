@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::gateways_reader::GatewayMessages;
-use crate::network_monitor::test_packet::NymApiTestMessageExt;
+use crate::network_monitor::test_packet::{NodeTestMessage, NymApiTestMessageExt};
 use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
 use futures::channel::mpsc;
 use futures::lock::{Mutex, MutexGuard};
@@ -11,6 +11,7 @@ use log::warn;
 use nym_crypto::asymmetric::encryption;
 use nym_node_tester_utils::error::NetworkTestingError;
 use nym_node_tester_utils::processor::TestPacketProcessor;
+use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError};
 use std::mem;
 use std::sync::Arc;
@@ -25,9 +26,6 @@ enum ProcessingError {
         "could not recover underlying data from the received packet since it was malformed: {0}"
     )]
     MalformedPacketReceived(#[from] MessageRecoveryError),
-
-    #[error("received a mix packet that was NOT a proper network monitor test packet")]
-    NonTestPacketReceived,
 
     #[error("the received test packet was malformed: {0}")]
     MalformedTestPacket(#[from] NetworkTestingError),
@@ -53,17 +51,20 @@ struct ReceivedProcessorInner<R: MessageReceiver> {
     packets_receiver: ReceivedProcessorReceiver,
 
     test_processor: TestPacketProcessor<NymApiTestMessageExt, R>,
-    // TODO: rethinking
-    // /// Vector containing all received (and decrypted) packets in the current test run.
-    // received_packets: Vec<TestPacket>,
+
+    /// Vector containing all received (and decrypted) packets in the current test run.
+    // TODO: perhaps a different structure would be better here
+    received_packets: Vec<NodeTestMessage>,
 }
 
 impl<R: MessageReceiver> ReceivedProcessorInner<R> {
-    fn recover_test_message(&mut self, raw_message: Vec<u8>) {
-        //
-    }
-
     fn on_received_data(&mut self, raw_message: Vec<u8>) -> Result<(), ProcessingError> {
+        // if the nonce is none it means the packet was received during the 'waiting' for the
+        // next test run
+        if self.test_nonce.is_none() {
+            return Err(ProcessingError::ReceivedOutsideTestRun);
+        }
+
         let test_msg = self.test_processor.process_mixnet_message(raw_message)?;
 
         if test_msg.ext.test_nonce != self.test_nonce.unwrap() {
@@ -73,10 +74,17 @@ impl<R: MessageReceiver> ReceivedProcessorInner<R> {
             });
         }
 
-        todo!()
+        self.received_packets.push(test_msg);
+        Ok(())
     }
 
     fn on_received_ack(&mut self, raw_ack: Vec<u8>) -> Result<(), ProcessingError> {
+        // if the nonce is none it means the packet was received during the 'waiting' for the
+        // next test run
+        if self.test_nonce.is_none() {
+            return Err(ProcessingError::ReceivedOutsideTestRun);
+        }
+
         let frag_id = self.test_processor.process_ack(raw_ack)?;
         // TODO: hook it up at some point
         trace!("received a test ack with id {frag_id}. However, we're not goingn to do anything about it (just yet)");
@@ -103,40 +111,7 @@ impl<R: MessageReceiver> ReceivedProcessorInner<R> {
         }
     }
 
-    fn on_message(&mut self, mut message: Vec<u8>) -> Result<(), ProcessingError> {
-        // if the nonce is none it means the packet was received during the 'waiting' for the
-        // next test run
-        if self.test_nonce.is_none() {
-            return Err(ProcessingError::ReceivedOutsideTestRun);
-        }
-
-        let plaintext = self
-            .message_receiver
-            .recover_plaintext_from_regular_packet(
-                self.client_encryption_keypair.private_key(),
-                &mut message,
-            )?;
-        let fragment = self.message_receiver.recover_fragment(plaintext)?;
-        let (recovered, _) = self
-            .message_receiver
-            .insert_new_fragment(fragment)?
-            .ok_or(ProcessingError::NonTestPacketReceived)?; // if it's a test packet it MUST BE reconstructed with single fragment
-        let test_packet = TestPacket::try_from_bytes(&recovered.into_inner_data())?;
-
-        // we know nonce is NOT none
-        if test_packet.test_nonce() != self.test_nonce.unwrap() {
-            return Err(ProcessingError::NonMatchingNonce {
-                received: test_packet.test_nonce(),
-                expected: self.test_nonce.unwrap(),
-            });
-        }
-
-        self.received_packets.push(test_packet);
-
-        Ok(())
-    }
-
-    fn finish_run(&mut self) -> Vec<TestPacket> {
+    fn finish_run(&mut self) -> Vec<NodeTestMessage> {
         self.test_nonce = None;
         mem::take(&mut self.received_packets)
     }
@@ -151,22 +126,20 @@ impl<R: MessageReceiver + Send + 'static> ReceivedProcessor<R> {
     pub(crate) fn new(
         packets_receiver: ReceivedProcessorReceiver,
         client_encryption_keypair: Arc<encryption::KeyPair>,
+        ack_key: Arc<AckKey>,
     ) -> Self {
-        todo!()
-        //
-        // let inner: Arc<Mutex<ReceivedProcessorInner<R>>> =
-        //     Arc::new(Mutex::new(ReceivedProcessorInner {
-        //         test_nonce: None,
-        //         packets_receiver,
-        //         client_encryption_keypair,
-        //         message_receiver: R::new(),
-        //         received_packets: Vec::new(),
-        //     }));
-        //
-        // ReceivedProcessor {
-        //     permit_changer: None,
-        //     inner,
-        // }
+        let inner: Arc<Mutex<ReceivedProcessorInner<R>>> =
+            Arc::new(Mutex::new(ReceivedProcessorInner {
+                test_nonce: None,
+                packets_receiver,
+                test_processor: TestPacketProcessor::new(client_encryption_keypair, ack_key),
+                received_packets: Vec::new(),
+            }));
+
+        ReceivedProcessor {
+            permit_changer: None,
+            inner,
+        }
     }
 
     pub(crate) fn start_receiving(&mut self) {
@@ -247,7 +220,7 @@ impl<R: MessageReceiver + Send + 'static> ReceivedProcessor<R> {
             .expect("processing task has died!");
     }
 
-    pub(super) async fn return_received(&mut self) -> Vec<TestPacket> {
+    pub(super) async fn return_received(&mut self) -> Vec<NodeTestMessage> {
         // ask for the lock back
         self.permit_changer
             .as_mut()

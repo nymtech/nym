@@ -27,7 +27,7 @@
     "clean:node": "rm -rf node_modules",
     "clean:rust": "cargo clean --manifest-path src-tauri/Cargo.toml",
     "clean:android": "cd src-tauri/gen/android/nym_connect/ && gradlew clean",
-    "clean:": "run-p clean:node clean:rust clean:android"
+    "clean": "run-p clean:node clean:rust clean:android"
   },
   "dependencies": {
     "@emotion/react": "^11.7.0",
@@ -39,7 +39,7 @@
     "@mui/system": ">= 5",
     "@mui/lab": "^5.0.0-alpha.72",
     "@nymproject/react": "^1.0.0",
-    "@tauri-apps/api": "^2.0.0-alpha.0",
+    "@tauri-apps/api": "^2.0.0-alpha.3",
     "@tauri-apps/tauri-forage": "^1.0.0-beta.2",
     "clsx": "^1.1.1",
     "luxon": "^2.3.0",
@@ -64,7 +64,7 @@
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.4",
     "@storybook/react": "^6.5.15",
     "@svgr/webpack": "^6.1.1",
-    "@tauri-apps/cli": "^2.0.0-alpha.2",
+    "@tauri-apps/cli": "^2.0.0-alpha.8",
     "@testing-library/jest-dom": "^5.14.1",
     "@testing-library/react": "^12.0.0",
     "@types/jest": "^27.0.1",

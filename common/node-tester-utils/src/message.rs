@@ -7,9 +7,8 @@ use nym_sphinx::message::NymMessage;
 use nym_topology::{gateway, mix};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
 
-#[derive(Serialize, Deserialize, Hash, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct Empty;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -124,14 +123,5 @@ impl<T> TestMessage<T> {
     {
         serde_json::from_slice(raw)
             .map_err(|source| NetworkTestingError::MalformedTestMessageReceived { source })
-    }
-}
-
-impl<T: Hash> Hash for TestMessage<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.tested_node.hash(state);
-        self.msg_id.hash(state);
-        self.total_msgs.hash(state);
-        self.ext.hash(state)
     }
 }

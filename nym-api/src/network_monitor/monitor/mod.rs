@@ -274,7 +274,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
         );
 
         let report = summary.create_report(total_sent, total_received);
-        info!("{}", report);
+        info!("{report}");
 
         self.submit_new_node_statuses(summary).await;
     }

@@ -58,8 +58,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 async fn start_nym_api_tasks(
     config: Config,
 ) -> Result<ShutdownHandles, Box<dyn Error + Send + Sync>> {
-    let system_version = clap::crate_version!();
-
     let nyxd_client = nyxd::Client::new(&config);
     let mix_denom = nyxd_client.chain_details().await.mix_denom.base;
 
@@ -133,7 +131,6 @@ async fn start_nym_api_tasks(
             nym_contract_cache_state,
             storage,
             nyxd_client.clone(),
-            system_version,
             &shutdown,
         )
         .await;

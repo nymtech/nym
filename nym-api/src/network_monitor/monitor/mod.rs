@@ -261,7 +261,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
 
         let received = self.received_processor.return_received().await;
         let total_received = received.len();
-        info!("Test routes: {:?}", routes);
+        info!("Test routes: {:#?}", routes);
         info!("Received {}/{} packets", total_received, total_sent);
 
         let summary = self.summary_producer.produce_summary(

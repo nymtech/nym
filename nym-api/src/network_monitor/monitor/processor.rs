@@ -87,7 +87,7 @@ impl<R: MessageReceiver> ReceivedProcessorInner<R> {
 
         let frag_id = self.test_processor.process_ack(raw_ack)?;
         // TODO: hook it up at some point
-        trace!("received a test ack with id {frag_id}. However, we're not goingn to do anything about it (just yet)");
+        trace!("received a test ack with id {frag_id}. However, we're not going to do anything about it (just yet)");
 
         Ok(())
     }

@@ -66,11 +66,7 @@ impl PacketReceiver {
                 // unwrap here is fine as it can only return a `None` if the PacketSender has died
                 // and if that was the case, then the entire monitor is already in an undefined state
                 update = self.clients_updater.next() => self.process_gateway_update(update.unwrap()),
-                gateway_messages = self.gateways_reader.next() => {
-                    let Some((_gateway_id, messages)) = gateway_messages else {
-                        log::error!("the gateways reader stream has terminated!");
-                        continue
-                    };
+                Some((_gateway_id, messages)) = self.gateways_reader.next() => {
                     self.process_gateway_messages(messages)
                 }
             }

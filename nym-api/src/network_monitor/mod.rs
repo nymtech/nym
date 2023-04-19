@@ -37,12 +37,10 @@ pub(crate) fn setup<'a>(
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
-    system_version: &str,
 ) -> NetworkMonitorBuilder<'a> {
     NetworkMonitorBuilder::new(
         config,
         nyxd_client,
-        system_version,
         storage.to_owned(),
         nym_contract_cache_state.to_owned(),
     )
@@ -51,7 +49,6 @@ pub(crate) fn setup<'a>(
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
     nyxd_client: nyxd::Client,
-    system_version: String,
     node_status_storage: NymApiStorage,
     validator_cache: NymContractCache,
 }
@@ -60,14 +57,12 @@ impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
         nyxd_client: nyxd::Client,
-        system_version: &str,
         node_status_storage: NymApiStorage,
         validator_cache: NymContractCache,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
             nyxd_client,
-            system_version: system_version.to_string(),
             node_status_storage,
             validator_cache,
         }
@@ -90,7 +85,6 @@ impl<'a> NetworkMonitorBuilder<'a> {
             mpsc::unbounded();
 
         let packet_preparer = new_packet_preparer(
-            &self.system_version,
             self.validator_cache,
             self.config.get_per_node_test_packets(),
             Arc::clone(&ack_key),
@@ -164,7 +158,6 @@ impl<R: MessageReceiver + Send + 'static> NetworkMonitorRunnables<R> {
 }
 
 fn new_packet_preparer(
-    system_version: &str,
     validator_cache: NymContractCache,
     per_node_test_packets: usize,
     ack_key: Arc<AckKey>,
@@ -172,7 +165,6 @@ fn new_packet_preparer(
     self_public_encryption: encryption::PublicKey,
 ) -> PacketPreparer {
     PacketPreparer::new(
-        system_version,
         validator_cache,
         per_node_test_packets,
         ack_key,
@@ -229,16 +221,10 @@ pub(crate) async fn start<R: MessageReceiver + Send + 'static>(
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
-    system_version: &str,
     shutdown: &TaskManager,
 ) {
-    let monitor_builder = network_monitor::setup(
-        config,
-        nym_contract_cache_state,
-        storage,
-        nyxd_client,
-        system_version,
-    );
+    let monitor_builder =
+        network_monitor::setup(config, nym_contract_cache_state, storage, nyxd_client);
     info!("Starting network monitor...");
     let runnables: NetworkMonitorRunnables<R> = monitor_builder.build().await;
     runnables.spawn_tasks(shutdown);

@@ -10,14 +10,12 @@ use std::fmt::{Debug, Formatter};
 #[derive(Clone)]
 pub(crate) struct TestRoute {
     id: u64,
-    system_version: String,
     nodes: NymTopology,
 }
 
 impl TestRoute {
     pub(crate) fn new(
         id: u64,
-        system_version: &str,
         l1_mix: mix::Node,
         l2_mix: mix::Node,
         l3_mix: mix::Node,
@@ -33,7 +31,6 @@ impl TestRoute {
 
         TestRoute {
             id,
-            system_version: system_version.to_string(),
             nodes: NymTopology::new(layered_mixes, vec![gateway]),
         }
     }
@@ -92,8 +89,7 @@ impl Debug for TestRoute {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[v{}] Route {}: [G] {} => [M1] {} => [M2] {} => [M3] {}",
-            self.system_version,
+            "Route {}: [G] {} => [M1] {} => [M2] {} => [M3] {}",
             self.id,
             self.gateway().identity().to_base58_string(),
             self.layer_one_mix().identity_key.to_base58_string(),

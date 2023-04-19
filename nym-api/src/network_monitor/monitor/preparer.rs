@@ -26,16 +26,12 @@ const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 
 #[derive(Clone)]
 pub(crate) enum InvalidNode {
-    Outdated { node: TestableNode, version: String },
     Malformed { node: TestableNode },
 }
 
 impl Display for InvalidNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            InvalidNode::Outdated { node, version } => {
-                write!(f, "{node} is outdated. It runs on v{version}")
-            }
             InvalidNode::Malformed { node } => {
                 write!(f, "{node} is malformed")
             }
@@ -46,7 +42,6 @@ impl Display for InvalidNode {
 impl From<InvalidNode> for TestableNode {
     fn from(value: InvalidNode) -> Self {
         match value {
-            InvalidNode::Outdated { node, .. } => node,
             InvalidNode::Malformed { node } => node,
         }
     }
@@ -74,7 +69,6 @@ pub(crate) struct PreparedPackets {
 
 #[derive(Clone)]
 pub(crate) struct PacketPreparer {
-    system_version: String,
     validator_cache: NymContractCache,
 
     /// Number of test packets sent to each node
@@ -91,7 +85,6 @@ pub(crate) struct PacketPreparer {
 
 impl PacketPreparer {
     pub(crate) fn new(
-        system_version: &str,
         validator_cache: NymContractCache,
         per_node_test_packets: usize,
         ack_key: Arc<AckKey>,
@@ -99,7 +92,6 @@ impl PacketPreparer {
         self_public_encryption: encryption::PublicKey,
     ) -> Self {
         PacketPreparer {
-            system_version: system_version.to_owned(),
             validator_cache,
             per_node_test_packets,
             ack_key,
@@ -132,6 +124,7 @@ impl PacketPreparer {
         self.ephemeral_tester(test_route, Some(self_address))
     }
 
+    #[allow(dead_code)]
     fn ephemeral_gateway_tester(&self, test_route: &TestRoute) -> NodeTester<ThreadRng> {
         self.ephemeral_tester(test_route, None)
     }
@@ -276,16 +269,12 @@ impl PacketPreparer {
                     continue
                 };
 
-            routes.push(TestRoute::new(
-                rng.gen(),
-                &self.system_version,
-                node_1,
-                node_2,
-                node_3,
-                gateway,
-            ))
+            routes.push(TestRoute::new(rng.gen(), node_1, node_2, node_3, gateway))
         }
-        info!("{:?}", routes);
+        info!(
+            "The following routes will be used for testing: {:#?}",
+            routes
+        );
         Some(routes)
     }
 

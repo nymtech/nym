@@ -59,19 +59,12 @@ impl GatewayResult {
 #[derive(Debug, Clone)]
 pub(crate) struct RouteResult {
     pub(crate) route: TestRoute,
-
-    #[deprecated]
-    reliability: u8,
     performance: f32,
 }
 
 impl RouteResult {
-    pub(crate) fn new(route: TestRoute, reliability: u8, performance: f32) -> Self {
-        RouteResult {
-            route,
-            reliability,
-            performance,
-        }
+    pub(crate) fn new(route: TestRoute, performance: f32) -> Self {
+        RouteResult { route, performance }
     }
 }
 
@@ -185,63 +178,63 @@ impl Display for TestReport {
             writeln!(
                 f,
                 "{:?}, reliability: {:.2}",
-                route_result.route, route_result.reliability
+                route_result.route, route_result.performance
             )?;
         }
 
         writeln!(
             f,
-            "Exceptional mixnodes (reliability >= {}): {}",
-            EXCEPTIONAL_THRESHOLD, self.exceptional_mixnodes
+            "Exceptional mixnodes (reliability >= {EXCEPTIONAL_THRESHOLD}): {}",
+            self.exceptional_mixnodes
         )?;
         writeln!(
             f,
-            "Exceptional gateways (reliability >= {}): {}",
-            EXCEPTIONAL_THRESHOLD, self.exceptional_gateways
-        )?;
-
-        writeln!(
-            f,
-            "Fine mixnodes (reliability {} - {}): {}",
-            FINE_THRESHOLD, EXCEPTIONAL_THRESHOLD, self.fine_mixnodes
-        )?;
-        writeln!(
-            f,
-            "Fine gateways (reliability {} - {}): {}",
-            FINE_THRESHOLD, EXCEPTIONAL_THRESHOLD, self.fine_gateways
+            "Exceptional gateways (reliability >= {EXCEPTIONAL_THRESHOLD}): {}",
+            self.exceptional_gateways
         )?;
 
         writeln!(
             f,
-            "Poor mixnodes (reliability {} - {}): {}",
-            POOR_THRESHOLD, FINE_THRESHOLD, self.poor_mixnodes
+            "Fine mixnodes (reliability {FINE_THRESHOLD} - {EXCEPTIONAL_THRESHOLD}): {}",
+            self.fine_mixnodes
         )?;
         writeln!(
             f,
-            "Poor gateways (reliability {} - {}): {}",
-            POOR_THRESHOLD, FINE_THRESHOLD, self.poor_gateways
-        )?;
-
-        writeln!(
-            f,
-            "Unreliable mixnodes (reliability {} - {}): {}",
-            UNRELIABLE_THRESHOLD, POOR_THRESHOLD, self.unreliable_mixnodes
-        )?;
-        writeln!(
-            f,
-            "Unreliable gateways (reliability {} - {}): {}",
-            UNRELIABLE_THRESHOLD, POOR_THRESHOLD, self.unreliable_gateways
+            "Fine gateways (reliability {FINE_THRESHOLD} - {EXCEPTIONAL_THRESHOLD}): {}",
+            self.fine_gateways
         )?;
 
         writeln!(
             f,
-            "Unroutable mixnodes (reliability < {}): {}",
-            UNRELIABLE_THRESHOLD, self.unroutable_mixnodes
+            "Poor mixnodes (reliability {POOR_THRESHOLD} - {FINE_THRESHOLD}): {}",
+            self.poor_mixnodes
         )?;
         writeln!(
             f,
-            "Unroutable gateways (reliability < {}): {}",
-            UNRELIABLE_THRESHOLD, self.unroutable_gateways
+            "Poor gateways (reliability {POOR_THRESHOLD} - {FINE_THRESHOLD}): {}",
+            self.poor_gateways
+        )?;
+
+        writeln!(
+            f,
+            "Unreliable mixnodes (reliability {UNRELIABLE_THRESHOLD} - {POOR_THRESHOLD}): {}",
+            self.unreliable_mixnodes
+        )?;
+        writeln!(
+            f,
+            "Unreliable gateways (reliability {UNRELIABLE_THRESHOLD} - {POOR_THRESHOLD}): {}",
+            self.unreliable_gateways
+        )?;
+
+        writeln!(
+            f,
+            "Unroutable mixnodes (reliability < {UNRELIABLE_THRESHOLD}): {}",
+            self.unroutable_mixnodes
+        )?;
+        writeln!(
+            f,
+            "Unroutable gateways (reliability < {UNRELIABLE_THRESHOLD}): {}",
+            self.unroutable_gateways
         )?;
 
         Ok(())
@@ -351,14 +344,13 @@ impl SummaryProducer {
             .into_iter()
             .filter_map(|(id, received)| {
                 let performance = received as f32 / per_route_expected as f32 * 100.0;
-                let reliability = performance.round() as u8;
 
                 // this might be suboptimal as we're going through the entire slice every time
                 // but realistically this slice will never have more than ~ 10 elements AT MOST
                 test_routes
                     .iter()
                     .find(|route| route.id() == id)
-                    .map(|route| RouteResult::new(route.clone(), reliability, performance))
+                    .map(|route| RouteResult::new(route.clone(), performance))
             })
             .collect();
 

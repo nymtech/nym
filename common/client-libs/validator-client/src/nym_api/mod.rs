@@ -15,6 +15,7 @@ use nym_api_requests::models::{
 };
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+use nym_service_provider_directory_common::ServiceInfo;
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -479,6 +480,11 @@ impl Client {
             request_body,
         )
         .await
+    }
+
+    pub async fn get_service_providers(&self) -> Result<Vec<ServiceInfo>, NymAPIError> {
+        self.query_nym_api(&[routes::API_VERSION, routes::SERVICE_PROVIDERS], NO_PARAMS)
+            .await
     }
 }
 

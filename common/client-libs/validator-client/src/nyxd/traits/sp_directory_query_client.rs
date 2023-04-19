@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::ContractBuildInformation;
 use nym_service_provider_directory_common::{
-    msg::QueryMsg as SpQuery,
+    msg::QueryMsg as SpQueryMsg,
     response::{
         ConfigResponse, PagedServicesListResponse, ServiceInfoResponse, ServicesListResponse,
     },
@@ -14,12 +14,12 @@ use crate::nyxd::{error::NyxdError, CosmWasmClient, NyxdClient};
 
 #[async_trait]
 pub trait SpDirectoryQueryClient {
-    async fn query_service_provider_contract<T>(&self, query: SpQuery) -> Result<T, NyxdError>
+    async fn query_service_provider_contract<T>(&self, query: SpQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>;
 
     async fn get_service_config(&self) -> Result<ConfigResponse, NyxdError> {
-        self.query_service_provider_contract(SpQuery::Config {})
+        self.query_service_provider_contract(SpQueryMsg::Config {})
             .await
     }
 
@@ -27,7 +27,7 @@ pub trait SpDirectoryQueryClient {
         &self,
         service_id: ServiceId,
     ) -> Result<ServiceInfoResponse, NyxdError> {
-        self.query_service_provider_contract(SpQuery::ServiceId { service_id })
+        self.query_service_provider_contract(SpQueryMsg::ServiceId { service_id })
             .await
     }
 
@@ -36,7 +36,7 @@ pub trait SpDirectoryQueryClient {
         start_after: Option<ServiceId>,
         limit: Option<u32>,
     ) -> Result<PagedServicesListResponse, NyxdError> {
-        self.query_service_provider_contract(SpQuery::All { limit, start_after })
+        self.query_service_provider_contract(SpQueryMsg::All { limit, start_after })
             .await
     }
 
@@ -44,7 +44,7 @@ pub trait SpDirectoryQueryClient {
         &self,
         announcer: AccountId,
     ) -> Result<ServicesListResponse, NyxdError> {
-        self.query_service_provider_contract(SpQuery::ByAnnouncer {
+        self.query_service_provider_contract(SpQueryMsg::ByAnnouncer {
             announcer: announcer.to_string(),
         })
         .await
@@ -54,12 +54,12 @@ pub trait SpDirectoryQueryClient {
         &self,
         nym_address: NymAddress,
     ) -> Result<ServicesListResponse, NyxdError> {
-        self.query_service_provider_contract(SpQuery::ByNymAddress { nym_address })
+        self.query_service_provider_contract(SpQueryMsg::ByNymAddress { nym_address })
             .await
     }
 
     async fn get_sp_contract_version(&self) -> Result<ContractBuildInformation, NyxdError> {
-        self.query_service_provider_contract(SpQuery::GetContractVersion {})
+        self.query_service_provider_contract(SpQueryMsg::GetContractVersion {})
             .await
     }
 
@@ -89,7 +89,7 @@ impl<C> SpDirectoryQueryClient for NyxdClient<C>
 where
     C: CosmWasmClient + Send + Sync,
 {
-    async fn query_service_provider_contract<T>(&self, query: SpQuery) -> Result<T, NyxdError>
+    async fn query_service_provider_contract<T>(&self, query: SpQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,
     {
@@ -103,5 +103,18 @@ where
                 &query,
             )
             .await
+    }
+}
+
+#[async_trait]
+impl<C> SpDirectoryQueryClient for crate::Client<C>
+where
+    C: CosmWasmClient + Send + Sync,
+{
+    async fn query_service_provider_contract<T>(&self, query: SpQueryMsg) -> Result<T, NyxdError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        self.nyxd.query_service_provider_contract(query).await
     }
 }

@@ -4,6 +4,7 @@ use crate::support::caching::CacheNotification;
 use anyhow::Result;
 use nym_mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
 use nym_task::TaskClient;
+use nym_validator_client::nyxd::traits::SpDirectoryQueryClient;
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
 use tokio::sync::watch;
 use tokio::time;
@@ -50,6 +51,9 @@ impl NymContractCacheRefresher {
         let (rewarded_set, active_set) =
             Self::collect_rewarded_and_active_set_details(&mixnodes, &rewarded_set_map);
 
+        // The service providers are optional
+        let services = self.nyxd_client.get_all_services().await.ok();
+
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
             mixnodes.len(),
@@ -65,6 +69,7 @@ impl NymContractCacheRefresher {
                 rewarding_params,
                 current_interval,
                 mix_to_family,
+                services,
             )
             .await;
 

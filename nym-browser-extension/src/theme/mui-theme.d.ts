@@ -36,7 +36,7 @@ declare module '@mui/material/styles' {
   }
 
   /**
-   * A palette definition only for the Nym Browser Extemsion that extends the Nym palette
+   * A palette definition only for the Nym Browser Extension that extends the Nym palette
    */
   interface NymBrowserExtPalette {
     nymBrowserExt: NymPaletteVariant;

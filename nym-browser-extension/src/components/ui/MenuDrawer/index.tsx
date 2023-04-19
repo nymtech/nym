@@ -41,7 +41,7 @@ export const MenuDrawer = ({ open, onClose }: { open: boolean; onClose: () => vo
 
   return (
     <div>
-      <Drawer anchor={'left'} open={open} onClose={onClose}>
+      <Drawer anchor="left" open={open} onClose={onClose}>
         {list()}
       </Drawer>
     </div>

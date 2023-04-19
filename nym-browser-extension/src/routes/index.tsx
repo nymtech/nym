@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Delegation, BalancePage, Home, Receive, Send, Settings, Login } from 'src/pages/';
 import { RegisterRoutes } from './register';

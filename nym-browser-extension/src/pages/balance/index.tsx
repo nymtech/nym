@@ -1,6 +1,5 @@
 import React from 'react';
-import { Box, Stack } from '@mui/material';
-import { IconButton, Typography } from '@mui/material';
+import { Box, Stack, IconButton, Typography } from '@mui/material';
 import { PageLayout } from 'src/layouts/PageLayout';
 import { Balance } from 'src/components/balance';
 import { ClientAddress } from '@nymproject/react/client-address/ClientAddress';
@@ -41,14 +40,12 @@ const Address = () => (
   </Stack>
 );
 
-export const BalancePage = () => {
-  return (
-    <PageLayout>
-      <Stack gap={6}>
-        <Address />
-        <Balance />
-        <Actions />
-      </Stack>
-    </PageLayout>
-  );
-};
+export const BalancePage = () => (
+  <PageLayout>
+    <Stack gap={6}>
+      <Address />
+      <Balance />
+      <Actions />
+    </Stack>
+  </PageLayout>
+);

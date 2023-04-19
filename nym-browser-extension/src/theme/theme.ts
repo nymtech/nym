@@ -48,7 +48,7 @@ const nymBrowserExtPalette = (variant: NymPaletteVariant): NymBrowserExtPalette 
 /**
  * Map a Nym palette variant onto the MUI palette
  */
-const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
+const variantToMUIPalette = (_: NymPaletteVariant): PaletteOptions => ({
   primary: {
     main: '#6750A4',
   },

@@ -1,3 +1,4 @@
+import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { Register } from 'src/pages/register';
 import { SetupComplete } from 'src/pages/register/complete';

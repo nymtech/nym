@@ -34,7 +34,7 @@ export const CreatePassword = () => {
       <Stack spacing={1} mb={4}>
         <PasswordInput
           password={password}
-          onUpdatePassword={(password: string) => setPassword(password)}
+          onUpdatePassword={(_password: string) => setPassword(_password)}
           label="Password"
         />
 
@@ -44,7 +44,7 @@ export const CreatePassword = () => {
       <Box mb={2}>
         <PasswordInput
           password={confirmPassword}
-          onUpdatePassword={(password: string) => setConfirmPassword(password)}
+          onUpdatePassword={(_password: string) => setConfirmPassword(_password)}
           label="Confirm password"
         />
       </Box>

@@ -5,7 +5,7 @@ import { Button } from 'src/components/ui';
 import { useNavigate } from 'react-router-dom';
 
 export const Register = () => {
-  const [mnemonic, setMnemonic] = useState();
+  const [mnemonic, setMnemonic] = useState('');
   const [isConfirmed, setIsconfirmed] = useState(false);
   const navigate = useNavigate();
 
@@ -34,6 +34,7 @@ export const Register = () => {
           label="Mnemonic"
           type="input"
           value={mnemonic}
+          onChange={(e) => setMnemonic(e.target.value)}
           multiline
           autoFocus={false}
           fullWidth

@@ -22,7 +22,7 @@ export const CenteredLogoLayout = ({
   Actions: React.ReactNode;
 }) => (
   <Box sx={layoutStyle}>
-    <Box></Box>
+    <Box />
     <LogoWithText title={title} description={description} />
     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>{Actions}</Box>
   </Box>

@@ -94,7 +94,14 @@ where
         for<'a> T: Deserialize<'a>,
     {
         self.client
-            .query_contract_smart(self.service_provider_contract_address(), &query)
+            .query_contract_smart(
+                self.service_provider_contract_address().ok_or(
+                    NyxdError::NoContractAddressAvailable(
+                        "service provider directory contract".to_string(),
+                    ),
+                )?,
+                &query,
+            )
             .await
     }
 }

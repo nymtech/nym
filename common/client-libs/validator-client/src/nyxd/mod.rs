@@ -316,11 +316,9 @@ impl<C> NyxdClient<C> {
         self.config.coconut_dkg_contract_address.as_ref().unwrap()
     }
 
-    pub fn service_provider_contract_address(&self) -> &AccountId {
-        self.config
-            .service_provider_contract_address
-            .as_ref()
-            .expect("no service provider contract address set")
+    // The service provider directory contract is optional, so we return an Option not a Result
+    pub fn service_provider_contract_address(&self) -> Option<&AccountId> {
+        self.config.service_provider_contract_address.as_ref()
     }
 
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {

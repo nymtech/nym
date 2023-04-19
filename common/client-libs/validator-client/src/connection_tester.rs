@@ -117,7 +117,7 @@ async fn test_nyxd_connection(
             );
             code == 18
         }
-        Ok(Err(error @ NyxdError::NoContractAddressAvailable)) => {
+        Ok(Err(error @ NyxdError::NoContractAddressAvailable(_))) => {
             log::debug!("Checking: nyxd url: {url}: {}: {error}", "failed".red());
             false
         }

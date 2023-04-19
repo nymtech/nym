@@ -4,7 +4,7 @@ import { Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { AuthContext } from 'src/context/auth';
 import { createPassword } from 'src/requests';
-import { PasswordInput } from 'src/components';
+import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { Subtitle, Title, PasswordStrength } from '../components';
 
 export const CreatePassword = () => {

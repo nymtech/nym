@@ -8,6 +8,7 @@ type TNymBrowserExtThemeProps = { mode: PaletteMode; children: React.ReactNode }
 
 export const NymBrowserExtThemeWithMode = ({ mode, children }: TNymBrowserExtThemeProps) => {
   const theme = React.useMemo(() => createTheme(getDesignTokens(mode)), [mode]);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />

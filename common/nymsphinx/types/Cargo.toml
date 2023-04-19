@@ -9,9 +9,5 @@ repository = { workspace = true }
 
 [dependencies]
 sphinx-packet = { version = "0.1.0" }
-serde = "1"
 nym-outfox = { path = "../../../nym-outfox" }
 thiserror = "1"
-
-[patch.crates-io]
-sphinx-packet = { path = "../../../../sphinx" }

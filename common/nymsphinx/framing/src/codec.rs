@@ -5,8 +5,9 @@ use crate::packet::{FramedNymPacket, Header};
 use bytes::{Buf, BufMut, BytesMut};
 use nym_sphinx_params::packet_modes::InvalidPacketMode;
 use nym_sphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
-use nym_sphinx_types::SphinxPacket;
+use nym_sphinx_params::PacketMode;
 use nym_sphinx_types::{NymPacket, NymPacketError, SphinxError};
+use nym_sphinx_types::{OutfoxError, OutfoxPacket, SphinxPacket};
 use std::io;
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
@@ -21,6 +22,9 @@ pub enum NymCodecError {
 
     #[error("the actual sphinx packet was malformed - {0}")]
     MalformedSphinxPacket(#[from] SphinxError),
+
+    #[error("the actual outfox packet was malformed - {0}")]
+    MalformedOutfoxPacket(#[from] OutfoxError),
 
     #[error("encountered an IO error - {0}")]
     IoError(#[from] io::Error),
@@ -55,7 +59,8 @@ impl Encoder<FramedNymPacket> for NymCodec {
 
     fn encode(&mut self, item: FramedNymPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
         item.header.encode(dst);
-        dst.put(item.packet.to_bytes()?.as_slice());
+        let packet_bytes = item.packet.to_bytes()?;
+        dst.put(packet_bytes.as_slice());
         Ok(())
     }
 }
@@ -123,15 +128,20 @@ impl Decoder for NymCodec {
 
         // advance buffer past the header - at this point we have enough bytes
         src.advance(header.size());
-        let sphinx_packet_bytes = src.split_to(packet_size);
-
-        // here it could be debatable whether stream is corrupt or not,
-        // but let's go with the safer approach and assume it is.
-        let packet = SphinxPacket::from_bytes(&sphinx_packet_bytes)?;
-        let nymsphinx_packet = FramedNymPacket {
-            header,
-            packet: NymPacket::Sphinx(packet),
+        let packet_bytes = src.split_to(packet_size);
+        let packet = if let Some(slice) = packet_bytes.get(..) {
+            // here it could be debatable whether stream is corrupt or not,
+            // but let's go with the safer approach and assume it is.
+            match header.packet_mode {
+                PacketMode::Outfox => NymPacket::Outfox(OutfoxPacket::try_from(slice)?),
+                _ => NymPacket::Sphinx(SphinxPacket::from_bytes(slice)?),
+            }
+        } else {
+            return Ok(None);
         };
+
+        // let packet = SphinxPacket::from_bytes(&sphinx_packet_bytes)?;
+        let nymsphinx_packet = FramedNymPacket { header, packet };
 
         // As per docs:
         // Before returning from the function, implementations should ensure that the buffer
@@ -159,7 +169,6 @@ impl Decoder for NymCodec {
             };
         }
         src.reserve(allocate_for_next_packet);
-
         Ok(Some(nymsphinx_packet))
     }
 }
@@ -170,8 +179,32 @@ mod packet_encoding {
     use nym_sphinx_types::builder::SphinxPacketBuilder;
     use nym_sphinx_types::{
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
-        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
+        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH, OUTFOX_PACKET_OVERHEAD,
     };
+
+    fn make_valid_outfox_packet(size: PacketSize) -> OutfoxPacket {
+        let (_, node1_pk) = crypto::keygen();
+        let node1 = Node::new(
+            NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
+            node1_pk,
+        );
+        let (_, node2_pk) = crypto::keygen();
+        let node2 = Node::new(
+            NodeAddressBytes::from_bytes([4u8; NODE_ADDRESS_LENGTH]),
+            node2_pk,
+        );
+        let (_, node3_pk) = crypto::keygen();
+        let node3 = Node::new(
+            NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
+            node3_pk,
+        );
+
+        let route = [node1, node2, node3];
+
+        let payload = vec![1; 48];
+
+        OutfoxPacket::build(&payload, &route, Some(size.size() - OUTFOX_PACKET_OVERHEAD)).unwrap()
+    }
 
     fn make_valid_sphinx_packet(size: PacketSize) -> SphinxPacket {
         let (_, node1_pk) = crypto::keygen();
@@ -223,6 +256,27 @@ mod packet_encoding {
 
         assert_eq!(decoded.header, header);
         assert_eq!(decoded.packet.to_bytes().unwrap(), sphinx_bytes)
+    }
+
+    #[test]
+    fn whole_outfox_can_be_decoded_from_a_valid_encoded_instance() {
+        let header = Header::outfox();
+        let packet = make_valid_outfox_packet(PacketSize::OutfoxRegularPacket);
+        let packet_bytes = packet.to_bytes().unwrap();
+
+        OutfoxPacket::try_from(packet_bytes.as_slice()).unwrap();
+
+        let packet = FramedNymPacket {
+            header,
+            packet: NymPacket::Outfox(packet),
+        };
+
+        let mut bytes = BytesMut::new();
+        NymCodec.encode(packet, &mut bytes).unwrap();
+        let decoded = NymCodec.decode(&mut bytes).unwrap().unwrap();
+
+        assert_eq!(decoded.header, header);
+        assert_eq!(decoded.packet.to_bytes().unwrap(), packet_bytes)
     }
 
     #[cfg(test)]

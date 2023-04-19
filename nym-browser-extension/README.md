@@ -23,7 +23,7 @@ From the `nym-browser-extension` directory of the `nym` monorepo, run:
 
 `yarn dev` to run the extension in dev mode.
 
-You can then open a browser to http://localhost:3000 and start development.
+You can then open a browser to http://localhost:9000 and start development.
 
 OR
 

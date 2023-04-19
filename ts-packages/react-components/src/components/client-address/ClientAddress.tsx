@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import React from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
 import { CopyToClipboard } from '../clipboard/CopyToClipboard';
 
@@ -24,13 +24,13 @@ type ClientAddressProps = {
   showEntireAddress?: boolean;
 };
 
-export const ClientAddressDisplay: FC<ClientAddressProps & { address?: string }> = ({
+export const ClientAddressDisplay = ({
   withLabel,
   withCopy,
   smallIcons,
   showEntireAddress,
   address,
-}) => (
+}: ClientAddressProps & { address?: string }) => (
   <Box>
     {withLabel && (
       <>
@@ -49,6 +49,4 @@ export const ClientAddressDisplay: FC<ClientAddressProps & { address?: string }>
   </Box>
 );
 
-export const ClientAddress: FC<ClientAddressProps> = ({ ...props }) => {
-  return <ClientAddressDisplay {...props} />;
-};
+export const ClientAddress = ({ ...props }: ClientAddressProps) => <ClientAddressDisplay {...props} />;

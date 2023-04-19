@@ -4,8 +4,8 @@ import { Tune as TuneIcon, BorderColor as BorderColorIcon } from '@mui/icons-mat
 import { CoinMark } from '@nymproject/react/coins/CoinMark';
 import { PoweredByBity } from 'src/svg-icons';
 import { AppContext } from 'src/context';
-import { NymCard } from '..';
 import { ClientAddress } from '@nymproject/react/client-address/ClientAddress';
+import { NymCard } from '..';
 import { SignMessageModal } from './SignMessageModal';
 
 // TODO retrieve this value from env

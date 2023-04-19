@@ -1,8 +1,8 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { Register } from 'src/pages/register';
-import { SetupComplete } from 'src/pages/register/complete';
-import { CreatePassword } from 'src/pages/register/create-password';
+import { SetupComplete } from 'src/pages/register/Complete';
+import { CreatePassword } from 'src/pages/register/CreatePassword';
 
 export const RegisterRoutes = () => (
   <Routes>

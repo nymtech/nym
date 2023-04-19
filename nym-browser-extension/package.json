@@ -13,8 +13,8 @@
     "storybook:build": "build-storybook"
   },
   "dependencies": {
-    "@emotion/react": "^11.10.6",
-    "@emotion/styled": "^11.10.6",
+    "@emotion/react": "^11.7.0",
+    "@emotion/styled": "^11.7.0",
     "@mui/icons-material": "^5.11.11",
     "@mui/material": "^5.11.15",
     "@mui/styles": "^5.11.13",

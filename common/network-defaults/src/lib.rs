@@ -3,7 +3,12 @@
 
 use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_API, NYXD};
 use serde::{Deserialize, Serialize};
-use std::{env::var, ops::Not, path::PathBuf};
+use std::{
+    env::{var, VarError},
+    ffi::OsStr,
+    ops::Not,
+    path::PathBuf,
+};
 use url::Url;
 
 pub mod mainnet;
@@ -69,6 +74,14 @@ impl NymNetworkDetails {
     }
 
     pub fn new_from_env() -> Self {
+        fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
+            match var(env) {
+                Ok(var) => Some(var),
+                Err(VarError::NotPresent) => None,
+                err => panic!("Unable to set: {:?}", err),
+            }
+        }
+
         NymNetworkDetails::new_empty()
             .with_bech32_account_prefix(
                 var(var_names::BECH32_PREFIX).expect("bech32 prefix not set"),
@@ -118,9 +131,8 @@ impl NymNetworkDetails {
             .with_coconut_dkg_contract(Some(
                 var(var_names::COCONUT_DKG_CONTRACT_ADDRESS).expect("coconut dkg contract not set"),
             ))
-            .with_service_provider_directory_contract(Some(
-                var(var_names::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS)
-                    .expect("service provider contract not set"),
+            .with_service_provider_directory_contract(get_optional_env(
+                var_names::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
             ))
     }
 

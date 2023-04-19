@@ -96,7 +96,11 @@ where
         self.client
             .execute(
                 self.address(),
-                self.service_provider_contract_address(),
+                self.service_provider_contract_address().ok_or(
+                    NyxdError::NoContractAddressAvailable(
+                        "service provider directory contract".to_string(),
+                    ),
+                )?,
                 &msg,
                 fee,
                 memo,

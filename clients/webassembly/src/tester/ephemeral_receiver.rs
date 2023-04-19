@@ -3,7 +3,8 @@
 
 use crate::tester::helpers::{NodeTestResult, WasmTestMessageExt};
 use futures::StreamExt;
-use nym_node_tester_utils::receiver::{Received, ReceivedReceiver};
+use nym_node_tester_utils::processor::Received;
+use nym_node_tester_utils::receiver::ReceivedReceiver;
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use std::collections::HashSet;
 use std::time::Duration;

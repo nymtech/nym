@@ -28,6 +28,7 @@ const {
     set_panic_hook,
     Config,
     GatewayEndpointConfig,
+    TestStorage,
     current_network_topology,
 } = wasm_bindgen;
 
@@ -272,6 +273,37 @@ async function normalNymClientUsage() {
     };
 }
 
+async function messWithStorage() {
+    self.onmessage = async event => {
+        if (event.data && event.data.kind) {
+            switch (event.data.kind) {
+                case 'TestPacket': {
+                    const { mixnodeIdentity } = event.data.args;
+                    console.log("button clicked...", mixnodeIdentity);
+
+                    let id1 = "one";
+                    let id2 = "two";
+
+                    let storage1 = await new TestStorage(id1);
+                    let storage2 = await new TestStorage(id2);
+
+                    console.log("read1: ", await storage1.read());
+                    console.log("read2: ", await storage2.read());
+
+                    console.log("store1: ", await storage1.store("FOOMP"));
+
+                    console.log("read1: ", await storage1.read());
+                    console.log("read2: ", await storage2.read());
+                }
+            }
+        }
+    };
+
+
+
+
+}
+
 async function main() {
     // load WASM package
     await wasm_bindgen('nym_client_wasm_bg.wasm');
@@ -281,13 +313,16 @@ async function main() {
     set_panic_hook();
 
     // run test on simplified and dedicated tester:
-    await testWithTester()
+    // await testWithTester()
 
     // hook-up the whole client for testing
     // await testWithNymClient()
 
     // 'Normal' client setup (to send 'normal' messages)
     // await normalNymClientUsage()
+
+
+    await messWithStorage()
 }
 
 // Let's get started!

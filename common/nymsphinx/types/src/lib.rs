@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use nym_outfox::{error::OutfoxError, packet::OutfoxPacket};
+pub use nym_outfox::{error::OutfoxError, packet::OutfoxPacket, packet::OUTFOX_PACKET_OVERHEAD};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 // re-exporting types and constants available in sphinx
 pub use sphinx_packet::{
@@ -104,7 +104,7 @@ impl<'de> Visitor<'de> for NymPacketVisitor {
     {
         match SphinxPacket::from_bytes(v) {
             Ok(packet) => Ok(NymPacket::Sphinx(packet)),
-            Err(_) => match OutfoxPacket::from_bytes(v) {
+            Err(_) => match OutfoxPacket::try_from(v) {
                 Ok(packet) => Ok(NymPacket::Outfox(packet)),
                 Err(_) => Err(E::custom(
                     "Could not deserialize Outfox nor Sphinx packet from bytes",

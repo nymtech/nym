@@ -1,5 +1,6 @@
 use std::array::TryFromSliceError;
 
+use crate::format::MIX_PARAMS_LEN;
 use crate::lion::MIN_MESSAGE_LEN;
 use chacha20::cipher::InvalidLength;
 use thiserror::Error;
@@ -24,6 +25,6 @@ pub enum OutfoxError {
         #[from]
         source: TryFromSliceError,
     },
-    #[error("Could not serialize OutfoxPacket!")]
-    Bincode,
+    #[error("Header length must be {MIX_PARAMS_LEN}, got {0}")]
+    InvalidHeaderLength(usize),
 }

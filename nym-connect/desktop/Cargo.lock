@@ -3569,14 +3569,13 @@ dependencies = [
 name = "nym-outfox"
 version = "0.1.0"
 dependencies = [
- "bincode",
  "blake3",
  "chacha20",
  "chacha20poly1305",
  "curve25519-dalek",
+ "fastrand",
  "getrandom 0.2.8",
  "rayon",
- "serde",
  "sphinx-packet",
  "thiserror",
  "zeroize",
@@ -3772,7 +3771,6 @@ name = "nym-sphinx-params"
 version = "0.1.0"
 dependencies = [
  "nym-crypto",
- "nym-outfox",
  "nym-sphinx-types",
  "serde",
  "thiserror",

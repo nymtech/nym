@@ -79,6 +79,14 @@ impl Header {
     pub(crate) const LEGACY_SIZE: usize = 2;
     pub(crate) const VERSIONED_SIZE: usize = 3;
 
+    pub fn outfox() -> Header {
+        Header {
+            packet_version: PacketVersion::default(),
+            packet_size: PacketSize::OutfoxRegularPacket,
+            packet_mode: PacketMode::Outfox,
+        }
+    }
+
     pub(crate) fn size(&self) -> usize {
         if self.packet_version.is_legacy() {
             Self::LEGACY_SIZE

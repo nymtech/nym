@@ -7,10 +7,9 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::packet_version::PacketVersion;
 use nym_sphinx_params::PacketMode;
 use nym_sphinx_types::NymPacket;
-use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct FramedNymPacket {
     /// Contains any metadata helping receiver to handle the underlying packet.
     pub(crate) header: Header,
@@ -55,7 +54,7 @@ impl FramedNymPacket {
 // Contains any metadata that might be useful for sending between mix nodes.
 // TODO: in theory all those data could be put in a single `u8` by setting appropriate bits,
 // but would that really be worth it?
-#[derive(Debug, Default, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
 pub struct Header {
     /// Represents the wire format version used to construct this packet.
     pub(crate) packet_version: PacketVersion,

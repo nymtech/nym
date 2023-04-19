@@ -11,8 +11,6 @@ repository = { workspace = true }
 bytes = "1.0"
 tokio-util = { version = "0.7.4", features = ["codec"] }
 thiserror = "1.0.37"
-serde = { version = "1", features = ["derive"] }
-bincode = "1"
 
 nym-sphinx-types = { path = "../types" }
 nym-sphinx-params = { path = "../params" }

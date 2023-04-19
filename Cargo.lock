@@ -293,15 +293,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "383d29d513d8764dcdc42ea295d979eb99c3c9f00607b3692cf68a431f7dca72"
 
 [[package]]
-name = "bincode"
-version = "1.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "bip32"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4076,11 +4067,9 @@ dependencies = [
 name = "nym-sphinx-framing"
 version = "0.1.0"
 dependencies = [
- "bincode",
  "bytes",
  "nym-sphinx-params",
  "nym-sphinx-types",
- "serde",
  "thiserror",
  "tokio-util",
 ]
@@ -4100,7 +4089,6 @@ name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
  "nym-outfox",
- "serde",
  "sphinx-packet",
  "thiserror",
 ]

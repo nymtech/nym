@@ -1344,7 +1344,6 @@ name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
  "nym-outfox",
- "serde",
  "sphinx-packet",
  "thiserror",
 ]

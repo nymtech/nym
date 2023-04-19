@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, FormControl, Stack } from '@mui/material';
-import { PasswordInput } from 'src/components';
+import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { Subtitle } from '../components';
 import { AppContext } from '../../../context/main';
 

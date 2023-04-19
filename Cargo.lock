@@ -3049,6 +3049,7 @@ dependencies = [
  "nym-multisig-contract-common",
  "nym-node-tester-utils",
  "nym-pemstore",
+ "nym-service-provider-directory-common",
  "nym-sphinx",
  "nym-task",
  "nym-topology",

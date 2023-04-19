@@ -16,7 +16,7 @@ use nym_api_requests::models::{
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_service_provider_directory_common::ServiceInfo;
-use reqwest::Response;
+use reqwest::{Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -77,6 +77,8 @@ impl Client {
         let res = self.send_get_request(path, params).await?;
         if res.status().is_success() {
             Ok(res.json().await?)
+        } else if res.status() == StatusCode::NOT_FOUND {
+            Err(NymAPIError::NotFound)
         } else {
             Err(NymAPIError::GenericRequestFailure(res.text().await?))
         }

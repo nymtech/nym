@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, CircularProgress, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { AuthContext } from 'src/context/auth';
-import { PasswordInput } from 'src/components';
+import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { archiveWalletFile, createPassword, isPasswordCreated } from 'src/requests';
 import { Subtitle, Title, PasswordStrength } from '../components';
 

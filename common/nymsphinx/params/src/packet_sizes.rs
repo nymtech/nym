@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::FRAG_ID_LEN;
-use nym_outfox::packet::OUTFOX_PACKET_OVERHEAD;
 use nym_sphinx_types::header::HEADER_SIZE;
-use nym_sphinx_types::PAYLOAD_OVERHEAD_SIZE;
+use nym_sphinx_types::{OUTFOX_PACKET_OVERHEAD, PAYLOAD_OVERHEAD_SIZE};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
@@ -164,6 +163,17 @@ impl TryFrom<u8> for PacketSize {
             _ if value == (PacketSize::ExtendedPacket8 as u8) => Ok(Self::ExtendedPacket8),
             _ if value == (PacketSize::ExtendedPacket16 as u8) => Ok(Self::ExtendedPacket16),
             _ if value == (PacketSize::ExtendedPacket32 as u8) => Ok(Self::ExtendedPacket32),
+            _ if value == (PacketSize::OutfoxRegularPacket as u8) => Ok(Self::OutfoxRegularPacket),
+            _ if value == (PacketSize::OutfoxAckPacket as u8) => Ok(Self::OutfoxAckPacket),
+            _ if value == (PacketSize::OutfoxExtendedPacket8 as u8) => {
+                Ok(Self::OutfoxExtendedPacket8)
+            }
+            _ if value == (PacketSize::OutfoxExtendedPacket16 as u8) => {
+                Ok(Self::OutfoxExtendedPacket16)
+            }
+            _ if value == (PacketSize::OutfoxExtendedPacket32 as u8) => {
+                Ok(Self::OutfoxExtendedPacket32)
+            }
             v => Err(InvalidPacketSize::UnknownPacketTag { received: v }),
         }
     }

@@ -6,21 +6,16 @@ mod tests {
     use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
     use curve25519_dalek::scalar::Scalar;
     use nym_outfox::packet::OutfoxPacket;
+    use nym_outfox::randombytes;
     use sphinx_packet::constants::NODE_ADDRESS_LENGTH;
     use sphinx_packet::crypto::PublicKey;
-    use sphinx_packet::packet::builder::DEFAULT_PAYLOAD_SIZE;
     use sphinx_packet::route::Node;
     use sphinx_packet::route::NodeAddressBytes;
+    use std::convert::TryFrom;
     use std::convert::TryInto;
 
     use nym_outfox::format::*;
     use nym_outfox::lion::*;
-
-    use std::iter::repeat_with;
-
-    pub fn randombytes(n: usize) -> Vec<u8> {
-        repeat_with(|| fastrand::u8(..)).take(n).collect()
-    }
 
     #[test]
     fn test_encode_decode() {
@@ -81,8 +76,6 @@ mod tests {
 
     #[test]
     fn test_packet_params() {
-        let user_secret = randombytes(32);
-
         let (node1_pk, node1_pub) = sphinx_packet::crypto::keygen();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([0u8; NODE_ADDRESS_LENGTH]),
@@ -101,9 +94,17 @@ mod tests {
 
         let route = [node1, node2, node3];
 
-        let payload = randombytes(DEFAULT_PAYLOAD_SIZE);
+        let payload = randombytes(2048);
 
-        let mut packet = OutfoxPacket::build(&payload, &route, &user_secret).unwrap();
+        let packet = OutfoxPacket::build(&payload, &route, Some(2048)).unwrap();
+        let packet_bytes = packet.to_bytes().unwrap();
+        println!(
+            "packet bytes length, {}, declared {}",
+            packet_bytes.len(),
+            packet.len()
+        );
+
+        let mut packet = OutfoxPacket::try_from(packet_bytes.as_slice()).unwrap();
 
         packet.decode_mix_layer(2, &node1_pk.to_bytes()).unwrap();
         packet.decode_mix_layer(1, &node2_pk.to_bytes()).unwrap();

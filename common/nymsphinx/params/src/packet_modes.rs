@@ -22,6 +22,9 @@ pub enum PacketMode {
     /// Represents a VPN packet that should not be delayed and ideally cached pre-computed keys
     /// should be used for unwrapping data. Note that it does not offer the same level of anonymity.
     Vpn = 1,
+
+    /// Abusing this to add Outfox support
+    Outfox = 2,
 }
 
 impl PacketMode {
@@ -32,6 +35,10 @@ impl PacketMode {
     pub fn is_old_vpn(self) -> bool {
         self == PacketMode::Vpn
     }
+
+    pub fn is_outfox(self) -> bool {
+        self == PacketMode::Outfox
+    }
 }
 
 impl TryFrom<u8> for PacketMode {
@@ -41,6 +48,7 @@ impl TryFrom<u8> for PacketMode {
         match value {
             _ if value == (PacketMode::Mix as u8) => Ok(Self::Mix),
             _ if value == (PacketMode::Vpn as u8) => Ok(Self::Vpn),
+            _ if value == (PacketMode::Outfox as u8) => Ok(Self::Outfox),
             v => Err(InvalidPacketMode { received: v }),
         }
     }

@@ -34,24 +34,24 @@ async fn main() {
     // client.send_str(*our_address, "hello there").await;
 
     // Build an HTTP GET request
-    // let mut request = Request::new(
-    //     Method::new("GET").unwrap(),
-    //     RequestTarget::new("/.wellknown/wallet/validators.json").unwrap(),
-    //     HttpVersion::V1_1,
-    //     b"",
-    // );
-    // let mut headers = request.header_mut();
-    // headers.add_field(HeaderField::new("Host", "nymtech.net").unwrap());
-
-    // Set up an HTTP GET request, with headers and no payload
     let mut request = Request::new(
         Method::new("GET").unwrap(),
-        RequestTarget::new("/package.json").unwrap(),
+        RequestTarget::new("/.wellknown/wallet/validators.json").unwrap(),
         HttpVersion::V1_1,
         b"",
     );
     let mut headers = request.header_mut();
-    headers.add_field(HeaderField::new("Host", "localhost:3000").unwrap());
+    headers.add_field(HeaderField::new("Host", "nymtech.net").unwrap());
+
+    // Set up an HTTP GET request, with headers and no payload
+    // let mut request = Request::new(
+    //     Method::new("GET").unwrap(),
+    //     RequestTarget::new("/package.json").unwrap(),
+    //     HttpVersion::V1_1,
+    //     b"",
+    // );
+    // let mut headers = request.header_mut();
+    // headers.add_field(HeaderField::new("Host", "localhost:3000").unwrap());
 
     // Encode as bytes
     let mut encoder = RequestEncoder::new(BodyEncoder::new(BytesEncoder::new()));

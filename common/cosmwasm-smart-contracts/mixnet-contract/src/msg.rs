@@ -10,10 +10,13 @@ use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
-use crate::{delegation, ContractStateParams, Layer, LayerAssignment, MixId, Percent};
+use crate::{
+    delegation, ContractStateParams, EpochEventId, IntervalEventId, Layer, LayerAssignment, MixId,
+    Percent,
+};
 use crate::{Gateway, IdentityKey, MixNode};
 use contracts_common::signing::MessageSignature;
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Coin, Decimal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -161,6 +164,13 @@ pub enum ExecuteMsg {
     PledgeMoreOnBehalf {
         owner: String,
     },
+    DecreasePledge {
+        decrease_by: Coin,
+    },
+    DecreasePledgeOnBehalf {
+        owner: String,
+        decrease_by: Coin,
+    },
     UnbondMixnode {},
     UnbondMixnodeOnBehalf {
         owner: String,
@@ -297,6 +307,10 @@ impl ExecuteMsg {
             }
             ExecuteMsg::PledgeMore {} => "pledging additional tokens".into(),
             ExecuteMsg::PledgeMoreOnBehalf { .. } => "pledging additional tokens on behalf".into(),
+            ExecuteMsg::DecreasePledge { .. } => "decreasing mixnode pledge".into(),
+            ExecuteMsg::DecreasePledgeOnBehalf { .. } => {
+                "decreasing mixnode pledge on behalf".into()
+            }
             ExecuteMsg::UnbondMixnode { .. } => "unbonding mixnode".into(),
             ExecuteMsg::UnbondMixnodeOnBehalf { .. } => "unbonding mixnode on behalf".into(),
             ExecuteMsg::UpdateMixnodeCostParams { .. } => "updating mixnode cost parameters".into(),
@@ -505,6 +519,12 @@ pub enum QueryMsg {
     GetPendingIntervalEvents {
         limit: Option<u32>,
         start_after: Option<u32>,
+    },
+    GetPendingEpochEvent {
+        event_id: EpochEventId,
+    },
+    GetPendingIntervalEvent {
+        event_id: IntervalEventId,
     },
     GetNumberOfPendingEvents {},
 

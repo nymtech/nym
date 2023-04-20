@@ -32,7 +32,8 @@ pub use gateway::{
 };
 pub use interval::{
     CurrentIntervalResponse, EpochState, EpochStatus, Interval, NumberOfPendingEventsResponse,
-    PendingEpochEventsResponse, PendingIntervalEventsResponse,
+    PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEventResponse,
+    PendingIntervalEventsResponse,
 };
 pub use mixnode::{
     Layer, MixNode, MixNodeBond, MixNodeConfigUpdate, MixNodeCostParams, MixNodeDetails,

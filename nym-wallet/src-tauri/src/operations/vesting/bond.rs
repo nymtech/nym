@@ -152,6 +152,33 @@ pub async fn vesting_pledge_more(
 }
 
 #[tauri::command]
+pub async fn vesting_decrease_pledge(
+    fee: Option<Fee>,
+    decrease_by: DecCoin,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let decrease_by_base = guard.attempt_convert_to_base_coin(decrease_by.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    log::info!(
+        ">>> Decrease pledge with locked tokens, pledge_decrease_display = {}, pledge_decrease_base = {}, fee = {:?}",
+        decrease_by,
+        decrease_by_base,
+        fee,
+    );
+    let res = guard
+        .current_client()?
+        .nyxd
+        .vesting_decrease_pledge(decrease_by_base, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
 pub async fn vesting_unbond_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,

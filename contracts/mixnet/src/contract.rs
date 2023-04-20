@@ -251,6 +251,18 @@ pub fn execute(
         ExecuteMsg::PledgeMoreOnBehalf { owner } => {
             crate::mixnodes::transactions::try_increase_pledge_on_behalf(deps, env, info, owner)
         }
+        ExecuteMsg::DecreasePledge { decrease_by } => {
+            crate::mixnodes::transactions::try_decrease_pledge(deps, env, info, decrease_by)
+        }
+        ExecuteMsg::DecreasePledgeOnBehalf { owner, decrease_by } => {
+            crate::mixnodes::transactions::try_decrease_pledge_on_behalf(
+                deps,
+                env,
+                info,
+                decrease_by,
+                owner,
+            )
+        }
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, env, info)
         }
@@ -573,6 +585,12 @@ pub fn query(
                 limit,
             )?,
         ),
+        QueryMsg::GetPendingEpochEvent { event_id } => to_binary(
+            &crate::interval::queries::query_pending_epoch_event(deps, event_id)?,
+        ),
+        QueryMsg::GetPendingIntervalEvent { event_id } => to_binary(
+            &crate::interval::queries::query_pending_interval_event(deps, event_id)?,
+        ),
         QueryMsg::GetNumberOfPendingEvents {} => to_binary(
             &crate::interval::queries::query_number_of_pending_events(deps)?,
         ),
@@ -586,7 +604,7 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
@@ -612,6 +630,7 @@ pub fn migrate(
 
         // If state structure changed in any contract version in the way migration is needed, it
         // should occur here, for example anything from `crate::queued_migrations::`
+        crate::queued_migrations::insert_pending_pledge_changes(deps.branch())?;
     }
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address

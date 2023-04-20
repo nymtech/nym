@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 pub use ed25519_dalek::ed25519::signature::Signature as SignatureTrait;
@@ -45,6 +45,8 @@ pub enum Ed25519RecoveryError {
 
 /// Keypair for usage in ed25519 EdDSA.
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct KeyPair {
     private_key: PrivateKey,
     public_key: PublicKey,

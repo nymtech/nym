@@ -1,7 +1,8 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use async_trait::async_trait;
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_requests::registration::handshake::SharedKeys;
@@ -94,7 +95,7 @@ impl KeyManager {
 
     /// Loads previously stored keys from the disk. Fails if not all, including the shared gateway
     /// key, is available.
-    pub fn load_keys(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
+    pub fn load_keys_from_disk(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
         let mut key_manager = Self::load_client_keys(client_pathfinder)?;
 
         let gateway_shared_key: SharedKeys =
@@ -105,9 +106,9 @@ impl KeyManager {
         Ok(key_manager)
     }
 
-    /// Loads previously stored keys from the disk. Fails if client keys are not availabe, but the
+    /// Loads previously stored keys from the disk. Fails if client keys are not available, but the
     /// shared gateway key is optional.
-    pub fn load_keys_but_gateway_is_optional(
+    pub fn load_keys_from_disk_but_gateway_is_optional(
         client_pathfinder: &ClientKeyPathfinder,
     ) -> io::Result<Self> {
         let mut key_manager = Self::load_client_keys(client_pathfinder)?;
@@ -131,7 +132,7 @@ impl KeyManager {
     // While perhaps there is no much point in storing the `AckKey` on the disk,
     // it is done so for the consistency sake so that you wouldn't require an rng instance
     // during `load_keys` to generate the said key.
-    pub fn store_keys(&self, client_pathfinder: &ClientKeyPathfinder) -> io::Result<()> {
+    pub fn store_keys_on_disk(&self, client_pathfinder: &ClientKeyPathfinder) -> io::Result<()> {
         nym_pemstore::store_keypair(
             self.identity_keypair.as_ref(),
             &nym_pemstore::KeyPairPath::new(
@@ -159,7 +160,10 @@ impl KeyManager {
         Ok(())
     }
 
-    pub fn store_gateway_key(&self, client_pathfinder: &ClientKeyPathfinder) -> io::Result<()> {
+    pub fn store_gateway_key_on_disk(
+        &self,
+        client_pathfinder: &ClientKeyPathfinder,
+    ) -> io::Result<()> {
         match self.gateway_shared_key.as_ref() {
             None => {
                 return Err(io::Error::new(
@@ -223,5 +227,29 @@ impl KeyManager {
 
     pub fn is_gateway_key_set(&self) -> bool {
         self.gateway_shared_key.is_some()
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait KeyStore {
+    type StorageError;
+
+    async fn load_keys(&self) -> Result<KeyManager, Self::StorageError>;
+
+    async fn store_keys(&self, keys: KeyManager) -> Result<(), Self::StorageError>;
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl KeyStore for ClientKeyPathfinder {
+    type StorageError = io::Error;
+
+    async fn load_keys(&self) -> Result<KeyManager, Self::StorageError> {
+        KeyManager::load_keys_from_disk(self)
+    }
+
+    async fn store_keys(&self, keys: KeyManager) -> Result<(), Self::StorageError> {
+        keys.store_keys_on_disk(self)
     }
 }

@@ -42,7 +42,8 @@ pub struct SocketClient {
 impl SocketClient {
     pub fn new(config: Config) -> Self {
         let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-        let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
+        let key_manager =
+            KeyManager::load_keys_from_disk(&pathfinder).expect("failed to load stored keys");
 
         SocketClient {
             config,

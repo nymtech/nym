@@ -255,6 +255,6 @@ where
 {
     let pathfinder = ClientKeyPathfinder::new_from_config(config);
     Ok(key_manager
-        .store_keys(&pathfinder)
+        .store_keys_on_disk(&pathfinder)
         .tap_err(|err| log::error!("Failed to generate keys: {err}"))?)
 }

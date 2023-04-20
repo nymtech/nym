@@ -6855,6 +6855,7 @@ name = "wasm-utils"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "getrandom 0.2.8",
  "js-sys",
  "tungstenite",
  "wasm-bindgen",

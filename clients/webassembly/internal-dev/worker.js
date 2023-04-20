@@ -30,6 +30,8 @@ const {
     GatewayEndpointConfig,
     TestStorage,
     current_network_topology,
+    make_key,
+    make_key2
 } = wasm_bindgen;
 
 let client = null;
@@ -281,19 +283,29 @@ async function messWithStorage() {
                     const { mixnodeIdentity } = event.data.args;
                     console.log("button clicked...", mixnodeIdentity);
 
-                    let id1 = "one";
-                    let id2 = "two";
 
-                    let storage1 = await new TestStorage(id1);
-                    let storage2 = await new TestStorage(id2);
 
-                    console.log("read1: ", await storage1.read());
-                    console.log("read2: ", await storage2.read());
+                    //
+                    // let key1 = await make_key();
+                    // let key2 = await make_key2();
+                    //
+                    // console.log("key1: ", key1);
+                    // console.log("key2: ", key2);
 
-                    console.log("store1: ", await storage1.store("FOOMP"));
 
-                    console.log("read1: ", await storage1.read());
-                    console.log("read2: ", await storage2.read());
+                    // let id1 = "one";
+                    // let id2 = "two";
+                    //
+                    // let storage1 = await new TestStorage(id1);
+                    // let storage2 = await new TestStorage(id2);
+                    //
+                    // console.log("read1: ", await storage1.read());
+                    // console.log("read2: ", await storage2.read());
+                    //
+                    // console.log("store1: ", await storage1.store("FOOMP"));
+                    //
+                    // console.log("read1: ", await storage1.read());
+                    // console.log("read2: ", await storage2.read());
                 }
             }
         }

@@ -223,7 +223,7 @@ where
             let path_finder = ClientKeyPathfinder::from(paths.clone());
 
             // Try load keys
-            match KeyManager::load_keys_but_gateway_is_optional(&path_finder) {
+            match KeyManager::load_keys_from_disk_but_gateway_is_optional(&path_finder) {
                 Ok(key_manager) => {
                     log::debug!("Keys loaded");
                     key_manager
@@ -243,7 +243,7 @@ where
                     // Create new keys and write to storage
                     let key_manager = nym_client_core::init::new_client_keys();
                     // WARN: this will overwrite!
-                    key_manager.store_keys(&path_finder)?;
+                    key_manager.store_keys_on_disk(&path_finder)?;
                     key_manager
                 }
             }
@@ -366,7 +366,7 @@ where
                 path_finder.gateway_shared_key().to_path_buf(),
             ));
         };
-        self.key_manager.store_gateway_key(&path_finder)?;
+        self.key_manager.store_gateway_key_on_disk(&path_finder)?;
         Ok(())
     }
 

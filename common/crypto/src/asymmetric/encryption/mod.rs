@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
@@ -41,6 +41,8 @@ pub enum KeyRecoveryError {
     },
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,
     pub(crate) public_key: PublicKey,

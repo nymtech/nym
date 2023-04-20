@@ -55,7 +55,8 @@ pub struct NymClient {
 impl NymClient {
     pub fn new(config: Config) -> Self {
         let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-        let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
+        let key_manager =
+            KeyManager::load_keys_from_disk(&pathfinder).expect("failed to load stored keys");
 
         NymClient {
             config,
@@ -66,7 +67,7 @@ impl NymClient {
     pub fn new_with_keys(config: Config, key_manager: Option<KeyManager>) -> Self {
         let key_manager = key_manager.unwrap_or_else(|| {
             let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-            KeyManager::load_keys(&pathfinder).expect("failed to load stored keys")
+            KeyManager::load_keys_from_disk(&pathfinder).expect("failed to load stored keys")
         });
 
         NymClient {

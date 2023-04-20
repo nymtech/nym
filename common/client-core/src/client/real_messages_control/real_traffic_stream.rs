@@ -136,7 +136,7 @@ impl From<PreparedFragment> for RealMessage {
 
 impl RealMessage {
     pub(crate) fn packet_size(&self) -> usize {
-        self.mix_packet.sphinx_packet().len()
+        self.mix_packet.packet().len()
     }
 
     pub(crate) fn new(mix_packet: MixPacket, fragment_id: Option<FragmentIdentifier>) -> Self {

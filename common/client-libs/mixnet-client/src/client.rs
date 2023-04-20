@@ -7,7 +7,7 @@ use log::*;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
-use nym_sphinx::params::PacketMode;
+use nym_sphinx::params::PacketType;
 use nym_sphinx::NymPacket;
 use std::collections::HashMap;
 use std::io;
@@ -52,7 +52,7 @@ pub trait SendWithoutResponse {
         &mut self,
         address: NymNodeRoutingAddress,
         packet: NymPacket,
-        packet_mode: PacketMode,
+        packet_type: PacketType,
     ) -> io::Result<()>;
 }
 
@@ -198,11 +198,11 @@ impl SendWithoutResponse for Client {
         &mut self,
         address: NymNodeRoutingAddress,
         packet: NymPacket,
-        packet_mode: PacketMode,
+        packet_type: PacketType,
     ) -> io::Result<()> {
         trace!("Sending packet to {:?}", address);
         let framed_packet =
-            FramedNymPacket::new(packet, packet_mode, self.config.use_legacy_version);
+            FramedNymPacket::new(packet, packet_type, self.config.use_legacy_version);
 
         if let Some(sender) = self.conn_new.get_mut(&address) {
             if let Err(err) = sender.channel.try_send(framed_packet) {

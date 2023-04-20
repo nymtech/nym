@@ -605,7 +605,7 @@ where
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {
         packets
             .iter()
-            .map(|packet| packet.sphinx_packet().len())
+            .map(|packet| packet.packet().len())
             .sum::<usize>() as i64
     }
 
@@ -686,9 +686,9 @@ where
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
+        if (mix_packet.packet().len() as i64) > self.bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth(
-                mix_packet.sphinx_packet().len() as i64,
+                mix_packet.packet().len() as i64,
                 self.bandwidth_remaining,
             ));
         }

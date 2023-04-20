@@ -5,7 +5,7 @@ use crate::codec::NymCodecError;
 use bytes::{BufMut, BytesMut};
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::packet_version::PacketVersion;
-use nym_sphinx_params::PacketMode;
+use nym_sphinx_params::PacketType;
 use nym_sphinx_types::NymPacket;
 use std::convert::TryFrom;
 
@@ -19,7 +19,7 @@ pub struct FramedNymPacket {
 }
 
 impl FramedNymPacket {
-    pub fn new(packet: NymPacket, packet_mode: PacketMode, use_legacy_version: bool) -> Self {
+    pub fn new(packet: NymPacket, packet_type: PacketType, use_legacy_version: bool) -> Self {
         // If this fails somebody is using the library in a super incorrect way, because they
         // already managed to somehow create a sphinx packet
         let packet_size = PacketSize::get_type(packet.len()).unwrap();
@@ -28,7 +28,7 @@ impl FramedNymPacket {
             header: Header {
                 packet_version: PacketVersion::new(use_legacy_version),
                 packet_size,
-                packet_mode,
+                packet_type,
             },
             packet,
         }
@@ -42,8 +42,8 @@ impl FramedNymPacket {
         self.header.packet_size
     }
 
-    pub fn packet_mode(&self) -> PacketMode {
-        self.header.packet_mode
+    pub fn packet_type(&self) -> PacketType {
+        self.header.packet_type
     }
 
     pub fn into_inner(self) -> NymPacket {
@@ -69,9 +69,9 @@ pub struct Header {
     ///
     /// TODO: ask @AP whether this can be sent like this - could it introduce some anonymity issues?
     /// (note: this will be behind some encryption, either something implemented by us or some SSL action)
-    // Note: currently packet_mode is deprecated but is still left as a concept behind to not break
+    // Note: currently packet_type is deprecated but is still left as a concept behind to not break
     // compatibility with existing network
-    pub(crate) packet_mode: PacketMode,
+    pub(crate) packet_type: PacketType,
 }
 
 impl Header {
@@ -82,7 +82,7 @@ impl Header {
         Header {
             packet_version: PacketVersion::default(),
             packet_size: PacketSize::OutfoxRegularPacket,
-            packet_mode: PacketMode::Outfox,
+            packet_type: PacketType::Outfox,
         }
     }
 
@@ -103,7 +103,7 @@ impl Header {
         }
 
         dst.put_u8(self.packet_size as u8);
-        dst.put_u8(self.packet_mode as u8);
+        dst.put_u8(self.packet_type as u8);
         // reserve bytes for the actual packet
         dst.reserve(self.packet_size.size());
     }
@@ -120,7 +120,7 @@ impl Header {
             Ok(Some(Header {
                 packet_version,
                 packet_size: PacketSize::try_from(src[0])?,
-                packet_mode: PacketMode::try_from(src[1])?,
+                packet_type: PacketType::try_from(src[1])?,
             }))
         } else if src.len() < Self::VERSIONED_SIZE {
             // we're missing that 1 byte to read the full header...
@@ -130,7 +130,7 @@ impl Header {
             Ok(Some(Header {
                 packet_version,
                 packet_size: PacketSize::try_from(src[1])?,
-                packet_mode: PacketMode::try_from(src[2])?,
+                packet_type: PacketType::try_from(src[2])?,
             }))
         }
     }
@@ -161,7 +161,7 @@ mod header_encoding {
             [
                 PacketVersion::new_versioned(123).as_u8().unwrap(),
                 unknown_packet_size,
-                PacketMode::default() as u8,
+                PacketType::default() as u8,
             ]
             .as_ref(),
         );
@@ -169,12 +169,12 @@ mod header_encoding {
     }
 
     #[test]
-    fn decoding_will_fail_for_unknown_packet_mode() {
-        let unknown_packet_mode: u8 = 255;
+    fn decoding_will_fail_for_unknown_packet_type() {
+        let unknown_packet_type: u8 = 255;
         // make sure this is still 'unknown' for if we make changes in the future
-        assert!(PacketMode::try_from(unknown_packet_mode).is_err());
+        assert!(PacketType::try_from(unknown_packet_type).is_err());
 
-        let mut bytes = BytesMut::from([PacketSize::default() as u8, unknown_packet_mode].as_ref());
+        let mut bytes = BytesMut::from([PacketSize::default() as u8, unknown_packet_type].as_ref());
         assert!(Header::decode(&mut bytes).is_err())
     }
 

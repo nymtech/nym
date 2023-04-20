@@ -52,6 +52,9 @@ pub enum NymTopologyError {
         total_nodes: usize,
         layer_distribution: Vec<(MixLayer, usize)>,
     },
+    // We can't import SurbAckRecoveryError due to cyclic dependency, this is a bit dirty
+    #[error("Could not build payload")]
+    PayloadBuilder,
 }
 
 #[derive(Debug, Clone)]

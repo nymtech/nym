@@ -49,8 +49,8 @@ impl OutfoxPacket {
         Ok(bytes)
     }
 
-    pub fn build(
-        payload: &[u8],
+    pub fn build<M: AsRef<[u8]>>(
+        payload: M,
         route: &[Node; 3],
         packet_size: Option<usize>,
     ) -> Result<OutfoxPacket, OutfoxError> {
@@ -58,9 +58,9 @@ impl OutfoxPacket {
         let packet_size = packet_size.unwrap_or(DEFAULT_PAYLOAD_SIZE);
         let mix_params = MixCreationParameters::new(packet_size as u16);
 
-        let padding = mix_params.total_packet_length() - payload.len();
+        let padding = mix_params.total_packet_length() - payload.as_ref().len();
         let mut buffer = vec![0; padding];
-        buffer.extend_from_slice(payload);
+        buffer.extend_from_slice(payload.as_ref());
 
         for (idx, node) in route.iter().rev().enumerate() {
             let (range, stage_params) = mix_params.get_stage_params(idx);

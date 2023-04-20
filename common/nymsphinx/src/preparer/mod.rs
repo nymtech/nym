@@ -149,8 +149,12 @@ where
         let surb_ack = self.generate_surb_ack(fragment_identifier, topology, ack_key)?;
         let ack_delay = surb_ack.expected_total_delay();
 
-        let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
-            .build_reply(reply_surb.encryption_key());
+        let packet_payload = match NymsphinxPayloadBuilder::new(fragment, surb_ack)
+            .build_reply(reply_surb.encryption_key())
+        {
+            Ok(payload) => payload,
+            Err(_e) => return Err(NymTopologyError::PayloadBuilder),
+        };
 
         // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lengths
         // and we just very carefully constructed a (presumably) valid one
@@ -208,8 +212,12 @@ where
         let surb_ack = self.generate_surb_ack(fragment_identifier, topology, ack_key)?;
         let ack_delay = surb_ack.expected_total_delay();
 
-        let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
-            .build_regular(&mut self.rng, packet_recipient.encryption_key());
+        let packet_payload = match NymsphinxPayloadBuilder::new(fragment, surb_ack)
+            .build_regular(&mut self.rng, packet_recipient.encryption_key())
+        {
+            Ok(payload) => payload,
+            Err(_e) => return Err(NymTopologyError::PayloadBuilder),
+        };
 
         // generate pseudorandom route for the packet
         let route = topology.random_route_to_gateway(

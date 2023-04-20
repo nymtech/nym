@@ -140,10 +140,9 @@ mod tests {
     use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
     use nym_sphinx_params::packet_sizes::PacketSize;
     use nym_sphinx_params::PacketMode;
-    use nym_sphinx_types::builder::SphinxPacketBuilder;
     use nym_sphinx_types::{
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
-        SphinxPacket, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
+        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
 
     #[derive(Default)]
@@ -166,7 +165,7 @@ mod tests {
         }
     }
 
-    fn make_valid_sphinx_packet(size: PacketSize) -> SphinxPacket {
+    fn make_valid_sphinx_packet(size: PacketSize) -> NymPacket {
         let (_, node1_pk) = crypto::keygen();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
@@ -193,9 +192,7 @@ mod tests {
             SphinxDelay::new_from_nanos(42),
             SphinxDelay::new_from_nanos(42),
         ];
-        SphinxPacketBuilder::new()
-            .with_payload_size(size.payload_size())
-            .build_packet(b"foomp", &route, &destination, &delays)
+        NymPacket::sphinx_build(size.payload_size(), b"foomp", &route, &destination, &delays)
             .unwrap()
     }
 
@@ -219,7 +216,7 @@ mod tests {
             NymNodeRoutingAddress::from(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 42));
         let mix_packet = MixPacket::new(
             next_hop,
-            NymPacket::Sphinx(make_valid_sphinx_packet(PacketSize::default())),
+            make_valid_sphinx_packet(PacketSize::default()),
             PacketMode::default(),
         );
         let forward_instant = None;

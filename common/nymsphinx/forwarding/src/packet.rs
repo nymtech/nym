@@ -3,9 +3,7 @@
 
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nym_sphinx_params::{PacketMode, PacketSize};
-use nym_sphinx_types::{
-    NymPacket, NymPacketError, OutfoxError, OutfoxPacket, SphinxError, SphinxPacket,
-};
+use nym_sphinx_types::{NymPacket, NymPacketError};
 use std::convert::TryFrom;
 use std::fmt::{self, Debug, Formatter};
 use thiserror::Error;
@@ -22,10 +20,6 @@ pub enum MixPacketFormattingError {
     InvalidAddress,
     #[error("received sphinx packet was malformed")]
     MalformedSphinxPacket,
-    #[error("Outfox: {0}")]
-    Outfox(#[from] OutfoxError),
-    #[error("Sphinx: {0}")]
-    Sphinx(#[from] SphinxError),
     #[error("Packet: {0}")]
     Packet(#[from] NymPacketError),
 }
@@ -98,8 +92,8 @@ impl MixPacket {
             Err(MixPacketFormattingError::InvalidPacketSize(packet_size))
         } else {
             let packet = match packet_mode {
-                PacketMode::Outfox => NymPacket::Outfox(OutfoxPacket::try_from(packet_data)?),
-                _ => NymPacket::Sphinx(SphinxPacket::from_bytes(packet_data)?),
+                PacketMode::Outfox => NymPacket::outfox_from_bytes(packet_data)?,
+                _ => NymPacket::sphinx_from_bytes(packet_data)?,
             };
 
             Ok(MixPacket {

@@ -233,7 +233,11 @@ where
                         return;
                     }
                 };
-                println!("cover sent_{:?}",self.config.cover_packet_size.size());
+                let time = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+                println!("cover sent_{}_{:?}",time, self.config.cover_packet_size.size());
                 (
                     generate_loop_cover_packet(
                         &mut self.rng,
@@ -255,7 +259,7 @@ where
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_millis();
-                println!("real sent: _{:?}_{}_{}", real_message.fragment_id, time, real_message.mix_packet.sphinx_packet().payload.len());
+                println!("real sent: /{:?}/{}/{}", real_message.fragment_id, time, real_message.mix_packet.sphinx_packet().payload.len());
                 (real_message.mix_packet, Some(real_message.fragment_id))
             }
         };

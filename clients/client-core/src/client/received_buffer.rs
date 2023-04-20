@@ -51,7 +51,11 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
         let fragment_len = fragment_data.len();
         if nym_sphinx::cover::is_cover(fragment_data) {
             trace!("The message was a loop cover message! Skipping it");
-            println!("Cover received_{}", fragment_len);
+            let time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+            println!("Cover received_{}_{}",time, fragment_len);
             return None;
         }
 

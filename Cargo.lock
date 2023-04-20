@@ -4061,6 +4061,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "thiserror",
 ]
 
 [[package]]

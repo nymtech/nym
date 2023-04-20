@@ -6,7 +6,6 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_sphinx::NymPacket;
 use std::time::Duration;
 
 pub type MixForwardingSender = mpsc::UnboundedSender<MixPacket>;
@@ -61,13 +60,13 @@ impl PacketForwarder {
 
                     let next_hop = mix_packet.next_hop();
                     let packet_mode = mix_packet.packet_mode();
-                    let sphinx_packet = mix_packet.into_sphinx_packet();
+                    let packet = mix_packet.into_packet();
                     // we don't care about responses, we just want to fire packets
                     // as quickly as possible
 
                     if let Err(err) =
                         self.mixnet_client
-                            .send_without_response(next_hop, NymPacket::Sphinx(sphinx_packet), packet_mode)
+                            .send_without_response(next_hop, packet, packet_mode)
                     {
                         debug!("failed to forward the packet - {err}")
                     }

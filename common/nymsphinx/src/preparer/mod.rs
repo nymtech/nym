@@ -15,7 +15,7 @@ use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::builder::SphinxPacketBuilder;
-use nym_sphinx_types::{delays, Delay};
+use nym_sphinx_types::{delays, Delay, NymPacket};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
@@ -149,8 +149,12 @@ where
         let surb_ack = self.generate_surb_ack(fragment_identifier, topology, ack_key)?;
         let ack_delay = surb_ack.expected_total_delay();
 
-        let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
-            .build_reply(reply_surb.encryption_key());
+        let packet_payload = match NymsphinxPayloadBuilder::new(fragment, surb_ack)
+            .build_reply(reply_surb.encryption_key())
+        {
+            Ok(payload) => payload,
+            Err(_e) => return Err(NymTopologyError::PayloadBuilder),
+        };
 
         // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lengths
         // and we just very carefully constructed a (presumably) valid one
@@ -208,8 +212,12 @@ where
         let surb_ack = self.generate_surb_ack(fragment_identifier, topology, ack_key)?;
         let ack_delay = surb_ack.expected_total_delay();
 
-        let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
-            .build_regular(&mut self.rng, packet_recipient.encryption_key());
+        let packet_payload = match NymsphinxPayloadBuilder::new(fragment, surb_ack)
+            .build_regular(&mut self.rng, packet_recipient.encryption_key())
+        {
+            Ok(payload) => payload,
+            Err(_e) => return Err(NymTopologyError::PayloadBuilder),
+        };
 
         // generate pseudorandom route for the packet
         let route = topology.random_route_to_gateway(
@@ -224,10 +232,12 @@ where
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
-        let sphinx_packet = SphinxPacketBuilder::new()
-            .with_payload_size(packet_size.payload_size())
-            .build_packet(packet_payload, &route, &destination, &delays)
-            .unwrap();
+        let sphinx_packet = NymPacket::Sphinx(
+            SphinxPacketBuilder::new()
+                .with_payload_size(packet_size.payload_size())
+                .build_packet(packet_payload, &route, &destination, &delays)
+                .unwrap(),
+        );
 
         // from the previously constructed route extract the first hop
         let first_hop_address =

@@ -5,7 +5,7 @@ use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
-use nym_sphinx::{forwarding::packet::MixPacket, NymPacket};
+use nym_sphinx::forwarding::packet::MixPacket;
 use std::io;
 use tokio::time::Instant;
 
@@ -59,13 +59,12 @@ where
     fn forward_packet(&mut self, packet: MixPacket) {
         let next_hop = packet.next_hop();
         let packet_mode = packet.packet_mode();
-        let sphinx_packet = packet.into_sphinx_packet();
+        let packet = packet.into_packet();
 
-        if let Err(err) = self.mixnet_client.send_without_response(
-            next_hop,
-            NymPacket::Sphinx(sphinx_packet),
-            packet_mode,
-        ) {
+        if let Err(err) = self
+            .mixnet_client
+            .send_without_response(next_hop, packet, packet_mode)
+        {
             if err.kind() == io::ErrorKind::WouldBlock {
                 // we only know for sure if we dropped a packet if our sending queue was full
                 // in any other case the connection might still be re-established (or created for the first time)
@@ -135,15 +134,15 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
+    use nym_sphinx::NymPacket;
     use nym_task::TaskManager;
 
     use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
     use nym_sphinx_params::packet_sizes::PacketSize;
     use nym_sphinx_params::PacketMode;
-    use nym_sphinx_types::builder::SphinxPacketBuilder;
     use nym_sphinx_types::{
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
-        SphinxPacket, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
+        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
 
     #[derive(Default)]
@@ -166,7 +165,7 @@ mod tests {
         }
     }
 
-    fn make_valid_sphinx_packet(size: PacketSize) -> SphinxPacket {
+    fn make_valid_sphinx_packet(size: PacketSize) -> NymPacket {
         let (_, node1_pk) = crypto::keygen();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
@@ -193,9 +192,7 @@ mod tests {
             SphinxDelay::new_from_nanos(42),
             SphinxDelay::new_from_nanos(42),
         ];
-        SphinxPacketBuilder::new()
-            .with_payload_size(size.payload_size())
-            .build_packet(b"foomp", &route, &destination, &delays)
+        NymPacket::sphinx_build(size.payload_size(), b"foomp", &route, &destination, &delays)
             .unwrap()
     }
 

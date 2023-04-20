@@ -7,8 +7,6 @@ use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_crypto::symmetric::stream_cipher::CipherKey;
-use nym_outfox::error::OutfoxError;
-use nym_outfox::lion::lion_transform_decrypt;
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx_anonymous_replies::SurbEncryptionKey;
 use nym_sphinx_chunking::fragment::Fragment;
@@ -76,49 +74,6 @@ pub enum MessageRecoveryError {
 
     #[error("Failed to recover message fragment - {0}")]
     FragmentRecoveryError(#[from] ChunkingError),
-
-    #[error("Outfox: {source}")]
-    OutfoxRecoveryError {
-        #[from]
-        source: OutfoxError,
-    },
-}
-
-#[derive(Default)]
-pub struct OutfoxMessageReceiver {
-    reconstructor: MessageReconstructor,
-}
-
-impl OutfoxMessageReceiver {
-    pub fn new() -> Self {
-        Default::default()
-    }
-}
-
-impl MessageReceiver for OutfoxMessageReceiver {
-    fn new() -> Self {
-        Self::default()
-    }
-
-    fn reconstructor(&mut self) -> &mut MessageReconstructor {
-        &mut self.reconstructor
-    }
-
-    fn num_mix_hops(&self) -> u8 {
-        DEFAULT_NUM_MIX_HOPS
-    }
-
-    fn decrypt_raw_message<C>(
-        &self,
-        message: &mut [u8],
-        key: &CipherKey<C>,
-    ) -> Result<(), MessageRecoveryError>
-    where
-        C: StreamCipher + KeyIvInit,
-    {
-        lion_transform_decrypt(message, key)?;
-        Ok(())
-    }
 }
 
 pub trait MessageReceiver {

@@ -171,7 +171,7 @@ mod packet_encoding {
     use super::*;
     use nym_sphinx_types::{
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
-        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH, OUTFOX_PACKET_OVERHEAD,
+        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
 
     fn make_valid_outfox_packet(size: PacketSize) -> NymPacket {
@@ -195,7 +195,7 @@ mod packet_encoding {
 
         let payload = vec![1; 48];
 
-        NymPacket::outfox_build(payload, route, Some(size.size() - OUTFOX_PACKET_OVERHEAD)).unwrap()
+        NymPacket::outfox_build(payload, route, Some(size.plaintext_size())).unwrap()
     }
 
     fn make_valid_sphinx_packet(size: PacketSize) -> NymPacket {

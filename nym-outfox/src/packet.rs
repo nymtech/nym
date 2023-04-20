@@ -5,9 +5,9 @@ use crate::{
     format::{
         groupelementbytes, tagbytes, MixCreationParameters, MixStageParameters, MIX_PARAMS_LEN,
     },
-    randombytes,
 };
 
+use rand::{rngs::OsRng, RngCore};
 use sphinx_packet::{packet::builder::DEFAULT_PAYLOAD_SIZE, route::Node};
 
 pub const OUTFOX_PACKET_OVERHEAD: usize =
@@ -54,7 +54,8 @@ impl OutfoxPacket {
         route: &[Node; 3],
         packet_size: Option<usize>,
     ) -> Result<OutfoxPacket, OutfoxError> {
-        let secret_key = randombytes(32);
+        let mut secret_key = [0; 32];
+        OsRng.fill_bytes(&mut secret_key);
         let packet_size = packet_size.unwrap_or(DEFAULT_PAYLOAD_SIZE);
         let mix_params = MixCreationParameters::new(packet_size as u16);
 

@@ -13,6 +13,10 @@ happy: fmt clippy-happy test
 # on all workspaces.
 build-release: build-release-main wasm
 
+# Deprecated
+# For backwards compatibility
+clippy-all: clippy
+
 # -----------------------------------------------------------------------------
 # Define targets for a given workspace
 #  $(1): name
@@ -52,7 +56,7 @@ fmt-$(1):
 	cargo fmt --manifest-path $(2)/Cargo.toml --all
 
 clippy-happy: clippy-happy-$(1)
-clippy-all: clippy-$(1) clippy-examples-$(1)
+clippy: clippy-$(1) clippy-examples-$(1)
 check: check-$(1)
 cargo-test: test-$(1)
 cargo-test-expensive: test-expensive-$(1)

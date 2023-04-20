@@ -131,10 +131,11 @@ pub trait FragmentPreparer {
         let ack_delay = surb_ack.expected_total_delay();
 
         let packet_payload = match NymsphinxPayloadBuilder::new(fragment, surb_ack)
-            .build_reply(reply_surb.encryption_key()) {
-                Ok(payload) => payload,
-                Err(_e) => return Err(NymTopologyError::PayloadBuilder)
-            };
+            .build_reply(reply_surb.encryption_key())
+        {
+            Ok(payload) => payload,
+            Err(_e) => return Err(NymTopologyError::PayloadBuilder),
+        };
 
         // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lengths
         // and we just very carefully constructed a (presumably) valid one
@@ -195,10 +196,11 @@ pub trait FragmentPreparer {
         let ack_delay = surb_ack.expected_total_delay();
 
         let packet_payload = match NymsphinxPayloadBuilder::new(fragment, surb_ack)
-            .build_regular(self.rng(), packet_recipient.encryption_key()) {
-                Ok(payload) => payload,
-                Err(_e) => return Err(NymTopologyError::PayloadBuilder)
-            };
+            .build_regular(self.rng(), packet_recipient.encryption_key())
+        {
+            Ok(payload) => payload,
+            Err(_e) => return Err(NymTopologyError::PayloadBuilder),
+        };
 
         // generate pseudorandom route for the packet
         let hops = self.num_mix_hops();
@@ -212,10 +214,12 @@ pub trait FragmentPreparer {
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
-        let sphinx_packet = NymPacket::Sphinx(SphinxPacketBuilder::new()
-            .with_payload_size(packet_size.payload_size())
-            .build_packet(packet_payload, &route, &destination, &delays)
-            .unwrap());
+        let sphinx_packet = NymPacket::Sphinx(
+            SphinxPacketBuilder::new()
+                .with_payload_size(packet_size.payload_size())
+                .build_packet(packet_payload, &route, &destination, &delays)
+                .unwrap(),
+        );
 
         // from the previously constructed route extract the first hop
         let first_hop_address =

@@ -11,7 +11,7 @@ use nym_sphinx_chunking::fragment::COVER_FRAG_ID;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{
-    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketMode, DEFAULT_NUM_MIX_HOPS,
+    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketType, DEFAULT_NUM_MIX_HOPS,
 };
 use nym_sphinx_types::builder::SphinxPacketBuilder;
 use nym_sphinx_types::{delays, NymPacket};
@@ -121,7 +121,7 @@ where
     let first_hop_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
-    Ok(MixPacket::new(first_hop_address, packet, PacketMode::Mix))
+    Ok(MixPacket::new(first_hop_address, packet, PacketType::Mix))
 }
 
 /// Helper function used to determine if given message represents a loop cover message.

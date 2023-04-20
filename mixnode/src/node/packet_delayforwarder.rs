@@ -58,12 +58,12 @@ where
 
     fn forward_packet(&mut self, packet: MixPacket) {
         let next_hop = packet.next_hop();
-        let packet_mode = packet.packet_mode();
+        let packet_type = packet.packet_type();
         let packet = packet.into_packet();
 
         if let Err(err) = self
             .mixnet_client
-            .send_without_response(next_hop, packet, packet_mode)
+            .send_without_response(next_hop, packet, packet_type)
         {
             if err.kind() == io::ErrorKind::WouldBlock {
                 // we only know for sure if we dropped a packet if our sending queue was full
@@ -139,7 +139,7 @@ mod tests {
 
     use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
     use nym_sphinx_params::packet_sizes::PacketSize;
-    use nym_sphinx_params::PacketMode;
+    use nym_sphinx_params::PacketType;
     use nym_sphinx_types::{
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
         DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
@@ -147,7 +147,7 @@ mod tests {
 
     #[derive(Default)]
     struct TestClient {
-        pub packets_sent: Arc<Mutex<Vec<(NymNodeRoutingAddress, NymPacket, PacketMode)>>>,
+        pub packets_sent: Arc<Mutex<Vec<(NymNodeRoutingAddress, NymPacket, PacketType)>>>,
     }
 
     impl nym_mixnet_client::SendWithoutResponse for TestClient {
@@ -155,12 +155,12 @@ mod tests {
             &mut self,
             address: NymNodeRoutingAddress,
             packet: NymPacket,
-            packet_mode: PacketMode,
+            packet_type: PacketType,
         ) -> io::Result<()> {
             self.packets_sent
                 .lock()
                 .unwrap()
-                .push((address, packet, packet_mode));
+                .push((address, packet, packet_type));
             Ok(())
         }
     }
@@ -217,7 +217,7 @@ mod tests {
         let mix_packet = MixPacket::new(
             next_hop,
             make_valid_sphinx_packet(PacketSize::default()),
-            PacketMode::default(),
+            PacketType::default(),
         );
         let forward_instant = None;
         packet_sender

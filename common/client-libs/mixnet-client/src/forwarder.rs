@@ -59,14 +59,14 @@ impl PacketForwarder {
                      trace!("Going to forward packet to {:?}", mix_packet.next_hop());
 
                     let next_hop = mix_packet.next_hop();
-                    let packet_mode = mix_packet.packet_mode();
+                    let packet_type = mix_packet.packet_type();
                     let packet = mix_packet.into_packet();
                     // we don't care about responses, we just want to fire packets
                     // as quickly as possible
 
                     if let Err(err) =
                         self.mixnet_client
-                            .send_without_response(next_hop, packet, packet_mode)
+                            .send_without_response(next_hop, packet, packet_type)
                     {
                         debug!("failed to forward the packet - {err}")
                     }

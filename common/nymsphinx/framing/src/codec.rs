@@ -3,9 +3,9 @@
 
 use crate::packet::{FramedNymPacket, Header};
 use bytes::{Buf, BufMut, BytesMut};
-use nym_sphinx_params::packet_modes::InvalidPacketMode;
 use nym_sphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
-use nym_sphinx_params::PacketMode;
+use nym_sphinx_params::packet_types::InvalidPacketType;
+use nym_sphinx_params::PacketType;
 use nym_sphinx_types::{NymPacket, NymPacketError};
 use std::io;
 use thiserror::Error;
@@ -17,7 +17,7 @@ pub enum NymCodecError {
     InvalidPacketSize(#[from] InvalidPacketSize),
 
     #[error("the packet mode information was malformed - {0}")]
-    InvalidPacketMode(#[from] InvalidPacketMode),
+    InvalidPacketType(#[from] InvalidPacketType),
 
     #[error("encountered an IO error - {0}")]
     IoError(#[from] io::Error),
@@ -39,17 +39,6 @@ pub struct NymCodec;
 impl Encoder<FramedNymPacket> for NymCodec {
     type Error = NymCodecError;
 
-    // fn encode_serde(&mut self, item: FramedNymPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
-    //     let encoded_size = bincode::serialized_size(&item).unwrap() as u32;
-    //     dst.put_u32(encoded_size);
-    //     dst.put(
-    //         bincode::serialize(&item)
-    //             .map_err(|_| NymCodecError::ToBytes)?
-    //             .as_slice(),
-    //     );
-    //     Ok(())
-    // }
-
     fn encode(&mut self, item: FramedNymPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
         item.header.encode(dst);
         let packet_bytes = item.packet.to_bytes()?;
@@ -61,39 +50,6 @@ impl Encoder<FramedNymPacket> for NymCodec {
 impl Decoder for NymCodec {
     type Item = FramedNymPacket;
     type Error = NymCodecError;
-
-    // fn decode_serde(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-    //     if src.is_empty() {
-    //         // can't do anything if we have no bytes, but let's reserve enough for the most
-    //         // conservative case, i.e. receiving an ack packet
-    //         src.reserve(Header::LEGACY_SIZE + PacketSize::AckPacket.size());
-    //         return Ok(None);
-    //     }
-
-    //     let next_size = if let Some(size) = src.get(..4) {
-    //         u32::from_be_bytes(size.try_into().unwrap()) as usize
-    //     } else {
-    //         0
-    //     };
-
-    //     if next_size == 0 {
-    //         return Ok(None);
-    //     }
-
-    //     if let Some(next_packet) = src.get(4..next_size + 4) {
-    //         match bincode::deserialize::<Self::Item>(next_packet) {
-    //             Ok(packet) => {
-    //                 src.advance(next_size + 4);
-    //                 return Ok(Some(packet));
-    //             }
-    //             Err(_) => {
-    //                 println!("Could not decode packet");
-    //                 return Ok(None);
-    //             }
-    //         }
-    //     }
-    //     Ok(None)
-    // }
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         if src.is_empty() {
@@ -125,9 +81,9 @@ impl Decoder for NymCodec {
         let packet = if let Some(slice) = packet_bytes.get(..) {
             // here it could be debatable whether stream is corrupt or not,
             // but let's go with the safer approach and assume it is.
-            match header.packet_mode {
-                PacketMode::Outfox => NymPacket::outfox_from_bytes(slice)?,
-                _ => NymPacket::sphinx_from_bytes(slice)?,
+            match header.packet_type {
+                PacketType::Outfox => NymPacket::outfox_from_bytes(slice)?,
+                PacketType::Mix => NymPacket::sphinx_from_bytes(slice)?,
             }
         } else {
             return Ok(None);
@@ -270,7 +226,7 @@ mod packet_encoding {
     mod decode_will_allocate_enough_bytes_for_next_call {
         use super::*;
         use nym_sphinx_params::packet_version::PacketVersion;
-        use nym_sphinx_params::PacketMode;
+        use nym_sphinx_params::PacketType;
 
         #[test]
         fn for_empty_bytes() {
@@ -394,7 +350,7 @@ mod packet_encoding {
                 let mut bytes = BytesMut::new();
                 NymCodec.encode(first_packet, &mut bytes).unwrap();
                 bytes.put_u8(packet_size as u8);
-                bytes.put_u8(PacketMode::default() as u8);
+                bytes.put_u8(PacketType::default() as u8);
                 assert!(NymCodec.decode(&mut bytes).unwrap().is_some());
 
                 assert!(bytes.capacity() >= Header::LEGACY_SIZE + packet_size.size())
@@ -422,7 +378,7 @@ mod packet_encoding {
                 NymCodec.encode(first_packet, &mut bytes).unwrap();
                 bytes.put_u8(PacketVersion::new_versioned(123).as_u8().unwrap());
                 bytes.put_u8(packet_size as u8);
-                bytes.put_u8(PacketMode::default() as u8);
+                bytes.put_u8(PacketType::default() as u8);
                 assert!(NymCodec.decode(&mut bytes).unwrap().is_some());
 
                 // assert!(bytes.capacity() >= Header::VERSIONED_SIZE + packet_size.size())

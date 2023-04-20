@@ -7,49 +7,40 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 #[error("{received} is not a valid packet mode tag")]
-pub struct InvalidPacketMode {
+pub struct InvalidPacketType {
     received: u8,
 }
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub enum PacketMode {
+pub enum PacketType {
     /// Represents 'normal' packet sent through the network that should be delayed by an appropriate
     /// value at each hop.
     #[default]
     Mix = 0,
 
-    /// Represents a VPN packet that should not be delayed and ideally cached pre-computed keys
-    /// should be used for unwrapping data. Note that it does not offer the same level of anonymity.
-    Vpn = 1,
-
     /// Abusing this to add Outfox support
     Outfox = 2,
 }
 
-impl PacketMode {
+impl PacketType {
     pub fn is_mix(self) -> bool {
-        self == PacketMode::Mix
-    }
-
-    pub fn is_old_vpn(self) -> bool {
-        self == PacketMode::Vpn
+        self == PacketType::Mix
     }
 
     pub fn is_outfox(self) -> bool {
-        self == PacketMode::Outfox
+        self == PacketType::Outfox
     }
 }
 
-impl TryFrom<u8> for PacketMode {
-    type Error = InvalidPacketMode;
+impl TryFrom<u8> for PacketType {
+    type Error = InvalidPacketType;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            _ if value == (PacketMode::Mix as u8) => Ok(Self::Mix),
-            _ if value == (PacketMode::Vpn as u8) => Ok(Self::Vpn),
-            _ if value == (PacketMode::Outfox as u8) => Ok(Self::Outfox),
-            v => Err(InvalidPacketMode { received: v }),
+            _ if value == (PacketType::Mix as u8) => Ok(Self::Mix),
+            _ if value == (PacketType::Outfox as u8) => Ok(Self::Outfox),
+            v => Err(InvalidPacketType { received: v }),
         }
     }
 }

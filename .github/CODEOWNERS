@@ -30,3 +30,6 @@
 
 # nym-wallet (rust)
 /nym-wallet/src-tauri/ @octol
+
+# documentation
+/documentation @mfahampshire

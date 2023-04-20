@@ -45,7 +45,9 @@ pub struct Args {
     pub force: bool,
 }
 
-pub async fn vesting_bond_gateway(client: SigningClient, args: Args, denom: &str) {
+pub async fn vesting_bond_gateway(args: Args, client: SigningClient) {
+    let denom = client.current_chain_details().mix_denom.base.as_str();
+
     info!("Starting vesting gateway bonding!");
 
     // if we're trying to bond less than 1 token

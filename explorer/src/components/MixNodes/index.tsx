@@ -49,7 +49,7 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     layer: item?.layer || '',
     profit_percentage: `${profitPercentage}%`,
     avg_uptime: `${toPercentIntegerString(item.node_performance.last_24h)}%`,
-    stake_saturation: uncappedSaturation.toFixed(2),
+    stake_saturation: Number(uncappedSaturation.toFixed(2)),
     operating_cost: `${unymToNym(item.operating_cost?.amount, 6)} NYM`,
     node_performance: `${toPercentIntegerString(item.node_performance.most_recent)}%`,
     blacklisted: item.blacklisted,

@@ -4,6 +4,7 @@ members = [
     "coconut-dkg",
     "coconut-test",
     "mixnet",
+    "mixnet-vesting-integration-tests",
     "multisig/cw3-flex-multisig",
     "multisig/cw4-group",
     "service-provider-directory",

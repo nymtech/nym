@@ -1,20 +1,8 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::storage;
-use crate::delegations::storage as delegations_storage;
-use crate::interval::storage as interval_storage;
-use crate::interval::storage::{push_new_epoch_event, push_new_interval_event};
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::mixnodes::helpers::get_mixnode_details_by_owner;
-use crate::mixnodes::storage as mixnodes_storage;
-use crate::rewards::helpers;
-use crate::rewards::helpers::update_and_save_last_rewarded;
-use crate::support::helpers::{
-    ensure_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_owner,
-    ensure_proxy_match, ensure_sent_by_vesting_contract, send_to_proxy_or_owner,
-};
 use cosmwasm_std::{wasm_execute, Addr, DepsMut, Env, MessageInfo, Response};
+
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_active_set_update_event, new_mix_rewarding_event,
@@ -29,6 +17,21 @@ use mixnet_contract_common::reward_params::{
 };
 use mixnet_contract_common::{Delegation, EpochState, MixId};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
+
+use crate::delegations::storage as delegations_storage;
+use crate::interval::storage as interval_storage;
+use crate::interval::storage::{push_new_epoch_event, push_new_interval_event};
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnodes::helpers::get_mixnode_details_by_owner;
+use crate::mixnodes::storage as mixnodes_storage;
+use crate::rewards::helpers;
+use crate::rewards::helpers::update_and_save_last_rewarded;
+use crate::support::helpers::{
+    ensure_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_owner,
+    ensure_proxy_match, ensure_sent_by_vesting_contract, send_to_proxy_or_owner,
+};
+
+use super::storage;
 
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut<'_>,
@@ -233,23 +236,22 @@ pub(crate) fn _try_withdraw_delegator_reward(
                 mix_id,
                 address: owner.into_string(),
                 proxy: proxy.map(Addr::into_string),
-            })
+            });
         }
         Some(delegation) => delegation,
     };
 
     // grab associated mixnode rewarding details
     let mix_rewarding =
-        storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?.ok_or(MixnetContractError::InconsistentState {
-            comment: "mixnode rewarding got removed from the storage whilst there's still an existing delegation"
-                .into(),
-        })?;
+        storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?.ok_or(MixnetContractError::inconsistent_state(
+            "mixnode rewarding got removed from the storage whilst there's still an existing delegation"
+        ))?;
 
     // see if the mixnode is not in the process of unbonding or whether it has already unbonded
     // (in that case the expected path of getting your tokens back is via undelegation)
     match mixnodes_storage::mixnode_bonds().may_load(deps.storage, mix_id)? {
         Some(mix_bond) if mix_bond.is_unbonding => {
-            return Err(MixnetContractError::MixnodeIsUnbonding { mix_id })
+            return Err(MixnetContractError::MixnodeIsUnbonding { mix_id });
         }
         None => return Err(MixnetContractError::MixnodeHasUnbonded { mix_id }),
         _ => (),
@@ -376,17 +378,17 @@ pub(crate) fn try_update_rewarding_params(
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
+    use cosmwasm_std::testing::mock_info;
+
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::support::tests::test_helpers;
-    use cosmwasm_std::testing::mock_info;
+
+    use super::*;
 
     #[cfg(test)]
     mod mixnode_rewarding {
-        use super::*;
-        use crate::interval::pending_events;
-        use crate::support::tests::test_helpers::{find_attribute, TestSetup};
         use cosmwasm_std::{Decimal, Uint128};
+
         use mixnet_contract_common::events::{
             MixnetEventType, BOND_NOT_FOUND_VALUE, DELEGATES_REWARD_KEY, NO_REWARD_REASON_KEY,
             OPERATOR_REWARD_KEY, PRIOR_DELEGATES_KEY, PRIOR_UNIT_REWARD_KEY,
@@ -395,10 +397,16 @@ pub mod tests {
         use mixnet_contract_common::helpers::compare_decimals;
         use mixnet_contract_common::{EpochStatus, RewardedSetNodeStatus};
 
+        use crate::interval::pending_events;
+        use crate::support::tests::test_helpers::{find_attribute, TestSetup};
+
+        use super::*;
+
         #[cfg(test)]
         mod epoch_state_is_correctly_updated {
-            use super::*;
             use mixnet_contract_common::EpochState;
+
+            use super::*;
 
             #[test]
             fn when_target_mixnode_unbonded() {
@@ -459,7 +467,7 @@ pub mod tests {
                 assert_eq!(
                     EpochState::Rewarding {
                         last_rewarded: mix_id_unbonded,
-                        final_node_id: mix_id_never_existed
+                        final_node_id: mix_id_never_existed,
                     },
                     interval_storage::current_epoch_status(test.deps().storage)
                         .unwrap()
@@ -477,7 +485,7 @@ pub mod tests {
                 assert_eq!(
                     EpochState::Rewarding {
                         last_rewarded: mix_id_unbonded_leftover,
-                        final_node_id: mix_id_never_existed
+                        final_node_id: mix_id_never_existed,
                     },
                     interval_storage::current_epoch_status(test.deps().storage)
                         .unwrap()
@@ -578,7 +586,7 @@ pub mod tests {
                         assert_eq!(
                             EpochState::Rewarding {
                                 last_rewarded: mix_id,
-                                final_node_id: 100
+                                final_node_id: 100,
                             },
                             current_state
                         )
@@ -1399,12 +1407,15 @@ pub mod tests {
 
     #[cfg(test)]
     mod withdrawing_delegator_reward {
-        use super::*;
+        use cosmwasm_std::{coin, BankMsg, CosmosMsg, Decimal, Uint128};
+
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
         use crate::interval::pending_events;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
-        use cosmwasm_std::{coin, BankMsg, CosmosMsg, Decimal, Uint128};
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        use super::*;
 
         #[test]
         fn can_only_be_done_if_delegation_exists() {
@@ -1772,7 +1783,7 @@ pub mod tests {
                 res,
                 MixnetContractError::SenderIsNotVestingContract {
                     received: illegal_proxy,
-                    vesting_contract
+                    vesting_contract,
                 }
             )
         }
@@ -1780,11 +1791,13 @@ pub mod tests {
 
     #[cfg(test)]
     mod withdrawing_operator_reward {
-        use super::*;
+        use cosmwasm_std::{coin, BankMsg, CosmosMsg, Uint128};
+
         use crate::interval::pending_events;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::TestSetup;
-        use cosmwasm_std::{coin, BankMsg, CosmosMsg, Uint128};
+
+        use super::*;
 
         #[test]
         fn can_only_be_done_if_bond_exists() {
@@ -1929,7 +1942,7 @@ pub mod tests {
                 res,
                 MixnetContractError::SenderIsNotVestingContract {
                     received: illegal_proxy,
-                    vesting_contract
+                    vesting_contract,
                 }
             )
         }
@@ -1937,9 +1950,11 @@ pub mod tests {
 
     #[cfg(test)]
     mod updating_active_set {
-        use super::*;
-        use crate::support::tests::test_helpers::TestSetup;
         use mixnet_contract_common::{EpochState, EpochStatus};
+
+        use crate::support::tests::test_helpers::TestSetup;
+
+        use super::*;
 
         #[test]
         fn cant_be_performed_if_epoch_transition_is_in_progress_unless_forced() {
@@ -2140,10 +2155,13 @@ pub mod tests {
 
     #[cfg(test)]
     mod updating_rewarding_params {
-        use super::*;
-        use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
         use cosmwasm_std::Decimal;
+
         use mixnet_contract_common::{EpochState, EpochStatus};
+
+        use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
+
+        use super::*;
 
         #[test]
         fn cant_be_performed_if_epoch_transition_is_in_progress_unless_forced() {

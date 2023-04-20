@@ -81,7 +81,7 @@ pub(crate) fn push_new_epoch_event(
     storage: &mut dyn Storage,
     env: &Env,
     event: PendingEpochEventKind,
-) -> StdResult<()> {
+) -> StdResult<EpochEventId> {
     // not included in non-test code as it messes with our return types as we expected `StdResult`
     // from all storage-related operations.
     // However, the callers MUST HAVE ensured the below invariant
@@ -90,14 +90,15 @@ pub(crate) fn push_new_epoch_event(
 
     let event_id = next_epoch_event_id_counter(storage)?;
     let event_data = event.attach_source_height(env.block.height);
-    PENDING_EPOCH_EVENTS.save(storage, event_id, &event_data)
+    PENDING_EPOCH_EVENTS.save(storage, event_id, &event_data)?;
+    Ok(event_id)
 }
 
 pub(crate) fn push_new_interval_event(
     storage: &mut dyn Storage,
     env: &Env,
     event: PendingIntervalEventKind,
-) -> StdResult<()> {
+) -> StdResult<IntervalEventId> {
     // not included in non-test code as it messes with our return types as we expected `StdResult`
     // from all storage-related operations.
     // However, the callers MUST HAVE ensured the below invariant
@@ -106,7 +107,8 @@ pub(crate) fn push_new_interval_event(
 
     let event_id = next_interval_event_id_counter(storage)?;
     let event_data = event.attach_source_height(env.block.height);
-    PENDING_INTERVAL_EVENTS.save(storage, event_id, &event_data)
+    PENDING_INTERVAL_EVENTS.save(storage, event_id, &event_data)?;
+    Ok(event_id)
 }
 
 pub(crate) fn update_rewarded_set(
@@ -168,8 +170,11 @@ pub(crate) fn initialise_storage(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::support::tests::fixtures;
+    use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::Order;
+    use rand_chacha::rand_core::RngCore;
 
     fn read_entire_set(storage: &mut dyn Storage) -> HashMap<MixId, RewardedSetNodeStatus> {
         REWARDED_SET
@@ -210,5 +215,63 @@ mod tests {
         // those no longer are in the rewarded set
         assert!(current_set.get(&7).is_none());
         assert!(current_set.get(&1).is_none());
+    }
+
+    #[test]
+    fn pushing_new_epoch_event_returns_its_id() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        for _ in 0..500 {
+            let dummy_action = PendingEpochEventKind::Undelegate {
+                owner: Addr::unchecked("foomp"),
+                mix_id: test.rng.next_u32(),
+                proxy: None,
+            };
+            let id = push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
+            let expected = EPOCH_EVENT_ID_COUNTER.load(test.deps().storage).unwrap();
+            assert_eq!(expected, id);
+        }
+
+        test.execute_all_pending_events();
+
+        for _ in 0..10 {
+            let dummy_action = PendingEpochEventKind::Undelegate {
+                owner: Addr::unchecked("foomp"),
+                mix_id: test.rng.next_u32(),
+                proxy: None,
+            };
+            let id = push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
+            let expected = EPOCH_EVENT_ID_COUNTER.load(test.deps().storage).unwrap();
+            assert_eq!(expected, id);
+        }
+    }
+
+    #[test]
+    fn pushing_new_interval_event_returns_its_id() {
+        let mut test = TestSetup::new();
+        let env = test.env();
+
+        for _ in 0..500 {
+            let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
+                mix_id: test.rng.next_u32(),
+                new_costs: fixtures::mix_node_cost_params_fixture(),
+            };
+            let id = push_new_interval_event(test.deps_mut().storage, &env, dummy_action).unwrap();
+            let expected = INTERVAL_EVENT_ID_COUNTER.load(test.deps().storage).unwrap();
+            assert_eq!(expected, id);
+        }
+
+        test.execute_all_pending_events();
+
+        for _ in 0..10 {
+            let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
+                mix_id: test.rng.next_u32(),
+                new_costs: fixtures::mix_node_cost_params_fixture(),
+            };
+            let id = push_new_interval_event(test.deps_mut().storage, &env, dummy_action).unwrap();
+            let expected = INTERVAL_EVENT_ID_COUNTER.load(test.deps().storage).unwrap();
+            assert_eq!(expected, id);
+        }
     }
 }

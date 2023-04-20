@@ -4,13 +4,17 @@
 use clap::{Args, Subcommand};
 
 pub mod bond_mixnode;
+pub mod decrease_pledge;
 pub mod families;
 pub mod keys;
 pub mod mixnode_bonding_sign_payload;
+pub mod pledge_more;
 pub mod rewards;
 pub mod settings;
 pub mod unbond_mixnode;
 pub mod vesting_bond_mixnode;
+pub mod vesting_decrease_pledge;
+pub mod vesting_pledge_more;
 pub mod vesting_unbond_mixnode;
 
 #[derive(Debug, Args)]
@@ -40,4 +44,12 @@ pub enum MixnetOperatorsMixnodeCommands {
     UnbondVesting(vesting_unbond_mixnode::Args),
     /// Create base58-encoded payload required for producing valid bonding signature.
     CreateMixnodeBondingSignPayload(mixnode_bonding_sign_payload::Args),
+    /// Pledge more
+    PledgeMore(pledge_more::Args),
+    /// Pledge more with locked tokens
+    PledgeMoreVesting(vesting_pledge_more::Args),
+    /// Decrease pledge
+    DecreasePledge(decrease_pledge::Args),
+    /// Decrease pledge with locked tokens
+    DecreasePledgeVesting(vesting_decrease_pledge::Args),
 }

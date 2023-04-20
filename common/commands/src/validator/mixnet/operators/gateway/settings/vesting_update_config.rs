@@ -26,7 +26,7 @@ pub struct Args {
     pub version: Option<String>,
 }
 
-pub async fn vesting_update_config(client: SigningClient, args: Args) {
+pub async fn vesting_update_config(args: Args, client: SigningClient) {
     info!("Update vesting gateway config!");
 
     let current_details = match client

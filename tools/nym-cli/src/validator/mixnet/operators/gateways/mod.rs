@@ -4,6 +4,8 @@
 use nym_cli_commands::context::{create_signing_client, ClientArgs};
 use nym_network_defaults::NymNetworkDetails;
 
+pub(crate) mod settings;
+
 pub(crate) async fn execute(
     global_args: ClientArgs,
     gateway: nym_cli_commands::validator::mixnet::operators::gateway::MixnetOperatorsGateway,
@@ -19,7 +21,16 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::mixnet::operators::gateway::MixnetOperatorsGatewayCommands::CreateGatewayBondingSignPayload(args) => {
             nym_cli_commands::validator::mixnet::operators::gateway::gateway_bonding_sign_payload::create_payload(args,create_signing_client(global_args, network_details)?).await
         }
-        _ => unreachable!(),
+        nym_cli_commands::validator::mixnet::operators::gateway::MixnetOperatorsGatewayCommands::Settings(settings) => {
+            settings::execute(global_args, settings, network_details).await?
+        }
+        nym_cli_commands::validator::mixnet::operators::gateway::MixnetOperatorsGatewayCommands::VestingBond(args) => {
+            nym_cli_commands::validator::mixnet::operators::gateway::vesting_bond_gateway::vesting_bond_gateway(args, create_signing_client(global_args, network_details)?).await
+        }
+        nym_cli_commands::validator::mixnet::operators::gateway::MixnetOperatorsGatewayCommands::VestingUnbond(_args) => {
+            nym_cli_commands::validator::mixnet::operators::gateway::vesting_unbond_gateway::vesting_unbond_gateway(create_signing_client(global_args, network_details)?).await
+
+        }
     }
     Ok(())
 }

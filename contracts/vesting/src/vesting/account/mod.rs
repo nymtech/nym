@@ -1,10 +1,10 @@
 use super::VestingPeriod;
 use crate::errors::ContractError;
 use crate::storage::{
-    count_subdelegations_for_mix, load_balance, load_bond_pledge, load_delegation_timestamps,
-    load_gateway_pledge, load_withdrawn, remove_bond_pledge, remove_delegation,
-    remove_gateway_pledge, save_account, save_balance, save_bond_pledge, save_gateway_pledge,
-    save_withdrawn, AccountStorageKey, BlockTimestampSecs, DELEGATIONS, KEY,
+    count_subdelegations_for_mix, decrease_bond_pledge, load_balance, load_bond_pledge,
+    load_delegation_timestamps, load_gateway_pledge, load_withdrawn, remove_bond_pledge,
+    remove_delegation, remove_gateway_pledge, save_account, save_balance, save_bond_pledge,
+    save_gateway_pledge, save_withdrawn, AccountStorageKey, BlockTimestampSecs, DELEGATIONS, KEY,
 };
 use crate::traits::VestingAccount;
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
@@ -245,6 +245,14 @@ impl Account {
 
     pub fn remove_mixnode_pledge(&self, storage: &mut dyn Storage) -> Result<(), ContractError> {
         remove_bond_pledge(self.storage_key(), storage)
+    }
+
+    pub fn decrease_mixnode_pledge(
+        &self,
+        amount: Coin,
+        storage: &mut dyn Storage,
+    ) -> Result<(), ContractError> {
+        decrease_bond_pledge(self.storage_key, amount, storage)
     }
 
     pub fn load_gateway_pledge(

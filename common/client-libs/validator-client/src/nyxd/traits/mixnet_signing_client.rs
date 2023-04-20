@@ -331,6 +331,38 @@ pub trait MixnetSigningClient {
         .await
     }
 
+    async fn decrease_pledge(
+        &self,
+        decrease_by: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::DecreasePledge {
+                decrease_by: decrease_by.into(),
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn decrease_pledge_on_behalf(
+        &self,
+        owner: AccountId,
+        decrease_by: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::DecreasePledgeOnBehalf {
+                owner: owner.to_string(),
+                decrease_by: decrease_by.into(),
+            },
+            vec![],
+        )
+        .await
+    }
+
     async fn unbond_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(fee, MixnetExecuteMsg::UnbondMixnode {}, vec![])
             .await

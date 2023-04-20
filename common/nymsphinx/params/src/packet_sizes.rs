@@ -3,7 +3,7 @@
 
 use crate::FRAG_ID_LEN;
 use nym_sphinx_types::header::HEADER_SIZE;
-use nym_sphinx_types::{OUTFOX_PACKET_OVERHEAD, PAYLOAD_OVERHEAD_SIZE};
+use nym_sphinx_types::{MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD, PAYLOAD_OVERHEAD_SIZE};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
@@ -195,12 +195,42 @@ impl PacketSize {
         }
     }
 
+    pub const fn header_size(&self) -> usize {
+        match self {
+            PacketSize::RegularPacket
+            | PacketSize::AckPacket
+            | PacketSize::ExtendedPacket8
+            | PacketSize::ExtendedPacket16
+            | PacketSize::ExtendedPacket32 => HEADER_SIZE,
+            PacketSize::OutfoxRegularPacket
+            | PacketSize::OutfoxAckPacket
+            | PacketSize::OutfoxExtendedPacket8
+            | PacketSize::OutfoxExtendedPacket16
+            | PacketSize::OutfoxExtendedPacket32 => MIX_PARAMS_LEN,
+        }
+    }
+
+    pub const fn payload_overhead(&self) -> usize {
+        match self {
+            PacketSize::RegularPacket
+            | PacketSize::AckPacket
+            | PacketSize::ExtendedPacket8
+            | PacketSize::ExtendedPacket16
+            | PacketSize::ExtendedPacket32 => PAYLOAD_OVERHEAD_SIZE,
+            PacketSize::OutfoxRegularPacket
+            | PacketSize::OutfoxAckPacket
+            | PacketSize::OutfoxExtendedPacket8
+            | PacketSize::OutfoxExtendedPacket16
+            | PacketSize::OutfoxExtendedPacket32 => OUTFOX_PACKET_OVERHEAD - MIX_PARAMS_LEN,
+        }
+    }
+
     pub const fn plaintext_size(self) -> usize {
-        self.size() - HEADER_SIZE - PAYLOAD_OVERHEAD_SIZE
+        self.size() - self.header_size() - self.payload_overhead()
     }
 
     pub const fn payload_size(self) -> usize {
-        self.size() - HEADER_SIZE
+        self.size() - self.header_size()
     }
 
     pub fn get_type(size: usize) -> Result<Self, InvalidPacketSize> {
@@ -214,6 +244,16 @@ impl PacketSize {
             Ok(PacketSize::ExtendedPacket16)
         } else if PacketSize::ExtendedPacket32.size() == size {
             Ok(PacketSize::ExtendedPacket32)
+        } else if PacketSize::OutfoxRegularPacket.size() == size {
+            Ok(PacketSize::OutfoxRegularPacket)
+        } else if PacketSize::OutfoxAckPacket.size() == size {
+            Ok(PacketSize::OutfoxAckPacket)
+        } else if PacketSize::OutfoxExtendedPacket8.size() == size {
+            Ok(PacketSize::OutfoxExtendedPacket8)
+        } else if PacketSize::OutfoxExtendedPacket16.size() == size {
+            Ok(PacketSize::OutfoxExtendedPacket16)
+        } else if PacketSize::OutfoxExtendedPacket32.size() == size {
+            Ok(PacketSize::OutfoxExtendedPacket32)
         } else {
             Err(InvalidPacketSize::UnknownPacketSize { received: size })
         }
@@ -243,8 +283,12 @@ impl PacketSize {
     }
 
     pub fn get_type_from_plaintext(plaintext_size: usize) -> Result<Self, InvalidPacketSize> {
-        let packet_size = plaintext_size + SPHINX_PACKET_OVERHEAD;
-        Self::get_type(packet_size)
+        let sphinx_packet_size = plaintext_size + SPHINX_PACKET_OVERHEAD;
+        let outfox_packet_size = plaintext_size + OUTFOX_PACKET_OVERHEAD;
+        match Self::get_type(sphinx_packet_size) {
+            Ok(t) => Ok(t),
+            Err(_) => Self::get_type(outfox_packet_size),
+        }
     }
 }
 

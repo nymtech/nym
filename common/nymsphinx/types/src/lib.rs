@@ -1,8 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use nym_outfox::{error::OutfoxError, packet::OutfoxPacket, packet::OUTFOX_PACKET_OVERHEAD};
+pub use nym_outfox::{format::MIX_PARAMS_LEN, packet::OUTFOX_PACKET_OVERHEAD};
 // re-exporting types and constants available in sphinx
+use nym_outfox::packet::OutfoxPacket;
 pub use sphinx_packet::{
     constants::{
         self, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
@@ -14,9 +15,10 @@ pub use sphinx_packet::{
     payload::{Payload, PAYLOAD_OVERHEAD_SIZE},
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
     surb::{SURBMaterial, SURB},
-    Error as SphinxError, ProcessedPacket, SphinxPacket,
+    Error as SphinxError, ProcessedPacket,
 };
-use std::fmt;
+use sphinx_packet::{SphinxPacket, SphinxPacketBuilder};
+use std::{array::TryFromSliceError, fmt};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -26,6 +28,9 @@ pub enum NymPacketError {
 
     #[error("Outfox error: {0}")]
     Outfox(#[from] nym_outfox::error::OutfoxError),
+
+    #[error("{0}")]
+    FromSlice(#[from] TryFromSliceError),
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -50,6 +55,39 @@ impl fmt::Debug for NymPacket {
 }
 
 impl NymPacket {
+    pub fn sphinx_build<M: AsRef<[u8]>>(
+        size: usize,
+        message: M,
+        route: &[Node],
+        destination: &Destination,
+        delays: &[Delay],
+    ) -> Result<NymPacket, NymPacketError> {
+        Ok(NymPacket::Sphinx(
+            SphinxPacketBuilder::new()
+                .with_payload_size(size)
+                .build_packet(message, route, destination, delays)?,
+        ))
+    }
+    pub fn sphinx_from_bytes(bytes: &[u8]) -> Result<NymPacket, NymPacketError> {
+        Ok(NymPacket::Sphinx(SphinxPacket::from_bytes(bytes)?))
+    }
+
+    pub fn outfox_build<M: AsRef<[u8]>>(
+        payload: M,
+        route: &[Node],
+        size: Option<usize>,
+    ) -> Result<NymPacket, NymPacketError> {
+        Ok(NymPacket::Outfox(OutfoxPacket::build(
+            payload,
+            route.try_into()?,
+            size,
+        )?))
+    }
+
+    pub fn outfox_from_bytes(bytes: &[u8]) -> Result<NymPacket, NymPacketError> {
+        Ok(NymPacket::Outfox(OutfoxPacket::try_from(bytes)?))
+    }
+
     pub fn len(&self) -> usize {
         match self {
             NymPacket::Sphinx(packet) => packet.len(),

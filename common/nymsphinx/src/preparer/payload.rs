@@ -6,7 +6,7 @@ use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_crypto::symmetric::stream_cipher::CipherKey;
-use nym_sphinx_acknowledgements::surb_ack::SurbAck;
+use nym_sphinx_acknowledgements::surb_ack::{SurbAck, SurbAckRecoveryError};
 use nym_sphinx_anonymous_replies::SurbEncryptionKey;
 use nym_sphinx_chunking::fragment::Fragment;
 use nym_sphinx_params::{
@@ -28,11 +28,11 @@ impl NymsphinxPayloadBuilder {
         self,
         packet_encryption_key: &CipherKey<C>,
         variant_data: impl IntoIterator<Item = u8>,
-    ) -> NymsphinxPayload
+    ) -> Result<NymsphinxPayload, SurbAckRecoveryError>
     where
         C: StreamCipher + KeyIvInit,
     {
-        let (_, surb_ack_bytes) = self.surb_ack.prepare_for_sending();
+        let (_, surb_ack_bytes) = self.surb_ack.prepare_for_sending()?;
 
         let mut fragment_data = self.fragment.into_bytes();
         stream_cipher::encrypt_in_place::<C>(
@@ -46,16 +46,19 @@ impl NymsphinxPayloadBuilder {
         // where variant-specific data is as follows:
         // for replies it would be the digest of the encryption key used
         // for 'regular' messages it would be the public component used in DH later used in the KDF
-        NymsphinxPayload(
+        Ok(NymsphinxPayload(
             surb_ack_bytes
                 .into_iter()
                 .chain(variant_data.into_iter())
                 .chain(fragment_data.into_iter())
                 .collect(),
-        )
+        ))
     }
 
-    pub fn build_reply(self, packet_encryption_key: &SurbEncryptionKey) -> NymsphinxPayload {
+    pub fn build_reply(
+        self,
+        packet_encryption_key: &SurbEncryptionKey,
+    ) -> Result<NymsphinxPayload, SurbAckRecoveryError> {
         let key_digest = packet_encryption_key.compute_digest();
         self.build::<ReplySurbEncryptionAlgorithm>(
             packet_encryption_key.inner(),
@@ -67,7 +70,7 @@ impl NymsphinxPayloadBuilder {
         self,
         rng: &mut R,
         recipient_encryption_key: &encryption::PublicKey,
-    ) -> NymsphinxPayload
+    ) -> Result<NymsphinxPayload, SurbAckRecoveryError>
     where
         R: RngCore + CryptoRng,
     {

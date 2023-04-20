@@ -283,7 +283,7 @@ where
         &self,
         mix_packet: MixPacket,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        let consumed_bandwidth = mix_packet.sphinx_packet().len() as i64;
+        let consumed_bandwidth = mix_packet.packet().len() as i64;
 
         let available_bandwidth = self.get_available_bandwidth().await?;
 

@@ -8,10 +8,10 @@ use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_framing::packet::FramedNymPacket;
-use nym_sphinx_params::{PacketMode, PacketSize};
+use nym_sphinx_params::{PacketSize, PacketType};
 use nym_sphinx_types::{
     Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, NymPacket, Payload,
-    PrivateKey, ProcessedPacket, SphinxPacket,
+    PrivateKey, ProcessedPacket,
 };
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -53,7 +53,7 @@ impl SphinxPacketProcessor {
         feature = "cpucycles",
         instrument(skip(self, packet), fields(cpucycles))
     )]
-    fn perform_initial_sphinx_packet_processing(
+    fn perform_initial_packet_processing(
         &self,
         packet: NymPacket,
     ) -> Result<ProcessedPacket, MixProcessingError> {
@@ -75,14 +75,9 @@ impl SphinxPacketProcessor {
         received: FramedNymPacket,
     ) -> Result<ProcessedPacket, MixProcessingError> {
         measure!({
-            let packet_mode = received.packet_mode();
             let packet = received.into_inner();
 
-            if packet_mode.is_old_vpn() {
-                return Err(MixProcessingError::ReceivedOldTypeVpnPacket);
-            }
-
-            self.perform_initial_sphinx_packet_processing(packet)
+            self.perform_initial_packet_processing(packet)
         })
     }
 
@@ -90,14 +85,14 @@ impl SphinxPacketProcessor {
     /// and packs all the data in a way that can be easily sent to the next hop.
     fn process_forward_hop(
         &self,
-        packet: SphinxPacket,
+        packet: NymPacket,
         forward_address: NodeAddressBytes,
         delay: SphinxDelay,
-        packet_mode: PacketMode,
+        packet_type: PacketType,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         let next_hop_address = NymNodeRoutingAddress::try_from(forward_address)?;
 
-        let mix_packet = MixPacket::new(next_hop_address, packet, packet_mode);
+        let mix_packet = MixPacket::new(next_hop_address, packet, packet_type);
         Ok(MixProcessingResult::ForwardHop(mix_packet, Some(delay)))
     }
 
@@ -124,7 +119,7 @@ impl SphinxPacketProcessor {
         &self,
         data: Vec<u8>,
         packet_size: PacketSize,
-        packet_mode: PacketMode,
+        packet_type: PacketType,
     ) -> Result<(Option<MixPacket>, Vec<u8>), MixProcessingError> {
         match packet_size {
             PacketSize::AckPacket | PacketSize::OutfoxAckPacket => {
@@ -142,7 +137,7 @@ impl SphinxPacketProcessor {
                 trace!("received a normal packet!");
                 let (ack_data, message) = self.split_hop_data_into_ack_and_message(data)?;
                 let (ack_first_hop, ack_packet) = SurbAck::try_recover_first_hop_packet(&ack_data)?;
-                let forward_ack = MixPacket::new(ack_first_hop, ack_packet, packet_mode);
+                let forward_ack = MixPacket::new(ack_first_hop, ack_packet, packet_type);
                 Ok((Some(forward_ack), message))
             }
         }
@@ -156,12 +151,12 @@ impl SphinxPacketProcessor {
         destination: DestinationAddressBytes,
         payload: Payload,
         packet_size: PacketSize,
-        packet_mode: PacketMode,
+        packet_type: PacketType,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         let packet_message = payload.recover_plaintext()?;
 
         let (forward_ack, message) =
-            self.split_into_ack_and_message(packet_message, packet_size, packet_mode)?;
+            self.split_into_ack_and_message(packet_message, packet_size, packet_type)?;
 
         Ok(MixProcessingResult::FinalHop(ProcessedFinalHop {
             destination,
@@ -176,16 +171,16 @@ impl SphinxPacketProcessor {
         &self,
         packet: ProcessedPacket,
         packet_size: PacketSize,
-        packet_mode: PacketMode,
+        packet_type: PacketType,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         match packet {
             ProcessedPacket::ForwardHop(packet, address, delay) => {
-                self.process_forward_hop(*packet, address, delay, packet_mode)
+                self.process_forward_hop(NymPacket::Sphinx(*packet), address, delay, packet_type)
             }
             // right now there's no use for the surb_id included in the header - probably it should get removed from the
             // sphinx all together?
             ProcessedPacket::FinalHop(destination, _, payload) => {
-                self.process_final_hop(destination, payload, packet_size, packet_mode)
+                self.process_final_hop(destination, payload, packet_size, packet_type)
             }
         }
     }
@@ -201,14 +196,14 @@ impl SphinxPacketProcessor {
         // explicit packet size will help to correctly parse final hop
         measure!({
             let packet_size = received.packet_size();
-            let packet_mode = received.packet_mode();
+            let packet_type = received.packet_type();
 
             // unwrap the sphinx packet and if possible and appropriate, cache keys
             let processed_packet = self.perform_initial_unwrapping(received)?;
 
             // for forward packets, extract next hop and set delay (but do NOT delay here)
             // for final packets, extract SURBAck
-            self.perform_final_processing(processed_packet, packet_size, packet_mode)
+            self.perform_final_processing(processed_packet, packet_size, packet_type)
         })
     }
 }

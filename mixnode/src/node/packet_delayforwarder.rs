@@ -5,7 +5,7 @@ use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
-use nym_sphinx::{forwarding::packet::MixPacket, NymPacket};
+use nym_sphinx::forwarding::packet::MixPacket;
 use std::io;
 use tokio::time::Instant;
 
@@ -58,14 +58,13 @@ where
 
     fn forward_packet(&mut self, packet: MixPacket) {
         let next_hop = packet.next_hop();
-        let packet_mode = packet.packet_mode();
-        let sphinx_packet = packet.into_sphinx_packet();
+        let packet_type = packet.packet_type();
+        let packet = packet.into_packet();
 
-        if let Err(err) = self.mixnet_client.send_without_response(
-            next_hop,
-            NymPacket::Sphinx(sphinx_packet),
-            packet_mode,
-        ) {
+        if let Err(err) = self
+            .mixnet_client
+            .send_without_response(next_hop, packet, packet_type)
+        {
             if err.kind() == io::ErrorKind::WouldBlock {
                 // we only know for sure if we dropped a packet if our sending queue was full
                 // in any other case the connection might still be re-established (or created for the first time)
@@ -135,20 +134,20 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
+    use nym_sphinx::NymPacket;
     use nym_task::TaskManager;
 
     use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
     use nym_sphinx_params::packet_sizes::PacketSize;
-    use nym_sphinx_params::PacketMode;
-    use nym_sphinx_types::builder::SphinxPacketBuilder;
+    use nym_sphinx_params::PacketType;
     use nym_sphinx_types::{
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
-        SphinxPacket, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
+        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
 
     #[derive(Default)]
     struct TestClient {
-        pub packets_sent: Arc<Mutex<Vec<(NymNodeRoutingAddress, NymPacket, PacketMode)>>>,
+        pub packets_sent: Arc<Mutex<Vec<(NymNodeRoutingAddress, NymPacket, PacketType)>>>,
     }
 
     impl nym_mixnet_client::SendWithoutResponse for TestClient {
@@ -156,17 +155,17 @@ mod tests {
             &mut self,
             address: NymNodeRoutingAddress,
             packet: NymPacket,
-            packet_mode: PacketMode,
+            packet_type: PacketType,
         ) -> io::Result<()> {
             self.packets_sent
                 .lock()
                 .unwrap()
-                .push((address, packet, packet_mode));
+                .push((address, packet, packet_type));
             Ok(())
         }
     }
 
-    fn make_valid_sphinx_packet(size: PacketSize) -> SphinxPacket {
+    fn make_valid_sphinx_packet(size: PacketSize) -> NymPacket {
         let (_, node1_pk) = crypto::keygen();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
@@ -193,9 +192,7 @@ mod tests {
             SphinxDelay::new_from_nanos(42),
             SphinxDelay::new_from_nanos(42),
         ];
-        SphinxPacketBuilder::new()
-            .with_payload_size(size.payload_size())
-            .build_packet(b"foomp", &route, &destination, &delays)
+        NymPacket::sphinx_build(size.payload_size(), b"foomp", &route, &destination, &delays)
             .unwrap()
     }
 
@@ -220,7 +217,7 @@ mod tests {
         let mix_packet = MixPacket::new(
             next_hop,
             make_valid_sphinx_packet(PacketSize::default()),
-            PacketMode::default(),
+            PacketType::default(),
         );
         let forward_instant = None;
         packet_sender

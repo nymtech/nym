@@ -7,7 +7,7 @@ use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
-use nym_sphinx_types::{delays, SURBMaterial, SphinxError, SphinxPacket, SURB};
+use nym_sphinx_types::{delays, NymPacket, SURBMaterial, SphinxError, SURB};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use serde::de::{Error as SerdeError, Visitor};
@@ -173,7 +173,7 @@ impl ReplySurb {
         self,
         message: M,
         packet_size: PacketSize,
-    ) -> Result<(SphinxPacket, NymNodeRoutingAddress), ReplySurbError> {
+    ) -> Result<(NymPacket, NymNodeRoutingAddress), ReplySurbError> {
         let message_bytes = message.as_ref();
         if message_bytes.len() != packet_size.plaintext_size() {
             return Err(ReplySurbError::UnpaddedMessageError);
@@ -187,6 +187,6 @@ impl ReplySurb {
 
         let first_hop_address = NymNodeRoutingAddress::try_from(first_hop).unwrap();
 
-        Ok((packet, first_hop_address))
+        Ok((NymPacket::Sphinx(packet), first_hop_address))
     }
 }

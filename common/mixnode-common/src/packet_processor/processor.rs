@@ -11,7 +11,7 @@ use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_params::{PacketMode, PacketSize};
 use nym_sphinx_types::{
     Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, NymPacket, Payload,
-    PrivateKey, ProcessedPacket, SphinxPacket,
+    PrivateKey, ProcessedPacket,
 };
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -90,7 +90,7 @@ impl SphinxPacketProcessor {
     /// and packs all the data in a way that can be easily sent to the next hop.
     fn process_forward_hop(
         &self,
-        packet: SphinxPacket,
+        packet: NymPacket,
         forward_address: NodeAddressBytes,
         delay: SphinxDelay,
         packet_mode: PacketMode,
@@ -180,7 +180,7 @@ impl SphinxPacketProcessor {
     ) -> Result<MixProcessingResult, MixProcessingError> {
         match packet {
             ProcessedPacket::ForwardHop(packet, address, delay) => {
-                self.process_forward_hop(*packet, address, delay, packet_mode)
+                self.process_forward_hop(NymPacket::Sphinx(*packet), address, delay, packet_mode)
             }
             // right now there's no use for the surb_id included in the header - probably it should get removed from the
             // sphinx all together?

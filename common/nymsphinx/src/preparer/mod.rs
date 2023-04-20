@@ -15,7 +15,7 @@ use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::builder::SphinxPacketBuilder;
-use nym_sphinx_types::{delays, Delay};
+use nym_sphinx_types::{delays, Delay, NymPacket};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
@@ -224,10 +224,12 @@ where
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
-        let sphinx_packet = SphinxPacketBuilder::new()
-            .with_payload_size(packet_size.payload_size())
-            .build_packet(packet_payload, &route, &destination, &delays)
-            .unwrap();
+        let sphinx_packet = NymPacket::Sphinx(
+            SphinxPacketBuilder::new()
+                .with_payload_size(packet_size.payload_size())
+                .build_packet(packet_payload, &route, &destination, &delays)
+                .unwrap(),
+        );
 
         // from the previously constructed route extract the first hop
         let first_hop_address =

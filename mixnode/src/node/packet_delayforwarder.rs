@@ -5,7 +5,7 @@ use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
-use nym_sphinx::{forwarding::packet::MixPacket, NymPacket};
+use nym_sphinx::forwarding::packet::MixPacket;
 use std::io;
 use tokio::time::Instant;
 
@@ -59,13 +59,12 @@ where
     fn forward_packet(&mut self, packet: MixPacket) {
         let next_hop = packet.next_hop();
         let packet_mode = packet.packet_mode();
-        let sphinx_packet = packet.into_sphinx_packet();
+        let packet = packet.into_packet();
 
-        if let Err(err) = self.mixnet_client.send_without_response(
-            next_hop,
-            NymPacket::Sphinx(sphinx_packet),
-            packet_mode,
-        ) {
+        if let Err(err) = self
+            .mixnet_client
+            .send_without_response(next_hop, packet, packet_mode)
+        {
             if err.kind() == io::ErrorKind::WouldBlock {
                 // we only know for sure if we dropped a packet if our sending queue was full
                 // in any other case the connection might still be re-established (or created for the first time)
@@ -135,6 +134,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
+    use nym_sphinx::NymPacket;
     use nym_task::TaskManager;
 
     use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
@@ -219,7 +219,7 @@ mod tests {
             NymNodeRoutingAddress::from(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 42));
         let mix_packet = MixPacket::new(
             next_hop,
-            make_valid_sphinx_packet(PacketSize::default()),
+            NymPacket::Sphinx(make_valid_sphinx_packet(PacketSize::default())),
             PacketMode::default(),
         );
         let forward_instant = None;

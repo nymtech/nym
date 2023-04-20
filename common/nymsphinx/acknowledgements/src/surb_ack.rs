@@ -10,11 +10,11 @@ use nym_sphinx_addressing::nodes::{
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nym_sphinx_types::builder::SphinxPacketBuilder;
-use nym_sphinx_types::SphinxError;
 use nym_sphinx_types::{
     delays::{self, Delay},
     SphinxPacket,
 };
+use nym_sphinx_types::{NymPacket, SphinxError};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
@@ -99,7 +99,7 @@ impl SurbAck {
     // partial reciprocal of `prepare_for_sending` performed by the gateway
     pub fn try_recover_first_hop_packet(
         b: &[u8],
-    ) -> Result<(NymNodeRoutingAddress, SphinxPacket), SurbAckRecoveryError> {
+    ) -> Result<(NymNodeRoutingAddress, NymPacket), SurbAckRecoveryError> {
         if b.len() != Self::len() {
             Err(SurbAckRecoveryError::InvalidPacketSize {
                 received: b.len(),
@@ -111,7 +111,7 @@ impl SurbAck {
             // TODO: this will be variable once/if we decide to introduce optimization described
             // in common/nymsphinx/chunking/src/lib.rs:available_plaintext_size()
             let address_offset = MAX_NODE_ADDRESS_UNPADDED_LEN;
-            let packet = SphinxPacket::from_bytes(&b[address_offset..])?;
+            let packet = NymPacket::Sphinx(SphinxPacket::from_bytes(&b[address_offset..])?);
 
             Ok((address, packet))
         }

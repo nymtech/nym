@@ -3,10 +3,15 @@ extern crate nym_outfox;
 #[cfg(test)]
 mod tests {
 
+    use std::iter::repeat_with;
+
+    pub fn randombytes(n: usize) -> Vec<u8> {
+        repeat_with(|| fastrand::u8(..)).take(n).collect()
+    }
+
     use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
     use curve25519_dalek::scalar::Scalar;
     use nym_outfox::packet::OutfoxPacket;
-    use nym_outfox::randombytes;
     use sphinx_packet::constants::NODE_ADDRESS_LENGTH;
     use sphinx_packet::crypto::PublicKey;
     use sphinx_packet::route::Node;

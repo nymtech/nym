@@ -19,6 +19,12 @@ nym-task = { path = "../../../common/task" }
 nym-topology = { path = "../../../common/topology" }
 nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
 nym-validator-client = { path = "../../../common/client-libs/validator-client", features = ["nyxd-client"] }
+nym-socks5-requests = { path = "../../../common/socks5/requests" }
+nym-service-providers-common = { path = "../../../service-providers/common" }
+bytecodec = "0.4.15"
+httpcodec = "0.2.3"
+bytes = "1"
+http = "0.2.9"
 
 futures = "0.3"
 log = { workspace = true }

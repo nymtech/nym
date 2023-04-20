@@ -564,6 +564,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"
 
 [[package]]
+name = "bytecodec"
+version = "0.4.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adf4c9d0bbf32eea58d7c0f812058138ee8edaf0f2802b6d03561b504729a325"
+dependencies = [
+ "byteorder",
+ "trackable 0.2.24",
+]
+
+[[package]]
 name = "byteorder"
 version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2471,6 +2481,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d897f394bad6a705d5f4104762e116a75639e470d80901eed05a860a95cb1904"
 
 [[package]]
+name = "httpcodec"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f49d64351430cabd543943b79d48aaf0bc95a41d9ccf5b8774c2cfd23422775"
+dependencies = [
+ "bytecodec",
+ "trackable 0.2.24",
+]
+
+[[package]]
 name = "httpdate"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4212,8 +4232,12 @@ name = "nym-sdk"
 version = "0.1.0"
 dependencies = [
  "bip39",
+ "bytecodec",
+ "bytes",
  "dotenvy",
  "futures",
+ "http",
+ "httpcodec",
  "log",
  "nym-bandwidth-controller",
  "nym-bin-common",
@@ -4223,7 +4247,9 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-requests",
  "nym-network-defaults",
+ "nym-service-providers-common",
  "nym-socks5-client-core",
+ "nym-socks5-requests",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
@@ -7479,6 +7505,35 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "trackable"
+version = "0.2.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b98abb9e7300b9ac902cc04920945a874c1973e08c310627cc4458c04b70dd32"
+dependencies = [
+ "trackable 1.2.0",
+ "trackable_derive",
+]
+
+[[package]]
+name = "trackable"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "017e2a1a93718e4e8386d037cfb8add78f1d690467f4350fb582f55af1203167"
+dependencies = [
+ "trackable_derive",
+]
+
+[[package]]
+name = "trackable_derive"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebeb235c5847e2f82cfe0f07eb971d1e5f6804b18dac2ae16349cc604380f82f"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]

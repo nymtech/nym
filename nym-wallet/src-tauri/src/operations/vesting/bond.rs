@@ -11,7 +11,7 @@ use crate::operations::helpers::{
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::transaction::TransactionExecuteResult;
-use nym_validator_client::nyxd::{Fee, VestingSigningClient};
+use nym_validator_client::nyxd::{Coin, Fee, VestingSigningClient};
 
 #[tauri::command]
 pub async fn vesting_bond_gateway(
@@ -119,6 +119,58 @@ pub async fn vesting_bond_mixnode(
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn vesting_update_pledge(
+    current_pledge: DecCoin,
+    new_pledge: DecCoin,
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let current_pledge_base = guard.attempt_convert_to_base_coin(current_pledge.clone())?;
+    let new_pledge_base = guard.attempt_convert_to_base_coin(new_pledge.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+
+    let res = if new_pledge_base.amount > current_pledge_base.amount {
+        let delta = Coin::new(
+            new_pledge_base.amount - current_pledge_base.amount,
+            current_pledge.denom,
+        );
+        log::info!(
+            ">>> Pledge more with locked tokens, additional pledge {}, fee = {:?}",
+            delta,
+            fee,
+        );
+        guard
+            .current_client()?
+            .nyxd
+            .vesting_pledge_more(delta, fee)
+            .await?
+    } else {
+        let delta = Coin::new(
+            current_pledge_base.amount - new_pledge_base.amount,
+            current_pledge.denom,
+        );
+        log::info!(
+            ">>> Decrease pledge with locked tokens, pledge decrease {}, fee = {:?}",
+            delta,
+            fee,
+        );
+        guard
+            .current_client()?
+            .nyxd
+            .vesting_decrease_pledge(delta, fee)
+            .await?
+    };
+
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)

@@ -15,7 +15,7 @@ use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::{MixNodeCostParams, MixNodeDetails};
 use nym_types::transaction::TransactionExecuteResult;
 use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
-use nym_validator_client::nyxd::Fee;
+use nym_validator_client::nyxd::{Coin, Fee};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -128,6 +128,50 @@ pub async fn bond_mixnode(
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn update_pledge(
+    current_pledge: DecCoin,
+    new_pledge: DecCoin,
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let current_pledge_base = guard.attempt_convert_to_base_coin(current_pledge.clone())?;
+    let new_pledge_base = guard.attempt_convert_to_base_coin(new_pledge.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+
+    let res = if new_pledge_base.amount > current_pledge_base.amount {
+        let delta = Coin::new(
+            new_pledge_base.amount - current_pledge_base.amount,
+            current_pledge.denom,
+        );
+        log::info!(
+            ">>> Pledge more, additional pledge {}, fee = {:?}",
+            delta,
+            fee,
+        );
+        guard.current_client()?.nyxd.pledge_more(delta, fee).await?
+    } else {
+        let delta = Coin::new(
+            current_pledge_base.amount - new_pledge_base.amount,
+            current_pledge.denom,
+        );
+        log::info!(">>> Decrease pledge by {}, fee = {:?}", delta, fee,);
+        guard
+            .current_client()?
+            .nyxd
+            .decrease_pledge(delta, fee)
+            .await?
+    };
+
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)

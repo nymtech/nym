@@ -173,7 +173,7 @@ mod tests {
         );
         let info = mock_info("requester", &[coin]);
 
-        let tx = deposit_funds(deps.as_mut(), env.clone(), info, data).unwrap();
+        let tx = deposit_funds(deps.as_mut(), env, info, data).unwrap();
 
         let events: Vec<_> = tx
             .events
@@ -246,13 +246,8 @@ mod tests {
 
         deps.querier
             .update_balance(env.contract.address.clone(), vec![funds.clone()]);
-        let err = release_funds(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(invalid_admin, &[]),
-            funds.clone(),
-        )
-        .unwrap_err();
+        let err =
+            release_funds(deps.as_mut(), env, mock_info(invalid_admin, &[]), funds).unwrap_err();
         assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
     }
 
@@ -294,7 +289,7 @@ mod tests {
         {
             assert_eq!(contract_addr, MULTISIG_CONTRACT);
             assert!(funds.is_empty());
-            let multisig_msg: MultisigExecuteMsg = from_binary(&msg).unwrap();
+            let multisig_msg: MultisigExecuteMsg = from_binary(msg).unwrap();
             if let MultisigExecuteMsg::Propose {
                 title: _,
                 description,
@@ -312,7 +307,7 @@ mod tests {
                 {
                     assert_eq!(*contract_addr, env.contract.address.into_string());
                     assert!(funds.is_empty());
-                    let release_funds_req: ExecuteMsg = from_binary(&msg).unwrap();
+                    let release_funds_req: ExecuteMsg = from_binary(msg).unwrap();
                     if let ExecuteMsg::ReleaseFunds { funds } = release_funds_req {
                         assert_eq!(funds, *data.funds());
                     } else {

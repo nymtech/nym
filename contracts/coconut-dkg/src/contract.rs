@@ -216,7 +216,7 @@ mod tests {
         };
         let info = mock_info("creator", &[]);
 
-        let res = instantiate(deps.as_mut(), env.clone(), info, msg);
+        let res = instantiate(deps.as_mut(), env, info, msg);
         assert!(res.is_ok())
     }
 
@@ -245,7 +245,7 @@ mod tests {
                         announce_address: "127.0.0.1:8000".to_string(),
                         resharing: false,
                     },
-                    &vec![],
+                    &[],
                 )
                 .unwrap();
             assert_eq!(parse_node_index(res), (idx + 1) as u64);
@@ -259,7 +259,7 @@ mod tests {
                         announce_address: "127.0.0.1:8000".to_string(),
                         resharing: false,
                     },
-                    &vec![],
+                    &[],
                 )
                 .unwrap_err();
             assert_eq!(ContractError::AlreadyADealer, err.downcast().unwrap());
@@ -269,13 +269,13 @@ mod tests {
         let err = app
             .execute_contract(
                 unauthorized_member,
-                coconut_dkg_contract_addr.clone(),
+                coconut_dkg_contract_addr,
                 &RegisterDealer {
                     bte_key_with_proof: "bte_key_with_proof".to_string(),
                     announce_address: "127.0.0.1:8000".to_string(),
                     resharing: false,
                 },
-                &vec![],
+                &[],
             )
             .unwrap_err();
         assert_eq!(ContractError::Unauthorized, err.downcast().unwrap());

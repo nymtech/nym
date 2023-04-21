@@ -131,8 +131,7 @@ pub(crate) mod tests {
             assert!(ret.is_ok());
             assert!(dealings.has(deps.as_mut().storage, &owner));
         }
-        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), true)
-            .unwrap_err();
+        let ret = try_commit_dealings(deps.as_mut(), info, dealing_bytes, true).unwrap_err();
         assert_eq!(
             ret,
             ContractError::AlreadyCommitted {

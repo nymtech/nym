@@ -105,7 +105,7 @@ fn dkg_proposal() {
             announce_address: "127.0.0.1:8000".to_string(),
             resharing: false,
         },
-        &vec![],
+        &[],
     )
     .unwrap();
 
@@ -115,7 +115,7 @@ fn dkg_proposal() {
             Addr::unchecked(OWNER),
             coconut_dkg_contract_addr.clone(),
             &AdvanceEpochState {},
-            &vec![],
+            &[],
         )
         .unwrap();
     }
@@ -132,7 +132,7 @@ fn dkg_proposal() {
             Addr::unchecked(MEMBER1),
             coconut_dkg_contract_addr.clone(),
             &msg,
-            &vec![],
+            &[],
         )
         .unwrap();
 
@@ -174,7 +174,7 @@ fn dkg_proposal() {
             proposal_id,
             vote: cw3::Vote::Yes,
         },
-        &vec![],
+        &[],
     )
     .unwrap();
 
@@ -184,16 +184,16 @@ fn dkg_proposal() {
             Addr::unchecked(OWNER),
             coconut_dkg_contract_addr.clone(),
             &AdvanceEpochState {},
-            &vec![],
+            &[],
         )
         .unwrap();
     }
 
     app.execute_contract(
         Addr::unchecked(MEMBER1),
-        multisig_contract_addr.clone(),
+        multisig_contract_addr,
         &Execute { proposal_id },
-        &vec![],
+        &[],
     )
     .unwrap();
 

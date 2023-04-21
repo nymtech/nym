@@ -780,7 +780,7 @@ mod tests {
         let err = app
             .execute_contract(
                 Addr::unchecked(TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string()),
-                flex_addr.clone(),
+                flex_addr,
                 &proposal_wrong_exp,
                 &[],
             )
@@ -856,12 +856,7 @@ mod tests {
 
         let proposer = TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string();
         let res = app
-            .execute_contract(
-                Addr::unchecked(&proposer),
-                flex_addr.clone(),
-                &proposal,
-                &[],
-            )
+            .execute_contract(Addr::unchecked(&proposer), flex_addr, &proposal, &[])
             .unwrap();
         assert_eq!(
             res.custom_attrs(1),

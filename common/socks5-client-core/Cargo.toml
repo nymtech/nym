@@ -16,6 +16,11 @@ tap = "1.0.1"
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
 
 nym-client-core = { path = "../client-core", features = ["fs-surb-storage"] }
+
+[target.'cfg(target_os = "android")'.dependencies.nym-client-core]
+path = "../client-core"
+features = []
+
 futures = "0.3"
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-config = { path = "../config" }

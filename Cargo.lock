@@ -3912,19 +3912,8 @@ name = "nym-socks5-client-core"
 version = "0.1.0"
 dependencies = [
  "dirs",
- "futures",
  "log",
- "nym-bandwidth-controller",
  "nym-client-core",
- "nym-config",
- "nym-credential-storage",
- "nym-network-defaults",
- "nym-service-providers-common",
- "nym-socks5-proxy-helpers",
- "nym-socks5-requests",
- "nym-sphinx",
- "nym-task",
- "nym-validator-client",
  "pin-project",
  "rand 0.7.3",
  "serde",
@@ -4319,6 +4308,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
+name = "openssl-src"
+version = "111.25.2+1.1.1t"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "320708a054ad9b3bf314688b5db87cf4d6683d64cfc835e2337924ae62bf4431"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4327,6 +4325,7 @@ dependencies = [
  "autocfg 1.1.0",
  "cc",
  "libc",
+ "openssl-src",
  "pkg-config",
  "vcpkg",
 ]

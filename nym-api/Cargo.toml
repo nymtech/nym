@@ -93,6 +93,11 @@ nym-validator-client = { path = "../common/client-libs/validator-client", featur
 ] }
 nym-bin-common = { path = "../common/bin-common" }
 
+[target.'cfg(target_os = "android")'.dependencies.reqwest]
+version = "0.11.11"
+features = ["json", "native-tls-vendored"]
+
+
 [features]
 no-reward = []
 generate-ts = ["ts-rs"]

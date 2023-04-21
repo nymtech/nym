@@ -54,7 +54,7 @@ features = ["time"]
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
 version = "0.14"
 
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
+[target."cfg(all(not(target_arch = \"wasm32\"),not(target_os = \"android\")))".dependencies.sqlx]
 version = "0.6.2"
 features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
 optional = true

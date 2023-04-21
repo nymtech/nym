@@ -63,4 +63,4 @@ jobs:
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --manifest-path contracts/Cargo.toml --workspace -- -D warnings
+          args: --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings

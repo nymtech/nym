@@ -21,7 +21,7 @@ use std::{io, time::Duration};
 
 #[derive(Debug, Error)]
 pub enum NyxdError {
-    #[error("No contract address is available to perform the call")]
+    #[error("No contract address is available to perform the call: {0}")]
     NoContractAddressAvailable(String),
 
     #[error(transparent)]

@@ -12,6 +12,24 @@ The `nym-sdk` crate is **not yet availiable via [crates.io](https://crates.io)**
 nym-sdk = { git = "https://github.com/nymtech/nym" }
 ```
 
+
+`tokio` crate is a pre-requisites.
+
+Cargo.toml example
+```toml
+[package]
+name = "rust"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nym-sdk = { git = "https://github.com/nymtech/nym" }
+tokio = { version = "1.27.0", features = ["full"] }
+```
+
+
 In order to generate the crate docs run `cargo doc --open` from `nym/sdk/rust/nym-sdk/`
 
 In the future the SDK will be made up of several components, each of which will allow developers to interact with different parts of Nym's infrastructure.

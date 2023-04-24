@@ -17,6 +17,7 @@ use nym_types::transaction::TransactionExecuteResult;
 use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
 use nym_validator_client::nyxd::{Coin, Fee};
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -145,28 +146,36 @@ pub async fn update_pledge(
     let new_pledge_base = guard.attempt_convert_to_base_coin(new_pledge.clone())?;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
 
-    let res = if new_pledge_base.amount > current_pledge_base.amount {
-        let delta = Coin::new(
-            new_pledge_base.amount - current_pledge_base.amount,
-            current_pledge.denom,
-        );
-        log::info!(
-            ">>> Pledge more, additional pledge {}, fee = {:?}",
-            delta,
-            fee,
-        );
-        guard.current_client()?.nyxd.pledge_more(delta, fee).await?
-    } else {
-        let delta = Coin::new(
-            current_pledge_base.amount - new_pledge_base.amount,
-            current_pledge.denom,
-        );
-        log::info!(">>> Decrease pledge by {}, fee = {:?}", delta, fee,);
-        guard
-            .current_client()?
-            .nyxd
-            .decrease_pledge(delta, fee)
-            .await?
+    let res = match new_pledge.amount.cmp(&current_pledge.amount) {
+        Ordering::Greater => {
+            let delta = Coin::new(
+                new_pledge_base.amount - current_pledge_base.amount,
+                current_pledge.denom,
+            );
+            log::info!(
+                ">>> Pledge more, calculated additional pledge {}, fee = {:?}",
+                delta,
+                fee,
+            );
+            guard.current_client()?.nyxd.pledge_more(delta, fee).await?
+        }
+        Ordering::Less => {
+            let delta = Coin::new(
+                current_pledge_base.amount - new_pledge_base.amount,
+                current_pledge.denom,
+            );
+            log::info!(
+                ">>> Decrease pledge, calculated decrease pledge {}, fee = {:?}",
+                delta,
+                fee,
+            );
+            guard
+                .current_client()?
+                .nyxd
+                .decrease_pledge(delta, fee)
+                .await?
+        }
+        Ordering::Equal => return Err(BackendError::WalletPledgeUpdateNoOp),
     };
 
     log::info!("<<< tx hash = {}", res.transaction_hash);

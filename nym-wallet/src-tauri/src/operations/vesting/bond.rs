@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crate::error::BackendError;
 use crate::nyxd_client;
 use crate::state::WalletState;
@@ -136,36 +138,40 @@ pub async fn vesting_update_pledge(
     let new_pledge_base = guard.attempt_convert_to_base_coin(new_pledge.clone())?;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
 
-    let res = if new_pledge_base.amount > current_pledge_base.amount {
-        let delta = Coin::new(
-            new_pledge_base.amount - current_pledge_base.amount,
-            current_pledge.denom,
-        );
-        log::info!(
-            ">>> Pledge more with locked tokens, additional pledge {}, fee = {:?}",
-            delta,
-            fee,
-        );
-        guard
-            .current_client()?
-            .nyxd
-            .vesting_pledge_more(delta, fee)
-            .await?
-    } else {
-        let delta = Coin::new(
-            current_pledge_base.amount - new_pledge_base.amount,
-            current_pledge.denom,
-        );
-        log::info!(
-            ">>> Decrease pledge with locked tokens, pledge decrease {}, fee = {:?}",
-            delta,
-            fee,
-        );
-        guard
-            .current_client()?
-            .nyxd
-            .vesting_decrease_pledge(delta, fee)
-            .await?
+    let res = match new_pledge.amount.cmp(&current_pledge.amount) {
+        Ordering::Greater => {
+            let delta = Coin::new(
+                new_pledge_base.amount - current_pledge_base.amount,
+                current_pledge.denom,
+            );
+            log::info!(
+                ">>> Pledge more with locked tokens, calculated additional pledge {}, fee = {:?}",
+                delta,
+                fee,
+            );
+            guard
+                .current_client()?
+                .nyxd
+                .vesting_pledge_more(delta, fee)
+                .await?
+        }
+        Ordering::Less => {
+            let delta = Coin::new(
+                current_pledge_base.amount - new_pledge_base.amount,
+                current_pledge.denom,
+            );
+            log::info!(
+                ">>> Decrease pledge with locked tokens, calculated decrease pledge {}, fee = {:?}",
+                delta,
+                fee,
+            );
+            guard
+                .current_client()?
+                .nyxd
+                .vesting_decrease_pledge(delta, fee)
+                .await?
+        }
+        Ordering::Equal => return Err(BackendError::WalletPledgeUpdateNoOp),
     };
 
     log::info!("<<< tx hash = {}", res.transaction_hash);

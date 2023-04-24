@@ -1,6 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::cmp::Ordering;
+
 use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
@@ -91,6 +93,51 @@ pub async fn simulate_pledge_more(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     simulate_mixnet_operation(ExecuteMsg::PledgeMore {}, Some(additional_pledge), &state).await
+}
+
+#[tauri::command]
+pub async fn simulate_update_pledge(
+    current_pledge: DecCoin,
+    new_pledge: DecCoin,
+    state: tauri::State<'_, WalletState>,
+) -> Result<FeeDetails, BackendError> {
+    let guard = state.read().await;
+
+    match new_pledge.amount.cmp(&current_pledge.amount) {
+        Ordering::Greater => {
+            let additional_pledge = DecCoin {
+                amount: new_pledge.amount - current_pledge.amount,
+                denom: current_pledge.denom,
+            };
+            log::info!(
+                ">>> Simulate pledge more, calculated additional pledge {}",
+                additional_pledge,
+            );
+            simulate_mixnet_operation(ExecuteMsg::PledgeMore {}, Some(additional_pledge), &state)
+                .await
+        }
+        Ordering::Less => {
+            let decrease_pledge = DecCoin {
+                amount: current_pledge.amount - new_pledge.amount,
+                denom: current_pledge.denom,
+            };
+            log::info!(
+                ">>> Simulate decrease pledge, calculated decrease pledge {}",
+                decrease_pledge,
+            );
+            simulate_mixnet_operation(
+                ExecuteMsg::DecreasePledge {
+                    decrease_by: guard
+                        .attempt_convert_to_base_coin(decrease_pledge.clone())?
+                        .into(),
+                },
+                Some(decrease_pledge),
+                &state,
+            )
+            .await
+        }
+        Ordering::Equal => Err(BackendError::WalletPledgeUpdateNoOp),
+    }
 }
 
 #[tauri::command]

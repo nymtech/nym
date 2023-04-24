@@ -3,7 +3,7 @@
 
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::message::NymMessage;
-use nym_sphinx::params::PacketSize;
+use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
 };
@@ -43,12 +43,13 @@ impl Chunker {
         message: Vec<u8>,
         topology: &NymTopology,
         packet_sender: Recipient,
+        packet_type: PacketType,
     ) -> Vec<MixPacket> {
         // I really dislike how we have to overwrite the parameter of the `MessagePreparer` on each run
         // but without some significant API changes in the `MessagePreparer` this was the easiest
         // way to being able to have variable sender address.
         self.message_preparer.set_sender_address(packet_sender);
-        self.prepare_packets(message, topology, packet_sender)
+        self.prepare_packets(message, topology, packet_sender, packet_type)
     }
 
     fn prepare_packets(
@@ -56,6 +57,7 @@ impl Chunker {
         message: Vec<u8>,
         topology: &NymTopology,
         packet_sender: Recipient,
+        packet_type: PacketType,
     ) -> Vec<MixPacket> {
         let ack_key: AckKey = AckKey::new(&mut self.rng);
 
@@ -68,7 +70,13 @@ impl Chunker {
             // don't bother with acks etc. for time being
             let prepared_fragment = self
                 .message_preparer
-                .prepare_chunk_for_sending(message_chunk, topology, &ack_key, &packet_sender)
+                .prepare_chunk_for_sending(
+                    message_chunk,
+                    topology,
+                    &ack_key,
+                    &packet_sender,
+                    packet_type,
+                )
                 .unwrap();
 
             mix_packets.push(prepared_fragment.mix_packet);

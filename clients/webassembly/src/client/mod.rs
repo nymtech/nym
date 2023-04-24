@@ -15,6 +15,7 @@ use nym_client_core::client::{inbound_messages::InputMessage, key_manager::KeyMa
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
 use rand::rngs::OsRng;
@@ -35,6 +36,7 @@ pub struct NymClient {
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
     _task_manager: TaskManager,
+    packet_type: Option<PacketType>,
 }
 
 #[wasm_bindgen]
@@ -52,6 +54,7 @@ pub struct NymClientBuilder {
     bandwidth_controller:
         Option<BandwidthController<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>,
     disabled_credentials: bool,
+    packet_type: Option<PacketType>,
 }
 
 #[wasm_bindgen]
@@ -66,6 +69,7 @@ impl NymClientBuilder {
             on_message,
             bandwidth_controller: None,
             disabled_credentials: true,
+            packet_type: None,
         }
     }
 
@@ -139,6 +143,7 @@ impl NymClientBuilder {
                 self_address,
                 client_input: Arc::new(client_input),
                 _task_manager: started_client.task_manager,
+                packet_type: self.packet_type,
             }))
         })
     }
@@ -190,7 +195,7 @@ impl NymClient {
         };
         let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_regular(recipient, message, lane);
+        let input_msg = InputMessage::new_regular(recipient, message, lane, self.packet_type);
         self.client_input.send_message(input_msg)
     }
 
@@ -219,7 +224,8 @@ impl NymClient {
         };
         let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
+        let input_msg =
+            InputMessage::new_anonymous(recipient, message, reply_surbs, lane, self.packet_type);
         self.client_input.send_message(input_msg)
     }
 
@@ -239,7 +245,7 @@ impl NymClient {
         };
         let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_reply(sender_tag, message, lane);
+        let input_msg = InputMessage::new_reply(sender_tag, message, lane, self.packet_type);
         self.client_input.send_message(input_msg)
     }
 }

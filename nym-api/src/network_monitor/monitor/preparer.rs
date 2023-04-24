@@ -11,6 +11,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_contract_common::{Addr, GatewayBond, Layer, MixId, MixNodeBond};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_sphinx::params::PacketType;
 use nym_topology::{gateway, mix, NymTopology};
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
@@ -170,6 +171,7 @@ impl PacketPreparer {
         packet: &TestPacket,
         topology: &NymTopology,
         packet_recipient: Recipient,
+        packet_type: PacketType,
     ) -> MixPacket {
         // this should be done only once. We can't really do it at construction time
         // as there's no sane Default for Recipient
@@ -180,6 +182,7 @@ impl PacketPreparer {
             packet.to_bytes(),
             topology,
             packet_recipient,
+            packet_type,
         );
         assert_eq!(
             mix_packets.len(),
@@ -368,12 +371,14 @@ impl PacketPreparer {
         &mut self,
         route: &TestRoute,
         num: usize,
+        packet_type: PacketType,
     ) -> GatewayPackets {
         let mut mix_packets = Vec::with_capacity(num);
         let test_packet = route.self_test_packet();
         let recipient = self.create_packet_sender(route.gateway());
         for _ in 0..num {
-            let mix_packet = self.wrap_test_packet(&test_packet, route.topology(), recipient);
+            let mix_packet =
+                self.wrap_test_packet(&test_packet, route.topology(), recipient, packet_type);
             mix_packets.push(mix_packet)
         }
 
@@ -428,6 +433,7 @@ impl PacketPreparer {
         &mut self,
         test_nonce: u64,
         test_routes: &[TestRoute],
+        packet_type: PacketType,
     ) -> PreparedPackets {
         // only test mixnodes that are rewarded, i.e. that will be rewarded in this interval.
         // (remember that "idle" nodes are still part of that set)
@@ -462,7 +468,8 @@ impl PacketPreparer {
                 let topology = test_route.substitute_mix(mixnode);
                 // produce n mix packets
                 for _ in 0..self.per_node_test_packets {
-                    let mix_packet = self.wrap_test_packet(&test_packet, &topology, recipient);
+                    let mix_packet =
+                        self.wrap_test_packet(&test_packet, &topology, recipient, packet_type);
                     mix_packets.push(mix_packet);
                 }
             }
@@ -482,7 +489,8 @@ impl PacketPreparer {
                 let topology = test_route.substitute_gateway(gateway);
                 // produce n mix packets
                 for _ in 0..self.per_node_test_packets {
-                    let mix_packet = self.wrap_test_packet(&test_packet, &topology, recipient);
+                    let mix_packet =
+                        self.wrap_test_packet(&test_packet, &topology, recipient, packet_type);
                     gateway_mix_packets.push(mix_packet);
                 }
 

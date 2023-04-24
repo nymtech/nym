@@ -5,6 +5,7 @@ use crate::message::{NymMessage, ACK_OVERHEAD};
 use crate::NymsphinxPayloadBuilder;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;
+use nym_outfox::packet::OutfoxPacket;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::clients::Recipient;
@@ -13,7 +14,7 @@ use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::builder::SphinxPacketBuilder;
 use nym_sphinx_types::{delays, Delay, NymPacket};
 use nym_topology::{NymTopology, NymTopologyError};
@@ -194,6 +195,7 @@ where
         topology: &NymTopology,
         ack_key: &AckKey,
         packet_recipient: &Recipient,
+        packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
         // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
         // could perform diffie-hellman with its own keys followed by a kdf to re-derive
@@ -232,12 +234,20 @@ where
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
-        let sphinx_packet = NymPacket::Sphinx(
-            SphinxPacketBuilder::new()
-                .with_payload_size(packet_size.payload_size())
-                .build_packet(packet_payload, &route, &destination, &delays)
-                .unwrap(),
-        );
+
+        let sphinx_packet = match packet_type {
+            PacketType::Mix => NymPacket::Sphinx(
+                SphinxPacketBuilder::new()
+                    .with_payload_size(packet_size.payload_size())
+                    .build_packet(packet_payload, &route, &destination, &delays)
+                    .unwrap(),
+            ),
+            PacketType::Outfox => NymPacket::Outfox(OutfoxPacket::build(
+                packet_payload,
+                route.as_slice().try_into()?,
+                Some(packet_size.payload_size()),
+            )?),
+        };
 
         // from the previously constructed route extract the first hop
         let first_hop_address =

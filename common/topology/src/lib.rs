@@ -8,6 +8,7 @@ use nym_mixnet_contract_common::GatewayBond;
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
 use rand::{CryptoRng, Rng};
+use std::array::TryFromSliceError;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
@@ -55,6 +56,12 @@ pub enum NymTopologyError {
     // We can't import SurbAckRecoveryError due to cyclic dependency, this is a bit dirty
     #[error("Could not build payload")]
     PayloadBuilder,
+
+    #[error("Outfox: {0}")]
+    Outfox(#[from] nym_sphinx_types::OutfoxError),
+
+    #[error("{0}")]
+    FromSlice(#[from] TryFromSliceError),
 }
 
 #[derive(Debug, Clone)]

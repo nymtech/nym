@@ -17,6 +17,7 @@ use nym_socks5_requests::{
     ConnectionId, RemoteAddress, Socks5ProtocolVersion, Socks5ProviderRequest, Socks5Request,
 };
 use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::params::PacketType;
 use nym_task::connections::{LaneQueueLengths, TransmissionLane};
 use nym_task::TaskClient;
 use pin_project::pin_project;
@@ -181,6 +182,7 @@ pub(crate) struct SocksClient {
     started_proxy: bool,
     lane_queue_lengths: LaneQueueLengths,
     shutdown_listener: TaskClient,
+    packet_type: Option<PacketType>,
 }
 
 impl Drop for SocksClient {
@@ -209,6 +211,7 @@ impl SocksClient {
         self_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
         mut shutdown_listener: TaskClient,
+        packet_type: Option<PacketType>,
     ) -> Self {
         // If this task fails and exits, we don't want to send shutdown signal
         shutdown_listener.mark_as_success();
@@ -229,6 +232,7 @@ impl SocksClient {
             started_proxy: false,
             lane_queue_lengths,
             shutdown_listener,
+            packet_type,
         }
     }
 
@@ -345,6 +349,7 @@ impl SocksClient {
             msg.into_bytes(),
             self.config.connection_start_surbs,
             TransmissionLane::ConnectionId(self.connection_id),
+            self.packet_type,
         );
         self.input_sender
             .send(input_message)
@@ -367,6 +372,7 @@ impl SocksClient {
             self.service_provider,
             msg.into_bytes(),
             TransmissionLane::ConnectionId(self.connection_id),
+            self.packet_type,
         );
         self.input_sender
             .send(input_message)
@@ -404,6 +410,7 @@ impl SocksClient {
         let request_version = self.config.request_version();
 
         let recipient = self.service_provider;
+        let packet_type = self.packet_type;
         let (stream, _) = ProxyRunner::new(
             stream,
             local_stream_remote,
@@ -432,9 +439,15 @@ impl SocksClient {
                     provider_message.into_bytes(),
                     per_request_surbs,
                     lane,
+                    packet_type,
                 )
             } else {
-                InputMessage::new_regular(recipient, provider_message.into_bytes(), lane)
+                InputMessage::new_regular(
+                    recipient,
+                    provider_message.into_bytes(),
+                    lane,
+                    packet_type,
+                )
             }
         })
         .await

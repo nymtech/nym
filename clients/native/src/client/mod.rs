@@ -16,6 +16,7 @@ use nym_client_core::client::received_buffer::{
 };
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::QueryNyxdClient;
@@ -119,6 +120,7 @@ impl SocketClient {
             self_address,
             shared_lane_queue_lengths,
             reply_controller_sender,
+            None,
         );
 
         websocket::Listener::new(config.get_listening_ip(), config.get_listening_port())
@@ -178,7 +180,10 @@ impl SocketClient {
         Ok(started_client.task_manager)
     }
 
-    pub async fn start_direct(self) -> Result<DirectClient, ClientError> {
+    pub async fn start_direct(
+        self,
+        packet_type: Option<PacketType>,
+    ) -> Result<DirectClient, ClientError> {
         if self.config.get_socket_type().is_websocket() {
             return Err(ClientError::InvalidSocketMode);
         }
@@ -224,6 +229,7 @@ impl SocketClient {
             reconstructed_receiver,
             address,
             shutdown_notifier: started_client.task_manager,
+            packet_type,
         })
     }
 }
@@ -237,6 +243,7 @@ pub struct DirectClient {
 
     // we need to keep reference to this guy otherwise things will start dropping
     shutdown_notifier: TaskManager,
+    packet_type: Option<PacketType>,
 }
 
 impl DirectClient {
@@ -257,7 +264,7 @@ impl DirectClient {
     /// well enough in local tests)
     pub async fn send_regular_message(&mut self, recipient: Recipient, message: Vec<u8>) {
         let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_regular(recipient, message, lane);
+        let input_msg = InputMessage::new_regular(recipient, message, lane, self.packet_type);
 
         self.client_input
             .input_sender
@@ -276,7 +283,8 @@ impl DirectClient {
         reply_surbs: u32,
     ) {
         let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
+        let input_msg =
+            InputMessage::new_anonymous(recipient, message, reply_surbs, lane, self.packet_type);
 
         self.client_input
             .input_sender
@@ -290,7 +298,7 @@ impl DirectClient {
     /// well enough in local tests)
     pub async fn send_reply(&mut self, recipient_tag: AnonymousSenderTag, message: Vec<u8>) {
         let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_reply(recipient_tag, message, lane);
+        let input_msg = InputMessage::new_reply(recipient_tag, message, lane, self.packet_type);
 
         self.client_input
             .input_sender

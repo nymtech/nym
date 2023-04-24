@@ -5,7 +5,7 @@ use crate::lion::MIN_MESSAGE_LEN;
 use chacha20::cipher::InvalidLength;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone)]
 pub enum OutfoxError {
     #[error("Lengths mismatch, expected: {expected}, got: {got}")]
     LenMismatch { expected: usize, got: usize },

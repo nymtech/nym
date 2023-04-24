@@ -7,6 +7,7 @@ use nym_service_providers_common::interface::RequestVersion;
 use nym_socks5_proxy_helpers::connection_controller::ConnectionReceiver;
 use nym_socks5_proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
 use nym_socks5_requests::{ConnectionId, RemoteAddress, Socks5Request};
+use nym_sphinx::params::PacketSize;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::TaskClient;
 use std::io;
@@ -42,6 +43,7 @@ impl Connection {
     pub(crate) async fn run_proxy(
         &mut self,
         remote_version: RequestVersion<Socks5Request>,
+        biggest_packet_size: PacketSize,
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
@@ -57,6 +59,9 @@ impl Connection {
             remote_source_address,
             mix_receiver,
             mix_sender,
+            // FIXME: this does NOT include overhead due to acks or chunking
+            // (so actual true plaintext is smaller)
+            biggest_packet_size.plaintext_size(),
             connection_id,
             Some(lane_queue_lengths),
             shutdown,

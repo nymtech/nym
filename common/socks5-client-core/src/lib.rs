@@ -7,15 +7,10 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
-#[cfg(target_os = "android")]
-use nym_client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
-#[cfg(not(target_os = "android"))]
-use nym_client_core::client::base_client::non_wasm_helpers;
 use nym_client_core::client::base_client::{
     BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
@@ -27,6 +22,12 @@ use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::nyxd::QueryNyxdClient;
 use nym_validator_client::Client;
 use std::error::Error;
+
+#[cfg(target_os = "android")]
+use nym_client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
+#[cfg(not(target_os = "android"))]
+use nym_client_core::client::base_client::non_wasm_helpers;
+use nym_client_core::config::DebugConfig;
 
 pub mod config;
 pub mod error;
@@ -102,6 +103,7 @@ impl NymClient {
 
     pub fn start_socks5_listener(
         socks5_config: &Socks5,
+        debug_config: DebugConfig,
         client_input: ClientInput,
         client_output: ClientOutput,
         client_status: ClientState,
@@ -126,6 +128,11 @@ impl NymClient {
             ..
         } = client_status;
 
+        let packet_size = debug_config
+            .traffic
+            .secondary_packet_size
+            .unwrap_or(debug_config.traffic.primary_packet_size);
+
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = SphinxSocksServer::new(
             socks5_config.get_listening_port(),
@@ -134,6 +141,7 @@ impl NymClient {
             self_address,
             shared_lane_queue_lengths,
             socks::client::Config::new(
+                packet_size,
                 socks5_config.get_provider_interface_version(),
                 socks5_config.get_socks5_protocol_version(),
                 socks5_config.get_send_anonymously(),
@@ -255,6 +263,7 @@ impl NymClient {
 
         Self::start_socks5_listener(
             self.config.get_socks5(),
+            *self.config.get_debug_settings(),
             client_input,
             client_output,
             client_state,

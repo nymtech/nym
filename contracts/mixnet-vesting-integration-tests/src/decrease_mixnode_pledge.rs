@@ -38,7 +38,7 @@ fn decrease_mixnode_pledge_from_vesting_account_with_minimum_pledge() {
             vesting_owner(),
             test.vesting_contract(),
             &create_msg,
-            &mix_coins(1000_000_000),
+            &mix_coins(1_000_000_000),
         )
         .unwrap();
 
@@ -136,7 +136,7 @@ fn decrease_mixnode_pledge_from_vesting_account_with_sufficient_pledge() {
             vesting_owner(),
             test.vesting_contract(),
             &create_msg,
-            &mix_coins(10000_000_000),
+            &mix_coins(10_000_000_000),
         )
         .unwrap();
 
@@ -186,7 +186,7 @@ fn decrease_mixnode_pledge_from_vesting_account_with_sufficient_pledge() {
         .wrap()
         .query_balance(test.vesting_contract(), MIX_DENOM)
         .unwrap();
-    assert_eq!(balance_before.amount.u128(), 9850_000_000);
+    assert_eq!(balance_before.amount.u128(), 9_850_000_000);
 
     let decrease_pledge_msg = VestingExecuteMsg::DecreasePledge {
         amount: mix_coin(50_000_000),
@@ -236,5 +236,5 @@ fn decrease_mixnode_pledge_from_vesting_account_with_sufficient_pledge() {
         .wrap()
         .query_balance(test.vesting_contract(), MIX_DENOM)
         .unwrap();
-    assert_eq!(balance_after.amount.u128(), 9900_000_000);
+    assert_eq!(balance_after.amount.u128(), 9_900_000_000);
 }

@@ -21,7 +21,7 @@ pub fn rewarding_validator() -> Addr {
 }
 
 pub fn mix_coins(amount: u128) -> Vec<Coin> {
-    coins(amount.into(), MIX_DENOM)
+    coins(amount, MIX_DENOM)
 }
 
 pub fn mix_coin(amount: u128) -> Coin {

@@ -837,7 +837,7 @@ pub mod tests {
         let sender = mock_info(owner, &[test.coin(1000)]);
         try_increase_pledge(test.deps_mut(), env.clone(), sender.clone()).unwrap();
 
-        let res = try_remove_mixnode(test.deps_mut(), env.clone(), sender.clone());
+        let res = try_remove_mixnode(test.deps_mut(), env.clone(), sender);
         assert_eq!(
             res,
             Err(MixnetContractError::PendingPledgeChange {
@@ -850,10 +850,10 @@ pub mod tests {
         test.add_dummy_mixnode(owner, Some(Uint128::new(10000000000)));
         let sender = mock_info(owner, &[]);
         let amount = test.coin(1000);
-        try_decrease_pledge(test.deps_mut(), env.clone(), sender.clone(), amount).unwrap();
+        try_decrease_pledge(test.deps_mut(), env.clone(), sender, amount).unwrap();
 
         let sender = mock_info(owner, &[test.coin(1000)]);
-        let res = try_remove_mixnode(test.deps_mut(), env.clone(), sender.clone());
+        let res = try_remove_mixnode(test.deps_mut(), env.clone(), sender);
         assert_eq!(
             res,
             Err(MixnetContractError::PendingPledgeChange {
@@ -1392,7 +1392,7 @@ pub mod tests {
             let sender = mock_info(owner, &[test.coin(1000)]);
             try_increase_pledge(test.deps_mut(), env.clone(), sender.clone()).unwrap();
 
-            let res = try_increase_pledge(test.deps_mut(), env.clone(), sender.clone());
+            let res = try_increase_pledge(test.deps_mut(), env.clone(), sender);
             assert_eq!(
                 res,
                 Err(MixnetContractError::PendingPledgeChange {
@@ -1405,10 +1405,10 @@ pub mod tests {
             test.add_dummy_mixnode(owner, Some(Uint128::new(10000000000)));
             let sender = mock_info(owner, &[]);
             let amount = test.coin(1000);
-            try_decrease_pledge(test.deps_mut(), env.clone(), sender.clone(), amount).unwrap();
+            try_decrease_pledge(test.deps_mut(), env.clone(), sender, amount).unwrap();
 
             let sender = mock_info(owner, &[test.coin(1000)]);
-            let res = try_increase_pledge(test.deps_mut(), env.clone(), sender.clone());
+            let res = try_increase_pledge(test.deps_mut(), env.clone(), sender);
             assert_eq!(
                 res,
                 Err(MixnetContractError::PendingPledgeChange {
@@ -1710,7 +1710,7 @@ pub mod tests {
                 })
             );
 
-            let res = try_decrease_pledge(test.deps_mut(), env.clone(), sender, valid_decrease);
+            let res = try_decrease_pledge(test.deps_mut(), env, sender, valid_decrease);
             assert!(res.is_ok())
         }
 
@@ -1726,7 +1726,7 @@ pub mod tests {
             test.add_dummy_mixnode(owner, Some(stake));
 
             let sender = mock_info(owner, &[]);
-            let res = try_decrease_pledge(test.deps_mut(), env, sender, decrease.clone());
+            let res = try_decrease_pledge(test.deps_mut(), env, sender, decrease);
             assert_eq!(res, Err(MixnetContractError::ZeroCoinAmount))
         }
 
@@ -1756,7 +1756,7 @@ pub mod tests {
             test.add_dummy_mixnode(owner, Some(stake));
             let sender = mock_info(owner, &[]);
             let amount = test.coin(1000);
-            try_decrease_pledge(test.deps_mut(), env.clone(), sender.clone(), amount).unwrap();
+            try_decrease_pledge(test.deps_mut(), env.clone(), sender, amount).unwrap();
 
             let sender = mock_info(owner, &[test.coin(1000)]);
             let res = try_decrease_pledge(test.deps_mut(), env.clone(), sender, decrease.clone());

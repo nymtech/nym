@@ -443,14 +443,10 @@ impl NRServiceProvider {
             return;
         }
 
-        // FIXME: use correct value from the config once https://github.com/nymtech/nym/pull/3217
-        // is merged
-        let packet_size = self
-            .config
-            .get_base()
-            .get_use_extended_packet_size()
-            .map(Into::into)
-            .unwrap_or(PacketSize::RegularPacket);
+        let traffic_config = self.config.get_base().get_debug_config().traffic;
+        let packet_size = traffic_config
+            .secondary_packet_size
+            .unwrap_or(traffic_config.primary_packet_size);
 
         let controller_sender_clone = self.controller_sender.clone();
         let mix_input_sender_clone = self.mix_input_sender.clone();

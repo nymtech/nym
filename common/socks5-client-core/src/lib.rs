@@ -7,15 +7,10 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
-#[cfg(target_os = "android")]
-use nym_client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
-#[cfg(not(target_os = "android"))]
-use nym_client_core::client::base_client::non_wasm_helpers;
 use nym_client_core::client::base_client::{
     BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
@@ -23,11 +18,16 @@ use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_credential_storage::storage::Storage;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::params::PacketSize;
 use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::nyxd::QueryNyxdClient;
 use nym_validator_client::Client;
 use std::error::Error;
+
+#[cfg(target_os = "android")]
+use nym_client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
+#[cfg(not(target_os = "android"))]
+use nym_client_core::client::base_client::non_wasm_helpers;
+use nym_client_core::config::DebugConfig;
 
 pub mod config;
 pub mod error;
@@ -103,6 +103,7 @@ impl NymClient {
 
     pub fn start_socks5_listener(
         socks5_config: &Socks5,
+        debug_config: DebugConfig,
         client_input: ClientInput,
         client_output: ClientOutput,
         client_status: ClientState,
@@ -127,13 +128,10 @@ impl NymClient {
             ..
         } = client_status;
 
-        // FIXME: use correct value from the config once https://github.com/nymtech/nym/pull/3217
-        // is merged
-        let packet_size = config
-            .get_base()
-            .get_use_extended_packet_size()
-            .map(Into::into)
-            .unwrap_or(PacketSize::RegularPacket);
+        let packet_size = debug_config
+            .traffic
+            .secondary_packet_size
+            .unwrap_or(debug_config.traffic.primary_packet_size);
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = SphinxSocksServer::new(
@@ -265,6 +263,7 @@ impl NymClient {
 
         Self::start_socks5_listener(
             self.config.get_socks5(),
+            *self.config.get_debug_settings(),
             client_input,
             client_output,
             client_state,

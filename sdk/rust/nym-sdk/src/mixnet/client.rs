@@ -506,6 +506,7 @@ where
             .socks5_config
             .clone()
             .ok_or(Error::Socks5Config { set: false })?;
+        let debug_config = self.config.debug_config;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let (socks5_status_tx, mut socks5_status_rx) = mpsc::channel(128);
 
@@ -515,6 +516,7 @@ where
 
         nym_socks5_client_core::NymClient::start_socks5_listener(
             &socks5_config,
+            debug_config,
             client_input,
             client_output,
             client_state.clone(),

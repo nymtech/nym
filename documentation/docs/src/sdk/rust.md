@@ -18,11 +18,13 @@ In the future the SDK will be made up of several components, each of which will 
 
 | Component | Functionality                                                                         | Released |
 | --------- | ------------------------------------------------------------------------------------- | -------- |
-| Mixnet    | Create / load clients & keypairs, subscribe to Mixnet events, send & receive messages | ✔️       |
-| Coconut   | Create & verify Coconut credentials                                                   | ❌       |
+| Mixnet    | Create / load clients & keypairs, subscribe to Mixnet events, send & receive messages | ✔️        |
+| Coconut   | Create & verify Coconut credentials                                                   | 🛠️       |
 | Validator | Sign & broadcast Nyx blockchain transactions, query the blockchain                    | ❌       |
 
 The `mixnet` component currently exposes the logic of two clients: the websocket client, and the socks client.
+
+The `coconut` component is currently being worked on. Right now it exposes logic allowing for the creation of coconut credentials on the Sandbox testnet.
 
 ## Websocket client examples
 > All the codeblocks below can be found in the `nym-sdk` [examples directory](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/rust/nym-sdk/examples) in the monorepo.
@@ -83,11 +85,21 @@ If you aren't running a Validator and Nym API, and just want to import a specifi
 ```
 
 ## Socks client example
-
 There is also the option to embed the [`socks5-client`](../clients/socks5-client.md) into your app code (`examples/socks5.rs`):
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/examples/socks5.rs}}
 ```
 
-> If you are looking at implementing Nym as a transport layer for a crypto wallet or desktop app, this is probably the best place to start.
+```admonish info
+If you are looking at implementing Nym as a transport layer for a crypto wallet or desktop app, this is probably the best place to start.
+```
+
+## Coconut credential generation
+The following code shows how you can use the SDK to create and use a [credential](../bandwidth-credentials.md) representing paid bandwidth on the Sandbox testnet.
+
+```rust,noplayground
+{{#include ../../../../sdk/rust/nym-sdk/examples/bandwidth.rs}}
+```
+
+You can read more about Coconut credentials (also referred to as `zk-Nym`) [here](../cococnut.md).

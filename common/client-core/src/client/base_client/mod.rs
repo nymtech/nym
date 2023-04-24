@@ -22,7 +22,7 @@ use crate::client::topology_control::{
 };
 use crate::config::{Config, DebugConfig, GatewayEndpointConfig};
 use crate::error::ClientCoreError;
-use crate::spawn_future;
+use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::{debug, info};
 use nym_bandwidth_controller::BandwidthController;
@@ -39,7 +39,6 @@ use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, 
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
 use std::sync::Arc;
-use std::time::Duration;
 use tap::TapFallible;
 use url::Url;
 
@@ -371,11 +370,12 @@ where
     // the current global view of topology
     async fn start_topology_refresher(
         topology_provider: Box<dyn TopologyProvider>,
-        refresh_rate: Duration,
+        topology_config: config::Topology,
         topology_accessor: TopologyAccessor,
-        shutdown: TaskClient,
+        mut shutdown: TaskClient,
     ) -> Result<(), ClientCoreError> {
-        let topology_refresher_config = TopologyRefresherConfig::new(refresh_rate);
+        let topology_refresher_config =
+            TopologyRefresherConfig::new(topology_config.topology_refresh_rate);
 
         let mut topology_refresher = TopologyRefresher::new(
             topology_refresher_config,
@@ -395,8 +395,17 @@ where
             return Err(ClientCoreError::InsufficientNetworkTopology(err));
         }
 
-        info!("Starting topology refresher...");
-        topology_refresher.start_with_shutdown(shutdown);
+        if topology_config.disable_refreshing {
+            // if we're not spawning the refresher, don't cause shutdown immediately
+            info!("The topology refesher is not going to be started");
+            shutdown.mark_as_success();
+        } else {
+            // don't spawn the refresher if we don't want to be refreshing the topology.
+            // only use the initial values obtained
+            info!("Starting topology refresher...");
+            topology_refresher.start_with_shutdown(shutdown);
+        }
+
         Ok(())
     }
 
@@ -500,7 +509,7 @@ where
         );
         Self::start_topology_refresher(
             topology_provider,
-            self.debug_config.topology.topology_refresh_rate,
+            self.debug_config.topology,
             shared_topology_accessor.clone(),
             task_manager.subscribe(),
         )

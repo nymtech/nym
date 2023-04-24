@@ -263,7 +263,7 @@ mod message_receiver {
     use nym_crypto::asymmetric::identity;
     use nym_mixnet_contract_common::Layer;
     use nym_topology::{gateway, mix, NymTopology};
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     // TODO: is it somehow maybe possible to move it to `topology` and have if conditionally
     // available to other modules?
@@ -271,7 +271,7 @@ mod message_receiver {
     /// tests requiring instance of topology.
     #[allow(dead_code)]
     fn topology_fixture() -> NymTopology {
-        let mut mixes = HashMap::new();
+        let mut mixes = BTreeMap::new();
         mixes.insert(
             1,
             vec![mix::Node {

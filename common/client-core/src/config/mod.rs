@@ -743,6 +743,11 @@ pub struct Topology {
     /// did not reach its destination.
     #[serde(with = "humantime_serde")]
     pub topology_resolution_timeout: Duration,
+
+    /// Specifies whether the client should not refresh the network topology after obtaining
+    /// the first valid instance.
+    /// Supersedes `topology_refresh_rate_ms`.
+    pub disable_refreshing: bool,
 }
 
 impl Default for Topology {
@@ -750,6 +755,7 @@ impl Default for Topology {
         Topology {
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
+            disable_refreshing: false,
         }
     }
 }

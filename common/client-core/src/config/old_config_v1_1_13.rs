@@ -142,6 +142,7 @@ impl From<OldDebugConfigV1_1_13> for DebugConfig {
             topology: Topology {
                 topology_refresh_rate: value.topology_refresh_rate,
                 topology_resolution_timeout: value.topology_resolution_timeout,
+                disable_refreshing: false,
             },
             reply_surbs: ReplySurbs {
                 minimum_reply_surb_storage_threshold: value.minimum_reply_surb_storage_threshold,

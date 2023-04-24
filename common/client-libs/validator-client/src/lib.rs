@@ -13,7 +13,8 @@ pub mod nyxd;
 pub mod signing;
 
 pub use crate::error::ValidatorClientError;
+pub use client::NymApiClient;
 pub use nym_api_requests::*;
 
 #[cfg(feature = "nyxd-client")]
-pub use client::{Client, CoconutApiClient, Config, NymApiClient};
+pub use client::{Client, CoconutApiClient, Config};

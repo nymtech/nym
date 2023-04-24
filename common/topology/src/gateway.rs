@@ -42,6 +42,26 @@ pub struct Node {
 }
 
 impl Node {
+    pub fn parse_host(raw: &str) -> Result<NetworkAddress, GatewayConversionError> {
+        raw.parse()
+            .map_err(|err| GatewayConversionError::InvalidAddress {
+                value: raw.to_owned(),
+                source: err,
+            })
+    }
+
+    pub fn extract_mix_host(
+        host: &NetworkAddress,
+        mix_port: u16,
+    ) -> Result<SocketAddr, GatewayConversionError> {
+        Ok(host.to_socket_addrs(mix_port).map_err(|err| {
+            GatewayConversionError::InvalidAddress {
+                value: host.to_string(),
+                source: err,
+            }
+        })?[0])
+    }
+
     pub fn identity(&self) -> &NodeIdentity {
         &self.identity_key
     }
@@ -81,23 +101,11 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
     type Error = GatewayConversionError;
 
     fn try_from(bond: &'a GatewayBond) -> Result<Self, Self::Error> {
-        let host: NetworkAddress =
-            bond.gateway
-                .host
-                .parse()
-                .map_err(|err| GatewayConversionError::InvalidAddress {
-                    value: bond.gateway.host.clone(),
-                    source: err,
-                })?;
+        let host = Self::parse_host(&bond.gateway.host)?;
 
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
-        let mix_host = host.to_socket_addrs(bond.gateway.mix_port).map_err(|err| {
-            GatewayConversionError::InvalidAddress {
-                value: bond.gateway.host.clone(),
-                source: err,
-            }
-        })?[0];
+        let mix_host = Self::extract_mix_host(&host, bond.gateway.mix_port)?;
 
         Ok(Node {
             owner: bond.owner.as_str().to_owned(),

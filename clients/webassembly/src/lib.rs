@@ -7,10 +7,18 @@ use wasm_bindgen::prelude::*;
 mod client;
 #[cfg(target_arch = "wasm32")]
 pub mod encoded_payload_helper;
+pub mod error;
 #[cfg(target_arch = "wasm32")]
 pub mod gateway_selector;
 #[cfg(target_arch = "wasm32")]
+pub mod tester;
+#[cfg(target_arch = "wasm32")]
+pub mod topology;
+#[cfg(target_arch = "wasm32")]
 pub mod validation;
+
+#[cfg(target_arch = "wasm32")]
+mod helpers;
 
 #[wasm_bindgen]
 pub fn set_panic_hook() {

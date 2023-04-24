@@ -121,7 +121,7 @@ where
 #[derive(Debug)]
 pub(crate) struct RealMessage {
     mix_packet: MixPacket,
-    fragment_id: FragmentIdentifier,
+    fragment_id: Option<FragmentIdentifier>,
     // TODO: add info about it being constructed with reply-surb
 }
 
@@ -129,7 +129,7 @@ impl From<PreparedFragment> for RealMessage {
     fn from(fragment: PreparedFragment) -> Self {
         RealMessage {
             mix_packet: fragment.mix_packet,
-            fragment_id: fragment.fragment_identifier,
+            fragment_id: Some(fragment.fragment_identifier),
         }
     }
 }
@@ -139,7 +139,7 @@ impl RealMessage {
         self.mix_packet.sphinx_packet().len()
     }
 
-    pub(crate) fn new(mix_packet: MixPacket, fragment_id: FragmentIdentifier) -> Self {
+    pub(crate) fn new(mix_packet: MixPacket, fragment_id: Option<FragmentIdentifier>) -> Self {
         RealMessage {
             mix_packet,
             fragment_id,
@@ -255,7 +255,7 @@ where
                 )
             }
             StreamMessage::Real(real_message) => {
-                (real_message.mix_packet, Some(real_message.fragment_id))
+                (real_message.mix_packet, real_message.fragment_id)
             }
         };
 

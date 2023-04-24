@@ -25,7 +25,7 @@ pub struct Config {
     /// ID specifies the human readable ID of this particular client.
     pub(crate) id: String,
 
-    pub(crate) nym_api_url: Url,
+    pub(crate) nym_api_url: Option<Url>,
 
     pub(crate) disabled_credentials_mode: bool,
 
@@ -46,9 +46,11 @@ impl Config {
     ) -> Self {
         Config {
             id,
-            nym_api_url: validator_server
-                .parse()
-                .expect("provided url was malformed"),
+            nym_api_url: Some(
+                validator_server
+                    .parse()
+                    .expect("provided url was malformed"),
+            ),
             disabled_credentials_mode: true,
             gateway_endpoint,
             debug: debug.map(Into::into).unwrap_or_default(),
@@ -229,6 +231,11 @@ pub struct Topology {
     /// path. This timeout determines waiting period until it is decided that the packet
     /// did not reach its destination.
     pub topology_resolution_timeout_ms: u64,
+
+    /// Specifies whether the client should not refresh the network topology after obtaining
+    /// the first valid instance.
+    /// Supersedes `topology_refresh_rate_ms`.
+    pub disable_refreshing: bool,
 }
 
 impl From<Topology> for ConfigTopology {
@@ -238,6 +245,7 @@ impl From<Topology> for ConfigTopology {
             topology_resolution_timeout: Duration::from_millis(
                 topology.topology_resolution_timeout_ms,
             ),
+            disable_refreshing: topology.disable_refreshing,
         }
     }
 }
@@ -247,6 +255,7 @@ impl From<ConfigTopology> for Topology {
         Topology {
             topology_refresh_rate_ms: topology.topology_refresh_rate.as_millis() as u64,
             topology_resolution_timeout_ms: topology.topology_resolution_timeout.as_millis() as u64,
+            disable_refreshing: topology.disable_refreshing,
         }
     }
 }

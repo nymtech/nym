@@ -181,10 +181,10 @@ fn main() {
             signatures::ed25519_signing_payload::generate_gateway_bonding_msg_payload,
             signatures::ed25519_signing_payload::vesting_generate_gateway_bonding_msg_payload,
             help::log::help_log_toggle_window,
-            app::create_main_window,
-            app::create_auth_window,
-            app::set_react_state,
-            app::get_react_state,
+            app::window::create_main_window,
+            app::window::create_auth_window,
+            app::react::set_react_state,
+            app::react::get_react_state,
         ])
         .menu(Menu::os_default(&context.package_info().name).add_default_app_submenus())
         .on_menu_event(|event| {

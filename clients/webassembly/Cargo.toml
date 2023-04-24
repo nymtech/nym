@@ -63,6 +63,15 @@ console_error_panic_hook = { version = "0.1", optional = true }
 # Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
 wee_alloc = { version = "0.4", optional = true }
 
+# TODO: verify those dependencies (mix-fetch)
+nym-socks5-requests = { path = "../../common/socks5/requests" }
+nym-service-providers-common = { path = "../../service-providers/common" }
+bytecodec = "0.4.15"
+httpcodec = "0.2.3"
+bytes = "1"
+http = "0.2.9"
+
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 

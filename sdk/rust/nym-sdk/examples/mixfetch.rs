@@ -6,11 +6,11 @@ use bytecodec::bytes::BytesEncoder;
 use bytecodec::bytes::RemainingBytesDecoder;
 use bytecodec::io::IoEncodeExt;
 use bytecodec::{DecodeExt, Encode};
-use bytes::BytesMut;
 use httpcodec::{BodyDecoder, ResponseDecoder};
 use httpcodec::{
     BodyEncoder, HeaderField, HttpVersion, Method, Request, RequestEncoder, RequestTarget,
 };
+use nym_ordered_buffer::OrderedMessage;
 
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::{IncludedSurbs, Recipient};
@@ -99,24 +99,20 @@ async fn main() {
     // Sleep to avoid weird packet ordering
     tokio::time::sleep(Duration::from_millis(1000u64)).await;
 
-    // TODO: why do we need to add these 8 bytes???
+    // Create an ordered message
+    let ordered_msg = OrderedMessage {
+        data: buf,
+        index: 0,
+    };
 
-    // Add 8 zero bytes (they seem to indicate something about keeping the tcp connection open)
-    // to the start of the data
-    let mut buf2 = BytesMut::new();
-    buf2.extend_from_slice(&[0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8]);
-
-    // Add the bytes of the HTTP GET request
-    buf2.extend_from_slice(buf.as_slice());
-
-    println!("socks5 with payload: {:?}", buf2);
+    let buf2 = ordered_msg.into_bytes();
+    println!("socks5 with payload: {:?}", &buf2);
 
     // Wrap is SOCKS5 send request
     let socks5_send = nym_socks5_requests::request::Socks5Request::new_send(
         Socks5ProtocolVersion::Legacy,
         conn_id,
-        buf2.to_vec(),
-        // buf,
+        buf2,
         false,
     );
 
@@ -141,27 +137,24 @@ async fn main() {
             if let Ok(res) = Socks5Response::try_from_bytes(msg.message.as_slice()) {
                 println!("️✅  Socks5Response: {:?}", res);
                 if let Socks5ResponseContent::NetworkData(data) = res.content {
+                    // data.data is really an OrderedMessage
+                    let response_ordered_message =
+                        OrderedMessage::try_from_bytes(data.data).unwrap();
+
                     println!(
                         "️🤖  Socks5ResponseContent::NetworkData: {}",
-                        String::from_utf8_lossy(&data.data)
+                        String::from_utf8_lossy(&response_ordered_message.data)
                     );
 
-                    // let mut decoder =
-                    //     ResponseDecoder::<BodyDecoder<RemainingBytesDecoder>>::default();
-                    // let response = decoder
-                    //     .decode_from_bytes(String::from_utf8_lossy(&data.data).as_bytes())
-                    //     .unwrap();
-
-                    // TODO: the first 8 bytes seem to be the TCP `is_closed` flag
-                    //       something upstream is not stripping them
-                    if data.data[7] == 0 {
-                        let resp = &data.data[8..];
-                        println!("️✅  resp: {:?}", resp);
+                    if !response_ordered_message.data.is_empty() {
+                        println!("️✅  resp: {:?}", response_ordered_message.data);
 
                         // let response = http::response::Response::try_parse(resp).unwrap();
                         let mut decoder =
                             ResponseDecoder::<BodyDecoder<RemainingBytesDecoder>>::default();
-                        let response = decoder.decode_from_bytes(resp).unwrap();
+                        let response = decoder
+                            .decode_from_bytes(response_ordered_message.data.as_ref())
+                            .unwrap();
 
                         println!("➡️   decoded: {:?}", response);
                         println!("🚀  decoded: {}", String::from_utf8_lossy(response.body()));

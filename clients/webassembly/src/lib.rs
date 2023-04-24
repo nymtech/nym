@@ -12,6 +12,8 @@ pub mod error;
 #[cfg(target_arch = "wasm32")]
 pub mod gateway_selector;
 #[cfg(target_arch = "wasm32")]
+pub mod mix_fetch;
+#[cfg(target_arch = "wasm32")]
 pub mod storage;
 #[cfg(target_arch = "wasm32")]
 pub mod tester;

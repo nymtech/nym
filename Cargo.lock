@@ -4459,6 +4459,7 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-requests",
  "nym-network-defaults",
+ "nym-ordered-buffer",
  "nym-service-providers-common",
  "nym-socks5-client-core",
  "nym-socks5-requests",

@@ -34,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
     // but I needed an easy way of sending to and receiving from the mixnet
     // and that was the most straightforward way of achieving it
     let mut client = MixnetClient::connect_new().await.unwrap();
-    let provider: Recipient = "AN8eLxYWFitCkMn92zim3PrPszxJZDYyFFKP7qnnAAew.8UAxL3LwQBis6WpM3GGXaqKGaVdnLCpGJWumHT6KNdTH@77TSuVU8d1oXKbPzjec2xh4i3Wj5WwUyy9Lr36sm8gZm".parse().unwrap();
+    let provider: Recipient = "8YF6f8x17j3fviBdU87EGD9g9MAgn9DARxunwLEVM7Bm.4ydfpjbTjCmzj58hWdQjxU2gT6CRVnTbnKajr2hAGBBM@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW".parse().unwrap();
 
     // generic service provider request, so we don't even need to care it's to the socks5 provider
     let request_health = ControlRequest::Health;

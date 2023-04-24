@@ -7,27 +7,27 @@ import { DecCoin } from '@nymproject/types';
 import { TPoolOption } from 'src/components/TokenPoolSelector';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { validateAmount } from 'src/utils';
-import { simulateBondMore, simulateVestingBondMore } from 'src/requests';
-import { TBondMoreArgs } from 'src/types';
+import { decCoinToDisplay, validateAmount } from 'src/utils';
+import { simulateUpdateBond, simulateVestingUpdateBond } from 'src/requests';
+import { TSimulateUpdateBondArgs, TUpdateBondArgs } from 'src/types';
 import { TBondedMixnode } from 'src/context';
 
-export const BondMoreModal = ({
+export const UpdateBondAmountModal = ({
   node,
   userBalance,
-  onBondMore,
+  onUpdateBond,
   onClose,
   onError,
 }: {
   node: TBondedMixnode;
   userBalance?: string;
-  onBondMore: (data: TBondMoreArgs, tokenPool: TPoolOption) => Promise<void>;
+  onUpdateBond: (data: TUpdateBondArgs, tokenPool: TPoolOption) => Promise<void>;
   onClose: () => void;
   onError: (e: string) => void;
 }) => {
-  const { bond: currentBond, proxy } = node;
+  const { bond: currentBond, proxy, stakeSaturation, uncappedStakeSaturation } = node;
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
-  const [additionalBond, setAdditionalBond] = useState<DecCoin>({ amount: '0', denom: currentBond.denom });
+  const [newBond, setNewBond] = useState<DecCoin>({ amount: '0', denom: currentBond.denom });
   const [errorAmount, setErrorAmount] = useState(false);
 
   useEffect(() => {
@@ -37,13 +37,18 @@ export const BondMoreModal = ({
   }, [feeError]);
 
   const handleConfirm = async () => {
-    const data = { additionalPledge: additionalBond };
     const tokenPool = proxy ? 'locked' : 'balance';
-    await onBondMore(data, tokenPool);
+    await onUpdateBond(
+      {
+        currentPledge: currentBond,
+        newPledge: newBond,
+      },
+      tokenPool,
+    );
   };
 
   const handleAmountChanged = async (value: DecCoin) => {
-    setAdditionalBond(value);
+    setNewBond(value);
     const { amount } = value;
 
     if (!amount) {
@@ -60,32 +65,43 @@ export const BondMoreModal = ({
 
   const handleOnOk = async () => {
     if (!proxy) {
-      await getFee<TBondMoreArgs>(simulateBondMore, { additionalPledge: additionalBond });
+      await getFee<TSimulateUpdateBondArgs>(simulateUpdateBond, {
+        currentPledge: currentBond,
+        newPledge: newBond,
+      });
     } else {
-      await getFee<TBondMoreArgs>(simulateVestingBondMore, { additionalPledge: additionalBond });
+      await getFee<TSimulateUpdateBondArgs>(simulateVestingUpdateBond, {
+        currentPledge: currentBond,
+        newPledge: newBond,
+      });
     }
+  };
+
+  const newBondToDisplay = () => {
+    const coin = decCoinToDisplay(newBond);
+    return `${coin.amount} ${coin.denom}`;
   };
 
   if (fee)
     return (
       <ConfirmTx
         open
-        header="Bond more details"
+        header="Change bond details"
         fee={fee}
         onClose={onClose}
         onPrev={resetFeeState}
         onConfirm={handleConfirm}
       >
-        <ModalListItem label="Current bond" value={`${currentBond.amount} ${currentBond.denom}`} divider />
-        <ModalListItem label="Additional bond" value={`${additionalBond?.amount} ${additionalBond?.denom}`} divider />
+        <ModalListItem label="New bond details" value={newBondToDisplay()} divider />
+        <ModalListItem label="Change bond details" value={`${currentBond.amount} ${currentBond.denom}`} divider />
       </ConfirmTx>
     );
 
   return (
     <SimpleModal
       open
-      header="Bond more"
-      subHeader="Bond more tokens on your node and receive more rewards"
+      header="Change bond amount"
+      subHeader="Add or reduce amount of tokens on your node"
       okLabel="Next"
       onOk={handleOnOk}
       okDisabled={errorAmount}
@@ -95,7 +111,7 @@ export const BondMoreModal = ({
         <Box display="flex" gap={1}>
           <CurrencyFormField
             autoFocus
-            label="Bond amount"
+            label="New bond amount"
             denom={currentBond.denom}
             onChanged={(value) => {
               handleAmountChanged(value);
@@ -106,8 +122,18 @@ export const BondMoreModal = ({
         </Box>
 
         <Box>
-          <ModalListItem label="Account balance" value={userBalance?.toUpperCase() || '-'} divider />
-          <ModalListItem label="Current bond" value={`${currentBond.amount} ${currentBond.denom}`} divider />
+          <ModalListItem fontWeight={600} label="Account balance" value={userBalance?.toUpperCase() || '-'} divider />
+          <ModalListItem label="Current bond amount" value={`${currentBond.amount} ${currentBond.denom}`} divider />
+          {uncappedStakeSaturation ? (
+            <ModalListItem
+              label="Node saturation"
+              value={`${uncappedStakeSaturation}%`}
+              sxValue={{ color: 'error.main' }}
+              divider
+            />
+          ) : (
+            <ModalListItem label="Node saturation" value={stakeSaturation} divider />
+          )}
           <ModalListItem label="Est. fee for this operation will be calculated in the next page" value="" divider />
         </Box>
       </Stack>

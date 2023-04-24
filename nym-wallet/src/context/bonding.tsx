@@ -6,6 +6,7 @@ import {
   TransactionExecuteResult,
   decimalToPercentage,
   SelectionChance,
+  decimalToFloatApproximation,
 } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Big from 'big.js';
@@ -17,7 +18,7 @@ import {
   TBondGatewaySignatureArgs,
   TBondMixNodeArgs,
   TBondMixnodeSignatureArgs,
-  TBondMoreArgs,
+  TUpdateBondArgs,
 } from 'src/types';
 import { Console } from 'src/utils/console';
 import {
@@ -28,8 +29,6 @@ import {
   getMixnodeBondDetails,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
-  bondMore as bondMoreRequest,
-  vestingBondMore,
   vestingBondGateway,
   vestingBondMixNode,
   vestingUnbondGateway,
@@ -50,6 +49,8 @@ import {
   generateMixnodeMsgPayload as generateMixnodeMsgPayloadReq,
   vestingGenerateGatewayMsgPayload as vestingGenerateGatewayMsgPayloadReq,
   generateGatewayMsgPayload as generateGatewayMsgPayloadReq,
+  updateBond as updateBondReq,
+  vestingUpdateBond as vestingUpdateBondReq,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
@@ -69,6 +70,7 @@ export type TBondedMixnode = {
   stake: DecCoin;
   bond: DecCoin;
   stakeSaturation: string;
+  uncappedStakeSaturation?: number;
   profitMargin: string;
   operatorRewards?: DecCoin;
   delegators: number;
@@ -117,7 +119,7 @@ export type TBondingContext = {
   bondMixnode: (data: TBondMixNodeArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  bondMore: (data: TBondMoreArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
+  updateBondAmount: (data: TUpdateBondArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
@@ -138,7 +140,7 @@ export const BondingContext = createContext<TBondingContext>({
   unbond: async () => {
     throw new Error('Not implemented');
   },
-  bondMore: async () => {
+  updateBondAmount: async () => {
     throw new Error('Not implemented');
   },
   redeemRewards: async () => {
@@ -189,6 +191,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       stakeSaturation: string;
       estimatedRewards?: DecCoin;
       uptime: number;
+      uncappedSaturation?: number;
     } = {
       status: 'not_found',
       stakeSaturation: '0',
@@ -207,6 +210,11 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     try {
       const stakeSaturationResponse = await getMixnodeStakeSaturation(mixId);
       additionalDetails.stakeSaturation = decimalToPercentage(stakeSaturationResponse.saturation);
+
+      const rawUncappedSaturation = decimalToFloatApproximation(stakeSaturationResponse.uncapped_saturation);
+      if (rawUncappedSaturation && rawUncappedSaturation > 1) {
+        additionalDetails.uncappedSaturation = Math.round(rawUncappedSaturation * 100);
+      }
     } catch (e) {
       Console.log('getMixnodeStakeSaturation fails', e);
     }
@@ -298,7 +306,13 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
             bond_information: { mix_id },
           } = data;
 
-          const { status, stakeSaturation, estimatedRewards, uptime } = await getAdditionalMixnodeDetails(mix_id);
+          const {
+            status,
+            stakeSaturation,
+            uncappedSaturation: uncappedStakeSaturation,
+            estimatedRewards,
+            uptime,
+          } = await getAdditionalMixnodeDetails(mix_id);
           const setProbabilities = await getSetProbabilities(mix_id);
           const nodeDescription = await getNodeDescription(
             bond_information.mix_node.host,
@@ -322,6 +336,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
             uptime,
             status,
             stakeSaturation,
+            uncappedStakeSaturation,
             operatorCost: decCoinToDisplay(rewarding_details.cost_params.interval_operating_cost),
             host: bond_information.mix_node.host.replace(/\s/g, ''),
             routingScore,
@@ -477,16 +492,16 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return tx;
   };
 
-  const bondMore = async (data: TBondMoreArgs, tokenPool: TokenPool) => {
+  const updateBondAmount = async (data: TUpdateBondArgs, tokenPool: TokenPool) => {
     let tx: TransactionExecuteResult | undefined;
     setIsLoading(true);
     try {
       if (tokenPool === 'balance') {
-        tx = await bondMoreRequest(data);
+        tx = await updateBondReq(data);
         await userBalance.fetchBalance();
       }
       if (tokenPool === 'locked') {
-        tx = await vestingBondMore(data);
+        tx = await vestingUpdateBondReq(data);
         await userBalance.fetchTokenAllocation();
       }
 
@@ -547,7 +562,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       updateMixnode,
       refresh,
       redeemRewards,
-      bondMore,
+      updateBondAmount,
       checkOwnership,
       generateMixnodeMsgPayload,
       generateGatewayMsgPayload,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use aes_gcm::aead::{Aead, Nonce};
-use aes_gcm::{AeadInPlace, Key, KeyInit, KeySizeUser};
+use aes_gcm::{AeadCore, AeadInPlace, Key, KeyInit, KeySizeUser};
 use rand::{thread_rng, CryptoRng, Fill, RngCore};
 use serde::{Deserialize, Serialize};
 use serde_helpers::{argon2_algorithm_helper, argon2_params_helper, argon2_version_helper};
@@ -91,9 +91,9 @@ impl KdfInfo {
                 passphrase,
                 kdf_salt,
                 &[],
-                Some(params.clone()),
-                Some(*algorithm),
-                Some(*version),
+                params.clone(),
+                *algorithm,
+                *version,
             ),
         }
     }
@@ -119,32 +119,6 @@ impl KdfInfo {
         let mut salt = [0u8; ARGON2_SALT_SIZE];
         salt.try_fill(rng)?;
         Ok(salt)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CiphertextInfo {
-    /// A store cipher encrypted using the Aes256GCM AEAD.
-    Aes256GCM {
-        /// The nonce that was used to encrypt the ciphertext.
-        nonce: [u8; AES256GCM_NONCE_SIZE],
-        /// The encrypted store cipher.
-        ciphertext: Vec<u8>,
-    },
-}
-
-impl CiphertextInfo {
-    pub fn random_nonce() -> Result<[u8; AES256GCM_NONCE_SIZE], Error> {
-        let mut rng = thread_rng();
-        Self::random_nonce_with_rng(&mut rng)
-    }
-
-    pub fn random_nonce_with_rng<R: RngCore + CryptoRng>(
-        rng: &mut R,
-    ) -> Result<[u8; AES256GCM_NONCE_SIZE], Error> {
-        let mut nonce = [0u8; AES256GCM_NONCE_SIZE];
-        nonce.try_fill(rng)?;
-        Ok(nonce)
     }
 }
 
@@ -185,15 +159,15 @@ where
     where
         C: Aead,
     {
-        let nonce = CiphertextInfo::random_nonce()?;
+        let nonce = Self::random_nonce()?;
 
         let cipher = C::new(&self.key);
-        let ciphertext = cipher.encrypt(Nonce::<C>::from_slice(&nonce), data)?;
+        let ciphertext = cipher.encrypt(&nonce, data)?;
 
         Ok(EncryptedData {
             version: CURRENT_VERSION,
             ciphertext,
-            nonce,
+            nonce: nonce.to_vec(),
         })
     }
 
@@ -201,15 +175,15 @@ where
     where
         C: AeadInPlace,
     {
-        let nonce = CiphertextInfo::random_nonce()?;
+        let nonce = Self::random_nonce()?;
 
         let cipher = C::new(&self.key);
-        cipher.encrypt_in_place(Nonce::<C>::from_slice(&nonce), &[], &mut data)?;
+        cipher.encrypt_in_place(&nonce, &[], &mut data)?;
 
         Ok(EncryptedData {
             version: CURRENT_VERSION,
             ciphertext: data,
-            nonce,
+            nonce: nonce.to_vec(),
         })
     }
 
@@ -255,32 +229,43 @@ where
 
         self.decrypt_data_unchecked(data)
     }
+
+    pub fn random_nonce() -> Result<Nonce<C>, Error>
+    where
+        C: AeadCore,
+    {
+        let mut rng = thread_rng();
+        Self::random_nonce_with_rng(&mut rng)
+    }
+
+    pub fn random_nonce_with_rng<R: RngCore + CryptoRng>(rng: &mut R) -> Result<Nonce<C>, Error>
+    where
+        C: AeadCore,
+    {
+        let mut nonce = Nonce::<C>::default();
+        nonce.try_fill(rng)?;
+        Ok(nonce)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct EncryptedData {
     pub version: u8,
     pub ciphertext: Vec<u8>,
-
-    // TODO: this might have to be changed into a `Vec<u8>` if we ever allow using different ciphers
-    pub nonce: [u8; AES256GCM_NONCE_SIZE],
+    pub nonce: Vec<u8>,
 }
 
 pub fn argon2_derive_cipher_key<C>(
     passphrase: &[u8],
     salt: &[u8],
     pepper: &[u8],
-    params: Option<Params>,
-    algorithm: Option<Algorithm>,
-    version: Option<Version>,
+    params: Params,
+    algorithm: Algorithm,
+    version: Version,
 ) -> Result<Key<C>, Error>
 where
     C: KeySizeUser,
 {
-    let algorithm = algorithm.unwrap_or_default();
-    let version = version.unwrap_or_default();
-    let params = params.unwrap_or_default();
-
     let argon2 = if pepper.is_empty() {
         Argon2::new(algorithm, version, params)
     } else {

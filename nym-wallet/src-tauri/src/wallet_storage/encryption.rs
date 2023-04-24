@@ -99,16 +99,13 @@ fn instantiate_cipher_store(
     Ok(StoreCipher::new(password.as_ref(), kdf_info)?)
 }
 
-/// Wraps `ciphertext` and `iv` into `nym_store_cipher::StoreEncryptedData`
+/// Wraps `ciphertext` and `iv` into `[nym_store_cipher::StoreEncryptedData]`
 fn new_store_encrypted_data(ciphertext: &[u8], iv: &[u8]) -> StoreEncryptedData {
-    let mut nonce: [u8; IV_LEN] = Default::default();
-    nonce.copy_from_slice(iv);
-
     StoreEncryptedData {
         // well, we can only assume the current version
         version: CURRENT_VERSION,
         ciphertext: ciphertext.to_owned(),
-        nonce,
+        nonce: iv.to_owned(),
     }
 }
 
@@ -120,15 +117,16 @@ where
     T: Serialize,
 {
     let mut rng = OsRng;
-    let salt = KdfInfo::random_salt_with_rng(&mut rng).expect("rng failure");
+    let salt = KdfInfo::random_salt_with_rng(&mut rng)?;
 
     let cipher = instantiate_cipher_store(password, &salt)?;
     let ciphertext = cipher.encrypt_json_value(data)?;
+    assert_eq!(ciphertext.nonce.len(), IV_LEN);
 
     Ok(EncryptedData {
         ciphertext: ciphertext.ciphertext,
         salt: salt.to_vec(),
-        iv: ciphertext.nonce.to_vec(),
+        iv: ciphertext.nonce,
         _marker: Default::default(),
     })
 }

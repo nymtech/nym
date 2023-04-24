@@ -10,8 +10,8 @@ use anyhow::{anyhow, Result};
 use clap::Parser;
 use nym_bin_common::logging::setup_logging;
 use nym_store_cipher::{
-    Aes256Gcm, Algorithm, EncryptedData, KdfInfo, Params, StoreCipher, Version,
-    AES256GCM_NONCE_SIZE, ARGON2_SALT_SIZE, CURRENT_VERSION,
+    Aes256Gcm, Algorithm, EncryptedData, KdfInfo, Params, StoreCipher, Version, ARGON2_SALT_SIZE,
+    CURRENT_VERSION,
 };
 use serde_json::Value;
 use std::fs::File;
@@ -183,9 +183,6 @@ fn decrypt_password(
     let mut kdf_salt: [u8; ARGON2_SALT_SIZE] = Default::default();
     kdf_salt.copy_from_slice(salt);
 
-    let mut nonce: [u8; AES256GCM_NONCE_SIZE] = Default::default();
-    nonce.copy_from_slice(iv);
-
     // Argon2id is default, V0x13 is default
     let kdf_info = KdfInfo::Argon2 {
         params: Params::new(MEMORY_COST, ITERATIONS, PARALLELISM, Some(OUTPUT_LENGTH)).unwrap(),
@@ -200,7 +197,7 @@ fn decrypt_password(
     let data = EncryptedData {
         version: CURRENT_VERSION,
         ciphertext: ciphertext.to_vec(),
-        nonce,
+        nonce: iv.to_vec(),
     };
 
     let plaintext = cipher

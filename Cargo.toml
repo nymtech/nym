@@ -50,7 +50,6 @@ members = [
     "common/network-defaults",
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
-    "common/store-cipher",
     "common/nymcoconut",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",

@@ -196,6 +196,8 @@ Follow these steps to update the information about your mix node which is public
 You can either do this graphically via the Desktop Wallet, or the CLI.
 
 #### Updating node information via the Desktop Wallet
+Node operators can update node information and change node settings such as the amount of self-bond (increase or decrease) via the desktop wallet.
+
 * Navigate to the `Bonding` page and click the `Node Settings` link in the top right corner:
 ![Bonding page](../images/wallet-screenshots/bonding.png)
 

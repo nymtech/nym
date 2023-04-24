@@ -4,7 +4,16 @@ import { ApplicationLayout } from '../layouts';
 import { Terminal } from '../pages/terminal';
 import { Send } from '../components/Send';
 import { Receive } from '../components/Receive';
-import { Balance, InternalDocs, DelegationPage, Admin, BondingPage, NodeSettingsPage, BuyPage, Settings, } from '../pages';
+import {
+  Balance,
+  InternalDocs,
+  DelegationPage,
+  Admin,
+  BondingPage,
+  NodeSettingsPage,
+  BuyPage,
+  Settings,
+} from '../pages';
 
 export const AppRoutes = () => (
   <ApplicationLayout>

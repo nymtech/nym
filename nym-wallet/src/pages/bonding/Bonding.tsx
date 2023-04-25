@@ -29,7 +29,7 @@ const Bonding = () => {
   const {
     network,
     clientDetails,
-    userBalance: { originalVesting, balance },
+    userBalance: { originalVesting },
   } = useContext(AppContext);
 
   const navigate = useNavigate();
@@ -195,7 +195,6 @@ const Bonding = () => {
       {showModal === 'update-bond' && bondedNode && isMixnode(bondedNode) && (
         <UpdateBondAmountModal
           node={bondedNode}
-          userBalance={balance?.printable_balance}
           onUpdateBond={handleUpdateBond}
           onClose={() => setShowModal(undefined)}
           onError={handleError}

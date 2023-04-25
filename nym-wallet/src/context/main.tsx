@@ -17,6 +17,7 @@ import {
   switchAccount,
 } from '../requests';
 import { Console } from '../utils/console';
+import { toDisplay } from '../utils';
 
 export const urls = (networkName?: Network) =>
   networkName === 'MAINNET'
@@ -62,6 +63,8 @@ export type TAppContext = {
   handleShowTerminal: () => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
+  printBalance: string;
+  printVestedBalance?: string; // spendable vested token
 };
 
 export const AppContext = createContext({} as TAppContext);
@@ -82,6 +85,8 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   const [isAdminAddress, setIsAdminAddress] = useState<boolean>(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [printBalance, setPrintBalance] = useState<string>('-');
+  const [printVestedBalance, setPrintVestedBalance] = useState<string | undefined>();
 
   const userBalance = useGetBalance(clientDetails);
   const navigate = useNavigate();
@@ -162,6 +167,18 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       getEnv().then(setAppEnv);
     }
   }, [network]);
+
+  useEffect(() => {
+    const currency = clientDetails?.display_mix_denom.toUpperCase() || 'NYM';
+    if (userBalance.originalVesting) {
+      setPrintVestedBalance(`${toDisplay(userBalance.tokenAllocation?.spendableVestedCoins || 0)} ${currency}`);
+    }
+    if (userBalance?.balance?.amount) {
+      setPrintBalance(`${toDisplay(userBalance.balance.amount.amount)} ${currency}`);
+    } else {
+      setPrintBalance(`${toDisplay(0)} ${currency}`);
+    }
+  }, [userBalance, clientDetails]);
 
   useEffect(() => {
     let newValue = false;
@@ -273,6 +290,8 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       handleShowSendModal,
       handleShowReceiveModal,
       handleSwitchMode,
+      printBalance,
+      printVestedBalance,
     }),
     [
       appVersion,

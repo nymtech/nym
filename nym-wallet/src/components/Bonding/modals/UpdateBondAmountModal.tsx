@@ -1,35 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Box, Stack } from '@mui/material';
 import Big from 'big.js';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { DecCoin } from '@nymproject/types';
-import { TPoolOption } from 'src/components/TokenPoolSelector';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { decCoinToDisplay, validateAmount } from 'src/utils';
 import { simulateUpdateBond, simulateVestingUpdateBond } from 'src/requests';
 import { TSimulateUpdateBondArgs, TUpdateBondArgs } from 'src/types';
-import { TBondedMixnode } from 'src/context';
+import { AppContext, TBondedMixnode } from 'src/context';
+import { TPoolOption } from '../../TokenPoolSelector';
 
 export const UpdateBondAmountModal = ({
   node,
-  userBalance,
   onUpdateBond,
   onClose,
   onError,
 }: {
   node: TBondedMixnode;
-  userBalance?: string;
   onUpdateBond: (data: TUpdateBondArgs, tokenPool: TPoolOption) => Promise<void>;
   onClose: () => void;
   onError: (e: string) => void;
 }) => {
   const { bond: currentBond, proxy, stakeSaturation, uncappedStakeSaturation } = node;
+
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
-  const [newBond, setNewBond] = useState<DecCoin>({ amount: '0', denom: currentBond.denom });
+  const [newBond, setNewBond] = useState<DecCoin | undefined>();
   const [errorAmount, setErrorAmount] = useState(false);
+
+  const { printBalance, printVestedBalance } = useContext(AppContext);
 
   useEffect(() => {
     if (feeError) {
@@ -38,6 +39,9 @@ export const UpdateBondAmountModal = ({
   }, [feeError]);
 
   const handleConfirm = async () => {
+    if (!newBond) {
+      return;
+    }
     const tokenPool = proxy ? 'locked' : 'balance';
     await onUpdateBond(
       {
@@ -67,6 +71,9 @@ export const UpdateBondAmountModal = ({
   };
 
   const handleOnOk = async () => {
+    if (!newBond) {
+      return;
+    }
     if (!proxy) {
       await getFee<TSimulateUpdateBondArgs>(simulateUpdateBond, {
         currentPledge: currentBond,
@@ -81,7 +88,7 @@ export const UpdateBondAmountModal = ({
   };
 
   const newBondToDisplay = () => {
-    const coin = decCoinToDisplay(newBond);
+    const coin = decCoinToDisplay(newBond as DecCoin);
     return `${coin.amount} ${coin.denom}`;
   };
 
@@ -107,7 +114,7 @@ export const UpdateBondAmountModal = ({
       subHeader="Add or reduce amount of tokens on your node"
       okLabel="Next"
       onOk={handleOnOk}
-      okDisabled={errorAmount}
+      okDisabled={errorAmount || !newBond}
       onClose={onClose}
     >
       <Stack gap={3}>
@@ -125,7 +132,12 @@ export const UpdateBondAmountModal = ({
         </Box>
 
         <Box>
-          <ModalListItem fontWeight={600} label="Account balance" value={userBalance?.toUpperCase() || '-'} divider />
+          <ModalListItem
+            fontWeight={600}
+            label={proxy ? 'Locked account balance' : 'Account balance'}
+            value={proxy ? printVestedBalance || '-' : printBalance}
+            divider
+          />
           <ModalListItem label="Current bond amount" value={`${currentBond.amount} ${currentBond.denom}`} divider />
           {uncappedStakeSaturation ? (
             <ModalListItem
@@ -135,7 +147,7 @@ export const UpdateBondAmountModal = ({
               divider
             />
           ) : (
-            <ModalListItem label="Node saturation" value={stakeSaturation} divider />
+            <ModalListItem label="Node saturation" value={`${stakeSaturation}%`} divider />
           )}
           <ModalListItem label="Est. fee for this operation will be calculated in the next page" value="" divider />
         </Box>

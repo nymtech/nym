@@ -56,6 +56,7 @@ export const MockMainContextProvider: FCWithChildren = ({ children }) => {
       handleShowSettings: () => undefined,
       handleShowSendModal: () => undefined,
       handleShowReceiveModal: () => undefined,
+      printBalance: '100.0000 NYMT',
     }),
     [],
   );

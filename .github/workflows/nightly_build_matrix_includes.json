@@ -6,7 +6,7 @@
   },
 
   {
-    "os":"windows-latest",
+    "os":"windows10",
     "rust":"stable",
     "runOnEvent":"schedule"
   },
@@ -22,7 +22,7 @@
     "runOnEvent":"schedule"
   },
   {
-    "os":"windows-latest",
+    "os":"windows10",
     "rust":"beta",
     "runOnEvent":"schedule"
   },
@@ -38,7 +38,7 @@
     "runOnEvent":"schedule"
   },
   {
-    "os":"windows-latest",
+    "os":"windows10",
     "rust":"nightly",
     "runOnEvent":"schedule"
   },

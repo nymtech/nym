@@ -52,8 +52,7 @@ export const UpdateBondAmountModal = ({
   const handleAmountChanged = async (value: DecCoin) => {
     const { amount } = value;
     setNewBond(value);
-
-    if (!amount) {
+    if (!amount || !Number(amount)) {
       setErrorAmount(true);
     } else if (Big(amount).eq(currentBond.amount)) {
       setErrorAmount(true);

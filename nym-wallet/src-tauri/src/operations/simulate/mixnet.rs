@@ -102,36 +102,33 @@ pub async fn simulate_update_pledge(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
+    let dec_delta = guard.calculate_coin_delta(&current_pledge, &new_pledge)?;
+    log::info!(
+        ">>> Simulate pledge update, current pledge {}, new pledge {}",
+        &current_pledge,
+        &new_pledge,
+    );
 
     match new_pledge.amount.cmp(&current_pledge.amount) {
         Ordering::Greater => {
-            let additional_pledge = DecCoin {
-                amount: new_pledge.amount - current_pledge.amount,
-                denom: current_pledge.denom,
-            };
             log::info!(
-                ">>> Simulate pledge more, calculated additional pledge {}",
-                additional_pledge,
+                "Simulate pledge increase, calculated additional pledge {}",
+                dec_delta,
             );
-            simulate_mixnet_operation(ExecuteMsg::PledgeMore {}, Some(additional_pledge), &state)
-                .await
+            simulate_mixnet_operation(ExecuteMsg::PledgeMore {}, Some(dec_delta), &state).await
         }
         Ordering::Less => {
-            let decrease_pledge = DecCoin {
-                amount: current_pledge.amount - new_pledge.amount,
-                denom: current_pledge.denom,
-            };
             log::info!(
-                ">>> Simulate decrease pledge, calculated decrease pledge {}",
-                decrease_pledge,
+                "Simulate pledge reduction, calculated reduction pledge {}",
+                dec_delta,
             );
             simulate_mixnet_operation(
                 ExecuteMsg::DecreasePledge {
                     decrease_by: guard
-                        .attempt_convert_to_base_coin(decrease_pledge.clone())?
+                        .attempt_convert_to_base_coin(dec_delta.clone())?
                         .into(),
                 },
-                Some(decrease_pledge),
+                Some(dec_delta),
                 &state,
             )
             .await

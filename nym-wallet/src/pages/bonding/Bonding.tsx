@@ -211,7 +211,7 @@ const Bonding = () => {
         />
       )}
 
-      {confirmationDetails && confirmationDetails.status === 'success' && !error && (
+      {confirmationDetails && confirmationDetails.status === 'success' && (
         <ConfirmationDetailsModal
           title={confirmationDetails.title}
           subtitle={confirmationDetails.subtitle || 'This operation can take up to one hour to process'}

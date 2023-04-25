@@ -13,7 +13,7 @@ use crate::operations::helpers::{
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::transaction::TransactionExecuteResult;
-use nym_validator_client::nyxd::{Coin, Fee, VestingSigningClient};
+use nym_validator_client::nyxd::{Fee, VestingSigningClient};
 
 #[tauri::command]
 pub async fn vesting_bond_gateway(
@@ -134,19 +134,20 @@ pub async fn vesting_update_pledge(
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
-    let current_pledge_base = guard.attempt_convert_to_base_coin(current_pledge.clone())?;
-    let new_pledge_base = guard.attempt_convert_to_base_coin(new_pledge.clone())?;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    let dec_delta = guard.calculate_coin_delta(&current_pledge, &new_pledge)?;
+    let delta = guard.attempt_convert_to_base_coin(dec_delta.clone())?;
+    log::info!(
+        ">>> Pledge update, current pledge {}, new pledge {}",
+        &current_pledge,
+        &new_pledge,
+    );
 
     let res = match new_pledge.amount.cmp(&current_pledge.amount) {
         Ordering::Greater => {
-            let delta = Coin::new(
-                new_pledge_base.amount - current_pledge_base.amount,
-                current_pledge.denom,
-            );
             log::info!(
-                ">>> Pledge more with locked tokens, calculated additional pledge {}, fee = {:?}",
-                delta,
+                "Pledge increase with locked tokens, calculated additional pledge {}, fee = {:?}",
+                dec_delta,
                 fee,
             );
             guard
@@ -156,13 +157,9 @@ pub async fn vesting_update_pledge(
                 .await?
         }
         Ordering::Less => {
-            let delta = Coin::new(
-                current_pledge_base.amount - new_pledge_base.amount,
-                current_pledge.denom,
-            );
             log::info!(
-                ">>> Decrease pledge with locked tokens, calculated decrease pledge {}, fee = {:?}",
-                delta,
+                "Pledge reduction with locked tokens, calculated reduction pledge {}, fee = {:?}",
+                dec_delta,
                 fee,
             );
             guard

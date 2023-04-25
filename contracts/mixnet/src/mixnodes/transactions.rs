@@ -355,6 +355,8 @@ pub(crate) fn _try_remove_mixnode(
     ensure_no_pending_pledge_changes(&pending_changes)?;
 
     // set `is_unbonding` field
+    // clippy beta 1.70.0-beta.1 false positive
+    #[allow(clippy::redundant_clone)]
     let mut updated_bond = existing_bond.clone();
     updated_bond.is_unbonding = true;
     storage::mixnode_bonds().replace(
@@ -416,6 +418,8 @@ pub(crate) fn _try_update_mixnode_config(
     let cfg_update_event =
         new_mixnode_config_update_event(existing_bond.mix_id, &owner, &proxy, &new_config);
 
+    // clippy beta 1.70.0-beta.1 false positive
+    #[allow(clippy::redundant_clone)]
     let mut updated_bond = existing_bond.clone();
     updated_bond.mix_node.host = new_config.host;
     updated_bond.mix_node.mix_port = new_config.mix_port;

@@ -2,7 +2,7 @@ import { Account, Balance, AccountEntry } from '@nymproject/types';
 import { invokeWrapper } from './wrapper';
 
 export const signInWithMnemonic = async (mnemonic: string): Promise<Account> =>
-  invokeWrapper<Account>('connect_with_mnemonic', { mnemonic });
+  invokeWrapper('connect_with_mnemonic', { mnemonic });
 
 export const userBalance = async () => invokeWrapper<Balance>('get_balance');
 

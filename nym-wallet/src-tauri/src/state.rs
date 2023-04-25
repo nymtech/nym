@@ -80,6 +80,8 @@ pub struct WalletStateInner {
     /// We fetch (and cache) some metadata, such as names, when available
     validator_metadata: HashMap<Url, ValidatorMetadata>,
     registered_coins: HashMap<Network, RegisteredCoins>,
+
+    react_state: Option<String>,
 }
 
 pub(crate) struct WalletAccountIds {
@@ -90,6 +92,15 @@ pub(crate) struct WalletAccountIds {
 }
 
 impl WalletStateInner {
+    pub fn get_react_state(&self) -> Result<Option<String>, BackendError> {
+        Ok(self.react_state.clone())
+    }
+
+    pub fn set_react_state(&mut self, new_value: Option<String>) -> Result<(), BackendError> {
+        self.react_state = new_value;
+        Ok(())
+    }
+
     pub fn attempt_convert_to_fixed_fee(&self, coin: DecCoin) -> Result<Fee, BackendError> {
         // first we have to convert the coin to its base denomination
         let base_coin = self.attempt_convert_to_base_coin(coin)?;

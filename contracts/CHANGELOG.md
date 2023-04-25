@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## [v1.4.0] (2023-04-25)
+- Allow mixnode operators to decrease their bond amount without having to rebond (will require a lot of testing EXACT reward values to make sure the "unit delegation" isn't broken afterwards) ([#3233])
+- Fix a few clippy warnings in contract test code ([#3340])
+- Add --all-targets to clippy for contracts ([#3337])
+- A branch with all clippy warnings dealt with in contracts ([#3294])
+
+[#3233]: https://github.com/nymtech/nym/issues/3233
+[#3340]: https://github.com/nymtech/nym/pull/3340
+[#3337]: https://github.com/nymtech/nym/pull/3337
+[#3294]: https://github.com/nymtech/nym/pull/3294
+
 ## [v1.3.1] (2023-04-18)
 - Add a query to the vesting contract for the amount of delegated tokens towards a particular `mix_id` (might be needed by NG) ([#3228])
 

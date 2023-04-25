@@ -364,7 +364,7 @@ pub mod tests {
         let res = try_add_gateway(
             test.deps_mut(),
             env.clone(),
-            info.clone(),
+            info,
             gateway.clone(),
             signature.clone(),
         );

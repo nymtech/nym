@@ -153,9 +153,9 @@ pub(crate) mod tests {
 
         let ret = try_add_dealer(
             deps.as_mut(),
-            info.clone(),
-            bte_key_with_proof.clone(),
-            announce_address.clone(),
+            info,
+            bte_key_with_proof,
+            announce_address,
             false,
         )
         .unwrap_err();

@@ -167,6 +167,7 @@ pub(super) async fn run_inbound<F, S>(
     remote_source_address: String,
     connection_id: ConnectionId,
     mix_sender: MixProxySender<S>,
+    available_plaintext_per_mix_packet: usize,
     adapter_fn: F,
     shutdown_notify: Arc<Notify>,
     lane_queue_lengths: Option<LaneQueueLengths>,
@@ -176,7 +177,9 @@ where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
     S: Debug,
 {
-    let mut available_reader = AvailableReader::new(&mut reader);
+    // TODO: this multiplication by 4 is completely arbitrary here
+    let mut available_reader =
+        AvailableReader::new(&mut reader, Some(available_plaintext_per_mix_packet * 4));
     let mut message_sender = OrderedMessageSender::new();
     let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
 

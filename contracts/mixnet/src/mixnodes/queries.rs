@@ -442,10 +442,10 @@ pub(crate) mod tests {
         fn obeys_limits() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let limit = 2;
 
-            test_helpers::add_dummy_unbonded_mixnodes(&mut rng, deps.as_mut(), 1000);
+            test_helpers::add_dummy_unbonded_mixnodes(rng, deps.as_mut(), 1000);
             let page1 = query_unbonded_mixnodes_paged(deps.as_ref(), None, Some(limit)).unwrap();
             assert_eq!(limit, page1.nodes.len() as u32);
         }
@@ -454,8 +454,8 @@ pub(crate) mod tests {
         fn has_default_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
-            test_helpers::add_dummy_unbonded_mixnodes(&mut rng, deps.as_mut(), 1000);
+            let rng = test_helpers::test_rng();
+            test_helpers::add_dummy_unbonded_mixnodes(rng, deps.as_mut(), 1000);
 
             // query without explicitly setting a limit
             let page1 = query_unbonded_mixnodes_paged(deps.as_ref(), None, None).unwrap();
@@ -470,8 +470,8 @@ pub(crate) mod tests {
         fn has_max_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
-            test_helpers::add_dummy_unbonded_mixnodes(&mut rng, deps.as_mut(), 1000);
+            let rng = test_helpers::test_rng();
+            test_helpers::add_dummy_unbonded_mixnodes(rng, deps.as_mut(), 1000);
 
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000;
@@ -572,16 +572,11 @@ pub(crate) mod tests {
         fn obeys_limits() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let limit = 2;
             let owner = "owner";
 
-            test_helpers::add_dummy_unbonded_mixnodes_with_owner(
-                &mut rng,
-                deps.as_mut(),
-                owner,
-                1000,
-            );
+            test_helpers::add_dummy_unbonded_mixnodes_with_owner(rng, deps.as_mut(), owner, 1000);
             let page1 = query_unbonded_mixnodes_by_owner_paged(
                 deps.as_ref(),
                 owner.into(),
@@ -596,15 +591,10 @@ pub(crate) mod tests {
         fn has_default_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let owner = "owner";
 
-            test_helpers::add_dummy_unbonded_mixnodes_with_owner(
-                &mut rng,
-                deps.as_mut(),
-                owner,
-                1000,
-            );
+            test_helpers::add_dummy_unbonded_mixnodes_with_owner(rng, deps.as_mut(), owner, 1000);
 
             // query without explicitly setting a limit
             let page1 =
@@ -621,15 +611,10 @@ pub(crate) mod tests {
         fn has_max_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let owner = "owner";
 
-            test_helpers::add_dummy_unbonded_mixnodes_with_owner(
-                &mut rng,
-                deps.as_mut(),
-                owner,
-                1000,
-            );
+            test_helpers::add_dummy_unbonded_mixnodes_with_owner(rng, deps.as_mut(), owner, 1000);
 
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000;
@@ -819,12 +804,12 @@ pub(crate) mod tests {
         fn obeys_limits() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let limit = 2;
             let identity = "foomp123";
 
             test_helpers::add_dummy_unbonded_mixnodes_with_identity(
-                &mut rng,
+                rng,
                 deps.as_mut(),
                 identity,
                 1000,
@@ -843,10 +828,10 @@ pub(crate) mod tests {
         fn has_default_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let identity = "foomp123";
             test_helpers::add_dummy_unbonded_mixnodes_with_identity(
-                &mut rng,
+                rng,
                 deps.as_mut(),
                 identity,
                 1000,
@@ -871,10 +856,10 @@ pub(crate) mod tests {
         fn has_max_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let identity = "foomp123";
             test_helpers::add_dummy_unbonded_mixnodes_with_identity(
-                &mut rng,
+                rng,
                 deps.as_mut(),
                 identity,
                 1000,

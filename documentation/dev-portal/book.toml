@@ -49,10 +49,10 @@ assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 [preprocessor.variables.variables]
 # code prerequisites versions
 minimum_rust_version = "1.66"
-# minimum_node_version = ""
-# nym platform code most recent release
-platform_release_version = "v1.1.15"
-
+platform_release_version = "v1.1.16"
+upcoming_platform_release_version = "v1.1.17" # to use when adding 'edit on github' plugin
+mix_node_release_version = "v1.1.17"
+#
 [preprocessor.last-changed]
 command = "mdbook-last-changed"
 renderer = ["html"]

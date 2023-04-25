@@ -489,7 +489,7 @@ mod test {
                 test.deps_mut(),
                 mock_info(illegal_proxy.as_ref(), &[]),
                 new_member.to_string(),
-                family_head.clone(),
+                family_head,
             )
             .unwrap_err();
 

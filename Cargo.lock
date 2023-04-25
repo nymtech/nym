@@ -4139,6 +4139,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-http-requests"
+version = "0.1.0"
+dependencies = [
+ "bytecodec",
+ "bytes",
+ "http",
+ "httpcodec",
+ "nym-ordered-buffer",
+ "nym-service-providers-common",
+ "nym-socks5-requests",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-inclusion-probability"
 version = "0.1.0"
 dependencies = [

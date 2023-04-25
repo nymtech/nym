@@ -1,0 +1,18 @@
+[package]
+name = "nym-http-requests"
+version = "0.1.0"
+description = "Helper library for sending HTTP requesters over the Nym mixnet"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+nym-socks5-requests = { path = "../socks5/requests" }
+nym-ordered-buffer = { path = "../socks5/ordered-buffer" }
+nym-service-providers-common = { path = "../../service-providers/common" }
+bytecodec = "0.4.15"
+httpcodec = "0.2.3"
+bytes = "1"
+http = "0.2.9"
+thiserror = "1"

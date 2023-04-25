@@ -34,8 +34,17 @@ const Bonding = () => {
 
   const navigate = useNavigate();
 
-  const { bondedNode, bondMixnode, bondGateway, redeemRewards, isLoading, checkOwnership, updateBondAmount } =
-    useBondingContext();
+  const {
+    bondedNode,
+    bondMixnode,
+    bondGateway,
+    redeemRewards,
+    isLoading,
+    checkOwnership,
+    updateBondAmount,
+    error,
+    refresh,
+  } = useBondingContext();
 
   useEffect(() => {
     if (bondedNode && isMixnode(bondedNode) && bondedNode.uncappedStakeSaturation) {
@@ -48,54 +57,63 @@ const Bonding = () => {
     await checkOwnership();
   };
 
-  const handleError = (error: string) => {
+  const handleError = (err: string) => {
     setShowModal(undefined);
     setConfirmationDetails({
       status: 'error',
       title: 'An error occurred',
-      subtitle: error,
+      subtitle: err,
     });
   };
 
   const handleBondMixnode = async (data: TBondMixNodeArgs, tokenPool: TPoolOption) => {
     setShowModal(undefined);
     const tx = await bondMixnode(data, tokenPool);
-    setConfirmationDetails({
-      status: 'success',
-      title: 'Bond successful',
-      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-    });
+    if (tx) {
+      setConfirmationDetails({
+        status: 'success',
+        title: 'Bond successful',
+        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+      });
+    }
     return undefined;
   };
 
   const handleBondGateway = async (data: TBondGatewayArgs, tokenPool: TPoolOption) => {
     setShowModal(undefined);
     const tx = await bondGateway(data, tokenPool);
-    setConfirmationDetails({
-      status: 'success',
-      title: 'Bond successful',
-      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-    });
+    if (tx) {
+      setConfirmationDetails({
+        status: 'success',
+        title: 'Bond successful',
+        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+      });
+    }
   };
 
   const handleUpdateBond = async (data: TUpdateBondArgs, tokenPool: TPoolOption) => {
     setShowModal(undefined);
+
     const tx = await updateBondAmount(data, tokenPool);
-    setConfirmationDetails({
-      status: 'success',
-      title: 'Bond amount changed successfully',
-      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-    });
+    if (tx) {
+      setConfirmationDetails({
+        status: 'success',
+        title: 'Bond amount changed successfully',
+        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+      });
+    }
   };
 
   const handleRedeemReward = async (fee?: FeeDetails) => {
     setShowModal(undefined);
     const tx = await redeemRewards(fee);
-    setConfirmationDetails({
-      status: 'success',
-      title: 'Rewards redeemed successfully',
-      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-    });
+    if (tx) {
+      setConfirmationDetails({
+        status: 'success',
+        title: 'Rewards redeemed successfully',
+        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+      });
+    }
   };
 
   const handleBondedMixnodeAction = async (action: TBondedMixnodeActions) => {
@@ -122,6 +140,10 @@ const Bonding = () => {
     }
     return undefined;
   };
+
+  if (error) {
+    return <ErrorModal open message="An error occured, please check logs for details" onClose={() => refresh()} />;
+  }
 
   return (
     <Box sx={{ mt: 4 }}>
@@ -189,7 +211,7 @@ const Bonding = () => {
         />
       )}
 
-      {confirmationDetails && confirmationDetails.status === 'success' && (
+      {confirmationDetails && confirmationDetails.status === 'success' && !error && (
         <ConfirmationDetailsModal
           title={confirmationDetails.title}
           subtitle={confirmationDetails.subtitle || 'This operation can take up to one hour to process'}

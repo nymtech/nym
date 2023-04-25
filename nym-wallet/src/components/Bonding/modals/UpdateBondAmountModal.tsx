@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Stack } from '@mui/material';
+import Big from 'big.js';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
@@ -42,16 +43,19 @@ export const UpdateBondAmountModal = ({
       {
         currentPledge: currentBond,
         newPledge: newBond,
+        fee: fee?.fee,
       },
       tokenPool,
     );
   };
 
   const handleAmountChanged = async (value: DecCoin) => {
-    setNewBond(value);
     const { amount } = value;
+    setNewBond(value);
 
     if (!amount) {
+      setErrorAmount(true);
+    } else if (Big(amount).eq(currentBond.amount)) {
       setErrorAmount(true);
     } else {
       const validAmount = await validateAmount(amount, '1');

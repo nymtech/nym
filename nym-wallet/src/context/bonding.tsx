@@ -285,6 +285,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
+    setError(undefined);
 
     if (ownership.hasOwnership && ownership.nodeType === EnumNodeType.mixnode && clientDetails) {
       try {

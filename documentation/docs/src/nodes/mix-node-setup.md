@@ -355,6 +355,20 @@ username        soft nofile 4096
 
 Then reboot your server and restart your mixnode.
 
+## Node Description
+Node description is a short text that describes your node. It is displayed in the `nym-mixnode list` command and in the `nym-mixnode node-details` command. it also shows up in the node explorer to let people know what your node is about and link to your website.
+
+To set your node description, create a file called `description.toml` and put it in the same directory as your `config.toml` file. The file should look like this:
+
+```toml
+name = "Winston Smith"
+description = "I am the Sphinx"
+link = "https://nymtech.net"
+location = "Giza, Egypt"
+```
+
+you will need to restart your node for the changes to take effect.
+
 ## Node Families
 
 Node family involves setting up a group of mix nodes that work together to provide greater privacy and security for network communications. This is achieved by having the nodes in the family share information and routes, creating a decentralized network that makes it difficult for third parties to monitor or track communication traffic.

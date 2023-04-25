@@ -8,6 +8,7 @@ use tauri::{Manager, Menu};
 use nym_mixnet_contract_common::{Gateway, MixNode};
 
 use crate::menu::AddDefaultSubmenus;
+use crate::operations::app;
 use crate::operations::help;
 use crate::operations::mixnet;
 use crate::operations::nym_api;
@@ -35,11 +36,13 @@ fn main() {
     tauri::Builder::default()
         .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
+            app::version::check_version,
             mixnet::account::add_account_for_password,
             mixnet::account::archive_wallet_file,
             mixnet::account::connect_with_mnemonic,
             mixnet::account::create_new_mnemonic,
             mixnet::account::create_password,
+            mixnet::account::update_password,
             mixnet::account::does_password_file_exist,
             mixnet::account::get_balance,
             mixnet::account::list_accounts,
@@ -56,6 +59,7 @@ fn main() {
             mixnet::bond::bond_gateway,
             mixnet::bond::bond_mixnode,
             mixnet::bond::pledge_more,
+            mixnet::bond::decrease_pledge,
             mixnet::bond::gateway_bond_details,
             mixnet::bond::get_pending_operator_rewards,
             mixnet::bond::mixnode_bond_details,
@@ -111,6 +115,7 @@ fn main() {
             vesting::bond::vesting_bond_gateway,
             vesting::bond::vesting_bond_mixnode,
             vesting::bond::vesting_pledge_more,
+            vesting::bond::vesting_decrease_pledge,
             vesting::bond::vesting_unbond_gateway,
             vesting::bond::vesting_unbond_mixnode,
             vesting::bond::vesting_update_mixnode_cost_params,

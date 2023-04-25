@@ -308,6 +308,16 @@ pub fn create_password(mnemonic: Mnemonic, password: UserPassword) -> Result<(),
 }
 
 #[tauri::command]
+pub fn update_password(
+    current_password: UserPassword,
+    new_password: UserPassword,
+) -> Result<(), BackendError> {
+    log::info!("Updating password");
+
+    wallet_storage::update_encrypted_logins(&current_password, &new_password)
+}
+
+#[tauri::command]
 pub async fn sign_in_with_password(
     password: UserPassword,
     state: tauri::State<'_, WalletState>,

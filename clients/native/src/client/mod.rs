@@ -6,6 +6,7 @@ use crate::error::ClientError;
 use crate::websocket;
 use futures::channel::mpsc;
 use log::*;
+use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::{
     non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
@@ -14,7 +15,6 @@ use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use nym_gateway_client::bandwidth::BandwidthController;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
@@ -23,6 +23,7 @@ use std::error::Error;
 use tokio::sync::watch::error::SendError;
 
 pub use nym_client_core::client::key_manager::KeyManager;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 pub use nym_sphinx::addressing::clients::Recipient;
 pub use nym_sphinx::receiver::ReconstructedMessage;
 use nym_validator_client::Client;
@@ -58,7 +59,7 @@ impl SocketClient {
 
     async fn create_bandwidth_controller(
         config: &Config,
-    ) -> BandwidthController<Client<QueryNyxdClient>> {
+    ) -> BandwidthController<Client<QueryNyxdClient>, PersistentStorage> {
         let details = nym_network_defaults::NymNetworkDetails::new_from_env();
         let mut client_config =
             nym_validator_client::Config::try_from_nym_network_details(&details)
@@ -78,7 +79,10 @@ impl SocketClient {
         let client = nym_validator_client::Client::new_query(client_config)
             .expect("Could not construct query client");
         BandwidthController::new(
-            nym_credential_storage::initialise_storage(config.get_base().get_database_path()).await,
+            nym_credential_storage::initialise_persistent_storage(
+                config.get_base().get_database_path(),
+            )
+            .await,
             client,
         )
     }

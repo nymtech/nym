@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+## [v1.2.1] (2023-04-18)
+
+- [bug] bonding signature with vesting account ([#3315])
+- Wallet - settings: fix version check ([#3306])
+- Wallet - add new tauri command to fetch app version info ([#3305])
+- Wallet - backend support to change password in file ([#3285])
+- Wallet - add missing tooltips ([#3275])
+- Wallet - global settings part 1 general and advanced 🟢 ([#2181])
+- Wallet - global settings part 2 Security - Add&Change Password 🟢 ([#2275])
+- feat(wallet): app version check (#3308) ([#3319])
+
+[#3315]: https://github.com/nymtech/nym/issues/3315
+[#3306]: https://github.com/nymtech/nym/issues/3306
+[#3305]: https://github.com/nymtech/nym/issues/3305
+[#3285]: https://github.com/nymtech/nym/issues/3285
+[#3275]: https://github.com/nymtech/nym/issues/3275
+[#2181]: https://github.com/nymtech/nym/issues/2181
+[#2275]: https://github.com/nymtech/nym/issues/2275
+[#3319]: https://github.com/nymtech/nym/pull/3319
+
+## [v1.2.0] (2023-04-04)
+
+- Add Version and Location to gateway settings ([#3266])
+- Wallet - bonding screen - short info with link ([#3179])
+- Wallet - discrepancies figma vs wallet ([#2183])
+- Wallet - If a gateway is bonded show gateway settings in the node settings: ([#2242])
+
+[#3266]: https://github.com/nymtech/nym/issues/3266
+[#3179]: https://github.com/nymtech/nym/issues/3179
+[#2183]: https://github.com/nymtech/nym/issues/2183
+[#2242]: https://github.com/nymtech/nym/issues/2242
+
 ## [v1.1.12] (2023-03-15)
 
 - Wallet - in the vesting section separate the "Unlocked transferable tokens" into "Unlocked vesting tokens" and "Transferable rewards" for better clarity ([#3132])

@@ -45,7 +45,7 @@ pub mod test_helpers {
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::{coin, Addr, Api, BankMsg, CosmosMsg, Storage};
+    use cosmwasm_std::{coin, coins, Addr, Api, BankMsg, CosmosMsg, Storage};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use cosmwasm_std::{Deps, OwnedDeps};
@@ -62,7 +62,7 @@ pub mod test_helpers {
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
-        construct_family_join_permit, Delegation, EpochState, EpochStatus, Gateway,
+        construct_family_join_permit, Delegation, EpochEventId, EpochState, EpochStatus, Gateway,
         GatewayBondingPayload, IdentityKey, IdentityKeyRef, InitialRewardingParams, InstantiateMsg,
         Interval, MixId, MixNode, MixNodeBond, MixnodeBondingPayload, Percent,
         RewardedSetNodeStatus, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
@@ -159,6 +159,10 @@ pub mod test_helpers {
             coin(amount, rewarding_denom(self.deps().storage).unwrap())
         }
 
+        pub fn coins(&self, amount: u128) -> Vec<Coin> {
+            coins(amount, rewarding_denom(self.deps().storage).unwrap())
+        }
+
         pub fn current_interval(&self) -> Interval {
             interval_storage::current_interval(self.deps().storage).unwrap()
         }
@@ -189,8 +193,7 @@ pub mod test_helpers {
             let family_head = FamilyHead::new(&identity);
             let owner = head_mixnode.owner;
 
-            let nonce =
-                signing_storage::get_signing_nonce(self.deps().storage, owner.clone()).unwrap();
+            let nonce = signing_storage::get_signing_nonce(self.deps().storage, owner).unwrap();
 
             let proxy = if vesting {
                 Some(self.vesting_contract())
@@ -241,6 +244,17 @@ pub mod test_helpers {
 
             try_create_family(self.deps_mut(), mock_info(head, &[]), label.to_string()).unwrap();
             (mix_id, keys)
+        }
+
+        pub fn set_pending_pledge_change(&mut self, mix_id: MixId, event_id: Option<EpochEventId>) {
+            let mut changes = mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .load(self.deps().storage, mix_id)
+                .unwrap_or_default();
+            changes.pledge_change = Some(event_id.unwrap_or(12345));
+
+            mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .save(self.deps_mut().storage, mix_id, &changes)
+                .unwrap();
         }
 
         pub fn add_dummy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> MixId {
@@ -541,13 +555,8 @@ pub mod test_helpers {
                 sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
                 ..tests::fixtures::mix_node_fixture()
             };
-            let msg = mixnode_bonding_sign_payload(
-                self.deps(),
-                sender,
-                None,
-                mixnode.clone(),
-                stake.clone(),
-            );
+            let msg =
+                mixnode_bonding_sign_payload(self.deps(), sender, None, mixnode.clone(), stake);
             let owner_signature = ed25519_sign_message(msg, keypair.private_key());
 
             (mixnode, owner_signature, keypair)
@@ -570,13 +579,8 @@ pub mod test_helpers {
                 ..tests::fixtures::gateway_fixture()
             };
 
-            let msg = gateway_bonding_sign_payload(
-                self.deps(),
-                sender,
-                None,
-                gateway.clone(),
-                stake.clone(),
-            );
+            let msg =
+                gateway_bonding_sign_payload(self.deps(), sender, None, gateway.clone(), stake);
             let owner_signature = ed25519_sign_message(msg, keypair.private_key());
 
             (gateway, owner_signature)
@@ -1102,7 +1106,7 @@ pub mod test_helpers {
                 deps.branch(),
                 &env,
                 env.block.height,
-                Addr::unchecked(&format!("owner{}", i)),
+                Addr::unchecked(format!("owner{}", i)),
                 mix_id,
                 tests::fixtures::good_mixnode_pledge().pop().unwrap(),
                 None,

@@ -19,12 +19,13 @@ const headers: Header[] = [
   {
     header: 'Routing score',
     id: 'routing-score',
-    tooltipText: 'Routing score',
+    tooltipText:
+      "Gateway's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test",
   },
   {
     header: 'Average score',
     id: 'average-score',
-    tooltipText: 'Average score',
+    tooltipText: "Gateway's average routing score in the last 24 hours",
   },
   {
     header: 'IP',

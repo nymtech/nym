@@ -101,7 +101,7 @@ fn spend_credential_creates_proposal() {
             Addr::unchecked(OWNER),
             coconut_bandwidth_contract_addr.clone(),
             &msg,
-            &vec![],
+            &[],
         )
         .unwrap();
     let proposal_id = res
@@ -124,7 +124,7 @@ fn spend_credential_creates_proposal() {
             Addr::unchecked(OWNER),
             coconut_bandwidth_contract_addr.clone(),
             &msg,
-            &vec![],
+            &[],
         )
         .unwrap_err();
     assert_eq!(
@@ -142,9 +142,9 @@ fn spend_credential_creates_proposal() {
     let res = app
         .execute_contract(
             Addr::unchecked(OWNER),
-            coconut_bandwidth_contract_addr.clone(),
+            coconut_bandwidth_contract_addr,
             &msg,
-            &vec![],
+            &[],
         )
         .unwrap();
     let proposal_id = res

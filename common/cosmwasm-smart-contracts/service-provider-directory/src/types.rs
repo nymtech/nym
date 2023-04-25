@@ -13,7 +13,7 @@ pub struct Service {
     /// The service type.
     pub service_type: ServiceType,
     /// Service owner.
-    pub owner: Addr,
+    pub announcer: Addr,
     /// Block height at which the service was added.
     pub block_height: u64,
     /// The deposit used to announce the service.
@@ -63,5 +63,21 @@ impl std::fmt::Display for ServiceType {
             ServiceType::NetworkRequester => "network_requester",
         };
         write!(f, "{service_type}")
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct ServiceInfo {
+    pub service_id: ServiceId,
+    pub service: Service,
+}
+
+impl ServiceInfo {
+    pub fn new(service_id: ServiceId, service: Service) -> Self {
+        Self {
+            service_id,
+            service,
+        }
     }
 }

@@ -17,6 +17,7 @@ use nym_socks5_requests::{
     ConnectionId, RemoteAddress, Socks5ProtocolVersion, Socks5ProviderRequest, Socks5Request,
 };
 use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::params::PacketSize;
 use nym_task::connections::{LaneQueueLengths, TransmissionLane};
 use nym_task::TaskClient;
 use pin_project::pin_project;
@@ -131,6 +132,7 @@ impl AsyncWrite for StreamState {
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct Config {
+    biggest_packet_size: PacketSize,
     provider_interface_version: ProviderInterfaceVersion,
     socks5_protocol_version: Socks5ProtocolVersion,
     use_surbs_for_responses: bool,
@@ -140,6 +142,7 @@ pub(crate) struct Config {
 
 impl Config {
     pub(crate) fn new(
+        biggest_packet_size: PacketSize,
         provider_interface_version: ProviderInterfaceVersion,
         socks5_protocol_version: Socks5ProtocolVersion,
         use_surbs_for_responses: bool,
@@ -147,6 +150,7 @@ impl Config {
         per_request_surbs: u32,
     ) -> Self {
         Self {
+            biggest_packet_size,
             provider_interface_version,
             socks5_protocol_version,
             use_surbs_for_responses,
@@ -410,6 +414,9 @@ impl SocksClient {
             remote_proxy_target,
             conn_receiver,
             input_sender,
+            // FIXME: this does NOT include overhead due to acks or chunking
+            // (so actual true plaintext is smaller)
+            self.config.biggest_packet_size.plaintext_size(),
             connection_id,
             Some(self.lane_queue_lengths.clone()),
             self.shutdown_listener.clone(),

@@ -17,7 +17,7 @@ pub(crate) fn next_service_id_counter(store: &mut dyn Storage) -> Result<Service
 #[cfg(test)]
 mod tests {
 
-    use nym_service_provider_directory_common::msg::ServiceInfo;
+    use nym_service_provider_directory_common::ServiceInfo;
 
     use crate::test_helpers::{
         assert::assert_services,

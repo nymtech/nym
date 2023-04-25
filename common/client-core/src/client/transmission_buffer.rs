@@ -171,8 +171,6 @@ impl<T> TransmissionBuffer<T> {
         &mut self,
         n: usize,
     ) -> Option<Vec<(TransmissionLane, T)>> {
-        // let start = Instant::now();
-
         if self.buffer.is_empty() {
             return None;
         }
@@ -186,8 +184,6 @@ impl<T> TransmissionBuffer<T> {
             };
             items.push(next)
         }
-
-        // todo!("time time taken");
 
         Some(items)
     }

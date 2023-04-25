@@ -1,13 +1,16 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{EpochState, IdentityKey, MixId};
+use crate::{EpochEventId, EpochState, IdentityKey, MixId};
 use contracts_common::signing::verifier::ApiVerifierError;
-use cosmwasm_std::{Addr, Coin, Decimal};
+use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum MixnetContractError {
+    #[error("could not perform contract migration: {comment}")]
+    FailedMigration { comment: String },
+
     #[error("{source}")]
     StdErr {
         #[from]
@@ -25,6 +28,17 @@ pub enum MixnetContractError {
 
     #[error("Not enough funds sent for node pledge. (received {received}, minimum {minimum})")]
     InsufficientPledge { received: Coin, minimum: Coin },
+
+    #[error("Attempted to reduce node pledge ({current}{denom} - {decrease_by}{denom}) below the minimum amount: {minimum}{denom}")]
+    InvalidPledgeReduction {
+        current: Uint128,
+        decrease_by: Uint128,
+        minimum: Uint128,
+        denom: String,
+    },
+
+    #[error("A pledge change is already pending in this epoch. The event id: {pending_event_id}")]
+    PendingPledgeChange { pending_event_id: EpochEventId },
 
     #[error("Not enough funds sent for node delegation. (received {received}, minimum {minimum})")]
     InsufficientDelegation { received: Coin, minimum: Coin },
@@ -190,6 +204,9 @@ pub enum MixnetContractError {
     #[error("epoch duration must be > 0")]
     EpochDurationZero,
 
+    #[error("attempted to perform the operation with 0 coins. This is not allowed")]
+    ZeroCoinAmount,
+
     #[error("this validator ({current_validator}) is not the one responsible for advancing this epoch. It's responsibility of {chosen_validator}.")]
     RewardingValidatorMismatch {
         current_validator: Addr,
@@ -225,4 +242,12 @@ pub enum MixnetContractError {
         #[from]
         source: ApiVerifierError,
     },
+}
+
+impl MixnetContractError {
+    pub fn inconsistent_state<S: Into<String>>(comment: S) -> Self {
+        MixnetContractError::InconsistentState {
+            comment: comment.into(),
+        }
+    }
 }

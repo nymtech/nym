@@ -14,13 +14,14 @@ import {
   TBondMixNodeArgs,
   TBondMixnodeSignatureArgs,
   TBondMoreArgs,
+  TDecreaseBondArgs,
 } from '../types';
 import { invokeWrapper } from './wrapper';
 
 export const bondGateway = async (args: TBondGatewayArgs) =>
   invokeWrapper<TransactionExecuteResult>('bond_gateway', args);
 
-export const generateGatewayMsgPayload = async (args: TBondGatewaySignatureArgs) =>
+export const generateGatewayMsgPayload = async (args: Omit<TBondGatewaySignatureArgs, 'tokenPool'>) =>
   invokeWrapper<string>('generate_gateway_bonding_msg_payload', args);
 
 export const unbondGateway = async (fee?: Fee) => invokeWrapper<TransactionExecuteResult>('unbond_gateway', { fee });
@@ -28,7 +29,7 @@ export const unbondGateway = async (fee?: Fee) => invokeWrapper<TransactionExecu
 export const bondMixNode = async (args: TBondMixNodeArgs) =>
   invokeWrapper<TransactionExecuteResult>('bond_mixnode', args);
 
-export const generateMixnodeMsgPayload = async (args: TBondMixnodeSignatureArgs) =>
+export const generateMixnodeMsgPayload = async (args: Omit<TBondMixnodeSignatureArgs, 'tokenPool'>) =>
   invokeWrapper<string>('generate_mixnode_bonding_msg_payload', args);
 
 export const unbondMixNode = async (fee?: Fee) => invokeWrapper<TransactionExecuteResult>('unbond_mixnode', { fee });
@@ -51,3 +52,6 @@ export const unbond = async (type: EnumNodeType) => {
 };
 
 export const bondMore = async (args: TBondMoreArgs) => invokeWrapper<TransactionExecuteResult>('pledge_more', args);
+
+export const decreaseBond = async (args: TDecreaseBondArgs) =>
+  invokeWrapper<TransactionExecuteResult>('decrease_pledge', args);

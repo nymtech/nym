@@ -19,8 +19,8 @@ use mixnet_contract_common::{
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
-    new_track_mixnode_unbond_event, new_track_reward_event, new_track_undelegation_event,
-    new_vested_coins_withdraw_event,
+    new_track_mixnode_pledge_decrease_event, new_track_mixnode_unbond_event,
+    new_track_reward_event, new_track_undelegation_event, new_vested_coins_withdraw_event,
 };
 use vesting_contract_common::messages::VestingSpecification;
 use vesting_contract_common::PledgeCap;
@@ -135,8 +135,8 @@ pub fn try_withdraw_vested_coins(
         return Err(ContractError::WrongDenom(amount.denom, mix_denom));
     }
 
-    let address = info.sender.clone();
-    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    let address = info.sender;
+    let account = account_from_address(address.as_str(), deps.storage, deps.api)?;
     if address != account.owner_address() {
         return Err(ContractError::NotOwner(account.owner_address().to_string()));
     }
@@ -170,9 +170,9 @@ pub fn try_transfer_ownership(
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
-    let address = info.sender.clone();
+    let address = info.sender;
     let to_address = deps.api.addr_validate(&to_address)?;
-    let mut account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    let mut account = account_from_address(address.as_str(), deps.storage, deps.api)?;
     if address == account.owner_address() {
         account.transfer_ownership(&to_address, deps.storage)?;
         Ok(Response::new().add_event(new_ownership_transfer_event(&address, &to_address)))
@@ -194,9 +194,9 @@ pub fn try_update_staking_address(
         }
     }
 
-    let address = info.sender.clone();
+    let address = info.sender;
     let to_address = to_address.and_then(|x| deps.api.addr_validate(&x).ok());
-    let mut account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    let mut account = account_from_address(address.as_str(), deps.storage, deps.api)?;
     if address == account.owner_address() {
         let old = account.staking_address().cloned();
         account.update_staking_address(to_address.clone(), deps.storage)?;
@@ -278,6 +278,19 @@ pub fn try_pledge_more(
     account.try_pledge_additional_tokens(additional_pledge, &env, deps.storage)
 }
 
+pub fn try_decrease_pledge(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    amount: Coin,
+) -> Result<Response, ContractError> {
+    let mix_denom = MIX_DENOM.load(deps.storage)?;
+    // perform basic validation - is it correct demon, is it non-zero, etc.
+    let decrease = validate_funds(&[amount], mix_denom)?;
+
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_decrease_mixnode_pledge(decrease, deps.storage)
+}
+
 /// Unbond a mixnode, sends [mixnet_contract_common::ExecuteMsg::UnbondMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
 pub fn try_unbond_mixnode(info: MessageInfo, deps: DepsMut<'_>) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
@@ -297,6 +310,22 @@ pub fn try_track_unbond_mixnode(
     let account = account_from_address(owner, deps.storage, deps.api)?;
     account.try_track_unbond_mixnode(amount, deps.storage)?;
     Ok(Response::new().add_event(new_track_mixnode_unbond_event()))
+}
+
+/// Tracks decreasing mixnode pledge. Invoked by the mixnet contract after successful event reconciliation.
+/// A separate BankMsg containing the specified amount was sent in the same transaction.
+pub fn try_track_decrease_mixnode_pledge(
+    owner: &str,
+    amount: Coin,
+    info: MessageInfo,
+    deps: DepsMut<'_>,
+) -> Result<Response, ContractError> {
+    if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
+        return Err(ContractError::NotMixnetContract(info.sender));
+    }
+    let account = account_from_address(owner, deps.storage, deps.api)?;
+    account.try_track_decrease_mixnode_pledge(amount, deps.storage)?;
+    Ok(Response::new().add_event(new_track_mixnode_pledge_decrease_event()))
 }
 
 /// Track reward collection, invoked by the mixnert contract after sucessful reward compounding or claiming

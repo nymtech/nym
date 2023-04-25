@@ -1,14 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::StorageError;
-#[cfg(target_os = "android")]
-#[cfg(not(target_arch = "wasm32"))]
-use mobile_storage::StorageError;
-#[cfg(not(target_os = "android"))]
-#[cfg(not(target_arch = "wasm32"))]
-use nym_credential_storage::error::StorageError;
 use nym_gateway_requests::registration::handshake::error::HandshakeError;
 use std::io;
 use thiserror::Error;
@@ -27,12 +19,6 @@ pub enum GatewayClientError {
     #[error("There was a network error - {0}")]
     NetworkError(#[from] WsError),
 
-    #[error("There was a credential storage error - {0}")]
-    CredentialStorageError(#[from] StorageError),
-
-    #[error("Coconut error - {0}")]
-    CoconutError(#[from] nym_coconut_interface::CoconutError),
-
     // TODO: see if `JsValue` is a reasonable type for this
     #[cfg(target_arch = "wasm32")]
     #[error("There was a network error")]
@@ -47,8 +33,8 @@ pub enum GatewayClientError {
     #[error("No bandwidth controller provided")]
     NoBandwidthControllerAvailable,
 
-    #[error("Credential error - {0}")]
-    CredentialError(#[from] nym_credentials::error::Error),
+    #[error("Bandwidth controller error - {0}")]
+    BandwidthControllerError(#[from] nym_bandwidth_controller::error::BandwidthControllerError),
 
     #[error("Connection was abruptly closed")]
     ConnectionAbruptlyClosed,

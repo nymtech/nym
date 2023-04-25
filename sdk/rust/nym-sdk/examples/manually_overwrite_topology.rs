@@ -4,7 +4,7 @@
 use nym_sdk::mixnet;
 use nym_topology::mix::Layer;
 use nym_topology::{mix, NymTopology};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[tokio::main]
 async fn main() {
@@ -15,7 +15,7 @@ async fn main() {
     let starting_topology = client.read_current_topology().await.unwrap();
 
     // but we don't like our default topology, we want to use only those very specific, hardcoded, nodes:
-    let mut mixnodes = HashMap::new();
+    let mut mixnodes = BTreeMap::new();
     mixnodes.insert(
         1,
         vec![mix::Node {

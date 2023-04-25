@@ -10,6 +10,7 @@ use crate::{
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::NymConfig;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
@@ -114,7 +115,7 @@ impl Display for InitResults {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.client_core)?;
         writeln!(f, "Client listening port: {}", self.client_listening_port)?;
-        write!(f, "address of this client: {}", self.client_address)
+        write!(f, "Address of this client: {}", self.client_address)
     }
 }
 
@@ -151,7 +152,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = nym_client_core::init::setup_gateway_from_config::<Config, _>(
+    let gateway = nym_client_core::init::setup_gateway_from_config::<Config, _, PersistentStorage>(
         register_gateway,
         user_chosen_gateway_id,
         config.get_base(),

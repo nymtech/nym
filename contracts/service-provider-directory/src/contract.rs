@@ -88,8 +88,8 @@ pub fn execute(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
     let response = match msg {
         QueryMsg::ServiceId { service_id } => to_binary(&query::query_id(deps, service_id)?),
-        QueryMsg::Owner { owner } => to_binary(&query::query_owner(deps, owner)?),
-        QueryMsg::NymAddress { nym_address } => {
+        QueryMsg::ByAnnouncer { announcer } => to_binary(&query::query_announcer(deps, announcer)?),
+        QueryMsg::ByNymAddress { nym_address } => {
             to_binary(&query::query_nym_address(deps, nym_address)?)
         }
         QueryMsg::All { limit, start_after } => {
@@ -116,10 +116,7 @@ mod tests {
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Coin,
     };
-    use nym_service_provider_directory_common::{
-        msg::{ExecuteMsg, ServiceInfo},
-        ServiceId,
-    };
+    use nym_service_provider_directory_common::{msg::ExecuteMsg, ServiceId, ServiceInfo};
 
     const DENOM: &str = "unym";
 
@@ -153,13 +150,13 @@ mod tests {
 
         // Announce
         let msg: ExecuteMsg = service_fixture().into();
-        let owner = service_fixture().owner.to_string();
+        let announcer = service_fixture().announcer.to_string();
 
         assert_eq!(
             execute(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(&owner, &[nyms(99)]),
+                mock_info(&announcer, &[nyms(99)]),
                 msg.clone()
             )
             .unwrap_err(),
@@ -173,7 +170,7 @@ mod tests {
             execute(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(&owner, &[nyms(101)]),
+                mock_info(&announcer, &[nyms(101)]),
                 msg
             )
             .unwrap_err(),
@@ -231,7 +228,7 @@ mod tests {
         // Announce
         let msg: ExecuteMsg = service_fixture().into();
         let info_steve = mock_info("steve", &[nyms(100)]);
-        assert_eq!(info_steve.sender, service_fixture().owner);
+        assert_eq!(info_steve.sender, service_fixture().announcer);
         execute(deps.as_mut(), mock_env(), info_steve, msg).unwrap();
 
         // The expected announced service
@@ -254,20 +251,20 @@ mod tests {
 
         // Removing an non-existent service will fail
         let msg = ExecuteMsg::delete_id(expected_id + 1);
-        let info_owner = MessageInfo {
-            sender: service_fixture().owner,
+        let info_announcer = MessageInfo {
+            sender: service_fixture().announcer,
             funds: vec![],
         };
         assert_eq!(
-            execute(deps.as_mut(), mock_env(), info_owner.clone(), msg).unwrap_err(),
+            execute(deps.as_mut(), mock_env(), info_announcer.clone(), msg).unwrap_err(),
             ContractError::NotFound {
                 service_id: expected_id + 1
             }
         );
 
-        // Remove as correct owner succeeds
+        // Remove as correct announcer succeeds
         let msg = ExecuteMsg::delete_id(expected_id);
-        let res = execute(deps.as_mut(), mock_env(), info_owner, msg).unwrap();
+        let res = execute(deps.as_mut(), mock_env(), info_announcer, msg).unwrap();
         assert_eq!(
             get_attribute(&res, "delete_id", "service_id"),
             expected_id.to_string()

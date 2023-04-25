@@ -11,13 +11,10 @@ pub use packet_router::{
 };
 use tungstenite::{protocol::Message, Error as WsError};
 
-pub mod bandwidth;
 pub mod client;
 pub mod error;
 pub mod packet_router;
 pub mod socket_state;
-#[cfg(target_arch = "wasm32")]
-pub mod wasm_mockups;
 
 /// Helper method for reading from websocket stream. Helps to flatten the structure.
 pub(crate) fn cleanup_socket_message(

@@ -6,10 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bip39 = { workspace = true }
 nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage"]}
 nym-crypto = { path = "../../../common/crypto" }
-nym-gateway-client = { path = "../../../common/client-libs/gateway-client" }
 nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
+nym-bandwidth-controller = { path = "../../../common/bandwidth-controller" }
+nym-credentials = { path = "../../../common/credentials" }
+nym-credential-storage = { path = "../../../common/credential-storage" }
 nym-network-defaults = { path = "../../../common/network-defaults" }
 nym-sphinx = { path = "../../../common/nymsphinx" }
 nym-task = { path = "../../../common/task" }
@@ -26,6 +29,7 @@ url = "2.2"
 toml = "0.5.10"
 
 [dev-dependencies]
+dotenvy = { workspace = true }
 pretty_env_logger = "0.4.0"
 reqwest = { version = "0.11", features = ["json", "socks"] }
 tokio = { version = "1", features = ["full"] }

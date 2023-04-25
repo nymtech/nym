@@ -3,6 +3,7 @@
 
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::message::NymMessage;
+use nym_sphinx::params::PacketSize;
 use nym_sphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
 };
@@ -16,6 +17,7 @@ const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 #[derive(Clone)]
 pub(crate) struct Chunker {
     rng: OsRng,
+    packet_size: PacketSize,
     message_preparer: MessagePreparer<OsRng>,
 }
 
@@ -23,6 +25,10 @@ impl Chunker {
     pub(crate) fn new(tested_mix_me: Recipient) -> Self {
         Chunker {
             rng: OsRng,
+            // no point in using anything else for monitoring
+            // unless we should make it variable so mixnodes wouldn't know if
+            // non-default packet is for measurement or not
+            packet_size: PacketSize::RegularPacket,
             message_preparer: MessagePreparer::new(
                 OsRng,
                 tested_mix_me,
@@ -55,7 +61,7 @@ impl Chunker {
 
         let split_message = self
             .message_preparer
-            .pad_and_split_message(NymMessage::new_plain(message));
+            .pad_and_split_message(NymMessage::new_plain(message), self.packet_size);
 
         let mut mix_packets = Vec::with_capacity(split_message.len());
         for message_chunk in split_message {

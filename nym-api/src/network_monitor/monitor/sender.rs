@@ -12,10 +12,10 @@ use futures::stream::{self, FuturesUnordered, StreamExt};
 use futures::task::Context;
 use futures::{Future, Stream};
 use log::{debug, info, trace, warn};
+use nym_bandwidth_controller::BandwidthController;
 use nym_config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
-use nym_credential_storage::PersistentStorage;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
-use nym_gateway_client::bandwidth::BandwidthController;
 use nym_gateway_client::error::GatewayClientError;
 use nym_gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -206,7 +206,7 @@ impl PacketSender {
     }
 
     async fn attempt_to_send_packets(
-        client: &mut GatewayClient<nyxd::Client>,
+        client: &mut GatewayClient<nyxd::Client, PersistentStorage>,
         mut mix_packets: Vec<MixPacket>,
         max_sending_rate: usize,
     ) -> Result<(), GatewayClientError> {
@@ -314,7 +314,7 @@ impl PacketSender {
     }
 
     async fn check_remaining_bandwidth(
-        client: &mut GatewayClient<nyxd::Client>,
+        client: &mut GatewayClient<nyxd::Client, PersistentStorage>,
     ) -> Result<(), GatewayClientError> {
         if client.remaining_bandwidth() < REMAINING_BANDWIDTH_THRESHOLD {
             Err(GatewayClientError::NotEnoughBandwidth(

@@ -38,6 +38,10 @@ pub enum PendingEpochEventKind {
         mix_id: MixId,
         amount: Coin,
     },
+    DecreasePledge {
+        mix_id: MixId,
+        decrease_by: Coin,
+    },
     UnbondMixnode {
         mix_id: MixId,
     },
@@ -66,7 +70,7 @@ impl From<(EpochEventId, PendingEpochEventData)> for PendingEpochEvent {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PendingIntervalEvent {
-    pub id: EpochEventId,
+    pub id: IntervalEventId,
     pub event: PendingIntervalEventData,
 }
 

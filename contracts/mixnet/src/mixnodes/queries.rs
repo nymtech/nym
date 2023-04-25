@@ -7,7 +7,10 @@ use crate::constants::{
     MIXNODE_DETAILS_DEFAULT_RETRIEVAL_LIMIT, MIXNODE_DETAILS_MAX_RETRIEVAL_LIMIT,
     UNBONDED_MIXNODES_DEFAULT_RETRIEVAL_LIMIT, UNBONDED_MIXNODES_MAX_RETRIEVAL_LIMIT,
 };
-use crate::mixnodes::helpers::{get_mixnode_details_by_id, get_mixnode_details_by_owner};
+use crate::mixnodes::helpers::{
+    attach_mix_details, get_mixnode_details_by_id, get_mixnode_details_by_identity,
+    get_mixnode_details_by_owner,
+};
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Deps, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
@@ -46,18 +49,12 @@ pub fn query_mixnode_bonds_paged(
     ))
 }
 
-fn attach_rewarding_info(
+fn attach_node_details(
     storage: &dyn Storage,
     read_bond: StdResult<(MixId, MixNodeBond)>,
 ) -> StdResult<MixNodeDetails> {
     match read_bond {
-        Ok((_, bond)) => {
-            // if we managed to read the bond we MUST be able to also read rewarding information.
-            // if we fail, this is a hard error and the query should definitely fail and we should investigate
-            // the reasons for that.
-            let mix_rewarding = rewards_storage::MIXNODE_REWARDING.load(storage, bond.mix_id)?;
-            Ok(MixNodeDetails::new(bond, mix_rewarding))
-        }
+        Ok((_, bond)) => attach_mix_details(storage, bond),
         Err(err) => Err(err),
     }
 }
@@ -76,7 +73,7 @@ pub fn query_mixnodes_details_paged(
     let nodes = storage::mixnode_bonds()
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
-        .map(|res| attach_rewarding_info(deps.storage, res))
+        .map(|res| attach_node_details(deps.storage, res))
         .collect::<StdResult<Vec<MixNodeDetails>>>()?;
 
     let start_next_after = nodes.last().map(|details| details.mix_id());
@@ -192,26 +189,12 @@ pub fn query_mixnode_details(deps: Deps<'_>, mix_id: MixId) -> StdResult<Mixnode
     })
 }
 
+// TODO: change the return type to be consistent with the other details queries
 pub fn query_mixnode_details_by_identity(
     deps: Deps<'_>,
     mix_identity: IdentityKey,
 ) -> StdResult<Option<MixNodeDetails>> {
-    if let Some(bond_information) = storage::mixnode_bonds()
-        .idx
-        .identity_key
-        .item(deps.storage, mix_identity)?
-        .map(|record| record.1)
-    {
-        // if bond exists, rewarding details MUST also exist
-        let rewarding_details =
-            rewards_storage::MIXNODE_REWARDING.load(deps.storage, bond_information.mix_id)?;
-        Ok(Some(MixNodeDetails::new(
-            bond_information,
-            rewarding_details,
-        )))
-    } else {
-        Ok(None)
-    }
+    get_mixnode_details_by_identity(deps.storage, mix_identity)
 }
 
 pub fn query_mixnode_rewarding_details(
@@ -459,10 +442,10 @@ pub(crate) mod tests {
         fn obeys_limits() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let limit = 2;
 
-            test_helpers::add_dummy_unbonded_mixnodes(&mut rng, deps.as_mut(), 1000);
+            test_helpers::add_dummy_unbonded_mixnodes(rng, deps.as_mut(), 1000);
             let page1 = query_unbonded_mixnodes_paged(deps.as_ref(), None, Some(limit)).unwrap();
             assert_eq!(limit, page1.nodes.len() as u32);
         }
@@ -471,8 +454,8 @@ pub(crate) mod tests {
         fn has_default_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
-            test_helpers::add_dummy_unbonded_mixnodes(&mut rng, deps.as_mut(), 1000);
+            let rng = test_helpers::test_rng();
+            test_helpers::add_dummy_unbonded_mixnodes(rng, deps.as_mut(), 1000);
 
             // query without explicitly setting a limit
             let page1 = query_unbonded_mixnodes_paged(deps.as_ref(), None, None).unwrap();
@@ -487,8 +470,8 @@ pub(crate) mod tests {
         fn has_max_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
-            test_helpers::add_dummy_unbonded_mixnodes(&mut rng, deps.as_mut(), 1000);
+            let rng = test_helpers::test_rng();
+            test_helpers::add_dummy_unbonded_mixnodes(rng, deps.as_mut(), 1000);
 
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000;
@@ -589,16 +572,11 @@ pub(crate) mod tests {
         fn obeys_limits() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let limit = 2;
             let owner = "owner";
 
-            test_helpers::add_dummy_unbonded_mixnodes_with_owner(
-                &mut rng,
-                deps.as_mut(),
-                owner,
-                1000,
-            );
+            test_helpers::add_dummy_unbonded_mixnodes_with_owner(rng, deps.as_mut(), owner, 1000);
             let page1 = query_unbonded_mixnodes_by_owner_paged(
                 deps.as_ref(),
                 owner.into(),
@@ -613,15 +591,10 @@ pub(crate) mod tests {
         fn has_default_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let owner = "owner";
 
-            test_helpers::add_dummy_unbonded_mixnodes_with_owner(
-                &mut rng,
-                deps.as_mut(),
-                owner,
-                1000,
-            );
+            test_helpers::add_dummy_unbonded_mixnodes_with_owner(rng, deps.as_mut(), owner, 1000);
 
             // query without explicitly setting a limit
             let page1 =
@@ -638,15 +611,10 @@ pub(crate) mod tests {
         fn has_max_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let owner = "owner";
 
-            test_helpers::add_dummy_unbonded_mixnodes_with_owner(
-                &mut rng,
-                deps.as_mut(),
-                owner,
-                1000,
-            );
+            test_helpers::add_dummy_unbonded_mixnodes_with_owner(rng, deps.as_mut(), owner, 1000);
 
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000;
@@ -836,12 +804,12 @@ pub(crate) mod tests {
         fn obeys_limits() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let limit = 2;
             let identity = "foomp123";
 
             test_helpers::add_dummy_unbonded_mixnodes_with_identity(
-                &mut rng,
+                rng,
                 deps.as_mut(),
                 identity,
                 1000,
@@ -860,10 +828,10 @@ pub(crate) mod tests {
         fn has_default_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let identity = "foomp123";
             test_helpers::add_dummy_unbonded_mixnodes_with_identity(
-                &mut rng,
+                rng,
                 deps.as_mut(),
                 identity,
                 1000,
@@ -888,10 +856,10 @@ pub(crate) mod tests {
         fn has_max_limit() {
             let mut deps = test_helpers::init_contract();
             let _env = mock_env();
-            let mut rng = test_helpers::test_rng();
+            let rng = test_helpers::test_rng();
             let identity = "foomp123";
             test_helpers::add_dummy_unbonded_mixnodes_with_identity(
-                &mut rng,
+                rng,
                 deps.as_mut(),
                 identity,
                 1000,

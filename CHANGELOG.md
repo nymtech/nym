@@ -4,19 +4,74 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-- nym-network-statistics properly handles signals ([#3209])
-- add socks5 support for Rust SDK ([#3226], [#3255])
+## [v1.1.16] (2023-04-25)
 
-[#3209]: https://github.com/nymtech/nym/issues/3209
-[#3226]: https://github.com/nymtech/nym/pull/3226
-[#3255]: https://github.com/nymtech/nym/pull/3255
+- Explorer - Fix sorting function on Stake Saturation. It is currently working per page and not globally ([#3320])
+- Poisson process gets stuck at too slow rate. Rework to more aggressively up-regulate ([#3309])
+- decrease the logging level of warnings associated with clients dropping packets due to gateway being overloaded (I'd say reduce it to debug/trace) - there are few sources of those, e.g. in real and cover traffic streams ([#3299])
+- Make the buffer size in `AvailableReader` depend on packet sizes the client is using + introduce read timeouts ([#3213])
+- Rust SDK - Support coconut, credential storage etc ([#2755])
+- version bump for next release ([#3349])
+- added coconut credential generation example ([#3339])
+- update mix-node setup docs with node description ([#3325])
+- exposed missing gateway commands in nym-cli ([#3324])
+- make sure to clear inner 'ack_map' in 'GatewaysReader' ([#3300])
+
+[#3320]: https://github.com/nymtech/nym/issues/3320
+[#3309]: https://github.com/nymtech/nym/issues/3309
+[#3299]: https://github.com/nymtech/nym/issues/3299
+[#3213]: https://github.com/nymtech/nym/issues/3213
+[#2755]: https://github.com/nymtech/nym/issues/2755
+[#3349]: https://github.com/nymtech/nym/pull/3349
+[#3339]: https://github.com/nymtech/nym/pull/3339
+[#3325]: https://github.com/nymtech/nym/pull/3325
+[#3324]: https://github.com/nymtech/nym/pull/3324
+[#3300]: https://github.com/nymtech/nym/pull/3300
+
+## [v1.1.15] (2023-04-18)
+
+- Fix verloc being stuck waiting for shutdown signal ([#3250])
+- Introduce `--output json` flag to `sign` command to allow to more easily capture the output ([#3249])
+- Explorer - Dont fetch Service Provider list on Testnet ([#3245])
+- When determining active set, rather than weighting the nodes by just the `stake`, use `stake * performance` ([#3234])
+- Introduce dual packet sizes to our clients (as in use two packet sizes at the same time depending on message size) ([#3189])
+- Experiment with offline signing in our validator client ([#3174])
+- Modify network requester binary to reload `allowed.list` periodically to pull in any changes made upstream without having to restart the service ([#3149])
+- Standardise all `--output json` on binary inits, we pass the output json at different points for different binaries. ([#3080])
+- Service provider directory contract: initial version ([#2759])
+- Fix issue where network-requester run failed on fresh init due to missing allow file ([#3316])
+
+[#3250]: https://github.com/nymtech/nym/issues/3250
+[#3249]: https://github.com/nymtech/nym/issues/3249
+[#3245]: https://github.com/nymtech/nym/issues/3245
+[#3234]: https://github.com/nymtech/nym/issues/3234
+[#3189]: https://github.com/nymtech/nym/issues/3189
+[#3174]: https://github.com/nymtech/nym/issues/3174
+[#3149]: https://github.com/nymtech/nym/issues/3149
+[#3080]: https://github.com/nymtech/nym/issues/3080
+[#2759]: https://github.com/nymtech/nym/issues/2759
+[#3316]: https://github.com/nymtech/nym/pull/3316
+
+## [v1.1.14] (2023-04-04)
+
+- Investigate cause of qwerty validator being in invalid rewarding state ([#3224])
+- Fix NR config due to changes in #3199 ([#3223])
+- [Issue] Mixnodes and gateway do not close connections properly  ([#3187])
+- disable sign-ext when using wasm-opt + update wasm-opt ([#3203])
+- chore: tidy up client `Debug` config section ([#3199])
+
+[#3224]: https://github.com/nymtech/nym/issues/3224
+[#3223]: https://github.com/nymtech/nym/issues/3223
+[#3187]: https://github.com/nymtech/nym/issues/3187
+[#3203]: https://github.com/nymtech/nym/pull/3203
+[#3199]: https://github.com/nymtech/nym/pull/3199
+>>>>>>> master
 
 ## [v1.1.13] (2023-03-15)
 
 - NE - instead of throwing a "Mixnode/Gateway not found" error for blacklisted nodes due to bad performance, show their history but tag them as "Having poor performance" ([#2979])
 - NE - Upgrade Sandbox and make below changes:  ([#2332])
 - Explorer - Updates ([#3168])
-- Fix contracts and nym-api audit findings ([#3026])
 - Website v2 - deploy infrastructure for strapi and CI ([#2213])
 - add blockstream green to sp list ([#3180])
 - mock-nym-api: fix .storybook lint error ([#3178])
@@ -25,7 +80,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2979]: https://github.com/nymtech/nym/issues/2979
 [#2332]: https://github.com/nymtech/nym/issues/2332
 [#3168]: https://github.com/nymtech/nym/issues/3168
-[#3026]: https://github.com/nymtech/nym/issues/3026
 [#2213]: https://github.com/nymtech/nym/issues/2213
 [#3180]: https://github.com/nymtech/nym/pull/3180
 [#3178]: https://github.com/nymtech/nym/pull/3178

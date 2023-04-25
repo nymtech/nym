@@ -50,10 +50,11 @@ tokio = { version = "1.24.1", features = ["sync", "time"] }
 url = "2.2"
 yaml-rust = "0.4"
 
-nym-client-core = { path = "../../../common/client-core" }
+nym-client-core = { path = "../../../common/client-core", features = ["mobile"], default-features = false }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common"}
 nym-config-common = { path = "../../../common/config", package = "nym-config" }
+nym-credential-storage = { path = "../../../common/credential-storage" }
 nym-crypto = { path = "../../../common/crypto" }
 nym-bin-common = { path = "../../../common/bin-common"}
 nym-socks5-client-core = { path = "../../../common/socks5-client-core", default-features = false }

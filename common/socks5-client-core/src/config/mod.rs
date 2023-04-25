@@ -77,6 +77,11 @@ impl Config {
         }
     }
 
+    pub fn validate(&self) -> bool {
+        // no other sections have explicit requirements (yet)
+        self.base.validate()
+    }
+
     // getters
     pub fn get_base(&self) -> &BaseConfig<Self> {
         &self.base

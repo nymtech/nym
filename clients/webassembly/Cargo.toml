@@ -17,6 +17,7 @@ default = ["console_error_panic_hook"]
 offline-test = []
 
 [dependencies]
+bs58 = "0.4.0"
 futures = "0.3"
 js-sys = "0.3"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
@@ -28,13 +29,20 @@ tokio = { version = "1.24.1", features = ["sync"] }
 url = "2.2"
 wasm-bindgen = { version = "=0.2.83", features = ["serde-serialize"]  }
 wasm-bindgen-futures = "0.4"
+thiserror = "1.0.40"
+
+wasm-timer = { git = "https://github.com/mmsinclair/wasm-timer", rev = "b9d1a54ad514c2f230a026afe0dde341e98cd7b6"}
 
 # internal
+nym-node-tester-utils = { path = "../../common/node-tester-utils" }
 nym-client-core = { path = "../../common/client-core", default-features = false, features = ["wasm"] }
+nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-credentials = { path = "../../common/credentials" }
+nym-credential-storage = { path = "../../common/credential-storage" }
 nym-crypto = { path = "../../common/crypto" }
 nym-sphinx = { path = "../../common/nymsphinx" }
+nym-topology = { path = "../../common/topology" }
 nym-gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm"] }
 nym-validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 wasm-utils = { path = "../../common/wasm-utils" }

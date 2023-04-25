@@ -9,6 +9,7 @@ use crate::{
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::NymConfig;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::config::Config;
 use nym_sphinx::addressing::clients::Recipient;
@@ -115,8 +116,8 @@ impl InitResults {
 impl Display for InitResults {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.client_core)?;
-        write!(f, "SOCKS5 listening port: {}", self.socks5_listening_port)?;
-        write!(f, "address of this client: {}", self.client_address)
+        writeln!(f, "SOCKS5 listening port: {}", self.socks5_listening_port)?;
+        write!(f, "Address of this client: {}", self.client_address)
     }
 }
 
@@ -157,7 +158,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = nym_client_core::init::setup_gateway_from_config::<Config, _>(
+    let gateway = nym_client_core::init::setup_gateway_from_config::<Config, _, PersistentStorage>(
         register_gateway,
         user_chosen_gateway_id,
         config.get_base(),
@@ -180,7 +181,6 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     let init_results = InitResults::new(&config, &address);
     println!("{}", args.output.format(&init_results));
 
-    eprintln!("\nThe address of this client is: {}\n", address);
     Ok(())
 }
 

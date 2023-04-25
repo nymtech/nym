@@ -6,6 +6,7 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::{wasm_execute, Addr, BankMsg, Coin, CosmosMsg, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::mixnode::PendingMixNodeChanges;
 use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixId, MixNodeBond};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
@@ -40,6 +41,14 @@ where
     ) -> Result<Self, MixnetContractError>;
 
     fn maybe_add_track_vesting_unbond_mixnode_message(
+        self,
+        storage: &dyn Storage,
+        proxy: Option<Addr>,
+        owner: String,
+        amount: Coin,
+    ) -> Result<Self, MixnetContractError>;
+
+    fn maybe_add_track_vesting_decrease_mixnode_pledge(
         self,
         storage: &dyn Storage,
         proxy: Option<Addr>,
@@ -110,6 +119,33 @@ impl VestingTracking for Response {
             let msg = VestingContractExecuteMsg::TrackUnbondMixnode { owner, amount };
             let track_unbond_message = wasm_execute(proxy, &msg, vec![])?;
             Ok(self.add_message(track_unbond_message))
+        } else {
+            // there's no proxy so nothing to do
+            Ok(self)
+        }
+    }
+
+    fn maybe_add_track_vesting_decrease_mixnode_pledge(
+        self,
+        storage: &dyn Storage,
+        proxy: Option<Addr>,
+        owner: String,
+        amount: Coin,
+    ) -> Result<Self, MixnetContractError> {
+        if let Some(proxy) = proxy {
+            let vesting_contract = mixnet_params_storage::vesting_contract_address(storage)?;
+
+            // exactly the same possible halting behaviour as in `maybe_add_track_vesting_undelegation_message`.
+            if proxy != vesting_contract {
+                return Err(MixnetContractError::ProxyIsNotVestingContract {
+                    received: proxy,
+                    vesting_contract,
+                });
+            }
+
+            let msg = VestingContractExecuteMsg::TrackDecreasePledge { owner, amount };
+            let track_decrease_pledge_message = wasm_execute(proxy, &msg, vec![])?;
+            Ok(self.add_message(track_decrease_pledge_message))
         } else {
             // there's no proxy so nothing to do
             Ok(self)
@@ -338,6 +374,15 @@ pub(crate) fn ensure_bonded(bond: &MixNodeBond) -> Result<(), MixnetContractErro
         return Err(MixnetContractError::MixnodeIsUnbonding {
             mix_id: bond.mix_id,
         });
+    }
+    Ok(())
+}
+
+pub(crate) fn ensure_no_pending_pledge_changes(
+    pending_changes: &PendingMixNodeChanges,
+) -> Result<(), MixnetContractError> {
+    if let Some(pending_event_id) = pending_changes.pledge_change {
+        return Err(MixnetContractError::PendingPledgeChange { pending_event_id });
     }
     Ok(())
 }

@@ -61,6 +61,10 @@ pub enum PendingEpochEventData {
         mix_id: MixId,
         amount: DecCoin,
     },
+    DecreasePledge {
+        mix_id: MixId,
+        decrease_by: DecCoin,
+    },
     UnbondMixnode {
         mix_id: MixId,
     },
@@ -101,6 +105,13 @@ impl PendingEpochEventData {
                     amount: reg.attempt_convert_to_display_dec_coin(amount.into())?,
                 })
             }
+            MixnetContractPendingEpochEventKind::DecreasePledge {
+                mix_id,
+                decrease_by,
+            } => Ok(PendingEpochEventData::DecreasePledge {
+                mix_id,
+                decrease_by: reg.attempt_convert_to_display_dec_coin(decrease_by.into())?,
+            }),
             MixnetContractPendingEpochEventKind::UnbondMixnode { mix_id } => {
                 Ok(PendingEpochEventData::UnbondMixnode { mix_id })
             }

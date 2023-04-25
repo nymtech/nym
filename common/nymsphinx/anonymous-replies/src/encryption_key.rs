@@ -63,6 +63,10 @@ impl SurbEncryptionKey {
         self.0.as_ref()
     }
 
+    pub fn size(&self) -> usize {
+        self.0.len()
+    }
+
     pub fn inner(&self) -> &CipherKey<ReplySurbEncryptionAlgorithm> {
         &self.0
     }

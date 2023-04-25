@@ -32,6 +32,7 @@ nym-outfox = { path = "../../nym-outfox" }
 
 [dev-dependencies]
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
+nym-crypto = { path = "../crypto", version = "0.2.0", features = ["asymmetric"] }
 
 # do not include this when compiling into wasm as it somehow when combined together with reqwest, it will require
 # net2 via tokio-util -> tokio -> mio -> net2

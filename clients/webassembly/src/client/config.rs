@@ -8,10 +8,11 @@
 
 use nym_client_core::config::{
     Acknowledgements as ConfigAcknowledgements, CoverTraffic as ConfigCoverTraffic,
-    DebugConfig as ConfigDebug, ExtendedPacketSize, GatewayConnection as ConfigGatewayConnection,
+    DebugConfig as ConfigDebug, GatewayConnection as ConfigGatewayConnection,
     GatewayEndpointConfig, ReplySurbs as ConfigReplySurbs, Topology as ConfigTopology,
     Traffic as ConfigTraffic,
 };
+use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
@@ -24,7 +25,7 @@ pub struct Config {
     /// ID specifies the human readable ID of this particular client.
     pub(crate) id: String,
 
-    pub(crate) nym_api_url: Url,
+    pub(crate) nym_api_url: Option<Url>,
 
     pub(crate) disabled_credentials_mode: bool,
 
@@ -45,9 +46,11 @@ impl Config {
     ) -> Self {
         Config {
             id,
-            nym_api_url: validator_server
-                .parse()
-                .expect("provided url was malformed"),
+            nym_api_url: Some(
+                validator_server
+                    .parse()
+                    .expect("provided url was malformed"),
+            ),
             disabled_credentials_mode: true,
             gateway_endpoint,
             debug: debug.map(Into::into).unwrap_or_default(),
@@ -82,7 +85,7 @@ impl From<Traffic> for ConfigTraffic {
     fn from(traffic: Traffic) -> Self {
         let use_extended_packet_size = traffic
             .use_extended_packet_size
-            .then(|| ExtendedPacketSize::Extended32);
+            .then(|| PacketSize::ExtendedPacket32);
 
         ConfigTraffic {
             average_packet_delay: Duration::from_millis(traffic.average_packet_delay_ms),
@@ -91,7 +94,8 @@ impl From<Traffic> for ConfigTraffic {
             ),
             disable_main_poisson_packet_distribution: traffic
                 .disable_main_poisson_packet_distribution,
-            use_extended_packet_size,
+            primary_packet_size: PacketSize::RegularPacket,
+            secondary_packet_size: use_extended_packet_size,
         }
     }
 }
@@ -104,7 +108,7 @@ impl From<ConfigTraffic> for Traffic {
                 as u64,
             disable_main_poisson_packet_distribution: traffic
                 .disable_main_poisson_packet_distribution,
-            use_extended_packet_size: traffic.use_extended_packet_size.is_some(),
+            use_extended_packet_size: traffic.secondary_packet_size.is_some(),
         }
     }
 }
@@ -115,6 +119,10 @@ pub struct CoverTraffic {
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
     pub loop_cover_traffic_average_delay_ms: u64,
+
+    /// Specifies the ratio of `primary_packet_size` to `secondary_packet_size` used in cover traffic.
+    /// Only applicable if `secondary_packet_size` is enabled.
+    pub cover_traffic_primary_size_ratio: f64,
 
     /// Controls whether the dedicated loop cover traffic stream should be enabled.
     /// (and sending packets, on average, every [Self::loop_cover_traffic_average_delay])
@@ -127,6 +135,7 @@ impl From<CoverTraffic> for ConfigCoverTraffic {
             loop_cover_traffic_average_delay: Duration::from_millis(
                 cover_traffic.loop_cover_traffic_average_delay_ms,
             ),
+            cover_traffic_primary_size_ratio: cover_traffic.cover_traffic_primary_size_ratio,
             disable_loop_cover_traffic_stream: cover_traffic.disable_loop_cover_traffic_stream,
         }
     }
@@ -138,6 +147,7 @@ impl From<ConfigCoverTraffic> for CoverTraffic {
             loop_cover_traffic_average_delay_ms: cover_traffic
                 .loop_cover_traffic_average_delay
                 .as_millis() as u64,
+            cover_traffic_primary_size_ratio: cover_traffic.cover_traffic_primary_size_ratio,
             disable_loop_cover_traffic_stream: cover_traffic.disable_loop_cover_traffic_stream,
         }
     }
@@ -221,6 +231,11 @@ pub struct Topology {
     /// path. This timeout determines waiting period until it is decided that the packet
     /// did not reach its destination.
     pub topology_resolution_timeout_ms: u64,
+
+    /// Specifies whether the client should not refresh the network topology after obtaining
+    /// the first valid instance.
+    /// Supersedes `topology_refresh_rate_ms`.
+    pub disable_refreshing: bool,
 }
 
 impl From<Topology> for ConfigTopology {
@@ -230,6 +245,7 @@ impl From<Topology> for ConfigTopology {
             topology_resolution_timeout: Duration::from_millis(
                 topology.topology_resolution_timeout_ms,
             ),
+            disable_refreshing: topology.disable_refreshing,
         }
     }
 }
@@ -239,6 +255,7 @@ impl From<ConfigTopology> for Topology {
         Topology {
             topology_refresh_rate_ms: topology.topology_refresh_rate.as_millis() as u64,
             topology_resolution_timeout_ms: topology.topology_resolution_timeout.as_millis() as u64,
+            disable_refreshing: topology.disable_refreshing,
         }
     }
 }

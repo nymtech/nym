@@ -236,10 +236,10 @@ pub(crate) mod tests {
                     let limit = *limits.next().unwrap();
                     {
                         let mut group_members = GROUP_MEMBERS.lock().unwrap();
-                        for i in 0..n as usize {
+                        for dealer in dealers.iter() {
                             group_members.push((
                                 Member {
-                                    addr: dealers[i].address.to_string(),
+                                    addr: dealer.address.to_string(),
                                     weight: 10,
                                 },
                                 1,
@@ -339,7 +339,7 @@ pub(crate) mod tests {
                 )
                 .unwrap()
             );
-            for i in 0..3 as u64 {
+            for i in 0..3_u64 {
                 let details = dealer_details_fixture(i + 1);
                 current_dealers()
                     .save(deps.as_mut().storage, &details.address, &details)

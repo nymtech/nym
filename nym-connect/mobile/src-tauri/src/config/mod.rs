@@ -4,6 +4,7 @@ use crate::{
 };
 use nym_client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
 use nym_config_common::NymConfig;
+use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::config::{Config as Socks5Config, Socks5};
 use std::path::PathBuf;
@@ -118,7 +119,7 @@ pub async fn init_socks5_config(
     let mut key_manager = nym_client_core::init::new_client_keys();
 
     // Setup gateway and register a new key each time
-    let gateway = nym_client_core::init::register_with_gateway(
+    let gateway = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
         &mut key_manager,
         nym_api_endpoints,
         Some(chosen_gateway_id),

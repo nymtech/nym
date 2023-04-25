@@ -3174,8 +3174,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-bandwidth-controller"
+version = "0.1.0"
+dependencies = [
+ "bip39",
+ "nym-coconut-interface",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-network-defaults",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "thiserror",
+ "url",
+]
+
+[[package]]
 name = "nym-bin-common"
-version = "0.3.0"
+version = "0.5.0"
 dependencies = [
  "atty",
  "clap",
@@ -3190,7 +3206,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-core"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "async-trait",
  "dashmap",
@@ -3199,7 +3215,9 @@ dependencies = [
  "gloo-timers",
  "humantime-serde",
  "log",
+ "nym-bandwidth-controller",
  "nym-config",
+ "nym-credential-storage",
  "nym-crypto",
  "nym-gateway-client",
  "nym-gateway-requests",
@@ -3295,7 +3313,7 @@ dependencies = [
 
 [[package]]
 name = "nym-connect"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "anyhow",
  "bip39",
@@ -3311,6 +3329,7 @@ dependencies = [
  "nym-client-core",
  "nym-config",
  "nym-contracts-common",
+ "nym-credential-storage",
  "nym-crypto",
  "nym-socks5-client-core",
  "nym-task",
@@ -3338,7 +3357,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3418,16 +3437,14 @@ dependencies = [
 name = "nym-gateway-client"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "futures",
  "getrandom 0.2.8",
  "log",
+ "nym-bandwidth-controller",
  "nym-coconut-interface",
  "nym-credential-storage",
- "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
- "nym-mobile-storage",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -3477,7 +3494,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.3.0"
+version = "0.5.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -3490,14 +3507,6 @@ dependencies = [
  "serde_repr",
  "thiserror",
  "time",
-]
-
-[[package]]
-name = "nym-mobile-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "thiserror",
 ]
 
 [[package]]
@@ -3557,6 +3566,7 @@ dependencies = [
  "curve25519-dalek",
  "getrandom 0.2.8",
  "rayon",
+ "sphinx-packet 0.1.0 (git+https://github.com/nymtech/sphinx.git)",
  "thiserror",
  "zeroize",
 ]
@@ -3588,10 +3598,10 @@ dependencies = [
  "dirs",
  "futures",
  "log",
+ "nym-bandwidth-controller",
  "nym-client-core",
  "nym-config",
  "nym-credential-storage",
- "nym-gateway-client",
  "nym-network-defaults",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",
@@ -3727,6 +3737,7 @@ dependencies = [
 name = "nym-sphinx-forwarding"
 version = "0.1.0"
 dependencies = [
+ "nym-outfox",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
@@ -3749,6 +3760,7 @@ version = "0.1.0"
 dependencies = [
  "nym-crypto",
  "nym-sphinx-types",
+ "serde",
  "thiserror",
 ]
 
@@ -3756,7 +3768,7 @@ dependencies = [
 name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
- "sphinx-packet",
+ "sphinx-packet 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3829,7 +3841,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract"
-version = "1.2.0"
+version = "1.4.0"
 dependencies = [
  "cosmwasm-derive",
  "cosmwasm-std",
@@ -3847,7 +3859,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.3.0"
+version = "0.6.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",
@@ -5346,6 +5358,29 @@ name = "sphinx-packet"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc43eda802856ee82a7555c7b75ceb9e07451741c7a2f5f23d036020e01189d4"
+dependencies = [
+ "aes 0.7.5",
+ "arrayref",
+ "blake2",
+ "bs58",
+ "byteorder",
+ "chacha",
+ "curve25519-dalek",
+ "digest 0.9.0",
+ "hkdf 0.11.0",
+ "hmac 0.11.0",
+ "lioness",
+ "log",
+ "rand 0.7.3",
+ "rand_distr",
+ "sha2 0.9.9",
+ "subtle 2.4.1",
+]
+
+[[package]]
+name = "sphinx-packet"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/sphinx.git#ca107d94360cdf8bbfbdb12fe5320ed74f80e40c"
 dependencies = [
  "aes 0.7.5",
  "arrayref",

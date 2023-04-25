@@ -119,6 +119,11 @@ impl Config {
         cfg
     }
 
+    pub fn validate(&self) -> bool {
+        // no other sections have explicit requirements (yet)
+        self.base.validate()
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())

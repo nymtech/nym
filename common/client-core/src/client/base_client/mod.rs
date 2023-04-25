@@ -22,11 +22,11 @@ use crate::client::topology_control::{
 };
 use crate::config::{Config, DebugConfig, GatewayEndpointConfig};
 use crate::error::ClientCoreError;
-use crate::spawn_future;
+use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::{debug, info};
+use nym_bandwidth_controller::BandwidthController;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_gateway_client::bandwidth::BandwidthController;
 use nym_gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
@@ -39,15 +39,15 @@ use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, 
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
 use std::sync::Arc;
-use std::time::Duration;
 use tap::TapFallible;
 use url::Url;
 
+use nym_credential_storage::storage::Storage;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 #[cfg(target_arch = "wasm32")]
-use nym_gateway_client::wasm_mockups::DkgQueryClient;
+use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod non_wasm_helpers;
@@ -151,7 +151,7 @@ impl From<bool> for CredentialsToggle {
     }
 }
 
-pub struct BaseClientBuilder<'a, B, C> {
+pub struct BaseClientBuilder<'a, B, C, St: Storage> {
     // due to wasm limitations I had to split it like this : (
     gateway_config: &'a GatewayEndpointConfig,
     debug_config: &'a DebugConfig,
@@ -160,21 +160,22 @@ pub struct BaseClientBuilder<'a, B, C> {
     reply_storage_backend: B,
 
     custom_topology_provider: Option<Box<dyn TopologyProvider>>,
-    bandwidth_controller: Option<BandwidthController<C>>,
+    bandwidth_controller: Option<BandwidthController<C, St>>,
     key_manager: KeyManager,
 }
 
-impl<'a, B, C> BaseClientBuilder<'a, B, C>
+impl<'a, B, C, St> BaseClientBuilder<'a, B, C, St>
 where
     B: ReplyStorageBackend + Send + Sync + 'static,
     C: DkgQueryClient + Sync + Send + 'static,
+    St: Storage + 'static,
 {
     pub fn new_from_base_config<T>(
         base_config: &'a Config<T>,
         key_manager: KeyManager,
-        bandwidth_controller: Option<BandwidthController<C>>,
+        bandwidth_controller: Option<BandwidthController<C, St>>,
         reply_storage_backend: B,
-    ) -> BaseClientBuilder<'a, B, C> {
+    ) -> BaseClientBuilder<'a, B, C, St> {
         BaseClientBuilder {
             gateway_config: base_config.get_gateway_endpoint_config(),
             debug_config: base_config.get_debug_config(),
@@ -191,11 +192,11 @@ where
         gateway_config: &'a GatewayEndpointConfig,
         debug_config: &'a DebugConfig,
         key_manager: KeyManager,
-        bandwidth_controller: Option<BandwidthController<C>>,
+        bandwidth_controller: Option<BandwidthController<C, St>>,
         reply_storage_backend: B,
         credentials_toggle: CredentialsToggle,
         nym_api_endpoints: Vec<Url>,
-    ) -> BaseClientBuilder<'a, B, C> {
+    ) -> BaseClientBuilder<'a, B, C, St> {
         BaseClientBuilder {
             gateway_config,
             debug_config,
@@ -235,20 +236,15 @@ where
     ) {
         info!("Starting loop cover traffic stream...");
 
-        let mut stream = LoopCoverTrafficStream::new(
+        let stream = LoopCoverTrafficStream::new(
             ack_key,
             debug_config.acknowledgements.average_ack_delay,
-            debug_config.traffic.average_packet_delay,
-            debug_config.cover_traffic.loop_cover_traffic_average_delay,
             mix_tx,
             self_address,
             topology_accessor,
+            debug_config.traffic,
+            debug_config.cover_traffic,
         );
-
-        if let Some(size) = debug_config.traffic.use_extended_packet_size {
-            log::debug!("Setting extended packet size: {:?}", size);
-            stream.set_custom_packet_size(size.into());
-        }
 
         stream.start_with_shutdown(shutdown);
     }
@@ -311,7 +307,7 @@ where
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         shutdown: TaskClient,
-    ) -> Result<GatewayClient<C>, ClientCoreError> {
+    ) -> Result<GatewayClient<C, St>, ClientCoreError> {
         let gateway_id = self.gateway_config.gateway_id.clone();
         if gateway_id.is_empty() {
             return Err(ClientCoreError::GatewayIdUnknown);
@@ -374,11 +370,12 @@ where
     // the current global view of topology
     async fn start_topology_refresher(
         topology_provider: Box<dyn TopologyProvider>,
-        refresh_rate: Duration,
+        topology_config: config::Topology,
         topology_accessor: TopologyAccessor,
-        shutdown: TaskClient,
+        mut shutdown: TaskClient,
     ) -> Result<(), ClientCoreError> {
-        let topology_refresher_config = TopologyRefresherConfig::new(refresh_rate);
+        let topology_refresher_config =
+            TopologyRefresherConfig::new(topology_config.topology_refresh_rate);
 
         let mut topology_refresher = TopologyRefresher::new(
             topology_refresher_config,
@@ -398,8 +395,17 @@ where
             return Err(ClientCoreError::InsufficientNetworkTopology(err));
         }
 
-        info!("Starting topology refresher...");
-        topology_refresher.start_with_shutdown(shutdown);
+        if topology_config.disable_refreshing {
+            // if we're not spawning the refresher, don't cause shutdown immediately
+            info!("The topology refesher is not going to be started");
+            shutdown.mark_as_success();
+        } else {
+            // don't spawn the refresher if we don't want to be refreshing the topology.
+            // only use the initial values obtained
+            info!("Starting topology refresher...");
+            topology_refresher.start_with_shutdown(shutdown);
+        }
+
         Ok(())
     }
 
@@ -408,7 +414,7 @@ where
     // over it. Perhaps GatewayClient needs to be thread-shareable or have some channel for
     // requests?
     fn start_mix_traffic_controller(
-        gateway_client: GatewayClient<C>,
+        gateway_client: GatewayClient<C, St>,
         shutdown: TaskClient,
     ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");
@@ -503,7 +509,7 @@ where
         );
         Self::start_topology_refresher(
             topology_provider,
-            self.debug_config.topology.topology_refresh_rate,
+            self.debug_config.topology,
             shared_topology_accessor.clone(),
             task_manager.subscribe(),
         )
@@ -533,16 +539,11 @@ where
         // primarily to throttle incoming connections (e.g socks5 for attached network-requesters)
         let shared_lane_queue_lengths = LaneQueueLengths::new();
 
-        let mut controller_config = real_messages_control::Config::new(
+        let controller_config = real_messages_control::Config::new(
             self.debug_config,
             self.key_manager.ack_key(),
             self_address,
         );
-
-        if let Some(size) = self.debug_config.traffic.use_extended_packet_size {
-            log::debug!("Setting extended packet size: {:?}", size);
-            controller_config.set_custom_packet_size(size.into());
-        }
 
         Self::start_real_traffic_controller(
             controller_config,

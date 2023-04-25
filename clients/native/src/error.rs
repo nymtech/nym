@@ -11,6 +11,10 @@ pub enum ClientError {
     #[error("Failed to load config for: {0}")]
     FailedToLoadConfig(String),
 
+    // TODO: add more details here
+    #[error("Failed to validate the loaded config")]
+    ConfigValidationFailure,
+
     #[error("Failed local version check, client and config mismatch")]
     FailedLocalVersionCheck,
 

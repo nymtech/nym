@@ -6,6 +6,7 @@ use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
+use crate::config;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
@@ -27,7 +28,6 @@ use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
-
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
@@ -44,18 +44,12 @@ pub(crate) struct Config {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
-    /// Average delay a data packet is going to get delay at a single mixnode.
-    average_packet_delay: Duration,
+    /// Defines all configuration options related to this traffic stream.
+    traffic: config::Traffic,
 
-    /// Average delay between sending subsequent packets.
-    average_message_sending_delay: Duration,
-
-    /// Controls whether the stream constantly produces packets according to the predefined
-    /// poisson distribution.
-    disable_poisson_packet_distribution: bool,
-
-    /// Predefined packet size used for the loop cover messages.
-    cover_packet_size: PacketSize,
+    /// Specifies the ratio of `primary_packet_size` to `secondary_packet_size` used in cover traffic.
+    /// Only applicable if `secondary_packet_size` is enabled.
+    cover_traffic_primary_size_ratio: f64,
 }
 
 impl Config {
@@ -63,24 +57,16 @@ impl Config {
         ack_key: Arc<AckKey>,
         our_full_destination: Recipient,
         average_ack_delay: Duration,
-        average_packet_delay: Duration,
-        average_message_sending_delay: Duration,
-        disable_poisson_packet_distribution: bool,
+        traffic: config::Traffic,
+        cover_traffic_primary_size_ratio: f64,
     ) -> Self {
         Config {
             ack_key,
             our_full_destination,
             average_ack_delay,
-            average_packet_delay,
-            average_message_sending_delay,
-            disable_poisson_packet_distribution,
-            cover_packet_size: Default::default(),
+            traffic,
+            cover_traffic_primary_size_ratio,
         }
-    }
-
-    pub fn with_custom_cover_packet_size(mut self, packet_size: PacketSize) -> Self {
-        self.cover_packet_size = packet_size;
-        self
     }
 }
 
@@ -135,7 +121,7 @@ where
 #[derive(Debug)]
 pub(crate) struct RealMessage {
     mix_packet: MixPacket,
-    fragment_id: FragmentIdentifier,
+    fragment_id: Option<FragmentIdentifier>,
     // TODO: add info about it being constructed with reply-surb
 }
 
@@ -143,7 +129,7 @@ impl From<PreparedFragment> for RealMessage {
     fn from(fragment: PreparedFragment) -> Self {
         RealMessage {
             mix_packet: fragment.mix_packet,
-            fragment_id: fragment.fragment_identifier,
+            fragment_id: Some(fragment.fragment_identifier),
         }
     }
 }
@@ -153,7 +139,7 @@ impl RealMessage {
         self.mix_packet.sphinx_packet().len()
     }
 
-    pub(crate) fn new(mix_packet: MixPacket, fragment_id: FragmentIdentifier) -> Self {
+    pub(crate) fn new(mix_packet: MixPacket, fragment_id: Option<FragmentIdentifier>) -> Self {
         RealMessage {
             mix_packet,
             fragment_id,
@@ -212,11 +198,30 @@ where
         self.sent_notifier.unbounded_send(frag_id).unwrap();
     }
 
+    fn loop_cover_message_size(&mut self) -> PacketSize {
+        let Some(secondary_packet_size) = self.config.traffic.secondary_packet_size else {
+            return self.config.traffic.primary_packet_size
+        };
+
+        let use_primary = self
+            .rng
+            .gen_bool(self.config.cover_traffic_primary_size_ratio);
+
+        if use_primary {
+            self.config.traffic.primary_packet_size
+        } else {
+            secondary_packet_size
+        }
+    }
+
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
         let (next_message, fragment_id) = match next_message {
             StreamMessage::Cover => {
+                let cover_traffic_packet_size = self.loop_cover_message_size();
+                trace!("the next loop cover message will be put in a {cover_traffic_packet_size} packet");
+
                 // TODO for way down the line: in very rare cases (during topology update) we might have
                 // to wait a really tiny bit before actually obtaining the permit hence messing with our
                 // poisson delay, but is it really a problem?
@@ -240,8 +245,8 @@ where
                         &self.config.ack_key,
                         &self.config.our_full_destination,
                         self.config.average_ack_delay,
-                        self.config.average_packet_delay,
-                        self.config.cover_packet_size,
+                        self.config.traffic.average_packet_delay,
+                        cover_traffic_packet_size,
                     )
                     .expect(
                         "Somehow failed to generate a loop cover message with a valid topology",
@@ -250,7 +255,7 @@ where
                 )
             }
             StreamMessage::Real(real_message) => {
-                (real_message.mix_packet, Some(real_message.fragment_id))
+                (real_message.mix_packet, real_message.fragment_id)
             }
         };
 
@@ -286,7 +291,7 @@ where
     }
 
     fn current_average_message_sending_delay(&self) -> Duration {
-        self.config.average_message_sending_delay
+        self.config.traffic.message_sending_average_delay
             * self.sending_delay_controller.current_multiplier()
     }
 
@@ -297,24 +302,34 @@ where
             self.sending_delay_controller.current_multiplier()
         );
 
-        // Even just a single used slot is enough to signal backpressure
-        if used_slots > 0 {
+        if self
+            .sending_delay_controller
+            .is_backpressure_currently_detected(used_slots)
+        {
             log::trace!("Backpressure detected");
             self.sending_delay_controller.record_backpressure_detected();
         }
 
-        // If the buffer is running out, slow down the sending rate
+        // If the buffer is running out, slow down the sending rate by increasing the delay
+        // multiplier.
         if self.mix_tx.capacity() == 0
             && self.sending_delay_controller.not_increased_delay_recently()
         {
             self.sending_delay_controller.increase_delay_multiplier();
         }
 
-        // Very carefully step up the sending rate in case it seems like we can solidly handle the
-        // current rate.
-        if self.sending_delay_controller.is_sending_reliable() {
+        // If it looks like we are sending reliably, increase the sending rate by decreasing the
+        // sending delay multiplier.
+        if !self
+            .sending_delay_controller
+            .was_backpressure_detected_recently()
+            && self.sending_delay_controller.not_decreased_delay_recently()
+        {
             self.sending_delay_controller.decrease_delay_multiplier();
         }
+
+        // Keep track of multiplier changes, and log if necessary.
+        self.sending_delay_controller.record_delay_multiplier();
     }
 
     fn pop_next_message(&mut self) -> Option<RealMessage> {
@@ -400,8 +415,10 @@ where
             // we never set an initial delay - let's do it now
             cx.waker().wake_by_ref();
 
-            let sampled =
-                sample_poisson_duration(&mut self.rng, self.config.average_message_sending_delay);
+            let sampled = sample_poisson_duration(
+                &mut self.rng,
+                self.config.traffic.message_sending_average_delay,
+            );
 
             #[cfg(not(target_arch = "wasm32"))]
             let next_delay = Box::pin(time::sleep(sampled));
@@ -452,7 +469,7 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<StreamMessage>> {
-        if self.config.disable_poisson_packet_distribution {
+        if self.config.traffic.disable_main_poisson_packet_distribution {
             self.poll_immediate(cx)
         } else {
             self.poll_poisson(cx)
@@ -468,7 +485,7 @@ where
         let lanes = self.transmission_buffer.num_lanes();
         let mult = self.sending_delay_controller.current_multiplier();
         let delay = self.current_average_message_sending_delay().as_millis();
-        let status_str = if self.config.disable_poisson_packet_distribution {
+        let status_str = if self.config.traffic.disable_main_poisson_packet_distribution {
             format!("Status: {lanes} lanes, backlog: {backlog:.2} kiB ({packets}), no delay")
         } else {
             format!(
@@ -491,23 +508,12 @@ where
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    fn log_status_infrequent(&self) {
-        if self.sending_delay_controller.current_multiplier() > 1 {
-            log::warn!(
-                "Unable to send packets at the default rate - rate reduced by setting the delay multiplier set to: {}",
-                self.sending_delay_controller.current_multiplier()
-            );
-        }
-    }
-
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut status_timer = tokio::time::interval(Duration::from_secs(5));
-            let mut infrequent_status_timer = tokio::time::interval(Duration::from_secs(60));
 
             while !shutdown.is_shutdown() {
                 tokio::select! {
@@ -517,9 +523,6 @@ where
                     }
                     _ = status_timer.tick() => {
                         self.log_status(&mut shutdown);
-                    }
-                    _ = infrequent_status_timer.tick() => {
-                        self.log_status_infrequent();
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
                         self.on_message(next_message).await;

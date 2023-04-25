@@ -3,8 +3,8 @@
 
 use async_trait::async_trait;
 
+use crate::error::StorageError;
 use crate::models::CoconutCredential;
-use crate::StorageError;
 
 #[async_trait]
 pub trait Storage: Send + Sync {

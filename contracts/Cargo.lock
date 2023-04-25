@@ -950,6 +950,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "mixnet-vesting-integration-tests"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-multi-test",
+ "nym-contracts-common",
+ "nym-crypto",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
+ "rand_chacha 0.2.2",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1018,7 +1034,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -1052,7 +1068,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract"
-version = "1.2.0"
+version = "1.4.0"
 dependencies = [
  "bs58",
  "cosmwasm-derive",
@@ -1076,7 +1092,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.3.0"
+version = "0.5.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -1148,7 +1164,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract"
-version = "1.2.0"
+version = "1.4.0"
 dependencies = [
  "base64 0.21.0",
  "cosmwasm-crypto",
@@ -1171,7 +1187,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.3.0"
+version = "0.6.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",

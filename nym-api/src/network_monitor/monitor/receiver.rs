@@ -42,10 +42,10 @@ impl PacketReceiver {
         match update {
             GatewayClientUpdate::New(id, (message_receiver, ack_receiver)) => {
                 self.gateways_reader
-                    .add_recievers(id, message_receiver, ack_receiver);
+                    .add_receivers(id, message_receiver, ack_receiver);
             }
             GatewayClientUpdate::Failure(id) => {
-                self.gateways_reader.remove_recievers(&id.to_string());
+                self.gateways_reader.remove_receivers(&id.to_string());
             }
         }
     }
@@ -66,11 +66,12 @@ impl PacketReceiver {
                 // unwrap here is fine as it can only return a `None` if the PacketSender has died
                 // and if that was the case, then the entire monitor is already in an undefined state
                 update = self.clients_updater.next() => self.process_gateway_update(update.unwrap()),
-                // similarly gateway reader will never return a `None` as it's implemented
-                // as an infinite stream that returns Poll::Pending if it doesn't have anything
-                // to return
-                Some((_gateway_id, message)) = self.gateways_reader.stream_map().next() => {
-                        self.process_gateway_messages(message)
+                gateway_message = self.gateways_reader.next() => {
+                    let Some((_gateway_id, message)) = gateway_message else {
+                        log::error!("the gateways reader stream has terminated!");
+                        continue
+                    };
+                    self.process_gateway_messages(message)
                 }
             }
         }

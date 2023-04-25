@@ -85,7 +85,7 @@ pub fn instantiate_test_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuer
 
 pub fn announce_service(deps: DepsMut<'_>, service: &Service) -> ServiceId {
     let msg: ExecuteMsg = service.clone().into();
-    let info = mock_info(service.owner.as_str(), &coins(100, "unym"));
+    let info = mock_info(service.announcer.as_str(), &coins(100, "unym"));
     let res = crate::execute(deps, mock_env(), info, msg).unwrap();
     let service_id: ServiceId = get_attribute(
         &res,
@@ -97,8 +97,8 @@ pub fn announce_service(deps: DepsMut<'_>, service: &Service) -> ServiceId {
     service_id
 }
 
-pub fn delete_service(deps: DepsMut<'_>, service_id: ServiceId, owner: &str) {
+pub fn delete_service(deps: DepsMut<'_>, service_id: ServiceId, announcer: &str) {
     let msg = ExecuteMsg::DeleteId { service_id };
-    let info = mock_info(owner, &[]);
+    let info = mock_info(announcer, &[]);
     crate::execute(deps, mock_env(), info, msg).unwrap();
 }

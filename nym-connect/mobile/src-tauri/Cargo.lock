@@ -621,6 +621,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "client-core"
+version = "1.1.13"
+dependencies = [
+ "async-trait",
+ "dashmap",
+ "dirs",
+ "futures",
+ "gateway-client",
+ "gateway-requests",
+ "gloo-timers",
+ "humantime-serde",
+ "log",
+ "nym-bandwidth-controller",
+ "nym-config",
+ "nym-credential-storage",
+ "nym-crypto",
+ "nym-nonexhaustive-delayqueue",
+ "nym-pemstore",
+ "nym-sphinx",
+ "nym-task",
+ "nym-topology",
+ "rand 0.7.3",
+ "serde",
+ "serde_json",
+ "sqlx 0.6.3",
+ "tap",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "tungstenite",
+ "url",
+ "validator-client",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-timer",
+ "wasm-utils",
+]
+
+[[package]]
 name = "cocoa"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3144,6 +3185,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-bandwidth-controller"
+version = "0.1.0"
+dependencies = [
+ "bip39",
+ "nym-coconut-interface",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-network-defaults",
+ "rand 0.7.3",
+ "thiserror",
+ "url",
+ "validator-client",
+]
+
+[[package]]
 name = "nym-bin-common"
 version = "0.3.0"
 dependencies = [
@@ -3281,6 +3338,7 @@ dependencies = [
  "nym-client-core",
  "nym-config",
  "nym-contracts-common",
+ "nym-credential-storage",
  "nym-crypto",
  "nym-socks5-client-core",
  "nym-task",
@@ -3556,9 +3614,9 @@ dependencies = [
  "dirs",
  "futures",
  "log",
- "nym-client-core",
+ "nym-bandwidth-controller",
  "nym-config",
- "nym-gateway-client",
+ "nym-credential-storage",
  "nym-network-defaults",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",

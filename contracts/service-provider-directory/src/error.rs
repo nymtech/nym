@@ -14,7 +14,7 @@ pub enum ContractError {
     #[error("service not found: {service_id}")]
     NotFound { service_id: ServiceId },
 
-    #[error("{sender} is not owner of service")]
+    #[error("{sender} is not announcer of service")]
     Unauthorized { sender: Addr },
 
     #[error("deposit required to announce service")]
@@ -32,8 +32,8 @@ pub enum ContractError {
         deposit_required: cosmwasm_std::Uint128,
     },
 
-    #[error("reached the max number of providers ({max_providers}) for owner {owner}")]
-    ReachedMaxProvidersForAdmin { max_providers: u32, owner: Addr },
+    #[error("reached the max number of providers ({max_providers}) for announcer {announcer}")]
+    ReachedMaxProvidersForAdmin { max_providers: u32, announcer: Addr },
 
     #[error("reached the max number of aliases ({max_aliases}) for nym address {0}", nym_address.to_string())]
     ReachedMaxAliasesForNymAddress {

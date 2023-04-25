@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+## [v1.4.0] (2023-04-25)
+- Allow mixnode operators to decrease their bond amount without having to rebond (will require a lot of testing EXACT reward values to make sure the "unit delegation" isn't broken afterwards) ([#3233])
+- Fix a few clippy warnings in contract test code ([#3340])
+- Add --all-targets to clippy for contracts ([#3337])
+- A branch with all clippy warnings dealt with in contracts ([#3294])
+
+[#3233]: https://github.com/nymtech/nym/issues/3233
+[#3340]: https://github.com/nymtech/nym/pull/3340
+[#3337]: https://github.com/nymtech/nym/pull/3337
+[#3294]: https://github.com/nymtech/nym/pull/3294
+
+## [v1.3.1] (2023-04-18)
+- Add a query to the vesting contract for the amount of delegated tokens towards a particular `mix_id` (might be needed by NG) ([#3228])
+
+[#3228]: https://github.com/nymtech/nym/issues/3228
+
+## [v1.3.0] (2023-04-04)
+- change in-contract signatures to include nonces and to sign entire payloads for family-related operations ([#3125])
+- change in-contract signatures to include nonces and to sign entire payloads for node bonding (will require wallet changes) ([#3067])
+- removed migration code from mixnet and vesting contracts ([#3207])
+
+[#3125]: https://github.com/nymtech/nym/issues/3125
+[#3067]: https://github.com/nymtech/nym/issues/3067
+[#3207]: https://github.com/nymtech/nym/pull/3207
+
+## [v1.2.0] (2023-03-21)
+
+- Fix contracts and nym-api audit findings ([#3026])
+
+[#3026]: https://github.com/nymtech/nym/issues/3026
+
 ## [v1.1.4] (2023-02-21)
 
 - Problem 142 (rust-side) ([#3024])

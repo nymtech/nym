@@ -1,25 +1,31 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::FRAG_ID_LEN;
 use nym_sphinx_types::header::HEADER_SIZE;
 use nym_sphinx_types::PAYLOAD_OVERHEAD_SIZE;
+use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::convert::TryFrom;
+use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 use thiserror::Error;
 
+// each sphinx packet contains mandatory header and payload padding + markers
+const PACKET_OVERHEAD: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE;
+
 // it's up to the smart people to figure those values out : )
-const REGULAR_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 2 * 1024;
+const REGULAR_PACKET_SIZE: usize = 2 * 1024 + PACKET_OVERHEAD;
 // TODO: even though we have 16B IV, is having just 5B (FRAG_ID_LEN) of the ID possibly insecure?
 
 // TODO: I'm not entirely sure if we can easily extract `<AckEncryptionAlgorithm as NewStreamCipher>::NonceSize`
 // into a const usize before relevant stuff is stabilised in rust...
 const ACK_IV_SIZE: usize = 16;
 
-const ACK_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + ACK_IV_SIZE + FRAG_ID_LEN;
-const EXTENDED_PACKET_SIZE_8: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 8 * 1024;
-const EXTENDED_PACKET_SIZE_16: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 16 * 1024;
-const EXTENDED_PACKET_SIZE_32: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 32 * 1024;
+const ACK_PACKET_SIZE: usize = ACK_IV_SIZE + FRAG_ID_LEN + PACKET_OVERHEAD;
+const EXTENDED_PACKET_SIZE_8: usize = 8 * 1024 + PACKET_OVERHEAD;
+const EXTENDED_PACKET_SIZE_16: usize = 16 * 1024 + PACKET_OVERHEAD;
+const EXTENDED_PACKET_SIZE_32: usize = 32 * 1024 + PACKET_OVERHEAD;
 
 #[derive(Debug, Error)]
 pub enum InvalidPacketSize {
@@ -34,23 +40,42 @@ pub enum InvalidPacketSize {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum PacketSize {
     // for example instant messaging use case
     #[default]
+    #[serde(rename = "regular")]
     RegularPacket = 1,
 
     // for sending SURB-ACKs
+    #[serde(rename = "ack")]
     AckPacket = 2,
 
     // for example for streaming fast and furious in uncompressed 10bit 4K HDR quality
+    #[serde(rename = "extended32")]
     ExtendedPacket32 = 3,
 
     // for example for streaming fast and furious in heavily compressed lossy RealPlayer quality
+    #[serde(rename = "extended8")]
     ExtendedPacket8 = 4,
 
     // for example for streaming fast and furious in compressed XviD quality
+    #[serde(rename = "extended16")]
     ExtendedPacket16 = 5,
+}
+
+impl PartialOrd for PacketSize {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // order them by actual packet size
+        self.size().partial_cmp(&other.size())
+    }
+}
+
+impl Ord for PacketSize {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // order them by actual packet size
+        self.size().cmp(&other.size())
+    }
 }
 
 impl FromStr for PacketSize {
@@ -70,6 +95,28 @@ impl FromStr for PacketSize {
     }
 }
 
+impl Display for PacketSize {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PacketSize::RegularPacket => write!(f, "regular"),
+            PacketSize::AckPacket => write!(f, "ack"),
+            PacketSize::ExtendedPacket32 => write!(f, "extended32"),
+            PacketSize::ExtendedPacket8 => write!(f, "extended8"),
+            PacketSize::ExtendedPacket16 => write!(f, "extended16"),
+        }
+    }
+}
+
+impl Debug for PacketSize {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let name = self.to_string();
+        let size = self.size();
+        let plaintext = self.plaintext_size();
+
+        write!(f, "{name} ({size} bytes / {plaintext} plaintext)")
+    }
+}
+
 impl TryFrom<u8> for PacketSize {
     type Error = InvalidPacketSize;
 
@@ -86,7 +133,7 @@ impl TryFrom<u8> for PacketSize {
 }
 
 impl PacketSize {
-    pub fn size(self) -> usize {
+    pub const fn size(self) -> usize {
         match self {
             PacketSize::RegularPacket => REGULAR_PACKET_SIZE,
             PacketSize::AckPacket => ACK_PACKET_SIZE,
@@ -96,11 +143,11 @@ impl PacketSize {
         }
     }
 
-    pub fn plaintext_size(self) -> usize {
+    pub const fn plaintext_size(self) -> usize {
         self.size() - HEADER_SIZE - PAYLOAD_OVERHEAD_SIZE
     }
 
-    pub fn payload_size(self) -> usize {
+    pub const fn payload_size(self) -> usize {
         self.size() - HEADER_SIZE
     }
 
@@ -135,6 +182,11 @@ impl PacketSize {
         } else {
             None
         }
+    }
+
+    pub fn get_type_from_plaintext(plaintext_size: usize) -> Result<Self, InvalidPacketSize> {
+        let packet_size = plaintext_size + PACKET_OVERHEAD;
+        Self::get_type(packet_size)
     }
 }
 

@@ -94,6 +94,11 @@ impl Config {
         }
     }
 
+    pub fn validate(&self) -> bool {
+        // no other sections have explicit requirements (yet)
+        self.base.validate()
+    }
+
     pub fn with_socket(mut self, socket_type: SocketType) -> Self {
         self.socket.socket_type = socket_type;
         self

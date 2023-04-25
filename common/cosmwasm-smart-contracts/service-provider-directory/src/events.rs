@@ -41,7 +41,7 @@ pub fn new_announce_event(service_id: ServiceId, service: Service) -> Event {
         .add_attribute(SERVICE_ID, service_id.to_string())
         .add_attribute(SERVICE_TYPE, service.service_type.to_string())
         .add_attribute(NYM_ADDRESS, service.nym_address.to_string())
-        .add_attribute(OWNER, service.owner.to_string())
+        .add_attribute(OWNER, service.announcer.to_string())
 }
 
 pub fn new_delete_id_event(service_id: ServiceId, service: Service) -> Event {

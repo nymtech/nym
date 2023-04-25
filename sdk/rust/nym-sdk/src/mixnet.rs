@@ -50,6 +50,7 @@ pub use nym_client_core::{
     },
     config::GatewayEndpointConfig,
 };
+pub use nym_network_defaults::NymNetworkDetails;
 pub use nym_socks5_client_core::config::Socks5;
 pub use nym_sphinx::{
     addressing::clients::{ClientIdentity, Recipient},

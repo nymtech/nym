@@ -68,7 +68,7 @@ mod tests {
             cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
         };
         // Try creating an account when not admin
-        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
         assert!(response.is_err());
 
         let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
@@ -142,7 +142,7 @@ mod tests {
         assert!(old_owner_account.is_none());
 
         // Not the owner
-        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg);
+        let response = execute(deps.as_mut(), env.clone(), info, msg);
         assert!(response.is_err());
 
         // can't stake on behalf of the original owner anymore, but we can do it for the new one!
@@ -190,7 +190,7 @@ mod tests {
         assert!(response.is_ok());
 
         let info = mock_info("owner", &[]);
-        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        let response = execute(deps.as_mut(), env.clone(), info, msg);
         assert!(response.is_err());
     }
 
@@ -202,7 +202,7 @@ mod tests {
         let msg = ExecuteMsg::TransferOwnership {
             to_address: "new_owner".to_string(),
         };
-        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg);
         // Only owner can transfer
         assert!(response.is_err());
 
@@ -213,7 +213,7 @@ mod tests {
             },
         };
         env.block.time = Timestamp::from_nanos(env.block.time.nanos() + 100_000_000_000_000_000);
-        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        let response = execute(deps.as_mut(), env, info, msg);
         // Only owner can withdraw
         assert!(response.is_err());
     }
@@ -510,7 +510,7 @@ mod tests {
 
         assert_eq!(
             account.load_balance(&deps.storage).unwrap(),
-            Uint128::new(1000_000_000_000)
+            Uint128::new(1_000_000_000_000)
         );
 
         account
@@ -588,7 +588,7 @@ mod tests {
         };
         let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
 
-        let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+        let _response = execute(deps.as_mut(), env.clone(), info, msg);
         let account = load_account(Addr::unchecked("owner"), &deps.storage)
             .unwrap()
             .unwrap();
@@ -837,7 +837,7 @@ mod tests {
 
         // but the additional one is going to fail
         let res = vesting_account
-            .try_delegate_to_mixnode(mix_id, delegation.clone(), &env, &mut deps.storage)
+            .try_delegate_to_mixnode(mix_id, delegation, &env, &mut deps.storage)
             .unwrap_err();
 
         assert_eq!(

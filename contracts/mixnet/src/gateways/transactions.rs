@@ -226,6 +226,8 @@ pub(crate) fn _try_update_gateway_config(
 
     let cfg_update_event = new_gateway_config_update_event(&owner, &proxy, &new_config);
 
+    // clippy beta 1.70.0-beta.1 false positive
+    #[allow(clippy::redundant_clone)]
     let mut updated_bond = existing_bond.clone();
     updated_bond.gateway.host = new_config.host;
     updated_bond.gateway.mix_port = new_config.mix_port;
@@ -362,7 +364,7 @@ pub mod tests {
         let res = try_add_gateway(
             test.deps_mut(),
             env.clone(),
-            info.clone(),
+            info,
             gateway.clone(),
             signature.clone(),
         );

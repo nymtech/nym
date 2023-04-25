@@ -135,8 +135,8 @@ pub fn try_withdraw_vested_coins(
         return Err(ContractError::WrongDenom(amount.denom, mix_denom));
     }
 
-    let address = info.sender.clone();
-    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    let address = info.sender;
+    let account = account_from_address(address.as_str(), deps.storage, deps.api)?;
     if address != account.owner_address() {
         return Err(ContractError::NotOwner(account.owner_address().to_string()));
     }
@@ -170,9 +170,9 @@ pub fn try_transfer_ownership(
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
-    let address = info.sender.clone();
+    let address = info.sender;
     let to_address = deps.api.addr_validate(&to_address)?;
-    let mut account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    let mut account = account_from_address(address.as_str(), deps.storage, deps.api)?;
     if address == account.owner_address() {
         account.transfer_ownership(&to_address, deps.storage)?;
         Ok(Response::new().add_event(new_ownership_transfer_event(&address, &to_address)))
@@ -194,9 +194,9 @@ pub fn try_update_staking_address(
         }
     }
 
-    let address = info.sender.clone();
+    let address = info.sender;
     let to_address = to_address.and_then(|x| deps.api.addr_validate(&x).ok());
-    let mut account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    let mut account = account_from_address(address.as_str(), deps.storage, deps.api)?;
     if address == account.owner_address() {
         let old = account.staking_address().cloned();
         account.update_staking_address(to_address.clone(), deps.storage)?;

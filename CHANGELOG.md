@@ -4,14 +4,29 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-- nym-network-statistics properly handles signals ([#3209])
-- add socks5 support for Rust SDK ([#3226], [#3255])
-- add coconut bandwidth credential support for Rust SDK ([#3273]) 
+## [v1.1.16] (2023-04-25)
 
-[#3209]: https://github.com/nymtech/nym/issues/3209
-[#3226]: https://github.com/nymtech/nym/pull/3226
-[#3255]: https://github.com/nymtech/nym/pull/3255
-[#3273]: https://github.com/nymtech/nym/pull/3273
+- Explorer - Fix sorting function on Stake Saturation. It is currently working per page and not globally ([#3320])
+- Poisson process gets stuck at too slow rate. Rework to more aggressively up-regulate ([#3309])
+- decrease the logging level of warnings associated with clients dropping packets due to gateway being overloaded (I'd say reduce it to debug/trace) - there are few sources of those, e.g. in real and cover traffic streams ([#3299])
+- Make the buffer size in `AvailableReader` depend on packet sizes the client is using + introduce read timeouts ([#3213])
+- Rust SDK - Support coconut, credential storage etc ([#2755])
+- version bump for next release ([#3349])
+- added coconut credential generation example ([#3339])
+- update mix-node setup docs with node description ([#3325])
+- exposed missing gateway commands in nym-cli ([#3324])
+- make sure to clear inner 'ack_map' in 'GatewaysReader' ([#3300])
+
+[#3320]: https://github.com/nymtech/nym/issues/3320
+[#3309]: https://github.com/nymtech/nym/issues/3309
+[#3299]: https://github.com/nymtech/nym/issues/3299
+[#3213]: https://github.com/nymtech/nym/issues/3213
+[#2755]: https://github.com/nymtech/nym/issues/2755
+[#3349]: https://github.com/nymtech/nym/pull/3349
+[#3339]: https://github.com/nymtech/nym/pull/3339
+[#3325]: https://github.com/nymtech/nym/pull/3325
+[#3324]: https://github.com/nymtech/nym/pull/3324
+[#3300]: https://github.com/nymtech/nym/pull/3300
 
 ## [v1.1.15] (2023-04-18)
 

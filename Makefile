@@ -60,7 +60,7 @@ clippy: clippy-$(1) clippy-examples-$(1)
 check: check-$(1)
 cargo-test: test-$(1)
 cargo-test-expensive: test-expensive-$(1)
-build: build-$(1) build-$(1)-examples
+build: build-$(1) build-examples-$(1)
 build-release-all: build-release-$(1)
 fmt: fmt-$(1)
 

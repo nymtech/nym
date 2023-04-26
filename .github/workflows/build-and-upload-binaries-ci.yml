@@ -69,7 +69,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release --all
+          args: --workspace --release --all --features cpucycles
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1

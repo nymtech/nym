@@ -28,7 +28,7 @@ const {
     set_panic_hook,
     Config,
     GatewayEndpointConfig,
-    TestStorage,
+    ClientStorage,
     current_network_topology,
     make_key,
     make_key2
@@ -283,21 +283,31 @@ async function messWithStorage() {
                     const { mixnodeIdentity } = event.data.args;
                     console.log("button clicked...", mixnodeIdentity);
 
+                    let id1 = "one";
+                    let id2 = "two";
 
-
+                    // console.log("making store1 NO-ENC");
+                    // let _storage1 = await ClientStorage.new_unencrypted(id1);
                     //
-                    // let key1 = await make_key();
-                    // let key2 = await make_key2();
+                    // console.log("making store2 ENC")
+                    // let _storage2 = await new ClientStorage(id2, "my-secret-password");
                     //
-                    // console.log("key1: ", key1);
-                    // console.log("key2: ", key2);
+                    //
+                    //
+                    //     console.log("attempting to use store1 WITH PASSWORD")
+                    //     let _storage1_alt = await new ClientStorage(id1, "password");
+                    //
+                    //
+                    //
+                    //     console.log("attempting to use store2 WITHOUT PASSWORD")
+                    //     let _storage2_alt = await ClientStorage.new_unencrypted(id2);
+                    //
+                    //
+                    //
+                    //     console.log("attempting to use store2 with WRONG PASSWORD")
+                    //     let _storage2_bad = await new ClientStorage(id2, "bad-password")
 
 
-                    // let id1 = "one";
-                    // let id2 = "two";
-                    //
-                    // let storage1 = await new TestStorage(id1);
-                    // let storage2 = await new TestStorage(id2);
                     //
                     // console.log("read1: ", await storage1.read());
                     // console.log("read2: ", await storage2.read());

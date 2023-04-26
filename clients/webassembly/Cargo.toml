@@ -32,6 +32,7 @@ wasm-bindgen = { version = "=0.2.83", features = ["serde-serialize"]  }
 wasm-bindgen-futures = "0.4"
 thiserror = "1.0.40"
 indexed_db_futures = "0.3.0"
+zeroize = "1.6.0"
 
 wasm-timer = { git = "https://github.com/mmsinclair/wasm-timer", rev = "b9d1a54ad514c2f230a026afe0dde341e98cd7b6"}
 
@@ -47,6 +48,7 @@ nym-sphinx = { path = "../../common/nymsphinx" }
 nym-topology = { path = "../../common/topology" }
 nym-gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm"] }
 nym-validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
+nym-store-cipher = { path = "../../common/store-cipher" , features = ["json"] }
 nym-task = { path = "../../common/task" }
 wasm-utils = { path = "../../common/wasm-utils", default-features = false }
 # The `console_error_panic_hook` crate provides better debugging of panics by

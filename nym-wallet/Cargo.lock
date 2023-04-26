@@ -1651,6 +1651,7 @@ checksum = "bff49e947297f3312447abdca79f45f4738097cc82b06e72054d2223f601f1b9"
 dependencies = [
  "typenum",
  "version_check",
+ "zeroize",
 ]
 
 [[package]]
@@ -3026,6 +3027,7 @@ version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "argon2",
+ "generic-array 0.14.6",
  "getrandom 0.2.8",
  "rand 0.8.5",
  "serde",

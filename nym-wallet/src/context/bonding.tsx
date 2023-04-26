@@ -186,18 +186,6 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     setBondedNode(undefined);
   };
 
-  // try {
-  //   const stakeSaturationResponse = await getMixnodeStakeSaturation(mixId);
-  //   additionalDetails.stakeSaturation = decimalToPercentage(stakeSaturationResponse.saturation);
-  //
-  //   const rawUncappedSaturation = decimalToFloatApproximation(stakeSaturationResponse.uncapped_saturation);
-  //   if (rawUncappedSaturation && rawUncappedSaturation > 1) {
-  //     additionalDetails.uncappedSaturation = Math.round(rawUncappedSaturation * 100);
-  //   }
-  // } catch (e) {
-  //   Console.log('getMixnodeStakeSaturation fails', e);
-  // }
-
   /**
    * Fetch mixnode **optional** data.
    * ⚠ The underlying queries are allowed to fail.
@@ -261,6 +249,10 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     const saturationRes = promises[2];
     if (saturationRes.status === 'fulfilled') {
       details.stakeSaturation = decimalToPercentage(saturationRes.value.saturation);
+      const rawUncappedSaturation = decimalToFloatApproximation(saturationRes.value.uncapped_saturation);
+      if (rawUncappedSaturation && rawUncappedSaturation > 1) {
+        details.uncappedSaturation = Math.round(rawUncappedSaturation * 100);
+      }
     }
 
     const rewardRes = promises[3];

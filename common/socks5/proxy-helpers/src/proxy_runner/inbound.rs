@@ -95,13 +95,6 @@ where
         ordered_msg.len()
     );
 
-    // Before sending the data downstream, wait for the lane at the `OutQueueControl` is reasonably
-    // close to finishing. This is a way of pacing the sending application (backpressure).
-    if let Some(ref lane_queue_lengths) = lane_queue_lengths {
-        // We allow a bit of slack to try to keep the pipeline >0
-        wait_until_lane_almost_empty(lane_queue_lengths, connection_id).await;
-    }
-
     mix_sender
         .send(adapter_fn(connection_id, ordered_msg, is_finished))
         .await
@@ -146,20 +139,25 @@ async fn wait_until_lane_empty(lane_queue_lengths: &LaneQueueLengths, connection
     }
 }
 
-async fn wait_until_lane_almost_empty(lane_queue_lengths: &LaneQueueLengths, connection_id: u64) {
-    if tokio::time::timeout(
-        Duration::from_secs(4 * 60),
-        wait_for_lane(
-            lane_queue_lengths,
-            connection_id,
-            30,
-            Duration::from_millis(100),
-        ),
-    )
-    .await
-    .is_err()
-    {
-        log::debug!("Wait until lane almost empty timed out");
+async fn wait_until_lane_almost_empty(
+    lane_queue_lengths: &Option<LaneQueueLengths>,
+    connection_id: u64,
+) {
+    if let Some(lane_queue_lengths) = lane_queue_lengths {
+        if tokio::time::timeout(
+            Duration::from_secs(4 * 60),
+            wait_for_lane(
+                lane_queue_lengths,
+                connection_id,
+                30,
+                Duration::from_millis(100),
+            ),
+        )
+        .await
+        .is_err()
+        {
+            log::debug!("Wait until lane almost empty timed out");
+        }
     }
 }
 
@@ -225,8 +223,11 @@ where
             _ = keepalive_timer.tick() => {
                 send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
             }
-            // This is last so that in case of connection closed we don't keep reading.
-            read_data = &mut available_reader.next() => {
+            // We chain these here at the top-level in the select loop so that if the proxy is
+            // shutdown then the we abort sending the data.
+            read_data = wait_until_lane_almost_empty(&lane_queue_lengths, connection_id)
+                    .then(|_| { available_reader.next() }) =>
+            {
                 if deal_with_data(
                     read_data,
                     &local_destination_address,

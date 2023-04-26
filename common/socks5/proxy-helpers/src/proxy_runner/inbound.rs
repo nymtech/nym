@@ -220,6 +220,7 @@ where
                 ).await {
                     break
                 }
+                keepalive_timer.reset();
             }
             _ = keepalive_timer.tick() => {
                 send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;

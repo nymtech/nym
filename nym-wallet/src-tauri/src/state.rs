@@ -455,6 +455,10 @@ impl WalletStateInner {
         coin1: &DecCoin,
         coin2: &DecCoin,
     ) -> Result<DecCoin, BackendError> {
+        if coin1.denom != coin2.denom {
+            return Err(BackendError::WalletPledgeUpdateInvalidCurrency);
+        }
+
         match coin1.amount.cmp(&coin2.amount) {
             std::cmp::Ordering::Greater => {
                 let delta = DecCoin {

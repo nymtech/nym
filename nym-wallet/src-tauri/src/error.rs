@@ -94,8 +94,12 @@ pub enum BackendError {
     WalletFileAlreadyExists,
     #[error("The wallet file is not found")]
     WalletFileNotFound,
-    #[error("Invalid update pledge request, no-op")]
+    #[error("Invalid update pledge request, the new bond amount is the same as the current one")]
     WalletPledgeUpdateNoOp,
+    #[error(
+        "Invalid update pledge request, the new bond is a different currency from the current one"
+    )]
+    WalletPledgeUpdateInvalidCurrency,
     #[error("The wallet file has a malformed name")]
     WalletFileMalformedFilename,
     #[error("Unable to archive wallet file")]

@@ -207,6 +207,25 @@ where
 
     loop {
         select! {
+            biased;
+            _ = &mut shutdown_future => {
+                debug!(
+                    "closing inbound proxy after outbound was closed {:?} ago",
+                    SHUTDOWN_TIMEOUT
+                );
+                // inform remote just in case it was closed because of lack of heartbeat.
+                // worst case the remote will just have couple of false negatives
+                send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
+                break;
+            }
+            _ = shutdown_listener.recv() => {
+                log::trace!("ProxyRunner inbound: Received shutdown");
+                break;
+            }
+            _ = keepalive_timer.tick() => {
+                send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
+            }
+            // This is last so that in case of connection closed we don't keep reading.
             read_data = &mut available_reader.next() => {
                 if deal_with_data(
                     read_data,
@@ -221,23 +240,6 @@ where
                     break
                 }
                 keepalive_timer.reset();
-            }
-            _ = keepalive_timer.tick() => {
-                send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
-            }
-            _ = &mut shutdown_future => {
-                debug!(
-                    "closing inbound proxy after outbound was closed {:?} ago",
-                    SHUTDOWN_TIMEOUT
-                );
-                // inform remote just in case it was closed because of lack of heartbeat.
-                // worst case the remote will just have couple of false negatives
-                send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
-                break;
-            }
-            _ = shutdown_listener.recv() => {
-                log::trace!("ProxyRunner inbound: Received shutdown");
-                break;
             }
         }
     }

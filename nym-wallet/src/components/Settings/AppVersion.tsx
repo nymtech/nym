@@ -40,7 +40,7 @@ const AppVersion = () => {
         <Typography variant="caption" sx={{ color: 'nym.text.muted' }}>
           Installed version
         </Typography>
-        <Typography>{`Nym Wallet ${appVersion}`}</Typography>
+        <Typography>{`Nym Wallet v${appVersion}`}</Typography>
       </Stack>
       {updateAvailable && (
         <Button variant="text" onClick={() => updateHandler()}>

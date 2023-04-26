@@ -36,7 +36,7 @@ async fn send_empty_close<F, S>(
         .expect("BatchRealMessageReceiver has stopped receiving!");
 }
 
-async fn send_empty_keepalive<F,S> (
+async fn send_empty_keepalive<F, S>(
     connection_id: ConnectionId,
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,

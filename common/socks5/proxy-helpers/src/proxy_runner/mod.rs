@@ -15,6 +15,10 @@ mod outbound;
 // TODO: make this configurable
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
 
+// Send empty keepalive messages regurarly to keep the connection alive. This should be smaller
+// than [`MIX_TTL`].
+const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(60);
+
 #[derive(Debug)]
 pub struct ProxyMessage {
     pub data: Vec<u8>,

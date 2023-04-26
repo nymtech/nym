@@ -4,6 +4,7 @@
 use super::MixProxySender;
 use super::SHUTDOWN_TIMEOUT;
 use crate::available_reader::AvailableReader;
+use crate::proxy_runner::KEEPALIVE_INTERVAL;
 use bytes::Bytes;
 use futures::FutureExt;
 use futures::StreamExt;
@@ -31,6 +32,23 @@ async fn send_empty_close<F, S>(
     let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
     mix_sender
         .send(adapter_fn(connection_id, ordered_msg, true))
+        .await
+        .expect("BatchRealMessageReceiver has stopped receiving!");
+}
+
+async fn send_empty_keepalive<F, S>(
+    connection_id: ConnectionId,
+    message_sender: &mut OrderedMessageSender,
+    mix_sender: &MixProxySender<S>,
+    adapter_fn: F,
+) where
+    F: Fn(ConnectionId, Vec<u8>, bool) -> S,
+    S: Debug,
+{
+    log::trace!("Sending keepalive for connection: {connection_id}");
+    let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
+    mix_sender
+        .send(adapter_fn(connection_id, ordered_msg, false))
         .await
         .expect("BatchRealMessageReceiver has stopped receiving!");
 }
@@ -185,6 +203,8 @@ where
 
     tokio::pin!(shutdown_future);
 
+    let mut keepalive_timer = tokio::time::interval(KEEPALIVE_INTERVAL);
+
     loop {
         select! {
             read_data = &mut available_reader.next() => {
@@ -200,6 +220,10 @@ where
                 ).await {
                     break
                 }
+                keepalive_timer.reset();
+            }
+            _ = keepalive_timer.tick() => {
+                send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
             }
             _ = &mut shutdown_future => {
                 debug!(

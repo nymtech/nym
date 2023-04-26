@@ -14,45 +14,17 @@ use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::str::FromStr;
-use thiserror::Error;
 
+pub mod error;
 pub mod filter;
 pub mod gateway;
 pub mod mix;
+pub mod random_route_provider;
 
 #[cfg(feature = "provider-trait")]
 pub mod provider_trait;
 
-#[derive(Debug, Clone, Error)]
-pub enum NymTopologyError {
-    #[error("The provided network topology is empty - there are no mixnodes and no gateways on it - the network request(s) probably failed")]
-    EmptyNetworkTopology,
-
-    #[error("The provided network topology has no gateways available")]
-    NoGatewaysAvailable,
-
-    #[error("The provided network topology has no mixnodes available")]
-    NoMixnodesAvailable,
-
-    #[error("Gateway with identity key {identity_key} doesn't exist")]
-    NonExistentGatewayError { identity_key: String },
-
-    #[error("Wanted to create a mix route with {requested} hops, while only {available} layers are available")]
-    InvalidNumberOfHopsError { available: usize, requested: usize },
-
-    #[error("No mixnodes available on layer {layer}")]
-    EmptyMixLayer { layer: MixLayer },
-
-    #[error("Uneven layer distribution. Layer {layer} has {nodes} on it, while we expected a value between {lower_bound} and {upper_bound} as we have {total_nodes} nodes in total. Full breakdown: {layer_distribution:?}")]
-    UnevenLayerDistribution {
-        layer: MixLayer,
-        nodes: usize,
-        lower_bound: usize,
-        upper_bound: usize,
-        total_nodes: usize,
-        layer_distribution: Vec<(MixLayer, usize)>,
-    },
-}
+pub use error::NymTopologyError;
 
 #[derive(Debug, Clone)]
 pub enum NetworkAddress {
@@ -134,6 +106,12 @@ impl NymTopology {
         None
     }
 
+    pub fn find_gateway(&self, gateway_identity: IdentityKeyRef) -> Option<&gateway::Node> {
+        self.gateways
+            .iter()
+            .find(|&gateway| gateway.identity_key.to_base58_string() == gateway_identity)
+    }
+
     pub fn mixes(&self) -> &BTreeMap<MixLayer, Vec<mix::Node>> {
         &self.mixes
     }
@@ -182,8 +160,7 @@ impl NymTopology {
         num_mix_hops: u8,
     ) -> Result<Vec<SphinxNode>, NymTopologyError>
     where
-        // I don't think there's a need for this RNG to be crypto-secure
-        R: Rng + ?Sized,
+        R: Rng + CryptoRng + ?Sized,
     {
         use rand::seq::SliceRandom;
 

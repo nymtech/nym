@@ -23,6 +23,7 @@ nym-crypto = { path = "../crypto" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
 nym-sphinx-types = { path = "../nymsphinx/types" }
+nym-sphinx-routing = { path = "../nymsphinx/routing" }
 nym-bin-common = { path = "../bin-common" }
 
 [features]

@@ -60,6 +60,7 @@ members = [
     "common/nymsphinx/forwarding",
     "common/nymsphinx/framing",
     "common/nymsphinx/params",
+    "common/nymsphinx/routing",
     "common/nymsphinx/types",
     "common/pemstore",
     "common/socks5-client-core",

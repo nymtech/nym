@@ -1,14 +1,13 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_monitor::monitor::preparer::{InvalidNode, TestedNode};
-use crate::network_monitor::test_packet::{NodeType, TestPacket};
+use crate::network_monitor::monitor::preparer::InvalidNode;
+use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use nym_mixnet_contract_common::MixId;
+use nym_node_tester_utils::node::{NodeType, TestableNode};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-
-const INVALID_MIX_ID: u32 = u32::MAX;
 
 // just some approximate measures to print to stdout (well, technically stderr since it's being printed via log)
 const EXCEPTIONAL_THRESHOLD: u8 = 95; // 95 - 100
@@ -60,12 +59,12 @@ impl GatewayResult {
 #[derive(Debug, Clone)]
 pub(crate) struct RouteResult {
     pub(crate) route: TestRoute,
-    reliability: u8,
+    performance: f32,
 }
 
 impl RouteResult {
-    pub(crate) fn new(route: TestRoute, reliability: u8) -> Self {
-        RouteResult { route, reliability }
+    pub(crate) fn new(route: TestRoute, performance: f32) -> Self {
+        RouteResult { route, performance }
     }
 }
 
@@ -179,63 +178,63 @@ impl Display for TestReport {
             writeln!(
                 f,
                 "{:?}, reliability: {:.2}",
-                route_result.route, route_result.reliability
+                route_result.route, route_result.performance
             )?;
         }
 
         writeln!(
             f,
-            "Exceptional mixnodes (reliability >= {}): {}",
-            EXCEPTIONAL_THRESHOLD, self.exceptional_mixnodes
+            "Exceptional mixnodes (reliability >= {EXCEPTIONAL_THRESHOLD}): {}",
+            self.exceptional_mixnodes
         )?;
         writeln!(
             f,
-            "Exceptional gateways (reliability >= {}): {}",
-            EXCEPTIONAL_THRESHOLD, self.exceptional_gateways
-        )?;
-
-        writeln!(
-            f,
-            "Fine mixnodes (reliability {} - {}): {}",
-            FINE_THRESHOLD, EXCEPTIONAL_THRESHOLD, self.fine_mixnodes
-        )?;
-        writeln!(
-            f,
-            "Fine gateways (reliability {} - {}): {}",
-            FINE_THRESHOLD, EXCEPTIONAL_THRESHOLD, self.fine_gateways
+            "Exceptional gateways (reliability >= {EXCEPTIONAL_THRESHOLD}): {}",
+            self.exceptional_gateways
         )?;
 
         writeln!(
             f,
-            "Poor mixnodes (reliability {} - {}): {}",
-            POOR_THRESHOLD, FINE_THRESHOLD, self.poor_mixnodes
+            "Fine mixnodes (reliability {FINE_THRESHOLD} - {EXCEPTIONAL_THRESHOLD}): {}",
+            self.fine_mixnodes
         )?;
         writeln!(
             f,
-            "Poor gateways (reliability {} - {}): {}",
-            POOR_THRESHOLD, FINE_THRESHOLD, self.poor_gateways
-        )?;
-
-        writeln!(
-            f,
-            "Unreliable mixnodes (reliability {} - {}): {}",
-            UNRELIABLE_THRESHOLD, POOR_THRESHOLD, self.unreliable_mixnodes
-        )?;
-        writeln!(
-            f,
-            "Unreliable gateways (reliability {} - {}): {}",
-            UNRELIABLE_THRESHOLD, POOR_THRESHOLD, self.unreliable_gateways
+            "Fine gateways (reliability {FINE_THRESHOLD} - {EXCEPTIONAL_THRESHOLD}): {}",
+            self.fine_gateways
         )?;
 
         writeln!(
             f,
-            "Unroutable mixnodes (reliability < {}): {}",
-            UNRELIABLE_THRESHOLD, self.unroutable_mixnodes
+            "Poor mixnodes (reliability {POOR_THRESHOLD} - {FINE_THRESHOLD}): {}",
+            self.poor_mixnodes
         )?;
         writeln!(
             f,
-            "Unroutable gateways (reliability < {}): {}",
-            UNRELIABLE_THRESHOLD, self.unroutable_gateways
+            "Poor gateways (reliability {POOR_THRESHOLD} - {FINE_THRESHOLD}): {}",
+            self.poor_gateways
+        )?;
+
+        writeln!(
+            f,
+            "Unreliable mixnodes (reliability {UNRELIABLE_THRESHOLD} - {POOR_THRESHOLD}): {}",
+            self.unreliable_mixnodes
+        )?;
+        writeln!(
+            f,
+            "Unreliable gateways (reliability {UNRELIABLE_THRESHOLD} - {POOR_THRESHOLD}): {}",
+            self.unreliable_gateways
+        )?;
+
+        writeln!(
+            f,
+            "Unroutable mixnodes (reliability < {UNRELIABLE_THRESHOLD}): {}",
+            self.unroutable_mixnodes
+        )?;
+        writeln!(
+            f,
+            "Unroutable gateways (reliability < {UNRELIABLE_THRESHOLD}): {}",
+            self.unroutable_gateways
         )?;
 
         Ok(())
@@ -281,108 +280,77 @@ impl SummaryProducer {
 
     pub(super) fn produce_summary(
         &self,
-        tested_mixnodes: Vec<TestedNode>,
-        tested_gateways: Vec<TestedNode>,
-        received_packets: Vec<TestPacket>,
+        tested_mixnodes: Vec<TestableNode>,
+        tested_gateways: Vec<TestableNode>,
+        received_packets: Vec<NodeTestMessage>,
         invalid_mixnodes: Vec<InvalidNode>,
         invalid_gateways: Vec<InvalidNode>,
         test_routes: &[TestRoute],
     ) -> TestSummary {
-        let mut raw_mixnode_results = HashMap::new();
-        let mut raw_gateway_results = HashMap::new();
-
-        let mut raw_route_results = HashMap::new();
-
         // we expect each route to receive this many packets in the ideal world
         let per_route_expected =
             (tested_mixnodes.len() + tested_gateways.len()) * self.per_node_test_packets;
         let per_node_expected = test_routes.len() * self.per_node_test_packets;
 
-        // TODO: whenever somebody feels like it, this should really get refactored.
-        // probably some wrapper struct would be appropriate here.
-        for tested_mixnode in tested_mixnodes {
-            raw_mixnode_results.insert(
-                (
-                    tested_mixnode.mix_id().unwrap_or(INVALID_MIX_ID),
-                    tested_mixnode.identity,
-                    tested_mixnode.owner,
-                ),
-                0,
-            );
-        }
-
-        for tested_gateway in tested_gateways {
-            raw_gateway_results.insert((tested_gateway.identity, tested_gateway.owner), 0);
-        }
-
-        for invalid_mixnode in invalid_mixnodes {
-            raw_mixnode_results.insert(
-                (
-                    invalid_mixnode.mix_id().unwrap_or(INVALID_MIX_ID),
-                    invalid_mixnode.identity(),
-                    invalid_mixnode.owner(),
-                ),
-                0,
-            );
-        }
-
-        for invalid_gateway in invalid_gateways {
-            raw_gateway_results.insert((invalid_gateway.identity(), invalid_gateway.owner()), 0);
-        }
-
+        let mut raw_route_results = HashMap::new();
         for test_route in test_routes {
             raw_route_results.insert(test_route.id(), 0);
         }
 
-        for received in received_packets {
-            let pub_key = received.pub_key.to_base58_string();
+        let mut raw_results = HashMap::new();
 
-            match received.node_type {
-                NodeType::Mixnode(mix_id) => {
-                    *raw_mixnode_results
-                        .entry((mix_id, pub_key, received.owner))
-                        .or_default() += 1usize;
-                }
-                NodeType::Gateway => {
-                    *raw_gateway_results
-                        .entry((pub_key, received.owner))
-                        .or_default() += 1usize;
-                }
-            }
-
-            *raw_route_results.entry(received.route_id).or_default() += 1usize;
+        for tested_mixnode in tested_mixnodes {
+            raw_results.insert(tested_mixnode, 0);
         }
 
-        let mixnode_results = raw_mixnode_results
-            .into_iter()
-            .map(|((mix_id, identity_key, owner), received)| {
-                let reliability =
-                    (received as f32 / per_node_expected as f32 * 100.0).round() as u8;
-                MixnodeResult::new(mix_id, identity_key, owner, reliability)
-            })
-            .collect();
+        for tested_gateway in tested_gateways {
+            raw_results.insert(tested_gateway, 0);
+        }
 
-        let gateway_results = raw_gateway_results
-            .into_iter()
-            .map(|((identity_key, owner), received)| {
-                let reliability =
-                    (received as f32 / per_node_expected as f32 * 100.0).round() as u8;
-                GatewayResult::new(identity_key, owner, reliability)
-            })
-            .collect();
+        for invalid_mixnode in invalid_mixnodes {
+            raw_results.insert(invalid_mixnode.into(), 0);
+        }
+
+        for invalid_gateway in invalid_gateways {
+            raw_results.insert(invalid_gateway.into(), 0);
+        }
+
+        for received in received_packets {
+            *raw_results.entry(received.tested_node).or_default() += 1usize;
+            *raw_route_results.entry(received.ext.route_id).or_default() += 1usize;
+        }
+
+        let mut mixnode_results = Vec::new();
+        let mut gateway_results = Vec::new();
+
+        for (node, received) in raw_results {
+            let performance = received as f32 / per_node_expected as f32 * 100.0;
+            let reliability = performance.round() as u8;
+
+            match node.typ {
+                NodeType::Mixnode { mix_id } => {
+                    let res =
+                        MixnodeResult::new(mix_id, node.encoded_identity, node.owner, reliability);
+                    mixnode_results.push(res)
+                }
+                NodeType::Gateway => {
+                    let res = GatewayResult::new(node.encoded_identity, node.owner, reliability);
+                    gateway_results.push(res)
+                }
+            }
+        }
 
         let route_results = raw_route_results
             .into_iter()
             .filter_map(|(id, received)| {
-                let reliability =
-                    (received as f32 / per_route_expected as f32 * 100.0).round() as u8;
+                let performance = received as f32 / per_route_expected as f32 * 100.0;
 
                 // this might be suboptimal as we're going through the entire slice every time
                 // but realistically this slice will never have more than ~ 10 elements AT MOST
                 test_routes
                     .iter()
                     .find(|route| route.id() == id)
-                    .map(|route| RouteResult::new(route.clone(), reliability))
+                    .map(|route| RouteResult::new(route.clone(), performance))
             })
             .collect();
 

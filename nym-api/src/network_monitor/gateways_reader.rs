@@ -1,18 +1,22 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::Stream;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
+use nym_mixnet_contract_common::IdentityKey;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio_stream::StreamMap;
 
-pub(crate) type GatewayMessages = Vec<Vec<u8>>;
+pub(crate) enum GatewayMessages {
+    Data(Vec<Vec<u8>>),
+    Acks(Vec<Vec<u8>>),
+}
 
 pub(crate) struct GatewaysReader {
-    ack_map: StreamMap<String, AcknowledgementReceiver>,
-    stream_map: StreamMap<String, MixnetMessageReceiver>,
+    ack_map: StreamMap<IdentityKey, AcknowledgementReceiver>,
+    stream_map: StreamMap<IdentityKey, MixnetMessageReceiver>,
 }
 
 impl GatewaysReader {
@@ -41,20 +45,26 @@ impl GatewaysReader {
 }
 
 impl Stream for GatewaysReader {
-    // just return whatever is returned by our main `stream_map`
-    type Item = <StreamMap<String, MixnetMessageReceiver> as Stream>::Item;
+    type Item = (IdentityKey, GatewayMessages);
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // exhaust the ack map if possible
         match Pin::new(&mut self.ack_map).poll_next(cx) {
             Poll::Ready(None) => {
                 // this should have never happened!
                 return Poll::Ready(None);
             }
-            Poll::Ready(Some(_item)) => (),
+            Poll::Ready(Some(ack_item)) => {
+                // wake immediately in case there's an associated data message
+                cx.waker().wake_by_ref();
+                return Poll::Ready(Some((ack_item.0, GatewayMessages::Acks(ack_item.1))));
+            }
             Poll::Pending => (),
         }
 
-        Pin::new(&mut self.stream_map).poll_next(cx)
+        Pin::new(&mut self.stream_map)
+            .poll_next(cx)
+            .map(|maybe_data_item| {
+                maybe_data_item.map(|data_item| (data_item.0, GatewayMessages::Data(data_item.1)))
+            })
     }
 }

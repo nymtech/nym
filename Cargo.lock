@@ -3047,6 +3047,7 @@ dependencies = [
  "nym-inclusion-probability",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
+ "nym-node-tester-utils",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
@@ -3993,6 +3994,7 @@ dependencies = [
  "nym-sphinx-forwarding",
  "nym-sphinx-framing",
  "nym-sphinx-params",
+ "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
  "rand 0.7.3",
@@ -4103,6 +4105,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-sphinx-routing"
+version = "0.1.0"
+dependencies = [
+ "nym-sphinx-addressing",
+ "nym-sphinx-types",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
@@ -4146,6 +4157,7 @@ dependencies = [
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-sphinx-addressing",
+ "nym-sphinx-routing",
  "nym-sphinx-types",
  "rand 0.7.3",
  "thiserror",

@@ -4,7 +4,8 @@
 // due to expansion of #[wasm_bindgen] macro on NodeTestResult
 #![allow(clippy::drop_non_drop)]
 
-use nym_node_tester_utils::receiver::{Received, ReceivedReceiver};
+use nym_node_tester_utils::processor::Received;
+use nym_node_tester_utils::receiver::ReceivedReceiver;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -14,10 +15,10 @@ use wasm_bindgen::prelude::*;
 use wasm_utils::{console_log, console_warn};
 
 #[derive(Clone)]
-pub(super) struct ReceivedReceiverWrapper(Arc<AsyncMutex<ReceivedReceiver>>);
+pub(super) struct ReceivedReceiverWrapper(Arc<AsyncMutex<ReceivedReceiver<WasmTestMessageExt>>>);
 
 impl ReceivedReceiverWrapper {
-    pub(super) fn new(inner: ReceivedReceiver) -> Self {
+    pub(super) fn new(inner: ReceivedReceiver<WasmTestMessageExt>) -> Self {
         ReceivedReceiverWrapper(Arc::new(AsyncMutex::new(inner)))
     }
 
@@ -36,7 +37,7 @@ impl ReceivedReceiverWrapper {
         }
     }
 
-    pub(super) async fn lock(&self) -> AsyncMutexGuard<'_, ReceivedReceiver> {
+    pub(super) async fn lock(&self) -> AsyncMutexGuard<'_, ReceivedReceiver<WasmTestMessageExt>> {
         self.0.lock().await
     }
 }

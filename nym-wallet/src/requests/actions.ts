@@ -13,8 +13,7 @@ import {
   TBondGatewaySignatureArgs,
   TBondMixNodeArgs,
   TBondMixnodeSignatureArgs,
-  TBondMoreArgs,
-  TDecreaseBondArgs,
+  TUpdateBondArgs,
 } from '../types';
 import { invokeWrapper } from './wrapper';
 
@@ -51,7 +50,5 @@ export const unbond = async (type: EnumNodeType) => {
   return unbondGateway();
 };
 
-export const bondMore = async (args: TBondMoreArgs) => invokeWrapper<TransactionExecuteResult>('pledge_more', args);
-
-export const decreaseBond = async (args: TDecreaseBondArgs) =>
-  invokeWrapper<TransactionExecuteResult>('decrease_pledge', args);
+export const updateBond = async (args: TUpdateBondArgs) =>
+  invokeWrapper<TransactionExecuteResult>('update_pledge', args);

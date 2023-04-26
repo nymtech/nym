@@ -460,6 +460,34 @@ impl WalletStateInner {
     pub fn remove_validator_url(&mut self, url: config::ValidatorConfigEntry, network: Network) {
         self.config.remove_validator_url(url, network)
     }
+
+    pub fn calculate_coin_delta(
+        &self,
+        coin1: &DecCoin,
+        coin2: &DecCoin,
+    ) -> Result<DecCoin, BackendError> {
+        if coin1.denom != coin2.denom {
+            return Err(BackendError::WalletPledgeUpdateInvalidCurrency);
+        }
+
+        match coin1.amount.cmp(&coin2.amount) {
+            std::cmp::Ordering::Greater => {
+                let delta = DecCoin {
+                    amount: coin1.amount - coin2.amount,
+                    denom: coin1.denom.clone(),
+                };
+                Ok(delta)
+            }
+            std::cmp::Ordering::Less => {
+                let delta = DecCoin {
+                    amount: coin2.amount - coin1.amount,
+                    denom: coin1.denom.clone(),
+                };
+                Ok(delta)
+            }
+            std::cmp::Ordering::Equal => Ok(coin1.to_owned()),
+        }
+    }
 }
 
 async fn fetch_status_for_urls(

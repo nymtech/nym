@@ -14,7 +14,7 @@ import {
 } from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 import { invokeWrapper } from './wrapper';
-import { TBondGatewaySignatureArgs, TBondMixnodeSignatureArgs } from '../types';
+import { TBondGatewaySignatureArgs, TBondMixnodeSignatureArgs, TUpdateBondArgs } from '../types';
 
 export const getLockedCoins = async (): Promise<DecCoin> => invokeWrapper<DecCoin>('locked_coins');
 
@@ -121,14 +121,5 @@ export const vestingClaimOperatorReward = async (fee?: Fee) =>
 export const vestingClaimDelegatorRewards = async (mixId: number) =>
   invokeWrapper<TransactionExecuteResult>('vesting_claim_delegator_reward', { mixId });
 
-export const vestingBondMore = async ({ fee, additionalPledge }: { fee?: Fee; additionalPledge: DecCoin }) =>
-  invokeWrapper<TransactionExecuteResult>('vesting_pledge_more', {
-    fee,
-    additionalPledge,
-  });
-
-export const vestingDecreaseBond = async ({ fee, decreaseBy }: { fee?: Fee; decreaseBy: DecCoin }) =>
-  invokeWrapper<TransactionExecuteResult>('vesting_decrease_pledge', {
-    fee,
-    decreaseBy,
-  });
+export const vestingUpdateBond = async (args: TUpdateBondArgs) =>
+  invokeWrapper<TransactionExecuteResult>('vesting_update_pledge', args);

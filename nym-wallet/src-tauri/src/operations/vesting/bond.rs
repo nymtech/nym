@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crate::error::BackendError;
 use crate::nyxd_client;
 use crate::state::WalletState;
@@ -119,6 +121,59 @@ pub async fn vesting_bond_mixnode(
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn vesting_update_pledge(
+    current_pledge: DecCoin,
+    new_pledge: DecCoin,
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    let dec_delta = guard.calculate_coin_delta(&current_pledge, &new_pledge)?;
+    let delta = guard.attempt_convert_to_base_coin(dec_delta.clone())?;
+    log::info!(
+        ">>> Pledge update, current pledge {}, new pledge {}",
+        &current_pledge,
+        &new_pledge,
+    );
+
+    let res = match new_pledge.amount.cmp(&current_pledge.amount) {
+        Ordering::Greater => {
+            log::info!(
+                "Pledge increase with locked tokens, calculated additional pledge {}, fee = {:?}",
+                dec_delta,
+                fee,
+            );
+            guard
+                .current_client()?
+                .nyxd
+                .vesting_pledge_more(delta, fee)
+                .await?
+        }
+        Ordering::Less => {
+            log::info!(
+                "Pledge reduction with locked tokens, calculated reduction pledge {}, fee = {:?}",
+                dec_delta,
+                fee,
+            );
+            guard
+                .current_client()?
+                .nyxd
+                .vesting_decrease_pledge(delta, fee)
+                .await?
+        }
+        Ordering::Equal => return Err(BackendError::WalletPledgeUpdateNoOp),
+    };
+
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)

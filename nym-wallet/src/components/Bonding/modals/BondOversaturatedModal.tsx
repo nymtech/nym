@@ -12,8 +12,8 @@ export const BondOversaturatedModal: FCWithChildren<{
     open={open}
     onClose={onClose}
     onOk={async () => onContinue?.()}
-    header="Bond More"
-    okLabel="Bond More"
+    header="Change bond amount"
+    okLabel="Change bond"
     buttonFullWidth
   >
     <Stack spacing={3} marginBottom={3}>

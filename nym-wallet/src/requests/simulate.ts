@@ -6,7 +6,7 @@ import {
   MixNodeConfigUpdate,
   GatewayConfigUpdate,
 } from '@nymproject/types';
-import { TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
+import { TBondGatewayArgs, TBondMixNodeArgs, TSimulateUpdateBondArgs } from 'src/types';
 import { invokeWrapper } from './wrapper';
 
 export const simulateBondGateway = async (args: TBondGatewayArgs) =>
@@ -80,7 +80,8 @@ export const simulateClaimOperatorReward = async () => invokeWrapper<FeeDetails>
 export const simulateVestingClaimOperatorReward = async () =>
   invokeWrapper<FeeDetails>('simulate_vesting_claim_operator_reward');
 
-export const simulateBondMore = async (args: any) => invokeWrapper<FeeDetails>('simulate_pledge_more', args);
+export const simulateUpdateBond = async (args: TSimulateUpdateBondArgs) =>
+  invokeWrapper<FeeDetails>('simulate_update_pledge', args);
 
-export const simulateVestingBondMore = async (args: any) =>
-  invokeWrapper<FeeDetails>('simulate_vesting_pledge_more', args);
+export const simulateVestingUpdateBond = async (args: TSimulateUpdateBondArgs) =>
+  invokeWrapper<FeeDetails>('simulate_vesting_update_pledge', args);

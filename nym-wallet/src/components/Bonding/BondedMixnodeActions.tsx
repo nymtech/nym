@@ -3,16 +3,16 @@ import { Typography } from '@mui/material';
 import { ActionsMenu, ActionsMenuItem } from 'src/components/ActionsMenu';
 import { Unbond as UnbondIcon, Bond as BondIcon } from '../../svg-icons';
 
-export type TBondedMixnodeActions = 'nodeSettings' | 'bondMore' | 'unbond' | 'redeem';
+export type TBondedMixnodeActions = 'nodeSettings' | 'updateBond' | 'unbond' | 'redeem';
 
 export const BondedMixnodeActions = ({
   onActionSelect,
   disabledRedeemAndCompound,
-  disabledBondMore,
+  disabledUpdateBond,
 }: {
   onActionSelect: (action: TBondedMixnodeActions) => void;
   disabledRedeemAndCompound: boolean;
-  disabledBondMore?: boolean;
+  disabledUpdateBond?: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -26,11 +26,11 @@ export const BondedMixnodeActions = ({
 
   return (
     <ActionsMenu open={isOpen} onOpen={handleOpen} onClose={handleClose}>
-      {!disabledBondMore && (
+      {!disabledUpdateBond && (
         <ActionsMenuItem
-          title="Bond More"
+          title="Change bond amount"
           Icon={<BondIcon fontSize="inherit" />}
-          onClick={() => handleActionClick('bondMore')}
+          onClick={() => handleActionClick('updateBond')}
         />
       )}
       <ActionsMenuItem

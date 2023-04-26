@@ -154,7 +154,7 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const bondMore = async (): Promise<TransactionExecuteResult> => {
+  const updateBondAmount = async (): Promise<TransactionExecuteResult> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
@@ -202,7 +202,7 @@ export const MockBondingContextProvider = ({
       getFee,
       resetFeeState,
       updateMixnode,
-      bondMore,
+      updateBondAmount,
       checkOwnership,
       generateMixnodeMsgPayload,
       generateGatewayMsgPayload,

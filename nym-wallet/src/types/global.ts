@@ -54,15 +54,13 @@ export type TBondGatewaySignatureArgs = {
   tokenPool: 'balance' | 'locked';
 };
 
-export type TBondMoreArgs = {
-  additionalPledge: DecCoin;
+export type TUpdateBondArgs = {
+  currentPledge: DecCoin;
+  newPledge: DecCoin;
   fee?: Fee;
 };
 
-export type TDecreaseBondArgs = {
-  decreaseBy: DecCoin;
-  fee?: Fee;
-};
+export type TSimulateUpdateBondArgs = Omit<TUpdateBondArgs, 'fee'>;
 
 export type TNodeDescription = {
   name: string;

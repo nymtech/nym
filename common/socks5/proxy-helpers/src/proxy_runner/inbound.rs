@@ -53,7 +53,6 @@ async fn send_empty_keepalive<F, S>(
         .expect("BatchRealMessageReceiver has stopped receiving!");
 }
 
-//#[allow(clippy::too_many_arguments)]
 async fn deal_with_data<F, S>(
     read_data: Option<io::Result<Bytes>>,
     local_destination_address: &str,

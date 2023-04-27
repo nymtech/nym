@@ -3069,6 +3069,7 @@ dependencies = [
  "nym-multisig-contract-common",
  "nym-node-tester-utils",
  "nym-pemstore",
+ "nym-service-provider-directory-common",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
@@ -3210,6 +3211,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
+ "nym-service-provider-directory-common",
  "nym-validator-client",
  "nym-vesting-contract-common",
  "rand 0.6.5",
@@ -3898,6 +3900,7 @@ name = "nym-service-provider-directory-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "schemars",
  "serde",
 ]
 
@@ -4251,6 +4254,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
+ "nym-service-provider-directory-common",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
  "prost 0.10.4",

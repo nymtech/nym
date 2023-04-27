@@ -15,7 +15,8 @@ use nym_api_requests::models::{
 };
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
-use reqwest::Response;
+use nym_service_provider_directory_common::ServiceInfo;
+use reqwest::{Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -76,6 +77,8 @@ impl Client {
         let res = self.send_get_request(path, params).await?;
         if res.status().is_success() {
             Ok(res.json().await?)
+        } else if res.status() == StatusCode::NOT_FOUND {
+            Err(NymAPIError::NotFound)
         } else {
             Err(NymAPIError::GenericRequestFailure(res.text().await?))
         }
@@ -479,6 +482,11 @@ impl Client {
             request_body,
         )
         .await
+    }
+
+    pub async fn get_service_providers(&self) -> Result<Vec<ServiceInfo>, NymAPIError> {
+        self.query_nym_api(&[routes::API_VERSION, routes::SERVICE_PROVIDERS], NO_PARAMS)
+            .await
     }
 }
 

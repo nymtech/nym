@@ -9,6 +9,9 @@ pub enum NymAPIError {
         source: reqwest::Error,
     },
 
+    #[error("Not found")]
+    NotFound,
+
     #[error("Request failed with error message - {0}")]
     GenericRequestFailure(String),
 

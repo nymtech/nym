@@ -40,6 +40,24 @@ impl ExecuteMsg {
     pub fn delete_id(service_id: ServiceId) -> Self {
         ExecuteMsg::DeleteId { service_id }
     }
+
+    pub fn default_memo(&self) -> String {
+        match self {
+            ExecuteMsg::Announce {
+                nym_address,
+                service_type,
+            } => format!("announcing {nym_address} as type {service_type}"),
+            ExecuteMsg::DeleteId { service_id } => {
+                format!("deleting service with service id {service_id}")
+            }
+            ExecuteMsg::DeleteNymAddress { nym_address } => {
+                format!("deleting service with nym address {nym_address}")
+            }
+            ExecuteMsg::UpdateDepositRequired { deposit_required } => {
+                format!("updating the deposit required to {deposit_required}")
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

@@ -3,7 +3,12 @@
 
 use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_API, NYXD};
 use serde::{Deserialize, Serialize};
-use std::{env::var, ops::Not, path::PathBuf};
+use std::{
+    env::{var, VarError},
+    ffi::OsStr,
+    ops::Not,
+    path::PathBuf,
+};
 use url::Url;
 
 pub mod mainnet;
@@ -28,6 +33,7 @@ pub struct NymContracts {
     pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
     pub coconut_dkg_contract_address: Option<String>,
+    pub service_provider_directory_contract_address: Option<String>,
 }
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
@@ -68,6 +74,14 @@ impl NymNetworkDetails {
     }
 
     pub fn new_from_env() -> Self {
+        fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
+            match var(env) {
+                Ok(var) => Some(var),
+                Err(VarError::NotPresent) => None,
+                err => panic!("Unable to set: {:?}", err),
+            }
+        }
+
         NymNetworkDetails::new_empty()
             .with_bech32_account_prefix(
                 var(var_names::BECH32_PREFIX).expect("bech32 prefix not set"),
@@ -117,6 +131,9 @@ impl NymNetworkDetails {
             .with_coconut_dkg_contract(Some(
                 var(var_names::COCONUT_DKG_CONTRACT_ADDRESS).expect("coconut dkg contract not set"),
             ))
+            .with_service_provider_directory_contract(get_optional_env(
+                var_names::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
+            ))
     }
 
     pub fn new_mainnet() -> Self {
@@ -145,6 +162,9 @@ impl NymNetworkDetails {
                 multisig_contract_address: parse_optional_str(mainnet::MULTISIG_CONTRACT_ADDRESS),
                 coconut_dkg_contract_address: parse_optional_str(
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
+                ),
+                service_provider_directory_contract_address: parse_optional_str(
+                    mainnet::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
                 ),
             },
         }
@@ -225,6 +245,15 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_coconut_dkg_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.coconut_dkg_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_service_provider_directory_contract<S: Into<String>>(
+        mut self,
+        contract: Option<S>,
+    ) -> Self {
+        self.contracts.service_provider_directory_contract_address = contract.map(Into::into);
         self
     }
 }

@@ -4,6 +4,7 @@ import {
   AllMixnodes,
   EpochRewardParams,
   CurrentEpoch,
+  ServiceProviders,
 } from "../types/ContractCacheTypes";
 import { APIClient } from "./abstracts/APIClient";
 
@@ -86,6 +87,13 @@ export default class ContractCache extends APIClient {
   public async getCurrentEpoch(): Promise<CurrentEpoch> {
     const response = await this.restClient.sendGet({
       route: `epoch/current`,
+    });
+    return response.data;
+  }
+
+  public async getServiceProviders(): Promise<ServiceProviders> {
+    const response = await this.restClient.sendGet({
+      route: `services`,
     });
     return response.data;
   }

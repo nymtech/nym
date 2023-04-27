@@ -39,15 +39,15 @@ where
     pub fn new(
         gateway_client: GatewayClient<C, St>,
     ) -> (MixTrafficController<C, St>, BatchMixMessageSender) {
-        let (sphinx_message_sender, sphinx_message_receiver) =
+        let (message_sender, message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
         (
             MixTrafficController {
                 gateway_client,
-                mix_rx: sphinx_message_receiver,
+                mix_rx: message_receiver,
                 consecutive_gateway_failure_count: 0,
             },
-            sphinx_message_sender,
+            message_sender,
         )
     }
 

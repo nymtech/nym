@@ -592,6 +592,7 @@ where
             client_state,
             reconstructed_receiver,
             task_manager: started_client.task_manager,
+            packet_type: None,
         })
     }
 }

@@ -104,6 +104,7 @@ impl SphinxSocksServer {
                         &self.self_address,
                         self.lane_queue_lengths.clone(),
                         self.shutdown.clone(),
+                        None
                     );
 
                     tokio::spawn(async move {

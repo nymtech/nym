@@ -45,7 +45,7 @@ where
     #[cfg(target_arch = "wasm32")]
     next_delay: Pin<Box<wasm_timer::Delay>>,
 
-    /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
+    /// Channel used for sending prepared nym packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
     mix_tx: BatchMixMessageSender,
 

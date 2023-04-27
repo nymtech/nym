@@ -3786,6 +3786,7 @@ dependencies = [
  "log",
  "nym-crypto",
  "nym-sphinx",
+ "nym-sphinx-params",
  "nym-task",
  "nym-topology",
  "rand 0.7.3",

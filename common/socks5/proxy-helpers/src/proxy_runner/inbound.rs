@@ -62,7 +62,6 @@ async fn deal_with_data<F, S>(
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,
     adapter_fn: F,
-    lane_queue_lengths: Option<LaneQueueLengths>,
 ) -> bool
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
@@ -103,14 +102,19 @@ where
     if is_finished {
         // After sending, if this is the last message, wait until we've actually transmitted the data
         // in the `OutQueueControl` and the lane is empty.
-        if let Some(ref lane_queue_lengths) = lane_queue_lengths {
-            // This is basically an ugly workaround to make sure that we don't start waiting until
-            // the data that we pushed arrived at the OutQueueControl.
-            // This usually not a problem in the socks5-client, but for the network-requester this
-            // info is synced at up to every 500ms.
-            sleep(Duration::from_secs(2)).await;
-            wait_until_lane_empty(lane_queue_lengths, connection_id).await;
-        }
+        //if let Some(ref lane_queue_lengths) = lane_queue_lengths {
+        //    // We wait a little to make sure that the packets make their way to the
+        //    // `OutQueueControl` and is registered in the `LaneQueueLengths`.
+        //    //
+        //    // NOTE: This is as hacky as it looks. My preferred approach would be to do the chunking in
+        //    // each connection task and then send the chunks to the `OutQueueControl` directly.
+        //    sleep(Duration::from_secs(2)).await;
+
+        //    // We need to wait until the lane has sent everything and is empty, otherwise if we
+        //    // close the connection while there is still packets waiting to be sent in
+        //    // `OutQueueControl`, they will be dropped.
+        //    wait_until_lane_empty(lane_queue_lengths, connection_id).await;
+        //}
 
         // Technically we already informed it when we sent the message to mixnet above
         debug!(
@@ -122,20 +126,22 @@ where
     is_finished
 }
 
-async fn wait_until_lane_empty(lane_queue_lengths: &LaneQueueLengths, connection_id: u64) {
-    if tokio::time::timeout(
-        Duration::from_secs(4 * 60),
-        wait_for_lane(
-            lane_queue_lengths,
-            connection_id,
-            0,
-            Duration::from_millis(500),
-        ),
-    )
-    .await
-    .is_err()
-    {
-        log::warn!("Wait until lane empty timed out");
+async fn wait_until_lane_empty(lane_queue_lengths: &Option<LaneQueueLengths>, connection_id: u64) {
+    if let Some(lane_queue_lengths) = lane_queue_lengths {
+        if tokio::time::timeout(
+            Duration::from_secs(4 * 60),
+            wait_for_lane(
+                lane_queue_lengths,
+                connection_id,
+                0,
+                Duration::from_millis(500),
+            ),
+        )
+        .await
+        .is_err()
+        {
+            log::warn!("Wait until lane empty timed out");
+        }
     }
 }
 
@@ -197,11 +203,30 @@ where
     let mut available_reader =
         AvailableReader::new(&mut reader, Some(available_plaintext_per_mix_packet * 4));
     let mut message_sender = OrderedMessageSender::new();
-    let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
 
+    // Shutdown if outbound signled to shutdown
+    let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
     tokio::pin!(shutdown_future);
 
+    // Timer to send empty keepalive messages
     let mut keepalive_timer = tokio::time::interval(KEEPALIVE_INTERVAL);
+
+    // Once we finish read from the local socket, we need to wait until we've actually transmitted
+    // until we can exit the task. Otherwise, if we close the connection while there is still
+    // packets waiting to be sent in `OutQueueControl`, they will be dropped.
+    let closing_notify = Arc::new(Notify::new());
+    let closing_future = closing_notify
+        .notified()
+        .then(|_| {
+            // We wait a little to make sure that the packets make their way to the
+            // `OutQueueControl` and is registered in the `LaneQueueLengths`.
+            //
+            // NOTE: This is as hacky as it looks. My preferred approach would be to do the chunking in
+            // each connection task and then send the chunks to the `OutQueueControl` directly.
+            sleep(Duration::from_secs(2))
+        })
+        .then(|_| wait_until_lane_empty(&lane_queue_lengths, connection_id));
+    tokio::pin!(closing_future);
 
     loop {
         select! {
@@ -220,6 +245,14 @@ where
                 log::trace!("ProxyRunner inbound: Received shutdown");
                 break;
             }
+            _ = &mut closing_future => {
+                // Technically we already informed it when we sent the last message to mixnet
+                debug!(
+                    target: &*format!("({connection_id}) socks5 inbound"),
+                    "The local socket is closed - won't receive any more data. Informing remote about that..."
+                );
+                break;
+            }
             _ = keepalive_timer.tick() => {
                 send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
             }
@@ -236,9 +269,9 @@ where
                     &mut message_sender,
                     &mix_sender,
                     &adapter_fn,
-                    lane_queue_lengths.clone()
                 ).await {
-                    break
+                    //break
+                    closing_notify.notify_one();
                 }
                 keepalive_timer.reset();
             }

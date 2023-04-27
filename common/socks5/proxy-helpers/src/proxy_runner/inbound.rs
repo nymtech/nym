@@ -188,13 +188,6 @@ where
     // Timer to send empty keepalive messages
     let mut keepalive_timer = tokio::time::interval(KEEPALIVE_INTERVAL);
 
-    // Read the next data when there is space in the lane.
-    // The purpose of chaining the wait here is that it makes sure we can cancel the waiting on
-    // connection close.
-    let waiting_reader = wait_until_lane_almost_empty(&lane_queue_lengths, connection_id)
-        .then(|_| available_reader.next());
-    tokio::pin!(waiting_reader);
-
     // Once we finish read from the local socket, we need to wait until we've actually transmitted
     // until we can exit the task. Otherwise, if we close the connection while there is still
     // packets waiting to be sent in `OutQueueControl`, they will be dropped.
@@ -240,7 +233,12 @@ where
             _ = keepalive_timer.tick() => {
                 send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
             }
-            read_data = &mut waiting_reader => {
+            // Read the next data when there is space in the lane.
+            // The purpose of chaining the wait here is that it makes sure we can cancel the
+            // waiting on connection close.
+            read_data = wait_until_lane_almost_empty(&lane_queue_lengths, connection_id)
+                .then(|_| available_reader.next()) =>
+            {
                 if deal_with_data(
                     read_data,
                     &local_destination_address,

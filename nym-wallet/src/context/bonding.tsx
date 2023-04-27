@@ -162,6 +162,12 @@ export const BondingContext = createContext<TBondingContext>({
   isVestingAccount: false,
 });
 
+type TauriReq<Req extends Function & ((a: any, b?: any) => Promise<any>)> = {
+  name: Req['name'];
+  request: () => ReturnType<Req>;
+  onFulfilled: (value: Awaited<ReturnType<Req>>) => void;
+};
+
 export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Element => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -186,6 +192,19 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     setBondedNode(undefined);
   };
 
+  const fireRequests = async (reqs: TauriReq<any>[]) => {
+    const promises = await Promise.allSettled(reqs.map((r) => r.request()));
+
+    promises.forEach((res, index) => {
+      if (res.status === 'rejected') {
+        Console.warn(`${reqs[index].name} request fails`, res.reason);
+      }
+      if (res.status === 'fulfilled') {
+        reqs[index].onFulfilled(res.value as any);
+      }
+    });
+  };
+
   /**
    * Fetch mixnode **optional** data.
    * ⚠ The underlying queries are allowed to fail.
@@ -207,84 +226,90 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       uptime: 0,
     };
 
-    const requests = {
-      getMixnodeStatus: () => getMixnodeStatus(mixId),
-      getMixnodeUptime: () => getMixnodeUptime(mixId),
-      getMixnodeStakeSaturation: () => getMixnodeStakeSaturation(mixId),
-      getMixnodeRewardEstimation: () => getMixnodeRewardEstimation(mixId),
-      getInclusionProbability: () => getInclusionProbability(mixId),
-      getMixnodeAvgUptime: () => getMixnodeAvgUptime(),
-      getNodeDescription: () => getNodeDescriptionRequest(host, port),
-      getPendingOperatorRewards: () => getPendingOperatorRewards(clientDetails?.client_address || ''),
+    const statusReq: TauriReq<typeof getMixnodeStatus> = {
+      name: 'getMixnodeStatus',
+      request: () => getMixnodeStatus(mixId),
+      onFulfilled: (value) => {
+        details.status = value.status;
+      },
     };
 
-    const promises = await Promise.allSettled([
-      requests.getMixnodeStatus(),
-      requests.getMixnodeUptime(),
-      requests.getMixnodeStakeSaturation(),
-      requests.getMixnodeRewardEstimation(),
-      requests.getInclusionProbability(),
-      requests.getMixnodeAvgUptime(),
-      requests.getNodeDescription(),
-      requests.getPendingOperatorRewards(),
+    const uptimeReq: TauriReq<typeof getMixnodeUptime> = {
+      name: 'getMixnodeUptime',
+      request: () => getMixnodeUptime(mixId),
+      onFulfilled: (value) => {
+        details.uptime = value;
+      },
+    };
+
+    const stakeSaturationReq: TauriReq<typeof getMixnodeStakeSaturation> = {
+      name: 'getMixnodeStakeSaturation',
+      request: () => getMixnodeStakeSaturation(mixId),
+      onFulfilled: (value) => {
+        details.stakeSaturation = decimalToPercentage(value.saturation);
+        const rawUncappedSaturation = decimalToFloatApproximation(value.uncapped_saturation);
+        if (rawUncappedSaturation && rawUncappedSaturation > 1) {
+          details.uncappedSaturation = Math.round(rawUncappedSaturation * 100);
+        }
+      },
+    };
+
+    const rewardReq: TauriReq<typeof getMixnodeRewardEstimation> = {
+      name: 'getMixnodeRewardEstimation',
+      request: () => getMixnodeRewardEstimation(mixId),
+      onFulfilled: (value) => {
+        const estimatedRewards = unymToNym(value.estimation.total_node_reward);
+        if (estimatedRewards) {
+          details.estimatedRewards = {
+            amount: estimatedRewards,
+            denom: 'nym',
+          };
+        }
+      },
+    };
+
+    const inclusionReq: TauriReq<typeof getInclusionProbability> = {
+      name: 'getInclusionProbability',
+      request: () => getInclusionProbability(mixId),
+      onFulfilled: (value) => {
+        details.setProbability = value;
+      },
+    };
+
+    const avgUptimeReq: TauriReq<typeof getMixnodeAvgUptime> = {
+      name: 'getMixnodeAvgUptime',
+      request: () => getMixnodeAvgUptime(),
+      onFulfilled: (value) => {
+        details.averageUptime = value as number | undefined;
+      },
+    };
+
+    const nodeDescReq: TauriReq<typeof getNodeDescriptionRequest> = {
+      name: 'getNodeDescription',
+      request: () => getNodeDescriptionRequest(host, port),
+      onFulfilled: (value) => {
+        details.nodeDescription = value;
+      },
+    };
+
+    const operatorRewardsReq: TauriReq<typeof getPendingOperatorRewards> = {
+      name: 'getPendingOperatorRewards',
+      request: () => getPendingOperatorRewards(clientDetails?.client_address || ''),
+      onFulfilled: (value) => {
+        details.operatorRewards = decCoinToDisplay(value);
+      },
+    };
+
+    await fireRequests([
+      statusReq,
+      uptimeReq,
+      stakeSaturationReq,
+      rewardReq,
+      inclusionReq,
+      avgUptimeReq,
+      nodeDescReq,
+      operatorRewardsReq,
     ]);
-
-    promises.forEach((res, index) => {
-      const reqNames = Object.keys(requests);
-      if (res.status === 'rejected') {
-        Console.warn(`${reqNames[index]} request fails`, res.reason);
-      }
-    });
-
-    const statusRes = promises[0];
-    if (statusRes.status === 'fulfilled') {
-      details.status = statusRes.value.status;
-    }
-
-    const uptimeRes = promises[1];
-    if (uptimeRes.status === 'fulfilled') {
-      details.uptime = uptimeRes.value;
-    }
-
-    const saturationRes = promises[2];
-    if (saturationRes.status === 'fulfilled') {
-      details.stakeSaturation = decimalToPercentage(saturationRes.value.saturation);
-      const rawUncappedSaturation = decimalToFloatApproximation(saturationRes.value.uncapped_saturation);
-      if (rawUncappedSaturation && rawUncappedSaturation > 1) {
-        details.uncappedSaturation = Math.round(rawUncappedSaturation * 100);
-      }
-    }
-
-    const rewardRes = promises[3];
-    if (rewardRes.status === 'fulfilled') {
-      const estimatedRewards = unymToNym(rewardRes.value.estimation.total_node_reward);
-      if (estimatedRewards) {
-        details.estimatedRewards = {
-          amount: estimatedRewards,
-          denom: 'nym',
-        };
-      }
-    }
-
-    const setProbabilityRes = promises[4];
-    if (setProbabilityRes.status === 'fulfilled') {
-      details.setProbability = setProbabilityRes.value;
-    }
-
-    const averageUptimeRes = promises[5];
-    if (averageUptimeRes.status === 'fulfilled') {
-      details.averageUptime = averageUptimeRes.value as number | undefined;
-    }
-
-    const nodeDescriptionRes = promises[6];
-    if (nodeDescriptionRes.status === 'fulfilled') {
-      details.nodeDescription = nodeDescriptionRes.value;
-    }
-
-    const rewardsRes = promises[7];
-    if (rewardsRes.status === 'fulfilled') {
-      details.operatorRewards = decCoinToDisplay(rewardsRes.value);
-    }
 
     return details;
   };
@@ -299,30 +324,23 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       nodeDescription?: TNodeDescription | undefined;
     } = {};
 
-    const requests = {
-      getGatewayReport: () => getGatewayReport(identityKey),
-      getNodeDescription: () => getNodeDescriptionRequest(host, port),
+    const reportReq: TauriReq<typeof getGatewayReport> = {
+      name: 'getGatewayReport',
+      request: () => getGatewayReport(identityKey),
+      onFulfilled: (value) => {
+        details.routingScore = { current: value.most_recent, average: value.last_day };
+      },
     };
 
-    const promises = await Promise.allSettled([requests.getGatewayReport(), requests.getNodeDescription()]);
+    const nodeDescReq: TauriReq<typeof getNodeDescriptionRequest> = {
+      name: 'getNodeDescription',
+      request: () => getNodeDescriptionRequest(host, port),
+      onFulfilled: (value) => {
+        details.nodeDescription = value;
+      },
+    };
 
-    promises.forEach((res, index) => {
-      const reqNames = Object.keys(requests);
-      if (res.status === 'rejected') {
-        Console.warn(`${reqNames[index]} request fails`, res.reason);
-      }
-    });
-
-    const reportRes = promises[0];
-    if (reportRes.status === 'fulfilled') {
-      // return { current: report.most_recent, average: report.last_day };
-      details.routingScore = { current: reportRes.value.most_recent, average: reportRes.value.last_day };
-    }
-
-    const nodeDescriptionRes = promises[1];
-    if (nodeDescriptionRes.status === 'fulfilled') {
-      details.nodeDescription = nodeDescriptionRes.value;
-    }
+    await fireRequests([reportReq, nodeDescReq]);
 
     return details;
   };

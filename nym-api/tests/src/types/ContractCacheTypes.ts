@@ -123,3 +123,26 @@ export interface EpochLength {
   secs: number;
   nanos: number;
 }
+
+export interface ServiceProviders {
+  services: (Services)[];
+}
+export interface Services {
+  service_id: number;
+  service: Service;
+}
+export interface Service {
+  nym_address: NymAddress;
+  service_type: string;
+  announcer: string;
+  block_height: number;
+  deposit: Deposit;
+}
+export interface NymAddress {
+  address: string;
+}
+export interface Deposit {
+  denom: string;
+  amount: string;
+}
+

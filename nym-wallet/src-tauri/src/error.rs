@@ -49,11 +49,6 @@ pub enum BackendError {
         source: NymAPIError,
     },
     #[error("{source}")]
-    KeyDerivationError {
-        #[from]
-        source: argon2::Error,
-    },
-    #[error("{source}")]
     IOError {
         #[from]
         source: io::Error,
@@ -78,10 +73,13 @@ pub enum BackendError {
         #[from]
         source: k256::ecdsa::Error,
     },
-    #[error("failed to encrypt the given data with the provided password")]
-    EncryptionError,
-    #[error("failed to decrypt the given data with the provided password")]
-    DecryptionError,
+
+    #[error(transparent)]
+    StoreCipherError {
+        #[from]
+        source: nym_store_cipher::Error,
+    },
+
     #[error("Client has not been initialized yet, connect with mnemonic to initialize")]
     ClientNotInitialized,
     #[error("No balance available for address {0}")]

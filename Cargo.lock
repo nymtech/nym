@@ -104,6 +104,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7de8ce5e0f9f8d88245311066a578d72b7af3e7088f32783804676302df237e4"
 
 [[package]]
+name = "argon2"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95c2fcf79ad1932ac6269a738109997a83c227c09b75842ae564dc8ede6a861c"
+dependencies = [
+ "base64ct",
+ "blake2 0.10.6",
+ "password-hash",
+]
+
+[[package]]
 name = "arrayref"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -364,6 +375,15 @@ dependencies = [
  "crypto-mac 0.7.0",
  "digest 0.8.1",
  "opaque-debug 0.2.3",
+]
+
+[[package]]
+name = "blake2"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe"
+dependencies = [
+ "digest 0.10.6",
 ]
 
 [[package]]
@@ -2757,7 +2777,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ae926706ba42c425c9457121178330d75e273df2e82e28b758faf3de3a9acb9"
 dependencies = [
  "arrayref",
- "blake2",
+ "blake2 0.8.1",
  "chacha",
  "keystream",
 ]
@@ -3437,6 +3457,7 @@ dependencies = [
  "subtle-encoding",
  "thiserror",
  "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]
@@ -4135,6 +4156,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-store-cipher"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "getrandom 0.2.8",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-task"
 version = "0.1.0"
 dependencies = [
@@ -4480,6 +4515,17 @@ dependencies = [
  "redox_syscall 0.2.16",
  "smallvec",
  "windows-sys 0.45.0",
+]
+
+[[package]]
+name = "password-hash"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166"
+dependencies = [
+ "base64ct",
+ "rand_core 0.6.4",
+ "subtle 2.4.1",
 ]
 
 [[package]]
@@ -5903,7 +5949,7 @@ checksum = "cc43eda802856ee82a7555c7b75ceb9e07451741c7a2f5f23d036020e01189d4"
 dependencies = [
  "aes 0.7.5",
  "arrayref",
- "blake2",
+ "blake2 0.8.1",
  "bs58",
  "byteorder",
  "chacha",
@@ -5926,7 +5972,7 @@ source = "git+https://github.com/nymtech/sphinx.git#ca107d94360cdf8bbfbdb12fe532
 dependencies = [
  "aes 0.7.5",
  "arrayref",
- "blake2",
+ "blake2 0.8.1",
  "bs58",
  "byteorder",
  "chacha",
@@ -7480,9 +7526,9 @@ checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"
 
 [[package]]
 name = "zeroize"
-version = "1.5.7"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c394b5bd0c6f669e7275d9c20aa90ae064cb22e75a1cad54e1b34088034b149f"
+checksum = "2a0956f1ba7c7909bfb66c2e9e4124ab6f6482560f6628b5aaeba39207c9aad9"
 dependencies = [
  "zeroize_derive",
 ]

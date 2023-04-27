@@ -6,14 +6,15 @@
 // code. Furthermore we don't to strongly typed json parsing, all with the intention of being a
 // little more flexible when interpreting the results.
 
-use std::fs::File;
-
-use aes_gcm::{aead::Aead, Aes256Gcm, Key, NewAead, Nonce};
 use anyhow::{anyhow, Result};
-use argon2::{Algorithm, Argon2, Params, Version};
 use clap::Parser;
 use nym_bin_common::logging::setup_logging;
+use nym_store_cipher::{
+    Aes256Gcm, Algorithm, EncryptedData, KdfInfo, Params, StoreCipher, Version, ARGON2_SALT_SIZE,
+    CURRENT_VERSION,
+};
 use serde_json::Value;
+use std::fs::File;
 
 // Mostly defaults
 const MEMORY_COST: u32 = 16 * 1024; // 4096 is default
@@ -179,23 +180,28 @@ fn decrypt_password(
     salt: &[u8],
     parse: &ParseMode,
 ) -> Result<DecryptedData> {
-    let params = Params::new(MEMORY_COST, ITERATIONS, PARALLELISM, Some(OUTPUT_LENGTH)).unwrap();
+    let mut kdf_salt: [u8; ARGON2_SALT_SIZE] = Default::default();
+    kdf_salt.copy_from_slice(salt);
 
     // Argon2id is default, V0x13 is default
-    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-    let mut key = Key::default();
-    argon2
-        .hash_password_into(password.as_bytes(), salt, &mut key)
-        .map_err(|err| anyhow!("Unable to hash password: {err}"))?;
+    let kdf_info = KdfInfo::Argon2 {
+        params: Params::new(MEMORY_COST, ITERATIONS, PARALLELISM, Some(OUTPUT_LENGTH)).unwrap(),
+        algorithm: Algorithm::Argon2id,
+        version: Version::V0x13,
+        kdf_salt,
+    };
 
     // Create the Cipher
-    let cipher = Aes256Gcm::new(&key);
+    let cipher = StoreCipher::<Aes256Gcm>::new(password.as_bytes(), kdf_info)?;
 
-    // Decrypt using the nonce, which we get from the IV
-    let nonce = Nonce::from_slice(iv);
+    let data = EncryptedData {
+        version: CURRENT_VERSION,
+        ciphertext: ciphertext.to_vec(),
+        nonce: iv.to_vec(),
+    };
 
     let plaintext = cipher
-        .decrypt(nonce, ciphertext.as_ref())
+        .decrypt_data_unchecked(data)
         .map_err(|_| anyhow!("Unable to decrypt"))?;
     let plaintext = String::from_utf8(plaintext)?;
 

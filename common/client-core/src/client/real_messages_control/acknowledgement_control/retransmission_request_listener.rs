@@ -11,9 +11,9 @@ use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use crate::client::replies::reply_controller::ReplyControllerSender;
 use futures::StreamExt;
 use log::*;
-use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::preparer::PreparedFragment;
+use nym_sphinx::{addressing::clients::Recipient, params::PacketType};
 use nym_task::connections::TransmissionLane;
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
@@ -51,8 +51,10 @@ where
     ) -> Result<PreparedFragment, PreparationError> {
         debug!("retransmitting normal packet...");
 
+        // TODO: Figure out retransmission packet type signaling
+
         self.message_handler
-            .try_prepare_single_chunk_for_sending(packet_recipient, chunk_data)
+            .try_prepare_single_chunk_for_sending(packet_recipient, chunk_data, PacketType::Mix)
             .await
     }
 

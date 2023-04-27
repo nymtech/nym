@@ -51,7 +51,7 @@ impl OutfoxPacket {
 
     pub fn build<M: AsRef<[u8]>>(
         payload: M,
-        route: &[Node; 3],
+        route: &[Node; 4],
         packet_size: Option<usize>,
     ) -> Result<OutfoxPacket, OutfoxError> {
         let mut secret_key = [0; 32];

@@ -92,7 +92,7 @@ where
     // messages.
     sending_delay_controller: SendingDelayController,
 
-    /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
+    /// Channel used for sending prepared packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
     mix_tx: BatchMixMessageSender,
 
@@ -386,7 +386,7 @@ where
 
             // On every iteration we get new messages from upstream. Given that these come bunched
             // in `Vec`, this ensures that on average we will fetch messages faster than we can
-            // send, which is a condition for being able to multiplex sphinx packets from multiple
+            // send, which is a condition for being able to multiplex packets from multiple
             // data streams.
             match Pin::new(&mut self.real_receiver).poll_recv(cx) {
                 // in the case our real message channel stream was closed, we should also indicate we are closed

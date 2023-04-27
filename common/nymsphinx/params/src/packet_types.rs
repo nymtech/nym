@@ -19,6 +19,9 @@ pub enum PacketType {
     #[default]
     Mix = 0,
 
+    /// Represents a packet that should be sent through the network as fast as possible.
+    Vpn = 1,
+
     /// Abusing this to add Outfox support
     Outfox = 2,
 }

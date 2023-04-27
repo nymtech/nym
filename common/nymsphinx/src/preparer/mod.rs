@@ -5,6 +5,7 @@ use crate::message::{NymMessage, ACK_OVERHEAD};
 use crate::NymsphinxPayloadBuilder;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;
+use nym_outfox::packet::OutfoxPacket;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::clients::Recipient;
@@ -13,7 +14,7 @@ use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::builder::SphinxPacketBuilder;
 use nym_sphinx_types::{delays, Delay, NymPacket};
 use nym_topology::{NymTopology, NymTopologyError};
@@ -176,6 +177,7 @@ pub trait FragmentPreparer {
         ack_key: &AckKey,
         packet_sender: &Recipient,
         packet_recipient: &Recipient,
+        packet_type: &PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
         // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
         // could perform diffie-hellman with its own keys followed by a kdf to re-derive
@@ -214,12 +216,25 @@ pub trait FragmentPreparer {
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
-        let sphinx_packet = NymPacket::Sphinx(
-            SphinxPacketBuilder::new()
-                .with_payload_size(packet_size.payload_size())
-                .build_packet(packet_payload, &route, &destination, &delays)
-                .unwrap(),
-        );
+        let packet = match packet_type {
+            PacketType::Outfox => NymPacket::Outfox(OutfoxPacket::build(
+                packet_payload,
+                route.as_slice().try_into()?,
+                Some(packet_size.payload_size()),
+            )?),
+            PacketType::Mix => NymPacket::Sphinx(
+                SphinxPacketBuilder::new()
+                    .with_payload_size(packet_size.payload_size())
+                    .build_packet(packet_payload, &route, &destination, &delays)
+                    .unwrap(),
+            ),
+            PacketType::Vpn => NymPacket::Sphinx(
+                SphinxPacketBuilder::new()
+                    .with_payload_size(packet_size.payload_size())
+                    .build_packet(packet_payload, &route, &destination, &delays)
+                    .unwrap(),
+            ),
+        };
 
         // from the previously constructed route extract the first hop
         let first_hop_address =
@@ -230,7 +245,7 @@ pub trait FragmentPreparer {
             // well as the total delay of the ack packet.
             // note that the last hop of the packet is a gateway that does not do any delays
             total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, Default::default()),
+            mix_packet: MixPacket::new(first_hop_address, packet, Default::default()),
             fragment_identifier,
         })
     }
@@ -341,6 +356,7 @@ where
         topology: &NymTopology,
         ack_key: &AckKey,
         packet_recipient: &Recipient,
+        packet_type: &PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
         let sender = self.sender_address;
 
@@ -351,6 +367,7 @@ where
             ack_key,
             &sender,
             packet_recipient,
+            packet_type,
         )
     }
 

@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use nym_outfox::{format::MIX_PARAMS_LEN, packet::OUTFOX_PACKET_OVERHEAD};
+pub use nym_outfox::{error::OutfoxError, format::MIX_PARAMS_LEN, packet::OUTFOX_PACKET_OVERHEAD};
 // re-exporting types and constants available in sphinx
 use nym_outfox::packet::OutfoxPacket;
 pub use sphinx_packet::{

@@ -10,6 +10,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx::preparer::{FragmentPreparer, PreparedFragment};
+use nym_sphinx_params::PacketType;
 use nym_topology::{gateway, mix, NymTopology};
 use rand::{CryptoRng, Rng};
 use serde::Serialize;
@@ -243,7 +244,14 @@ where
 
         // TODO: can we avoid this arc clone?
         let ack_key = Arc::clone(&self.ack_key);
-        Ok(self.prepare_chunk_for_sending(fragment, topology, &ack_key, &address, &address)?)
+        Ok(self.prepare_chunk_for_sending(
+            fragment,
+            topology,
+            &ack_key,
+            &address,
+            &address,
+            &PacketType::Mix,
+        )?)
     }
 
     pub fn create_test_packet<T>(

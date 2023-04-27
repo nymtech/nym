@@ -92,7 +92,7 @@ use std::convert::TryFrom;
 pub struct MixCreationParameters {
     /// The routing length is inner first, so \[0\] is the innermost routing length, etc (in bytes)
     /// In our stratified topology this will always be 3
-    pub routing_information_length_by_stage: [u8; 3],
+    pub routing_information_length_by_stage: [u8; 4],
     /// The payload length (in bytes)
     pub payload_length_bytes: u16,
 }
@@ -127,7 +127,7 @@ impl MixCreationParameters {
     /// Create a set of parameters for a mix packet format.
     pub fn new(payload_length_bytes: u16) -> MixCreationParameters {
         MixCreationParameters {
-            routing_information_length_by_stage: [DEFAULT_ROUTING_INFO_SIZE; 3],
+            routing_information_length_by_stage: [DEFAULT_ROUTING_INFO_SIZE; 4],
             payload_length_bytes,
         }
     }

@@ -9,6 +9,7 @@ use log::*;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use rand::{CryptoRng, Rng};
 
@@ -71,10 +72,11 @@ where
         recipient: Recipient,
         content: Vec<u8>,
         lane: TransmissionLane,
+        packet_type: PacketType,
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_plain_message(recipient, content, lane)
+            .try_send_plain_message(recipient, content, lane, packet_type)
             .await
         {
             warn!("failed to send a plain message - {err}")
@@ -87,10 +89,11 @@ where
         content: Vec<u8>,
         reply_surbs: u32,
         lane: TransmissionLane,
+        packet_type: PacketType,
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_message_with_reply_surbs(recipient, content, reply_surbs, lane)
+            .try_send_message_with_reply_surbs(recipient, content, reply_surbs, lane, packet_type)
             .await
         {
             warn!("failed to send a repliable message - {err}")
@@ -103,14 +106,17 @@ where
                 recipient,
                 data,
                 lane,
-            } => self.handle_plain_message(recipient, data, lane).await,
+            } => {
+                self.handle_plain_message(recipient, data, lane, PacketType::Mix)
+                    .await
+            }
             InputMessage::Anonymous {
                 recipient,
                 data,
                 reply_surbs,
                 lane,
             } => {
-                self.handle_repliable_message(recipient, data, reply_surbs, lane)
+                self.handle_repliable_message(recipient, data, reply_surbs, lane, PacketType::Mix)
                     .await
             }
             InputMessage::Reply {
@@ -121,6 +127,40 @@ where
                 self.handle_reply(recipient_tag, data, lane).await;
             }
             InputMessage::Premade { msgs, lane } => self.handle_premade_packets(msgs, lane).await,
+            InputMessage::MessageWrapper {
+                message,
+                packet_type,
+            } => match *message {
+                InputMessage::Regular {
+                    recipient,
+                    data,
+                    lane,
+                } => {
+                    self.handle_plain_message(recipient, data, lane, packet_type)
+                        .await
+                }
+                InputMessage::Anonymous {
+                    recipient,
+                    data,
+                    reply_surbs,
+                    lane,
+                } => {
+                    self.handle_repliable_message(recipient, data, reply_surbs, lane, packet_type)
+                        .await
+                }
+                InputMessage::Reply {
+                    recipient_tag,
+                    data,
+                    lane,
+                } => {
+                    self.handle_reply(recipient_tag, data, lane).await;
+                }
+                InputMessage::Premade { msgs, lane } => {
+                    self.handle_premade_packets(msgs, lane).await
+                }
+                // MessageWrappers can't be nested
+                InputMessage::MessageWrapper { .. } => unimplemented!(),
+            },
         };
     }
 

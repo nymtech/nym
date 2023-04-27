@@ -84,6 +84,7 @@ impl Decoder for NymCodec {
             match header.packet_type {
                 PacketType::Outfox => NymPacket::outfox_from_bytes(slice)?,
                 PacketType::Mix => NymPacket::sphinx_from_bytes(slice)?,
+                PacketType::Vpn => NymPacket::sphinx_from_bytes(slice)?,
             }
         } else {
             return Ok(None);

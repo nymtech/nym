@@ -236,17 +236,23 @@ where
         // there's absolutely no reason for this call to fail.
 
         let sphinx_packet = match packet_type {
+            PacketType::Outfox => NymPacket::Outfox(OutfoxPacket::build(
+                packet_payload,
+                route.as_slice().try_into()?,
+                Some(packet_size.payload_size()),
+            )?),
             PacketType::Mix => NymPacket::Sphinx(
                 SphinxPacketBuilder::new()
                     .with_payload_size(packet_size.payload_size())
                     .build_packet(packet_payload, &route, &destination, &delays)
                     .unwrap(),
             ),
-            PacketType::Outfox => NymPacket::Outfox(OutfoxPacket::build(
-                packet_payload,
-                route.as_slice().try_into()?,
-                Some(packet_size.payload_size()),
-            )?),
+            PacketType::Vpn => NymPacket::Sphinx(
+                SphinxPacketBuilder::new()
+                    .with_payload_size(packet_size.payload_size())
+                    .build_packet(packet_payload, &route, &destination, &delays)
+                    .unwrap(),
+            ),
         };
 
         // from the previously constructed route extract the first hop

@@ -53,7 +53,7 @@ async fn send_empty_keepalive<F, S>(
         .expect("BatchRealMessageReceiver has stopped receiving!");
 }
 
-#[allow(clippy::too_many_arguments)]
+//#[allow(clippy::too_many_arguments)]
 async fn deal_with_data<F, S>(
     read_data: Option<io::Result<Bytes>>,
     local_destination_address: &str,
@@ -99,30 +99,6 @@ where
         .await
         .expect("InputMessageReceiver has stopped receiving!");
 
-    if is_finished {
-        // After sending, if this is the last message, wait until we've actually transmitted the data
-        // in the `OutQueueControl` and the lane is empty.
-        //if let Some(ref lane_queue_lengths) = lane_queue_lengths {
-        //    // We wait a little to make sure that the packets make their way to the
-        //    // `OutQueueControl` and is registered in the `LaneQueueLengths`.
-        //    //
-        //    // NOTE: This is as hacky as it looks. My preferred approach would be to do the chunking in
-        //    // each connection task and then send the chunks to the `OutQueueControl` directly.
-        //    sleep(Duration::from_secs(2)).await;
-
-        //    // We need to wait until the lane has sent everything and is empty, otherwise if we
-        //    // close the connection while there is still packets waiting to be sent in
-        //    // `OutQueueControl`, they will be dropped.
-        //    wait_until_lane_empty(lane_queue_lengths, connection_id).await;
-        //}
-
-        // Technically we already informed it when we sent the message to mixnet above
-        debug!(
-            target: &*format!("({connection_id}) socks5 inbound"),
-            "The local socket is closed - won't receive any more data. Informing remote about that..."
-        );
-    }
-
     is_finished
 }
 
@@ -155,6 +131,7 @@ async fn wait_until_lane_almost_empty(
             wait_for_lane(
                 lane_queue_lengths,
                 connection_id,
+                // With only 30 packets in the queue, we treat it as basically empty.
                 30,
                 Duration::from_millis(100),
             ),
@@ -211,6 +188,13 @@ where
     // Timer to send empty keepalive messages
     let mut keepalive_timer = tokio::time::interval(KEEPALIVE_INTERVAL);
 
+    // Read the next data when there is space in the lane.
+    // The purpose of chaining the wait here is that it makes sure we can cancel the waiting on
+    // connection close.
+    let waiting_reader = wait_until_lane_almost_empty(&lane_queue_lengths, connection_id)
+        .then(|_| available_reader.next());
+    tokio::pin!(waiting_reader);
+
     // Once we finish read from the local socket, we need to wait until we've actually transmitted
     // until we can exit the task. Otherwise, if we close the connection while there is still
     // packets waiting to be sent in `OutQueueControl`, they will be dropped.
@@ -256,11 +240,7 @@ where
             _ = keepalive_timer.tick() => {
                 send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
             }
-            // We chain these here at the top-level in the select loop so that if the proxy is
-            // shutdown then the we abort sending the data.
-            read_data = wait_until_lane_almost_empty(&lane_queue_lengths, connection_id)
-                    .then(|_| { available_reader.next() }) =>
-            {
+            read_data = &mut waiting_reader => {
                 if deal_with_data(
                     read_data,
                     &local_destination_address,
@@ -270,7 +250,10 @@ where
                     &mix_sender,
                     &adapter_fn,
                 ).await {
-                    //break
+                    // After reading the last data, notify the closing_future to wait until the
+                    // lane is clear before exiting.
+                    // We don't wait here since we want to be able to cancel the wait on close or
+                    // shutdown.
                     closing_notify.notify_one();
                 }
                 keepalive_timer.reset();

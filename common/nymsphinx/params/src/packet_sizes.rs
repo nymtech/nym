@@ -287,7 +287,10 @@ impl PacketSize {
         let outfox_packet_size = plaintext_size + OUTFOX_PACKET_OVERHEAD;
         match Self::get_type(sphinx_packet_size) {
             Ok(t) => Ok(t),
-            Err(_) => Self::get_type(outfox_packet_size),
+            Err(_) => {
+                println!("Got Outfox!");
+                Self::get_type(outfox_packet_size)
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 use std::array::TryFromSliceError;
 
-use crate::format::MIX_PARAMS_LEN;
-use crate::lion::MIN_MESSAGE_LEN;
+use crate::constants::MIN_MESSAGE_LEN;
+use crate::constants::MIX_PARAMS_LEN;
 use chacha20::cipher::InvalidLength;
 use thiserror::Error;
 

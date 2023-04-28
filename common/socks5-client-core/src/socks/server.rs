@@ -10,6 +10,7 @@ use nym_client_core::client::{
 };
 use nym_socks5_proxy_helpers::connection_controller::Controller;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::params::PacketType;
 use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
 use nym_task::TaskClient;
 use std::net::SocketAddr;
@@ -17,7 +18,7 @@ use tap::TapFallible;
 use tokio::net::TcpListener;
 
 /// A Socks5 server that listens for connections.
-pub struct SphinxSocksServer {
+pub struct NymSocksServer {
     authenticator: Authenticator,
     listening_address: SocketAddr,
     service_provider: Recipient,
@@ -25,10 +26,12 @@ pub struct SphinxSocksServer {
     client_config: client::Config,
     lane_queue_lengths: LaneQueueLengths,
     shutdown: TaskClient,
+    packet_type: PacketType,
 }
 
-impl SphinxSocksServer {
+impl NymSocksServer {
     /// Create a new SphinxSocks instance
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         port: u16,
         authenticator: Authenticator,
@@ -37,12 +40,13 @@ impl SphinxSocksServer {
         lane_queue_lengths: LaneQueueLengths,
         client_config: client::Config,
         shutdown: TaskClient,
+        packet_type: PacketType,
     ) -> Self {
         // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
         // just modify the config
         let ip = "127.0.0.1";
         info!("Listening on {}:{}", ip, port);
-        SphinxSocksServer {
+        NymSocksServer {
             authenticator,
             listening_address: format!("{ip}:{port}").parse().unwrap(),
             service_provider,
@@ -50,6 +54,7 @@ impl SphinxSocksServer {
             client_config,
             lane_queue_lengths,
             shutdown,
+            packet_type,
         }
     }
 
@@ -104,7 +109,7 @@ impl SphinxSocksServer {
                         &self.self_address,
                         self.lane_queue_lengths.clone(),
                         self.shutdown.clone(),
-                        None
+                        Some(self.packet_type)
                     );
 
                     tokio::spawn(async move {
@@ -120,8 +125,8 @@ impl SphinxSocksServer {
                     });
                 },
                 _ = self.shutdown.recv() => {
-                    log::trace!("SphinxSocksServer: Received shutdown");
-                    log::debug!("SphinxSocksServer: Exiting");
+                    log::trace!("NymSocksServer: Received shutdown");
+                    log::debug!("NymSocksServer: Exiting");
                     return Ok(());
                 }
             }

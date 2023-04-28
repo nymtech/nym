@@ -582,6 +582,7 @@ where
                         topology,
                         &self.config.ack_key,
                         reply_surb,
+                        PacketType::Mix,
                     )
                     .unwrap()
             })
@@ -601,7 +602,13 @@ where
 
         let prepared_fragment = self
             .message_preparer
-            .prepare_reply_chunk_for_sending(chunk, topology, &self.config.ack_key, reply_surb)
+            .prepare_reply_chunk_for_sending(
+                chunk,
+                topology,
+                &self.config.ack_key,
+                reply_surb,
+                PacketType::Mix,
+            )
             .unwrap();
 
         Ok(prepared_fragment)

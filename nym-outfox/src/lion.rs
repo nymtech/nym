@@ -36,11 +36,8 @@ use chacha20::XChaCha20;
 use chacha20::XNonce;
 use zeroize::Zeroize;
 
+use crate::constants::{CONTEXT, MIN_MESSAGE_LEN, TAG_LEN};
 use crate::error::OutfoxError;
-
-pub const MIN_MESSAGE_LEN: usize = 24 * 2;
-const CONTEXT: &str = "LIONKEYS";
-const TAG_LEN: usize = 24;
 
 /// The lion transform encryption function.
 ///

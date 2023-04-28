@@ -66,24 +66,18 @@ use sphinx_packet::route::Node;
 
 use std::convert::TryInto;
 
-pub const GROUPELEMENTBYTES: u8 = 32;
-pub const TAGBYTES: u8 = 16;
-pub const MIX_PARAMS_LEN: usize = 5;
-
-pub const fn groupelementbytes() -> usize {
-    GROUPELEMENTBYTES as usize
-}
-
-pub const fn tagbytes() -> usize {
-    TAGBYTES as usize
-}
-
 use std::ops::Range;
 use std::u8;
 
+use crate::constants::groupelementbytes;
+use crate::constants::tagbytes;
+use crate::constants::DEFAULT_HOPS;
+use crate::constants::DEFAULT_ROUTING_INFO_SIZE;
+use crate::constants::GROUPELEMENTBYTES;
+use crate::constants::MIX_PARAMS_LEN;
+use crate::constants::TAGBYTES;
 use crate::error::OutfoxError;
 use crate::lion::*;
-use crate::packet::DEFAULT_ROUTING_INFO_SIZE;
 use std::convert::TryFrom;
 
 /// A structure that holds mix packet construction parameters. These incluse the length
@@ -91,8 +85,8 @@ use std::convert::TryFrom;
 #[derive(Eq, PartialEq, Debug)]
 pub struct MixCreationParameters {
     /// The routing length is inner first, so \[0\] is the innermost routing length, etc (in bytes)
-    /// In our stratified topology this will always be 3
-    pub routing_information_length_by_stage: [u8; 4],
+    /// In our stratified topology this will always be 4
+    pub routing_information_length_by_stage: [u8; DEFAULT_HOPS],
     /// The payload length (in bytes)
     pub payload_length_bytes: u16,
 }
@@ -104,7 +98,7 @@ impl TryFrom<&[u8]> for MixCreationParameters {
         if v.len() != MIX_PARAMS_LEN {
             return Err(OutfoxError::InvalidHeaderLength(v.len()));
         }
-        let (routing, payload) = v.split_at(3);
+        let (routing, payload) = v.split_at(DEFAULT_HOPS);
         Ok(MixCreationParameters {
             routing_information_length_by_stage: routing.try_into()?,
             payload_length_bytes: u16::from_le_bytes(payload.try_into()?),
@@ -127,7 +121,7 @@ impl MixCreationParameters {
     /// Create a set of parameters for a mix packet format.
     pub fn new(payload_length_bytes: u16) -> MixCreationParameters {
         MixCreationParameters {
-            routing_information_length_by_stage: [DEFAULT_ROUTING_INFO_SIZE; 4],
+            routing_information_length_by_stage: [DEFAULT_ROUTING_INFO_SIZE; DEFAULT_HOPS],
             payload_length_bytes,
         }
     }
@@ -332,12 +326,12 @@ mod test {
     #[test]
     fn test_to_bytes() {
         let mix_params = MixCreationParameters::new(1024);
-        assert_eq!(mix_params.to_bytes(), vec![32, 32, 32, 0, 4])
+        assert_eq!(mix_params.to_bytes(), vec![32, 32, 32, 32, 0, 4])
     }
 
     #[test]
     fn test_from_bytes() {
-        let params_bytes = vec![32, 32, 32, 0, 4];
+        let params_bytes = vec![32, 32, 32, 32, 0, 4];
         let mix_params = MixCreationParameters::new(1024);
         assert_eq!(
             mix_params,

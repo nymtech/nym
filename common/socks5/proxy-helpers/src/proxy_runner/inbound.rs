@@ -204,6 +204,9 @@ where
         .then(|_| wait_until_lane_empty(&lane_queue_lengths, connection_id));
     tokio::pin!(closing_future);
 
+    // Once we are closed, we need to disable the branch in the select that reads from the socket.
+    let mut we_are_closed = false;
+
     loop {
         select! {
             biased;
@@ -236,7 +239,7 @@ where
             // The purpose of chaining the wait here is that it makes sure we can cancel the
             // waiting on connection close.
             read_data = wait_until_lane_almost_empty(&lane_queue_lengths, connection_id)
-                .then(|_| available_reader.next()) =>
+                .then(|_| available_reader.next()), if !we_are_closed =>
             {
                 if deal_with_data(
                     read_data,
@@ -252,7 +255,9 @@ where
                     // We don't wait here since we want to be able to cancel the wait on close or
                     // shutdown.
                     closing_notify.notify_one();
+                    we_are_closed = true;
                 }
+                // No need to send keepalive messages when just sent real data
                 keepalive_timer.reset();
             }
         }

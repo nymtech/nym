@@ -14,7 +14,7 @@ Before you initialise and run your gateway, head to our [website](https://nymtec
 
 If you don't already have one, please create a Nym address using the wallet, and fund it with tokens. The minimum amount required to bond a gateway is 100 `NYM`, but make sure you have a bit more to account for gas costs.
 
-`NYM` can be purchased via Bity from the wallet itself, and is currently present on several exchanges.
+`NYM` can be purchased via Bity from the wallet itself with BTC or fiat, and is currently present on several exchanges.
 
 > Remember that you can **only** use native Cosmos `NYM` tokens to bond your gateway. You **cannot** use ERC20 representations of `NYM` to run a node.
 

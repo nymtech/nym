@@ -3,6 +3,7 @@ import { Box, Button, Divider, Stack, Typography } from '@mui/material';
 import { helpLogToggleWindow } from '../../requests';
 import { AppContext } from '../../context';
 import { config } from '../../config';
+import SelectValidator from '../../components/Settings/SelectValidator';
 
 const AdvancedSettings = () => {
   const { handleShowTerminal, appEnv } = useContext(AppContext);
@@ -38,6 +39,18 @@ const AdvancedSettings = () => {
           <Button variant="text" onClick={() => helpLogToggleWindow()}>
             Open logs
           </Button>
+        </Box>
+      </Stack>
+      <Divider />
+      <Stack direction="row" justifyContent="space-between" padding={3}>
+        <Stack direction="column" gap={1}>
+          <Typography variant="h6">Change validator</Typography>
+          <Typography variant="caption" sx={{ color: 'nym.text.muted' }}>
+            You can use the validator of your choice by providing its RPC URL address
+          </Typography>
+        </Stack>
+        <Box alignSelf="flex-end">
+          <SelectValidator />
         </Box>
       </Stack>
     </Box>

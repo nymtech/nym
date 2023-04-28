@@ -445,6 +445,10 @@ impl WalletStateInner {
         Ok(())
     }
 
+    pub fn get_selected_nyxd_url(&self, network: &Network) -> Option<Url> {
+        self.config.get_selected_nym_api_url(network)
+    }
+
     pub fn select_nym_api_url(&mut self, url: &str, network: Network) -> Result<(), BackendError> {
         self.config.select_nym_api_url(url.parse()?, network);
         if let Ok(client) = self.client_mut(network) {

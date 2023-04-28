@@ -27,6 +27,17 @@ pub async fn get_nym_api_urls(
 }
 
 #[tauri::command]
+pub async fn get_selected_nyxd_url(
+    network: WalletNetwork,
+    state: tauri::State<'_, WalletState>,
+) -> Result<Option<String>, BackendError> {
+    let state = state.read().await;
+    let url = state.get_selected_nyxd_url(&network).map(String::from);
+    log::debug!("Selected nyxd url for {network}: {:?}", url);
+    Ok(url)
+}
+
+#[tauri::command]
 pub async fn select_nyxd_url(
     url: &str,
     network: WalletNetwork,

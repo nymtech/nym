@@ -42,3 +42,4 @@ envs/qwerty.env
 .parcel-cache
 **/.DS_Store
 cpu-cycles/libcpucycles/build
+foxyfox.env

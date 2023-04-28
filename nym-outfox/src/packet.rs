@@ -1,25 +1,19 @@
 use std::{convert::TryFrom, ops::Range};
 
 use crate::{
+    constants::{DEFAULT_HOPS, MIX_PARAMS_LEN},
     error::OutfoxError,
-    format::{
-        groupelementbytes, tagbytes, MixCreationParameters, MixStageParameters, MIX_PARAMS_LEN,
-    },
+    format::{MixCreationParameters, MixStageParameters},
 };
 
 use rand::{rngs::OsRng, RngCore};
 use sphinx_packet::{packet::builder::DEFAULT_PAYLOAD_SIZE, route::Node};
-
-pub const OUTFOX_PACKET_OVERHEAD: usize =
-    MIX_PARAMS_LEN + (groupelementbytes() + tagbytes() + DEFAULT_ROUTING_INFO_SIZE as usize) * 3;
 
 #[derive(Debug)]
 pub struct OutfoxPacket {
     mix_params: MixCreationParameters,
     payload: Vec<u8>,
 }
-
-pub const DEFAULT_ROUTING_INFO_SIZE: u8 = 32;
 
 impl TryFrom<&[u8]> for OutfoxPacket {
     type Error = OutfoxError;
@@ -87,7 +81,7 @@ impl OutfoxPacket {
     }
 
     pub fn payload_range(&self) -> Range<usize> {
-        self.stage_params(2).1.payload_range()
+        self.stage_params(DEFAULT_HOPS - 1).1.payload_range()
     }
 
     pub fn payload_mut(&mut self) -> &mut [u8] {

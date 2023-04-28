@@ -148,7 +148,13 @@ mod packet_encoding {
             node3_pk,
         );
 
-        let route = &[node1, node2, node3];
+        let (_, node4_pk) = crypto::keygen();
+        let node4 = Node::new(
+            NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
+            node4_pk,
+        );
+
+        let route = &[node1, node2, node3, node4];
 
         let payload = vec![1; 48];
 

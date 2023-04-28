@@ -5,7 +5,7 @@ use crate::config::{Config, Socks5};
 use crate::error::Socks5ClientCoreError;
 use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
-    server::SphinxSocksServer,
+    server::NymSocksServer,
 };
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -18,6 +18,7 @@ use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_credential_storage::storage::Storage;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::params::PacketType;
 use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::nyxd::QueryNyxdClient;
 use nym_validator_client::Client;
@@ -101,6 +102,7 @@ impl NymClient {
         BandwidthController::new(storage, client)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn start_socks5_listener(
         socks5_config: &Socks5,
         debug_config: DebugConfig,
@@ -109,6 +111,7 @@ impl NymClient {
         client_status: ClientState,
         self_address: Recipient,
         shutdown: TaskClient,
+        packet_type: PacketType,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
@@ -134,7 +137,7 @@ impl NymClient {
             .unwrap_or(debug_config.traffic.primary_packet_size);
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
-        let mut sphinx_socks = SphinxSocksServer::new(
+        let mut sphinx_socks = NymSocksServer::new(
             socks5_config.get_listening_port(),
             authenticator,
             socks5_config.get_provider_mix_address(),
@@ -149,6 +152,7 @@ impl NymClient {
                 socks5_config.get_per_request_surbs(),
             ),
             shutdown.clone(),
+            packet_type,
         );
         nym_task::spawn_with_report_error(
             async move {
@@ -261,6 +265,8 @@ impl NymClient {
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
+        info!("{:?}", self.config.get_base().get_packet_type());
+
         Self::start_socks5_listener(
             self.config.get_socks5(),
             *self.config.get_debug_settings(),
@@ -269,6 +275,7 @@ impl NymClient {
             client_state,
             self_address,
             started_client.task_manager.subscribe(),
+            self.config.get_base().get_packet_type(),
         );
 
         info!("Client startup finished!");

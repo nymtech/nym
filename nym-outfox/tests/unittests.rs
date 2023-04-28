@@ -97,7 +97,13 @@ mod tests {
             node3_pub,
         );
 
-        let route = [node1, node2, node3];
+        let (node4_pk, node4_pub) = sphinx_packet::crypto::keygen();
+        let node4 = Node::new(
+            NodeAddressBytes::from_bytes([3u8; NODE_ADDRESS_LENGTH]),
+            node4_pub,
+        );
+
+        let route = [node1, node2, node3, node4];
 
         let payload = randombytes(2048);
 
@@ -111,9 +117,10 @@ mod tests {
 
         let mut packet = OutfoxPacket::try_from(packet_bytes.as_slice()).unwrap();
 
-        packet.decode_mix_layer(2, &node1_pk.to_bytes()).unwrap();
-        packet.decode_mix_layer(1, &node2_pk.to_bytes()).unwrap();
-        packet.decode_mix_layer(0, &node3_pk.to_bytes()).unwrap();
+        packet.decode_mix_layer(3, &node1_pk.to_bytes()).unwrap();
+        packet.decode_mix_layer(2, &node2_pk.to_bytes()).unwrap();
+        packet.decode_mix_layer(1, &node3_pk.to_bytes()).unwrap();
+        packet.decode_mix_layer(0, &node4_pk.to_bytes()).unwrap();
 
         assert_eq!(payload, &packet.payload()[packet.payload_range()]);
     }

@@ -19,4 +19,4 @@ pub use nym_sphinx_params as params;
 pub use nym_sphinx_types::*;
 
 // TEMP UNTIL FURTHER REFACTORING
-pub use preparer::payload::NymsphinxPayloadBuilder;
+pub use preparer::payload::NymPayloadBuilder;

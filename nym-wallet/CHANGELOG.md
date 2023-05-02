@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v1.2.2] (2023-05-02)
+
+- Wallet - change "Bond more" action to "Change bond amount" to allow for increasing and decreasing the amount in the same modal ([#2134])
+- Split wallet sign in and main into two entry points ([#3188])
+
+[#2134]: https://github.com/nymtech/nym/issues/2134
+[#3188]: https://github.com/nymtech/nym/pull/3188
+
 ## [v1.2.1] (2023-04-18)
 
 - [bug] bonding signature with vesting account ([#3315])

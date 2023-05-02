@@ -1,6 +1,6 @@
 [package]
 name = "nym-crypto"
-version = "0.2.0"
+version = "0.3.0"
 description = "Crypto library for the nym mixnet"
 edition = { workspace = true }
 authors = { workspace = true }

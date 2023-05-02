@@ -3,6 +3,8 @@
     "ts-packages/*",
     "nym-wallet",
     "nym-connect/**",
+    "nym-browser-extension",
+    "clients/validator",
     "sdk/typescript/examples/docs",
     "sdk/typescript/packages/**"
   ],

@@ -7,8 +7,8 @@
   "peerDependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@mui/material": "^5.0.1",
-    "@mui/styles": "^5.0.1"
+    "@mui/material": "^5.2.2",
+    "@mui/styles": "^5.2.2"
   },
   "devDependencies": {
     "@nymproject/eslint-config-react-typescript": "^1.0.0",

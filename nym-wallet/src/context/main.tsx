@@ -64,10 +64,7 @@ export type TAppContext = {
   handleShowTerminal: () => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
-<<<<<<< HEAD
-=======
   keepState: () => Promise<void>;
->>>>>>> master
   printBalance: string;
   printVestedBalance?: string; // spendable vested token
 };

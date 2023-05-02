@@ -2902,7 +2902,7 @@ dependencies = [
 
 [[package]]
 name = "nym-crypto"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bs58",
  "ed25519-dalek",
@@ -3158,7 +3158,7 @@ dependencies = [
 
 [[package]]
 name = "nym_wallet"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "async-trait",
  "base64 0.13.1",

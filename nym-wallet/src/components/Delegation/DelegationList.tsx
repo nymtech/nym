@@ -18,6 +18,7 @@ import { DelegationListItemActions } from './DelegationActions';
 import { isDelegation, isPendingDelegation, TDelegations } from '../../context/delegations';
 import { DelegationItem } from './DelegationItem';
 import { PendingDelegationItem } from './PendingDelegationItem';
+import { LoadingModal } from '../Modals/LoadingModal';
 
 type Order = 'asc' | 'desc';
 type AdditionalTypes = { profit_margin_percent: number; operating_cost: number };
@@ -136,6 +137,7 @@ export const DelegationList: FCWithChildren<{
 
   return (
     <TableContainer>
+      {isLoading && <LoadingModal text="Updating data, this may take a few moments" />}
       <Table sx={{ width: '100%' }}>
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>

@@ -1,15 +1,5 @@
 import React from 'react';
-import {
-  Box,
-  CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-} from '@mui/material';
+import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { orderBy as _orderBy } from 'lodash';
@@ -137,33 +127,25 @@ export const DelegationList: FCWithChildren<{
 
   return (
     <TableContainer>
-      {isLoading && <LoadingModal text="Updating data, this may take a few moments" />}
+      {isLoading && <LoadingModal text="Please wait. Refrshing..." />}
       <Table sx={{ width: '100%' }}>
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>
-          {items.length ? (
-            mapAndSort(items).map((item: any) => {
-              if (isPendingDelegation(item)) return <PendingDelegationItem item={item} explorerUrl={explorerUrl} />;
-              if (isDelegation(item))
-                return (
-                  <DelegationItem
-                    item={item}
-                    explorerUrl={explorerUrl}
-                    nodeIsUnbonded={Boolean(!item.node_identity)}
-                    onItemActionClick={onItemActionClick}
-                  />
-                );
-              return null;
-            })
-          ) : (
-            <TableRow>
-              <TableCell colSpan={7}>
-                <Box py={6} textAlign="center">
-                  {isLoading ? <CircularProgress /> : <span>You have not delegated to any mixnodes</span>}
-                </Box>
-              </TableCell>
-            </TableRow>
-          )}
+          {items?.length
+            ? mapAndSort(items).map((item: any) => {
+                if (isPendingDelegation(item)) return <PendingDelegationItem item={item} explorerUrl={explorerUrl} />;
+                if (isDelegation(item))
+                  return (
+                    <DelegationItem
+                      item={item}
+                      explorerUrl={explorerUrl}
+                      nodeIsUnbonded={Boolean(!item.node_identity)}
+                      onItemActionClick={onItemActionClick}
+                    />
+                  );
+                return null;
+              })
+            : null}
         </TableBody>
       </Table>
     </TableContainer>

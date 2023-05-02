@@ -1,26 +1,29 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Checkbox, FormControlLabel, Stack, TextField, Typography } from '@mui/material';
 import { TopLogoLayout } from 'src/layouts/TopLogo';
 import { Button } from 'src/components/ui';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { generateMnemonmic } from 'src/validator-client';
+import { encrypt } from 'src/utils/crypto';
 
-export const Register = () => {
-  const [mnemonic, setMnemonic] = useState('');
+export const SeedPhrase = () => {
   const [isConfirmed, setIsconfirmed] = useState(false);
   const navigate = useNavigate();
+  const { state } = useLocation();
+
+  const seedPhrase = useRef(generateMnemonmic());
+
+  const handleEncryptSeedPhrase = () => {
+    // encrypt(state.password, seedPhrase.current);
+    navigate('/register/complete');
+  };
 
   return (
     <TopLogoLayout
-      title="Mnemonic"
-      description="Write down your mnemonic"
+      title="Seed phrase"
+      description="Save your seed phrase"
       Actions={
-        <Button
-          fullWidth
-          variant="contained"
-          size="large"
-          disabled={!isConfirmed}
-          onClick={() => navigate('/register/create-password')}
-        >
+        <Button fullWidth variant="contained" size="large" disabled={!isConfirmed} onClick={handleEncryptSeedPhrase}>
           Next
         </Button>
       }
@@ -33,8 +36,7 @@ export const Register = () => {
         <TextField
           label="Mnemonic"
           type="input"
-          value={mnemonic}
-          onChange={(e) => setMnemonic(e.target.value)}
+          value={seedPhrase.current}
           multiline
           autoFocus={false}
           fullWidth

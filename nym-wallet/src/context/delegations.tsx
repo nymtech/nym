@@ -17,10 +17,10 @@ import {
 } from 'src/requests';
 import { TPoolOption } from 'src/components';
 import { decCoinToDisplay } from 'src/utils';
+import { Console } from 'src/utils/console';
 
 export type TDelegationContext = {
   isLoading: boolean;
-  error?: string;
   delegations?: TDelegations;
   pendingDelegations?: WrappedDelegationEvent[];
   totalDelegations?: string;
@@ -68,7 +68,6 @@ export const DelegationContextProvider: FC<{
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ network, children }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>();
   const [delegations, setDelegations] = useState<undefined | TDelegations>();
   const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
@@ -115,7 +114,7 @@ export const DelegationContextProvider: FC<{
       setTotalDelegations(`${data.total_delegations.amount} ${data.total_delegations.denom}`);
       setTotalRewards(`${data.total_rewards.amount} ${data.total_rewards.denom}`);
     } catch (e) {
-      setError((e as Error).message);
+      Console.error(e);
     }
     setIsLoading(false);
   }, []);
@@ -127,7 +126,6 @@ export const DelegationContextProvider: FC<{
   const memoizedValue = useMemo(
     () => ({
       isLoading,
-      error,
       delegations,
       pendingDelegations,
       totalDelegations,
@@ -137,7 +135,7 @@ export const DelegationContextProvider: FC<{
       undelegate: undelegateFromMixnode,
       undelegateVesting: vestingUndelegateFromMixnode,
     }),
-    [isLoading, error, delegations, pendingDelegations, totalDelegations],
+    [isLoading, delegations, pendingDelegations, totalDelegations],
   );
 
   return <DelegationContext.Provider value={memoizedValue}>{children}</DelegationContext.Provider>;

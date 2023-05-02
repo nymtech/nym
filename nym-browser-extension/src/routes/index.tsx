@@ -1,19 +1,18 @@
-import React from 'react';
-import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
-import { Delegation, BalancePage, Home, Receive, Send, Settings, Login } from 'src/pages/';
+import { BrowserRouter, MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Home } from 'src/pages/';
 import { RegisterRoutes } from './register';
+import { UserRoutes } from './user';
+import { LoginRoutes } from './login';
+
+const Router = process.env.NODE_ENV === 'development' ? BrowserRouter : MemoryRouter;
 
 export const AppRoutes = () => (
   <Router>
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<LoginRoutes />} />
+      <Route path="/login/*" element={<LoginRoutes />} />
       <Route path="/register/*" element={<RegisterRoutes />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/balance" element={<BalancePage />} />
-      <Route path="/delegation" element={<Delegation />} />
-      <Route path="/receive" element={<Receive />} />
-      <Route path="/send" element={<Send />} />
-      <Route path="/settings" element={<Settings />} />
+      <Route path="/user/*" element={<UserRoutes />} />
     </Routes>
   </Router>
 );

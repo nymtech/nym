@@ -7,7 +7,7 @@ import { Console } from '../../utils/console';
 
 const SelectValidator = () => {
   const [currentValidatorUrl, setCurrentValidatorUrl] = useState<string>();
-  const [validatorUrl, setValidatorUrl] = useState<string>();
+  const [validatorUrl, setValidatorUrl] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const { network } = useContext(AppContext);
 
@@ -17,6 +17,9 @@ const SelectValidator = () => {
     if (network) {
       getSelectedValidatorUrl(network).then((value) => {
         setCurrentValidatorUrl(value as string | undefined);
+        if (value) {
+          setValidatorUrl(value);
+        }
       });
     }
   }, [network]);
@@ -28,6 +31,7 @@ const SelectValidator = () => {
     try {
       setIsLoading(true);
       await setSelectedValidatorUrl({ network, url: validatorUrl });
+      setCurrentValidatorUrl(validatorUrl);
       enqueueSnackbar('Validator URL saved', { variant: 'success' });
     } catch (e) {
       enqueueSnackbar(e as string, { variant: 'error' });
@@ -44,8 +48,8 @@ const SelectValidator = () => {
           <TextField
             name="validatorUrl"
             label="Validator URL"
+            value={validatorUrl}
             onChange={(e) => setValidatorUrl(e.target.value)}
-            defaultValue={currentValidatorUrl}
             error={false}
             InputLabelProps={{ shrink: true }}
             fullWidth

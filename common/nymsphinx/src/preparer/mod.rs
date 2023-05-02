@@ -117,7 +117,8 @@ pub trait FragmentPreparer {
 
         // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
         // more gracefully is that this error should never be reached as it implies incorrect chunking
-        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext)
+        // reply packets are always Sphinx
+        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext, PacketType::Mix)
             .expect("the message has been incorrectly fragmented");
 
         // this is not going to be accurate by any means. but that's the best estimation we can do
@@ -189,7 +190,7 @@ pub trait FragmentPreparer {
 
         // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
         // more gracefully is that this error should never be reached as it implies incorrect chunking
-        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext)
+        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext, *packet_type)
             .expect("the message has been incorrectly fragmented");
 
         let fragment_identifier = fragment.fragment_identifier();

@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::FRAG_ID_LEN;
+use crate::{PacketType, FRAG_ID_LEN};
 use nym_sphinx_types::header::HEADER_SIZE;
 use nym_sphinx_types::{MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD, PAYLOAD_OVERHEAD_SIZE};
 use serde::{Deserialize, Serialize};
@@ -282,16 +282,17 @@ impl PacketSize {
         }
     }
 
-    pub fn get_type_from_plaintext(plaintext_size: usize) -> Result<Self, InvalidPacketSize> {
-        let sphinx_packet_size = plaintext_size + SPHINX_PACKET_OVERHEAD;
-        let outfox_packet_size = plaintext_size + OUTFOX_PACKET_OVERHEAD;
-        match Self::get_type(sphinx_packet_size) {
-            Ok(t) => Ok(t),
-            Err(_) => {
-                println!("Got Outfox!");
-                Self::get_type(outfox_packet_size)
-            }
-        }
+    pub fn get_type_from_plaintext(
+        plaintext_size: usize,
+        packet_type: PacketType,
+    ) -> Result<Self, InvalidPacketSize> {
+        let overhead = match packet_type {
+            PacketType::Mix => SPHINX_PACKET_OVERHEAD,
+            PacketType::Vpn => SPHINX_PACKET_OVERHEAD,
+            PacketType::Outfox => OUTFOX_PACKET_OVERHEAD,
+        };
+        let packet_size = plaintext_size + overhead;
+        Self::get_type(packet_size)
     }
 }
 

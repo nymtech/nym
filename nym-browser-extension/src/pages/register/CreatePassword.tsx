@@ -4,9 +4,9 @@ import { TopLogoLayout } from 'src/layouts/TopLogo';
 import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { PasswordStrength } from '@nymproject/react/password-strength/PasswordStrength';
 import { Button } from 'src/components/ui';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-export const CreatePassword = () => {
+export const CreatePassword = ({ onNext }: { onNext: () => void }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSafePassword, setIsSafePassword] = useState(false);
@@ -14,19 +14,12 @@ export const CreatePassword = () => {
 
   const canProceed = isSafePassword && hasReadTerms && password === confirmPassword;
 
-  const navigate = useNavigate();
   return (
     <TopLogoLayout
       title="Create Password"
-      description="Create strong password, min 8 characters, at least one capital letter, number and special character"
+      description="Create a strong password - Min 8 characters, at least one capital letter, number and special character"
       Actions={
-        <Button
-          fullWidth
-          variant="contained"
-          size="large"
-          disabled={!canProceed}
-          onClick={() => navigate('/register/complete')}
-        >
+        <Button fullWidth variant="contained" size="large" disabled={!canProceed} onClick={onNext}>
           Next
         </Button>
       }

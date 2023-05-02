@@ -1,8 +1,7 @@
 import React from 'react';
 import { Box, Stack, IconButton, Typography } from '@mui/material';
 import { PageLayout } from 'src/layouts/PageLayout';
-import { Balance } from 'src/components/balance';
-import { ClientAddress } from '@nymproject/react/client-address/ClientAddress';
+import { Address, Balance } from 'src/components';
 import { ArrowDownwardRounded, ArrowUpwardRounded, TollRounded } from '@mui/icons-material';
 
 const actionsSchema = [
@@ -22,8 +21,8 @@ const actionsSchema = [
 
 const Actions = () => (
   <Box display="flex" justifyContent="space-evenly">
-    {actionsSchema.map(({ title, Icon }) => (
-      <Stack justifyContent="center" alignItems="center">
+    {actionsSchema.map(({ title, Icon }, index) => (
+      <Stack justifyContent="center" alignItems="center" key={index}>
         <IconButton color="primary" size="large">
           {Icon}
         </IconButton>
@@ -33,17 +32,10 @@ const Actions = () => (
   </Box>
 );
 
-const Address = () => (
-  <Stack direction="row" justifyContent="space-between" alignItems="center">
-    <Typography fontWeight={700}>Address</Typography>
-    <ClientAddress withCopy address="n1fhu7p0zx5pvfffjudw5gpce3ncgdde94tan5d6" smallIcons />
-  </Stack>
-);
-
 export const BalancePage = () => (
   <PageLayout>
     <Stack gap={6}>
-      <Address />
+      <Address label="Address" address="n1fhu7p0zx5pvfffjudw5gpce3ncgdde94tan5d6" />
       <Balance />
       <Actions />
     </Stack>

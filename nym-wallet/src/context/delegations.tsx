@@ -90,15 +90,7 @@ export const DelegationContextProvider: FC<{
     }
   };
 
-  const resetState = () => {
-    setError(undefined);
-    setTotalDelegations(undefined);
-    setTotalRewards(undefined);
-    setDelegations([]);
-  };
-
   const refresh = useCallback(async () => {
-    resetState();
     setIsLoading(true);
     try {
       const data = await getDelegationSummary();

@@ -1,16 +1,16 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::WasmClientError;
 use async_trait::async_trait;
 use js_sys::Promise;
 use nym_client_core::client::key_manager::{KeyManager, KeyStore};
 use nym_crypto::asymmetric::{encryption, identity};
 use std::sync::Arc;
-use thiserror::Error;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::storage::{IdbVersionChangeEvent, WasmStorage};
-use wasm_utils::{simple_js_error, PromisableResult};
+use wasm_utils::PromisableResult;
 use zeroize::Zeroizing;
 
 const STORAGE_NAME_PREFIX: &str = "wasm-client-storage";
@@ -31,18 +31,6 @@ mod v1 {
         "aes128ctr_blake3_hmac_gateway_keys";
 }
 
-#[derive(Debug, Error)]
-pub enum StorageError {
-    #[error(transparent)]
-    StoreError(#[from] wasm_utils::storage::error::StorageError),
-}
-
-impl From<StorageError> for JsValue {
-    fn from(value: StorageError) -> Self {
-        simple_js_error(value.to_string())
-    }
-}
-
 #[wasm_bindgen]
 pub struct ClientStorage {
     pub(crate) name: String,
@@ -55,7 +43,10 @@ impl ClientStorage {
         format!("{STORAGE_NAME_PREFIX}-{client_id}")
     }
 
-    async fn new_async(client_id: &str, passphrase: Option<String>) -> Result<Self, StorageError> {
+    async fn new_async(
+        client_id: &str,
+        passphrase: Option<String>,
+    ) -> Result<Self, WasmClientError> {
         let name = Self::db_name(client_id);
 
         // make sure the password is zeroized when no longer used, especially if we error out.
@@ -110,7 +101,7 @@ impl ClientStorage {
         })
     }
 
-    async fn read_identity_keypair(&self) -> Result<Option<identity::KeyPair>, StorageError> {
+    async fn read_identity_keypair(&self) -> Result<Option<identity::KeyPair>, WasmClientError> {
         self.inner
             .read_value(
                 v1::KEYS_STORE,
@@ -120,7 +111,9 @@ impl ClientStorage {
             .map_err(Into::into)
     }
 
-    async fn read_encryption_keypair(&self) -> Result<Option<encryption::KeyPair>, StorageError> {
+    async fn read_encryption_keypair(
+        &self,
+    ) -> Result<Option<encryption::KeyPair>, WasmClientError> {
         self.inner
             .read_value(
                 v1::KEYS_STORE,
@@ -133,7 +126,7 @@ impl ClientStorage {
     async fn store_identity_keypair(
         &self,
         keypair: &identity::KeyPair,
-    ) -> Result<(), StorageError> {
+    ) -> Result<(), WasmClientError> {
         self.inner
             .store_value(
                 v1::KEYS_STORE,
@@ -147,7 +140,7 @@ impl ClientStorage {
     async fn store_encryption_keypair(
         &self,
         keypair: &encryption::KeyPair,
-    ) -> Result<(), StorageError> {
+    ) -> Result<(), WasmClientError> {
         self.inner
             .store_value(
                 v1::KEYS_STORE,
@@ -161,7 +154,7 @@ impl ClientStorage {
 
 #[async_trait(?Send)]
 impl KeyStore for ClientStorage {
-    type StorageError = StorageError;
+    type StorageError = WasmClientError;
 
     async fn load_keys(&self) -> Result<KeyManager, Self::StorageError> {
         todo!()

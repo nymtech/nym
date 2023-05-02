@@ -13,6 +13,7 @@ use nym_validator_client::ValidatorClientError;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
 use wasm_utils::simple_js_error;
+use wasm_utils::storage::error::StorageError;
 
 // might as well start using well-defined error enum...
 #[derive(Debug, Error)]
@@ -77,6 +78,12 @@ pub enum WasmClientError {
     MalformedSenderTag {
         raw: String,
         source: InvalidAnonymousSenderTagRepresentation,
+    },
+
+    #[error("failed to use the storage: {source}")]
+    StorageError {
+        #[from]
+        source: StorageError,
     },
 }
 

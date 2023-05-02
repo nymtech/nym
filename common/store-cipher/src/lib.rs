@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use aes_gcm::aead::{Aead, Nonce};
-use aes_gcm::{AeadCore, AeadInPlace, Key, KeyInit, KeySizeUser};
+use aes_gcm::{AeadCore, AeadInPlace, KeyInit};
 use rand::{thread_rng, CryptoRng, Fill, RngCore};
 use serde::{Deserialize, Serialize};
 use serde_helpers::{argon2_algorithm_helper, argon2_params_helper, argon2_version_helper};
@@ -10,7 +10,9 @@ use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 pub use aes_gcm::Aes256Gcm;
+pub use aes_gcm::{Key, KeySizeUser};
 pub use argon2::{Algorithm, Argon2, Params, Version};
+pub use generic_array::typenum::Unsigned;
 
 mod serde_helpers;
 

@@ -21,7 +21,10 @@ pub struct NodeTester<R> {
 
     base_topology: NymTopology,
 
-    recipient: Recipient,
+    /// Generally test packets are designed to be sent from ourselves to ourselves,
+    /// However, one might want to customise this behaviour.
+    /// In that case an explicit `Recipient` has to be provided when constructing test packets.
+    self_address: Option<Recipient>,
 
     packet_size: PacketSize,
 
@@ -47,7 +50,7 @@ where
     pub fn new(
         rng: R,
         base_topology: NymTopology,
-        recipient: Recipient,
+        self_address: Option<Recipient>,
         packet_size: PacketSize,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
@@ -56,7 +59,7 @@ where
         Self {
             rng,
             base_topology,
-            recipient,
+            self_address,
             packet_size,
             average_packet_delay,
             average_ack_delay,
@@ -89,7 +92,7 @@ where
         mix: &mix::Node,
         test_packets: u32,
     ) -> Result<Vec<PreparedFragment>, NetworkTestingError> {
-        self.mixnode_test_packets(mix, Empty, test_packets)
+        self.mixnode_test_packets(mix, Empty, test_packets, None)
     }
 
     pub fn mixnode_test_packets<T>(
@@ -97,6 +100,7 @@ where
         mix: &mix::Node,
         msg_ext: T,
         test_packets: u32,
+        custom_recipient: Option<Recipient>,
     ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
     where
         T: Serialize + Clone,
@@ -104,9 +108,35 @@ where
         let ephemeral_topology = self.testable_mix_topology(mix);
 
         let mut packets = Vec::with_capacity(test_packets as usize);
-        for i in 1..=test_packets {
-            let msg = TestMessage::new_mix(mix, i, test_packets, msg_ext.clone());
-            packets.push(self.create_test_packet(&msg, &ephemeral_topology)?);
+        for plaintext in TestMessage::mix_plaintexts(mix, test_packets, msg_ext)? {
+            packets.push(self.wrap_plaintext_data(
+                plaintext,
+                &ephemeral_topology,
+                custom_recipient,
+            )?);
+        }
+
+        Ok(packets)
+    }
+
+    pub fn mixnodes_test_packets<T>(
+        &mut self,
+        nodes: &[mix::Node],
+        msg_ext: T,
+        test_packets: u32,
+        custom_recipient: Option<Recipient>,
+    ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
+    where
+        T: Serialize + Clone,
+    {
+        let mut packets = Vec::new();
+        for node in nodes {
+            packets.append(&mut self.mixnode_test_packets(
+                node,
+                msg_ext.clone(),
+                test_packets,
+                custom_recipient,
+            )?)
         }
 
         Ok(packets)
@@ -117,6 +147,7 @@ where
         mix_id: MixId,
         msg_ext: T,
         test_packets: u32,
+        custom_recipient: Option<Recipient>,
     ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
     where
         T: Serialize + Clone,
@@ -125,7 +156,7 @@ where
             return Err(NetworkTestingError::NonExistentMixnode {mix_id})
         };
 
-        self.mixnode_test_packets(&node.clone(), msg_ext, test_packets)
+        self.mixnode_test_packets(&node.clone(), msg_ext, test_packets, custom_recipient)
     }
 
     pub fn existing_identity_mixnode_test_packets<T>(
@@ -133,6 +164,7 @@ where
         encoded_mix_identity: String,
         msg_ext: T,
         test_packets: u32,
+        custom_recipient: Option<Recipient>,
     ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
     where
         T: Serialize + Clone,
@@ -141,19 +173,57 @@ where
             return Err(NetworkTestingError::NonExistentMixnodeIdentity { mix_identity: encoded_mix_identity })
         };
 
-        self.mixnode_test_packets(&node.clone(), msg_ext, test_packets)
+        self.mixnode_test_packets(&node.clone(), msg_ext, test_packets, custom_recipient)
     }
 
-    pub fn create_test_packet<T>(
+    pub fn gateway_test_packets<T>(
         &mut self,
-        message: &TestMessage<T>,
-        topology: &NymTopology,
-    ) -> Result<PreparedFragment, NetworkTestingError>
+        gateway: &gateway::Node,
+        msg_ext: T,
+        test_packets: u32,
+        custom_recipient: Option<Recipient>,
+    ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
     where
-        T: Serialize,
+        T: Serialize + Clone,
     {
-        let serialized = message.as_bytes()?;
-        let message = NymMessage::new_plain(serialized);
+        let ephemeral_topology = self.testable_gateway_topology(gateway);
+
+        let mut packets = Vec::with_capacity(test_packets as usize);
+        for plaintext in TestMessage::gateway_plaintexts(gateway, test_packets, msg_ext)? {
+            packets.push(self.wrap_plaintext_data(
+                plaintext,
+                &ephemeral_topology,
+                custom_recipient,
+            )?);
+        }
+
+        Ok(packets)
+    }
+
+    pub fn existing_gateway_test_packets<T>(
+        &mut self,
+        encoded_gateway_identity: String,
+        msg_ext: T,
+        test_packets: u32,
+        custom_recipient: Option<Recipient>,
+    ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
+    where
+        T: Serialize + Clone,
+    {
+        let Some(node) = self.base_topology.find_gateway(&encoded_gateway_identity) else {
+            return Err(NetworkTestingError::NonExistentGateway { gateway_identity: encoded_gateway_identity })
+        };
+
+        self.gateway_test_packets(&node.clone(), msg_ext, test_packets, custom_recipient)
+    }
+
+    pub fn wrap_plaintext_data(
+        &mut self,
+        plaintext: Vec<u8>,
+        topology: &NymTopology,
+        custom_recipient: Option<Recipient>,
+    ) -> Result<PreparedFragment, NetworkTestingError> {
+        let message = NymMessage::new_plain(plaintext);
 
         let mut fragments = self.pad_and_split_message(message, self.packet_size);
 
@@ -165,12 +235,28 @@ where
         // we would have returned the error when checking for its length
         let fragment = fragments.pop().unwrap();
 
-        // the packet is designed to be sent from ourselves to ourselves
-        let address = self.recipient;
+        // either `self_address` or `custom_recipient` has to be specified.
+        let address = custom_recipient.unwrap_or(
+            self.self_address
+                .ok_or(NetworkTestingError::UnknownPacketRecipient)?,
+        );
 
         // TODO: can we avoid this arc clone?
         let ack_key = Arc::clone(&self.ack_key);
         Ok(self.prepare_chunk_for_sending(fragment, topology, &ack_key, &address, &address)?)
+    }
+
+    pub fn create_test_packet<T>(
+        &mut self,
+        message: &TestMessage<T>,
+        topology: &NymTopology,
+        custom_recipient: Option<Recipient>,
+    ) -> Result<PreparedFragment, NetworkTestingError>
+    where
+        T: Serialize,
+    {
+        let serialized = message.as_bytes()?;
+        self.wrap_plaintext_data(serialized, topology, custom_recipient)
     }
 }
 

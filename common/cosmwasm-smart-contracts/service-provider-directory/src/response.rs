@@ -1,5 +1,6 @@
 use crate::{msg::ExecuteMsg, Service, ServiceId, ServiceInfo};
 use cosmwasm_std::Coin;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -9,7 +10,7 @@ pub struct ServiceInfoResponse {
     pub service: Option<Service>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ServicesListResponse {
     pub services: Vec<ServiceInfo>,
@@ -22,6 +23,14 @@ impl ServicesListResponse {
                 .into_iter()
                 .map(|(service_id, service)| ServiceInfo::new(service_id, service))
                 .collect(),
+        }
+    }
+}
+
+impl From<&[ServiceInfo]> for ServicesListResponse {
+    fn from(services: &[ServiceInfo]) -> Self {
+        Self {
+            services: services.to_vec(),
         }
     }
 }

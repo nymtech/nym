@@ -27,7 +27,7 @@ The `mixnet` component currently exposes the logic of two clients: the websocket
 The `coconut` component is currently being worked on. Right now it exposes logic allowing for the creation of coconut credentials on the Sandbox testnet.
 
 ## Websocket client examples
-> All the codeblocks below can be found in the `nym-sdk` [examples directory](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/rust/nym-sdk/examples) in the monorepo.
+> All the codeblocks below can be found in the `nym-sdk` [examples directory](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/rust/nym-sdk/examples) in the monorepo. Just navigate to `nym/sdk/rust/nym-sdk/examples/` and run the files from there. If you wish to run these outside of the workspace - such as if you want to use one as the basis for your own project - then make sure to import the `sdk`, `tokio`, and `nym_bin_common` crates.
 
 Lets look at a very simple example of how you can import and use the websocket client in a piece of Rust code (`examples/simple.rs`):
 

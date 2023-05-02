@@ -20,6 +20,8 @@ pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
 pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub(crate) const SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS: &str =
+    "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const _ETH_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("0000000000000000000000000000000000000000");
 pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =

@@ -5,6 +5,7 @@ use nym_mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeBond, MixNodeDetails,
     RewardingParams,
 };
+use nym_service_provider_directory_common::ServiceInfo;
 use rocket::fairing::AdHoc;
 use std::{
     collections::HashSet,
@@ -50,6 +51,7 @@ impl NymContractCache {
         rewarding_params: RewardingParams,
         current_interval: Interval,
         mix_to_family: Vec<(IdentityKey, FamilyHead)>,
+        services: Option<Vec<ServiceInfo>>,
     ) {
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
@@ -59,7 +61,8 @@ impl NymContractCache {
                 cache.active_set.update(active_set);
                 cache.current_reward_params.update(Some(rewarding_params));
                 cache.current_interval.update(Some(current_interval));
-                cache.mix_to_family.update(mix_to_family)
+                cache.mix_to_family.update(mix_to_family);
+                cache.service_providers.update(services.unwrap_or_default());
             }
             Err(err) => {
                 error!("{err}");
@@ -284,6 +287,16 @@ impl NymContractCache {
 
     pub async fn mixnode_status(&self, mix_id: MixId) -> MixnodeStatus {
         self.mixnode_details(mix_id).await.1
+    }
+
+    pub(crate) async fn services(&self) -> Cache<Vec<ServiceInfo>> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.service_providers.clone(),
+            Err(err) => {
+                error!("{err}");
+                Cache::new(Vec::new())
+            }
+        }
     }
 
     pub fn initialised(&self) -> bool {

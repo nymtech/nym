@@ -20,11 +20,12 @@ nym-sphinx-chunking = { path = "chunking" }
 nym-sphinx-cover = { path = "cover" }
 nym-sphinx-forwarding = { path = "forwarding" }
 nym-sphinx-params = { path = "params" }
+nym-sphinx-routing = { path = "routing" }
 nym-sphinx-types = { path = "types" }
 
 # those dependencies are due to intriducing preparer and receiver. Perpaphs that indicates they should be moved
 # to separate crate?
-nym-crypto = { path = "../crypto", version = "0.2.0" }
+nym-crypto = { path = "../crypto", version = "0.3.0" }
 nym-topology = { path = "../topology" }
 
 # outfox
@@ -32,7 +33,7 @@ nym-outfox = { path = "../../nym-outfox" }
 
 [dev-dependencies]
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
-nym-crypto = { path = "../crypto", version = "0.2.0", features = ["asymmetric"] }
+nym-crypto = { path = "../crypto", version = "0.3.0", features = ["asymmetric"] }
 
 # do not include this when compiling into wasm as it somehow when combined together with reqwest, it will require
 # net2 via tokio-util -> tokio -> mio -> net2

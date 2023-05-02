@@ -6,6 +6,7 @@ use nym_network_defaults::NymNetworkDetails;
 
 pub(crate) mod gateways;
 pub(crate) mod mixnodes;
+pub(crate) mod services;
 
 pub(crate) async fn execute(
     global_args: ClientArgs,
@@ -19,6 +20,7 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::mixnet::operators::MixnetOperatorsCommands::Mixnode(
             mixnode,
         ) => mixnodes::execute(global_args, mixnode, network_details).await?,
+        nym_cli_commands::validator::mixnet::operators::MixnetOperatorsCommands::ServiceProvider(service) => services::execute(global_args, service, network_details).await?,
     }
     Ok(())
 }

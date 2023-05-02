@@ -4,6 +4,28 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.17] (2023-05-02)
+
+- Add service-provider-directory-contract support to nym-cli ([#3334])
+- Start using the node-testing-utils (implemented in #3270) in nym-api Network monitor to simplify the logic there ([#3312])
+- Add service-provider-directory support to validator-client ([#3296])
+- Allow topology injection in our WASM client ('test my node' feature) ([#3270])
+- Expose service-provider-directory contract data in nym-api endpoints ([#3242])
+- Cache service provider contract in nym-api ([#3241])
+- Feature/1 1 17 docs ([#3370])
+- adding a test for SP endpoint ([#3367])
+- Feature/store cipher ([#3350])
+
+[#3334]: https://github.com/nymtech/nym/issues/3334
+[#3312]: https://github.com/nymtech/nym/issues/3312
+[#3296]: https://github.com/nymtech/nym/issues/3296
+[#3270]: https://github.com/nymtech/nym/issues/3270
+[#3242]: https://github.com/nymtech/nym/issues/3242
+[#3241]: https://github.com/nymtech/nym/issues/3241
+[#3370]: https://github.com/nymtech/nym/pull/3370
+[#3367]: https://github.com/nymtech/nym/pull/3367
+[#3350]: https://github.com/nymtech/nym/pull/3350
+
 ## [v1.1.16] (2023-04-25)
 
 - Explorer - Fix sorting function on Stake Saturation. It is currently working per page and not globally ([#3320])

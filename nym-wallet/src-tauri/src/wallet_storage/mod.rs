@@ -605,7 +605,7 @@ mod tests {
         // Trying to load it with wrong password now fails
         assert!(matches!(
             load_existing_login_at_file(&wallet_file, &id1, &bad_password),
-            Err(BackendError::DecryptionError),
+            Err(BackendError::StoreCipherError { .. }),
         ));
     }
 
@@ -631,7 +631,7 @@ mod tests {
         // Trying to load it with wrong password now fails
         assert!(matches!(
             load_existing_login_at_file(&wallet_file, &id1, &bad_password),
-            Err(BackendError::DecryptionError),
+            Err(BackendError::StoreCipherError { .. }),
         ));
     }
 
@@ -766,7 +766,7 @@ mod tests {
 
         let err = update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password)
             .unwrap_err();
-        assert!(matches!(err, BackendError::DecryptionError));
+        assert!(matches!(err, BackendError::StoreCipherError { .. }));
     }
 
     #[test]
@@ -784,7 +784,7 @@ mod tests {
         update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
 
         let err = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap_err();
-        assert!(matches!(err, BackendError::DecryptionError));
+        assert!(matches!(err, BackendError::StoreCipherError { .. }));
     }
 
     #[test]
@@ -864,7 +864,7 @@ mod tests {
 
         let err = update_encrypted_logins_at_file(&wallet_file, &wrong_password, &new_password)
             .unwrap_err();
-        assert!(matches!(err, BackendError::DecryptionError));
+        assert!(matches!(err, BackendError::StoreCipherError { .. }));
     }
 
     #[test]
@@ -889,7 +889,7 @@ mod tests {
         update_encrypted_logins_at_file(&wallet_file, &password, &new_password).unwrap();
 
         let err = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap_err();
-        assert!(matches!(err, BackendError::DecryptionError));
+        assert!(matches!(err, BackendError::StoreCipherError { .. }));
     }
 
     #[test]
@@ -1490,7 +1490,7 @@ mod tests {
 
         // Expect that trying to load these 2 accounts with the old password fails
         let err = load_existing_login_at_file(&wallet_file, &login_id, &password).unwrap_err();
-        assert!(matches!(err, BackendError::DecryptionError));
+        assert!(matches!(err, BackendError::StoreCipherError { .. }));
     }
 
     #[test]

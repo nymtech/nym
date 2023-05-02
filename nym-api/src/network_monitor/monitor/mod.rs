@@ -1,11 +1,11 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::ReceivedProcessor;
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestSummary};
-use crate::network_monitor::test_packet::TestPacket;
+use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
 use crate::support::config::Config;
@@ -96,10 +96,13 @@ impl<R: MessageReceiver + Send> Monitor<R> {
         }
     }
 
-    fn analyse_received_test_route_packets(&self, packets: &[TestPacket]) -> HashMap<u64, usize> {
+    fn analyse_received_test_route_packets(
+        &self,
+        packets: &[NodeTestMessage],
+    ) -> HashMap<u64, usize> {
         let mut received = HashMap::new();
         for packet in packets {
-            *received.entry(packet.route_id).or_insert(0usize) += 1usize
+            *received.entry(packet.ext.route_id).or_insert(0usize) += 1usize
         }
 
         received
@@ -258,7 +261,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
 
         let received = self.received_processor.return_received().await;
         let total_received = received.len();
-        info!("Test routes: {:?}", routes);
+        info!("Test routes: {:#?}", routes);
         info!("Received {}/{} packets", total_received, total_sent);
 
         let summary = self.summary_producer.produce_summary(
@@ -271,7 +274,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
         );
 
         let report = summary.create_report(total_sent, total_received);
-        info!("{}", report);
+        info!("{report}");
 
         self.submit_new_node_statuses(summary).await;
     }

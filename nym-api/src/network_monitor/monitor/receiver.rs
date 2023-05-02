@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::gateways_reader::{GatewayMessages, GatewaysReader};
@@ -66,12 +66,8 @@ impl PacketReceiver {
                 // unwrap here is fine as it can only return a `None` if the PacketSender has died
                 // and if that was the case, then the entire monitor is already in an undefined state
                 update = self.clients_updater.next() => self.process_gateway_update(update.unwrap()),
-                gateway_message = self.gateways_reader.next() => {
-                    let Some((_gateway_id, message)) = gateway_message else {
-                        log::error!("the gateways reader stream has terminated!");
-                        continue
-                    };
-                    self.process_gateway_messages(message)
+                Some((_gateway_id, messages)) = self.gateways_reader.next() => {
+                    self.process_gateway_messages(messages)
                 }
             }
         }

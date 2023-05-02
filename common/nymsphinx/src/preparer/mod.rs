@@ -38,6 +38,12 @@ pub struct PreparedFragment {
     pub fragment_identifier: FragmentIdentifier,
 }
 
+impl From<PreparedFragment> for MixPacket {
+    fn from(value: PreparedFragment) -> Self {
+        value.mix_packet
+    }
+}
+
 // this is extracted into a trait with default implementation to remove duplicate code
 // (which we REALLY want to avoid with crypto)
 pub trait FragmentPreparer {

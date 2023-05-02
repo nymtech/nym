@@ -1,12 +1,13 @@
 use std::fmt::{Display, Formatter};
 
 use cosmwasm_std::{Addr, Coin};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// The directory of services are indexed by [`ServiceId`].
 pub type ServiceId = u32;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
 pub struct Service {
     /// The address of the service.
     pub nym_address: NymAddress,
@@ -21,7 +22,7 @@ pub struct Service {
 }
 
 /// The types of addresses supported.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum NymAddress {
     /// String representation of a nym address, which is of the form
@@ -51,7 +52,7 @@ impl Display for NymAddress {
 }
 
 /// The type of services provider supported
-#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Debug, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ServiceType {
     NetworkRequester,
@@ -66,7 +67,7 @@ impl std::fmt::Display for ServiceType {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ServiceInfo {
     pub service_id: ServiceId,

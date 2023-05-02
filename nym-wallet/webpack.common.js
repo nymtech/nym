@@ -3,8 +3,9 @@ const { mergeWithRules } = require('webpack-merge');
 const { webpackCommon } = require('@nymproject/webpack');
 
 const entry = {
-  app: path.resolve(__dirname, 'src/index.tsx'),
-  log: path.resolve(__dirname, 'src/log.tsx'),
+  auth: path.resolve(__dirname, 'src/auth.tsx'), // JS bundle for sign up/sign in
+  main: path.resolve(__dirname, 'src/main.tsx'), // JS bundle for main app
+  log: path.resolve(__dirname, 'src/log.tsx'), // JS bundle for logging window
 };
 
 module.exports = mergeWithRules({
@@ -16,8 +17,9 @@ module.exports = mergeWithRules({
   },
 })(
   webpackCommon(__dirname, [
-    { filename: 'index.html', chunks: ['app'], template: path.resolve(__dirname, 'public/index.html') },
-    { filename: 'log.html', chunks: ['log'], template: path.resolve(__dirname, 'public/log.html') },
+    { filename: 'index.html', chunks: ['auth'], template: path.resolve(__dirname, 'public/index.html') }, // the starting point is index.html (sign up/sign in)
+    { filename: 'main.html', chunks: ['main'], template: path.resolve(__dirname, 'public/index.html') }, // main app (loaded after sign in in a new window)
+    { filename: 'log.html', chunks: ['log'], template: path.resolve(__dirname, 'public/log.html') }, // the user can open a separate logging window
   ]),
   {
     entry,

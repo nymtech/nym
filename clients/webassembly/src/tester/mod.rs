@@ -162,7 +162,7 @@ impl NymNodeTesterBuilder {
         let tester = NodeTester::new(
             rng,
             self.base_topology,
-            address(&self.key_manager, gateway_identity),
+            Some(address(&self.key_manager, gateway_identity)),
             PacketSize::default(),
             Duration::from_millis(5),
             Duration::from_millis(5),
@@ -266,7 +266,12 @@ impl NymNodeTester {
         let test_ext = WasmTestMessageExt::new(test_nonce);
         let mut tester_permit = self.tester.lock().expect("mutex got poisoned");
         tester_permit
-            .existing_identity_mixnode_test_packets(mixnode_identity, test_ext, num_test_packets)
+            .existing_identity_mixnode_test_packets(
+                mixnode_identity,
+                test_ext,
+                num_test_packets,
+                None,
+            )
             .map_err(Into::into)
     }
 

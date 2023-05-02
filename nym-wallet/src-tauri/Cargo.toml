@@ -1,6 +1,6 @@
 [package]
 name = "nym_wallet"
-version = "1.2.1"
+version = "1.2.2"
 description = "Nym Native Wallet"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -45,9 +45,6 @@ tokio = { version = "1.10", features = ["full"] }
 toml = "0.5.8"
 url = "2.2"
 k256 = { version = "0.10", features = ["ecdsa", "sha256"] }
-
-aes-gcm = "0.9.4"
-argon2 = { version = "0.3.2", features = ["std"] }
 base64 = "0.13"
 zeroize = { version = "1.5", features = ["zeroize_derive", "serde"] }
 
@@ -67,6 +64,7 @@ nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-vesting-contract = { path = "../../contracts/vesting" }
 nym-types = { path = "../../common/types" }
 nym-wallet-types = { path = "../nym-wallet-types" }
+nym-store-cipher = { path = "../../common/store-cipher", features = ["json"]}
 
 [dev-dependencies]
 nym-crypto = { path = "../../common/crypto", features = ["rand"] }

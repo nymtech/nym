@@ -20,11 +20,11 @@ use futures::channel::mpsc;
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskManager;
 use std::sync::Arc;
 
-pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
 pub(crate) mod monitor;
 pub(crate) mod test_packet;
@@ -37,12 +37,10 @@ pub(crate) fn setup<'a>(
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
-    system_version: &str,
 ) -> NetworkMonitorBuilder<'a> {
     NetworkMonitorBuilder::new(
         config,
         nyxd_client,
-        system_version,
         storage.to_owned(),
         nym_contract_cache_state.to_owned(),
     )
@@ -51,7 +49,6 @@ pub(crate) fn setup<'a>(
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
     nyxd_client: nyxd::Client,
-    system_version: String,
     node_status_storage: NymApiStorage,
     validator_cache: NymContractCache,
 }
@@ -60,14 +57,12 @@ impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
         nyxd_client: nyxd::Client,
-        system_version: &str,
         node_status_storage: NymApiStorage,
         validator_cache: NymContractCache,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
             nyxd_client,
-            system_version: system_version.to_string(),
             node_status_storage,
             validator_cache,
         }
@@ -83,15 +78,16 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
         let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
         let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
+        let ack_key = Arc::new(AckKey::new(&mut rng));
 
         let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
         let (received_processor_sender_channel, received_processor_receiver_channel) =
             mpsc::unbounded();
 
         let packet_preparer = new_packet_preparer(
-            &self.system_version,
             self.validator_cache,
             self.config.get_per_node_test_packets(),
+            Arc::clone(&ack_key),
             *identity_keypair.public_key(),
             *encryption_keypair.public_key(),
         );
@@ -118,6 +114,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let received_processor = new_received_processor(
             received_processor_receiver_channel,
             Arc::clone(&encryption_keypair),
+            ack_key,
         );
         let summary_producer = new_summary_producer(self.config.get_per_node_test_packets());
         let packet_receiver = new_packet_receiver(
@@ -161,16 +158,16 @@ impl<R: MessageReceiver + Send + 'static> NetworkMonitorRunnables<R> {
 }
 
 fn new_packet_preparer(
-    system_version: &str,
     validator_cache: NymContractCache,
     per_node_test_packets: usize,
+    ack_key: Arc<AckKey>,
     self_public_identity: identity::PublicKey,
     self_public_encryption: encryption::PublicKey,
 ) -> PacketPreparer {
     PacketPreparer::new(
-        system_version,
         validator_cache,
         per_node_test_packets,
+        ack_key,
         self_public_identity,
         self_public_encryption,
     )
@@ -199,8 +196,9 @@ fn new_packet_sender(
 fn new_received_processor<R: MessageReceiver + Send + 'static>(
     packets_receiver: ReceivedProcessorReceiver,
     client_encryption_keypair: Arc<encryption::KeyPair>,
+    ack_key: Arc<AckKey>,
 ) -> ReceivedProcessor<R> {
-    ReceivedProcessor::new(packets_receiver, client_encryption_keypair)
+    ReceivedProcessor::new(packets_receiver, client_encryption_keypair, ack_key)
 }
 
 fn new_summary_producer(per_node_test_packets: usize) -> SummaryProducer {
@@ -223,16 +221,10 @@ pub(crate) async fn start<R: MessageReceiver + Send + 'static>(
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
-    system_version: &str,
     shutdown: &TaskManager,
 ) {
-    let monitor_builder = network_monitor::setup(
-        config,
-        nym_contract_cache_state,
-        storage,
-        nyxd_client,
-        system_version,
-    );
+    let monitor_builder =
+        network_monitor::setup(config, nym_contract_cache_state, storage, nyxd_client);
     info!("Starting network monitor...");
     let runnables: NetworkMonitorRunnables<R> = monitor_builder.build().await;
     runnables.spawn_tasks(shutdown);

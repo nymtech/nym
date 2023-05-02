@@ -60,6 +60,15 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const refresh = async () => Promise.all([refreshDelegations(), refreshRewards()]);
 
+  // If an action modal is open, don't show the loading modal
+  const isActionModalOpen =
+    showNewDelegationModal ||
+    showDelegateMoreModal ||
+    showUndelegateModal ||
+    showRedeemRewardsModal ||
+    confirmationModalProps ||
+    saturationError;
+
   const getAllBalances = async () => {
     const resBalance = (await userBalance()).printable_balance;
     let resVesting: DecCoin | undefined;
@@ -290,18 +299,11 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   };
 
   const delegationsComponent = (delegationItems: TDelegations | undefined) => {
-    if (isLoading) {
-      return (
-        <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <CircularProgress />
-        </Box>
-      );
-    }
     if (delegationItems && Boolean(delegationItems?.length)) {
       return (
         <DelegationList
           explorerUrl={urls(network).networkExplorer}
-          isLoading={isLoading}
+          isLoading={isLoading && !isActionModalOpen}
           items={delegationItems}
           onItemActionClick={handleDelegationItemActionClick}
         />
@@ -375,7 +377,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
           {!!delegations?.length && (
             <Box display="flex" justifyContent="space-between" alignItems="end">
-              <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />
+              <RewardsSummary isLoading={false} totalDelegation={totalDelegations} totalRewards={totalRewards} />
               {nextEpoch instanceof Error ? null : (
                 <Typography fontSize={14}>
                   Next epoch starts at <b>{nextEpoch}</b>

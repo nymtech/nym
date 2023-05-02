@@ -64,7 +64,7 @@ nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-vesting-contract = { path = "../../contracts/vesting" }
 nym-types = { path = "../../common/types" }
 nym-wallet-types = { path = "../nym-wallet-types" }
-nym-store-cipher = { path = "../../common/store-cipher", features = ["json"]}
+nym-store-cipher = { path = "../../common/store-cipher", features = ["json"] }
 
 [dev-dependencies]
 nym-crypto = { path = "../../common/crypto", features = ["rand"] }

@@ -127,7 +127,7 @@ export const DelegationList: FCWithChildren<{
 
   return (
     <TableContainer>
-      {isLoading && <LoadingModal text="Please wait. Refrshing..." />}
+      {isLoading && <LoadingModal text="Please wait. Refreshing..." />}
       <Table sx={{ width: '100%' }}>
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>

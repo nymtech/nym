@@ -286,11 +286,11 @@ async function messWithStorage() {
                     let id1 = "one";
                     let id2 = "two";
 
-                    // console.log("making store1 NO-ENC");
-                    // let _storage1 = await ClientStorage.new_unencrypted(id1);
-                    //
-                    // console.log("making store2 ENC")
-                    // let _storage2 = await new ClientStorage(id2, "my-secret-password");
+                    console.log("making store1 NO-ENC");
+                    let _storage1 = await ClientStorage.new_unencrypted(id1);
+
+                    console.log("making store2 ENC")
+                    let _storage2 = await new ClientStorage(id2, "my-secret-password");
                     //
                     //
                     //
@@ -341,10 +341,7 @@ async function main() {
     // await testWithNymClient()
 
     // 'Normal' client setup (to send 'normal' messages)
-    // await normalNymClientUsage()
-
-
-    await messWithStorage()
+    await normalNymClientUsage()
 }
 
 // Let's get started!

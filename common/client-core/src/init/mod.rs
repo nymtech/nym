@@ -15,7 +15,7 @@ use nym_credential_storage::storage::Storage;
 use nym_crypto::asymmetric::{encryption, identity};
 use url::Url;
 
-use crate::client::key_manager::KeyManager;
+use crate::client::key_manager::{KeyManager, KeyManagerBuilder};
 use crate::{
     config::{
         persistence::key_pathfinder::ClientKeyPathfinder, ClientCoreConfigTrait, Config,
@@ -65,9 +65,9 @@ impl Display for InitResults {
 }
 
 /// Create a new set of client keys.
-pub fn new_client_keys() -> KeyManager {
+pub fn new_client_keys() -> KeyManagerBuilder {
     let mut rng = OsRng;
-    KeyManager::new(&mut rng)
+    KeyManagerBuilder::new(&mut rng)
 }
 
 /// Authenticate and register with a gateway.
@@ -75,23 +75,23 @@ pub fn new_client_keys() -> KeyManager {
 /// chosen one if it's among the available ones.
 /// The shared key is added to the supplied `KeyManager` and the endpoint details are returned.
 pub async fn register_with_gateway<St: Storage>(
-    key_manager: &mut KeyManager,
+    key_manager_builder: KeyManagerBuilder,
     nym_api_endpoints: Vec<Url>,
     chosen_gateway_id: Option<identity::PublicKey>,
     by_latency: bool,
-) -> Result<GatewayEndpointConfig, ClientCoreError> {
+) -> Result<(GatewayEndpointConfig, KeyManager), ClientCoreError> {
     // Get the gateway details of the gateway we will use
     let gateway =
         helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id, by_latency).await?;
-    log::debug!("Querying gateway gives: {}", gateway);
+    log::debug!("Querying gateway gives: {gateway}");
 
-    let our_identity = key_manager.identity_keypair();
+    let our_identity = key_manager_builder.identity_keypair();
 
     // Establish connection, authenticate and generate keys for talking with the gateway
     let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
-    key_manager.insert_gateway_shared_key(shared_keys);
+    let key_manager = key_manager_builder.insert_gateway_shared_key(shared_keys);
 
-    Ok(gateway.into())
+    Ok((gateway.into(), key_manager))
 }
 
 /// Convenience function for setting up the gateway for a client given a `Config`. Depending on the
@@ -101,6 +101,7 @@ pub async fn register_with_gateway<St: Storage>(
 /// b. Create a new gateway configuration but keep existing keys. This assumes that the caller
 ///    knows what they are doing and that the keys match the requested gateway.
 /// c. Create a new gateway configuration with a newly registered gateway and keys.
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn setup_gateway_from_config<C, T, St>(
     register_gateway: bool,
     user_chosen_gateway_id: Option<identity::PublicKey>,
@@ -138,17 +139,17 @@ where
     }
 
     // Create new keys and derive our identity
-    let mut key_manager = new_client_keys();
-    let our_identity = key_manager.identity_keypair();
+    let key_manager_builder = new_client_keys();
+    let our_identity = key_manager_builder.identity_keypair();
 
     // Establish connection, authenticate and generate keys for talking with the gateway
     eprintln!("Registering with new gateway");
     let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
-    key_manager.insert_gateway_shared_key(shared_keys);
+    let key_manager = key_manager_builder.insert_gateway_shared_key(shared_keys);
 
     // Write all keys to storage and just return the gateway endpoint config. It is assumed that we
     // will load keys from storage when actually connecting.
-    helpers::store_keys(&key_manager, config)?;
+    helpers::store_keys_on_disk(&key_manager, config).await?;
     Ok(gateway.into())
 }
 

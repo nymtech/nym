@@ -5,6 +5,7 @@ use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 use thiserror::Error;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
@@ -41,10 +42,14 @@ pub enum KeyRecoveryError {
     },
 }
 
+#[derive(Zeroize, ZeroizeOnDrop)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,
+
+    // nothing secret about public key
+    #[zeroize(skip)]
     pub(crate) public_key: PublicKey,
 }
 
@@ -180,6 +185,7 @@ impl PemStorableKey for PublicKey {
     }
 }
 
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct PrivateKey(x25519_dalek::StaticSecret);
 
 impl Display for PrivateKey {

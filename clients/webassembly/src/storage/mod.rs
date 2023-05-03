@@ -4,13 +4,15 @@
 use crate::error::WasmClientError;
 use async_trait::async_trait;
 use js_sys::Promise;
-use nym_client_core::client::key_manager::{KeyManager, KeyStore};
+use nym_client_core::client::key_manager::{persistence::KeyStore, KeyManager};
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_gateway_client::SharedKeys;
+use nym_sphinx::acknowledgements::AckKey;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::storage::{IdbVersionChangeEvent, WasmStorage};
-use wasm_utils::PromisableResult;
+use wasm_utils::{console_log, PromisableResult};
 use zeroize::Zeroizing;
 
 const STORAGE_NAME_PREFIX: &str = "wasm-client-storage";
@@ -27,12 +29,12 @@ mod v1 {
 
     // TODO: for those we could actually use the subtle crypto storage
     pub const AES128CTR_ACK_KEY: &str = "aes128ctr_ack_key";
-    pub const AES128CTR_BLAKE3_HMAC_GATEWAY_KEYS_PREFIX: &str =
-        "aes128ctr_blake3_hmac_gateway_keys";
+    pub const AES128CTR_BLAKE3_HMAC_GATEWAY_KEYS: &str = "aes128ctr_blake3_hmac_gateway_keys";
 }
 
 #[wasm_bindgen]
 pub struct ClientStorage {
+    #[allow(dead_code)]
     pub(crate) name: String,
     pub(crate) inner: Arc<WasmStorage>,
 }
@@ -43,7 +45,7 @@ impl ClientStorage {
         format!("{STORAGE_NAME_PREFIX}-{client_id}")
     }
 
-    async fn new_async(
+    pub(crate) async fn new_async(
         client_id: &str,
         passphrase: Option<String>,
     ) -> Result<Self, WasmClientError> {
@@ -53,7 +55,7 @@ impl ClientStorage {
         // special care must be taken on JS side to ensure it's correctly used there.
         let passphrase = Zeroizing::new(passphrase);
 
-        let migrate_fn = (Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
+        let migrate_fn = Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
             // Even if the web-sys bindings expose the version as a f64, the IndexedDB API
             // works with an unsigned integer.
             // See <https://github.com/rustwasm/wasm-bindgen/issues/1149>
@@ -67,7 +69,7 @@ impl ClientStorage {
             }
 
             Ok(())
-        }));
+        });
 
         let inner = WasmStorage::new(
             &name,
@@ -101,7 +103,9 @@ impl ClientStorage {
         })
     }
 
-    async fn read_identity_keypair(&self) -> Result<Option<identity::KeyPair>, WasmClientError> {
+    async fn may_read_identity_keypair(
+        &self,
+    ) -> Result<Option<identity::KeyPair>, WasmClientError> {
         self.inner
             .read_value(
                 v1::KEYS_STORE,
@@ -111,7 +115,7 @@ impl ClientStorage {
             .map_err(Into::into)
     }
 
-    async fn read_encryption_keypair(
+    async fn may_read_encryption_keypair(
         &self,
     ) -> Result<Option<encryption::KeyPair>, WasmClientError> {
         self.inner
@@ -121,6 +125,55 @@ impl ClientStorage {
             )
             .await
             .map_err(Into::into)
+    }
+
+    async fn may_read_ack_key(&self) -> Result<Option<AckKey>, WasmClientError> {
+        self.inner
+            .read_value(v1::KEYS_STORE, JsValue::from_str(v1::AES128CTR_ACK_KEY))
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn may_read_gateway_shared_key(&self) -> Result<Option<SharedKeys>, WasmClientError> {
+        self.inner
+            .read_value(
+                v1::KEYS_STORE,
+                JsValue::from_str(v1::AES128CTR_BLAKE3_HMAC_GATEWAY_KEYS),
+            )
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn must_read_identity_keypair(&self) -> Result<identity::KeyPair, WasmClientError> {
+        self.may_read_identity_keypair()
+            .await?
+            .ok_or(WasmClientError::CryptoKeyNotInStorage {
+                typ: v1::ED25519_IDENTITY_KEYPAIR.to_string(),
+            })
+    }
+
+    async fn must_read_encryption_keypair(&self) -> Result<encryption::KeyPair, WasmClientError> {
+        self.may_read_encryption_keypair()
+            .await?
+            .ok_or(WasmClientError::CryptoKeyNotInStorage {
+                typ: v1::X25519_ENCRYPTION_KEYPAIR.to_string(),
+            })
+    }
+
+    async fn must_read_ack_key(&self) -> Result<AckKey, WasmClientError> {
+        self.may_read_ack_key()
+            .await?
+            .ok_or(WasmClientError::CryptoKeyNotInStorage {
+                typ: v1::AES128CTR_ACK_KEY.to_string(),
+            })
+    }
+
+    async fn must_read_gateway_shared_key(&self) -> Result<SharedKeys, WasmClientError> {
+        self.may_read_gateway_shared_key()
+            .await?
+            .ok_or(WasmClientError::CryptoKeyNotInStorage {
+                typ: v1::AES128CTR_BLAKE3_HMAC_GATEWAY_KEYS.to_string(),
+            })
     }
 
     async fn store_identity_keypair(
@@ -150,6 +203,28 @@ impl ClientStorage {
             .await
             .map_err(Into::into)
     }
+
+    async fn store_ack_key(&self, key: &AckKey) -> Result<(), WasmClientError> {
+        self.inner
+            .store_value(
+                v1::KEYS_STORE,
+                JsValue::from_str(v1::AES128CTR_ACK_KEY),
+                key,
+            )
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn store_gateway_shared_key(&self, key: &SharedKeys) -> Result<(), WasmClientError> {
+        self.inner
+            .store_value(
+                v1::KEYS_STORE,
+                JsValue::from_str(v1::AES128CTR_BLAKE3_HMAC_GATEWAY_KEYS),
+                key,
+            )
+            .await
+            .map_err(Into::into)
+    }
 }
 
 #[async_trait(?Send)]
@@ -157,10 +232,31 @@ impl KeyStore for ClientStorage {
     type StorageError = WasmClientError;
 
     async fn load_keys(&self) -> Result<KeyManager, Self::StorageError> {
-        todo!()
+        console_log!("attempting to load cryptographic keys...");
+
+        // all keys implement `ZeroizeOnDrop`, so if we return an Error, whatever was already loaded will be cleared
+        let identity_keypair = self.must_read_identity_keypair().await?;
+        let encryption_keypair = self.must_read_encryption_keypair().await?;
+        let ack_keypair = self.must_read_ack_key().await?;
+        let gateway_shared_key = self.must_read_gateway_shared_key().await?;
+
+        Ok(KeyManager::from_keys(
+            identity_keypair,
+            encryption_keypair,
+            gateway_shared_key,
+            ack_keypair,
+        ))
     }
 
-    async fn store_keys(&self, keys: KeyManager) -> Result<(), Self::StorageError> {
-        todo!()
+    async fn store_keys(&self, keys: &KeyManager) -> Result<(), Self::StorageError> {
+        console_log!("attempting to store cryptographic keys...");
+
+        self.store_identity_keypair(&keys.identity_keypair())
+            .await?;
+        self.store_encryption_keypair(&keys.encryption_keypair())
+            .await?;
+        self.store_ack_key(&keys.ack_key()).await?;
+        self.store_gateway_shared_key(&keys.gateway_shared_key())
+            .await
     }
 }

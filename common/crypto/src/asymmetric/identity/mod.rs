@@ -9,6 +9,7 @@ use nym_sphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 use thiserror::Error;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
@@ -44,11 +45,14 @@ pub enum Ed25519RecoveryError {
 }
 
 /// Keypair for usage in ed25519 EdDSA.
-#[derive(Debug)]
+#[derive(Debug, Zeroize, ZeroizeOnDrop)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct KeyPair {
     private_key: PrivateKey,
+
+    // nothing secret about public key
+    #[zeroize(skip)]
     public_key: PublicKey,
 }
 
@@ -191,7 +195,7 @@ impl PemStorableKey for PublicKey {
 }
 
 /// ed25519 EdDSA Private Key
-#[derive(Debug)]
+#[derive(Debug, Zeroize, ZeroizeOnDrop)]
 pub struct PrivateKey(ed25519_dalek::SecretKey);
 
 impl Display for PrivateKey {

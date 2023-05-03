@@ -5,6 +5,7 @@ use url::Url;
 
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::BaseClient;
+use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::DebugConfig;
 use nym_client_core::{
     client::{
@@ -131,6 +132,7 @@ impl MixnetClientBuilder {
             self.socks5_config,
             storage_paths,
             self.custom_topology_provider,
+            &self.gateway_config,
         )
         .await?;
 
@@ -157,9 +159,6 @@ pub struct DisconnectedMixnetClient<B>
 where
     B: ReplyStorageBackend + Sync + Send + 'static,
 {
-    /// Keys handled by the client
-    key_manager: KeyManager,
-
     /// Client configuration
     config: Config,
 
@@ -199,6 +198,7 @@ where
         socks5_config: Option<Socks5>,
         paths: Option<StoragePaths>,
         custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+        gateway_config: &Option<GatewayEndpointConfig>,
     ) -> Result<DisconnectedMixnetClient<B>>
     where
         <B as ReplyStorageBackend>::StorageError: Send + Sync,
@@ -219,14 +219,22 @@ where
 
         // If we are provided paths to keys, use them if they are available. And if they are
         // not, write the generated keys back to storage.
-        let key_manager = if let Some(ref paths) = paths {
+        let state = if let Some(ref paths) = paths {
             let path_finder = ClientKeyPathfinder::from(paths.clone());
+            let keys_store = OnDiskKeys::new(&path_finder);
 
             // Try load keys
-            match KeyManager::load_keys_from_disk_but_gateway_is_optional(&path_finder) {
+            match KeyManager::load_keys(&keys_store).await {
                 Ok(key_manager) => {
                     log::debug!("Keys loaded");
-                    key_manager
+                    let Some(gateway_endpoint) = gateway_config else {
+                        return Err(Error::GatewayWithUnknownEndpoint)
+                    };
+
+                    BuilderState::Registered {
+                        derived_keys: key_manager,
+                        gateway_endpoint_config: gateway_endpoint.clone(),
+                    }
                 }
                 Err(err) => {
                     log::debug!("Not loading keys: {err}");
@@ -240,25 +248,23 @@ where
                     // know this is a bit defensive, but I don't want to overwrite
                     assert!(!(path_finder.any_file_exists() && paths.operating_mode.is_keep()));
 
-                    // Create new keys and write to storage
-                    let key_manager = nym_client_core::init::new_client_keys();
-                    // WARN: this will overwrite!
-                    key_manager.store_keys_on_disk(&path_finder)?;
-                    key_manager
+                    // Create new keys (don't write to storage yet!)
+                    let initial_keys = nym_client_core::init::new_client_keys();
+                    BuilderState::New { initial_keys }
                 }
             }
         } else {
             // Ephemeral keys that we only store in memory
             log::debug!("Creating new ephemeral keys");
-            nym_client_core::init::new_client_keys()
+            let initial_keys = nym_client_core::init::new_client_keys();
+            BuilderState::New { initial_keys }
         };
 
         Ok(DisconnectedMixnetClient {
-            key_manager,
             config,
             socks5_config,
             storage_paths: paths,
-            state: BuilderState::New,
+            state,
             reply_storage_backend,
             bandwidth_controller,
             custom_topology_provider,

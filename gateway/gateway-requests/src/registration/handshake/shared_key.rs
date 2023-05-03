@@ -1,4 +1,4 @@
-// Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{GatewayMacSize, GatewayRequestsError};
@@ -10,7 +10,9 @@ use nym_crypto::hmac::{compute_keyed_hmac, recompute_keyed_hmac_and_verify_tag};
 use nym_crypto::symmetric::stream_cipher::{self, CipherKey, KeySizeUser, IV};
 use nym_pemstore::traits::PemStorableKey;
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // shared key is as long as the encryption key and the MAC key combined.
 pub type SharedKeySize = Sum<EncryptionKeySize, MacKeySize>;
@@ -22,7 +24,8 @@ type EncryptionKeySize = <GatewayEncryptionAlgorithm as KeySizeUser>::KeySize;
 /// Shared key used when computing MAC for messages exchanged between client and its gateway.
 pub type MacKey = GenericArray<u8, MacKeySize>;
 
-#[derive(Clone, Copy, Debug)]
+// #[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct SharedKeys {
     encryption_key: CipherKey<GatewayEncryptionAlgorithm>,
     mac_key: MacKey,

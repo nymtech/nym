@@ -76,6 +76,9 @@ pub enum Error {
     StorageError {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+
+    #[error("loaded shared gateway key without providing information about what gateway it corresponds to")]
+    GatewayWithUnknownEndpoint,
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

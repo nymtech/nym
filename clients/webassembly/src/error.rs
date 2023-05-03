@@ -85,6 +85,9 @@ pub enum WasmClientError {
         #[from]
         source: StorageError,
     },
+
+    #[error("{typ} cryptographic is not available in storage")]
+    CryptoKeyNotInStorage { typ: String },
 }
 
 impl WasmClientError {

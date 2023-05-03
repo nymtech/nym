@@ -79,6 +79,7 @@ where
         gateway_address: String,
         local_identity: Arc<identity::KeyPair>,
         gateway_identity: identity::PublicKey,
+        // TODO: make it mandatory. if you don't want to pass it, use `new_init`
         shared_key: Option<Arc<SharedKeys>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,

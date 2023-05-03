@@ -6,6 +6,7 @@ use nym_gateway_client::error::GatewayClientError;
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::NymTopologyError;
 use nym_validator_client::ValidatorClientError;
+use std::error::Error;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ClientCoreError {
@@ -41,8 +42,11 @@ pub enum ClientCoreError {
 
     #[error("experienced a failure with our reply surb persistent storage: {source}")]
     SurbStorageError {
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: Box<dyn Error + Send + Sync>,
     },
+
+    #[error("experienced a failure with our cryptographic keys persistent storage: {source}")]
+    KeyStoreError { source: Box<dyn Error> },
 
     #[error("The gateway id is invalid - {0}")]
     UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),

@@ -1960,6 +1960,7 @@ version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
 dependencies = [
+ "serde",
  "typenum",
  "version_check",
  "zeroize",
@@ -3353,6 +3354,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-timer",
  "wasm-utils",
+ "zeroize",
 ]
 
 [[package]]
@@ -3632,6 +3634,7 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "futures",
+ "generic-array 0.14.7",
  "log",
  "nym-coconut-interface",
  "nym-credentials",
@@ -3643,6 +3646,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tungstenite 0.13.0",
+ "zeroize",
 ]
 
 [[package]]
@@ -4092,6 +4096,7 @@ dependencies = [
 name = "nym-sphinx-acknowledgements"
 version = "0.1.0"
 dependencies = [
+ "generic-array 0.14.7",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx-addressing",
@@ -4099,7 +4104,9 @@ dependencies = [
  "nym-sphinx-types",
  "nym-topology",
  "rand 0.7.3",
+ "serde",
  "thiserror",
+ "zeroize",
 ]
 
 [[package]]

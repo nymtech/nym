@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 aes-gcm = { version = "0.10.1" }
 argon2 = { version = "0.5.0" }
-generic-array = { version = "0.14", features = ["zeroize"] }
+generic-array = { workspace = true, features = ["zeroize"] }
 rand = "0.8.5"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }

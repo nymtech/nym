@@ -1,21 +1,21 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::traits::{PemStorableKey, PemStorableKeyPair};
 use pem::{self, Pem};
 use std::fs::File;
 use std::io::{self, Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub mod traits;
 
-pub struct KeyPairPath {
-    private_key_path: PathBuf,
-    public_key_path: PathBuf,
+pub struct KeyPairPath<P: AsRef<Path>> {
+    private_key_path: P,
+    public_key_path: P,
 }
 
-impl KeyPairPath {
-    pub fn new(private_key_path: PathBuf, public_key_path: PathBuf) -> Self {
+impl<P: AsRef<Path>> KeyPairPath<P> {
+    pub fn new(private_key_path: P, public_key_path: P) -> Self {
         KeyPairPath {
             private_key_path,
             public_key_path,
@@ -23,26 +23,29 @@ impl KeyPairPath {
     }
 }
 
-pub fn load_keypair<T>(paths: &KeyPairPath) -> io::Result<T>
+pub fn load_keypair<T, P>(paths: &KeyPairPath<P>) -> io::Result<T>
 where
     T: PemStorableKeyPair,
+    P: AsRef<Path>,
 {
-    let private = load_key::<T::PrivatePemKey>(&paths.private_key_path)?;
-    let public = load_key::<T::PublicPemKey>(&paths.public_key_path)?;
+    let private: T::PrivatePemKey = load_key(&paths.private_key_path)?;
+    let public: T::PublicPemKey = load_key(&paths.public_key_path)?;
     Ok(T::from_keys(private, public))
 }
 
-pub fn store_keypair<T>(keypair: &T, paths: &KeyPairPath) -> io::Result<()>
+pub fn store_keypair<T, P>(keypair: &T, paths: &KeyPairPath<P>) -> io::Result<()>
 where
     T: PemStorableKeyPair,
+    P: AsRef<Path>,
 {
     store_key(keypair.public_key(), &paths.public_key_path)?;
     store_key(keypair.private_key(), &paths.private_key_path)
 }
 
-pub fn load_key<T>(path: &Path) -> io::Result<T>
+pub fn load_key<T, P>(path: P) -> io::Result<T>
 where
     T: PemStorableKey,
+    P: AsRef<Path>,
 {
     let key_pem = read_pem_file(path)?;
 
@@ -61,23 +64,24 @@ where
     Ok(key)
 }
 
-pub fn store_key<T>(key: &T, path: &Path) -> io::Result<()>
+pub fn store_key<T, P>(key: &T, path: P) -> io::Result<()>
 where
     T: PemStorableKey,
+    P: AsRef<Path>,
 {
     write_pem_file(path, key.to_bytes(), T::pem_type())
 }
 
-fn read_pem_file(filepath: &Path) -> io::Result<Pem> {
+fn read_pem_file<P: AsRef<Path>>(filepath: P) -> io::Result<Pem> {
     let mut pem_bytes = File::open(filepath)?;
     let mut buf = Vec::new();
     pem_bytes.read_to_end(&mut buf)?;
     pem::parse(&buf).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
 }
 
-fn write_pem_file(filepath: &Path, data: Vec<u8>, tag: &str) -> io::Result<()> {
+fn write_pem_file<P: AsRef<Path>>(filepath: P, data: Vec<u8>, tag: &str) -> io::Result<()> {
     // ensure the whole directory structure exists
-    if let Some(parent_dir) = filepath.parent() {
+    if let Some(parent_dir) = filepath.as_ref().parent() {
         std::fs::create_dir_all(parent_dir)?;
     }
     let pem = Pem {
@@ -86,7 +90,7 @@ fn write_pem_file(filepath: &Path, data: Vec<u8>, tag: &str) -> io::Result<()> {
     };
     let key = pem::encode(&pem);
 
-    let mut file = File::create(filepath)?;
+    let mut file = File::create(filepath.as_ref())?;
     file.write_all(key.as_bytes())?;
 
     // note: this is only supported on unix (on different systems, like Windows, it will just

@@ -12,15 +12,17 @@ edition = "2021"
 [dependencies]
 bs58 = "0.4.0"
 futures = "0.3.15"
+generic-array = { workspace = true, features = ["serde"] }
 log = { workspace = true }
-nym-sphinx = { path = "../../common/nymsphinx" }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = "1.0"
+zeroize = { workspace = true }
 
 nym-crypto = { path = "../../common/crypto"  }
 nym-pemstore = { path = "../../common/pemstore" }
+nym-sphinx = { path = "../../common/nymsphinx" }
 
 nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-credentials = { path = "../../common/credentials" }

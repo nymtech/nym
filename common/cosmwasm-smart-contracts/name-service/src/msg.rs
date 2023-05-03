@@ -27,17 +27,11 @@ pub enum ExecuteMsg {
         nym_address: NymAddress,
     },
     /// Delete a name entry by id
-    DeleteId {
-        name_id: NameId,
-    },
+    DeleteId { name_id: NameId },
     /// Delete a name entry by name
-    DeleteName {
-        name: NymName,
-    },
+    DeleteName { name: NymName },
     /// Change the deposit required for announcing a name
-    UpdateDepositRequired {
-        deposit_required: Coin,
-    },
+    UpdateDepositRequired { deposit_required: Coin },
 }
 
 impl ExecuteMsg {

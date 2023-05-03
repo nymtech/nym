@@ -74,13 +74,12 @@ impl Display for NymName {
 /// [`RegisterdName`] together with the assigned [`NameId`].
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
-// WIP(JON): consider renaming to NameEntry
-pub struct NameInfo {
+pub struct NameEntry {
     pub name_id: NameId,
     pub name: RegisteredName,
 }
 
-impl NameInfo {
+impl NameEntry {
     pub fn new(name_id: NameId, name: RegisteredName) -> Self {
         Self { name_id, name }
     }

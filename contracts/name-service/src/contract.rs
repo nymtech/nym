@@ -115,7 +115,7 @@ mod tests {
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Coin,
     };
-    use nym_name_service_common::{msg::ExecuteMsg, NameId, NameInfo};
+    use nym_name_service_common::{msg::ExecuteMsg, NameEntry, NameId};
 
     const DENOM: &str = "unym";
 
@@ -210,7 +210,7 @@ mod tests {
         );
 
         // The expected registered name
-        let expected_name = NameInfo {
+        let expected_name = NameEntry {
             name_id: expected_id,
             name: name_fixture(),
         };
@@ -234,7 +234,7 @@ mod tests {
 
         // The expected registerd name
         let expected_id = 1;
-        let expected_name = NameInfo {
+        let expected_name = NameEntry {
             name_id: expected_id,
             name: name_fixture(),
         };

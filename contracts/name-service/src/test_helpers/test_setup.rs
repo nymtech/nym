@@ -3,7 +3,7 @@ use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
 use nym_name_service_common::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     response::{ConfigResponse, PagedNamesListResponse},
-    NameId, NameInfo, NymAddress, NymName,
+    NameEntry, NameId, NymAddress, NymName,
 };
 use serde::de::DeserializeOwned;
 
@@ -76,7 +76,7 @@ impl TestSetup {
         self.query(&QueryMsg::Config {})
     }
 
-    pub fn query_id(&self, name_id: NameId) -> NameInfo {
+    pub fn query_id(&self, name_id: NameId) -> NameEntry {
         self.query(&QueryMsg::NameId { name_id })
     }
 

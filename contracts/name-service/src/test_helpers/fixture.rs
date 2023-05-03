@@ -1,5 +1,5 @@
 use cosmwasm_std::Addr;
-use nym_name_service_common::{NameId, NameInfo, NymAddress, NymName, RegisteredName};
+use nym_name_service_common::{NameEntry, NameId, NymAddress, NymName, RegisteredName};
 
 use super::helpers::nyms;
 
@@ -21,8 +21,13 @@ pub fn name_fixture_name(name: &str) -> RegisteredName {
     name_fixture_full(name, "client_id.client_key@gateway_id", "steve")
 }
 
-pub fn name_info(name_id: NameId, name: NymName, nym_address: NymAddress, owner: Addr) -> NameInfo {
-    NameInfo {
+pub fn name_entry(
+    name_id: NameId,
+    name: NymName,
+    nym_address: NymAddress,
+    owner: Addr,
+) -> NameEntry {
+    NameEntry {
         name_id,
         name: name_fixture_full(name.as_str(), nym_address.as_str(), owner.as_str()),
     }

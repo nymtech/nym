@@ -13,7 +13,6 @@ use crate::{
 
 struct NameIndex<'a> {
     // A name can only point to a single address
-    // WIP(JON): should this be a UniqueIndex?
     pub(crate) name: UniqueIndex<'a, String, RegisteredName, NameId>,
     // An addresses can be pointed to by multiple names.
     pub(crate) nym_address: MultiIndex<'a, String, RegisteredName, NameId>,

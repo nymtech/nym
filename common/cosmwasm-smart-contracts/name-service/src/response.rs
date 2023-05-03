@@ -1,12 +1,12 @@
-use crate::{msg::ExecuteMsg, NameId, NameInfo, RegisteredName};
+use crate::{msg::ExecuteMsg, NameEntry, NameId, RegisteredName};
 use cosmwasm_std::Coin;
 use serde::{Deserialize, Serialize};
 
-/// Like [`NameInfo`] but since it's a response type the name is an option depending on if
+/// Like [`NameEntry`] but since it's a response type the name is an option depending on if
 /// the name exists or not.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
-pub struct NameInfoResponse {
+pub struct NameEntryResponse {
     pub name_id: NameId,
     pub name: Option<RegisteredName>,
 }
@@ -14,7 +14,7 @@ pub struct NameInfoResponse {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct NamesListResponse {
-    pub names: Vec<NameInfo>,
+    pub names: Vec<NameEntry>,
 }
 
 impl NamesListResponse {
@@ -22,7 +22,7 @@ impl NamesListResponse {
         NamesListResponse {
             names: names
                 .into_iter()
-                .map(|(name_id, name)| NameInfo::new(name_id, name))
+                .map(|(name_id, name)| NameEntry::new(name_id, name))
                 .collect(),
         }
     }
@@ -31,7 +31,7 @@ impl NamesListResponse {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct PagedNamesListResponse {
-    pub names: Vec<NameInfo>,
+    pub names: Vec<NameEntry>,
     pub per_page: usize,
     pub start_next_after: Option<NameId>,
 }
@@ -44,7 +44,7 @@ impl PagedNamesListResponse {
     ) -> PagedNamesListResponse {
         let names = names
             .into_iter()
-            .map(|(name_id, name)| NameInfo::new(name_id, name))
+            .map(|(name_id, name)| NameEntry::new(name_id, name))
             .collect();
         PagedNamesListResponse {
             names,

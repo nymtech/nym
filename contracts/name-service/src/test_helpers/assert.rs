@@ -2,7 +2,7 @@ use cosmwasm_std::{from_binary, testing::mock_env, Addr, Coin, Deps};
 use nym_name_service_common::{
     msg::QueryMsg,
     response::{ConfigResponse, PagedNamesListResponse},
-    NameId, NameInfo,
+    NameEntry, NameId,
 };
 
 use crate::{constants::NAME_DEFAULT_RETRIEVAL_LIMIT, error::NameServiceError};
@@ -14,7 +14,7 @@ pub fn assert_config(deps: Deps, admin: &Addr, deposit_required: Coin) {
     assert_eq!(config, ConfigResponse { deposit_required });
 }
 
-pub fn assert_names(deps: Deps, expected_names: &[NameInfo]) {
+pub fn assert_names(deps: Deps, expected_names: &[NameEntry]) {
     let res = crate::contract::query(deps, mock_env(), QueryMsg::all()).unwrap();
     let names: PagedNamesListResponse = from_binary(&res).unwrap();
     let start_next_after = expected_names.iter().last().map(|s| s.name_id);
@@ -28,7 +28,7 @@ pub fn assert_names(deps: Deps, expected_names: &[NameInfo]) {
     );
 }
 
-pub fn assert_name(deps: Deps, expected_name: &NameInfo) {
+pub fn assert_name(deps: Deps, expected_name: &NameEntry) {
     let res = crate::contract::query(
         deps,
         mock_env(),
@@ -37,7 +37,7 @@ pub fn assert_name(deps: Deps, expected_name: &NameInfo) {
         },
     )
     .unwrap();
-    let names: NameInfo = from_binary(&res).unwrap();
+    let names: NameEntry = from_binary(&res).unwrap();
     assert_eq!(&names, expected_name);
 }
 

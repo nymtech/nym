@@ -3,13 +3,13 @@
 use cosmwasm_std::Addr;
 use nym_name_service_common::{
     response::{ConfigResponse, PagedNamesListResponse},
-    NameInfo, NymAddress, NymName, RegisteredName,
+    NameEntry, NymAddress, NymName, RegisteredName,
 };
 
 use crate::{
     constants::NAME_DEFAULT_RETRIEVAL_LIMIT,
     error::NameServiceError,
-    test_helpers::{fixture::name_info, helpers::nyms, test_setup::TestSetup},
+    test_helpers::{fixture::name_entry, helpers::nyms, test_setup::TestSetup},
 };
 
 #[test]
@@ -55,7 +55,7 @@ fn register_and_query_name() {
     assert_eq!(
         setup.query_all(),
         PagedNamesListResponse {
-            names: vec![NameInfo {
+            names: vec![NameEntry {
                 name_id: 1,
                 name: RegisteredName {
                     nym_address: nym_address.clone(),
@@ -73,7 +73,7 @@ fn register_and_query_name() {
     // ... and we can query by id
     assert_eq!(
         setup.query_id(1),
-        NameInfo {
+        NameEntry {
             name_id: 1,
             name: RegisteredName {
                 nym_address: nym_address.clone(),
@@ -96,8 +96,8 @@ fn register_and_query_name() {
         setup.query_all(),
         PagedNamesListResponse {
             names: vec![
-                name_info(1, name, nym_address, owner),
-                name_info(2, name2, nym_address2, owner2)
+                name_entry(1, name, nym_address, owner),
+                name_entry(2, name2, nym_address2, owner2)
             ],
             per_page: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(2),
@@ -219,8 +219,8 @@ fn can_register_multiple_names_for_the_same_nym_address() {
     assert_eq!(
         setup.query_all().names,
         vec![
-            name_info(1, name1, address.clone(), owner.clone()),
-            name_info(2, name2, address, owner)
+            name_entry(1, name1, address.clone(), owner.clone()),
+            name_entry(2, name2, address, owner)
         ],
     );
 }
@@ -253,11 +253,11 @@ fn register_multiple_names_and_deleting_by_name() {
         setup.query_all(),
         PagedNamesListResponse {
             names: vec![
-                name_info(1, name1.clone(), nym_address1.clone(), owner1.clone()),
-                name_info(2, name2.clone(), nym_address1.clone(), owner1.clone()),
-                name_info(3, name3.clone(), nym_address2.clone(), owner1.clone()),
-                name_info(4, name4.clone(), nym_address1.clone(), owner2.clone()),
-                name_info(5, name5.clone(), nym_address2.clone(), owner2.clone()),
+                name_entry(1, name1.clone(), nym_address1.clone(), owner1.clone()),
+                name_entry(2, name2.clone(), nym_address1.clone(), owner1.clone()),
+                name_entry(3, name3.clone(), nym_address2.clone(), owner1.clone()),
+                name_entry(4, name4.clone(), nym_address1.clone(), owner2.clone()),
+                name_entry(5, name5.clone(), nym_address2.clone(), owner2.clone()),
             ],
             per_page: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(5),
@@ -272,10 +272,10 @@ fn register_multiple_names_and_deleting_by_name() {
         setup.query_all(),
         PagedNamesListResponse {
             names: vec![
-                name_info(2, name2.clone(), nym_address1.clone(), owner1.clone()),
-                name_info(3, name3.clone(), nym_address2.clone(), owner1.clone()),
-                name_info(4, name4.clone(), nym_address1.clone(), owner2.clone()),
-                name_info(5, name5, nym_address2.clone(), owner2.clone()),
+                name_entry(2, name2.clone(), nym_address1.clone(), owner1.clone()),
+                name_entry(3, name3.clone(), nym_address2.clone(), owner1.clone()),
+                name_entry(4, name4.clone(), nym_address1.clone(), owner2.clone()),
+                name_entry(5, name5, nym_address2.clone(), owner2.clone()),
             ],
             per_page: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(5),
@@ -311,11 +311,11 @@ fn check_paging() {
         setup.query_all(),
         PagedNamesListResponse {
             names: vec![
-                name_info(1, name1.clone(), nym_address1.clone(), owner1.clone()),
-                name_info(2, name2.clone(), nym_address1.clone(), owner1.clone()),
-                name_info(3, name3.clone(), nym_address2.clone(), owner1.clone()),
-                name_info(4, name4.clone(), nym_address1.clone(), owner2.clone()),
-                name_info(5, name5, nym_address2.clone(), owner2.clone()),
+                name_entry(1, name1.clone(), nym_address1.clone(), owner1.clone()),
+                name_entry(2, name2.clone(), nym_address1.clone(), owner1.clone()),
+                name_entry(3, name3.clone(), nym_address2.clone(), owner1.clone()),
+                name_entry(4, name4.clone(), nym_address1.clone(), owner2.clone()),
+                name_entry(5, name5, nym_address2.clone(), owner2.clone()),
             ],
             per_page: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(5),
@@ -328,8 +328,8 @@ fn check_paging() {
         setup.query_all_with_limit(Some(2), None),
         PagedNamesListResponse {
             names: vec![
-                name_info(2, name2, nym_address1.clone(), owner1.clone()),
-                name_info(3, name3.clone(), nym_address2.clone(), owner1.clone()),
+                name_entry(2, name2, nym_address1.clone(), owner1.clone()),
+                name_entry(3, name3.clone(), nym_address2.clone(), owner1.clone()),
             ],
             per_page: 2,
             start_next_after: Some(3),
@@ -340,8 +340,8 @@ fn check_paging() {
         setup.query_all_with_limit(Some(2), Some(2)),
         PagedNamesListResponse {
             names: vec![
-                name_info(3, name3, nym_address2, owner1),
-                name_info(4, name4, nym_address1, owner2),
+                name_entry(3, name3, nym_address2, owner1),
+                name_entry(4, name4, nym_address1, owner2),
             ],
             per_page: 2,
             start_next_after: Some(4),
@@ -373,7 +373,7 @@ fn name_id_is_not_resused_when_deleting_and_then_adding_a_new_names() {
 
     assert_eq!(
         setup.query_all().names,
-        vec![name_info(
+        vec![name_entry(
             2,
             NymName::new("myname2"),
             NymAddress::new("nymAddress2"),
@@ -390,13 +390,13 @@ fn name_id_is_not_resused_when_deleting_and_then_adding_a_new_names() {
     assert_eq!(
         setup.query_all().names,
         vec![
-            name_info(
+            name_entry(
                 2,
                 NymName::new("myname2"),
                 NymAddress::new("nymAddress2"),
                 Addr::unchecked("owner2")
             ),
-            name_info(
+            name_entry(
                 4,
                 NymName::new("myname4"),
                 NymAddress::new("nymAddress4"),

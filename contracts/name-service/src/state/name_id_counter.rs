@@ -17,7 +17,7 @@ pub(crate) fn next_name_id_counter(store: &mut dyn Storage) -> Result<NameId> {
 #[cfg(test)]
 mod tests {
 
-    use nym_name_service_common::NameInfo;
+    use nym_name_service_common::NameEntry;
 
     use crate::test_helpers::{
         assert::assert_names,
@@ -30,16 +30,19 @@ mod tests {
         let mut deps = instantiate_test_contract();
 
         assert_eq!(register_name(deps.as_mut(), &name_fixture_name("foo")), 1);
-        assert_names(deps.as_ref(), &[NameInfo::new(1, name_fixture_name("foo"))]);
+        assert_names(
+            deps.as_ref(),
+            &[NameEntry::new(1, name_fixture_name("foo"))],
+        );
 
         assert_eq!(register_name(deps.as_mut(), &name_fixture_name("bar")), 2);
         assert_eq!(register_name(deps.as_mut(), &name_fixture_name("baz")), 3);
         assert_names(
             deps.as_ref(),
             &[
-                NameInfo::new(1, name_fixture_name("foo")),
-                NameInfo::new(2, name_fixture_name("bar")),
-                NameInfo::new(3, name_fixture_name("baz")),
+                NameEntry::new(1, name_fixture_name("foo")),
+                NameEntry::new(2, name_fixture_name("bar")),
+                NameEntry::new(3, name_fixture_name("baz")),
             ],
         );
     }
@@ -54,14 +57,17 @@ mod tests {
         assert_names(
             deps.as_ref(),
             &[
-                NameInfo::new(1, name_fixture_name("one")),
-                NameInfo::new(2, name_fixture_name("two")),
+                NameEntry::new(1, name_fixture_name("one")),
+                NameEntry::new(2, name_fixture_name("two")),
             ],
         );
 
         // Delete the last entry
         delete_name_id(deps.as_mut(), 2, "steve");
-        assert_names(deps.as_ref(), &[NameInfo::new(1, name_fixture_name("one"))]);
+        assert_names(
+            deps.as_ref(),
+            &[NameEntry::new(1, name_fixture_name("one"))],
+        );
 
         // Create a third entry. The index should not reuse the previous entry that we just
         // deleted.
@@ -69,8 +75,8 @@ mod tests {
         assert_names(
             deps.as_ref(),
             &[
-                NameInfo::new(1, name_fixture_name("one")),
-                NameInfo::new(3, name_fixture_name("two")),
+                NameEntry::new(1, name_fixture_name("one")),
+                NameEntry::new(3, name_fixture_name("two")),
             ],
         );
     }

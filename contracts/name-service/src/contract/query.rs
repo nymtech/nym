@@ -2,7 +2,7 @@ use cosmwasm_std::Deps;
 use nym_contracts_common::ContractBuildInformation;
 use nym_name_service_common::{
     response::{ConfigResponse, NamesListResponse, PagedNamesListResponse},
-    NameId, NameInfo, NymAddress, NymName,
+    NameEntry, NameId, NymAddress, NymName,
 };
 
 use crate::{
@@ -10,9 +10,9 @@ use crate::{
     state::{self, names::PagedLoad},
 };
 
-pub fn query_id(deps: Deps, name_id: NameId) -> Result<NameInfo> {
+pub fn query_id(deps: Deps, name_id: NameId) -> Result<NameEntry> {
     let name = state::names::load_id(deps.storage, name_id)?;
-    Ok(NameInfo { name_id, name })
+    Ok(NameEntry { name_id, name })
 }
 
 pub fn query_owner(deps: Deps, owner: String) -> Result<NamesListResponse> {
@@ -26,9 +26,9 @@ pub fn query_nym_address(deps: Deps, nym_address: NymAddress) -> Result<NamesLis
     Ok(NamesListResponse::new(names))
 }
 
-pub fn query_name(deps: Deps, name: NymName) -> Result<NameInfo> {
+pub fn query_name(deps: Deps, name: NymName) -> Result<NameEntry> {
     state::names::load_name_entry(deps.storage, &name)
-        .map(|(name_id, name)| NameInfo::new(name_id, name))
+        .map(|(name_id, name)| NameEntry::new(name_id, name))
 }
 
 pub fn query_all_paged(

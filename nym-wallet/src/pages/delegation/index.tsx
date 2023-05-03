@@ -93,15 +93,19 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     }
   };
 
+  const refreshWithIntervalUpdate = async () => {
+    refresh();
+    getNextInterval();
+  };
+
   // Refresh the rewards and delegations periodically when page is mounted
   useEffect(() => {
-    const timer = setInterval(refresh, 1 * 60 * 1000); // every 1 minute
+    const timer = setInterval(refreshWithIntervalUpdate, 1 * 60 * 1000); // every 1 minute
     return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    refresh();
-    getNextInterval();
+    refreshWithIntervalUpdate();
   }, [clientDetails, confirmationModalProps]);
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {

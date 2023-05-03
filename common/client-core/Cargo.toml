@@ -39,6 +39,7 @@ nym-topology = { path = "../topology" }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
+nym-network-defaults = { path = "../network-defaults" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
 path = "../client-libs/validator-client"

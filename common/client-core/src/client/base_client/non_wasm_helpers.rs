@@ -1,12 +1,17 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::replies::reply_storage::{
     fs_backend, CombinedReplyStorage, ReplyStorageBackend,
 };
+use crate::config::Config;
 use crate::config::DebugConfig;
 use crate::error::ClientCoreError;
 use log::{error, info};
+use nym_bandwidth_controller::BandwidthController;
+use nym_credential_storage::storage::Storage as CredentialStorage;
+use nym_validator_client::nyxd::QueryNyxdClient;
+use nym_validator_client::Client;
 use std::path::Path;
 use std::{fs, io};
 use time::OffsetDateTime;
@@ -105,4 +110,27 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
     } else {
         Ok(setup_inactive_backend(debug_config))
     }
+}
+
+pub fn create_bandwidth_controller<T, St: CredentialStorage>(
+    config: &Config<T>,
+    storage: St,
+) -> BandwidthController<Client<QueryNyxdClient>, St> {
+    let details = nym_network_defaults::NymNetworkDetails::new_from_env();
+    let mut client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
+        .expect("failed to construct validator client config");
+    let nyxd_url = config
+        .get_validator_endpoints()
+        .pop()
+        .expect("No nyxd validator endpoint provided");
+    let api_url = config
+        .get_nym_api_endpoints()
+        .pop()
+        .expect("No validator api endpoint provided");
+    // overwrite env configuration with config URLs
+    client_config = client_config.with_urls(nyxd_url, api_url);
+    let client = nym_validator_client::Client::new_query(client_config)
+        .expect("Could not construct query client");
+
+    BandwidthController::new(storage, client)
 }

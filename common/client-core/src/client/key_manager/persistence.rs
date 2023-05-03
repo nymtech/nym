@@ -26,20 +26,20 @@ pub trait KeyStore {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub struct OnDiskKeys<'a> {
-    pathfinder: &'a ClientKeyPathfinder,
+pub struct OnDiskKeys {
+    pathfinder: ClientKeyPathfinder,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl<'a> From<&'a ClientKeyPathfinder> for OnDiskKeys<'a> {
-    fn from(pathfinder: &'a ClientKeyPathfinder) -> Self {
+impl From<ClientKeyPathfinder> for OnDiskKeys {
+    fn from(pathfinder: ClientKeyPathfinder) -> Self {
         OnDiskKeys { pathfinder }
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl<'a> OnDiskKeys<'a> {
-    pub fn new(pathfinder: &'a ClientKeyPathfinder) -> Self {
+impl OnDiskKeys {
+    pub fn new(pathfinder: ClientKeyPathfinder) -> Self {
         OnDiskKeys { pathfinder }
     }
 
@@ -82,7 +82,7 @@ impl<'a> OnDiskKeys<'a> {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<'a> KeyStore for OnDiskKeys<'a> {
+impl KeyStore for OnDiskKeys {
     type StorageError = std::io::Error;
 
     async fn load_keys(&self) -> Result<KeyManager, Self::StorageError> {

@@ -5,38 +5,36 @@ use crate::traits::{PemStorableKey, PemStorableKeyPair};
 use pem::{self, Pem};
 use std::fs::File;
 use std::io::{self, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub mod traits;
 
-pub struct KeyPairPath<P: AsRef<Path>> {
-    private_key_path: P,
-    public_key_path: P,
+pub struct KeyPairPath {
+    private_key_path: PathBuf,
+    public_key_path: PathBuf,
 }
 
-impl<P: AsRef<Path>> KeyPairPath<P> {
-    pub fn new(private_key_path: P, public_key_path: P) -> Self {
+impl KeyPairPath {
+    pub fn new<P: AsRef<Path>>(private_key_path: P, public_key_path: P) -> Self {
         KeyPairPath {
-            private_key_path,
-            public_key_path,
+            private_key_path: private_key_path.as_ref().to_owned(),
+            public_key_path: public_key_path.as_ref().to_owned(),
         }
     }
 }
 
-pub fn load_keypair<T, P>(paths: &KeyPairPath<P>) -> io::Result<T>
+pub fn load_keypair<T>(paths: &KeyPairPath) -> io::Result<T>
 where
     T: PemStorableKeyPair,
-    P: AsRef<Path>,
 {
     let private: T::PrivatePemKey = load_key(&paths.private_key_path)?;
     let public: T::PublicPemKey = load_key(&paths.public_key_path)?;
     Ok(T::from_keys(private, public))
 }
 
-pub fn store_keypair<T, P>(keypair: &T, paths: &KeyPairPath<P>) -> io::Result<()>
+pub fn store_keypair<T>(keypair: &T, paths: &KeyPairPath) -> io::Result<()>
 where
     T: PemStorableKeyPair,
-    P: AsRef<Path>,
 {
     store_key(keypair.public_key(), &paths.public_key_path)?;
     store_key(keypair.private_key(), &paths.private_key_path)

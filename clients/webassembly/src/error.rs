@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::storage::ClientStorageError;
 use crate::topology::WasmTopologyError;
 use js_sys::Promise;
 use nym_client_core::error::ClientCoreError;
@@ -13,7 +14,6 @@ use nym_validator_client::ValidatorClientError;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
 use wasm_utils::simple_js_error;
-use wasm_utils::storage::error::StorageError;
 
 // might as well start using well-defined error enum...
 #[derive(Debug, Error)]
@@ -80,14 +80,11 @@ pub enum WasmClientError {
         source: InvalidAnonymousSenderTagRepresentation,
     },
 
-    #[error("failed to use the storage: {source}")]
+    #[error(transparent)]
     StorageError {
         #[from]
-        source: StorageError,
+        source: ClientStorageError,
     },
-
-    #[error("{typ} cryptographic is not available in storage")]
-    CryptoKeyNotInStorage { typ: String },
 }
 
 impl WasmClientError {

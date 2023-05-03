@@ -7,6 +7,7 @@ use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
 use rand::{CryptoRng, RngCore};
 use std::sync::Arc;
+use zeroize::ZeroizeOnDrop;
 
 pub mod persistence;
 
@@ -403,18 +404,11 @@ impl KeyManager {
     // }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use zeroize::ZeroizeOnDrop;
+fn _assert_keys_zeroize_on_drop() {
+    fn _assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
 
-    fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
-
-    #[test]
-    fn keys_zeroize_on_drop() {
-        assert_zeroize_on_drop::<identity::KeyPair>();
-        assert_zeroize_on_drop::<encryption::KeyPair>();
-        assert_zeroize_on_drop::<AckKey>();
-        assert_zeroize_on_drop::<SharedKeys>();
-    }
+    _assert_zeroize_on_drop::<identity::KeyPair>();
+    _assert_zeroize_on_drop::<encryption::KeyPair>();
+    _assert_zeroize_on_drop::<AckKey>();
+    _assert_zeroize_on_drop::<SharedKeys>();
 }

@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::WasmClientError;
 use async_trait::async_trait;
 use js_sys::Promise;
 use nym_client_core::client::key_manager::{persistence::KeyStore, KeyManager};
@@ -9,10 +8,12 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::SharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
 use std::sync::Arc;
+use thiserror::Error;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
+use wasm_utils::storage::error::StorageError;
 use wasm_utils::storage::{IdbVersionChangeEvent, WasmStorage};
-use wasm_utils::{console_log, PromisableResult};
+use wasm_utils::{console_log, simple_js_error, PromisableResult};
 use zeroize::Zeroizing;
 
 const STORAGE_NAME_PREFIX: &str = "wasm-client-storage";
@@ -32,6 +33,24 @@ mod v1 {
     pub const AES128CTR_BLAKE3_HMAC_GATEWAY_KEYS: &str = "aes128ctr_blake3_hmac_gateway_keys";
 }
 
+#[derive(Debug, Error)]
+pub enum ClientStorageError {
+    #[error("failed to use the storage: {source}")]
+    StorageError {
+        #[from]
+        source: StorageError,
+    },
+
+    #[error("{typ} cryptographic key is not available in storage")]
+    CryptoKeyNotInStorage { typ: String },
+}
+
+impl From<ClientStorageError> for JsValue {
+    fn from(value: ClientStorageError) -> Self {
+        simple_js_error(value.to_string())
+    }
+}
+
 #[wasm_bindgen]
 pub struct ClientStorage {
     #[allow(dead_code)]
@@ -48,7 +67,7 @@ impl ClientStorage {
     pub(crate) async fn new_async(
         client_id: &str,
         passphrase: Option<String>,
-    ) -> Result<Self, WasmClientError> {
+    ) -> Result<Self, ClientStorageError> {
         let name = Self::db_name(client_id);
 
         // make sure the password is zeroized when no longer used, especially if we error out.
@@ -105,7 +124,7 @@ impl ClientStorage {
 
     async fn may_read_identity_keypair(
         &self,
-    ) -> Result<Option<identity::KeyPair>, WasmClientError> {
+    ) -> Result<Option<identity::KeyPair>, ClientStorageError> {
         self.inner
             .read_value(
                 v1::KEYS_STORE,
@@ -117,7 +136,7 @@ impl ClientStorage {
 
     async fn may_read_encryption_keypair(
         &self,
-    ) -> Result<Option<encryption::KeyPair>, WasmClientError> {
+    ) -> Result<Option<encryption::KeyPair>, ClientStorageError> {
         self.inner
             .read_value(
                 v1::KEYS_STORE,
@@ -127,14 +146,14 @@ impl ClientStorage {
             .map_err(Into::into)
     }
 
-    async fn may_read_ack_key(&self) -> Result<Option<AckKey>, WasmClientError> {
+    async fn may_read_ack_key(&self) -> Result<Option<AckKey>, ClientStorageError> {
         self.inner
             .read_value(v1::KEYS_STORE, JsValue::from_str(v1::AES128CTR_ACK_KEY))
             .await
             .map_err(Into::into)
     }
 
-    async fn may_read_gateway_shared_key(&self) -> Result<Option<SharedKeys>, WasmClientError> {
+    async fn may_read_gateway_shared_key(&self) -> Result<Option<SharedKeys>, ClientStorageError> {
         self.inner
             .read_value(
                 v1::KEYS_STORE,
@@ -144,34 +163,36 @@ impl ClientStorage {
             .map_err(Into::into)
     }
 
-    async fn must_read_identity_keypair(&self) -> Result<identity::KeyPair, WasmClientError> {
+    async fn must_read_identity_keypair(&self) -> Result<identity::KeyPair, ClientStorageError> {
         self.may_read_identity_keypair()
             .await?
-            .ok_or(WasmClientError::CryptoKeyNotInStorage {
+            .ok_or(ClientStorageError::CryptoKeyNotInStorage {
                 typ: v1::ED25519_IDENTITY_KEYPAIR.to_string(),
             })
     }
 
-    async fn must_read_encryption_keypair(&self) -> Result<encryption::KeyPair, WasmClientError> {
+    async fn must_read_encryption_keypair(
+        &self,
+    ) -> Result<encryption::KeyPair, ClientStorageError> {
         self.may_read_encryption_keypair()
             .await?
-            .ok_or(WasmClientError::CryptoKeyNotInStorage {
+            .ok_or(ClientStorageError::CryptoKeyNotInStorage {
                 typ: v1::X25519_ENCRYPTION_KEYPAIR.to_string(),
             })
     }
 
-    async fn must_read_ack_key(&self) -> Result<AckKey, WasmClientError> {
+    async fn must_read_ack_key(&self) -> Result<AckKey, ClientStorageError> {
         self.may_read_ack_key()
             .await?
-            .ok_or(WasmClientError::CryptoKeyNotInStorage {
+            .ok_or(ClientStorageError::CryptoKeyNotInStorage {
                 typ: v1::AES128CTR_ACK_KEY.to_string(),
             })
     }
 
-    async fn must_read_gateway_shared_key(&self) -> Result<SharedKeys, WasmClientError> {
+    async fn must_read_gateway_shared_key(&self) -> Result<SharedKeys, ClientStorageError> {
         self.may_read_gateway_shared_key()
             .await?
-            .ok_or(WasmClientError::CryptoKeyNotInStorage {
+            .ok_or(ClientStorageError::CryptoKeyNotInStorage {
                 typ: v1::AES128CTR_BLAKE3_HMAC_GATEWAY_KEYS.to_string(),
             })
     }
@@ -179,7 +200,7 @@ impl ClientStorage {
     async fn store_identity_keypair(
         &self,
         keypair: &identity::KeyPair,
-    ) -> Result<(), WasmClientError> {
+    ) -> Result<(), ClientStorageError> {
         self.inner
             .store_value(
                 v1::KEYS_STORE,
@@ -193,7 +214,7 @@ impl ClientStorage {
     async fn store_encryption_keypair(
         &self,
         keypair: &encryption::KeyPair,
-    ) -> Result<(), WasmClientError> {
+    ) -> Result<(), ClientStorageError> {
         self.inner
             .store_value(
                 v1::KEYS_STORE,
@@ -204,7 +225,7 @@ impl ClientStorage {
             .map_err(Into::into)
     }
 
-    async fn store_ack_key(&self, key: &AckKey) -> Result<(), WasmClientError> {
+    async fn store_ack_key(&self, key: &AckKey) -> Result<(), ClientStorageError> {
         self.inner
             .store_value(
                 v1::KEYS_STORE,
@@ -215,7 +236,7 @@ impl ClientStorage {
             .map_err(Into::into)
     }
 
-    async fn store_gateway_shared_key(&self, key: &SharedKeys) -> Result<(), WasmClientError> {
+    async fn store_gateway_shared_key(&self, key: &SharedKeys) -> Result<(), ClientStorageError> {
         self.inner
             .store_value(
                 v1::KEYS_STORE,
@@ -229,7 +250,7 @@ impl ClientStorage {
 
 #[async_trait(?Send)]
 impl KeyStore for ClientStorage {
-    type StorageError = WasmClientError;
+    type StorageError = ClientStorageError;
 
     async fn load_keys(&self) -> Result<KeyManager, Self::StorageError> {
         console_log!("attempting to load cryptographic keys...");

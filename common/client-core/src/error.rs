@@ -46,12 +46,14 @@ pub enum ClientCoreError {
     },
 
     #[error("experienced a failure with our cryptographic keys persistent storage: {source}")]
-    KeyStoreError { source: Box<dyn Error> },
+    KeyStoreError {
+        source: Box<dyn Error + Send + Sync>,
+    },
 
     #[error("The gateway id is invalid - {0}")]
     UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),
 
-    #[error("The identity of the gateway is unknwown - did you run init?")]
+    #[error("The identity of the gateway is unknown - did you run init?")]
     GatewayIdUnknown,
 
     #[error("The owner of the gateway is unknown - did you run init?")]

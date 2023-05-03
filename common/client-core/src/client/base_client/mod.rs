@@ -174,7 +174,7 @@ where
     Kst: KeyStore,
     St: Storage + 'static,
 {
-    pub fn new_from_base_config<T, K>(
+    pub fn new_from_base_config<T>(
         base_config: &'a Config<T>,
         key_store: Kst,
         bandwidth_controller: Option<BandwidthController<C, St>>,
@@ -317,7 +317,7 @@ where
         shutdown: TaskClient,
     ) -> Result<GatewayClient<C, St>, ClientCoreError>
     where
-        Kst::StorageError: 'static,
+        Kst::StorageError: Send + Sync + 'static,
     {
         let gateway_id = self.gateway_config.gateway_id.clone();
         if gateway_id.is_empty() {
@@ -478,7 +478,7 @@ where
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
     where
         <B as ReplyStorageBackend>::StorageError: Sync + Send,
-        Kst::StorageError: 'static,
+        Kst::StorageError: Send + Sync + 'static,
     {
         info!("Starting nym client");
         self.initial_key_setup().await;
@@ -587,7 +587,7 @@ where
             Self::start_cover_traffic_stream(
                 self.debug_config,
                 self.managed_keys.ack_key(),
-                self_address.clone(),
+                self_address,
                 shared_topology_accessor.clone(),
                 sphinx_message_sender,
                 task_manager.subscribe(),

@@ -40,11 +40,11 @@ impl ClientKeyPathfinder {
         }
     }
 
-    pub fn identity_key_pair_path(&self) -> nym_pemstore::KeyPairPath<&Path> {
+    pub fn identity_key_pair_path(&self) -> nym_pemstore::KeyPairPath {
         nym_pemstore::KeyPairPath::new(self.private_identity_key(), self.public_identity_key())
     }
 
-    pub fn encryption_key_pair_path(&self) -> nym_pemstore::KeyPairPath<&Path> {
+    pub fn encryption_key_pair_path(&self) -> nym_pemstore::KeyPairPath {
         nym_pemstore::KeyPairPath::new(self.private_encryption_key(), self.public_encryption_key())
     }
 

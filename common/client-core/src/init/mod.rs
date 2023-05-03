@@ -4,6 +4,7 @@
 //! Collection of initialization steps used by client implementations
 
 use std::fmt::Display;
+use std::sync::Arc;
 
 use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
 use rand::rngs::OsRng;
@@ -13,6 +14,7 @@ use tap::TapFallible;
 use nym_config::NymConfig;
 use nym_credential_storage::storage::Storage;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_gateway_requests::registration::handshake::SharedKeys;
 use url::Url;
 
 use crate::client::key_manager::{KeyManager, KeyManagerBuilder};
@@ -75,11 +77,11 @@ pub fn new_client_keys() -> KeyManagerBuilder {
 /// chosen one if it's among the available ones.
 /// The shared key is added to the supplied `KeyManager` and the endpoint details are returned.
 pub async fn register_with_gateway<St: Storage>(
-    key_manager_builder: KeyManagerBuilder,
+    key_manager_builder: &KeyManagerBuilder,
     nym_api_endpoints: Vec<Url>,
     chosen_gateway_id: Option<identity::PublicKey>,
     by_latency: bool,
-) -> Result<(GatewayEndpointConfig, KeyManager), ClientCoreError> {
+) -> Result<(GatewayEndpointConfig, Arc<SharedKeys>), ClientCoreError> {
     // Get the gateway details of the gateway we will use
     let gateway =
         helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id, by_latency).await?;
@@ -89,9 +91,8 @@ pub async fn register_with_gateway<St: Storage>(
 
     // Establish connection, authenticate and generate keys for talking with the gateway
     let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
-    let key_manager = key_manager_builder.insert_gateway_shared_key(shared_keys);
 
-    Ok((gateway.into(), key_manager))
+    Ok((gateway.into(), shared_keys))
 }
 
 /// Convenience function for setting up the gateway for a client given a `Config`. Depending on the

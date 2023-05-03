@@ -7,7 +7,7 @@ use rand::{thread_rng, CryptoRng, Fill, RngCore};
 use serde::{Deserialize, Serialize};
 use serde_helpers::{argon2_algorithm_helper, argon2_params_helper, argon2_version_helper};
 use thiserror::Error;
-use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub use aes_gcm::Aes256Gcm;
 pub use aes_gcm::{Key, KeySizeUser};
@@ -289,7 +289,7 @@ where
     where
         C: AeadInPlace,
     {
-        let plaintext = Zeroizing::new(self.decrypt_data(data)?);
+        let plaintext = zeroize::Zeroizing::new(self.decrypt_data(data)?);
         let value = serde_json::from_slice(&plaintext)?;
         Ok(value)
     }

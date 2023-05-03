@@ -3,13 +3,14 @@
 
 use crate::simple_js_error;
 use indexed_db_futures::web_sys::DomException;
+use serde_wasm_bindgen::Error;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
 
 #[derive(Debug, Error)]
 pub enum StorageError {
-    #[error(transparent)]
-    Json(#[from] serde_wasm_bindgen::Error),
+    #[error("{0}")]
+    Json(String),
 
     #[error("DomException {name} ({code}): {message}")]
     DomException {
@@ -49,5 +50,14 @@ impl From<DomException> for StorageError {
             message: value.message(),
             code: value.code(),
         }
+    }
+}
+
+// covert it to String so that we wouldn't store `JsValue` indirectly
+// thus not making us !Send + !Sync
+// (we could have done bunch of target locking elsewhere instead, but this solution is way simpler)
+impl From<serde_wasm_bindgen::Error> for StorageError {
+    fn from(value: Error) -> Self {
+        StorageError::Json(value.to_string())
     }
 }

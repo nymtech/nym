@@ -7,85 +7,59 @@ use crate::websocket;
 use futures::channel::mpsc;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
+use nym_client_core::client::base_client::non_wasm_helpers::create_bandwidth_controller;
 use nym_client_core::client::base_client::{
     non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use nym_client_core::client::inbound_messages::InputMessage;
+use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
+use nym_client_core::client::replies::reply_storage::fs_backend;
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::QueryNyxdClient;
+use nym_validator_client::Client;
 use std::error::Error;
 use tokio::sync::watch::error::SendError;
 
-pub use nym_client_core::client::key_manager::KeyManager;
-use nym_credential_storage::persistent_storage::PersistentStorage;
 pub use nym_sphinx::addressing::clients::Recipient;
 pub use nym_sphinx::receiver::ReconstructedMessage;
-use nym_validator_client::Client;
 
 pub mod config;
+
+type NativeClientBuilder<'a> = BaseClientBuilder<
+    'a,
+    fs_backend::Backend,
+    Client<QueryNyxdClient>,
+    OnDiskKeys,
+    PersistentStorage,
+>;
 
 pub struct SocketClient {
     /// Client configuration options, including, among other things, packet sending rates,
     /// key filepaths, etc.
     config: Config,
-
-    /// KeyManager object containing smart pointers to all relevant keys used by the client.
-    key_manager: KeyManager,
 }
 
 impl SocketClient {
     pub fn new(config: Config) -> Self {
-        let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-        let key_manager =
-            KeyManager::load_keys_from_disk(&pathfinder).expect("failed to load stored keys");
-
-        SocketClient {
-            config,
-            key_manager,
-        }
-    }
-
-    pub fn new_with_keys(config: Config, key_manager: KeyManager) -> Self {
-        SocketClient {
-            config,
-            key_manager,
-        }
+        SocketClient { config }
     }
 
     async fn create_bandwidth_controller(
         config: &Config,
     ) -> BandwidthController<Client<QueryNyxdClient>, PersistentStorage> {
-        let details = nym_network_defaults::NymNetworkDetails::new_from_env();
-        let mut client_config =
-            nym_validator_client::Config::try_from_nym_network_details(&details)
-                .expect("failed to construct validator client config");
-        let nyxd_url = config
-            .get_base()
-            .get_validator_endpoints()
-            .pop()
-            .expect("No nyxd validator endpoint provided");
-        let api_url = config
-            .get_base()
-            .get_nym_api_endpoints()
-            .pop()
-            .expect("No validator api endpoint provided");
-        // overwrite env configuration with config URLs
-        client_config = client_config.with_urls(nyxd_url, api_url);
-        let client = nym_validator_client::Client::new_query(client_config)
-            .expect("Could not construct query client");
-        BandwidthController::new(
-            nym_credential_storage::initialise_persistent_storage(
-                config.get_base().get_database_path(),
-            )
-            .await,
-            client,
+        let storage = nym_credential_storage::initialise_persistent_storage(
+            config.get_base().get_database_path(),
         )
+        .await;
+
+        create_bandwidth_controller(config.get_base(), storage)
     }
 
     fn start_websocket_listener(
@@ -135,11 +109,13 @@ impl SocketClient {
         res
     }
 
-    pub async fn start_socket(self) -> Result<TaskManager, ClientError> {
-        if !self.config.get_socket_type().is_websocket() {
-            return Err(ClientError::InvalidSocketMode);
-        }
+    fn key_store(&self) -> OnDiskKeys {
+        let pathfinder = ClientKeyPathfinder::new_from_config(self.config.get_base());
+        OnDiskKeys::new(pathfinder)
+    }
 
+    // TODO: see if this could also be shared with socks5 client / nym-sdk maybe
+    async fn create_base_client_builder(&self) -> Result<NativeClientBuilder, ClientError> {
         // don't create bandwidth controller if credentials are disabled
         let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
             None
@@ -147,9 +123,9 @@ impl SocketClient {
             Some(Self::create_bandwidth_controller(&self.config).await)
         };
 
-        let base_builder = BaseClientBuilder::new_from_base_config(
+        let base_client = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
-            self.key_manager,
+            self.key_store(),
             bandwidth_controller,
             non_wasm_helpers::setup_fs_reply_surb_backend(
                 Some(self.config.get_base().get_reply_surb_database_path()),
@@ -158,8 +134,17 @@ impl SocketClient {
             .await?,
         );
 
-        let self_address = base_builder.as_mix_recipient();
+        Ok(base_client)
+    }
+
+    pub async fn start_socket(self) -> Result<TaskManager, ClientError> {
+        if !self.config.get_socket_type().is_websocket() {
+            return Err(ClientError::InvalidSocketMode);
+        }
+
+        let base_builder = self.create_base_client_builder().await?;
         let mut started_client = base_builder.start_base().await?;
+        let self_address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
@@ -174,7 +159,7 @@ impl SocketClient {
         );
 
         info!("Client startup finished!");
-        info!("The address of this client is: {}", self_address);
+        info!("The address of this client is: {self_address}");
 
         Ok(started_client.task_manager)
     }
@@ -184,27 +169,9 @@ impl SocketClient {
             return Err(ClientError::InvalidSocketMode);
         }
 
-        // don't create bandwidth controller if credentials are disabled
-        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
-            None
-        } else {
-            Some(Self::create_bandwidth_controller(&self.config).await)
-        };
-
-        let base_client = BaseClientBuilder::new_from_base_config(
-            self.config.get_base(),
-            self.key_manager,
-            bandwidth_controller,
-            non_wasm_helpers::setup_fs_reply_surb_backend(
-                Some(self.config.get_base().get_reply_surb_database_path()),
-                self.config.get_debug_settings(),
-            )
-            .await?,
-        );
-
-        let address = base_client.as_mix_recipient();
-
-        let mut started_client = base_client.start_base().await?;
+        let base_builder = self.create_base_client_builder().await?;
+        let mut started_client = base_builder.start_base().await?;
+        let address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
 

@@ -176,7 +176,7 @@ impl Display for SocksRequest {
 
 /// SOCK5 CMD type
 #[derive(Debug)]
-pub(crate) enum [SocksCommand {
+pub(crate) enum SocksCommand {
     Connect = 0x01,
     Bind = 0x02,
     UdpAssociate = 0x3,

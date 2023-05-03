@@ -259,7 +259,7 @@ where
 {
     let pathfinder = ClientKeyPathfinder::new_from_config(config);
     Ok(key_manager
-        .persist_keys(&OnDiskKeys::new(&pathfinder))
+        .persist_keys(&OnDiskKeys::new(pathfinder))
         .await
         .tap_err(|err| log::error!("Failed to generate keys: {err}"))?)
 }

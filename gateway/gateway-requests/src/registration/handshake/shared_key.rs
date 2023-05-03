@@ -24,7 +24,6 @@ type EncryptionKeySize = <GatewayEncryptionAlgorithm as KeySizeUser>::KeySize;
 /// Shared key used when computing MAC for messages exchanged between client and its gateway.
 pub type MacKey = GenericArray<u8, MacKeySize>;
 
-// #[derive(Clone, Copy, Debug, PartialEq)]
 #[derive(Debug, PartialEq, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct SharedKeys {
     encryption_key: CipherKey<GatewayEncryptionAlgorithm>,

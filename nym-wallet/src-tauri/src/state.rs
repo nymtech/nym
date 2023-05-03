@@ -445,6 +445,17 @@ impl WalletStateInner {
         Ok(())
     }
 
+    pub fn reset_nyxd_url(&mut self, network: Network) -> Result<(), BackendError> {
+        self.config.reset_nyxd_url(network);
+        let default_nyxd = self.config.get_default_nyxd_url(network);
+        if let Ok(client) = self.client_mut(network) {
+            if let Some(url) = default_nyxd {
+                client.change_nyxd(url)?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn get_selected_nyxd_url(&self, network: &Network) -> Option<Url> {
         self.config.get_selected_validator_nyxd_url(*network)
     }

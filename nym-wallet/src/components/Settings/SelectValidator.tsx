@@ -19,6 +19,8 @@ const SelectValidator = () => {
         setCurrentValidatorUrl(value as string | undefined);
         if (value) {
           setValidatorUrl(value);
+        } else {
+          setValidatorUrl('');
         }
       });
     }

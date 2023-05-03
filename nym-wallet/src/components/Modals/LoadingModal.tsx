@@ -14,9 +14,10 @@ const modalStyle: SxProps = {
 };
 
 export const LoadingModal: FCWithChildren<{
+  text?: string;
   sx?: SxProps;
   backdropProps?: object;
-}> = ({ sx, backdropProps }) => (
+}> = ({ sx, backdropProps, text = 'Please wait...' }) => (
   <Modal open BackdropProps={backdropProps}>
     <Box
       sx={{ border: (t) => `1px solid ${t.palette.nym.nymWallet.modal.border}`, ...modalStyle, ...sx }}
@@ -24,7 +25,7 @@ export const LoadingModal: FCWithChildren<{
     >
       <Stack spacing={4} direction="row" alignItems="center">
         <CircularProgress />
-        <Typography sx={{ color: 'text.primary' }}>Please wait...</Typography>
+        <Typography sx={{ color: 'text.primary' }}>{text}</Typography>
       </Stack>
     </Box>
   </Modal>

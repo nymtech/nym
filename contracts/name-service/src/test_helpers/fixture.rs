@@ -5,7 +5,7 @@ use super::helpers::nyms;
 
 pub fn name_fixture_full(name: &str, nym_address: &str, owner: &str) -> RegisteredName {
     RegisteredName {
-        name: NymName::new(name),
+        name: NymName::new(name).unwrap(),
         nym_address: NymAddress::new(nym_address),
         owner: Addr::unchecked(owner),
         block_height: 12345,

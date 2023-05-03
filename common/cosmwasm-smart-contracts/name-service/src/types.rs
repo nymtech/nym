@@ -1,7 +1,6 @@
 use std::fmt::{Display, Formatter};
 
 use cosmwasm_std::{Addr, Coin};
-//use nym_sphinx_addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 
 /// The directory of services are indexed by [`ServiceId`].
@@ -21,26 +20,25 @@ pub struct RegisteredName {
     pub deposit: Coin,
 }
 
-/// The types of addresses supported.
+/// String representation of a nym address, which is of the form
+/// client_id.client_enc@gateway_id.
+/// NOTE: entirely unvalidated.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "snake_case")]
-pub enum NymAddress {
-    /// String representation of a nym address, which is of the form
-    /// client_id.client_enc@gateway_id.
-    // WIP(JON): replace with struct
-    Address(String),
+pub struct NymAddress {
+    address: String,
 }
 
 impl NymAddress {
     /// Create a new nym address.
     pub fn new(address: &str) -> Self {
-        Self::Address(address.to_string())
+        Self {
+            address: address.to_string(),
+        }
     }
 
     pub fn as_str(&self) -> &str {
-        match self {
-            NymAddress::Address(address) => address,
-        }
+        &self.address
     }
 }
 
@@ -53,11 +51,30 @@ impl Display for NymAddress {
 /// Name stored and pointing a to a nym-address
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "snake_case")]
-pub struct NymName(pub String);
+pub struct NymName(String);
+
+#[derive(Debug)]
+pub enum NymNameError {
+    InvalidName,
+}
+
+fn is_valid_name_char(c: char) -> bool {
+    // Normal lowercase letters
+    (c.is_alphabetic() && c.is_lowercase())
+        // or numbers
+        || c.is_numeric()
+        // special case hyphen or underscore
+        || c == '-' || c == '_'
+}
 
 impl NymName {
-    pub fn new(name: &str) -> Self {
-        Self(name.to_string())
+    pub fn new(name: &str) -> Result<NymName, NymNameError> {
+        // We are a bit restrictive in which names we allow, to start out with. Consider relaxing
+        // this in the future.
+        if !name.chars().all(is_valid_name_char) {
+            return Err(NymNameError::InvalidName);
+        }
+        Ok(Self(name.to_string()))
     }
 
     pub fn as_str(&self) -> &str {
@@ -82,5 +99,57 @@ pub struct NameEntry {
 impl NameEntry {
     pub fn new(name_id: NameId, name: RegisteredName) -> Self {
         Self { name_id, name }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NymName;
+
+    #[test]
+    fn parse_nym_name() {
+        // Test some valid cases
+        assert!(NymName::new("foo").is_ok());
+        assert!(NymName::new("foo-bar").is_ok());
+        assert!(NymName::new("foo-bar-123").is_ok());
+        assert!(NymName::new("foo_bar").is_ok());
+        assert!(NymName::new("foo_bar_123").is_ok());
+
+        // And now test all some invalid ones
+        assert!(NymName::new("Foo").is_err());
+        assert!(NymName::new("foo bar").is_err());
+        assert!(NymName::new("foo!bar").is_err());
+        assert!(NymName::new("foo#bar").is_err());
+        assert!(NymName::new("foo$bar").is_err());
+        assert!(NymName::new("foo%bar").is_err());
+        assert!(NymName::new("foo&bar").is_err());
+        assert!(NymName::new("foo'bar").is_err());
+        assert!(NymName::new("foo(bar").is_err());
+        assert!(NymName::new("foo)bar").is_err());
+        assert!(NymName::new("foo*bar").is_err());
+        assert!(NymName::new("foo+bar").is_err());
+        assert!(NymName::new("foo,bar").is_err());
+        assert!(NymName::new("foo.bar").is_err());
+        assert!(NymName::new("foo.bar").is_err());
+        assert!(NymName::new("foo/bar").is_err());
+        assert!(NymName::new("foo/bar").is_err());
+        assert!(NymName::new("foo:bar").is_err());
+        assert!(NymName::new("foo;bar").is_err());
+        assert!(NymName::new("foo<bar").is_err());
+        assert!(NymName::new("foo=bar").is_err());
+        assert!(NymName::new("foo>bar").is_err());
+        assert!(NymName::new("foo?bar").is_err());
+        assert!(NymName::new("foo@bar").is_err());
+        assert!(NymName::new("fooBar").is_err());
+        assert!(NymName::new("foo[bar").is_err());
+        assert!(NymName::new("foo\"bar").is_err());
+        assert!(NymName::new("foo\\bar").is_err());
+        assert!(NymName::new("foo]bar").is_err());
+        assert!(NymName::new("foo^bar").is_err());
+        assert!(NymName::new("foo`bar").is_err());
+        assert!(NymName::new("foo{bar").is_err());
+        assert!(NymName::new("foo|bar").is_err());
+        assert!(NymName::new("foo}bar").is_err());
+        assert!(NymName::new("foo~bar").is_err());
     }
 }

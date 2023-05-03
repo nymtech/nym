@@ -1,6 +1,6 @@
 //! Integration tests using cw-multi-test.
 
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, OverflowError};
 use nym_name_service_common::{
     response::{ConfigResponse, PagedNamesListResponse},
     NameEntry, NymAddress, NymName, RegisteredName,
@@ -41,7 +41,7 @@ fn register_and_query_name() {
 
     // Register a first name
     let owner = Addr::unchecked("owner");
-    let name = NymName::new("steves-server");
+    let name = NymName::new("steves-server").unwrap();
     let nym_address = NymAddress::new("nym-address");
     assert_eq!(setup.contract_balance(), nyms(0));
     assert_eq!(setup.balance(&owner), nyms(250));
@@ -87,7 +87,7 @@ fn register_and_query_name() {
 
     // Register a second name
     let owner2 = Addr::unchecked("owner2");
-    let name2 = NymName::new("another_server");
+    let name2 = NymName::new("another_server").unwrap();
     let nym_address2 = NymAddress::new("nymAddress2");
     setup.register(name2.clone(), nym_address2.clone(), owner2.clone());
 
@@ -106,10 +106,48 @@ fn register_and_query_name() {
 }
 
 #[test]
+fn cant_register_a_name_without_funds() {
+    let mut setup = TestSetup::new();
+    assert_eq!(setup.contract_balance(), nyms(0));
+    assert_eq!(setup.balance("owner"), nyms(250));
+    setup.register(
+        NymName::new("my_name").unwrap(),
+        NymAddress::new("nymAddress"),
+        Addr::unchecked("owner"),
+    );
+    assert_eq!(setup.contract_balance(), nyms(100));
+    assert_eq!(setup.balance("owner"), nyms(150));
+    setup.register(
+        NymName::new("my_name2").unwrap(),
+        NymAddress::new("nymAddress"),
+        Addr::unchecked("owner"),
+    );
+    assert_eq!(setup.contract_balance(), nyms(200));
+    assert_eq!(setup.balance("owner"), nyms(50));
+    let res = setup
+        .try_register(
+            NymName::new("my_name3").unwrap(),
+            NymAddress::new("nymAddress"),
+            Addr::unchecked("owner"),
+        )
+        .unwrap_err();
+    assert_eq!(
+        res.downcast::<cosmwasm_std::StdError>().unwrap(),
+        cosmwasm_std::StdError::Overflow {
+            source: cosmwasm_std::OverflowError::new(
+                cosmwasm_std::OverflowOperation::Sub,
+                "50",
+                "100"
+            )
+        }
+    );
+}
+
+#[test]
 fn delete_name() {
     let mut setup = TestSetup::new();
     setup.register(
-        NymName::new("my_name"),
+        NymName::new("my_name").unwrap(),
         NymAddress::new("nymAddress"),
         Addr::unchecked("owner"),
     );
@@ -129,7 +167,7 @@ fn only_owner_can_delete_name() {
     let mut setup = TestSetup::new();
     assert_eq!(setup.contract_balance(), nyms(0));
     setup.register(
-        NymName::new("name"),
+        NymName::new("name").unwrap(),
         NymAddress::new("nymAddress"),
         Addr::unchecked("owner"),
     );
@@ -153,7 +191,7 @@ fn only_owner_can_delete_name() {
 fn cant_delete_name_that_does_not_exist() {
     let mut setup = TestSetup::new();
     setup.register(
-        NymName::new("foo"),
+        NymName::new("foo").unwrap(),
         NymAddress::new("nymAddress"),
         Addr::unchecked("owner"),
     );
@@ -185,13 +223,13 @@ fn cant_register_the_same_name_multiple_times() {
     let mut setup = TestSetup::new();
 
     setup.register(
-        NymName::new("name"),
+        NymName::new("name").unwrap(),
         NymAddress::new("nymAddress"),
         Addr::unchecked("owner"),
     );
     let resp = setup
         .try_register(
-            NymName::new("name"),
+            NymName::new("name").unwrap(),
             NymAddress::new("nymAddress"),
             Addr::unchecked("owner"),
         )
@@ -200,7 +238,7 @@ fn cant_register_the_same_name_multiple_times() {
     assert_eq!(
         resp.downcast::<NameServiceError>().unwrap(),
         NameServiceError::NameAlreadyRegistered {
-            name: NymName::new("name")
+            name: NymName::new("name").unwrap()
         }
     );
 }
@@ -208,9 +246,9 @@ fn cant_register_the_same_name_multiple_times() {
 #[test]
 fn can_register_multiple_names_for_the_same_nym_address() {
     let mut setup = TestSetup::new();
-    let name1 = NymName::new("name1");
-    let name2 = NymName::new("name2");
-    let address = NymAddress::new("nymAddress");
+    let name1 = NymName::new("name1").unwrap();
+    let name2 = NymName::new("name2").unwrap();
+    let address = NymAddress::new("nymaddress");
     let owner = Addr::unchecked("owner");
 
     setup.register(name1.clone(), address.clone(), owner.clone());
@@ -230,13 +268,13 @@ fn register_multiple_names_and_deleting_by_name() {
     let mut setup = TestSetup::new();
     let owner1 = Addr::unchecked("wealthy_owner_1");
     let owner2 = Addr::unchecked("wealthy_owner_2");
-    let nym_address1 = NymAddress::new("nymAddress1");
-    let nym_address2 = NymAddress::new("nymAddress2");
-    let name1 = NymName::new("name1");
-    let name2 = NymName::new("name2");
-    let name3 = NymName::new("name3");
-    let name4 = NymName::new("name4");
-    let name5 = NymName::new("name5");
+    let nym_address1 = NymAddress::new("nymaddress1");
+    let nym_address2 = NymAddress::new("nymaddress2");
+    let name1 = NymName::new("name1").unwrap();
+    let name2 = NymName::new("name2").unwrap();
+    let name3 = NymName::new("name3").unwrap();
+    let name4 = NymName::new("name4").unwrap();
+    let name5 = NymName::new("name5").unwrap();
 
     // We register the same address three times, but with different owners
     assert_eq!(setup.contract_balance(), nyms(0));
@@ -290,11 +328,11 @@ fn check_paging() {
     let owner2 = Addr::unchecked("wealthy_owner_2");
     let nym_address1 = NymAddress::new("nymAddress1");
     let nym_address2 = NymAddress::new("nymAddress2");
-    let name1 = NymName::new("name1");
-    let name2 = NymName::new("name2");
-    let name3 = NymName::new("name3");
-    let name4 = NymName::new("name4");
-    let name5 = NymName::new("name5");
+    let name1 = NymName::new("name1").unwrap();
+    let name2 = NymName::new("name2").unwrap();
+    let name3 = NymName::new("name3").unwrap();
+    let name4 = NymName::new("name4").unwrap();
+    let name5 = NymName::new("name5").unwrap();
 
     // We register the same address three times, but with different owners
     assert_eq!(setup.contract_balance(), nyms(0));
@@ -353,17 +391,17 @@ fn check_paging() {
 fn name_id_is_not_resused_when_deleting_and_then_adding_a_new_names() {
     let mut setup = TestSetup::new();
     setup.register(
-        NymName::new("myname1"),
+        NymName::new("myname1").unwrap(),
         NymAddress::new("nymAddress1"),
         Addr::unchecked("owner1"),
     );
     setup.register(
-        NymName::new("myname2"),
+        NymName::new("myname2").unwrap(),
         NymAddress::new("nymAddress2"),
         Addr::unchecked("owner2"),
     );
     setup.register(
-        NymName::new("myname3"),
+        NymName::new("myname3").unwrap(),
         NymAddress::new("nymAddress3"),
         Addr::unchecked("owner3"),
     );
@@ -375,14 +413,14 @@ fn name_id_is_not_resused_when_deleting_and_then_adding_a_new_names() {
         setup.query_all().names,
         vec![name_entry(
             2,
-            NymName::new("myname2"),
+            NymName::new("myname2").unwrap(),
             NymAddress::new("nymAddress2"),
             Addr::unchecked("owner2")
         )]
     );
 
     setup.register(
-        NymName::new("myname4"),
+        NymName::new("myname4").unwrap(),
         NymAddress::new("nymAddress4"),
         Addr::unchecked("owner4"),
     );
@@ -392,16 +430,50 @@ fn name_id_is_not_resused_when_deleting_and_then_adding_a_new_names() {
         vec![
             name_entry(
                 2,
-                NymName::new("myname2"),
+                NymName::new("myname2").unwrap(),
                 NymAddress::new("nymAddress2"),
                 Addr::unchecked("owner2")
             ),
             name_entry(
                 4,
-                NymName::new("myname4"),
+                NymName::new("myname4").unwrap(),
                 NymAddress::new("nymAddress4"),
                 Addr::unchecked("owner4")
             )
         ]
     );
+}
+
+use rand::distributions::Alphanumeric;
+use rand::Rng;
+
+fn random_string(len: usize) -> String {
+    String::from_utf8_lossy(
+        &rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(len)
+            .collect::<Vec<_>>(),
+    )
+    .to_string()
+    .to_lowercase()
+}
+
+// Test where we generate 1000 of random names and register them all
+#[test]
+fn register_1000_random_names() {
+    let mut setup = TestSetup::new();
+
+    let mut names = Vec::new();
+    for _ in 0..1000 {
+        let name = NymName::new(&random_string(10)).unwrap();
+        let address = NymAddress::new(&random_string(10));
+        let owner = Addr::unchecked(random_string(10));
+        dbg!(&name);
+        dbg!(&address);
+        dbg!(&owner);
+        setup.register(name.clone(), address.clone(), owner.clone());
+        names.push(name_entry(0, name, address, owner));
+    }
+
+    assert_eq!(setup.query_all().names, names);
 }

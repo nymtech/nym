@@ -55,17 +55,6 @@ pub enum NameServiceError {
 
     #[error("name already registered: {name}")]
     NameAlreadyRegistered { name: NymName },
-
-    #[cfg(test)]
-    #[error("anyhow")]
-    Anyhow,
 }
 
 pub(crate) type Result<T, E = NameServiceError> = std::result::Result<T, E>;
-
-#[cfg(test)]
-impl From<anyhow::Error> for NameServiceError {
-    fn from(_: anyhow::Error) -> Self {
-        NameServiceError::Anyhow
-    }
-}

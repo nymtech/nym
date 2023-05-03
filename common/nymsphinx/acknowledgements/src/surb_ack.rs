@@ -8,8 +8,7 @@ use nym_sphinx_addressing::nodes::{
     NymNodeRoutingAddress, NymNodeRoutingAddressError, MAX_NODE_ADDRESS_UNPADDED_LEN,
 };
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::DEFAULT_NUM_MIX_HOPS;
-use nym_sphinx_types::builder::SphinxPacketBuilder;
+use nym_sphinx_params::{PacketType, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::delays::{self, Delay};
 use nym_sphinx_types::{NymPacket, NymPacketError};
 use nym_topology::{NymTopology, NymTopologyError};
@@ -44,6 +43,7 @@ impl SurbAck {
         marshaled_fragment_id: [u8; 5],
         average_delay: time::Duration,
         topology: &NymTopology,
+        packet_type: PacketType,
     ) -> Result<Self, NymTopologyError>
     where
         R: RngCore + CryptoRng,
@@ -54,13 +54,31 @@ impl SurbAck {
         let destination = recipient.as_sphinx_destination();
 
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);
+        let packet_size = match packet_type {
+            PacketType::Outfox => PacketSize::OutfoxAckPacket.payload_size(),
+            PacketType::Mix => PacketSize::AckPacket.payload_size(),
+            PacketType::Vpn => PacketSize::AckPacket.payload_size(),
+        };
 
-        let surb_ack_packet = NymPacket::Sphinx(
-            SphinxPacketBuilder::new()
-                .with_payload_size(PacketSize::AckPacket.payload_size())
-                .build_packet(surb_ack_payload, &route, &destination, &delays)
-                .unwrap(),
-        );
+        let surb_ack_packet = match packet_type {
+            PacketType::Outfox => {
+                NymPacket::outfox_build(surb_ack_payload, route.as_slice(), Some(packet_size))?
+            }
+            PacketType::Mix => NymPacket::sphinx_build(
+                packet_size,
+                surb_ack_payload,
+                &route,
+                &destination,
+                &delays,
+            )?,
+            PacketType::Vpn => NymPacket::sphinx_build(
+                packet_size,
+                surb_ack_payload,
+                &route,
+                &destination,
+                &delays,
+            )?,
+        };
 
         // in our case, the last hop is a gateway that does NOT do any delays
         let expected_total_delay = delays.iter().take(delays.len() - 1).sum();

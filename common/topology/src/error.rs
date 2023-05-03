@@ -4,9 +4,10 @@
 use std::array::TryFromSliceError;
 
 use crate::MixLayer;
+use nym_sphinx_types::NymPacketError;
 use thiserror::Error;
 
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Error)]
 pub enum NymTopologyError {
     #[error("The provided network topology is empty - there are no mixnodes and no gateways on it - the network request(s) probably failed")]
     EmptyNetworkTopology,
@@ -44,4 +45,7 @@ pub enum NymTopologyError {
 
     #[error("{0}")]
     FromSlice(#[from] TryFromSliceError),
+
+    #[error("{0}")]
+    PacketError(#[from] NymPacketError),
 }

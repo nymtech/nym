@@ -250,7 +250,7 @@ where
             &ack_key,
             &address,
             &address,
-            &PacketType::Mix,
+            PacketType::Mix,
         )?)
     }
 

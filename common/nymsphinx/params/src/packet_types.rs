@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::fmt;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -24,6 +25,16 @@ pub enum PacketType {
 
     /// Abusing this to add Outfox support
     Outfox = 2,
+}
+
+impl fmt::Display for PacketType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PacketType::Mix => write!(f, "Mix"),
+            PacketType::Vpn => write!(f, "Vpn"),
+            PacketType::Outfox => write!(f, "Outfox"),
+        }
+    }
 }
 
 impl PacketType {

@@ -13,7 +13,7 @@ pub use sphinx_packet::{
     },
     crypto::{self, EphemeralSecret, PrivateKey, PublicKey, SharedSecret},
     header::{self, delays, delays::Delay, ProcessedHeader, SphinxHeader, HEADER_SIZE},
-    packet::builder::{self, DEFAULT_PAYLOAD_SIZE},
+    packet::builder::DEFAULT_PAYLOAD_SIZE,
     payload::{Payload, PAYLOAD_OVERHEAD_SIZE},
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
     surb::{SURBMaterial, SURB},

@@ -75,7 +75,7 @@ impl Chunker {
                     topology,
                     &ack_key,
                     &packet_sender,
-                    &packet_type,
+                    packet_type,
                 )
                 .unwrap();
 

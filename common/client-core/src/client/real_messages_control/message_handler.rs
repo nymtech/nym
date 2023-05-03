@@ -27,7 +27,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Error)]
 pub enum PreparationError {
     #[error(transparent)]
     NymTopologyError(#[from] NymTopologyError),
@@ -431,6 +431,7 @@ where
         lane: TransmissionLane,
         packet_type: PacketType,
     ) -> Result<(), PreparationError> {
+        info!("Sending non-reply message with packet type {packet_type}");
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
         debug_assert!(!matches!(message, NymMessage::Reply(_)));
 
@@ -455,7 +456,7 @@ where
                 topology,
                 &self.config.ack_key,
                 &recipient,
-                &packet_type,
+                packet_type,
             )?;
 
             let real_message = RealMessage::new(
@@ -481,6 +482,7 @@ where
         amount: u32,
         packet_type: PacketType,
     ) -> Result<(), PreparationError> {
+        info!("Sending additional reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
         let (reply_surbs, reply_keys) =
             self.generate_reply_surbs_with_keys(amount as usize).await?;
@@ -512,6 +514,7 @@ where
         lane: TransmissionLane,
         packet_type: PacketType,
     ) -> Result<(), SurbWrappedPreparationError> {
+        info!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
         let (reply_surbs, reply_keys) = self
             .generate_reply_surbs_with_keys(num_reply_surbs as usize)
@@ -535,6 +538,7 @@ where
         chunk: Fragment,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, PreparationError> {
+        info!("Sending single chunk with packet type {packet_type}");
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
@@ -545,7 +549,7 @@ where
                 topology,
                 &self.config.ack_key,
                 &recipient,
-                &packet_type,
+                packet_type,
             )
             .unwrap();
 

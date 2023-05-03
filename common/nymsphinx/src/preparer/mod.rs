@@ -3,9 +3,9 @@
 
 use crate::message::{NymMessage, ACK_OVERHEAD};
 use crate::NymPayloadBuilder;
+use log::info;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;
-use nym_outfox::packet::OutfoxPacket;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::clients::Recipient;
@@ -15,7 +15,6 @@ use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
-use nym_sphinx_types::builder::SphinxPacketBuilder;
 use nym_sphinx_types::{delays, Delay, NymPacket};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng};
@@ -78,6 +77,7 @@ pub trait FragmentPreparer {
         fragment_id: FragmentIdentifier,
         topology: &NymTopology,
         ack_key: &AckKey,
+        packet_type: PacketType,
     ) -> Result<SurbAck, NymTopologyError> {
         let ack_delay = self.average_ack_delay();
 
@@ -88,6 +88,7 @@ pub trait FragmentPreparer {
             fragment_id.to_bytes(),
             ack_delay,
             topology,
+            packet_type,
         )
     }
 
@@ -129,8 +130,13 @@ pub trait FragmentPreparer {
         let fragment_identifier = fragment.fragment_identifier();
 
         // create an ack
-        let surb_ack =
-            self.generate_surb_ack(packet_sender, fragment_identifier, topology, ack_key)?;
+        let surb_ack = self.generate_surb_ack(
+            packet_sender,
+            fragment_identifier,
+            topology,
+            ack_key,
+            packet_type,
+        )?;
         let ack_delay = surb_ack.expected_total_delay();
 
         let packet_payload = match NymPayloadBuilder::new(fragment, surb_ack)
@@ -180,8 +186,9 @@ pub trait FragmentPreparer {
         ack_key: &AckKey,
         packet_sender: &Recipient,
         packet_recipient: &Recipient,
-        packet_type: &PacketType,
+        packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
+        info!("Preparing {packet_type} packet for sending");
         // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
         // could perform diffie-hellman with its own keys followed by a kdf to re-derive
         // the packet encryption key
@@ -190,14 +197,19 @@ pub trait FragmentPreparer {
 
         // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
         // more gracefully is that this error should never be reached as it implies incorrect chunking
-        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext, *packet_type)
+        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext, packet_type)
             .expect("the message has been incorrectly fragmented");
 
         let fragment_identifier = fragment.fragment_identifier();
 
         // create an ack
-        let surb_ack =
-            self.generate_surb_ack(packet_sender, fragment_identifier, topology, ack_key)?;
+        let surb_ack = self.generate_surb_ack(
+            packet_sender,
+            fragment_identifier,
+            topology,
+            ack_key,
+            packet_type,
+        )?;
         let ack_delay = surb_ack.expected_total_delay();
 
         let packet_payload = match NymPayloadBuilder::new(fragment, surb_ack)
@@ -220,23 +232,25 @@ pub trait FragmentPreparer {
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
         let packet = match packet_type {
-            PacketType::Outfox => NymPacket::Outfox(OutfoxPacket::build(
+            PacketType::Outfox => NymPacket::outfox_build(
                 packet_payload,
-                route.as_slice().try_into()?,
+                route.as_slice(),
                 Some(packet_size.payload_size()),
-            )?),
-            PacketType::Mix => NymPacket::Sphinx({
-                SphinxPacketBuilder::new()
-                    .with_payload_size(packet_size.payload_size())
-                    .build_packet(packet_payload, &route, &destination, &delays)
-                    .unwrap()
-            }),
-            PacketType::Vpn => NymPacket::Sphinx(
-                SphinxPacketBuilder::new()
-                    .with_payload_size(packet_size.payload_size())
-                    .build_packet(packet_payload, &route, &destination, &delays)
-                    .unwrap(),
-            ),
+            )?,
+            PacketType::Mix => NymPacket::sphinx_build(
+                packet_size.payload_size(),
+                packet_payload,
+                &route,
+                &destination,
+                &delays,
+            )?,
+            PacketType::Vpn => NymPacket::sphinx_build(
+                packet_size.payload_size(),
+                packet_payload,
+                &route,
+                &destination,
+                &delays,
+            )?,
         };
 
         // from the previously constructed route extract the first hop
@@ -366,7 +380,7 @@ where
         topology: &NymTopology,
         ack_key: &AckKey,
         packet_recipient: &Recipient,
-        packet_type: &PacketType,
+        packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
         let sender = self.sender_address;
 
@@ -387,9 +401,17 @@ where
         fragment_id: FragmentIdentifier,
         topology: &NymTopology,
         ack_key: &AckKey,
+        packet_type: PacketType,
     ) -> Result<SurbAck, NymTopologyError> {
         let sender = self.sender_address;
-        <Self as FragmentPreparer>::generate_surb_ack(self, &sender, fragment_id, topology, ack_key)
+        <Self as FragmentPreparer>::generate_surb_ack(
+            self,
+            &sender,
+            fragment_id,
+            topology,
+            ack_key,
+            packet_type,
+        )
     }
 
     pub fn pad_and_split_message(

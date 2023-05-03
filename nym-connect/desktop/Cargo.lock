@@ -3656,7 +3656,6 @@ version = "0.1.0"
 dependencies = [
  "log",
  "nym-crypto",
- "nym-outfox",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
  "nym-sphinx-anonymous-replies",

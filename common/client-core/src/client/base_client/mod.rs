@@ -28,6 +28,7 @@ use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::{debug, info};
 use nym_bandwidth_controller::BandwidthController;
+use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
@@ -45,11 +46,10 @@ use std::sync::Arc;
 use tap::TapFallible;
 use url::Url;
 
-#[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::traits::DkgQueryClient;
-
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
+#[cfg(not(target_arch = "wasm32"))]
+use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod non_wasm_helpers;
@@ -319,6 +319,7 @@ where
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
+        <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         let gateway_id = self.gateway_config.gateway_id.clone();
         if gateway_id.is_empty() {
@@ -428,7 +429,10 @@ where
     fn start_mix_traffic_controller(
         gateway_client: GatewayClient<C, S::CredentialStore>,
         shutdown: TaskClient,
-    ) -> BatchMixMessageSender {
+    ) -> BatchMixMessageSender
+    where
+        <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
+    {
         info!("Starting mix traffic controller...");
         let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_client);
         mix_traffic_controller.start_with_shutdown(shutdown);
@@ -474,6 +478,7 @@ where
         <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         S::ReplyStore: Send + Sync,
         <S::KeyStore as KeyStore>::StorageError: Send + Sync,
+        <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         info!("Starting nym client");
         self.initial_key_setup().await;

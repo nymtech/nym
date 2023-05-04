@@ -72,6 +72,7 @@ impl<C, St> GatewayClient<C, St>
 where
     C: Sync + Send,
     St: Storage,
+    <St as Storage>::StorageError: Send + Sync + 'static,
 {
     // TODO: put it all in a Config struct
     #[allow(clippy::too_many_arguments)]

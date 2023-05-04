@@ -224,10 +224,14 @@ pub(super) async fn query_gateway_details(
     }
 }
 
-pub(super) async fn register_with_gateway<St: Storage>(
+pub(super) async fn register_with_gateway<St>(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
-) -> Result<Arc<SharedKeys>, ClientCoreError> {
+) -> Result<Arc<SharedKeys>, ClientCoreError>
+where
+    St: Storage,
+    <St as Storage>::StorageError: Send + Sync + 'static,
+{
     let timeout = Duration::from_millis(1500);
     let mut gateway_client: GatewayClient<DirectSigningNyxdClient, St> = GatewayClient::new_init(
         gateway.clients_address(),

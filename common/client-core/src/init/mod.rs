@@ -66,12 +66,16 @@ impl Display for InitResults {
 /// Either pick one at random by querying the available gateways from the nym-api, or use the
 /// chosen one if it's among the available ones.
 /// The shared key is added to the supplied `KeyManager` and the endpoint details are returned.
-pub async fn register_with_gateway<St: Storage>(
+pub async fn register_with_gateway<St>(
     identity_keys: Arc<identity::KeyPair>,
     nym_api_endpoints: Vec<Url>,
     chosen_gateway_id: Option<identity::PublicKey>,
     by_latency: bool,
-) -> Result<(GatewayEndpointConfig, Arc<SharedKeys>), ClientCoreError> {
+) -> Result<(GatewayEndpointConfig, Arc<SharedKeys>), ClientCoreError>
+where
+    St: Storage,
+    <St as Storage>::StorageError: Send + Sync + 'static,
+{
     // Get the gateway details of the gateway we will use
     let gateway =
         helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id, by_latency).await?;
@@ -101,6 +105,7 @@ where
     C: NymConfig + ClientCoreConfigTrait,
     T: NymConfig,
     St: Storage,
+    <St as Storage>::StorageError: Send + Sync + 'static,
 {
     let id = config.get_id();
 

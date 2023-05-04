@@ -35,6 +35,7 @@ impl<C, St> MixTrafficController<C, St>
 where
     C: DkgQueryClient + Sync + Send + 'static,
     St: Storage + 'static,
+    <St as Storage>::StorageError: Send + Sync + 'static,
 {
     pub fn new(
         gateway_client: GatewayClient<C, St>,

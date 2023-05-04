@@ -85,6 +85,7 @@ pub struct OnDiskPersistent {
     pub(crate) credential_store: PersistentCredentialStorage,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl OnDiskPersistent {
     pub fn new(
         key_store: OnDiskKeys,

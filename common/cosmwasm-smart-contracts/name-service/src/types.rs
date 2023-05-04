@@ -25,20 +25,22 @@ pub struct RegisteredName {
 /// NOTE: entirely unvalidated.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "snake_case")]
-pub struct NymAddress {
-    address: String,
+pub enum NymAddress {
+    Address(String),
+    // Possibly extension:
+    //Gateway(String)
 }
 
 impl NymAddress {
     /// Create a new nym address.
     pub fn new(address: &str) -> Self {
-        Self {
-            address: address.to_string(),
-        }
+        Self::Address(address.to_string())
     }
 
     pub fn as_str(&self) -> &str {
-        &self.address
+        match self {
+            NymAddress::Address(address) => address
+        }
     }
 }
 

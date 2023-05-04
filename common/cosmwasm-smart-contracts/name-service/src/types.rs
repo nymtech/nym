@@ -39,7 +39,7 @@ impl NymAddress {
 
     pub fn as_str(&self) -> &str {
         match self {
-            NymAddress::Address(address) => address
+            NymAddress::Address(address) => address,
         }
     }
 }

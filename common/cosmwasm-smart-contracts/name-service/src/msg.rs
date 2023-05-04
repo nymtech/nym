@@ -38,10 +38,9 @@ impl ExecuteMsg {
 
     pub fn default_memo(&self) -> String {
         match self {
-            ExecuteMsg::Register {
-                name,
-                address,
-            } => format!("registering {address} as name: {name}"),
+            ExecuteMsg::Register { name, address } => {
+                format!("registering {address} as name: {name}")
+            }
             ExecuteMsg::DeleteId { name_id } => {
                 format!("deleting name with id {name_id}")
             }

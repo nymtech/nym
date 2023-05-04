@@ -44,7 +44,7 @@ pub async fn select_nyxd_url(
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     log::debug!("Selecting new nyxd url for {network}: {url}");
-    state.write().await.select_nyxd_url(url, network)?;
+    state.write().await.select_nyxd_url(url, network).await?;
     state.read().await.save_config_files()?;
     Ok(())
 }

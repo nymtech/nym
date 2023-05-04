@@ -130,6 +130,8 @@ pub enum BackendError {
     NewWindowError,
     #[error("Failed to check for application update")]
     CheckAppVersionError,
+    #[error("Failed to connect to the provided validator URL")]
+    WalletValidatorConnectionFailed,
 
     #[error(transparent)]
     WalletError {

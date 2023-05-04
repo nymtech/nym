@@ -120,9 +120,9 @@ async fn _connect_with_mnemonic(
     };
 
     let (nyxd_urls, api_urls) = run_connection_test(
-        &config,
         untested_nyxd_urls.clone(),
         untested_api_urls.clone(),
+        &config,
     )
     .await;
 
@@ -174,9 +174,9 @@ async fn _connect_with_mnemonic(
 }
 
 async fn run_connection_test(
-    config: &Config,
     untested_nyxd_urls: HashMap<WalletNetwork, Vec<Url>>,
     untested_api_urls: HashMap<WalletNetwork, Vec<Url>>,
+    config: &Config,
 ) -> (
     HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
     HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
@@ -222,19 +222,6 @@ async fn pick_good_nyxd_urls(
         .collect();
 
     Ok(nyxd_urls)
-}
-
-fn select_random_responding_url(
-    urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
-    network: WalletNetwork,
-) -> Option<Url> {
-    urls.get(&network.into()).and_then(|urls| {
-        let urls: Vec<_> = urls
-            .iter()
-            .filter_map(|(url, result)| if *result { Some(url.clone()) } else { None })
-            .collect();
-        urls.choose(&mut rand::thread_rng()).cloned()
-    })
 }
 
 fn create_clients(
@@ -292,6 +279,19 @@ fn create_clients(
         clients.push((network, client));
     }
     Ok(clients)
+}
+
+fn select_random_responding_url(
+    urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
+    network: WalletNetwork,
+) -> Option<Url> {
+    urls.get(&network.into()).and_then(|urls| {
+        let urls: Vec<_> = urls
+            .iter()
+            .filter_map(|(url, result)| if *result { Some(url.clone()) } else { None })
+            .collect();
+        urls.choose(&mut rand::thread_rng()).cloned()
+    })
 }
 
 fn select_first_responding_url(

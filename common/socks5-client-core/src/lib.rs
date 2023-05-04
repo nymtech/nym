@@ -24,7 +24,7 @@ use std::error::Error;
 
 #[cfg(target_os = "android")]
 use nym_client_core::client::{
-    base_client::helpers::setup_empty_reply_surb_backend,
+    base_client::helpers::setup_empty_reply_surb_backend, base_client::storage,
     key_manager::persistence::InMemEphemeralKeys, replies::reply_storage,
 };
 #[cfg(target_os = "android")]
@@ -32,8 +32,8 @@ use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 
 #[cfg(not(target_os = "android"))]
 use nym_client_core::client::{
-    base_client::non_wasm_helpers, key_manager::persistence::OnDiskKeys,
-    replies::reply_storage::fs_backend,
+    base_client::non_wasm_helpers, base_client::storage::OnDiskPersistent,
+    key_manager::persistence::OnDiskKeys, replies::reply_storage::fs_backend,
 };
 #[cfg(not(target_os = "android"))]
 use nym_credential_storage::persistent_storage::PersistentStorage;
@@ -47,22 +47,11 @@ pub type Socks5ControlMessageSender = mpsc::UnboundedSender<Socks5ControlMessage
 pub type Socks5ControlMessageReceiver = mpsc::UnboundedReceiver<Socks5ControlMessage>;
 
 #[cfg(target_os = "android")]
-type AndroidSocks5ClientBuilder<'a> = BaseClientBuilder<
-    'a,
-    reply_storage::Empty,
-    Client<QueryNyxdClient>,
-    InMemEphemeralKeys,
-    EphemeralStorage,
->;
+type AndroidSocks5ClientBuilder<'a> =
+    BaseClientBuilder<'a, Client<QueryNyxdClient>, storage::Ephemeral>;
 
 #[cfg(not(target_os = "android"))]
-type Socks5ClientBuilder<'a> = BaseClientBuilder<
-    'a,
-    fs_backend::Backend,
-    Client<QueryNyxdClient>,
-    OnDiskKeys,
-    PersistentStorage,
->;
+type Socks5ClientBuilder<'a> = BaseClientBuilder<'a, Client<QueryNyxdClient>, OnDiskPersistent>;
 
 #[derive(Debug)]
 pub enum Socks5ControlMessage {
@@ -251,8 +240,8 @@ impl NymClient {
         &self,
     ) -> Result<fs_backend::Backend, Socks5ClientCoreError> {
         non_wasm_helpers::setup_fs_reply_surb_backend(
-            Some(self.config.get_base().get_reply_surb_database_path()),
-            self.config.get_debug_settings(),
+            self.config.get_base().get_reply_surb_database_path(),
+            &self.config.get_debug_settings().reply_surbs,
         )
         .await
         .map_err(Into::into)

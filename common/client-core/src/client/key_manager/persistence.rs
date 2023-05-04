@@ -94,6 +94,7 @@ impl KeyStore for OnDiskKeys {
     }
 }
 
+#[derive(Default)]
 pub struct InMemEphemeralKeys;
 
 #[derive(Debug, thiserror::Error)]

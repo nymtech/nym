@@ -1,20 +1,20 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use async_trait::async_trait;
+use crate::storage::errors::ClientStorageError;
 use js_sys::Promise;
-use nym_client_core::client::key_manager::{persistence::KeyStore, KeyManager};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::SharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
 use std::sync::Arc;
-use thiserror::Error;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::storage::error::StorageError;
 use wasm_utils::storage::{IdbVersionChangeEvent, WasmStorage};
-use wasm_utils::{console_log, simple_js_error, PromisableResult};
+use wasm_utils::PromisableResult;
 use zeroize::Zeroizing;
+
+pub(crate) mod errors;
+pub(crate) mod traits;
 
 const STORAGE_NAME_PREFIX: &str = "wasm-client-storage";
 const STORAGE_VERSION: u32 = 1;
@@ -31,24 +31,6 @@ mod v1 {
     // TODO: for those we could actually use the subtle crypto storage
     pub const AES128CTR_ACK_KEY: &str = "aes128ctr_ack_key";
     pub const AES128CTR_BLAKE3_HMAC_GATEWAY_KEYS: &str = "aes128ctr_blake3_hmac_gateway_keys";
-}
-
-#[derive(Debug, Error)]
-pub enum ClientStorageError {
-    #[error("failed to use the storage: {source}")]
-    StorageError {
-        #[from]
-        source: StorageError,
-    },
-
-    #[error("{typ} cryptographic key is not available in storage")]
-    CryptoKeyNotInStorage { typ: String },
-}
-
-impl From<ClientStorageError> for JsValue {
-    fn from(value: ClientStorageError) -> Self {
-        simple_js_error(value.to_string())
-    }
 }
 
 #[wasm_bindgen]
@@ -245,39 +227,5 @@ impl ClientStorage {
             )
             .await
             .map_err(Into::into)
-    }
-}
-
-#[async_trait(?Send)]
-impl KeyStore for ClientStorage {
-    type StorageError = ClientStorageError;
-
-    async fn load_keys(&self) -> Result<KeyManager, Self::StorageError> {
-        console_log!("attempting to load cryptographic keys...");
-
-        // all keys implement `ZeroizeOnDrop`, so if we return an Error, whatever was already loaded will be cleared
-        let identity_keypair = self.must_read_identity_keypair().await?;
-        let encryption_keypair = self.must_read_encryption_keypair().await?;
-        let ack_keypair = self.must_read_ack_key().await?;
-        let gateway_shared_key = self.must_read_gateway_shared_key().await?;
-
-        Ok(KeyManager::from_keys(
-            identity_keypair,
-            encryption_keypair,
-            gateway_shared_key,
-            ack_keypair,
-        ))
-    }
-
-    async fn store_keys(&self, keys: &KeyManager) -> Result<(), Self::StorageError> {
-        console_log!("attempting to store cryptographic keys...");
-
-        self.store_identity_keypair(&keys.identity_keypair())
-            .await?;
-        self.store_encryption_keypair(&keys.encryption_keypair())
-            .await?;
-        self.store_ack_key(&keys.ack_key()).await?;
-        self.store_gateway_shared_key(&keys.gateway_shared_key())
-            .await
     }
 }

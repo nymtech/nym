@@ -8,6 +8,7 @@ use futures::channel::mpsc;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::non_wasm_helpers::create_bandwidth_controller;
+use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_client_core::client::base_client::{
     non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
@@ -16,7 +17,6 @@ use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
-use nym_client_core::client::replies::reply_storage::fs_backend;
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
@@ -32,13 +32,7 @@ pub use nym_sphinx::receiver::ReconstructedMessage;
 
 pub mod config;
 
-type NativeClientBuilder<'a> = BaseClientBuilder<
-    'a,
-    fs_backend::Backend,
-    Client<QueryNyxdClient>,
-    OnDiskKeys,
-    PersistentStorage,
->;
+type NativeClientBuilder<'a> = BaseClientBuilder<'a, Client<QueryNyxdClient>, OnDiskPersistent>;
 
 pub struct SocketClient {
     /// Client configuration options, including, among other things, packet sending rates,
@@ -128,8 +122,8 @@ impl SocketClient {
             self.key_store(),
             bandwidth_controller,
             non_wasm_helpers::setup_fs_reply_surb_backend(
-                Some(self.config.get_base().get_reply_surb_database_path()),
-                self.config.get_debug_settings(),
+                self.config.get_base().get_reply_surb_database_path(),
+                &self.config.get_debug_settings().reply_surbs,
             )
             .await?,
         );

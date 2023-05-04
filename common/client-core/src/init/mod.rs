@@ -3,20 +3,6 @@
 
 //! Collection of initialization steps used by client implementations
 
-use std::fmt::Display;
-use std::sync::Arc;
-
-use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
-use rand::rngs::OsRng;
-use serde::Serialize;
-use tap::TapFallible;
-
-use nym_config::NymConfig;
-use nym_credential_storage::storage::Storage;
-use nym_crypto::asymmetric::{encryption, identity};
-use nym_gateway_requests::registration::handshake::SharedKeys;
-use url::Url;
-
 use crate::client::key_manager::{KeyManager, KeyManagerBuilder};
 use crate::{
     config::{
@@ -25,6 +11,16 @@ use crate::{
     },
     error::ClientCoreError,
 };
+use nym_config::NymConfig;
+use nym_credential_storage::storage::Storage;
+use nym_crypto::asymmetric::{encryption, identity};
+use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
+use serde::Serialize;
+use std::fmt::Display;
+use std::sync::Arc;
+use tap::TapFallible;
+use url::Url;
 
 mod helpers;
 
@@ -64,12 +60,6 @@ impl Display for InitResults {
         writeln!(f, "Gateway ID: {}", self.gateway_id)?;
         write!(f, "Gateway: {}", self.gateway_listener)
     }
-}
-
-/// Create a new set of client keys.
-pub fn new_client_keys() -> KeyManagerBuilder {
-    let mut rng = OsRng;
-    KeyManagerBuilder::new(&mut rng)
 }
 
 /// Authenticate and register with a gateway.
@@ -139,18 +129,21 @@ where
         return Ok(gateway.into());
     }
 
+    let key_store = helpers::on_disk_key_store(config);
+    let mut rng = rand::thread_rng();
+    let mut managed_keys =
+        crate::client::key_manager::ManagedKeys::load_or_generate(&mut rng, &key_store).await;
+
     // Create new keys and derive our identity
-    let key_manager_builder = new_client_keys();
-    let our_identity = key_manager_builder.identity_keypair();
+    let our_identity = managed_keys.identity_keypair();
 
     // Establish connection, authenticate and generate keys for talking with the gateway
     eprintln!("Registering with new gateway");
     let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
-    let key_manager = key_manager_builder.insert_gateway_shared_key(shared_keys);
+    managed_keys
+        .deal_with_gateway_key(shared_keys, &key_store)
+        .await?;
 
-    // Write all keys to storage and just return the gateway endpoint config. It is assumed that we
-    // will load keys from storage when actually connecting.
-    helpers::store_keys_on_disk(&key_manager, config).await?;
     Ok(gateway.into())
 }
 

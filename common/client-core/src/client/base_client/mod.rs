@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::received_buffer::ReceivedBufferMessage;
+use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
+use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ManagedKeys;
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
 use crate::client::real_messages_control;
@@ -43,11 +45,9 @@ use std::sync::Arc;
 use tap::TapFallible;
 use url::Url;
 
-use nym_credential_storage::storage::Storage;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
-use crate::client::key_manager::persistence::KeyStore;
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 
@@ -55,6 +55,7 @@ use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 pub mod non_wasm_helpers;
 
 pub mod helpers;
+pub mod storage;
 
 #[derive(Clone)]
 pub struct ClientInput {
@@ -153,33 +154,32 @@ impl From<bool> for CredentialsToggle {
     }
 }
 
-pub struct BaseClientBuilder<'a, B, C, Kst, St: Storage> {
+pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     // due to wasm limitations I had to split it like this : (
     gateway_config: &'a GatewayEndpointConfig,
     debug_config: &'a DebugConfig,
     disabled_credentials: bool,
     nym_api_endpoints: Vec<Url>,
-    reply_storage_backend: B,
-    key_store: Kst,
+    reply_storage_backend: S::ReplyStore,
+    key_store: S::KeyStore,
 
     custom_topology_provider: Option<Box<dyn TopologyProvider>>,
-    bandwidth_controller: Option<BandwidthController<C, St>>,
+    bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
     managed_keys: ManagedKeys,
 }
 
-impl<'a, B, C, Kst, St> BaseClientBuilder<'a, B, C, Kst, St>
+impl<'a, C, S> BaseClientBuilder<'a, C, S>
 where
-    B: ReplyStorageBackend + Send + Sync + 'static,
-    C: DkgQueryClient + Sync + Send + 'static,
-    Kst: KeyStore,
-    St: Storage + 'static,
+    S: MixnetClientStorage + 'static,
+    C: DkgQueryClient + Send + Sync + 'static,
 {
+    // TODO: combine all storages
     pub fn new_from_base_config<T>(
         base_config: &'a Config<T>,
-        key_store: Kst,
-        bandwidth_controller: Option<BandwidthController<C, St>>,
-        reply_storage_backend: B,
-    ) -> BaseClientBuilder<'a, B, C, Kst, St> {
+        key_store: S::KeyStore,
+        bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
+        reply_storage_backend: S::ReplyStore,
+    ) -> BaseClientBuilder<'a, C, S> {
         BaseClientBuilder {
             gateway_config: base_config.get_gateway_endpoint_config(),
             debug_config: base_config.get_debug_config(),
@@ -193,15 +193,16 @@ where
         }
     }
 
+    // TODO: combine all storages
     pub fn new(
         gateway_config: &'a GatewayEndpointConfig,
         debug_config: &'a DebugConfig,
-        key_store: Kst,
-        bandwidth_controller: Option<BandwidthController<C, St>>,
-        reply_storage_backend: B,
+        key_store: S::KeyStore,
+        bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
+        reply_storage_backend: S::ReplyStore,
         credentials_toggle: CredentialsToggle,
         nym_api_endpoints: Vec<Url>,
-    ) -> BaseClientBuilder<'a, B, C, Kst, St> {
+    ) -> BaseClientBuilder<'a, C, S> {
         BaseClientBuilder {
             gateway_config,
             debug_config,
@@ -315,9 +316,9 @@ where
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         shutdown: TaskClient,
-    ) -> Result<GatewayClient<C, St>, ClientCoreError>
+    ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
-        Kst::StorageError: Send + Sync + 'static,
+        <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
     {
         let gateway_id = self.gateway_config.gateway_id.clone();
         if gateway_id.is_empty() {
@@ -425,7 +426,7 @@ where
     // over it. Perhaps GatewayClient needs to be thread-shareable or have some channel for
     // requests?
     fn start_mix_traffic_controller(
-        gateway_client: GatewayClient<C, St>,
+        gateway_client: GatewayClient<C, S::CredentialStore>,
         shutdown: TaskClient,
     ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");
@@ -434,39 +435,32 @@ where
         mix_tx
     }
 
+    // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
     async fn setup_persistent_reply_storage(
-        backend: B,
+        backend: S::ReplyStore,
         shutdown: TaskClient,
     ) -> Result<CombinedReplyStorage, ClientCoreError>
     where
-        <B as ReplyStorageBackend>::StorageError: Sync + Send,
+        <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
+        S::ReplyStore: Send + Sync,
     {
-        if backend.is_active() {
-            log::trace!("Setup persistent reply storage");
-            let persistent_storage = PersistentReplyStorage::new(backend);
-            let mem_store = persistent_storage
-                .load_state_from_backend()
+        log::trace!("Setup persistent reply storage");
+        let persistent_storage = PersistentReplyStorage::new(backend);
+        let mem_store = persistent_storage
+            .load_state_from_backend()
+            .await
+            .map_err(|err| ClientCoreError::SurbStorageError {
+                source: Box::new(err),
+            })?;
+
+        let store_clone = mem_store.clone();
+        spawn_future(async move {
+            persistent_storage
+                .flush_on_shutdown(store_clone, shutdown)
                 .await
-                .map_err(|err| ClientCoreError::SurbStorageError {
-                    source: Box::new(err),
-                })?;
+        });
 
-            let store_clone = mem_store.clone();
-            spawn_future(async move {
-                persistent_storage
-                    .flush_on_shutdown(store_clone, shutdown)
-                    .await
-            });
-
-            Ok(mem_store)
-        } else {
-            log::trace!("Setup inactive reply storage");
-            Ok(backend
-                .get_inactive_storage()
-                .map_err(|err| ClientCoreError::SurbStorageError {
-                    source: Box::new(err),
-                })?)
-        }
+        Ok(mem_store)
     }
 
     async fn initial_key_setup(&mut self) {
@@ -477,8 +471,9 @@ where
 
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
     where
-        <B as ReplyStorageBackend>::StorageError: Sync + Send,
-        Kst::StorageError: Send + Sync + 'static,
+        <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
+        S::ReplyStore: Send + Sync,
+        <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
     {
         info!("Starting nym client");
         self.initial_key_setup().await;

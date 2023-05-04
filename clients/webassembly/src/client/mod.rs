@@ -7,6 +7,7 @@ use crate::client::response_pusher::ResponsePusher;
 use crate::constants::NODE_TESTER_CLIENT_ID;
 use crate::error::WasmClientError;
 use crate::helpers::{parse_recipient, parse_sender_tag, setup_reply_surb_storage_backend};
+use crate::storage::traits::FullWasmClientStorage;
 use crate::storage::ClientStorage;
 use crate::topology::WasmNymTopology;
 use js_sys::Promise;
@@ -166,7 +167,7 @@ impl NymClientBuilder {
         let key_store =
             ClientStorage::new_async(&self.config.id, self.storage_passphrase.take()).await?;
 
-        let mut base_builder = BaseClientBuilder::new(
+        let mut base_builder: BaseClientBuilder<_, FullWasmClientStorage> = BaseClientBuilder::new(
             &self.config.gateway_endpoint,
             &self.config.debug,
             key_store,

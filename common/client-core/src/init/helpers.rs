@@ -30,10 +30,7 @@ type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::client::key_manager::persistence::OnDiskKeys;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::{
-    client::key_manager::KeyManager,
-    config::{persistence::key_pathfinder::ClientKeyPathfinder, Config},
-};
+use crate::config::{persistence::key_pathfinder::ClientKeyPathfinder, Config};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_config::NymConfig;
 
@@ -249,17 +246,27 @@ pub(super) async fn register_with_gateway<St: Storage>(
     Ok(shared_keys)
 }
 
+// #[cfg(not(target_arch = "wasm32"))]
+// pub(super) async fn store_keys_on_disk<T>(
+//     key_manager: &KeyManager,
+//     config: &Config<T>,
+// ) -> Result<(), ClientCoreError>
+// where
+//     T: NymConfig,
+// {
+//     let pathfinder = ClientKeyPathfinder::new_from_config(config);
+//     Ok(key_manager
+//         .persist_keys(&OnDiskKeys::new(pathfinder))
+//         .await
+//         .tap_err(|err| log::error!("Failed to generate keys: {err}"))?)
+// }
+
+// TODO: make it generic
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) async fn store_keys_on_disk<T>(
-    key_manager: &KeyManager,
-    config: &Config<T>,
-) -> Result<(), ClientCoreError>
+pub(super) fn on_disk_key_store<T>(config: &Config<T>) -> OnDiskKeys
 where
     T: NymConfig,
 {
     let pathfinder = ClientKeyPathfinder::new_from_config(config);
-    Ok(key_manager
-        .persist_keys(&OnDiskKeys::new(pathfinder))
-        .await
-        .tap_err(|err| log::error!("Failed to generate keys: {err}"))?)
+    OnDiskKeys::new(pathfinder)
 }

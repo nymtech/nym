@@ -1,4 +1,4 @@
-use crate::{NameId, Address, NymName};
+use crate::{Address, NameId, NymName};
 use cosmwasm_std::Coin;
 use serde::{Deserialize, Serialize};
 
@@ -22,10 +22,7 @@ pub struct MigrateMsg {}
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     /// Announcing a name pointing to a nym-address
-    Register {
-        name: NymName,
-        address: Address,
-    },
+    Register { name: NymName, address: Address },
     /// Delete a name entry by id
     DeleteId { name_id: NameId },
     /// Delete a name entry by name

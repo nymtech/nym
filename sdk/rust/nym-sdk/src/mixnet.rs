@@ -45,6 +45,7 @@ pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
 pub use nym_client_core::{
     client::{
+        base_client::storage::{Ephemeral, MixnetClientStorage, OnDiskPersistent},
         inbound_messages::InputMessage,
         replies::reply_storage::{fs_backend::Backend as ReplyStorage, Empty as EmptyReplyStorage},
     },

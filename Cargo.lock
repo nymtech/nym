@@ -3331,6 +3331,7 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-client",
  "nym-gateway-requests",
+ "nym-network-defaults",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
@@ -3595,6 +3596,7 @@ dependencies = [
  "tokio-tungstenite 0.14.0",
  "tokio-util",
  "url",
+ "zeroize",
 ]
 
 [[package]]

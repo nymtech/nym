@@ -1,9 +1,9 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 //! Collection of initialization steps used by client implementations
 
-use crate::client::key_manager::{KeyManager, KeyManagerBuilder};
+use crate::client::key_manager::KeyManager;
 use crate::{
     config::{
         persistence::key_pathfinder::ClientKeyPathfinder, ClientCoreConfigTrait, Config,
@@ -67,7 +67,7 @@ impl Display for InitResults {
 /// chosen one if it's among the available ones.
 /// The shared key is added to the supplied `KeyManager` and the endpoint details are returned.
 pub async fn register_with_gateway<St: Storage>(
-    key_manager_builder: &KeyManagerBuilder,
+    identity_keys: Arc<identity::KeyPair>,
     nym_api_endpoints: Vec<Url>,
     chosen_gateway_id: Option<identity::PublicKey>,
     by_latency: bool,
@@ -77,10 +77,8 @@ pub async fn register_with_gateway<St: Storage>(
         helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id, by_latency).await?;
     log::debug!("Querying gateway gives: {gateway}");
 
-    let our_identity = key_manager_builder.identity_keypair();
-
     // Establish connection, authenticate and generate keys for talking with the gateway
-    let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
+    let shared_keys = helpers::register_with_gateway::<St>(&gateway, identity_keys).await?;
 
     Ok((gateway.into(), shared_keys))
 }

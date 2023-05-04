@@ -12,7 +12,7 @@ async fn main() {
     let mixnet_client = mixnet::MixnetClientBuilder::new()
         .network_details(sandbox_network)
         .enable_credentials_mode()
-        .build::<mixnet::EmptyReplyStorage>()
+        .build()
         .await
         .unwrap();
 

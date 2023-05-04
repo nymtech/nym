@@ -15,6 +15,7 @@ use nym_validator_client::Client;
 use std::path::Path;
 use std::{fs, io};
 use time::OffsetDateTime;
+use url::Url;
 
 async fn setup_fresh_backend<P: AsRef<Path>>(
     db_path: P,
@@ -104,9 +105,6 @@ pub fn create_bandwidth_controller<T, St: CredentialStorage>(
     config: &Config<T>,
     storage: St,
 ) -> BandwidthController<Client<QueryNyxdClient>, St> {
-    let details = nym_network_defaults::NymNetworkDetails::new_from_env();
-    let mut client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
-        .expect("failed to construct validator client config");
     let nyxd_url = config
         .get_validator_endpoints()
         .pop()
@@ -115,8 +113,20 @@ pub fn create_bandwidth_controller<T, St: CredentialStorage>(
         .get_nym_api_endpoints()
         .pop()
         .expect("No validator api endpoint provided");
+
+    create_bandwidth_controller_with_urls(nyxd_url, api_url, storage)
+}
+
+pub fn create_bandwidth_controller_with_urls<St: CredentialStorage>(
+    nyxd_url: Url,
+    nym_api_url: Url,
+    storage: St,
+) -> BandwidthController<Client<QueryNyxdClient>, St> {
+    let details = nym_network_defaults::NymNetworkDetails::new_from_env();
+    let mut client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
+        .expect("failed to construct validator client config");
     // overwrite env configuration with config URLs
-    client_config = client_config.with_urls(nyxd_url, api_url);
+    client_config = client_config.with_urls(nyxd_url, nym_api_url);
     let client = nym_validator_client::Client::new_query(client_config)
         .expect("Could not construct query client");
 

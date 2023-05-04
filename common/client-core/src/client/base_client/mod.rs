@@ -473,7 +473,7 @@ where
     where
         <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         S::ReplyStore: Send + Sync,
-        <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
+        <S::KeyStore as KeyStore>::StorageError: Send + Sync,
     {
         info!("Starting nym client");
         self.initial_key_setup().await;

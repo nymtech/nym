@@ -85,6 +85,20 @@ pub struct OnDiskPersistent {
     pub(crate) credential_store: PersistentCredentialStorage,
 }
 
+impl OnDiskPersistent {
+    pub fn new(
+        key_store: OnDiskKeys,
+        reply_store: fs_backend::Backend,
+        credential_store: PersistentCredentialStorage,
+    ) -> Self {
+        Self {
+            key_store,
+            reply_store,
+            credential_store,
+        }
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 impl MixnetClientStorage for OnDiskPersistent {
     type KeyStore = OnDiskKeys;

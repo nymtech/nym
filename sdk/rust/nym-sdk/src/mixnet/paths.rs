@@ -1,7 +1,13 @@
-use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use std::path::{Path, PathBuf};
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::error::{Error, Result};
+use nym_client_core::client::base_client::storage;
+use nym_client_core::client::key_manager::persistence::OnDiskKeys;
+use nym_client_core::client::replies::reply_storage::fs_backend;
+use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug)]
 pub enum KeyMode {
@@ -34,9 +40,8 @@ impl GatewayKeyMode {
 /// reply-SURBs.
 #[derive(Clone, Debug)]
 pub struct StoragePaths {
-    /// Determines how to handle existing key files found.
-    pub operating_mode: KeyMode,
-
+    // /// Determines how to handle existing key files found.
+    // pub operating_mode: KeyMode,
     /// Client private identity key
     pub private_identity: PathBuf,
     /// Client public identity key
@@ -78,7 +83,7 @@ impl StoragePaths {
         Ok(Self {
             // These filenames were chosen to match the ones we use in `nym-client`. Consider
             // changing the defaults
-            operating_mode,
+            // operating_mode,
             private_identity: dir.join("private_identity.pem"),
             public_identity: dir.join("public_identity.pem"),
             private_encryption: dir.join("private_encryption.pem"),
@@ -90,25 +95,66 @@ impl StoragePaths {
             reply_surb_database_path: dir.join("persistent_reply_store.sqlite"),
         })
     }
+
+    #[deprecated(note = "add docs")]
+    pub async fn initialise_persistent_storage(&self) -> Result<storage::OnDiskPersistent, Error> {
+        Ok(storage::OnDiskPersistent::new(
+            self.on_disk_key_storage_spec(),
+            self.persistent_fs_reply_backend().await?,
+            self.persistent_credential_storage().await?,
+        ))
+    }
+
+    #[deprecated(note = "add docs")]
+    pub async fn persistent_credential_storage(
+        &self,
+    ) -> Result<PersistentCredentialStorage, Error> {
+        PersistentCredentialStorage::init(&self.credential_database_path)
+            .await
+            .map_err(|source| Error::CredentialStorageError {
+                source: Box::new(source),
+            })
+    }
+
+    #[deprecated(note = "add docs")]
+    pub async fn persistent_fs_reply_backend(&self) -> Result<fs_backend::Backend, Error> {
+        // TODO: this is wrong, we should use `setup_fs_reply_surb_backend` so we'd do archiving etc
+
+        fs_backend::Backend::init(&self.reply_surb_database_path)
+            .await
+            .map_err(|source| Error::ReplyStorageError {
+                source: Box::new(source),
+            })
+    }
+
+    #[deprecated(note = "add docs")]
+    pub fn on_disk_key_storage_spec(&self) -> OnDiskKeys {
+        OnDiskKeys::new(self.client_key_pathfinder())
+    }
+
+    #[deprecated(note = "add docs")]
+    pub fn client_key_pathfinder(&self) -> ClientKeyPathfinder {
+        ClientKeyPathfinder {
+            identity_private_key: self.private_identity.clone(),
+            identity_public_key: self.public_identity.clone(),
+            encryption_private_key: self.private_encryption.clone(),
+            encryption_public_key: self.public_encryption.clone(),
+            gateway_shared_key: self.gateway_shared_key.clone(),
+            ack_key: self.ack_key.clone(),
+        }
+    }
 }
 
 impl From<StoragePaths> for ClientKeyPathfinder {
     fn from(paths: StoragePaths) -> Self {
-        Self {
-            identity_private_key: paths.private_identity,
-            identity_public_key: paths.public_identity,
-            encryption_private_key: paths.private_encryption,
-            encryption_public_key: paths.public_encryption,
-            gateway_shared_key: paths.gateway_shared_key,
-            ack_key: paths.ack_key,
-        }
+        paths.client_key_pathfinder()
     }
 }
 
 impl<T> From<&nym_client_core::config::Config<T>> for StoragePaths {
     fn from(value: &nym_client_core::config::Config<T>) -> Self {
         Self {
-            operating_mode: KeyMode::Keep,
+            // operating_mode: KeyMode::Keep,
             private_identity: value.get_private_identity_key_file(),
             public_identity: value.get_public_identity_key_file(),
             private_encryption: value.get_private_encryption_key_file(),

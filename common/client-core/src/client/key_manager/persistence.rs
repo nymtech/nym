@@ -12,6 +12,10 @@ use nym_crypto::asymmetric::{encryption, identity};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_gateway_requests::registration::handshake::SharedKeys;
 #[cfg(not(target_arch = "wasm32"))]
+use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+#[cfg(not(target_arch = "wasm32"))]
+use nym_pemstore::KeyPairPath;
+#[cfg(not(target_arch = "wasm32"))]
 use nym_sphinx::acknowledgements::AckKey;
 
 // we have to define it as an async trait since wasm storage is async
@@ -23,6 +27,38 @@ pub trait KeyStore {
     async fn load_keys(&self) -> Result<KeyManager, Self::StorageError>;
 
     async fn store_keys(&self, keys: &KeyManager) -> Result<(), Self::StorageError>;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, thiserror::Error)]
+pub enum OnDiskKeysError {
+    #[error("failed to load {keys} keys from {:?} (private key) and {:?} (public key): {err}", .paths.private_key_path, .paths.public_key_path)]
+    KeyPairLoadFailure {
+        keys: String,
+        paths: nym_pemstore::KeyPairPath,
+        err: std::io::Error,
+    },
+
+    #[error("failed to store {keys} keys to {:?} (private key) and {:?} (public key): {err}", .paths.private_key_path, .paths.public_key_path)]
+    KeyPairStoreFailure {
+        keys: String,
+        paths: nym_pemstore::KeyPairPath,
+        err: std::io::Error,
+    },
+
+    #[error("failed to load {key} key from {path}: {err}")]
+    KeyLoadFailure {
+        key: String,
+        path: String,
+        err: std::io::Error,
+    },
+
+    #[error("failed to store {key} key to {path}: {err}")]
+    KeyStoreFailure {
+        key: String,
+        path: String,
+        err: std::io::Error,
+    },
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -43,15 +79,70 @@ impl OnDiskKeys {
         OnDiskKeys { pathfinder }
     }
 
-    fn load_keys(&self) -> Result<KeyManager, std::io::Error> {
-        let identity_keypair: identity::KeyPair =
-            nym_pemstore::load_keypair(&self.pathfinder.identity_key_pair_path())?;
-        let encryption_keypair: encryption::KeyPair =
-            nym_pemstore::load_keypair(&self.pathfinder.encryption_key_pair_path())?;
+    fn load_key<T: PemStorableKey>(
+        &self,
+        path: &std::path::Path,
+        name: impl Into<String>,
+    ) -> Result<T, OnDiskKeysError> {
+        nym_pemstore::load_key(path).map_err(|err| OnDiskKeysError::KeyLoadFailure {
+            key: name.into(),
+            path: path.to_str().map(|s| s.to_owned()).unwrap_or_default(),
+            err,
+        })
+    }
 
-        let ack_key: AckKey = nym_pemstore::load_key(self.pathfinder.ack_key())?;
+    fn load_keypair<T: PemStorableKeyPair>(
+        &self,
+        paths: KeyPairPath,
+        name: impl Into<String>,
+    ) -> Result<T, OnDiskKeysError> {
+        nym_pemstore::load_keypair(&paths).map_err(|err| OnDiskKeysError::KeyPairLoadFailure {
+            keys: name.into(),
+            paths,
+            err,
+        })
+    }
+
+    fn store_key<T: PemStorableKey>(
+        &self,
+        key: &T,
+        path: &std::path::Path,
+        name: impl Into<String>,
+    ) -> Result<(), OnDiskKeysError> {
+        nym_pemstore::store_key(key, path).map_err(|err| OnDiskKeysError::KeyStoreFailure {
+            key: name.into(),
+            path: path.to_str().map(|s| s.to_owned()).unwrap_or_default(),
+            err,
+        })
+    }
+
+    fn store_keypair<T: PemStorableKeyPair>(
+        &self,
+        keys: &T,
+        paths: KeyPairPath,
+        name: impl Into<String>,
+    ) -> Result<(), OnDiskKeysError> {
+        nym_pemstore::store_keypair(keys, &paths).map_err(|err| {
+            OnDiskKeysError::KeyPairStoreFailure {
+                keys: name.into(),
+                paths,
+                err,
+            }
+        })
+    }
+
+    fn load_keys(&self) -> Result<KeyManager, OnDiskKeysError> {
+        let identity_paths = self.pathfinder.identity_key_pair_path();
+        let encryption_paths = self.pathfinder.encryption_key_pair_path();
+
+        let identity_keypair: identity::KeyPair =
+            self.load_keypair(identity_paths, "identity keys")?;
+        let encryption_keypair: encryption::KeyPair =
+            self.load_keypair(encryption_paths, "encryption keys")?;
+
+        let ack_key: AckKey = self.load_key(self.pathfinder.ack_key(), "ack key")?;
         let gateway_shared_key: SharedKeys =
-            nym_pemstore::load_key(self.pathfinder.gateway_shared_key())?;
+            self.load_key(self.pathfinder.gateway_shared_key(), "gateway shared keys")?;
 
         Ok(KeyManager::from_keys(
             identity_keypair,
@@ -61,21 +152,28 @@ impl OnDiskKeys {
         ))
     }
 
-    fn store_keys(&self, keys: &KeyManager) -> Result<(), std::io::Error> {
-        nym_pemstore::store_keypair(
+    fn store_keys(&self, keys: &KeyManager) -> Result<(), OnDiskKeysError> {
+        let identity_paths = self.pathfinder.identity_key_pair_path();
+        let encryption_paths = self.pathfinder.encryption_key_pair_path();
+
+        self.store_keypair(
             keys.identity_keypair.as_ref(),
-            &self.pathfinder.identity_key_pair_path(),
+            identity_paths,
+            "identity keys",
         )?;
-        nym_pemstore::store_keypair(
+        self.store_keypair(
             keys.encryption_keypair.as_ref(),
-            &self.pathfinder.encryption_key_pair_path(),
+            encryption_paths,
+            "encryption keys",
         )?;
 
-        nym_pemstore::store_key(
+        self.store_key(keys.ack_key.as_ref(), self.pathfinder.ack_key(), "ack key")?;
+        self.store_key(
             keys.gateway_shared_key.as_ref(),
             self.pathfinder.gateway_shared_key(),
+            "gateway shared keys",
         )?;
-        nym_pemstore::store_key(keys.ack_key.as_ref(), self.pathfinder.ack_key())?;
+
         Ok(())
     }
 }
@@ -83,7 +181,7 @@ impl OnDiskKeys {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl KeyStore for OnDiskKeys {
-    type StorageError = std::io::Error;
+    type StorageError = OnDiskKeysError;
 
     async fn load_keys(&self) -> Result<KeyManager, Self::StorageError> {
         self.load_keys()

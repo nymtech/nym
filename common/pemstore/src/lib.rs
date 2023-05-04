@@ -9,9 +9,10 @@ use std::path::{Path, PathBuf};
 
 pub mod traits;
 
+#[derive(Debug)]
 pub struct KeyPairPath {
-    private_key_path: PathBuf,
-    public_key_path: PathBuf,
+    pub private_key_path: PathBuf,
+    pub public_key_path: PathBuf,
 }
 
 impl KeyPairPath {

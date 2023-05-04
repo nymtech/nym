@@ -140,7 +140,10 @@ where
     let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
     managed_keys
         .deal_with_gateway_key(shared_keys, &key_store)
-        .await?;
+        .await
+        .map_err(|source| ClientCoreError::KeyStoreError {
+            source: Box::new(source),
+        })?;
 
     Ok(gateway.into())
 }

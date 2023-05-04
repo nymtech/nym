@@ -115,6 +115,7 @@ mod sandbox {
     pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
         "nymt1k8re7jwz6rnnwrktnejdwkwnncte7ek7kk6fvg";
     pub(crate) const SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS: &str = "";
+    pub(crate) const NAME_SERVICE_CONTRACT_ADDRESS: &str = "";
     pub(crate) const _ETH_CONTRACT_ADDRESS: [u8; 20] =
         hex_literal::hex!("8e0DcFF7F3085235C32E845f3667aEB3f1e83133");
     pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =
@@ -182,6 +183,7 @@ mod qa {
         "n17p9rzwnnfxcjp32un9ug7yhhzgtkhvl988qccs";
     pub(crate) const SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS: &str =
         "n1ryt076cufyddallg5x0gz3qjz0pd3wg0m4cwkg9njhmlnp6u88qq6nczgj";
+    pub(crate) const NAME_SERVICE_CONTRACT_ADDRESS: &str = "";
     pub(crate) const _ETH_CONTRACT_ADDRESS: [u8; 20] =
         hex_literal::hex!("0000000000000000000000000000000000000000");
     pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =

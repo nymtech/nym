@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use nym_service_provider_directory_common::{
-    msg::ExecuteMsg as SpExecuteMsg, NymAddress, ServiceId, ServiceType,
-};
+use nym_name_service_common::{msg::ExecuteMsg as NameExecuteMsg, Address, NameId, NymName};
 
 use crate::nyxd::{
     coin::Coin, cosmwasm_client::types::ExecuteResult, error::NyxdError, Fee, NyxdClient,
@@ -12,56 +10,45 @@ use crate::nyxd::{
 };
 
 #[async_trait]
-pub trait SpDirectorySigningClient {
-    async fn execute_service_provider_directory_contract(
+pub trait NameServiceSigningClient {
+    async fn execute_name_service_contract(
         &self,
         fee: Option<Fee>,
-        msg: SpExecuteMsg,
+        msg: NameExecuteMsg,
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError>;
 
-    async fn announce_service_provider(
+    async fn register_name(
         &self,
-        nym_address: NymAddress,
-        service_type: ServiceType,
+        name: NymName,
+        address: Address,
         deposit: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_service_provider_directory_contract(
+        self.execute_name_service_contract(
             fee,
-            SpExecuteMsg::Announce {
-                nym_address,
-                service_type,
-            },
+            NameExecuteMsg::Register { name, address },
             vec![deposit],
         )
         .await
     }
 
-    async fn delete_service_provider_by_id(
+    async fn delete_name_by_id(
         &self,
-        service_id: ServiceId,
+        name_id: NameId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_service_provider_directory_contract(
-            fee,
-            SpExecuteMsg::DeleteId { service_id },
-            vec![],
-        )
-        .await
+        self.execute_name_service_contract(fee, NameExecuteMsg::DeleteId { name_id }, vec![])
+            .await
     }
 
-    async fn delete_service_provider_by_nym_address(
+    async fn delete_service_provider_by_name(
         &self,
-        nym_address: NymAddress,
+        name: NymName,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_service_provider_directory_contract(
-            fee,
-            SpExecuteMsg::DeleteNymAddress { nym_address },
-            vec![],
-        )
-        .await
+        self.execute_name_service_contract(fee, NameExecuteMsg::DeleteName { name }, vec![])
+            .await
     }
 
     async fn update_deposit_required(
@@ -69,9 +56,9 @@ pub trait SpDirectorySigningClient {
         deposit_required: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_service_provider_directory_contract(
+        self.execute_name_service_contract(
             fee,
-            SpExecuteMsg::UpdateDepositRequired {
+            NameExecuteMsg::UpdateDepositRequired {
                 deposit_required: deposit_required.into(),
             },
             vec![],
@@ -81,14 +68,14 @@ pub trait SpDirectorySigningClient {
 }
 
 #[async_trait]
-impl<C> SpDirectorySigningClient for NyxdClient<C>
+impl<C> NameServiceSigningClient for NyxdClient<C>
 where
     C: SigningCosmWasmClient + Sync + Send,
 {
-    async fn execute_service_provider_directory_contract(
+    async fn execute_name_service_contract(
         &self,
         fee: Option<Fee>,
-        msg: SpExecuteMsg,
+        msg: NameExecuteMsg,
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
@@ -96,10 +83,8 @@ where
         self.client
             .execute(
                 self.address(),
-                self.service_provider_contract_address().ok_or(
-                    NyxdError::NoContractAddressAvailable(
-                        "service provider directory contract".to_string(),
-                    ),
+                self.name_service_contract_address().ok_or(
+                    NyxdError::NoContractAddressAvailable("name service contract".to_string()),
                 )?,
                 &msg,
                 fee,

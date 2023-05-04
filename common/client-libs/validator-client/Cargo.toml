@@ -17,6 +17,7 @@ nym-mixnet-contract-common = { path = "../../cosmwasm-smart-contracts/mixnet-con
 nym-vesting-contract-common = { path = "../../cosmwasm-smart-contracts/vesting-contract" }
 nym-coconut-bandwidth-contract-common = { path = "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
+nym-name-service-common = { path = "../../cosmwasm-smart-contracts/name-service" }
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
 nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts/service-provider-directory" }
 nym-vesting-contract = { path = "../../../contracts/vesting" }
@@ -66,6 +67,10 @@ required-features = ["nyxd-client"]
 
 [[example]]
 name = "query_service_provider_directory"
+required-features = ["nyxd-client"]
+
+[[example]]
+name = "query_name_service"
 required-features = ["nyxd-client"]
 
 [features]

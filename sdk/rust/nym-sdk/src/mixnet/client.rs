@@ -70,9 +70,16 @@ impl MixnetClientBuilder<Ephemeral> {
 }
 
 impl MixnetClientBuilder<OnDiskPersistent> {
-    #[must_use]
-    pub fn new_default_persistent() -> Self {
-        todo!()
+    pub async fn new_default_persistent(storage_paths: StoragePaths) -> Result<Self> {
+        Ok(MixnetClientBuilder {
+            config: Default::default(),
+            storage_paths: None,
+            gateway_config: None,
+            socks5_config: None,
+            custom_topology_provider: None,
+            gateway_endpoint_path: None,
+            storage: storage_paths.initialise_persistent_storage().await?,
+        })
     }
 }
 

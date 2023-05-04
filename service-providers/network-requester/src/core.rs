@@ -485,12 +485,13 @@ async fn create_mixnet_client<T>(
 
     let storage_paths = nym_sdk::mixnet::StoragePaths::from(config);
 
-    let mixnet_client = nym_sdk::mixnet::MixnetClientBuilder::new()
+    let mixnet_client = nym_sdk::mixnet::MixnetClientBuilder::new_default_persistent(storage_paths)
+        .await
+        .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?
         .network_details(NymNetworkDetails::new_from_env())
         .debug_config(debug_config)
-        .enable_storage(storage_paths)
         .registered_gateway(config.get_gateway_endpoint_config().clone())
-        .build::<nym_sdk::mixnet::ReplyStorage>()
+        .build()
         .await
         .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?;
 

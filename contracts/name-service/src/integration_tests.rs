@@ -1,6 +1,6 @@
 //! Integration tests using cw-multi-test.
 
-use cosmwasm_std::{Addr, OverflowError};
+use cosmwasm_std::Addr;
 use nym_name_service_common::{
     response::{ConfigResponse, PagedNamesListResponse},
     NameEntry, NymAddress, NymName, RegisteredName,
@@ -442,38 +442,4 @@ fn name_id_is_not_resused_when_deleting_and_then_adding_a_new_names() {
             )
         ]
     );
-}
-
-use rand::distributions::Alphanumeric;
-use rand::Rng;
-
-fn random_string(len: usize) -> String {
-    String::from_utf8_lossy(
-        &rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(len)
-            .collect::<Vec<_>>(),
-    )
-    .to_string()
-    .to_lowercase()
-}
-
-// Test where we generate 1000 of random names and register them all
-#[test]
-fn register_1000_random_names() {
-    let mut setup = TestSetup::new();
-
-    let mut names = Vec::new();
-    for _ in 0..1000 {
-        let name = NymName::new(&random_string(10)).unwrap();
-        let address = NymAddress::new(&random_string(10));
-        let owner = Addr::unchecked(random_string(10));
-        dbg!(&name);
-        dbg!(&address);
-        dbg!(&owner);
-        setup.register(name.clone(), address.clone(), owner.clone());
-        names.push(name_entry(0, name, address, owner));
-    }
-
-    assert_eq!(setup.query_all().names, names);
 }

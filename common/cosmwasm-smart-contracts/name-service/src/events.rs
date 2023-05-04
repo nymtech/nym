@@ -1,6 +1,6 @@
 use cosmwasm_std::{Coin, Event};
 
-use crate::{Address, NameId, RegisteredName};
+use crate::{NameId, RegisteredName};
 
 pub enum NameEventType {
     Register,
@@ -30,43 +30,33 @@ pub const ACTION: &str = "action";
 
 pub const NAME_ID: &str = "name_id";
 pub const NAME: &str = "name";
-pub const NYM_ADDRESS: &str = "nym_address";
 pub const OWNER: &str = "owner";
 
 pub const DEPOSIT_REQUIRED: &str = "deposit_required";
 
 pub fn new_register_event(name_id: NameId, name: RegisteredName) -> Event {
-    let attr = match name.address {
-        Address::NymAddress(_) => NYM_ADDRESS,
-    };
     Event::new(NameEventType::Register)
         .add_attribute(ACTION, NameEventType::Register)
         .add_attribute(NAME_ID, name_id.to_string())
         .add_attribute(NAME, name.name.to_string())
-        .add_attribute(attr, name.address.to_string())
+        .add_attribute(name.address.event_tag(), name.address.to_string())
         .add_attribute(OWNER, name.owner.to_string())
 }
 
 pub fn new_delete_id_event(name_id: NameId, name: RegisteredName) -> Event {
-    let attr = match name.address {
-        Address::NymAddress(_) => NYM_ADDRESS,
-    };
     Event::new(NameEventType::DeleteId)
         .add_attribute(ACTION, NameEventType::DeleteId)
         .add_attribute(NAME_ID, name_id.to_string())
         .add_attribute(NAME, name.name.to_string())
-        .add_attribute(attr, name.address.to_string())
+        .add_attribute(name.address.event_tag(), name.address.to_string())
 }
 
 pub fn new_delete_name_event(name_id: NameId, name: RegisteredName) -> Event {
-    let attr = match name.address {
-        Address::NymAddress(_) => NYM_ADDRESS,
-    };
     Event::new(NameEventType::DeleteId)
         .add_attribute(ACTION, NameEventType::DeleteName)
         .add_attribute(NAME_ID, name_id.to_string())
         .add_attribute(NAME, name.name.to_string())
-        .add_attribute(attr, name.address.to_string())
+        .add_attribute(name.address.event_tag(), name.address.to_string())
 }
 
 pub fn new_update_deposit_required_event(deposit_required: Coin) -> Event {

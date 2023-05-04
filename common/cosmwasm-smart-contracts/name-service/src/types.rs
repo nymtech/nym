@@ -42,6 +42,13 @@ impl Address {
             Address::NymAddress(address) => address,
         }
     }
+
+    pub fn event_tag(&self) -> &str {
+        match self {
+            Address::NymAddress(_) => "nym_address",
+            //Address::Gateway(_) => "gatway_address",
+        }
+    }
 }
 
 impl Display for Address {

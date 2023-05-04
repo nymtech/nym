@@ -6,6 +6,8 @@ use std::convert::TryFrom;
 use std::fmt;
 use thiserror::Error;
 
+use crate::PacketSize;
+
 #[derive(Error, Debug)]
 #[error("{received} is not a valid packet mode tag")]
 pub struct InvalidPacketType {
@@ -55,6 +57,20 @@ impl TryFrom<u8> for PacketType {
             _ if value == (PacketType::Mix as u8) => Ok(Self::Mix),
             _ if value == (PacketType::Outfox as u8) => Ok(Self::Outfox),
             v => Err(InvalidPacketType { received: v }),
+        }
+    }
+}
+
+impl From<PacketSize> for PacketType {
+    fn from(s: PacketSize) -> Self {
+        match s {
+            PacketSize::RegularPacket => PacketType::Mix,
+            PacketSize::AckPacket => PacketType::Mix,
+            PacketSize::ExtendedPacket32 => PacketType::Mix,
+            PacketSize::ExtendedPacket8 => PacketType::Mix,
+            PacketSize::ExtendedPacket16 => PacketType::Mix,
+            PacketSize::OutfoxRegularPacket => PacketType::Outfox,
+            PacketSize::OutfoxAckPacket => PacketType::Outfox,
         }
     }
 }

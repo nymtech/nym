@@ -1,9 +1,8 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::message::{NymMessage, ACK_OVERHEAD};
+use crate::message::{NymMessage, ACK_OVERHEAD, OUTFOX_ACK_OVERHEAD};
 use crate::NymPayloadBuilder;
-use log::info;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
@@ -114,7 +113,10 @@ pub trait FragmentPreparer {
         // each reply attaches the digest of the encryption key so that the recipient could
         // lookup correct key for decryption,
         let reply_overhead = ReplySurbKeyDigestAlgorithm::output_size();
-        let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + reply_overhead;
+        let expected_plaintext = match packet_type {
+            PacketType::Outfox => fragment.serialized_size() + OUTFOX_ACK_OVERHEAD + reply_overhead,
+            _ => fragment.serialized_size() + ACK_OVERHEAD + reply_overhead,
+        };
 
         // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
         // more gracefully is that this error should never be reached as it implies incorrect chunking
@@ -157,7 +159,7 @@ pub trait FragmentPreparer {
             // well as the total delay of the ack packet.
             // we don't know the delays inside the reply surbs so we use best-effort estimation from our poisson distribution
             total_delay: expected_forward_delay + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, Default::default()),
+            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, packet_type),
             fragment_identifier,
         })
     }
@@ -188,12 +190,16 @@ pub trait FragmentPreparer {
         packet_recipient: &Recipient,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
-        info!("Preparing {packet_type} packet for sending");
         // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
         // could perform diffie-hellman with its own keys followed by a kdf to re-derive
         // the packet encryption key
         let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
-        let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + non_reply_overhead;
+        let expected_plaintext = match packet_type {
+            PacketType::Outfox => {
+                fragment.serialized_size() + OUTFOX_ACK_OVERHEAD + non_reply_overhead
+            }
+            _ => fragment.serialized_size() + ACK_OVERHEAD + non_reply_overhead,
+        };
 
         // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
         // more gracefully is that this error should never be reached as it implies incorrect chunking
@@ -235,7 +241,8 @@ pub trait FragmentPreparer {
             PacketType::Outfox => NymPacket::outfox_build(
                 packet_payload,
                 route.as_slice(),
-                Some(packet_size.payload_size()),
+                &destination,
+                Some(packet_size.plaintext_size()),
             )?,
             PacketType::Mix => NymPacket::sphinx_build(
                 packet_size.payload_size(),
@@ -262,7 +269,7 @@ pub trait FragmentPreparer {
             // well as the total delay of the ack packet.
             // note that the last hop of the packet is a gateway that does not do any delays
             total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, packet, Default::default()),
+            mix_packet: MixPacket::new(first_hop_address, packet, packet_type),
             fragment_identifier,
         })
     }

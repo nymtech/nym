@@ -46,6 +46,7 @@ impl NymPayloadBuilder {
         // where variant-specific data is as follows:
         // for replies it would be the digest of the encryption key used
         // for 'regular' messages it would be the public component used in DH later used in the KDF
+
         Ok(NymPayload(
             surb_ack_bytes
                 .into_iter()

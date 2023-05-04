@@ -431,7 +431,7 @@ where
         lane: TransmissionLane,
         packet_type: PacketType,
     ) -> Result<(), PreparationError> {
-        info!("Sending non-reply message with packet type {packet_type}");
+        debug!("Sending non-reply message with packet type {packet_type}");
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
         debug_assert!(!matches!(message, NymMessage::Reply(_)));
 
@@ -439,7 +439,11 @@ where
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
-        let packet_size = self.optimal_packet_size(&message);
+        let packet_size = if packet_type == PacketType::Outfox {
+            PacketSize::OutfoxRegularPacket
+        } else {
+            self.optimal_packet_size(&message)
+        };
         debug!("Using {packet_size} packets for {message}");
         let fragments = self
             .message_preparer
@@ -482,7 +486,7 @@ where
         amount: u32,
         packet_type: PacketType,
     ) -> Result<(), PreparationError> {
-        info!("Sending additional reply SURBs with packet type {packet_type}");
+        debug!("Sending additional reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
         let (reply_surbs, reply_keys) =
             self.generate_reply_surbs_with_keys(amount as usize).await?;
@@ -514,7 +518,7 @@ where
         lane: TransmissionLane,
         packet_type: PacketType,
     ) -> Result<(), SurbWrappedPreparationError> {
-        info!("Sending message with reply SURBs with packet type {packet_type}");
+        debug!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
         let (reply_surbs, reply_keys) = self
             .generate_reply_surbs_with_keys(num_reply_surbs as usize)
@@ -538,7 +542,7 @@ where
         chunk: Fragment,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, PreparationError> {
-        info!("Sending single chunk with packet type {packet_type}");
+        debug!("Sending single chunk with packet type {packet_type}");
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 

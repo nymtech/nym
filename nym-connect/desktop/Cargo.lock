@@ -3563,6 +3563,7 @@ dependencies = [
  "chacha20poly1305",
  "curve25519-dalek",
  "getrandom 0.2.8",
+ "log",
  "rand 0.7.3",
  "rayon",
  "sphinx-packet",

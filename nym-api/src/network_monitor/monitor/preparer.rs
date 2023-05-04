@@ -12,7 +12,7 @@ use nym_node_tester_utils::NodeTester;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_sphinx::params::PacketSize;
+use nym_sphinx::params::{PacketSize, PacketType};
 use nym_topology::{gateway, mix};
 use rand_07::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 use std::collections::{HashMap, HashSet};
@@ -290,7 +290,8 @@ impl PacketPreparer {
         &mut self,
         route: &TestRoute,
         num: usize,
-        packet_type: PacketType,
+        // TODO: Maybe do this
+        _packet_type: PacketType,
     ) -> GatewayPackets {
         let mut tester = self.ephemeral_mix_tester(route);
         let topology = route.topology();
@@ -360,7 +361,8 @@ impl PacketPreparer {
         &mut self,
         test_nonce: u64,
         test_routes: &[TestRoute],
-        packet_type: PacketType,
+        // TODO: Maybe do this
+        _packet_type: PacketType,
     ) -> PreparedPackets {
         // only test mixnodes that are rewarded, i.e. that will be rewarded in this interval.
         // (remember that "idle" nodes are still part of that set)

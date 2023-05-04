@@ -78,7 +78,7 @@ impl SocksRequest {
     where
         R: AsyncRead + Unpin,
     {
-        log::info!("read from stream socks5");
+        log::trace!("read from stream socks5");
 
         let mut packet = [0u8; 4];
         // Read a byte from the stream and determine the version being requested

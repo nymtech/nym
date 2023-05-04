@@ -9,7 +9,6 @@ use nym_sphinx_addressing::nodes::NodeIdentity;
 use rand::prelude::SliceRandom;
 use nym_sphinx_types::{Node as SphinxNode, NymPacketError};
 use rand::{CryptoRng, Rng};
-use std::array::TryFromSliceError;
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};

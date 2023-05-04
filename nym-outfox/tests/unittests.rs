@@ -14,6 +14,8 @@ mod tests {
     use nym_outfox::packet::OutfoxPacket;
     use sphinx_packet::constants::NODE_ADDRESS_LENGTH;
     use sphinx_packet::crypto::PublicKey;
+    use sphinx_packet::route::Destination;
+    use sphinx_packet::route::DestinationAddressBytes;
     use sphinx_packet::route::Node;
     use sphinx_packet::route::NodeAddressBytes;
     use std::convert::TryFrom;
@@ -37,6 +39,7 @@ mod tests {
         let mix_public_key = (&ED25519_BASEPOINT_TABLE * &mix_secret_scalar).to_montgomery();
 
         let routing = [0; 32];
+        let destination = [0; 32];
 
         let buffer = randombytes(mix_params.incoming_packet_length());
 
@@ -48,7 +51,12 @@ mod tests {
         let node = Node::new(node_address_bytes, mix_public_key);
 
         let _ = mix_params
-            .encode_mix_layer(&mut new_buffer[..], &user_secret, &node)
+            .encode_mix_layer(
+                &mut new_buffer[..],
+                &user_secret,
+                node.pub_key.as_bytes(),
+                &destination,
+            )
             .unwrap();
 
         assert!(new_buffer[mix_params.payload_range()] != buffer[mix_params.payload_range()]);
@@ -97,17 +105,23 @@ mod tests {
             node3_pub,
         );
 
-        let (node4_pk, node4_pub) = sphinx_packet::crypto::keygen();
-        let node4 = Node::new(
+        let (gateway_pk, gateway_pub) = sphinx_packet::crypto::keygen();
+        let gateway = Node::new(
             NodeAddressBytes::from_bytes([3u8; NODE_ADDRESS_LENGTH]),
-            node4_pub,
+            gateway_pub,
         );
 
-        let route = [node1, node2, node3, node4];
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([9u8; NODE_ADDRESS_LENGTH]),
+            [0u8; 16],
+        );
 
-        let payload = randombytes(2048);
+        let route = [node1.clone(), node2.clone(), node3.clone(), gateway.clone()];
 
-        let packet = OutfoxPacket::build(&payload, &route, Some(2048)).unwrap();
+        let payload = randombytes(21);
+
+        let packet =
+            OutfoxPacket::build(&payload, &route, &destination, Some(payload.len())).unwrap();
         let packet_bytes = packet.to_bytes().unwrap();
         println!(
             "packet bytes length, {}, declared {}",
@@ -117,11 +131,15 @@ mod tests {
 
         let mut packet = OutfoxPacket::try_from(packet_bytes.as_slice()).unwrap();
 
-        packet.decode_mix_layer(3, &node1_pk.to_bytes()).unwrap();
-        packet.decode_mix_layer(2, &node2_pk.to_bytes()).unwrap();
-        packet.decode_mix_layer(1, &node3_pk.to_bytes()).unwrap();
-        packet.decode_mix_layer(0, &node4_pk.to_bytes()).unwrap();
+        let next_address = packet.decode_next_layer(&node1_pk).unwrap();
+        assert_eq!(next_address, node2.address.as_bytes());
+        let next_address = packet.decode_next_layer(&node2_pk).unwrap();
+        assert_eq!(next_address, node3.address.as_bytes());
+        let next_address = packet.decode_next_layer(&node3_pk).unwrap();
+        assert_eq!(next_address, gateway.address.as_bytes());
+        let destination_address = packet.decode_next_layer(&gateway_pk).unwrap();
+        assert_eq!(destination_address, destination.address.as_bytes());
 
-        assert_eq!(payload, &packet.payload()[packet.payload_range()]);
+        assert_eq!(payload, packet.recover_plaintext());
     }
 }

@@ -42,7 +42,8 @@ impl Encoder<FramedNymPacket> for NymCodec {
     fn encode(&mut self, item: FramedNymPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
         item.header.encode(dst);
         let packet_bytes = item.packet.to_bytes()?;
-        dst.put(packet_bytes.as_slice());
+        let encoded = packet_bytes.as_slice();
+        dst.put(encoded);
         Ok(())
     }
 }
@@ -103,22 +104,23 @@ impl Decoder for NymCodec {
         // reserve for that.
         // we also assume the next packet coming from the same client will use exactly the same versioning
         // as the current packet
-        let mut allocate_for_next_packet = header.size() + PacketSize::AckPacket.size();
-        if !src.is_empty() {
-            match Header::decode(src) {
-                Ok(Some(next_header)) => {
-                    allocate_for_next_packet = next_header.size() + next_header.packet_size.size();
-                }
-                Ok(None) => {
-                    // we don't have enough information to know how much to reserve, fallback to the ack case
-                }
 
-                // the next frame will be malformed but let's leave handling the error to the next
-                // call to 'decode', as presumably, the current sphinx packet is still valid
-                Err(_) => return Ok(Some(nymsphinx_packet)),
-            };
-        }
-        src.reserve(allocate_for_next_packet);
+        // let mut allocate_for_next_packet = header.size() + PacketSize::AckPacket.size();
+        // if !src.is_empty() {
+        //     match Header::decode(src) {
+        //         Ok(Some(next_header)) => {
+        //             allocate_for_next_packet = next_header.size() + next_header.packet_size.size();
+        //         }
+        //         Ok(None) => {
+        //             // we don't have enough information to know how much to reserve, fallback to the ack case
+        //         }
+
+        //         // the next frame will be malformed but let's leave handling the error to the next
+        //         // call to 'decode', as presumably, the current sphinx packet is still valid
+        //         Err(_) => return Ok(Some(nymsphinx_packet)),
+        //     };
+        // }
+        // src.reserve(allocate_for_next_packet);
         Ok(Some(nymsphinx_packet))
     }
 }
@@ -154,11 +156,16 @@ mod packet_encoding {
             node4_pk,
         );
 
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([3u8; DESTINATION_ADDRESS_LENGTH]),
+            [4u8; IDENTIFIER_LENGTH],
+        );
+
         let route = &[node1, node2, node3, node4];
 
         let payload = vec![1; 48];
 
-        NymPacket::outfox_build(payload, route, Some(size.plaintext_size())).unwrap()
+        NymPacket::outfox_build(payload, route, &destination, Some(size.plaintext_size())).unwrap()
     }
 
     fn make_valid_sphinx_packet(size: PacketSize) -> NymPacket {

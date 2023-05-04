@@ -17,6 +17,7 @@ getrandom = { version = "*", features = ["js"] }
 thiserror = "1"
 sphinx-packet = "0.1.0"
 rand = "0.7.3"
+log = "0.4"
 
 [dev-dependencies]
 criterion = "0.4"

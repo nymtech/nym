@@ -24,14 +24,19 @@ impl FramedNymPacket {
         // already managed to somehow create a sphinx packet
         let packet_size = PacketSize::get_type(packet.len()).unwrap();
 
-        FramedNymPacket {
-            header: Header {
-                packet_version: PacketVersion::new(use_legacy_version),
-                packet_size,
-                packet_type,
-            },
-            packet,
-        }
+        let use_legacy = if packet_type == PacketType::Outfox {
+            false
+        } else {
+            use_legacy_version
+        };
+
+        let header = Header {
+            packet_version: PacketVersion::new(use_legacy),
+            packet_size,
+            packet_type,
+        };
+
+        FramedNymPacket { header, packet }
     }
 
     pub fn header(&self) -> Header {
@@ -96,16 +101,16 @@ impl Header {
 
     pub(crate) fn encode(&self, dst: &mut BytesMut) {
         // we reserve one byte for `packet_size` and the other for `mode`
-        dst.reserve(Self::LEGACY_SIZE);
+        // dst.reserve(Self::LEGACY_SIZE);
         if let Some(version) = self.packet_version.as_u8() {
-            dst.reserve(Self::VERSIONED_SIZE);
+            // dst.reserve(Self::VERSIONED_SIZE);
             dst.put_u8(version)
         }
 
         dst.put_u8(self.packet_size as u8);
         dst.put_u8(self.packet_type as u8);
         // reserve bytes for the actual packet
-        dst.reserve(self.packet_size.size());
+        // dst.reserve(self.packet_size.size());
     }
 
     pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, NymCodecError> {

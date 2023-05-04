@@ -353,7 +353,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 };
 
             if let Some(completed) = completed_message {
-                info!("received {completed}");
+                debug!("received {completed}");
                 completed_messages.push(completed)
             }
         }

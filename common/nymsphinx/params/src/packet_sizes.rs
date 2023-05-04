@@ -28,11 +28,9 @@ const EXTENDED_PACKET_SIZE_8: usize = 8 * 1024 + SPHINX_PACKET_OVERHEAD;
 const EXTENDED_PACKET_SIZE_16: usize = 16 * 1024 + SPHINX_PACKET_OVERHEAD;
 const EXTENDED_PACKET_SIZE_32: usize = 32 * 1024 + SPHINX_PACKET_OVERHEAD;
 
-const OUTFOX_ACK_PACKET_SIZE: usize = ACK_IV_SIZE + FRAG_ID_LEN + OUTFOX_PACKET_OVERHEAD;
+// 48 is min outfox payload size
+const OUTFOX_ACK_PACKET_SIZE: usize = 48 + OUTFOX_PACKET_OVERHEAD;
 const OUTFOX_REGULAR_PACKET_SIZE: usize = 2 * 1024 + OUTFOX_PACKET_OVERHEAD;
-const OUTFOX_EXTENDED_PACKET_SIZE_8: usize = 8 * 1024 + OUTFOX_PACKET_OVERHEAD;
-const OUTFOX_EXTENDED_PACKET_SIZE_16: usize = 16 * 1024 + OUTFOX_PACKET_OVERHEAD;
-const OUTFOX_EXTENDED_PACKET_SIZE_32: usize = 32 * 1024 + OUTFOX_PACKET_OVERHEAD;
 
 #[derive(Debug, Error)]
 pub enum InvalidPacketSize {
@@ -76,18 +74,6 @@ pub enum PacketSize {
     // for sending SURB-ACKs
     #[serde(rename = "outfox_ack")]
     OutfoxAckPacket = 7,
-
-    // for example for streaming fast and furious in uncompressed 10bit 4K HDR quality
-    #[serde(rename = "outfox_extended32")]
-    OutfoxExtendedPacket32 = 8,
-
-    // for example for streaming fast and furious in heavily compressed lossy RealPlayer quality
-    #[serde(rename = "outfox_extended8")]
-    OutfoxExtendedPacket8 = 9,
-
-    // for example for streaming fast and furious in compressed XviD quality
-    #[serde(rename = "outfox_extended16")]
-    OutfoxExtendedPacket16 = 10,
 }
 
 impl PartialOrd for PacketSize {
@@ -116,9 +102,6 @@ impl FromStr for PacketSize {
             "extended32" => Ok(Self::ExtendedPacket32),
             "outfox_regular" => Ok(Self::OutfoxRegularPacket),
             "outfox_ack" => Ok(Self::OutfoxAckPacket),
-            "outfox_extended8" => Ok(Self::OutfoxExtendedPacket8),
-            "outfox_extended16" => Ok(Self::OutfoxExtendedPacket16),
-            "outfox_extended32" => Ok(Self::OutfoxExtendedPacket32),
             s => Err(InvalidPacketSize::UnknownExtendedPacketVariant {
                 received: s.to_string(),
             }),
@@ -136,9 +119,6 @@ impl Display for PacketSize {
             PacketSize::ExtendedPacket16 => write!(f, "extended16"),
             PacketSize::OutfoxRegularPacket => write!(f, "outfox_regular"),
             PacketSize::OutfoxAckPacket => write!(f, "outfox_ack"),
-            PacketSize::OutfoxExtendedPacket32 => write!(f, "outfox_extended32"),
-            PacketSize::OutfoxExtendedPacket8 => write!(f, "outfox_extended8"),
-            PacketSize::OutfoxExtendedPacket16 => write!(f, "outfox_extended16"),
         }
     }
 }
@@ -165,15 +145,6 @@ impl TryFrom<u8> for PacketSize {
             _ if value == (PacketSize::ExtendedPacket32 as u8) => Ok(Self::ExtendedPacket32),
             _ if value == (PacketSize::OutfoxRegularPacket as u8) => Ok(Self::OutfoxRegularPacket),
             _ if value == (PacketSize::OutfoxAckPacket as u8) => Ok(Self::OutfoxAckPacket),
-            _ if value == (PacketSize::OutfoxExtendedPacket8 as u8) => {
-                Ok(Self::OutfoxExtendedPacket8)
-            }
-            _ if value == (PacketSize::OutfoxExtendedPacket16 as u8) => {
-                Ok(Self::OutfoxExtendedPacket16)
-            }
-            _ if value == (PacketSize::OutfoxExtendedPacket32 as u8) => {
-                Ok(Self::OutfoxExtendedPacket32)
-            }
             v => Err(InvalidPacketSize::UnknownPacketTag { received: v }),
         }
     }
@@ -189,9 +160,6 @@ impl PacketSize {
             PacketSize::ExtendedPacket32 => EXTENDED_PACKET_SIZE_32,
             PacketSize::OutfoxRegularPacket => OUTFOX_REGULAR_PACKET_SIZE,
             PacketSize::OutfoxAckPacket => OUTFOX_ACK_PACKET_SIZE,
-            PacketSize::OutfoxExtendedPacket8 => OUTFOX_EXTENDED_PACKET_SIZE_8,
-            PacketSize::OutfoxExtendedPacket16 => OUTFOX_EXTENDED_PACKET_SIZE_16,
-            PacketSize::OutfoxExtendedPacket32 => OUTFOX_EXTENDED_PACKET_SIZE_32,
         }
     }
 
@@ -202,11 +170,7 @@ impl PacketSize {
             | PacketSize::ExtendedPacket8
             | PacketSize::ExtendedPacket16
             | PacketSize::ExtendedPacket32 => HEADER_SIZE,
-            PacketSize::OutfoxRegularPacket
-            | PacketSize::OutfoxAckPacket
-            | PacketSize::OutfoxExtendedPacket8
-            | PacketSize::OutfoxExtendedPacket16
-            | PacketSize::OutfoxExtendedPacket32 => MIX_PARAMS_LEN,
+            PacketSize::OutfoxRegularPacket | PacketSize::OutfoxAckPacket => MIX_PARAMS_LEN,
         }
     }
 
@@ -217,11 +181,9 @@ impl PacketSize {
             | PacketSize::ExtendedPacket8
             | PacketSize::ExtendedPacket16
             | PacketSize::ExtendedPacket32 => PAYLOAD_OVERHEAD_SIZE,
-            PacketSize::OutfoxRegularPacket
-            | PacketSize::OutfoxAckPacket
-            | PacketSize::OutfoxExtendedPacket8
-            | PacketSize::OutfoxExtendedPacket16
-            | PacketSize::OutfoxExtendedPacket32 => OUTFOX_PACKET_OVERHEAD - MIX_PARAMS_LEN,
+            PacketSize::OutfoxRegularPacket | PacketSize::OutfoxAckPacket => {
+                OUTFOX_PACKET_OVERHEAD - MIX_PARAMS_LEN // Mix params are calculated into the total overhead so we take them out here
+            }
         }
     }
 
@@ -244,16 +206,12 @@ impl PacketSize {
             Ok(PacketSize::ExtendedPacket16)
         } else if PacketSize::ExtendedPacket32.size() == size {
             Ok(PacketSize::ExtendedPacket32)
-        } else if PacketSize::OutfoxRegularPacket.size() == size {
+        } else if PacketSize::OutfoxRegularPacket.size() == size
+            || PacketSize::OutfoxRegularPacket.size() == size + 6
+        {
             Ok(PacketSize::OutfoxRegularPacket)
         } else if PacketSize::OutfoxAckPacket.size() == size {
             Ok(PacketSize::OutfoxAckPacket)
-        } else if PacketSize::OutfoxExtendedPacket8.size() == size {
-            Ok(PacketSize::OutfoxExtendedPacket8)
-        } else if PacketSize::OutfoxExtendedPacket16.size() == size {
-            Ok(PacketSize::OutfoxExtendedPacket16)
-        } else if PacketSize::OutfoxExtendedPacket32.size() == size {
-            Ok(PacketSize::OutfoxExtendedPacket32)
         } else {
             Err(InvalidPacketSize::UnknownPacketSize { received: size })
         }
@@ -267,10 +225,7 @@ impl PacketSize {
             | PacketSize::OutfoxRegularPacket => false,
             PacketSize::ExtendedPacket8
             | PacketSize::ExtendedPacket16
-            | PacketSize::ExtendedPacket32
-            | PacketSize::OutfoxExtendedPacket8
-            | PacketSize::OutfoxExtendedPacket16
-            | PacketSize::OutfoxExtendedPacket32 => true,
+            | PacketSize::ExtendedPacket32 => true,
         }
     }
 

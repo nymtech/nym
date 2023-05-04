@@ -108,7 +108,7 @@ impl ConnectionHandler {
                         }
                         Some(Err(err)) => {
                             error!(
-                                "The socket connection got corrupted with error: {err}. Closing the socket",
+                                "{remote:?} - The socket connection got corrupted with error: {err}. Closing the socket",
                             );
                             return;
                         }

@@ -62,7 +62,6 @@ use chacha20poly1305::Tag;
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
-use sphinx_packet::route::Node;
 
 use std::convert::TryInto;
 
@@ -75,6 +74,7 @@ use crate::constants::DEFAULT_HOPS;
 use crate::constants::DEFAULT_ROUTING_INFO_SIZE;
 use crate::constants::GROUPELEMENTBYTES;
 use crate::constants::MIX_PARAMS_LEN;
+use crate::constants::ROUTING_INFORMATION_LENGTH_BY_STAGE;
 use crate::constants::TAGBYTES;
 use crate::error::OutfoxError;
 use crate::lion::*;
@@ -135,7 +135,7 @@ impl MixCreationParameters {
     /// The length of the buffer needed to build a packet.
     pub fn total_packet_length(&self) -> usize {
         let mut len = self.payload_length_bytes();
-        for stage_len in &self.routing_information_length_by_stage {
+        for stage_len in ROUTING_INFORMATION_LENGTH_BY_STAGE.iter() {
             len += *stage_len as usize + groupelementbytes() + tagbytes()
         }
         len
@@ -143,10 +143,10 @@ impl MixCreationParameters {
 
     /// Get the mix packet parameters for a single stage of mixing.
     pub fn get_stage_params(&self, layer_number: usize) -> (Range<usize>, MixStageParameters) {
-        assert!(layer_number < self.routing_information_length_by_stage.len());
+        assert!(layer_number < ROUTING_INFORMATION_LENGTH_BY_STAGE.len());
 
         let mut remaining_header_length_bytes = 0;
-        for (i, stage_len) in self.routing_information_length_by_stage.iter().enumerate() {
+        for (i, stage_len) in ROUTING_INFORMATION_LENGTH_BY_STAGE.iter().enumerate() {
             if i == layer_number {
                 let params = MixStageParameters {
                     routing_information_length_bytes: *stage_len,
@@ -229,10 +229,11 @@ impl MixStageParameters {
         &self,
         buffer: &mut [u8],
         user_secret_key: &[u8],
-        node: &Node,
+        node_pub_key: &[u8],
+        destination: &[u8; 32],
     ) -> Result<MontgomeryPoint, OutfoxError> {
-        let routing_data = node.address.as_bytes().to_vec();
-        let mix_public_key = MontgomeryPoint(*node.pub_key.as_bytes());
+        let routing_data = destination;
+        let mix_public_key = MontgomeryPoint(node_pub_key.try_into()?);
         let user_secret_key = Scalar::from_bytes_mod_order(user_secret_key.try_into()?);
 
         if buffer.len() != self.incoming_packet_length() {
@@ -253,7 +254,7 @@ impl MixStageParameters {
         let shared_key = user_secret_key * mix_public_key;
 
         // Copy rounting data into buffer
-        buffer[self.routing_data_range()].copy_from_slice(&routing_data);
+        buffer[self.routing_data_range()].copy_from_slice(routing_data);
 
         // Perform the AEAD
         let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key.0[..])?;
@@ -279,7 +280,7 @@ impl MixStageParameters {
         &self,
         buffer: &mut [u8],
         mix_secret_key: &[u8],
-    ) -> Result<MontgomeryPoint, OutfoxError> {
+    ) -> Result<Vec<u8>, OutfoxError> {
         // Check the length of the incoming buffer is correct.
 
         let mix_secret_key = Scalar::from_bytes_mod_order(mix_secret_key.try_into()?);
@@ -311,10 +312,11 @@ impl MixStageParameters {
             )
             .map_err(|e| OutfoxError::ChaCha20Poly1305Error(e.to_string()))?;
 
+        let routing_data = buffer[self.routing_data_range()].to_vec();
         // Do a round of LION on the payload
         lion_transform_decrypt(&mut buffer[self.payload_range()], &shared_key.0)?;
 
-        Ok(shared_key)
+        Ok(routing_data)
     }
 }
 

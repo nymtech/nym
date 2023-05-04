@@ -5,7 +5,7 @@ pub use nym_outfox::{
     constants::MIX_PARAMS_LEN, constants::OUTFOX_PACKET_OVERHEAD, error::OutfoxError,
 };
 // re-exporting types and constants available in sphinx
-use nym_outfox::packet::OutfoxPacket;
+use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
 pub use sphinx_packet::{
     constants::{
         self, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
@@ -39,6 +39,11 @@ pub enum NymPacketError {
 pub enum NymPacket {
     Sphinx(SphinxPacket),
     Outfox(OutfoxPacket),
+}
+
+pub enum NymProcessedPacket {
+    Sphinx(ProcessedPacket),
+    Outfox(OutfoxProcessedPacket),
 }
 
 impl fmt::Debug for NymPacket {
@@ -77,11 +82,13 @@ impl NymPacket {
     pub fn outfox_build<M: AsRef<[u8]>>(
         payload: M,
         route: &[Node],
+        destination: &Destination,
         size: Option<usize>,
     ) -> Result<NymPacket, NymPacketError> {
         Ok(NymPacket::Outfox(OutfoxPacket::build(
             payload,
             route.try_into()?,
+            destination,
             size,
         )?))
     }
@@ -108,10 +115,21 @@ impl NymPacket {
         }
     }
 
-    pub fn process(self, node_secret_key: &PrivateKey) -> Result<ProcessedPacket, NymPacketError> {
+    pub fn process(
+        self,
+        node_secret_key: &PrivateKey,
+    ) -> Result<NymProcessedPacket, NymPacketError> {
         match self {
-            NymPacket::Sphinx(packet) => Ok(packet.process(node_secret_key)?),
-            NymPacket::Outfox(_packet) => todo!(),
+            NymPacket::Sphinx(packet) => {
+                Ok(NymProcessedPacket::Sphinx(packet.process(node_secret_key)?))
+            }
+            NymPacket::Outfox(mut packet) => {
+                let next_address = packet.decode_next_layer(node_secret_key)?;
+                Ok(NymProcessedPacket::Outfox(OutfoxProcessedPacket::new(
+                    packet,
+                    next_address,
+                )))
+            }
         }
     }
 }

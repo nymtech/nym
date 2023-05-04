@@ -49,11 +49,11 @@ where
         packet_recipient: Recipient,
         chunk_data: Fragment,
     ) -> Result<PreparedFragment, PreparationError> {
-        info!("retransmitting normal packet...");
+        debug!("retransmitting normal packet...");
 
         // TODO: Figure out retransmission packet type signaling
         self.message_handler
-            .try_prepare_single_chunk_for_sending(packet_recipient, chunk_data, PacketType::Mix)
+            .try_prepare_single_chunk_for_sending(packet_recipient, chunk_data, PacketType::Outfox)
             .await
     }
 

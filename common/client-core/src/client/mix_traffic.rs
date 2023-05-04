@@ -53,7 +53,7 @@ where
     }
 
     async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
-        debug_assert!(!mix_packets.is_empty());
+        assert!(!mix_packets.is_empty());
 
         let result = if mix_packets.len() == 1 {
             let mix_packet = mix_packets.pop().unwrap();
@@ -103,7 +103,7 @@ where
                 }
             }
             shutdown.recv_timeout().await;
-            log::debug!("MixTrafficController: Exiting");
+            log::error!("MixTrafficController: Exiting");
         })
     }
 }

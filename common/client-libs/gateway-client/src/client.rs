@@ -579,6 +579,8 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), GatewayClientError> {
+        warn!("Sending {} mix packets", packets.len());
+
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
@@ -623,9 +625,10 @@ impl<C, St> GatewayClient<C, St> {
     ) -> Result<(), GatewayClientError> {
         if let Err(err) = self.send_websocket_message_without_response(msg).await {
             if err.is_closed_connection() && self.should_reconnect_on_failure {
-                info!("Going to attempt a reconnection");
+                error!("Going to attempt a reconnection");
                 self.attempt_reconnection().await
             } else {
+                error!("{err}");
                 Err(err)
             }
         } else {

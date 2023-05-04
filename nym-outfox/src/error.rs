@@ -1,5 +1,3 @@
-use std::array::TryFromSliceError;
-
 use crate::constants::MIN_MESSAGE_LEN;
 use crate::constants::MIX_PARAMS_LEN;
 use chacha20::cipher::InvalidLength;
@@ -23,7 +21,7 @@ pub enum OutfoxError {
     #[error("{source}")]
     TryFromSlice {
         #[from]
-        source: TryFromSliceError,
+        source: std::array::TryFromSliceError,
     },
     #[error("Header length must be {MIX_PARAMS_LEN}, got {0}")]
     InvalidHeaderLength(usize),

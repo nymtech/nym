@@ -121,7 +121,7 @@ impl<St: Storage> ConnectionHandler<St> {
 
     fn forward_ack(&self, forward_ack: Option<MixPacket>, client_address: DestinationAddressBytes) {
         if let Some(forward_ack) = forward_ack {
-            trace!(
+            debug!(
                 "Sending ack from packet for {} to {}",
                 client_address,
                 forward_ack.next_hop()
@@ -206,7 +206,10 @@ impl<St: Storage> ConnectionHandler<St> {
                             );
                             return;
                         }
-                        None => break, // stream got closed by remote
+                        None => {
+                            info!("Stream go closed by remote");
+                            break
+                        }, // stream got closed by remote
                     }
                 }
             }

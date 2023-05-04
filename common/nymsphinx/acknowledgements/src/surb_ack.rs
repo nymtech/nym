@@ -17,6 +17,7 @@ use std::convert::TryFrom;
 use std::time;
 use thiserror::Error;
 
+#[derive(Debug)]
 pub struct SurbAck {
     surb_ack_packet: NymPacket,
     first_hop_address: NymNodeRoutingAddress,
@@ -55,15 +56,24 @@ impl SurbAck {
 
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);
         let packet_size = match packet_type {
-            PacketType::Outfox => PacketSize::OutfoxAckPacket.payload_size(),
+            PacketType::Outfox => {
+                if surb_ack_payload.len() >= 48 {
+                    surb_ack_payload.len()
+                } else {
+                    48
+                }
+            }
             PacketType::Mix => PacketSize::AckPacket.payload_size(),
             PacketType::Vpn => PacketSize::AckPacket.payload_size(),
         };
 
         let surb_ack_packet = match packet_type {
-            PacketType::Outfox => {
-                NymPacket::outfox_build(surb_ack_payload, route.as_slice(), Some(packet_size))?
-            }
+            PacketType::Outfox => NymPacket::outfox_build(
+                surb_ack_payload,
+                route.as_slice(),
+                &destination,
+                Some(packet_size),
+            )?,
             PacketType::Mix => NymPacket::sphinx_build(
                 packet_size,
                 surb_ack_payload,
@@ -92,10 +102,17 @@ impl SurbAck {
         })
     }
 
-    pub fn len() -> usize {
+    pub fn len(packet_type: Option<PacketType>) -> usize {
         // TODO: this will be variable once/if we decide to introduce optimization described
         // in common/nymsphinx/chunking/src/lib.rs:available_plaintext_size()
-        PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN
+        let packet_type = packet_type.unwrap_or(PacketType::Mix);
+        match packet_type {
+            PacketType::Outfox => {
+                PacketSize::OutfoxAckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN
+            }
+            PacketType::Mix => PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN,
+            PacketType::Vpn => PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN,
+        }
     }
 
     pub fn expected_total_delay(&self) -> Delay {
@@ -116,21 +133,19 @@ impl SurbAck {
     // partial reciprocal of `prepare_for_sending` performed by the gateway
     pub fn try_recover_first_hop_packet(
         b: &[u8],
+        packet_type: PacketType,
     ) -> Result<(NymNodeRoutingAddress, NymPacket), SurbAckRecoveryError> {
-        if b.len() != Self::len() {
-            Err(SurbAckRecoveryError::InvalidPacketSize {
-                received: b.len(),
-                expected: Self::len(),
-            })
-        } else {
-            let address = NymNodeRoutingAddress::try_from_bytes(b)?;
+        let address = NymNodeRoutingAddress::try_from_bytes(b)?;
 
-            // TODO: this will be variable once/if we decide to introduce optimization described
-            // in common/nymsphinx/chunking/src/lib.rs:available_plaintext_size()
-            let address_offset = MAX_NODE_ADDRESS_UNPADDED_LEN;
-            let packet = NymPacket::sphinx_from_bytes(&b[address_offset..])?;
+        // TODO: this will be variable once/if we decide to introduce optimization described
+        // in common/nymsphinx/chunking/src/lib.rs:available_plaintext_size()
+        let address_offset = MAX_NODE_ADDRESS_UNPADDED_LEN;
+        let packet = match packet_type {
+            PacketType::Outfox => NymPacket::outfox_from_bytes(&b[address_offset..])?,
+            PacketType::Mix => NymPacket::sphinx_from_bytes(&b[address_offset..])?,
+            PacketType::Vpn => NymPacket::sphinx_from_bytes(&b[address_offset..])?,
+        };
 
-            Ok((address, packet))
-        }
+        Ok((address, packet))
     }
 }

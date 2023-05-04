@@ -246,7 +246,17 @@ impl Config {
             .expect("Wrong format for bandwidth claim contract address")
     }
 
-    pub fn set_default_nyxd_url(&mut self, nyxd_url: Url, network: WalletNetwork) {
+    pub fn set_default_nyxd_urls(&mut self, urls: &HashMap<WalletNetwork, Url>) {
+        for (network, url) in urls {
+            self.set_default_nyxd_url(url.to_owned(), network);
+        }
+    }
+
+    pub fn set_default_nyxd_url(&mut self, nyxd_url: Url, network: &WalletNetwork) {
+        log::debug!(
+            "set default nyxd URL for {network} {}",
+            nyxd_url.to_string()
+        );
         if let Some(net) = self.networks.get_mut(&network.as_key()) {
             net.default_nyxd_url = Some(nyxd_url);
         } else {
@@ -296,15 +306,25 @@ impl Config {
     }
 
     pub fn get_selected_validator_nyxd_url(&self, network: WalletNetwork) -> Option<Url> {
-        self.networks
-            .get(&network.as_key())
-            .and_then(|config| config.selected_nyxd_url.clone())
+        self.networks.get(&network.as_key()).and_then(|config| {
+            log::debug!(
+                "get selected nyxd url for {} {:#?}",
+                network.to_string(),
+                config.selected_nyxd_url,
+            );
+            config.selected_nyxd_url.clone()
+        })
     }
 
     pub fn get_default_nyxd_url(&self, network: WalletNetwork) -> Option<Url> {
-        self.networks
-            .get(&network.as_key())
-            .and_then(|config| config.default_nyxd_url.clone())
+        self.networks.get(&network.as_key()).and_then(|config| {
+            log::debug!(
+                "get default nyxd url for {} {:#?}",
+                network.to_string(),
+                config.default_nyxd_url,
+            );
+            config.default_nyxd_url.clone()
+        })
     }
 
     pub fn get_selected_nym_api_url(&self, network: &WalletNetwork) -> Option<Url> {

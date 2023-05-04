@@ -456,8 +456,15 @@ impl WalletStateInner {
         Ok(())
     }
 
+    pub fn set_default_nyxd_urls(&mut self, urls: &HashMap<Network, Url>) {
+        self.config.set_default_nyxd_urls(urls);
+    }
+
     pub fn get_selected_nyxd_url(&self, network: &Network) -> Option<Url> {
-        self.config.get_selected_validator_nyxd_url(*network)
+        self.config
+            .get_selected_validator_nyxd_url(*network)
+            // if no validator URL has been selected, use de default one
+            .or_else(|| self.config.get_default_nyxd_url(*network))
     }
 
     pub fn select_nym_api_url(&mut self, url: &str, network: Network) -> Result<(), BackendError> {

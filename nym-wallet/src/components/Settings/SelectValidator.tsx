@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Button, FormControl, Stack, TextField } from '@mui/material';
+import { Box, Button, FormControl, Grid, Stack, TextField, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { getSelectedValidatorUrl, setSelectedValidatorUrl } from '../../requests';
 import { AppContext } from '../../context';
@@ -44,29 +44,49 @@ const SelectValidator = () => {
   };
 
   return (
-    <Stack spacing={3} alignItems="center">
-      <FormControl fullWidth>
-        <Stack spacing={3} mt={2}>
-          <TextField
-            name="validatorUrl"
-            label="Validator URL"
-            value={validatorUrl}
-            onChange={(e) => setValidatorUrl(e.target.value)}
-            error={false}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
-          <Button
-            size="large"
-            variant="contained"
-            disabled={!validatorUrl || validatorUrl.length === 0 || validatorUrl === currentValidatorUrl || isLoading}
-            onClick={saveValidator}
-          >
-            Use this validator
-          </Button>
+    <Grid container spacing={2} padding={3}>
+      <Grid item sm={12} md={7} lg={8}>
+        <Stack direction="column" gap={1}>
+          <Typography variant="h6">Change validator</Typography>
+          <Typography variant="caption" sx={{ color: 'nym.text.muted' }}>
+            You can use the validator of your choice by providing its RPC URL address
+          </Typography>
+          <Stack direction="row" gap={2}>
+            <Typography variant="body2">Current selected validator: </Typography>
+            <Typography variant="body2">{currentValidatorUrl}</Typography>
+          </Stack>
         </Stack>
-      </FormControl>
-    </Stack>
+      </Grid>
+      <Grid item sm={12} md={5} lg={4}>
+        <Box alignSelf="flex-end">
+          <Stack spacing={3} alignItems="center">
+            <FormControl fullWidth>
+              <Stack spacing={3} mt={2}>
+                <TextField
+                  name="validatorUrl"
+                  label="Validator URL"
+                  value={validatorUrl}
+                  onChange={(e) => setValidatorUrl(e.target.value)}
+                  error={false}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                />
+                <Button
+                  size="large"
+                  variant="contained"
+                  disabled={
+                    !validatorUrl || validatorUrl.length === 0 || validatorUrl === currentValidatorUrl || isLoading
+                  }
+                  onClick={saveValidator}
+                >
+                  Use this validator
+                </Button>
+              </Stack>
+            </FormControl>
+          </Stack>
+        </Box>
+      </Grid>
+    </Grid>
   );
 };
 

@@ -26,7 +26,11 @@ pub struct BandwidthAcquireClient<'a, St: Storage> {
     storage: &'a St,
 }
 
-impl<'a, St: Storage> BandwidthAcquireClient<'a, St> {
+impl<'a, St> BandwidthAcquireClient<'a, St>
+where
+    St: Storage,
+    <St as Storage>::StorageError: Send + Sync + 'static,
+{
     pub(crate) fn new(
         network_details: NymNetworkDetails,
         mnemonic: String,

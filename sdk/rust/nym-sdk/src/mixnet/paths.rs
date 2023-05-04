@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::{Error, Result};
-use nym_client_core::client::base_client::storage;
+use nym_client_core::client::base_client::{non_wasm_helpers, storage};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::replies::reply_storage::fs_backend;
+use nym_client_core::config;
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 use std::path::{Path, PathBuf};
@@ -97,10 +98,25 @@ impl StoragePaths {
     }
 
     #[deprecated(note = "add docs")]
-    pub async fn initialise_persistent_storage(&self) -> Result<storage::OnDiskPersistent, Error> {
+    pub async fn initialise_default_persistent_storage(
+        &self,
+    ) -> Result<storage::OnDiskPersistent, Error> {
         Ok(storage::OnDiskPersistent::new(
             self.on_disk_key_storage_spec(),
-            self.persistent_fs_reply_backend().await?,
+            self.default_persistent_fs_reply_backend().await?,
+            self.persistent_credential_storage().await?,
+        ))
+    }
+
+    #[deprecated(note = "add docs")]
+    pub async fn initialise_persistent_storage(
+        &self,
+        config: &config::DebugConfig,
+    ) -> Result<storage::OnDiskPersistent, Error> {
+        Ok(storage::OnDiskPersistent::new(
+            self.on_disk_key_storage_spec(),
+            self.persistent_fs_reply_backend(&config.reply_surbs)
+                .await?,
             self.persistent_credential_storage().await?,
         ))
     }
@@ -117,14 +133,19 @@ impl StoragePaths {
     }
 
     #[deprecated(note = "add docs")]
-    pub async fn persistent_fs_reply_backend(&self) -> Result<fs_backend::Backend, Error> {
-        // TODO: this is wrong, we should use `setup_fs_reply_surb_backend` so we'd do archiving etc
+    pub async fn default_persistent_fs_reply_backend(&self) -> Result<fs_backend::Backend, Error> {
+        self.persistent_fs_reply_backend(&Default::default()).await
+    }
 
-        fs_backend::Backend::init(&self.reply_surb_database_path)
-            .await
-            .map_err(|source| Error::ReplyStorageError {
-                source: Box::new(source),
-            })
+    pub async fn persistent_fs_reply_backend(
+        &self,
+        surb_config: &config::ReplySurbs,
+    ) -> Result<fs_backend::Backend, Error> {
+        Ok(non_wasm_helpers::setup_fs_reply_surb_backend(
+            &self.reply_surb_database_path,
+            surb_config,
+        )
+        .await?)
     }
 
     #[deprecated(note = "add docs")]

@@ -34,6 +34,7 @@ pub trait MixnetClientStorage {
     fn credential_store(&self) -> &Self::CredentialStore;
 }
 
+#[derive(Default)]
 pub struct Ephemeral {
     key_store: InMemEphemeralKeys,
     reply_store: reply_storage::Empty,
@@ -43,16 +44,6 @@ pub struct Ephemeral {
 impl Ephemeral {
     pub fn new() -> Self {
         Default::default()
-    }
-}
-
-impl Default for Ephemeral {
-    fn default() -> Self {
-        Ephemeral {
-            key_store: Default::default(),
-            reply_store: Default::default(),
-            credential_store: Default::default(),
-        }
     }
 }
 

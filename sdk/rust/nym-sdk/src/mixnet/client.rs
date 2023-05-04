@@ -4,7 +4,7 @@
 use super::{connection_state::BuilderState, Config, StoragePaths};
 use crate::bandwidth::BandwidthAcquireClient;
 use crate::mixnet::socks5_client::Socks5MixnetClient;
-use crate::mixnet::{MixnetClient, Recipient};
+use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
 use crate::{Error, Result};
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -77,8 +77,10 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             gateway_config: None,
             socks5_config: None,
             custom_topology_provider: None,
-            gateway_endpoint_path: None,
-            storage: storage_paths.initialise_persistent_storage().await?,
+            storage: storage_paths
+                .initialise_default_persistent_storage()
+                .await?,
+            gateway_endpoint_path: Some(storage_paths.gateway_endpoint_config),
         })
     }
 }
@@ -87,9 +89,24 @@ impl<S> MixnetClientBuilder<S>
 where
     S: MixnetClientStorage + 'static,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
+    <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
     S::ReplyStore: Send + Sync,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
 {
+    #[deprecated(note = "add docs")]
+    #[must_use]
+    pub fn new_with_storage(storage: S) -> MixnetClientBuilder<S> {
+        MixnetClientBuilder {
+            config: Default::default(),
+            storage_paths: None,
+            gateway_config: None,
+            socks5_config: None,
+            custom_topology_provider: None,
+            gateway_endpoint_path: None,
+            storage,
+        }
+    }
+
     #[deprecated(note = "add docs")]
     #[must_use]
     pub fn set_storage<T: MixnetClientStorage>(self, storage: T) -> MixnetClientBuilder<T> {
@@ -236,6 +253,7 @@ impl<S> DisconnectedMixnetClient<S>
 where
     S: MixnetClientStorage + 'static,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
+    <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
     S::ReplyStore: Send + Sync,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
 {
@@ -454,15 +472,14 @@ where
         // For some simple cases we can figure how to setup gateway without it having to have been
         // called in advance.
         if matches!(self.state, BuilderState::New) {
-            if let Some(gateway_endpoint_path) = self.gateway_endpoint_path.clone() {
-                self.read_gateway_endpoint_config(gateway_endpoint_path)?;
-            }
-
-            // TODO: that is redundant since the base client will perform gateway registration
             let already_registered = self.has_gateway_key();
-            self.register_and_authenticate_gateway().await?;
-
-            if !already_registered {
+            if already_registered {
+                if let Some(gateway_endpoint_path) = self.gateway_endpoint_path.clone() {
+                    self.read_gateway_endpoint_config(gateway_endpoint_path)?;
+                }
+            } else {
+                // TODO: that is redundant since the base client will perform gateway registration
+                self.register_and_authenticate_gateway().await?;
                 if let Some(gateway_endpoint_path) = &self.gateway_endpoint_path {
                     self.write_gateway_endpoint_config(gateway_endpoint_path)?;
                 }

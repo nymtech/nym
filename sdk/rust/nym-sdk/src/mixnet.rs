@@ -47,9 +47,20 @@ pub use nym_client_core::{
     client::{
         base_client::storage::{Ephemeral, MixnetClientStorage, OnDiskPersistent},
         inbound_messages::InputMessage,
-        replies::reply_storage::{fs_backend::Backend as ReplyStorage, Empty as EmptyReplyStorage},
+        key_manager::{
+            persistence::{InMemEphemeralKeys, KeyStore, OnDiskKeys},
+            KeyManager,
+        },
+        replies::reply_storage::{
+            fs_backend::Backend as ReplyStorage, CombinedReplyStorage, Empty as EmptyReplyStorage,
+            ReplyStorageBackend,
+        },
     },
     config::GatewayEndpointConfig,
+};
+pub use nym_credential_storage::{
+    ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage, models::CoconutCredential,
+    storage::Storage as CredentialStorage,
 };
 pub use nym_network_defaults::NymNetworkDetails;
 pub use nym_socks5_client_core::config::Socks5;

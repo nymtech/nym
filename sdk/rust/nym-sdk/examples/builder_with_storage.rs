@@ -1,6 +1,5 @@
-use std::path::PathBuf;
-
 use nym_sdk::mixnet;
+use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() {
@@ -13,9 +12,10 @@ async fn main() {
 
     // Create the client with a storage backend, and enable it by giving it some paths. If keys
     // exists at these paths, they will be loaded, otherwise they will be generated.
-    let client = mixnet::MixnetClientBuilder::new()
-        .enable_storage(storage_paths)
-        .build::<mixnet::ReplyStorage>()
+    let client = mixnet::MixnetClientBuilder::new_default_persistent(storage_paths)
+        .await
+        .unwrap()
+        .build()
         .await
         .unwrap();
 

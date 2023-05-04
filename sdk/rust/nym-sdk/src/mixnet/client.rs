@@ -42,18 +42,18 @@ const DEFAULT_NUMBER_OF_SURBS: u32 = 5;
 pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     config: Config,
     storage_paths: Option<StoragePaths>,
-    // keys: Option<Keys>,
     gateway_config: Option<GatewayEndpointConfig>,
     socks5_config: Option<Socks5>,
     custom_topology_provider: Option<Box<dyn TopologyProvider>>,
 
-    // TODO: change that
-    gateway_endpoint_path: Option<PathBuf>,
+    // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
+    gateway_endpoint_config_path: Option<PathBuf>,
 
     storage: S,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
+    /// Creates a client builder with ephemeral storage.
     #[must_use]
     pub fn new_ephemeral() -> Self {
         MixnetClientBuilder {
@@ -80,7 +80,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             storage: storage_paths
                 .initialise_default_persistent_storage()
                 .await?,
-            gateway_endpoint_path: Some(storage_paths.gateway_endpoint_config),
+            gateway_endpoint_config_path: None,
         })
     }
 }
@@ -93,7 +93,7 @@ where
     S::ReplyStore: Send + Sync,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
 {
-    #[deprecated(note = "add docs")]
+    /// Creates a client builder with the provided client storage implementation.
     #[must_use]
     pub fn new_with_storage(storage: S) -> MixnetClientBuilder<S> {
         MixnetClientBuilder {
@@ -102,12 +102,12 @@ where
             gateway_config: None,
             socks5_config: None,
             custom_topology_provider: None,
-            gateway_endpoint_path: None,
+            gateway_endpoint_config_path: None,
             storage,
         }
     }
 
-    #[deprecated(note = "add docs")]
+    /// Change the underlying storage implementation.
     #[must_use]
     pub fn set_storage<T: MixnetClientStorage>(self, storage: T) -> MixnetClientBuilder<T> {
         MixnetClientBuilder {
@@ -116,12 +116,12 @@ where
             gateway_config: self.gateway_config,
             socks5_config: self.socks5_config,
             custom_topology_provider: self.custom_topology_provider,
-            gateway_endpoint_path: self.gateway_endpoint_path,
+            gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
         }
     }
 
-    #[deprecated(note = "add docs")]
+    /// Change the underlying storage of this builder to use default implementation of on-disk persistence.
     #[must_use]
     pub fn set_default_storage(
         self,
@@ -182,6 +182,12 @@ where
         self
     }
 
+    /// Use specified file for storing gateway configuration.
+    pub fn gateway_endpoint_config_path<P: AsRef<Path>>(mut self, path: P) -> Self {
+        self.gateway_endpoint_config_path = Some(path.as_ref().to_owned());
+        self
+    }
+
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
     pub async fn build(self) -> Result<DisconnectedMixnetClient<S>> {
         let mut client = DisconnectedMixnetClient::new(
@@ -189,13 +195,9 @@ where
             self.socks5_config,
             self.storage,
             self.custom_topology_provider,
-            self.gateway_endpoint_path,
+            self.gateway_endpoint_config_path,
         )
         .await?;
-
-        // if let Some(keys) = self.keys {
-        //     client.set_keys(keys);
-        // }
 
         // If we have a gateway config, we can move the client into a registered state. This will
         // fail if no gateway key is set.
@@ -222,29 +224,27 @@ where
     /// Socks5 configuration
     socks5_config: Option<Socks5>,
 
-    // /// Paths for client keys, including identity, encryption, ack and shared gateway keys.
-    // storage_paths: Option<StoragePaths>,
     /// The client can be in one of multiple states, depending on how it is created and if it's
     /// connected to the mixnet.
     state: BuilderState,
 
-    // TODO: refactor storages
+    // TODO: refactor storages and combine everything into a single struct
     /// Controller of bandwidth credentials that the mixnet client can use to connect
     bandwidth_controller: Option<BandwidthController<Client<QueryNyxdClient>, S::CredentialStore>>,
 
     /// The storage backend for reply-SURBs
     reply_storage_backend: S::ReplyStore,
 
+    /// The storage backend for cryptographic keys
     key_store: S::KeyStore,
 
     /// Keys handled by the client
     managed_keys: ManagedKeys,
 
-    // TODO: change that
-    gateway_endpoint_path: Option<PathBuf>,
+    // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
+    /// Path to optionally persist gateway configuration. Note that it's required if one were to use persistent keys.
+    gateway_endpoint_config_path: Option<PathBuf>,
 
-    // /// Underlying storage specification to be used by the client.
-    // storage: S,
     /// Alternative provider of network topology used for constructing sphinx packets.
     custom_topology_provider: Option<Box<dyn TopologyProvider>>,
 }
@@ -257,13 +257,6 @@ where
     S::ReplyStore: Send + Sync,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
 {
-    // /// Attempts to load previously generated cryptographic keys from the underlying storage.
-    // /// In case of failure, new set of keys will be generated.
-    // async fn initial_key_setup(key_store: &S::KeyStore) -> ManagedKeys {
-    //     let mut rng = thread_rng();
-    //     ManagedKeys::load_or_generate(&mut rng, &key_store).await
-    // }
-
     /// Create a new mixnet client in a disconnected state. The default configuration,
     /// creates a new mainnet client with ephemeral keys stored in RAM, which will be discarded at
     /// application close.
@@ -276,10 +269,7 @@ where
         socks5_config: Option<Socks5>,
         storage: S,
         custom_topology_provider: Option<Box<dyn TopologyProvider>>,
-
-        // TODO: change that
-        gateway_endpoint_path: Option<PathBuf>,
-        // gateway_config: &Option<GatewayEndpointConfig>,
+        gateway_endpoint_config_path: Option<PathBuf>,
     ) -> Result<DisconnectedMixnetClient<S>> {
         let (key_store, reply_storage_backend, credential_store) = storage.into_split();
 
@@ -294,27 +284,19 @@ where
             None
         };
 
-        // // The reply storage backend is generic, and can be set by the caller/instantiator
-        // let reply_storage_backend = B::new(&config.debug_config, reply_surb_database_path)
-        //     .await
-        //     .map_err(|err| Error::ReplyStorageError {
-        //         source: Box::new(err),
-        //     })?;
-
         let mut rng = thread_rng();
         let managed_keys = ManagedKeys::load_or_generate(&mut rng, &key_store).await;
 
         Ok(DisconnectedMixnetClient {
             config,
             socks5_config,
-            // storage_paths: None,
             state: BuilderState::New,
             reply_storage_backend,
             key_store,
             bandwidth_controller,
             custom_topology_provider,
             managed_keys,
-            gateway_endpoint_path,
+            gateway_endpoint_config_path,
         })
     }
 
@@ -335,22 +317,13 @@ where
         matches!(self.managed_keys, ManagedKeys::FullyDerived(..))
     }
 
-    // /// Sets the keys of this [`MixnetClientBuilder`].
-    // fn set_keys(&mut self, keys: Keys) {
-    //     self.key_manager.set_identity_keypair(keys.identity_keypair);
-    //     self.key_manager
-    //         .set_encryption_keypair(keys.encryption_keypair);
-    //     self.key_manager.set_ack_key(keys.ack_key);
-    //
-    //     self.key_manager
-    //         .insert_gateway_shared_key(Arc::new(keys.gateway_shared_key));
-    // }
-    //
-    // /// Returns the keys of this [`DisconnectedMixnetClient<B>`]. Client keys are always available
-    // /// since if none are specified at creation time, new random ones are generated.
-    // pub fn get_keys(&self) -> KeysArc {
-    //     KeysArc::from(&self.key_manager)
-    // }
+    fn remove_gateway_key(&mut self) {
+        assert!(self.has_gateway_key());
+        let ManagedKeys::FullyDerived(keys) = std::mem::replace(&mut self.managed_keys, ManagedKeys::Invalidated) else {
+            unreachable!()
+        };
+        self.managed_keys = ManagedKeys::Initial(keys.remove_gateway_key())
+    }
 
     /// Sets the gateway endpoint of this [`MixnetClientBuilder`].
     ///
@@ -474,13 +447,17 @@ where
         if matches!(self.state, BuilderState::New) {
             let already_registered = self.has_gateway_key();
             if already_registered {
-                if let Some(gateway_endpoint_path) = self.gateway_endpoint_path.clone() {
+                if let Some(gateway_endpoint_path) = self.gateway_endpoint_config_path.clone() {
                     self.read_gateway_endpoint_config(gateway_endpoint_path)?;
+                } else if !self.config.key_mode.is_keep() {
+                    // if we don't have gateway configuration available and we're not keeping the keys,
+                    // purge them
+                    self.remove_gateway_key();
                 }
             } else {
                 // TODO: that is redundant since the base client will perform gateway registration
                 self.register_and_authenticate_gateway().await?;
-                if let Some(gateway_endpoint_path) = &self.gateway_endpoint_path {
+                if let Some(gateway_endpoint_path) = &self.gateway_endpoint_config_path {
                     self.write_gateway_endpoint_config(gateway_endpoint_path)?;
                 }
             }
@@ -536,7 +513,7 @@ where
     /// async fn main() {
     ///     let receiving_client = mixnet::MixnetClient::connect_new().await.unwrap();
     ///     let socks5_config = mixnet::Socks5::new(receiving_client.nym_address().to_string());
-    ///     let client = mixnet::MixnetClientBuilder::new()
+    ///     let client = mixnet::MixnetClientBuilder::new_ephemeral()
     ///         .socks5_config(socks5_config)
     ///         .build()
     ///         .await
@@ -604,7 +581,7 @@ where
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let client = mixnet::MixnetClientBuilder::new()
+    ///     let client = mixnet::MixnetClientBuilder::new_ephemeral()
     ///         .build()
     ///         .await
     ///         .unwrap();

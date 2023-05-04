@@ -310,10 +310,10 @@ fn register_multiple_names_and_deleting_by_name() {
         setup.query_all(),
         PagedNamesListResponse {
             names: vec![
-                name_entry(2, name2.clone(), nym_address1.clone(), owner1.clone()),
-                name_entry(3, name3.clone(), nym_address2.clone(), owner1.clone()),
-                name_entry(4, name4.clone(), nym_address1.clone(), owner2.clone()),
-                name_entry(5, name5, nym_address2.clone(), owner2.clone()),
+                name_entry(2, name2, nym_address1.clone(), owner1.clone()),
+                name_entry(3, name3, nym_address2.clone(), owner1),
+                name_entry(4, name4, nym_address1, owner2.clone()),
+                name_entry(5, name5, nym_address2, owner2),
             ],
             per_page: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(5),

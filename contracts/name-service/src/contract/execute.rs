@@ -1,5 +1,5 @@
 use crate::{
-    constants::{MAX_NUMBER_OF_NAMES_FOR_NYM_ADDRESS, MAX_NUMBER_OF_NAMES_PER_OWNER},
+    constants::{MAX_NUMBER_OF_NAMES_FOR_ADDRESS, MAX_NUMBER_OF_NAMES_PER_OWNER},
     error::{NameServiceError, Result},
     state,
 };
@@ -9,7 +9,7 @@ use nym_name_service_common::{
         new_delete_id_event, new_delete_name_event, new_register_event,
         new_update_deposit_required_event,
     },
-    NameId, NymAddress, NymName, RegisteredName,
+    Address, NameId, NymName, RegisteredName,
 };
 
 use super::query;
@@ -40,14 +40,14 @@ fn ensure_max_names_per_owner(deps: Deps, owner: Addr) -> Result<()> {
     }
 }
 
-fn ensure_max_names_per_nym_address(deps: Deps, nym_address: NymAddress) -> Result<()> {
-    let current_entries = query::query_nym_address(deps, nym_address.clone())?;
-    if current_entries.names.len() < MAX_NUMBER_OF_NAMES_FOR_NYM_ADDRESS as usize {
+fn ensure_max_names_per_address(deps: Deps, address: Address) -> Result<()> {
+    let current_entries = query::query_address(deps, address.clone())?;
+    if current_entries.names.len() < MAX_NUMBER_OF_NAMES_FOR_ADDRESS as usize {
         Ok(())
     } else {
-        Err(NameServiceError::ReachedMaxNamesForNymAddress {
-            max_names: MAX_NUMBER_OF_NAMES_FOR_NYM_ADDRESS,
-            nym_address,
+        Err(NameServiceError::ReachedMaxNamesForAddress {
+            max_names: MAX_NUMBER_OF_NAMES_FOR_ADDRESS,
+            address,
         })
     }
 }
@@ -92,11 +92,11 @@ pub fn register(
     env: Env,
     info: MessageInfo,
     name: NymName,
-    nym_address: NymAddress,
+    address: Address,
 ) -> Result<Response> {
     ensure_name_not_exists(deps.as_ref(), &name)?;
     ensure_max_names_per_owner(deps.as_ref(), info.sender.clone())?;
-    ensure_max_names_per_nym_address(deps.as_ref(), nym_address.clone())?;
+    ensure_max_names_per_address(deps.as_ref(), address.clone())?;
 
     let deposit_required = state::deposit_required(deps.storage)?;
     let denom = deposit_required.denom.clone();
@@ -105,7 +105,7 @@ pub fn register(
     ensure_correct_deposit(will_deposit, deposit_required.amount)?;
 
     let new_name = RegisteredName {
-        nym_address,
+        address,
         name,
         owner: info.sender,
         block_height: env.block.height,

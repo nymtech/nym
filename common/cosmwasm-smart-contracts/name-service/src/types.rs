@@ -11,7 +11,7 @@ pub struct RegisteredName {
     /// The name pointing to the nym address
     pub name: NymName,
     /// The address of the service.
-    pub nym_address: NymAddress,
+    pub address: Address,
     /// Service owner.
     pub owner: Addr,
     /// Block height at which the service was added.
@@ -25,26 +25,26 @@ pub struct RegisteredName {
 /// NOTE: entirely unvalidated.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "snake_case")]
-pub enum NymAddress {
-    Address(String),
+pub enum Address {
+    NymAddress(String),
     // Possibly extension:
     //Gateway(String)
 }
 
-impl NymAddress {
+impl Address {
     /// Create a new nym address.
     pub fn new(address: &str) -> Self {
-        Self::Address(address.to_string())
+        Self::NymAddress(address.to_string())
     }
 
     pub fn as_str(&self) -> &str {
         match self {
-            NymAddress::Address(address) => address,
+            Address::NymAddress(address) => address,
         }
     }
 }
 
-impl Display for NymAddress {
+impl Display for Address {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
     }

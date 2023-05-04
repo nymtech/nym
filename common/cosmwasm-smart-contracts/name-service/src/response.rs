@@ -64,7 +64,7 @@ impl From<RegisteredName> for ExecuteMsg {
     fn from(name: RegisteredName) -> Self {
         ExecuteMsg::Register {
             name: name.name,
-            nym_address: name.nym_address,
+            address: name.address,
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{NameId, NymAddress, NymName};
+use crate::{NameId, Address, NymName};
 use cosmwasm_std::Coin;
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +24,7 @@ pub enum ExecuteMsg {
     /// Announcing a name pointing to a nym-address
     Register {
         name: NymName,
-        nym_address: NymAddress,
+        address: Address,
     },
     /// Delete a name entry by id
     DeleteId { name_id: NameId },
@@ -54,8 +54,8 @@ pub enum QueryMsg {
     ByName {
         name: NymName,
     },
-    ByNymAddress {
-        nym_address: NymAddress,
+    ByAddress {
+        address: Address,
     },
     All {
         limit: Option<u32>,

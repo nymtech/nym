@@ -3,7 +3,7 @@ use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
 use nym_name_service_common::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     response::{ConfigResponse, PagedNamesListResponse},
-    NameEntry, NameId, NymAddress, NymName,
+    Address, NameEntry, NameId, NymName,
 };
 use serde::de::DeserializeOwned;
 
@@ -95,16 +95,13 @@ impl TestSetup {
     pub fn try_register(
         &mut self,
         name: NymName,
-        address: NymAddress,
+        address: Address,
         owner: Addr,
     ) -> anyhow::Result<AppResponse> {
         self.app.execute_contract(
             owner,
             self.addr.clone(),
-            &ExecuteMsg::Register {
-                name,
-                nym_address: address,
-            },
+            &ExecuteMsg::Register { name, address },
             &[Coin {
                 denom: DENOM.to_string(),
                 amount: Uint128::new(100),
@@ -112,7 +109,7 @@ impl TestSetup {
         )
     }
 
-    pub fn register(&mut self, name: NymName, address: NymAddress, owner: Addr) -> AppResponse {
+    pub fn register(&mut self, name: NymName, address: Address, owner: Addr) -> AppResponse {
         let resp = self.try_register(name, address, owner).unwrap();
         assert_eq!(
             get_app_attribute(&resp, "wasm-register", "action"),

@@ -1,11 +1,11 @@
 use cosmwasm_std::{Addr, Order, StdError, StdResult, Storage};
 use cw_storage_plus::{Bound, Index, IndexList, IndexedMap, MultiIndex, UniqueIndex};
-use nym_name_service_common::{NameId, NymAddress, NymName, RegisteredName};
+use nym_name_service_common::{Address, NameId, NymName, RegisteredName};
 
 use crate::{
     constants::{
-        MAX_NUMBER_OF_NAMES_FOR_NYM_ADDRESS, MAX_NUMBER_OF_NAMES_PER_OWNER,
-        NAMES_NAME_IDX_NAMESPACE, NAMES_NYM_ADDRESS_IDX_NAMESPACE, NAMES_OWNER_IDX_NAMESPACE,
+        MAX_NUMBER_OF_NAMES_FOR_ADDRESS, MAX_NUMBER_OF_NAMES_PER_OWNER,
+        NAMES_ADDRESS_IDX_NAMESPACE, NAMES_NAME_IDX_NAMESPACE, NAMES_OWNER_IDX_NAMESPACE,
         NAMES_PK_NAMESPACE, NAME_DEFAULT_RETRIEVAL_LIMIT, NAME_MAX_RETRIEVAL_LIMIT,
     },
     error::{NameServiceError, Result},
@@ -15,13 +15,13 @@ struct NameIndex<'a> {
     // A name can only point to a single address
     pub(crate) name: UniqueIndex<'a, String, RegisteredName, NameId>,
     // An addresses can be pointed to by multiple names.
-    pub(crate) nym_address: MultiIndex<'a, String, RegisteredName, NameId>,
+    pub(crate) address: MultiIndex<'a, String, RegisteredName, NameId>,
     pub(crate) owner: MultiIndex<'a, Addr, RegisteredName, NameId>,
 }
 
 impl<'a> IndexList<RegisteredName> for NameIndex<'a> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<RegisteredName>> + '_> {
-        let v: Vec<&dyn Index<RegisteredName>> = vec![&self.name, &self.nym_address, &self.owner];
+        let v: Vec<&dyn Index<RegisteredName>> = vec![&self.name, &self.address, &self.owner];
         Box::new(v.into_iter())
     }
 }
@@ -29,10 +29,10 @@ impl<'a> IndexList<RegisteredName> for NameIndex<'a> {
 fn names<'a>() -> IndexedMap<'a, NameId, RegisteredName, NameIndex<'a>> {
     let indexes = NameIndex {
         name: UniqueIndex::new(|d| d.name.to_string(), NAMES_NAME_IDX_NAMESPACE),
-        nym_address: MultiIndex::new(
-            |d| d.nym_address.to_string(),
+        address: MultiIndex::new(
+            |d| d.address.to_string(),
             NAMES_PK_NAMESPACE,
-            NAMES_NYM_ADDRESS_IDX_NAMESPACE,
+            NAMES_ADDRESS_IDX_NAMESPACE,
         ),
         owner: MultiIndex::new(
             |d| d.owner.clone(),
@@ -99,16 +99,16 @@ pub fn load_name(store: &dyn Storage, name: &NymName) -> Result<RegisteredName> 
         .ok_or(NameServiceError::NameNotFound { name: name.clone() })
 }
 
-pub fn load_nym_address(
+pub fn load_address(
     store: &dyn Storage,
-    nym_address: &NymAddress,
+    address: &Address,
 ) -> Result<Vec<(NameId, RegisteredName)>> {
     names()
         .idx
-        .nym_address
-        .prefix(nym_address.to_string())
+        .address
+        .prefix(address.to_string())
         .range(store, None, None, Order::Ascending)
-        .take(MAX_NUMBER_OF_NAMES_FOR_NYM_ADDRESS as usize)
+        .take(MAX_NUMBER_OF_NAMES_FOR_ADDRESS as usize)
         .collect::<StdResult<Vec<_>>>()
         .map_err(NameServiceError::from)
 }
@@ -340,14 +340,14 @@ mod tests {
     }
 
     #[rstest]
-    fn load_nym_address_works(mut deps: TestDeps) {
+    fn load_address_works(mut deps: TestDeps) {
         assert_eq!(
-            load_nym_address(deps.as_ref().storage, &name_fixture().nym_address).unwrap(),
+            load_address(deps.as_ref().storage, &name_fixture().address).unwrap(),
             vec![],
         );
         save(deps.as_mut().storage, &name_fixture()).unwrap();
         assert_eq!(
-            load_nym_address(deps.as_ref().storage, &name_fixture().nym_address).unwrap(),
+            load_address(deps.as_ref().storage, &name_fixture().address).unwrap(),
             vec![(1, name_fixture())],
         );
     }
@@ -503,7 +503,7 @@ mod tests {
     }
 
     #[rstest]
-    fn load_nym_address_with_overlapping_addresses_works(
+    fn load_address_with_overlapping_addresses_works(
         mut deps: TestDeps,
         overlapping_addresses: Vec<RegisteredName>,
     ) {
@@ -521,7 +521,7 @@ mod tests {
             }
         );
         assert_eq!(
-            load_nym_address(deps.as_ref().storage, &NymAddress::new("address_two")).unwrap(),
+            load_address(deps.as_ref().storage, &Address::new("address_two")).unwrap(),
             vec![
                 (2, name_fixture_full("two", "address_two", "owner_two")),
                 (3, name_fixture_full("three", "address_two", "owner_three")),

@@ -1,6 +1,6 @@
 use cosmwasm_std::{Addr, StdError};
 use cw_controllers::AdminError;
-use nym_name_service_common::{NameId, NymAddress, NymName};
+use nym_name_service_common::{Address, NameId, NymName};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -38,11 +38,8 @@ pub enum NameServiceError {
     #[error("reached the max number of names ({max_names}) for owner {owner}")]
     ReachedMaxNamesForOwner { max_names: u32, owner: Addr },
 
-    #[error("reached the max number of names ({max_names}) for nym address {0}", nym_address.to_string())]
-    ReachedMaxNamesForNymAddress {
-        max_names: u32,
-        nym_address: NymAddress,
-    },
+    #[error("reached the max number of names ({max_names}) for address {0}", address.to_string())]
+    ReachedMaxNamesForAddress { max_names: u32, address: Address },
 
     #[error("failed to parse {value} into a valid SemVer version: {error_message}")]
     SemVerFailure {

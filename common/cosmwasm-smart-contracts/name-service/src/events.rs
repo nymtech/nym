@@ -40,7 +40,7 @@ pub fn new_register_event(name_id: NameId, name: RegisteredName) -> Event {
         .add_attribute(ACTION, NameEventType::Register)
         .add_attribute(NAME_ID, name_id.to_string())
         .add_attribute(NAME, name.name.to_string())
-        .add_attribute(NYM_ADDRESS, name.nym_address.to_string())
+        .add_attribute(NYM_ADDRESS, name.address.to_string())
         .add_attribute(OWNER, name.owner.to_string())
 }
 
@@ -49,7 +49,7 @@ pub fn new_delete_id_event(name_id: NameId, name: RegisteredName) -> Event {
         .add_attribute(ACTION, NameEventType::DeleteId)
         .add_attribute(NAME_ID, name_id.to_string())
         .add_attribute(NAME, name.name.to_string())
-        .add_attribute(NYM_ADDRESS, name.nym_address.to_string())
+        .add_attribute(NYM_ADDRESS, name.address.to_string())
 }
 
 pub fn new_delete_name_event(name_id: NameId, name: RegisteredName) -> Event {
@@ -57,7 +57,7 @@ pub fn new_delete_name_event(name_id: NameId, name: RegisteredName) -> Event {
         .add_attribute(ACTION, NameEventType::DeleteName)
         .add_attribute(NAME_ID, name_id.to_string())
         .add_attribute(NAME, name.name.to_string())
-        .add_attribute(NYM_ADDRESS, name.nym_address.to_string())
+        .add_attribute(NYM_ADDRESS, name.address.to_string())
 }
 
 pub fn new_update_deposit_required_event(deposit_required: Coin) -> Event {

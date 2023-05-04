@@ -72,9 +72,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, NameServiceError> {
     match msg {
-        ExecuteMsg::Register { name, nym_address } => {
-            execute::register(deps, env, info, name, nym_address)
-        }
+        ExecuteMsg::Register { name, address } => execute::register(deps, env, info, name, address),
         ExecuteMsg::DeleteId { name_id } => execute::delete_id(deps, info, name_id),
         ExecuteMsg::DeleteName { name } => execute::delete_name(deps, info, name),
         ExecuteMsg::UpdateDepositRequired { deposit_required } => {
@@ -87,9 +85,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
     let response = match msg {
         QueryMsg::NameId { name_id } => to_binary(&query::query_id(deps, name_id)?),
         QueryMsg::ByOwner { owner } => to_binary(&query::query_owner(deps, owner)?),
-        QueryMsg::ByNymAddress { nym_address } => {
-            to_binary(&query::query_nym_address(deps, nym_address)?)
-        }
+        QueryMsg::ByAddress { address } => to_binary(&query::query_address(deps, address)?),
         QueryMsg::ByName { name } => to_binary(&query::query_name(deps, name)?),
         QueryMsg::All { limit, start_after } => {
             to_binary(&query::query_all_paged(deps, limit, start_after)?)

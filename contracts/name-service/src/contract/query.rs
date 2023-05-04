@@ -2,7 +2,7 @@ use cosmwasm_std::Deps;
 use nym_contracts_common::ContractBuildInformation;
 use nym_name_service_common::{
     response::{ConfigResponse, NamesListResponse, PagedNamesListResponse},
-    NameEntry, NameId, NymAddress, NymName,
+    Address, NameEntry, NameId, NymName,
 };
 
 use crate::{
@@ -21,8 +21,8 @@ pub fn query_owner(deps: Deps, owner: String) -> Result<NamesListResponse> {
     Ok(NamesListResponse::new(names))
 }
 
-pub fn query_nym_address(deps: Deps, nym_address: NymAddress) -> Result<NamesListResponse> {
-    let names = state::names::load_nym_address(deps.storage, &nym_address)?;
+pub fn query_address(deps: Deps, address: Address) -> Result<NamesListResponse> {
+    let names = state::names::load_address(deps.storage, &address)?;
     Ok(NamesListResponse::new(names))
 }
 

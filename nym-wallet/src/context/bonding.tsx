@@ -6,6 +6,7 @@ import {
   TransactionExecuteResult,
   decimalToPercentage,
   SelectionChance,
+  InclusionProbabilityResponse,
   decimalToFloatApproximation,
 } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -19,6 +20,7 @@ import {
   TBondMixNodeArgs,
   TBondMixnodeSignatureArgs,
   TUpdateBondArgs,
+  TNodeDescription,
 } from 'src/types';
 import { Console } from 'src/utils/console';
 import {
@@ -57,7 +59,6 @@ import { AppContext } from './main';
 import {
   attachDefaultOperatingCost,
   decCoinToDisplay,
-  toDisplay,
   toPercentFloatString,
   toPercentIntegerString,
   unymToNym,
@@ -161,6 +162,12 @@ export const BondingContext = createContext<TBondingContext>({
   isVestingAccount: false,
 });
 
+type TauriReq<Req extends Function & ((a: any, b?: any) => Promise<any>)> = {
+  name: Req['name'];
+  request: () => ReturnType<Req>;
+  onFulfilled: (value: Awaited<ReturnType<Req>>) => void;
+};
+
 export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Element => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -185,12 +192,33 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     setBondedNode(undefined);
   };
 
-  const getAdditionalMixnodeDetails = async (mixId: number) => {
-    const additionalDetails: {
+  const fireRequests = async (reqs: TauriReq<any>[]) => {
+    const promises = await Promise.allSettled(reqs.map((r) => r.request()));
+
+    promises.forEach((res, index) => {
+      if (res.status === 'rejected') {
+        Console.warn(`${reqs[index].name} request fails`, res.reason);
+      }
+      if (res.status === 'fulfilled') {
+        reqs[index].onFulfilled(res.value as any);
+      }
+    });
+  };
+
+  /**
+   * Fetch mixnode **optional** data.
+   * ⚠ The underlying queries are allowed to fail.
+   */
+  const fetchMixnodeDetails = async (mixId: number, host: string, port: number) => {
+    const details: {
       status: MixnodeStatus;
       stakeSaturation: string;
       estimatedRewards?: DecCoin;
       uptime: number;
+      averageUptime?: number;
+      setProbability?: InclusionProbabilityResponse;
+      nodeDescription?: TNodeDescription | undefined;
+      operatorRewards?: DecCoin;
       uncappedSaturation?: number;
     } = {
       status: 'not_found',
@@ -198,69 +226,123 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       uptime: 0,
     };
 
-    try {
-      const statusResponse = await getMixnodeStatus(mixId);
-      const uptime = await getMixnodeUptime(mixId);
-      additionalDetails.status = statusResponse.status;
-      additionalDetails.uptime = uptime;
-    } catch (e) {
-      Console.log('getMixnodeStatus fails', e);
-    }
+    const statusReq: TauriReq<typeof getMixnodeStatus> = {
+      name: 'getMixnodeStatus',
+      request: () => getMixnodeStatus(mixId),
+      onFulfilled: (value) => {
+        details.status = value.status;
+      },
+    };
 
-    try {
-      const stakeSaturationResponse = await getMixnodeStakeSaturation(mixId);
-      additionalDetails.stakeSaturation = decimalToPercentage(stakeSaturationResponse.saturation);
+    const uptimeReq: TauriReq<typeof getMixnodeUptime> = {
+      name: 'getMixnodeUptime',
+      request: () => getMixnodeUptime(mixId),
+      onFulfilled: (value) => {
+        details.uptime = value;
+      },
+    };
 
-      const rawUncappedSaturation = decimalToFloatApproximation(stakeSaturationResponse.uncapped_saturation);
-      if (rawUncappedSaturation && rawUncappedSaturation > 1) {
-        additionalDetails.uncappedSaturation = Math.round(rawUncappedSaturation * 100);
-      }
-    } catch (e) {
-      Console.log('getMixnodeStakeSaturation fails', e);
-    }
-    try {
-      const rewardEstimation = await getMixnodeRewardEstimation(mixId);
-      const estimatedRewards = unymToNym(rewardEstimation.estimation.total_node_reward);
-      if (estimatedRewards) {
-        additionalDetails.estimatedRewards = {
-          amount: estimatedRewards,
-          denom: 'nym',
-        };
-      }
-    } catch (e) {
-      Console.log('getMixnodeRewardEstimation fails', e);
-    }
-    return additionalDetails;
+    const stakeSaturationReq: TauriReq<typeof getMixnodeStakeSaturation> = {
+      name: 'getMixnodeStakeSaturation',
+      request: () => getMixnodeStakeSaturation(mixId),
+      onFulfilled: (value) => {
+        details.stakeSaturation = decimalToPercentage(value.saturation);
+        const rawUncappedSaturation = decimalToFloatApproximation(value.uncapped_saturation);
+        if (rawUncappedSaturation && rawUncappedSaturation > 1) {
+          details.uncappedSaturation = Math.round(rawUncappedSaturation * 100);
+        }
+      },
+    };
+
+    const rewardReq: TauriReq<typeof getMixnodeRewardEstimation> = {
+      name: 'getMixnodeRewardEstimation',
+      request: () => getMixnodeRewardEstimation(mixId),
+      onFulfilled: (value) => {
+        const estimatedRewards = unymToNym(value.estimation.total_node_reward);
+        if (estimatedRewards) {
+          details.estimatedRewards = {
+            amount: estimatedRewards,
+            denom: 'nym',
+          };
+        }
+      },
+    };
+
+    const inclusionReq: TauriReq<typeof getInclusionProbability> = {
+      name: 'getInclusionProbability',
+      request: () => getInclusionProbability(mixId),
+      onFulfilled: (value) => {
+        details.setProbability = value;
+      },
+    };
+
+    const avgUptimeReq: TauriReq<typeof getMixnodeAvgUptime> = {
+      name: 'getMixnodeAvgUptime',
+      request: () => getMixnodeAvgUptime(),
+      onFulfilled: (value) => {
+        details.averageUptime = value as number | undefined;
+      },
+    };
+
+    const nodeDescReq: TauriReq<typeof getNodeDescriptionRequest> = {
+      name: 'getNodeDescription',
+      request: () => getNodeDescriptionRequest(host, port),
+      onFulfilled: (value) => {
+        details.nodeDescription = value;
+      },
+    };
+
+    const operatorRewardsReq: TauriReq<typeof getPendingOperatorRewards> = {
+      name: 'getPendingOperatorRewards',
+      request: () => getPendingOperatorRewards(clientDetails?.client_address || ''),
+      onFulfilled: (value) => {
+        details.operatorRewards = decCoinToDisplay(value);
+      },
+    };
+
+    await fireRequests([
+      statusReq,
+      uptimeReq,
+      stakeSaturationReq,
+      rewardReq,
+      inclusionReq,
+      avgUptimeReq,
+      nodeDescReq,
+      operatorRewardsReq,
+    ]);
+
+    return details;
   };
 
-  const getNodeDescription = async (host: string, port: number) => {
-    let result;
-    try {
-      result = await getNodeDescriptionRequest(host, port);
-    } catch (e) {
-      Console.log('getNodeDescriptionRequest fails', e);
-    }
-    return result;
-  };
+  /**
+   * Fetch gateway **optional** data.
+   * ⚠ The underlying queries are allowed to fail.
+   */
+  const fetchGatewayDetails = async (identityKey: string, host: string, port: number) => {
+    const details: {
+      routingScore?: { current: number; average: number } | undefined;
+      nodeDescription?: TNodeDescription | undefined;
+    } = {};
 
-  const getSetProbabilities = async (mixId: number) => {
-    let result;
-    try {
-      result = await getInclusionProbability(mixId);
-    } catch (e: any) {
-      Console.log('getInclusionProbability fails', e);
-    }
-    return result;
-  };
+    const reportReq: TauriReq<typeof getGatewayReport> = {
+      name: 'getGatewayReport',
+      request: () => getGatewayReport(identityKey),
+      onFulfilled: (value) => {
+        details.routingScore = { current: value.most_recent, average: value.last_day };
+      },
+    };
 
-  const getAvgUptime = async () => {
-    let result;
-    try {
-      result = await getMixnodeAvgUptime();
-    } catch (e: any) {
-      Console.log('getMixnodeAvgUptime fails', e);
-    }
-    return result;
+    const nodeDescReq: TauriReq<typeof getNodeDescriptionRequest> = {
+      name: 'getNodeDescription',
+      request: () => getNodeDescriptionRequest(host, port),
+      onFulfilled: (value) => {
+        details.nodeDescription = value;
+      },
+    };
+
+    await fireRequests([reportReq, nodeDescReq]);
+
+    return details;
   };
 
   const calculateStake = (pledge: string, delegations: string) => {
@@ -273,16 +355,6 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return stake;
   };
 
-  const getGatewayReportDetails = async (identityKey: string) => {
-    try {
-      const report = await getGatewayReport(identityKey);
-      return { current: report.most_recent, average: report.last_day };
-    } catch (e) {
-      Console.error(e);
-      return undefined;
-    }
-  };
-
   const refresh = useCallback(async () => {
     setIsLoading(true);
     setError(undefined);
@@ -290,16 +362,6 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     if (ownership.hasOwnership && ownership.nodeType === EnumNodeType.mixnode && clientDetails) {
       try {
         const data = await getMixnodeBondDetails();
-        let operatorRewards;
-        try {
-          operatorRewards = await getPendingOperatorRewards(clientDetails?.client_address);
-          const opRewards = toDisplay(operatorRewards.amount);
-          if (opRewards) {
-            operatorRewards.amount = opRewards;
-          }
-        } catch (e) {
-          Console.warn(`get_operator_rewards request failed: ${e}`);
-        }
         if (data) {
           const {
             bond_information,
@@ -313,13 +375,16 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
             uncappedSaturation: uncappedStakeSaturation,
             estimatedRewards,
             uptime,
-          } = await getAdditionalMixnodeDetails(mix_id);
-          const setProbabilities = await getSetProbabilities(mix_id);
-          const nodeDescription = await getNodeDescription(
+            operatorRewards,
+            averageUptime,
+            nodeDescription,
+            setProbability,
+          } = await fetchMixnodeDetails(
+            mix_id,
             bond_information.mix_node.host,
             bond_information.mix_node.http_api_port,
           );
-          const routingScore = await getAvgUptime();
+
           setBondedNode({
             id: data.bond_information.mix_id,
             name: nodeDescription?.name,
@@ -340,9 +405,9 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
             uncappedStakeSaturation,
             operatorCost: decCoinToDisplay(rewarding_details.cost_params.interval_operating_cost),
             host: bond_information.mix_node.host.replace(/\s/g, ''),
-            routingScore,
-            activeSetProbability: setProbabilities?.in_active,
-            standbySetProbability: setProbabilities?.in_reserve,
+            routingScore: averageUptime,
+            activeSetProbability: setProbability?.in_active,
+            standbySetProbability: setProbability?.in_reserve,
             estimatedRewards,
             httpApiPort: bond_information.mix_node.http_api_port,
             mixPort: bond_information.mix_node.mix_port,
@@ -362,8 +427,11 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
         const data = await getGatewayBondDetails();
         if (data) {
           const { gateway, proxy } = data;
-          const nodeDescription = await getNodeDescription(data.gateway.host, data.gateway.clients_port);
-          const routingScore = await getGatewayReportDetails(data.gateway.identity_key);
+          const { nodeDescription, routingScore } = await fetchGatewayDetails(
+            gateway.identity_key,
+            data.gateway.host,
+            data.gateway.clients_port,
+          );
           setBondedNode({
             name: nodeDescription?.name,
             identityKey: gateway.identity_key,

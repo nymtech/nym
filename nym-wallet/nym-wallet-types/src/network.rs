@@ -154,6 +154,7 @@ mod sandbox {
                 service_provider_directory_contract_address: parse_optional_str(
                     SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
                 ),
+                name_service_contract_address: parse_optional_str(NAME_SERVICE_CONTRACT_ADDRESS),
             },
         }
     }
@@ -221,6 +222,7 @@ mod qa {
                 service_provider_directory_contract_address: parse_optional_str(
                     SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
                 ),
+                name_service_contract_address: parse_optional_str(NAME_SERVICE_CONTRACT_ADDRESS),
             },
         }
     }

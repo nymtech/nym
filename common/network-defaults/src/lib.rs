@@ -14,9 +14,6 @@ use url::Url;
 pub mod mainnet;
 pub mod var_names;
 
-pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
-pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
-
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ChainDetails {
     pub bech32_account_prefix: String,
@@ -165,12 +162,8 @@ impl NymNetworkDetails {
                 coconut_dkg_contract_address: parse_optional_str(
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
                 ),
-                service_provider_directory_contract_address: parse_optional_str(
-                    mainnet::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
-                ),
-                name_service_contract_address: parse_optional_str(
-                    mainnet::NAME_SERVICE_CONTRACT_ADDRESS,
-                ),
+                service_provider_directory_contract_address: None,
+                name_service_contract_address: None,
             },
         }
     }

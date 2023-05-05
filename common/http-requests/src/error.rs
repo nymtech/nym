@@ -10,4 +10,7 @@ pub enum MixHttpRequestError {
 
     #[error("bytecodec Error: {0}")]
     ByteCodecError(#[from] bytecodec::Error),
+
+    #[error("Url parse error: {0}")]
+    UrlParseError(#[from] url::ParseError),
 }

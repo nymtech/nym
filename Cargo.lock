@@ -4150,6 +4150,7 @@ dependencies = [
  "nym-service-providers-common",
  "nym-socks5-requests",
  "thiserror",
+ "url",
 ]
 
 [[package]]

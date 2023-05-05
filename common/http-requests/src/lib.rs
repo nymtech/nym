@@ -13,6 +13,18 @@ use nym_socks5_requests::{Socks5ProtocolVersion, Socks5Response, Socks5ResponseC
 
 pub mod error;
 
+pub fn encode_http_request_as_string(
+    request: Request<Vec<u8>>,
+) -> Result<String, error::MixHttpRequestError> {
+    // Encode HTTP request as bytes
+    let mut encoder = RequestEncoder::new(BodyEncoder::new(BytesEncoder::new()));
+    encoder.start_encoding(request)?;
+    let mut buf = Vec::new();
+    encoder.encode_all(&mut buf)?;
+
+    Ok(String::from_utf8_lossy(&buf).to_string())
+}
+
 pub fn encode_http_request_as_socks_request(
     socks5_version: Socks5ProtocolVersion,
     conn_id: u64,

@@ -3524,6 +3524,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-name-service-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "serde",
+]
+
+[[package]]
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
@@ -3845,6 +3853,7 @@ dependencies = [
  "nym-group-contract-common",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
+ "nym-name-service-common",
  "nym-network-defaults",
  "nym-service-provider-directory-common",
  "nym-vesting-contract",

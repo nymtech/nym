@@ -35,6 +35,23 @@ impl ExecuteMsg {
     pub fn delete_id(name_id: NameId) -> Self {
         ExecuteMsg::DeleteId { name_id }
     }
+
+    pub fn default_memo(&self) -> String {
+        match self {
+            ExecuteMsg::Register { name, address } => {
+                format!("registering {address} as name: {name}")
+            }
+            ExecuteMsg::DeleteId { name_id } => {
+                format!("deleting name with id {name_id}")
+            }
+            ExecuteMsg::DeleteName { name } => {
+                format!("deleting name: {name}")
+            }
+            ExecuteMsg::UpdateDepositRequired { deposit_required } => {
+                format!("updating the deposit required to {deposit_required}")
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

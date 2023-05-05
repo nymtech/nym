@@ -14,9 +14,6 @@ use url::Url;
 pub mod mainnet;
 pub mod var_names;
 
-pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
-pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
-
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ChainDetails {
     pub bech32_account_prefix: String,
@@ -34,6 +31,7 @@ pub struct NymContracts {
     pub multisig_contract_address: Option<String>,
     pub coconut_dkg_contract_address: Option<String>,
     pub service_provider_directory_contract_address: Option<String>,
+    pub name_service_contract_address: Option<String>,
 }
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
@@ -134,6 +132,7 @@ impl NymNetworkDetails {
             .with_service_provider_directory_contract(get_optional_env(
                 var_names::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
             ))
+            .with_name_service_contract(get_optional_env(var_names::NAME_SERVICE_CONTRACT_ADDRESS))
     }
 
     pub fn new_mainnet() -> Self {
@@ -163,9 +162,8 @@ impl NymNetworkDetails {
                 coconut_dkg_contract_address: parse_optional_str(
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
                 ),
-                service_provider_directory_contract_address: parse_optional_str(
-                    mainnet::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
-                ),
+                service_provider_directory_contract_address: None,
+                name_service_contract_address: None,
             },
         }
     }
@@ -254,6 +252,12 @@ impl NymNetworkDetails {
         contract: Option<S>,
     ) -> Self {
         self.contracts.service_provider_directory_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_name_service_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.name_service_contract_address = contract.map(Into::into);
         self
     }
 }

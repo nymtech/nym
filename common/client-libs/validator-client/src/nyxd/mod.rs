@@ -68,6 +68,7 @@ pub struct Config {
     pub(crate) multisig_contract_address: Option<AccountId>,
     pub(crate) coconut_dkg_contract_address: Option<AccountId>,
     pub(crate) service_provider_contract_address: Option<AccountId>,
+    pub(crate) name_service_contract_address: Option<AccountId>,
     // TODO: add this in later commits
     // pub(crate) gas_price: GasPrice,
 }
@@ -137,6 +138,10 @@ impl Config {
                     .contracts
                     .service_provider_directory_contract_address
                     .as_ref(),
+                prefix,
+            )?,
+            name_service_contract_address: Self::parse_optional_account(
+                details.contracts.name_service_contract_address.as_ref(),
                 prefix,
             )?,
         })
@@ -319,6 +324,11 @@ impl<C> NyxdClient<C> {
     // The service provider directory contract is optional, so we return an Option not a Result
     pub fn service_provider_contract_address(&self) -> Option<&AccountId> {
         self.config.service_provider_contract_address.as_ref()
+    }
+
+    // The name service contract is optional, so we return an Option not a Result
+    pub fn name_service_contract_address(&self) -> Option<&AccountId> {
+        self.config.name_service_contract_address.as_ref()
     }
 
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {

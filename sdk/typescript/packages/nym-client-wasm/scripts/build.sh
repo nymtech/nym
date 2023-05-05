@@ -15,6 +15,9 @@ rm -f nym_client_wasm* package.json || true
 cd ../../../../clients/webassembly
 wasm-pack build --scope nymproject --target web --out-dir ../../sdk/typescript/packages/nym-client-wasm
 
-# clean up some files that come with the build
+# run wasm-opt manually to circumvent wasm-pack issues with Apple Silicon
 cd ../../sdk/typescript/packages/nym-client-wasm
+wasm-opt -O4 nym_client_wasm_bg.wasm -o nym_client_wasm_bg.wasm
+
+# clean up some files that come with the build
 rm README.md LICENSE_APACHE

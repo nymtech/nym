@@ -64,7 +64,7 @@ wee_alloc = { version = "0.4", optional = true }
 wasm-bindgen-test = "0.3"
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = true
+wasm-opt = false
 
 [profile.release]
 lto = true

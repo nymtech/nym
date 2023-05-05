@@ -34,7 +34,14 @@ import {
   StakeSaturationResponse,
   UnbondedMixnodeResponse,
   VestingAccountInfo,
-  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode, DelegationBlock
+  ContractState,
+  VestingAccountsCoinPaged,
+  VestingAccountsPaged,
+  DelegationTimes,
+  Delegations,
+  Period,
+  VestingAccountNode,
+  DelegationBlock,
 } from '@nymproject/types';
 import QueryClient from './query-client';
 import SigningClient, { ISigningClient } from './signing-client';
@@ -207,7 +214,7 @@ export default class ValidatorClient implements INymClient {
     let mixNodes: UnbondedMixnodeResponse[] = [];
     const limit = 50;
     let startAfter;
-    for (; ;) {
+    for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedUnbondedMixnodesResponse = await this.client.getUnbondedMixNodes(
         this.mixnetContract,
@@ -230,7 +237,7 @@ export default class ValidatorClient implements INymClient {
     let mixNodes: MixNodeBond[] = [];
     const limit = 50;
     let startAfter;
-    for (; ;) {
+    for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedMixNodeBondResponse = await this.client.getMixNodeBonds(
         this.mixnetContract,
@@ -252,7 +259,7 @@ export default class ValidatorClient implements INymClient {
     let mixNodes: MixNodeDetails[] = [];
     const limit = 50;
     let startAfter;
-    for (; ;) {
+    for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedMixNodeDetailsResponse = await this.client.getMixNodesDetailed(
         this.mixnetContract,
@@ -284,7 +291,7 @@ export default class ValidatorClient implements INymClient {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
-    for (; ;) {
+    for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedMixDelegationsResponse = await this.client.getMixNodeDelegationsPaged(
         this.mixnetContract,
@@ -307,7 +314,7 @@ export default class ValidatorClient implements INymClient {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
-    for (; ;) {
+    for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedDelegatorDelegationsResponse = await this.client.getDelegatorDelegationsPaged(
         this.mixnetContract,
@@ -330,7 +337,7 @@ export default class ValidatorClient implements INymClient {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
-    for (; ;) {
+    for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedAllDelegationsResponse = await this.client.getAllDelegationsPaged(
         this.mixnetContract,
@@ -518,10 +525,8 @@ export default class ValidatorClient implements INymClient {
     return (this.client as ISigningClient).updateContractStateParams(this.mixnetContract, newParams, fee, memo);
   }
 
-
-  // VESTING 
+  // VESTING
   // TODO - MOVE TO A DIFFERENT FILE
-
 
   public async getVestingAccountsPaged(): Promise<VestingAccountsPaged> {
     return this.client.getVestingAccountsPaged(this.vestingContract);
@@ -608,14 +613,20 @@ export default class ValidatorClient implements INymClient {
   }
 
   public async getDelegation(address: string, mix_id: number): Promise<DelegationBlock> {
-    return this.client.getDelegation(this.vestingContract, address, mix_id );
+    return this.client.getDelegation(this.vestingContract, address, mix_id);
   }
- 
+
   public async getTotalDelegationAmount(address: string, mix_id: number, block_timestamp_sec: number): Promise<Coin> {
     return this.client.getTotalDelegationAmount(this.vestingContract, address, mix_id, block_timestamp_sec);
   }
 
   public async getCurrentVestingPeriod(address: string): Promise<Period> {
     return this.client.getCurrentVestingPeriod(this.vestingContract, address);
+  }
+
+  // SIMULATE
+
+  public async simulateSend(signingAddress: string, from: string, to: string, amount: Coin[]) {
+    return (this.client as SigningClient).simulateSend(signingAddress, from, to, amount);
   }
 }

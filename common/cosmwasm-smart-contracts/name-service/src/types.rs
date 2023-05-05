@@ -1,12 +1,13 @@
 use std::fmt::{Display, Formatter};
 
 use cosmwasm_std::{Addr, Coin};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// The directory of services are indexed by [`ServiceId`].
 pub type NameId = u32;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
 pub struct RegisteredName {
     /// The name pointing to the nym address
     pub name: NymName,
@@ -23,11 +24,11 @@ pub struct RegisteredName {
 /// String representation of a nym address, which is of the form
 /// client_id.client_enc@gateway_id.
 /// NOTE: entirely unvalidated.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Address {
     NymAddress(String),
-    // Possibly extension:
+    // Possible extension:
     //Gateway(String)
 }
 
@@ -58,7 +59,7 @@ impl Display for Address {
 }
 
 /// Name stored and pointing a to a nym-address
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct NymName(String);
 
@@ -98,7 +99,7 @@ impl Display for NymName {
 }
 
 /// [`RegisterdName`] together with the assigned [`NameId`].
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct NameEntry {
     pub name_id: NameId,

@@ -3105,6 +3105,7 @@ dependencies = [
  "nym-inclusion-probability",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
+ "nym-name-service-common",
  "nym-node-tester-utils",
  "nym-pemstore",
  "nym-service-provider-directory-common",
@@ -3773,6 +3774,7 @@ name = "nym-name-service-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "schemars",
  "serde",
 ]
 

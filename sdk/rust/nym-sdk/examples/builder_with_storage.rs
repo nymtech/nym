@@ -7,8 +7,7 @@ async fn main() {
 
     // Specify some config options
     let config_dir = PathBuf::from("/tmp/mixnet-client");
-    let storage_paths =
-        mixnet::StoragePaths::new_from_dir(mixnet::KeyMode::Keep, &config_dir).unwrap();
+    let storage_paths = mixnet::StoragePaths::new_from_dir(&config_dir).unwrap();
 
     // Create the client with a storage backend, and enable it by giving it some paths. If keys
     // exists at these paths, they will be loaded, otherwise they will be generated.

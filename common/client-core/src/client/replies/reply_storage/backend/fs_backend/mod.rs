@@ -22,50 +22,11 @@ mod error;
 mod manager;
 mod models;
 
-// #[derive(Debug)]
-// enum StorageManagerState {
-//     Storage(StorageManager),
-//     Inactive(InactiveMetadata),
-// }
-//
-// // When the storage backaed is initialized as inactive, it will still contain metadata parameters
-// // that will be needed when the in-mem storage is fetched for use.
-// #[derive(Debug)]
-// struct InactiveMetadata {
-//     pub minimum_reply_surb_storage_threshold: usize,
-//     pub maximum_reply_surb_storage_threshold: usize,
-// }
-//
-// impl StorageManagerState {
-//     fn get(&self) -> &StorageManager {
-//         match self {
-//             StorageManagerState::Storage(manager) => manager,
-//             StorageManagerState::Inactive(_) => {
-//                 panic!("tried to get storage of an inactive backend")
-//             }
-//         }
-//     }
-//
-//     fn get_mut(&mut self) -> &mut StorageManager {
-//         match self {
-//             StorageManagerState::Storage(manager) => manager,
-//             StorageManagerState::Inactive(_) => {
-//                 panic!("tried to get storage of an inactive backend")
-//             }
-//         }
-//     }
-//
-//     fn is_active(&self) -> bool {
-//         matches!(self, StorageManagerState::Storage(_))
-//     }
-// }
-
 #[derive(Debug)]
 pub struct Backend {
     temporary_old_path: Option<PathBuf>,
     database_path: PathBuf,
     manager: StorageManager,
-    // manager: StorageManagerState,
 }
 
 impl Backend {
@@ -85,26 +46,11 @@ impl Backend {
         let backend = Backend {
             temporary_old_path: None,
             database_path: owned_path,
-            // manager: StorageManagerState::Storage(manager),
             manager,
         };
 
         Ok(backend)
     }
-
-    // pub fn new_inactive(
-    //     minimum_reply_surb_storage_threshold: usize,
-    //     maximum_reply_surb_storage_threshold: usize,
-    // ) -> Self {
-    //     Backend {
-    //         temporary_old_path: None,
-    //         database_path: PathBuf::new(),
-    //         manager: StorageManagerState::Inactive(InactiveMetadata {
-    //             minimum_reply_surb_storage_threshold,
-    //             maximum_reply_surb_storage_threshold,
-    //         }),
-    //     }
-    // }
 
     pub async fn try_load<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
         let owned_path: PathBuf = database_path.as_ref().into();
@@ -184,7 +130,6 @@ impl Backend {
 
     async fn close_pool(&mut self) {
         self.manager.connection_pool.close().await;
-        // self.manager.get_mut().connection_pool.close().await;
     }
 
     async fn rotate(&mut self) -> Result<(), StorageError> {
@@ -365,24 +310,6 @@ impl Backend {
 impl ReplyStorageBackend for Backend {
     type StorageError = error::StorageError;
 
-    // async fn new(
-    //     surb_config: &crate::config::ReplySurbs,
-    //     db_path: Option<PathBuf>,
-    // ) -> Result<Self, Self::StorageError> {
-    //     non_wasm_helpers::setup_fs_reply_surb_backend(db_path, surb_config)
-    //         .await
-    //         .map_err(|err| {
-    //             log::error!("Failed to create storage: {err}");
-    //             Self::StorageError::FailedToCreateStorage {
-    //                 source: Box::new(err),
-    //             }
-    //         })
-    // }
-
-    // fn is_active(&self) -> bool {
-    //     self.manager.is_active()
-    // }
-
     async fn start_storage_session(&self) -> Result<(), Self::StorageError> {
         self.start_client_use().await
     }
@@ -419,18 +346,6 @@ impl ReplyStorageBackend for Backend {
 
         Ok(CombinedReplyStorage::load(reply_keys, reply_surbs, tags))
     }
-
-    // fn get_inactive_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
-    //     match self.manager {
-    //         StorageManagerState::Storage(_) => {
-    //             panic!("tried to get inactive storage from an active storage backend")
-    //         }
-    //         StorageManagerState::Inactive(ref state) => Ok(CombinedReplyStorage::new(
-    //             state.minimum_reply_surb_storage_threshold,
-    //             state.maximum_reply_surb_storage_threshold,
-    //         )),
-    //     }
-    // }
 
     async fn stop_storage_session(self) -> Result<(), Self::StorageError> {
         self.stop_client_use().await

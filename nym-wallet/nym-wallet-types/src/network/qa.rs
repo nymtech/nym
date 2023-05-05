@@ -7,7 +7,7 @@ pub(crate) const BECH32_PREFIX: &str = "n";
 pub(crate) const MIX_DENOM: DenomDetails = DenomDetails::new("unym", "nym", 6);
 pub(crate) const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
 
-// -- Contracts addresses --
+// -- Contract addresses --
 
 pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
     "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g";

@@ -2,14 +2,12 @@ import React, { useRef, useState } from 'react';
 import { Checkbox, FormControlLabel, Stack, TextField, Typography } from '@mui/material';
 import { TopLogoLayout } from 'src/layouts/TopLogo';
 import { Button } from 'src/components/ui';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { generateMnemonmic } from 'src/validator-client';
-import { encrypt } from 'src/utils/crypto';
 
 export const SeedPhrase = () => {
   const [isConfirmed, setIsconfirmed] = useState(false);
   const navigate = useNavigate();
-  const { state } = useLocation();
 
   const seedPhrase = useRef(generateMnemonmic());
 

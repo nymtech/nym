@@ -24,7 +24,7 @@ export const ForgotPassword = () => (
   >
     <Box sx={{ px: 2 }}>
       {steps.map((step, index) => (
-        <Typography sx={{ color: 'grey.700', my: 3 }} key={index} variant="body2">
+        <Typography sx={{ color: 'grey.700', my: 3 }} key={step} variant="body2">
           {`${index + 1}. ${step}`}
         </Typography>
       ))}

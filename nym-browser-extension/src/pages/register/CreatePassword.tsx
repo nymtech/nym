@@ -4,7 +4,6 @@ import { TopLogoLayout } from 'src/layouts/TopLogo';
 import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { PasswordStrength } from '@nymproject/react/password-strength/PasswordStrength';
 import { Button } from 'src/components/ui';
-import { useLocation, useNavigate } from 'react-router-dom';
 
 export const CreatePassword = ({ onNext }: { onNext: () => void }) => {
   const [password, setPassword] = useState('');

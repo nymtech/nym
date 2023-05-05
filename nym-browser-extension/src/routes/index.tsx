@@ -1,5 +1,6 @@
+import React from 'react';
 import { BrowserRouter, MemoryRouter, Route, Routes } from 'react-router-dom';
-import { Home } from 'src/pages/';
+// import { Home } from 'src/pages/';
 import { RegisterRoutes } from './register';
 import { UserRoutes } from './user';
 import { LoginRoutes } from './login';

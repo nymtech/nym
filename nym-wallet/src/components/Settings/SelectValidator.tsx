@@ -13,7 +13,6 @@ import { Network } from '../../types';
 
 const SelectValidator = () => {
   const [customValidatorEnabled, setCustomValidatorEnabled] = useState<boolean>(false);
-  const [inUseValidatorUrl, setInUseValidatorUrl] = useState<string>();
   const [selectedValidatorUrl, setSelectedValidatorUrl] = useState<string | null>();
   const [defaultValidatorUrl, setDefaultValidatorUrl] = useState<string | null>();
   const [validatorUrlInput, setValidatorUrlInput] = useState<string>('');
@@ -59,20 +58,17 @@ const SelectValidator = () => {
     // for this network
     if (!selectedValidatorUrl) {
       setCustomValidatorEnabled(false);
+      setValidatorUrlInput('');
     }
-  }, [network]);
+  }, [network, selectedValidatorUrl]);
 
   useEffect(() => {
     if (selectedValidatorUrl && selectedValidatorUrl !== defaultValidatorUrl) {
       setCustomValidatorEnabled(true);
     }
-    if (defaultValidatorUrl) {
-      setValidatorUrlInput(defaultValidatorUrl);
-    }
 
     if (selectedValidatorUrl) {
       setValidatorUrlInput(selectedValidatorUrl);
-      setInUseValidatorUrl(selectedValidatorUrl);
     }
   }, [selectedValidatorUrl, defaultValidatorUrl, network]);
 
@@ -84,6 +80,7 @@ const SelectValidator = () => {
     setIsLoading(true);
     try {
       await resetValidatorUrl(network as Network);
+      setValidatorUrlInput('');
       setSelectedValidatorUrl(null);
       setCustomValidatorEnabled(false);
     } catch (e) {
@@ -94,13 +91,12 @@ const SelectValidator = () => {
   };
 
   const saveValidator = async () => {
-    if (!network || !validatorUrlInput) {
+    if (!network || !validatorUrlInput || validatorUrlInput === defaultValidatorUrl) {
       return;
     }
     try {
       setIsLoading(true);
       await setSelectedValidatorUrlReq({ network, url: validatorUrlInput });
-      setInUseValidatorUrl(validatorUrlInput);
       enqueueSnackbar('Validator URL saved', { variant: 'success' });
     } catch (e) {
       enqueueSnackbar(e as string, { variant: 'error' });
@@ -139,6 +135,7 @@ const SelectValidator = () => {
                   InputLabelProps={{ shrink: true }}
                   fullWidth
                   disabled={!customValidatorEnabled}
+                  autoFocus
                 />
                 <Button
                   size="large"
@@ -146,7 +143,8 @@ const SelectValidator = () => {
                   disabled={
                     !validatorUrlInput ||
                     validatorUrlInput.length === 0 ||
-                    validatorUrlInput === inUseValidatorUrl ||
+                    validatorUrlInput === defaultValidatorUrl ||
+                    validatorUrlInput === selectedValidatorUrl ||
                     isLoading ||
                     !customValidatorEnabled
                   }

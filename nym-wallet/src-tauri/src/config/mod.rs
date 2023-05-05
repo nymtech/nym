@@ -286,7 +286,7 @@ impl Config {
 
     pub fn reset_nyxd_url(&mut self, network: WalletNetwork) {
         match self.networks.get_mut(&network.as_key()) {
-            Some(net) => net.selected_nyxd_url = net.default_nyxd_url.to_owned(),
+            Some(net) => net.selected_nyxd_url = None,
             None => log::warn!("reset_nyxd_url: {network} network not found, ignoring"),
         }
     }
@@ -308,7 +308,7 @@ impl Config {
     pub fn get_selected_validator_nyxd_url(&self, network: WalletNetwork) -> Option<Url> {
         self.networks.get(&network.as_key()).and_then(|config| {
             log::debug!(
-                "get selected nyxd url for {} {:#?}",
+                "get selected nyxd url for {} {:?}",
                 network.to_string(),
                 config.selected_nyxd_url,
             );
@@ -319,7 +319,7 @@ impl Config {
     pub fn get_default_nyxd_url(&self, network: WalletNetwork) -> Option<Url> {
         self.networks.get(&network.as_key()).and_then(|config| {
             log::debug!(
-                "get default nyxd url for {} {:#?}",
+                "get default nyxd url for {} {:?}",
                 network.to_string(),
                 config.default_nyxd_url,
             );

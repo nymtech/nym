@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ValidatorClient from '@nymproject/nym-validator-client';
 import { connectToValidator } from 'src/validator-client';
 import { unymToNym } from 'src/utils/coin';
@@ -28,10 +28,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getBalance = async () => {
-    const balance = await client?.getBalance(client.address);
+    const bal = await client?.getBalance(client.address);
 
-    if (balance) {
-      const nym = unymToNym(balance?.amount);
+    if (bal) {
+      const nym = unymToNym(bal?.amount);
       setBalance(nym);
     }
   };
@@ -40,11 +40,12 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     getBalance();
   }, [client]);
 
-  return (
-    <AppContext.Provider value={{ client, balance, denom, minorDenom, handleUnlockWallet, getBalance }}>
-      {children}
-    </AppContext.Provider>
+  const value = useMemo<TAppContext>(
+    () => ({ client, balance, denom, minorDenom, handleUnlockWallet, getBalance }),
+    [client, balance, denom, minorDenom],
   );
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 export const useAppContext = () => React.useContext(AppContext);

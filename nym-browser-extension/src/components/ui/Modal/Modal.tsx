@@ -16,7 +16,6 @@ export interface ConfirmationModalProps {
   title: React.ReactNode | string;
   subtitle?: React.ReactNode | string;
   ConfirmButton: React.ReactNode;
-  disabled?: boolean;
   sx?: SxProps;
   fullWidth?: boolean;
   maxWidth?: Breakpoint;

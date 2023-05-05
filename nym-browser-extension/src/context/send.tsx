@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { DecCoin } from '@nymproject/types';
 import { useNavigate } from 'react-router-dom';
 import { nymToUnym } from 'src/utils/coin';
-import { useAppContext } from './app';
 import { TTransaction } from 'src/types';
+import { useAppContext } from './app';
 
 type TSendContext = {
   address?: string;
@@ -60,13 +60,21 @@ export const SendProvider = ({ children }: { children: React.ReactNode }) => {
     navigate('/user/balance');
   };
 
-  return (
-    <SendContext.Provider
-      value={{ address, amount, transaction, handleChangeAddress, handleChangeAmount, handleSend, resetTx, onDone }}
-    >
-      {children}
-    </SendContext.Provider>
+  const value = useMemo<TSendContext>(
+    () => ({
+      address,
+      amount,
+      transaction,
+      handleChangeAddress,
+      handleChangeAmount,
+      handleSend,
+      resetTx,
+      onDone,
+    }),
+    [address, amount, transaction],
   );
+
+  return <SendContext.Provider value={value}>{children}</SendContext.Provider>;
 };
 
 export const useSendContext = () => React.useContext(SendContext);

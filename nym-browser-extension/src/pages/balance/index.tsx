@@ -21,8 +21,8 @@ const actionsSchema = [
 
 const Actions = () => (
   <Box display="flex" justifyContent="space-evenly">
-    {actionsSchema.map(({ title, Icon }, index) => (
-      <Stack justifyContent="center" alignItems="center" key={index}>
+    {actionsSchema.map(({ title, Icon }) => (
+      <Stack justifyContent="center" alignItems="center" key={title}>
         <IconButton color="primary" size="large">
           {Icon}
         </IconButton>

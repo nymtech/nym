@@ -3,8 +3,7 @@ import { Box, Divider, ListItem, ListItemText, Stack, Typography } from '@mui/ma
 import { Button } from 'src/components';
 import { PageLayout } from 'src/layouts/PageLayout';
 import { useAppContext, useSendContext } from 'src/context';
-import { Link } from '@nymproject/react/link/Link';
-import { ConfirmationModal, ErrorModal, LoadingModal } from 'src/components/ui/Modal';
+import { ErrorModal, LoadingModal } from 'src/components/ui/Modal';
 import { SendConfirmationModal } from 'src/components/send/SendConfirmationModal';
 
 const InfoItem = ({ label, value }: { label: string; value: string }) => (

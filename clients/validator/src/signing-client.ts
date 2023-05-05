@@ -641,6 +641,8 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   // simulation
 
+  // TODO consider adding multipling factor
+
   simulateSend(signingAddress: string, from: string, to: string, amount: Coin[]) {
     const sendMsg = makeBankMsgSend(from, to, amount);
     return this.simulate(signingAddress, [sendMsg], 'simulate send tx');

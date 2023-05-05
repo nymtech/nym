@@ -1,5 +1,5 @@
 [book]
-title = "Nym Docs v1.1.17"
+title = "Nym Docs v1.1.18"
 authors = ["Max Hampshire"]
 description = "Nym technical documentation"
 language = "en"
@@ -48,9 +48,9 @@ assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 # https://gitlab.com/tglman/mdbook-variables/
 [preprocessor.variables.variables]
 minimum_rust_version = "1.66"
-platform_release_version = "v1.1.17"
-upcoming_platform_release_version = "v1.1.18" # to use in 'edit page on github' plugin (coming soon)
-mix_node_release_version = "v1.1.18"
+platform_release_version = "v1.1.18"
+upcoming_platform_release_version = "v1.1.19" # to use in 'edit page on github' plugin (coming soon)
+mix_node_release_version = "v1.1.19"
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"

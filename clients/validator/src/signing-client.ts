@@ -40,9 +40,18 @@ import {
   RewardingParams,
   UnbondedMixnodeResponse,
   VestingAccountInfo,
-  ContractState, VestingAccountsCoinPaged, VestingAccountsPaged, DelegationTimes, Delegations, Period, VestingAccountNode, DelegationBlock
+  ContractState,
+  VestingAccountsCoinPaged,
+  VestingAccountsPaged,
+  DelegationTimes,
+  Delegations,
+  Period,
+  VestingAccountNode,
+  DelegationBlock,
 } from '@nymproject/types';
 import NymApiQuerier from './nym-api-querier';
+import { makeBankMsgSend } from './utils';
+import { ISimulateClient } from './types/simulate';
 
 // methods exposed by `SigningCosmWasmClient`
 export interface ICosmWasmSigning {
@@ -148,7 +157,7 @@ export interface INymSigning {
   clientAddress: string;
 }
 
-export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSigning {
+export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSigning, ISimulateClient {
   bondMixNode(
     mixnetContractAddress: string,
     mixNode: MixNode,
@@ -511,11 +520,11 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     );
   }
 
-  // vesting related 
+  // vesting related
 
   getVestingAccountsPaged(vestingContractAddress: string): Promise<VestingAccountsPaged> {
     return this.nyxdQuerier.getVestingAccountsPaged(vestingContractAddress);
-  };
+  }
 
   getVestingAmountsAccountsPaged(vestingContractAddress: string): Promise<VestingAccountsCoinPaged> {
     return this.nyxdQuerier.getVestingAmountsAccountsPaged(vestingContractAddress);
@@ -569,7 +578,10 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nyxdQuerier.getEndTime(vestingContractAddress, vestingAccountAddress);
   }
 
-  getOriginalVestingDetails(vestingContractAddress: string, vestingAccountAddress: string): Promise<OriginalVestingResponse> {
+  getOriginalVestingDetails(
+    vestingContractAddress: string,
+    vestingAccountAddress: string,
+  ): Promise<OriginalVestingResponse> {
     return this.nyxdQuerier.getOriginalVestingDetails(vestingContractAddress, vestingAccountAddress);
   }
 
@@ -589,7 +601,11 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nyxdQuerier.getGateway(vestingContractAddress, address);
   }
 
-  getDelegationTimes(vestingContractAddress: string, mix_id: number, delegatorAddress: string): Promise<DelegationTimes> {
+  getDelegationTimes(
+    vestingContractAddress: string,
+    mix_id: number,
+    delegatorAddress: string,
+  ): Promise<DelegationTimes> {
     return this.nyxdQuerier.getDelegationTimes(vestingContractAddress, mix_id, delegatorAddress);
   }
 
@@ -597,15 +613,38 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nyxdQuerier.getAllDelegations(vestingContractAddress);
   }
 
-  getDelegation(vestingContractAddress: string, vestingAccountAddress: string, mix_id: number): Promise<DelegationBlock> {
+  getDelegation(
+    vestingContractAddress: string,
+    vestingAccountAddress: string,
+    mix_id: number,
+  ): Promise<DelegationBlock> {
     return this.nyxdQuerier.getDelegation(vestingContractAddress, vestingAccountAddress, mix_id);
   }
 
-  getTotalDelegationAmount(vestingContractAddress: string, vestingAccountAddress: string, mix_id: number, block_timestamp_sec: number): Promise<Coin> {
-    return this.nyxdQuerier.getTotalDelegationAmount(vestingContractAddress, vestingAccountAddress, mix_id, block_timestamp_sec);
+  getTotalDelegationAmount(
+    vestingContractAddress: string,
+    vestingAccountAddress: string,
+    mix_id: number,
+    block_timestamp_sec: number,
+  ): Promise<Coin> {
+    return this.nyxdQuerier.getTotalDelegationAmount(
+      vestingContractAddress,
+      vestingAccountAddress,
+      mix_id,
+      block_timestamp_sec,
+    );
   }
 
   getCurrentVestingPeriod(vestingContractAddress: string, address: string): Promise<Period> {
     return this.nyxdQuerier.getCurrentVestingPeriod(vestingContractAddress, address);
+  }
+
+  // simulation
+
+  // TODO consider adding multipling factor
+
+  simulateSend(signingAddress: string, from: string, to: string, amount: Coin[]) {
+    const sendMsg = makeBankMsgSend(from, to, amount);
+    return this.simulate(signingAddress, [sendMsg], 'simulate send tx');
   }
 }

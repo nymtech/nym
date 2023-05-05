@@ -66,10 +66,12 @@ wee_alloc = { version = "0.4", optional = true }
 # TODO: verify those dependencies (mix-fetch)
 nym-socks5-requests = { path = "../../common/socks5/requests" }
 nym-service-providers-common = { path = "../../service-providers/common" }
+nym-http-requests = { path = "../../common/http-requests" }
 bytecodec = "0.4.15"
 httpcodec = "0.2.3"
 bytes = "1"
 http = "0.2.9"
+web-sys = { version = "0.3", features = ["FormData"] }
 
 
 [dev-dependencies]

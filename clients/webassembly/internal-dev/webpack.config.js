@@ -15,14 +15,14 @@ module.exports = {
         path: path.resolve(__dirname, 'dist'),
         filename: '[name].js',
     },
-    // mode: 'development',
-    mode: 'production',
+    mode: 'development',
+    // mode: 'production',
     plugins: [
         new CopyWebpackPlugin({
             patterns: [
                 'index.html',
                 {
-                    from: 'node_modules/@nymproject/nym-client-wasm/*.(js|wasm)',
+                    from: '../pkg/*.(js|wasm)',
                     to: '[name][ext]',
                 },
             ],

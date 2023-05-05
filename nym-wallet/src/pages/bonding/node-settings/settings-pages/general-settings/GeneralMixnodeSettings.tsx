@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { clean } from 'semver';
 import { Button, Divider, Grid, Stack, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { isMixnode } from 'src/types';
@@ -46,7 +47,7 @@ export const GeneralMixnodeSettings = ({ bondedNode }: { bondedNode: TBondedMixn
         mix_port: mixPort,
         verloc_port: verlocPort,
         http_api_port: httpApiPort,
-        version,
+        version: clean(version) as string,
       };
       try {
         if (bondedNode.proxy) {

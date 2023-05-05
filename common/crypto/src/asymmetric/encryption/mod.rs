@@ -314,17 +314,24 @@ impl From<nym_sphinx_types::PrivateKey> for PrivateKey {
 #[cfg(test)]
 mod sphinx_key_conversion {
     use super::*;
+    use rand_chacha::rand_core::SeedableRng;
+    use rand_chacha::ChaCha20Rng;
+
+    pub(super) fn test_rng() -> ChaCha20Rng {
+        let dummy_seed = [42u8; 32];
+        ChaCha20Rng::from_seed(dummy_seed)
+    }
 
     const NUM_ITERATIONS: usize = 100;
 
     #[test]
     fn works_for_forward_conversion() {
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = test_rng();
 
         for _ in 0..NUM_ITERATIONS {
             let keys = KeyPair::new(&mut rng);
-            let private = keys.private_key;
-            let public = keys.public_key;
+            let private = &keys.private_key;
+            let public = &keys.public_key;
 
             let private_bytes = private.to_bytes();
             let public_bytes = public.to_bytes();

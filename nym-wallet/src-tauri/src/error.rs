@@ -132,6 +132,9 @@ pub enum BackendError {
     CheckAppVersionError,
     #[error("Failed to connect to the provided validator URL")]
     WalletValidatorConnectionFailed,
+    #[error("No defined default validator URL")]
+    WalletNoDefaultValidator,
+
 
     #[error(transparent)]
     WalletError {

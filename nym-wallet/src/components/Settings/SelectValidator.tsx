@@ -1,39 +1,106 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Button, FormControl, Grid, Stack, TextField, Typography } from '@mui/material';
+import { Button, FormControl, Grid, Stack, Switch, TextField, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { getSelectedValidatorUrl, setSelectedValidatorUrl } from '../../requests';
+import {
+  getDefaultValidatorUrl,
+  getSelectedValidatorUrl,
+  resetValidatorUrl,
+  setSelectedValidatorUrl as setSelectedValidatorUrlReq,
+} from '../../requests';
 import { AppContext } from '../../context';
 import { Console } from '../../utils/console';
+import { Network } from '../../types';
 
 const SelectValidator = () => {
-  const [currentValidatorUrl, setCurrentValidatorUrl] = useState<string>();
-  const [validatorUrl, setValidatorUrl] = useState<string>('');
+  const [customValidatorEnabled, setCustomValidatorEnabled] = useState<boolean>(false);
+  const [inUseValidatorUrl, setInUseValidatorUrl] = useState<string>();
+  const [selectedValidatorUrl, setSelectedValidatorUrl] = useState<string | null>();
+  const [defaultValidatorUrl, setDefaultValidatorUrl] = useState<string | null>();
+  const [validatorUrlInput, setValidatorUrlInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const { network } = useContext(AppContext);
 
   const { enqueueSnackbar } = useSnackbar();
 
+  const getDefaultValidator = async (net: Network) => {
+    if (!network) {
+      return;
+    }
+    try {
+      const defaultValidator = await getDefaultValidatorUrl(net);
+      setDefaultValidatorUrl(defaultValidator);
+    } catch (e) {
+      Console.error(`an error occurred while requesting the default validator URL: ${e}`);
+    }
+  };
+
+  const getSelectedValidator = async (net: Network) => {
+    if (!network) {
+      return null;
+    }
+    try {
+      const selectedValidator = await getSelectedValidatorUrl(net);
+      setSelectedValidatorUrl(selectedValidator);
+    } catch (e) {
+      Console.error(`an error occurred while requesting the selected validator URL: ${e}`);
+    }
+    return null;
+  };
+
   useEffect(() => {
     if (network) {
-      getSelectedValidatorUrl(network).then((value) => {
-        setCurrentValidatorUrl(value as string | undefined);
-        if (value) {
-          setValidatorUrl(value);
-        } else {
-          setValidatorUrl('');
-        }
-      });
+      getDefaultValidator(network);
+      getSelectedValidator(network);
+    }
+  }, [network, customValidatorEnabled]);
+
+  useEffect(() => {
+    // on network change, turn off the custom val switch if there is no selected val
+    // for this network
+    if (!selectedValidatorUrl) {
+      setCustomValidatorEnabled(false);
     }
   }, [network]);
 
+  useEffect(() => {
+    if (selectedValidatorUrl && selectedValidatorUrl !== defaultValidatorUrl) {
+      setCustomValidatorEnabled(true);
+    }
+    if (defaultValidatorUrl) {
+      setValidatorUrlInput(defaultValidatorUrl);
+    }
+
+    if (selectedValidatorUrl) {
+      setValidatorUrlInput(selectedValidatorUrl);
+      setInUseValidatorUrl(selectedValidatorUrl);
+    }
+  }, [selectedValidatorUrl, defaultValidatorUrl, network]);
+
+  const onToggle = async () => {
+    if (!customValidatorEnabled) {
+      setCustomValidatorEnabled(true);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await resetValidatorUrl(network as Network);
+      setSelectedValidatorUrl(null);
+      setCustomValidatorEnabled(false);
+    } catch (e) {
+      Console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const saveValidator = async () => {
-    if (!network || !validatorUrl) {
+    if (!network || !validatorUrlInput) {
       return;
     }
     try {
       setIsLoading(true);
-      await setSelectedValidatorUrl({ network, url: validatorUrl });
-      setCurrentValidatorUrl(validatorUrl);
+      await setSelectedValidatorUrlReq({ network, url: validatorUrlInput });
+      setInUseValidatorUrl(validatorUrlInput);
       enqueueSnackbar('Validator URL saved', { variant: 'success' });
     } catch (e) {
       enqueueSnackbar(e as string, { variant: 'error' });
@@ -51,31 +118,37 @@ const SelectValidator = () => {
           <Typography variant="caption" sx={{ color: 'nym.text.muted' }}>
             You can use the validator of your choice by providing its RPC URL address
           </Typography>
-          <Stack direction="row" gap={2}>
-            <Typography variant="body2">Current selected validator: </Typography>
-            <Typography variant="body2">{currentValidatorUrl}</Typography>
+          <Stack direction="row" spacing={3} mt={2} alignItems="center">
+            <Typography>Turn Off</Typography>
+            <Switch checked={customValidatorEnabled} onChange={onToggle} inputProps={{ 'aria-label': 'controlled' }} />
+            <Typography>Turn On</Typography>
           </Stack>
         </Stack>
       </Grid>
       <Grid item sm={12} md={5} lg={4}>
-        <Box alignSelf="flex-end">
-          <Stack spacing={3} alignItems="center">
+        <Stack spacing={3} alignItems="flex-end">
+          {customValidatorEnabled ? (
             <FormControl fullWidth>
               <Stack spacing={3} mt={2}>
                 <TextField
                   name="validatorUrl"
                   label="Validator URL"
-                  value={validatorUrl}
-                  onChange={(e) => setValidatorUrl(e.target.value)}
+                  value={validatorUrlInput}
+                  onChange={(e) => setValidatorUrlInput(e.target.value)}
                   error={false}
                   InputLabelProps={{ shrink: true }}
                   fullWidth
+                  disabled={!customValidatorEnabled}
                 />
                 <Button
                   size="large"
                   variant="contained"
                   disabled={
-                    !validatorUrl || validatorUrl.length === 0 || validatorUrl === currentValidatorUrl || isLoading
+                    !validatorUrlInput ||
+                    validatorUrlInput.length === 0 ||
+                    validatorUrlInput === inUseValidatorUrl ||
+                    isLoading ||
+                    !customValidatorEnabled
                   }
                   onClick={saveValidator}
                 >
@@ -83,8 +156,13 @@ const SelectValidator = () => {
                 </Button>
               </Stack>
             </FormControl>
-          </Stack>
-        </Box>
+          ) : (
+            <Stack spacing={2} alignItems="end" mt={3} mr={1}>
+              <Typography variant="body2">Default validator address</Typography>
+              <Typography>{defaultValidatorUrl}</Typography>
+            </Stack>
+          )}
+        </Stack>
       </Grid>
     </Grid>
   );

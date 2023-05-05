@@ -57,6 +57,8 @@ import {
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
 import {
+  fireRequests,
+  TauriReq,
   attachDefaultOperatingCost,
   decCoinToDisplay,
   toPercentFloatString,
@@ -162,12 +164,6 @@ export const BondingContext = createContext<TBondingContext>({
   isVestingAccount: false,
 });
 
-type TauriReq<Req extends Function & ((a: any, b?: any) => Promise<any>)> = {
-  name: Req['name'];
-  request: () => ReturnType<Req>;
-  onFulfilled: (value: Awaited<ReturnType<Req>>) => void;
-};
-
 export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Element => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -190,19 +186,6 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
   const resetState = () => {
     setError(undefined);
     setBondedNode(undefined);
-  };
-
-  const fireRequests = async (reqs: TauriReq<any>[]) => {
-    const promises = await Promise.allSettled(reqs.map((r) => r.request()));
-
-    promises.forEach((res, index) => {
-      if (res.status === 'rejected') {
-        Console.warn(`${reqs[index].name} request fails`, res.reason);
-      }
-      if (res.status === 'fulfilled') {
-        reqs[index].onFulfilled(res.value as any);
-      }
-    });
   };
 
   /**

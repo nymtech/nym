@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { Box, Button, Divider, Grid, Stack, Typography } from '@mui/material';
+import { Box, Button, Divider, Stack, Typography } from '@mui/material';
 import { helpLogToggleWindow } from '../../requests';
 import { AppContext } from '../../context';
 import { config } from '../../config';

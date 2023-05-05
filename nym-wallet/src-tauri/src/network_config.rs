@@ -38,6 +38,17 @@ pub async fn get_selected_nyxd_url(
 }
 
 #[tauri::command]
+pub async fn get_default_nyxd_url(
+    network: WalletNetwork,
+    state: tauri::State<'_, WalletState>,
+) -> Result<String, BackendError> {
+    let state = state.read().await;
+    let url = state.get_default_nyxd_url(&network).map(String::from);
+    log::info!("Default nyxd url for {network}: {:?}", url);
+    url.ok_or_else(|| BackendError::WalletNoDefaultValidator)
+}
+
+#[tauri::command]
 pub async fn select_nyxd_url(
     url: &str,
     network: WalletNetwork,

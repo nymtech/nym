@@ -95,6 +95,7 @@ fn main() {
             network_config::select_nym_api_url,
             network_config::select_nyxd_url,
             network_config::reset_nyxd_url,
+            network_config::get_default_nyxd_url,
             network_config::get_selected_nyxd_url,
             network_config::update_nyxd_urls,
             state::load_config_from_files,

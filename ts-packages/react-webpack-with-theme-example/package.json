@@ -4,14 +4,14 @@
   "version": "1.0.0",
   "license": "Apache-2.0",
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@mui/material": "^5.0.1",
-    "@mui/styles": "^5.0.1",
     "@mui/icons-material": "^5.5.0",
     "@mui/lab": "^5.0.0-alpha.72",
+    "@mui/material": "^5.0.1",
+    "@mui/styles": "^5.0.1",
     "@nymproject/mui-theme": "^1.0.0",
-    "@nymproject/react": "^1.0.0"
+    "@nymproject/react": "^1.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",

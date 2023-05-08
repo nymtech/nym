@@ -35,7 +35,7 @@ jobs:
       with:
         node-version: 16
     - name: Setup yarn
-      run: npm install -g yarn
+      run: npm i -g corepack && corepack enable && corepack prepare yarn@stable --activate
     - name: Install
       run: yarn
     - name: Build packages

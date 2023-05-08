@@ -18,7 +18,7 @@ jobs:
       with:
         node-version: 16
     - name: Setup yarn
-      run: npm install -g yarn
+      run: npm i -g corepack && corepack enable && corepack prepare yarn@stable --activate
     - name: Build
       run: yarn && yarn build && yarn build:ci
     - name: Deploy branch to CI www (storybook)

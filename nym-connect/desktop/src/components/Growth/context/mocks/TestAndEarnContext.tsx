@@ -50,25 +50,25 @@ export const MockTestAndEarnProvider_Registered: FCWithChildren = ({ children })
 const allDraws: DrawEntry[] = [
   {
     draw_id: '1111',
-    timestamp: DateTime.now().toISO(),
+    timestamp: DateTime.now().toISO()!,
     id: 'AAAA',
     status: DrawEntryStatus.pending,
   },
   {
     draw_id: '2222',
-    timestamp: DateTime.now().toISO(),
+    timestamp: DateTime.now().toISO()!,
     id: 'BBBB',
     status: DrawEntryStatus.noWin,
   },
   {
     draw_id: '2222',
-    timestamp: DateTime.now().toISO(),
+    timestamp: DateTime.now().toISO()!,
     id: 'BBBB',
     status: DrawEntryStatus.claimed,
   },
   {
     draw_id: '2222',
-    timestamp: DateTime.now().toISO(),
+    timestamp: DateTime.now().toISO()!,
     id: 'BBBB',
     status: DrawEntryStatus.winner,
   },
@@ -77,13 +77,13 @@ const allDraws: DrawEntry[] = [
 const draws: DrawEntry[] = [
   {
     draw_id: '1111',
-    timestamp: DateTime.now().toISO(),
+    timestamp: DateTime.now().toISO()!,
     id: 'AAAA',
     status: DrawEntryStatus.pending,
   },
   {
     draw_id: '2222',
-    timestamp: DateTime.now().toISO(),
+    timestamp: DateTime.now().toISO()!,
     id: 'BBBB',
     status: DrawEntryStatus.noWin,
   },
@@ -92,13 +92,13 @@ const draws: DrawEntry[] = [
 const drawsWithWin: DrawEntry[] = [
   {
     draw_id: '1111',
-    timestamp: DateTime.now().toISO(),
+    timestamp: DateTime.now().toISO()!,
     id: 'AAAA',
     status: DrawEntryStatus.winner,
   },
   {
     draw_id: '2222',
-    timestamp: DateTime.now().toISO(),
+    timestamp: DateTime.now().toISO()!,
     id: 'BBBB',
     status: DrawEntryStatus.noWin,
   },
@@ -107,13 +107,13 @@ const drawsWithWin: DrawEntry[] = [
 const drawsWithClaim: DrawEntry[] = [
   {
     draw_id: '1111',
-    timestamp: DateTime.now().toISO(),
+    timestamp: DateTime.now().toISO()!,
     id: 'AAAA',
     status: DrawEntryStatus.claimed,
   },
   {
     draw_id: '2222',
-    timestamp: DateTime.now().toISO(),
+    timestamp: DateTime.now().toISO()!,
     id: 'BBBB',
     status: DrawEntryStatus.noWin,
   },
@@ -121,9 +121,9 @@ const drawsWithClaim: DrawEntry[] = [
 
 const current: DrawWithWordOfTheDay = {
   id: '1111',
-  start_utc: DateTime.now().toISO(),
-  end_utc: DateTime.now().plus({ day: 1 }).minus({ second: 25 }).toISO(),
-  last_modified: DateTime.now().toISO(),
+  start_utc: DateTime.now().toISO()!,
+  end_utc: DateTime.now().plus({ day: 1 }).minus({ second: 25 }).toISO()!,
+  last_modified: DateTime.now().toISO()!,
   word_of_the_day: testMarkdown,
 };
 

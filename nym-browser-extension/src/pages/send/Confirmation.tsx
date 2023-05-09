@@ -28,10 +28,7 @@ const InfoItem = ({ label, value }: { label: string; value: string }) => (
 
 export const SendConfirmationPage = ({ onCancel }: { onCancel: () => void }) => {
   const { client, denom } = useAppContext();
-  const { address, amount, handleSend, transaction, resetTx, onDone } = useSendContext();
-
-  // TODO Replace with estimated fees
-  const fee = '0.002';
+  const { address, amount, fee, handleSend, transaction, resetTx, onDone } = useSendContext();
 
   const calculateTotal = () => (Number(fee) + Number(amount?.amount)).toString();
 
@@ -54,8 +51,8 @@ export const SendConfirmationPage = ({ onCancel }: { onCancel: () => void }) => 
         <InfoItem label="From" value={client?.address || ''} />
         <InfoItem label="To" value={address || ''} />
         <InfoItem label="Amount" value={`${amount?.amount} ${denom}`} />
-        <InfoItem label="Transaction fee" value={`${fee} ${denom}`} />
-        <InfoItem label="Transaction fee" value={`${calculateTotal()} ${denom}`} />
+        <InfoItem label="Transaction fee" value={`${fee || '-'} ${denom}`} />
+        <InfoItem label="Total" value={`${calculateTotal()} ${denom}`} />
       </Stack>
       <Box display="flex" gap={2}>
         <Button variant="outlined" size="large" fullWidth onClick={onCancel}>

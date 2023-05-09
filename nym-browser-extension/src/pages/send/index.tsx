@@ -12,10 +12,15 @@ const SendPage = ({ onConfirm }: { onConfirm: () => void }) => {
   const [isValidAddress, setIsValidAddress] = useState(false);
   const [isValidAmount, setIsValidAmount] = useState(false);
 
-  const { address, amount, handleChangeAddress, handleChangeAmount } = useSendContext();
+  const { address, amount, handleChangeAddress, handleChangeAmount, handleGetFee } = useSendContext();
   const { balance, client } = useAppContext();
 
-  const handleNext = () => onConfirm();
+  const handleNext = async () => {
+    if (address && amount) {
+      await handleGetFee();
+      onConfirm();
+    }
+  };
 
   return (
     <PageLayout>

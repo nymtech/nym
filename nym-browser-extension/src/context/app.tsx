@@ -31,8 +31,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const bal = await client?.getBalance(client.address);
 
     if (bal) {
-      const nym = unymToNym(bal?.amount);
-      setBalance(nym);
+      const nym = unymToNym(Number(bal?.amount));
+      setBalance(nym.toString());
     }
   };
 

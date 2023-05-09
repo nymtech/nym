@@ -5,8 +5,8 @@
   "license": "MIT",
   "scripts": {
     "prewebpack:dev": "npm --prefix .. run build",
-    "webpack:dev": "npm run webpack serve --config webpack.dev.js",
-    "webpack:prod": "npm run webpack --progress --config webpack.prod.js",
+    "webpack:dev": "npm run webpack serve --config ./webpack.dev.js",
+    "webpack:prod": "npm run webpack --progress --config ./webpack.prod.js",
     "tauri:dev": "npm run tauri dev",
     "tauri:build": "npm run tauri build",
     "tsc": "tsc --noEmit true",
@@ -18,7 +18,9 @@
     "lint:fix": "eslint src --fix",
     "prestorybook": "npm --prefix .. run build",
     "storybook": "storybook dev -p 6006",
-    "storybook:build": "storybook build"
+    "storybook:build": "storybook build",
+    "tauri": "tauri",
+    "webpack": "webpack"
   },
   "dependencies": {
     "@emotion/react": "^11.11.0",

@@ -7,5 +7,4 @@ edition = "2021"
 
 [dependencies]
 cosmwasm-std = { workspace = true }
-serde = { workspace = true, default-features = false, features = ["derive"] }
-#nym-sphinx-addressing = { path = "../../nymsphinx/addressing" }
+serde = { workspace = true, features = ["derive"] }

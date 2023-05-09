@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { clean } from 'semver';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Button, Divider, Typography, TextField, Grid, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -50,7 +51,7 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
         host,
         mix_port: mixPort,
         location,
-        version,
+        version: clean(version) as string,
         clients_port: httpApiPort,
         verloc_port: bondedNode.verlocPort,
       };
@@ -208,7 +209,7 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
       <SimpleModal
         open={openConfirmationModal}
         header="Your changes are submitted to the blockchain"
-        subHeader="Remember to change the values 
+        subHeader="Remember to change the values
         on your gateways’s config file too."
         okLabel="close"
         hideCloseIcon

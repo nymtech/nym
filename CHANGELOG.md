@@ -4,6 +4,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.18] (2023-05-09)
+
+- Implement heartbeat messages between socks5 proxy and network requester ([#3215])
+
+[#3215]: https://github.com/nymtech/nym/issues/3215
+
 ## [v1.1.17] (2023-05-02)
 
 - Add service-provider-directory-contract support to nym-cli ([#3334])

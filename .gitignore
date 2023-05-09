@@ -35,6 +35,7 @@ dist
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+yarn-error.log
 
 // Node.js
 **/node_modules

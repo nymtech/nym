@@ -164,13 +164,15 @@ impl NymClientBuilder {
         };
 
         // TODO: this will have to be re-used for surbs. but this is a problem for another PR.
-        let key_store =
+        let client_store =
             ClientStorage::new_async(&self.config.id, self.storage_passphrase.take()).await?;
+
+        let existing_gateway_config = client_store.read_gateway_config().await?;
 
         let mut base_builder: BaseClientBuilder<_, FullWasmClientStorage> = BaseClientBuilder::new(
             &self.config.gateway_endpoint,
             &self.config.debug,
-            key_store,
+            client_store,
             self.bandwidth_controller,
             self.reply_surb_storage_backend,
             disabled_credentials,

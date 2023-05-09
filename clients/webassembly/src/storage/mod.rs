@@ -3,6 +3,7 @@
 
 use crate::storage::errors::ClientStorageError;
 use js_sys::Promise;
+use nym_client_core::config::GatewayEndpointConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::SharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
@@ -23,8 +24,12 @@ const STORAGE_VERSION: u32 = 1;
 mod v1 {
     // stores
     pub const KEYS_STORE: &str = "keys";
+    pub const CORE_STORE: &str = "core";
 
     // keys
+    // TODO: to replace with FULL config
+    pub const GATEWAY_CONFIG: &str = "gateway_config";
+
     pub const ED25519_IDENTITY_KEYPAIR: &str = "ed25519_identity_keypair";
     pub const X25519_ENCRYPTION_KEYPAIR: &str = "x25519_encryption_key";
 
@@ -67,6 +72,7 @@ impl ClientStorage {
                 let db = evt.db();
 
                 db.create_object_store(v1::KEYS_STORE)?;
+                db.create_object_store(v1::CORE_STORE)?;
             }
 
             Ok(())
@@ -102,6 +108,15 @@ impl ClientStorage {
                 .await
                 .into_promise_result()
         })
+    }
+
+    pub(crate) async fn read_gateway_config(
+        &self,
+    ) -> Result<Option<GatewayEndpointConfig>, ClientStorageError> {
+        self.inner
+            .read_value(v1::CORE_STORE, JsValue::from_str(v1::GATEWAY_CONFIG))
+            .await
+            .map_err(Into::into)
     }
 
     async fn may_read_identity_keypair(
@@ -224,6 +239,20 @@ impl ClientStorage {
                 v1::KEYS_STORE,
                 JsValue::from_str(v1::AES128CTR_BLAKE3_HMAC_GATEWAY_KEYS),
                 key,
+            )
+            .await
+            .map_err(Into::into)
+    }
+
+    pub(crate) async fn store_gateway_config(
+        &self,
+        gateway_endpoint: &GatewayEndpointConfig,
+    ) -> Result<(), ClientStorageError> {
+        self.inner
+            .store_value(
+                v1::CORE_STORE,
+                JsValue::from_str(v1::GATEWAY_CONFIG),
+                gateway_endpoint,
             )
             .await
             .map_err(Into::into)

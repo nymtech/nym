@@ -4,6 +4,7 @@
 use crate::storage::errors::ClientStorageError;
 use crate::topology::WasmTopologyError;
 use js_sys::Promise;
+use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
@@ -84,6 +85,11 @@ pub enum WasmClientError {
     StorageError {
         #[from]
         source: ClientStorageError,
+    },
+
+    #[error("this client has already registered with a gateway: {gateway_config:?}")]
+    AlreadyRegistered {
+        gateway_config: GatewayEndpointConfig,
     },
 }
 

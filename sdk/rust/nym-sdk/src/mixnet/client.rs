@@ -16,6 +16,7 @@ use nym_client_core::client::base_client::BaseClient;
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::key_manager::ManagedKeys;
 use nym_client_core::config::DebugConfig;
+use nym_client_core::init::GatewaySetup;
 use nym_client_core::{
     client::{
         base_client::{BaseClientBuilder, CredentialsToggle},
@@ -356,31 +357,17 @@ where
         }
         log::debug!("Registering with gateway");
 
-        let user_chosen_gateway = self
-            .config
-            .user_chosen_gateway
-            .as_ref()
-            .map(identity::PublicKey::from_base58_string)
-            .transpose()?;
-
         let api_endpoints = self.get_api_endpoints();
-        let (gateway_config, shared_key) =
-            nym_client_core::init::register_with_gateway::<S::CredentialStore>(
-                self.managed_keys.identity_keypair(),
-                api_endpoints,
-                user_chosen_gateway,
-                // TODO: this should probably be configurable with the config
-                false,
-            )
-            .await?;
+        let gateway_setup = GatewaySetup::new(None, self.config.user_chosen_gateway.clone(), None);
 
-        // TODO: this will deal with storage if it's a fresh key
-        self.managed_keys
-            .deal_with_gateway_key(shared_key, &self.key_store)
-            .await
-            .map_err(|source| Error::KeyStorageError {
-                source: Box::new(source),
-            })?;
+        let gateway_config = nym_client_core::init::get_registered_gateway::<S>(
+            api_endpoints,
+            &self.key_store,
+            gateway_setup,
+            !self.config.key_mode.is_keep(),
+        )
+        .await?;
+
         self.state = BuilderState::Registered {
             gateway_endpoint_config: gateway_config,
         };

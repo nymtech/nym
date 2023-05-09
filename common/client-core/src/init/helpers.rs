@@ -34,6 +34,7 @@ use crate::config::{persistence::key_pathfinder::ClientKeyPathfinder, Config};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_config::NymConfig;
 
+use crate::config::GatewayEndpointConfig;
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DirectSigningNyxdClient;
 #[cfg(target_arch = "wasm32")]
@@ -61,7 +62,7 @@ impl GatewayWithLatency {
     }
 }
 
-async fn current_gateways<R: Rng>(
+pub(super) async fn current_gateways<R: Rng>(
     rng: &mut R,
     nym_apis: Vec<Url>,
 ) -> Result<Vec<gateway::Node>, ClientCoreError> {
@@ -160,7 +161,7 @@ async fn measure_latency(gateway: gateway::Node) -> Result<GatewayWithLatency, C
     Ok(GatewayWithLatency::new(gateway, avg))
 }
 
-async fn choose_gateway_by_latency<R: Rng>(
+pub(super) async fn choose_gateway_by_latency<R: Rng>(
     rng: &mut R,
     gateways: Vec<gateway::Node>,
 ) -> Result<gateway::Node, ClientCoreError> {
@@ -193,7 +194,7 @@ async fn choose_gateway_by_latency<R: Rng>(
     Ok(chosen.gateway.clone())
 }
 
-fn uniformly_random_gateway<R: Rng>(
+pub(super) fn uniformly_random_gateway<R: Rng>(
     rng: &mut R,
     gateways: Vec<gateway::Node>,
 ) -> Result<gateway::Node, ClientCoreError> {
@@ -203,6 +204,7 @@ fn uniformly_random_gateway<R: Rng>(
         .cloned()
 }
 
+#[deprecated]
 pub(super) async fn query_gateway_details(
     validator_servers: Vec<Url>,
     chosen_gateway_id: Option<identity::PublicKey>,
@@ -224,13 +226,38 @@ pub(super) async fn query_gateway_details(
     }
 }
 
+pub(super) async fn register_with_gateway_alt<St>(
+    gateway: &GatewayEndpointConfig,
+    our_identity: Arc<identity::KeyPair>,
+) -> Result<Arc<SharedKeys>, ClientCoreError>
+where
+    St: Storage,
+{
+    let timeout = Duration::from_millis(1500);
+    let mut gateway_client: GatewayClient<DirectSigningNyxdClient, St> = GatewayClient::new_init(
+        gateway.gateway_listener.clone(),
+        gateway.try_get_gateway_identity_key()?,
+        our_identity.clone(),
+        timeout,
+    );
+    gateway_client
+        .establish_connection()
+        .await
+        .tap_err(|_| log::warn!("Failed to establish connection with gateway!"))?;
+    let shared_keys = gateway_client
+        .perform_initial_authentication()
+        .await
+        .tap_err(|_| log::warn!("Failed to register with the gateway!"))?;
+    Ok(shared_keys)
+}
+
+#[deprecated]
 pub(super) async fn register_with_gateway<St>(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
 ) -> Result<Arc<SharedKeys>, ClientCoreError>
 where
     St: Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
 {
     let timeout = Duration::from_millis(1500);
     let mut gateway_client: GatewayClient<DirectSigningNyxdClient, St> = GatewayClient::new_init(
@@ -252,6 +279,7 @@ where
 
 // TODO: make it generic
 #[cfg(not(target_arch = "wasm32"))]
+#[deprecated]
 pub(super) fn on_disk_key_store<T>(config: &Config<T>) -> OnDiskKeys
 where
     T: NymConfig,

@@ -92,6 +92,9 @@ pub enum ClientCoreError {
 
     #[error("Unexpected exit")]
     UnexpectedExit,
+    
+    #[error("This operation would have resulted in clients keys being overwritten without permission")]
+    ForbiddenKeyOverwrite
 }
 
 /// Set of messages that the client can send to listeners via the task manager

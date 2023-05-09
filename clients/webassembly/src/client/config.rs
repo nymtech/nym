@@ -30,7 +30,8 @@ pub struct Config {
     pub(crate) disabled_credentials_mode: bool,
 
     /// Information regarding how the client should send data to gateway.
-    pub(crate) gateway_endpoint: GatewayEndpointConfig,
+    /// If unspecified, the client will attempt to load the config from the storage
+    pub(crate) gateway_endpoint: Option<GatewayEndpointConfig>,
 
     pub(crate) debug: ConfigDebug,
 }
@@ -41,7 +42,7 @@ impl Config {
     pub fn new(
         id: String,
         validator_server: String,
-        gateway_endpoint: GatewayEndpointConfig,
+        gateway_endpoint: Option<GatewayEndpointConfig>,
         debug: Option<Debug>,
     ) -> Self {
         Config {

@@ -37,10 +37,17 @@ impl ManagedKeys {
         !matches!(self, ManagedKeys::Invalidated)
     }
 
-    pub async fn must_load<S: KeyStore>(key_store: &S) -> Result<Self, S::StorageError> {
+    pub async fn try_load<S: KeyStore>(key_store: &S) -> Result<Self, S::StorageError> {
         Ok(ManagedKeys::FullyDerived(
             KeyManager::load_keys(key_store).await?,
         ))
+    }
+
+    pub fn generate_new<R>(rng: &mut R) -> Self
+    where
+        R: RngCore + CryptoRng,
+    {
+        ManagedKeys::Initial(KeyManagerBuilder::new(rng))
     }
 
     pub async fn load_or_generate<R, S>(rng: &mut R, key_store: &S) -> Self
@@ -48,11 +55,9 @@ impl ManagedKeys {
         R: RngCore + CryptoRng,
         S: KeyStore,
     {
-        if let Ok(loaded) = KeyManager::load_keys(key_store).await {
-            ManagedKeys::FullyDerived(loaded)
-        } else {
-            ManagedKeys::Initial(KeyManagerBuilder::new(rng))
-        }
+        Self::try_load(key_store)
+            .await
+            .unwrap_or_else(|_| Self::generate_new(rng))
     }
 
     pub fn identity_keypair(&self) -> Arc<identity::KeyPair> {

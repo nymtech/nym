@@ -11,7 +11,7 @@ async fn main() {
 
     // Create the client with a storage backend, and enable it by giving it some paths. If keys
     // exists at these paths, they will be loaded, otherwise they will be generated.
-    let client = mixnet::MixnetClientBuilder::new_default_persistent(storage_paths)
+    let client = mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)
         .await
         .unwrap()
         .build()

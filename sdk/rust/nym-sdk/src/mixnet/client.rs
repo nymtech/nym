@@ -62,7 +62,6 @@ impl MixnetClientBuilder<Ephemeral> {
     }
 
     /// Create a client builder with default values.
-    #[deprecated(note = "use 'new_ephemeral' instead")]
     #[must_use]
     pub fn new() -> Self {
         Self::new_ephemeral()
@@ -70,7 +69,7 @@ impl MixnetClientBuilder<Ephemeral> {
 }
 
 impl MixnetClientBuilder<OnDiskPersistent> {
-    pub async fn new_default_persistent(storage_paths: StoragePaths) -> Result<Self> {
+    pub async fn new_with_default_storage(storage_paths: StoragePaths) -> Result<Self> {
         Ok(MixnetClientBuilder {
             config: Default::default(),
             storage_paths: None,

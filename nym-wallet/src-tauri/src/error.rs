@@ -135,7 +135,6 @@ pub enum BackendError {
     #[error("No defined default validator URL")]
     WalletNoDefaultValidator,
 
-
     #[error(transparent)]
     WalletError {
         #[from]

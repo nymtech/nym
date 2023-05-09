@@ -7,6 +7,7 @@ use wasm_bindgen::prelude::*;
 mod client;
 #[cfg(target_arch = "wasm32")]
 pub mod encoded_payload_helper;
+#[cfg(target_arch = "wasm32")]
 pub mod error;
 #[cfg(target_arch = "wasm32")]
 pub mod gateway_selector;

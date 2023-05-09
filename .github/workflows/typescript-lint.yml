@@ -34,14 +34,12 @@ jobs:
     - uses: actions/setup-node@v3
       with:
         node-version: 16
-    - name: Setup yarn
-      run: npm i -g corepack && corepack enable && corepack prepare yarn@stable --activate
-    - name: Install
-      run: yarn
+    - name: Install dependencies
+      run: npm install
     - name: Build packages
-      run: yarn build
+      run: npm run build
     - name: Lint
-      run: yarn lint && yarn tsc
+      run: npm run lint && npm run tsc
     - name: Matrix - Node Install
       run: npm install
       working-directory: .github/workflows/support-files

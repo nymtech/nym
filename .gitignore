@@ -27,16 +27,6 @@ dist
 .parcel-cache
 **/*.rs.bk
 
-// Yarn
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
-yarn-error.log
-
 // Node.js
 **/node_modules
 

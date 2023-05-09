@@ -2,7 +2,7 @@
 
 ## Installation
 
-`yarn install`
+`npm install`
 
 ## Environment variables
 
@@ -10,8 +10,8 @@ Create a file in the root directory called `.env`. Copy everything from the `.en
 
 ## Development environment
 
-`yarn dev`
+`npm run dev`
 
 ## Build
 
-`yarn build`
+`npm run build`

@@ -17,12 +17,10 @@ jobs:
     - uses: actions/setup-node@v3
       with:
         node-version: 16
-    - name: Setup yarn
-      run: npm i -g corepack && corepack enable && corepack prepare yarn@stable --activate
     - name: Build dependencies
-      run: yarn && yarn build
+      run: npm install && npm run build
     - name: Build storybook
-      run: yarn storybook:build
+      run: npm run storybook:build
       working-directory: ./nym-wallet
     - name: Deploy branch to CI www (storybook)
       continue-on-error: true

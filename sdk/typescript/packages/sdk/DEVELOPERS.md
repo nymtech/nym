@@ -24,8 +24,8 @@ to:
 Run these commands to build the SDK from `sdk/typescript/packages/sdk`:
 
 ```
-yarn
-yarn build:dev
+npm install
+npm run build:dev
 ```
 
 The output bundle will be created in the `dist` directory.
@@ -35,7 +35,7 @@ The output bundle will be created in the `dist` directory.
 If you're a Nym platform developer who's made changes to the Rust (or JS) files and wants to re-publish the package to NPM, here's how you do it:
 
 1. bump version numbers as necessary for SemVer
-2. `yarn build` builds the release directory in the root of the repo in `dist/sdk`
+2. `npm run build` builds the release directory in the root of the repo in `dist/sdk`
 3. `cd ../../../../dist/sdk`
 
 Publish the CJS package:

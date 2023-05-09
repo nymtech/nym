@@ -1,8 +1,8 @@
 #!/bin/sh
 
 cd /nym/clients/validator
-yarn install
-yarn build
+npm install
+npm run build
 
 cd /nym/docker/typescript_client/upload_contract
 npm install

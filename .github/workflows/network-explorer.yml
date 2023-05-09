@@ -22,18 +22,16 @@ jobs:
     - uses: actions/setup-node@v3
       with:
         node-version: 16
-    - name: Setup yarn
-      run: npm install -g yarn
       continue-on-error: true
     - name: Build shared packages
-      run: cd .. && yarn && yarn build
+      run: cd .. && npm install && npm run build
     - name: Set environment from the example
       run: cp .env.prod .env
-#    - run: yarn test
+#    - run: npm run test
 #      continue-on-error: true
-    - run: yarn && yarn build
+    - run: npm run install && npm run build
       continue-on-error: true
-    - run: yarn storybook:build
+    - run: npm run storybook:build
       name: Build storybook
     - name: Deploy branch to CI www
       continue-on-error: true

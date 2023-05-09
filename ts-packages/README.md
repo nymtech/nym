@@ -1,6 +1,6 @@
 # Nym Typescript (and Javascript) packages
 
-This directory has shared Typescript (and Javascript) libraries using `yarn workspaces`.
+This directory has shared Typescript (and Javascript) libraries using `npm workspaces`.
 
 ## Why `ts-packages`?
 
@@ -24,8 +24,7 @@ In the root of this repository is [package.json](../package.json) that specifies
 
 There are some caveats:
 
-- this only works with `yarn` and not `npm`
-- `yarn` creates a single `node_modules` in the root for shared dependencies
+- `npm` creates a single `node_modules` in the root for shared dependencies
 - packages that use shared packages, need to be in a path specified in `workspaces`
 - local packages take precedence over published packages on `npm`
 
@@ -34,8 +33,8 @@ There are some caveats:
 From the [root of the repository](../README.md) run:
 
 ```
-yarn
-yarn build
+npm install
+npm run build
 ```
 
 This will build all libraries.
@@ -44,18 +43,18 @@ Now you can try out [react-webpack-with-theme-example](./react-webpack-with-them
 
 ```
 cd ts-packages/react-webpack-with-theme-example
-yarn start
+npm run start
 ```
 
 Our React components have a Storybook in [react-components](./react-components):
 
 ```
 cd ts-packages/react-components
-yarn storybook
+npm run storybook
 ```
 
 ## Development
 
-Watch mode is available in some packages with `yarn watch`.
+Watch mode is available in some packages with `npm run watch`.
 
 See [mui-theme](./mui-theme/README.md) for an example.

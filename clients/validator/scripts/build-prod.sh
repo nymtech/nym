@@ -9,11 +9,11 @@ rm -rf ../../dist || true
 
 # Bundle application
 
-yarn build
+npm run build
 
 # Bundle types
 
-yarn build:types
+npm run build:types
 
 # Build package.json for bundle
 
@@ -23,7 +23,7 @@ node ./scripts/buildPackageJson.mjs
 
 cp README.md dist/nym-validator-client
 
-# move the output outside of the yarn/npm workspaces
+# move the output outside of the npm workspaces
 
 mv ./dist ../../
 

@@ -5,7 +5,7 @@ A TypeScript client for interacting with CosmWasm smart contracts in Nym validat
 Include the Nym Validator in your project:
 
 ```
-yarn add @nymproject/nym-validator-client
+npm install @nymproject/nym-validator-client
 ```
 
 Connect to validator and make queries

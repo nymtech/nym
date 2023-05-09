@@ -19,12 +19,12 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "build:dependencies": "run-s build:dependencies:nym-client-wasm build:dependencies:ts-packages",
-    "build:dependencies:ts-packages": "cd ../../../.. && yarn && yarn build",
+    "build:dependencies:ts-packages": "cd ../../../.. && npm install && npm run build",
     "build:dependencies:nym-client-wasm": "../nym-client-wasm/scripts/build.sh",
-    "prebuild": "yarn build:dependencies",
-    "build": "yarn build:only-this",
+    "prebuild": "npm run build:dependencies",
+    "build": "npm run build:only-this",
     "build:only-this": "scripts/build-prod.sh",
-    "build:dev": "yarn build:dev:only-this",
+    "build:dev": "npm run build:dev:only-this",
     "build:dev:only-this": "scripts/build.sh"
   },
   "dependencies": {

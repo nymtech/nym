@@ -25,7 +25,7 @@
     "react-google-charts": "^4.0.0",
     "react-identicons": "^1.2.5",
     "react-router-dom": "6.11.1",
-    "react-simple-maps": "^3.0.0",
+    "react-simple-maps": "^1.0.0",
     "react-tooltip": "^5.11.2",
     "semver": "^7.5.0",
     "use-clipboard-copy": "^0.2.0"
@@ -104,7 +104,7 @@
     "tsc:watch": "tsc --watch --noEmit true",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "prestorybook": "yarn --cwd .. build",
+    "prestorybook": "npm --prefix .. run build",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"
   },

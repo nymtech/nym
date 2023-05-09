@@ -12,8 +12,8 @@ Adjust the [.env](./.env) to use the Nym API you want to proxy. The defaults are
 From this directory run:
 
 ```
-yarn
-yarn start
+npm install
+npm run start
 ```
 
 When you modify files in `src` and `mocks` the process will be restarted automatically.
@@ -51,8 +51,8 @@ If you don't have `jq` installed, you can just do `curl https://validator.nymtec
 If you need HTTPS then install `caddy` (see https://caddyserver.com/ or `brew install caddy` on MacOS) and run:
 
 ```
-yarn
-yarn start:https
+npm install
+npm run start:https
 ```
 
 The API will available on `https://localhost:8001` e.g. https://localhost:8001/api/v1/mixnodes with a self-signed certificate.

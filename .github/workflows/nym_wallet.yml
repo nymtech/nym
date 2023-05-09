@@ -39,11 +39,11 @@ jobs:
         with:
           node-version: 16
 
-      - name: Install yarn for building application
-        run: yarn install
+      - name: Install dependencies for building application
+        run: npm install
 
       - name: Build application
-        run: yarn run webpack:build & yarn run tauri:build
+        run: npm run webpack:build & npm run tauri:build
 
       - name: Check binary exists
         run: |
@@ -51,7 +51,7 @@ jobs:
           (test -f nym-wallet && echo nym binary exists) || echo wallet does not exist
 
       - name: Install dependencies
-        run: yarn install
+        run: npm install
         working-directory: nym-wallet/webdriver
 
       - name: Remove existing user datafile
@@ -74,5 +74,5 @@ jobs:
           args: tauri-driver
 
       - name: Launch tests
-        run: xvfb-run yarn test:runall
+        run: xvfb-run npm run test:runall
         working-directory: nym-wallet/webdriver

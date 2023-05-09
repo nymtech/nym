@@ -625,6 +625,7 @@ api_url = 'https://baz/api'
             r#"{
   "version": 1,
   "selected_nyxd_url": null,
+  "default_nyxd_url": null,
   "selected_api_url": "https://my_api_url.com/",
   "nyxd_urls": [
     {

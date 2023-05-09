@@ -5,9 +5,9 @@
   "license": "MIT",
   "scripts": {
     "prewebpack:dev": "npm --prefix ../.. run build",
-    "webpack:dev": "npm run webpack serve --config webpack.dev.js",
-    "webpack:dev:onlyThis": "npm run webpack serve --config webpack.dev.js",
-    "webpack:prod": "npm run webpack --progress --config webpack.prod.js",
+    "webpack:dev": "npm run webpack serve --config ./webpack.dev.js",
+    "webpack:dev:onlyThis": "npm run webpack serve --config ./webpack.dev.js",
+    "webpack:prod": "npm run webpack --progress --config ./webpack.prod.js",
     "tauri:dev": "RUST_DEBUG=1 npm run tauri dev",
     "tauri:build": "npm run tauri build",
     "dev": "run-p webpack:dev tauri:dev",
@@ -21,7 +21,9 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "tauri": "tauri",
+    "webpack": "webpack"
   },
   "dependencies": {
     "@emotion/react": "^11.11.0",

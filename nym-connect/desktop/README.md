@@ -26,7 +26,8 @@ Nym Connects sets up a SOCKS5 proxy for local applications to use.
 
 Inside the `nym-connect` directory, run the following command:
 ```
-npm install
+npm install --include=dev
+cargo install tauri-cli
 ```
 
 ## Development mode

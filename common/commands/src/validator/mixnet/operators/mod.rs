@@ -6,6 +6,7 @@ use clap::{Args, Subcommand};
 pub mod gateway;
 pub mod mixnode;
 pub mod service;
+pub mod name;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -22,4 +23,6 @@ pub enum MixnetOperatorsCommands {
     Gateway(gateway::MixnetOperatorsGateway),
     /// Manage your service
     ServiceProvider(service::MixnetOperatorsService),
+    /// Manage your registered name
+    Name(name::MixnetOperatorsName),
 }

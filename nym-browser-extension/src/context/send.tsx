@@ -27,7 +27,6 @@ export const SendProvider = ({ children }: { children: React.ReactNode }) => {
   const [transaction, setTransaction] = useState<TTransaction>();
 
   const { client, minorDenom } = useAppContext();
-
   const navigate = useNavigate();
 
   const handleChangeAddress = (_address?: string) => setAddress(_address);

@@ -5,9 +5,9 @@
   "license": "MIT",
   "scripts": {
     "prewebpack:dev": "npm --prefix ../.. run build",
-    "webpack:dev": "npm run webpack serve --config webpack.dev.js",
-    "webpack:dev:onlyThis": "npm run webpack serve --config webpack.dev.js",
-    "webpack:prod": "npm run webpack --progress --config webpack.prod.js",
+    "webpack:dev": "npm run webpack serve --config ./webpack.dev.js",
+    "webpack:dev:onlyThis": "npm run webpack serve --config ./webpack.dev.js",
+    "webpack:prod": "npm run webpack --progress --config ./webpack.prod.js",
     "tauri": "tauri",
     "tauri:dev:android": "WRY_ANDROID_PACKAGE=net.nymtech.nym_connect WRY_ANDROID_LIBRARY=nym_connect cargo tauri android dev",
     "tauri:build:android": "WRY_ANDROID_PACKAGE=net.nymtech.nym_connect WRY_ANDROID_LIBRARY=nym_connect cargo tauri android build",
@@ -27,7 +27,8 @@
     "clean:node": "rm -rf node_modules",
     "clean:rust": "cargo clean --manifest-path src-tauri/Cargo.toml",
     "clean:android": "cd src-tauri/gen/android/nym_connect/ && gradlew clean",
-    "clean:": "run-p clean:node clean:rust clean:android"
+    "clean:": "run-p clean:node clean:rust clean:android",
+    "webpack": "webpack"
   },
   "dependencies": {
     "@emotion/react": "^11.11.0",

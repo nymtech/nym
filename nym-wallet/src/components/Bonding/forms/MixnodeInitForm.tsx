@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { clean } from 'semver';
 import { Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { yupResolver } from '@hookform/resolvers/yup/dist/yup';
@@ -18,7 +19,13 @@ const MixnodeInitForm = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; on
 
   const handleRequestValidation = (event: { detail: { step: number } }) => {
     if (event.detail.step === 1) {
-      handleSubmit(onNext)();
+      handleSubmit((data) => {
+        const validatedData = {
+          ...data,
+          version: clean(data.version),
+        };
+        onNext(validatedData);
+      })();
     }
   };
 

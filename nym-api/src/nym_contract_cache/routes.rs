@@ -13,6 +13,7 @@ use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, reward_params::RewardingParams, GatewayBond, Interval, MixId,
 };
 
+use nym_name_service_common::response::NamesListResponse;
 use nym_service_provider_directory_common::response::ServicesListResponse;
 use rocket::{serde::json::Json, State};
 use rocket_okapi::openapi;
@@ -132,4 +133,11 @@ pub async fn get_current_epoch(cache: &State<NymContractCache>) -> Json<Option<I
 pub async fn get_services(cache: &State<NymContractCache>) -> Json<ServicesListResponse> {
     let services = cache.services().await.value;
     Json(services.as_slice().into())
+}
+
+#[openapi(tag = "contract-cache")]
+#[get("/names")]
+pub async fn get_names(cache: &State<NymContractCache>) -> Json<NamesListResponse> {
+    let names = cache.names().await.value;
+    Json(names.as_slice().into())
 }

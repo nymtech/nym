@@ -1,12 +1,15 @@
+import Big from 'big.js';
 import { useState } from 'react';
 import { unymToNym } from 'src/utils/coin';
 
-export const useGetFee = () => {
-  const [fee, setFee] = useState<number>();
+export type Fee = { nym: number; unym: number };
+
+export function useGetFee() {
+  const [fee, setFee] = useState<Fee>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
 
-  const getFee = async <T>(txReq: (args: T) => Promise<number | undefined>, args: T) => {
+  async function getFee<T>(txReq: (args: T) => Promise<number | undefined>, args: T) {
     setError(undefined);
     setIsLoading(true);
 
@@ -14,8 +17,12 @@ export const useGetFee = () => {
       const txFee = await txReq(args);
 
       if (txFee) {
-        const txFeeInNyms = unymToNym(txFee);
-        setFee(txFeeInNyms);
+        const feeWithMultiplyer = Big(txFee).mul(1);
+        console.log(fee);
+
+        const txFeeInNyms = unymToNym(feeWithMultiplyer);
+
+        setFee({ nym: Number(txFeeInNyms), unym: Number(feeWithMultiplyer) });
       }
 
       if (!txFee) {
@@ -27,7 +34,7 @@ export const useGetFee = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   return { fee, getFee, isLoading, error };
-};
+}

@@ -35,7 +35,7 @@ const Actions = () => (
 export const BalancePage = () => (
   <PageLayout>
     <Stack gap={6}>
-      <Address label="Address" address="n1fhu7p0zx5pvfffjudw5gpce3ncgdde94tan5d6" />
+      <Address />
       <Balance />
       <Actions />
     </Stack>

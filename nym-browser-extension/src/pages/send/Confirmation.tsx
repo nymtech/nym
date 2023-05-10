@@ -5,6 +5,7 @@ import { PageLayout } from 'src/layouts/PageLayout';
 import { useAppContext, useSendContext } from 'src/context';
 import { ErrorModal, LoadingModal } from 'src/components/ui/Modal';
 import { SendConfirmationModal } from 'src/components/send/SendConfirmationModal';
+import { blockExplorer } from 'src/urls';
 
 const InfoItem = ({ label, value }: { label: string; value: string }) => (
   <Box>
@@ -30,14 +31,14 @@ export const SendConfirmationPage = ({ onCancel }: { onCancel: () => void }) => 
   const { client, denom } = useAppContext();
   const { address, amount, fee, handleSend, transaction, resetTx, onDone } = useSendContext();
 
-  const calculateTotal = () => (Number(fee) + Number(amount?.amount)).toString();
+  const calculateTotal = () => (Number(fee?.nym) + Number(amount?.amount)).toString();
 
   return (
     <PageLayout>
       {transaction?.status === 'success' && (
         <SendConfirmationModal
           amount={`${amount?.amount} ${denom}`}
-          txUrl={`${transaction.txHash}`}
+          txUrl={`${blockExplorer.qa}/transactions/${transaction.txHash}`}
           onConfirm={onDone}
         />
       )}
@@ -51,7 +52,7 @@ export const SendConfirmationPage = ({ onCancel }: { onCancel: () => void }) => 
         <InfoItem label="From" value={client?.address || ''} />
         <InfoItem label="To" value={address || ''} />
         <InfoItem label="Amount" value={`${amount?.amount} ${denom}`} />
-        <InfoItem label="Transaction fee" value={`${fee || '-'} ${denom}`} />
+        <InfoItem label="Transaction fee" value={`${fee?.nym || '-'} ${denom}`} />
         <InfoItem label="Total" value={`${calculateTotal()} ${denom}`} />
       </Stack>
       <Box display="flex" gap={2}>

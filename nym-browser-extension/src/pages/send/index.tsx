@@ -17,7 +17,7 @@ const SendPage = ({ onConfirm }: { onConfirm: () => void }) => {
 
   const handleNext = async () => {
     if (address && amount) {
-      await handleGetFee();
+      await handleGetFee(address, amount.amount);
       onConfirm();
     }
   };
@@ -25,7 +25,7 @@ const SendPage = ({ onConfirm }: { onConfirm: () => void }) => {
   return (
     <PageLayout>
       <Stack gap={4} height="100%">
-        <Address label="Your address" address={client?.address || ''} />
+        <Address />
         <WalletAddressFormField
           showTickOnValid
           label="Recipient address"

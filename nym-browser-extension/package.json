@@ -15,6 +15,7 @@
   "dependencies": {
     "@emotion/react": "^11.7.0",
     "@emotion/styled": "^11.7.0",
+    "@hookform/resolvers": "^3.1.0",
     "@mui/icons-material": "^5.11.11",
     "@mui/material": "^5.11.15",
     "@mui/system": "^5.11.15",
@@ -28,7 +29,9 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-error-boundary": "^4.0.3",
-    "react-router-dom": "^6.9.0"
+    "react-hook-form": "^7.43.9",
+    "react-router-dom": "^6.9.0",
+    "zod": "^3.21.4"
   },
   "devDependencies": {
     "@nymproject/eslint-config-react-typescript": "^1.0.0",

@@ -3,20 +3,21 @@ import { DecCoin } from '@nymproject/types';
 import { useNavigate } from 'react-router-dom';
 import { nymToUnym } from 'src/utils/coin';
 import { TTransaction } from 'src/types';
-import { useGetFee } from 'src/hooks/useGetFee';
+import { Fee, useGetFee } from 'src/hooks/useGetFee';
 import { useAppContext } from './app';
+import { createFeeObject } from 'src/utils/fee';
 
 type TSendContext = {
   address?: string;
   amount?: DecCoin;
   transaction?: TTransaction;
-  fee?: number;
+  fee?: Fee;
   handleChangeAddress: (address?: string) => void;
   handleChangeAmount: (amount?: DecCoin) => void;
   handleSend: () => void;
   resetTx: () => void;
   onDone: () => void;
-  handleGetFee: () => Promise<void>;
+  handleGetFee: (address: string, amount: string) => Promise<void>;
 };
 
 const SendContext = React.createContext({} as TSendContext);
@@ -35,15 +36,13 @@ export const SendProvider = ({ children }: { children: React.ReactNode }) => {
 
   const { getFee, fee } = useGetFee();
 
-  const handleGetFee = async () => {
-    let unym: number | undefined;
+  const handleGetFee = async (address: string, amount: string) => {
+    let unym = nymToUnym(Number(amount));
 
-    if (amount) {
-      unym = nymToUnym(Number(amount?.amount));
-    }
-
-    if (address && unym && client) {
-      getFee(client.simulateSend, {
+    if (client) {
+      // client loses its 'this' context when passing the method
+      // TODO find a better way of doing this.
+      getFee(client.simulateSend.bind(client), {
         signingAddress: client.address,
         from: client.address,
         to: address,
@@ -66,10 +65,19 @@ export const SendProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (client && address && unyms) {
       try {
-        const response = await client.send(address, [{ amount: unyms.toString(), denom: minorDenom }], fee);
+        const response = await client.send(
+          address,
+          [{ amount: unyms.toString(), denom: minorDenom }],
+          createFeeObject(fee?.unym),
+        );
+
         setTransaction({ status: 'success', type: 'send', txHash: response?.transactionHash });
       } catch (e) {
-        setTransaction({ status: 'error', type: 'send', message: e as string });
+        setTransaction({
+          status: 'error',
+          type: 'send',
+          message: e instanceof Error ? e.message : 'Error making send transaction. Please try again',
+        });
       }
     }
   };

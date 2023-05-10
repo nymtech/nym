@@ -1,15 +1,29 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Stack, TextField } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from 'src/components/ui';
 import { CenteredLogoLayout } from 'src/layouts/CenteredLogo';
 import { useAppContext } from 'src/context';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { validationSchema } from './validationSchema';
 
 export const Login = () => {
-  const [password, setPassword] = useState('');
   const { handleUnlockWallet } = useAppContext();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({ resolver: zodResolver(validationSchema), defaultValues: { password: '' } });
+
+  const onSubmit = (data: { password: string }) => {
+    handleUnlockWallet(data.password);
+  };
+
+  console.log(errors);
 
   return (
     <CenteredLogoLayout
@@ -17,19 +31,14 @@ export const Login = () => {
       Actions={
         <Stack gap={1} width="100%" justifyContent="flex-end">
           <TextField
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            {...register('password')}
             placeholder="Password"
             type="password"
             sx={{ mb: 3 }}
+            helperText={errors.password?.message}
+            error={!!errors.password}
           />
-          <Button
-            onClick={() => handleUnlockWallet(password)}
-            variant="contained"
-            disableElevation
-            size="large"
-            fullWidth
-          >
+          <Button onClick={handleSubmit(onSubmit)} variant="contained" disableElevation size="large" fullWidth>
             Unlock
           </Button>
           <Button

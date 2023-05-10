@@ -5,15 +5,15 @@
 - [Network Overview](architecture/network-overview.md)
 - [Mixnet Traffic Flow](architecture/traffic-flow.md)
 <!-- todo reintroduce this with themed images  -->
-<!-- - [Network Rewards](architecture/network-rewards.md) --> 
+<!-- - [Network Rewards](architecture/network-rewards.md) -->
 
 # Binaries
 - [Pre-built Binaries](binaries/pre-built-binaries.md)
 - [Building from Source](binaries/building-nym.md)
 - [Binary Initialisation and Configuration](binaries/init-and-config.md)
-- [Version Compatibility Table](binaries/version-compatiblity.md)
+<!-- - [Version Compatibility Table](binaries/version-compatiblity.md) -->
 
-# Nodes 
+# Nodes
 - [Node Setup Guides](nodes/setup-guides.md)
     - [Mix Node](nodes/mix-node-setup.md)
     - [Gateway](nodes/gateway-setup.md)
@@ -21,7 +21,7 @@
     - [Validator](nodes/validator-setup.md)
 - [Troubleshooting](nodes/troubleshooting.md)
 
-# Clients 
+# Clients
 - [Clients Overview](clients/overview.md)
     - [Websocket](clients/websocket-client.md)
     - [Socks5](clients/socks5-client.md)
@@ -36,7 +36,7 @@
 - [Desktop Wallet](wallet/desktop-wallet.md)
 - [CLI Wallet](wallet/cli-wallet.md)
 
-# Explorers 
+# Explorers
 - [Mixnet Explorer](explorers/mixnet-explorer.md)
 
 # Nyx Blockchain
@@ -47,14 +47,14 @@
 - [RPC Nodes](nyx/rpc-node.md)
 - [Ledger Live Support](nyx/ledger-live.md)
 
-# Coconut 
+# Coconut
 - [Coconut](coconut.md)
 - [Bandwidth Credentials](bandwidth-credentials.md)
 
-# Tools 
+# Tools
 - [NymCLI](tools/nym-cli.md)
 
---- 
+---
 # Misc.
 - [Code of Conduct](coc.md)
 - [Licensing](licensing.md)

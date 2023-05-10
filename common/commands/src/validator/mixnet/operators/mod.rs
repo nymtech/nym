@@ -5,8 +5,8 @@ use clap::{Args, Subcommand};
 
 pub mod gateway;
 pub mod mixnode;
-pub mod service;
 pub mod name;
+pub mod service;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]

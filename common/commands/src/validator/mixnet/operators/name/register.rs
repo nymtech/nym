@@ -1,6 +1,6 @@
 use clap::Parser;
 use log::info;
-use nym_name_service_common::{Coin, NymName, Address};
+use nym_name_service_common::{Address, Coin, NymName};
 use nym_validator_client::nyxd::traits::NameServiceSigningClient;
 
 use crate::context::SigningClient;

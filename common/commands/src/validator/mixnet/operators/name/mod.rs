@@ -1,7 +1,7 @@
 use clap::{Args, Subcommand};
 
-pub mod register;
 pub mod delete;
+pub mod register;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]

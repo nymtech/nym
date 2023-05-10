@@ -25,6 +25,7 @@ use nym_mixnet_contract_common::{
     CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment,
     MixId, RewardedSetNodeStatus,
 };
+use nym_name_service_common::msg::QueryMsg as NameServiceQueryMsg;
 use nym_service_provider_directory_common::msg::QueryMsg as SpQueryMsg;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::traits::{
@@ -34,7 +35,7 @@ use nym_validator_client::nyxd::{
     cosmwasm_client::types::ExecuteResult,
     traits::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
-        MultisigQueryClient, MultisigSigningClient,
+        MultisigQueryClient, MultisigSigningClient, NameServiceQueryClient,
     },
     Fee,
 };
@@ -515,6 +516,24 @@ impl SpDirectoryQueryClient for Client {
             .await
             .nyxd
             .query_service_provider_contract(query)
+            .await
+    }
+}
+
+#[async_trait]
+impl NameServiceQueryClient for Client {
+    async fn query_name_service_contract<T>(
+        &self,
+        query: NameServiceQueryMsg,
+    ) -> std::result::Result<T, NyxdError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        self.0
+            .read()
+            .await
+            .nyxd
+            .query_name_service_contract(query)
             .await
     }
 }

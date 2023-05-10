@@ -1,5 +1,6 @@
 use crate::{msg::ExecuteMsg, NameEntry, NameId, RegisteredName};
 use cosmwasm_std::Coin;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Like [`NameEntry`] but since it's a response type the name is an option depending on if
@@ -11,7 +12,7 @@ pub struct NameEntryResponse {
     pub name: Option<RegisteredName>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct NamesListResponse {
     pub names: Vec<NameEntry>,
@@ -24,6 +25,14 @@ impl NamesListResponse {
                 .into_iter()
                 .map(|(name_id, name)| NameEntry::new(name_id, name))
                 .collect(),
+        }
+    }
+}
+
+impl From<&[NameEntry]> for NamesListResponse {
+    fn from(names: &[NameEntry]) -> Self {
+        NamesListResponse {
+            names: names.to_vec(),
         }
     }
 }

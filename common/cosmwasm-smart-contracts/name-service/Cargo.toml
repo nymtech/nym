@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 cosmwasm-std = { workspace = true }
+schemars = "0.8"
 serde = { workspace = true, features = ["derive"] }

@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { nymToUnym } from 'src/utils/coin';
 import { TTransaction } from 'src/types';
 import { Fee, useGetFee } from 'src/hooks/useGetFee';
-import { useAppContext } from './app';
 import { createFeeObject } from 'src/utils/fee';
+import { useAppContext } from './app';
 
 type TSendContext = {
   address?: string;
@@ -36,8 +36,8 @@ export const SendProvider = ({ children }: { children: React.ReactNode }) => {
 
   const { getFee, fee } = useGetFee();
 
-  const handleGetFee = async (address: string, amount: string) => {
-    let unym = nymToUnym(Number(amount));
+  const handleGetFee = async (addressVal: string, amountVal: string) => {
+    const unym = nymToUnym(Number(amountVal));
 
     if (client) {
       // client loses its 'this' context when passing the method
@@ -45,7 +45,7 @@ export const SendProvider = ({ children }: { children: React.ReactNode }) => {
       getFee(client.simulateSend.bind(client), {
         signingAddress: client.address,
         from: client.address,
-        to: address,
+        to: addressVal,
         amount: [{ amount: unym.toString(), denom: minorDenom }],
       });
     }

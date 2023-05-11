@@ -219,6 +219,34 @@ impl NymClient {
         res
     }
 
+    pub async fn run_and_listen2(self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        // Start the main task
+        let mut shutdown = self.start().await?;
+
+        // Listen to status messages from task, that we forward back to the caller
+
+        let res = tokio::select! {
+            biased;
+            Some(msg) = shutdown.wait_for_error() => {
+                log::info!("Task error: {:?}", msg);
+                Err(msg)
+            }
+            _ = tokio::signal::ctrl_c() => {
+                log::info!("Received SIGINT");
+                Ok(())
+            },
+        };
+
+        log::info!("Sending shutdown");
+        shutdown.signal_shutdown().ok();
+
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        shutdown.wait_for_shutdown().await;
+
+        log::info!("Stopping nym-socks5-client");
+        res
+    }
+
     pub async fn start(self) -> Result<TaskManager, Socks5ClientCoreError> {
         #[cfg(not(target_os = "android"))]
         let base_builder = BaseClientBuilder::new_from_base_config(

@@ -1,0 +1,5 @@
+# environment
+.env.dev
+
+# error logs
+yarn-error.log

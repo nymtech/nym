@@ -16,4 +16,10 @@ module.exports = mergeWithRules({
     path: path.resolve(__dirname, 'dist'),
     publicPath: '/',
   },
+  resolve: {
+    fallback: {
+      crypto: 'crypto-browserify',
+      stream: 'stream-browserify',
+    },
+  },
 });

@@ -31,13 +31,15 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const bal = await client?.getBalance(client.address);
 
     if (bal) {
-      const nym = unymToNym(Number(bal?.amount));
+      const nym = unymToNym(Number(bal.amount));
       setBalance(nym.toString());
     }
   };
 
   useEffect(() => {
-    getBalance();
+    if (client) {
+      getBalance();
+    }
   }, [client]);
 
   const value = useMemo<TAppContext>(

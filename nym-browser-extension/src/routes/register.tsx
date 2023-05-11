@@ -4,6 +4,12 @@ import { CreatePassword, ImportAccount, SeedPhrase, SetupComplete } from 'src/pa
 
 export const RegisterRoutes = () => {
   const navigate = useNavigate();
+
+  // hack to work on redirect until password capability is set up
+  const handleSetUpComplete = () => {
+    localStorage.setItem('nym-browser-extension', 'true');
+    navigate('/login');
+  };
   return (
     <Routes>
       <Route path="seed-phrase" element={<SeedPhrase />} />
@@ -13,7 +19,7 @@ export const RegisterRoutes = () => {
         path="import-account/create-password"
         element={<CreatePassword onNext={() => navigate('/register/complete')} />}
       />
-      <Route path="complete" element={<SetupComplete onDone={() => navigate('/login')} />} />
+      <Route path="complete" element={<SetupComplete onDone={handleSetUpComplete} />} />
     </Routes>
   );
 };

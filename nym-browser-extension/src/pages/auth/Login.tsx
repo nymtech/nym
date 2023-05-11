@@ -23,8 +23,6 @@ export const Login = () => {
     handleUnlockWallet(data.password);
   };
 
-  console.log(errors);
-
   return (
     <CenteredLogoLayout
       title="Privacy crypto wallet"

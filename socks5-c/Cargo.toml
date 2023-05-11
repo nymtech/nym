@@ -36,8 +36,9 @@ nym-crypto = { path = "../common/crypto" }
 nym-bin-common = { path = "../common/bin-common"}
 nym-socks5-client-core = { path = "../common/socks5-client-core", default-features = false }
 nym-task = { path = "../common/task" }
+openssl = { version = "0.10", features = ["vendored"] }
 
 
 [lib]
-name = "my_rust_module"
+name = "socks5_c"
 crate-type = ["staticlib"]

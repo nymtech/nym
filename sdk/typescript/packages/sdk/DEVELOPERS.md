@@ -3,7 +3,7 @@
 ## Building from source
 
 You will need to have the Rust WASM toolchain installed. Please [follow the instructions here](https://rustwasm.github.io/docs/book/game-of-life/setup.html)
-to install `wasm-pack`.
+to install `wasm-pack` and `wasm-opt` (or just type `cargo install wasm-pack wasm-opt`).
 
 Make sure you have either Node 16 LTS or Node 18 LTS installed and are using it to do the build.
 

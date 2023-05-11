@@ -1,5 +1,12 @@
+use anyhow::Result;
+use nym_client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
+use nym_credential_storage::ephemeral_storage::EphemeralStorage;
+use nym_crypto::asymmetric::identity;
+use nym_socks5_client_core::config::Config as Socks5Config;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
-use std::ffi::*;
+//use std::ffi::*;
+
+static SOCKS5_CONFIG_ID: &str = "nym-connect";
 
 #[no_mangle]
 pub extern "C" fn run_client() {
@@ -16,22 +23,6 @@ pub extern "C" fn run_client() {
     .unwrap();
 }
 
-use anyhow::Result;
-use futures::channel::mpsc;
-use nym_client_core::config::{ClientCoreConfigTrait, GatewayEndpointConfig};
-use nym_client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
-use nym_config_common::NymConfig;
-use nym_credential_storage::ephemeral_storage::EphemeralStorage;
-use nym_crypto::asymmetric::identity;
-use nym_socks5_client_core::config::{Config as Socks5Config, Socks5};
-use nym_socks5_client_core::Socks5ControlMessageSender;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tap::TapFallible;
-use tokio::sync::RwLock;
-
-static SOCKS5_CONFIG_ID: &str = "nym-connect";
-
 #[derive(Debug)]
 pub struct Config {
     pub socks5: Socks5Config,
@@ -42,26 +33,6 @@ impl Config {
         Config {
             socks5: Socks5Config::new(id, provider_mix_address),
         }
-    }
-
-    #[allow(unused)]
-    pub fn new_with_port<S: Into<String>>(id: S, provider_mix_address: S, port: u16) -> Self {
-        Config {
-            socks5: Socks5Config::new(id, provider_mix_address).with_port(port),
-        }
-    }
-
-    pub fn get_config(&self) -> &Socks5Config {
-        &self.socks5
-    }
-
-    pub fn get_socks5(&self) -> &Socks5 {
-        self.socks5.get_socks5()
-    }
-
-    #[allow(unused)]
-    pub fn get_socks5_mut(&mut self) -> &mut Socks5 {
-        self.socks5.get_socks5_mut()
     }
 
     pub fn get_base(&self) -> &BaseConfig<Socks5Config> {
@@ -87,7 +58,7 @@ pub async fn init_socks5_config(
 
     let nym_api_endpoints = config.get_base().get_nym_api_endpoints();
 
-    let chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)?;
+    let _chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)?;
 
     let mut key_manager = nym_client_core::init::new_client_keys();
 
@@ -95,14 +66,15 @@ pub async fn init_socks5_config(
     let gateway = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
         &mut key_manager,
         nym_api_endpoints,
-        Some(chosen_gateway_id),
+        //Some(chosen_gateway_id),
+        None,
         false,
     )
     .await?;
 
     config.get_base_mut().set_gateway_endpoint(gateway);
 
-    let address = *key_manager.identity_keypair().public_key();
+    let _address = *key_manager.identity_keypair().public_key();
 
     Ok((config, key_manager))
 }

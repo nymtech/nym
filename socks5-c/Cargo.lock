@@ -55,15 +55,6 @@ dependencies = [
 
 [[package]]
 name = "aho-corasick"
-version = "0.7.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc936419f96fa211c1b9166887b38e5e40b19958e5b895be7c1f93adec7071ac"
-dependencies = [
- "memchr",
-]
-
-[[package]]
-name = "aho-corasick"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67fc08ce920c31afb70f013dcce1bfc3a3195de6a228474e45e1f145b36f8d04"
@@ -353,16 +344,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bstr"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3d4260bcc2e8fc9df1eac4919a720effeb63a3f0952f5bf4944adfa18897f09"
-dependencies = [
- "memchr",
- "serde",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -608,9 +589,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "1.0.0"
+version = "1.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b36e527620a2a3e00e46b6e731ab6c9b68d11069c986f7d7be8eba79ef081a4"
+checksum = "1c9f7f0e51bfc7295f7b2664fe8513c966428642aa765dad8a74acdab5e0c773"
 dependencies = [
  "syn 1.0.109",
 ]
@@ -1385,19 +1366,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "globset"
-version = "0.4.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "029d74589adefde59de1a0c4f4732695c32805624aec7b68d91503d4dba79afc"
-dependencies = [
- "aho-corasick 0.7.20",
- "bstr",
- "fnv",
- "log",
- "regex",
-]
-
-[[package]]
 name = "gloo-timers"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1945,12 +1913,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "linked-hash-map"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
-
-[[package]]
 name = "linux-raw-sys"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2091,15 +2053,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fac9e2da13b5eb447a6ce3d392f23a29d8694bff781bf03a16cd9ac8697593b"
 dependencies = [
  "hermit-abi 0.2.6",
- "libc",
-]
-
-[[package]]
-name = "num_threads"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2819ce041d2ee131036f4fc9d6ae7ae125a3a40e97ba64d04fe799ad9dabbb44"
-dependencies = [
  "libc",
 ]
 
@@ -3317,7 +3270,7 @@ version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af83e617f331cc6ae2da5443c602dfa5af81e517212d9d611a5b3ba1777b5370"
 dependencies = [
- "aho-corasick 1.0.1",
+ "aho-corasick",
  "memchr",
  "regex-syntax",
 ]
@@ -3357,7 +3310,6 @@ dependencies = [
  "serde_urlencoded",
  "tokio",
  "tokio-native-tls",
- "tokio-socks",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -3401,41 +3353,6 @@ dependencies = [
  "block-buffer 0.9.0",
  "digest 0.9.0",
  "opaque-debug 0.3.0",
-]
-
-[[package]]
-name = "rust-embed"
-version = "6.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b68543d5527e158213414a92832d2aab11a84d2571a5eb021ebe22c43aab066"
-dependencies = [
- "rust-embed-impl",
- "rust-embed-utils",
- "walkdir",
-]
-
-[[package]]
-name = "rust-embed-impl"
-version = "6.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d4e0f0ced47ded9a68374ac145edd65a6c1fa13a96447b873660b2a568a0fd7"
-dependencies = [
- "proc-macro2",
- "quote",
- "rust-embed-utils",
- "syn 1.0.109",
- "walkdir",
-]
-
-[[package]]
-name = "rust-embed-utils"
-version = "7.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "512b0ab6853f7e14e3c8754acb43d6f748bb9ced66aa5915a6553ac8213f7731"
-dependencies = [
- "globset",
- "sha2 0.10.6",
- "walkdir",
 ]
 
 [[package]]
@@ -3840,34 +3757,13 @@ name = "socks5-c"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bip39",
- "dirs",
- "eyre",
- "futures",
- "itertools",
- "nym-api-requests",
- "nym-bin-common",
  "nym-client-core",
  "nym-config",
- "nym-contracts-common",
  "nym-credential-storage",
  "nym-crypto",
  "nym-socks5-client-core",
- "nym-task",
  "openssl",
- "rand 0.8.5",
- "reqwest",
- "rust-embed",
- "serde",
- "serde_json",
- "serde_repr",
- "tap",
- "tendermint-rpc",
- "thiserror",
- "time",
  "tokio",
- "url",
- "yaml-rust",
 ]
 
 [[package]]
@@ -4352,8 +4248,6 @@ checksum = "8f3403384eaacbca9923fa06940178ac13e4edb725486d70e8e15881d0c836cc"
 dependencies = [
  "itoa",
  "js-sys",
- "libc",
- "num_threads",
  "serde",
  "time-core",
  "time-macros",
@@ -4448,18 +4342,6 @@ dependencies = [
  "rustls 0.20.8",
  "tokio",
  "webpki 0.22.0",
-]
-
-[[package]]
-name = "tokio-socks"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51165dfa029d2a65969413a6cc96f354b86b464498702f174a4efa13608fd8c0"
-dependencies = [
- "either",
- "futures-util",
- "thiserror",
- "tokio",
 ]
 
 [[package]]
@@ -5072,15 +4954,6 @@ dependencies = [
  "curve25519-dalek",
  "rand_core 0.5.1",
  "zeroize",
-]
-
-[[package]]
-name = "yaml-rust"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56c1936c4cc7a1c9ab21a1ebb602eb942ba868cbd44a99cb7cdc5892335e1c85"
-dependencies = [
- "linked-hash-map",
 ]
 
 [[package]]

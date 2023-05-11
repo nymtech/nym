@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Button, FormControl, Grid, Stack, Switch, TextField, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import {
+  checkMixnodeOwnership,
   getDefaultValidatorUrl,
   getSelectedValidatorUrl,
   resetValidatorUrl,
@@ -94,13 +95,28 @@ const SelectValidator = () => {
     if (!network || !validatorUrlInput || validatorUrlInput === defaultValidatorUrl) {
       return;
     }
+    setIsLoading(true);
     try {
-      setIsLoading(true);
+      // this tauri request also does a basic connection check
       await setSelectedValidatorUrlReq({ network, url: validatorUrlInput });
+    } catch (e) {
+      Console.error(e);
+      enqueueSnackbar(`Invalid validator URL: ${e}`, { variant: 'error' });
+      setIsLoading(false);
+      return;
+    }
+
+    // to enforce the validator URL is valid, try to query the node ownership
+    // if it fails, that means the endpoint is wrong
+    // TODO this check logic should be handled directly in the rust side, `select_nyxd_url` command
+    try {
+      await checkMixnodeOwnership();
       enqueueSnackbar('Validator URL saved', { variant: 'success' });
     } catch (e) {
-      enqueueSnackbar(e as string, { variant: 'error' });
       Console.error(e);
+      enqueueSnackbar('The given validator URL is not valid for the currently selected network', { variant: 'error' });
+      await resetValidatorUrl(network as Network);
+      setSelectedValidatorUrl(null);
     } finally {
       setIsLoading(false);
     }

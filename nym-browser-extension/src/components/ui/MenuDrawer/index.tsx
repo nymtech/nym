@@ -7,19 +7,23 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { AccountBalanceWalletRounded, ArrowDownwardRounded, ArrowUpwardRounded } from '@mui/icons-material';
+import { Link } from 'react-router-dom';
 
 const menuSchema = [
   {
     title: 'Balance',
     Icon: <AccountBalanceWalletRounded />,
+    path: '/user/balance',
   },
   {
     title: 'Send',
     Icon: <ArrowDownwardRounded />,
+    path: '/user/send',
   },
   {
     title: 'Receive',
     Icon: <ArrowUpwardRounded />,
+    path: '/user/receive',
   },
 ];
 
@@ -27,13 +31,15 @@ export const MenuDrawer = ({ open, onClose }: { open: boolean; onClose: () => vo
   const list = () => (
     <Box sx={{ width: 250 }} role="presentation" onClick={() => {}}>
       <List>
-        {menuSchema.map(({ title, Icon }) => (
-          <ListItem key={title} disablePadding>
-            <ListItemButton>
-              <ListItemIcon>{Icon}</ListItemIcon>
-              <ListItemText primary={title} />
-            </ListItemButton>
-          </ListItem>
+        {menuSchema.map(({ title, Icon, path }) => (
+          <Link to={path} style={{ textDecoration: 'none', color: 'unset' }} key={title}>
+            <ListItem disablePadding>
+              <ListItemButton>
+                <ListItemIcon>{Icon}</ListItemIcon>
+                <ListItemText primary={title} />
+              </ListItemButton>
+            </ListItem>
+          </Link>
         ))}
       </List>
     </Box>

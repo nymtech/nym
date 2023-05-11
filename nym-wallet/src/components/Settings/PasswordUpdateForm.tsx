@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
+import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { updatePassword } from '../../requests';
 import { PasswordStrength } from '../../pages/auth/components';
-import { PasswordInput } from '../textfields';
 
 const PasswordUpdateForm = ({ onPwdSaved }: { onPwdSaved: () => void }) => {
   const [currentPassword, setCurrentPassword] = useState('');

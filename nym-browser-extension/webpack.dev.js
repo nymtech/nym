@@ -2,6 +2,7 @@ const { mergeWithRules } = require('webpack-merge');
 const webpack = require('webpack');
 const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
 const ReactRefreshTypeScript = require('react-refresh-typescript');
+const Dotenv = require('dotenv-webpack');
 const commonConfig = require('./webpack.common');
 
 module.exports = mergeWithRules({
@@ -36,6 +37,7 @@ module.exports = mergeWithRules({
 
     // this can be included automatically by the dev server, however build mode fails if missing
     new webpack.HotModuleReplacementPlugin(),
+    new Dotenv({ path: './env.dev' }),
   ],
 
   // recommended for faster rebuild

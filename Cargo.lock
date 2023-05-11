@@ -3268,6 +3268,7 @@ dependencies = [
  "nym-name-service-common",
  "nym-network-defaults",
  "nym-service-provider-directory-common",
+ "nym-sphinx",
  "nym-validator-client",
  "nym-vesting-contract-common",
  "rand 0.6.5",
@@ -3970,6 +3971,7 @@ name = "nym-service-provider-directory-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "nym-contracts-common",
  "schemars",
  "serde",
 ]

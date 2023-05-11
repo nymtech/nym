@@ -21,6 +21,15 @@ pub struct Service {
     pub deposit: Coin,
 }
 
+/// WIP(JON): place this inside `Service`.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
+pub struct ServiceDetails {
+    /// The address of the service.
+    pub nym_address: NymAddress,
+    /// The service type.
+    pub service_type: ServiceType,
+}
+
 /// The types of addresses supported.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
 #[serde(rename_all = "snake_case")]

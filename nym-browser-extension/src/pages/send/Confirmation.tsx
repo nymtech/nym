@@ -5,7 +5,7 @@ import { PageLayout } from 'src/layouts/PageLayout';
 import { useAppContext, useSendContext } from 'src/context';
 import { ErrorModal, LoadingModal } from 'src/components/ui/Modal';
 import { SendConfirmationModal } from 'src/components/send/SendConfirmationModal';
-import { blockExplorer } from 'src/urls';
+import { blockExplorerUrl } from 'src/urls';
 
 const InfoItem = ({ label, value }: { label: string; value: string }) => (
   <Box>
@@ -38,7 +38,7 @@ export const SendConfirmationPage = ({ onCancel }: { onCancel: () => void }) => 
       {transaction?.status === 'success' && (
         <SendConfirmationModal
           amount={`${amount?.amount} ${denom}`}
-          txUrl={`${blockExplorer.qa}/transactions/${transaction.txHash}`}
+          txUrl={`${blockExplorerUrl}/transactions/${transaction.txHash}`}
           onConfirm={onDone}
         />
       )}

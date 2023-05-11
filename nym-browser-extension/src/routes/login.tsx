@@ -8,8 +8,13 @@ export const LoginRoutes = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (client) navigate('/user/balance');
-    else navigate('/login');
+    let route = '/login';
+
+    if (client) {
+      route = '/user/balance';
+    }
+
+    navigate(route);
   }, [client]);
 
   return (

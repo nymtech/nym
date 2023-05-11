@@ -45,7 +45,6 @@ import {
 } from '@nymproject/types';
 import QueryClient from './query-client';
 import SigningClient, { ISigningClient } from './signing-client';
-// import { DelegationBlock } from './types/shared';
 
 export interface INymClient {
   readonly mixnetContract: string;
@@ -626,7 +625,17 @@ export default class ValidatorClient implements INymClient {
 
   // SIMULATE
 
-  public async simulateSend(signingAddress: string, from: string, to: string, amount: Coin[]) {
-    return (this.client as SigningClient).simulateSend(signingAddress, from, to, amount);
+  public async simulateSend({
+    signingAddress,
+    from,
+    to,
+    amount,
+  }: {
+    signingAddress: string;
+    from: string;
+    to: string;
+    amount: Coin[];
+  }) {
+    return (this.client as ISigningClient).simulateSend(signingAddress, from, to, amount);
   }
 }

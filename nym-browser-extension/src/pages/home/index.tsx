@@ -9,14 +9,16 @@ export const Home = () => (
     title="Welcome to Nym"
     Actions={
       <Stack gap={2} width="100%" justifyContent="flex-end">
-        <Link to="/register" style={{ textDecoration: 'none' }}>
+        <Link to="/register/create-password" style={{ textDecoration: 'none' }}>
           <Button variant="contained" disableElevation size="large" fullWidth>
             Create new account
           </Button>
         </Link>
-        <Button variant="text" disableElevation size="large" fullWidth color="primary">
-          Import existing account
-        </Button>
+        <Link to="/register/import-account" style={{ textDecoration: 'none' }}>
+          <Button variant="text" disableElevation size="large" fullWidth color="primary">
+            Import existing account
+          </Button>
+        </Link>
       </Stack>
     }
   />

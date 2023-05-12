@@ -3,8 +3,8 @@ use crate::error::BackendError;
 use crate::network_config;
 use crate::state::{WalletAccountIds, WalletState};
 use crate::wallet_storage::{self, UserPassword, DEFAULT_LOGIN_ID};
-use bip39::rand::{self, seq::SliceRandom};
-use bip39::{Language, Mnemonic};
+use bip39::rand::seq::SliceRandom;
+use bip39::{rand, Language, Mnemonic};
 use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use nym_config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
@@ -118,6 +118,14 @@ async fn _connect_with_mnemonic(
         let state = state.read().await;
         (state.get_all_nyxd_urls(), state.get_all_api_urls())
     };
+
+    let (nyxd_urls, api_urls) = run_connection_test(
+        untested_nyxd_urls.clone(),
+        untested_api_urls.clone(),
+        &config,
+    )
+    .await;
+
     let default_nyxd_urls: HashMap<WalletNetwork, Url> = untested_nyxd_urls
         .iter()
         .map(|(network, urls)| (*network, urls.iter().next().unwrap().clone()))
@@ -127,19 +135,17 @@ async fn _connect_with_mnemonic(
         .map(|(network, urls)| (*network, urls.iter().next().unwrap().clone()))
         .collect();
 
-    // Run connection tests on all nyxd and nym-api endpoints
-    let (nyxd_urls, api_urls) =
-        run_connection_test(untested_nyxd_urls, untested_api_urls, &config).await;
+    let nyxd_urls = pick_good_nyxd_urls(&default_nyxd_urls, &nyxd_urls).await?;
+    let api_urls = pick_good_api_urls(&default_api_urls, &api_urls).await?;
+
+    {
+        let mut w_state = state.write().await;
+        // Save the checked nyxd URLs
+        w_state.set_default_nyxd_urls(&nyxd_urls);
+    }
 
     // Create clients for all networks
-    let clients = create_clients(
-        &nyxd_urls,
-        &api_urls,
-        &default_nyxd_urls,
-        &default_api_urls,
-        &config,
-        &mnemonic,
-    )?;
+    let clients = create_clients(&nyxd_urls, &api_urls, &config, &mnemonic)?;
 
     // Set the default account
     let default_network = WalletNetwork::MAINNET;
@@ -196,9 +202,51 @@ async fn run_connection_test(
     .await
 }
 
-fn create_clients(
+async fn pick_good_nyxd_urls(
+    default_nyxd_urls: &HashMap<WalletNetwork, Url>,
     nyxd_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
+) -> Result<HashMap<WalletNetwork, Url>, BackendError> {
+    let nyxd_urls: HashMap<WalletNetwork, Url> = WalletNetwork::iter()
+        .map(|network| {
+            let default_nyxd_url = default_nyxd_urls
+                .get(&network)
+                .expect("Expected at least one nyxd_url");
+            let url = select_random_responding_url(nyxd_urls, network).unwrap_or_else(|| {
+                log::warn!(
+                    "No successful nyxd_urls for {network}: using default: {default_nyxd_url}"
+                );
+                default_nyxd_url.clone()
+            });
+            log::info!("Set default nyxd_url for {network}: {url}");
+            (network, url)
+        })
+        .collect();
+
+    Ok(nyxd_urls)
+}
+
+async fn pick_good_api_urls(
+    default_api_urls: &HashMap<WalletNetwork, Url>,
     api_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
+) -> Result<HashMap<WalletNetwork, Url>, BackendError> {
+    let api_urls: HashMap<WalletNetwork, Url> = WalletNetwork::iter()
+        .map(|network| {
+            let default_api_url = default_api_urls
+                .get(&network)
+                .expect("Expected at least one api_url");
+            let url = select_first_responding_url(api_urls, network).unwrap_or_else(|| {
+                log::warn!("No passing api_urls for {network}: using default: {default_api_url}");
+                default_api_url.clone()
+            });
+            log::info!("Set default api_url for {network}: {url}");
+            (network, url)
+        })
+        .collect();
+
+    Ok(api_urls)
+}
+
+fn create_clients(
     default_nyxd_urls: &HashMap<WalletNetwork, Url>,
     default_api_urls: &HashMap<WalletNetwork, Url>,
     config: &Config,
@@ -210,28 +258,22 @@ fn create_clients(
             log::debug!("Using selected nyxd_url for {network}: {url}");
             url.clone()
         } else {
-            let default_nyxd_url = default_nyxd_urls
+            let url = default_nyxd_urls
                 .get(&network)
                 .expect("Expected at least one nyxd_url");
-            select_random_responding_url(nyxd_urls, network).unwrap_or_else(|| {
-                log::debug!(
-                    "No successful nyxd_urls for {network}: using default: {default_nyxd_url}"
-                );
-                default_nyxd_url.clone()
-            })
+            log::debug!("Using default nyxd_url for {network}: {url}");
+            url.to_owned()
         };
 
         let api_url = if let Some(url) = config.get_selected_nym_api_url(&network) {
             log::debug!("Using selected api_url for {network}: {url}");
             url.clone()
         } else {
-            let default_api_url = default_api_urls
+            let url = default_api_urls
                 .get(&network)
                 .expect("Expected at least one api url");
-            select_first_responding_url(api_urls, network).unwrap_or_else(|| {
-                log::debug!("No passing api_urls for {network}: using default: {default_api_url}");
-                default_api_url.clone()
-            })
+            log::debug!("Using default api_url for {network}: {url}");
+            url.to_owned()
         };
 
         log::info!("Connecting to: nyxd_url: {nyxd_url} for {network}");

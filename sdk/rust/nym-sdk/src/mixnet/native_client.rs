@@ -1,13 +1,9 @@
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
     inbound_messages::InputMessage,
-    key_manager::KeyManager,
     received_buffer::ReconstructedMessagesReceiver,
 };
-use nym_sphinx::{
-    addressing::clients::{ClientIdentity, Recipient},
-    receiver::ReconstructedMessage,
-};
+use nym_sphinx::{addressing::clients::Recipient, receiver::ReconstructedMessage};
 use nym_task::{
     connections::{ConnectionCommandSender, LaneQueueLengths, TransmissionLane},
     TaskManager,
@@ -23,9 +19,6 @@ use crate::Result;
 pub struct MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,
-
-    /// Keys handled by the client
-    pub(crate) key_manager: KeyManager,
 
     /// Input to the client from the users perspective. This can be either data to send or controll
     /// messages.
@@ -63,16 +56,11 @@ impl MixnetClient {
     ///
     /// ```
     pub async fn connect_new() -> Result<Self> {
-        MixnetClientBuilder::new()
-            .build::<crate::mixnet::EmptyReplyStorage>()
+        MixnetClientBuilder::new_ephemeral()
+            .build()
             .await?
             .connect_to_mixnet()
             .await
-    }
-
-    /// Get the client identity, which is the public key of the identity key pair.
-    pub fn identity(&self) -> ClientIdentity {
-        *self.key_manager.identity_keypair().public_key()
     }
 
     /// Get the nym address for this client, if it is available. The nym address is composed of the

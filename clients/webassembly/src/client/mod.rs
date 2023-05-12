@@ -4,10 +4,11 @@
 use self::config::Config;
 use crate::client::helpers::{InputSender, NymClientTestRequest, WasmTopologyExt};
 use crate::client::response_pusher::ResponsePusher;
+use crate::constants::NODE_TESTER_CLIENT_ID;
 use crate::error::WasmClientError;
-use crate::helpers::{
-    parse_recipient, parse_sender_tag, setup_new_key_manager, setup_reply_surb_storage_backend,
-};
+use crate::helpers::{parse_recipient, parse_sender_tag, setup_reply_surb_storage_backend};
+use crate::storage::traits::FullWasmClientStorage;
+use crate::storage::ClientStorage;
 use crate::topology::WasmNymTopology;
 use js_sys::Promise;
 use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
@@ -15,8 +16,8 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::{
     BaseClientBuilder, ClientInput, ClientOutput, ClientState, CredentialsToggle,
 };
+use nym_client_core::client::inbound_messages::InputMessage;
 use nym_client_core::client::replies::reply_storage::browser_backend;
-use nym_client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
 use nym_client_core::config::{
     CoverTraffic, DebugConfig, GatewayEndpointConfig, Topology, Traffic,
 };
@@ -56,9 +57,7 @@ pub struct NymClientBuilder {
     config: Config,
     custom_topology: Option<NymTopology>,
 
-    /// KeyManager object containing smart pointers to all relevant keys used by the client.
-    key_manager: KeyManager,
-
+    storage_passphrase: Option<String>,
     reply_surb_storage_backend: browser_backend::Backend,
 
     on_message: js_sys::Function,
@@ -72,13 +71,16 @@ pub struct NymClientBuilder {
 #[wasm_bindgen]
 impl NymClientBuilder {
     #[wasm_bindgen(constructor)]
-    pub fn new(config: Config, on_message: js_sys::Function) -> Self {
-        //, key_manager: Option<KeyManager>) {
+    pub fn new(
+        config: Config,
+        on_message: js_sys::Function,
+        storage_passphrase: Option<String>,
+    ) -> Self {
         NymClientBuilder {
             reply_surb_storage_backend: setup_reply_surb_storage_backend(config.debug.reply_surbs),
             config,
             custom_topology: None,
-            key_manager: setup_new_key_manager(),
+            storage_passphrase,
             on_message,
             bandwidth_controller: None,
             disabled_credentials: true,
@@ -99,7 +101,7 @@ impl NymClientBuilder {
         }
 
         let full_config = Config {
-            id: "ephemeral-id".to_string(),
+            id: NODE_TESTER_CLIENT_ID.to_string(),
             nym_api_url: None,
             disabled_credentials_mode: true,
             gateway_endpoint: gateway_config,
@@ -126,12 +128,10 @@ impl NymClientBuilder {
             ),
             config: full_config,
             custom_topology: Some(topology.into()),
-            // TODO: once we make keys persistent, we'll require some kind of `init` method to generate
-            // a prior shared keypair between the client and the gateway
-            key_manager: setup_new_key_manager(),
             on_message,
             bandwidth_controller: None,
             disabled_credentials: true,
+            storage_passphrase: None,
         }
     }
 
@@ -162,10 +162,15 @@ impl NymClientBuilder {
             Some(endpoint) => vec![endpoint],
             None => Vec::new(),
         };
-        let mut base_builder = BaseClientBuilder::new(
+
+        // TODO: this will have to be re-used for surbs. but this is a problem for another PR.
+        let key_store =
+            ClientStorage::new_async(&self.config.id, self.storage_passphrase.take()).await?;
+
+        let mut base_builder: BaseClientBuilder<_, FullWasmClientStorage> = BaseClientBuilder::new(
             &self.config.gateway_endpoint,
             &self.config.debug,
-            self.key_manager,
+            key_store,
             self.bandwidth_controller,
             self.reply_surb_storage_backend,
             disabled_credentials,
@@ -175,8 +180,8 @@ impl NymClientBuilder {
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        let self_address = base_builder.as_mix_recipient().to_string();
         let mut started_client = base_builder.start_base().await?;
+        let self_address = started_client.address.to_string();
 
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
@@ -202,16 +207,25 @@ impl NymClient {
     async fn _new(
         config: Config,
         on_message: js_sys::Function,
+        storage_passphrase: Option<String>,
     ) -> Result<NymClient, WasmClientError> {
-        NymClientBuilder::new(config, on_message)
+        NymClientBuilder::new(config, on_message, storage_passphrase)
             .start_client_async()
             .await
     }
 
     #[wasm_bindgen(constructor)]
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(config: Config, on_message: js_sys::Function) -> Promise {
-        future_to_promise(async move { Self::_new(config, on_message).await.into_promise_result() })
+    pub fn new(
+        config: Config,
+        on_message: js_sys::Function,
+        storage_passphrase: Option<String>,
+    ) -> Promise {
+        future_to_promise(async move {
+            Self::_new(config, on_message, storage_passphrase)
+                .await
+                .into_promise_result()
+        })
     }
 
     pub fn self_address(&self) -> String {

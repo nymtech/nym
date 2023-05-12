@@ -45,8 +45,13 @@ impl<C, St: Storage> BandwidthController<C, St> {
     ) -> Result<(nym_coconut_interface::Credential, i64), BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
+        <St as Storage>::StorageError: Send + Sync + 'static,
     {
-        let bandwidth_credential = self.storage.get_next_coconut_credential().await?;
+        let bandwidth_credential = self
+            .storage
+            .get_next_coconut_credential()
+            .await
+            .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
         let voucher_value = u64::from_str(&bandwidth_credential.voucher_value)
             .map_err(|_| StorageError::InconsistentData)?;
         let voucher_info = bandwidth_credential.voucher_info.clone();
@@ -82,10 +87,16 @@ impl<C, St: Storage> BandwidthController<C, St> {
         ))
     }
 
-    pub async fn consume_credential(&self, id: i64) -> Result<(), BandwidthControllerError> {
+    pub async fn consume_credential(&self, id: i64) -> Result<(), BandwidthControllerError>
+    where
+        <St as Storage>::StorageError: Send + Sync + 'static,
+    {
         // JS: shouldn't we send some contract/validator/gateway message here to actually, you know,
         // consume it?
-        Ok(self.storage.consume_coconut_credential(id).await?)
+        self.storage
+            .consume_coconut_credential(id)
+            .await
+            .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))
     }
 }
 

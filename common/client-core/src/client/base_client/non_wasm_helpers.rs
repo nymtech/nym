@@ -1,19 +1,25 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::replies::reply_storage::{
     fs_backend, CombinedReplyStorage, ReplyStorageBackend,
 };
-use crate::config::DebugConfig;
+use crate::config;
+use crate::config::Config;
 use crate::error::ClientCoreError;
 use log::{error, info};
+use nym_bandwidth_controller::BandwidthController;
+use nym_credential_storage::storage::Storage as CredentialStorage;
+use nym_validator_client::nyxd::QueryNyxdClient;
+use nym_validator_client::Client;
 use std::path::Path;
 use std::{fs, io};
 use time::OffsetDateTime;
+use url::Url;
 
 async fn setup_fresh_backend<P: AsRef<Path>>(
     db_path: P,
-    debug_config: &DebugConfig,
+    surb_config: &config::ReplySurbs,
 ) -> Result<fs_backend::Backend, ClientCoreError> {
     info!("creating fresh surb database");
     let mut storage_backend = match fs_backend::Backend::init(db_path).await {
@@ -30,12 +36,8 @@ async fn setup_fresh_backend<P: AsRef<Path>>(
     // it will only be happening on the very first run and in practice won't incur huge
     // costs since the storage is going to be empty
     let mem_store = CombinedReplyStorage::new(
-        debug_config
-            .reply_surbs
-            .minimum_reply_surb_storage_threshold,
-        debug_config
-            .reply_surbs
-            .maximum_reply_surb_storage_threshold,
+        surb_config.minimum_reply_surb_storage_threshold,
+        surb_config.maximum_reply_surb_storage_threshold,
     );
     storage_backend
         .init_fresh(&mem_store)
@@ -47,17 +49,13 @@ async fn setup_fresh_backend<P: AsRef<Path>>(
     Ok(storage_backend)
 }
 
-fn setup_inactive_backend(debug_config: &DebugConfig) -> fs_backend::Backend {
-    info!("creating inactive surb database");
-    fs_backend::Backend::new_inactive(
-        debug_config
-            .reply_surbs
-            .minimum_reply_surb_storage_threshold,
-        debug_config
-            .reply_surbs
-            .maximum_reply_surb_storage_threshold,
-    )
-}
+// fn setup_inactive_backend(surb_config: &config::ReplySurbs) -> fs_backend::Backend {
+//     info!("creating inactive surb database");
+//     fs_backend::Backend::new_inactive(
+//         surb_config.minimum_reply_surb_storage_threshold,
+//         surb_config.maximum_reply_surb_storage_threshold,
+//     )
+// }
 
 fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()> {
     let db_path = db_path.as_ref();
@@ -81,28 +79,56 @@ fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()> {
 }
 
 pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
-    db_path: Option<P>,
-    debug_config: &DebugConfig,
+    db_path: P,
+    surb_config: &config::ReplySurbs,
 ) -> Result<fs_backend::Backend, ClientCoreError> {
-    if let Some(db_path) = db_path {
-        // if the database file doesnt exist, initialise fresh storage, otherwise attempt to load
-        // the existing one
-        let db_path = db_path.as_ref();
-        if db_path.exists() {
-            info!("loading existing surb database");
-            match fs_backend::Backend::try_load(db_path).await {
-                Ok(backend) => Ok(backend),
-                Err(err) => {
-                    error!("failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future");
+    // if the database file doesnt exist, initialise fresh storage, otherwise attempt to load
+    // the existing one
+    let db_path = db_path.as_ref();
+    if db_path.exists() {
+        info!("loading existing surb database");
+        match fs_backend::Backend::try_load(db_path).await {
+            Ok(backend) => Ok(backend),
+            Err(err) => {
+                error!("failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future");
 
-                    archive_corrupted_database(db_path)?;
-                    setup_fresh_backend(db_path, debug_config).await
-                }
+                archive_corrupted_database(db_path)?;
+                setup_fresh_backend(db_path, surb_config).await
             }
-        } else {
-            setup_fresh_backend(db_path, debug_config).await
         }
     } else {
-        Ok(setup_inactive_backend(debug_config))
+        setup_fresh_backend(db_path, surb_config).await
     }
+}
+
+pub fn create_bandwidth_controller<T, St: CredentialStorage>(
+    config: &Config<T>,
+    storage: St,
+) -> BandwidthController<Client<QueryNyxdClient>, St> {
+    let nyxd_url = config
+        .get_validator_endpoints()
+        .pop()
+        .expect("No nyxd validator endpoint provided");
+    let api_url = config
+        .get_nym_api_endpoints()
+        .pop()
+        .expect("No validator api endpoint provided");
+
+    create_bandwidth_controller_with_urls(nyxd_url, api_url, storage)
+}
+
+pub fn create_bandwidth_controller_with_urls<St: CredentialStorage>(
+    nyxd_url: Url,
+    nym_api_url: Url,
+    storage: St,
+) -> BandwidthController<Client<QueryNyxdClient>, St> {
+    let details = nym_network_defaults::NymNetworkDetails::new_from_env();
+    let mut client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
+        .expect("failed to construct validator client config");
+    // overwrite env configuration with config URLs
+    client_config = client_config.with_urls(nyxd_url, nym_api_url);
+    let client = nym_validator_client::Client::new_query(client_config)
+        .expect("Could not construct query client");
+
+    BandwidthController::new(storage, client)
 }

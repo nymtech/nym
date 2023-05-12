@@ -32,5 +32,6 @@ toml = "0.5.10"
 dotenvy = { workspace = true }
 pretty_env_logger = "0.4.0"
 reqwest = { version = "0.11", features = ["json", "socks"] }
+thiserror = { workspace = true }
 tokio = { version = "1", features = ["full"] }
 nym-bin-common = { path = "../../../common/bin-common" }

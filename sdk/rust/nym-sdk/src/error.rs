@@ -72,10 +72,23 @@ pub enum Error {
     #[error("invalid mnemonic: {0}")]
     InvalidMnemonic(#[from] bip39::Error),
 
-    #[error("failed to create reply storage backend: {source}")]
-    StorageError {
+    #[error("failed to use reply storage backend: {source}")]
+    ReplyStorageError {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+
+    #[error("failed to use key storage backend: {source}")]
+    KeyStorageError {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[error("failed to use credential storage backend: {source}")]
+    CredentialStorageError {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[error("loaded shared gateway key without providing information about what gateway it corresponds to")]
+    GatewayWithUnknownEndpoint,
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

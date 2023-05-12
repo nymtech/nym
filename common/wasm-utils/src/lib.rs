@@ -1,13 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use js_sys::Promise;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
-use wasm_bindgen_futures::JsFuture;
 
 #[cfg(feature = "websocket")]
 pub mod websocket;
+
+#[cfg(feature = "crypto")]
+pub mod crypto;
+
+#[cfg(feature = "storage")]
+pub mod storage;
 
 // will cause messages to be written as if console.log("...") was called
 #[macro_export]
@@ -41,12 +45,12 @@ extern "C" {
 
 #[cfg(feature = "sleep")]
 pub async fn sleep(ms: i32) -> Result<(), JsValue> {
-    let promise = Promise::new(&mut |yes, _| {
+    let promise = js_sys::Promise::new(&mut |yes, _| {
         let win = web_sys::window().expect("no window available!");
         win.set_timeout_with_callback_and_timeout_and_arguments_0(&yes, ms)
             .unwrap();
     });
-    let js_fut = JsFuture::from(promise);
+    let js_fut = wasm_bindgen_futures::JsFuture::from(promise);
     js_fut.await?;
     Ok(())
 }

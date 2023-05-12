@@ -55,11 +55,16 @@ where
     Ok(state)
 }
 
-pub async fn get_credential<C: DkgQueryClient + Send + Sync, St: Storage>(
+pub async fn get_credential<C, St>(
     state: &State,
     client: &C,
     storage: &St,
-) -> Result<(), BandwidthControllerError> {
+) -> Result<(), BandwidthControllerError>
+where
+    C: DkgQueryClient + Send + Sync,
+    St: Storage,
+    <St as Storage>::StorageError: Send + Sync + 'static,
+{
     let epoch_id = client.get_current_epoch().await?.epoch_id;
     let threshold = client
         .get_current_epoch_threshold()
@@ -83,7 +88,6 @@ pub async fn get_credential<C: DkgQueryClient + Send + Sync, St: Storage>(
             signature.to_bs58(),
             epoch_id.to_string(),
         )
-        .await?;
-
-    Ok(())
+        .await
+        .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))
 }

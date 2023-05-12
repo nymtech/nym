@@ -40,6 +40,14 @@ impl ClientKeyPathfinder {
         }
     }
 
+    pub fn identity_key_pair_path(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(self.private_identity_key(), self.public_identity_key())
+    }
+
+    pub fn encryption_key_pair_path(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(self.private_encryption_key(), self.public_encryption_key())
+    }
+
     pub fn any_file_exists(&self) -> bool {
         matches!(self.identity_public_key.try_exists(), Ok(true))
             || matches!(self.identity_private_key.try_exists(), Ok(true))

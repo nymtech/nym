@@ -55,10 +55,10 @@ async fn main() {
     let nym_api = "https://validator.nymtech.net/api/".parse().unwrap();
     let my_topology_provider = MyTopologyProvider::new(nym_api);
 
-    // Passing no config makes the client fire up an ephemeral session and figure shit out on its own
-    let mut client = mixnet::MixnetClientBuilder::new()
+    // Passing no config makes the client fire up an ephemeral session and figure things out on its own
+    let mut client = mixnet::MixnetClientBuilder::new_ephemeral()
         .custom_topology_provider(Box::new(my_topology_provider))
-        .build::<mixnet::EmptyReplyStorage>()
+        .build()
         .await
         .unwrap()
         .connect_to_mixnet()

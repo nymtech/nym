@@ -3,4 +3,4 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-void run_client(void);
+void run_client(const char* service_provider);

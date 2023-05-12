@@ -22,7 +22,7 @@ pub mod android {
     use super::*;
 
     #[no_mangle]
-    pub unsafe extern fn Java_net_nymtech_nyms5_MyClass_runclient(
+    pub unsafe extern "C" fn Java_net_nymtech_nyms5_MyClass_runclient(
         env: JNIEnv,
         _: JClass,
         java_pattern: JString,
@@ -44,7 +44,10 @@ pub mod android {
             let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
             let socks5_client = Socks5NymClient::new_with_keys(config, Some(keys));
             let mut shutdown_handle = socks5_client.start().await?;
-            shutdown_handle.wait_for_shutdown().await;
+            shutdown_handle
+                .catch_interrupt()
+                .await
+                .expect("failed to catch interrupt");
 
             Ok::<(), anyhow::Error>(())
         })
@@ -72,8 +75,11 @@ pub unsafe extern "C" fn run_client(service_provider: *const c_char) {
     rt.block_on(async move {
         let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
         let socks5_client = Socks5NymClient::new_with_keys(config, Some(keys));
-        let mut shutdown_handle = socks5_client.start().await?;
-        shutdown_handle.wait_for_shutdown().await;
+        let shutdown_handle = socks5_client.start().await?;
+        shutdown_handle
+            .catch_interrupt()
+            .await
+            .expect("failed to catch interrupt");
 
         Ok::<(), anyhow::Error>(())
     })

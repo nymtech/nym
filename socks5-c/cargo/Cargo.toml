@@ -11,11 +11,11 @@ crate-type = ["dylib", "staticlib"]
 
 [dependencies]
 anyhow = "1.0"
-nym-client-core = { path = "../common/client-core", default-features = false }
-nym-config-common = { path = "../common/config", package = "nym-config" }
-nym-credential-storage = { path = "../common/credential-storage" }
-nym-crypto = { path = "../common/crypto" }
-nym-socks5-client-core = { path = "../common/socks5-client-core", default-features = false }
+nym-client-core = { path = "../../common/client-core", default-features = false }
+nym-config-common = { path = "../../common/config", package = "nym-config" }
+nym-credential-storage = { path = "../../common/credential-storage" }
+nym-crypto = { path = "../../common/crypto" }
+nym-socks5-client-core = { path = "../../common/socks5-client-core", default-features = false }
 openssl = { version = "0.10", features = ["vendored"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
 

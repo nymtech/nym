@@ -15,6 +15,8 @@ import net.nymtech.nyms5.ui.theme.Nyms5Theme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // TODO uncomment to test native lib call
+        // Socsk5().run()
         setContent {
             Nyms5Theme {
                 // A surface container using the 'background' color from the theme
@@ -31,7 +33,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Socsk5().run()
     Text(
         text = "Hello $name!",
         modifier = modifier

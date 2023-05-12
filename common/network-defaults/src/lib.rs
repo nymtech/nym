@@ -80,6 +80,8 @@ impl NymNetworkDetails {
             }
         }
 
+        return Self::new_mainnet();
+
         NymNetworkDetails::new_empty()
             .with_bech32_account_prefix(
                 var(var_names::BECH32_PREFIX).expect("bech32 prefix not set"),

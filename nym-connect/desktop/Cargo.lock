@@ -1077,18 +1077,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw2"
-version = "0.13.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04cf4639517490dd36b333bbd6c4fbd92e325fd0acf4683b41753bc5eb63bfc1"
-dependencies = [
- "cosmwasm-std",
- "cw-storage-plus",
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "cw3"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1098,22 +1086,6 @@ dependencies = [
  "cw-utils",
  "schemars",
  "serde",
-]
-
-[[package]]
-name = "cw3-fixed-multisig"
-version = "0.13.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df54aa54c13f405ec4ab36b6217538bc957d439eee58f89312db05a79caf6706"
-dependencies = [
- "cosmwasm-std",
- "cw-storage-plus",
- "cw-utils",
- "cw2",
- "cw3",
- "schemars",
- "serde",
- "thiserror",
 ]
 
 [[package]]
@@ -3516,7 +3488,6 @@ dependencies = [
  "cosmwasm-std",
  "cw-utils",
  "cw3",
- "cw3-fixed-multisig",
  "cw4",
  "schemars",
  "serde",
@@ -3857,7 +3828,6 @@ dependencies = [
  "nym-name-service-common",
  "nym-network-defaults",
  "nym-service-provider-directory-common",
- "nym-vesting-contract",
  "nym-vesting-contract-common",
  "prost",
  "reqwest",
@@ -3868,24 +3838,6 @@ dependencies = [
  "tokio",
  "url",
  "zeroize",
-]
-
-[[package]]
-name = "nym-vesting-contract"
-version = "1.4.0"
-dependencies = [
- "cosmwasm-derive",
- "cosmwasm-std",
- "cw-storage-plus",
- "cw2",
- "nym-contracts-common",
- "nym-mixnet-contract-common",
- "nym-vesting-contract-common",
- "schemars",
- "semver 1.0.17",
- "serde",
- "thiserror",
- "vergen",
 ]
 
 [[package]]

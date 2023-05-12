@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
-    MyClass().run()
+    Socsk5().run()
     Text(
         text = "Hello $name!",
         modifier = modifier

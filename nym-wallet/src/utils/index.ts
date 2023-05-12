@@ -228,3 +228,6 @@ export const getIntervalAsDate = async () => {
 
   return { nextEpoch, nextInterval };
 };
+
+export * from './fireRequests';
+export { default as fireRequests } from './fireRequests';

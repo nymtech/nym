@@ -16,6 +16,7 @@ use nym_client_core::client::base_client::{
 };
 use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_client_core::config::DebugConfig;
 use nym_credential_storage::storage::Storage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::{TaskClient, TaskManager};
@@ -23,9 +24,10 @@ use nym_validator_client::nyxd::QueryNyxdClient;
 use nym_validator_client::Client;
 use std::error::Error;
 
+#[cfg(any(target_os = "android", target_os = "ios"))]
 use nym_client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use nym_client_core::client::base_client::non_wasm_helpers;
-use nym_client_core::config::DebugConfig;
 
 pub mod config;
 pub mod error;
@@ -246,6 +248,28 @@ impl NymClient {
     }
 
     pub async fn start(self) -> Result<TaskManager, Socks5ClientCoreError> {
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        let base_builder = BaseClientBuilder::new_from_base_config(
+            self.config.get_base(),
+            self.key_manager,
+            Some(
+                Self::create_bandwidth_controller(
+                    &self.config,
+                    nym_credential_storage::initialise_persistent_storage(
+                        self.config.get_base().get_database_path(),
+                    )
+                    .await,
+                )
+                .await,
+            ),
+            non_wasm_helpers::setup_fs_reply_surb_backend(
+                Some(self.config.get_base().get_reply_surb_database_path()),
+                self.config.get_debug_settings(),
+            )
+            .await?,
+        );
+
+        #[cfg(any(target_os = "android", target_os = "ios"))]
         let base_builder = BaseClientBuilder::<_, Client<QueryNyxdClient>, _>::new_from_base_config(
             self.config.get_base(),
             self.key_manager,

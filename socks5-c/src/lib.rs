@@ -9,6 +9,49 @@ use std::os::raw::c_char;
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
 
+#[cfg(target_os = "android")]
+#[allow(non_snake_case)]
+pub mod android {
+    extern crate jni;
+
+    use std::ffi::CString;
+
+    use self::jni::objects::{JClass, JString};
+    use self::jni::sys::jstring;
+    use self::jni::JNIEnv;
+    use super::*;
+
+    #[no_mangle]
+    pub unsafe extern fn Java_net_nymtech_nyms5_MyClass_runclient(
+        env: JNIEnv,
+        _: JClass,
+        java_pattern: JString,
+    ) {
+        setup_env(None);
+
+        // TODO: does that leak memory and do we have to have a separate free method?
+        // I'd assume not because the allocation came from the caller
+        //let c_str = unsafe { CStr::from_ptr(service_provider) };
+        let c_str = CString::new("https://testnet-gateway.nymtech.net").unwrap();
+        let service_provider = c_str
+            .to_str()
+            .expect("invalid service provider string value provided")
+            .to_string();
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        rt.block_on(async move {
+            let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
+            let socks5_client = Socks5NymClient::new_with_keys(config, Some(keys));
+            let mut shutdown_handle = socks5_client.start().await?;
+            shutdown_handle.wait_for_shutdown().await;
+
+            Ok::<(), anyhow::Error>(())
+        })
+        .unwrap();
+    }
+}
+
 /// # Safety
 ///
 /// TODO

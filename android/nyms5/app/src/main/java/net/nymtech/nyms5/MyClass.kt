@@ -1,7 +1,7 @@
 package net.nymtech.nyms5
 
 class MyClass {
-    // Load the native library "libsimd.so".
+    // Load the native library "libsocks5_c.so".
     init {
         System.loadLibrary("socks5_c")
     }

@@ -1,3 +1,0 @@
-[target.x86_64-linux-android]
-linker = "${NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android33-clang"
-ar = "${NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"

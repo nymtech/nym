@@ -3528,6 +3528,7 @@ name = "nym-name-service-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "schemars",
  "serde",
 ]
 

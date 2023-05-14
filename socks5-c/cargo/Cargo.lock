@@ -130,12 +130,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
 
 [[package]]
-name = "ascii"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ae7d751998c189c1d4468cf0a39bb2eae052a9c58d50ebb3b9591ee3813ad50"
-
-[[package]]
 name = "async-trait"
 version = "0.1.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -528,12 +522,12 @@ dependencies = [
 
 [[package]]
 name = "combine"
-version = "2.5.2"
+version = "4.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1645a65a99c7c8d345761f4b75a6ffe5be3b3b27a93ee731fccc5050ba6be97c"
+checksum = "35ed6e9d84f0b51a7f52daf1c7d71dd136fd7a3f41a8462b8cdb8c78d920fad4"
 dependencies = [
- "ascii",
- "byteorder",
+ "bytes",
+ "memchr",
 ]
 
 [[package]]
@@ -1072,7 +1066,7 @@ checksum = "44533bbbb3bb3c1fa17d9f2e4e38bbbaf8396ba82193c4cb1b6445d711445d36"
 dependencies = [
  "atty",
  "humantime 1.3.0",
- "log 0.4.17",
+ "log",
  "regex",
  "termcolor",
 ]
@@ -1097,12 +1091,6 @@ dependencies = [
  "cc",
  "libc",
 ]
-
-[[package]]
-name = "error-chain"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9435d864e017c3c6afeac1654189b06cdb491cf2ff73dbf0d73b0f292f42ff8"
 
 [[package]]
 name = "event-listener"
@@ -1389,7 +1377,7 @@ dependencies = [
  "bitflags",
  "libc",
  "libgit2-sys",
- "log 0.4.17",
+ "log",
  "url",
 ]
 
@@ -1454,7 +1442,7 @@ version = "3.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4498fc115fa7d34de968184e473529abb40eeb6be8bc5f7faba3d08c316cb3e3"
 dependencies = [
- "log 0.4.17",
+ "log",
  "pest",
  "pest_derive",
  "quick-error 2.0.1",
@@ -1717,7 +1705,7 @@ dependencies = [
  "ct-logs",
  "futures-util",
  "hyper",
- "log 0.4.17",
+ "log",
  "rustls 0.19.1",
  "rustls-native-certs",
  "tokio",
@@ -1842,22 +1830,25 @@ checksum = "453ad9f582a441959e5f0d088b02ce04cfe8d51a8eaf077f12ac6d3e94164ca6"
 
 [[package]]
 name = "jni"
-version = "0.5.3"
+version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cffc930ce6a38a4013e30567b559bdc79f601013ba4a81e65dbda9207263efd4"
+checksum = "1a87aa2bb7d2af34197c04845522473242e1aa17c12f4935d5856491a7fb8c97"
 dependencies = [
  "cesu8",
+ "cfg-if",
  "combine",
- "error-chain",
  "jni-sys",
- "log 0.3.9",
+ "log",
+ "thiserror",
+ "walkdir",
+ "windows-sys 0.45.0",
 ]
 
 [[package]]
 name = "jni-sys"
-version = "0.2.5"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de0aaaba8809ab8d83a53fe2b313b996b79e8632b855eae9f70ad4323dca91b8"
+checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
 
 [[package]]
 name = "jobserver"
@@ -1989,15 +1980,6 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e19e8d5c34a3e0e2223db8e060f9e8264aeeb5c5fc64a4ee9965c062211c024b"
-dependencies = [
- "log 0.4.17",
-]
-
-[[package]]
-name = "log"
 version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
@@ -2048,7 +2030,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b9d9a46eff5b4ff64b45a9e316a6d1e0bc719ef429cbec4dc630684212bfdf9"
 dependencies = [
  "libc",
- "log 0.4.17",
+ "log",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.45.0",
 ]
@@ -2061,7 +2043,7 @@ checksum = "07226173c32f2926027b63cce4bcd8076c3552846cbe7925f3aaffeac0a3b92e"
 dependencies = [
  "lazy_static",
  "libc",
- "log 0.4.17",
+ "log",
  "openssl",
  "openssl-probe",
  "openssl-sys",
@@ -2150,7 +2132,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "clap_complete_fig",
- "log 0.4.17",
+ "log",
  "pretty_env_logger",
  "semver 0.11.0",
  "serde",
@@ -2167,7 +2149,7 @@ dependencies = [
  "futures",
  "gloo-timers",
  "humantime-serde",
- "log 0.4.17",
+ "log",
  "nym-bandwidth-controller",
  "nym-config",
  "nym-credential-storage",
@@ -2257,7 +2239,7 @@ version = "0.1.0"
 dependencies = [
  "cfg-if",
  "handlebars",
- "log 0.4.17",
+ "log",
  "nym-network-defaults",
  "serde",
  "toml",
@@ -2280,7 +2262,7 @@ name = "nym-credential-storage"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "log 0.4.17",
+ "log",
  "sqlx 0.5.13",
  "thiserror",
  "tokio",
@@ -2348,7 +2330,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "getrandom 0.2.9",
- "log 0.4.17",
+ "log",
  "nym-bandwidth-controller",
  "nym-coconut-interface",
  "nym-credential-storage",
@@ -2379,7 +2361,7 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "futures",
- "log 0.4.17",
+ "log",
  "nym-coconut-interface",
  "nym-credentials",
  "nym-crypto",
@@ -2408,7 +2390,7 @@ dependencies = [
  "bs58",
  "cosmwasm-std",
  "humantime-serde",
- "log 0.4.17",
+ "log",
  "nym-contracts-common",
  "schemars",
  "serde",
@@ -2469,7 +2451,7 @@ dependencies = [
 name = "nym-ordered-buffer"
 version = "0.1.0"
 dependencies = [
- "log 0.4.17",
+ "log",
  "thiserror",
 ]
 
@@ -2509,7 +2491,7 @@ name = "nym-service-providers-common"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "log 0.4.17",
+ "log",
  "nym-bin-common",
  "nym-sphinx-anonymous-replies",
  "serde",
@@ -2523,7 +2505,7 @@ version = "0.1.0"
 dependencies = [
  "dirs",
  "futures",
- "log 0.4.17",
+ "log",
  "nym-bandwidth-controller",
  "nym-client-core",
  "nym-config",
@@ -2549,7 +2531,7 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "futures",
- "log 0.4.17",
+ "log",
  "nym-ordered-buffer",
  "nym-socks5-requests",
  "nym-task",
@@ -2572,7 +2554,7 @@ dependencies = [
 name = "nym-sphinx"
 version = "0.1.0"
 dependencies = [
- "log 0.4.17",
+ "log",
  "nym-crypto",
  "nym-outfox",
  "nym-sphinx-acknowledgements",
@@ -2636,7 +2618,7 @@ dependencies = [
 name = "nym-sphinx-chunking"
 version = "0.1.0"
 dependencies = [
- "log 0.4.17",
+ "log",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
@@ -2712,7 +2694,7 @@ name = "nym-task"
 version = "0.1.0"
 dependencies = [
  "futures",
- "log 0.4.17",
+ "log",
  "thiserror",
  "tokio",
  "wasm-bindgen",
@@ -2725,7 +2707,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bs58",
- "log 0.4.17",
+ "log",
  "nym-bin-common",
  "nym-crypto",
  "nym-mixnet-contract-common",
@@ -2752,7 +2734,7 @@ dependencies = [
  "flate2",
  "futures",
  "itertools",
- "log 0.4.17",
+ "log",
  "nym-api-requests",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
@@ -3092,7 +3074,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "926d36b9553851b8b0005f1275891b392ee4d2d833852c417ed025477350fb9d"
 dependencies = [
  "env_logger",
- "log 0.4.17",
+ "log",
 ]
 
 [[package]]
@@ -3355,7 +3337,7 @@ dependencies = [
  "hyper-tls",
  "ipnet",
  "js-sys",
- "log 0.4.17",
+ "log",
  "mime",
  "native-tls",
  "once_cell",
@@ -3441,7 +3423,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35edb675feee39aec9c99fa5ff985081995a06d594114ae14cbe797ad7b7a6d7"
 dependencies = [
  "base64 0.13.1",
- "log 0.4.17",
+ "log",
  "ring",
  "sct 0.6.1",
  "webpki 0.21.4",
@@ -3453,7 +3435,7 @@ version = "0.20.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fff78fc74d175294f4e83b28343315ffcfb114b156f0185e9741cb5570f50e2f"
 dependencies = [
- "log 0.4.17",
+ "log",
  "ring",
  "sct 0.7.0",
  "webpki 0.22.0",
@@ -3840,7 +3822,7 @@ dependencies = [
  "hkdf 0.11.0",
  "hmac 0.11.0",
  "lioness",
- "log 0.4.17",
+ "log",
  "rand 0.7.3",
  "rand_distr",
  "sha2 0.9.9",
@@ -3863,7 +3845,7 @@ dependencies = [
  "hkdf 0.11.0",
  "hmac 0.11.0",
  "lioness",
- "log 0.4.17",
+ "log",
  "rand 0.7.3",
  "rand_distr",
  "sha2 0.9.9",
@@ -3964,7 +3946,7 @@ dependencies = [
  "itoa",
  "libc",
  "libsqlite3-sys",
- "log 0.4.17",
+ "log",
  "memchr",
  "once_cell",
  "paste",
@@ -4010,7 +3992,7 @@ dependencies = [
  "itoa",
  "libc",
  "libsqlite3-sys",
- "log 0.4.17",
+ "log",
  "memchr",
  "once_cell",
  "paste",
@@ -4420,7 +4402,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e96bb520beab540ab664bd5a9cfeaa1fcd846fa68c830b42e2c8963071251d2"
 dependencies = [
  "futures-util",
- "log 0.4.17",
+ "log",
  "pin-project",
  "tokio",
  "tungstenite",
@@ -4494,7 +4476,7 @@ dependencies = [
  "http",
  "httparse",
  "input_buffer",
- "log 0.4.17",
+ "log",
  "rand 0.8.5",
  "sha-1",
  "thiserror",
@@ -4650,7 +4632,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ce8a968cb1cd110d136ff8b819a556d6fb6d919363c61534f6860c7eb172ba0"
 dependencies = [
- "log 0.4.17",
+ "log",
  "try-lock",
 ]
 
@@ -4683,7 +4665,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c8ffb332579b0557b52d268b91feab8df3615f265d5270fec2a8c95b17c1142"
 dependencies = [
  "bumpalo",
- "log 0.4.17",
+ "log",
  "once_cell",
  "proc-macro2",
  "quote",

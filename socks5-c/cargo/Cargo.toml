@@ -7,7 +7,7 @@ edition = "2021"
 
 [lib]
 name = "socks5_c"
-crate-type = ["dylib", "staticlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = "1.0"
@@ -20,4 +20,4 @@ openssl = { version = "0.10", features = ["vendored"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
 
 [target.'cfg(target_os="android")'.dependencies]
-jni = { version = "0.5", default-features = false }
+jni = { version = "0.21", default-features = false }

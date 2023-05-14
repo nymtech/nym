@@ -22,7 +22,7 @@ pub mod android {
     use super::*;
 
     #[no_mangle]
-    pub unsafe extern "C" fn Java_net_nymtech_nyms5_MyClass_runclient(
+    pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_runclient(
         env: JNIEnv,
         _: JClass,
         java_pattern: JString,

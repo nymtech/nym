@@ -32,7 +32,7 @@ pub mod android {
         // TODO: does that leak memory and do we have to have a separate free method?
         // I'd assume not because the allocation came from the caller
         //let c_str = unsafe { CStr::from_ptr(service_provider) };
-        let c_str = CString::new("https://testnet-gateway.nymtech.net").unwrap();
+        let c_str = CString::new("DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh").unwrap();
         let service_provider = c_str
             .to_str()
             .expect("invalid service provider string value provided")

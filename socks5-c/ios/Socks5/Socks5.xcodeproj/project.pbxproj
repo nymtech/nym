@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D66856512A126105006A8693 /* ClientState+String.swift in Sources */ = {isa = PBXBuildFile; fileRef = D66856502A126105006A8693 /* ClientState+String.swift */; };
 		D67035A42A0E75500060A6F0 /* Socks5App.swift in Sources */ = {isa = PBXBuildFile; fileRef = D67035A32A0E75500060A6F0 /* Socks5App.swift */; };
 		D67035A62A0E75500060A6F0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D67035A52A0E75500060A6F0 /* ContentView.swift */; };
 		D67035A82A0E75510060A6F0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D67035A72A0E75510060A6F0 /* Assets.xcassets */; };
@@ -17,6 +18,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		D66856502A126105006A8693 /* ClientState+String.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ClientState+String.swift"; sourceTree = "<group>"; };
 		D67035A02A0E75500060A6F0 /* Socks5.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Socks5.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D67035A32A0E75500060A6F0 /* Socks5App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Socks5App.swift; sourceTree = "<group>"; };
 		D67035A52A0E75500060A6F0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -43,6 +45,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		D668564F2A1260EF006A8693 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				D66856502A126105006A8693 /* ClientState+String.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
 		D67035972A0E75500060A6F0 = {
 			isa = PBXGroup;
 			children = (
@@ -63,6 +73,7 @@
 		D67035A22A0E75500060A6F0 /* Socks5 */ = {
 			isa = PBXGroup;
 			children = (
+				D668564F2A1260EF006A8693 /* Extensions */,
 				D67035B72A0E77D40060A6F0 /* socks5_c.h */,
 				D67035A32A0E75500060A6F0 /* Socks5App.swift */,
 				D67035A52A0E75500060A6F0 /* ContentView.swift */,
@@ -163,6 +174,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D67035BA2A0E794F0060A6F0 /* RustSocks5.swift in Sources */,
+				D66856512A126105006A8693 /* ClientState+String.swift in Sources */,
 				D67035A62A0E75500060A6F0 /* ContentView.swift in Sources */,
 				D67035A42A0E75500060A6F0 /* Socks5App.swift in Sources */,
 			);

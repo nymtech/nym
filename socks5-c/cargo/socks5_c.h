@@ -38,6 +38,12 @@ free_foomp (
     char * foomp);
 
 /** <No documentation available> */
+char *
+invoke_foomp_with_callback (
+    char const * val,
+    void (*cb)(void));
+
+/** <No documentation available> */
 void
 run_client (
     char const * service_provider);

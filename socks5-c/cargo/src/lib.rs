@@ -5,6 +5,7 @@ use nym_config_common::defaults::setup_env;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_socks5_client_core::config::Config as Socks5Config;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
+use std::ffi::c_void;
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
 
@@ -73,6 +74,12 @@ pub fn foomp(val: char_p::Ref<'_>) -> char_p::Box {
 #[ffi_export]
 pub fn free_foomp(foomp: char_p::Box) {
     drop(foomp)
+}
+
+#[ffi_export]
+pub fn invoke_foomp_with_callback(val: char_p::Ref<'_>, cb: extern "C" fn()) -> char_p::Box {
+    cb();
+    foomp(val)
 }
 
 #[ffi_export]

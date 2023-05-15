@@ -10,17 +10,23 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var connected: Bool = false
-    @State private var status = "unknown"
+    @State private var status: ClientState = CLIENT_STATE_UNKNOWN
+    
+
     
     func connect() {
         let foomper = RustSocks5()
-        foomper.runForever(serviceProvider: "4z4iw9NLRgMok2MPFEGoiwrmHuDY6kRVDUQRp2dXGLQm.69av5mWZmaMK4bHo3GV6Cu7B8zuMT2mv2E22f8GkRMgk@DF4TE7V8kJkttMvnoSVGnRFFRt6WYGxxiC2w1XyPQnHe")
+        let res = foomper.addStuffWithCallback(to: "foomp")
+        print(res)
+        
+//        foomper.runForever(serviceProvider: "4z4iw9NLRgMok2MPFEGoiwrmHuDY6kRVDUQRp2dXGLQm.69av5mWZmaMK4bHo3GV6Cu7B8zuMT2mv2E22f8GkRMgk@DF4TE7V8kJkttMvnoSVGnRFFRt6WYGxxiC2w1XyPQnHe")
 //        print("\(foomper.addStuff(to: "world"))")
 //
 //        print("connecting (swift)")
         //            let rustSocks5 = RustSocks5()
         //            rustSocks5.runForever(serviceProvider: "my-service-provider-address")
         connected = true
+        
     }
               
     
@@ -28,6 +34,8 @@ struct ContentView: View {
         print("disconnecting (swift)")
         connected = false
     }
+    
+    
     
     var body: some View {
         VStack {
@@ -44,9 +52,7 @@ struct ContentView: View {
                 }.disabled(!connected)
             }
             .buttonStyle(.borderedProminent)
-            
-            
-            Text("status: \(status)")
+            Text("status: \(status.description)")
         }
         .padding()
     }

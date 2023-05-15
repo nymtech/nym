@@ -81,16 +81,11 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install yarn
-        run: |
-          npm i -g yarn
-          yarn --version
-
       - name: Build frontend code
         run: |
-          yarn install --frozen-lockfile
-          yarn build
-          yarn workspace @nym/nym-connect-mobile webpack:prod
+          npm ci
+          npm run build
+          npm run webpack:prod --workspace=@nym/nym-connect-mobile
 
       - name: Build APK
         working-directory: nym-connect/mobile
@@ -101,7 +96,7 @@ jobs:
           WRY_ANDROID_LIBRARY: nym_connect
         # TODO build with release profile (--release), it will requires
         # to sign the APK. For now build with debug profile to avoid that
-        # TODO build using `yarn tauri`, provide NODE_TAURI_CLI, see TODO notes above
+        # TODO build using `npm run tauri`, provide NODE_TAURI_CLI, see TODO notes above
         run: cargo tauri android build --debug --apk --split-per-abi -t aarch64
 
       # TODO add the version number to APK name

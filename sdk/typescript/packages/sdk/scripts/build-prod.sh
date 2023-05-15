@@ -11,7 +11,7 @@ rm -rf ../../../../dist || true
 scripts/build.sh
 node scripts/buildPackageJson.mjs
 
-# move the output outside of the yarn/npm workspaces
+# move the output outside of the npm workspaces
 mkdir -p ../../../../dist
 mv dist ../../../../dist
 mv ../../../../dist/dist ../../../../dist/sdk

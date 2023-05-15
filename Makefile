@@ -122,7 +122,7 @@ mixnet-opt: wasm
 
 generate-typescript:
 	cd tools/ts-rs-cli && cargo run && cd ../..
-	yarn types:lint:fix
+	npm run types:lint:fix
 
 run-api-tests:
-	cd nym-api/tests/functional_test && yarn test:qa
+	cd nym-api/tests/functional_test && npm run test:qa

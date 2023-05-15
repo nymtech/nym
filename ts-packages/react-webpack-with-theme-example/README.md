@@ -7,19 +7,19 @@ You can use this example as a seed for a new project.
 Remember to build the dependency packages from the root of this repo by running:
 
 ```
-yarn
-yarn build
+npm install
+npm run build
 ```
 
-If you need to make changes to the dependency packages, you can run `yarn watch` in that package to watch for chagnes and build them. This project will pick up the changes in the built package and hot-reload / recompile.
+If you need to make changes to the dependency packages, you can run `npm run watch` in that package to watch for chagnes and build them. This project will pick up the changes in the built package and hot-reload / recompile.
 
 ## Features
 
-### Yarn workspaces
+### `npm` workspaces
 
-Packages from `ts-packages` are shared using Yarn workspaces. Make sure you add you new project to [package.json](../../package.json) to use the shared packages.
+Packages from `ts-packages` are shared using `npm`` workspaces. Make sure you add you new project to [package.json](../../package.json) to use the shared packages.
 
-> ⚠️ **Warning**: Yarn workspaces will share all dependencies between projects and works by falling back to parent directories until a `node_modules` directory is found. So be careful when messing around with `node_modules` and resolution, because unexpected things could happen - for example, if you do not run `yarn` from the root and you have a `node_modules` in a directory that is a parent of the directory where you checkout out this repository, that `node_modules` will be used for resolving packages 🙀.
+> ⚠️ **Warning**: NPM workspaces will share all dependencies between projects and works by falling back to parent directories until a `node_modules` directory is found. So be careful when messing around with `node_modules` and resolution, because unexpected things could happen - for example, if you do not run `npm` from the root and you have a `node_modules` in a directory that is a parent of the directory where you checkout out this repository, that `node_modules` will be used for resolving packages 🙀.
 
 ### Typescript
 
@@ -44,7 +44,7 @@ The development settings include:
 
 ### Storybook
 
-Storybook is available in [@nymproject/react](../react-components/src/stories/Introduction.stories.mdx) and can be run using `yarn storybook`.
+Storybook is available in [@nymproject/react](../react-components/src/stories/Introduction.stories.mdx) and can be run using `npm run storybook`.
 
 ### MUI and theming
 

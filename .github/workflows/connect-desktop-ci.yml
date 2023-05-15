@@ -21,13 +21,11 @@ jobs:
     - uses: actions/setup-node@v3
       with:
         node-version: 16
-    - name: Install Yarn
-      run: npm install -g yarn
-    - run: yarn
+    - run: npm run install
       continue-on-error: true
     - name: Set environment from the example
       run: cp .env.sample .env
-    - run: yarn storybook:build
+    - run: npm run storybook:build
     - name: Deploy branch to CI www
       continue-on-error: true
       uses: easingthemes/ssh-deploy@main

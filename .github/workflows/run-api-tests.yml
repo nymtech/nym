@@ -25,12 +25,9 @@ jobs:
         with:
           node-version: 18.1.0
 
-      - name: Install yarn
-        run: yarn install
-
-      - name: Run yarn
-        run: yarn
+      - name: Install dependencies
+        run: npm install
 
       - name: Run tests
-        run: yarn test:qa
+        run: npm run test:qa
         working-directory: nym-api/tests

@@ -59,8 +59,6 @@ git version
 # Should return: git version X.Y.Z
 ```
 
-- [Yarn](https://yarnpkg.com/)
-
 - `NodeJS >= v16.8.0`
 
 - `Rust & cargo >= v1.56`
@@ -99,7 +97,7 @@ As well as these modifications for MacOS and Windows users:
 Once you have made these modifications to `tauri.conf.json`, inside of the `nym-wallet` folder, run:
 
 ```
-yarn install
+npm install
 ``` 
 
 ### Running in Development Mode
@@ -109,7 +107,7 @@ yarn install
 You can run the wallet without having to install it in development mode by running the following terminal command from the `nym-wallet` folder
 
 ```
-yarn dev
+npm run dev
 ```
 
 This will then start the Wallet GUI and produce a binary in `nym-wallet/target/debug/` named `nym-wallet`. 
@@ -121,7 +119,7 @@ This will then start the Wallet GUI and produce a binary in `nym-wallet/target/d
 To build and install the wallet, run the following terminal command from the `nym-wallet` folder.
 
 ```
-yarn build
+npm run build
 ```
 
 This will build an executable file that you can use to install the wallet on your machine. The output will compile different types of binaries dependent on your hardware / OS system. Once the binaries are built, they can be located as follows:

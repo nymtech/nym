@@ -6,5 +6,7 @@
     "sdk/typescript/examples/docs",
     "sdk/typescript/packages/**"
   ],
-  "version": "0.0.0"
+  "version": "0.0.0",
+  "useWorkspaces": true,
+  "$schema": "node_modules/lerna/schemas/lerna-schema.json"
 }

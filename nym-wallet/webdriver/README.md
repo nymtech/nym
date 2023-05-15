@@ -11,7 +11,6 @@ on the UI of the nym wallet. Currently, tauri-driver is available to run on Wind
 
 ## Installation prerequisites
 
-- `Yarn`
 - `NodeJS >= v16.8.0`
 - `Rust & cargo >= v1.56.1`
 - `tauri-driver`
@@ -60,8 +59,8 @@ example:
       }
 ```
 
-- `yarn test:runall` - the first test run will take some time to spin up be patient
-- You can run tests individually by passing through the script situated in the package.json for example `yarn test:newuser`
+- `npm run test:runall` - the first test run will take some time to spin up be patient
+- You can run tests individually by passing through the script situated in the package.json for example `npm run test:newuser`
 
 Tests are categorised and run by their pages, they follow a sequential flow, if one test case fails before the next execution it may derail the next test.
 

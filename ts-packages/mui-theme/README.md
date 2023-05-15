@@ -51,8 +51,8 @@ export const Content: FCWithChildren = () => {
 
 The best way to make changes to the theme is to:
 
-1. Run this package in watch mode with `yarn watch`
-2. Run Storybook from [react-components](../react-components/README.md) with `yarn storybook`
+1. Run this package in watch mode with `npm run watch`
+2. Run Storybook from [react-components](../react-components/README.md) with `npm run storybook`
 3. Make sure the component you are changing is included in the [playground](../react-components/src/playground/index.tsx)
 4. Watch for changes in the [Playground story](../react-components/src/stories/Playground.stories.tsx)
 
@@ -63,8 +63,8 @@ Also remember to check light mode and dark mode!
 This package should be built from the root of the repository as follows:
 
 ```
-yarn
-yarn build
+npm install
+npm run build
 ```
 
 ## Publishing

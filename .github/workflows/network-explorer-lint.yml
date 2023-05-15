@@ -17,8 +17,6 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16
-      - name: Setup yarn
-        run: npm install -g yarn
       - name: Run ESLint
         # GitHub should automatically annotate the PR
-        run: yarn && yarn lint
+        run: npm install && npm run lint

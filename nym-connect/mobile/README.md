@@ -14,7 +14,6 @@ the remaining docs apply for Android development only.
 
 ## Installation prerequisites - Linux / Mac
 
-- `Yarn`
 - `NodeJS >= v16`
 - `Rust & cargo`
 - Android development environment (JDK, SDK/NDK, AVD etc...)
@@ -27,8 +26,8 @@ https://next--tauri.netlify.app/next/guides/getting-started/prerequisites/linux#
 Inside the `mobile/nym-connect` directory, run the following commands:
 
 ```
-yarn install
-yarn prewebpack:dev
+npm install
+npm run prewebpack:dev
 ```
 
 ## Development
@@ -38,7 +37,7 @@ or a real [device](https://developer.android.com/studio/run/device) connected.
 Inside the `mobile/nym-connect/src-tauri` directory, run the following command:
 
 ```
-yarn dev:android
+npm run dev:android
 ```
 
 #### Debugging
@@ -50,7 +49,7 @@ https://next--tauri.netlify.app/next/guides/debugging/application#mobile
 To build the APK, run the build commands.
 
 ```
-yarn webpack:prod
+npm run webpack:prod
 WRY_ANDROID_PACKAGE=net.nymtech.nym_connect WRY_ANDROID_LIBRARY=nym_connect cargo tauri android build --debug --apk
 ```
 
@@ -61,11 +60,11 @@ WRY_ANDROID_PACKAGE=net.nymtech.nym_connect WRY_ANDROID_LIBRARY=nym_connect carg
 Run storybook with:
 
 ```
-yarn storybook
+npm run storybook
 ```
 
 And build storybook static site with:
 
 ```
-yarn storybook:build
+npm run storybook:build
 ```

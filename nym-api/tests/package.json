@@ -12,7 +12,7 @@
     "build": "tsc",
     "lint": "eslint --ext .js,.ts,.tsx .",
     "lint:fix": "eslint src --fix",
-    "cleanup": "rm -rf node_modules; rm -rf dist; yarn install"
+    "cleanup": "rm -rf node_modules; rm -rf dist; npm install"
   },
   "author": "Nymtech",
   "license": "MIT",

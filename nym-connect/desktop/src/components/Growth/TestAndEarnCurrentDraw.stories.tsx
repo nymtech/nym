@@ -20,11 +20,11 @@ export const Valid = () => (
     <TestAndEarnCurrentDraw
       draw={{
         id: '1',
-        start_utc: DateTime.now().toISO(),
+        start_utc: DateTime.now().toISO()!,
         end_utc: DateTime.now()
           .plus(Duration.fromMillis(1000 * 3600))
-          .toISO(),
-        last_modified: DateTime.now().toISO(),
+          .toISO()!,
+        last_modified: DateTime.now().toISO()!,
         word_of_the_day: 'words words words',
       }}
     />
@@ -36,17 +36,17 @@ export const EnteredMalformedDraw = () => (
     <TestAndEarnCurrentDrawEntered
       draw={{
         id: '1',
-        start_utc: DateTime.now().toISO(),
+        start_utc: DateTime.now().toISO()!,
         end_utc: DateTime.now()
           .plus(Duration.fromMillis(1000 * 3600))
-          .toISO(),
-        last_modified: DateTime.now().toISO(),
+          .toISO()!,
+        last_modified: DateTime.now().toISO()!,
         word_of_the_day: undefined,
         entry: {
           draw_id: '1',
           status: DrawEntryStatus.pending,
           id: 'aaaa',
-          timestamp: DateTime.now().toISO(),
+          timestamp: DateTime.now().toISO()!,
         },
       }}
     />
@@ -58,17 +58,17 @@ export const EnteredDraw = () => (
     <TestAndEarnCurrentDrawEntered
       draw={{
         id: '1',
-        start_utc: DateTime.now().toISO(),
+        start_utc: DateTime.now().toISO()!,
         end_utc: DateTime.now()
           .plus(Duration.fromMillis(1000 * 3600))
-          .toISO(),
-        last_modified: DateTime.now().toISO(),
+          .toISO()!,
+        last_modified: DateTime.now().toISO()!,
         word_of_the_day: testMarkdown,
         entry: {
           draw_id: '1',
           status: DrawEntryStatus.pending,
           id: 'aaaa',
-          timestamp: DateTime.now().toISO(),
+          timestamp: DateTime.now().toISO()!,
         },
       }}
     />
@@ -82,11 +82,11 @@ export const Future = () => (
         id: '1',
         start_utc: DateTime.now()
           .plus(Duration.fromMillis(1000 * 3600))
-          .toISO(),
+          .toISO()!,
         end_utc: DateTime.now()
           .plus(Duration.fromMillis(1000 * 3600 * 2))
-          .toISO(),
-        last_modified: DateTime.now().toISO(),
+          .toISO()!,
+        last_modified: DateTime.now().toISO()!,
         word_of_the_day: 'words words words',
       }}
     />

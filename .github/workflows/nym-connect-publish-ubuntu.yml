@@ -36,7 +36,7 @@ jobs:
         with:
           toolchain: stable
       - name: Install app dependencies
-        run: yarn
+        run: npm install
       - name: Create env file
         uses: timheuer/base64-to-file@v1.1
         with:
@@ -44,7 +44,7 @@ jobs:
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
       - name: Build app
-        run: yarn build
+        run: npm run build
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}

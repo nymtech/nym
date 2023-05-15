@@ -13,8 +13,8 @@ It uses the following packages:
 ## Building
 
 ```
-yarn
-yarn build
+npm install
+npm run build
 ```
 
 ## Development
@@ -22,13 +22,13 @@ yarn build
 Run watch mode with:
 
 ```
-yarn watch
+npm run watch
 ```
 
 Or you can run Storybook with:
 
 ```
-yarn storybook
+npm run storybook
 ```
 
 Or you can run the [example project](../react-webpack-with-theme-example/README.md) in dev mode and this package in watch mode, and test results in the example project's dev server output.

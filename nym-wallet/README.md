@@ -11,7 +11,6 @@ The Nym desktop wallet enables you to use the Nym network and take advantage of 
 
 ## Installation prerequisites - Linux / Mac
 
-- `Yarn`
 - `NodeJS >= v16.8.0`
 - `Rust & cargo >= v1.56`
 
@@ -27,7 +26,7 @@ The Nym desktop wallet enables you to use the Nym network and take advantage of 
 
 Inside the `nym-wallet` directory, run the following command:
 ```
-yarn install
+npm install
 ```
 
 ## Populate environment variables
@@ -52,7 +51,7 @@ It is intended to be used during development and for troubleshooting.
 You can compile the wallet in development mode by running the following command inside the `nym-wallet` directory:
 
 ```
-yarn dev
+npm run dev
 ```
 This will produce a binary in - `nym-wallet/target/debug/` named `nym-wallet`
 
@@ -62,7 +61,7 @@ To launch the wallet, navigate to the directory and run the following command: `
 
 Run the following command from the `nym-wallet` folder
 ```
-yarn build
+npm run build
 ```
 The output will compile different types of binaries dependent on your hardware / OS system. Once the binaries are built, they can be located as follows:
 

@@ -11,7 +11,6 @@ Nym Connects sets up a SOCKS5 proxy for local applications to use.
 
 ## Installation prerequisites - Linux / Mac
 
-- `Yarn`
 - `NodeJS >= v16`
 - `Rust & cargo`
 
@@ -27,7 +26,8 @@ Nym Connects sets up a SOCKS5 proxy for local applications to use.
 
 Inside the `nym-connect` directory, run the following command:
 ```
-yarn install
+npm install --include=dev
+cargo install tauri-cli
 ```
 
 ## Development mode
@@ -35,7 +35,7 @@ yarn install
 You can compile nym-connect in development mode by running the following command inside the `nym-connect` directory:
 
 ```
-yarn dev
+npm run dev
 ```
 This will produce a binary in - `nym-connect/target/debug/` named `nym-connect`
 
@@ -45,7 +45,7 @@ To launch, navigate to the directory and run the following command: `./nym-conne
 
 Run the following command from the `nym-connect` folder
 ```
-yarn build
+npm run build
 ```
 The output will compile different types of binaries dependent on your hardware / OS system. Once the binaries are built, they can be located as follows:
 
@@ -84,12 +84,12 @@ For instructions on how to release nym-connect, please see [RELEASE.md](./docs/r
 Run storybook with:
 
 ```
-yarn storybook
+npm run storybook
 ```
 
 And build storybook static site with:
 
 ```
-yarn storybook:build
+npm run storybook:build
 ```
 

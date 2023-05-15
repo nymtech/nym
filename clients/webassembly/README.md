@@ -38,7 +38,7 @@ If you're a Nym platform developer who's made changes to the Rust files and want
 2. go the `sdk/typescript` directory (off the project root)
 3. run:
 ```
-yarn
-yarn build
-yarn publish
+npm install
+npm run build
+npm run publish
 ```

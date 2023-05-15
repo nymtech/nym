@@ -8,22 +8,21 @@ You will need:
 
 - NodeJS (use `nvm install` to automatically install the correct version)
 - `npm`
-- `yarn`
 
 > **Note**: This project ipart of a mono repo, so you will need to build the shared packages before starting. And any time they change, you'll need to rebuild them.
 
 From the [root of the repository](../README.md) run the following to build shared packages:
 
 ```
-yarn
-yarn build
+npm install
+npm run build
 ```
 
 From the `explorer` directory of the `nym` monorepo, run:
 
 ```
 cd explorer
-yarn start
+npm run start
 ```
 
 You can then open a browser to http://localhost:3000 and start development.
@@ -37,10 +36,10 @@ Documentation for developers [can be found here](./docs).
 Build the UI with (starting in the repository root):
 
 ```
-yarn
-yarn build
+npm install
+npm run build
 cd explorer
-yarn build
+npm run build
 ```
 
 The output will be in the `dist` directory. Serve this with `nginx` or `httpd`.

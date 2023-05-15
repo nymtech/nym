@@ -17,10 +17,8 @@ jobs:
     - uses: actions/setup-node@v3
       with:
         node-version: 16
-    - name: Setup yarn
-      run: npm install -g yarn
     - name: Build
-      run: yarn && yarn build && yarn build:ci
+      run: npm install && npm run build && npm run build:ci
     - name: Deploy branch to CI www (storybook)
       continue-on-error: true
       uses: easingthemes/ssh-deploy@main

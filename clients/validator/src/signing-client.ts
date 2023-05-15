@@ -244,7 +244,6 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
   ): Promise<SigningClient> {
     const [{ address }] = await wallet.getAccounts();
     const signerOptions: SigningCosmWasmClientOptions = {
-      prefix,
       gasPrice: nymGasPrice(denom),
     };
     const tmClient = await Tendermint34Client.connect(nyxdUrl);

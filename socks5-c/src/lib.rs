@@ -21,6 +21,9 @@ pub mod android {
     use self::jni::JNIEnv;
     use super::*;
 
+    use android_logger::Config;
+    use log::Level;
+
     #[no_mangle]
     #[allow(non_snake_case)]
     pub extern "C" fn Java_net_nymtech_nyms5_Socks5_run<'local>(
@@ -28,6 +31,11 @@ pub mod android {
         class: JClass<'local>,
         input: JString<'local>,
     ) -> jstring {
+        android_logger::init_once(
+            Config::default().with_min_level(Level::Trace), // minimum log level
+        );
+        log::debug!("Logger initialized");
+
         let input: String = env
             .get_string(&input)
             .expect("Couldn't get java string!")

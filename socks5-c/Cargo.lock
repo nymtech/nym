@@ -3796,12 +3796,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "jni",
+ "log",
  "nym-client-core",
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
  "nym-socks5-client-core",
  "openssl",
+ "pretty_env_logger",
  "tokio",
 ]
 

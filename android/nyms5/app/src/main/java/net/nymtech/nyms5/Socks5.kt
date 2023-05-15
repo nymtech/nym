@@ -6,10 +6,10 @@ class Socks5 {
         System.loadLibrary("socks5_c")
     }
 
-    fun run(): String? {
-        return runclient()
+    fun runtest(): String? {
+        return run("TEST")
     }
 
     // Native function implemented in Rust.
-    private external fun runclient(): String?
+    private external fun run(input: String): String?
 }

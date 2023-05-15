@@ -6,7 +6,7 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import { AccountBalanceWalletRounded, ArrowDownwardRounded, ArrowUpwardRounded } from '@mui/icons-material';
+import { AccountBalanceWalletRounded, ArrowDownwardRounded } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 
 const menuSchema = [
@@ -19,11 +19,6 @@ const menuSchema = [
     title: 'Send',
     Icon: <ArrowDownwardRounded />,
     path: '/user/send',
-  },
-  {
-    title: 'Receive',
-    Icon: <ArrowUpwardRounded />,
-    path: '/user/receive',
   },
 ];
 

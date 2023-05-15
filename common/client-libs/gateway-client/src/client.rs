@@ -72,6 +72,7 @@ impl<C, St> GatewayClient<C, St>
 where
     C: Sync + Send,
     St: Storage,
+    <St as Storage>::StorageError: Send + Sync + 'static,
 {
     // TODO: put it all in a Config struct
     #[allow(clippy::too_many_arguments)]
@@ -79,6 +80,7 @@ where
         gateway_address: String,
         local_identity: Arc<identity::KeyPair>,
         gateway_identity: identity::PublicKey,
+        // TODO: make it mandatory. if you don't want to pass it, use `new_init`
         shared_key: Option<Arc<SharedKeys>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,

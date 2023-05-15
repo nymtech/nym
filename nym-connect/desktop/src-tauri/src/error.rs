@@ -71,6 +71,11 @@ pub enum BackendError {
     #[error("unable to parse the specified gateway")]
     UnableToParseGateway,
 
+    #[error("unable to load keys: {source}")]
+    UnableToLoadKeys {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
     #[error("HTTP get request failed: {status_code}")]
     RequestFail {
         url: reqwest::Url,

@@ -57,6 +57,10 @@ pub struct NetworkConfig {
 
     // User selected urls
     selected_nyxd_url: Option<Url>,
+    // Default nyxd URL assigned during login, can be used when the user wants
+    // to revert back its selected validator URL
+    default_nyxd_url: Option<Url>,
+
     selected_api_url: Option<Url>,
 
     // Additional user provided validators.
@@ -85,6 +89,7 @@ impl Default for NetworkConfig {
     fn default() -> Self {
         Self {
             version: Some(CURRENT_NETWORK_CONFIG_VERSION),
+            default_nyxd_url: None,
             selected_nyxd_url: None,
             selected_api_url: None,
             nyxd_urls: None,
@@ -241,6 +246,30 @@ impl Config {
             .expect("Wrong format for bandwidth claim contract address")
     }
 
+    pub fn set_default_nyxd_urls(&mut self, urls: &HashMap<WalletNetwork, Url>) {
+        for (network, url) in urls {
+            self.set_default_nyxd_url(url.to_owned(), network);
+        }
+    }
+
+    pub fn set_default_nyxd_url(&mut self, nyxd_url: Url, network: &WalletNetwork) {
+        log::debug!(
+            "set default nyxd URL for {network} {}",
+            nyxd_url.to_string()
+        );
+        if let Some(net) = self.networks.get_mut(&network.as_key()) {
+            net.default_nyxd_url = Some(nyxd_url);
+        } else {
+            self.networks.insert(
+                network.as_key(),
+                NetworkConfig {
+                    default_nyxd_url: Some(nyxd_url),
+                    ..NetworkConfig::default()
+                },
+            );
+        }
+    }
+
     pub fn select_nyxd_url(&mut self, nyxd_url: Url, network: WalletNetwork) {
         if let Some(net) = self.networks.get_mut(&network.as_key()) {
             net.selected_nyxd_url = Some(nyxd_url);
@@ -255,6 +284,13 @@ impl Config {
         }
     }
 
+    pub fn reset_nyxd_url(&mut self, network: WalletNetwork) {
+        match self.networks.get_mut(&network.as_key()) {
+            Some(net) => net.selected_nyxd_url = None,
+            None => log::warn!("reset_nyxd_url: {network} network not found, ignoring"),
+        }
+    }
+
     pub fn select_nym_api_url(&mut self, api_url: Url, network: WalletNetwork) {
         if let Some(net) = self.networks.get_mut(&network.as_key()) {
             net.selected_api_url = Some(api_url);
@@ -262,7 +298,7 @@ impl Config {
             self.networks.insert(
                 network.as_key(),
                 NetworkConfig {
-                    selected_nyxd_url: Some(api_url),
+                    selected_api_url: Some(api_url),
                     ..NetworkConfig::default()
                 },
             );
@@ -270,9 +306,25 @@ impl Config {
     }
 
     pub fn get_selected_validator_nyxd_url(&self, network: WalletNetwork) -> Option<Url> {
-        self.networks
-            .get(&network.as_key())
-            .and_then(|config| config.selected_nyxd_url.clone())
+        self.networks.get(&network.as_key()).and_then(|config| {
+            log::debug!(
+                "get selected nyxd url for {} {:?}",
+                network.to_string(),
+                config.selected_nyxd_url,
+            );
+            config.selected_nyxd_url.clone()
+        })
+    }
+
+    pub fn get_default_nyxd_url(&self, network: WalletNetwork) -> Option<Url> {
+        self.networks.get(&network.as_key()).and_then(|config| {
+            log::debug!(
+                "get default nyxd url for {} {:?}",
+                network.to_string(),
+                config.default_nyxd_url,
+            );
+            config.default_nyxd_url.clone()
+        })
     }
 
     pub fn get_selected_nym_api_url(&self, network: &WalletNetwork) -> Option<Url> {
@@ -573,6 +625,7 @@ api_url = 'https://baz/api'
             r#"{
   "version": 1,
   "selected_nyxd_url": null,
+  "default_nyxd_url": null,
   "selected_api_url": "https://my_api_url.com/",
   "nyxd_urls": [
     {

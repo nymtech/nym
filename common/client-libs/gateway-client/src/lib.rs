@@ -1,15 +1,16 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::GatewayClientError;
 pub use client::GatewayClient;
 use log::warn;
-use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_gateway_requests::BinaryResponse;
 pub use packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use tungstenite::{protocol::Message, Error as WsError};
+
+pub use nym_gateway_requests::registration::handshake::SharedKeys;
 
 pub mod client;
 pub mod error;

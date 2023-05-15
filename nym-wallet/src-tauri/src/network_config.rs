@@ -27,13 +27,47 @@ pub async fn get_nym_api_urls(
 }
 
 #[tauri::command]
+pub async fn get_selected_nyxd_url(
+    network: WalletNetwork,
+    state: tauri::State<'_, WalletState>,
+) -> Result<Option<String>, BackendError> {
+    let state = state.read().await;
+    let url = state.get_selected_nyxd_url(&network).map(String::from);
+    log::info!("Selected nyxd url for {network}: {:?}", url);
+    Ok(url)
+}
+
+#[tauri::command]
+pub async fn get_default_nyxd_url(
+    network: WalletNetwork,
+    state: tauri::State<'_, WalletState>,
+) -> Result<String, BackendError> {
+    let state = state.read().await;
+    let url = state.get_default_nyxd_url(&network).map(String::from);
+    log::info!("Default nyxd url for {network}: {:?}", url);
+    url.ok_or_else(|| BackendError::WalletNoDefaultValidator)
+}
+
+#[tauri::command]
 pub async fn select_nyxd_url(
     url: &str,
     network: WalletNetwork,
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     log::debug!("Selecting new nyxd url for {network}: {url}");
-    state.write().await.select_nyxd_url(url, network)?;
+    state.write().await.select_nyxd_url(url, network).await?;
+    state.read().await.save_config_files()?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn reset_nyxd_url(
+    network: WalletNetwork,
+    state: tauri::State<'_, WalletState>,
+) -> Result<(), BackendError> {
+    log::debug!("Resetting nyxd url for {network} to default");
+    state.write().await.reset_nyxd_url(network)?;
+    state.read().await.save_config_files()?;
     Ok(())
 }
 

@@ -32,7 +32,9 @@ pub mod android {
         input: JString<'local>,
     ) -> jstring {
         android_logger::init_once(
-            Config::default().with_min_level(Level::Trace), // minimum log level
+            Config::default()
+                .with_min_level(Level::Trace)
+                .with_tag("libnyms5"),
         );
         log::debug!("Logger initialized");
 

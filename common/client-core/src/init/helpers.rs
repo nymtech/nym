@@ -13,6 +13,7 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_topology::{filter::VersionFilterable, gateway};
+use rand::rngs::OsRng;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
@@ -208,7 +209,7 @@ pub(super) async fn query_gateway_details(
     chosen_gateway_id: Option<identity::PublicKey>,
     by_latency: bool,
 ) -> Result<gateway::Node, ClientCoreError> {
-    let mut rng = thread_rng();
+    let mut rng = OsRng;
     let gateways = current_gateways(&mut rng, validator_servers).await?;
 
     // if we set an explicit gateway, use that one and nothing else

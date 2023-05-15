@@ -43,7 +43,7 @@ pub struct MixnetClientBuilder {
     keys: Option<Keys>,
     gateway_config: Option<GatewayEndpointConfig>,
     socks5_config: Option<Socks5>,
-    custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
 }
 
 impl MixnetClientBuilder {
@@ -112,7 +112,7 @@ impl MixnetClientBuilder {
     #[must_use]
     pub fn custom_topology_provider(
         mut self,
-        topology_provider: Box<dyn TopologyProvider>,
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     ) -> Self {
         self.custom_topology_provider = Some(topology_provider);
         self
@@ -180,7 +180,7 @@ where
     reply_storage_backend: B,
 
     /// Alternative provider of network topology used for constructing sphinx packets.
-    custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
 }
 
 impl<B> DisconnectedMixnetClient<B>
@@ -198,7 +198,7 @@ where
         config: Config,
         socks5_config: Option<Socks5>,
         paths: Option<StoragePaths>,
-        custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+        custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     ) -> Result<DisconnectedMixnetClient<B>>
     where
         <B as ReplyStorageBackend>::StorageError: Send + Sync,

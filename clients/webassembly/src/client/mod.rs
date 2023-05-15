@@ -139,7 +139,7 @@ impl NymClientBuilder {
         ResponsePusher::new(client_output, on_message).start()
     }
 
-    fn topology_provider(&mut self) -> Option<Box<dyn TopologyProvider>> {
+    fn topology_provider(&mut self) -> Option<Box<dyn TopologyProvider + Send + Sync>> {
         if let Some(hardcoded_topology) = self.custom_topology.take() {
             Some(Box::new(HardcodedTopologyProvider::new(hardcoded_topology)))
         } else {

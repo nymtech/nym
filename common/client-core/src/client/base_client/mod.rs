@@ -159,7 +159,7 @@ pub struct BaseClientBuilder<'a, B, C, St: Storage> {
     nym_api_endpoints: Vec<Url>,
     reply_storage_backend: B,
 
-    custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     bandwidth_controller: Option<BandwidthController<C, St>>,
     key_manager: KeyManager,
 }
@@ -209,7 +209,10 @@ where
         }
     }
 
-    pub fn with_topology_provider(mut self, provider: Box<dyn TopologyProvider>) -> Self {
+    pub fn with_topology_provider(
+        mut self,
+        provider: Box<dyn TopologyProvider + Send + Sync>,
+    ) -> Self {
         self.custom_topology_provider = Some(provider);
         self
     }
@@ -354,9 +357,9 @@ where
     }
 
     fn setup_topology_provider(
-        custom_provider: Option<Box<dyn TopologyProvider>>,
+        custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         nym_api_urls: Vec<Url>,
-    ) -> Box<dyn TopologyProvider> {
+    ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| {
             Box::new(NymApiTopologyProvider::new(
@@ -369,7 +372,7 @@ where
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
     async fn start_topology_refresher(
-        topology_provider: Box<dyn TopologyProvider>,
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
         topology_config: config::Topology,
         topology_accessor: TopologyAccessor,
         mut shutdown: TaskClient,

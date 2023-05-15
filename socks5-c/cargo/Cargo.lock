@@ -3923,7 +3923,9 @@ name = "socks5-c"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "futures",
  "jni",
+ "lazy_static",
  "nym-client-core",
  "nym-config",
  "nym-credential-storage",

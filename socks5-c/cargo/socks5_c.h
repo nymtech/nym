@@ -28,25 +28,22 @@ typedef enum ClientState {
 } ClientState_t;
 
 /** <No documentation available> */
-char *
-foomp (
-    char const * val);
+void
+blocking_run_client (
+    char const * service_provider,
+    void (*on_start_callback)(void),
+    void (*on_shutdown_callback)(void));
 
 /** <No documentation available> */
 void
-free_foomp (
-    char * foomp);
-
-/** <No documentation available> */
-char *
-invoke_foomp_with_callback (
-    char const * val,
-    void (*cb)(void));
+start_client (
+    char const * service_provider,
+    void (*on_start_callback)(void),
+    void (*on_shutdown_callback)(void));
 
 /** <No documentation available> */
 void
-run_client (
-    char const * service_provider);
+stop_client (void);
 
 
 #ifdef __cplusplus

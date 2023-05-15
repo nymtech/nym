@@ -26,6 +26,7 @@
     "@storybook/react": "^6.5.16",
     "big.js": "^6.2.1",
     "crypto-js": "^4.1.1",
+    "qrcode.react": "^3.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-error-boundary": "^4.0.3",

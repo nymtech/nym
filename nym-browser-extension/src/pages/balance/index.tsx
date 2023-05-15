@@ -1,29 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Stack, IconButton, Typography } from '@mui/material';
-import { PageLayout } from 'src/layouts/PageLayout';
-import { Address, Balance } from 'src/components';
 import { ArrowDownwardRounded, ArrowUpwardRounded, TollRounded } from '@mui/icons-material';
+import { PageLayout } from 'src/layouts/PageLayout';
+import { Address, Balance, ReceiveModal } from 'src/components';
 
-const actionsSchema = [
-  {
-    title: 'Send',
-    Icon: <ArrowDownwardRounded fontSize="large" />,
-  },
-  {
-    title: 'Receive',
-    Icon: <ArrowUpwardRounded fontSize="large" />,
-  },
-  {
-    title: 'Buy',
-    Icon: <TollRounded fontSize="large" />,
-  },
-];
+type ActionsSchema = Array<{
+  title: string;
+  Icon: React.ReactNode;
+  onClick: () => void;
+}>;
 
-const Actions = () => (
+const Actions = ({ actionsSchema }: { actionsSchema: ActionsSchema }) => (
   <Box display="flex" justifyContent="space-evenly">
-    {actionsSchema.map(({ title, Icon }) => (
+    {actionsSchema.map(({ title, Icon, onClick }) => (
       <Stack justifyContent="center" alignItems="center" key={title}>
-        <IconButton color="primary" size="large">
+        <IconButton color="primary" size="large" onClick={onClick}>
           {Icon}
         </IconButton>
         <Typography>{title}</Typography>
@@ -32,12 +24,36 @@ const Actions = () => (
   </Box>
 );
 
-export const BalancePage = () => (
-  <PageLayout>
-    <Stack gap={6}>
-      <Address />
-      <Balance />
-      <Actions />
-    </Stack>
-  </PageLayout>
-);
+export const BalancePage = () => {
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const navigate = useNavigate();
+
+  const actionsSchema = [
+    {
+      title: 'Send',
+      Icon: <ArrowDownwardRounded fontSize="large" />,
+      onClick: () => navigate('/user/send'),
+    },
+    {
+      title: 'Receive',
+      Icon: <ArrowUpwardRounded fontSize="large" />,
+      onClick: () => setShowReceiveModal(true),
+    },
+    {
+      title: 'Buy',
+      Icon: <TollRounded fontSize="large" />,
+      onClick: () => navigate('/user/balance'),
+    },
+  ];
+
+  return (
+    <PageLayout>
+      <Stack gap={6}>
+        <ReceiveModal open={showReceiveModal} onClose={() => setShowReceiveModal(false)} />
+        <Address />
+        <Balance />
+        <Actions actionsSchema={actionsSchema} />
+      </Stack>
+    </PageLayout>
+  );
+};

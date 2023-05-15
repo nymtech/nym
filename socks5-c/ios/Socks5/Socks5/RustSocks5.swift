@@ -7,6 +7,13 @@
 
 class RustSocks5 {
     func runForever(serviceProvider: String) {
-        run_client(serviceProvider)
+                run_client(serviceProvider)
+    }
+    
+    func addStuff(to: String) -> String {
+        let result = foomp(to)
+        let swift_result = String(cString: result!)
+        free_foomp(UnsafeMutablePointer(mutating: result))
+        return swift_result
     }
 }

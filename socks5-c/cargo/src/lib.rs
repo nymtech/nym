@@ -1,11 +1,10 @@
+use ::safer_ffi::prelude::*;
 use anyhow::Result;
 use nym_client_core::client::key_manager::KeyManager;
 use nym_config_common::defaults::setup_env;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_socks5_client_core::config::Config as Socks5Config;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
-use std::ffi::CStr;
-use std::os::raw::c_char;
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
 
@@ -27,49 +26,63 @@ pub mod android {
         _: JClass,
         java_pattern: JString,
     ) {
-        setup_env(None);
-
-        // TODO: does that leak memory and do we have to have a separate free method?
-        // I'd assume not because the allocation came from the caller
-        //let c_str = unsafe { CStr::from_ptr(service_provider) };
-        let c_str = CString::new("https://testnet-gateway.nymtech.net").unwrap();
-        let service_provider = c_str
-            .to_str()
-            .expect("invalid service provider string value provided")
-            .to_string();
-
-        let rt = tokio::runtime::Runtime::new().unwrap();
-
-        rt.block_on(async move {
-            let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
-            let socks5_client = Socks5NymClient::new_with_keys(config, Some(keys));
-            let mut shutdown_handle = socks5_client.start().await?;
-            shutdown_handle
-                .catch_interrupt()
-                .await
-                .expect("failed to catch interrupt");
-
-            Ok::<(), anyhow::Error>(())
-        })
-        .unwrap();
+        let fake_service_provider = "foomp".to_string();
+        _run_client(fake_service_provider)
     }
 }
 
-/// # Safety
-///
-/// TODO
-#[no_mangle]
-pub unsafe extern "C" fn run_client(service_provider: *const c_char) {
+// #[cfg(target_os = "ios")]
+// #[swift_bridge::bridge]
+// pub mod ios {
+//     extern "Rust" {
+//         type Socks5Client;
+//
+//         #[swift_bridge(init)]
+//         fn new() -> Socks5Client;
+//
+//         fn foomp(&self, val: &str) -> String;
+//     }
+// }
+//
+// pub struct Socks5Client;
+//
+// impl Socks5Client {
+//     fn new() -> Self {
+//         Socks5Client
+//     }
+//
+//     fn foomp(&self, val: &str) -> String {
+//         format!("{val} with extra foomp")
+//     }
+// }
+
+#[derive_ReprC]
+#[ffi_export]
+#[repr(C)]
+pub enum ClientState {
+    Unknown,
+    Connected,
+    Disconnected,
+}
+
+#[ffi_export]
+pub fn foomp(val: char_p::Ref<'_>) -> char_p::Box {
+    format!("{val} with extra foomp").try_into().unwrap()
+}
+
+#[ffi_export]
+pub fn free_foomp(foomp: char_p::Box) {
+    drop(foomp)
+}
+
+#[ffi_export]
+pub fn run_client(service_provider: char_p::Ref<'_>) {
+    let service_provider = service_provider.to_string();
+    _run_client(service_provider)
+}
+
+fn _run_client(service_provider: String) {
     setup_env(None);
-
-    // TODO: does that leak memory and do we have to have a separate free method?
-    // I'd assume not because the allocation came from the caller
-    let c_str = unsafe { CStr::from_ptr(service_provider) };
-    let service_provider = c_str
-        .to_str()
-        .expect("invalid service provider string value provided")
-        .to_string();
-
     let rt = tokio::runtime::Runtime::new().unwrap();
 
     rt.block_on(async move {
@@ -119,4 +132,11 @@ pub async fn init_dummy_socks5_config(
     // let _address = *key_manager.identity_keypair().public_key();
 
     Ok((config, key_manager))
+}
+
+#[cfg(feature = "headers")] // c.f. the `Cargo.toml` section
+pub fn generate_headers() -> ::std::io::Result<()> {
+    ::safer_ffi::headers::builder()
+        .to_file("socks5_c.h")?
+        .generate()
 }

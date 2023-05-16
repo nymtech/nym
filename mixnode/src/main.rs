@@ -16,6 +16,8 @@ use nym_mixnode_common::measure;
 #[cfg(feature = "cpucycles")]
 use tracing::instrument;
 
+use pledge::pledge;
+
 mod commands;
 mod config;
 pub(crate) mod error;
@@ -59,6 +61,8 @@ async fn main() -> anyhow::Result<()> {
     if !args.no_banner {
         maybe_print_banner(crate_name!(), crate_version!());
     }
+
+    pledge("stdio rpath cpath wpath fattr inet dns unveil", None).unwrap();
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "cpucycles")] {

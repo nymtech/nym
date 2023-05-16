@@ -8,6 +8,8 @@ use colored::Colorize;
 use std::io;
 use std::io::Write;
 
+use pledge::pledge;
+
 #[derive(Args)]
 pub(crate) struct Describe {
     /// The id of the mixnode you want to describe
@@ -39,6 +41,8 @@ fn read_user_input() -> String {
 }
 
 pub(crate) fn execute(args: Describe) -> anyhow::Result<()> {
+    pledge("stdio rpath wpath cpath", None).unwrap();
+
     // ensure that the mixnode has in fact been initialized
     let config = try_load_current_config(&args.id)?;
 

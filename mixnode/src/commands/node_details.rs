@@ -6,6 +6,8 @@ use crate::node::MixNode;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 
+use pledge::pledge;
+
 #[derive(Args)]
 pub(crate) struct NodeDetails {
     /// The id of the mixnode you want to show details for
@@ -17,6 +19,8 @@ pub(crate) struct NodeDetails {
 }
 
 pub(crate) fn execute(args: &NodeDetails) -> anyhow::Result<()> {
+    pledge("stdio rpath", None).unwrap();
+
     let config = try_load_current_config(&args.id)?;
 
     MixNode::new(config)?.print_node_details(args.output);

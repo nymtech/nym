@@ -5,6 +5,8 @@ use clap::Args;
 use nym_bin_common::bin_info_owned;
 use nym_bin_common::output_format::OutputFormat;
 
+use pledge::pledge;
+
 #[derive(Args)]
 pub(crate) struct BuildInfo {
     #[clap(short, long, default_value_t = OutputFormat::default())]
@@ -12,5 +14,7 @@ pub(crate) struct BuildInfo {
 }
 
 pub(crate) fn execute(args: BuildInfo) {
+    pledge("stdio rpath", None).unwrap();
+
     println!("{}", args.output.format(&bin_info_owned!()))
 }

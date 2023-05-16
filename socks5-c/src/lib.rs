@@ -78,36 +78,6 @@ pub mod android {
 
         output.into_raw()
     }
-
-    #[no_mangle]
-    pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_runclient(
-        _env: JNIEnv,
-        _: JClass,
-        _java_pattern: JString,
-    ) {
-        // setup_env(None);
-
-        // TODO: does that leak memory and do we have to have a separate free method?
-        // I'd assume not because the allocation came from the caller
-        //let c_str = unsafe { CStr::from_ptr(service_provider) };
-        // let c_str = CString::new("DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh").unwrap();
-        // let service_provider = c_str
-        //     .to_str()
-        //     .expect("invalid service provider string value provided")
-        //     .to_string();
-
-        // let rt = tokio::runtime::Runtime::new().unwrap();
-
-        // rt.block_on(async move {
-        //     let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
-        //     let socks5_client = Socks5NymClient::new_with_keys(config, Some(keys));
-        //     let mut shutdown_handle = socks5_client.start().await?;
-        //     shutdown_handle.wait_for_shutdown().await;
-
-        //     Ok::<(), anyhow::Error>(())
-        // })
-        // .unwrap();
-    }
 }
 
 /// # Safety

@@ -87,7 +87,7 @@ pub async fn register_with_gateway<St: Storage>(
 
     let our_identity = key_manager.identity_keypair();
 
-    // // Establish connection, authenticate and generate keys for talking with the gateway
+    // Establish connection, authenticate and generate keys for talking with the gateway
     let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
     key_manager.insert_gateway_shared_key(shared_keys);
 

@@ -17,6 +17,8 @@ use nym_client_core::client::base_client::{
 use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_client_core::config::DebugConfig;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_credential_storage::storage::Storage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::{TaskClient, TaskManager};
@@ -75,6 +77,7 @@ impl NymClient {
         }
     }
 
+    #[allow(unused)]
     async fn create_bandwidth_controller<St: Storage>(
         config: &Config,
         storage: St,
@@ -242,18 +245,20 @@ impl NymClient {
         );
 
         #[cfg(any(target_os = "android", target_os = "ios"))]
-        let base_builder = BaseClientBuilder::<_, Client<QueryNyxdClient>, _>::new_from_base_config(
-            self.config.get_base(),
-            self.key_manager,
-            Some(
-                Self::create_bandwidth_controller(
-                    &self.config,
-                    nym_credential_storage::initialise_ephemeral_storage(),
-                )
-                .await,
-            ),
-            setup_empty_reply_surb_backend(self.config.get_debug_settings()),
-        );
+        let base_builder =
+            BaseClientBuilder::<_, Client<QueryNyxdClient>, EphemeralStorage>::new_from_base_config(
+                self.config.get_base(),
+                self.key_manager,
+                None,
+                //Some(
+                //    Self::create_bandwidth_controller(
+                //        &self.config,
+                //        nym_credential_storage::initialise_ephemeral_storage(),
+                //    )
+                //    .await,
+                //),
+                setup_empty_reply_surb_backend(self.config.get_debug_settings()),
+            );
 
         let self_address = base_builder.as_mix_recipient();
         let mut started_client = base_builder.start_base().await?;

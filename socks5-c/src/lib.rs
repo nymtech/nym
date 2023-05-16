@@ -37,7 +37,7 @@ pub mod android {
                 .with_tag("libnyms5")
                 .with_filter(
                     FilterBuilder::new()
-                        .parse("trace,tungstenite=warn,mio=warn,tokio_tungstenite=warn")
+                        .parse("debug,tungstenite=warn,mio=warn,tokio_tungstenite=warn")
                         .build(),
                 ),
         );

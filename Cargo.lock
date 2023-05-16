@@ -5745,6 +5745,7 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "opentelemetry",
+ "pledge",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -5754,6 +5755,7 @@ dependencies = [
  "tokio-util",
  "toml 0.5.11",
  "tracing",
+ "unveil",
  "url",
 ]
 
@@ -7214,6 +7216,15 @@ name = "pkg-config"
 version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
+
+[[package]]
+name = "pledge"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "252599417b7d9a43b7fdc63dd790b0848666a8910b2ebe1a25118309c3c981e5"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "platforms"
@@ -10416,6 +10427,15 @@ name = "unwind_safe"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0976c77def3f1f75c4ef892a292c31c0bbe9e3d0702c63044d7c76db298171a3"
+
+[[package]]
+name = "unveil"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e7fa867d559102001ec694165ed17d5f82e95213060a65f9c8b6280084bbfec"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "url"

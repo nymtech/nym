@@ -4,6 +4,18 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.19] (2023-05-16)
+
+- nym-name-service endpoint in nym-api ([#3403])
+- Implement key storage for WASM client using IndexedDB (for browser) ([#3329])
+- Initial version of nym-name-service contract providing name aliases for nym-addresses ([#3274])
+- Update Cargo.lock ([#3410])
+
+[#3403]: https://github.com/nymtech/nym/issues/3403
+[#3329]: https://github.com/nymtech/nym/issues/3329
+[#3274]: https://github.com/nymtech/nym/issues/3274
+[#3410]: https://github.com/nymtech/nym/pull/3410
+
 ## [v1.1.18] (2023-05-09)
 
 - Implement heartbeat messages between socks5 proxy and network requester ([#3215])

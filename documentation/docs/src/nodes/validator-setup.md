@@ -27,7 +27,7 @@ pacman -S git gcc jq
 sudo rm -rf /usr/local/go
 
 # Install correct Go version
-curl https://dl.google.com/go/go1.19.2.linux-amd64.tar.gz | sudo tar -C/usr/local -zxvf -
+curl https://dl.google.com/go/go1.20.4.linux-amd64.tar.gz | sudo tar -C/usr/local -zxvf -
 
 # Update environment variables to include go
 cat <<'EOF' >>$HOME/.profile
@@ -44,10 +44,13 @@ Verify `Go` is installed with:
 ```
 go version
 # Should return something like:
-go version go1.19.2 linux/amd64
+go version go1.20.4 linux/amd64
 ```
 
-### Compiling your validator binary
+### Download a precompiled validator binary
+You can find pre-compiled binaries for Ubuntu `22.04` and `20.04` [here](https://github.com/nymtech/nyxd/releases).
+
+### Manually compiling your validator binary
 The codebase for the Nyx validators can be found [here](https://github.com/nymtech/nyxd).
 
 The validator binary can be compiled by running the following commands:

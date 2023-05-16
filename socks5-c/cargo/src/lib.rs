@@ -72,23 +72,50 @@ pub mod android {
     use self::jni::JNIEnv;
     use super::*;
 
+    use android_logger::{Config, FilterBuilder};
+    use log::LevelFilter;
+
     extern "C" fn placeholder_startup_cb(address: char_p::Box) {
         rust_free_string(address)
     }
     extern "C" fn placeholder_shutdown_cb() {}
 
     #[no_mangle]
-    pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_runclient(
-        env: JNIEnv,
-        _: JClass,
-        java_pattern: JString,
-    ) {
-        let fake_service_provider = "foomp".to_string();
+    pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_run<'local>(
+        mut env: JNIEnv<'local>,
+        _class: JClass<'local>,
+        input: JString<'local>,
+    ) -> jstring {
+        android_logger::init_once(
+            Config::default()
+                .with_max_level(LevelFilter::Trace)
+                .with_tag("libnyms5")
+                .with_filter(
+                    FilterBuilder::new()
+                        .parse("debug,tungstenite=warn,mio=warn,tokio_tungstenite=warn")
+                        .build(),
+                ),
+        );
+        log::debug!("Logger initialized");
+
+        let input: String = env
+            .get_string(&input)
+            .expect("Couldn't get java string!")
+            .into();
+
+        // TODO: get the service provider from input
+        let service_provider = "DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh".try_into().unwrap();
         blocking_run_client(
-            fake_service_provider,
+            service_provider,
             placeholder_startup_cb,
             placeholder_shutdown_cb,
-        )
+        );
+
+        let output = env
+            .new_string(format!("Hello, {}!", input))
+            .expect("Couldn't create java string!");
+
+        output.into_raw()
     }
 }
 

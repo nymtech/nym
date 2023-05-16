@@ -24,6 +24,8 @@ nym-crypto = { path = "../../common/crypto" }
 nym-socks5-client-core = { path = "../../common/socks5-client-core", default-features = false }
 openssl = { version = "0.10", features = ["vendored"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
+log = "0.4.17"
+android_logger = "0.13.1"
 
 safer-ffi = { version = "0.1.0-rc1" }
 

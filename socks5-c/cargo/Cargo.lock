@@ -63,6 +63,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "android_log-sys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27f0fc03f560e1aebde41c2398b691cb98b5ea5996a6184a7a67bbbb77448969"
+
+[[package]]
+name = "android_logger"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3fa490e751f3878eb9accb9f18988eca52c2337ce000a8bf31ef50d4c723ca9e"
+dependencies = [
+ "android_log-sys",
+ "env_logger 0.10.0",
+ "log",
+ "once_cell",
+]
+
+[[package]]
 name = "anstream"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1079,6 +1097,16 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85cdab6a89accf66733ad5a1693a4dcced6aeff64602b634530dd73c1f3ee9f0"
+dependencies = [
+ "log",
+ "regex",
 ]
 
 [[package]]
@@ -3161,7 +3189,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "926d36b9553851b8b0005f1275891b392ee4d2d833852c417ed025477350fb9d"
 dependencies = [
- "env_logger",
+ "env_logger 0.7.1",
  "log",
 ]
 
@@ -3922,10 +3950,12 @@ dependencies = [
 name = "socks5-c"
 version = "0.1.0"
 dependencies = [
+ "android_logger",
  "anyhow",
  "futures",
  "jni",
  "lazy_static",
+ "log",
  "nym-client-core",
  "nym-config",
  "nym-credential-storage",

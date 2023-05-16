@@ -3171,7 +3171,7 @@ dependencies = [
 
 [[package]]
 name = "nym_wallet"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "async-trait",
  "base64 0.13.1",

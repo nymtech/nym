@@ -27,7 +27,7 @@ pacman -S git gcc jq
 sudo rm -rf /usr/local/go
 
 # Install correct Go version
-curl https://dl.google.com/go/go1.19.2.linux-amd64.tar.gz | sudo tar -C/usr/local -zxvf -
+curl https://dl.google.com/go/go1.20.4.linux-amd64.tar.gz | sudo tar -C/usr/local -zxvf -
 
 # Update environment variables to include go
 cat <<'EOF' >>$HOME/.profile
@@ -44,10 +44,17 @@ Verify `Go` is installed with:
 ```
 go version
 # Should return something like:
-go version go1.19.2 linux/amd64
+go version go1.20.4 linux/amd64
 ```
 
-### Compiling your validator binary
+### Download a precompiled validator binary
+You can find pre-compiled binaries for Ubuntu `22.04` and `20.04` [here](https://github.com/nymtech/nyxd/releases).
+
+```admonish caution title=""
+Binaries for both Mainnet and Sandbox testnet can be found in each release - make sure to download the correct binary to avoid `bech32Prefix` mismatches.
+```
+
+### Manually compiling your validator binary
 The codebase for the Nyx validators can be found [here](https://github.com/nymtech/nyxd).
 
 The validator binary can be compiled by running the following commands:
@@ -72,7 +79,7 @@ You should see help text print out.
 
 The `nyxd` binary and the `libwasmvm.so` shared object library binary have been compiled. `libwasmvm.so` is the wasm virtual machine which is needed to execute smart contracts.
 
-```admonish caution
+```admonish caution title=""
 If you have compiled these files locally you need to upload both of them to the server on which the validator will run. **If you have instead compiled them on the server skip to the step outlining setting `LD_LIBRARY PATH` below.**
 ```
 
@@ -132,7 +139,7 @@ nyxd init <ID> --chain-id=nyx
 nyxd init <ID> --chain-id=sandbox
 ```
 
-```admonish caution
+```admonish caution title=""
 `init` generates `priv_validator_key.json` and `node_key.json`.
 
 If you have already set up a validator on a network, **make sure to back up the key located at**
@@ -168,7 +175,7 @@ laddr = "tcp://0.0.0.0:26656"
 ```
 # Sandbox testnet
 cors_allowed_origins = ["*"]
-persistent_peers = "8421c0a3d90d490e27e8061f2abcb1276c8358b6@sandbox-validator1.nymtech.net:26656"
+persistent_peers = "8421c0a3d90d490e27e8061f2abcb1276c8358b6@sandbox-validator1.nymtech.net:26666"
 create_empty_blocks = false
 laddr = "tcp://0.0.0.0:26656"
 ```
@@ -266,7 +273,7 @@ If you wish to sync from a snapshot or via state-sync please check out the Polka
 
 > If you are having trouble upgrading your validator binary, try replacing (or re-compile) the `libwasmvm.so` file and replace it on your validator server.
 
-```admonish caution
+```admonish caution title=""
 When joining consensus, make sure that you do not disrupt (or worse - halt) the network by coming in with a disproportionately large amount of staked tokens.
 
 Please initially stake a small amount of tokens compared to existing validators, then delegate to yourself in tranches over time.
@@ -429,7 +436,7 @@ sudo apt install certbot nginx python3
 certbot --nginx -d nym-validator.yourdomain.com -m you@yourdomain.com --agree-tos --noninteractive --redirect
 ```
 
-```admonish caution
+```admonish caution title=""
 If using a VPS running Ubuntu 20: replace `certbot nginx python3` with `python3-certbot-nginx`
 ```
 

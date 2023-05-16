@@ -18,7 +18,7 @@ use crate::client::key_manager::persistence::OnDiskKeys;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use crate::client::replies::reply_storage::fs_backend;
 
 pub trait MixnetClientStorage {

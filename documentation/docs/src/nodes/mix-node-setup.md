@@ -231,9 +231,11 @@ sudo ufw status
 Finally open your mix node's p2p port, as well as ports for ssh, http, and https connections, and ports `8000` and `1790` for verloc and measurement pings:
 
 ```
-sudo ufw allow 1789,1790,8000,22,80,443/tcp
+sudo ufw allow 1789,1790,8000,22/tcp
 # check the status of the firewall
 sudo ufw status
+# restart firewall
+sudo sytstemctl restart ufw
 ```
 
 For more information about your mix node's port configuration, check the [mix node port reference table](./mix-node-setup.md#mixnode-port-reference) below.

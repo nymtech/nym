@@ -5,8 +5,10 @@
 //  Created by Jedrzej Stuczynski on 12/05/2023.
 //
 
-func start_callback() {
-    print("the client is now alive!")
+func start_callback(clientAddress: UnsafeMutablePointer<CChar>?) {
+    let swift_string = String(cString: clientAddress!)
+    rust_free_string(clientAddress)
+    print("the client is now alive! And its address is \(swift_string)")
 }
 
 func shutdown_callback() {
@@ -14,23 +16,24 @@ func shutdown_callback() {
 }
 
 class RustSocks5 {
-    func runForever(serviceProvider: String) {
-        let start_cb: @convention(c) () -> Void = start_callback;
-        let shutdown_cb: @convention(c) () -> Void = shutdown_callback;
-        
-        blocking_run_client(serviceProvider, start_cb, shutdown_cb)
-    }
+//    func runForever(storageDirectory, serviceProvider: String) {
+//        let start_cb: @convention(c) () -> Void = start_callback;
+//        let shutdown_cb: @convention(c) () -> Void = shutdown_callback;
+//
+//        blocking_run_client(serviceProvider, start_cb, shutdown_cb)
+//    }
     
-    func startClient(serviceProvider: String) {
-        let start_cb: @convention(c) () -> Void = start_callback;
+    func startClient(storageDirectory: String, serviceProvider: String) {
+        let start_cb: @convention(c) (UnsafeMutablePointer<CChar>?) -> Void = start_callback;
         let shutdown_cb: @convention(c) () -> Void = shutdown_callback;
         
-        start_client(serviceProvider, start_cb, shutdown_cb)
+        start_client(storageDirectory, serviceProvider, start_cb, shutdown_cb)
     }
     
     func stopClient() {
         stop_client()
     }
+
     
 //    func addStuff(to: String) -> String {
 //        let result = foomp(to)

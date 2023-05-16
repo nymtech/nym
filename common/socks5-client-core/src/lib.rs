@@ -166,7 +166,7 @@ impl NymClient {
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
     pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let shutdown = self.start().await?;
+        let (_, shutdown) = self.start().await?;
 
         let res = shutdown.catch_interrupt().await;
         log::info!("Stopping nym-socks5-client");
@@ -180,7 +180,7 @@ impl NymClient {
         sender: nym_task::StatusSender,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Start the main task
-        let mut shutdown = self.start().await?;
+        let (_, mut shutdown) = self.start().await?;
 
         // Listen to status messages from task, that we forward back to the caller
         shutdown.start_status_listener(sender).await;
@@ -219,7 +219,7 @@ impl NymClient {
         res
     }
 
-    pub async fn start(self) -> Result<TaskManager, Socks5ClientCoreError> {
+    pub async fn start(self) -> Result<(Recipient, TaskManager), Socks5ClientCoreError> {
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
@@ -272,8 +272,8 @@ impl NymClient {
         );
 
         info!("Client startup finished!");
-        info!("The address of this client is: {}", self_address);
+        info!("The address of this client is: {self_address}");
 
-        Ok(started_client.task_manager)
+        Ok((self_address, started_client.task_manager))
     }
 }

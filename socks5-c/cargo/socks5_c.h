@@ -30,32 +30,27 @@ typedef enum ClientState {
 /** <No documentation available> */
 void
 blocking_run_client (
+    char const * storage_directory,
     char const * service_provider,
-    void (*on_start_callback)(void),
+    void (*on_start_callback)(char *),
     void (*on_shutdown_callback)(void));
 
 /** <No documentation available> */
-char *
-read_from_file (
-    char const * dir);
+void
+rust_free_string (
+    char * string);
 
 /** <No documentation available> */
 void
 start_client (
+    char const * storage_directory,
     char const * service_provider,
-    void (*on_start_callback)(void),
+    void (*on_start_callback)(char *),
     void (*on_shutdown_callback)(void));
 
 /** <No documentation available> */
 void
 stop_client (void);
-
-/** <No documentation available> */
-void
-write_to_file (
-    char const * dir,
-    char const * id,
-    char const * service_provider);
 
 
 #ifdef __cplusplus

@@ -51,7 +51,7 @@ go version go1.20.4 linux/amd64
 You can find pre-compiled binaries for Ubuntu `22.04` and `20.04` [here](https://github.com/nymtech/nyxd/releases).
 
 ```admonish caution title=""
-Binaries for both Mainnet and Sandbox testnet can be found in each release - make sure to download the correct binary to avoid `bech32Prefix` mismatches.
+There are seperate releases for Mainnet and the Sandbox testnet - make sure to download the correct binary to avoid `bech32Prefix` mismatches.
 ```
 
 ### Manually compiling your validator binary
@@ -80,17 +80,27 @@ You should see help text print out.
 The `nyxd` binary and the `libwasmvm.so` shared object library binary have been compiled. `libwasmvm.so` is the wasm virtual machine which is needed to execute smart contracts.
 
 ```admonish caution title=""
-If you have compiled these files locally you need to upload both of them to the server on which the validator will run. **If you have instead compiled them on the server skip to the step outlining setting `LD_LIBRARY PATH` below.**
+If you have compiled these files locally and need to upload both of them to the server on which the validator will run, **or** downloaded a pre-compiled binary from Github, you need to locate and link these files in slightly different ways, outlined below. If you have instead compiled them on the server skip to the step outlining setting `LD_LIBRARY PATH` below.
 ```
 
-To locate these files on your local system run:
+To locate these files on your system **if you downloaded a pre-compiled binary from Github** run:
+
+```
+WASMVM_SO=$(ldd path/to/nyxd/binary | grep libwasmvm.so | awk '{ print $3 }')
+ls ${WASMVM_SO}
+```
+
+e.g. if you downloaded your `nyxd` binary to `/root` then you would replace `ldd path/to/nyxd/binary` with `ldd nyxd` in the above command.
+
+
+To locate these files on your system **if you uploaded your validator after compiling it on a local machine** run:
 
 ```
 WASMVM_SO=$(ldd build/nyxd | grep libwasmvm.so | awk '{ print $3 }')
 ls ${WASMVM_SO}
 ```
 
-This will output something like:
+The above commands will output something like:
 
 ```
 '/home/username/go/pkg/mod/github.com/!cosm!wasm/wasmvm@v0.13.0/api/libwasmvm.so'
@@ -158,7 +168,7 @@ You can use the following command to download them for the correct network:
 wget  -O $HOME/.nyxd/config/genesis.json https://nymtech.net/genesis/genesis.json
 
 # Sandbox testnet
-curl "https://sandbox-validator1.nymtech.net/genesis" | jq .result.genesis > ~/.nyxd/config/genesis.json
+wget -O $HOME/.nyxd/config/genesis.json https://sandbox-validator1.nymtech.net/snapshots/genesis.json
 ```
 
 ### `config.toml` configuration
@@ -181,7 +191,7 @@ laddr = "tcp://0.0.0.0:26656"
 ```
 
 These affect the following:
-* `persistent_peers = "<PEER_ADDRESS>@<DOMAIN>.nymtech.net:26656"` allows your validator to start pulling blocks from other validators
+* `persistent_peers = "<PEER_ADDRESS>@<DOMAIN>.nymtech.net:26666"` allows your validator to start pulling blocks from other validators. **The main sandbox validator listens on `26666` instead of the default `26656` for debugging**. It is recommended you do not change your port from `26656`.
 * `create_empty_blocks = false` will save space
 * `laddr = "tcp://0.0.0.0:26656"` is in your p2p configuration options
 
@@ -230,6 +240,11 @@ nyxd keys show nyxd-admin -a
 Type in your keychain **password**, not the mnemonic, when asked.
 
 ## Starting your validator
+
+```admonish caution title=""
+If you are running a Sandbox testnet validator, please skip the `validate-genesis` command: it will fail due to the size of the genesis file as this is a fork of an existing chain state.
+```
+
 Everything should now be ready to go. You've got the validator set up, all changes made in `config.toml` and `app.toml`, the Nym genesis file copied into place (replacing the initial auto-generated one). Now let's validate the whole setup:
 
 ```
@@ -269,15 +284,36 @@ nyxd start
 
 Once your validator starts, it will start requesting blocks from other validators. This may take several hours. Once it's up to date, you can issue a request to join the validator set with the command below.
 
-If you wish to sync from a snapshot or via state-sync please check out the Polkachu [mainnet](https://polkachu.com/networks/nym) or [testnet](https://polkachu.com/testnets/nym/) resources.
+### Syncing from a snapshot
+If you wish to sync from a snapshot on **mainnet** use Polkachu's [mainnet](https://polkachu.com/networks/nym) resources.
 
-> If you are having trouble upgrading your validator binary, try replacing (or re-compile) the `libwasmvm.so` file and replace it on your validator server.
+If you wish to sync from a snapshot on **Sandbox testnet** use the below commands, which are a modified version of Polkachu's excellent resources. These commands assume you are running an OS with `apt` as the package manager:
 
+```
+# install lz4 if necessary
+sudo apt install snapd -y
+sudo snap install lz4
+
+# download the snapshot
+wget -O nyxd-sandbox-snapshot-data.tar.lz4 https://sandbox-validator1.nymtech.net/snapshots/nyxd-sandbox-snapshot-data.tar.lz4
+
+# reset your validator state
+nyxd tendermint unsafe-reset-all
+
+# unpack the snapshot
+lz4 -c -d nyxd-sandbox-snapshot-data.tar.lz4 | tar -x -C $HOME/.nyxd
+```
+
+You can then restart `nyxd` - it should start syncing from a block > 2000000.
+
+### Joining Consensus
 ```admonish caution title=""
 When joining consensus, make sure that you do not disrupt (or worse - halt) the network by coming in with a disproportionately large amount of staked tokens.
 
 Please initially stake a small amount of tokens compared to existing validators, then delegate to yourself in tranches over time.
 ```
+
+Once your validator has synced and you have received tokens, you can join consensus and produce blocks.
 
 ```
 # Mainnet

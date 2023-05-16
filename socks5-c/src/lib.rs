@@ -21,20 +21,25 @@ pub mod android {
     use self::jni::JNIEnv;
     use super::*;
 
-    use android_logger::Config;
-    use log::Level;
+    use android_logger::{Config, FilterBuilder};
+    use log::LevelFilter;
 
     #[no_mangle]
     #[allow(non_snake_case)]
     pub extern "C" fn Java_net_nymtech_nyms5_Socks5_run<'local>(
         mut env: JNIEnv<'local>,
-        class: JClass<'local>,
+        _class: JClass<'local>,
         input: JString<'local>,
     ) -> jstring {
         android_logger::init_once(
             Config::default()
-                .with_min_level(Level::Trace)
-                .with_tag("libnyms5"),
+                .with_max_level(LevelFilter::Trace)
+                .with_tag("libnyms5")
+                .with_filter(
+                    FilterBuilder::new()
+                        .parse("trace,tungstenite=warn,mio=warn,tokio_tungstenite=warn")
+                        .build(),
+                ),
         );
         log::debug!("Logger initialized");
 
@@ -58,13 +63,14 @@ pub mod android {
 
         rt.block_on(async move {
             let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
-            // let socks5_client = Socks5NymClient::new_with_keys(config, Some(keys));
-            // let mut shutdown_handle = socks5_client.start().await?;
-            // shutdown_handle.wait_for_shutdown().await;
+            let socks5_client = Socks5NymClient::new_with_keys(config, Some(keys));
+            let mut shutdown_handle = socks5_client.start().await?;
+            shutdown_handle.wait_for_shutdown().await;
 
             Ok::<(), anyhow::Error>(())
         })
         .unwrap();
+        log::info!("Done spawning socks5 client");
 
         let output = env
             .new_string(format!("Hello, {}!", input))
@@ -75,9 +81,9 @@ pub mod android {
 
     #[no_mangle]
     pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_runclient(
-        env: JNIEnv,
+        _env: JNIEnv,
         _: JClass,
-        java_pattern: JString,
+        _java_pattern: JString,
     ) {
         // setup_env(None);
 
@@ -151,16 +157,16 @@ pub async fn init_dummy_socks5_config(
     let mut key_manager = nym_client_core::init::new_client_keys();
 
     // Setup gateway and register a new key each time
-    // let gateway = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
-    //     &mut key_manager,
-    //     nym_api_endpoints,
-    //     //Some(chosen_gateway_id),
-    //     None,
-    //     false,
-    // )
-    // .await?;
+    let gateway = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
+        &mut key_manager,
+        nym_api_endpoints,
+        //Some(chosen_gateway_id),
+        None,
+        false,
+    )
+    .await?;
 
-    // config.get_base_mut().set_gateway_endpoint(gateway);
+    config.get_base_mut().set_gateway_endpoint(gateway);
 
     // let _address = *key_manager.identity_keypair().public_key();
 

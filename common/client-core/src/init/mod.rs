@@ -85,11 +85,11 @@ pub async fn register_with_gateway<St: Storage>(
         helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id, by_latency).await?;
     log::debug!("Querying gateway gives: {}", gateway);
 
-    // let our_identity = key_manager.identity_keypair();
+    let our_identity = key_manager.identity_keypair();
 
     // // Establish connection, authenticate and generate keys for talking with the gateway
-    // let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
-    // key_manager.insert_gateway_shared_key(shared_keys);
+    let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
+    key_manager.insert_gateway_shared_key(shared_keys);
 
     Ok(gateway.into())
 }

@@ -3933,8 +3933,6 @@ dependencies = [
  "nym-socks5-client-core",
  "openssl",
  "safer-ffi",
- "swift-bridge",
- "swift-bridge-build",
  "tokio",
 ]
 
@@ -4244,51 +4242,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dcb1ed7b8330c5eed5441052651dd7a12c75e2ed88f2ec024ae1fa3a5e59945"
 dependencies = [
  "zeroize",
-]
-
-[[package]]
-name = "swift-bridge"
-version = "0.1.51"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8fa07c7cd2b2d7ca48d96f5abd159e3fd3eee3457e7bd03adc1994bfbdabd2f"
-dependencies = [
- "swift-bridge-build",
- "swift-bridge-macro",
-]
-
-[[package]]
-name = "swift-bridge-build"
-version = "0.1.51"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "286f727dc922736a1ed74c06bebf43d08b8295a7ba38c77326c74e2b9dfd43df"
-dependencies = [
- "proc-macro2",
- "swift-bridge-ir",
- "syn 1.0.109",
- "tempfile",
-]
-
-[[package]]
-name = "swift-bridge-ir"
-version = "0.1.51"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b4de97e9abde20abc1c01f6d4faa8072d723c73aba288264481a83a1e2787dc"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "swift-bridge-macro"
-version = "0.1.51"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64fabad38a0fc643ceeafefed79e08408c30eeec325b629e426a15b13d055d0a"
-dependencies = [
- "proc-macro2",
- "quote",
- "swift-bridge-ir",
- "syn 1.0.109",
 ]
 
 [[package]]

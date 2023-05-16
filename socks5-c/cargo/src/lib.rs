@@ -3,64 +3,17 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use nym_client_core::client::key_manager::KeyManager;
 use nym_config_common::defaults::setup_env;
+use nym_config_common::NymConfig;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
-use nym_socks5_client_core::config::Config as Socks5Config;
+use nym_socks5_client_core::config::{Config as Socks5Config, Config};
 use nym_socks5_client_core::NymClient as Socks5NymClient;
-use std::ffi::c_void;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, MutexGuard};
-use tokio::runtime::{Handle, Runtime};
-use tokio::sync::{Mutex, Notify, OnceCell};
+use std::sync::Arc;
+use tokio::runtime::Runtime;
+use tokio::sync::{Mutex, Notify};
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
-
-#[cfg(target_os = "android")]
-#[allow(non_snake_case)]
-pub mod android {
-    extern crate jni;
-
-    use std::ffi::CString;
-
-    use self::jni::objects::{JClass, JString};
-    use self::jni::sys::jstring;
-    use self::jni::JNIEnv;
-    use super::*;
-
-    #[no_mangle]
-    pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_runclient(
-        env: JNIEnv,
-        _: JClass,
-        java_pattern: JString,
-    ) {
-        let fake_service_provider = "foomp".to_string();
-        _run_client(fake_service_provider)
-    }
-}
-
-// #[cfg(target_os = "ios")]
-// #[swift_bridge::bridge]
-// pub mod ios {
-//     extern "Rust" {
-//         type Socks5Client;
-//
-//         #[swift_bridge(init)]
-//         fn new() -> Socks5Client;
-//
-//         fn foomp(&self, val: &str) -> String;
-//     }
-// }
-//
-// pub struct Socks5Client;
-//
-// impl Socks5Client {
-//     fn new() -> Self {
-//         Socks5Client
-//     }
-//
-//     fn foomp(&self, val: &str) -> String {
-//         format!("{val} with extra foomp")
-//     }
-// }
 
 // hehe, this is so disgusting : )
 lazy_static! {
@@ -91,6 +44,31 @@ async fn stop_and_reset_shutdown_handle() {
 fn set_default_env() {
     if !ENV_SET.swap(true, Ordering::SeqCst) {
         setup_env(None);
+    }
+}
+
+#[cfg(target_os = "android")]
+#[allow(non_snake_case)]
+pub mod android {
+    extern crate jni;
+
+    use std::ffi::CString;
+
+    use self::jni::objects::{JClass, JString};
+    use self::jni::sys::jstring;
+    use self::jni::JNIEnv;
+    use super::*;
+
+    extern "C" fn placeholder_cb() {}
+
+    #[no_mangle]
+    pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_runclient(
+        env: JNIEnv,
+        _: JClass,
+        java_pattern: JString,
+    ) {
+        let fake_service_provider = "foomp".to_string();
+        blocking_run_client(fake_service_provider, placeholder_cb, placeholder_cb)
     }
 }
 
@@ -134,21 +112,20 @@ pub fn blocking_run_client(
         .unwrap();
 }
 
-// #[ffi_export]
-// pub fn foomp(val: char_p::Ref<'_>) -> char_p::Box {
-//     format!("{val} with extra foomp").try_into().unwrap()
-// }
-//
-// #[ffi_export]
-// pub fn free_foomp(foomp: char_p::Box) {
-//     drop(foomp)
-// }
-//
-// #[ffi_export]
-// pub fn invoke_foomp_with_callback(val: char_p::Ref<'_>, cb: extern "C" fn()) -> char_p::Box {
-//     cb();
-//     foomp(val)
-// }
+#[ffi_export]
+pub fn write_to_file(dir: char_p::Ref<'_>, id: char_p::Ref<'_>, service_provider: char_p::Ref<'_>) {
+    let cfg = Config::new(id.to_string(), service_provider.to_string());
+    cfg.save_to_file(Some(PathBuf::from(dir.to_string())))
+        .expect("failed to save config")
+}
+
+#[ffi_export]
+pub fn read_from_file(dir: char_p::Ref<'_>) -> char_p::Box {
+    let cfg =
+        Config::load_from_filepath(PathBuf::from(dir.to_string())).expect("failed to load config");
+    format!("{:#?}", cfg).try_into().unwrap()
+    //
+}
 
 async fn _async_run_client(
     service_provider: String,

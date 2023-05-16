@@ -10,7 +10,7 @@ use std::any::type_name;
 use std::fmt::Debug;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::{fs, io};
 
@@ -99,8 +99,12 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
 
     fn load_from_file(id: &str) -> io::Result<Self> {
         let file = Self::default_config_file_path(id);
-        log::trace!("Loading from file: {:#?}", file);
-        let config_contents = fs::read_to_string(file)?;
+        Self::load_from_filepath(file)
+    }
+
+    fn load_from_filepath<P: AsRef<Path>>(filepath: P) -> io::Result<Self> {
+        log::trace!("Loading from file: {:#?}", filepath.as_ref().to_owned());
+        let config_contents = fs::read_to_string(filepath)?;
 
         toml::from_str(&config_contents)
             .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))

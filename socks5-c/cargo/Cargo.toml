@@ -11,7 +11,7 @@ required-features = ["headers"]
 
 [lib]
 name = "socks5_c"
-crate-type = ["dylib", "staticlib", "rlib"]
+crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
 anyhow = "1.0"
@@ -30,12 +30,5 @@ safer-ffi = { version = "0.1.0-rc1" }
 [target.'cfg(target_os="android")'.dependencies]
 jni = { version = "0.21", default-features = false }
 
-[target.'cfg(target_os="ios")'.build-dependencies]
-swift-bridge-build = "0.1"
-
-[target.'cfg(target_os="ios")'.dependencies]
-swift-bridge = "0.1"
-
 [features]
 headers = ["safer-ffi/headers"]
-

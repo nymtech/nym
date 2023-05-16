@@ -35,6 +35,11 @@ blocking_run_client (
     void (*on_shutdown_callback)(void));
 
 /** <No documentation available> */
+char *
+read_from_file (
+    char const * dir);
+
+/** <No documentation available> */
 void
 start_client (
     char const * service_provider,
@@ -44,6 +49,13 @@ start_client (
 /** <No documentation available> */
 void
 stop_client (void);
+
+/** <No documentation available> */
+void
+write_to_file (
+    char const * dir,
+    char const * id,
+    char const * service_provider);
 
 
 #ifdef __cplusplus

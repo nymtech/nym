@@ -10,13 +10,8 @@ import SwiftUI
 let NYM_CLIENT_STORAGE_DIR = "/.nym/socks5-clients";
 
 struct ContentView: View {
-    @State private var connected: Bool = false
     @StateObject private var socksWrapper: RustSocks5 = RustSocks5()
     
-    func onConnectionStatusChanged(status: Bool) {
-        self.connected = status
-    }
-       
     func clientStoreDirectory() -> String {
         let dirPaths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
         let client_store_dir = dirPaths[0] + NYM_CLIENT_STORAGE_DIR

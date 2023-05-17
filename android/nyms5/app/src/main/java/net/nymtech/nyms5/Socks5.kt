@@ -3,7 +3,7 @@ package net.nymtech.nyms5
 class Socks5 {
     // Load the native library "libsocks5-c.so".
     init {
-        System.loadLibrary("socks5_c")
+        System.loadLibrary("nym_socks5_listener")
     }
 
     fun runClient(): String {

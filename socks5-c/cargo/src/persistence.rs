@@ -14,7 +14,6 @@ use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 #[cfg(not(target_os = "android"))]
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 
-#[cfg(not(target_os = "android"))]
 pub struct MobileClientStorage {
     #[cfg(not(target_os = "android"))]
     key_store: OnDiskKeys,
@@ -31,7 +30,7 @@ impl MixnetClientStorage for MobileClientStorage {
     type KeyStore = OnDiskKeys;
 
     #[cfg(target_os = "android")]
-    type key_store = InMemEphemeralKeys;
+    type KeyStore = InMemEphemeralKeys;
 
     type ReplyStore = reply_storage::Empty;
     type CredentialStore = EphemeralCredentialStorage;

@@ -28,3 +28,9 @@ android:
 
 android-release:
 	$(ANDROID_ENV) cargo build --lib --target $(ANDROID_TARGET) --release
+
+ios:
+	cargo lipo
+
+ios-release:
+	cargo lipo --release

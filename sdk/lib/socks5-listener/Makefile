@@ -1,5 +1,16 @@
+UNAME_S := $(shell uname -s)
+
+# Default arch
+ANDROID_TOOLCHAIN_ARCH=linux-x86_64
+ifeq ($(UNAME_S),Linux)
+	ANDROID_TOOLCHAIN_ARCH=linux-x86_64
+endif
+ifeq ($(UNAME_S),Darwin)
+	ANDROID_TOOLCHAIN_ARCH=darwin-x86_64
+endif
+
+ANDROID_TOOLCHAIN=$(NDK_HOME)/toolchains/llvm/prebuilt/$(ANDROID_TOOLCHAIN_ARCH)
 ANDROID_API=33
-ANDROID_TOOLCHAIN=$(NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64
 ANDROID_TARGET_CC=$(ANDROID_TOOLCHAIN)/bin/x86_64-linux-android$(ANDROID_API)-clang
 ANDROID_TARGET_AR=$(ANDROID_TOOLCHAIN)/bin/llvm-ar
 ANDROID_TARGET_RANLIB=$(ANDROID_TOOLCHAIN)/bin/llvm-ranlib

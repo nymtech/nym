@@ -55,7 +55,10 @@ impl MixnetClientStorage for MobileClientStorage {
 impl MobileClientStorage {
     pub fn new(config: &Socks5Config) -> Self {
         #[cfg(target_os = "android")]
-        let key_store = InMemEphemeralKeys;
+        let key_store = {
+            let _ = config;
+            InMemEphemeralKeys
+        };
 
         #[cfg(not(target_os = "android"))]
         let key_store = {

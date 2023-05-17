@@ -13,7 +13,6 @@ use crate::{
     error::ClientCoreError,
 };
 use nym_config::NymConfig;
-use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
@@ -24,7 +23,7 @@ use std::sync::Arc;
 use tap::TapFallible;
 use url::Url;
 
-pub mod helpers;
+mod helpers;
 
 /// Struct describing the results of the client initialization procedure.
 #[derive(Debug, Serialize)]
@@ -68,23 +67,19 @@ impl Display for InitResults {
 /// Either pick one at random by querying the available gateways from the nym-api, or use the
 /// chosen one if it's among the available ones.
 /// The shared key is added to the supplied `KeyManager` and the endpoint details are returned.
-pub async fn register_with_gateway<St>(
+pub async fn register_with_gateway(
     identity_keys: Arc<identity::KeyPair>,
     nym_api_endpoints: Vec<Url>,
     chosen_gateway_id: Option<identity::PublicKey>,
     by_latency: bool,
-) -> Result<(GatewayEndpointConfig, Arc<SharedKeys>), ClientCoreError>
-where
-    St: CredentialStorage,
-    <St as CredentialStorage>::StorageError: Send + Sync + 'static,
-{
+) -> Result<(GatewayEndpointConfig, Arc<SharedKeys>), ClientCoreError> {
     // Get the gateway details of the gateway we will use
     let gateway =
         helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id, by_latency).await?;
     log::debug!("Querying gateway gives: {gateway}");
 
     // Establish connection, authenticate and generate keys for talking with the gateway
-    let shared_keys = helpers::register_with_gateway::<St>(&gateway, identity_keys).await?;
+    let shared_keys = helpers::register_with_gateway(&gateway, identity_keys).await?;
 
     Ok((gateway.into(), shared_keys))
 }
@@ -96,7 +91,7 @@ where
 /// b. Create a new gateway configuration but keep existing keys. This assumes that the caller
 ///    knows what they are doing and that the keys match the requested gateway.
 /// c. Create a new gateway configuration with a newly registered gateway and keys.
-pub async fn setup_gateway_from_config<C, T, KSt, St>(
+pub async fn setup_gateway_from_config<C, T, KSt>(
     key_store: &KSt,
     register_gateway: bool,
     user_chosen_gateway_id: Option<identity::PublicKey>,
@@ -108,8 +103,6 @@ where
     T: NymConfig,
     KSt: KeyStore,
     <KSt as KeyStore>::StorageError: Send + Sync + 'static,
-    St: CredentialStorage,
-    <St as CredentialStorage>::StorageError: Send + Sync + 'static,
 {
     let id = config.get_id();
 
@@ -145,7 +138,7 @@ where
 
     // Establish connection, authenticate and generate keys for talking with the gateway
     eprintln!("Registering with new gateway");
-    let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
+    let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
     managed_keys
         .deal_with_gateway_key(shared_keys, key_store)
         .await

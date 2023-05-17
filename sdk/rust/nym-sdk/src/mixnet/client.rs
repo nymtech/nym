@@ -364,15 +364,14 @@ where
             .transpose()?;
 
         let api_endpoints = self.get_api_endpoints();
-        let (gateway_config, shared_key) =
-            nym_client_core::init::register_with_gateway::<S::CredentialStore>(
-                self.managed_keys.identity_keypair(),
-                api_endpoints,
-                user_chosen_gateway,
-                // TODO: this should probably be configurable with the config
-                false,
-            )
-            .await?;
+        let (gateway_config, shared_key) = nym_client_core::init::register_with_gateway(
+            self.managed_keys.identity_keypair(),
+            api_endpoints,
+            user_chosen_gateway,
+            // TODO: this should probably be configurable with the config
+            false,
+        )
+        .await?;
 
         // TODO: this will deal with storage if it's a fresh key
         self.managed_keys

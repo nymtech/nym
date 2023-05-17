@@ -28,6 +28,7 @@ fn init_jni_logger() {
     log::debug!("Logger initialized");
 }
 
+/// Blocking call that starts the socks5 listener
 #[no_mangle]
 pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_run(
     mut env: JNIEnv,
@@ -59,4 +60,32 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_run(
         .expect("Couldn't create java string!");
 
     output.into_raw()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_start_client(
+    _env: JNIEnv,
+    _class: JClass,
+    _input: JString,
+) {
+    // TODO: how does this work if we are not doing blocking calls?
+    init_jni_logger();
+
+    // TODO: get the service provider from input
+    let service_provider = char_p::new("DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh");
+    crate::start_client(
+        None,
+        Some(service_provider.as_ref()),
+        placeholder_startup_cb,
+        placeholder_shutdown_cb,
+    );
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_stop_client(
+    _env: JNIEnv,
+    _class: JClass,
+) {
+    //init_jni_logger();
+    crate::stop_client();
 }

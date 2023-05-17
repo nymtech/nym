@@ -63,6 +63,7 @@ fn rust_free_string(string: char_p::Box) {
 #[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 pub mod android {
+    // TODO: this seems oldschool, remove once we get it to work
     extern crate jni;
 
     use std::ffi::CString;
@@ -106,7 +107,8 @@ pub mod android {
         // TODO: get the service provider from input
         let service_provider = "DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh".try_into().unwrap();
         blocking_run_client(
-            service_provider,
+            None,
+            Some(service_provider),
             placeholder_startup_cb,
             placeholder_shutdown_cb,
         );
@@ -130,12 +132,12 @@ pub enum ClientState {
 
 #[ffi_export]
 pub fn start_client(
-    storage_directory: char_p::Ref<'_>,
+    storage_directory: Option<char_p::Ref<'_>>,
     service_provider: Option<char_p::Ref<'_>>,
     on_start_callback: StartupCallback,
     on_shutdown_callback: ShutdownCallback,
 ) {
-    let storage_dir = storage_directory.to_string();
+    let storage_dir = storage_directory.map(|s| s.to_string());
     let service_provider = service_provider.map(|s| s.to_string());
     RUNTIME.spawn(async move {
         _async_run_client(
@@ -156,12 +158,12 @@ pub fn stop_client() {
 
 #[ffi_export]
 pub fn blocking_run_client(
-    storage_directory: char_p::Ref<'_>,
+    storage_directory: Option<char_p::Ref<'_>>,
     service_provider: Option<char_p::Ref<'_>>,
     on_start_callback: StartupCallback,
     on_shutdown_callback: ShutdownCallback,
 ) {
-    let storage_dir = storage_directory.to_string();
+    let storage_dir = storage_directory.map(|s| s.to_string());
     let service_provider = service_provider.map(|s| s.to_string());
     RUNTIME
         .block_on(async move {
@@ -204,7 +206,7 @@ fn _reset_client_data(root_directory: String) {
 // }
 
 async fn _async_run_client(
-    storage_dir: String,
+    storage_dir: Option<String>,
     client_id: String,
     service_provider: Option<String>,
     on_start_callback: StartupCallback,
@@ -247,34 +249,36 @@ async fn _async_run_client(
 
 // note: it does might not contain any gateway configuration and should not be persisted in that state!
 async fn load_or_generate_base_config(
-    storage_dir: String,
+    storage_dir: Option<String>,
     client_id: String,
     service_provider: Option<String>,
 ) -> Result<Socks5Config> {
-    let expected_store_path =
-        Socks5Config::default_config_file_path_with_root(&storage_dir, &client_id.to_string());
-    eprintln!("attempting to load socks5 config from {expected_store_path:?}");
+    if let Some(ref storage_dir) = storage_dir {
+        let expected_store_path =
+            Socks5Config::default_config_file_path_with_root(&storage_dir, &client_id.to_string());
+        eprintln!("attempting to load socks5 config from {expected_store_path:?}");
 
-    // simulator workaround
-    if let Ok(config) = Socks5Config::load_from_filepath(expected_store_path) {
-        eprintln!("loaded config");
-        let root = config.get_base().get_nym_root_directory();
-        eprintln!("actual root: {storage_dir}");
-        eprintln!("retrieved root: {root:?}");
+        // simulator workaround
+        if let Ok(config) = Socks5Config::load_from_filepath(expected_store_path) {
+            eprintln!("loaded config");
+            let root = config.get_base().get_nym_root_directory();
+            eprintln!("actual root: {storage_dir}");
+            eprintln!("retrieved root: {root:?}");
 
-        if root.to_str() == Some(storage_dir.as_str()) {
-            return Ok(config);
-        }
-        eprintln!("... but it seems to have been made for different container - fixing it up... (ASSUMING DEFAULT PATHS)");
-        return Ok(config.with_root_directory(storage_dir));
-    };
+            if root.to_str() == Some(storage_dir.as_str()) {
+                return Ok(config);
+            }
+            eprintln!("... but it seems to have been made for different container - fixing it up... (ASSUMING DEFAULT PATHS)");
+            return Ok(config.with_root_directory(storage_dir));
+        };
+    }
 
     eprintln!("creating new config");
     setup_new_client_config(storage_dir, client_id, service_provider).await
 }
 
 async fn setup_new_client_config(
-    storage_dir: String,
+    storage_dir: Option<String>,
     client_id: String,
     service_provider: Option<String>,
 ) -> Result<Socks5Config> {
@@ -282,8 +286,12 @@ async fn setup_new_client_config(
         "service provider was not specified for fresh config"
     ))?;
 
-    let mut new_config =
-        Socks5Config::new(client_id, service_provider).with_root_directory(storage_dir);
+    let mut new_config = if let Some(storage_dir) = storage_dir {
+        Socks5Config::new(client_id, service_provider).with_root_directory(storage_dir)
+    } else {
+        Socks5Config::new(client_id, service_provider)
+    };
+
     if let Ok(raw_validators) = std::env::var(nym_config_common::defaults::var_names::NYM_API) {
         new_config
             .get_base_mut()

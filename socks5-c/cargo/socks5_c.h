@@ -37,6 +37,11 @@ blocking_run_client (
 
 /** <No documentation available> */
 void
+reset_client_data (
+    char const * root_directory);
+
+/** <No documentation available> */
+void
 rust_free_string (
     char * string);
 

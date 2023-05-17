@@ -10,11 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class MainViewModel : ViewModel() {
-
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            val result = Socks5().runtest()
-            result?.let { Log.d("App", "result: $it") }
+            val result = Socks5().runClient()
+            result.let { Log.d("App", "result: $it") }
         }
         Log.d("App", "libnyms5 CALLED")
     }

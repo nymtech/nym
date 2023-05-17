@@ -63,7 +63,7 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_run(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_start_client(
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_startClient(
     _env: JNIEnv,
     _class: JClass,
     _input: JString,
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_start_client(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_stop_client(
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_stopClient(
     _env: JNIEnv,
     _class: JClass,
 ) {

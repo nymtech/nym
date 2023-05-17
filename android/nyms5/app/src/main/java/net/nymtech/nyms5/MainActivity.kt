@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
                     var connected by remember { mutableStateOf(false) }
                     Socks5Client(connected, {
                         lifecycleScope.launch(Dispatchers.IO) {
-                            Socks5().runClient()
+                            Socks5().start()
                         }
                         Log.i("App", "Nym Socks5 client started")
                         connected = true

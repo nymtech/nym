@@ -3,6 +3,7 @@
 
 //! Collection of initialization steps used by client implementations
 
+use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::KeyManager;
 use crate::{
     config::{
@@ -12,18 +13,18 @@ use crate::{
     error::ClientCoreError,
 };
 use nym_config::NymConfig;
-use nym_credential_storage::storage::Storage;
+use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
 use rand::rngs::OsRng;
 use serde::Serialize;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::sync::Arc;
 use tap::TapFallible;
 use url::Url;
 
-mod helpers;
+pub mod helpers;
 
 /// Struct describing the results of the client initialization procedure.
 #[derive(Debug, Serialize)]
@@ -74,8 +75,8 @@ pub async fn register_with_gateway<St>(
     by_latency: bool,
 ) -> Result<(GatewayEndpointConfig, Arc<SharedKeys>), ClientCoreError>
 where
-    St: Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
+    St: CredentialStorage,
+    <St as CredentialStorage>::StorageError: Send + Sync + 'static,
 {
     // Get the gateway details of the gateway we will use
     let gateway =
@@ -95,8 +96,8 @@ where
 /// b. Create a new gateway configuration but keep existing keys. This assumes that the caller
 ///    knows what they are doing and that the keys match the requested gateway.
 /// c. Create a new gateway configuration with a newly registered gateway and keys.
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn setup_gateway_from_config<C, T, St>(
+pub async fn setup_gateway_from_config<C, T, KSt, St>(
+    key_store: &KSt,
     register_gateway: bool,
     user_chosen_gateway_id: Option<identity::PublicKey>,
     config: &Config<T>,
@@ -105,8 +106,10 @@ pub async fn setup_gateway_from_config<C, T, St>(
 where
     C: NymConfig + ClientCoreConfigTrait,
     T: NymConfig,
-    St: Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
+    KSt: KeyStore,
+    <KSt as KeyStore>::StorageError: Send + Sync + 'static,
+    St: CredentialStorage,
+    <St as CredentialStorage>::StorageError: Send + Sync + 'static,
 {
     let id = config.get_id();
 
@@ -133,10 +136,9 @@ where
         return Ok(gateway.into());
     }
 
-    let key_store = helpers::on_disk_key_store(config);
     let mut rng = OsRng;
     let mut managed_keys =
-        crate::client::key_manager::ManagedKeys::load_or_generate(&mut rng, &key_store).await;
+        crate::client::key_manager::ManagedKeys::load_or_generate(&mut rng, key_store).await;
 
     // Create new keys and derive our identity
     let our_identity = managed_keys.identity_keypair();
@@ -145,7 +147,7 @@ where
     eprintln!("Registering with new gateway");
     let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
     managed_keys
-        .deal_with_gateway_key(shared_keys, &key_store)
+        .deal_with_gateway_key(shared_keys, key_store)
         .await
         .map_err(|source| ClientCoreError::KeyStoreError {
             source: Box::new(source),

@@ -15,6 +15,7 @@ use nym_client_core::client::base_client::{
     non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use nym_client_core::config::DebugConfig;
+use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::nyxd::QueryNyxdClient;
@@ -29,6 +30,9 @@ use nym_client_core::client::{
 #[cfg(any(target_os = "android", target_os = "ios"))]
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 
+use nym_client_core::client::base_client::storage::MixnetClientStorage;
+use nym_client_core::client::key_manager::persistence::KeyStore;
+use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use nym_client_core::{
     client::{
@@ -69,15 +73,24 @@ pub struct StartedSocks5Client {
     pub address: Recipient,
 }
 
-pub struct NymClient {
+pub struct NymClient<S> {
     /// Client configuration options, including, among other things, packet sending rates,
     /// key filepaths, etc.
     config: Config,
+
+    storage: S,
 }
 
-impl NymClient {
-    pub fn new(config: Config) -> Self {
-        NymClient { config }
+impl<S> NymClient<S>
+where
+    S: MixnetClientStorage + 'static,
+    S::ReplyStore: Send + Sync,
+    <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
+    <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
+    <S::KeyStore as KeyStore>::StorageError: Send + Sync,
+{
+    pub fn new(config: Config, storage: S) -> Self {
+        NymClient { config, storage }
     }
 
     pub fn start_socks5_listener(
@@ -199,12 +212,52 @@ impl NymClient {
         res
     }
 
-    pub async fn start(self) -> Result<StartedSocks5Client, Socks5ClientCoreError> {
-        #[cfg(not(any(target_os = "android", target_os = "ios")))]
-        let base_builder = self.create_base_client_builder().await?;
+    // async fn create_base_client_builder2(
+    //     &self,
+    // ) -> Result<Socks5ClientBuilder, Socks5ClientCoreError> {
+    //     // don't create bandwidth controller if credentials are disabled
+    //     let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+    //         None
+    //     } else {
+    //         Some(self.create_bandwidth_controller().await)
+    //     };
+    //
+    //     let key_store = self.key_store();
+    //     let reply_storage_backend = self.create_reply_storage_backend().await?;
+    //
+    //     Ok(BaseClientBuilder::new_from_base_config(
+    //         self.config.get_base(),
+    //         key_store,
+    //         bandwidth_controller,
+    //         reply_storage_backend,
+    //     ))
+    // }
 
-        #[cfg(any(target_os = "android", target_os = "ios"))]
-        let base_builder = self.create_base_client_builder();
+    pub async fn start(self) -> Result<StartedSocks5Client, Socks5ClientCoreError> {
+        // #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        // let base_builder = self.create_base_client_builder().await?;
+        //
+        // #[cfg(any(target_os = "android", target_os = "ios"))]
+        // let base_builder = self.create_base_client_builder();
+
+        let (key_store, reply_storage_backend, credential_store) = self.storage.into_split();
+
+        // don't create bandwidth controller if credentials are disabled
+        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+            None
+        } else {
+            Some(non_wasm_helpers::create_bandwidth_controller(
+                self.config.get_base(),
+                credential_store,
+            ))
+        };
+
+        let base_builder = BaseClientBuilder::<_, S>::new_from_base_config(
+            self.config.get_base(),
+            key_store,
+            bandwidth_controller,
+            reply_storage_backend,
+        );
 
         let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address;
@@ -231,91 +284,91 @@ impl NymClient {
         })
     }
 }
-
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-impl NymClient {
-    fn key_store(&self) -> OnDiskKeys {
-        let pathfinder = ClientKeyPathfinder::new_from_config(self.config.get_base());
-        OnDiskKeys::new(pathfinder)
-    }
-
-    async fn create_bandwidth_controller(
-        &self,
-    ) -> BandwidthController<Client<QueryNyxdClient>, PersistentStorage> {
-        let storage = nym_credential_storage::initialise_persistent_storage(
-            self.config.get_base().get_database_path(),
-        )
-        .await;
-
-        non_wasm_helpers::create_bandwidth_controller(self.config.get_base(), storage)
-    }
-
-    async fn create_reply_storage_backend(
-        &self,
-    ) -> Result<fs_backend::Backend, Socks5ClientCoreError> {
-        non_wasm_helpers::setup_fs_reply_surb_backend(
-            self.config.get_base().get_reply_surb_database_path(),
-            &self.config.get_debug_settings().reply_surbs,
-        )
-        .await
-        .map_err(Into::into)
-    }
-
-    async fn create_base_client_builder(
-        &self,
-    ) -> Result<Socks5ClientBuilder, Socks5ClientCoreError> {
-        // don't create bandwidth controller if credentials are disabled
-        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
-            None
-        } else {
-            Some(self.create_bandwidth_controller().await)
-        };
-
-        let key_store = self.key_store();
-        let reply_storage_backend = self.create_reply_storage_backend().await?;
-
-        Ok(BaseClientBuilder::new_from_base_config(
-            self.config.get_base(),
-            key_store,
-            bandwidth_controller,
-            reply_storage_backend,
-        ))
-    }
-}
-
-#[cfg(any(target_os = "android", target_os = "ios"))]
-impl NymClient {
-    fn key_store(&self) -> InMemEphemeralKeys {
-        InMemEphemeralKeys
-    }
-
-    fn create_bandwidth_controller(
-        &self,
-    ) -> BandwidthController<Client<QueryNyxdClient>, EphemeralStorage> {
-        let storage = nym_credential_storage::initialise_ephemeral_storage();
-
-        non_wasm_helpers::create_bandwidth_controller(self.config.get_base(), storage)
-    }
-
-    fn create_reply_storage_backend(&self) -> reply_storage::Empty {
-        setup_empty_reply_surb_backend(self.config.get_debug_settings())
-    }
-
-    fn create_base_client_builder(&self) -> MobileSocks5ClientBuilder {
-        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
-            None
-        } else {
-            Some(self.create_bandwidth_controller())
-        };
-
-        let key_store = self.key_store();
-        let reply_storage_backend = self.create_reply_storage_backend();
-
-        BaseClientBuilder::new_from_base_config(
-            self.config.get_base(),
-            key_store,
-            bandwidth_controller,
-            reply_storage_backend,
-        )
-    }
-}
+//
+// #[cfg(not(any(target_os = "android", target_os = "ios")))]
+// impl NymClient {
+//     fn key_store(&self) -> OnDiskKeys {
+//         let pathfinder = ClientKeyPathfinder::new_from_config(self.config.get_base());
+//         OnDiskKeys::new(pathfinder)
+//     }
+//
+//     async fn create_bandwidth_controller(
+//         &self,
+//     ) -> BandwidthController<Client<QueryNyxdClient>, PersistentStorage> {
+//         let storage = nym_credential_storage::initialise_persistent_storage(
+//             self.config.get_base().get_database_path(),
+//         )
+//         .await;
+//
+//         non_wasm_helpers::create_bandwidth_controller(self.config.get_base(), storage)
+//     }
+//
+//     async fn create_reply_storage_backend(
+//         &self,
+//     ) -> Result<fs_backend::Backend, Socks5ClientCoreError> {
+//         non_wasm_helpers::setup_fs_reply_surb_backend(
+//             self.config.get_base().get_reply_surb_database_path(),
+//             &self.config.get_debug_settings().reply_surbs,
+//         )
+//         .await
+//         .map_err(Into::into)
+//     }
+//
+//     async fn create_base_client_builder(
+//         &self,
+//     ) -> Result<Socks5ClientBuilder, Socks5ClientCoreError> {
+//         // don't create bandwidth controller if credentials are disabled
+//         let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+//             None
+//         } else {
+//             Some(self.create_bandwidth_controller().await)
+//         };
+//
+//         let key_store = self.key_store();
+//         let reply_storage_backend = self.create_reply_storage_backend().await?;
+//
+//         Ok(BaseClientBuilder::new_from_base_config(
+//             self.config.get_base(),
+//             key_store,
+//             bandwidth_controller,
+//             reply_storage_backend,
+//         ))
+//     }
+// }
+//
+// #[cfg(any(target_os = "android", target_os = "ios"))]
+// impl NymClient {
+//     fn key_store(&self) -> InMemEphemeralKeys {
+//         InMemEphemeralKeys
+//     }
+//
+//     fn create_bandwidth_controller(
+//         &self,
+//     ) -> BandwidthController<Client<QueryNyxdClient>, EphemeralStorage> {
+//         let storage = nym_credential_storage::initialise_ephemeral_storage();
+//
+//         non_wasm_helpers::create_bandwidth_controller(self.config.get_base(), storage)
+//     }
+//
+//     fn create_reply_storage_backend(&self) -> reply_storage::Empty {
+//         setup_empty_reply_surb_backend(self.config.get_debug_settings())
+//     }
+//
+//     fn create_base_client_builder(&self) -> MobileSocks5ClientBuilder {
+//         let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+//             None
+//         } else {
+//             Some(self.create_bandwidth_controller())
+//         };
+//
+//         let key_store = self.key_store();
+//         let reply_storage_backend = self.create_reply_storage_backend();
+//
+//         BaseClientBuilder::new_from_base_config(
+//             self.config.get_base(),
+//             key_store,
+//             bandwidth_controller,
+//             reply_storage_backend,
+//         )
+//     }
+// }

@@ -253,7 +253,7 @@ where
 
 // TODO: make it generic
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) fn on_disk_key_store<T>(config: &Config<T>) -> OnDiskKeys
+pub fn on_disk_key_store<T>(config: &Config<T>) -> OnDiskKeys
 where
     T: NymConfig,
 {

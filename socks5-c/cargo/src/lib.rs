@@ -1,15 +1,18 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::persistence::MobileClientStorage;
 use ::safer_ffi::prelude::*;
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
+use nym_client_core::client::base_client::storage::MixnetClientStorage;
+use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
 use nym_client_core::client::key_manager::{KeyManager, KeyManagerBuilder};
-use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::init::helpers::on_disk_key_store;
 use nym_config_common::defaults::setup_env;
 use nym_config_common::NymConfig;
-use nym_credential_storage::ephemeral_storage::EphemeralStorage;
-use nym_socks5_client_core::config::{Config as Socks5Config, Config};
+use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
+use nym_socks5_client_core::config::Config as Socks5Config;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
 use rand::thread_rng;
 use std::path::PathBuf;
@@ -20,6 +23,7 @@ use tokio::sync::{Mutex, Notify};
 
 #[cfg(target_os = "android")]
 pub mod android;
+mod persistence;
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
 
@@ -162,30 +166,35 @@ async fn _async_run_client(
     set_shutdown_handle(stop_handle.clone()).await;
 
     // TODO: restore key persistence, gateway reg, etc...
-    let mut config = Socks5Config::new(
-        client_id,
-        service_provider.expect("it's mandatory again..."),
-    );
-    config
-        .get_base_mut()
-        .set_gateway_endpoint(GatewayEndpointConfig::new(
-            "2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh".to_string(),
-            "doesn't matter without coconut".to_string(),
-            "ws://194.182.191.207:9000".to_string(),
-        ));
-    let socks5_client = Socks5NymClient::new(config);
+    // let mut config = Socks5Config::new(
+    //     client_id,
+    //     service_provider.expect("it's mandatory again..."),
+    // );
+    // config
+    //     .get_base_mut()
+    //     .set_gateway_endpoint(GatewayEndpointConfig::new(
+    //         "2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh".to_string(),
+    //         "doesn't matter without coconut".to_string(),
+    //         "ws://194.182.191.207:9000".to_string(),
+    //     ));
+    // let socks5_client = Socks5NymClient::new(config);
 
-    // let socks5_client = if let Some(storage_dir) = storage_dir {
-    //     let config = load_or_generate_base_config(storage_dir, client_id, service_provider).await?;
-    //     Socks5NymClient::new(config)
-    // } else {
-    //     let service_provider = service_provider.ok_or(anyhow!(
-    //         "service provider was not specified for fresh config"
-    //     ))?;
-    //     todo!()
-    //     // let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
-    //     // Socks5NymClient::new(config)
-    // };
+    let socks5_client = if let Some(storage_dir) = storage_dir {
+        let config = load_or_generate_base_config(storage_dir, client_id, service_provider).await?;
+        let storage = MobileClientStorage::new(&config);
+        Socks5NymClient::new(config, storage)
+    } else {
+        let service_provider = service_provider.ok_or(anyhow!(
+            "service provider was not specified for fresh config"
+        ))?;
+        let config =
+            setup_new_client_config("/tmp".into(), client_id, Some(service_provider)).await?;
+        let storage = MobileClientStorage::new(&config);
+        Socks5NymClient::new(config, storage)
+        // todo!()
+        // // let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
+        // // Socks5NymClient::new(config)
+    };
 
     eprintln!("starting the socks5 client");
     let mut started_client = socks5_client.start().await?;
@@ -253,6 +262,13 @@ async fn setup_new_client_config(
     let mut new_config =
         Socks5Config::new(client_id, service_provider).with_root_directory(storage_dir);
 
+    // ugh that's disgusting...
+    #[cfg(not(target_os = "android"))]
+    let key_store = on_disk_key_store(new_config.get_base());
+
+    #[cfg(target_os = "android")]
+    let key_store = InMemEphemeralKeys;
+
     if let Ok(raw_validators) = std::env::var(nym_config_common::defaults::var_names::NYM_API) {
         new_config
             .get_base_mut()
@@ -260,12 +276,12 @@ async fn setup_new_client_config(
     }
 
     // note: this will also do key storage (annoyingly...)
-    let gateway = nym_client_core::init::setup_gateway_from_config::<Config, _, EphemeralStorage>(
-        true,
-        None,
-        new_config.get_base(),
-        false,
-    )
+    let gateway = nym_client_core::init::setup_gateway_from_config::<
+        Socks5Config,
+        _,
+        _,
+        EphemeralCredentialStorage,
+    >(&key_store, true, None, new_config.get_base(), false)
     .await?;
 
     new_config.get_base_mut().set_gateway_endpoint(gateway);
@@ -298,14 +314,15 @@ pub async fn init_dummy_socks5_config(
     let key_manager_builder = KeyManagerBuilder::new(&mut rng);
 
     // Setup gateway and register a new key each time
-    let (gateway, shared_key) = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
-        key_manager_builder.identity_keypair(),
-        nym_api_endpoints,
-        //Some(chosen_gateway_id),
-        None,
-        false,
-    )
-    .await?;
+    let (gateway, shared_key) =
+        nym_client_core::init::register_with_gateway::<EphemeralCredentialStorage>(
+            key_manager_builder.identity_keypair(),
+            nym_api_endpoints,
+            //Some(chosen_gateway_id),
+            None,
+            false,
+        )
+        .await?;
 
     config.get_base_mut().set_gateway_endpoint(gateway);
 

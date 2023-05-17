@@ -29,7 +29,7 @@ impl ClientKeyPathfinder {
         }
     }
 
-    pub fn new_from_config<T: NymConfig>(config: &Config<T>) -> Self {
+    pub fn new_from_config<T>(config: &Config<T>) -> Self {
         ClientKeyPathfinder {
             identity_private_key: config.get_private_identity_key_file(),
             identity_public_key: config.get_public_identity_key_file(),

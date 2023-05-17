@@ -12,14 +12,9 @@ use futures::StreamExt;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::{
-    BaseClientBuilder, ClientInput, ClientOutput, ClientState,
+    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
-use nym_client_core::client::key_manager::KeyManager;
-use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_client_core::config::DebugConfig;
-#[cfg(any(target_os = "android", target_os = "ios"))]
-use nym_credential_storage::ephemeral_storage::EphemeralStorage;
-use nym_credential_storage::storage::Storage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::nyxd::QueryNyxdClient;
@@ -27,9 +22,23 @@ use nym_validator_client::Client;
 use std::error::Error;
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
-use nym_client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
+use nym_client_core::client::{
+    base_client::helpers::setup_empty_reply_surb_backend, base_client::storage,
+    key_manager::persistence::InMemEphemeralKeys, replies::reply_storage,
+};
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use nym_credential_storage::ephemeral_storage::EphemeralStorage;
+
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-use nym_client_core::client::base_client::non_wasm_helpers;
+use nym_client_core::{
+    client::{
+        base_client::storage::OnDiskPersistent, key_manager::persistence::OnDiskKeys,
+        replies::reply_storage::fs_backend,
+    },
+    config::persistence::key_pathfinder::ClientKeyPathfinder,
+};
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+use nym_credential_storage::persistent_storage::PersistentStorage;
 
 pub mod config;
 pub mod error;
@@ -39,69 +48,36 @@ pub mod socks;
 pub type Socks5ControlMessageSender = mpsc::UnboundedSender<Socks5ControlMessage>;
 pub type Socks5ControlMessageReceiver = mpsc::UnboundedReceiver<Socks5ControlMessage>;
 
+#[cfg(any(target_os = "android", target_os = "ios"))]
+type MobileSocks5ClientBuilder<'a> =
+    BaseClientBuilder<'a, Client<QueryNyxdClient>, storage::Ephemeral>;
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+type Socks5ClientBuilder<'a> = BaseClientBuilder<'a, Client<QueryNyxdClient>, OnDiskPersistent>;
+
 #[derive(Debug)]
 pub enum Socks5ControlMessage {
     /// Tell the main task to stop
     Stop,
 }
 
+pub struct StartedSocks5Client {
+    /// Handle for managing graceful shutdown of this client. If dropped, the client will be stopped.
+    pub shutdown_handle: TaskManager,
+
+    /// Address of the started client
+    pub address: Recipient,
+}
+
 pub struct NymClient {
     /// Client configuration options, including, among other things, packet sending rates,
     /// key filepaths, etc.
     config: Config,
-
-    /// KeyManager object containing smart pointers to all relevant keys used by the client.
-    key_manager: KeyManager,
 }
 
 impl NymClient {
     pub fn new(config: Config) -> Self {
-        let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-        let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
-
-        NymClient {
-            config,
-            key_manager,
-        }
-    }
-
-    pub fn new_with_keys(config: Config, key_manager: Option<KeyManager>) -> Self {
-        let key_manager = key_manager.unwrap_or_else(|| {
-            let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-            KeyManager::load_keys(&pathfinder).expect("failed to load stored keys")
-        });
-
-        NymClient {
-            config,
-            key_manager,
-        }
-    }
-
-    #[allow(unused)]
-    async fn create_bandwidth_controller<St: Storage>(
-        config: &Config,
-        storage: St,
-    ) -> BandwidthController<Client<QueryNyxdClient>, St> {
-        let details = nym_network_defaults::NymNetworkDetails::new_from_env();
-        let mut client_config =
-            nym_validator_client::Config::try_from_nym_network_details(&details)
-                .expect("failed to construct validator client config");
-        let nyxd_url = config
-            .get_base()
-            .get_validator_endpoints()
-            .pop()
-            .expect("No nyxd validator endpoint provided");
-        let api_url = config
-            .get_base()
-            .get_nym_api_endpoints()
-            .pop()
-            .expect("No validator api endpoint provided");
-        // overwrite env configuration with config URLs
-        client_config = client_config.with_urls(nyxd_url, api_url);
-        let client = nym_validator_client::Client::new_query(client_config)
-            .expect("Could not construct query client");
-
-        BandwidthController::new(storage, client)
+        NymClient { config }
     }
 
     pub fn start_socks5_listener(
@@ -169,9 +145,9 @@ impl NymClient {
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
     pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let (_, shutdown) = self.start().await?;
+        let started = self.start().await?;
 
-        let res = shutdown.catch_interrupt().await;
+        let res = started.shutdown_handle.catch_interrupt().await;
         log::info!("Stopping nym-socks5-client");
         res
     }
@@ -183,7 +159,8 @@ impl NymClient {
         sender: nym_task::StatusSender,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Start the main task
-        let (_, mut shutdown) = self.start().await?;
+        let started = self.start().await?;
+        let mut shutdown = started.shutdown_handle;
 
         // Listen to status messages from task, that we forward back to the caller
         shutdown.start_status_listener(sender).await;
@@ -222,46 +199,15 @@ impl NymClient {
         res
     }
 
-    pub async fn start(self) -> Result<(Recipient, TaskManager), Socks5ClientCoreError> {
+    pub async fn start(self) -> Result<StartedSocks5Client, Socks5ClientCoreError> {
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
-        let base_builder = BaseClientBuilder::new_from_base_config(
-            self.config.get_base(),
-            self.key_manager,
-            Some(
-                Self::create_bandwidth_controller(
-                    &self.config,
-                    nym_credential_storage::initialise_persistent_storage(
-                        self.config.get_base().get_database_path(),
-                    )
-                    .await,
-                )
-                .await,
-            ),
-            non_wasm_helpers::setup_fs_reply_surb_backend(
-                Some(self.config.get_base().get_reply_surb_database_path()),
-                self.config.get_debug_settings(),
-            )
-            .await?,
-        );
+        let base_builder = self.create_base_client_builder().await?;
 
         #[cfg(any(target_os = "android", target_os = "ios"))]
-        let base_builder =
-            BaseClientBuilder::<_, Client<QueryNyxdClient>, EphemeralStorage>::new_from_base_config(
-                self.config.get_base(),
-                self.key_manager,
-                None,
-                //Some(
-                //    Self::create_bandwidth_controller(
-                //        &self.config,
-                //        nym_credential_storage::initialise_ephemeral_storage(),
-                //    )
-                //    .await,
-                //),
-                setup_empty_reply_surb_backend(self.config.get_debug_settings()),
-            );
+        let base_builder = self.create_base_client_builder();
 
-        let self_address = base_builder.as_mix_recipient();
         let mut started_client = base_builder.start_base().await?;
+        let self_address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
@@ -279,6 +225,97 @@ impl NymClient {
         info!("Client startup finished!");
         info!("The address of this client is: {self_address}");
 
-        Ok((self_address, started_client.task_manager))
+        Ok(StartedSocks5Client {
+            shutdown_handle: started_client.task_manager,
+            address: self_address,
+        })
+    }
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+impl NymClient {
+    fn key_store(&self) -> OnDiskKeys {
+        let pathfinder = ClientKeyPathfinder::new_from_config(self.config.get_base());
+        OnDiskKeys::new(pathfinder)
+    }
+
+    async fn create_bandwidth_controller(
+        &self,
+    ) -> BandwidthController<Client<QueryNyxdClient>, PersistentStorage> {
+        let storage = nym_credential_storage::initialise_persistent_storage(
+            self.config.get_base().get_database_path(),
+        )
+        .await;
+
+        non_wasm_helpers::create_bandwidth_controller(self.config.get_base(), storage)
+    }
+
+    async fn create_reply_storage_backend(
+        &self,
+    ) -> Result<fs_backend::Backend, Socks5ClientCoreError> {
+        non_wasm_helpers::setup_fs_reply_surb_backend(
+            self.config.get_base().get_reply_surb_database_path(),
+            &self.config.get_debug_settings().reply_surbs,
+        )
+        .await
+        .map_err(Into::into)
+    }
+
+    async fn create_base_client_builder(
+        &self,
+    ) -> Result<Socks5ClientBuilder, Socks5ClientCoreError> {
+        // don't create bandwidth controller if credentials are disabled
+        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+            None
+        } else {
+            Some(self.create_bandwidth_controller().await)
+        };
+
+        let key_store = self.key_store();
+        let reply_storage_backend = self.create_reply_storage_backend().await?;
+
+        Ok(BaseClientBuilder::new_from_base_config(
+            self.config.get_base(),
+            key_store,
+            bandwidth_controller,
+            reply_storage_backend,
+        ))
+    }
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+impl NymClient {
+    fn key_store(&self) -> InMemEphemeralKeys {
+        InMemEphemeralKeys
+    }
+
+    fn create_bandwidth_controller(
+        &self,
+    ) -> BandwidthController<Client<QueryNyxdClient>, EphemeralStorage> {
+        let storage = nym_credential_storage::initialise_ephemeral_storage();
+
+        non_wasm_helpers::create_bandwidth_controller(self.config.get_base(), storage)
+    }
+
+    fn create_reply_storage_backend(&self) -> reply_storage::Empty {
+        setup_empty_reply_surb_backend(self.config.get_debug_settings())
+    }
+
+    fn create_base_client_builder(&self) -> MobileSocks5ClientBuilder {
+        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+            None
+        } else {
+            Some(self.create_bandwidth_controller())
+        };
+
+        let key_store = self.key_store();
+        let reply_storage_backend = self.create_reply_storage_backend();
+
+        BaseClientBuilder::new_from_base_config(
+            self.config.get_base(),
+            key_store,
+            bandwidth_controller,
+            reply_storage_backend,
+        )
     }
 }

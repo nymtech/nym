@@ -1,20 +1,16 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    client::key_manager::KeyManager,
-    config::{persistence::key_pathfinder::ClientKeyPathfinder, Config},
-    error::ClientCoreError,
-};
+use crate::error::ClientCoreError;
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
-use nym_config::NymConfig;
+use nym_credential_storage::storage::Storage;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_topology::{filter::VersionFilterable, gateway};
 use rand::rngs::OsRng;
-use rand::{seq::SliceRandom, thread_rng, Rng};
+use rand::{seq::SliceRandom, Rng};
 use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
 use tungstenite::Message;
@@ -30,10 +26,14 @@ use tokio::time::Instant;
 use tokio_tungstenite::connect_async;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
-use nym_credential_storage::storage::Storage;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::client::key_manager::persistence::OnDiskKeys;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::config::{persistence::key_pathfinder::ClientKeyPathfinder, Config};
+#[cfg(not(target_arch = "wasm32"))]
+use nym_config::NymConfig;
 
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DirectSigningNyxdClient;
@@ -225,10 +225,14 @@ pub(super) async fn query_gateway_details(
     }
 }
 
-pub(super) async fn register_with_gateway<St: Storage>(
+pub(super) async fn register_with_gateway<St>(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
-) -> Result<Arc<SharedKeys>, ClientCoreError> {
+) -> Result<Arc<SharedKeys>, ClientCoreError>
+where
+    St: Storage,
+    <St as Storage>::StorageError: Send + Sync + 'static,
+{
     let timeout = Duration::from_millis(1500);
     let mut gateway_client: GatewayClient<DirectSigningNyxdClient, St> = GatewayClient::new_init(
         gateway.clients_address(),
@@ -247,15 +251,12 @@ pub(super) async fn register_with_gateway<St: Storage>(
     Ok(shared_keys)
 }
 
-pub(super) fn store_keys<T>(
-    key_manager: &KeyManager,
-    config: &Config<T>,
-) -> Result<(), ClientCoreError>
+// TODO: make it generic
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn on_disk_key_store<T>(config: &Config<T>) -> OnDiskKeys
 where
     T: NymConfig,
 {
     let pathfinder = ClientKeyPathfinder::new_from_config(config);
-    Ok(key_manager
-        .store_keys(&pathfinder)
-        .tap_err(|err| log::error!("Failed to generate keys: {err}"))?)
+    OnDiskKeys::new(pathfinder)
 }

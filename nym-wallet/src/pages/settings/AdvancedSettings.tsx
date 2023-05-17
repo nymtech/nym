@@ -3,6 +3,7 @@ import { Box, Button, Divider, Stack, Typography } from '@mui/material';
 import { helpLogToggleWindow } from '../../requests';
 import { AppContext } from '../../context';
 import { config } from '../../config';
+import SelectValidator from '../../components/Settings/SelectValidator';
 
 const AdvancedSettings = () => {
   const { handleShowTerminal, appEnv } = useContext(AppContext);
@@ -40,6 +41,8 @@ const AdvancedSettings = () => {
           </Button>
         </Box>
       </Stack>
+      <Divider />
+      <SelectValidator />
     </Box>
   );
 };

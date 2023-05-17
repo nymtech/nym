@@ -1,6 +1,6 @@
-use nym_client_core::client::{base_client::ClientState, key_manager::KeyManager};
+use nym_client_core::client::base_client::ClientState;
 use nym_socks5_client_core::config::Socks5;
-use nym_sphinx::addressing::clients::{ClientIdentity, Recipient};
+use nym_sphinx::addressing::clients::Recipient;
 use nym_task::{connections::LaneQueueLengths, TaskManager};
 
 use nym_topology::NymTopology;
@@ -12,9 +12,6 @@ use crate::Result;
 pub struct Socks5MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,
-
-    /// Keys handled by the client
-    pub(crate) key_manager: KeyManager,
 
     /// The current state of the client that is exposed to the user. This includes things like
     /// current message send queue length.
@@ -44,17 +41,12 @@ impl Socks5MixnetClient {
     ///
     /// ```
     pub async fn connect_new<S: Into<String>>(provider_mix_address: S) -> Result<Self> {
-        MixnetClientBuilder::new()
+        MixnetClientBuilder::new_ephemeral()
             .socks5_config(Socks5::new(provider_mix_address))
-            .build::<crate::mixnet::EmptyReplyStorage>()
+            .build()
             .await?
             .connect_to_mixnet_via_socks5()
             .await
-    }
-
-    /// Get the client identity, which is the public key of the identity key pair.
-    pub fn identity(&self) -> ClientIdentity {
-        *self.key_manager.identity_keypair().public_key()
     }
 
     /// Get the nym address for this client, if it is available. The nym address is composed of the

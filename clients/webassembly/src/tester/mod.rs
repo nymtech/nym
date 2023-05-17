@@ -1,8 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::NODE_TESTER_ID;
 use crate::error::WasmClientError;
-use crate::helpers::{current_network_topology_async, setup_new_key_manager};
+use crate::helpers::current_network_topology_async;
+use crate::storage::ClientStorage;
 use crate::tester::ephemeral_receiver::EphemeralTestReceiver;
 use crate::tester::helpers::{
     NodeTestResult, ReceivedReceiverWrapper, TestMarker, WasmTestMessageExt,
@@ -12,7 +14,7 @@ use futures::channel::mpsc;
 use js_sys::Promise;
 use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_bandwidth_controller::BandwidthController;
-use nym_client_core::client::key_manager::KeyManager;
+use nym_client_core::client::key_manager::ManagedKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_crypto::asymmetric::identity;
@@ -33,7 +35,7 @@ use std::time::Duration;
 use tokio::sync::Mutex as AsyncMutex;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::{check_promise_result, console_log, console_warn, PromisableResult};
+use wasm_utils::{check_promise_result, console_log, PromisableResult};
 
 mod ephemeral_receiver;
 pub(crate) mod helpers;
@@ -74,18 +76,15 @@ pub struct NymNodeTesterBuilder {
 
     base_topology: NymTopology,
 
-    /// KeyManager object containing smart pointers to all relevant keys used by the client.
-    key_manager: KeyManager,
-
     // unimplemented
     bandwidth_controller:
         Option<BandwidthController<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>,
 }
 
-fn address(keys: &KeyManager, gateway_identity: NodeIdentity) -> Recipient {
+fn address(keys: &ManagedKeys, gateway_identity: NodeIdentity) -> Recipient {
     Recipient::new(
-        *keys.identity_keypair().public_key(),
-        *keys.encryption_keypair().public_key(),
+        *keys.identity_public_key(),
+        *keys.encryption_public_key(),
         gateway_identity,
     )
 }
@@ -100,7 +99,6 @@ impl NymNodeTesterBuilder {
         NymNodeTesterBuilder {
             gateway_config,
             base_topology: base_topology.into(),
-            key_manager: setup_new_key_manager(),
             bandwidth_controller: None,
         }
     }
@@ -122,29 +120,24 @@ impl NymNodeTesterBuilder {
     }
 
     async fn _setup_client(mut self) -> Result<NymNodeTester, WasmClientError> {
-        let rng = OsRng;
+        let mut rng = OsRng;
         let task_manager = TaskManager::default();
 
         let gateway_identity =
             identity::PublicKey::from_base58_string(self.gateway_config.gateway_id)
                 .map_err(|source| WasmClientError::InvalidGatewayIdentity { source })?;
 
-        // we **REALLY** need persistence...
-        let shared_key = if self.key_manager.is_gateway_key_set() {
-            Some(self.key_manager.gateway_shared_key())
-        } else {
-            console_warn!("Gateway key not set - will derive a fresh one.");
-            None
-        };
+        let key_store = ClientStorage::new_async(NODE_TESTER_ID, None).await?;
+        let mut managed_keys = ManagedKeys::load_or_generate(&mut rng, &key_store).await;
 
         let (mixnet_message_sender, mixnet_message_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
         let mut gateway_client = GatewayClient::new(
             self.gateway_config.gateway_listener,
-            self.key_manager.identity_keypair(),
+            managed_keys.identity_keypair(),
             gateway_identity,
-            shared_key,
+            managed_keys.gateway_shared_key(),
             mixnet_message_sender,
             ack_sender,
             Duration::from_secs(10),
@@ -154,26 +147,26 @@ impl NymNodeTesterBuilder {
 
         gateway_client.set_disabled_credentials_mode(true);
         let shared_keys = gateway_client.authenticate_and_start().await?;
-
-        // currently pointless but might as well do it for the future ¯\_(ツ)_/¯
-        self.key_manager.insert_gateway_shared_key(shared_keys);
+        managed_keys
+            .deal_with_gateway_key(shared_keys, &key_store)
+            .await?;
 
         // TODO: make those values configurable later
         let tester = NodeTester::new(
             rng,
             self.base_topology,
-            Some(address(&self.key_manager, gateway_identity)),
+            Some(address(&managed_keys, gateway_identity)),
             PacketSize::default(),
             Duration::from_millis(5),
             Duration::from_millis(5),
-            self.key_manager.ack_key(),
+            managed_keys.ack_key(),
         );
 
         let (processed_sender, processed_receiver) = mpsc::unbounded();
 
         let mut receiver = SimpleMessageReceiver::new_sphinx_receiver(
-            self.key_manager.encryption_keypair(),
-            self.key_manager.ack_key(),
+            managed_keys.encryption_keypair(),
+            managed_keys.ack_key(),
             mixnet_message_receiver,
             ack_receiver,
             processed_sender,

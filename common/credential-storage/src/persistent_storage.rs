@@ -56,6 +56,8 @@ impl PersistentStorage {
 
 #[async_trait]
 impl Storage for PersistentStorage {
+    type StorageError = StorageError;
+
     async fn insert_coconut_credential(
         &self,
         voucher_value: String,

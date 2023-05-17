@@ -437,12 +437,48 @@ impl WalletStateInner {
         }
     }
 
-    pub fn select_nyxd_url(&mut self, url: &str, network: Network) -> Result<(), BackendError> {
+    pub async fn select_nyxd_url(
+        &mut self,
+        url: &str,
+        network: Network,
+    ) -> Result<(), BackendError> {
+        if !nym_validator_client::connection_tester::test_nyxd_url_connection(
+            network.into(),
+            url.parse()?,
+            self.config.get_mixnet_contract_address(network),
+        )
+        .await?
+        {
+            return Err(BackendError::WalletValidatorConnectionFailed);
+        }
         self.config.select_nyxd_url(url.parse()?, network);
         if let Ok(client) = self.client_mut(network) {
             client.change_nyxd(url.parse()?)?;
         }
         Ok(())
+    }
+
+    pub fn reset_nyxd_url(&mut self, network: Network) -> Result<(), BackendError> {
+        self.config.reset_nyxd_url(network);
+        let default_nyxd = self.config.get_default_nyxd_url(network);
+        if let Ok(client) = self.client_mut(network) {
+            if let Some(url) = default_nyxd {
+                client.change_nyxd(url)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn set_default_nyxd_urls(&mut self, urls: &HashMap<Network, Url>) {
+        self.config.set_default_nyxd_urls(urls);
+    }
+
+    pub fn get_selected_nyxd_url(&self, network: &Network) -> Option<Url> {
+        self.config.get_selected_validator_nyxd_url(*network)
+    }
+
+    pub fn get_default_nyxd_url(&self, network: &Network) -> Option<Url> {
+        self.config.get_default_nyxd_url(*network)
     }
 
     pub fn select_nym_api_url(&mut self, url: &str, network: Network) -> Result<(), BackendError> {

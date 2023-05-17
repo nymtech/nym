@@ -4,12 +4,14 @@
 use ::safer_ffi::prelude::*;
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
-use nym_client_core::client::key_manager::KeyManager;
+use nym_client_core::client::key_manager::{KeyManager, KeyManagerBuilder};
+use nym_client_core::config::GatewayEndpointConfig;
 use nym_config_common::defaults::setup_env;
 use nym_config_common::NymConfig;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_socks5_client_core::config::{Config as Socks5Config, Config};
 use nym_socks5_client_core::NymClient as Socks5NymClient;
+use rand::thread_rng;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -159,24 +161,40 @@ async fn _async_run_client(
     let stop_handle = Arc::new(Notify::new());
     set_shutdown_handle(stop_handle.clone()).await;
 
-    let socks5_client = if let Some(storage_dir) = storage_dir {
-        let config = load_or_generate_base_config(storage_dir, client_id, service_provider).await?;
-        Socks5NymClient::new(config)
-    } else {
-        let service_provider = service_provider.ok_or(anyhow!(
-            "service provider was not specified for fresh config"
-        ))?;
-        let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
-        Socks5NymClient::new_with_keys(config, Some(keys))
-    };
+    // TODO: restore key persistence, gateway reg, etc...
+    let mut config = Socks5Config::new(
+        client_id,
+        service_provider.expect("it's mandatory again..."),
+    );
+    config
+        .get_base_mut()
+        .set_gateway_endpoint(GatewayEndpointConfig::new(
+            "2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh".to_string(),
+            "doesn't matter without coconut".to_string(),
+            "ws://194.182.191.207:9000".to_string(),
+        ));
+    let socks5_client = Socks5NymClient::new(config);
+
+    // let socks5_client = if let Some(storage_dir) = storage_dir {
+    //     let config = load_or_generate_base_config(storage_dir, client_id, service_provider).await?;
+    //     Socks5NymClient::new(config)
+    // } else {
+    //     let service_provider = service_provider.ok_or(anyhow!(
+    //         "service provider was not specified for fresh config"
+    //     ))?;
+    //     todo!()
+    //     // let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
+    //     // Socks5NymClient::new(config)
+    // };
 
     eprintln!("starting the socks5 client");
-    let (self_address, mut shutdown_handle) = socks5_client.start().await?;
+    let mut started_client = socks5_client.start().await?;
     eprintln!("the client has started!");
 
     // invoke the callback since we've started!
     on_start_callback(
-        self_address
+        started_client
+            .address
             .to_string()
             .try_into()
             .expect("malformed C string"),
@@ -186,8 +204,8 @@ async fn _async_run_client(
     stop_handle.notified().await;
 
     // and then do graceful shutdown of all tasks
-    shutdown_handle.signal_shutdown().ok();
-    shutdown_handle.wait_for_shutdown().await;
+    started_client.shutdown_handle.signal_shutdown().ok();
+    started_client.shutdown_handle.wait_for_shutdown().await;
 
     // and the corresponding one for shutdown!
     on_shutdown_callback();
@@ -276,11 +294,12 @@ pub async fn init_dummy_socks5_config(
 
     // let _chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)?;
 
-    let mut key_manager = nym_client_core::init::new_client_keys();
+    let mut rng = thread_rng();
+    let key_manager_builder = KeyManagerBuilder::new(&mut rng);
 
     // Setup gateway and register a new key each time
-    let gateway = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
-        &mut key_manager,
+    let (gateway, shared_key) = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
+        key_manager_builder.identity_keypair(),
         nym_api_endpoints,
         //Some(chosen_gateway_id),
         None,
@@ -292,7 +311,10 @@ pub async fn init_dummy_socks5_config(
 
     // let _address = *key_manager.identity_keypair().public_key();
 
-    Ok((config, key_manager))
+    Ok((
+        config,
+        key_manager_builder.insert_gateway_shared_key(shared_key),
+    ))
 }
 
 #[cfg(feature = "headers")] // c.f. the `Cargo.toml` section

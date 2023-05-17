@@ -28,7 +28,10 @@ const {
     set_panic_hook,
     Config,
     GatewayEndpointConfig,
+    ClientStorage,
     current_network_topology,
+    make_key,
+    make_key2
 } = wasm_bindgen;
 
 let client = null;
@@ -272,6 +275,57 @@ async function normalNymClientUsage() {
     };
 }
 
+async function messWithStorage() {
+    self.onmessage = async event => {
+        if (event.data && event.data.kind) {
+            switch (event.data.kind) {
+                case 'TestPacket': {
+                    const { mixnodeIdentity } = event.data.args;
+                    console.log("button clicked...", mixnodeIdentity);
+
+                    let id1 = "one";
+                    let id2 = "two";
+
+                    console.log("making store1 NO-ENC");
+                    let _storage1 = await ClientStorage.new_unencrypted(id1);
+
+                    console.log("making store2 ENC")
+                    let _storage2 = await new ClientStorage(id2, "my-secret-password");
+                    //
+                    //
+                    //
+                    //     console.log("attempting to use store1 WITH PASSWORD")
+                    //     let _storage1_alt = await new ClientStorage(id1, "password");
+                    //
+                    //
+                    //
+                    //     console.log("attempting to use store2 WITHOUT PASSWORD")
+                    //     let _storage2_alt = await ClientStorage.new_unencrypted(id2);
+                    //
+                    //
+                    //
+                    //     console.log("attempting to use store2 with WRONG PASSWORD")
+                    //     let _storage2_bad = await new ClientStorage(id2, "bad-password")
+
+
+                    //
+                    // console.log("read1: ", await storage1.read());
+                    // console.log("read2: ", await storage2.read());
+                    //
+                    // console.log("store1: ", await storage1.store("FOOMP"));
+                    //
+                    // console.log("read1: ", await storage1.read());
+                    // console.log("read2: ", await storage2.read());
+                }
+            }
+        }
+    };
+
+
+
+
+}
+
 async function main() {
     // load WASM package
     await wasm_bindgen('nym_client_wasm_bg.wasm');
@@ -281,13 +335,13 @@ async function main() {
     set_panic_hook();
 
     // run test on simplified and dedicated tester:
-    await testWithTester()
+    // await testWithTester()
 
     // hook-up the whole client for testing
     // await testWithNymClient()
 
     // 'Normal' client setup (to send 'normal' messages)
-    // await normalNymClientUsage()
+    await normalNymClientUsage()
 }
 
 // Let's get started!

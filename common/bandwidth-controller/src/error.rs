@@ -16,7 +16,11 @@ pub enum BandwidthControllerError {
     Nyxd(#[from] nym_validator_client::nyxd::error::NyxdError),
 
     #[error("There was a credential storage error - {0}")]
-    CredentialStorageError(#[from] StorageError),
+    CredentialStorageError(Box<dyn std::error::Error + Send + Sync>),
+
+    // this should really be fully incorporated into the above, but messing with coconut is the last thing I want to do now
+    #[error(transparent)]
+    StorageError(#[from] StorageError),
 
     #[error("Coconut error - {0}")]
     CoconutError(#[from] CoconutError),

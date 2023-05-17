@@ -1,6 +1,9 @@
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::error::{Error, Result};
 use nym_bandwidth_controller::acquire::state::State;
-use nym_credential_storage::ephemeral_storage::EphemeralStorage;
+use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::{Coin, SigningNyxdClient};
@@ -17,17 +20,21 @@ pub type VoucherBlob = Vec<u8>;
 /// The way to create this client is by calling
 /// [`crate::mixnet::DisconnectedMixnetClient::create_bandwidth_client`] on the associated mixnet
 /// client.
-pub struct BandwidthAcquireClient {
+pub struct BandwidthAcquireClient<'a, St: Storage> {
     network_details: NymNetworkDetails,
     client: Client<SigningNyxdClient<DirectSecp256k1HdWallet>>,
-    storage: EphemeralStorage,
+    storage: &'a St,
 }
 
-impl BandwidthAcquireClient {
+impl<'a, St> BandwidthAcquireClient<'a, St>
+where
+    St: Storage,
+    <St as Storage>::StorageError: Send + Sync + 'static,
+{
     pub(crate) fn new(
         network_details: NymNetworkDetails,
         mnemonic: String,
-        storage: EphemeralStorage,
+        storage: &'a St,
     ) -> Result<Self> {
         let config = Config::try_from_nym_network_details(&network_details)?;
         let client = nym_validator_client::Client::new_signing(config, mnemonic.parse()?)?;
@@ -45,7 +52,7 @@ impl BandwidthAcquireClient {
     pub async fn acquire(&self, amount: u128) -> Result<()> {
         let amount = Coin::new(amount, &self.network_details.chain_details.mix_denom.base);
         let state = nym_bandwidth_controller::acquire::deposit(&self.client.nyxd, amount).await?;
-        nym_bandwidth_controller::acquire::get_credential(&state, &self.client, &self.storage)
+        nym_bandwidth_controller::acquire::get_credential(&state, &self.client, self.storage)
             .await
             .map_err(|reason| Error::UnconvertedDeposit {
                 reason,
@@ -59,7 +66,7 @@ impl BandwidthAcquireClient {
         let voucher = BandwidthVoucher::try_from_bytes(voucher_blob)
             .map_err(|_| Error::InvalidVoucherBlob)?;
         let state = State::new(voucher);
-        nym_bandwidth_controller::acquire::get_credential(&state, &self.client, &self.storage)
+        nym_bandwidth_controller::acquire::get_credential(&state, &self.client, self.storage)
             .await?;
 
         Ok(())

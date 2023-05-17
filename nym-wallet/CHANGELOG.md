@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v1.2.3] (2023-05-16)
+
+- Wallet - Allow users to choose validator under the Advanced Settings 🟢 ([#2489])
+
+[#2489]: https://github.com/nymtech/nym/issues/2489
+
 ## [v1.2.2] (2023-05-02)
 
 - Wallet - change "Bond more" action to "Change bond amount" to allow for increasing and decreasing the amount in the same modal ([#2134])

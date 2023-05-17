@@ -25,12 +25,14 @@ nym-socks5-client-core = { path = "../../common/socks5-client-core", default-fea
 openssl = { version = "0.10", features = ["vendored"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
 log = "0.4.17"
-android_logger = "0.13.1"
+rand = "0.7.3"
 
 safer-ffi = { version = "0.1.0-rc1" }
 
 [target.'cfg(target_os="android")'.dependencies]
 jni = { version = "0.21", default-features = false }
+android_logger = "0.13.1"
+
 
 [features]
 headers = ["safer-ffi/headers"]

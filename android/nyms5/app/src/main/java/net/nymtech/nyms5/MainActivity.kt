@@ -82,7 +82,7 @@ fun Socks5Client(
 ) {
     Column(modifier = modifier.padding(16.dp)) {
         Row(modifier = modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("socks5 client")
+            Text("nym socks5")
             Spacer(modifier = modifier.width(14.dp))
             Switch(checked = connected, onCheckedChange = {
                 if (connected) stopClient() else startClient()

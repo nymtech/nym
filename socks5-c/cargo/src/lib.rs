@@ -285,6 +285,9 @@ async fn setup_new_client_config(
     .await?;
 
     new_config.get_base_mut().set_gateway_endpoint(gateway);
+
+    // temp
+    #[cfg(not(target_os = "android"))]
     new_config.save_to_file(None)?;
 
     Ok(new_config)

@@ -4,6 +4,7 @@
 use ::safer_ffi::prelude::*;
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
+use nym_client_core::client::key_manager::KeyManager;
 use nym_config_common::defaults::setup_env;
 use nym_config_common::NymConfig;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
@@ -217,11 +218,16 @@ async fn _async_run_client(
     let stop_handle = Arc::new(Notify::new());
     set_shutdown_handle(stop_handle.clone()).await;
 
-    // let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
-    // let socks5_client = Socks5NymClient::new_with_keys(config, Some(keys));
-
-    let config = load_or_generate_base_config(storage_dir, client_id, service_provider).await?;
-    let socks5_client = Socks5NymClient::new(config);
+    let socks5_client = if let Some(storage_dir) = storage_dir {
+        let config = load_or_generate_base_config(storage_dir, client_id, service_provider).await?;
+        Socks5NymClient::new(config)
+    } else {
+        let service_provider = service_provider.ok_or(anyhow!(
+            "service provider was not specified for fresh config"
+        ))?;
+        let (config, keys) = init_dummy_socks5_config(service_provider).await.unwrap();
+        Socks5NymClient::new_with_keys(config, Some(keys))
+    };
 
     eprintln!("starting the socks5 client");
     let (self_address, mut shutdown_handle) = socks5_client.start().await?;
@@ -250,36 +256,34 @@ async fn _async_run_client(
 
 // note: it does might not contain any gateway configuration and should not be persisted in that state!
 async fn load_or_generate_base_config(
-    storage_dir: Option<String>,
+    storage_dir: String,
     client_id: String,
     service_provider: Option<String>,
 ) -> Result<Socks5Config> {
-    if let Some(ref storage_dir) = storage_dir {
-        let expected_store_path =
-            Socks5Config::default_config_file_path_with_root(&storage_dir, &client_id.to_string());
-        eprintln!("attempting to load socks5 config from {expected_store_path:?}");
+    let expected_store_path =
+        Socks5Config::default_config_file_path_with_root(&storage_dir, &client_id.to_string());
+    eprintln!("attempting to load socks5 config from {expected_store_path:?}");
 
-        // simulator workaround
-        if let Ok(config) = Socks5Config::load_from_filepath(expected_store_path) {
-            eprintln!("loaded config");
-            let root = config.get_base().get_nym_root_directory();
-            eprintln!("actual root: {storage_dir}");
-            eprintln!("retrieved root: {root:?}");
+    // simulator workaround
+    if let Ok(config) = Socks5Config::load_from_filepath(expected_store_path) {
+        eprintln!("loaded config");
+        let root = config.get_base().get_nym_root_directory();
+        eprintln!("actual root: {storage_dir}");
+        eprintln!("retrieved root: {root:?}");
 
-            if root.to_str() == Some(storage_dir.as_str()) {
-                return Ok(config);
-            }
-            eprintln!("... but it seems to have been made for different container - fixing it up... (ASSUMING DEFAULT PATHS)");
-            return Ok(config.with_root_directory(storage_dir));
-        };
-    }
+        if root.to_str() == Some(storage_dir.as_str()) {
+            return Ok(config);
+        }
+        eprintln!("... but it seems to have been made for different container - fixing it up... (ASSUMING DEFAULT PATHS)");
+        return Ok(config.with_root_directory(storage_dir));
+    };
 
     eprintln!("creating new config");
     setup_new_client_config(storage_dir, client_id, service_provider).await
 }
 
 async fn setup_new_client_config(
-    storage_dir: Option<String>,
+    storage_dir: String,
     client_id: String,
     service_provider: Option<String>,
 ) -> Result<Socks5Config> {
@@ -287,11 +291,8 @@ async fn setup_new_client_config(
         "service provider was not specified for fresh config"
     ))?;
 
-    let mut new_config = if let Some(storage_dir) = storage_dir {
-        Socks5Config::new(client_id, service_provider).with_root_directory(storage_dir)
-    } else {
-        Socks5Config::new(client_id, service_provider)
-    };
+    let mut new_config =
+        Socks5Config::new(client_id, service_provider).with_root_directory(storage_dir);
 
     if let Ok(raw_validators) = std::env::var(nym_config_common::defaults::var_names::NYM_API) {
         new_config
@@ -314,45 +315,44 @@ async fn setup_new_client_config(
     Ok(new_config)
 }
 
-//
-// pub async fn init_dummy_socks5_config(
-//     provider_address: String,
-//     // base_storage_path: String,
-//     // chosen_gateway_id: String,
-// ) -> Result<(Socks5Config, KeyManager)> {
-//     // let config_storage_path = Path::new(&base_storage_path).join("config");
-//     // let data_storage_path = Path::new(&base_storage_path).join("data");
-//
-//     let mut config = Socks5Config::new(SOCKS5_CONFIG_ID, &provider_address);
-//
-//     if let Ok(raw_validators) = std::env::var(nym_config_common::defaults::var_names::NYM_API) {
-//         config
-//             .get_base_mut()
-//             .set_custom_nym_apis(nym_config_common::parse_urls(&raw_validators));
-//     }
-//
-//     let nym_api_endpoints = config.get_base().get_nym_api_endpoints();
-//
-//     // let _chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)?;
-//
-//     let mut key_manager = nym_client_core::init::new_client_keys();
-//
-//     // Setup gateway and register a new key each time
-//     let gateway = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
-//         &mut key_manager,
-//         nym_api_endpoints,
-//         //Some(chosen_gateway_id),
-//         None,
-//         false,
-//     )
-//     .await?;
-//
-//     config.get_base_mut().set_gateway_endpoint(gateway);
-//
-//     // let _address = *key_manager.identity_keypair().public_key();
-//
-//     Ok((config, key_manager))
-// }
+pub async fn init_dummy_socks5_config(
+    provider_address: String,
+    // base_storage_path: String,
+    // chosen_gateway_id: String,
+) -> Result<(Socks5Config, KeyManager)> {
+    // let config_storage_path = Path::new(&base_storage_path).join("config");
+    // let data_storage_path = Path::new(&base_storage_path).join("data");
+
+    let mut config = Socks5Config::new(SOCKS5_CONFIG_ID, &provider_address);
+
+    if let Ok(raw_validators) = std::env::var(nym_config_common::defaults::var_names::NYM_API) {
+        config
+            .get_base_mut()
+            .set_custom_nym_apis(nym_config_common::parse_urls(&raw_validators));
+    }
+
+    let nym_api_endpoints = config.get_base().get_nym_api_endpoints();
+
+    // let _chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)?;
+
+    let mut key_manager = nym_client_core::init::new_client_keys();
+
+    // Setup gateway and register a new key each time
+    let gateway = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
+        &mut key_manager,
+        nym_api_endpoints,
+        //Some(chosen_gateway_id),
+        None,
+        false,
+    )
+    .await?;
+
+    config.get_base_mut().set_gateway_endpoint(gateway);
+
+    // let _address = *key_manager.identity_keypair().public_key();
+
+    Ok((config, key_manager))
+}
 
 #[cfg(feature = "headers")] // c.f. the `Cargo.toml` section
 pub fn generate_headers() -> ::std::io::Result<()> {

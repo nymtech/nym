@@ -44,7 +44,7 @@ use cosmwasm_std::Addr;
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 pub use signing_client::Client as SigningNyxdClient;
-//pub use traits::{VestingQueryClient, VestingSigningClient};
+pub use traits::{VestingQueryClient, VestingSigningClient};
 
 pub type DirectSigningNyxdClient = SigningNyxdClient<DirectSecp256k1HdWallet>;
 

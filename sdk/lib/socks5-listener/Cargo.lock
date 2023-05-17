@@ -623,9 +623,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "1.2.5"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c9f7f0e51bfc7295f7b2664fe8513c966428642aa765dad8a74acdab5e0c773"
+checksum = "4b36e527620a2a3e00e46b6e731ab6c9b68d11069c986f7d7be8eba79ef081a4"
 dependencies = [
  "syn 1.0.109",
 ]
@@ -868,6 +868,18 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "cw2"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04cf4639517490dd36b333bbd6c4fbd92e325fd0acf4683b41753bc5eb63bfc1"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -2891,6 +2903,7 @@ dependencies = [
  "nym-name-service-common",
  "nym-network-defaults",
  "nym-service-provider-directory-common",
+ "nym-vesting-contract",
  "nym-vesting-contract-common",
  "prost",
  "reqwest",
@@ -2901,6 +2914,24 @@ dependencies = [
  "tokio",
  "url",
  "zeroize",
+]
+
+[[package]]
+name = "nym-vesting-contract"
+version = "1.4.0"
+dependencies = [
+ "cosmwasm-derive",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract-common",
+ "schemars",
+ "semver 1.0.17",
+ "serde",
+ "thiserror",
+ "vergen",
 ]
 
 [[package]]

@@ -532,7 +532,7 @@ where
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        nym_socks5_client_core::NymClient::start_socks5_listener(
+        nym_socks5_client_core::NymClient::<S>::start_socks5_listener(
             &socks5_config,
             debug_config,
             client_input,

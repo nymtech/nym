@@ -5,7 +5,6 @@ use crate::{
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::Config as BaseConfig;
 use nym_config_common::NymConfig;
-use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::config::{Config as Socks5Config, Socks5};
 use std::path::PathBuf;

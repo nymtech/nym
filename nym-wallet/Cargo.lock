@@ -3075,6 +3075,7 @@ dependencies = [
  "nym-name-service-common",
  "nym-network-defaults",
  "nym-service-provider-directory-common",
+ "nym-vesting-contract",
  "nym-vesting-contract-common",
  "prost",
  "reqwest",

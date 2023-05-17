@@ -10,7 +10,6 @@ use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_config::NymConfig;
-use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::config::Config;
 use nym_sphinx::addressing::clients::Recipient;

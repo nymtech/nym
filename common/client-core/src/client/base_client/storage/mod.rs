@@ -13,17 +13,18 @@ use nym_credential_storage::ephemeral_storage::{
 use nym_credential_storage::storage::Storage as CredentialStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::client::key_manager::persistence::OnDiskKeys;
-
 use crate::client::base_client::non_wasm_helpers;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::client::key_manager::persistence::OnDiskKeys;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::config::{persistence::key_pathfinder::ClientKeyPathfinder, Config};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::error::ClientCoreError;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use crate::client::replies::reply_storage::fs_backend;
-use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use crate::config::Config;
-use crate::error::ClientCoreError;
 
 pub trait MixnetClientStorage {
     type KeyStore: KeyStore;

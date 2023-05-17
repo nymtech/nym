@@ -75,6 +75,7 @@ pub mod android {
 
     use android_logger::{Config, FilterBuilder};
     use log::LevelFilter;
+    use safer_ffi::char_p::char_p_boxed;
 
     extern "C" fn placeholder_startup_cb(address: char_p::Box) {
         rust_free_string(address)
@@ -105,10 +106,10 @@ pub mod android {
             .into();
 
         // TODO: get the service provider from input
-        let service_provider = "DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh".try_into().unwrap();
+        let service_provider = char_p::new("DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh");
         blocking_run_client(
             None,
-            Some(service_provider),
+            Some(service_provider.as_ref()),
             placeholder_startup_cb,
             placeholder_shutdown_cb,
         );

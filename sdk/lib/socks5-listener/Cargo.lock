@@ -2648,6 +2648,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-socks5-listener"
+version = "0.1.0"
+dependencies = [
+ "android_logger",
+ "anyhow",
+ "futures",
+ "jni",
+ "lazy_static",
+ "log",
+ "nym-client-core",
+ "nym-config",
+ "nym-credential-storage",
+ "nym-crypto",
+ "nym-socks5-client-core",
+ "openssl",
+ "rand 0.7.3",
+ "safer-ffi",
+ "tokio",
+]
+
+[[package]]
 name = "nym-socks5-proxy-helpers"
 version = "0.1.0"
 dependencies = [
@@ -3951,27 +3972,6 @@ checksum = "64a4a911eed85daf18834cfaa86a79b7d266ff93ff5ba14005426219480ed662"
 dependencies = [
  "libc",
  "winapi",
-]
-
-[[package]]
-name = "socks5-c"
-version = "0.1.0"
-dependencies = [
- "android_logger",
- "anyhow",
- "futures",
- "jni",
- "lazy_static",
- "log",
- "nym-client-core",
- "nym-config",
- "nym-credential-storage",
- "nym-crypto",
- "nym-socks5-client-core",
- "openssl",
- "rand 0.7.3",
- "safer-ffi",
- "tokio",
 ]
 
 [[package]]

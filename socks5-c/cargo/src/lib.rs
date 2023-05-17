@@ -64,31 +64,24 @@ fn rust_free_string(string: char_p::Box) {
 #[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 pub mod android {
-    // TODO: this seems oldschool, remove once we get it to work
-    extern crate jni;
-
-    use std::ffi::CString;
-
-    use self::jni::objects::{JClass, JString};
-    use self::jni::sys::jstring;
-    use self::jni::JNIEnv;
     use super::*;
 
-    use android_logger::{Config, FilterBuilder};
-    use log::LevelFilter;
-    use safer_ffi::char_p::char_p_boxed;
+    use jni::{
+        objects::{JClass, JString},
+        sys::jstring,
+        JNIEnv,
+    };
 
     extern "C" fn placeholder_startup_cb(address: char_p::Box) {
         rust_free_string(address)
     }
+
     extern "C" fn placeholder_shutdown_cb() {}
 
-    #[no_mangle]
-    pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_run<'local>(
-        mut env: JNIEnv<'local>,
-        _class: JClass<'local>,
-        input: JString<'local>,
-    ) -> jstring {
+    fn init_jni_logger() {
+        use android_logger::{Config, FilterBuilder};
+        use log::LevelFilter;
+
         android_logger::init_once(
             Config::default()
                 .with_max_level(LevelFilter::Trace)
@@ -100,7 +93,18 @@ pub mod android {
                 ),
         );
         log::debug!("Logger initialized");
+    }
 
+    #[no_mangle]
+    pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_run(
+        mut env: JNIEnv,
+        _class: JClass,
+        input: JString,
+    ) -> jstring {
+        init_jni_logger();
+
+        // We don't really make use of this input right now, but still keep it as we are expected
+        // to make use of it in the future.
         let input: String = env
             .get_string(&input)
             .expect("Couldn't get java string!")
@@ -115,6 +119,8 @@ pub mod android {
             placeholder_shutdown_cb,
         );
 
+        // Return something here not because we need to, but because we will likely do so in the
+        // future.
         let output = env
             .new_string(format!("Hello, {}!", input))
             .expect("Couldn't create java string!");

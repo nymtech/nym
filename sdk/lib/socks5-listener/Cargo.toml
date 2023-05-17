@@ -12,6 +12,9 @@ required-features = ["headers"]
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
 
+[profile.release]
+strip = true
+
 [dependencies]
 anyhow = "1.0"
 futures = "0.3"

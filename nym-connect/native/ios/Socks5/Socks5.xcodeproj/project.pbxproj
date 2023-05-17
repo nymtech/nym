@@ -12,9 +12,9 @@
 		D67035A62A0E75500060A6F0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D67035A52A0E75500060A6F0 /* ContentView.swift */; };
 		D67035A82A0E75510060A6F0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D67035A72A0E75510060A6F0 /* Assets.xcassets */; };
 		D67035AB2A0E75510060A6F0 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D67035AA2A0E75510060A6F0 /* Preview Assets.xcassets */; };
-		D67035B42A0E76DE0060A6F0 /* libsocks5_c.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D67035B32A0E76CF0060A6F0 /* libsocks5_c.a */; };
 		D67035B62A0E76E60060A6F0 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = D67035B52A0E76E20060A6F0 /* libresolv.tbd */; };
 		D67035BA2A0E794F0060A6F0 /* RustSocks5.swift in Sources */ = {isa = PBXBuildFile; fileRef = D67035B92A0E794F0060A6F0 /* RustSocks5.swift */; };
+		D6B668A32A15042F002E778E /* libnym_socks5_listener.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D6B668A22A15041D002E778E /* libnym_socks5_listener.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,9 +27,10 @@
 		D67035B22A0E76110060A6F0 /* cargo */ = {isa = PBXFileReference; lastKnownFileType = folder; name = cargo; path = ../../cargo; sourceTree = "<group>"; };
 		D67035B32A0E76CF0060A6F0 /* libsocks5_c.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libsocks5_c.a; path = ../../cargo/target/universal/release/libsocks5_c.a; sourceTree = "<group>"; };
 		D67035B52A0E76E20060A6F0 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
-		D67035B72A0E77D40060A6F0 /* socks5_c.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = socks5_c.h; path = ../../../cargo/socks5_c.h; sourceTree = "<group>"; };
 		D67035B82A0E77F70060A6F0 /* Socks5-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Socks5-Bridging-Header.h"; sourceTree = "<group>"; };
 		D67035B92A0E794F0060A6F0 /* RustSocks5.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RustSocks5.swift; sourceTree = "<group>"; };
+		D6B668A22A15041D002E778E /* libnym_socks5_listener.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libnym_socks5_listener.a; path = "../../../../sdk/lib/socks5-listener/target/universal/release/libnym_socks5_listener.a"; sourceTree = "<group>"; };
+		D6B668A42A1504AC002E778E /* socks5_c.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = socks5_c.h; path = "../../../../../sdk/lib/socks5-listener/socks5_c.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,7 +38,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D67035B42A0E76DE0060A6F0 /* libsocks5_c.a in Frameworks */,
+				D6B668A32A15042F002E778E /* libnym_socks5_listener.a in Frameworks */,
 				D67035B62A0E76E60060A6F0 /* libresolv.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -73,8 +74,8 @@
 		D67035A22A0E75500060A6F0 /* Socks5 */ = {
 			isa = PBXGroup;
 			children = (
+				D6B668A42A1504AC002E778E /* socks5_c.h */,
 				D668564F2A1260EF006A8693 /* Extensions */,
-				D67035B72A0E77D40060A6F0 /* socks5_c.h */,
 				D67035A32A0E75500060A6F0 /* Socks5App.swift */,
 				D67035A52A0E75500060A6F0 /* ContentView.swift */,
 				D67035A72A0E75510060A6F0 /* Assets.xcassets */,
@@ -96,6 +97,7 @@
 		D67035B12A0E76110060A6F0 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				D6B668A22A15041D002E778E /* libnym_socks5_listener.a */,
 				D67035B52A0E76E20060A6F0 /* libresolv.tbd */,
 				D67035B32A0E76CF0060A6F0 /* libsocks5_c.a */,
 				D67035B22A0E76110060A6F0 /* cargo */,
@@ -317,7 +319,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../cargo/target/universal/release";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../../../sdk/lib/socks5-listener/target/universal/release";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = nym.Socks5;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -348,7 +350,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../cargo/target/universal/release";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../../../sdk/lib/socks5-listener/target/universal/release";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = nym.Socks5;
 				PRODUCT_NAME = "$(TARGET_NAME)";

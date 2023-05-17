@@ -25,7 +25,7 @@ export const PageGateways: FCWithChildren = () => {
   const [filteredGateways, setFilteredGateways] = React.useState<GatewayResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('50');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
-  const [versionFilter, setVersionFilter] = React.useState<VersionSelectOptions>(VersionSelectOptions.latestVersion);
+  const [versionFilter, setVersionFilter] = React.useState<VersionSelectOptions>(VersionSelectOptions.all);
 
   const theme = useTheme();
 

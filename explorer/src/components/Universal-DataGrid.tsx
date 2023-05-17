@@ -56,7 +56,7 @@ export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({ rows, columns
     return (
       <DataGrid
         pagination={pagination}
-        rows={rows?.data?.items}
+        rows={rows}
         components={{
           Pagination: CustomPagination,
         }}

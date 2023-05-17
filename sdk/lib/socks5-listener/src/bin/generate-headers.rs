@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 fn main() -> ::std::io::Result<()> {
-    ::socks5_c::generate_headers()
+    ::nym_socks5_listener::generate_headers()
 }

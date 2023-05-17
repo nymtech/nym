@@ -11,53 +11,44 @@ let NYM_CLIENT_STORAGE_DIR = "/.nym/socks5-clients";
 
 struct ContentView: View {
     @State private var connected: Bool = false
-    @State private var status: ClientState = CLIENT_STATE_UNKNOWN
+    @StateObject private var socksWrapper: RustSocks5 = RustSocks5()
+    
+    func onConnectionStatusChanged(status: Bool) {
+        self.connected = status
+    }
        
-    func connect() {
-        print("connecting (swift)...")
-        
-        
+    func clientStoreDirectory() -> String {
         let dirPaths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
         let client_store_dir = dirPaths[0] + NYM_CLIENT_STORAGE_DIR
-        
-        
-//
-//        print(client_store_dir)
-//        write_to_file(client_store_dir, DEFAULT_CLIENT_ID, "4z4iw9NLRgMok2MPFEGoiwrmHuDY6kRVDUQRp2dXGLQm.69av5mWZmaMK4bHo3GV6Cu7B8zuMT2mv2E22f8GkRMgk@DF4TE7V8kJkttMvnoSVGnRFFRt6WYGxxiC2w1XyPQnHe")
-//
-//        let read = String(cString: read_from_file(client_store_dir)!)
-//        print(read)
-        
-        let socksClass = RustSocks5()
-        socksClass.startClient(
+        return client_store_dir
+    }
+
+    func connect() {
+        print("connecting (swift)...")
+        socksWrapper.operationInProgress = true
+
+        let client_store_dir = self.clientStoreDirectory()
+        socksWrapper.startClient(
             storageDirectory: client_store_dir,
             serviceProvider: "4z4iw9NLRgMok2MPFEGoiwrmHuDY6kRVDUQRp2dXGLQm.69av5mWZmaMK4bHo3GV6Cu7B8zuMT2mv2E22f8GkRMgk@DF4TE7V8kJkttMvnoSVGnRFFRt6WYGxxiC2w1XyPQnHe")
-        
-//        let res = foomper.addStuffWithCallback(to: "foomp")
-//        print(res)
-        
-//        foomper.runForever(serviceProvider: "4z4iw9NLRgMok2MPFEGoiwrmHuDY6kRVDUQRp2dXGLQm.69av5mWZmaMK4bHo3GV6Cu7B8zuMT2mv2E22f8GkRMgk@DF4TE7V8kJkttMvnoSVGnRFFRt6WYGxxiC2w1XyPQnHe")
-//        print("\(foomper.addStuff(to: "world"))")
-//
-//        print("connecting (swift)")
-        //            let rustSocks5 = RustSocks5()
-        //            rustSocks5.runForever(serviceProvider: "my-service-provider-address")
-        connected = true
         
     }
               
     
     func disconnect() {
         print("disconnecting (swift)...")
-        let socksClass = RustSocks5()
-        socksClass.stopClient()
-        connected = false
+        socksWrapper.operationInProgress = true
+
+        socksWrapper.stopClient()
     }
     
     func reset() {
         print("resetting (swift)...")
+        
+        let client_store_dir = self.clientStoreDirectory()
+        socksWrapper.resetConfig(storageDirectory: client_store_dir)
     }
-    
+        
     
     var body: some View {
         VStack {
@@ -69,16 +60,23 @@ struct ContentView: View {
             HStack {
                 Button(action: connect) {
                     Text("connect")
-                }.disabled(connected)
+                }.disabled(socksWrapper.connected || socksWrapper.operationInProgress)
                 Button(action: disconnect) {
                     Text("disconnect")
-                }.disabled(!connected)
+                }.disabled(!socksWrapper.connected || socksWrapper.operationInProgress)
                 Button(action: reset) {
                     Text("reset").foregroundColor(.red)
-                }
+                }.disabled(true)
             }
             .buttonStyle(.bordered)
-            Text("status: \(status.description)")
+            
+            if socksWrapper.operationInProgress {
+                ProgressView().progressViewStyle(CircularProgressViewStyle())
+            }
+            
+            
+            Text("status: \(socksWrapper.status.description)")
+            Text("address: \(socksWrapper.clientAddress)")
         }
         .padding()
     }

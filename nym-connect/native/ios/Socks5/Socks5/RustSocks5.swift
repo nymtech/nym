@@ -5,50 +5,65 @@
 //  Created by Jedrzej Stuczynski on 12/05/2023.
 //
 
-func start_callback(clientAddress: UnsafeMutablePointer<CChar>?) {
-    let swift_string = String(cString: clientAddress!)
-    rust_free_string(clientAddress)
-    print("the client is now alive! And its address is \(swift_string)")
-}
+import SwiftUI
 
-func shutdown_callback() {
-    print("the client is now dead")
-}
 
-class RustSocks5 {
-//    func runForever(storageDirectory, serviceProvider: String) {
-//        let start_cb: @convention(c) () -> Void = start_callback;
-//        let shutdown_cb: @convention(c) () -> Void = shutdown_callback;
-//
-//        blocking_run_client(serviceProvider, start_cb, shutdown_cb)
-//    }
+class RustSocks5: ObservableObject {
+    @Published var operationInProgress = false
+    @Published var clientAddress = ""
+    @Published var connected = false
+    @Published var status: ClientState = CLIENT_STATE_UNKNOWN
+    
+    func onConnect(clientAddress: UnsafeMutablePointer<CChar>?) {
+        print("connected callback got called!")
+        let swift_string = String(cString: clientAddress!)
+        rust_free_string(clientAddress)
+        print("the client is now alive! And its address is \(swift_string)")
+        
+        DispatchQueue.main.async{
+            self.status = CLIENT_STATE_CONNECTED
+            self.connected = true
+            self.operationInProgress = false
+            self.clientAddress = swift_string
+        }
+    }
+    
+    func onShutdown() {
+        print("shutdown callback got called!")
+        
+        DispatchQueue.main.async{
+            self.status = CLIENT_STATE_DISCONNECTED
+            self.connected = false
+            self.operationInProgress = false
+        }
+    }
+    
     
     func startClient(storageDirectory: String, serviceProvider: String) {
-        let start_cb: @convention(c) (UnsafeMutablePointer<CChar>?) -> Void = start_callback;
-        let shutdown_cb: @convention(c) () -> Void = shutdown_callback;
+        let this1 = UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque())
+        let startCb: @convention(c) (UnsafeMutableRawPointer?, UnsafeMutablePointer<CChar>?) -> Void = {
+            let socks: RustSocks5 = Unmanaged.fromOpaque($0!).takeRetainedValue()
+            socks.onConnect(clientAddress: $1)
+        }
         
-        start_client(storageDirectory, serviceProvider, start_cb, shutdown_cb)
+        let this2 = UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque())
+        let shutdownCb: @convention(c) (UnsafeMutableRawPointer?) -> Void = {
+            let socks: RustSocks5 = Unmanaged.fromOpaque($0!).takeRetainedValue()
+            socks.onShutdown()
+        }
+
+        let fn_start = RefDynFnMut1_void_char_ptr(env_ptr: this1, call: startCb)
+        let fn_shutdown = RefDynFnMut0_void(env_ptr: this2, call: shutdownCb)
+        
+        
+        start_client(storageDirectory, serviceProvider, fn_start, fn_shutdown)
     }
     
     func stopClient() {
         stop_client()
     }
-
     
-//    func addStuff(to: String) -> String {
-//        let result = foomp(to)
-//        let swift_result = String(cString: result!)
-//        free_foomp(UnsafeMutablePointer(mutating: result))
-//        return swift_result
-//    }
-//
-//    func addStuffWithCallback(to: String) -> String {
-//        let f: @convention(c) () -> Void = callback
-//        let result = invoke_foomp_with_callback(to, f)
-//
-//
-//        let swift_result = String(cString: result!)
-//        free_foomp(UnsafeMutablePointer(mutating: result))
-//        return swift_result
-//    }
+    func resetConfig(storageDirectory: String) {
+        reset_client_data(storageDirectory)
+    }
 }

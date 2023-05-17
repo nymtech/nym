@@ -7,8 +7,8 @@
  *                                         *
  *******************************************/
 
-#ifndef __RUST_SOCKS5_C__
-#define __RUST_SOCKS5_C__
+#ifndef __RUST_NYM_SOCKS5_LISTENER__
+#define __RUST_NYM_SOCKS5_LISTENER__
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,13 +27,46 @@ typedef enum ClientState {
     CLIENT_STATE_DISCONNECTED,
 } ClientState_t;
 
+/** \brief
+ *  `&'lt mut (dyn 'lt + Send + FnMut(A1) -> Ret)`
+ */
+typedef struct RefDynFnMut1_void_char_ptr {
+    /** <No documentation available> */
+    void * env_ptr;
+
+    /** <No documentation available> */
+    void (*call)(void *, char *);
+} RefDynFnMut1_void_char_ptr_t;
+
+/** \brief
+ *  `&'lt mut (dyn 'lt + Send + FnMut() -> Ret)`
+ */
+typedef struct RefDynFnMut0_void {
+    /** <No documentation available> */
+    void * env_ptr;
+
+    /** <No documentation available> */
+    void (*call)(void *);
+} RefDynFnMut0_void_t;
+
 /** <No documentation available> */
 void
 blocking_run_client (
     char const * storage_directory,
     char const * service_provider,
-    void (*on_start_callback)(char *),
-    void (*on_shutdown_callback)(void));
+    RefDynFnMut1_void_char_ptr_t on_start_callback,
+    RefDynFnMut0_void_t on_shutdown_callback);
+
+/** <No documentation available> */
+void
+dummy_callback (
+    RefDynFnMut0_void_t a);
+
+/** <No documentation available> */
+void
+dummy_callback2 (
+    void * this,
+    void (*cb)(void *));
 
 /** <No documentation available> */
 void
@@ -50,8 +83,8 @@ void
 start_client (
     char const * storage_directory,
     char const * service_provider,
-    void (*on_start_callback)(char *),
-    void (*on_shutdown_callback)(void));
+    RefDynFnMut1_void_char_ptr_t on_start_callback,
+    RefDynFnMut0_void_t on_shutdown_callback);
 
 /** <No documentation available> */
 void
@@ -62,4 +95,4 @@ stop_client (void);
 } /* extern \"C\" */
 #endif
 
-#endif /* __RUST_SOCKS5_C__ */
+#endif /* __RUST_NYM_SOCKS5_LISTENER__ */

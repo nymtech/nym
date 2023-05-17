@@ -9,6 +9,8 @@ use nym_config_common::defaults::setup_env;
 use nym_config_common::NymConfig;
 use nym_socks5_client_core::config::Config as Socks5Config;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
+use safer_ffi::closure::{RefDynFnMut0, RefDynFnMut1};
+use std::ffi::c_void;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -28,9 +30,13 @@ mod persistence;
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
 
 // return address of the client
-type StartupCallback = extern "C" fn(char_p::Box);
+// type StartupCallback = extern "C" fn(char_p::Box);
+//
+// type ShutdownCallback = extern "C" fn();
 
-type ShutdownCallback = extern "C" fn();
+type StartupCallback<'a> = RefDynFnMut1<'a, (), char_p::Box>;
+
+type ShutdownCallback<'a> = RefDynFnMut0<'a, ()>;
 
 // hehe, this is so disgusting : )
 lazy_static! {
@@ -70,6 +76,17 @@ fn rust_free_string(string: char_p::Box) {
     drop(string)
 }
 
+// '_ mut (dyn Send + FnMut(A1, ..., An) -> Ret)
+#[ffi_export]
+pub fn dummy_callback(mut a: RefDynFnMut0<'_, ()>) {
+    a.call()
+}
+
+#[ffi_export]
+pub fn dummy_callback2(this: *mut c_void, cb: extern "C" fn(*mut c_void)) {
+    cb(this)
+}
+
 #[derive_ReprC]
 #[ffi_export]
 #[repr(C)]
@@ -83,8 +100,8 @@ pub enum ClientState {
 pub fn start_client(
     storage_directory: Option<char_p::Ref<'_>>,
     service_provider: Option<char_p::Ref<'_>>,
-    on_start_callback: StartupCallback,
-    on_shutdown_callback: ShutdownCallback,
+    on_start_callback: StartupCallback<'static>,
+    on_shutdown_callback: ShutdownCallback<'static>,
 ) {
     let storage_dir = storage_directory.map(|s| s.to_string());
     let service_provider = service_provider.map(|s| s.to_string());
@@ -109,8 +126,8 @@ pub fn stop_client() {
 pub fn blocking_run_client(
     storage_directory: Option<char_p::Ref<'_>>,
     service_provider: Option<char_p::Ref<'_>>,
-    on_start_callback: StartupCallback,
-    on_shutdown_callback: ShutdownCallback,
+    on_start_callback: StartupCallback<'_>,
+    on_shutdown_callback: ShutdownCallback<'_>,
 ) {
     let storage_dir = storage_directory.map(|s| s.to_string());
     let service_provider = service_provider.map(|s| s.to_string());
@@ -158,8 +175,8 @@ async fn _async_run_client(
     storage_dir: Option<String>,
     client_id: String,
     service_provider: Option<String>,
-    on_start_callback: StartupCallback,
-    on_shutdown_callback: ShutdownCallback,
+    mut on_start_callback: StartupCallback<'_>,
+    mut on_shutdown_callback: ShutdownCallback<'_>,
 ) -> anyhow::Result<()> {
     set_default_env();
     let stop_handle = Arc::new(Notify::new());
@@ -174,7 +191,7 @@ async fn _async_run_client(
     eprintln!("the client has started!");
 
     // invoke the callback since we've started!
-    on_start_callback(
+    on_start_callback.call(
         started_client
             .address
             .to_string()
@@ -190,7 +207,7 @@ async fn _async_run_client(
     started_client.shutdown_handle.wait_for_shutdown().await;
 
     // and the corresponding one for shutdown!
-    on_shutdown_callback();
+    on_shutdown_callback.call();
 
     Ok(())
 }

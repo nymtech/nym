@@ -250,6 +250,6 @@ export type DirectoryServiceProvider = {
 
 export type DirectoryService = {
   id: string;
-  descrtiption: string;
+  description: string;
   items: DirectoryServiceProvider[];
 };

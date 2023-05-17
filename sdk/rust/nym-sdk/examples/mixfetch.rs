@@ -72,8 +72,8 @@ async fn main() {
     let socks5_connect = nym_socks5_requests::request::Socks5Request::new_connect(
         Socks5ProtocolVersion::Legacy,
         conn_id,
-        // "nymtech.net:443".to_string(),
-        "localhost:3000".to_string(),
+        "nymtech.net:443".to_string(),
+        // "localhost:3000".to_string(),
         Some(*our_address),
     );
     nym_socks5_requests::request::Socks5Request::try_from_bytes(

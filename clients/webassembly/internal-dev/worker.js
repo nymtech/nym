@@ -371,26 +371,26 @@ async function testMixFetch() {
         },
     });
 
-    const fetchToMixnetRequest = new FetchToMixnetRequest();
-    console.log(fetchToMixnetRequest.fetch_with_str('https://nymtech.net/index.html'));
-    console.log(fetchToMixnetRequest.fetch_with_request({
-        url: 'https://nymtech.net/.wellknown/wallet/validators.json',
-        method: 'GET'
-    }));
-    console.log(fetchToMixnetRequest.fetch_with_request({
-        url: 'http://localhost:3000',
-        method: 'POST',
-        body: Uint8Array.from([0, 1, 2, 3, 4])
-    }));
-    console.log(fetchToMixnetRequest.fetch_with_str_and_init('http://localhost:3000', {
-        method: 'POST',
-        body: Uint8Array.from([1, 1, 1, 1, 1]),
-        headers: {'Content-Type': 'application/json'}
-    }));
-    console.log(fetchToMixnetRequest.fetch_with_request_and_init({
-        url: 'https://nymtech.net/.wellknown/wallet/validators.json',
-        method: 'GET'
-    }, {body: Uint8Array.from([1, 1, 1, 1, 1]), headers: {'Content-Type': 'application/json'}}));
+    // const fetchToMixnetRequest = new FetchToMixnetRequest();
+    // console.log(fetchToMixnetRequest.fetch_with_str('https://nymtech.net/index.html'));
+    // console.log(fetchToMixnetRequest.fetch_with_request({
+    //     url: 'https://nymtech.net/.wellknown/wallet/validators.json',
+    //     method: 'GET'
+    // }));
+    // console.log(fetchToMixnetRequest.fetch_with_request({
+    //     url: 'http://localhost:3000',
+    //     method: 'POST',
+    //     body: Uint8Array.from([0, 1, 2, 3, 4])
+    // }));
+    // console.log(fetchToMixnetRequest.fetch_with_str_and_init('http://localhost:3000', {
+    //     method: 'POST',
+    //     body: Uint8Array.from([1, 1, 1, 1, 1]),
+    //     headers: {'Content-Type': 'application/json'}
+    // }));
+    // console.log(fetchToMixnetRequest.fetch_with_request_and_init({
+    //     url: 'https://nymtech.net/.wellknown/wallet/validators.json',
+    //     method: 'GET'
+    // }, {body: Uint8Array.from([1, 1, 1, 1, 1]), headers: {'Content-Type': 'application/json'}}));
 
     // Set callback to handle messages passed to the worker.
     self.onmessage = async event => {
@@ -406,6 +406,10 @@ async function testMixFetch() {
             }
         }
     };
+
+    console.log('using mixFetch...');
+    await client.fetch_with_str('https://nymtech.net/.wellknown/wallet/validators.json');
+    console.log('mixFetch done');
 }
 
 async function main() {

@@ -8,17 +8,23 @@ use nym_client_core::client::base_client::ClientOutput;
 use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReconstructedMessagesReceiver,
 };
+use nym_service_providers_common::interface::Serializable;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
-use wasm_utils::console_error;
+use wasm_utils::{console_error, console_log};
 
 pub(crate) struct ResponsePusher {
     reconstructed_receiver: ReconstructedMessagesReceiver,
     on_message: js_sys::Function,
+    on_mix_fetch_message: js_sys::Function,
 }
 
 impl ResponsePusher {
-    pub(crate) fn new(client_output: ClientOutput, on_message: js_sys::Function) -> Self {
+    pub(crate) fn new(
+        client_output: ClientOutput,
+        on_message: js_sys::Function,
+        on_mix_fetch_message: js_sys::Function,
+    ) -> Self {
         // register our output
         let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();
 
@@ -33,6 +39,7 @@ impl ResponsePusher {
         ResponsePusher {
             reconstructed_receiver,
             on_message,
+            on_mix_fetch_message,
         }
     }
 
@@ -43,6 +50,18 @@ impl ResponsePusher {
             while let Some(reconstructed) = self.reconstructed_receiver.next().await {
                 for reconstructed_msg in reconstructed {
                     let (msg, tag) = reconstructed_msg.into_inner();
+
+                    if let Ok(socks5_response) =
+                        nym_socks5_requests::Socks5Response::try_from_bytes(&msg)
+                    {
+                        if let Ok(mix_http_response) =
+                            nym_http_requests::socks::decode_socks_response_as_http_response(
+                                socks5_response,
+                            )
+                        {
+                            console_log!("mix_fetch response {:?}", mix_http_response);
+                        }
+                    }
 
                     let msg_slice: &[u8] = &msg;
                     let array = Uint8Array::from(msg_slice);

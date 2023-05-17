@@ -1,8 +1,7 @@
 use httpcodec::{HeaderField, HttpVersion, Method, Request as HttpCodecRequest, RequestTarget};
 use nym_http_requests::error::MixHttpRequestError;
-use std::any::Any;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
-use wasm_utils::console_log;
 use web_sys::Request;
 
 use crate::mix_fetch::mix_http_requests::RequestInitWithTypescriptType;
@@ -34,15 +33,9 @@ impl WebSysRequestAdapter {
     }
 
     pub(crate) fn new_from_request(
-        _request: &Request,
+        request: &Request,
     ) -> Result<WebSysRequestAdapter, MixHttpRequestError> {
-        let request = HttpCodecRequest::new(
-            Method::new("GET").unwrap(),
-            RequestTarget::new("/.wellknown/wallet/validators.json").unwrap(),
-            HttpVersion::V1_1,
-            b"".to_vec(),
-        );
-        Ok(WebSysRequestAdapter { request })
+        WebSysRequestAdapter::_new_from_init_or_input(None, Some(request), None)
     }
 
     pub(crate) fn new_from_init_or_input(
@@ -50,10 +43,26 @@ impl WebSysRequestAdapter {
         input: Option<&Request>,
         init: &RequestInitWithTypescriptType,
     ) -> Result<WebSysRequestAdapter, MixHttpRequestError> {
+        WebSysRequestAdapter::_new_from_init_or_input(url, input, Some(init))
+    }
+
+    fn _new_from_init_or_input(
+        url: Option<String>,
+        input: Option<&Request>,
+        init: Option<&RequestInitWithTypescriptType>,
+    ) -> Result<WebSysRequestAdapter, MixHttpRequestError> {
+        let init_default = JsValue::default();
+        let mut init_or_input = &init_default;
+        if let Some(init) = init {
+            init_or_input = init;
+        } else if let Some(input) = input {
+            init_or_input = input;
+        }
+
         // the URL will either come from an argument to this fn, or it could be a field in init that is either
         // a string or a Javascript Url object, so coerce to a string (might be empty) and parse here
         let url_from_input = get_url_field_from_some_request(input);
-        let url_from_init = get_url_field_from_some_js_value(Some(init));
+        let url_from_init = get_url_field_from_some_js_value(Some(init_or_input));
 
         // first use url, then fallback to input and finally to init
         let url_to_parse = url.or(url_from_input).or(url_from_init);
@@ -64,27 +73,48 @@ impl WebSysRequestAdapter {
         let target = RequestTarget::new(parsed_url.path())?;
 
         // parse the method and default to GET if unspecified or in error
-        let method_from_init = get_string_value(init, "method");
+        let method_from_init = get_string_value(init_or_input, "method");
         let method_name = method_from_init.unwrap_or("GET".to_string());
         let method = Method::new(&method_name)
             .unwrap_or(Method::new("GET").expect("should always unwrap static value"));
 
-        let headers = get_object_value(init, "headers");
-        let body = get_object_value(init, "body");
-        let _mode = get_string_value(init, "mode");
-        let _credentials = get_string_value(init, "credentials");
-        let _cache = get_string_value(init, "cache");
-        let _redirect = get_string_value(init, "redirect");
-        let _referrer = get_string_value(init, "referrer");
-        let _referrer_policy = get_string_value(init, "referrerPolicy");
-        let _integrity = get_string_value(init, "integrity");
-        let _keepalive = get_boolean_value(init, "keepalive");
-        let _signal = get_object_value(init, "signal");
-        let _priority = get_string_value(init, "priority");
+        let headers = get_object_value(init_or_input, "headers");
+        let body = get_object_value(init_or_input, "body");
 
-        let body = body_from_js_value(&body);
+        // possibly support `navigate` in the future?
+        let _mode = get_string_value(init_or_input, "mode");
 
-        let mut request = HttpCodecRequest::new(method, target, HttpVersion::V1_1, body);
+        // currently unsupported, could possibly get the credentials (e.g. basic auth)
+        // from the https://developer.mozilla.org/en-US/docs/Web/API/Navigator/credentials prop
+        let _credentials = get_string_value(init_or_input, "credentials");
+
+        // currently this is unsupported, however, we could consider using the Cache API:
+        // https://developer.mozilla.org/en-US/docs/Web/API/Cache/match
+        let _cache = get_string_value(init_or_input, "cache");
+
+        // currently this is unsupported, relatively easy the implement
+        let _redirect = get_string_value(init_or_input, "redirect");
+
+        // do we want to pass on this information?
+        let _referrer = get_string_value(init_or_input, "referrer");
+        let _referrer_policy = get_string_value(init_or_input, "referrerPolicy");
+
+        // should we check the integrity of the return data?
+        let _integrity = get_string_value(init_or_input, "integrity");
+
+        // this might be a way to signal to keep the other side of the SOCKS5 client open
+        let _keepalive = get_boolean_value(init_or_input, "keepalive");
+
+        // not implemented, not possible to cancel
+        let _signal = get_object_value(init_or_input, "signal");
+
+        // not implemented
+        let _priority = get_string_value(init_or_input, "priority");
+
+        let byte_serialized_body = BodyFromJsValue::new(&body);
+
+        let mut request =
+            HttpCodecRequest::new(method, target, HttpVersion::V1_1, byte_serialized_body.body);
 
         let mut request_headers = request.header_mut();
 
@@ -106,6 +136,13 @@ impl WebSysRequestAdapter {
                         }
                     }
                 }
+            }
+        }
+
+        // check if the caller has set the content type, otherwise, set it from the body if possible
+        if !request_headers.fields().any(|f| f.name() == "Content-Type") {
+            if let Some(mime_type) = byte_serialized_body.mime_type {
+                request_headers.add_field(HeaderField::new("Content-Type", &mime_type)?);
             }
         }
 
@@ -143,24 +180,121 @@ fn get_url_field_from_some_request(request: Option<&Request>) -> Option<String> 
     request.and_then(|x| get_object_value(x, "url").map(|x| x.as_string().unwrap_or_default()))
 }
 
-fn body_from_js_value(js_value: &Option<JsValue>) -> Vec<u8> {
-    match js_value {
-        None => vec![],
-        Some(val) => {
-            if val.is_string() {
-                return val.as_string().unwrap_or_default().into_bytes();
-            }
+fn get_class_name_or_type(js_value: &JsValue) -> Option<String> {
+    if let Ok(proto) = js_sys::Reflect::get_prototype_of(js_value) {
+        return Some(proto.constructor().name().into());
+    }
+    None
+}
 
-            let proto = js_sys::Reflect::get_prototype_of(val);
-            console_log!("🔫🔫🔫val = {:?}", val);
-            if let Ok(p2) = proto {
-                let pfn = p2.constructor();
-                console_log!("🔫🔫🔫constructor = {:?}", pfn.name());
-            }
+#[derive(Default, Debug)]
+struct BodyFromJsValue {
+    pub(crate) body: Vec<u8>,
+    pub(crate) mime_type: Option<String>,
+}
 
-            // TODO: this is nasty, but can't find any other way
-            let array = js_sys::Uint8Array::new(val);
-            array.to_vec()
+impl BodyFromJsValue {
+    pub fn new(js_value: &Option<JsValue>) -> Self {
+        match js_value {
+            None => BodyFromJsValue::default(),
+            Some(val) => {
+                // for string types, convert them into UTF-8 byte arrays
+                if val.is_string() {
+                    return Self::string_plain(val);
+                }
+
+                // try get the constructor function name (the class name) for polymorphic fetch body types
+                match get_class_name_or_type(val) {
+                    Some(class_name_or_type) => match class_name_or_type.as_str() {
+                        "FormData" => Self::form_data_to_vec(val),
+                        "Uint8Array" => Self::array_to_vec(val),
+                        "Array" => Self::array_to_vec(val),
+                        &_ => BodyFromJsValue::default(),
+                    },
+                    None => BodyFromJsValue::default(),
+                }
+            }
         }
+    }
+
+    fn string_plain(js_value: &JsValue) -> BodyFromJsValue {
+        BodyFromJsValue {
+            body: js_value.as_string().unwrap_or_default().into_bytes(),
+            mime_type: Some("text/plain".to_string()),
+        }
+    }
+
+    fn array_to_vec(js_value: &JsValue) -> BodyFromJsValue {
+        let array = js_sys::Uint8Array::new(js_value);
+        BodyFromJsValue {
+            body: array.to_vec(),
+            mime_type: Some("application/octet-stream".to_string()),
+        }
+    }
+
+    fn form_data_to_vec(js_value: &JsValue) -> BodyFromJsValue {
+        let mut serializer = form_urlencoded::Serializer::new(String::new());
+
+        let form = FormDataWithKeys::attach(js_value);
+
+        for form_key in form.keys().into_iter().flatten() {
+            if let Some(form_key) = form_key.as_string() {
+                if let Some(val) = form.get(&form_key).as_string() {
+                    serializer.append_pair(&form_key, &val);
+                }
+            }
+        }
+
+        // same as `Object.keys(headers).forEach(...)`
+        if let Ok(keys) = js_sys::Reflect::own_keys(js_value) {
+            for key in keys.iter() {
+                if let Some(key) = key.as_string() {
+                    if let Some(val) = get_string_value(js_value, &key) {
+                        serializer.append_pair(&key, &val);
+                    }
+                }
+            }
+        }
+
+        BodyFromJsValue {
+            body: serializer.finish().into_bytes(),
+            mime_type: Some("application/x-www-form-urlencoded".to_string()),
+        }
+    }
+}
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen (extends = :: js_sys :: Object , js_name = FormData , typescript_type = "FormData")]
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    #[doc = "The `FormData` class."]
+    #[doc = ""]
+    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/FormData)"]
+    pub type FormDataWithKeys;
+
+    #[wasm_bindgen (method , structural , js_class = "FormData" , js_name = keys)]
+    #[doc = "The `keys()` method."]
+    #[doc = ""]
+    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/FormData/keys)"]
+    pub fn keys(this: &FormDataWithKeys) -> ::js_sys::Iterator;
+
+    #[wasm_bindgen (method , structural , js_class = "FormData" , js_name = get)]
+    #[doc = "The `get()` method."]
+    #[doc = ""]
+    #[doc = "[MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/FormData/get)"]
+    pub fn get(this: &FormDataWithKeys, name: &str) -> ::wasm_bindgen::JsValue;
+}
+
+impl FormDataWithKeys {
+    pub fn attach(js_value: &JsValue) -> &Self {
+        #[allow(unused_mut)]
+        let mut ret: &Self = ::wasm_bindgen::JsCast::unchecked_from_js_ref(js_value);
+        ret
+    }
+}
+
+impl Default for RequestInitWithTypescriptType {
+    fn default() -> Self {
+        Self::new()
     }
 }

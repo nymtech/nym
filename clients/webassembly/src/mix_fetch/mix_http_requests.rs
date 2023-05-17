@@ -128,7 +128,7 @@ fn http_request_to_string(req: HttpCodecRequest<Vec<u8>>) -> Result<String, JsEr
 fn http_request_to_mixnet_request_byte_array(
     req: HttpCodecRequest<Vec<u8>>,
 ) -> Result<Uint8Array, JsError> {
-    let mixnet_req = nym_http_requests::encode_http_request_as_socks_request(
+    let mixnet_req = nym_http_requests::socks::encode_http_request_as_socks_request(
         Socks5ProtocolVersion::Versioned(5),
         0u64,
         req,
@@ -137,4 +137,20 @@ fn http_request_to_mixnet_request_byte_array(
     )?;
     let buf = mixnet_req.into_bytes();
     Ok(buf.as_slice().into())
+}
+
+pub(crate) fn http_request_to_mixnet_request_to_vec_u8(
+    connection_id: u64,
+    local_closed: bool,
+    ordered_message_index: u64,
+    req: HttpCodecRequest<Vec<u8>>,
+) -> Result<Vec<u8>, JsError> {
+    let mixnet_req = nym_http_requests::socks::encode_http_request_as_socks_request(
+        Socks5ProtocolVersion::Versioned(5),
+        connection_id,
+        req,
+        Some(ordered_message_index),
+        local_closed,
+    )?;
+    Ok(mixnet_req.into_bytes())
 }

@@ -150,7 +150,7 @@ fn http_post_basic_form_params_ok() {
     "body": "replace_me",
     "method": "POST",
     "headers": {
-        "Content-Type": "application/x-www-form-urlencoded"
+        "Accepts": "application/json"
     }
 }"#,
     );
@@ -176,16 +176,13 @@ fn http_post_basic_form_params_ok() {
         )
         .unwrap_or("".to_string());
 
-    let expected = format!(
-        r#"POST /api/v1/baz HTTP/1.1
+    let expected = r#"POST /api/v1/baz HTTP/1.1
 Host: https://validator.nymtech.net
 Accepts: application/json
-Content-Type: application/json
-Content-Length: 6
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 65
 
-{}"#,
-        "\u{1}\u{2}\u{3}\u{4}\u{5}\u{6}"
-    )
-    .replace("\n", "\r\n");
+field1=value1&field2=this+is+a+value+with+%F0%9F%91%8C+data+in+it"#
+        .replace("\n", "\r\n");
     assert_eq!(expected, res);
 }

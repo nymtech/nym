@@ -9,7 +9,7 @@ You can use this example as a seed for a new project.
 Try out the chat app by running:
 
 ```
-npm install
+npm install --legacy-peer-deps
 npm start
 ```
 

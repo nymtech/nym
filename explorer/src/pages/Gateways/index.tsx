@@ -61,10 +61,18 @@ export const PageGateways: FCWithChildren = () => {
     return [];
   }, [gateways]);
 
-  const filteredByVersion = React.useMemo(
-    () => (versionFilter === VersionSelectOptions.latestVersion ? filterByLatestVersions : filterByOlderVersions),
-    [versionFilter, gateways],
-  );
+  const filteredByVersion = React.useMemo(() => {
+    switch (versionFilter) {
+      case VersionSelectOptions.latestVersion:
+        return filterByLatestVersions;
+      case VersionSelectOptions.olderVersions:
+        return filterByOlderVersions;
+      case VersionSelectOptions.all:
+        return gateways?.data || [];
+      default:
+        return [];
+    }
+  }, [versionFilter, gateways]);
 
   React.useEffect(() => {
     if (searchTerm === '') {

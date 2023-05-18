@@ -75,9 +75,9 @@ struct ContentView: View {
             }.disabled(socksWrapper.operationInProgress)
                 .onChange(of: connected, perform: { value in
                     if value {
-                        disconnect()
-                    } else {
                         connect()
+                    } else {
+                        disconnect()
                     }
                 })
 

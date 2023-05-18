@@ -3,12 +3,8 @@ use nym_client_core::client::{
     inbound_messages::InputMessage,
     received_buffer::ReconstructedMessagesReceiver,
 };
-use nym_sphinx::{addressing::clients::Recipient, receiver::ReconstructedMessage};
-use nym_sphinx::{
-    addressing::clients::{ClientIdentity, Recipient},
-    params::PacketType,
-    receiver::ReconstructedMessage,
-};
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_task::{
     connections::{ConnectionCommandSender, LaneQueueLengths, TransmissionLane},
     TaskManager,

@@ -208,9 +208,9 @@ impl NymClientBuilder {
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        let mut started_client = base_builder.start_base().await?;
-        let self_address = started_client.address.to_string();
         let packet_type = self.config.packet_type;
+        let mut started_client = base_builder.start_base(packet_type).await?;
+        let self_address = started_client.address.to_string();
 
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();

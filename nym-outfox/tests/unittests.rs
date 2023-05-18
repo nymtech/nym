@@ -116,7 +116,7 @@ mod tests {
             [0u8; 16],
         );
 
-        let route = [node1.clone(), node2.clone(), node3.clone(), gateway.clone()];
+        let route = [node1, node2.clone(), node3.clone(), gateway.clone()];
 
         let payload = randombytes(21);
 

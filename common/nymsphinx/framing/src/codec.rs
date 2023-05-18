@@ -105,22 +105,22 @@ impl Decoder for NymCodec {
         // we also assume the next packet coming from the same client will use exactly the same versioning
         // as the current packet
 
-        // let mut allocate_for_next_packet = header.size() + PacketSize::AckPacket.size();
-        // if !src.is_empty() {
-        //     match Header::decode(src) {
-        //         Ok(Some(next_header)) => {
-        //             allocate_for_next_packet = next_header.size() + next_header.packet_size.size();
-        //         }
-        //         Ok(None) => {
-        //             // we don't have enough information to know how much to reserve, fallback to the ack case
-        //         }
+        let mut allocate_for_next_packet = header.size() + PacketSize::AckPacket.size();
+        if !src.is_empty() {
+            match Header::decode(src) {
+                Ok(Some(next_header)) => {
+                    allocate_for_next_packet = next_header.size() + next_header.packet_size.size();
+                }
+                Ok(None) => {
+                    // we don't have enough information to know how much to reserve, fallback to the ack case
+                }
 
-        //         // the next frame will be malformed but let's leave handling the error to the next
-        //         // call to 'decode', as presumably, the current sphinx packet is still valid
-        //         Err(_) => return Ok(Some(nymsphinx_packet)),
-        //     };
-        // }
-        // src.reserve(allocate_for_next_packet);
+                // the next frame will be malformed but let's leave handling the error to the next
+                // call to 'decode', as presumably, the current sphinx packet is still valid
+                Err(_) => return Ok(Some(nymsphinx_packet)),
+            };
+        }
+        src.reserve(allocate_for_next_packet);
         Ok(Some(nymsphinx_packet))
     }
 }

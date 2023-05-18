@@ -37,6 +37,7 @@ use nym_gateway_client::{
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
+use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskManager};
@@ -275,6 +276,7 @@ where
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
         shutdown: TaskClient,
+        packet_type: PacketType,
     ) {
         info!("Starting real traffic stream...");
 
@@ -290,7 +292,7 @@ where
             lane_queue_lengths,
             client_connection_rx,
         )
-        .start_with_shutdown(shutdown);
+        .start_with_shutdown(shutdown, packet_type);
     }
 
     // buffer controlling all messages fetched from provider
@@ -477,7 +479,10 @@ where
         self.managed_keys = ManagedKeys::load_or_generate(&mut rng, &self.key_store).await;
     }
 
-    pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
+    pub async fn start_base(
+        mut self,
+        packet_type: PacketType,
+    ) -> Result<BaseClient, ClientCoreError>
     where
         <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         S::ReplyStore: Send + Sync,
@@ -581,6 +586,7 @@ where
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
             task_manager.subscribe(),
+            packet_type,
         );
 
         if !self

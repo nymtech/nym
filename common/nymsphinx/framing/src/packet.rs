@@ -101,16 +101,16 @@ impl Header {
 
     pub(crate) fn encode(&self, dst: &mut BytesMut) {
         // we reserve one byte for `packet_size` and the other for `mode`
-        // dst.reserve(Self::LEGACY_SIZE);
+        dst.reserve(Self::LEGACY_SIZE);
         if let Some(version) = self.packet_version.as_u8() {
-            // dst.reserve(Self::VERSIONED_SIZE);
+            dst.reserve(Self::VERSIONED_SIZE);
             dst.put_u8(version)
         }
 
         dst.put_u8(self.packet_size as u8);
         dst.put_u8(self.packet_type as u8);
         // reserve bytes for the actual packet
-        // dst.reserve(self.packet_size.size());
+        dst.reserve(self.packet_size.size());
     }
 
     pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, NymCodecError> {

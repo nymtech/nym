@@ -139,7 +139,8 @@ impl SocketClient {
         }
 
         let base_builder = self.create_base_client_builder().await?;
-        let mut started_client = base_builder.start_base().await?;
+        let packet_type = self.config.get_base().get_packet_type();
+        let mut started_client = base_builder.start_base(packet_type).await?;
         let self_address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
@@ -160,19 +161,15 @@ impl SocketClient {
         Ok(started_client.task_manager)
     }
 
-    pub async fn start_direct(
-        self,
-        packet_type: Option<PacketType>,
-    ) -> Result<DirectClient, ClientError> {
+    pub async fn start_direct(self) -> Result<DirectClient, ClientError> {
         if self.config.get_socket_type().is_websocket() {
             return Err(ClientError::InvalidSocketMode);
         }
 
         let base_builder = self.create_base_client_builder().await?;
-        let mut started_client = base_builder.start_base().await?;
+        let packet_type = self.config.get_base().get_packet_type();
+        let mut started_client = base_builder.start_base(packet_type).await?;
         let address = started_client.address;
-        let client_input = started_client.client_input.register_producer();
-        let client_output = started_client.client_output.register_consumer();
 
         // register our receiver
         let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();
@@ -205,7 +202,7 @@ pub struct DirectClient {
 
     // we need to keep reference to this guy otherwise things will start dropping
     shutdown_notifier: TaskManager,
-    packet_type: Option<PacketType>,
+    packet_type: PacketType,
 }
 
 impl DirectClient {
@@ -226,7 +223,7 @@ impl DirectClient {
     /// well enough in local tests)
     pub async fn send_regular_message(&mut self, recipient: Recipient, message: Vec<u8>) {
         let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_regular(recipient, message, lane, self.packet_type);
+        let input_msg = InputMessage::new_regular(recipient, message, lane, Some(self.packet_type));
 
         self.client_input
             .input_sender
@@ -245,8 +242,13 @@ impl DirectClient {
         reply_surbs: u32,
     ) {
         let lane = TransmissionLane::General;
-        let input_msg =
-            InputMessage::new_anonymous(recipient, message, reply_surbs, lane, self.packet_type);
+        let input_msg = InputMessage::new_anonymous(
+            recipient,
+            message,
+            reply_surbs,
+            lane,
+            Some(self.packet_type),
+        );
 
         self.client_input
             .input_sender
@@ -260,7 +262,8 @@ impl DirectClient {
     /// well enough in local tests)
     pub async fn send_reply(&mut self, recipient_tag: AnonymousSenderTag, message: Vec<u8>) {
         let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_reply(recipient_tag, message, lane, self.packet_type);
+        let input_msg =
+            InputMessage::new_reply(recipient_tag, message, lane, Some(self.packet_type));
 
         self.client_input
             .input_sender

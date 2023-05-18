@@ -16,7 +16,7 @@ use futures::channel::mpsc;
 use log::*;
 use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nym_sphinx::params::PacketSize;
+use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::{
     acknowledgements::AckKey,
     addressing::clients::Recipient,
@@ -249,7 +249,11 @@ where
         }
     }
 
-    pub(super) fn start_with_shutdown(self, shutdown: nym_task::TaskClient) {
+    pub(super) fn start_with_shutdown(
+        self,
+        shutdown: nym_task::TaskClient,
+        packet_type: PacketType,
+    ) {
         let mut acknowledgement_listener = self.acknowledgement_listener;
         let mut input_message_listener = self.input_message_listener;
         let mut retransmission_request_listener = self.retransmission_request_listener;
@@ -275,7 +279,7 @@ where
         let shutdown_handle = shutdown.clone();
         spawn_future(async move {
             retransmission_request_listener
-                .run_with_shutdown(shutdown_handle)
+                .run_with_shutdown(shutdown_handle, packet_type)
                 .await;
             debug!("The retransmission request listener has finished execution!");
         });

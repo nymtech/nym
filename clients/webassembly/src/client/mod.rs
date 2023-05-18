@@ -128,6 +128,7 @@ impl NymClientBuilder {
                 },
                 ..Default::default()
             },
+            packet_type: PacketType::Mix,
         };
 
         NymClientBuilder {
@@ -209,6 +210,7 @@ impl NymClientBuilder {
 
         let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address.to_string();
+        let packet_type = self.config.packet_type;
 
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();

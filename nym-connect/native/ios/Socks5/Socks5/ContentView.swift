@@ -105,7 +105,7 @@ struct ContentView: View {
             
             
 
-            DeleteButton().environmentObject(socksWrapper).buttonStyle(.bordered)
+            DeleteButton().environmentObject(socksWrapper).buttonStyle(.bordered).disabled(socksWrapper.connected || socksWrapper.operationInProgress)
             
             if socksWrapper.operationInProgress {
                 ProgressView().progressViewStyle(CircularProgressViewStyle())

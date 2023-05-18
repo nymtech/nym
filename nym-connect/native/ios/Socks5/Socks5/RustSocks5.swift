@@ -13,6 +13,17 @@ class RustSocks5: ObservableObject {
     @Published var clientAddress = ""
     @Published var connected = false
     @Published var status: ClientState = CLIENT_STATE_UNKNOWN
+    @Published var serviceProvider: String?;
+    
+    init() {
+        let client_store_dir = clientStoreDirectory()
+        let existingProvider = existingProvider(storageDirectory: client_store_dir)
+        if let some = existingProvider {
+            print("we have already initialised before and our provider is \(some)")
+        } else {
+            print("this is the first time we're running this client")
+        }
+    }
     
     func onConnect(clientAddress: UnsafeMutablePointer<CChar>?) {
         print("connected callback got called!")
@@ -35,11 +46,14 @@ class RustSocks5: ObservableObject {
             self.status = CLIENT_STATE_DISCONNECTED
             self.connected = false
             self.operationInProgress = false
+            self.clientAddress = ""
         }
     }
     
     
-    func startClient(storageDirectory: String, serviceProvider: String) {
+    func startClient(storageDirectory: String, serviceProvider: String?) {
+        self.serviceProvider = serviceProvider
+        
         let this1 = UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque())
         let startCb: @convention(c) (UnsafeMutableRawPointer?, UnsafeMutablePointer<CChar>?) -> Void = {
             let socks: RustSocks5 = Unmanaged.fromOpaque($0!).takeRetainedValue()
@@ -65,5 +79,21 @@ class RustSocks5: ObservableObject {
     
     func resetConfig(storageDirectory: String) {
         reset_client_data(storageDirectory)
+        DispatchQueue.main.async{
+            self.status = CLIENT_STATE_DISCONNECTED
+            self.connected = false
+            self.serviceProvider = nil
+        }
+    }
+    
+    func existingProvider(storageDirectory: String) -> String? {
+        let provider_res = existing_service_provider(storageDirectory)
+        if let value = provider_res {
+            let swift_string = String(cString: value)
+            rust_free_string(value)
+            return swift_string
+        } else {
+            return nil
+        }
     }
 }

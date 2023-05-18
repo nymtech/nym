@@ -58,15 +58,9 @@ blocking_run_client (
     RefDynFnMut0_void_t on_shutdown_callback);
 
 /** <No documentation available> */
-void
-dummy_callback (
-    RefDynFnMut0_void_t a);
-
-/** <No documentation available> */
-void
-dummy_callback2 (
-    void * this,
-    void (*cb)(void *));
+char *
+existing_service_provider (
+    char const * storage_directory);
 
 /** <No documentation available> */
 void

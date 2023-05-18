@@ -9,6 +9,7 @@ use nym_config_common::defaults::setup_env;
 use nym_config_common::NymConfig;
 use nym_socks5_client_core::config::Config as Socks5Config;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
+use safer_ffi::char_p::char_p_boxed;
 use safer_ffi::closure::{RefDynFnMut0, RefDynFnMut1};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -132,6 +133,26 @@ pub fn blocking_run_client(
 pub fn reset_client_data(root_directory: char_p::Ref<'_>) {
     let root_dir = root_directory.to_string();
     _reset_client_data(root_dir)
+}
+
+#[ffi_export]
+pub fn existing_service_provider(storage_directory: char_p::Ref<'_>) -> Option<char_p_boxed> {
+    let expected_store_path = Socks5Config::default_config_file_path_with_root(
+        storage_directory.to_string(),
+        SOCKS5_CONFIG_ID,
+    );
+
+    if let Ok(config) = Socks5Config::load_from_filepath(expected_store_path) {
+        Some(
+            config
+                .get_socks5()
+                .get_raw_provider_mix_address()
+                .try_into()
+                .unwrap(),
+        )
+    } else {
+        None
+    }
 }
 
 fn _reset_client_data(root_directory: String) {

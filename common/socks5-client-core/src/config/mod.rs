@@ -232,6 +232,10 @@ impl Socks5 {
         self.send_anonymously = anonymous_replies;
     }
 
+    pub fn get_raw_provider_mix_address(&self) -> String {
+        self.provider_mix_address.clone()
+    }
+
     pub fn get_provider_mix_address(&self) -> Recipient {
         Recipient::try_from_base58_string(&self.provider_mix_address)
             .expect("malformed provider address")

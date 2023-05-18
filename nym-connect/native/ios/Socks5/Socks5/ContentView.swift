@@ -9,25 +9,32 @@ import SwiftUI
 
 let NYM_CLIENT_STORAGE_DIR = "/.nym/socks5-clients";
 
+func clientStoreDirectory() -> String {
+    let dirPaths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
+    let client_store_dir = dirPaths[0] + NYM_CLIENT_STORAGE_DIR
+    return client_store_dir
+}
+
 struct ContentView: View {
-    @State private var connected: Bool = false
-    @StateObject private var socksWrapper: RustSocks5 = RustSocks5()
-
-    func clientStoreDirectory() -> String {
-        let dirPaths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
-        let client_store_dir = dirPaths[0] + NYM_CLIENT_STORAGE_DIR
-        return client_store_dir
-    }
-
+    @State private var connected: Bool = false;
+    @StateObject private var socksWrapper: RustSocks5 = RustSocks5();
+    @State private var serviceProvider: String?;
+    
     func connect() {
         print("connecting (swift)...")
         socksWrapper.operationInProgress = true
-
-        let client_store_dir = self.clientStoreDirectory()
+        
+        var targetServiceProvider: String? = "4z4iw9NLRgMok2MPFEGoiwrmHuDY6kRVDUQRp2dXGLQm.69av5mWZmaMK4bHo3GV6Cu7B8zuMT2mv2E22f8GkRMgk@DF4TE7V8kJkttMvnoSVGnRFFRt6WYGxxiC2w1XyPQnHe"
+        if socksWrapper.serviceProvider != nil {
+            // explicitly don't pass anything because we don't have to
+            // note: you can't overwrite existing provider. you'd have to reset everything instead.
+            targetServiceProvider = nil
+        }
+        
+        let client_store_dir = clientStoreDirectory()
         socksWrapper.startClient(
             storageDirectory: client_store_dir,
-            serviceProvider: "4z4iw9NLRgMok2MPFEGoiwrmHuDY6kRVDUQRp2dXGLQm.69av5mWZmaMK4bHo3GV6Cu7B8zuMT2mv2E22f8GkRMgk@DF4TE7V8kJkttMvnoSVGnRFFRt6WYGxxiC2w1XyPQnHe")
-        
+            serviceProvider: targetServiceProvider)
     }
 
     
@@ -41,7 +48,7 @@ struct ContentView: View {
     func reset() {
         print("resetting (swift)...")
         
-        let client_store_dir = self.clientStoreDirectory()
+        let client_store_dir = clientStoreDirectory()
         socksWrapper.resetConfig(storageDirectory: client_store_dir)
     }
 
@@ -97,18 +104,8 @@ struct ContentView: View {
                 .foregroundColor(.accentColor)
             
             
-            HStack {
-                Button(action: connect) {
-                    Text("connect")
-                }.disabled(socksWrapper.connected || socksWrapper.operationInProgress)
-                Button(action: disconnect) {
-                    Text("disconnect")
-                }.disabled(!socksWrapper.connected || socksWrapper.operationInProgress)
-                Button(action: reset) {
-                    Text("reset").foregroundColor(.red)
-                }.disabled(true)
-            }
-            .buttonStyle(.bordered)
+
+            DeleteButton().environmentObject(socksWrapper).buttonStyle(.bordered)
             
             if socksWrapper.operationInProgress {
                 ProgressView().progressViewStyle(CircularProgressViewStyle())
@@ -125,4 +122,26 @@ struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
     }
+}
+
+
+
+struct DeleteButton: View {
+  @EnvironmentObject var socksWrapper: RustSocks5
+  @State private var isPresentingConfirm: Bool = false
+    
+  var body: some View {
+    Button("Reset", role: .destructive) {
+      isPresentingConfirm = true
+    }
+    .confirmationDialog("Are you sure?",
+      isPresented: $isPresentingConfirm) {
+        Button("Delete client configuration?", role: .destructive) {
+            let storageDirectory = clientStoreDirectory()
+            socksWrapper.resetConfig(storageDirectory: storageDirectory)
+        }
+    } message: {
+      Text("You cannot undo this action!")
+    }
+  }
 }

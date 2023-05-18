@@ -15,7 +15,7 @@ use wasm_utils::storage::{IdbVersionChangeEvent, WasmStorage};
 use wasm_utils::PromisableResult;
 use zeroize::Zeroizing;
 
-pub(crate) mod errors;
+pub(crate) mod error;
 pub(crate) mod traits;
 
 const STORAGE_NAME_PREFIX: &str = "wasm-client-storage";

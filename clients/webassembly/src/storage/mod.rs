@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::errors::ClientStorageError;
+use crate::storage::error::ClientStorageError;
 use js_sys::Promise;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::SharedKeys;
@@ -13,7 +13,7 @@ use wasm_utils::storage::{IdbVersionChangeEvent, WasmStorage};
 use wasm_utils::PromisableResult;
 use zeroize::Zeroizing;
 
-pub(crate) mod errors;
+pub(crate) mod error;
 pub(crate) mod traits;
 
 const STORAGE_NAME_PREFIX: &str = "wasm-client-storage";

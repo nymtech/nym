@@ -134,6 +134,13 @@ impl WasmStorage {
             .store_value_raw(store, key, &self.serialize_value(&value)?)
             .await
     }
+
+    pub async fn remove_value<K>(&self, store: &str, key: K) -> Result<(), StorageError>
+    where
+        K: wasm_bindgen::JsCast,
+    {
+        self.inner.remove_value_raw(store, key).await
+    }
 }
 
 struct IdbWrapper(IdbDatabase);
@@ -164,6 +171,19 @@ impl IdbWrapper {
             .transaction_on_one_with_mode(store, IdbTransactionMode::Readwrite)?
             .object_store(store)?
             .put_key_val_owned(key, value)?
+            .into_future()
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn remove_value_raw<K>(&self, store: &str, key: K) -> Result<(), StorageError>
+    where
+        K: wasm_bindgen::JsCast,
+    {
+        self.0
+            .transaction_on_one_with_mode(store, IdbTransactionMode::Readwrite)?
+            .object_store(store)?
+            .delete_owned(key)?
             .into_future()
             .await
             .map_err(Into::into)

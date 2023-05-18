@@ -10,6 +10,8 @@ cw-utils = { workspace = true }
 cw3 = { workspace = true }
 cw3-fixed-multisig = { workspace = true, features = ["library"] }
 cw4 = { workspace= true }
+cw-storage-plus = { workspace = true }
+cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }

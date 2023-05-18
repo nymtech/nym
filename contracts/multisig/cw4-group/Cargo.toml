@@ -1,8 +1,8 @@
 [package]
 name = "cw4-group"
-version = "0.13.4"
+version = "1.0.0"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
-edition = "2018"
+edition = "2021"
 description = "Simple cw4 implementation of group membership controlled by admin "
 license = "Apache-2.0"
 repository = "https://github.com/CosmWasm/cw-plus"
@@ -20,6 +20,8 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
 # use library feature to disable all instantiate/execute/query exports
 library = []
 
@@ -31,10 +33,8 @@ cw2 = { workspace = true }
 cw4 = { workspace = true }
 cw-controllers = { workspace = true }
 cw-storage-plus = { workspace = true }
+cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
-
-[dev-dependencies]
-cosmwasm-schema = { workspace = true }

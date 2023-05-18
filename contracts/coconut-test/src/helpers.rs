@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{entry_point, Addr, Coin, DepsMut, Empty, Env, Response};
-use cw3_flex_multisig::state::CONFIG;
 use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper};
 use nym_multisig_contract_common::error::ContractError;
+use nym_multisig_contract_common::state::CONFIG;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

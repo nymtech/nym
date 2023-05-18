@@ -69,14 +69,14 @@ impl MixnetClientStorage for Ephemeral {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub struct OnDiskPersistent {
     pub(crate) key_store: OnDiskKeys,
     pub(crate) reply_store: fs_backend::Backend,
     pub(crate) credential_store: PersistentCredentialStorage,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 impl OnDiskPersistent {
     pub fn new(
         key_store: OnDiskKeys,
@@ -91,7 +91,7 @@ impl OnDiskPersistent {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 impl MixnetClientStorage for OnDiskPersistent {
     type KeyStore = OnDiskKeys;
     type ReplyStore = fs_backend::Backend;

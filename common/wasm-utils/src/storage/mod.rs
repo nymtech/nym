@@ -4,6 +4,7 @@
 use crate::console_log;
 use crate::storage::cipher_export::StoredExportedStoreCipher;
 use crate::storage::error::StorageError;
+use futures::TryFutureExt;
 use indexed_db_futures::IdbDatabase;
 use nym_store_cipher::{
     Aes256Gcm, Algorithm, EncryptedData, KdfInfo, KeySizeUser, Params, StoreCipher, Unsigned,
@@ -141,6 +142,10 @@ impl WasmStorage {
     {
         self.inner.remove_value_raw(store, key).await
     }
+
+    pub async fn get_all_keys(&self, store: &str) -> Result<js_sys::Array, StorageError> {
+        self.inner.get_all_keys(store).await
+    }
 }
 
 struct IdbWrapper(IdbDatabase);
@@ -184,6 +189,16 @@ impl IdbWrapper {
             .transaction_on_one_with_mode(store, IdbTransactionMode::Readwrite)?
             .object_store(store)?
             .delete_owned(key)?
+            .into_future()
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn get_all_keys(&self, store: &str) -> Result<js_sys::Array, StorageError> {
+        self.0
+            .transaction_on_one_with_mode(store, IdbTransactionMode::Readonly)?
+            .object_store(store)?
+            .get_all_keys()?
             .into_future()
             .await
             .map_err(Into::into)

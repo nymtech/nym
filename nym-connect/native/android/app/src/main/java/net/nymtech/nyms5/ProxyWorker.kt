@@ -17,6 +17,10 @@ const val notificationId = 2001
 
 class ProxyWorker(context: Context, parameters: WorkerParameters) :
     CoroutineWorker(context, parameters) {
+    companion object {
+        val name = "nymS5ProxyWorker"
+    }
+
     private val tag = "proxyWorker"
 
     private val channelId =
@@ -69,7 +73,6 @@ class ProxyWorker(context: Context, parameters: WorkerParameters) :
             .setOngoing(true)
             // Add the cancel action to the notification which can
             // be used to cancel the worker
-            // TODO call `stop` lib function on cancel
             .addAction(android.R.drawable.ic_delete, cancel, intent)
             .build()
 

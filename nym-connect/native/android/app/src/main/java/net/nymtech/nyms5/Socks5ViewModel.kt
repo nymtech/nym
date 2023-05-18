@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
@@ -39,7 +40,10 @@ class Socks5ViewModel(
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .addTag(workerTag)
             .build()
-        workManager.enqueue(request)
+
+        // TODO observe worker status change (CANCELLED) to call `socks5.stop()`
+        // see https://developer.android.com/guide/background/persistent/how-to/manage-work#observing
+        workManager.enqueueUniqueWork(ProxyWorker.name, ExistingWorkPolicy.KEEP, request)
 
         _uiState.update { currentState ->
             currentState.copy(

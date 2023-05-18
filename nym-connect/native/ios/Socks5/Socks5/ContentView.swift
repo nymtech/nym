@@ -61,7 +61,7 @@ struct ContentView: View {
 
     func getStatusImage() -> String {
         if socksWrapper.operationInProgress {
-            return ""
+            return "arrow.2.circlepath.circle"
         }
         return socksWrapper.connected ? "checkmark.circle" : "exclamationmark.circle"
     }

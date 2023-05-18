@@ -4,6 +4,8 @@ use jni::{
     sys::jstring,
     JNIEnv,
 };
+use safer_ffi::char_p::char_p_boxed;
+use safer_ffi::closure::{RefDynFnMut0, RefDynFnMut1};
 
 extern "C" fn placeholder_startup_cb(address: char_p::Box) {
     crate::rust_free_string(address)
@@ -49,8 +51,8 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_run(
     crate::blocking_run_client(
         None,
         Some(service_provider.as_ref()),
-        placeholder_startup_cb,
-        placeholder_shutdown_cb,
+        RefDynFnMut1::new(&mut |a| placeholder_startup_cb(a)),
+        RefDynFnMut0::new(&mut || placeholder_shutdown_cb()),
     );
 
     // Return something here not because we need to, but because we will likely do so in the
@@ -62,6 +64,10 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_run(
     output.into_raw()
 }
 
+// hehe, I know. this is beyond disgusting
+static mut STOP: fn() = || {};
+static mut START: fn(a: char_p_boxed) = |a| crate::rust_free_string(a);
+
 #[no_mangle]
 pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_startClient(
     _env: JNIEnv,
@@ -71,21 +77,16 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_startClient(
     // TODO: how does this work if we are not doing blocking calls?
     init_jni_logger();
 
+    let start_cb = RefDynFnMut1::new(&mut START);
+    let stop_cb = RefDynFnMut0::new(&mut STOP);
+
     // TODO: get the service provider from input
     let service_provider = char_p::new("DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh");
-    crate::start_client(
-        None,
-        Some(service_provider.as_ref()),
-        placeholder_startup_cb,
-        placeholder_shutdown_cb,
-    );
+    crate::start_client(None, Some(service_provider.as_ref()), start_cb, stop_cb);
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_stopClient(
-    _env: JNIEnv,
-    _class: JClass,
-) {
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_stopClient(_env: JNIEnv, _class: JClass) {
     //init_jni_logger();
     crate::stop_client();
 }

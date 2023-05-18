@@ -10,7 +10,6 @@ use nym_config_common::NymConfig;
 use nym_socks5_client_core::config::Config as Socks5Config;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
 use safer_ffi::closure::{RefDynFnMut0, RefDynFnMut1};
-use std::ffi::c_void;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -28,11 +27,6 @@ pub mod android;
 mod persistence;
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
-
-// return address of the client
-// type StartupCallback = extern "C" fn(char_p::Box);
-//
-// type ShutdownCallback = extern "C" fn();
 
 type StartupCallback<'a> = RefDynFnMut1<'a, (), char_p::Box>;
 
@@ -74,17 +68,6 @@ fn set_default_env() {
 #[ffi_export]
 fn rust_free_string(string: char_p::Box) {
     drop(string)
-}
-
-// '_ mut (dyn Send + FnMut(A1, ..., An) -> Ret)
-#[ffi_export]
-pub fn dummy_callback(mut a: RefDynFnMut0<'_, ()>) {
-    a.call()
-}
-
-#[ffi_export]
-pub fn dummy_callback2(this: *mut c_void, cb: extern "C" fn(*mut c_void)) {
-    cb(this)
 }
 
 #[derive_ReprC]

@@ -28,12 +28,20 @@ import net.nymtech.nyms5.ui.theme.Nyms5Theme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.work.WorkManager
 
 class MainActivity : ComponentActivity() {
+    private val viewModel: Socks5ViewModel by viewModels {
+        Socks5ViewModelFactory(
+            workManager = WorkManager.getInstance(
+                application.applicationContext
+            )
+        )
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val viewModel: Socks5ViewModel by viewModels()
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect {

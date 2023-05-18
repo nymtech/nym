@@ -5,24 +5,26 @@ import android.util.Log
 const val nymNativeLib = "nym_socks5_listener"
 
 class Socks5 {
+    private val tag = "Socks5"
+
     // Load the native library "libnym_socks5_listener.so"
     init {
         System.loadLibrary(nymNativeLib)
-        Log.d("Socks5", "loaded native library $nymNativeLib")
+        Log.d(tag, "loaded native library $nymNativeLib")
     }
 
     fun runClient(): String {
-        Log.d("Socks5", "calling $nymNativeLib:run")
+        Log.d(tag, "calling $nymNativeLib:run")
         return run("TEST")
     }
 
     fun start() {
-        Log.d("Socks5", "calling $nymNativeLib:startClient")
+        Log.d(tag, "calling $nymNativeLib:startClient")
         return startClient()
     }
 
     fun stop() {
-        Log.d("Socks5", "calling $nymNativeLib:stopClient")
+        Log.d(tag, "calling $nymNativeLib:stopClient")
         return stopClient()
     }
 

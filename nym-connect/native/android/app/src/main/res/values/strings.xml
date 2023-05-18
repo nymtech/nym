@@ -1,3 +1,7 @@
 <resources>
-    <string name="app_name">nyms5</string>
+    <string name="app_name">Nyms5</string>
+    <string name="service_desc">Nym socks5 process</string>
+    <string name="notification_channel_id">21</string>
+    <string name="notification_title">Nym proxy</string>
+    <string name="stop_proxy">Stop</string>
 </resources>

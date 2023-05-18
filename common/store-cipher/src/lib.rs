@@ -7,7 +7,7 @@ use rand::{thread_rng, CryptoRng, Fill, RngCore};
 use serde::{Deserialize, Serialize};
 use serde_helpers::{argon2_algorithm_helper, argon2_params_helper, argon2_version_helper};
 use thiserror::Error;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub use aes_gcm::Aes256Gcm;
 pub use aes_gcm::{Key, KeySizeUser};
@@ -161,7 +161,7 @@ impl CiphertextInfo {
     }
 }
 
-#[derive(Zeroize)]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct StoreCipher<C = Aes256Gcm>
 where
     C: KeySizeUser,

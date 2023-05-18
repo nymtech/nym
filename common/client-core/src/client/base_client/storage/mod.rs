@@ -12,15 +12,15 @@ use nym_credential_storage::ephemeral_storage::{
 };
 use nym_credential_storage::storage::Storage as CredentialStorage;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use crate::client::base_client::non_wasm_helpers;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use crate::client::key_manager::persistence::OnDiskKeys;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use crate::config::{persistence::key_pathfinder::ClientKeyPathfinder, Config};
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use crate::error::ClientCoreError;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
@@ -74,14 +74,14 @@ impl MixnetClientStorage for Ephemeral {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub struct OnDiskPersistent {
     pub(crate) key_store: OnDiskKeys,
     pub(crate) reply_store: fs_backend::Backend,
     pub(crate) credential_store: PersistentCredentialStorage,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 impl OnDiskPersistent {
     pub fn new(
         key_store: OnDiskKeys,
@@ -116,7 +116,7 @@ impl OnDiskPersistent {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 impl MixnetClientStorage for OnDiskPersistent {
     type KeyStore = OnDiskKeys;
     type ReplyStore = fs_backend::Backend;

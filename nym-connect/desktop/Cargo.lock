@@ -797,18 +797,18 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "1.1.10"
+version = "1.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cc8ce2331fce9946f8ad676a5f1bc71eefee13a1edf3f170a02d705492c2dae"
+checksum = "1c9f7f0e51bfc7295f7b2664fe8513c966428642aa765dad8a74acdab5e0c773"
 dependencies = [
  "syn 1.0.109",
 ]
 
 [[package]]
 name = "cosmwasm-schema"
-version = "1.1.10"
+version = "1.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8ae5e59fb4849e4806191767ddb0186db2f38e791f139b5ff7966775daa45e2"
+checksum = "0f00b363610218eea83f24bbab09e1a7c3920b79f068334fdfcc62f6129ef9fc"
 dependencies = [
  "cosmwasm-schema-derive",
  "schemars",
@@ -819,9 +819,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-schema-derive"
-version = "1.1.10"
+version = "1.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe69fae369ee79ce74322951d9aa96cdabc03514b1a28c7aab5454056891ec6f"
+checksum = "ae38f909b2822d32b275c9e2db9728497aa33ffe67dd463bc67c6a3b7092785c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -830,9 +830,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-std"
-version = "1.1.10"
+version = "1.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "314f8e4dcafa2fae3b5ed00e9cdceee3e6945e9ccd1f4b2d890c5ee5398e032e"
+checksum = "a49b85345e811c8e80ec55d0d091e4fcb4f00f97ab058f9be5f614c444a730cb"
 dependencies = [
  "base64 0.13.1",
  "cosmwasm-crypto",
@@ -842,7 +842,8 @@ dependencies = [
  "hex",
  "schemars",
  "serde",
- "serde-json-wasm",
+ "serde-json-wasm 0.5.1",
+ "sha2 0.10.6",
  "thiserror",
  "uint",
 ]
@@ -3603,7 +3604,7 @@ dependencies = [
  "nym-contracts-common",
  "schemars",
  "serde",
- "serde-json-wasm",
+ "serde-json-wasm 0.4.1",
  "serde_repr",
  "thiserror",
  "time",
@@ -5226,6 +5227,15 @@ name = "serde-json-wasm"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "479b4dbc401ca13ee8ce902851b834893251404c4f3c65370a49e047a6be09a5"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "serde-json-wasm"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16a62a1fad1e1828b24acac8f2b468971dade7b8c3c2e672bcadefefb1f8c137"
 dependencies = [
  "serde",
 ]

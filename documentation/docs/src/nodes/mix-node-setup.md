@@ -228,7 +228,7 @@ sudo ufw enable
 sudo ufw status
 ```
 
-Finally open your mix node's p2p port, as well as ports for ssh, http, and https connections, and ports `8000` and `1790` for verloc and measurement pings:
+Finally open your mix node's p2p port, as well as ports for ssh and ports `8000` and `1790` for verloc and measurement pings:
 
 ```
 sudo ufw allow 1789,1790,8000,22/tcp

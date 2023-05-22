@@ -1,6 +1,6 @@
-# Nym Chrome Extension Example
+# Nym Firefox Extension Example
 
-This is an example of how Nym can be used within the context of a Chrome extension.
+This is an example of how Nym can be used within the context of a Mozilla Firefox extension.
 
 ## Running the example
 

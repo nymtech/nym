@@ -10,7 +10,7 @@ use nym_sphinx_addressing::nodes::{
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::delays::{self, Delay};
-use nym_sphinx_types::{NymPacket, NymPacketError};
+use nym_sphinx_types::{NymPacket, NymPacketError, MIN_PACKET_SIZE};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
@@ -56,13 +56,7 @@ impl SurbAck {
 
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);
         let packet_size = match packet_type {
-            PacketType::Outfox => {
-                if surb_ack_payload.len() >= 48 {
-                    surb_ack_payload.len()
-                } else {
-                    48
-                }
-            }
+            PacketType::Outfox => surb_ack_payload.len().max(MIN_PACKET_SIZE),
             PacketType::Mix => PacketSize::AckPacket.payload_size(),
             PacketType::Vpn => PacketSize::AckPacket.payload_size(),
         };

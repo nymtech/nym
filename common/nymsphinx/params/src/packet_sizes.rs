@@ -3,7 +3,9 @@
 
 use crate::{PacketType, FRAG_ID_LEN};
 use nym_sphinx_types::header::HEADER_SIZE;
-use nym_sphinx_types::{MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD, PAYLOAD_OVERHEAD_SIZE};
+use nym_sphinx_types::{
+    MIN_PACKET_SIZE, MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD, PAYLOAD_OVERHEAD_SIZE,
+};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
@@ -28,8 +30,7 @@ const EXTENDED_PACKET_SIZE_8: usize = 8 * 1024 + SPHINX_PACKET_OVERHEAD;
 const EXTENDED_PACKET_SIZE_16: usize = 16 * 1024 + SPHINX_PACKET_OVERHEAD;
 const EXTENDED_PACKET_SIZE_32: usize = 32 * 1024 + SPHINX_PACKET_OVERHEAD;
 
-// 48 is min outfox payload size
-const OUTFOX_ACK_PACKET_SIZE: usize = 48 + OUTFOX_PACKET_OVERHEAD;
+const OUTFOX_ACK_PACKET_SIZE: usize = MIN_PACKET_SIZE + OUTFOX_PACKET_OVERHEAD;
 const OUTFOX_REGULAR_PACKET_SIZE: usize = 2 * 1024 + OUTFOX_PACKET_OVERHEAD;
 
 #[derive(Debug, Error)]

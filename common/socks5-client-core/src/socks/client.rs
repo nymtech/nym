@@ -499,13 +499,13 @@ impl SocksClient {
                     })
                     .unwrap();
 
-                debug!(
+                info!(
                     "Starting proxy for {} (id: {})",
                     remote_address.clone(),
                     self.connection_id
                 );
                 self.run_proxy(mix_receiver, remote_address.clone()).await;
-                debug!(
+                info!(
                     "Proxy for {} is finished (id: {})",
                     remote_address, self.connection_id
                 );

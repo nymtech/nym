@@ -214,7 +214,10 @@ where
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        info!("{:?}", self.config.get_base().get_packet_type());
+        info!(
+            "Running with {:?} packets",
+            self.config.get_base().get_packet_type()
+        );
 
         Self::start_socks5_listener(
             self.config.get_socks5(),

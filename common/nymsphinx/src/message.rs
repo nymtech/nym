@@ -18,7 +18,7 @@ use thiserror::Error;
 
 pub(crate) const ACK_OVERHEAD: usize = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
 pub(crate) const OUTFOX_ACK_OVERHEAD: usize =
-    MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
+    MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::OutfoxAckPacket.size();
 
 #[derive(Debug, Error)]
 pub enum NymMessageError {

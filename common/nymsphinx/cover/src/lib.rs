@@ -56,6 +56,7 @@ where
     )?)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn generate_loop_cover_packet<R>(
     rng: &mut R,
     topology: &NymTopology,
@@ -64,6 +65,7 @@ pub fn generate_loop_cover_packet<R>(
     average_ack_delay: time::Duration,
     average_packet_delay: time::Duration,
     packet_size: PacketSize,
+    packet_type: PacketType,
 ) -> Result<MixPacket, CoverMessageError>
 where
     R: RngCore + CryptoRng,
@@ -75,7 +77,7 @@ where
         ack_key,
         full_address,
         average_ack_delay,
-        PacketType::Mix,
+        packet_type,
     )?
     .prepare_for_sending()?;
 

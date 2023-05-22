@@ -247,6 +247,7 @@ where
                         self.config.average_ack_delay,
                         self.config.traffic.average_packet_delay,
                         cover_traffic_packet_size,
+                        self.config.traffic.packet_type.unwrap_or_default(),
                     )
                     .expect(
                         "Somehow failed to generate a loop cover message with a valid topology",

@@ -689,6 +689,8 @@ pub struct Traffic {
     /// Note that its use decreases overall anonymity.
     /// Do not set it it unless you understand the consequences of that change.
     pub secondary_packet_size: Option<PacketSize>,
+
+    pub packet_type: Option<PacketType>,
 }
 
 impl Traffic {
@@ -712,6 +714,7 @@ impl Default for Traffic {
             disable_main_poisson_packet_distribution: false,
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: None,
+            packet_type: None,
         }
     }
 }

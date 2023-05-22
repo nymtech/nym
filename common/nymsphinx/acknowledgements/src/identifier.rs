@@ -24,12 +24,6 @@ pub fn recover_identifier(
     key: &AckKey,
     iv_id_ciphertext: &[u8],
 ) -> Option<SerializedFragmentIdentifier> {
-    // The content of an 'ACK' packet consists of AckEncryptionAlgorithm::IV followed by
-    // serialized FragmentIdentifier
-    // if iv_id_ciphertext.len() != PacketSize::AckPacket.plaintext_size() {
-    //     return None;
-    // }
-
     let iv_size = AckEncryptionAlgorithm::iv_size();
     let iv = iv_from_slice::<AckEncryptionAlgorithm>(&iv_id_ciphertext[..iv_size]);
 

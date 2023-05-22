@@ -109,6 +109,7 @@ impl From<Traffic> for ConfigTraffic {
                 .disable_main_poisson_packet_distribution,
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: use_extended_packet_size,
+            packet_type: None,
         }
     }
 }

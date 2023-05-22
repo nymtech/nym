@@ -59,7 +59,7 @@ impl SphinxPacketProcessor {
     ) -> Result<NymProcessedPacket, MixProcessingError> {
         measure!({
             packet.process(&self.sphinx_key).map_err(|err| {
-                info!("Failed to unwrap NymPacket packet: {err}");
+                debug!("Failed to unwrap NymPacket packet: {err}");
                 MixProcessingError::NymPacketProcessingError(err)
             })
         })
@@ -141,7 +141,7 @@ impl SphinxPacketProcessor {
                     match SurbAck::try_recover_first_hop_packet(&ack_data, packet_type) {
                         Ok((first_hop, packet)) => (first_hop, packet),
                         Err(err) => {
-                            error!("Failed to recover first hop from ack data: {err}");
+                            debug!("Failed to recover first hop from ack data: {err}");
                             return Err(err.into());
                         }
                     };

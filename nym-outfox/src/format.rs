@@ -126,12 +126,6 @@ impl MixCreationParameters {
         }
     }
 
-    /// Add another outer layer containing some byte length of routing data.
-    // pub fn add_outer_layer(&mut self, routing_information_length_bytes: usize) {
-    //     self.routing_information_length_by_stage
-    //         .push(routing_information_length_bytes);
-    // }
-
     /// The length of the buffer needed to build a packet.
     pub fn total_packet_length(&self) -> usize {
         let mut len = self.payload_length_bytes();

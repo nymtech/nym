@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub use nym_outfox::{
-    constants::MIX_PARAMS_LEN, constants::OUTFOX_PACKET_OVERHEAD, error::OutfoxError,
+    constants::MIN_PACKET_SIZE, constants::MIX_PARAMS_LEN, constants::OUTFOX_PACKET_OVERHEAD,
+    error::OutfoxError,
 };
 // re-exporting types and constants available in sphinx
 use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};

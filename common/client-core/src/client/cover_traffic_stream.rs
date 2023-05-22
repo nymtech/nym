@@ -194,6 +194,7 @@ impl LoopCoverTrafficStream<OsRng> {
             self.average_ack_delay,
             self.cover_traffic.loop_cover_traffic_average_delay,
             cover_traffic_packet_size,
+            nym_sphinx::params::PacketType::Mix,
         )
         .expect("Somehow failed to generate a loop cover message with a valid topology");
 

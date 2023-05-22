@@ -64,6 +64,7 @@ impl SocketClient {
         client_state: ClientState,
         self_address: &Recipient,
         shutdown: nym_task::TaskClient,
+        packet_type: PacketType,
     ) {
         info!("Starting websocket listener...");
 
@@ -89,7 +90,7 @@ impl SocketClient {
             self_address,
             shared_lane_queue_lengths,
             reply_controller_sender,
-            None,
+            Some(packet_type),
         );
 
         websocket::Listener::new(config.get_listening_ip(), config.get_listening_port())
@@ -153,6 +154,7 @@ impl SocketClient {
             client_state,
             &self_address,
             started_client.task_manager.subscribe(),
+            packet_type,
         );
 
         info!("Client startup finished!");

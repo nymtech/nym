@@ -125,6 +125,7 @@ impl From<OldDebugConfigV1_1_13> for DebugConfig {
                     .disable_main_poisson_packet_distribution,
                 primary_packet_size: PacketSize::RegularPacket,
                 secondary_packet_size: value.use_extended_packet_size.map(Into::into),
+                packet_type: None,
             },
             cover_traffic: CoverTraffic {
                 loop_cover_traffic_average_delay: value.loop_cover_traffic_average_delay,

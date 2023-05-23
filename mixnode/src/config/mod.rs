@@ -35,7 +35,7 @@ const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(30_000
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
-const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
+const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 
 pub fn missing_string_value<T: From<String>>() -> T {
     MISSING_VALUE.to_string().into()

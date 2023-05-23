@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "yarn webpack serve --config webpack.dev.js",
     "build": "webpack build --progress --config webpack.prod.js",
+    "build:wasm": "cd storage && make wasm-pack",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "lint:ts": "tsc --noEmit",

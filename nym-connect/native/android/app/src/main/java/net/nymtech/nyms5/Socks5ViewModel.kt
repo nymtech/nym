@@ -7,8 +7,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 data class Socks5State(val connected: Boolean = false)
 
@@ -24,7 +27,18 @@ class Socks5ViewModel(
 ) : ViewModel() {
     private val tag = "viewModel"
 
-    private val workerTag = "nymProxy"
+    private val workTag = "nymProxy"
+
+    private val workId: UUID = UUID.randomUUID()
+
+    private val workRequest: OneTimeWorkRequest = OneTimeWorkRequestBuilder<ProxyWorker>()
+        .setConstraints(
+            Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+        )
+        .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+        .addTag(workTag)
+        .setId(workId)
+        .build()
 
     private val socks5 = Socks5()
 
@@ -32,39 +46,51 @@ class Socks5ViewModel(
     private val _uiState = MutableStateFlow(Socks5State())
     val uiState: StateFlow<Socks5State> = _uiState.asStateFlow()
 
-    fun startSocks5() {
-        val request = OneTimeWorkRequestBuilder<ProxyWorker>()
-            .setConstraints(
-                Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-            )
-            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            .addTag(workerTag)
-            .build()
-
-        // TODO observe worker status change (CANCELLED) to call `socks5.stop()`
-        // see https://developer.android.com/guide/background/persistent/how-to/manage-work#observing
-        workManager.enqueueUniqueWork(ProxyWorker.name, ExistingWorkPolicy.KEEP, request)
-
+    // TODO use lib callbacks to set the connection state
+    private fun startProxy() {
         _uiState.update { currentState ->
             currentState.copy(
                 connected = true,
             )
         }
-        Log.i(tag, "Nym socks5 started")
+        Log.i(tag, "Nym socks5 proxy started")
     }
 
-    fun stopSocks5() {
-        workManager.cancelAllWorkByTag(workerTag)
+    private fun stopProxy() {
         viewModelScope.launch(Dispatchers.IO) {
             socks5.stop()
         }
-
+        // TODO use lib callbacks to set the connection state
         _uiState.update { currentState ->
             currentState.copy(
                 connected = false,
             )
         }
-        Log.i(tag, "Nym socks5 stopped")
+        Log.i(tag, "Nym socks5 proxy stopped")
+    }
+
+    fun startProxyWork() {
+        // start the long-running proxy work
+        workManager.enqueueUniqueWork(
+            ProxyWorker.name,
+            ExistingWorkPolicy.REPLACE,
+            workRequest
+        )
+        // observe work state
+        workManager.getWorkInfoByIdLiveData(workId)
+            .observeForever { workInfo ->
+                if (workInfo?.state == WorkInfo.State.CANCELLED || workInfo?.state == WorkInfo.State.FAILED) {
+                    // when the work is cancelled call `stop`
+                    stopProxy()
+                    Log.i(tag, "proxy work cancelled")
+                }
+            }
+        // update UI state
+        startProxy()
+    }
+
+    fun cancelProxyWork() {
+        workManager.cancelAllWorkByTag(workTag)
     }
 }
 

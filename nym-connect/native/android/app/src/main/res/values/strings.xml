@@ -4,4 +4,5 @@
     <string name="notification_channel_id">21</string>
     <string name="notification_title">Nym proxy</string>
     <string name="stop_proxy">Stop</string>
+    <string name="proxy_host">http://localhost:1080</string>
 </resources>

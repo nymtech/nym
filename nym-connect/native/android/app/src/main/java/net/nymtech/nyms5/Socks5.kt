@@ -13,19 +13,27 @@ class Socks5 {
         Log.d(tag, "loaded native library $nymNativeLib")
     }
 
-    fun runClient(): String {
+    fun start() {
         Log.d(tag, "calling $nymNativeLib:run")
-        return run("TEST")
+        try {
+            run("TEST")
+        } catch (e: Throwable) {
+            Log.e(tag, "$nymNativeLib:run internal error: $e")
+        }
     }
 
-    fun start() {
+    /* fun start() {
         Log.d(tag, "calling $nymNativeLib:startClient")
         return startClient()
-    }
+    } */
 
     fun stop() {
         Log.d(tag, "calling $nymNativeLib:stopClient")
-        return stopClient()
+        try {
+            stopClient()
+        } catch (e: Throwable) {
+            Log.e(tag, "$nymNativeLib:stopClient internal error: $e")
+        }
     }
 
     private external fun startClient()

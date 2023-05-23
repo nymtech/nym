@@ -11,20 +11,19 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import kotlinx.coroutines.delay
-
-const val notificationId = 2001
 
 class ProxyWorker(context: Context, parameters: WorkerParameters) :
     CoroutineWorker(context, parameters) {
     companion object {
-        val name = "nymS5ProxyWorker"
+        const val name = "nymS5ProxyWorker"
     }
 
     private val tag = "proxyWorker"
 
     private val channelId =
         applicationContext.getString(R.string.notification_channel_id)
+
+    private val notificationId = 2001
 
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as
@@ -36,12 +35,6 @@ class ProxyWorker(context: Context, parameters: WorkerParameters) :
         return try {
             Log.d(tag, "starting work")
             Socks5().start()
-            // TODO as a temp workaround use this dirty loop
-            //  as `start` lib call is not blocking and will returns
-            //  after having spawned the proxy connection in another thread
-            while (true) {
-                delay(10)
-            }
             Log.d(tag, "work finished")
             Result.success()
         } catch (throwable: Throwable) {
@@ -58,7 +51,7 @@ class ProxyWorker(context: Context, parameters: WorkerParameters) :
         val cancel = applicationContext.getString(R.string.stop_proxy)
         // This PendingIntent can be used to cancel the worker
         val intent = WorkManager.getInstance(applicationContext)
-            .createCancelPendingIntent(getId())
+            .createCancelPendingIntent(id)
 
         // Create a Notification channel if necessary
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

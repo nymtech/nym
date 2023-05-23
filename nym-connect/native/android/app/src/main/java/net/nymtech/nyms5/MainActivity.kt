@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -28,6 +29,11 @@ import net.nymtech.nyms5.ui.theme.Nyms5Theme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.work.WorkManager
 
 class MainActivity : ComponentActivity() {
@@ -54,8 +60,8 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 S5ClientSwitch(it.connected, {
                                     when {
-                                        it -> viewModel.startSocks5()
-                                        else -> viewModel.stopSocks5()
+                                        it -> viewModel.startProxyWork()
+                                        else -> viewModel.cancelProxyWork()
                                     }
                                 })
                             }
@@ -73,13 +79,36 @@ fun S5ClientSwitch(
     onSwitch: (value: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val clipboardManager = LocalClipboardManager.current
+    val proxyHost = stringResource(R.string.proxy_host)
+
     Column(modifier = modifier.padding(16.dp)) {
         Row(modifier = modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("nym socks5")
+            Text("Nym proxy")
             Spacer(modifier = modifier.width(14.dp))
             Switch(checked = connected, onCheckedChange = {
                 onSwitch(!connected)
             })
+        }
+        if (connected) {
+            Column(modifier = modifier.padding(16.dp)) {
+                Text(
+                    color = Color.Green,
+                    fontStyle = FontStyle.Italic,
+                    text = "Connected to the mixnet"
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(proxyHost)
+                    Spacer(modifier = modifier.width(14.dp))
+                    TextButton(onClick = {
+                        clipboardManager.setText(AnnotatedString(proxyHost))
+                    }) {
+                        Text("Copy")
+                    }
+                }
+            }
         }
     }
 }

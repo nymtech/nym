@@ -1,18 +1,33 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { FormControlLabel, Checkbox, Stack, Typography, Box } from '@mui/material';
 import { TopLogoLayout } from 'src/layouts/TopLogo';
 import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { PasswordStrength } from '@nymproject/react/password-strength/PasswordStrength';
 import { Button } from 'src/components/ui';
 
-export const CreatePassword = ({ onNext }: { onNext: () => void }) => {
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isSafePassword, setIsSafePassword] = useState(false);
-  const [hasReadTerms, setHasReadTerms] = useState(false);
+type CreatePassword = {
+  canProceed: boolean;
+  password: string;
+  confirmPassword: string;
+  hasReadTerms: boolean;
+  setHasReadTerms: (hasReadTerms: boolean) => void;
+  setIsSafePassword: (isSafe: boolean) => void;
+  setConfirmPassword: (password: string) => void;
+  onNext: () => void;
+  setPassword: (password: string) => void;
+};
 
-  const canProceed = isSafePassword && hasReadTerms && password === confirmPassword;
-
+export const CreatePassword = ({
+  canProceed,
+  onNext,
+  password,
+  setPassword,
+  confirmPassword,
+  setIsSafePassword,
+  setConfirmPassword,
+  setHasReadTerms,
+  hasReadTerms,
+}: CreatePassword) => {
   return (
     <TopLogoLayout
       title="Create Password"

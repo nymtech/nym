@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 // due to expansion of #[wasm_bindgen] macro on `Debug` Config struct
@@ -9,10 +9,10 @@
 use nym_client_core::config::{
     Acknowledgements as ConfigAcknowledgements, CoverTraffic as ConfigCoverTraffic,
     DebugConfig as ConfigDebug, GatewayConnection as ConfigGatewayConnection,
-    GatewayEndpointConfig, ReplySurbs as ConfigReplySurbs, Topology as ConfigTopology,
-    Traffic as ConfigTraffic,
+    ReplySurbs as ConfigReplySurbs, Topology as ConfigTopology, Traffic as ConfigTraffic,
 };
 use nym_sphinx::params::PacketSize;
+use nym_validator_client::client::IdentityKey;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
@@ -29,9 +29,9 @@ pub struct Config {
 
     pub(crate) disabled_credentials_mode: bool,
 
-    /// Information regarding how the client should send data to gateway.
-    /// If unspecified, the client will attempt to load the config from the storage
-    pub(crate) gateway_endpoint: Option<GatewayEndpointConfig>,
+    /// Information regarding how the client should choose gateway.
+    /// If unspecified, the client will attempt to load the config from the storage.
+    pub(crate) gateway: Option<IdentityKey>,
 
     pub(crate) debug: ConfigDebug,
 }
@@ -42,7 +42,7 @@ impl Config {
     pub fn new(
         id: String,
         validator_server: String,
-        gateway_endpoint: Option<GatewayEndpointConfig>,
+        gateway: Option<IdentityKey>,
         debug: Option<Debug>,
     ) -> Self {
         Config {
@@ -53,7 +53,7 @@ impl Config {
                     .expect("provided url was malformed"),
             ),
             disabled_credentials_mode: true,
-            gateway_endpoint,
+            gateway,
             debug: debug.map(Into::into).unwrap_or_default(),
         }
     }

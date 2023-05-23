@@ -7,6 +7,7 @@ use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
+use rand::prelude::SliceRandom;
 use rand::{CryptoRng, Rng};
 use std::collections::BTreeMap;
 use std::convert::TryInto;
@@ -138,7 +139,7 @@ impl NymTopology {
         &self.gateways
     }
 
-    fn get_gateway(&self, gateway_identity: &NodeIdentity) -> Option<&gateway::Node> {
+    pub fn get_gateway(&self, gateway_identity: &NodeIdentity) -> Option<&gateway::Node> {
         self.gateways
             .iter()
             .find(|gateway| gateway.identity() == gateway_identity)
@@ -152,6 +153,15 @@ impl NymTopology {
         self.gateways = gateways
     }
 
+    pub fn random_gateway<R>(&self, rng: &mut R) -> Result<&gateway::Node, NymTopologyError>
+    where
+        R: Rng + CryptoRng,
+    {
+        self.gateways
+            .choose(rng)
+            .ok_or(NymTopologyError::NoGatewaysAvailable)
+    }
+
     /// Returns a vec of size of `num_mix_hops` of mixnodes, such that each subsequent node is on
     /// next layer, starting from layer 1
     pub fn random_mix_route<R>(
@@ -162,8 +172,6 @@ impl NymTopology {
     where
         R: Rng + CryptoRng + ?Sized,
     {
-        use rand::seq::SliceRandom;
-
         if self.mixes.len() < num_mix_hops as usize {
             return Err(NymTopologyError::InvalidNumberOfHopsError {
                 available: self.mixes.len(),

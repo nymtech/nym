@@ -8,6 +8,8 @@ use std::error::Error;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
 #[cfg(not(target_arch = "wasm32"))]
+use crate::config::Config;
+#[cfg(not(target_arch = "wasm32"))]
 use nym_crypto::asymmetric::{encryption, identity};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_gateway_requests::registration::handshake::SharedKeys;
@@ -77,6 +79,10 @@ impl From<ClientKeyPathfinder> for OnDiskKeys {
 impl OnDiskKeys {
     pub fn new(pathfinder: ClientKeyPathfinder) -> Self {
         OnDiskKeys { pathfinder }
+    }
+
+    pub fn from_config<T>(config: &Config<T>) -> Self {
+        OnDiskKeys::new(ClientKeyPathfinder::new_from_config(config))
     }
 
     fn load_key<T: PemStorableKey>(

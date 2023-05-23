@@ -15,15 +15,13 @@ use crate::{
     error::ClientCoreError,
 };
 use nym_config::NymConfig;
-use nym_credential_storage::storage::Storage;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
 use nym_validator_client::client::IdentityKey;
+use rand::rngs::OsRng;
 use rand::thread_rng;
 use serde::Serialize;
 use std::fmt::Display;
-use std::sync::Arc;
 use tap::TapFallible;
 use url::Url;
 
@@ -83,7 +81,7 @@ impl GatewaySetup {
 
     pub async fn try_get_gateway_details(
         self,
-        validator_servers: Vec<Url>,
+        validator_servers: &[Url],
     ) -> Result<GatewayEndpointConfig, ClientCoreError> {
         match self {
             GatewaySetup::New { by_latency } => {
@@ -151,32 +149,6 @@ impl Display for InitResults {
     }
 }
 
-/// Authenticate and register with a gateway.
-/// Either pick one at random by querying the available gateways from the nym-api, or use the
-/// chosen one if it's among the available ones.
-/// The shared key is added to the supplied `KeyManager` and the endpoint details are returned.
-#[deprecated]
-pub async fn register_with_gateway<St>(
-    identity_keys: Arc<identity::KeyPair>,
-    nym_api_endpoints: Vec<Url>,
-    chosen_gateway_id: Option<identity::PublicKey>,
-    by_latency: bool,
-) -> Result<(GatewayEndpointConfig, Arc<SharedKeys>), ClientCoreError>
-where
-    St: Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
-{
-    // Get the gateway details of the gateway we will use
-    let gateway =
-        helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id, by_latency).await?;
-    log::debug!("Querying gateway gives: {gateway}");
-
-    // Establish connection, authenticate and generate keys for talking with the gateway
-    let shared_keys = helpers::register_with_gateway::<St>(&gateway, identity_keys).await?;
-
-    Ok((gateway.into(), shared_keys))
-}
-
 /// Recovers the already present gateway information or attempts to register with new gateway
 /// and stores the newly obtained key
 pub async fn get_registered_gateway<S>(
@@ -208,15 +180,13 @@ where
     };
 
     // choose gateway
-    let gateway_details = setup.try_get_gateway_details(validator_servers).await?;
+    let gateway_details = setup.try_get_gateway_details(&validator_servers).await?;
 
     // get our identity key
     let our_identity = managed_keys.identity_keypair();
 
     // Establish connection, authenticate and generate keys for talking with the gateway
-    let shared_keys =
-        helpers::register_with_gateway_alt::<S::CredentialStore>(&gateway_details, our_identity)
-            .await?;
+    let shared_keys = helpers::register_with_gateway(&gateway_details, our_identity).await?;
 
     managed_keys
         .deal_with_gateway_key(shared_keys, key_store)
@@ -237,9 +207,8 @@ where
 /// b. Create a new gateway configuration but keep existing keys. This assumes that the caller
 ///    knows what they are doing and that the keys match the requested gateway.
 /// c. Create a new gateway configuration with a newly registered gateway and keys.
-#[cfg(not(target_arch = "wasm32"))]
-#[deprecated]
-pub async fn setup_gateway_from_config<C, T, St>(
+pub async fn setup_gateway_from_config<C, T, KSt>(
+    key_store: &KSt,
     register_gateway: bool,
     user_chosen_gateway_id: Option<identity::PublicKey>,
     config: &Config<T>,
@@ -248,8 +217,8 @@ pub async fn setup_gateway_from_config<C, T, St>(
 where
     C: NymConfig + ClientCoreConfigTrait,
     T: NymConfig,
-    St: Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
+    KSt: KeyStore,
+    <KSt as KeyStore>::StorageError: Send + Sync + 'static,
 {
     let id = config.get_id();
 
@@ -260,41 +229,42 @@ where
         return load_existing_gateway_config::<C>(&id);
     }
 
+    let gateway_setup = GatewaySetup::new(
+        None,
+        user_chosen_gateway_id.map(|id| id.to_base58_string()),
+        Some(by_latency),
+    );
     // Else, we proceed by querying the nym-api
-    let gateway = helpers::query_gateway_details(
-        config.get_nym_api_endpoints(),
-        user_chosen_gateway_id,
-        by_latency,
-    )
-    .await?;
-    log::debug!("Querying gateway gives: {}", gateway);
+    let gateway = gateway_setup
+        .try_get_gateway_details(&config.get_nym_api_endpoints())
+        .await?;
+    log::debug!("Querying gateway gives: {:?}", gateway);
 
     // If we are not registering, just return this and assume the caller has the keys already and
     // wants to keep the,
     if !register_gateway && user_chosen_gateway_id.is_some() {
         eprintln!("Using gateway provided by user, keeping existing keys");
-        return Ok(gateway.into());
+        return Ok(gateway);
     }
 
-    let key_store = helpers::on_disk_key_store(config);
-    let mut rng = rand::thread_rng();
+    let mut rng = OsRng;
     let mut managed_keys =
-        crate::client::key_manager::ManagedKeys::load_or_generate(&mut rng, &key_store).await;
+        crate::client::key_manager::ManagedKeys::load_or_generate(&mut rng, key_store).await;
 
     // Create new keys and derive our identity
     let our_identity = managed_keys.identity_keypair();
 
     // Establish connection, authenticate and generate keys for talking with the gateway
     eprintln!("Registering with new gateway");
-    let shared_keys = helpers::register_with_gateway::<St>(&gateway, our_identity).await?;
+    let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
     managed_keys
-        .deal_with_gateway_key(shared_keys, &key_store)
+        .deal_with_gateway_key(shared_keys, key_store)
         .await
         .map_err(|source| ClientCoreError::KeyStoreError {
             source: Box::new(source),
         })?;
 
-    Ok(gateway.into())
+    Ok(gateway)
 }
 
 /// Read and reuse the existing gateway configuration from a file that was generate earlier.
@@ -331,8 +301,8 @@ pub fn get_client_address(
 }
 
 /// Get the client address by loading the keys from stored files.
-#[deprecated]
-pub fn get_client_address_from_stored_keys<T>(
+// TODO: rethink that sucker
+pub fn get_client_address_from_stored_ondisk_keys<T>(
     config: &Config<T>,
 ) -> Result<Recipient, ClientCoreError>
 where

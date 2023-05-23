@@ -3,7 +3,7 @@
 
 use crate::constants::NODE_TESTER_ID;
 use crate::error::WasmClientError;
-use crate::helpers::current_network_topology_async;
+use crate::helpers::{current_network_topology_async, gateway_from_topology};
 use crate::storage::ClientStorage;
 use crate::tester::ephemeral_receiver::EphemeralTestReceiver;
 use crate::tester::helpers::{
@@ -17,7 +17,6 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::key_manager::ManagedKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
-use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
 use nym_node_tester_utils::receiver::SimpleMessageReceiver;
 use nym_node_tester_utils::{NodeTester, TestMessage};
@@ -27,7 +26,9 @@ use nym_sphinx::params::PacketSize;
 use nym_sphinx::preparer::PreparedFragment;
 use nym_task::TaskManager;
 use nym_topology::NymTopology;
+use nym_validator_client::client::IdentityKey;
 use rand::rngs::OsRng;
+use rand::{CryptoRng, Rng};
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex as SyncMutex};
@@ -72,7 +73,7 @@ pub struct NymNodeTester {
 
 #[wasm_bindgen]
 pub struct NymNodeTesterBuilder {
-    gateway_config: GatewayEndpointConfig,
+    gateway: Option<IdentityKey>,
 
     base_topology: NymTopology,
 
@@ -93,48 +94,61 @@ fn address(keys: &ManagedKeys, gateway_identity: NodeIdentity) -> Recipient {
 impl NymNodeTesterBuilder {
     #[wasm_bindgen(constructor)]
     pub fn new(
-        gateway_config: GatewayEndpointConfig,
         base_topology: WasmNymTopology,
+        gateway: Option<IdentityKey>,
     ) -> NymNodeTesterBuilder {
         NymNodeTesterBuilder {
-            gateway_config,
+            gateway,
             base_topology: base_topology.into(),
             bandwidth_controller: None,
         }
     }
 
     async fn _new_with_api(
-        gateway_config: GatewayEndpointConfig,
         api_url: String,
+        gateway: Option<IdentityKey>,
     ) -> Result<Self, WasmClientError> {
         let topology = current_network_topology_async(api_url).await?;
-        Ok(NymNodeTesterBuilder::new(gateway_config, topology))
+        Ok(NymNodeTesterBuilder::new(topology, gateway))
     }
 
-    pub fn new_with_api(gateway_config: GatewayEndpointConfig, api_url: String) -> Promise {
+    pub fn new_with_api(gateway: Option<IdentityKey>, api_url: String) -> Promise {
         future_to_promise(async move {
-            Self::_new_with_api(gateway_config, api_url)
+            Self::_new_with_api(api_url, gateway)
                 .await
                 .into_promise_result()
         })
+    }
+
+    async fn gateway_info<R: Rng + CryptoRng>(
+        &self,
+        rng: &mut R,
+        client_store: &ClientStorage,
+    ) -> Result<GatewayEndpointConfig, WasmClientError> {
+        gateway_from_topology(
+            rng,
+            self.gateway.as_ref().map(|x| x.as_str()),
+            &self.base_topology,
+            client_store,
+        )
+        .await
     }
 
     async fn _setup_client(mut self) -> Result<NymNodeTester, WasmClientError> {
         let mut rng = OsRng;
         let task_manager = TaskManager::default();
 
-        let gateway_identity =
-            identity::PublicKey::from_base58_string(self.gateway_config.gateway_id)
-                .map_err(|source| WasmClientError::InvalidGatewayIdentity { source })?;
+        let client_store = ClientStorage::new_async(NODE_TESTER_ID, None).await?;
 
-        let key_store = ClientStorage::new_async(NODE_TESTER_ID, None).await?;
-        let mut managed_keys = ManagedKeys::load_or_generate(&mut rng, &key_store).await;
+        let gateway_endpoint = self.gateway_info(&mut rng, &client_store).await?;
+        let gateway_identity = gateway_endpoint.try_get_gateway_identity_key()?;
+        let mut managed_keys = ManagedKeys::load_or_generate(&mut rng, &client_store).await;
 
         let (mixnet_message_sender, mixnet_message_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
         let mut gateway_client = GatewayClient::new(
-            self.gateway_config.gateway_listener,
+            gateway_endpoint.gateway_listener,
             managed_keys.identity_keypair(),
             gateway_identity,
             managed_keys.gateway_shared_key(),
@@ -148,7 +162,7 @@ impl NymNodeTesterBuilder {
         gateway_client.set_disabled_credentials_mode(true);
         let shared_keys = gateway_client.authenticate_and_start().await?;
         managed_keys
-            .deal_with_gateway_key(shared_keys, &key_store)
+            .deal_with_gateway_key(shared_keys, &client_store)
             .await?;
 
         // TODO: make those values configurable later
@@ -227,24 +241,24 @@ async fn test_mixnode(
 impl NymNodeTester {
     #[wasm_bindgen(constructor)]
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(gateway_config: GatewayEndpointConfig, topology: WasmNymTopology) -> Promise {
+    pub fn new(topology: WasmNymTopology, gateway: Option<IdentityKey>) -> Promise {
         console_log!("constructing node tester!");
-        NymNodeTesterBuilder::new(gateway_config, topology).setup_client()
+        NymNodeTesterBuilder::new(topology, gateway).setup_client()
     }
 
     async fn _new_with_api(
-        gateway_config: GatewayEndpointConfig,
         api_url: String,
+        gateway: Option<IdentityKey>,
     ) -> Result<Self, WasmClientError> {
-        NymNodeTesterBuilder::_new_with_api(gateway_config, api_url)
+        NymNodeTesterBuilder::_new_with_api(api_url, gateway)
             .await?
             ._setup_client()
             .await
     }
 
-    pub fn new_with_api(gateway_config: GatewayEndpointConfig, api_url: String) -> Promise {
+    pub fn new_with_api(api_url: String, gateway: Option<IdentityKey>) -> Promise {
         future_to_promise(async move {
-            Self::_new_with_api(gateway_config, api_url)
+            Self::_new_with_api(api_url, gateway)
                 .await
                 .into_promise_result()
         })

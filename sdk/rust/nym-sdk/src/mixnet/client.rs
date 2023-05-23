@@ -18,13 +18,9 @@ use nym_client_core::client::key_manager::ManagedKeys;
 use nym_client_core::config::DebugConfig;
 use nym_client_core::init::GatewaySetup;
 use nym_client_core::{
-    client::{
-        base_client::{BaseClientBuilder, CredentialsToggle},
-        replies::reply_storage::ReplyStorageBackend,
-    },
+    client::{base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend},
     config::GatewayEndpointConfig,
 };
-use nym_crypto::asymmetric::identity;
 use nym_network_defaults::NymNetworkDetails;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
@@ -468,7 +464,7 @@ where
             self.key_store,
             self.bandwidth_controller,
             self.reply_storage_backend,
-            CredentialsToggle::from(self.config.enabled_credentials_mode),
+            self.config.enabled_credentials_mode.into(),
             nym_api_endpoints,
         );
 

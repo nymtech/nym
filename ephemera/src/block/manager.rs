@@ -587,13 +587,13 @@ mod test {
         let signed_message = message("test");
         manager.on_new_message(signed_message).unwrap();
 
-        let _ = manager.next().await.unwrap();
+        manager.next().await.unwrap();
 
         //Create invalid block
         let wrong_block = block();
 
         //This shouldn't remove messages from the pool
-        let _ = manager.on_block_committed(&wrong_block);
+        manager.on_block_committed(&wrong_block).unwrap();
     }
 
     #[tokio::test]
@@ -608,7 +608,7 @@ mod test {
         manager.on_new_message(signed_message).unwrap();
 
         //Produce new block
-        let _ = manager.next().await.unwrap();
+        manager.next().await.unwrap();
 
         //Application Rejects the block with ALL messages
         manager
@@ -630,7 +630,7 @@ mod test {
         manager.on_new_message(signed_message2.clone()).unwrap();
 
         //Produce new block
-        let _ = manager.next().await.unwrap();
+        manager.next().await.unwrap();
 
         //Application Rejects the block with ALL messages
         manager

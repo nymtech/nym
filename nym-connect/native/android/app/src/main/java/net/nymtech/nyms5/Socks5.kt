@@ -7,6 +7,18 @@ const val nymNativeLib = "nym_socks5_listener"
 class Socks5 {
     private val tag = "Socks5"
 
+    companion object Cb {
+        val tag = "Socks5:Cb"
+
+        fun onStart() {
+            Log.w(tag, "⚡⚡⚡⚡ CB START ⚡⚡⚡⚡")
+        }
+
+        fun onStop() {
+            Log.w(tag, "⚡⚡⚡⚡ CB STOP ⚡⚡⚡⚡")
+        }
+    }
+
     // Load the native library "libnym_socks5_listener.so"
     init {
         System.loadLibrary(nymNativeLib)
@@ -16,7 +28,7 @@ class Socks5 {
     fun start() {
         Log.d(tag, "calling $nymNativeLib:run")
         try {
-            run("TEST")
+            run("abcde", Cb)
         } catch (e: Throwable) {
             Log.e(tag, "$nymNativeLib:run internal error: $e")
         }
@@ -36,7 +48,7 @@ class Socks5 {
         }
     }
 
+    private external fun run(spAddress: String, callbacks: Cb): String
     private external fun startClient()
     private external fun stopClient()
-    private external fun run(arg: String): String
 }

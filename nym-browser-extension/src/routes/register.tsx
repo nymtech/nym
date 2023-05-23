@@ -1,6 +1,6 @@
 import React from 'react';
 import { Route, Routes, useNavigate } from 'react-router-dom';
-import { RegisterContextProvider, useRegisterContext } from 'src/context/register';
+import { RegisterContextProvider } from 'src/context/register';
 import { ImportAccount, SeedPhrase, SetupComplete } from 'src/pages/register';
 import { CreatePasswordOnExistingAccount } from 'src/pages/register/CreatePasswordOnExistingAccount';
 import { CreatePasswordOnNewAccount } from 'src/pages/register/CreatePasswordOnNewAccount';

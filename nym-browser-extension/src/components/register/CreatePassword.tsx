@@ -5,7 +5,7 @@ import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { PasswordStrength } from '@nymproject/react/password-strength/PasswordStrength';
 import { Button } from 'src/components/ui';
 
-type CreatePassword = {
+type TCreatePassword = {
   canProceed: boolean;
   password: string;
   confirmPassword: string;
@@ -27,39 +27,37 @@ export const CreatePassword = ({
   setConfirmPassword,
   setHasReadTerms,
   hasReadTerms,
-}: CreatePassword) => {
-  return (
-    <TopLogoLayout
-      title="Create Password"
-      description="Create a strong password - Min 8 characters, at least one capital letter, number and special character"
-      Actions={
-        <Button fullWidth variant="contained" size="large" disabled={!canProceed} onClick={onNext}>
-          Next
-        </Button>
-      }
-    >
-      <Stack spacing={1} mb={4}>
-        <PasswordInput
-          password={password}
-          onUpdatePassword={(_password: string) => setPassword(_password)}
-          label="Password"
-        />
-
-        <PasswordStrength password={password} handleIsSafePassword={(isSafe) => setIsSafePassword(isSafe)} />
-      </Stack>
-
-      <Box mb={2}>
-        <PasswordInput
-          password={confirmPassword}
-          onUpdatePassword={(_password: string) => setConfirmPassword(_password)}
-          label="Confirm password"
-        />
-      </Box>
-
-      <FormControlLabel
-        label={<Typography variant="caption">I have read and agree with the Terms of use</Typography>}
-        control={<Checkbox checked={hasReadTerms} onChange={(_, checked) => setHasReadTerms(checked)} />}
+}: TCreatePassword) => (
+  <TopLogoLayout
+    title="Create Password"
+    description="Create a strong password - Min 8 characters, at least one capital letter, number and special character"
+    Actions={
+      <Button fullWidth variant="contained" size="large" disabled={!canProceed} onClick={onNext}>
+        Next
+      </Button>
+    }
+  >
+    <Stack spacing={1} mb={4}>
+      <PasswordInput
+        password={password}
+        onUpdatePassword={(_password: string) => setPassword(_password)}
+        label="Password"
       />
-    </TopLogoLayout>
-  );
-};
+
+      <PasswordStrength password={password} handleIsSafePassword={(isSafe) => setIsSafePassword(isSafe)} />
+    </Stack>
+
+    <Box mb={2}>
+      <PasswordInput
+        password={confirmPassword}
+        onUpdatePassword={(_password: string) => setConfirmPassword(_password)}
+        label="Confirm password"
+      />
+    </Box>
+
+    <FormControlLabel
+      label={<Typography variant="caption">I have read and agree with the Terms of use</Typography>}
+      control={<Checkbox checked={hasReadTerms} onChange={(_, checked) => setHasReadTerms(checked)} />}
+    />
+  </TopLogoLayout>
+);

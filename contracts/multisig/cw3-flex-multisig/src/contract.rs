@@ -575,6 +575,7 @@ mod tests {
             .unwrap()
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[track_caller]
     fn instantiate_flex(
         app: &mut App,
@@ -884,12 +885,7 @@ mod tests {
             ],
         );
         let res = app
-            .execute_contract(
-                Addr::unchecked(DKG_CONTRACT),
-                flex_addr.clone(),
-                &proposal,
-                &[],
-            )
+            .execute_contract(Addr::unchecked(DKG_CONTRACT), flex_addr, &proposal, &[])
             .unwrap();
         assert_eq!(
             res.custom_attrs(1),

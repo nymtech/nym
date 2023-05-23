@@ -133,10 +133,10 @@ impl RawApiEphemeraMessage {
     ///
     /// let signed_message:ApiEphemeraMessage = raw_message.sign(&keypair).unwrap();
     ///
-    /// assert_eq!(signed_message.certificate.public_key, keypair.public_key());
+    /// assert_eq!(signed_message.certificate.public_key, keypair.public_key().into());
     ///
     /// let bytes = raw_message.encode().unwrap();
-    /// assert!(keypair.public_key().verify(&bytes, &signed_message.certificate.signature));
+    /// assert!(keypair.public_key().verify(&bytes, &signed_message.certificate.signature.into()));
     /// ```
     ///
     /// # Errors

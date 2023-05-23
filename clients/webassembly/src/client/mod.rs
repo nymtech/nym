@@ -173,7 +173,7 @@ impl NymClientBuilder {
         let gateway_endpoint = if let Some(topology) = &self.custom_topology {
             gateway_from_topology(
                 &mut thread_rng(),
-                self.config.gateway.as_ref().map(|x| x.as_str()),
+                self.config.gateway.as_deref(),
                 topology,
                 &client_store,
             )

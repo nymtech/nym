@@ -92,7 +92,7 @@ pub(crate) async fn choose_gateway(
         if let Some(provided) = &chosen_gateway {
             if provided != &existing.gateway_id {
                 return Err(WasmClientError::AlreadyRegistered {
-                    gateway_config: existing.clone(),
+                    gateway_config: existing,
                 });
             }
         }
@@ -128,9 +128,9 @@ pub(crate) async fn gateway_from_topology<R: Rng + CryptoRng>(
             // we have stored gateway info and explicitly provided identity key
             //
             // check if they match, otherwise return an error
-            return if provided != &existing.gateway_id {
+            return if provided != existing.gateway_id {
                 Err(WasmClientError::AlreadyRegistered {
-                    gateway_config: existing.clone(),
+                    gateway_config: existing,
                 })
             } else {
                 Ok(existing)
@@ -149,16 +149,14 @@ pub(crate) async fn gateway_from_topology<R: Rng + CryptoRng>(
                 });
             }
         }
+    } else if let Some(existing) = existing_gateway_config {
+        // we have stored data and didn't provide anything separately - use what's stored!
+        return Ok(existing);
     } else {
-        if let Some(existing) = existing_gateway_config {
-            // we have stored data and didn't provide anything separately - use what's stored!
-            return Ok(existing);
-        } else {
-            // we don't have anything stored nor we have provided anything
-            //
-            // just grab random gateway from our topology
-            topology.random_gateway(rng)?.clone().into()
-        }
+        // we don't have anything stored nor we have provided anything
+        //
+        // just grab random gateway from our topology
+        topology.random_gateway(rng)?.clone().into()
     };
 
     console_log!("storing: {:?}", new_gateway);

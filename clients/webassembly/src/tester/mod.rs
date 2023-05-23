@@ -127,7 +127,7 @@ impl NymNodeTesterBuilder {
     ) -> Result<GatewayEndpointConfig, WasmClientError> {
         gateway_from_topology(
             rng,
-            self.gateway.as_ref().map(|x| x.as_str()),
+            self.gateway.as_deref(),
             &self.base_topology,
             client_store,
         )

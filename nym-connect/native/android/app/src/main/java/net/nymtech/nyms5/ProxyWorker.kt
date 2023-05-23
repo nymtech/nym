@@ -11,6 +11,12 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import fuel.Fuel
+import fuel.get
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlin.random.Random
 
 class ProxyWorker(context: Context, parameters: WorkerParameters) :
     CoroutineWorker(context, parameters) {
@@ -19,6 +25,10 @@ class ProxyWorker(context: Context, parameters: WorkerParameters) :
     }
 
     private val tag = "proxyWorker"
+
+    private val spUrl = context.getString(R.string.sp_url)
+
+    private val defaultSp = context.getString(R.string.default_sp)
 
     private val channelId =
         applicationContext.getString(R.string.notification_channel_id)
@@ -29,12 +39,45 @@ class ProxyWorker(context: Context, parameters: WorkerParameters) :
         context.getSystemService(Context.NOTIFICATION_SERVICE) as
                 NotificationManager
 
+    @Serializable
+    data class SPData(
+        val service_provider_client_id: String,
+        val gateway_identity_key: String,
+        val routing_score: Float,
+        val ip_address: String
+    )
+
+    @Serializable
+    data class SPListData(val items: List<SPData>)
+
+    private val json = Json { ignoreUnknownKeys = true }
+
     @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun doWork(): Result {
         setForeground(createForegroundInfo())
         return try {
             Log.d(tag, "starting work")
-            Socks5().start()
+
+            var serviceProvider: String? = null
+            // fetch the SP list and select a random one
+            try {
+                val res = Fuel.get(spUrl)
+                if (res.statusCode == 200) {
+                    val spJson = json.decodeFromString<SPListData>(res.body)
+                    serviceProvider =
+                        Random.nextInt(until = spJson.items.size)
+                            .let { spJson.items[it].service_provider_client_id }
+                    Log.d(tag, "selected service provider: $serviceProvider")
+                } else {
+                    Log.w(tag, "failed to fetch the service providers list: $res.statusCode")
+                    Log.w(tag, "using a default service provider $defaultSp")
+                }
+            } catch (e: Throwable) {
+                Log.e(tag, "an error occurred while fetching the service providers list: $e")
+                Log.w(tag, "using a default service provider $defaultSp")
+            }
+
+            Socks5().start(serviceProvider?: defaultSp)
             Log.d(tag, "work finished")
             Result.success()
         } catch (throwable: Throwable) {

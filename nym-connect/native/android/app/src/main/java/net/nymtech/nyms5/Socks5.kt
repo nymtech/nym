@@ -25,10 +25,10 @@ class Socks5 {
         Log.d(tag, "loaded native library $nymNativeLib")
     }
 
-    fun start() {
+    fun start(serviceProvider: String) {
         Log.d(tag, "calling $nymNativeLib:run")
         try {
-            run("abcde", Cb)
+            run(serviceProvider, Cb)
         } catch (e: Throwable) {
             Log.e(tag, "$nymNativeLib:run internal error: $e")
         }
@@ -48,7 +48,7 @@ class Socks5 {
         }
     }
 
-    private external fun run(spAddress: String, callbacks: Cb): String
+    private external fun run(spAddress: String, callbacks: Cb)
     private external fun startClient()
     private external fun stopClient()
 }

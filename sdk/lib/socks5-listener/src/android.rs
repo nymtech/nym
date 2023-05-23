@@ -1,6 +1,6 @@
 use ::safer_ffi::prelude::*;
 use jni::{
-    objects::{JClass, JString},
+    objects::{JClass, JObject, JString},
     sys::jstring,
     JNIEnv,
 };
@@ -35,33 +35,29 @@ fn init_jni_logger() {
 pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_run(
     mut env: JNIEnv,
     _class: JClass,
-    input: JString,
-) -> jstring {
+    service_provider: JString,
+    cb_object: JObject,
+) {
     init_jni_logger();
 
-    // We don't really make use of this input right now, but still keep it as we are expected
-    // to make use of it in the future.
-    let input: String = env
-        .get_string(&input)
+    let sp_input: String = env
+        .get_string(&service_provider)
         .expect("Couldn't get java string!")
         .into();
 
-    // TODO: get the service provider from input
-    let service_provider = char_p::new("DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh");
+    log::debug!("using sp {}", sp_input);
+
+    // TODO pass this callback to blocking_run_client
+    env.call_method(cb_object, "onStart", "()V", &[])
+        .expect("failed to call Java callbacks");
+
+    let service_provider = char_p::new(sp_input.as_str());
     crate::blocking_run_client(
         None,
         Some(service_provider.as_ref()),
         RefDynFnMut1::new(&mut |a| placeholder_startup_cb(a)),
         RefDynFnMut0::new(&mut || placeholder_shutdown_cb()),
     );
-
-    // Return something here not because we need to, but because we will likely do so in the
-    // future.
-    let output = env
-        .new_string(format!("Hello, {}!", input))
-        .expect("Couldn't create java string!");
-
-    output.into_raw()
 }
 
 // hehe, I know. this is beyond disgusting

@@ -4,6 +4,7 @@ import { TopLogoLayout } from 'src/layouts/TopLogo';
 import { Button } from 'src/components/ui';
 import { useNavigate } from 'react-router-dom';
 import { generateMnemonmic } from 'src/validator-client';
+import { useRegisterContext } from 'src/context/register';
 
 export const SeedPhrase = () => {
   const [isConfirmed, setIsconfirmed] = useState(false);
@@ -11,8 +12,10 @@ export const SeedPhrase = () => {
 
   const seedPhrase = useRef(generateMnemonmic());
 
-  const handleEncryptSeedPhrase = () => {
-    // encrypt(state.password, seedPhrase.current);
+  const { createNewAccount } = useRegisterContext();
+
+  const handleEncryptSeedPhrase = async () => {
+    await createNewAccount(seedPhrase.current);
     navigate('/register/complete');
   };
 

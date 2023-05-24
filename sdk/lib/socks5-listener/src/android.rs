@@ -82,7 +82,15 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_startClient(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_stopClient(_env: JNIEnv, _class: JClass) {
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_stopClient(
+    mut env: JNIEnv,
+    _class: JClass,
+    cb_object: JObject,
+) {
     //init_jni_logger();
     crate::stop_client();
+
+    // TODO pass this callback to stop_client
+    env.call_method(cb_object, "onStop", "()V", &[])
+        .expect("failed to call Java callbacks");
 }

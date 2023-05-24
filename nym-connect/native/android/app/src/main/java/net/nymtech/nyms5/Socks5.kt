@@ -8,7 +8,7 @@ class Socks5 {
     private val tag = "Socks5"
 
     companion object Cb {
-        val tag = "Socks5:Cb"
+        private const val tag = "Socks5:Cb"
 
         fun onStart() {
             Log.w(tag, "⚡⚡⚡⚡ CB START ⚡⚡⚡⚡")
@@ -42,13 +42,13 @@ class Socks5 {
     fun stop() {
         Log.d(tag, "calling $nymNativeLib:stopClient")
         try {
-            stopClient()
+            stopClient(Cb)
         } catch (e: Throwable) {
             Log.e(tag, "$nymNativeLib:stopClient internal error: $e")
         }
     }
 
     private external fun run(spAddress: String, callbacks: Cb)
+    private external fun stopClient(callbacks: Cb)
     private external fun startClient()
-    private external fun stopClient()
 }

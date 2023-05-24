@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
+    "preinstall": "yarn build:wasm",
     "dev": "yarn webpack serve --config webpack.dev.js",
     "build": "webpack build --progress --config webpack.prod.js",
     "build:wasm": "cd storage && make wasm-pack",
@@ -33,7 +34,8 @@
     "react-error-boundary": "^4.0.3",
     "react-hook-form": "^7.43.9",
     "react-router-dom": "^6.9.0",
-    "zod": "^3.21.4"
+    "zod": "^3.21.4",
+    "extension-storage": "file:./storage/pkg"
   },
   "devDependencies": {
     "@nymproject/eslint-config-react-typescript": "^1.0.0",

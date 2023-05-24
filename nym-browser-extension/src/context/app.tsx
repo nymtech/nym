@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import ValidatorClient from '@nymproject/nym-validator-client';
 import { connectToValidator } from 'src/validator-client';
 import { unymToNym } from 'src/utils/coin';
-import init, { ExtensionStorage } from '../../storage/pkg/extension_storage';
+import { ExtensionStorage } from 'extension-storage';
 
 type TAppContext = {
   client?: ValidatorClient;
@@ -24,7 +24,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const minorDenom = 'unym';
 
   const handleUnlockWallet = async (password: string) => {
-    await init();
     const storage = await new ExtensionStorage(password);
     const mnemonic = await storage.read_mnemonic('Default account');
     const clientFromMnemonic = await connectToValidator(mnemonic);

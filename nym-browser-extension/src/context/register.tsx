@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import init, { ExtensionStorage } from '../../storage/pkg/extension_storage';
+import { ExtensionStorage } from 'extension-storage';
 
 const RegisterContext = React.createContext({} as TRegisterContext);
 
@@ -17,8 +17,6 @@ export const RegisterContextProvider = ({ children }: { children: React.ReactNod
   const [userMnemonic, setUserMnemonic] = useState('');
 
   const createAccount = async (mnemonic: string, password: string) => {
-    await init();
-
     const storage = await new ExtensionStorage(password);
     await storage.store_mnemonic('Default account', mnemonic);
     localStorage.setItem('nym-browser-extension', 'true');

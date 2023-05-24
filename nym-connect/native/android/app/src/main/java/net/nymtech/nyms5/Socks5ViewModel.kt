@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import net.nymtech.nyms5.ProxyWorker.Companion.State
 import java.util.UUID
 
 class Socks5ViewModel(
@@ -38,31 +39,54 @@ class Socks5ViewModel(
         .setId(workId)
         .build()
 
-    private val callbacks = object {
-        fun onStart() {
-            Log.w(tag, "⚡⚡⚡⚡ CB START ⚡⚡⚡⚡")
-            _uiState.update { currentState ->
-                currentState.copy(
-                    connected = true,
-                    loading = false,
-                )
-            }
-            Log.i(tag, "Nym socks5 proxy started")
-        }
+    init {
+        // observe the proxy work state
+        workManager.getWorkInfoByIdLiveData(workId)
+            .observeForever { workInfo ->
+                if (workInfo?.state == WorkInfo.State.CANCELLED || workInfo?.state == WorkInfo.State.FAILED) {
+                    // when the work is cancelled, ie. from the work notification "Stop" action
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            loading = true,
+                        )
+                    }
+                    stopProxy()
+                    Log.d(tag, "proxy work cancelled")
+                }
+                if (workInfo != null && workInfo.state == WorkInfo.State.RUNNING) {
+                    val progress = workInfo.progress.getString(State)
+                    Log.d(tag, "work connection state $progress")
+                    when (progress) {
+                        "CONNECTED" -> if (!_uiState.value.connected || _uiState.value.loading) {
+                            _uiState.update { currentState ->
+                                currentState.copy(
+                                    connected = true,
+                                    loading = false,
+                                )
+                            }
+                            Log.i(tag, "Nym proxy connected")
+                        }
 
+                        else -> {}
+                    }
+                }
+            }
+    }
+
+    private val callback = object {
         fun onStop() {
-            Log.w(tag, "⚡⚡⚡⚡ CB STOP ⚡⚡⚡⚡")
+            Log.d(tag, "⚡ ON STOP callback")
             _uiState.update { currentState ->
                 currentState.copy(
                     connected = false,
                     loading = false,
                 )
             }
-            Log.i(tag, "Nym socks5 proxy stopped")
+            Log.i(tag, "Nym proxy disconnected")
         }
     }
 
-    val socks5 = Socks5(callbacks)
+    private val socks5 = Socks5()
 
     data class Socks5State(val connected: Boolean = false, val loading: Boolean = false)
 
@@ -72,45 +96,34 @@ class Socks5ViewModel(
 
     private fun stopProxy() {
         viewModelScope.launch(Dispatchers.IO) {
-            socks5.stop()
+            socks5.stop(callback)
         }
-        Log.i(tag, "Nym socks5 proxy stopped")
     }
 
     fun startProxyWork() {
-        // start the long-running proxy work
+        // start loading state
+        _uiState.update { currentState ->
+            currentState.copy(
+                loading = true,
+            )
+        }
+
+        // start long-running proxy service
         workManager.enqueueUniqueWork(
             ProxyWorker.name,
             ExistingWorkPolicy.REPLACE,
             workRequest
         )
-        // observe work state
-        workManager.getWorkInfoByIdLiveData(workId)
-            .observeForever { workInfo ->
-                if (workInfo?.state == WorkInfo.State.CANCELLED || workInfo?.state == WorkInfo.State.FAILED) {
-                    // when the work is cancelled call `stop`
-                    stopProxy()
-                    Log.d(tag, "proxy work cancelled")
-                }
-            }
-
-        // update state
-        _uiState.update { currentState ->
-            currentState.copy(
-                loading = true,
-            )
-        }
     }
 
     fun cancelProxyWork() {
-        workManager.cancelAllWorkByTag(workTag)
-
         // update state
         _uiState.update { currentState ->
             currentState.copy(
                 loading = true,
             )
         }
+        stopProxy()
     }
 }
 

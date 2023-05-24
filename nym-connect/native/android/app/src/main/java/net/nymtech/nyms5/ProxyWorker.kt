@@ -11,6 +11,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import fuel.Fuel
 import fuel.get
 import kotlinx.serialization.Serializable
@@ -22,6 +23,7 @@ class ProxyWorker(context: Context, parameters: WorkerParameters) :
     CoroutineWorker(context, parameters) {
     companion object {
         const val name = "nymS5ProxyWorker"
+        const val State = "State"
     }
 
     private val tag = "proxyWorker"
@@ -52,8 +54,17 @@ class ProxyWorker(context: Context, parameters: WorkerParameters) :
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    private val callback = object {
+        fun onStart() {
+            Log.d(tag, "⚡ ON START callback")
+            setProgressAsync(workDataOf(State to "CONNECTED"))
+        }
+    }
+
     @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun doWork(): Result {
+        setProgress(workDataOf(State to "STARTING"))
+
         setForeground(createForegroundInfo())
         return try {
             Log.d(tag, "starting work")
@@ -77,7 +88,13 @@ class ProxyWorker(context: Context, parameters: WorkerParameters) :
                 Log.w(tag, "using a default service provider $defaultSp")
             }
 
-            Socks5().start(serviceProvider?: defaultSp)
+            // TODO this load a new instance of |Socks5| each time this work is started, which is bad
+            //  refactor and pass a unique instance to ProxyWorker() constructor
+            //  see https://developer.android.com/guide/background/persistent/configuration/custom-configuration
+            //  see https://medium.com/androiddevelopers/customizing-workmanager-fundamentals-fdaa17c46dd2
+            Socks5().start(serviceProvider ?: defaultSp, callback)
+
+            setProgress(workDataOf(State to "DISCONNECTED"))
             Log.d(tag, "work finished")
             Result.success()
         } catch (throwable: Throwable) {

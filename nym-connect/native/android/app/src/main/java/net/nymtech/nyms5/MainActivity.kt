@@ -1,6 +1,7 @@
 package net.nymtech.nyms5
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -40,14 +41,12 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.work.WorkManager
 
 class MainActivity : ComponentActivity() {
-    private val nymProxy = NymProxy()
+    private val tag = "MainActivity"
 
     private val viewModel: Socks5ViewModel by viewModels {
         Socks5ViewModelFactory(
-            workManager = WorkManager.getInstance(
-                application.applicationContext
-            ),
-            nymProxy = nymProxy
+            workManager = WorkManager.getInstance(applicationContext),
+            nymProxy = App.nymProxy
         )
     }
 
@@ -69,8 +68,14 @@ class MainActivity : ComponentActivity() {
                                 S5ClientSwitch(it.connected, loading, {
                                     if (!loading) {
                                         when {
-                                            it -> viewModel.startProxyWork()
-                                            else -> viewModel.cancelProxyWork()
+                                            it -> {
+                                                Log.d(tag, "switch ON")
+                                                viewModel.startProxyWork()
+                                            }
+                                            else -> {
+                                                Log.d(tag, "switch OFF")
+                                                viewModel.cancelProxyWork()
+                                            }
                                         }
                                     }
                                 })
@@ -115,7 +120,7 @@ fun S5ClientSwitch(
                 Text(
                     color = Color.Green,
                     fontStyle = FontStyle.Italic,
-                    text = "Connected to the mixnet"
+                    text = stringResource(R.string.connected_text)
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically
@@ -136,6 +141,7 @@ fun S5ClientSwitch(
 @Preview
 @Composable
 fun PreviewSocks5Client() {
+    val tag = "UI"
     var connected by rememberSaveable { mutableStateOf(false) }
     var loading by rememberSaveable { mutableStateOf(false) }
     NymTheme {
@@ -145,8 +151,8 @@ fun PreviewSocks5Client() {
         ) {
             S5ClientSwitch(connected, loading, {
                 when {
-                    it -> println("start socks5 client")
-                    else -> println("stop socks5 client")
+                    it -> Log.d(tag, "switch ON")
+                    else -> Log.d(tag, "switch OFF")
                 }
                 connected = it
                 loading = !loading

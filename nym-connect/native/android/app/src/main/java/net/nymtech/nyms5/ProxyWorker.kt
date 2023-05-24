@@ -17,12 +17,20 @@ import fuel.get
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import java.util.UUID
 import kotlin.random.Random
 
-class ProxyWorker(context: Context, parameters: WorkerParameters) :
+class ProxyWorker(
+    context: Context,
+    parameters: WorkerParameters,
+    private val nymProxy: NymProxy
+) :
     CoroutineWorker(context, parameters) {
-    companion object {
+    companion object Work {
         const val name = "nymS5ProxyWorker"
+        const val workTag = "nymProxy"
+        val workId: UUID = UUID.randomUUID()
+
         const val State = "State"
     }
 
@@ -88,11 +96,7 @@ class ProxyWorker(context: Context, parameters: WorkerParameters) :
                 Log.w(tag, "using a default service provider $defaultSp")
             }
 
-            // TODO this load a new instance of |Socks5| each time this work is started, which is bad
-            //  refactor and pass a unique instance to ProxyWorker() constructor
-            //  see https://developer.android.com/guide/background/persistent/configuration/custom-configuration
-            //  see https://medium.com/androiddevelopers/customizing-workmanager-fundamentals-fdaa17c46dd2
-            NymProxy().start(serviceProvider ?: defaultSp, callback)
+            nymProxy.start(serviceProvider ?: defaultSp, callback)
 
             setProgress(workDataOf(State to "DISCONNECTED"))
             Log.d(tag, "work finished")

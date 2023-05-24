@@ -90,7 +90,7 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_stopClient(
     //init_jni_logger();
     crate::stop_client();
 
-    // fake some workload
+    // TODO fake some workload
     thread::sleep(time::Duration::from_secs(2));
 
     // TODO pass this callback to stop_client

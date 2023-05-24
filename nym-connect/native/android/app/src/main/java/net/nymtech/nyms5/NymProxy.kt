@@ -10,7 +10,7 @@ class NymProxy {
     // Load the native library "libnym_socks5_listener.so"
     init {
         System.loadLibrary(nymNativeLib)
-        Log.d(tag, "loaded native library $nymNativeLib")
+        Log.i(tag, "loaded native library $nymNativeLib")
     }
 
     fun start(serviceProvider: String, callback: Any) {

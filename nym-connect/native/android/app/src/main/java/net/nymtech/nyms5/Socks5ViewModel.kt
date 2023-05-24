@@ -18,8 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import net.nymtech.nyms5.ProxyWorker.Companion.State
-import java.util.UUID
 
 class Socks5ViewModel(
     private val workManager: WorkManager,
@@ -27,22 +25,18 @@ class Socks5ViewModel(
 ) : ViewModel() {
     private val tag = "viewModel"
 
-    private val workTag = "nymProxy"
-
-    private val workId: UUID = UUID.randomUUID()
-
     private val workRequest: OneTimeWorkRequest = OneTimeWorkRequestBuilder<ProxyWorker>()
         .setConstraints(
             Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
         )
         .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-        .addTag(workTag)
-        .setId(workId)
+        .addTag(ProxyWorker.workTag)
+        .setId(ProxyWorker.workId)
         .build()
 
     init {
-        // observe the proxy work state
-        workManager.getWorkInfoByIdLiveData(workId)
+        // observe the proxy work ProxyWorker
+        workManager.getWorkInfoByIdLiveData(ProxyWorker.workId)
             .observeForever { workInfo ->
                 if (workInfo?.state == WorkInfo.State.CANCELLED || workInfo?.state == WorkInfo.State.FAILED) {
                     // when the work is cancelled, ie. from the work notification "Stop" action
@@ -56,7 +50,7 @@ class Socks5ViewModel(
                     Log.d(tag, "proxy work cancelled")
                 }
                 if (workInfo != null && workInfo.state == WorkInfo.State.RUNNING) {
-                    val progress = workInfo.progress.getString(State)
+                    val progress = workInfo.progress.getString(ProxyWorker.State)
                     Log.d(tag, "work connection state $progress")
                     when (progress) {
                         "CONNECTED" -> if (!_uiState.value.connected || _uiState.value.loading) {

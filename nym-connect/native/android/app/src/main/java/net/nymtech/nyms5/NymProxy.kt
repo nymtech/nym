@@ -4,8 +4,8 @@ import android.util.Log
 
 const val nymNativeLib = "nym_socks5_listener"
 
-class Socks5 {
-    private val tag = "Socks5"
+class NymProxy {
+    private val tag = "NymProxy"
 
     // Load the native library "libnym_socks5_listener.so"
     init {

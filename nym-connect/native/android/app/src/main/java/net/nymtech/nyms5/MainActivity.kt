@@ -40,11 +40,14 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.work.WorkManager
 
 class MainActivity : ComponentActivity() {
+    private val nymProxy = NymProxy()
+
     private val viewModel: Socks5ViewModel by viewModels {
         Socks5ViewModelFactory(
             workManager = WorkManager.getInstance(
                 application.applicationContext
-            )
+            ),
+            nymProxy = nymProxy
         )
     }
 
@@ -107,7 +110,7 @@ fun S5ClientSwitch(
                 onSwitch(!connected)
             })
         }
-        if (connected) {
+        if (connected && !loading) {
             Column(modifier = modifier.padding(16.dp)) {
                 Text(
                     color = Color.Green,

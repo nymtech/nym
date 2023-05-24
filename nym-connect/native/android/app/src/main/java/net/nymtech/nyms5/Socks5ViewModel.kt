@@ -22,7 +22,8 @@ import net.nymtech.nyms5.ProxyWorker.Companion.State
 import java.util.UUID
 
 class Socks5ViewModel(
-    private val workManager: WorkManager
+    private val workManager: WorkManager,
+    private val nymProxy: NymProxy
 ) : ViewModel() {
     private val tag = "viewModel"
 
@@ -47,6 +48,7 @@ class Socks5ViewModel(
                     // when the work is cancelled, ie. from the work notification "Stop" action
                     _uiState.update { currentState ->
                         currentState.copy(
+                            connected = false,
                             loading = true,
                         )
                     }
@@ -86,8 +88,6 @@ class Socks5ViewModel(
         }
     }
 
-    private val socks5 = Socks5()
-
     data class Socks5State(val connected: Boolean = false, val loading: Boolean = false)
 
     // Expose screen UI state
@@ -96,7 +96,7 @@ class Socks5ViewModel(
 
     private fun stopProxy() {
         viewModelScope.launch(Dispatchers.IO) {
-            socks5.stop(callback)
+            nymProxy.stop(callback)
         }
     }
 
@@ -104,6 +104,7 @@ class Socks5ViewModel(
         // start loading state
         _uiState.update { currentState ->
             currentState.copy(
+                connected = true,
                 loading = true,
             )
         }
@@ -120,6 +121,7 @@ class Socks5ViewModel(
         // update state
         _uiState.update { currentState ->
             currentState.copy(
+                connected = false,
                 loading = true,
             )
         }
@@ -127,10 +129,11 @@ class Socks5ViewModel(
     }
 }
 
-class Socks5ViewModelFactory(private val workManager: WorkManager) : ViewModelProvider.Factory {
+class Socks5ViewModelFactory(private val workManager: WorkManager, private val nymProxy: NymProxy) :
+    ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return if (modelClass.isAssignableFrom(Socks5ViewModel::class.java)) {
-            Socks5ViewModel(workManager) as T
+            Socks5ViewModel(workManager, nymProxy) as T
         } else {
             throw IllegalArgumentException("Unknown ViewModel class")
         }

@@ -1,11 +1,11 @@
 use ::safer_ffi::prelude::*;
 use jni::{
     objects::{JClass, JObject, JString},
-    sys::jstring,
     JNIEnv,
 };
 use safer_ffi::char_p::char_p_boxed;
 use safer_ffi::closure::{RefDynFnMut0, RefDynFnMut1};
+use std::{thread, time};
 
 extern "C" fn placeholder_startup_cb(address: char_p::Box) {
     crate::rust_free_string(address)
@@ -32,7 +32,7 @@ fn init_jni_logger() {
 
 /// Blocking call that starts the socks5 listener
 #[no_mangle]
-pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_run(
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_run(
     mut env: JNIEnv,
     _class: JClass,
     service_provider: JString,
@@ -65,7 +65,7 @@ static mut STOP: fn() = || {};
 static mut START: fn(a: char_p_boxed) = |a| crate::rust_free_string(a);
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_startClient(
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_startClient(
     _env: JNIEnv,
     _class: JClass,
     _input: JString,
@@ -82,13 +82,16 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_startClient(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_net_nymtech_nyms5_Socks5_stopClient(
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_stopClient(
     mut env: JNIEnv,
     _class: JClass,
     cb_object: JObject,
 ) {
     //init_jni_logger();
     crate::stop_client();
+
+    // fake some workload
+    thread::sleep(time::Duration::from_secs(2));
 
     // TODO pass this callback to stop_client
     env.call_method(cb_object, "onStop", "()V", &[])

@@ -92,7 +92,7 @@ class ProxyWorker(context: Context, parameters: WorkerParameters) :
             //  refactor and pass a unique instance to ProxyWorker() constructor
             //  see https://developer.android.com/guide/background/persistent/configuration/custom-configuration
             //  see https://medium.com/androiddevelopers/customizing-workmanager-fundamentals-fdaa17c46dd2
-            Socks5().start(serviceProvider ?: defaultSp, callback)
+            NymProxy().start(serviceProvider ?: defaultSp, callback)
 
             setProgress(workDataOf(State to "DISCONNECTED"))
             Log.d(tag, "work finished")

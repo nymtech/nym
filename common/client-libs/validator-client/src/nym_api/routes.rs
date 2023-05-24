@@ -33,5 +33,5 @@ pub const AVG_UPTIME: &str = "avg_uptime";
 pub const STAKE_SATURATION: &str = "stake-saturation";
 pub const INCLUSION_CHANCE: &str = "inclusion-probability";
 
-pub const SERVICE_PROVIDERS: &str = "service-providers";
+pub const SERVICE_PROVIDERS: &str = "services";
 pub const REGISTERED_NAMES: &str = "names";

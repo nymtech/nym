@@ -16,10 +16,11 @@ pub struct Args {
 }
 
 pub async fn query(args: Args, client: &QueryClientWithNyxd) {
+    log::trace!("Querying all registered names");
     match client.nym_api.get_registered_names().await {
         Ok(res) => {
             if let Some(name) = args.name {
-                let name = res.iter().find(|name_entry| {
+                let name = res.names.iter().find(|name_entry| {
                     name_entry.name.name.to_string().eq_ignore_ascii_case(&name)
                 });
                 println!(
@@ -30,7 +31,7 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
                 let mut table = Table::new();
 
                 table.set_header(vec!["Name Id", "Owner", "Name"]);
-                for name_entry in res {
+                for name_entry in res.names {
                     table.add_row(vec![
                         name_entry.name_id.to_string(),
                         name_entry.name.owner.to_string(),
@@ -45,6 +46,9 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
         Err(NymAPIError::NotFound) => {
             println!("nym-api reports no name endpoint available");
         }
-        Err(e) => show_error(e),
+        Err(e) => {
+            //log::trace!("Failed to query registered names - {:?}", e);
+            show_error(e)
+        },
     }
 }

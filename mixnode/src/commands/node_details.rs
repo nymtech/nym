@@ -5,7 +5,6 @@ use crate::config::Config;
 use crate::node::MixNode;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
-use nym_config::NymConfig;
 
 #[derive(Args)]
 pub(crate) struct NodeDetails {
@@ -18,7 +17,7 @@ pub(crate) struct NodeDetails {
 }
 
 pub(crate) fn execute(args: &NodeDetails) {
-    let config = match Config::load_from_file(&args.id) {
+    let config = match Config::read_from_default_path(&args.id) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!(

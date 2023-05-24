@@ -1,18 +1,17 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::convert::TryFrom;
-
 use crate::commands::validate_bech32_address_or_exit;
-use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
+use crate::config::Config;
 use crate::node::MixNode;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
 use nym_bin_common::output_format::OutputFormat;
-use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd;
+use std::convert::TryFrom;
+
 #[cfg(feature = "cpucycles")]
 use tracing::error;
 
@@ -117,7 +116,7 @@ fn print_signed_contract_msg(
 }
 
 pub(crate) fn execute(args: &Sign) {
-    let config = match Config::load_from_file(&args.id) {
+    let config = match Config::read_from_default_path(&args.id) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!(
@@ -140,8 +139,7 @@ pub(crate) fn execute(args: &Sign) {
             return;
         }
     };
-    let pathfinder = MixNodePathfinder::new_from_config(&config);
-    let identity_keypair = MixNode::load_identity_keys(&pathfinder);
+    let identity_keypair = MixNode::load_identity_keys(&config);
 
     match signed_target {
         SignedTarget::Text(text) => {

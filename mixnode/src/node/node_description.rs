@@ -1,9 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::Path;
 use std::{fs, io};
-
-pub(crate) const DESCRIPTION_FILE: &str = "description.toml";
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct NodeDescription {
@@ -25,24 +23,26 @@ impl Default for NodeDescription {
 }
 
 impl NodeDescription {
-    pub(crate) fn load_from_file(config_path: PathBuf) -> io::Result<NodeDescription> {
-        let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
-            .iter()
-            .collect();
-        let toml = fs::read_to_string(description_file_path)?;
+    pub(crate) fn load_from_file<P: AsRef<Path>>(path: P) -> io::Result<NodeDescription> {
+        // let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
+        //     .iter()
+        //     .collect();
+        // let toml = fs::read_to_string(description_file_path)?;
+        // toml::from_str(&toml).map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
+        let toml = fs::read_to_string(path)?;
         toml::from_str(&toml).map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
     }
 
-    pub(crate) fn save_to_file(
+    pub(crate) fn save_to_file<P: AsRef<Path>>(
         description: &NodeDescription,
-        config_path: PathBuf,
+        path: P,
     ) -> io::Result<()> {
-        let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
-            .iter()
-            .collect();
+        // let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
+        //     .iter()
+        //     .collect();
         let description_toml =
             toml::to_string(description).expect("could not encode description to toml");
-        fs::write(description_file_path, description_toml)?;
+        fs::write(path, description_toml)?;
         Ok(())
     }
 }

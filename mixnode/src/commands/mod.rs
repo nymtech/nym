@@ -10,7 +10,6 @@ use nym_bin_common::version_checker;
 use nym_config::defaults::var_names::{BECH32_PREFIX, NYM_API};
 use nym_config::OptionalSet;
 use nym_crypto::bech32_address_validation;
-use nym_validator_client::nyxd;
 use std::net::IpAddr;
 use std::process;
 
@@ -52,11 +51,9 @@ pub(crate) enum Commands {
 struct OverrideConfig {
     id: String,
     host: Option<IpAddr>,
-    wallet_address: Option<nyxd::AccountId>,
     mix_port: Option<u16>,
     verloc_port: Option<u16>,
     http_api_port: Option<u16>,
-    announce_host: Option<String>,
     nym_apis: Option<Vec<url::Url>>,
 }
 
@@ -75,22 +72,9 @@ pub(crate) async fn execute(args: Cli) {
     }
 }
 
-fn override_config(mut config: Config, args: OverrideConfig) -> Config {
-    // special case that I'm not sure could be easily handled with the trait
-    let mut was_host_overridden = false;
-    if let Some(host) = args.host {
-        config = config.with_listening_address(host);
-        was_host_overridden = true;
-    }
-
-    if let Some(announce_host) = args.announce_host {
-        config = config.with_announce_address(announce_host);
-    } else if was_host_overridden {
-        // make sure our 'announce-host' always defaults to 'host'
-        config = config.announce_address_from_listening_address()
-    }
-
+fn override_config(config: Config, args: OverrideConfig) -> Config {
     config
+        .with_optional(Config::with_listening_address, args.host)
         .with_optional(Config::with_mix_port, args.mix_port)
         .with_optional(Config::with_verloc_port, args.verloc_port)
         .with_optional(Config::with_http_api_port, args.http_api_port)
@@ -99,13 +83,6 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
             args.nym_apis,
             NYM_API,
             nym_config::parse_urls,
-        )
-        .with_optional(
-            |cfg, wallet_address| {
-                validate_bech32_address_or_exit(wallet_address.as_ref());
-                cfg.with_wallet_address(wallet_address)
-            },
-            args.wallet_address,
         )
 }
 
@@ -135,7 +112,7 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
 // network version. It might do so in the future.
 pub(crate) fn version_check(cfg: &Config) -> bool {
     let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_version();
+    let config_version = &cfg.mixnode.version;
     if binary_version == config_version {
         true
     } else {

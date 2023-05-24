@@ -1,13 +1,11 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_config::defaults::NymNetworkDetails;
-use nym_config::{NymConfig, OptionalSet, CRED_DB_FILE_NAME};
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
-use std::marker::PhantomData;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
 
@@ -15,19 +13,8 @@ use crate::error::ClientCoreError;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+pub mod disk_persistence;
 pub mod old_config_v1_1_13;
-pub mod persistence;
-
-pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
-pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
-pub const DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME: &str = "private_encryption.pem";
-pub const DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME: &str = "public_encryption.pem";
-pub const DEFAULT_GATEWAY_KEYS_FILENAME: &str = "gateway_shared.pem";
-pub const DEFAULT_ACK_KEY_FILENAME: &str = "ack_key.pem";
-pub const DEFAULT_REPLY_STORE_FILENAME: &str = "persistent_reply_store.sqlite";
-pub const DEFAULT_CREDENTIAL_STORE_FILENAME: &str = CRED_DB_FILE_NAME;
-
-pub const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
@@ -68,152 +55,25 @@ const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(12 * 60 * 6
 // 24 hours
 const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
-pub fn missing_string_value() -> String {
-    MISSING_VALUE.to_string()
-}
-
-pub trait ClientCoreConfigTrait {
-    fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig;
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Config<T> {
-    client: Client<T>,
+pub struct Config {
+    pub client: Client,
 
     #[serde(default)]
-    logging: Logging,
-    #[serde(default)]
-    debug: DebugConfig,
+    pub debug: DebugConfig,
 }
 
-impl<T> ClientCoreConfigTrait for Config<T> {
-    fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
-        &self.client.gateway_endpoint
-    }
-}
-
-impl<T> OptionalSet for Config<T> where T: NymConfig {}
-
-impl<T> Config<T> {
-    pub fn new<S: Into<String>>(id: S) -> Self
-    where
-        T: NymConfig,
-    {
-        Config::default().with_id(id)
+impl Config {
+    pub fn new<S: Into<String>>(id: S) -> Self {
+        Config {
+            client: Client::new_default(id),
+            debug: Default::default(),
+        }
     }
 
     pub fn validate(&self) -> bool {
-        // no other sections have explicit requirements (yet)
-        self.debug.validate()
-    }
-
-    #[must_use]
-    pub fn with_id<S: Into<String>>(mut self, id: S) -> Self
-    where
-        T: NymConfig,
-    {
-        self.client.id = id.into();
-        self.set_empty_fields_to_defaults();
-        self
-    }
-
-    #[must_use]
-    #[doc(hidden)]
-    // TODO: this totally contradicts our trait... we REALLY have to refactor it...
-    pub fn reset_data_directory<P: AsRef<Path>>(mut self, dir: P) -> Self {
-        self.client.private_identity_key_file =
-            dir.as_ref().join(DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME);
-        self.client.public_identity_key_file =
-            dir.as_ref().join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME);
-        self.client.private_encryption_key_file =
-            dir.as_ref().join(DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME);
-        self.client.public_encryption_key_file =
-            dir.as_ref().join(DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME);
-        self.client.gateway_shared_key_file = dir.as_ref().join(DEFAULT_GATEWAY_KEYS_FILENAME);
-        self.client.ack_key_file = dir.as_ref().join(DEFAULT_ACK_KEY_FILENAME);
-        self.client.reply_surb_database_path = dir.as_ref().join(DEFAULT_REPLY_STORE_FILENAME);
-        self.client.database_path = dir.as_ref().join(DEFAULT_CREDENTIAL_STORE_FILENAME);
-
-        self
-    }
-
-    #[must_use]
-    #[doc(hidden)]
-    // TODO: this totally contradicts our trait... we REALLY have to refactor it...
-    pub fn reset_nym_root_directory<P: AsRef<Path>>(mut self, dir: P) -> Self
-    where
-        T: NymConfig,
-    {
-        self.client.nym_root_directory = dir.as_ref().to_owned();
-        self
-    }
-
-    pub fn set_empty_fields_to_defaults(&mut self) -> bool
-    where
-        T: NymConfig,
-    {
-        let id = &self.client.id;
-        let mut changes_made = false;
-
-        // identity key setting
-        if self.client.private_identity_key_file.as_os_str().is_empty() {
-            changes_made = true;
-            self.client.private_identity_key_file =
-                self::Client::<T>::default_private_identity_key_file(id);
-        }
-        if self.client.public_identity_key_file.as_os_str().is_empty() {
-            changes_made = true;
-            self.client.public_identity_key_file =
-                self::Client::<T>::default_public_identity_key_file(id);
-        }
-
-        // encryption key setting
-        if self
-            .client
-            .private_encryption_key_file
-            .as_os_str()
-            .is_empty()
-        {
-            changes_made = true;
-            self.client.private_encryption_key_file =
-                self::Client::<T>::default_private_encryption_key_file(id);
-        }
-        if self
-            .client
-            .public_encryption_key_file
-            .as_os_str()
-            .is_empty()
-        {
-            changes_made = true;
-            self.client.public_encryption_key_file =
-                self::Client::<T>::default_public_encryption_key_file(id);
-        }
-
-        // shared gateway key setting
-        if self.client.gateway_shared_key_file.as_os_str().is_empty() {
-            changes_made = true;
-            self.client.gateway_shared_key_file =
-                self::Client::<T>::default_gateway_shared_key_file(id);
-        }
-
-        // ack key setting
-        if self.client.ack_key_file.as_os_str().is_empty() {
-            changes_made = true;
-            self.client.ack_key_file = self::Client::<T>::default_ack_key_file(id);
-        }
-
-        if self.client.reply_surb_database_path.as_os_str().is_empty() {
-            changes_made = true;
-            self.client.reply_surb_database_path =
-                self::Client::<T>::default_reply_surb_database_path(id);
-        }
-
-        if self.client.database_path.as_os_str().is_empty() {
-            changes_made = true;
-            self.client.database_path = self::Client::<T>::default_database_path(id);
-        }
-        changes_made
+        self.client.validate() && self.debug.validate()
     }
 
     pub fn with_disabled_credentials(mut self, disabled_credentials_mode: bool) -> Self {
@@ -297,34 +157,6 @@ impl<T> Config<T> {
         self.client.disabled_credentials_mode
     }
 
-    pub fn get_nym_root_directory(&self) -> PathBuf {
-        self.client.nym_root_directory.clone()
-    }
-
-    pub fn get_private_identity_key_file(&self) -> PathBuf {
-        self.client.private_identity_key_file.clone()
-    }
-
-    pub fn get_public_identity_key_file(&self) -> PathBuf {
-        self.client.public_identity_key_file.clone()
-    }
-
-    pub fn get_private_encryption_key_file(&self) -> PathBuf {
-        self.client.private_encryption_key_file.clone()
-    }
-
-    pub fn get_public_encryption_key_file(&self) -> PathBuf {
-        self.client.public_encryption_key_file.clone()
-    }
-
-    pub fn get_gateway_shared_key_file(&self) -> PathBuf {
-        self.client.gateway_shared_key_file.clone()
-    }
-
-    pub fn get_ack_key_file(&self) -> PathBuf {
-        self.client.ack_key_file.clone()
-    }
-
     pub fn get_validator_endpoints(&self) -> Vec<Url> {
         self.client.nyxd_urls.clone()
     }
@@ -355,115 +187,6 @@ impl<T> Config<T> {
 
     pub fn get_reply_surb_database_path(&self) -> PathBuf {
         self.client.reply_surb_database_path.clone()
-    }
-
-    pub fn get_version(&self) -> &str {
-        &self.client.version
-    }
-
-    // Debug getters
-    pub fn get_debug_config(&self) -> &DebugConfig {
-        &self.debug
-    }
-
-    pub fn get_average_packet_delay(&self) -> Duration {
-        self.debug.traffic.average_packet_delay
-    }
-
-    pub fn get_average_ack_delay(&self) -> Duration {
-        self.debug.acknowledgements.average_ack_delay
-    }
-
-    pub fn get_ack_wait_multiplier(&self) -> f64 {
-        self.debug.acknowledgements.ack_wait_multiplier
-    }
-
-    pub fn get_ack_wait_addition(&self) -> Duration {
-        self.debug.acknowledgements.ack_wait_addition
-    }
-
-    pub fn get_loop_cover_traffic_average_delay(&self) -> Duration {
-        self.debug.cover_traffic.loop_cover_traffic_average_delay
-    }
-
-    pub fn get_message_sending_average_delay(&self) -> Duration {
-        self.debug.traffic.message_sending_average_delay
-    }
-
-    pub fn get_gateway_response_timeout(&self) -> Duration {
-        self.debug.gateway_connection.gateway_response_timeout
-    }
-
-    pub fn get_topology_refresh_rate(&self) -> Duration {
-        self.debug.topology.topology_refresh_rate
-    }
-
-    pub fn get_topology_resolution_timeout(&self) -> Duration {
-        self.debug.topology.topology_resolution_timeout
-    }
-
-    pub fn get_disabled_loop_cover_traffic_stream(&self) -> bool {
-        self.debug.cover_traffic.disable_loop_cover_traffic_stream
-    }
-
-    pub fn get_disabled_main_poisson_packet_distribution(&self) -> bool {
-        self.debug.traffic.disable_main_poisson_packet_distribution
-    }
-
-    pub fn get_minimum_reply_surb_storage_threshold(&self) -> usize {
-        self.debug.reply_surbs.minimum_reply_surb_storage_threshold
-    }
-
-    pub fn get_maximum_reply_surb_storage_threshold(&self) -> usize {
-        self.debug.reply_surbs.maximum_reply_surb_storage_threshold
-    }
-
-    pub fn get_minimum_reply_surb_request_size(&self) -> u32 {
-        self.debug.reply_surbs.minimum_reply_surb_request_size
-    }
-
-    pub fn get_maximum_reply_surb_request_size(&self) -> u32 {
-        self.debug.reply_surbs.maximum_reply_surb_request_size
-    }
-
-    pub fn get_maximum_allowed_reply_surb_request_size(&self) -> u32 {
-        self.debug
-            .reply_surbs
-            .maximum_allowed_reply_surb_request_size
-    }
-
-    pub fn get_maximum_reply_surb_rerequest_waiting_period(&self) -> Duration {
-        self.debug
-            .reply_surbs
-            .maximum_reply_surb_rerequest_waiting_period
-    }
-
-    pub fn get_maximum_reply_surb_drop_waiting_period(&self) -> Duration {
-        self.debug
-            .reply_surbs
-            .maximum_reply_surb_drop_waiting_period
-    }
-
-    pub fn get_maximum_reply_surb_age(&self) -> Duration {
-        self.debug.reply_surbs.maximum_reply_surb_age
-    }
-
-    pub fn get_maximum_reply_key_age(&self) -> Duration {
-        self.debug.reply_surbs.maximum_reply_key_age
-    }
-
-    pub fn get_packet_type(&self) -> PacketType {
-        self.client.packet_type.unwrap_or(PacketType::Mix)
-    }
-}
-
-impl<T: NymConfig> Default for Config<T> {
-    fn default() -> Self {
-        Config {
-            client: Client::<T>::default(),
-            logging: Default::default(),
-            debug: Default::default(),
-        }
     }
 }
 
@@ -517,9 +240,8 @@ impl From<nym_topology::gateway::Node> for GatewayEndpointConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-pub struct Client<T> {
+pub struct Client {
     /// Version of the client for which this configuration was created.
-    #[serde(default = "missing_string_value")]
     pub version: String,
 
     /// ID specifies the human readable ID of this particular client.
@@ -538,51 +260,13 @@ pub struct Client<T> {
     #[serde(alias = "validator_api_urls")]
     pub nym_api_urls: Vec<Url>,
 
-    /// Path to file containing private identity key.
-    pub private_identity_key_file: PathBuf,
-
-    /// Path to file containing public identity key.
-    pub public_identity_key_file: PathBuf,
-
-    /// Path to file containing private encryption key.
-    pub private_encryption_key_file: PathBuf,
-
-    /// Path to file containing public encryption key.
-    pub public_encryption_key_file: PathBuf,
-
-    /// Path to file containing shared key derived with the specified gateway that is used
-    /// for all communication with it.
-    pub gateway_shared_key_file: PathBuf,
-
-    /// Path to file containing key used for encrypting and decrypting the content of an
-    /// acknowledgement so that nobody besides the client knows which packet it refers to.
-    pub ack_key_file: PathBuf,
-
     /// Information regarding how the client should send data to gateway.
+    #[deprecated(note = "this shall be moved to separate file because it doesn't belong here...")]
     pub gateway_endpoint: GatewayEndpointConfig,
-
-    /// Path to the database containing bandwidth credentials of this client.
-    pub database_path: PathBuf,
-
-    /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
-    // this was set to use #[serde(default)] for the purposes of compatibility for multi-surbs introduced in 1.1.4.
-    // if you're reading this message and we have already introduced some breaking changes, feel free
-    // to remove that attribute since at this point the client configs should have gotten regenerated
-    #[serde(default)]
-    pub reply_surb_database_path: PathBuf,
-
-    /// nym_home_directory specifies absolute path to the home nym Clients directory.
-    /// It is expected to use default value and hence .toml file should not redefine this field.
-    pub nym_root_directory: PathBuf,
-
-    #[serde(skip)]
-    pub super_struct: PhantomData<T>,
-
-    pub packet_type: Option<PacketType>,
 }
 
-impl<T: NymConfig> Default for Client<T> {
-    fn default() -> Self {
+impl Client {
+    pub fn new_default<S: Into<String>>(id: S) -> Self {
         let network = NymNetworkDetails::new_mainnet();
         let nyxd_urls = network
             .endpoints
@@ -595,70 +279,22 @@ impl<T: NymConfig> Default for Client<T> {
             .filter_map(|validator| validator.api_url())
             .collect::<Vec<_>>();
 
-        if nym_api_urls.is_empty() {
-            panic!("we do not have any default nym-api urls available!")
-        }
-
-        // there must be explicit checks for whether id is not empty later
         Client {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            id: "".to_string(),
+            id: "DEFAULT-CLIENT".to_string(),
             disabled_credentials_mode: true,
             nyxd_urls,
             nym_api_urls,
-            private_identity_key_file: Default::default(),
-            public_identity_key_file: Default::default(),
-            private_encryption_key_file: Default::default(),
-            public_encryption_key_file: Default::default(),
-            gateway_shared_key_file: Default::default(),
-            ack_key_file: Default::default(),
             gateway_endpoint: Default::default(),
-            database_path: Default::default(),
-            reply_surb_database_path: Default::default(),
-            nym_root_directory: T::default_root_directory(),
-            super_struct: Default::default(),
-            packet_type: Default::default(),
         }
     }
-}
 
-impl<T: NymConfig> Client<T> {
-    fn default_private_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("private_identity.pem")
-    }
-
-    fn default_public_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("public_identity.pem")
-    }
-
-    fn default_private_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("private_encryption.pem")
-    }
-
-    fn default_public_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("public_encryption.pem")
-    }
-
-    fn default_gateway_shared_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("gateway_shared.pem")
-    }
-
-    fn default_ack_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("ack_key.pem")
-    }
-
-    fn default_reply_surb_database_path(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("persistent_reply_store.sqlite")
-    }
-
-    fn default_database_path(id: &str) -> PathBuf {
-        T::default_data_directory(id).join(CRED_DB_FILE_NAME)
+    pub fn validate(&self) -> bool {
+        !self.gateway_endpoint.gateway_id.is_empty()
+            && !self.gateway_endpoint.gateway_owner.is_empty()
+            && !self.gateway_endpoint.gateway_owner.is_empty()
     }
 }
-
-#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct Logging {}
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
@@ -690,7 +326,8 @@ pub struct Traffic {
     /// Do not set it it unless you understand the consequences of that change.
     pub secondary_packet_size: Option<PacketSize>,
 
-    pub packet_type: Option<PacketType>,
+    #[serde(default)]
+    pub packet_type: PacketType,
 }
 
 impl Traffic {

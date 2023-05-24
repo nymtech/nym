@@ -17,7 +17,7 @@ use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
-use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_client_core::config::disk_persistence::key_pathfinder::ClientKeysPathfinder;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::PacketType;
@@ -107,7 +107,7 @@ impl SocketClient {
     }
 
     fn key_store(&self) -> OnDiskKeys {
-        let pathfinder = ClientKeyPathfinder::new_from_config(self.config.get_base());
+        let pathfinder = ClientKeysPathfinder::new_from_config(self.config.get_base());
         OnDiskKeys::new(pathfinder)
     }
 

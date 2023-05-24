@@ -1507,7 +1507,16 @@ version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca3aa72a6f96ea37bbc5aa912f6788242832f75369bdfdadcb0e38423f100059"
 dependencies = [
- "dirs-sys",
+ "dirs-sys 0.3.7",
+]
+
+[[package]]
+name = "dirs"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
+dependencies = [
+ "dirs-sys 0.4.1",
 ]
 
 [[package]]
@@ -1519,6 +1528,18 @@ dependencies = [
  "libc",
  "redox_users",
  "winapi",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -1811,7 +1832,7 @@ dependencies = [
  "atomic",
  "pear",
  "serde",
- "toml",
+ "toml 0.5.11",
  "uncased",
  "version_check",
 ]
@@ -3305,7 +3326,7 @@ dependencies = [
  "cw-utils",
  "cw3",
  "cw4",
- "dirs",
+ "dirs 4.0.0",
  "futures",
  "getset",
  "humantime-serde",
@@ -3486,7 +3507,7 @@ dependencies = [
  "tap",
  "thiserror",
  "time 0.3.21",
- "toml",
+ "toml 0.5.11",
  "url",
 ]
 
@@ -3495,7 +3516,7 @@ name = "nym-client"
 version = "1.1.20"
 dependencies = [
  "clap 4.2.7",
- "dirs",
+ "dirs 4.0.0",
  "futures",
  "lazy_static",
  "log",
@@ -3532,7 +3553,7 @@ version = "1.1.14"
 dependencies = [
  "async-trait",
  "dashmap 5.4.0",
- "dirs",
+ "dirs 4.0.0",
  "futures",
  "gloo-timers",
  "humantime-serde",
@@ -3639,12 +3660,12 @@ dependencies = [
 name = "nym-config"
 version = "0.1.0"
 dependencies = [
- "cfg-if",
+ "dirs 5.0.1",
  "handlebars",
  "log",
  "nym-network-defaults",
  "serde",
- "toml",
+ "toml 0.7.4",
  "url",
 ]
 
@@ -3773,7 +3794,7 @@ dependencies = [
  "clap 4.2.7",
  "colored",
  "dashmap 4.0.2",
- "dirs",
+ "dirs 4.0.0",
  "dotenvy",
  "futures",
  "humantime-serde",
@@ -3923,7 +3944,7 @@ dependencies = [
  "colored",
  "cpu-cycles",
  "cupid",
- "dirs",
+ "dirs 4.0.0",
  "futures",
  "humantime-serde",
  "lazy_static",
@@ -3952,7 +3973,7 @@ dependencies = [
  "sysinfo",
  "tokio",
  "tokio-util",
- "toml",
+ "toml 0.5.11",
  "tracing",
  "url",
 ]
@@ -4030,7 +4051,7 @@ dependencies = [
  "async-trait",
  "bs58",
  "clap 4.2.7",
- "dirs",
+ "dirs 4.0.0",
  "futures",
  "humantime-serde",
  "ipnetwork 0.20.0",
@@ -4071,7 +4092,7 @@ dependencies = [
 name = "nym-network-statistics"
 version = "1.1.20"
 dependencies = [
- "dirs",
+ "dirs 4.0.0",
  "log",
  "nym-bin-common",
  "nym-statistics-common",
@@ -4176,7 +4197,7 @@ dependencies = [
  "tap",
  "thiserror",
  "tokio",
- "toml",
+ "toml 0.5.11",
  "url",
 ]
 
@@ -4243,7 +4264,7 @@ dependencies = [
 name = "nym-socks5-client-core"
 version = "0.1.0"
 dependencies = [
- "dirs",
+ "dirs 4.0.0",
  "futures",
  "log",
  "nym-bandwidth-controller",
@@ -4825,6 +4846,12 @@ checksum = "7940cf2ca942593318d07fcf2596cdca60a85c9e7fab408a5e21a4f9dcd40d87"
 dependencies = [
  "num-traits",
 ]
+
+[[package]]
+name = "option-ext"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "os_str_bytes"
@@ -6222,6 +6249,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_spanned"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93107647184f6027e3b7dcb2e11034cf95ffa1e3a682c67951963ac69c1c007d"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6860,7 +6896,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tendermint",
- "toml",
+ "toml 0.5.11",
  "url",
 ]
 
@@ -7203,6 +7239,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "toml"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6135d499e69981f9ff0ef2167955a5333c35e36f6937d382974566b3d5b94ec"
+dependencies = [
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_edit",
+]
+
+[[package]]
+name = "toml_datetime"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a76a9312f5ba4c2dec6b9161fdf25d87ad8a09256ccea5a556fef03c706a10f"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "toml_edit"
+version = "0.19.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2380d56e8670370eee6566b0bfd4265f65b3f432e8c6d85623f728d4fa31f739"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "winnow",
 ]
 
 [[package]]
@@ -8043,6 +8113,15 @@ name = "windows_x86_64_msvc"
 version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
+
+[[package]]
+name = "winnow"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61de7bac303dc551fe038e2b3cef0f571087a47571ea6e79a87692ac99b99699"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "winreg"

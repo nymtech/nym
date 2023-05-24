@@ -9,12 +9,10 @@ use crate::client::key_manager::{KeyManager, ManagedKeys};
 use crate::init::helpers::{choose_gateway_by_latency, current_gateways, uniformly_random_gateway};
 use crate::{
     config::{
-        persistence::key_pathfinder::ClientKeyPathfinder, ClientCoreConfigTrait, Config,
-        GatewayEndpointConfig,
+        disk_persistence::key_pathfinder::ClientKeysPathfinder, Config, GatewayEndpointConfig,
     },
     error::ClientCoreError,
 };
-use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
 use nym_validator_client::client::IdentityKey;
@@ -317,7 +315,7 @@ where
     T: nym_config::NymConfig,
 {
     fn load_identity_keys(
-        pathfinder: &ClientKeyPathfinder,
+        pathfinder: &ClientKeysPathfinder,
     ) -> Result<identity::KeyPair, ClientCoreError> {
         let identity_keypair: identity::KeyPair =
             nym_pemstore::load_keypair(&pathfinder.identity_key_pair_path())
@@ -326,7 +324,7 @@ where
     }
 
     fn load_sphinx_keys(
-        pathfinder: &ClientKeyPathfinder,
+        pathfinder: &ClientKeysPathfinder,
     ) -> Result<encryption::KeyPair, ClientCoreError> {
         let sphinx_keypair: encryption::KeyPair =
             nym_pemstore::load_keypair(&pathfinder.encryption_key_pair_path())
@@ -334,7 +332,7 @@ where
         Ok(sphinx_keypair)
     }
 
-    let pathfinder = ClientKeyPathfinder::new_from_config(config);
+    let pathfinder = ClientKeysPathfinder::new_from_config(config);
     let identity_keypair = load_identity_keys(&pathfinder)?;
     let sphinx_keypair = load_sphinx_keys(&pathfinder)?;
 

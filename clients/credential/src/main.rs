@@ -9,7 +9,7 @@ use commands::*;
 use error::Result;
 use log::*;
 use nym_bin_common::completions::fig_generate;
-use nym_config::{CRED_DB_FILE_NAME, DATA_DIR};
+use nym_config::{CRED_DB_FILE_NAME, DEFAULT_DATA_DIR};
 use nym_network_defaults::{setup_env, NymNetworkDetails};
 use std::process::exit;
 use std::time::{Duration, SystemTime};
@@ -73,7 +73,7 @@ async fn main() -> Result<()> {
         Command::Run(r) => {
             let db_path = r
                 .client_home_directory
-                .join(DATA_DIR)
+                .join(DEFAULT_DATA_DIR)
                 .join(CRED_DB_FILE_NAME);
             let shared_storage =
                 nym_credential_storage::initialise_persistent_storage(db_path).await;

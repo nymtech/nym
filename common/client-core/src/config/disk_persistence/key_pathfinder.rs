@@ -1,41 +1,50 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::Config;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
-pub struct ClientKeyPathfinder {
-    pub identity_private_key: PathBuf,
-    pub identity_public_key: PathBuf,
-    pub encryption_private_key: PathBuf,
-    pub encryption_public_key: PathBuf,
-    pub gateway_shared_key: PathBuf,
-    pub ack_key: PathBuf,
+pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
+pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
+pub const DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME: &str = "private_encryption.pem";
+pub const DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME: &str = "public_encryption.pem";
+pub const DEFAULT_GATEWAY_SHARED_KEY_FILENAME: &str = "gateway_shared.pem";
+pub const DEFAULT_ACK_KEY_FILENAME: &str = "ack_key.pem";
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+pub struct ClientKeysPathfinder {
+    /// Path to file containing private identity key.
+    pub private_identity_key_file: PathBuf,
+
+    /// Path to file containing public identity key.
+    pub public_identity_key_file: PathBuf,
+
+    /// Path to file containing private encryption key.
+    pub private_encryption_key_file: PathBuf,
+
+    /// Path to file containing public encryption key.
+    pub public_encryption_key_file: PathBuf,
+
+    /// Path to file containing shared key derived with the specified gateway that is used
+    /// for all communication with it.
+    pub gateway_shared_key_file: PathBuf,
+
+    /// Path to file containing key used for encrypting and decrypting the content of an
+    /// acknowledgement so that nobody besides the client knows which packet it refers to.
+    pub ack_key_file: PathBuf,
 }
 
-impl ClientKeyPathfinder {
-    pub fn new(id: String) -> Self {
-        let os_config_dir = dirs::config_dir().expect("no config directory known for this OS"); // grabs the OS default config dir
-        let config_dir = os_config_dir.join("nym").join("clients").join(id);
-        ClientKeyPathfinder {
-            identity_private_key: config_dir.join("private_identity.pem"),
-            identity_public_key: config_dir.join("public_identity.pem"),
-            encryption_private_key: config_dir.join("private_encryption.pem"),
-            encryption_public_key: config_dir.join("public_encryption.pem"),
-            gateway_shared_key: config_dir.join("gateway_shared.pem"),
-            ack_key: config_dir.join("ack_key.pem"),
-        }
-    }
+impl ClientKeysPathfinder {
+    pub fn new_default<P: AsRef<Path>>(base_data_directory: P) -> Self {
+        let base_dir = base_data_directory.as_ref();
 
-    pub fn new_from_config<T>(config: &Config<T>) -> Self {
-        ClientKeyPathfinder {
-            identity_private_key: config.get_private_identity_key_file(),
-            identity_public_key: config.get_public_identity_key_file(),
-            encryption_private_key: config.get_private_encryption_key_file(),
-            encryption_public_key: config.get_public_encryption_key_file(),
-            gateway_shared_key: config.get_gateway_shared_key_file(),
-            ack_key: config.get_ack_key_file(),
+        ClientKeysPathfinder {
+            private_identity_key_file: base_dir.join(DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME),
+            public_identity_key_file: base_dir.join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME),
+            private_encryption_key_file: base_dir.join(DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME),
+            public_encryption_key_file: base_dir.join(DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME),
+            gateway_shared_key_file: base_dir.join(DEFAULT_GATEWAY_SHARED_KEY_FILENAME),
+            ack_key_file: base_dir.join(DEFAULT_ACK_KEY_FILENAME),
         }
     }
 

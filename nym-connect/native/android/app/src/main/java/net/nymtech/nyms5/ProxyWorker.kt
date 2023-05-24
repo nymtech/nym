@@ -120,7 +120,7 @@ class ProxyWorker(context: Context, parameters: WorkerParameters) :
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 channelId,
-                "nym proxy",
+                applicationContext.getString(R.string.notification_channel_name),
                 NotificationManager.IMPORTANCE_HIGH
             )
         )

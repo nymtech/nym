@@ -20,8 +20,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-data class Socks5State(val connected: Boolean = false)
-
 class Socks5ViewModel(
     private val workManager: WorkManager
 ) : ViewModel() {
@@ -40,31 +38,41 @@ class Socks5ViewModel(
         .setId(workId)
         .build()
 
-    private val socks5 = Socks5()
+    private val callbacks = object {
+        fun onStart() {
+            Log.w(tag, "⚡⚡⚡⚡ CB START ⚡⚡⚡⚡")
+            _uiState.update { currentState ->
+                currentState.copy(
+                    connected = true,
+                    loading = false,
+                )
+            }
+            Log.i(tag, "Nym socks5 proxy started")
+        }
+
+        fun onStop() {
+            Log.w(tag, "⚡⚡⚡⚡ CB STOP ⚡⚡⚡⚡")
+            _uiState.update { currentState ->
+                currentState.copy(
+                    connected = false,
+                    loading = false,
+                )
+            }
+            Log.i(tag, "Nym socks5 proxy stopped")
+        }
+    }
+
+    val socks5 = Socks5(callbacks)
+
+    data class Socks5State(val connected: Boolean = false, val loading: Boolean = false)
 
     // Expose screen UI state
     private val _uiState = MutableStateFlow(Socks5State())
     val uiState: StateFlow<Socks5State> = _uiState.asStateFlow()
 
-    // TODO use lib callbacks to set the connection state
-    private fun startProxy() {
-        _uiState.update { currentState ->
-            currentState.copy(
-                connected = true,
-            )
-        }
-        Log.i(tag, "Nym socks5 proxy started")
-    }
-
     private fun stopProxy() {
         viewModelScope.launch(Dispatchers.IO) {
             socks5.stop()
-        }
-        // TODO use lib callbacks to set the connection state
-        _uiState.update { currentState ->
-            currentState.copy(
-                connected = false,
-            )
         }
         Log.i(tag, "Nym socks5 proxy stopped")
     }
@@ -82,15 +90,27 @@ class Socks5ViewModel(
                 if (workInfo?.state == WorkInfo.State.CANCELLED || workInfo?.state == WorkInfo.State.FAILED) {
                     // when the work is cancelled call `stop`
                     stopProxy()
-                    Log.i(tag, "proxy work cancelled")
+                    Log.d(tag, "proxy work cancelled")
                 }
             }
-        // update UI state
-        startProxy()
+
+        // update state
+        _uiState.update { currentState ->
+            currentState.copy(
+                loading = true,
+            )
+        }
     }
 
     fun cancelProxyWork() {
         workManager.cancelAllWorkByTag(workTag)
+
+        // update state
+        _uiState.update { currentState ->
+            currentState.copy(
+                loading = true,
+            )
+        }
     }
 }
 

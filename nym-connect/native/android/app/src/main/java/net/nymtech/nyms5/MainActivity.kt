@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -25,7 +28,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
-import net.nymtech.nyms5.ui.theme.Nyms5Theme
+import net.nymtech.nyms5.ui.theme.NymTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -52,16 +55,20 @@ class MainActivity : ComponentActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect {
                     setContent {
-                        Nyms5Theme {
+                        NymTheme {
                             // A surface container using the 'background' color from the theme
                             Surface(
                                 modifier = Modifier.fillMaxSize(),
                                 color = MaterialTheme.colorScheme.background
                             ) {
-                                S5ClientSwitch(it.connected, {
-                                    when {
-                                        it -> viewModel.startProxyWork()
-                                        else -> viewModel.cancelProxyWork()
+                                val loading = it.loading
+
+                                S5ClientSwitch(it.connected, loading, {
+                                    if (!loading) {
+                                        when {
+                                            it -> viewModel.startProxyWork()
+                                            else -> viewModel.cancelProxyWork()
+                                        }
                                     }
                                 })
                             }
@@ -76,17 +83,27 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun S5ClientSwitch(
     connected: Boolean,
+    loading: Boolean,
     onSwitch: (value: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val clipboardManager = LocalClipboardManager.current
     val proxyHost = stringResource(R.string.proxy_host)
-
+    if (loading) {
+        Row {
+            LinearProgressIndicator(
+                modifier = modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+    } else {
+        Spacer(modifier = modifier.height(2.dp))
+    }
     Column(modifier = modifier.padding(16.dp)) {
         Row(modifier = modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Nym proxy")
             Spacer(modifier = modifier.width(14.dp))
-            Switch(checked = connected, onCheckedChange = {
+            Switch(checked = connected, enabled = !loading, onCheckedChange = {
                 onSwitch(!connected)
             })
         }
@@ -117,11 +134,20 @@ fun S5ClientSwitch(
 @Composable
 fun PreviewSocks5Client() {
     var connected by rememberSaveable { mutableStateOf(false) }
-    S5ClientSwitch(connected, {
-        when {
-            it -> println("start socks5 client")
-            else -> println("stop socks5 client")
+    var loading by rememberSaveable { mutableStateOf(false) }
+    NymTheme {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            S5ClientSwitch(connected, loading, {
+                when {
+                    it -> println("start socks5 client")
+                    else -> println("stop socks5 client")
+                }
+                connected = it
+                loading = !loading
+            })
         }
-        connected = it
-    })
+    }
 }

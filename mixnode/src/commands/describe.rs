@@ -80,5 +80,5 @@ pub(crate) fn execute(args: Describe) {
     };
 
     // save the struct
-    NodeDescription::save_to_file(&node_description, config.pathfinder.node_description).unwrap()
+    NodeDescription::save_to_file(&node_description, config.paths.node_description).unwrap()
 }

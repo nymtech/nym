@@ -7,7 +7,7 @@ use crate::{
 };
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::key_manager::KeyManager;
-use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_client_core::config::disk_persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_crypto::asymmetric::identity;
 
 pub async fn get_identity_key(

@@ -16,6 +16,7 @@ use nym_client_core::client::base_client::{
 };
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
+use nym_client_core::config::disk_persistence::key_pathfinder::ClientKeysPathfinder;
 use nym_client_core::config::DebugConfig;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;

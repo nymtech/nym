@@ -6,7 +6,7 @@ use nym_client_core::client::base_client::{non_wasm_helpers, storage};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::replies::reply_storage::fs_backend;
 use nym_client_core::config;
-use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_client_core::config::disk_persistence::key_pathfinder::ClientKeysPathfinder;
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 use std::path::{Path, PathBuf};
 
@@ -120,8 +120,8 @@ impl StoragePaths {
         OnDiskKeys::new(self.client_key_pathfinder())
     }
 
-    fn client_key_pathfinder(&self) -> ClientKeyPathfinder {
-        ClientKeyPathfinder {
+    fn client_key_pathfinder(&self) -> ClientKeysPathfinder {
+        ClientKeysPathfinder {
             identity_private_key: self.private_identity.clone(),
             identity_public_key: self.public_identity.clone(),
             encryption_private_key: self.private_encryption.clone(),
@@ -132,7 +132,7 @@ impl StoragePaths {
     }
 }
 
-impl From<StoragePaths> for ClientKeyPathfinder {
+impl From<StoragePaths> for ClientKeysPathfinder {
     fn from(paths: StoragePaths) -> Self {
         paths.client_key_pathfinder()
     }

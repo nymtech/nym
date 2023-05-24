@@ -117,7 +117,7 @@ where
         }
     }
 
-    /// Change the underlying storage of this builder to use default implementation of on-disk persistence.
+    /// Change the underlying storage of this builder to use default implementation of on-disk disk_persistence.
     #[must_use]
     pub fn set_default_storage(
         self,

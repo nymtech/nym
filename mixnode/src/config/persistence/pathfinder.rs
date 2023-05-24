@@ -1,9 +1,8 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Deserialize, Serialize};
-
 use crate::config::{default_config_filepath, default_data_directory};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";

@@ -22,7 +22,7 @@ use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::{console_log, PromisableResult};
 
 // don't get too excited about the name, under the hood it's just a big fat placeholder
-// with no persistence
+// with no disk_persistence
 pub(crate) fn setup_reply_surb_storage_backend(
     config: config::ReplySurbs,
 ) -> browser_backend::Backend {

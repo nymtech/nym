@@ -6,9 +6,7 @@ use async_trait::async_trait;
 use std::error::Error;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::config::Config;
+use crate::config::disk_persistence::key_pathfinder::ClientKeysPathfinder;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_crypto::asymmetric::{encryption, identity};
 #[cfg(not(target_arch = "wasm32"))]
@@ -65,24 +63,20 @@ pub enum OnDiskKeysError {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub struct OnDiskKeys {
-    pathfinder: ClientKeyPathfinder,
+    pathfinder: ClientKeysPathfinder,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<ClientKeyPathfinder> for OnDiskKeys {
-    fn from(pathfinder: ClientKeyPathfinder) -> Self {
+impl From<ClientKeysPathfinder> for OnDiskKeys {
+    fn from(pathfinder: ClientKeysPathfinder) -> Self {
         OnDiskKeys { pathfinder }
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl OnDiskKeys {
-    pub fn new(pathfinder: ClientKeyPathfinder) -> Self {
+    pub fn new(pathfinder: ClientKeysPathfinder) -> Self {
         OnDiskKeys { pathfinder }
-    }
-
-    pub fn from_config<T>(config: &Config<T>) -> Self {
-        OnDiskKeys::new(ClientKeyPathfinder::new_from_config(config))
     }
 
     fn load_key<T: PemStorableKey>(

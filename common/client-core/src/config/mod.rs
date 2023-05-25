@@ -3,6 +3,7 @@
 
 use nym_config::defaults::NymNetworkDetails;
 use nym_config::{NymConfig, OptionalSet, CRED_DB_FILE_NAME};
+use nym_crypto::asymmetric::identity;
 use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -10,6 +11,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
 
+use crate::error::ClientCoreError;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -483,6 +485,14 @@ impl GatewayEndpointConfig {
             gateway_owner,
             gateway_listener,
         }
+    }
+}
+
+// separate block so it wouldn't be exported via wasm bindgen
+impl GatewayEndpointConfig {
+    pub fn try_get_gateway_identity_key(&self) -> Result<identity::PublicKey, ClientCoreError> {
+        identity::PublicKey::from_base58_string(&self.gateway_id)
+            .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)
     }
 }
 

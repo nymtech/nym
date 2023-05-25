@@ -171,7 +171,8 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     print_saved_config(&config);
 
-    let address = nym_client_core::init::get_client_address_from_stored_keys(config.get_base())?;
+    let address =
+        nym_client_core::init::get_client_address_from_stored_ondisk_keys(config.get_base())?;
     let init_results = InitResults::new(&config, &address);
     println!("{}", args.output.format(&init_results));
 

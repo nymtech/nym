@@ -11,7 +11,9 @@ use nym_api_requests::models::{
 };
 use nym_coconut_dkg_common::types::NodeIndex;
 use nym_coconut_interface::VerificationKey;
-pub use nym_mixnet_contract_common::{mixnode::MixNodeDetails, GatewayBond, IdentityKeyRef, MixId};
+pub use nym_mixnet_contract_common::{
+    mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, MixId,
+};
 use url::Url;
 
 #[cfg(feature = "nyxd-client")]
@@ -31,7 +33,7 @@ use nym_mixnet_contract_common::{
     families::{Family, FamilyHead},
     mixnode::MixNodeBond,
     pending_events::{PendingEpochEvent, PendingIntervalEvent},
-    Delegation, IdentityKey, RewardedSetNodeStatus, UnbondedMixnode,
+    Delegation, RewardedSetNodeStatus, UnbondedMixnode,
 };
 #[cfg(feature = "nyxd-client")]
 use nym_network_defaults::NymNetworkDetails;

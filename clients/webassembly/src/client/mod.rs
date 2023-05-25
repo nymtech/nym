@@ -6,7 +6,10 @@ use crate::client::helpers::{InputSender, NymClientTestRequest, WasmTopologyExt}
 use crate::client::response_pusher::ResponsePusher;
 use crate::constants::NODE_TESTER_CLIENT_ID;
 use crate::error::WasmClientError;
-use crate::helpers::{parse_recipient, parse_sender_tag, setup_reply_surb_storage_backend};
+use crate::helpers::{
+    choose_gateway, gateway_from_topology, parse_recipient, parse_sender_tag,
+    setup_reply_surb_storage_backend,
+};
 use crate::storage::traits::FullWasmClientStorage;
 use crate::storage::ClientStorage;
 use crate::topology::WasmNymTopology;
@@ -18,16 +21,15 @@ use nym_client_core::client::base_client::{
 };
 use nym_client_core::client::inbound_messages::InputMessage;
 use nym_client_core::client::replies::reply_storage::browser_backend;
-use nym_client_core::config::{
-    CoverTraffic, DebugConfig, GatewayEndpointConfig, Topology, Traffic,
-};
+use nym_client_core::config::{CoverTraffic, DebugConfig, Topology, Traffic};
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
 use nym_topology::provider_trait::{HardcodedTopologyProvider, TopologyProvider};
 use nym_topology::NymTopology;
+use nym_validator_client::client::IdentityKey;
 use rand::rngs::OsRng;
-use rand::RngCore;
+use rand::{thread_rng, RngCore};
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
@@ -92,19 +94,21 @@ impl NymClientBuilder {
     // hardcoded topology
     // NOTE: you most likely want to use `[NymNodeTester]` instead.
     pub fn new_tester(
-        gateway_config: GatewayEndpointConfig,
         topology: WasmNymTopology,
         on_message: js_sys::Function,
+        gateway: Option<IdentityKey>,
     ) -> Self {
-        if !topology.ensure_contains(&gateway_config) {
-            panic!("the specified topology does not contain the gateway used by the client")
+        if let Some(gateway_id) = &gateway {
+            if !topology.ensure_contains_gateway_id(gateway_id) {
+                panic!("the specified topology does not contain the gateway used by the client")
+            }
         }
 
         let full_config = Config {
             id: NODE_TESTER_CLIENT_ID.to_string(),
             nym_api_url: None,
             disabled_credentials_mode: true,
-            gateway_endpoint: gateway_config,
+            gateway,
             debug: DebugConfig {
                 traffic: Traffic {
                     disable_main_poisson_packet_distribution: true,
@@ -150,27 +154,45 @@ impl NymClientBuilder {
     async fn start_client_async(mut self) -> Result<NymClient, WasmClientError> {
         console_log!("Starting the wasm client");
 
-        let maybe_topology_provider = self.topology_provider();
-
         let disabled_credentials = if self.disabled_credentials {
             CredentialsToggle::Disabled
         } else {
             CredentialsToggle::Enabled
         };
 
-        let nym_api_endpoints = match self.config.nym_api_url {
-            Some(endpoint) => vec![endpoint],
+        let nym_api_endpoints = match &self.config.nym_api_url {
+            Some(endpoint) => vec![endpoint.clone()],
             None => Vec::new(),
         };
 
         // TODO: this will have to be re-used for surbs. but this is a problem for another PR.
-        let key_store =
+        let client_store =
             ClientStorage::new_async(&self.config.id, self.storage_passphrase.take()).await?;
 
+        // if we provided hardcoded topology, get gateway from it, otherwise get it the 'standard' way
+        let gateway_endpoint = if let Some(topology) = &self.custom_topology {
+            gateway_from_topology(
+                &mut thread_rng(),
+                self.config.gateway.as_deref(),
+                topology,
+                &client_store,
+            )
+            .await?
+        } else {
+            choose_gateway(
+                &client_store,
+                self.config.gateway.clone(),
+                &nym_api_endpoints,
+            )
+            .await?
+        };
+
+        let maybe_topology_provider = self.topology_provider();
+
         let mut base_builder: BaseClientBuilder<_, FullWasmClientStorage> = BaseClientBuilder::new(
-            &self.config.gateway_endpoint,
+            &gateway_endpoint,
             &self.config.debug,
-            key_store,
+            client_store,
             self.bandwidth_controller,
             self.reply_surb_storage_backend,
             disabled_credentials,

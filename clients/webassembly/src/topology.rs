@@ -6,7 +6,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::mix::{Layer, MixnodeConversionError};
 use nym_topology::{gateway, mix, MixLayer, NymTopology};
-use nym_validator_client::client::MixId;
+use nym_validator_client::client::{IdentityKeyRef, MixId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
@@ -82,11 +82,16 @@ impl WasmNymTopology {
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn ensure_contains(&self, gateway_config: &GatewayEndpointConfig) -> bool {
+        self.ensure_contains_gateway_id(&gateway_config.gateway_id)
+    }
+
+    pub(crate) fn ensure_contains_gateway_id(&self, gateway_id: IdentityKeyRef) -> bool {
         self.inner
             .gateways()
             .iter()
-            .any(|g| g.identity_key.to_base58_string() == gateway_config.gateway_id)
+            .any(|g| g.identity_key.to_base58_string() == gateway_id)
     }
 
     pub fn print(&self) {

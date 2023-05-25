@@ -53,7 +53,6 @@ async fn send_empty_keepalive<F, S>(
         .expect("BatchRealMessageReceiver has stopped receiving!");
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn deal_with_data<F, S>(
     read_data: Option<io::Result<Bytes>>,
     local_destination_address: &str,
@@ -62,7 +61,6 @@ async fn deal_with_data<F, S>(
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,
     adapter_fn: F,
-    lane_queue_lengths: Option<LaneQueueLengths>,
 ) -> bool
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
@@ -95,71 +93,53 @@ where
         ordered_msg.len()
     );
 
-    // Before sending the data downstream, wait for the lane at the `OutQueueControl` is reasonably
-    // close to finishing. This is a way of pacing the sending application (backpressure).
-    if let Some(ref lane_queue_lengths) = lane_queue_lengths {
-        // We allow a bit of slack to try to keep the pipeline >0
-        wait_until_lane_almost_empty(lane_queue_lengths, connection_id).await;
-    }
-
     mix_sender
         .send(adapter_fn(connection_id, ordered_msg, is_finished))
         .await
         .expect("InputMessageReceiver has stopped receiving!");
 
-    if is_finished {
-        // After sending, if this is the last message, wait until we've actually transmitted the data
-        // in the `OutQueueControl` and the lane is empty.
-        if let Some(ref lane_queue_lengths) = lane_queue_lengths {
-            // This is basically an ugly workaround to make sure that we don't start waiting until
-            // the data that we pushed arrived at the OutQueueControl.
-            // This usually not a problem in the socks5-client, but for the network-requester this
-            // info is synced at up to every 500ms.
-            sleep(Duration::from_secs(2)).await;
-            wait_until_lane_empty(lane_queue_lengths, connection_id).await;
-        }
-
-        // Technically we already informed it when we sent the message to mixnet above
-        debug!(
-            target: &*format!("({connection_id}) socks5 inbound"),
-            "The local socket is closed - won't receive any more data. Informing remote about that..."
-        );
-    }
-
     is_finished
 }
 
-async fn wait_until_lane_empty(lane_queue_lengths: &LaneQueueLengths, connection_id: u64) {
-    if tokio::time::timeout(
-        Duration::from_secs(4 * 60),
-        wait_for_lane(
-            lane_queue_lengths,
-            connection_id,
-            0,
-            Duration::from_millis(500),
-        ),
-    )
-    .await
-    .is_err()
-    {
-        log::warn!("Wait until lane empty timed out");
+async fn wait_until_lane_empty(lane_queue_lengths: &Option<LaneQueueLengths>, connection_id: u64) {
+    if let Some(lane_queue_lengths) = lane_queue_lengths {
+        if tokio::time::timeout(
+            Duration::from_secs(4 * 60),
+            wait_for_lane(
+                lane_queue_lengths,
+                connection_id,
+                0,
+                Duration::from_millis(500),
+            ),
+        )
+        .await
+        .is_err()
+        {
+            log::warn!("Wait until lane empty timed out");
+        }
     }
 }
 
-async fn wait_until_lane_almost_empty(lane_queue_lengths: &LaneQueueLengths, connection_id: u64) {
-    if tokio::time::timeout(
-        Duration::from_secs(4 * 60),
-        wait_for_lane(
-            lane_queue_lengths,
-            connection_id,
-            30,
-            Duration::from_millis(100),
-        ),
-    )
-    .await
-    .is_err()
-    {
-        log::debug!("Wait until lane almost empty timed out");
+async fn wait_until_lane_almost_empty(
+    lane_queue_lengths: &Option<LaneQueueLengths>,
+    connection_id: u64,
+) {
+    if let Some(lane_queue_lengths) = lane_queue_lengths {
+        if tokio::time::timeout(
+            Duration::from_secs(4 * 60),
+            wait_for_lane(
+                lane_queue_lengths,
+                connection_id,
+                // With only 30 packets in the queue, we treat it as basically empty.
+                30,
+                Duration::from_millis(100),
+            ),
+        )
+        .await
+        .is_err()
+        {
+            log::debug!("Wait until lane almost empty timed out");
+        }
     }
 }
 
@@ -199,32 +179,37 @@ where
     let mut available_reader =
         AvailableReader::new(&mut reader, Some(available_plaintext_per_mix_packet * 4));
     let mut message_sender = OrderedMessageSender::new();
-    let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
 
+    // Shutdown if outbound signled to shutdown
+    let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
     tokio::pin!(shutdown_future);
 
+    // Timer to send empty keepalive messages
     let mut keepalive_timer = tokio::time::interval(KEEPALIVE_INTERVAL);
+
+    // Once we finish read from the local socket, we need to wait until we've actually transmitted
+    // until we can exit the task. Otherwise, if we close the connection while there is still
+    // packets waiting to be sent in `OutQueueControl`, they will be dropped.
+    let closing_notify = Arc::new(Notify::new());
+    let closing_future = closing_notify
+        .notified()
+        .then(|_| {
+            // We wait a little to make sure that the packets make their way to the
+            // `OutQueueControl` and is registered in the `LaneQueueLengths`.
+            //
+            // NOTE: This is as hacky as it looks. My preferred approach would be to do the chunking in
+            // each connection task and then send the chunks to the `OutQueueControl` directly.
+            sleep(Duration::from_secs(2))
+        })
+        .then(|_| wait_until_lane_empty(&lane_queue_lengths, connection_id));
+    tokio::pin!(closing_future);
+
+    // Once we are closed, we need to disable the branch in the select that reads from the socket.
+    let mut we_are_closed = false;
 
     loop {
         select! {
-            read_data = &mut available_reader.next() => {
-                if deal_with_data(
-                    read_data,
-                    &local_destination_address,
-                    &remote_source_address,
-                    connection_id,
-                    &mut message_sender,
-                    &mix_sender,
-                    &adapter_fn,
-                    lane_queue_lengths.clone()
-                ).await {
-                    break
-                }
-                keepalive_timer.reset();
-            }
-            _ = keepalive_timer.tick() => {
-                send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
-            }
+            biased;
             _ = &mut shutdown_future => {
                 debug!(
                     "closing inbound proxy after outbound was closed {:?} ago",
@@ -238,6 +223,42 @@ where
             _ = shutdown_listener.recv() => {
                 log::trace!("ProxyRunner inbound: Received shutdown");
                 break;
+            }
+            _ = &mut closing_future => {
+                // Technically we already informed it when we sent the last message to mixnet
+                debug!(
+                    target: &*format!("({connection_id}) socks5 inbound"),
+                    "The local socket is closed - won't receive any more data. Informing remote about that..."
+                );
+                break;
+            }
+            _ = keepalive_timer.tick() => {
+                send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
+            }
+            // Read the next data when there is space in the lane.
+            // The purpose of chaining the wait here is that it makes sure we can cancel the
+            // waiting on connection close.
+            read_data = wait_until_lane_almost_empty(&lane_queue_lengths, connection_id)
+                .then(|_| available_reader.next()), if !we_are_closed =>
+            {
+                if deal_with_data(
+                    read_data,
+                    &local_destination_address,
+                    &remote_source_address,
+                    connection_id,
+                    &mut message_sender,
+                    &mix_sender,
+                    &adapter_fn,
+                ).await {
+                    // After reading the last data, notify the closing_future to wait until the
+                    // lane is clear before exiting.
+                    // We don't wait here since we want to be able to cancel the wait on close or
+                    // shutdown.
+                    closing_notify.notify_one();
+                    we_are_closed = true;
+                }
+                // No need to send keepalive messages when just sent real data
+                keepalive_timer.reset();
             }
         }
     }

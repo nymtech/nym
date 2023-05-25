@@ -8,6 +8,7 @@
 .idea
 target
 .env
+.env.dev
 /.vscode/settings.json
 validator/.vscode
 sample-configs/validator-config.toml

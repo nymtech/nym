@@ -38,10 +38,10 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
     let stdout_config = fern::Dispatch::new()
         .format(move |out, message, record| {
             out.finish(format_args!(
-                "{}[{}][{}] {}",
+                "{} {:5} {}  > {}",
                 formatted_time(),
-                record.target(),
                 colors.color(record.level()),
+                record.target(),
                 message,
             ))
         })

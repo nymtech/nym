@@ -43,7 +43,7 @@ use wasm_utils::websocket::JSWebsocket;
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
-pub struct GatewayClient<C, St: CredentialStorage> {
+pub struct GatewayClient<C, St> {
     authenticated: bool,
     disabled_credentials_mode: bool,
     bandwidth_remaining: i64,
@@ -69,12 +69,7 @@ pub struct GatewayClient<C, St: CredentialStorage> {
     shutdown: TaskClient,
 }
 
-impl<C, St> GatewayClient<C, St>
-where
-    C: Sync + Send,
-    St: CredentialStorage,
-    <St as CredentialStorage>::StorageError: Send + Sync + 'static,
-{
+impl<C, St> GatewayClient<C, St> {
     // TODO: put it all in a Config struct
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -536,7 +531,9 @@ where
 
     pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError>
     where
-        C: DkgQueryClient,
+        C: DkgQueryClient + Send + Sync,
+        St: CredentialStorage,
+        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
@@ -740,7 +737,9 @@ where
 
     pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError>
     where
-        C: DkgQueryClient,
+        C: DkgQueryClient + Send + Sync,
+        St: CredentialStorage,
+        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         if !self.connection.is_established() {
             self.establish_connection().await?;

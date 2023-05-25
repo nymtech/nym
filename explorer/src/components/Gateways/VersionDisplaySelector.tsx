@@ -5,6 +5,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 export enum VersionSelectOptions {
   latestVersion = 'Latest versions',
   olderVersions = 'Older versions',
+  all = 'All',
 }
 export const VersionDisplaySelector = ({
   selected,
@@ -31,6 +32,9 @@ export const VersionDisplaySelector = ({
         </MenuItem>
         <MenuItem value={VersionSelectOptions.olderVersions} data-testid="show-gateway-old-versions">
           {VersionSelectOptions.olderVersions}
+        </MenuItem>
+        <MenuItem value={VersionSelectOptions.all} data-testid="show-gateway-all-versions">
+          {VersionSelectOptions.all}
         </MenuItem>
       </Select>
     </FormControl>

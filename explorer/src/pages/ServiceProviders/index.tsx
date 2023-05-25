@@ -48,14 +48,19 @@ export const ServiceProviders = () => {
               padding: 2,
             }}
           >
-            {serviceProviders ? (
+            {serviceProviders?.data ? (
               <>
                 <TableToolbar
                   onChangePageSize={handleOnPageSizeChange}
                   pageSize={pageSize}
                   childrenBefore={<SupportedApps />}
                 />
-                <UniversalDataGrid pagination rows={serviceProviders} columns={columns} pageSize={pageSize} />
+                <UniversalDataGrid
+                  pagination
+                  rows={serviceProviders?.data?.items}
+                  columns={columns}
+                  pageSize={pageSize}
+                />
               </>
             ) : (
               <Typography>No service providers to display</Typography>

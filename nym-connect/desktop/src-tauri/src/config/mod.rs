@@ -158,7 +158,8 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 
     print_saved_config(&config);
 
-    let address = nym_client_core::init::get_client_address_from_stored_keys(config.get_base())?;
+    let address =
+        nym_client_core::init::get_client_address_from_stored_ondisk_keys(config.get_base())?;
     log::info!("The address of this client is: {}", address);
     Ok(())
 }

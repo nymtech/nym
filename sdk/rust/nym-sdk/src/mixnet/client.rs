@@ -16,14 +16,11 @@ use nym_client_core::client::base_client::BaseClient;
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::key_manager::ManagedKeys;
 use nym_client_core::config::DebugConfig;
+use nym_client_core::init::GatewaySetup;
 use nym_client_core::{
-    client::{
-        base_client::{BaseClientBuilder, CredentialsToggle},
-        replies::reply_storage::ReplyStorageBackend,
-    },
+    client::{base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend},
     config::GatewayEndpointConfig,
 };
-use nym_crypto::asymmetric::identity;
 use nym_network_defaults::NymNetworkDetails;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
@@ -356,30 +353,17 @@ where
         }
         log::debug!("Registering with gateway");
 
-        let user_chosen_gateway = self
-            .config
-            .user_chosen_gateway
-            .as_ref()
-            .map(identity::PublicKey::from_base58_string)
-            .transpose()?;
-
         let api_endpoints = self.get_api_endpoints();
-        let (gateway_config, shared_key) = nym_client_core::init::register_with_gateway(
-            self.managed_keys.identity_keypair(),
+        let gateway_setup = GatewaySetup::new(None, self.config.user_chosen_gateway.clone(), None);
+
+        let gateway_config = nym_client_core::init::get_registered_gateway::<S>(
             api_endpoints,
-            user_chosen_gateway,
-            // TODO: this should probably be configurable with the config
-            false,
+            &self.key_store,
+            gateway_setup,
+            !self.config.key_mode.is_keep(),
         )
         .await?;
 
-        // TODO: this will deal with storage if it's a fresh key
-        self.managed_keys
-            .deal_with_gateway_key(shared_key, &self.key_store)
-            .await
-            .map_err(|source| Error::KeyStorageError {
-                source: Box::new(source),
-            })?;
         self.state = BuilderState::Registered {
             gateway_endpoint_config: gateway_config,
         };
@@ -480,7 +464,7 @@ where
             self.key_store,
             self.bandwidth_controller,
             self.reply_storage_backend,
-            CredentialsToggle::from(self.config.enabled_credentials_mode),
+            self.config.enabled_credentials_mode.into(),
             nym_api_endpoints,
         );
 

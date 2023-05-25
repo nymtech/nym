@@ -106,29 +106,25 @@ function printAndDisplayTestResult(result) {
     });
 }
 
-function dummyGatewayConfig() {
-    return new GatewayEndpointConfig(
-        '336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9',
-        'n1rqqw8km7a0rvf8lr6k8dsdqvvkyn2mglj7xxfm',
-        'ws://85.159.212.96:9000',
-    )
-}
-
 async function testWithTester() {
-    const gatewayConfig = dummyGatewayConfig();
+    const dummyGateway = "336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9";
 
     // A) construct with hardcoded topology
     const topology = dummyTopology()
-    const nodeTester = await new NymNodeTester(gatewayConfig, topology);
+    const nodeTester = await new NymNodeTester(topology, dummyGateway);
 
     // B) first get topology directly from nym-api
     // const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
     // const topology = await current_network_topology(validator)
-    // const nodeTester = await new NymNodeTester(gatewayConfig, topology);
+    // const nodeTester = await new NymNodeTester(topology, dummyGateway);
     //
     // C) use nym-api in the constructor (note: it does no filtering for 'good' nodes on other layers)
     // const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
-    // const nodeTester = await NymNodeTester.new_with_api(gatewayConfig, validator)
+    // const nodeTester = await NymNodeTester.new_with_api(validator, dummyGateway)
+
+    // D, E, F) you also don't have to specify the gateway. if you don't, a random one (from your topology) will be used
+    // const topology = dummyTopology()
+    // const nodeTester = await new NymNodeTester(topology);
 
     self.onmessage = async event => {
         if (event.data && event.data.kind) {
@@ -146,7 +142,7 @@ async function testWithTester() {
 }
 
 async function testWithNymClient() {
-    const gatewayConfig = dummyGatewayConfig();
+    const dummyGateway = "336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9";
     const topology = dummyTopology()
 
     let received = 0
@@ -168,7 +164,7 @@ async function testWithNymClient() {
 
     console.log('Instantiating WASM client...');
 
-    let clientBuilder = NymClientBuilder.new_tester(gatewayConfig, topology, onMessageHandler)
+    let clientBuilder = NymClientBuilder.new_tester(topology, onMessageHandler, dummyGateway)
     console.log('Web worker creating WASM client...');
     let local_client = await clientBuilder.start_client();
     console.log('WASM client running!');
@@ -226,10 +222,10 @@ async function normalNymClientUsage() {
 
     debug.topology_refresh_rate_ms = BigInt(60000)
 
-    const gatewayConfig = dummyGatewayConfig();
+    const dummyGateway = "336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9";
     const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
 
-    const config = new Config('my-awesome-wasm-client', validator, gatewayConfig, debug);
+    const config = new Config('my-awesome-wasm-client', validator, dummyGateway, debug);
 
     const onMessageHandler = (message) => {
         console.log(message);

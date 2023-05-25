@@ -258,7 +258,10 @@ async fn load_or_generate_base_config(
 
     let expected_store_path =
         Socks5Config::default_config_file_path_with_root(&storage_dir, &client_id.to_string());
-    eprintln!("attempting to load socks5 config from {expected_store_path:?}");
+    eprintln!(
+        "attempting to load socks5 config from {}",
+        expected_store_path.display()
+    );
 
     // simulator workaround
     if let Ok(config) = Socks5Config::load_from_filepath(expected_store_path) {

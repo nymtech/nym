@@ -12,11 +12,10 @@ pub const DEFAULT_CREDENTIALS_DB_FILENAME: &str = "credentials_database.db";
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 pub struct CommonClientPathfinder {
-    pub key_pathfinder: ClientKeysPathfinder,
+    pub keys_pathfinder: ClientKeysPathfinder,
 
     // TODO:
     // pub gateway_config_pathfinder: (),
-    
     /// Path to the database containing bandwidth credentials of this client.
     #[serde(alias = "database_path")]
     pub credentials_database: PathBuf,
@@ -32,7 +31,7 @@ impl CommonClientPathfinder {
         CommonClientPathfinder {
             credentials_database: base_dir.join(DEFAULT_CREDENTIALS_DB_FILENAME),
             reply_surb_database_path: base_dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
-            key_pathfinder: ClientKeysPathfinder::new_default(base_data_directory),
+            keys_pathfinder: ClientKeysPathfinder::new_default(base_data_directory),
         }
     }
 }

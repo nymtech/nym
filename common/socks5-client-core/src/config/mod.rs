@@ -61,7 +61,7 @@ impl Config {
 
     // helper methods to use `OptionalSet` trait. Those are defined due to very... ehm. 'specific' structure of this config
     // (plz, lets refactor it)
-    pub fn with_optional_ext<F, T>(mut self, f: F, val: Option<T>) -> Self
+    pub fn with_optional_base<F, T>(mut self, f: F, val: Option<T>) -> Self
     where
         F: Fn(BaseConfig, T) -> BaseConfig,
     {
@@ -69,7 +69,7 @@ impl Config {
         self
     }
 
-    pub fn with_optional_env_ext<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
+    pub fn with_optional_base_env<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
     where
         F: Fn(BaseConfig, T) -> BaseConfig,
         T: FromStr,
@@ -79,7 +79,7 @@ impl Config {
         self
     }
 
-    pub fn with_optional_custom_env_ext<F, T, G>(
+    pub fn with_optional_base_custom_env<F, T, G>(
         mut self,
         f: F,
         val: Option<T>,

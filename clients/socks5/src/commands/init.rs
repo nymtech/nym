@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::try_upgrade_v1_1_13_config;
+use crate::config::{default_config_filepath, Config};
 use crate::{
     commands::{override_config, OverrideConfig},
     error::Socks5ClientError,
@@ -9,9 +10,7 @@ use crate::{
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
-use nym_socks5_client_core::config::Config;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;
@@ -100,15 +99,15 @@ impl From<Init> for OverrideConfig {
 pub struct InitResults {
     #[serde(flatten)]
     client_core: nym_client_core::init::InitResults,
-    socks5_listening_port: String,
+    socks5_listening_port: u16,
     client_address: String,
 }
 
 impl InitResults {
     fn new(config: &Config, address: &Recipient) -> Self {
         Self {
-            client_core: nym_client_core::init::InitResults::new(config.get_base(), address),
-            socks5_listening_port: config.get_socks5().get_listening_port().to_string(),
+            client_core: nym_client_core::init::InitResults::new(&config.core.base, address),
+            socks5_listening_port: config.core.socks5.listening_port,
             client_address: address.to_string(),
         }
     }
@@ -128,13 +127,15 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     let id = &args.id;
     let provider_address = &args.provider;
 
-    let already_init = Config::default_config_file_path(id).exists();
-    if already_init {
+    let already_init = if default_config_filepath(&id).exists() {
         // in case we're using old config, try to upgrade it
         // (if we're using the current version, it's a no-op)
         try_upgrade_v1_1_13_config(id)?;
         eprintln!("SOCKS5 client \"{id}\" was already initialised before");
-    }
+        true
+    } else {
+        false
+    };
 
     // Usually you only register with the gateway on the first init, however you can force
     // re-registering if wanted.
@@ -159,44 +160,36 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let key_store = OnDiskKeys::from_config(config.get_base());
-    let gateway = nym_client_core::init::setup_gateway_from_config::<Config, _, _>(
+    let key_store = OnDiskKeys::new(config.paths.keys_pathfinder.clone());
+    let gateway = nym_client_core::init::setup_gateway_from_config::<_>(
         &key_store,
         register_gateway,
         user_chosen_gateway_id,
-        config.get_base(),
+        &config.core.base,
         args.latency_based_selection,
     )
     .await
     .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
 
-    config.get_base_mut().set_gateway_endpoint(gateway);
+    config.core.base.set_gateway_endpoint(gateway);
 
     // TODO: ask the service provider we specified for its interface version and set it in the config
 
-    config.save_to_file(None).tap_err(|_| {
+    let config_save_location = config.default_location();
+    config.save_to_default_location().tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;
+    eprintln!(
+        "Saved configuration file to {}",
+        config_save_location.display()
+    );
 
-    print_saved_config(&config);
-
-    let address =
-        nym_client_core::init::get_client_address_from_stored_ondisk_keys(config.get_base())?;
+    let address = nym_client_core::init::get_client_address_from_stored_ondisk_keys(
+        &config.paths.keys_pathfinder,
+        &config.core.base.client.gateway_endpoint,
+    )?;
     let init_results = InitResults::new(&config, &address);
     println!("{}", args.output.format(&init_results));
 
     Ok(())
-}
-
-fn print_saved_config(config: &Config) {
-    let config_save_location = config.get_config_file_save_location();
-    eprintln!("Saved configuration file to {:?}", config_save_location);
-    eprintln!("Using gateway: {}", config.get_base().get_gateway_id());
-    log::debug!("Gateway id: {}", config.get_base().get_gateway_id());
-    log::debug!("Gateway owner: {}", config.get_base().get_gateway_owner());
-    log::debug!(
-        "Gateway listener: {}",
-        config.get_base().get_gateway_listener()
-    );
-    eprintln!("Client configuration completed.\n");
 }

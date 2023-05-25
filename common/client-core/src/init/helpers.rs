@@ -1,15 +1,15 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
-use nym_credential_storage::storage::Storage;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_topology::{filter::VersionFilterable, gateway};
-use rand::{seq::SliceRandom, thread_rng, Rng};
+use rand::{seq::SliceRandom, Rng};
 use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
 use tungstenite::Message;
@@ -27,12 +27,6 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::client::key_manager::persistence::OnDiskKeys;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::config::{persistence::key_pathfinder::ClientKeyPathfinder, Config};
-#[cfg(not(target_arch = "wasm32"))]
-use nym_config::NymConfig;
 
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DirectSigningNyxdClient;
@@ -61,9 +55,9 @@ impl GatewayWithLatency {
     }
 }
 
-async fn current_gateways<R: Rng>(
+pub(super) async fn current_gateways<R: Rng>(
     rng: &mut R,
-    nym_apis: Vec<Url>,
+    nym_apis: &[Url],
 ) -> Result<Vec<gateway::Node>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
@@ -160,7 +154,7 @@ async fn measure_latency(gateway: gateway::Node) -> Result<GatewayWithLatency, C
     Ok(GatewayWithLatency::new(gateway, avg))
 }
 
-async fn choose_gateway_by_latency<R: Rng>(
+pub(super) async fn choose_gateway_by_latency<R: Rng>(
     rng: &mut R,
     gateways: Vec<gateway::Node>,
 ) -> Result<gateway::Node, ClientCoreError> {
@@ -193,7 +187,7 @@ async fn choose_gateway_by_latency<R: Rng>(
     Ok(chosen.gateway.clone())
 }
 
-fn uniformly_random_gateway<R: Rng>(
+pub(super) fn uniformly_random_gateway<R: Rng>(
     rng: &mut R,
     gateways: Vec<gateway::Node>,
 ) -> Result<gateway::Node, ClientCoreError> {
@@ -203,39 +197,14 @@ fn uniformly_random_gateway<R: Rng>(
         .cloned()
 }
 
-pub(super) async fn query_gateway_details(
-    validator_servers: Vec<Url>,
-    chosen_gateway_id: Option<identity::PublicKey>,
-    by_latency: bool,
-) -> Result<gateway::Node, ClientCoreError> {
-    let mut rng = thread_rng();
-    let gateways = current_gateways(&mut rng, validator_servers).await?;
-
-    // if we set an explicit gateway, use that one and nothing else
-    if let Some(explicitly_chosen) = chosen_gateway_id {
-        gateways
-            .into_iter()
-            .find(|gateway| gateway.identity_key == explicitly_chosen)
-            .ok_or_else(|| ClientCoreError::NoGatewayWithId(explicitly_chosen.to_string()))
-    } else if by_latency {
-        choose_gateway_by_latency(&mut rng, gateways).await
-    } else {
-        uniformly_random_gateway(&mut rng, gateways)
-    }
-}
-
-pub(super) async fn register_with_gateway<St>(
-    gateway: &gateway::Node,
+pub(super) async fn register_with_gateway(
+    gateway: &GatewayEndpointConfig,
     our_identity: Arc<identity::KeyPair>,
-) -> Result<Arc<SharedKeys>, ClientCoreError>
-where
-    St: Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
-{
+) -> Result<Arc<SharedKeys>, ClientCoreError> {
     let timeout = Duration::from_millis(1500);
-    let mut gateway_client: GatewayClient<DirectSigningNyxdClient, St> = GatewayClient::new_init(
-        gateway.clients_address(),
-        gateway.identity_key,
+    let mut gateway_client: GatewayClient<DirectSigningNyxdClient, _> = GatewayClient::new_init(
+        gateway.gateway_listener.clone(),
+        gateway.try_get_gateway_identity_key()?,
         our_identity.clone(),
         timeout,
     );
@@ -248,14 +217,4 @@ where
         .await
         .tap_err(|_| log::warn!("Failed to register with the gateway!"))?;
     Ok(shared_keys)
-}
-
-// TODO: make it generic
-#[cfg(not(target_arch = "wasm32"))]
-pub(super) fn on_disk_key_store<T>(config: &Config<T>) -> OnDiskKeys
-where
-    T: NymConfig,
-{
-    let pathfinder = ClientKeyPathfinder::new_from_config(config);
-    OnDiskKeys::new(pathfinder)
 }

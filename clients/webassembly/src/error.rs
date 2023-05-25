@@ -4,12 +4,14 @@
 use crate::storage::errors::ClientStorageError;
 use crate::topology::WasmTopologyError;
 use js_sys::Promise;
+use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
 use nym_node_tester_utils::error::NetworkTestingError;
 use nym_sphinx::addressing::clients::RecipientFormattingError;
 use nym_sphinx::anonymous_replies::requests::InvalidAnonymousSenderTagRepresentation;
+use nym_topology::NymTopologyError;
 use nym_validator_client::ValidatorClientError;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
@@ -44,10 +46,16 @@ pub enum WasmClientError {
         source: ValidatorClientError,
     },
 
-    #[error("The provided topology was invalid: {source}")]
+    #[error("The provided wasm topology was invalid: {source}")]
     WasmTopologyError {
         #[from]
         source: WasmTopologyError,
+    },
+
+    #[error("The provided nym topology was invalid: {source}")]
+    TopologyError {
+        #[from]
+        source: NymTopologyError,
     },
 
     #[error("failed to test the node: {source}")]
@@ -68,6 +76,9 @@ pub enum WasmClientError {
     #[error("Mixnode {mixnode_identity} is not present in the current network topology")]
     NonExistentMixnode { mixnode_identity: String },
 
+    #[error("Gateway {gateway_identity} is not present in the current network topology")]
+    NonExistentGateway { gateway_identity: String },
+
     #[error("{raw} is not a valid Nym network recipient: {source}")]
     MalformedRecipient {
         raw: String,
@@ -84,6 +95,11 @@ pub enum WasmClientError {
     StorageError {
         #[from]
         source: ClientStorageError,
+    },
+
+    #[error("this client has already registered with a gateway: {gateway_config:?}")]
+    AlreadyRegistered {
+        gateway_config: GatewayEndpointConfig,
     },
 }
 

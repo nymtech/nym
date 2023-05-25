@@ -12,6 +12,8 @@ use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
 use nym_coconut_interface::Credential;
+use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
+use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use nym_gateway_requests::iv::IV;
@@ -26,7 +28,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tungstenite::protocol::Message;
 
-use nym_credential_storage::storage::Storage;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 #[cfg(not(target_arch = "wasm32"))]
@@ -42,7 +43,7 @@ use wasm_utils::websocket::JSWebsocket;
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
-pub struct GatewayClient<C, St: Storage> {
+pub struct GatewayClient<C, St> {
     authenticated: bool,
     disabled_credentials_mode: bool,
     bandwidth_remaining: i64,
@@ -68,12 +69,7 @@ pub struct GatewayClient<C, St: Storage> {
     shutdown: TaskClient,
 }
 
-impl<C, St> GatewayClient<C, St>
-where
-    C: Sync + Send,
-    St: Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
-{
+impl<C, St> GatewayClient<C, St> {
     // TODO: put it all in a Config struct
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -122,40 +118,6 @@ where
 
     pub fn with_reconnection_backoff(&mut self, backoff: Duration) {
         self.reconnection_backoff = backoff
-    }
-
-    pub fn new_init(
-        gateway_address: String,
-        gateway_identity: identity::PublicKey,
-        local_identity: Arc<identity::KeyPair>,
-        response_timeout_duration: Duration,
-    ) -> Self {
-        use futures::channel::mpsc;
-
-        // note: this packet_router is completely invalid in normal circumstances, but "works"
-        // perfectly fine here, because it's not meant to be used
-        let (ack_tx, _) = mpsc::unbounded();
-        let (mix_tx, _) = mpsc::unbounded();
-        let shutdown = TaskClient::dummy();
-        let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
-
-        GatewayClient::<C, St> {
-            authenticated: false,
-            disabled_credentials_mode: true,
-            bandwidth_remaining: 0,
-            gateway_address,
-            gateway_identity,
-            local_identity,
-            shared_key: None,
-            connection: SocketState::NotConnected,
-            packet_router,
-            response_timeout_duration,
-            bandwidth_controller: None,
-            should_reconnect_on_failure: false,
-            reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
-            reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            shutdown,
-        }
     }
 
     pub fn gateway_identity(&self) -> identity::PublicKey {
@@ -569,7 +531,9 @@ where
 
     pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError>
     where
-        C: DkgQueryClient,
+        C: DkgQueryClient + Send + Sync,
+        St: CredentialStorage,
+        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
@@ -773,7 +737,9 @@ where
 
     pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError>
     where
-        C: DkgQueryClient,
+        C: DkgQueryClient + Send + Sync,
+        St: CredentialStorage,
+        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         if !self.connection.is_established() {
             self.establish_connection().await?;
@@ -790,5 +756,42 @@ where
         self.start_listening_for_mixnet_messages()?;
 
         Ok(shared_key)
+    }
+}
+
+impl<C> GatewayClient<C, EphemeralCredentialStorage> {
+    // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
+    pub fn new_init(
+        gateway_address: String,
+        gateway_identity: identity::PublicKey,
+        local_identity: Arc<identity::KeyPair>,
+        response_timeout_duration: Duration,
+    ) -> Self {
+        use futures::channel::mpsc;
+
+        // note: this packet_router is completely invalid in normal circumstances, but "works"
+        // perfectly fine here, because it's not meant to be used
+        let (ack_tx, _) = mpsc::unbounded();
+        let (mix_tx, _) = mpsc::unbounded();
+        let shutdown = TaskClient::dummy();
+        let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
+
+        GatewayClient::<C, EphemeralCredentialStorage> {
+            authenticated: false,
+            disabled_credentials_mode: true,
+            bandwidth_remaining: 0,
+            gateway_address,
+            gateway_identity,
+            local_identity,
+            shared_key: None,
+            connection: SocketState::NotConnected,
+            packet_router,
+            response_timeout_duration,
+            bandwidth_controller: None,
+            should_reconnect_on_failure: false,
+            reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
+            reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            shutdown,
+        }
     }
 }

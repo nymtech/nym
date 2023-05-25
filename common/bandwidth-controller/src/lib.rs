@@ -26,7 +26,7 @@ pub mod error;
 #[cfg(target_arch = "wasm32")]
 pub mod wasm_mockups;
 
-pub struct BandwidthController<C, St: Storage> {
+pub struct BandwidthController<C, St> {
     storage: St,
     client: C,
 }

@@ -9,8 +9,8 @@ use crate::{
 };
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
+use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_config::NymConfig;
-use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
@@ -128,7 +128,9 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = nym_client_core::init::setup_gateway_from_config::<Config, _, PersistentStorage>(
+    let key_store = OnDiskKeys::from_config(config.get_base());
+    let gateway = nym_client_core::init::setup_gateway_from_config::<Config, _, _>(
+        &key_store,
         register_gateway,
         user_chosen_gateway_id,
         config.get_base(),
@@ -148,7 +150,8 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
 
     print_saved_config(&config);
 
-    let address = nym_client_core::init::get_client_address_from_stored_keys(config.get_base())?;
+    let address =
+        nym_client_core::init::get_client_address_from_stored_ondisk_keys(config.get_base())?;
     let init_results = InitResults::new(&config, &address);
     println!("{}", args.output.format(&init_results));
 

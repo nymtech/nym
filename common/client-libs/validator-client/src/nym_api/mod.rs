@@ -16,9 +16,7 @@ use nym_api_requests::models::{
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_name_service_common::response::NamesListResponse;
-use nym_name_service_common::NameEntry;
 use nym_service_provider_directory_common::response::ServicesListResponse;
-use nym_service_provider_directory_common::ServiceInfo;
 use reqwest::{Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -64,7 +62,6 @@ impl Client {
         V: AsRef<str>,
     {
         let url = create_api_url(&self.url, path, params);
-        dbg!(&url);
         Ok(self.reqwest_client.get(url).send().await?)
     }
 
@@ -78,9 +75,7 @@ impl Client {
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        dbg!(&path);
         let res = self.send_get_request(path, params).await?;
-        dbg!(&res);
         if res.status().is_success() {
             Ok(res.json().await?)
         } else if res.status() == StatusCode::NOT_FOUND {

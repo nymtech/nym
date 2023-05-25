@@ -16,7 +16,7 @@ use cosmrs::rpc::query::Query;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
-use log::debug;
+use log::{debug, trace};
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -79,8 +79,8 @@ impl Config {
         expected_prefix: &str,
     ) -> Result<Option<AccountId>, NyxdError> {
         if let Some(address) = raw {
-            debug!("Raw address:{:?}", raw);
-            debug!("Expected prefix:{:?}", expected_prefix);
+            trace!("Raw address:{:?}", raw);
+            trace!("Expected prefix:{:?}", expected_prefix);
             let parsed: AccountId = address
                 .parse()
                 .map_err(|_| NyxdError::MalformedAccountAddress(address.clone()))?;

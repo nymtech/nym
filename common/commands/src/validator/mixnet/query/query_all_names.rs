@@ -17,6 +17,7 @@ pub struct Args {
 
 pub async fn query(args: Args, client: &QueryClientWithNyxd) {
     log::trace!("Querying all registered names");
+
     match client.nym_api.get_registered_names().await {
         Ok(res) => {
             if let Some(name) = args.name {

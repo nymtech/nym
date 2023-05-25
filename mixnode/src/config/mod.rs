@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::persistence::pathfinder::MixNodePathfinder;
-use crate::config::template::config_template;
+use crate::config::template::CONFIG_TEMPLATE;
 use nym_config::defaults::{
     mainnet, DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT,
     DEFAULT_VERLOC_LISTENING_PORT,
@@ -82,7 +82,7 @@ pub struct Config {
 
 impl NymConfigTemplate for Config {
     fn template() -> &'static str {
-        config_template()
+        CONFIG_TEMPLATE
     }
 }
 

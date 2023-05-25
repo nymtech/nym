@@ -176,15 +176,15 @@ where
     C: DkgQueryClient + Send + Sync + 'static,
 {
     // TODO: combine all storages
-    pub fn new_from_base_config<T>(
-        base_config: &'a Config<T>,
+    pub fn new_from_base_config(
+        base_config: &'a Config,
         key_store: S::KeyStore,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         reply_storage_backend: S::ReplyStore,
     ) -> BaseClientBuilder<'a, C, S> {
         BaseClientBuilder {
             gateway_config: base_config.get_gateway_endpoint_config(),
-            debug_config: base_config.get_debug_config(),
+            debug_config: &base_config.debug,
             disabled_credentials: base_config.get_disabled_credentials_mode(),
             nym_api_endpoints: base_config.get_nym_api_endpoints(),
             bandwidth_controller,

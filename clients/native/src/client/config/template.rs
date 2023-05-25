@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) fn config_template() -> &'static str {
+pub(crate) const CONFIG_TEMPLATE: &str =
     // While using normal toml marshalling would have been way simpler with less overhead,
     // I think it's useful to have comments attached to the saved config file to explain behaviour of
     // particular fields.
@@ -120,5 +120,4 @@ average_ack_delay = '{{ debug.acknowledgements.average_ack_delay }}'
 [debug.cover_traffic]
 loop_cover_traffic_average_delay = '{{ debug.cover_traffic.loop_cover_traffic_average_delay }}'
 
-"#
-}
+"#;

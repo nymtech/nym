@@ -1,4 +1,4 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::Config;
@@ -50,11 +50,11 @@ impl SocketClient {
         config: &Config,
     ) -> BandwidthController<Client<QueryNyxdClient>, PersistentStorage> {
         let storage = nym_credential_storage::initialise_persistent_storage(
-            config.get_base().get_database_path(),
+            &config.paths.credentials_database,
         )
         .await;
 
-        create_bandwidth_controller(config.get_base(), storage)
+        create_bandwidth_controller(&config.base, storage)
     }
 
     fn start_websocket_listener(
@@ -93,7 +93,7 @@ impl SocketClient {
             Some(packet_type),
         );
 
-        websocket::Listener::new(config.get_listening_ip(), config.get_listening_port())
+        websocket::Listener::new(config.socket.host, config.socket.listening_port)
             .start(websocket_handler, shutdown);
     }
 
@@ -107,26 +107,25 @@ impl SocketClient {
     }
 
     fn key_store(&self) -> OnDiskKeys {
-        let pathfinder = ClientKeysPathfinder::new_from_config(self.config.get_base());
-        OnDiskKeys::new(pathfinder)
+        OnDiskKeys::new(self.config.paths.key_pathfinder.clone())
     }
 
     // TODO: see if this could also be shared with socks5 client / nym-sdk maybe
     async fn create_base_client_builder(&self) -> Result<NativeClientBuilder, ClientError> {
         // don't create bandwidth controller if credentials are disabled
-        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+        let bandwidth_controller = if self.config.base.client.disabled_credentials_mode {
             None
         } else {
             Some(Self::create_bandwidth_controller(&self.config).await)
         };
 
         let base_client = BaseClientBuilder::new_from_base_config(
-            self.config.get_base(),
+            &self.config.base,
             self.key_store(),
             bandwidth_controller,
             non_wasm_helpers::setup_fs_reply_surb_backend(
-                self.config.get_base().get_reply_surb_database_path(),
-                &self.config.get_debug_settings().reply_surbs,
+                &self.config.paths.reply_surb_database_path,
+                &self.config.base.debug.reply_surbs,
             )
             .await?,
         );
@@ -135,7 +134,7 @@ impl SocketClient {
     }
 
     pub async fn start_socket(self) -> Result<TaskManager, ClientError> {
-        if !self.config.get_socket_type().is_websocket() {
+        if !self.config.socket.socket_type.is_websocket() {
             return Err(ClientError::InvalidSocketMode);
         }
 
@@ -164,7 +163,7 @@ impl SocketClient {
     }
 
     pub async fn start_direct(self) -> Result<DirectClient, ClientError> {
-        if self.config.get_socket_type().is_websocket() {
+        if self.config.socket.socket_type.is_websocket() {
             return Err(ClientError::InvalidSocketMode);
         }
 

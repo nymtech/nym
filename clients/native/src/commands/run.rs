@@ -13,7 +13,6 @@ use crate::{
 use clap::Args;
 use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
-use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 
 #[derive(Args, Clone)]
@@ -82,7 +81,7 @@ impl From<Run> for OverrideConfig {
 // network version. It might do so in the future.
 fn version_check(cfg: &Config) -> bool {
     let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_base().get_version();
+    let config_version = &cfg.base.client.version;
     if binary_version == config_version {
         true
     } else {
@@ -104,7 +103,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn Error + Send + Syn
     // (if we're using the current version, it's a no-op)
     try_upgrade_v1_1_13_config(id)?;
 
-    let mut config = match Config::load_from_file(id) {
+    let mut config = match Config::read_from_default_path(id) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {err})", id);
@@ -118,10 +117,6 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn Error + Send + Syn
 
     let override_config_fields = OverrideConfig::from(args.clone());
     config = override_config(config, override_config_fields);
-
-    if config.get_base_mut().set_empty_fields_to_defaults() {
-        warn!("some of the core config options were left unset. the default values are going to get used instead.");
-    }
 
     if !version_check(&config) {
         error!("failed the local version check");

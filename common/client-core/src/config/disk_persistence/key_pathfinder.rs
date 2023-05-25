@@ -63,49 +63,49 @@ impl ClientKeysPathfinder {
     }
 
     pub fn any_file_exists(&self) -> bool {
-        matches!(self.identity_public_key.try_exists(), Ok(true))
-            || matches!(self.identity_private_key.try_exists(), Ok(true))
-            || matches!(self.encryption_public_key.try_exists(), Ok(true))
-            || matches!(self.encryption_private_key.try_exists(), Ok(true))
-            || matches!(self.gateway_shared_key.try_exists(), Ok(true))
-            || matches!(self.ack_key.try_exists(), Ok(true))
+        matches!(self.public_identity_key_file.try_exists(), Ok(true))
+            || matches!(self.private_identity_key_file.try_exists(), Ok(true))
+            || matches!(self.public_encryption_key_file.try_exists(), Ok(true))
+            || matches!(self.private_encryption_key_file.try_exists(), Ok(true))
+            || matches!(self.gateway_shared_key_file.try_exists(), Ok(true))
+            || matches!(self.ack_key_file.try_exists(), Ok(true))
     }
 
     pub fn any_file_exists_and_return(&self) -> Option<PathBuf> {
-        file_exists(&self.identity_public_key)
-            .or_else(|| file_exists(&self.identity_private_key))
-            .or_else(|| file_exists(&self.encryption_public_key))
-            .or_else(|| file_exists(&self.encryption_private_key))
-            .or_else(|| file_exists(&self.gateway_shared_key))
-            .or_else(|| file_exists(&self.ack_key))
+        file_exists(&self.public_identity_key_file)
+            .or_else(|| file_exists(&self.private_identity_key_file))
+            .or_else(|| file_exists(&self.public_encryption_key_file))
+            .or_else(|| file_exists(&self.private_encryption_key_file))
+            .or_else(|| file_exists(&self.gateway_shared_key_file))
+            .or_else(|| file_exists(&self.ack_key_file))
     }
 
     pub fn gateway_key_file_exists(&self) -> bool {
-        matches!(self.gateway_shared_key.try_exists(), Ok(true))
+        matches!(self.gateway_shared_key_file.try_exists(), Ok(true))
     }
 
     pub fn private_identity_key(&self) -> &Path {
-        &self.identity_private_key
+        &self.private_identity_key_file
     }
 
     pub fn public_identity_key(&self) -> &Path {
-        &self.identity_public_key
+        &self.public_identity_key_file
     }
 
     pub fn private_encryption_key(&self) -> &Path {
-        &self.encryption_private_key
+        &self.private_encryption_key_file
     }
 
     pub fn public_encryption_key(&self) -> &Path {
-        &self.encryption_public_key
+        &self.public_encryption_key_file
     }
 
     pub fn gateway_shared_key(&self) -> &Path {
-        &self.gateway_shared_key
+        &self.gateway_shared_key_file
     }
 
     pub fn ack_key(&self) -> &Path {
-        &self.ack_key
+        &self.ack_key_file
     }
 }
 

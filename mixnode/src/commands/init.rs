@@ -96,11 +96,14 @@ pub(crate) fn execute(args: &Init) {
         eprintln!("Saved mixnet identity and sphinx keypairs");
     }
 
-    let config_save_location = default_config_filepath(id);
+    let config_save_location = config.default_location();
     config
         .save_to_default_location()
         .expect("Failed to save the config file");
-    eprintln!("Saved configuration file to {config_save_location:?}");
+    eprintln!(
+        "Saved configuration file to {}",
+        config_save_location.display()
+    );
     eprintln!("Mixnode configuration completed.\n\n\n");
 
     MixNode::new(config).print_node_details(args.output)

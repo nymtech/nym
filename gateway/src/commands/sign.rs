@@ -98,7 +98,7 @@ fn print_signed_text(
 
     let signature = private_key.sign_text(text);
     let sign_output = ConsoleSigningOutput::new(text, signature);
-    println!("{}", output.format(&sign_output));
+    println!("{}", output.format(&sign_outpuant));
 
     Ok(())
 }

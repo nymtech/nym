@@ -105,8 +105,12 @@ impl Config {
         Self::read_from_toml_file(default_config_filepath(id))
     }
 
+    pub fn default_location(&self) -> PathBuf {
+        default_config_filepath(&self.mixnode.id)
+    }
+
     pub fn save_to_default_location(&self) -> io::Result<()> {
-        let config_save_location: PathBuf = default_config_filepath(&self.mixnode.id);
+        let config_save_location: PathBuf = self.default_location();
         save_formatted_config_to_file(self, config_save_location)
     }
 

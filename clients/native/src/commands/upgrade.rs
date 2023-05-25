@@ -1,12 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::{Config, MISSING_VALUE};
-
-use nym_bin_common::version_checker::Version;
-use nym_config::NymConfig;
-
+use crate::client::config::Config;
 use clap::Args;
+use nym_bin_common::version_checker::Version;
 use std::fmt::Display;
 use std::process;
 
@@ -40,6 +37,12 @@ fn unsupported_upgrade(current_version: &Version, config_version: &Version) -> !
     process::exit(1)
 }
 
+fn unimplemented_upgrade(current_version: &Version, config_version: &Version) -> ! {
+    eprintln!("Cannot perform upgrade from {config_version} to {current_version} as it hasn't been implemented yet");
+    todo!();
+    process::exit(1)
+}
+
 #[derive(Args, Clone)]
 pub(crate) struct Upgrade {
     /// Id of the nym-client we want to upgrade
@@ -48,7 +51,7 @@ pub(crate) struct Upgrade {
 }
 
 fn parse_config_version(config: &Config) -> Version {
-    let version = Version::parse(config.get_base().get_version()).unwrap_or_else(|err| {
+    let version = Version::parse(&config.base.client.version).unwrap_or_else(|err| {
         eprintln!("failed to parse client version! - {err}");
         process::exit(1)
     });
@@ -77,35 +80,6 @@ fn parse_package_version() -> Version {
     version
 }
 
-fn minor_0_12_upgrade(
-    mut config: Config,
-    _matches: &Upgrade,
-    config_version: &Version,
-    package_version: &Version,
-) -> Config {
-    let to_version = if package_version.major == 0 && package_version.minor == 12 {
-        package_version.clone()
-    } else {
-        Version::new(0, 12, 0)
-    };
-
-    print_start_upgrade(config_version, &to_version);
-
-    config
-        .get_base_mut()
-        .set_custom_version(to_version.to_string().as_ref());
-
-    config.save_to_file(None).unwrap_or_else(|err| {
-        eprintln!("failed to overwrite config file! - {err}");
-        print_failed_upgrade(config_version, &to_version);
-        process::exit(1);
-    });
-
-    print_successful_upgrade(config_version, to_version);
-
-    config
-}
-
 fn do_upgrade(mut config: Config, args: &Upgrade, package_version: &Version) {
     loop {
         let config_version = parse_config_version(&config);
@@ -116,9 +90,10 @@ fn do_upgrade(mut config: Config, args: &Upgrade, package_version: &Version) {
         }
 
         config = match config_version.major {
-            0 => match config_version.minor {
-                9 | 10 => outdated_upgrade(&config_version, package_version),
-                11 => minor_0_12_upgrade(config, args, &config_version, package_version),
+            0 => outdated_upgrade(&config_version, package_version),
+            1 => match config_version.minor {
+                n if n <= 13 => outdated_upgrade(&config_version, package_version),
+                n if n > 13 && n < 19 => unimplemented_upgrade(&config_version, package_version),
                 _ => unsupported_upgrade(&config_version, package_version),
             },
             _ => unsupported_upgrade(&config_version, package_version),
@@ -131,12 +106,12 @@ pub(crate) fn execute(args: &Upgrade) {
 
     let id = &args.id;
 
-    let existing_config = Config::load_from_file(id).unwrap_or_else(|err| {
+    let existing_config = Config::read_from_default_path(id).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {err}");
         process::exit(1)
     });
 
-    if existing_config.get_base().get_version() == MISSING_VALUE {
+    if existing_config.base.client.version.is_empty() {
         eprintln!("the existing configuration file does not seem to contain version number.");
         process::exit(1);
     }

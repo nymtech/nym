@@ -55,7 +55,7 @@ const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(12 * 60 * 6
 // 24 hours
 const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub client: Client,
@@ -180,14 +180,6 @@ impl Config {
     pub fn get_gateway_endpoint_config(&self) -> &GatewayEndpointConfig {
         &self.client.gateway_endpoint
     }
-
-    pub fn get_database_path(&self) -> PathBuf {
-        self.client.database_path.clone()
-    }
-
-    pub fn get_reply_surb_database_path(&self) -> PathBuf {
-        self.client.reply_surb_database_path.clone()
-    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
@@ -281,7 +273,7 @@ impl Client {
 
         Client {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            id: "DEFAULT-CLIENT".to_string(),
+            id: id.into(),
             disabled_credentials_mode: true,
             nyxd_urls,
             nym_api_urls,

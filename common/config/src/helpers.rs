@@ -128,6 +128,71 @@ pub trait OptionalSet {
     }
 }
 
+// helper for when we want to use `OptionalSet` on an inner field
+// (used by clients wanting to set the `BaseConfig` values)
+#[macro_export]
+macro_rules! define_optional_set_inner {
+    ( $x: ident, $inner_field_name: ident, $inner_field_typ: ty ) => {
+        impl $x {
+            pub fn with_optional_inner<F, T>(mut self, f: F, val: Option<T>) -> Self
+            where
+                F: Fn($inner_field_typ, T) -> $inner_field_typ,
+            {
+                self.$inner_field_name = self.$inner_field_name.with_optional(f, val);
+                self
+            }
+
+            pub fn with_validated_optional_inner<F, T, V, E>(
+                mut self,
+                f: F,
+                value: Option<T>,
+                validate: V,
+            ) -> Result<Self, E>
+            where
+                F: Fn($inner_field_typ, T) -> $inner_field_typ,
+                V: Fn(&T) -> Result<(), E>,
+            {
+                self.$inner_field_name = self
+                    .$inner_field_name
+                    .with_validated_optional(f, value, validate)?;
+                Ok(self)
+            }
+
+            pub fn with_optional_env_inner<F, T>(
+                mut self,
+                f: F,
+                val: Option<T>,
+                env_var: &str,
+            ) -> Self
+            where
+                F: Fn($inner_field_typ, T) -> $inner_field_typ,
+                T: FromStr,
+                <T as FromStr>::Err: Debug,
+            {
+                self.$inner_field_name = self.$inner_field_name.with_optional_env(f, val, env_var);
+                self
+            }
+
+            pub fn with_optional_custom_env_inner<F, T, G>(
+                mut self,
+                f: F,
+                val: Option<T>,
+                env_var: &str,
+                parser: G,
+            ) -> Self
+            where
+                F: Fn($inner_field_typ, T) -> $inner_field_typ,
+                G: Fn(&str) -> T,
+            {
+                self.$inner_field_name = self
+                    .$inner_field_name
+                    .with_optional_custom_env(f, val, env_var, parser);
+                self
+            }
+        }
+    };
+}
+
 // this function is only used for parsing values from the network defaults and thus the "expect" there are fine
 pub fn parse_urls(raw: &str) -> Vec<url::Url> {
     raw.split(',')

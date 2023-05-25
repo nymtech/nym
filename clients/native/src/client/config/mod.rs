@@ -1,25 +1,26 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::template::config_template;
+use crate::client::config::template::CONFIG_TEMPLATE;
 use nym_client_core::config::disk_persistence::CommonClientPathfinder;
-use nym_client_core::config::ClientCoreConfigTrait;
 use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nym_config::{
-    must_get_home, NymConfig, OptionalSet, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME,
-    DEFAULT_DATA_DIR, NYM_DIR,
+    define_optional_set_inner, must_get_home, read_config_from_toml_file,
+    save_formatted_config_to_file, NymConfigTemplate, OptionalSet, DEFAULT_CONFIG_DIR,
+    DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::io;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 pub use nym_client_core::config::Config as BaseConfig;
-pub use nym_client_core::config::MISSING_VALUE;
 pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
 
 pub mod old_config_v1_1_13;
+pub mod old_config_v1_1_19;
 mod template;
 
 const DEFAULT_CLIENTS_DIR: &str = "clients";
@@ -58,8 +59,7 @@ impl SocketType {
     }
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Config {
     #[serde(flatten)]
     pub base: BaseConfig,
@@ -69,6 +69,12 @@ pub struct Config {
     pub paths: CommonClientPathfinder,
 
     pub logging: Logging,
+}
+
+impl NymConfigTemplate for Config {
+    fn template() -> &'static str {
+        CONFIG_TEMPLATE
+    }
 }
 
 impl Config {
@@ -81,8 +87,21 @@ impl Config {
         }
     }
 
-    pub fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
-        self.base.get_gateway_endpoint()
+    pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        read_config_from_toml_file(path)
+    }
+
+    pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
+        Self::read_from_toml_file(default_config_filepath(id))
+    }
+
+    pub fn default_location(&self) -> PathBuf {
+        default_config_filepath(&self.base.client.id)
+    }
+
+    pub fn save_to_default_location(&self) -> io::Result<()> {
+        let config_save_location: PathBuf = self.default_location();
+        save_formatted_config_to_file(self, config_save_location)
     }
 
     pub fn validate(&self) -> bool {
@@ -114,79 +133,52 @@ impl Config {
         self
     }
 
-    // getters
-    pub fn get_config_file_save_location(&self) -> PathBuf {
-        self.config_directory().join(Self::config_file_name())
+    // poor man's 'builder' method
+    pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
+    where
+        F: Fn(BaseConfig, T) -> BaseConfig,
+    {
+        self.base = f(self.base, val);
+        self
     }
 
-    // pub fn get_base(&self) -> &BaseConfig<Self> {
-    //     &self.base
-    // }
-    //
-    // pub fn get_base_mut(&mut self) -> &mut BaseConfig<Self> {
-    //     &mut self.base
-    // }
-
-    pub fn get_debug_settings(&self) -> &DebugConfig {
-        self.get_base().get_debug_config()
+    // helper methods to use `OptionalSet` trait. Those are defined due to very... ehm. 'specific' structure of this config
+    // (plz, lets refactor it)
+    pub fn with_optional_ext<F, T>(mut self, f: F, val: Option<T>) -> Self
+    where
+        F: Fn(BaseConfig, T) -> BaseConfig,
+    {
+        self.base = self.base.with_optional(f, val);
+        self
     }
 
-    pub fn get_socket_type(&self) -> SocketType {
-        self.socket.socket_type
+    pub fn with_optional_env_ext<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
+    where
+        F: Fn(BaseConfig, T) -> BaseConfig,
+        T: FromStr,
+        <T as FromStr>::Err: Debug,
+    {
+        self.base = self.base.with_optional_env(f, val, env_var);
+        self
     }
 
-    pub fn get_listening_ip(&self) -> IpAddr {
-        self.socket.host
+    pub fn with_optional_custom_env_ext<F, T, G>(
+        mut self,
+        f: F,
+        val: Option<T>,
+        env_var: &str,
+        parser: G,
+    ) -> Self
+    where
+        F: Fn(BaseConfig, T) -> BaseConfig,
+        G: Fn(&str) -> T,
+    {
+        self.base = self.base.with_optional_custom_env(f, val, env_var, parser);
+        self
     }
-
-    pub fn get_listening_port(&self) -> u16 {
-        self.socket.listening_port
-    }
-
-    // // poor man's 'builder' method
-    // pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
-    // where
-    //     F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
-    // {
-    //     self.base = f(self.base, val);
-    //     self
-    // }
-    //
-    // // helper methods to use `OptionalSet` trait. Those are defined due to very... ehm. 'specific' structure of this config
-    // // (plz, lets refactor it)
-    // pub fn with_optional_ext<F, T>(mut self, f: F, val: Option<T>) -> Self
-    // where
-    //     F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
-    // {
-    //     self.base = self.base.with_optional(f, val);
-    //     self
-    // }
-    //
-    // pub fn with_optional_env_ext<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
-    // where
-    //     F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
-    //     T: FromStr,
-    //     <T as FromStr>::Err: Debug,
-    // {
-    //     self.base = self.base.with_optional_env(f, val, env_var);
-    //     self
-    // }
-    //
-    // pub fn with_optional_custom_env_ext<F, T, G>(
-    //     mut self,
-    //     f: F,
-    //     val: Option<T>,
-    //     env_var: &str,
-    //     parser: G,
-    // ) -> Self
-    // where
-    //     F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
-    //     G: Fn(&str) -> T,
-    // {
-    //     self.base = self.base.with_optional_custom_env(f, val, env_var, parser);
-    //     self
-    // }
 }
+
+// define_optional_set_inner!(Config, base, BaseConfig);
 
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]

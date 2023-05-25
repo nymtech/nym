@@ -3265,6 +3265,7 @@ dependencies = [
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
+ "nym-name-service-common",
  "nym-network-defaults",
  "nym-service-provider-directory-common",
  "nym-validator-client",

@@ -30,6 +30,13 @@ pub(crate) async fn execute(
             )
             .await
         }
+        nym_cli_commands::validator::mixnet::query::MixnetQueryCommands::Names(args) => {
+            nym_cli_commands::validator::mixnet::query::query_all_names::query(
+                args,
+                &create_query_client_with_nym_api(network_details)?,
+            )
+            .await
+        }
     }
     Ok(())
 }

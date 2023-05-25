@@ -15,7 +15,8 @@ use nym_api_requests::models::{
 };
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
-use nym_service_provider_directory_common::ServiceInfo;
+use nym_name_service_common::response::NamesListResponse;
+use nym_service_provider_directory_common::response::ServicesListResponse;
 use reqwest::{Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -484,8 +485,16 @@ impl Client {
         .await
     }
 
-    pub async fn get_service_providers(&self) -> Result<Vec<ServiceInfo>, NymAPIError> {
+    pub async fn get_service_providers(&self) -> Result<ServicesListResponse, NymAPIError> {
+        log::trace!("Getting service providers");
         self.query_nym_api(&[routes::API_VERSION, routes::SERVICE_PROVIDERS], NO_PARAMS)
+            .await
+    }
+
+    //pub async fn get_registered_names(&self) -> Result<Vec<NameEntry>, NymAPIError> {
+    pub async fn get_registered_names(&self) -> Result<NamesListResponse, NymAPIError> {
+        log::trace!("Getting registered names");
+        self.query_nym_api(&[routes::API_VERSION, routes::REGISTERED_NAMES], NO_PARAMS)
             .await
     }
 }

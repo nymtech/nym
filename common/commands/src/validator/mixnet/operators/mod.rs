@@ -5,6 +5,7 @@ use clap::{Args, Subcommand};
 
 pub mod gateway;
 pub mod mixnode;
+pub mod name;
 pub mod service;
 
 #[derive(Debug, Args)]
@@ -22,4 +23,6 @@ pub enum MixnetOperatorsCommands {
     Gateway(gateway::MixnetOperatorsGateway),
     /// Manage your service
     ServiceProvider(service::MixnetOperatorsService),
+    /// Manage your registered name
+    Name(name::MixnetOperatorsName),
 }

@@ -7,7 +7,7 @@ use nym_crypto::asymmetric::identity;
 use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
 
@@ -17,6 +17,15 @@ use wasm_bindgen::prelude::*;
 
 pub mod old_config_v1_1_13;
 pub mod persistence;
+
+pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
+pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
+pub const DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME: &str = "private_encryption.pem";
+pub const DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME: &str = "public_encryption.pem";
+pub const DEFAULT_GATEWAY_KEYS_FILENAME: &str = "gateway_shared.pem";
+pub const DEFAULT_ACK_KEY_FILENAME: &str = "ack_key.pem";
+pub const DEFAULT_REPLY_STORE_FILENAME: &str = "persistent_reply_store.sqlite";
+pub const DEFAULT_CREDENTIAL_STORE_FILENAME: &str = CRED_DB_FILE_NAME;
 
 pub const MISSING_VALUE: &str = "MISSING VALUE";
 
@@ -106,6 +115,37 @@ impl<T> Config<T> {
     {
         self.client.id = id.into();
         self.set_empty_fields_to_defaults();
+        self
+    }
+
+    #[must_use]
+    #[doc(hidden)]
+    // TODO: this totally contradicts our trait... we REALLY have to refactor it...
+    pub fn reset_data_directory<P: AsRef<Path>>(mut self, dir: P) -> Self {
+        self.client.private_identity_key_file =
+            dir.as_ref().join(DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME);
+        self.client.public_identity_key_file =
+            dir.as_ref().join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME);
+        self.client.private_encryption_key_file =
+            dir.as_ref().join(DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME);
+        self.client.public_encryption_key_file =
+            dir.as_ref().join(DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME);
+        self.client.gateway_shared_key_file = dir.as_ref().join(DEFAULT_GATEWAY_KEYS_FILENAME);
+        self.client.ack_key_file = dir.as_ref().join(DEFAULT_ACK_KEY_FILENAME);
+        self.client.reply_surb_database_path = dir.as_ref().join(DEFAULT_REPLY_STORE_FILENAME);
+        self.client.database_path = dir.as_ref().join(DEFAULT_CREDENTIAL_STORE_FILENAME);
+
+        self
+    }
+
+    #[must_use]
+    #[doc(hidden)]
+    // TODO: this totally contradicts our trait... we REALLY have to refactor it...
+    pub fn reset_nym_root_directory<P: AsRef<Path>>(mut self, dir: P) -> Self
+    where
+        T: NymConfig,
+    {
+        self.client.nym_root_directory = dir.as_ref().to_owned();
         self
     }
 

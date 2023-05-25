@@ -41,13 +41,14 @@ use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
-use rand::thread_rng;
+use rand::rngs::OsRng;
 use std::sync::Arc;
 use tap::TapFallible;
 use url::Url;
 
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
+
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
@@ -163,7 +164,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     reply_storage_backend: S::ReplyStore,
     key_store: S::KeyStore,
 
-    custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
     managed_keys: ManagedKeys,
 }
@@ -216,7 +217,10 @@ where
         }
     }
 
-    pub fn with_topology_provider(mut self, provider: Box<dyn TopologyProvider>) -> Self {
+    pub fn with_topology_provider(
+        mut self,
+        provider: Box<dyn TopologyProvider + Send + Sync>,
+    ) -> Self {
         self.custom_topology_provider = Some(provider);
         self
     }
@@ -367,9 +371,9 @@ where
     }
 
     fn setup_topology_provider(
-        custom_provider: Option<Box<dyn TopologyProvider>>,
+        custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         nym_api_urls: Vec<Url>,
-    ) -> Box<dyn TopologyProvider> {
+    ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| {
             Box::new(NymApiTopologyProvider::new(
@@ -382,7 +386,7 @@ where
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
     async fn start_topology_refresher(
-        topology_provider: Box<dyn TopologyProvider>,
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
         topology_config: config::Topology,
         topology_accessor: TopologyAccessor,
         mut shutdown: TaskClient,
@@ -469,7 +473,7 @@ where
 
     async fn initial_key_setup(&mut self) {
         assert!(!self.managed_keys.is_valid());
-        let mut rng = thread_rng();
+        let mut rng = OsRng;
         self.managed_keys = ManagedKeys::load_or_generate(&mut rng, &self.key_store).await;
     }
 

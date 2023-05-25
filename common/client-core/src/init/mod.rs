@@ -19,9 +19,8 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
 use nym_validator_client::client::IdentityKey;
 use rand::rngs::OsRng;
-use rand::thread_rng;
 use serde::Serialize;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use tap::TapFallible;
 use url::Url;
 
@@ -85,7 +84,7 @@ impl GatewaySetup {
     ) -> Result<GatewayEndpointConfig, ClientCoreError> {
         match self {
             GatewaySetup::New { by_latency } => {
-                let mut rng = thread_rng();
+                let mut rng = OsRng;
                 let gateways = current_gateways(&mut rng, validator_servers).await?;
                 if by_latency {
                     choose_gateway_by_latency(&mut rng, gateways).await
@@ -98,7 +97,7 @@ impl GatewaySetup {
                 let user_gateway = identity::PublicKey::from_base58_string(&gateway_identity)
                     .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
-                let mut rng = thread_rng();
+                let mut rng = OsRng;
                 let gateways = current_gateways(&mut rng, validator_servers).await?;
                 gateways
                     .into_iter()
@@ -161,7 +160,7 @@ where
     S: MixnetClientStorage,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = OsRng;
 
     // try load keys
     let mut managed_keys = match ManagedKeys::try_load(key_store).await {

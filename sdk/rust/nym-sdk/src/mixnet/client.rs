@@ -41,7 +41,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     storage_paths: Option<StoragePaths>,
     gateway_config: Option<GatewayEndpointConfig>,
     socks5_config: Option<Socks5>,
-    custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
@@ -172,7 +172,7 @@ where
     #[must_use]
     pub fn custom_topology_provider(
         mut self,
-        topology_provider: Box<dyn TopologyProvider>,
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     ) -> Self {
         self.custom_topology_provider = Some(topology_provider);
         self
@@ -242,7 +242,7 @@ where
     gateway_endpoint_config_path: Option<PathBuf>,
 
     /// Alternative provider of network topology used for constructing sphinx packets.
-    custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -264,7 +264,7 @@ where
         config: Config,
         socks5_config: Option<Socks5>,
         storage: S,
-        custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+        custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         gateway_endpoint_config_path: Option<PathBuf>,
     ) -> Result<DisconnectedMixnetClient<S>> {
         let (key_store, reply_storage_backend, credential_store) = storage.into_split();
@@ -516,7 +516,7 @@ where
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        nym_socks5_client_core::NymClient::start_socks5_listener(
+        nym_socks5_client_core::NymClient::<S>::start_socks5_listener(
             &socks5_config,
             debug_config,
             client_input,

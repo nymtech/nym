@@ -9,6 +9,7 @@ use crate::{
 use clap::Args;
 use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
+use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::{config::Config, NymClient};
@@ -138,5 +139,6 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error 
         return Err(Box::new(Socks5ClientError::FailedLocalVersionCheck));
     }
 
-    NymClient::new(config).run_forever().await
+    let storage = OnDiskPersistent::from_config(config.get_base()).await?;
+    NymClient::new(config, storage).run_forever().await
 }

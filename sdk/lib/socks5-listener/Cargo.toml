@@ -1,0 +1,40 @@
+[package]
+name = "nym-socks5-listener"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "generate-headers"
+required-features = ["headers"]
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[profile.release]
+strip = true
+
+[dependencies]
+anyhow = "1.0"
+futures = "0.3"
+lazy_static = "1.4.0"
+nym-client-core = { path = "../../../common/client-core", default-features = false }
+nym-config-common = { path = "../../../common/config", package = "nym-config" }
+nym-credential-storage = { path = "../../../common/credential-storage" }
+nym-crypto = { path = "../../../common/crypto" }
+nym-socks5-client-core = { path = "../../../common/socks5-client-core", default-features = false }
+openssl = { version = "0.10", features = ["vendored"] }
+tokio = { version = "1.24.1", features = ["sync", "time"] }
+log = "0.4.17"
+rand = "0.7.3"
+
+safer-ffi = { version = "0.1.0-rc1" }
+
+[target.'cfg(target_os="android")'.dependencies]
+jni = { version = "0.21", default-features = false }
+android_logger = "0.13.1"
+
+
+[features]
+headers = ["safer-ffi/headers"]

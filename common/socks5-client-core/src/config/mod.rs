@@ -12,7 +12,7 @@ use nym_socks5_requests::Socks5ProtocolVersion;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 pub mod old_config_v1_1_13;
@@ -36,9 +36,9 @@ impl NymConfig for Config {
     }
 
     fn default_root_directory() -> PathBuf {
-        #[cfg(not(target_os = "android"))]
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
         let base_dir = dirs::home_dir().expect("Failed to evaluate $HOME value");
-        #[cfg(target_os = "android")]
+        #[cfg(any(target_os = "android", target_os = "ios"))]
         let base_dir = PathBuf::from("/tmp");
 
         base_dir.join(".nym").join("socks5-clients")
@@ -75,6 +75,14 @@ impl Config {
             base: BaseConfig::new(id),
             socks5: Socks5::new(provider_mix_address),
         }
+    }
+
+    #[must_use]
+    pub fn with_root_directory<P: AsRef<Path>>(mut self, root_dir: P) -> Self {
+        self.base = self.base.reset_nym_root_directory(root_dir);
+        let data_dir = self.data_directory();
+        self.base = self.base.reset_data_directory(data_dir);
+        self
     }
 
     pub fn validate(&self) -> bool {
@@ -222,6 +230,10 @@ impl Socks5 {
 
     pub fn with_anonymous_replies(&mut self, anonymous_replies: bool) {
         self.send_anonymously = anonymous_replies;
+    }
+
+    pub fn get_raw_provider_mix_address(&self) -> String {
+        self.provider_mix_address.clone()
     }
 
     pub fn get_provider_mix_address(&self) -> Recipient {

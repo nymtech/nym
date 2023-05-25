@@ -1216,7 +1216,6 @@ dependencies = [
  "cosmwasm-std",
  "cw-utils",
  "cw3",
- "cw3-fixed-multisig",
  "cw4",
  "schemars",
  "serde",

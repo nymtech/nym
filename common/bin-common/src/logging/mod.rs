@@ -12,7 +12,9 @@ pub use tracing_tree;
 
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct LoggingSettings {}
+pub struct LoggingSettings {
+    // well, we need to implement something here at some point...
+}
 
 // I'd argue we should start transitioning from `log` to `tracing`
 pub fn setup_logging() {

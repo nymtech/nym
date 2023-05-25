@@ -64,7 +64,7 @@ fn show_binding_warning(address: &str) {
     eprintln!(
         "\nYou are trying to bind to {address} - you might not be accessible to other nodes\n\
          You can ignore this note if you're running setup on a local network \n\
-         or have set a custom 'announce-host'"
+         or have used different host when bonding your node"
     );
     eprintln!("\n\n");
 }

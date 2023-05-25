@@ -3,6 +3,7 @@
 
 use crate::commands::{ensure_correct_bech32_prefix, OverrideConfig};
 use crate::error::GatewayError;
+use crate::node::Gateway;
 use crate::support::config::build_config;
 use crate::{
     commands::ensure_config_version_compatibility,
@@ -98,7 +99,7 @@ fn print_signed_text(
 
     let signature = private_key.sign_text(text);
     let sign_output = ConsoleSigningOutput::new(text, signature);
-    println!("{}", output.format(&sign_outpuant));
+    println!("{}", output.format(&sign_output));
 
     Ok(())
 }
@@ -139,8 +140,8 @@ pub fn execute(args: Sign) -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let output = args.output;
     let signed_target = SignedTarget::try_from(args)?;
-    let pathfinder = GatewayPathfinder::new_from_config(&config);
-    let identity_keypair = load_identity_keys(&pathfinder);
+
+    let identity_keypair = Gateway::<()>::load_identity_keys(&config);
 
     match signed_target {
         SignedTarget::Text(text) => {

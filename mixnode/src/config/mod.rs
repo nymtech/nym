@@ -1,8 +1,9 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::template::CONFIG_TEMPLATE;
+use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
     mainnet, DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT,
     DEFAULT_VERLOC_LISTENING_PORT,
@@ -74,7 +75,7 @@ pub struct Config {
     pub verloc: Verloc,
 
     #[serde(default)]
-    pub logging: Logging,
+    pub logging: LoggingSettings,
 
     #[serde(default)]
     pub debug: Debug,
@@ -190,10 +191,6 @@ impl MixNode {
         }
     }
 }
-
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct Logging {}
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]

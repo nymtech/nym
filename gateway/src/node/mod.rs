@@ -37,15 +37,15 @@ pub(crate) async fn create_gateway(config: Config) -> Gateway<PersistentStorage>
 }
 
 async fn initialise_storage(config: &Config) -> PersistentStorage {
-    let path = config.get_persistent_store_path();
-    let retrieval_limit = config.get_message_retrieval_limit();
+    let path = &config.paths.clients_storage;
+    let retrieval_limit = config.debug.message_retrieval_limit;
     match PersistentStorage::init(path, retrieval_limit).await {
-        Err(err) => panic!("failed to initialise gateway storage - {err}"),
+        Err(err) => panic!("failed to initialise gateway storage: {err}"),
         Ok(storage) => storage,
     }
 }
 
-pub(crate) struct Gateway<St: Storage> {
+pub(crate) struct Gateway<St> {
     config: Config,
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
@@ -54,20 +54,14 @@ pub(crate) struct Gateway<St: Storage> {
     storage: St,
 }
 
-impl<St> Gateway<St>
-where
-    St: Storage + Clone + 'static,
-{
+impl<St> Gateway<St> {
     /// Construct from the given `Config` instance.
     pub async fn new(config: Config, storage: St) -> Self {
-        let pathfinder = GatewayPathfinder::new_from_config(&config);
-        // let storage = Self::initialise_storage(&config).await;
-
         Gateway {
-            config,
-            identity_keypair: Arc::new(Self::load_identity_keys(&pathfinder)),
-            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&pathfinder)),
             storage,
+            identity_keypair: Arc::new(Self::load_identity_keys(&config)),
+            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&config)),
+            config,
         }
     }
 
@@ -86,21 +80,23 @@ where
         }
     }
 
-    fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
+    /// Loads identity keys stored on disk
+    pub(crate) fn load_identity_keys(config: &Config) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
             nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                pathfinder.private_identity_key().to_owned(),
-                pathfinder.public_identity_key().to_owned(),
+                config.paths.keys.private_identity_key(),
+                config.paths.keys.public_identity_key(),
             ))
             .expect("Failed to read stored identity key files");
         identity_keypair
     }
 
-    fn load_sphinx_keys(pathfinder: &GatewayPathfinder) -> encryption::KeyPair {
+    /// Loads Sphinx keys stored on disk
+    fn load_sphinx_keys(config: &Config) -> encryption::KeyPair {
         let sphinx_keypair: encryption::KeyPair =
             nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                pathfinder.private_encryption_key().to_owned(),
-                pathfinder.public_encryption_key().to_owned(),
+                config.paths.keys.private_encryption_key(),
+                config.paths.keys.public_encryption_key(),
             ))
             .expect("Failed to read stored sphinx key files");
         sphinx_keypair
@@ -110,17 +106,11 @@ where
         let node_details = nym_types::gateway::GatewayNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
-            announce_address: self.config.get_announce_address(),
-            bind_address: self.config.get_listening_address().to_string(),
-            version: self.config.get_version().to_string(),
-            mix_port: self.config.get_mix_port(),
-            clients_port: self.config.get_clients_port(),
-            data_store: self
-                .config
-                .get_persistent_store_path()
-                .to_str()
-                .unwrap_or(".")
-                .to_string(),
+            bind_address: self.config.gateway.listening_address.to_string(),
+            version: self.config.gateway.version.clone(),
+            mix_port: self.config.gateway.mix_port,
+            clients_port: self.config.gateway.clients_port,
+            data_store: self.config.paths.clients_storage.display().to_string(),
         };
 
         println!("{}", output.format(&node_details));
@@ -131,7 +121,9 @@ where
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
-    ) {
+    ) where
+        St: Storage + Clone + 'static,
+    {
         info!("Starting mix socket listener...");
 
         let packet_processor =
@@ -145,8 +137,8 @@ where
         );
 
         let listening_address = SocketAddr::new(
-            self.config.get_listening_address(),
-            self.config.get_mix_port(),
+            self.config.gateway.listening_address,
+            self.config.gateway.mix_port,
         );
 
         mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
@@ -158,18 +150,20 @@ where
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
         coconut_verifier: Arc<CoconutVerifier>,
-    ) {
+    ) where
+        St: Storage + Clone + 'static,
+    {
         info!("Starting client [web]socket listener...");
 
         let listening_address = SocketAddr::new(
-            self.config.get_listening_address(),
-            self.config.get_clients_port(),
+            self.config.gateway.listening_address,
+            self.config.gateway.clients_port,
         );
 
         websocket::Listener::new(
             listening_address,
             Arc::clone(&self.identity_keypair),
-            self.config.get_only_coconut_credentials(),
+            self.config.gateway.only_coconut_credentials,
             coconut_verifier,
         )
         .start(
@@ -184,11 +178,11 @@ where
         info!("Starting mix packet forwarder...");
 
         let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
-            self.config.get_packet_forwarding_initial_backoff(),
-            self.config.get_packet_forwarding_maximum_backoff(),
-            self.config.get_initial_connection_timeout(),
-            self.config.get_maximum_connection_buffer_size(),
-            self.config.get_use_legacy_sphinx_framing(),
+            self.config.debug.packet_forwarding_initial_backoff,
+            self.config.debug.packet_forwarding_maximum_backoff,
+            self.config.debug.initial_connection_timeout,
+            self.config.debug.maximum_connection_buffer_size,
+            self.config.debug.use_legacy_framed_packet_version,
             shutdown,
         );
 
@@ -236,48 +230,32 @@ where
         client
     }
 
-    async fn check_if_same_ip_gateway_exists(&self) -> Result<Option<String>, GatewayError> {
+    async fn check_if_bonded(&self) -> Result<bool, GatewayError> {
+        // TODO: if anything, this should be getting data directly from the contract
+        // as opposed to the validator API
         let validator_client = self.random_api_client();
-
-        let existing_gateways = match validator_client.get_cached_gateways().await {
-            Ok(gateways) => gateways,
+        let existing_nodes = match validator_client.get_cached_gateways().await {
+            Ok(nodes) => nodes,
             Err(err) => {
                 error!("failed to grab initial network gateways - {err}\n Please try to startup again in few minutes");
                 return Err(GatewayError::NetworkGatewaysQueryFailure { source: err });
             }
         };
 
-        let our_host = self.config.get_announce_address();
-
-        Ok(existing_gateways
-            .iter()
-            .find(|node| node.gateway.host == our_host)
-            .map(|node| node.gateway().identity_key.clone()))
+        Ok(existing_nodes.iter().any(|node| {
+            node.gateway.identity_key == self.identity_keypair.public_key().to_base58_string()
+        }))
     }
 
-    async fn ensure_no_duplicate_host_exists(&self) -> Result<(), GatewayError> {
-        let local_identity = self.identity_keypair.public_key().to_base58_string();
-        if let Some(remote_identity) = self.check_if_same_ip_gateway_exists().await? {
-            if remote_identity == local_identity {
-                warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host as us registered.")
-            } else {
-                error!(
-                    "Our announce-host is identical to an existing node's announce-host! (its key is {remote_identity})",
-                );
-                return Err(GatewayError::DuplicateNodeHost {
-                    host: self.config.get_announce_address(),
-                    local_identity,
-                    remote_identity,
-                });
-            }
-        }
-        Ok(())
-    }
-
-    pub async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>>
+    where
+        St: Storage + Clone + 'static,
+    {
         info!("Starting nym gateway!");
 
-        self.ensure_no_duplicate_host_exists().await?;
+        if self.check_if_bonded().await? {
+            warn!("You seem to have bonded your gateway before starting it - that's highly unrecommended as in the future it might result in slashing");
+        }
 
         let shutdown = TaskManager::new(10);
 
@@ -295,7 +273,7 @@ where
             shutdown.subscribe(),
         );
 
-        if self.config.get_enabled_statistics() {
+        if self.config.gateway.enabled_statistics {
             let statistics_service_url = self.config.get_statistics_service_url();
             let stats_collector = GatewayStatisticsCollector::new(
                 self.identity_keypair.public_key().to_base58_string(),

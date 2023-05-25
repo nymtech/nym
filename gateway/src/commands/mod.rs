@@ -49,11 +49,9 @@ pub(crate) enum Commands {
 #[derive(Default)]
 pub(crate) struct OverrideConfig {
     host: Option<IpAddr>,
-    wallet_address: Option<nyxd::AccountId>,
     mix_port: Option<u16>,
     clients_port: Option<u16>,
     datastore: Option<PathBuf>,
-    announce_host: Option<String>,
     enabled_statistics: Option<bool>,
     statistics_service_url: Option<url::Url>,
     nym_apis: Option<Vec<url::Url>>,
@@ -88,13 +86,6 @@ pub(crate) fn override_config(
         was_host_overridden = true;
     }
 
-    if let Some(announce_host) = args.announce_host {
-        config = config.with_announce_address(announce_host);
-    } else if was_host_overridden {
-        // make sure our 'mix-announce-host' always defaults to 'mix-host'
-        config = config.announce_host_from_listening_host();
-    }
-
     config = config
         .with_optional(Config::with_mix_port, args.mix_port)
         .with_optional(Config::with_clients_port, args.clients_port)
@@ -110,11 +101,6 @@ pub(crate) fn override_config(
             args.statistics_service_url,
             STATISTICS_SERVICE_DOMAIN_ADDRESS,
         )
-        .with_validated_optional(
-            |cfg, wallet_address| cfg.with_wallet_address(wallet_address),
-            args.wallet_address,
-            ensure_correct_bech32_prefix,
-        )?
         .with_optional(Config::with_custom_persistent_store, args.datastore)
         .with_optional(Config::with_cosmos_mnemonic, args.mnemonic)
         .with_optional_custom_env(
@@ -150,7 +136,7 @@ pub(crate) fn ensure_correct_bech32_prefix(address: &AccountId) -> Result<(), Ga
 // network version. It might do so in the future.
 pub(crate) fn ensure_config_version_compatibility(cfg: &Config) -> Result<(), GatewayError> {
     let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_version();
+    let config_version = &cfg.gateway.version;
 
     if binary_version == config_version {
         Ok(())

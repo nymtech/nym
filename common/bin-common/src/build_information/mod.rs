@@ -4,6 +4,8 @@
 // TODO: at a later date this crate should probably also expose `ContractBuildInformation`
 // and be used by our smart contracts
 
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug)]
 pub struct BinaryBuildInformation {
     // VERGEN_BUILD_TIMESTAMP
@@ -99,8 +101,7 @@ impl BinaryBuildInformation {
     }
 }
 
-#[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BinaryBuildInformationOwned {
     // VERGEN_BUILD_TIMESTAMP
     /// Provides the build timestamp, for example `2021-02-23T20:14:46.558472672+00:00`.

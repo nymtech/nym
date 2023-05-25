@@ -1,5 +1,6 @@
 package net.nymtech.nyms5
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -107,22 +108,14 @@ class ProxyWorker(
         }
     }
 
-    // Creates an instance of ForegroundInfo which can be used to update the
-    // ongoing notification.
-    @RequiresApi(Build.VERSION_CODES.O)
-    private fun createForegroundInfo(): ForegroundInfo {
+    private fun createNotification(): Notification {
         val title = applicationContext.getString(R.string.notification_title)
         val cancel = applicationContext.getString(R.string.stop_proxy)
         // This PendingIntent can be used to cancel the worker
         val intent = WorkManager.getInstance(applicationContext)
             .createCancelPendingIntent(id)
 
-        // Create a Notification channel if necessary
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            createChannel()
-        }
-
-        val notification = NotificationCompat.Builder(applicationContext, channelId)
+        return NotificationCompat.Builder(applicationContext, channelId)
             .setContentTitle(title)
             .setTicker(title)
             .setContentText("Nym socks5 proxy running")
@@ -132,8 +125,18 @@ class ProxyWorker(
             // be used to cancel the worker
             .addAction(android.R.drawable.ic_delete, cancel, intent)
             .build()
+    }
 
-        return ForegroundInfo(notificationId, notification)
+    // Creates an instance of ForegroundInfo which can be used to update the
+    // ongoing notification.
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun createForegroundInfo(): ForegroundInfo {
+        // Create a Notification channel if necessary
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            createChannel()
+        }
+
+        return ForegroundInfo(notificationId, createNotification())
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -145,5 +148,12 @@ class ProxyWorker(
                 NotificationManager.IMPORTANCE_HIGH
             )
         )
+    }
+
+    // TODO without this override, under Android 11 the app crashes
+    //  see https://stackoverflow.com/questions/71389874/coroutineworker-crashes-with-no-getforegroundinfo
+    //  override doesn't seem to be a problem for newer versions
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        return ForegroundInfo(notificationId, createNotification())
     }
 }

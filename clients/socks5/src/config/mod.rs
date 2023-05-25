@@ -1,20 +1,16 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::template::{config_template, CONFIG_TEMPLATE};
+use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::CommonClientPathfinder;
 pub use nym_client_core::config::Config as BaseConfig;
-use nym_client_core::config::{ClientCoreConfigTrait, DebugConfig};
 use nym_config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
 use nym_config::{
-    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfig,
-    NymConfigTemplate, OptionalSet, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR,
-    NYM_DIR,
+    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
+    OptionalSet, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
-use nym_service_providers_common::interface::ProviderInterfaceVersion;
 pub use nym_socks5_client_core::config::Config as CoreConfig;
-use nym_socks5_requests::Socks5ProtocolVersion;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -48,7 +44,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
         .join(DEFAULT_DATA_DIR)
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(flatten)]
@@ -68,7 +64,7 @@ impl NymConfigTemplate for Config {
 impl Config {
     pub fn new<S: AsRef<str>>(id: S, provider_mix_address: S) -> Self {
         Config {
-            core: CoreConfig::new(id.as_ref(), provider_mix_address),
+            core: CoreConfig::new(id.as_ref(), provider_mix_address.as_ref()),
             paths: CommonClientPathfinder::new_default(default_data_directory(id.as_ref())),
             logging: Default::default(),
         }
@@ -83,7 +79,7 @@ impl Config {
     }
 
     pub fn default_location(&self) -> PathBuf {
-        default_config_filepath(&self.base.client.id)
+        default_config_filepath(&self.core.base.client.id)
     }
 
     pub fn save_to_default_location(&self) -> io::Result<()> {
@@ -105,23 +101,16 @@ impl Config {
     }
 
     pub fn with_port(mut self, port: u16) -> Self {
-        self.socks5.with_port(port);
+        self.core.socks5.listening_port = port;
         self
     }
 
     pub fn with_anonymous_replies(mut self, anonymous_replies: bool) -> Self {
-        self.socks5.with_anonymous_replies(anonymous_replies);
+        self.core.socks5.send_anonymously = anonymous_replies;
         self
     }
 
     // poor man's 'builder' method
-    pub fn with_core<F, T>(mut self, f: F, val: T) -> Self
-    where
-        F: Fn(CoreConfig, T) -> CoreConfig,
-    {
-        self.base = f(self.base, val);
-        self
-    }
 
     pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
     where
@@ -131,27 +120,68 @@ impl Config {
         self
     }
 
-    // helper methods to use `OptionalSet` trait. Those are defined due to very... ehm. 'specific' structure of this config
-    // (plz, lets refactor it)
-    pub fn with_optional_ext<F, T>(mut self, f: F, val: Option<T>) -> Self
+    pub fn with_optional_base<F, T>(mut self, f: F, val: Option<T>) -> Self
     where
-        F: Fn(CoreConfig, T) -> CoreConfig,
+        F: Fn(BaseConfig, T) -> BaseConfig,
     {
-        self.base = self.base.with_optional(f, val);
+        self.core = self.core.with_optional_base(f, val);
         self
     }
 
-    pub fn with_optional_env_ext<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
+    pub fn with_optional_base_env<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
+    where
+        F: Fn(BaseConfig, T) -> BaseConfig,
+        T: FromStr,
+        <T as FromStr>::Err: Debug,
+    {
+        self.core = self.core.with_optional_base_env(f, val, env_var);
+        self
+    }
+
+    pub fn with_optional_base_custom_env<F, T, G>(
+        mut self,
+        f: F,
+        val: Option<T>,
+        env_var: &str,
+        parser: G,
+    ) -> Self
+    where
+        F: Fn(BaseConfig, T) -> BaseConfig,
+        G: Fn(&str) -> T,
+    {
+        self.core = self
+            .core
+            .with_optional_base_custom_env(f, val, env_var, parser);
+        self
+    }
+
+    pub fn with_core<F, T>(mut self, f: F, val: T) -> Self
+    where
+        F: Fn(CoreConfig, T) -> CoreConfig,
+    {
+        self.core = f(self.core, val);
+        self
+    }
+
+    pub fn with_optional_core<F, T>(mut self, f: F, val: Option<T>) -> Self
+    where
+        F: Fn(CoreConfig, T) -> CoreConfig,
+    {
+        self.core = self.core.with_optional(f, val);
+        self
+    }
+
+    pub fn with_optional_core_env<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
     where
         F: Fn(CoreConfig, T) -> CoreConfig,
         T: FromStr,
         <T as FromStr>::Err: Debug,
     {
-        self.base = self.base.with_optional_env(f, val, env_var);
+        self.core = self.core.with_optional_env(f, val, env_var);
         self
     }
 
-    pub fn with_optional_custom_env_ext<F, T, G>(
+    pub fn with_optional_core_custom_env<F, T, G>(
         mut self,
         f: F,
         val: Option<T>,
@@ -162,7 +192,7 @@ impl Config {
         F: Fn(CoreConfig, T) -> CoreConfig,
         G: Fn(&str) -> T,
     {
-        self.base = self.base.with_optional_custom_env(f, val, env_var, parser);
+        self.core = self.core.with_optional_custom_env(f, val, env_var, parser);
         self
     }
 }

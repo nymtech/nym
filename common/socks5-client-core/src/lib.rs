@@ -68,8 +68,7 @@ where
 
     #[allow(clippy::too_many_arguments)]
     pub fn start_socks5_listener(
-        socks5_config: &Socks5,
-        debug_config: DebugConfig,
+        config: Config,
         client_input: ClientInput,
         client_output: ClientOutput,
         client_status: ClientState,
@@ -95,24 +94,26 @@ where
             ..
         } = client_status;
 
-        let packet_size = debug_config
+        let packet_size = config
+            .base
+            .debug
             .traffic
             .secondary_packet_size
-            .unwrap_or(debug_config.traffic.primary_packet_size);
+            .unwrap_or(config.base.debug.traffic.primary_packet_size);
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = NymSocksServer::new(
-            socks5_config.listening_port,
+            config.socks5.listening_port,
             authenticator,
-            socks5_config.get_provider_mix_address(),
+            config.socks5.get_provider_mix_address(),
             self_address,
             shared_lane_queue_lengths,
             socks::client::Config::new(
                 packet_size,
-                socks5_config.provider_interface_version,
-                socks5_config.socks5_protocol_version,
-                socks5_config.send_anonymously,
-                socks5_config.socks5_debug,
+                config.socks5.provider_interface_version,
+                config.socks5.socks5_protocol_version,
+                config.socks5.send_anonymously,
+                config.socks5.socks5_debug,
             ),
             shutdown.clone(),
             packet_type,
@@ -191,17 +192,17 @@ where
         let (key_store, reply_storage_backend, credential_store) = self.storage.into_split();
 
         // don't create bandwidth controller if credentials are disabled
-        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+        let bandwidth_controller = if self.config.base.client.disabled_credentials_mode {
             None
         } else {
             Some(non_wasm_helpers::create_bandwidth_controller(
-                self.config.get_base(),
+                &self.config.base,
                 credential_store,
             ))
         };
 
         let base_builder = BaseClientBuilder::<_, S>::new_from_base_config(
-            self.config.get_base(),
+            &self.config.base,
             key_store,
             bandwidth_controller,
             reply_storage_backend,
@@ -217,8 +218,7 @@ where
         info!("Running with {packet_type} packets",);
 
         Self::start_socks5_listener(
-            self.config.get_socks5(),
-            *self.config.get_debug_settings(),
+            self.config,
             client_input,
             client_output,
             client_state,

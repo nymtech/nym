@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
 use crate::config::{BaseConfig, Config};
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
@@ -8,7 +9,7 @@ use lazy_static::lazy_static;
 use log::info;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
-use nym_config::{NymConfig, OptionalSet};
+use nym_config::OptionalSet;
 use nym_sphinx::params::PacketType;
 use std::error::Error;
 
@@ -92,36 +93,37 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         .with_base(BaseConfig::with_packet_type, packet_type)
         .with_optional(Config::with_anonymous_replies, args.use_anonymous_replies)
         .with_optional(Config::with_port, args.port)
-        .with_optional_custom_env_ext(
+        .with_optional_base_custom_env(
             BaseConfig::with_custom_nym_apis,
             args.nym_apis,
             nym_network_defaults::var_names::NYM_API,
             nym_config::parse_urls,
         )
-        .with_optional_custom_env_ext(
+        .with_optional_base_custom_env(
             BaseConfig::with_custom_nyxd,
             args.nyxd_urls,
             nym_network_defaults::var_names::NYXD,
             nym_config::parse_urls,
         )
-        .with_optional_ext(
+        .with_optional_base(
             BaseConfig::with_disabled_credentials,
             args.enabled_credentials_mode.map(|b| !b),
         )
 }
 
 fn try_upgrade_v1_1_13_config(id: &str) -> std::io::Result<()> {
-    // explicitly load it as v1.1.13 (which is incompatible with the current, i.e. 1.1.14+)
-    let Ok(old_config) = OldConfigV1_1_13::load_from_file(id) else {
-        // if we failed to load it, there might have been nothing to upgrade
-        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(());
-    };
-    info!("It seems the client is using <= v1.1.13 config template.");
-    info!("It is going to get updated to the current specification.");
-
-    let updated: Config = old_config.into();
-    updated.save_to_file(None)
+    todo!()
+    // // explicitly load it as v1.1.13 (which is incompatible with the current, i.e. 1.1.14+)
+    // let Ok(old_config) = OldConfigV1_1_13::load_from_file(id) else {
+    //     // if we failed to load it, there might have been nothing to upgrade
+    //     // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+    //     return Ok(());
+    // };
+    // info!("It seems the client is using <= v1.1.13 config template.");
+    // info!("It is going to get updated to the current specification.");
+    //
+    // let updated: Config = old_config.into();
+    // updated.save_to_file(None)
 }
 
 #[cfg(test)]

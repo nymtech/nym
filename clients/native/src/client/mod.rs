@@ -107,7 +107,7 @@ impl SocketClient {
     }
 
     fn key_store(&self) -> OnDiskKeys {
-        OnDiskKeys::new(self.config.paths.key_pathfinder.clone())
+        OnDiskKeys::new(self.config.paths.keys_pathfinder.clone())
     }
 
     // TODO: see if this could also be shared with socks5 client / nym-sdk maybe

@@ -160,21 +160,6 @@ fn _reset_client_data(root_directory: String) {
     std::fs::remove_dir_all(client_storage_dir).expect("failed to clear client data")
 }
 
-// #[ffi_export]
-// pub fn write_to_file(dir: char_p::Ref<'_>, id: char_p::Ref<'_>, service_provider: char_p::Ref<'_>) {
-//     let cfg = Config::new(id.to_string(), service_provider.to_string())
-//         .with_root_directory(dir.to_string());
-//     cfg.save_to_file(None).expect("failed to save config")
-// }
-//
-// #[ffi_export]
-// pub fn read_from_file(dir: char_p::Ref<'_>) -> char_p::Box {
-//     let cfg =
-//         Config::load_from_filepath(PathBuf::from(dir.to_string())).expect("failed to load config");
-//     format!("{:#?}", cfg).try_into().unwrap()
-//     //
-// }
-
 async fn _async_run_client(
     storage_dir: Option<String>,
     client_id: String,

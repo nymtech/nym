@@ -183,34 +183,7 @@ where
         res
     }
 
-    // async fn create_base_client_builder2(
-    //     &self,
-    // ) -> Result<Socks5ClientBuilder, Socks5ClientCoreError> {
-    //     // don't create bandwidth controller if credentials are disabled
-    //     let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
-    //         None
-    //     } else {
-    //         Some(self.create_bandwidth_controller().await)
-    //     };
-    //
-    //     let key_store = self.key_store();
-    //     let reply_storage_backend = self.create_reply_storage_backend().await?;
-    //
-    //     Ok(BaseClientBuilder::new_from_base_config(
-    //         self.config.get_base(),
-    //         key_store,
-    //         bandwidth_controller,
-    //         reply_storage_backend,
-    //     ))
-    // }
-
     pub async fn start(self) -> Result<StartedSocks5Client, Socks5ClientCoreError> {
-        // #[cfg(not(any(target_os = "android", target_os = "ios")))]
-        // let base_builder = self.create_base_client_builder().await?;
-        //
-        // #[cfg(any(target_os = "android", target_os = "ios"))]
-        // let base_builder = self.create_base_client_builder();
-
         let (key_store, reply_storage_backend, credential_store) = self.storage.into_split();
 
         // don't create bandwidth controller if credentials are disabled

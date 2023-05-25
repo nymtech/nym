@@ -1,7 +1,8 @@
 use clap::Parser;
-use log::info;
+use log::{error, info};
 use nym_name_service_common::NameId;
-use nym_validator_client::nyxd::traits::NameServiceSigningClient;
+use nym_validator_client::nyxd::{error::NyxdError, traits::NameServiceSigningClient};
+use tap::TapFallible;
 
 use crate::context::SigningClient;
 
@@ -11,13 +12,14 @@ pub struct Args {
     pub id: NameId,
 }
 
-pub async fn delete(args: Args, client: SigningClient) {
+pub async fn delete(args: Args, client: SigningClient) -> Result<(), NyxdError> {
     info!("Deleting registered name alias with id {}", args.id);
 
     let res = client
         .delete_name_by_id(args.id, None)
         .await
-        .expect("Failed to delete name");
+        .tap_err(|err| error!("Failed to delete name: {err:#?}"))?;
 
     info!("Deleted: {res:?}");
+    Ok(())
 }

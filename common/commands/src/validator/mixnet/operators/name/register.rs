@@ -1,7 +1,8 @@
 use clap::Parser;
-use log::info;
+use log::{error, info};
 use nym_name_service_common::{Address, Coin, NymName};
-use nym_validator_client::nyxd::traits::NameServiceSigningClient;
+use nym_validator_client::nyxd::{error::NyxdError, traits::NameServiceSigningClient};
+use tap::TapFallible;
 
 use crate::context::SigningClient;
 
@@ -20,8 +21,11 @@ pub struct Args {
     pub deposit: u128,
 }
 
-pub async fn register(args: Args, client: SigningClient) {
-    info!("Registering name alias for nym address");
+pub async fn register(args: Args, client: SigningClient) -> Result<(), NyxdError> {
+    info!(
+        "Registering name alias '{}' for nym address '{}'",
+        args.name, args.nym_address
+    );
 
     let name = NymName::new(&args.name).expect("invalid name");
     let address = Address::new(&args.nym_address);
@@ -32,7 +36,8 @@ pub async fn register(args: Args, client: SigningClient) {
     let res = client
         .register_name(name, address, deposit.into(), None)
         .await
-        .expect("Failed to announce service provider");
+        .tap_err(|err| error!("Failed to register name: {err:#?}"))?;
 
-    info!("Announced service provider: {res:?}");
+    info!("Registered name: {res:?}");
+    Ok(())
 }

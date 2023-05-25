@@ -6,9 +6,23 @@ pub(crate) async fn execute(
     name: nym_cli_commands::validator::mixnet::operators::name::MixnetOperatorsName,
     network_details: &NymNetworkDetails,
 ) -> anyhow::Result<()> {
-    match name.command {
-        nym_cli_commands::validator::mixnet::operators::name::MixnetOperatorsNameCommands::Register(register) => nym_cli_commands::validator::mixnet::operators::name::register::register(register, create_signing_client(global_args, network_details)?).await,
-        nym_cli_commands::validator::mixnet::operators::name::MixnetOperatorsNameCommands::Delete(delete) => nym_cli_commands::validator::mixnet::operators::name::delete::delete(delete, create_signing_client(global_args, network_details)?).await,
-    }
-    Ok(())
+    let res = match name.command {
+        nym_cli_commands::validator::mixnet::operators::name::MixnetOperatorsNameCommands::Register(register) => {
+            let res = nym_cli_commands::validator::mixnet::operators::name::register::register(register, create_signing_client(global_args, network_details)?).await;
+            match res {
+                Ok(_) => println!("Successfully registered the name"),
+                Err(_) => println!("Failed to register name")
+            };
+            res
+        },
+        nym_cli_commands::validator::mixnet::operators::name::MixnetOperatorsNameCommands::Delete(delete) => {
+            let res = nym_cli_commands::validator::mixnet::operators::name::delete::delete(delete, create_signing_client(global_args, network_details)?).await;
+            match res {
+                Ok(_) => println!("Successfully deleted the name"),
+                Err(_) => println!("Failed to delete name")
+            };
+            res
+        },
+    };
+    Ok(res?)
 }

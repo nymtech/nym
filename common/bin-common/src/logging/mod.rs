@@ -1,9 +1,7 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-// use tracing_subscriber::{
-//     fmt::Layer, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
-// };
-// use tracing_tree::HierarchicalLayer;
+
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "tracing")]
 pub use tracing_appender;
@@ -11,6 +9,10 @@ pub use tracing_appender;
 pub use tracing_subscriber;
 #[cfg(feature = "tracing")]
 pub use tracing_tree;
+
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct LoggingSettings {}
 
 // I'd argue we should start transitioning from `log` to `tracing`
 pub fn setup_logging() {

@@ -8,6 +8,7 @@ use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 use nym_network_defaults::setup_env;
 
 mod commands;
+mod config;
 pub mod error;
 
 #[tokio::main]

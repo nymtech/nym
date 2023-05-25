@@ -102,18 +102,17 @@ where
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = NymSocksServer::new(
-            socks5_config.get_listening_port(),
+            socks5_config.listening_port,
             authenticator,
             socks5_config.get_provider_mix_address(),
             self_address,
             shared_lane_queue_lengths,
             socks::client::Config::new(
                 packet_size,
-                socks5_config.get_provider_interface_version(),
-                socks5_config.get_socks5_protocol_version(),
-                socks5_config.get_send_anonymously(),
-                socks5_config.get_connection_start_surbs(),
-                socks5_config.get_per_request_surbs(),
+                socks5_config.provider_interface_version,
+                socks5_config.socks5_protocol_version,
+                socks5_config.send_anonymously,
+                socks5_config.socks5_debug,
             ),
             shutdown.clone(),
             packet_type,
@@ -208,17 +207,14 @@ where
             reply_storage_backend,
         );
 
-        let packet_type = self.config.get_base().get_packet_type();
+        let packet_type = self.config.base.debug.traffic.packet_type;
         let mut started_client = base_builder.start_base(packet_type).await?;
         let self_address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        info!(
-            "Running with {:?} packets",
-            self.config.get_base().get_packet_type()
-        );
+        info!("Running with {packet_type} packets",);
 
         Self::start_socks5_listener(
             self.config.get_socks5(),
@@ -228,7 +224,7 @@ where
             client_state,
             self_address,
             started_client.task_manager.subscribe(),
-            self.config.get_base().get_packet_type(),
+            packet_type,
         );
 
         info!("Client startup finished!");

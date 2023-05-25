@@ -9,12 +9,14 @@ on:
       - 'gateway/**'
       - 'integrations/**'
       - 'mixnode/**'
+      - 'sdk/lib/socks5-listener/**'
       - 'sdk/rust/nym-sdk/**'
       - 'service-providers/**'
       - 'nym-api/**'
       - 'nym-outfox/**'
       - 'tools/nym-cli/**'
       - 'tools/ts-rs-cli/**'
+      - 'Cargo.toml'
   pull_request:
     paths:
       - 'clients/**'
@@ -23,12 +25,14 @@ on:
       - 'gateway/**'
       - 'integrations/**'
       - 'mixnode/**'
+      - 'sdk/lib/socks5-listener/**'
       - 'sdk/rust/nym-sdk/**'
       - 'service-providers/**'
       - 'nym-api/**'
       - 'nym-outfox/**'
       - 'tools/nym-cli/**'
       - 'tools/ts-rs-cli/**'
+      - 'Cargo.toml'
 
 jobs:
   build:

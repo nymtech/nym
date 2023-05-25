@@ -27,12 +27,12 @@ impl<'a> IndexList<Delegation> for DelegationIndex<'a> {
 pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, DelegationIndex<'a>> {
     let indexes = DelegationIndex {
         owner: MultiIndex::new(
-            |d| d.owner.clone(),
+            |_pk, d| d.owner.clone(),
             DELEGATION_PK_NAMESPACE,
             DELEGATION_OWNER_IDX_NAMESPACE,
         ),
         mixnode: MultiIndex::new(
-            |d| d.mix_id,
+            |_pk, d| d.mix_id,
             DELEGATION_PK_NAMESPACE,
             DELEGATION_MIXNODE_IDX_NAMESPACE,
         ),

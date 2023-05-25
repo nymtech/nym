@@ -56,6 +56,8 @@ pub async fn generate(args: Args) {
                 .expect("threshold can't be converted to Decimal"),
         },
         max_voting_period: Duration::Time(args.max_voting_period),
+        executor: None,
+        proposal_deposit: None,
         coconut_bandwidth_contract_address: coconut_bandwidth_contract_address.to_string(),
         coconut_dkg_contract_address: coconut_dkg_contract_address.to_string(),
     };

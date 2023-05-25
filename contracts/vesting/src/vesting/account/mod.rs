@@ -25,7 +25,7 @@ fn generate_storage_key(storage: &mut dyn Storage) -> Result<AccountStorageKey, 
     Ok(key)
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct Account {
     pub owner_address: Addr,
     pub staking_address: Option<Addr>,

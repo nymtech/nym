@@ -40,7 +40,7 @@ nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 async-trait = { workspace = true, optional = true }
 bip39 = { workspace = true, features = ["rand"], optional = true }
 nym-config = { path = "../../config", optional = true }
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"], optional = true }
+cosmrs = { workspace = true, features = ["rpc", "bip32", "cosmwasm"], optional = true }
 # note that this has the same version as used by cosmrs
 eyre = { version = "0.6", optional = true }
 cw3 = { workspace = true, optional = true }
@@ -54,7 +54,7 @@ cosmwasm-std = { workspace = true, optional = true }
 
 [dev-dependencies]
 bip39 = { workspace = true }
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32"] }
+cosmrs = { workspace = true, features = ["rpc", "bip32"] }
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 ts-rs = "6.1.2"
 

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::msg::ExecuteMsg;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct SpendCredentialData {
     funds: Coin,
     blinded_serial_number: String,
@@ -43,7 +43,7 @@ pub enum SpendCredentialStatus {
     Spent,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct SpendCredential {
     funds: Coin,
     blinded_serial_number: String,
@@ -74,7 +74,7 @@ impl SpendCredential {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedSpendCredentialResponse {
     pub spend_credentials: Vec<SpendCredential>,
     pub per_page: usize,
@@ -95,7 +95,7 @@ impl PagedSpendCredentialResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct SpendCredentialResponse {
     pub spend_credential: Option<SpendCredential>,
 }

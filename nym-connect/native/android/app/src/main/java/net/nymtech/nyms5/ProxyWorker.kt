@@ -74,7 +74,14 @@ class ProxyWorker(
     override suspend fun doWork(): Result {
         setProgress(workDataOf(State to "STARTING"))
 
-        setForeground(createForegroundInfo())
+        // `setForeground` can fail
+        // see https://developer.android.com/guide/background/persistent/getting-started/define-work#coroutineworker
+        try {
+            setForeground(createForegroundInfo())
+        } catch (e: Throwable) {
+            Log.w(tag, "failed to make the work run in the context of a foreground service")
+        }
+
         return try {
             Log.d(tag, "starting work")
 
@@ -151,7 +158,7 @@ class ProxyWorker(
     }
 
     // TODO without this override, under Android 11 the app crashes
-    //  see https://stackoverflow.com/questions/71389874/coroutineworker-crashes-with-no-getforegroundinfo
+    //  see https://developer.android.com/guide/background/persistent/getting-started/define-work#coroutineworker
     //  override doesn't seem to be a problem for newer versions
     override suspend fun getForegroundInfo(): ForegroundInfo {
         return ForegroundInfo(notificationId, createNotification())

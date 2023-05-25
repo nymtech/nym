@@ -33,7 +33,7 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
             } else {
                 let mut table = Table::new();
 
-                table.set_header(vec!["Service Id", "Announcer", "Nym Address"]);
+                table.set_header(vec!["Service Id", "Announcer", "Type", "Nym Address"]);
                 for service in res.services {
                     table.add_row(vec![
                         service.service_id.to_string(),

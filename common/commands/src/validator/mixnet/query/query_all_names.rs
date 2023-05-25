@@ -31,11 +31,12 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
             } else {
                 let mut table = Table::new();
 
-                table.set_header(vec!["Name Id", "Owner", "Name"]);
+                table.set_header(vec!["Name Id", "Owner", "Nym Address", "Name"]);
                 for name_entry in res.names {
                     table.add_row(vec![
                         name_entry.name_id.to_string(),
                         name_entry.name.owner.to_string(),
+                        name_entry.name.address.to_string(),
                         name_entry.name.name.to_string(),
                     ]);
                 }
@@ -47,9 +48,6 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
         Err(NymAPIError::NotFound) => {
             println!("nym-api reports no name endpoint available");
         }
-        Err(e) => {
-            //log::trace!("Failed to query registered names - {:?}", e);
-            show_error(e)
-        },
+        Err(e) => show_error(e),
     }
 }

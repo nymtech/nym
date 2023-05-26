@@ -1,8 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::validate_bech32_address_or_exit;
-use crate::config::Config;
+use crate::commands::{try_load_current_config, validate_bech32_address_or_exit};
 use crate::node::MixNode;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
@@ -115,28 +114,19 @@ fn print_signed_contract_msg(
     println!("{}", output.format(&sign_output));
 }
 
-pub(crate) fn execute(args: &Sign) {
-    let config = match Config::read_from_default_path(&args.id) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            error!(
-                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {err})",
-                args.id,
-            );
-            return;
-        }
-    };
+pub(crate) fn execute(args: &Sign) -> anyhow::Result<()> {
+    let config = try_load_current_config(&args.id)?;
 
     if !version_check(&config) {
-        error!("Failed the local version check");
-        return;
+        error!("failed the local version check");
+        bail!("failed the local version check")
     }
 
     let signed_target = match SignedTarget::try_from(args.clone()) {
         Ok(s) => s,
         Err(err) => {
             error!("{err}");
-            return;
+            bail!(err);
         }
     };
     let identity_keypair = MixNode::load_identity_keys(&config);
@@ -152,4 +142,5 @@ pub(crate) fn execute(args: &Sign) {
             print_signed_contract_msg(identity_keypair.private_key(), &raw_msg, args.output)
         }
     }
+    Ok(())
 }

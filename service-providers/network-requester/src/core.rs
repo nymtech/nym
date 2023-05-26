@@ -165,7 +165,8 @@ impl NRServiceProviderBuilder {
         let standard_list = StandardList::new();
 
         let allowed_hosts = StoredAllowedHosts::new(&config.storage_paths.allowed_list_location);
-        let unknown_hosts = allowed_hosts::HostsStore::new(&config.storage_paths.unknown_list_location);
+        let unknown_hosts =
+            allowed_hosts::HostsStore::new(&config.storage_paths.unknown_list_location);
 
         let outbound_request_filter =
             OutboundRequestFilter::new(allowed_hosts.clone(), standard_list.clone(), unknown_hosts);
@@ -185,7 +186,8 @@ impl NRServiceProviderBuilder {
     pub async fn run_service_provider(self) -> Result<(), NetworkRequesterError> {
         // Connect to the mixnet
         let mixnet_client =
-            create_mixnet_client(&self.config.base, &self.config.storage_paths.common_paths).await?;
+            create_mixnet_client(&self.config.base, &self.config.storage_paths.common_paths)
+                .await?;
 
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`

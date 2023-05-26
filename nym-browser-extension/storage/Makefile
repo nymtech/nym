@@ -1,2 +1,2 @@
 wasm-pack:
-	wasm-pack build
+	wasm-pack build --scope nym

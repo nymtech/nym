@@ -35,7 +35,7 @@
     "react-hook-form": "^7.43.9",
     "react-router-dom": "^6.9.0",
     "zod": "^3.21.4",
-    "extension-storage": "file:./storage/pkg"
+    "@nym/extension-storage": "file:./storage/pkg"
   },
   "devDependencies": {
     "@nymproject/eslint-config-react-typescript": "^1.0.0",

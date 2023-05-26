@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import ValidatorClient from '@nymproject/nym-validator-client';
 import { connectToValidator } from 'src/validator-client';
 import { unymToNym } from 'src/utils/coin';
-import { ExtensionStorage } from 'extension-storage';
+import { ExtensionStorage } from '@nym/extension-storage';
 
 type TAppContext = {
   client?: ValidatorClient;

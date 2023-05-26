@@ -2894,6 +2894,9 @@
   dependencies:
     nx "15.9.3"
 
+"@nym/extension-storage@file:./nym-browser-extension/storage/pkg":
+  version "0.1.0"
+
 "@nymproject/nym-validator-client@^0.18.0":
   version "0.18.0"
   resolved "https://registry.yarnpkg.com/@nymproject/nym-validator-client/-/nym-validator-client-0.18.0.tgz#4dd72bafdf6c72b603242f32c0bb9a1f9e475b98"
@@ -9845,9 +9848,6 @@ extend@^3.0.0:
   version "3.0.2"
   resolved "https://registry.yarnpkg.com/extend/-/extend-3.0.2.tgz#f8b1136b4071fbd8eb140aff858b1019ec2915fa"
   integrity sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==
-
-"extension-storage@file:./nym-browser-extension/storage/pkg":
-  version "0.1.0"
 
 external-editor@^3.0.3:
   version "3.1.0"

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ExtensionStorage } from 'extension-storage';
+import { ExtensionStorage } from '@nym/extension-storage';
 
 const RegisterContext = React.createContext({} as TRegisterContext);
 

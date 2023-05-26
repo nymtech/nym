@@ -72,6 +72,7 @@ impl From<Service> for ExecuteMsg {
         ExecuteMsg::Announce {
             nym_address: service.nym_address,
             service_type: service.service_type,
+            signature: service.signature,
         }
     }
 }

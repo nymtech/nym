@@ -81,6 +81,7 @@ pub fn announce(
     info: MessageInfo,
     nym_address: NymAddress,
     service_type: ServiceType,
+    owner_signature: MessageSignature,
 ) -> Result<Response> {
     ensure_max_services_per_announcer(deps.as_ref(), info.sender.clone())?;
     ensure_max_aliases_per_nym_address(deps.as_ref(), nym_address.clone())?;
@@ -90,6 +91,14 @@ pub fn announce(
     let will_deposit = cw_utils::must_pay(&info, &denom)
         .map_err(|err| ContractError::DepositRequired { source: err })?;
     ensure_correct_deposit(will_deposit, deposit_required.amount)?;
+
+    verify_announce_signature(
+        &nym_address,
+        &service_type,
+        &owner_signature,
+        &info.sender,
+        &env.contract.address,
+    )?;
 
     let new_service = Service {
         nym_address,
@@ -101,6 +110,31 @@ pub fn announce(
     let service_id = state::services::save(deps.storage, &new_service)?;
 
     Ok(Response::new().add_event(new_announce_event(service_id, new_service)))
+}
+
+fn verify_announce_signature(
+    deps: Deps<'_>,
+    sender: Addr,
+    deposit: Coin,
+    service: ServiceDetails,
+    signature: MessageSignature,
+) -> Result<()> {
+    // recover the public key
+    let public_key = decode_ed25519_identity_key(&service.identity_key)?;
+
+    // reconstruct the payload
+    let nonce = signing_storage::get_signing_nonce(deps.storage, sender.clone())?;
+
+    // WIP(JON): what about sender here?
+    let msg =
+        construct_service_announce_payload(nonce, address, coin, service);
+        //construct_service_announce_payload(nonce, sender, proxy, pledge, mixnode, cost_params);
+
+    if deps.api.verify_message(msg, signature, &public_key)? {
+        Ok(())
+    } else {
+        Err(ContractError::InvalidSignature)
+    }
 }
 
 /// Delete an exsisting service.

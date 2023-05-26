@@ -46,6 +46,9 @@ pub enum ContractError {
         value: String,
         error_message: String,
     },
+
+    #[error("Provided ed25519 signature did not verify correctly")]
+    InvalidEd25519Signature,
 }
 
 pub(crate) type Result<T, E = ContractError> = std::result::Result<T, E>;

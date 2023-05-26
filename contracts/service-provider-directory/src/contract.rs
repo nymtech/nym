@@ -74,7 +74,8 @@ pub fn execute(
         ExecuteMsg::Announce {
             nym_address: client_address,
             service_type,
-        } => execute::announce(deps, env, info, client_address, service_type),
+            signature,
+        } => execute::announce(deps, env, info, client_address, service_type, signature),
         ExecuteMsg::DeleteId { service_id } => execute::delete_id(deps, info, service_id),
         ExecuteMsg::DeleteNymAddress { nym_address } => {
             execute::delete_nym_address(deps, info, nym_address)

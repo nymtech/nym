@@ -3571,6 +3571,7 @@ dependencies = [
  "log",
  "nym-bandwidth-controller",
  "nym-bin-common",
+ "nym-client-core",
  "nym-config",
  "nym-credential-storage",
  "nym-credentials",

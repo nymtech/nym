@@ -6,8 +6,8 @@ use nym_client_core::client::base_client::{non_wasm_helpers, storage};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::replies::reply_storage::fs_backend;
 use nym_client_core::config;
-use nym_client_core::config::disk_persistence::key_pathfinder::ClientKeysPathfinder;
-use nym_client_core::config::disk_persistence::CommonClientPathfinder;
+use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 use std::path::{Path, PathBuf};
 
@@ -118,11 +118,11 @@ impl StoragePaths {
 
     /// Instantiates default persistent key storage.
     pub fn on_disk_key_storage_spec(&self) -> OnDiskKeys {
-        OnDiskKeys::new(self.client_key_pathfinder())
+        OnDiskKeys::new(self.client_keys_paths())
     }
 
-    fn client_key_pathfinder(&self) -> ClientKeysPathfinder {
-        ClientKeysPathfinder {
+    fn client_keys_paths(&self) -> ClientKeysPaths {
+        ClientKeysPaths {
             private_identity_key_file: self.private_identity.clone(),
             public_identity_key_file: self.public_identity.clone(),
             private_encryption_key_file: self.private_encryption.clone(),
@@ -133,10 +133,10 @@ impl StoragePaths {
     }
 }
 
-impl From<StoragePaths> for CommonClientPathfinder {
+impl From<StoragePaths> for CommonClientPaths {
     fn from(value: StoragePaths) -> Self {
-        CommonClientPathfinder {
-            keys_pathfinder: ClientKeysPathfinder {
+        CommonClientPaths {
+            keys_paths: ClientKeysPaths {
                 private_identity_key_file: value.private_identity,
                 public_identity_key_file: value.public_identity,
                 private_encryption_key_file: value.private_encryption,
@@ -145,6 +145,21 @@ impl From<StoragePaths> for CommonClientPathfinder {
                 ack_key_file: value.ack_key,
             },
             credentials_database: value.credential_database_path,
+            reply_surb_database_path: value.reply_surb_database_path,
+        }
+    }
+}
+
+impl From<CommonClientPaths> for StoragePaths {
+    fn from(value: CommonClientPaths) -> Self {
+        StoragePaths {
+            private_identity: value.keys_paths.private_identity_key_file,
+            public_identity: value.keys_paths.public_identity_key_file,
+            private_encryption: value.keys_paths.private_encryption_key_file,
+            public_encryption: value.keys_paths.public_encryption_key_file,
+            ack_key: value.keys_paths.ack_key_file,
+            gateway_shared_key: value.keys_paths.gateway_shared_key_file,
+            credential_database_path: value.credentials_database,
             reply_surb_database_path: value.reply_surb_database_path,
         }
     }

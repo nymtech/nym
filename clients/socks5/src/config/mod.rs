@@ -1,17 +1,15 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::persistence::SocksClientPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::config::disk_persistence::CommonClientPathfinder;
-pub use nym_client_core::config::Config as BaseConfig;
-use nym_config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
+pub use nym_client_core::config::Config as BaseClientConfig;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     OptionalSet, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 pub use nym_socks5_client_core::config::Config as CoreConfig;
-use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::io;
@@ -19,6 +17,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 pub mod old_config_v1_1_13;
+mod persistence;
 mod template;
 
 const DEFAULT_SOCKS5_CLIENTS_DIR: &str = "socks5-clients";
@@ -50,7 +49,7 @@ pub struct Config {
     #[serde(flatten)]
     pub core: CoreConfig,
 
-    pub paths: CommonClientPathfinder,
+    pub paths: SocksClientPaths,
 
     pub logging: LoggingSettings,
 }
@@ -65,7 +64,7 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S, provider_mix_address: S) -> Self {
         Config {
             core: CoreConfig::new(id.as_ref(), provider_mix_address.as_ref()),
-            paths: CommonClientPathfinder::new_default(default_data_directory(id.as_ref())),
+            paths: SocksClientPaths::new_default(default_data_directory(id.as_ref())),
             logging: Default::default(),
         }
     }
@@ -90,7 +89,7 @@ impl Config {
     //
     // pub fn new<S: Into<String>>(id: S, provider_mix_address: S) -> Self {
     //     Config {
-    //         base: BaseConfig::new(id),
+    //         base: BaseClientConfig::new(id),
     //         socks5: Socks5::new(provider_mix_address),
     //     }
     // }
@@ -114,7 +113,7 @@ impl Config {
 
     pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
     {
         self.core = self.core.with_base(f, val);
         self
@@ -122,7 +121,7 @@ impl Config {
 
     pub fn with_optional_base<F, T>(mut self, f: F, val: Option<T>) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
     {
         self.core = self.core.with_optional_base(f, val);
         self
@@ -130,7 +129,7 @@ impl Config {
 
     pub fn with_optional_base_env<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
         T: FromStr,
         <T as FromStr>::Err: Debug,
     {
@@ -146,7 +145,7 @@ impl Config {
         parser: G,
     ) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
         G: Fn(&str) -> T,
     {
         self.core = self

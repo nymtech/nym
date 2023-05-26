@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::pathfinder::GatewayPathfinder;
+use crate::config::persistence::paths::GatewayPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
@@ -61,7 +61,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 pub struct Config {
     pub gateway: Gateway,
 
-    pub paths: GatewayPathfinder,
+    pub paths: GatewayPaths,
 
     #[serde(default)]
     pub logging: LoggingSettings,
@@ -80,7 +80,7 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
             gateway: Gateway::new_default(id.as_ref()),
-            paths: GatewayPathfinder::new_default(id.as_ref()),
+            paths: GatewayPaths::new_default(id.as_ref()),
             logging: Default::default(),
             debug: Default::default(),
         }

@@ -12,7 +12,7 @@ pub const DEFAULT_GATEWAY_SHARED_KEY_FILENAME: &str = "gateway_shared.pem";
 pub const DEFAULT_ACK_KEY_FILENAME: &str = "ack_key.pem";
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-pub struct ClientKeysPathfinder {
+pub struct ClientKeysPaths {
     /// Path to file containing private identity key.
     pub private_identity_key_file: PathBuf,
 
@@ -34,11 +34,11 @@ pub struct ClientKeysPathfinder {
     pub ack_key_file: PathBuf,
 }
 
-impl ClientKeysPathfinder {
+impl ClientKeysPaths {
     pub fn new_default<P: AsRef<Path>>(base_data_directory: P) -> Self {
         let base_dir = base_data_directory.as_ref();
 
-        ClientKeysPathfinder {
+        ClientKeysPaths {
             private_identity_key_file: base_dir.join(DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME),
             public_identity_key_file: base_dir.join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME),
             private_encryption_key_file: base_dir.join(DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME),

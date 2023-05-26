@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
-use crate::config::{BaseConfig, Config};
+use crate::config::{BaseClientConfig, Config};
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
@@ -88,25 +88,28 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         PacketType::Mix
     };
     config
-        .with_base(BaseConfig::with_high_default_traffic_volume, args.fastmode)
-        .with_base(BaseConfig::with_disabled_cover_traffic, args.no_cover)
+        .with_base(
+            BaseClientConfig::with_high_default_traffic_volume,
+            args.fastmode,
+        )
+        .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
         .with_base(BaseConfig::with_packet_type, packet_type)
         .with_optional(Config::with_anonymous_replies, args.use_anonymous_replies)
         .with_optional(Config::with_port, args.port)
         .with_optional_base_custom_env(
-            BaseConfig::with_custom_nym_apis,
+            BaseClientConfig::with_custom_nym_apis,
             args.nym_apis,
             nym_network_defaults::var_names::NYM_API,
             nym_config::parse_urls,
         )
         .with_optional_base_custom_env(
-            BaseConfig::with_custom_nyxd,
+            BaseClientConfig::with_custom_nyxd,
             args.nyxd_urls,
             nym_network_defaults::var_names::NYXD,
             nym_config::parse_urls,
         )
         .with_optional_base(
-            BaseConfig::with_disabled_credentials,
+            BaseClientConfig::with_disabled_credentials,
             args.enabled_credentials_mode.map(|b| !b),
         )
 }

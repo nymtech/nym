@@ -35,17 +35,17 @@ pub const DEFAULT_COCONUT_SECRET_KEY_FILENAME: &str = "coconut_secret_key.pem";
 // }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct NetworkMonitorPathfinder {
+pub struct NetworkMonitorPaths {
     // TODO: this should contain the path to the database holding the results, but changing it would break backwards compatibility
     /// Path to the database containing bandwidth credentials of this client.
     pub credentials_database_path: PathBuf,
 }
 
-impl NetworkMonitorPathfinder {
+impl NetworkMonitorPaths {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         let data_dir = default_data_directory(id);
 
-        NetworkMonitorPathfinder {
+        NetworkMonitorPaths {
             credentials_database_path: data_dir
                 .join(DEFAULT_NETWORK_MONITOR_CREDENTIALS_DATABASE_FILENAME),
         }
@@ -53,23 +53,23 @@ impl NetworkMonitorPathfinder {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct NodeStatusAPIPathfinder {
+pub struct NodeStatusAPIPaths {
     /// Path to the database file containing uptime statuses for all mixnodes and gateways.
     pub database_path: PathBuf,
 }
 
-impl NodeStatusAPIPathfinder {
+impl NodeStatusAPIPaths {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         let data_dir = default_data_directory(id);
 
-        NodeStatusAPIPathfinder {
+        NodeStatusAPIPaths {
             database_path: data_dir.join(DEFAULT_NODE_STATUS_API_DATABASE_FILENAME),
         }
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct CoconutSignerPathfinder {
+pub struct CoconutSignerPaths {
     /// Path to a JSON file where state is persisted between different stages of DKG.
     pub dkg_persistent_state_path: PathBuf,
 
@@ -86,11 +86,11 @@ pub struct CoconutSignerPathfinder {
     pub public_key_with_proof_path: PathBuf,
 }
 
-impl CoconutSignerPathfinder {
+impl CoconutSignerPaths {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         let data_dir = default_data_directory(id);
 
-        CoconutSignerPathfinder {
+        CoconutSignerPaths {
             dkg_persistent_state_path: data_dir.join(DEFAULT_DKG_PERSISTENT_STATE_FILENAME),
             verification_key_path: data_dir.join(DEFAULT_COCONUT_VERIFICATION_KEY_FILENAME),
             secret_key_path: data_dir.join(DEFAULT_COCONUT_SECRET_KEY_FILENAME),

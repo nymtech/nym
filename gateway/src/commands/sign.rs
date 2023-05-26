@@ -6,8 +6,7 @@ use crate::error::GatewayError;
 use crate::node::Gateway;
 use crate::support::config::build_config;
 use crate::{
-    commands::ensure_config_version_compatibility,
-    config::persistence::pathfinder::GatewayPathfinder,
+    commands::ensure_config_version_compatibility, config::persistence::paths::GatewayPaths,
 };
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
@@ -66,11 +65,11 @@ impl TryFrom<Sign> for SignedTarget {
     }
 }
 
-pub fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
+pub fn load_identity_keys(paths: &GatewayPaths) -> identity::KeyPair {
     let identity_keypair: identity::KeyPair =
         nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-            pathfinder.private_identity_key().to_owned(),
-            pathfinder.public_identity_key().to_owned(),
+            paths.private_identity_key().to_owned(),
+            paths.public_identity_key().to_owned(),
         ))
         .expect("Failed to read stored identity key files");
     identity_keypair

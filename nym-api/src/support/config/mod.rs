@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::support::config::persistence::{
-    CoconutSignerPathfinder, NetworkMonitorPathfinder, NodeStatusAPIPathfinder,
+    CoconutSignerPaths, NetworkMonitorPaths, NodeStatusAPIPaths,
 };
 use crate::support::config::template::CONFIG_TEMPLATE;
 use nym_config::defaults::mainnet;
@@ -255,7 +255,7 @@ pub struct NetworkMonitor {
     pub enabled: bool,
 
     #[serde(flatten)]
-    pub paths: NetworkMonitorPathfinder,
+    pub paths: NetworkMonitorPaths,
 
     #[serde(flatten)]
     pub debug: NetworkMonitorDebug,
@@ -265,7 +265,7 @@ impl NetworkMonitor {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         NetworkMonitor {
             enabled: false,
-            paths: NetworkMonitorPathfinder::new_default(id),
+            paths: NetworkMonitorPaths::new_default(id),
             debug: Default::default(),
         }
     }
@@ -351,7 +351,7 @@ impl Default for NetworkMonitorDebug {
 pub struct NodeStatusAPI {
     // pub enabled: bool,
     #[serde(flatten)]
-    pub paths: NodeStatusAPIPathfinder,
+    pub paths: NodeStatusAPIPaths,
 
     #[serde(flatten)]
     pub debug: NodeStatusAPIDebug,
@@ -360,7 +360,7 @@ pub struct NodeStatusAPI {
 impl NodeStatusAPI {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         NodeStatusAPI {
-            paths: NodeStatusAPIPathfinder::new_default(id),
+            paths: NodeStatusAPIPaths::new_default(id),
             debug: Default::default(),
         }
     }
@@ -489,7 +489,7 @@ pub struct CoconutSigner {
     pub announce_address: Url,
 
     #[serde(flatten)]
-    pub paths: CoconutSignerPathfinder,
+    pub paths: CoconutSignerPaths,
 
     #[serde(flatten)]
     pub debug: CoconutSignerDebug,
@@ -508,7 +508,7 @@ impl CoconutSigner {
         CoconutSigner {
             enabled: false,
             announce_address: default_announce_address,
-            paths: CoconutSignerPathfinder::new_default(id),
+            paths: CoconutSignerPaths::new_default(id),
             debug: Default::default(),
         }
     }

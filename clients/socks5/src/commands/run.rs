@@ -139,6 +139,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error 
         return Err(Box::new(Socks5ClientError::FailedLocalVersionCheck));
     }
 
-    let storage = OnDiskPersistent::from_paths(config.paths, &config.core.base.debug).await?;
+    let storage =
+        OnDiskPersistent::from_paths(config.paths.common_paths, &config.core.base.debug).await?;
     NymClient::new(config.core, storage).run_forever().await
 }

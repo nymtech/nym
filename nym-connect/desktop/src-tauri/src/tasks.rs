@@ -1,18 +1,14 @@
 use futures::{channel::mpsc, StreamExt};
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
-use nym_client_core::{
-    config::{ClientCoreConfigTrait, GatewayEndpointConfig},
-    error::ClientCoreStatusMessage,
-};
+use nym_client_core::{config::GatewayEndpointConfig, error::ClientCoreStatusMessage};
+use nym_socks5_client_core::NymClient as Socks5NymClient;
+use nym_socks5_client_core::{config::Config as Socks5Config, Socks5ControlMessageSender};
 use nym_task::manager::TaskStatus;
 use std::sync::Arc;
 use tap::TapFallible;
 use tokio::sync::RwLock;
 
-use nym_config_common::NymConfig;
-use nym_socks5_client_core::NymClient as Socks5NymClient;
-use nym_socks5_client_core::{config::Config as Socks5Config, Socks5ControlMessageSender};
-
+use crate::config::Config;
 use crate::{
     error::Result,
     events::{self, emit_event, emit_status_event},
@@ -42,9 +38,9 @@ pub fn start_nym_socks5_client(
     GatewayEndpointConfig,
 )> {
     log::info!("Loading config from file: {id}");
-    let config = Socks5Config::load_from_file(id)
+    let config = Config::read_from_default_path(id)
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
-    let used_gateway = config.get_base().get_gateway_endpoint().clone();
+    let used_gateway = config.socks5.base.client.gateway_endpoint.clone();
 
     log::info!("Starting socks5 client");
 
@@ -65,8 +61,12 @@ pub fn start_nym_socks5_client(
         let result = tokio::runtime::Runtime::new()
             .expect("Failed to create runtime for SOCKS5 client")
             .block_on(async move {
-                let storage = OnDiskPersistent::from_config(config.get_base()).await?;
-                let socks5_client = Socks5NymClient::new(config, storage);
+                let storage = OnDiskPersistent::from_paths(
+                    config.paths.common_paths,
+                    &config.socks5.base.debug,
+                )
+                .await?;
+                let socks5_client = Socks5NymClient::new(config.socks5, storage);
 
                 socks5_client
                     .run_and_listen(socks5_ctrl_rx, socks5_status_tx)

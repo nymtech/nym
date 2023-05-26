@@ -12,7 +12,7 @@ use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
 #[cfg(not(target_os = "android"))]
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 #[cfg(not(target_os = "android"))]
-use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
 
 pub struct MobileClientStorage {
     #[cfg(not(target_os = "android"))]
@@ -62,8 +62,8 @@ impl MobileClientStorage {
 
         #[cfg(not(target_os = "android"))]
         let key_store = {
-            let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-            OnDiskKeys::new(pathfinder)
+            let paths = ClientKeysPaths::new_from_config(config.get_base());
+            OnDiskKeys::new(paths)
         };
 
         MobileClientStorage {

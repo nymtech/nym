@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::pathfinder::MixNodePathfinder;
+use crate::config::persistence::paths::MixNodePaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
@@ -74,7 +74,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 pub struct Config {
     pub mixnode: MixNode,
 
-    pub paths: MixNodePathfinder,
+    pub paths: MixNodePaths,
 
     #[serde(default)]
     pub verloc: Verloc,
@@ -96,7 +96,7 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
             mixnode: MixNode::new_default(id.as_ref()),
-            paths: MixNodePathfinder::new_default(id.as_ref()),
+            paths: MixNodePaths::new_default(id.as_ref()),
             verloc: Default::default(),
             logging: Default::default(),
             debug: Default::default(),

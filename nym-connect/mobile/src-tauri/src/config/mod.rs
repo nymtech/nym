@@ -2,7 +2,7 @@ use crate::{
     error::{BackendError, Result},
     state::State,
 };
-use nym_client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
+use nym_client_core::{client::key_manager::KeyManager, config::Config as BaseClientConfig};
 use nym_config_common::NymConfig;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_crypto::asymmetric::identity;
@@ -63,11 +63,11 @@ impl Config {
         self.socks5.get_socks5_mut()
     }
 
-    pub fn get_base(&self) -> &BaseConfig<Socks5Config> {
+    pub fn get_base(&self) -> &BaseClientConfig<Socks5Config> {
         self.socks5.get_base()
     }
 
-    pub fn get_base_mut(&mut self) -> &mut BaseConfig<Socks5Config> {
+    pub fn get_base_mut(&mut self) -> &mut BaseClientConfig<Socks5Config> {
         self.socks5.get_base_mut()
     }
 

@@ -20,10 +20,6 @@ pub const DEFAULT_CONFIG_DIR: &str = "config";
 pub const DEFAULT_DATA_DIR: &str = "data";
 pub const DEFAULT_CONFIG_FILENAME: &str = "config.toml";
 
-// TODO: move it elsewhere because it's only really for clients
-#[deprecated]
-pub const CRED_DB_FILE_NAME: &str = "credentials_database.db";
-
 #[cfg(feature = "dirs")]
 pub fn must_get_home() -> PathBuf {
     dirs::home_dir().expect("Failed to evaluate $HOME value")

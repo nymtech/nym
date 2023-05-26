@@ -38,8 +38,8 @@ fn main() {
     tauri::Builder::default()
         .manage(Arc::new(RwLock::new(State::new())))
         .invoke_handler(tauri::generate_handler![
-            crate::config::get_config_file_location,
-            crate::config::get_config_id,
+            crate::operations::config::get_config_file_location,
+            crate::operations::config::get_config_id,
             crate::operations::connection::connect::get_gateway,
             crate::operations::connection::connect::get_service_provider,
             crate::operations::connection::connect::set_gateway,

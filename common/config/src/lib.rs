@@ -14,6 +14,7 @@ pub use toml::de::Error as TomlDeError;
 
 pub mod defaults;
 pub mod helpers;
+pub mod legacy_helpers;
 
 pub const NYM_DIR: &str = ".nym";
 pub const DEFAULT_CONFIG_DIR: &str = "config";

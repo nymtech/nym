@@ -8,9 +8,7 @@ use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::{KeyManager, ManagedKeys};
 use crate::init::helpers::{choose_gateway_by_latency, current_gateways, uniformly_random_gateway};
 use crate::{
-    config::{
-        disk_persistence::keys_paths::ClientKeysPaths, Config, GatewayEndpointConfig,
-    },
+    config::{disk_persistence::keys_paths::ClientKeysPaths, Config, GatewayEndpointConfig},
     error::ClientCoreError,
 };
 use nym_crypto::asymmetric::{encryption, identity};

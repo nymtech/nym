@@ -110,7 +110,12 @@ impl<St> Gateway<St> {
             version: self.config.gateway.version.clone(),
             mix_port: self.config.gateway.mix_port,
             clients_port: self.config.gateway.clients_port,
-            data_store: self.config.storage_paths.clients_storage.display().to_string(),
+            data_store: self
+                .config
+                .storage_paths
+                .clients_storage
+                .display()
+                .to_string(),
         };
 
         println!("{}", output.format(&node_details));

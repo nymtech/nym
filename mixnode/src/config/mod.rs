@@ -21,6 +21,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
+pub(crate) mod old_config_v1_1_20;
 pub mod persistence;
 mod template;
 
@@ -204,22 +205,27 @@ pub struct Verloc {
     pub packets_per_node: usize,
 
     /// Specifies maximum amount of time to wait for the connection to get established.
+    #[serde(with = "humantime_serde")]
     pub connection_timeout: Duration,
 
     /// Specifies maximum amount of time to wait for the reply packet to arrive before abandoning the test.
+    #[serde(with = "humantime_serde")]
     pub packet_timeout: Duration,
 
     /// Specifies delay between subsequent test packets being sent (after receiving a reply).
+    #[serde(with = "humantime_serde")]
     pub delay_between_packets: Duration,
 
     /// Specifies number of nodes being tested at once.
     pub tested_nodes_batch_size: usize,
 
     /// Specifies delay between subsequent test runs.
+    #[serde(with = "humantime_serde")]
     pub testing_interval: Duration,
 
     /// Specifies delay between attempting to run the measurement again if the previous run failed
     /// due to being unable to get the list of nodes.
+    #[serde(with = "humantime_serde")]
     pub retry_timeout: Duration,
 }
 

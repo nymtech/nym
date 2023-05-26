@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::OverrideConfig;
-use crate::commands::{override_config, version_check};
-use crate::config::Config;
+use crate::commands::{override_config, try_load_current_config, version_check};
 use crate::node::MixNode;
+use anyhow::bail;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::helpers::SPECIAL_ADDRESSES;
@@ -69,26 +69,15 @@ fn show_binding_warning(address: &str) {
     eprintln!("\n\n");
 }
 
-pub(crate) async fn execute(args: &Run) {
+pub(crate) async fn execute(args: &Run) -> anyhow::Result<()> {
     eprintln!("Starting mixnode {}...", args.id);
 
-    let mut config = match Config::read_from_default_path(&args.id) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            error!(
-                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
-                args.id,
-                err
-            );
-            return;
-        }
-    };
-
+    let mut config = try_load_current_config(&args.id)?;
     config = override_config(config, OverrideConfig::from(args.clone()));
 
     if !version_check(&config) {
         error!("failed the local version check");
-        return;
+        bail!("failed the local version check")
     }
 
     if SPECIAL_ADDRESSES.contains(&config.mixnode.listening_address) {
@@ -102,5 +91,6 @@ pub(crate) async fn execute(args: &Run) {
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
     mixnode.print_node_details(args.output);
 
-    mixnode.run().await
+    mixnode.run().await;
+    Ok(())
 }

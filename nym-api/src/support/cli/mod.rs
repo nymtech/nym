@@ -124,12 +124,12 @@ pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
 
             let config = Config::new(&id);
             fs::create_dir_all(default_config_directory(&id))
-            .expect("Could not create config directory");
+                .expect("Could not create config directory");
             fs::create_dir_all(default_data_directory(&id))
-            .expect("Could not create data directory");
+                .expect("Could not create data directory");
             crate::coconut::dkg::controller::init_keypair(&config.coconut_signer)?;
             config
-    }
+        }
     };
 
     let config = override_config(config, args);

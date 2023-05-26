@@ -22,15 +22,20 @@ mod template;
 
 const DEFAULT_SOCKS5_CLIENTS_DIR: &str = "socks5-clients";
 
-/// Derive default path to client's config file.
-/// It should get resolved to `$HOME/.nym/socks5-clients/<id>/config/config.toml`
-pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+/// Derive default path to clients's config directory.
+/// It should get resolved to `$HOME/.nym/socks5-clients/<id>/config`
+pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
     must_get_home()
         .join(NYM_DIR)
         .join(DEFAULT_SOCKS5_CLIENTS_DIR)
         .join(id)
         .join(DEFAULT_CONFIG_DIR)
-        .join(DEFAULT_CONFIG_FILENAME)
+}
+
+/// Derive default path to client's config file.
+/// It should get resolved to `$HOME/.nym/socks5-clients/<id>/config/config.toml`
+pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
 }
 
 /// Derive default path to client's data directory where files, such as keys, are stored.

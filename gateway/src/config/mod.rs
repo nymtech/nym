@@ -35,15 +35,20 @@ const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
 
-/// Derive default path to gateways's config file.
-/// It should get resolved to `$HOME/.nym/gateways/<id>/config/config.toml`
-pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+/// Derive default path to gateway's config directory.
+/// It should get resolved to `$HOME/.nym/gateways/<id>/config`
+pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
     must_get_home()
         .join(NYM_DIR)
         .join(DEFAULT_GATEWAYS_DIR)
         .join(id)
         .join(DEFAULT_CONFIG_DIR)
-        .join(DEFAULT_CONFIG_FILENAME)
+}
+
+/// Derive default path to gateways's config file.
+/// It should get resolved to `$HOME/.nym/gateways/<id>/config/config.toml`
+pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
 }
 
 /// Derive default path to gateways's data directory where files, such as keys, are stored.

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::try_upgrade_v1_1_13_config;
-use crate::config::default_config_filepath;
+use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
 use crate::{
     cli::{override_config, OverrideConfig},
     config::Config,
@@ -15,6 +15,7 @@ use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;
+use std::{fs, io};
 use tap::TapFallible;
 
 #[derive(Args, Clone)]
@@ -95,6 +96,11 @@ impl Display for InitResults {
     }
 }
 
+fn init_paths(id: &str) -> io::Result<()> {
+    fs::create_dir_all(default_data_directory(id))?;
+    fs::create_dir_all(default_config_directory(id))
+}
+
 pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
     eprintln!("Initialising client...");
 
@@ -107,6 +113,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
         eprintln!("Client \"{id}\" was already initialised before");
         true
     } else {
+        init_paths(&args.id)?;
         false
     };
 

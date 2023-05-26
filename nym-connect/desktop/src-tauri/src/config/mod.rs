@@ -3,24 +3,18 @@
 
 use crate::config::persistence::NymConnectPaths;
 use crate::config::template::CONFIG_TEMPLATE;
-use crate::{
-    error::{BackendError, Result},
-    state::State,
-};
+use crate::error::{BackendError, Result};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_client_core::config::Config as BaseClientConfig;
 use nym_config_common::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_crypto::asymmetric::identity;
-use nym_socks5_client_core::config::{Config as Socks5CoreConfig, Socks5};
+use nym_socks5_client_core::config::Config as Socks5CoreConfig;
 use serde::{Deserialize, Serialize};
-use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::{fs, io};
 use tap::TapFallible;
-use tokio::sync::RwLock;
 
 mod persistence;
 mod template;
@@ -30,15 +24,20 @@ static SOCKS5_CONFIG_ID: &str = "nym-connect";
 // backwards compatibility : )
 const DEFAULT_NYM_CONNECT_CLIENTS_DIR: &str = "socks5-clients";
 
-/// Derive default path to nym connects's config file.
-/// It should get resolved to `$HOME/.nym/socks5-clients/<id>/config/config.toml`
-pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+/// Derive default path to clients's config directory.
+/// It should get resolved to `$HOME/.nym/socks5-clients/<id>/config`
+pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
     must_get_home()
         .join(NYM_DIR)
         .join(DEFAULT_NYM_CONNECT_CLIENTS_DIR)
         .join(id)
         .join(DEFAULT_CONFIG_DIR)
-        .join(DEFAULT_CONFIG_FILENAME)
+}
+
+/// Derive default path to client's config file.
+/// It should get resolved to `$HOME/.nym/socks5-clients/<id>/config/config.toml`
+pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
 }
 
 /// Derive default path to nym connects's data directory where files, such as keys, are stored.
@@ -117,6 +116,11 @@ impl Config {
     }
 }
 
+fn init_paths(id: &str) -> io::Result<()> {
+    fs::create_dir_all(default_data_directory(id))?;
+    fs::create_dir_all(default_config_directory(id))
+}
+
 pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: String) -> Result<()> {
     log::trace!("Initialising client...");
 
@@ -127,6 +131,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         eprintln!("SOCKS5 client \"{id}\" was already initialised before");
         true
     } else {
+        init_paths(&id)?;
         false
     };
 

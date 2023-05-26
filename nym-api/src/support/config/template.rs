@@ -1,8 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) fn config_template() -> &'static str {
-    r#"
+pub(crate) const CONFIG_TEMPLATE: &str = r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
 
@@ -113,5 +112,4 @@ decryption_key_path = '{{ coconut_signer.decryption_key_path }}'
 # Path to the dkg dealer public key with proof
 public_key_with_proof_path = '{{ coconut_signer.public_key_with_proof_path }}'
 
-"#
-}
+"#;

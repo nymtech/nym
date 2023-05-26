@@ -1,7 +1,6 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_monitor;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -14,8 +13,7 @@ use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
-use crate::support::config::Config;
-use crate::support::nyxd;
+use crate::support::{config, nyxd};
 use futures::channel::mpsc;
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
@@ -34,7 +32,7 @@ pub(crate) mod test_route;
 pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) fn setup<'a>(
-    config: &'a Config,
+    config: &'a config::NetworkMonitor,
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
@@ -48,7 +46,7 @@ pub(crate) fn setup<'a>(
 }
 
 pub(crate) struct NetworkMonitorBuilder<'a> {
-    config: &'a Config,
+    config: &'a config::NetworkMonitor,
     nyxd_client: nyxd::Client,
     node_status_storage: NymApiStorage,
     validator_cache: NymContractCache,
@@ -56,7 +54,7 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
 
 impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
-        config: &'a Config,
+        config: &'a config::NetworkMonitor,
         nyxd_client: nyxd::Client,
         node_status_storage: NymApiStorage,
         validator_cache: NymContractCache,
@@ -87,7 +85,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
         let packet_preparer = new_packet_preparer(
             self.validator_cache,
-            self.config.get_per_node_test_packets(),
+            self.config.debug.per_node_test_packets,
             Arc::clone(&ack_key),
             *identity_keypair.public_key(),
             *encryption_keypair.public_key(),
@@ -96,7 +94,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let bandwidth_controller = {
             BandwidthController::new(
                 nym_credential_storage::initialise_persistent_storage(
-                    self.config.get_credentials_database_path(),
+                    &self.config.paths.credentials_database_path,
                 )
                 .await,
                 self.nyxd_client.clone(),
@@ -107,9 +105,9 @@ impl<'a> NetworkMonitorBuilder<'a> {
             self.config,
             gateway_status_update_sender,
             Arc::clone(&identity_keypair),
-            self.config.get_gateway_sending_rate(),
+            self.config.debug.gateway_sending_rate,
             bandwidth_controller,
-            self.config.get_disabled_credentials_mode(),
+            self.config.debug.disabled_credentials_mode,
         );
 
         let received_processor = new_received_processor(
@@ -117,13 +115,13 @@ impl<'a> NetworkMonitorBuilder<'a> {
             Arc::clone(&encryption_keypair),
             ack_key,
         );
-        let summary_producer = new_summary_producer(self.config.get_per_node_test_packets());
+        let summary_producer = new_summary_producer(self.config.debug.per_node_test_packets);
         let packet_receiver = new_packet_receiver(
             gateway_status_update_receiver,
             received_processor_sender_channel,
         );
 
-        let monitor = monitor::Monitor::new(
+        let monitor = Monitor::new(
             self.config,
             packet_preparer,
             packet_sender,
@@ -176,7 +174,7 @@ fn new_packet_preparer(
 }
 
 fn new_packet_sender(
-    config: &Config,
+    config: &config::NetworkMonitor,
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     max_sending_rate: usize,
@@ -186,9 +184,9 @@ fn new_packet_sender(
     PacketSender::new(
         gateways_status_updater,
         local_identity,
-        config.get_gateway_response_timeout(),
-        config.get_gateway_connection_timeout(),
-        config.get_max_concurrent_gateway_clients(),
+        config.debug.gateway_response_timeout,
+        config.debug.gateway_connection_timeout,
+        config.debug.max_concurrent_gateway_clients,
         max_sending_rate,
         bandwidth_controller,
         disabled_credentials_mode,
@@ -219,14 +217,13 @@ fn new_packet_receiver(
 // TODO: 1) does it still have to have separate builder or could we get rid of it now?
 // TODO: 2) how do we make it non-async as other 'start' methods?
 pub(crate) async fn start<R: MessageReceiver + Send + 'static>(
-    config: &Config,
+    config: &config::NetworkMonitor,
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
     shutdown: &TaskManager,
 ) {
-    let monitor_builder =
-        network_monitor::setup(config, nym_contract_cache_state, storage, nyxd_client);
+    let monitor_builder = setup(config, nym_contract_cache_state, storage, nyxd_client);
     info!("Starting network monitor...");
     let runnables: NetworkMonitorRunnables<R> = monitor_builder.build().await;
     runnables.spawn_tasks(shutdown);

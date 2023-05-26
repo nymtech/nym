@@ -13,7 +13,7 @@ use crate::storage::models::{NodeStatus, TestingRoute};
 use nym_mixnet_contract_common::MixId;
 use rocket::fairing::AdHoc;
 use sqlx::ConnectOptions;
-use std::path::PathBuf;
+use std::path::Path;
 use time::OffsetDateTime;
 
 use self::manager::{AvgGatewayReliability, AvgMixnodeReliability};
@@ -28,11 +28,11 @@ pub(crate) struct NymApiStorage {
 }
 
 impl NymApiStorage {
-    pub async fn init(database_path: PathBuf) -> Result<Self, NymApiStorageError> {
+    pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, NymApiStorageError> {
         // TODO: we can inject here more stuff based on our nym-api global config
         // struct. Maybe different pool size or timeout intervals?
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
-            .filename(&database_path)
+            .filename(database_path)
             .create_if_missing(true);
 
         // TODO: do we want auto_vacuum ?

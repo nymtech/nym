@@ -43,15 +43,20 @@ const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_milli
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 
-/// Derive default path to mixnodes's config file.
-/// It should get resolved to `$HOME/.nym/mixnodes/<id>/config/config.toml`
-pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+/// Derive default path to mixnodes's config directory.
+/// It should get resolved to `$HOME/.nym/mixnodes/<id>/config`
+pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
     must_get_home()
         .join(NYM_DIR)
         .join(DEFAULT_MIXNODES_DIR)
         .join(id)
         .join(DEFAULT_CONFIG_DIR)
-        .join(DEFAULT_CONFIG_FILENAME)
+}
+
+/// Derive default path to mixnodes's config file.
+/// It should get resolved to `$HOME/.nym/mixnodes/<id>/config/config.toml`
+pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
 }
 
 /// Derive default path to mixnodes's data directory where files, such as keys, are stored.

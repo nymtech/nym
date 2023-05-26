@@ -124,7 +124,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     let id = &args.id;
 
-    let already_init = if default_config_filepath(&id).exists() {
+    let already_init = if default_config_filepath(id).exists() {
         // in case we're using old config, try to upgrade it
         // (if we're using the current version, it's a no-op)
         try_upgrade_v1_1_13_config(id)?;

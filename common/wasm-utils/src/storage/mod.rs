@@ -143,6 +143,24 @@ impl WasmStorage {
         self.inner.remove_value_raw(store, key).await
     }
 
+    pub async fn has_value<K>(&self, store: &str, key: K) -> Result<bool, StorageError>
+    where
+        K: wasm_bindgen::JsCast,
+    {
+        match self.key_count(store, key).await? {
+            n if n == 0 => Ok(false),
+            n if n == 1 => Ok(true),
+            n => Err(StorageError::DuplicateKey { count: n }),
+        }
+    }
+
+    pub async fn key_count<K>(&self, store: &str, key: K) -> Result<u32, StorageError>
+    where
+        K: wasm_bindgen::JsCast,
+    {
+        self.inner.get_key_count(store, key).await
+    }
+
     pub async fn get_all_keys(&self, store: &str) -> Result<js_sys::Array, StorageError> {
         self.inner.get_all_keys(store).await
     }
@@ -189,6 +207,19 @@ impl IdbWrapper {
             .transaction_on_one_with_mode(store, IdbTransactionMode::Readwrite)?
             .object_store(store)?
             .delete_owned(key)?
+            .into_future()
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn get_key_count<K>(&self, store: &str, key: K) -> Result<u32, StorageError>
+    where
+        K: wasm_bindgen::JsCast,
+    {
+        self.0
+            .transaction_on_one_with_mode(store, IdbTransactionMode::Readwrite)?
+            .object_store(store)?
+            .count_with_key_owned(key)?
             .into_future()
             .await
             .map_err(Into::into)

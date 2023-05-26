@@ -44,11 +44,12 @@ pub trait NymConfigTemplate: Serialize {
         if let Err(err) =
             Handlebars::new().render_template_to_write(Self::template(), &self, writer)
         {
-            if let TemplateRenderError::IOError(err, _) = err {
-                return Err(err);
-            } else {
-                // it is responsibility of whoever is implementing the trait to ensure the template is valid
-                panic!("invalid template")
+            match err {
+                TemplateRenderError::IOError(err, _) => return Err(err),
+                other_err => {
+                    // it is responsibility of whoever is implementing the trait to ensure the template is valid
+                    panic!("invalid template: {other_err}")
+                }
             }
         }
 

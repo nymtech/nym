@@ -64,7 +64,7 @@ pub struct Config {
 
     // alias due to backwards compatibility
     #[serde(alias = "network_requester")]
-    pub paths: NetworkRequesterPaths,
+    pub storage_paths: NetworkRequesterPaths,
 
     #[serde(default)]
     pub network_requester_debug: Debug,
@@ -81,7 +81,7 @@ impl Config {
         Config {
             base: BaseClientConfig::new(id.as_ref()),
             network_requester_config: Default::default(),
-            paths: NetworkRequesterPaths::new_default(default_data_directory(id.as_ref())),
+            storage_paths: NetworkRequesterPaths::new_default(default_data_directory(id.as_ref())),
             network_requester_debug: Default::default(),
         }
     }

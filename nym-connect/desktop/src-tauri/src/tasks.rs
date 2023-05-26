@@ -62,7 +62,7 @@ pub fn start_nym_socks5_client(
             .expect("Failed to create runtime for SOCKS5 client")
             .block_on(async move {
                 let storage = OnDiskPersistent::from_paths(
-                    config.paths.common_paths,
+                    config.storage_paths.common_paths,
                     &config.socks5.base.debug,
                 )
                 .await?;

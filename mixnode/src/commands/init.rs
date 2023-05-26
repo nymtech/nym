@@ -88,8 +88,8 @@ pub(crate) fn execute(args: &Init) {
         nym_pemstore::store_keypair(
             &identity_keys,
             &nym_pemstore::KeyPairPath::new(
-                config.paths.private_identity_key(),
-                config.paths.public_identity_key(),
+                config.storage_paths.private_identity_key(),
+                config.storage_paths.public_identity_key(),
             ),
         )
         .expect("Failed to save identity keys");
@@ -97,8 +97,8 @@ pub(crate) fn execute(args: &Init) {
         nym_pemstore::store_keypair(
             &sphinx_keys,
             &nym_pemstore::KeyPairPath::new(
-                config.paths.private_encryption_key(),
-                config.paths.public_encryption_key(),
+                config.storage_paths.private_encryption_key(),
+                config.storage_paths.public_encryption_key(),
             ),
         )
         .expect("Failed to save sphinx keys");

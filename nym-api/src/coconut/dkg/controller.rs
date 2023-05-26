@@ -30,8 +30,8 @@ pub(crate) fn init_keypair(config: &config::CoconutSigner) -> Result<()> {
     nym_pemstore::store_keypair(
         &kp,
         &nym_pemstore::KeyPairPath::new(
-            &config.paths.decryption_key_path,
-            &config.paths.public_key_with_proof_path,
+            &config.storage_paths.decryption_key_path,
+            &config.storage_paths.public_key_with_proof_path,
         ),
     )?;
     Ok(())
@@ -54,27 +54,27 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         rng: R,
     ) -> Result<Self> {
         let dkg_keypair = nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-            &config.paths.decryption_key_path,
-            &config.paths.public_key_with_proof_path,
+            &config.storage_paths.decryption_key_path,
+            &config.storage_paths.public_key_with_proof_path,
         ))?;
         if let Ok(coconut_keypair_value) =
             nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                &config.paths.secret_key_path,
-                &config.paths.verification_key_path,
+                &config.storage_paths.secret_key_path,
+                &config.storage_paths.verification_key_path,
             ))
         {
             coconut_keypair.set(Some(coconut_keypair_value)).await;
         }
         let persistent_state =
-            PersistentState::load_from_file(&config.paths.dkg_persistent_state_path)
+            PersistentState::load_from_file(&config.storage_paths.dkg_persistent_state_path)
                 .unwrap_or_default();
 
         Ok(DkgController {
             dkg_client: DkgClient::new(nyxd_client),
-            secret_key_path: config.paths.secret_key_path.clone(),
-            verification_key_path: config.paths.verification_key_path.clone(),
+            secret_key_path: config.storage_paths.secret_key_path.clone(),
+            verification_key_path: config.storage_paths.verification_key_path.clone(),
             state: State::new(
-                config.paths.dkg_persistent_state_path.clone(),
+                config.storage_paths.dkg_persistent_state_path.clone(),
                 persistent_state,
                 config.announce_address.clone(),
                 dkg_keypair,

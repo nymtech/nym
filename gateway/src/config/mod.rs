@@ -66,7 +66,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 pub struct Config {
     pub gateway: Gateway,
 
-    pub paths: GatewayPaths,
+    pub storage_paths: GatewayPaths,
 
     #[serde(default)]
     pub logging: LoggingSettings,
@@ -85,7 +85,7 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
             gateway: Gateway::new_default(id.as_ref()),
-            paths: GatewayPaths::new_default(id.as_ref()),
+            storage_paths: GatewayPaths::new_default(id.as_ref()),
             logging: Default::default(),
             debug: Default::default(),
         }
@@ -154,7 +154,7 @@ impl Config {
     }
 
     pub fn with_custom_persistent_store(mut self, store_dir: PathBuf) -> Self {
-        self.paths.clients_storage = store_dir;
+        self.storage_paths.clients_storage = store_dir;
         self
     }
 

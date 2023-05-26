@@ -169,7 +169,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let key_store = OnDiskKeys::new(config.paths.common_paths.keys_paths.clone());
+    let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys_paths.clone());
     let gateway = nym_client_core::init::setup_gateway_from_config::<_>(
         &key_store,
         register_gateway,
@@ -194,7 +194,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     );
 
     let address = nym_client_core::init::get_client_address_from_stored_ondisk_keys(
-        &config.paths.common_paths.keys_paths,
+        &config.storage_paths.common_paths.keys_paths,
         &config.core.base.client.gateway_endpoint,
     )?;
     let init_results = InitResults::new(&config, &address);

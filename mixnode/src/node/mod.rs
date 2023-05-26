@@ -54,15 +54,15 @@ impl MixNode {
     }
 
     fn load_node_description(config: &Config) -> NodeDescription {
-        NodeDescription::load_from_file(&config.paths.node_description).unwrap_or_default()
+        NodeDescription::load_from_file(&config.storage_paths.node_description).unwrap_or_default()
     }
 
     /// Loads identity keys stored on disk
     pub(crate) fn load_identity_keys(config: &Config) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
             nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.paths.keys.private_identity_key(),
-                config.paths.keys.public_identity_key(),
+                config.storage_paths.keys.private_identity_key(),
+                config.storage_paths.keys.public_identity_key(),
             ))
             .expect("Failed to read stored identity key files");
         identity_keypair
@@ -72,8 +72,8 @@ impl MixNode {
     fn load_sphinx_keys(config: &Config) -> encryption::KeyPair {
         let sphinx_keypair: encryption::KeyPair =
             nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.paths.keys.private_encryption_key(),
-                config.paths.keys.public_encryption_key(),
+                config.storage_paths.keys.private_encryption_key(),
+                config.storage_paths.keys.public_encryption_key(),
             ))
             .expect("Failed to read stored sphinx key files");
         sphinx_keypair

@@ -50,7 +50,7 @@ impl SocketClient {
         config: &Config,
     ) -> BandwidthController<Client<QueryNyxdClient>, PersistentStorage> {
         let storage = nym_credential_storage::initialise_persistent_storage(
-            &config.paths.common_paths.credentials_database,
+            &config.storage_paths.common_paths.credentials_database,
         )
         .await;
 
@@ -107,7 +107,7 @@ impl SocketClient {
     }
 
     fn key_store(&self) -> OnDiskKeys {
-        OnDiskKeys::new(self.config.paths.common_paths.keys_paths.clone())
+        OnDiskKeys::new(self.config.storage_paths.common_paths.keys_paths.clone())
     }
 
     // TODO: see if this could also be shared with socks5 client / nym-sdk maybe
@@ -124,7 +124,11 @@ impl SocketClient {
             self.key_store(),
             bandwidth_controller,
             non_wasm_helpers::setup_fs_reply_surb_backend(
-                &self.config.paths.common_paths.reply_surb_database_path,
+                &self
+                    .config
+                    .storage_paths
+                    .common_paths
+                    .reply_surb_database_path,
                 &self.config.base.debug.reply_surbs,
             )
             .await?,

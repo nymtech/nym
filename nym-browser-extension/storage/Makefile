@@ -1,2 +1,2 @@
 wasm-pack:
-	wasm-pack build --scope nymproject #--target no-modules
+	wasm-pack build --scope nym

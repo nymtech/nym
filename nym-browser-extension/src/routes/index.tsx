@@ -8,10 +8,7 @@ import { LoginRoutes } from './login';
 const Router = process.env.NODE_ENV === 'development' ? BrowserRouter : MemoryRouter;
 
 export const AppRoutes = () => {
-  // hack to work on redirect until password capability is set up
   const userHasAccount = localStorage.getItem('nym-browser-extension');
-
-  console.log(userHasAccount);
 
   return (
     <Router>

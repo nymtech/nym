@@ -40,6 +40,16 @@ jobs:
           node-version: 16
       - name: Setup yarn
         run: npm install -g yarn
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        working-directory: nym-browser-extension
+      - name: Run preinstall script
+        run: yarn run preinstall
+        working-directory: nym-browser-extension
       - name: Install
         run: yarn
       - name: Build packages

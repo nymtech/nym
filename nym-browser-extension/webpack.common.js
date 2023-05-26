@@ -22,4 +22,5 @@ module.exports = mergeWithRules({
       stream: 'stream-browserify',
     },
   },
+  experiments: { asyncWebAssembly: true },
 });

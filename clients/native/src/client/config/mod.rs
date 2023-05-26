@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::CONFIG_TEMPLATE;
+use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::CommonClientPathfinder;
 use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nym_config::{
@@ -68,7 +69,7 @@ pub struct Config {
 
     pub paths: CommonClientPathfinder,
 
-    pub logging: Logging,
+    pub logging: LoggingSettings,
 }
 
 impl NymConfigTemplate for Config {

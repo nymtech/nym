@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{default_config_filepath, default_data_directory};
+use crate::config::{default_config_directory, default_data_directory};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -24,7 +24,7 @@ impl MixNodePathfinder {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         MixNodePathfinder {
             keys: KeysPathfinder::new_default(id.as_ref()),
-            node_description: default_config_filepath(id).join(DEFAULT_DESCRIPTION_FILENAME),
+            node_description: default_config_directory(id).join(DEFAULT_DESCRIPTION_FILENAME),
         }
     }
 

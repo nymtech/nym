@@ -3378,6 +3378,7 @@ dependencies = [
  "tokio-stream",
  "ts-rs",
  "url",
+ "zeroize",
 ]
 
 [[package]]

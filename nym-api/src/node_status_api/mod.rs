@@ -8,9 +8,10 @@ use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
 use std::time::Duration;
 
+use crate::support::config;
 use crate::{
     nym_contract_cache::cache::NymContractCache,
-    support::{self, config::Config, storage},
+    support::{self, storage},
 };
 
 use self::cache::refresher::NodeStatusCacheRefresher;
@@ -74,7 +75,7 @@ pub(crate) fn node_status_routes(
 /// It is primarily refreshed in-sync with the nym contract cache, however provide a fallback
 /// caching interval that is twice the nym contract cache
 pub(crate) fn start_cache_refresh(
-    config: &Config,
+    config: &config::NodeStatusAPI,
     nym_contract_cache_state: &NymContractCache,
     node_status_cache_state: &NodeStatusCache,
     storage: Option<&storage::NymApiStorage>,
@@ -83,7 +84,7 @@ pub(crate) fn start_cache_refresh(
 ) {
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
         node_status_cache_state.to_owned(),
-        config.get_node_status_caching_interval(),
+        config.debug.caching_interval,
         nym_contract_cache_state.to_owned(),
         nym_contract_cache_listener,
         storage.cloned(),

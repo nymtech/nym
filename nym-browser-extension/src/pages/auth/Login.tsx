@@ -16,11 +16,16 @@ export const Login = () => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    setError,
+    formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(validationSchema), defaultValues: { password: '' } });
 
-  const onSubmit = (data: { password: string }) => {
-    handleUnlockWallet(data.password);
+  const onSubmit = async (data: { password: string }) => {
+    try {
+      await handleUnlockWallet(data.password);
+    } catch (e) {
+      setError('password', { message: 'Incorrect password. Please try again.' });
+    }
   };
 
   return (
@@ -36,8 +41,16 @@ export const Login = () => {
             helperText={errors.password?.message}
             error={!!errors.password}
           />
-          <Button onClick={handleSubmit(onSubmit)} variant="contained" disableElevation size="large" fullWidth>
-            Unlock
+
+          <Button
+            onClick={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+            variant="contained"
+            disableElevation
+            size="large"
+            fullWidth
+          >
+            {isSubmitting ? 'Loading..' : 'Unlock'}
           </Button>
           <Button
             variant="outlined"

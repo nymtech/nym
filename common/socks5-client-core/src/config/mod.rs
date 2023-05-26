@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use nym_client_core::config::Config as BaseConfig;
+pub use nym_client_core::config::Config as BaseClientConfig;
 use nym_config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
 use nym_config::OptionalSet;
 use nym_service_providers_common::interface::ProviderInterfaceVersion;
@@ -20,7 +20,7 @@ const DEFAULT_PER_REQUEST_SURBS: u32 = 3;
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(flatten)]
-    pub base: BaseConfig,
+    pub base: BaseClientConfig,
 
     pub socks5: Socks5,
 }
@@ -28,12 +28,12 @@ pub struct Config {
 impl Config {
     pub fn new<S: Into<String>>(id: S, provider_mix_address: S) -> Self {
         Config {
-            base: BaseConfig::new(id),
+            base: BaseClientConfig::new(id),
             socks5: Socks5::new(provider_mix_address),
         }
     }
 
-    pub fn from_base(base: BaseConfig, socks5: Socks5) -> Self {
+    pub fn from_base(base: BaseClientConfig, socks5: Socks5) -> Self {
         Config { base, socks5 }
     }
 
@@ -55,7 +55,7 @@ impl Config {
     // poor man's 'builder' method
     pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
     {
         self.base = f(self.base, val);
         self
@@ -65,7 +65,7 @@ impl Config {
     // (plz, lets refactor it)
     pub fn with_optional_base<F, T>(mut self, f: F, val: Option<T>) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
     {
         self.base = self.base.with_optional(f, val);
         self
@@ -73,7 +73,7 @@ impl Config {
 
     pub fn with_optional_base_env<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
         T: FromStr,
         <T as FromStr>::Err: Debug,
     {
@@ -89,7 +89,7 @@ impl Config {
         parser: G,
     ) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
         G: Fn(&str) -> T,
     {
         self.base = self.base.with_optional_custom_env(f, val, env_var, parser);

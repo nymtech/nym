@@ -83,7 +83,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
     // (if we're using the current version, it's a no-op)
     try_upgrade_v1_1_13_config(id)?;
 
-    let mut config = match Config::load_from_file(id) {
+    let mut config = match Config::read_from_default_path(id) {
         Ok(cfg) => cfg,
         Err(err) => {
             log::error!(
@@ -101,13 +101,6 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
 
     let override_config_fields = OverrideConfig::from(args.clone());
     config = override_config(config, override_config_fields);
-
-    if config.get_base_mut().set_empty_fields_to_defaults() {
-        log::warn!(
-            "Some of the core config options were left unset. \
-            The default values are going to get used instead."
-        );
-    }
 
     if !version_check(&config) {
         log::error!("Failed the local version check");

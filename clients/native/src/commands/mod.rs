@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::old_config_v1_1_13::OldConfigV1_1_13;
-use crate::client::config::{BaseConfig, Config};
+use crate::client::config::{BaseClientConfig, Config};
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
@@ -82,24 +82,27 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
     config
         .with_optional(Config::with_disabled_socket, args.disable_socket)
-        .with_base(BaseConfig::with_high_default_traffic_volume, args.fastmode)
-        .with_base(BaseConfig::with_disabled_cover_traffic, args.no_cover)
+        .with_base(
+            BaseClientConfig::with_high_default_traffic_volume,
+            args.fastmode,
+        )
+        .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
         .with_optional(Config::with_port, args.port)
         .with_optional(Config::with_host, args.host)
         .with_optional_custom_env_ext(
-            BaseConfig::with_custom_nym_apis,
+            BaseClientConfig::with_custom_nym_apis,
             args.nym_apis,
             nym_network_defaults::var_names::NYM_API,
             nym_config::parse_urls,
         )
         .with_optional_custom_env_ext(
-            BaseConfig::with_custom_nyxd,
+            BaseClientConfig::with_custom_nyxd,
             args.nyxd_urls,
             nym_network_defaults::var_names::NYXD,
             nym_config::parse_urls,
         )
         .with_optional_ext(
-            BaseConfig::with_disabled_credentials,
+            BaseClientConfig::with_disabled_credentials,
             args.enabled_credentials_mode.map(|b| !b),
         )
 }

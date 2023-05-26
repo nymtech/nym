@@ -1,18 +1,16 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
+use crate::{
+    config::{BaseClientConfig, Config},
+    error::NetworkRequesterError,
+};
 use clap::{CommandFactory, Parser, Subcommand};
 use log::info;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
-use nym_config::NymConfig;
-
-use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
-use crate::{
-    config::{BaseConfig, Config},
-    error::NetworkRequesterError,
-};
 
 mod init;
 mod run;
@@ -70,22 +68,25 @@ pub(crate) struct OverrideConfig {
 
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
     config
-        .with_base(BaseConfig::with_high_default_traffic_volume, args.fastmode)
-        .with_base(BaseConfig::with_disabled_cover_traffic, args.no_cover)
-        .with_optional_custom_env_ext(
-            BaseConfig::with_custom_nym_apis,
+        .with_base(
+            BaseClientConfig::with_high_default_traffic_volume,
+            args.fastmode,
+        )
+        .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
+        .with_optional_base_custom_env(
+            BaseClientConfig::with_custom_nym_apis,
             args.nym_apis,
             nym_network_defaults::var_names::NYM_API,
             nym_config::parse_urls,
         )
-        .with_optional_custom_env_ext(
-            BaseConfig::with_custom_nyxd,
+        .with_optional_base_custom_env(
+            BaseClientConfig::with_custom_nyxd,
             args.nyxd_urls,
             nym_network_defaults::var_names::NYXD,
             nym_config::parse_urls,
         )
-        .with_optional_ext(
-            BaseConfig::with_disabled_credentials,
+        .with_optional_base(
+            BaseClientConfig::with_disabled_credentials,
             args.enabled_credentials_mode.map(|b| !b),
         )
 }
@@ -104,17 +105,18 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
 }
 
 fn try_upgrade_v1_1_13_config(id: &str) -> std::io::Result<()> {
-    // explicitly load it as v1.1.13 (which is incompatible with the current, i.e. 1.1.14+)
-    let Ok(old_config) = OldConfigV1_1_13::load_from_file(id) else {
-        // if we failed to load it, there might have been nothing to upgrade
-        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(());
-    };
-    info!("It seems the client is using <= v1.1.13 config template.");
-    info!("It is going to get updated to the current specification.");
-
-    let updated: Config = old_config.into();
-    updated.save_to_file(None)
+    todo!()
+    // // explicitly load it as v1.1.13 (which is incompatible with the current, i.e. 1.1.14+)
+    // let Ok(old_config) = OldConfigV1_1_13::load_from_file(id) else {
+    //     // if we failed to load it, there might have been nothing to upgrade
+    //     // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+    //     return Ok(());
+    // };
+    // info!("It seems the client is using <= v1.1.13 config template.");
+    // info!("It is going to get updated to the current specification.");
+    //
+    // let updated: Config = old_config.into();
+    // updated.save_to_file(None)
 }
 
 // this only checks compatibility between config the binary. It does not take into consideration
@@ -127,9 +129,7 @@ fn version_check(cfg: &Config) -> bool {
     } else {
         log::warn!(
             "The native-client binary has different version than what is specified \
-            in config file! {} and {}",
-            binary_version,
-            config_version
+            in config file! {binary_version} and {config_version}",
         );
         if version_checker::is_minor_version_compatible(binary_version, config_version) {
             log::info!(

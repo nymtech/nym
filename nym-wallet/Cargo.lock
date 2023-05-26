@@ -2924,6 +2924,7 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "semver 0.11.0",
+ "serde",
  "vergen",
 ]
 

@@ -1,12 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) const CONFIG_TEMPLATE: &str =
-    // While using normal toml marshalling would have been way simpler with less overhead,
-    // I think it's useful to have comments attached to the saved config file to explain behaviour of
-    // particular fields.
-    // Note: any changes to the template must be reflected in the appropriate structs.
-    r#"
+pub(crate) const CONFIG_TEMPLATE: &str = r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
 
@@ -24,14 +19,18 @@ id = '{{ client.id }}'
 disabled_credentials_mode = {{ client.disabled_credentials_mode }}
 
 # Addresses to nyxd validators via which the client can communicate with the chain.
-nyxd_urls = [{{#each client.nyxd_urls }}
-    '{{this}}',
-{{/each}}]
+nyxd_urls = [
+    {{#each client.nyxd_urls }}
+        '{{this}}',
+    {{/each}}
+]
 
 # Addresses to APIs running on validator from which the client gets the view of the network.
-nym_api_urls = [{{#each client.nym_api_urls }}
-    '{{this}}',
-{{/each}}]
+nym_api_urls = [
+    {{#each client.nym_api_urls }}
+        '{{this}}',
+    {{/each}}
+]
 
 # Path to file containing private identity key.
 private_identity_key_file = '{{ client.private_identity_key_file }}'
@@ -76,14 +75,23 @@ gateway_owner = '{{ client.gateway_endpoint.gateway_owner }}'
 # Address of the gateway listener to which all client requests should be sent.
 gateway_listener = '{{ client.gateway_endpoint.gateway_listener }}'
 
-##### network requester specific config options #####
 
-[network_requester]
-# Location of the file containing our allow.list
-allowed_list_location = '{{ network_requester.allowed_list_location }}'
+##### socket config options #####
 
-# Location of the file containing our unknown.list
-unknown_list_location = '{{ network_requester.unknown_list_location }}'
+[socks5]
+
+# The mix address of the provider to which all requests are going to be sent.
+provider_mix_address = '{{ socks5.provider_mix_address }}'
+
+# The port on which the client will be listening for incoming requests
+listening_port = {{ socks5.listening_port }}
+
+# Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
+# While this is going to hide its actual address information, it will make the actual communication
+# slower and consume nearly double the bandwidth as it will require sending reply SURBs.
+#
+# Note that some service providers might not support this.
+send_anonymously = {{ socks5.send_anonymously }}
 
 ##### logging configuration options #####
 
@@ -95,6 +103,9 @@ unknown_list_location = '{{ network_requester.unknown_list_location }}'
 ##### debug configuration options #####
 # The following options should not be modified unless you know EXACTLY what you are doing
 # as if set incorrectly, they may impact your anonymity.
+
+# [socks5.socks5_debug]
+
 
 [debug]
 

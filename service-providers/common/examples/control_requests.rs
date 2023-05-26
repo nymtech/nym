@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// use nym_client::client::config::{BaseConfig, Config, GatewayEndpointConfig};
+// use nym_client::client::config::{BaseClientConfig, Config, GatewayEndpointConfig};
 // use nym_client::client::{DirectClient, KeyManager, Recipient, ReconstructedMessage, SocketClient};
 use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, Recipient, ReconstructedMessage};
 use nym_service_providers_common::interface::{

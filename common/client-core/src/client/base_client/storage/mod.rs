@@ -17,7 +17,7 @@ use crate::client::base_client::non_wasm_helpers;
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use crate::client::key_manager::persistence::OnDiskKeys;
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-use crate::config::disk_persistence::CommonClientPathfinder;
+use crate::config::disk_persistence::CommonClientPaths;
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use crate::error::ClientCoreError;
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
@@ -97,20 +97,19 @@ impl OnDiskPersistent {
     }
 
     pub async fn from_paths(
-        pathfinder: CommonClientPathfinder,
+        paths: CommonClientPaths,
         debug_config: &config::DebugConfig,
     ) -> Result<Self, ClientCoreError> {
-        let key_store = OnDiskKeys::new(pathfinder.keys_pathfinder);
+        let key_store = OnDiskKeys::new(paths.keys_paths);
 
         let reply_store = non_wasm_helpers::setup_fs_reply_surb_backend(
-            pathfinder.reply_surb_database_path,
+            paths.reply_surb_database_path,
             &debug_config.reply_surbs,
         )
         .await?;
 
         let credential_store =
-            nym_credential_storage::initialise_persistent_storage(pathfinder.credentials_database)
-                .await;
+            nym_credential_storage::initialise_persistent_storage(paths.credentials_database).await;
 
         Ok(OnDiskPersistent {
             key_store,

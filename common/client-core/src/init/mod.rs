@@ -9,7 +9,7 @@ use crate::client::key_manager::{KeyManager, ManagedKeys};
 use crate::init::helpers::{choose_gateway_by_latency, current_gateways, uniformly_random_gateway};
 use crate::{
     config::{
-        disk_persistence::key_pathfinder::ClientKeysPathfinder, Config, GatewayEndpointConfig,
+        disk_persistence::keys_paths::ClientKeysPaths, Config, GatewayEndpointConfig,
     },
     error::ClientCoreError,
 };
@@ -283,13 +283,13 @@ pub fn load_identity_keys(
 /// Get the client address by loading the keys from stored files.
 // TODO: rethink that sucker
 pub fn get_client_address_from_stored_ondisk_keys(
-    pathfinder: &ClientKeysPathfinder,
+    keys_paths: &ClientKeysPaths,
     gateway_config: &GatewayEndpointConfig,
 ) -> Result<Recipient, ClientCoreError> {
     let public_identity: identity::PublicKey =
-        nym_pemstore::load_key(&pathfinder.public_identity_key_file)?;
+        nym_pemstore::load_key(&keys_paths.public_identity_key_file)?;
     let public_encryption: encryption::PublicKey =
-        nym_pemstore::load_key(&pathfinder.public_encryption_key_file)?;
+        nym_pemstore::load_key(&keys_paths.public_encryption_key_file)?;
 
     let client_recipient = Recipient::new(
         public_identity,

@@ -3,12 +3,11 @@
 
 use crate::client::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::config::disk_persistence::CommonClientPathfinder;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nym_config::{
-    define_optional_set_inner, must_get_home, read_config_from_toml_file,
-    save_formatted_config_to_file, NymConfigTemplate, OptionalSet, DEFAULT_CONFIG_DIR,
-    DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
+    OptionalSet, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -17,11 +16,13 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-pub use nym_client_core::config::Config as BaseConfig;
+use crate::client::config::persistence::ClientPaths;
+pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
 
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_19;
+mod persistence;
 mod template;
 
 const DEFAULT_CLIENTS_DIR: &str = "clients";
@@ -63,11 +64,12 @@ impl SocketType {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Config {
     #[serde(flatten)]
-    pub base: BaseConfig,
+    pub base: BaseClientConfig,
 
     pub socket: Socket,
 
-    pub paths: CommonClientPathfinder,
+    // pub paths: CommonClientPathfinder,
+    pub paths: ClientPaths,
 
     pub logging: LoggingSettings,
 }
@@ -81,8 +83,8 @@ impl NymConfigTemplate for Config {
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
-            base: BaseConfig::new(id.as_ref()),
-            paths: CommonClientPathfinder::new_default(default_data_directory(id.as_ref())),
+            base: BaseClientConfig::new(id.as_ref()),
+            paths: ClientPaths::new_default(default_data_directory(id.as_ref())),
             logging: Default::default(),
             socket: Default::default(),
         }
@@ -137,7 +139,7 @@ impl Config {
     // poor man's 'builder' method
     pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
     {
         self.base = f(self.base, val);
         self
@@ -147,7 +149,7 @@ impl Config {
     // (plz, lets refactor it)
     pub fn with_optional_ext<F, T>(mut self, f: F, val: Option<T>) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
     {
         self.base = self.base.with_optional(f, val);
         self
@@ -155,7 +157,7 @@ impl Config {
 
     pub fn with_optional_env_ext<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
         T: FromStr,
         <T as FromStr>::Err: Debug,
     {
@@ -171,7 +173,7 @@ impl Config {
         parser: G,
     ) -> Self
     where
-        F: Fn(BaseConfig, T) -> BaseConfig,
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
         G: Fn(&str) -> T,
     {
         self.base = self.base.with_optional_custom_env(f, val, env_var, parser);
@@ -179,7 +181,7 @@ impl Config {
     }
 }
 
-// define_optional_set_inner!(Config, base, BaseConfig);
+// define_optional_set_inner!(Config, base, BaseClientConfig);
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default, deny_unknown_fields)]

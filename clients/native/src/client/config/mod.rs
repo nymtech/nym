@@ -74,7 +74,7 @@ pub struct Config {
     pub socket: Socket,
 
     // pub paths: CommonClientPathfinder,
-    pub paths: ClientPaths,
+    pub storage_paths: ClientPaths,
 
     pub logging: LoggingSettings,
 }
@@ -89,7 +89,7 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
             base: BaseClientConfig::new(id.as_ref()),
-            paths: ClientPaths::new_default(default_data_directory(id.as_ref())),
+            storage_paths: ClientPaths::new_default(default_data_directory(id.as_ref())),
             logging: Default::default(),
             socket: Default::default(),
         }

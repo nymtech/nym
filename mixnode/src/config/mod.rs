@@ -74,7 +74,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 pub struct Config {
     pub mixnode: MixNode,
 
-    pub paths: MixNodePaths,
+    pub storage_paths: MixNodePaths,
 
     #[serde(default)]
     pub verloc: Verloc,
@@ -96,7 +96,7 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
             mixnode: MixNode::new_default(id.as_ref()),
-            paths: MixNodePaths::new_default(id.as_ref()),
+            storage_paths: MixNodePaths::new_default(id.as_ref()),
             verloc: Default::default(),
             logging: Default::default(),
             debug: Default::default(),

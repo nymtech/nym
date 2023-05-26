@@ -46,7 +46,7 @@ pub(crate) async fn setup_rocket(
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465
     let storage = if config.coconut_signer.enabled || config.network_monitor.enabled {
-        Some(storage::NymApiStorage::init(&config.node_status_api.paths.database_path).await?)
+        Some(storage::NymApiStorage::init(&config.node_status_api.storage_paths.database_path).await?)
     } else {
         None
     };

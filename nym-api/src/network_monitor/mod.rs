@@ -94,7 +94,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let bandwidth_controller = {
             BandwidthController::new(
                 nym_credential_storage::initialise_persistent_storage(
-                    &self.config.paths.credentials_database_path,
+                    &self.config.storage_paths.credentials_database_path,
                 )
                 .await,
                 self.nyxd_client.clone(),

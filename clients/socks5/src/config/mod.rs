@@ -54,7 +54,7 @@ pub struct Config {
     #[serde(flatten)]
     pub core: CoreConfig,
 
-    pub paths: SocksClientPaths,
+    pub storage_paths: SocksClientPaths,
 
     pub logging: LoggingSettings,
 }
@@ -69,7 +69,7 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S, provider_mix_address: S) -> Self {
         Config {
             core: CoreConfig::new(id.as_ref(), provider_mix_address.as_ref()),
-            paths: SocksClientPaths::new_default(default_data_directory(id.as_ref())),
+            storage_paths: SocksClientPaths::new_default(default_data_directory(id.as_ref())),
             logging: Default::default(),
         }
     }

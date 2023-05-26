@@ -37,7 +37,7 @@ pub(crate) async fn create_gateway(config: Config) -> Gateway<PersistentStorage>
 }
 
 async fn initialise_storage(config: &Config) -> PersistentStorage {
-    let path = &config.paths.clients_storage;
+    let path = &config.storage_paths.clients_storage;
     let retrieval_limit = config.debug.message_retrieval_limit;
     match PersistentStorage::init(path, retrieval_limit).await {
         Err(err) => panic!("failed to initialise gateway storage: {err}"),
@@ -84,8 +84,8 @@ impl<St> Gateway<St> {
     pub(crate) fn load_identity_keys(config: &Config) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
             nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.paths.keys.private_identity_key(),
-                config.paths.keys.public_identity_key(),
+                config.storage_paths.keys.private_identity_key(),
+                config.storage_paths.keys.public_identity_key(),
             ))
             .expect("Failed to read stored identity key files");
         identity_keypair
@@ -95,8 +95,8 @@ impl<St> Gateway<St> {
     fn load_sphinx_keys(config: &Config) -> encryption::KeyPair {
         let sphinx_keypair: encryption::KeyPair =
             nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.paths.keys.private_encryption_key(),
-                config.paths.keys.public_encryption_key(),
+                config.storage_paths.keys.private_encryption_key(),
+                config.storage_paths.keys.public_encryption_key(),
             ))
             .expect("Failed to read stored sphinx key files");
         sphinx_keypair
@@ -110,7 +110,7 @@ impl<St> Gateway<St> {
             version: self.config.gateway.version.clone(),
             mix_port: self.config.gateway.mix_port,
             clients_port: self.config.gateway.clients_port,
-            data_store: self.config.paths.clients_storage.display().to_string(),
+            data_store: self.config.storage_paths.clients_storage.display().to_string(),
         };
 
         println!("{}", output.format(&node_details));

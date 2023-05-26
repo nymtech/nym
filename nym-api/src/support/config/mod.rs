@@ -255,7 +255,7 @@ pub struct NetworkMonitor {
     pub enabled: bool,
 
     #[serde(flatten)]
-    pub paths: NetworkMonitorPaths,
+    pub storage_paths: NetworkMonitorPaths,
 
     #[serde(flatten)]
     pub debug: NetworkMonitorDebug,
@@ -265,7 +265,7 @@ impl NetworkMonitor {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         NetworkMonitor {
             enabled: false,
-            paths: NetworkMonitorPaths::new_default(id),
+            storage_paths: NetworkMonitorPaths::new_default(id),
             debug: Default::default(),
         }
     }
@@ -351,7 +351,7 @@ impl Default for NetworkMonitorDebug {
 pub struct NodeStatusAPI {
     // pub enabled: bool,
     #[serde(flatten)]
-    pub paths: NodeStatusAPIPaths,
+    pub storage_paths: NodeStatusAPIPaths,
 
     #[serde(flatten)]
     pub debug: NodeStatusAPIDebug,
@@ -360,7 +360,7 @@ pub struct NodeStatusAPI {
 impl NodeStatusAPI {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         NodeStatusAPI {
-            paths: NodeStatusAPIPaths::new_default(id),
+            storage_paths: NodeStatusAPIPaths::new_default(id),
             debug: Default::default(),
         }
     }
@@ -489,7 +489,7 @@ pub struct CoconutSigner {
     pub announce_address: Url,
 
     #[serde(flatten)]
-    pub paths: CoconutSignerPaths,
+    pub storage_paths: CoconutSignerPaths,
 
     #[serde(flatten)]
     pub debug: CoconutSignerDebug,
@@ -508,7 +508,7 @@ impl CoconutSigner {
         CoconutSigner {
             enabled: false,
             announce_address: default_announce_address,
-            paths: CoconutSignerPaths::new_default(id),
+            storage_paths: CoconutSignerPaths::new_default(id),
             debug: Default::default(),
         }
     }

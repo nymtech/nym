@@ -140,6 +140,6 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error 
     }
 
     let storage =
-        OnDiskPersistent::from_paths(config.paths.common_paths, &config.core.base.debug).await?;
+        OnDiskPersistent::from_paths(config.storage_paths.common_paths, &config.core.base.debug).await?;
     NymClient::new(config.core, storage).run_forever().await
 }

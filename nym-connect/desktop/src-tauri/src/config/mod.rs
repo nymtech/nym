@@ -54,7 +54,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 pub struct Config {
     pub socks5: Socks5CoreConfig,
 
-    pub paths: NymConnectPaths,
+    pub storage_paths: NymConnectPaths,
 }
 
 impl NymConfigTemplate for Config {
@@ -71,7 +71,7 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S, provider_mix_address: S) -> Self {
         Config {
             socks5: Socks5CoreConfig::new(id.as_ref(), provider_mix_address.as_ref()),
-            paths: NymConnectPaths::new_default(default_data_directory(id.as_ref())),
+            storage_paths: NymConnectPaths::new_default(default_data_directory(id.as_ref())),
         }
     }
 
@@ -154,7 +154,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let key_store = OnDiskKeys::new(config.paths.common_paths.keys_paths.clone());
+    let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys_paths.clone());
     let gateway = nym_client_core::init::setup_gateway_from_config::<_>(
         &key_store,
         register_gateway,
@@ -175,7 +175,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     print_saved_config(&config);
 
     let address = nym_client_core::init::get_client_address_from_stored_ondisk_keys(
-        &config.paths.common_paths.keys_paths,
+        &config.storage_paths.common_paths.keys_paths,
         &config.socks5.base.client.gateway_endpoint,
     )?;
     log::info!("The address of this client is: {}", address);

@@ -73,7 +73,7 @@ fn rust_free_string(string: char_p::Box) {
 
 #[derive_ReprC]
 #[ffi_export]
-#[repr(C)]
+#[repr(u8)]
 pub enum ClientState {
     Unknown,
     Connected,

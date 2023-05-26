@@ -42,6 +42,7 @@ jobs:
         run: npm install -g yarn
       - name: Run preinstall script
         run: yarn run preinstall
+        working-directory: nym-browser-extension
       - name: Install
         run: yarn
       - name: Build packages

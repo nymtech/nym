@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::default_config_filepath;
+use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
 use crate::{
     commands::{override_config, OverrideConfig},
     config::Config,
@@ -12,6 +12,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
+use std::{fs, io};
 
 #[derive(Args, Clone)]
 pub struct Init {
@@ -91,6 +92,11 @@ impl From<Init> for OverrideConfig {
     }
 }
 
+fn init_paths(id: &str) -> io::Result<()> {
+    fs::create_dir_all(default_data_directory(id))?;
+    fs::create_dir_all(default_config_directory(id))
+}
+
 pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
     eprintln!("Initialising gateway {}...", args.id);
 
@@ -102,6 +108,7 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
         );
         true
     } else {
+        init_paths(&args.id)?;
         false
     };
 

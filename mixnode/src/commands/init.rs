@@ -3,12 +3,15 @@
 
 use super::OverrideConfig;
 use crate::commands::override_config;
-use crate::config::{default_config_filepath, Config};
+use crate::config::{
+    default_config_directory, default_config_filepath, default_data_directory, Config,
+};
 use crate::node::MixNode;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use std::net::IpAddr;
+use std::{fs, io};
 
 #[derive(Args, Clone)]
 pub(crate) struct Init {
@@ -54,6 +57,11 @@ impl From<Init> for OverrideConfig {
     }
 }
 
+fn init_paths(id: &str) -> io::Result<()> {
+    fs::create_dir_all(default_data_directory(id))?;
+    fs::create_dir_all(default_config_directory(id))
+}
+
 pub(crate) fn execute(args: &Init) {
     let override_config_fields = OverrideConfig::from(args.clone());
     let id = override_config_fields.id.clone();
@@ -63,6 +71,7 @@ pub(crate) fn execute(args: &Init) {
         eprintln!("Mixnode \"{id}\" was already initialised before! Config information will be overwritten (but keys will be kept)!");
         true
     } else {
+        init_paths(&id).expect("failed to initialise storage paths");
         false
     };
 
@@ -97,9 +106,10 @@ pub(crate) fn execute(args: &Init) {
     }
 
     let config_save_location = config.default_location();
-    config
-        .save_to_default_location()
-        .expect("Failed to save the config file");
+    config.save_to_default_location().expect(&*format!(
+        "Failed to save the config file to {}",
+        config_save_location.display()
+    ));
     eprintln!(
         "Saved configuration file to {}",
         config_save_location.display()

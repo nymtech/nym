@@ -1,7 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::default_config_filepath;
+use crate::client::config::{
+    default_config_directory, default_config_filepath, default_data_directory,
+};
 use crate::commands::try_upgrade_v1_1_13_config;
 use crate::{
     client::config::Config,
@@ -16,6 +18,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;
 use std::net::IpAddr;
+use std::{fs, io};
 use tap::TapFallible;
 
 #[derive(Args, Clone)]
@@ -119,6 +122,11 @@ impl Display for InitResults {
     }
 }
 
+fn init_paths(id: &str) -> io::Result<()> {
+    fs::create_dir_all(default_data_directory(id))?;
+    fs::create_dir_all(default_config_directory(id))
+}
+
 pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     eprintln!("Initialising client...");
 
@@ -131,6 +139,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
         eprintln!("Client \"{id}\" was already initialised before");
         true
     } else {
+        init_paths(id)?;
         false
     };
 

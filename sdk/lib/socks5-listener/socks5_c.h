@@ -18,14 +18,22 @@ extern "C" {
 #include <stdint.h>
 
 /** <No documentation available> */
-typedef enum ClientState {
+/** \remark Has the same ABI as `uint8_t` **/
+#ifdef DOXYGEN
+typedef
+#endif
+enum ClientState {
     /** <No documentation available> */
     CLIENT_STATE_UNKNOWN,
     /** <No documentation available> */
     CLIENT_STATE_CONNECTED,
     /** <No documentation available> */
     CLIENT_STATE_DISCONNECTED,
-} ClientState_t;
+}
+#ifndef DOXYGEN
+; typedef uint8_t
+#endif
+ClientState_t;
 
 /** \brief
  *  `&'lt mut (dyn 'lt + Send + FnMut(A1) -> Ret)`

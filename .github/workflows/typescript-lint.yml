@@ -40,6 +40,8 @@ jobs:
           node-version: 16
       - name: Setup yarn
         run: npm install -g yarn
+      - name: Run preinstall script
+        run: yarn run preinstall
       - name: Install
         run: yarn
       - name: Build packages

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub use nym_client_core::config::Config as BaseConfig;
-use nym_client_core::config::DebugConfig;
 use nym_config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
 use nym_config::OptionalSet;
 use nym_service_providers_common::interface::ProviderInterfaceVersion;
@@ -10,7 +9,6 @@ use nym_socks5_requests::Socks5ProtocolVersion;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use std::path::PathBuf;
 use std::str::FromStr;
 
 pub mod old_config_v1_1_13;
@@ -33,6 +31,10 @@ impl Config {
             base: BaseConfig::new(id),
             socks5: Socks5::new(provider_mix_address),
         }
+    }
+
+    pub fn from_base(base: BaseConfig, socks5: Socks5) -> Self {
+        Config { base, socks5 }
     }
 
     pub fn validate(&self) -> bool {

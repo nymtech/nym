@@ -68,7 +68,8 @@ where
 
     #[allow(clippy::too_many_arguments)]
     pub fn start_socks5_listener(
-        config: Config,
+        socks5_config: &config::Socks5,
+        base_debug: DebugConfig,
         client_input: ClientInput,
         client_output: ClientOutput,
         client_status: ClientState,
@@ -94,26 +95,24 @@ where
             ..
         } = client_status;
 
-        let packet_size = config
-            .base
-            .debug
+        let packet_size = base_debug
             .traffic
             .secondary_packet_size
-            .unwrap_or(config.base.debug.traffic.primary_packet_size);
+            .unwrap_or(base_debug.traffic.primary_packet_size);
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = NymSocksServer::new(
-            config.socks5.listening_port,
+            socks5_config.listening_port,
             authenticator,
-            config.socks5.get_provider_mix_address(),
+            socks5_config.get_provider_mix_address(),
             self_address,
             shared_lane_queue_lengths,
             socks::client::Config::new(
                 packet_size,
-                config.socks5.provider_interface_version,
-                config.socks5.socks5_protocol_version,
-                config.socks5.send_anonymously,
-                config.socks5.socks5_debug,
+                socks5_config.provider_interface_version,
+                socks5_config.socks5_protocol_version,
+                socks5_config.send_anonymously,
+                socks5_config.socks5_debug,
             ),
             shutdown.clone(),
             packet_type,
@@ -218,7 +217,8 @@ where
         info!("Running with {packet_type} packets",);
 
         Self::start_socks5_listener(
-            self.config,
+            &self.config.socks5,
+            self.config.base.debug,
             client_input,
             client_output,
             client_state,

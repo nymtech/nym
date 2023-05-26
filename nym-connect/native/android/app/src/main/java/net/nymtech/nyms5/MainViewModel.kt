@@ -19,52 +19,42 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class Socks5ViewModel(
+class MainViewModel(
     private val workManager: WorkManager,
     private val nymProxy: NymProxy
 ) : ViewModel() {
     private val tag = "viewModel"
 
-    private val workRequest: OneTimeWorkRequest = OneTimeWorkRequestBuilder<ProxyWorker>()
-        .setConstraints(
-            Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-        )
-        .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-        .addTag(ProxyWorker.workTag)
-        .setId(ProxyWorker.workId)
-        .build()
+    private val workRequest: OneTimeWorkRequest =
+        OneTimeWorkRequestBuilder<ProxyWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED).build()
+            )
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            .addTag(ProxyWorker.workTag)
+            .setId(ProxyWorker.workId)
+            .build()
 
     init {
-        // observe the proxy work ProxyWorker
+        Log.d(tag, "____init")
+
+        // TODO ⚠ In some circumstances this `init` block can be run multiple
+        //  time which means the below observer will be registered more than once
+        //  This can leads to multiple sequential calls to `stopClient`
+        //  → nym_socks5_listener panics when this happens, crashing the
+        //  entire App
+
+        // When the work is cancelled "externally" ie. when the user tap the
+        // "Stop" action on the notification, or when the app is intentionally
+        // killed the underlying proxy client keeps running in background
+        // We have to manually call `stopClient` to stop it
         workManager.getWorkInfoByIdLiveData(ProxyWorker.workId)
+            // watch "forever", ie. even when the main activity has been stopped
             .observeForever { workInfo ->
                 if (workInfo?.state == WorkInfo.State.CANCELLED || workInfo?.state == WorkInfo.State.FAILED) {
-                    // when the work is cancelled, ie. from the work notification "Stop" action
-                    _uiState.update { currentState ->
-                        currentState.copy(
-                            connected = false,
-                            loading = true,
-                        )
-                    }
-                    stopProxy()
+                    cancelProxyWork()
                     Log.d(tag, "proxy work cancelled")
-                }
-                if (workInfo != null && workInfo.state == WorkInfo.State.RUNNING) {
-                    val progress = workInfo.progress.getString(ProxyWorker.State)
-                    Log.d(tag, "work connection state $progress")
-                    when (progress) {
-                        "CONNECTED" -> if (!_uiState.value.connected || _uiState.value.loading) {
-                            _uiState.update { currentState ->
-                                currentState.copy(
-                                    connected = true,
-                                    loading = false,
-                                )
-                            }
-                            Log.i(tag, "Nym proxy connected")
-                        }
-
-                        else -> {}
-                    }
                 }
             }
     }
@@ -82,15 +72,21 @@ class Socks5ViewModel(
         }
     }
 
-    data class Socks5State(val connected: Boolean = false, val loading: Boolean = false)
+    data class ProxyState(
+        val connected: Boolean = false,
+        val loading: Boolean = false
+    )
 
     // Expose screen UI state
-    private val _uiState = MutableStateFlow(Socks5State())
-    val uiState: StateFlow<Socks5State> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(ProxyState())
+    val uiState: StateFlow<ProxyState> = _uiState.asStateFlow()
 
-    private fun stopProxy() {
-        viewModelScope.launch(Dispatchers.IO) {
-            nymProxy.stop(callback)
+    fun setConnected() {
+        _uiState.update { currentState ->
+            currentState.copy(
+                connected = true,
+                loading = false,
+            )
         }
     }
 
@@ -119,15 +115,20 @@ class Socks5ViewModel(
                 loading = true,
             )
         }
-        stopProxy()
+        viewModelScope.launch(Dispatchers.IO) {
+            nymProxy.stop(callback)
+        }
     }
 }
 
-class Socks5ViewModelFactory(private val workManager: WorkManager, private val nymProxy: NymProxy) :
+class MainViewModelFactory(
+    private val workManager: WorkManager,
+    private val nymProxy: NymProxy
+) :
     ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return if (modelClass.isAssignableFrom(Socks5ViewModel::class.java)) {
-            Socks5ViewModel(workManager, nymProxy) as T
+        return if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
+            MainViewModel(workManager, nymProxy) as T
         } else {
             throw IllegalArgumentException("Unknown ViewModel class")
         }

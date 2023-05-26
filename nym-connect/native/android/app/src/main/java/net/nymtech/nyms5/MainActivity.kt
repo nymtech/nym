@@ -38,13 +38,14 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 
 class MainActivity : ComponentActivity() {
     private val tag = "MainActivity"
 
-    private val viewModel: Socks5ViewModel by viewModels {
-        Socks5ViewModelFactory(
+    private val viewModel: MainViewModel by viewModels {
+        MainViewModelFactory(
             workManager = WorkManager.getInstance(applicationContext),
             nymProxy = App.nymProxy
         )
@@ -52,9 +53,30 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d(tag, "____onCreate")
+
+        // observe proxy work progress
+        WorkManager.getInstance(applicationContext)
+            .getWorkInfoByIdLiveData(ProxyWorker.workId)
+            // this observer is tied to the activity lifecycle
+            .observe(this) { workInfo ->
+                if (workInfo != null && workInfo.state == WorkInfo.State.RUNNING) {
+                    val progress =
+                        workInfo.progress.getString(ProxyWorker.State)
+                    when (progress) {
+                        ProxyWorker.Work.Status.CONNECTED.name -> {
+                            Log.i(tag, "Nym proxy $progress")
+                            viewModel.setConnected()
+                        }
+
+                        else -> Log.i(tag, "Nym proxy $progress")
+                    }
+                }
+            }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                Log.d(tag, "____uiState collect")
                 viewModel.uiState.collect {
                     setContent {
                         NymTheme {
@@ -72,6 +94,7 @@ class MainActivity : ComponentActivity() {
                                                 Log.d(tag, "switch ON")
                                                 viewModel.startProxyWork()
                                             }
+
                                             else -> {
                                                 Log.d(tag, "switch OFF")
                                                 viewModel.cancelProxyWork()
@@ -108,7 +131,10 @@ fun S5ClientSwitch(
         Spacer(modifier = modifier.height(2.dp))
     }
     Column(modifier = modifier.padding(16.dp)) {
-        Row(modifier = modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text("Nym proxy")
             Spacer(modifier = modifier.width(14.dp))
             Switch(checked = connected, enabled = !loading, onCheckedChange = {

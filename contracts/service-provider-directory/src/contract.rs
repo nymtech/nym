@@ -102,174 +102,251 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
     Ok(response?)
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//
-//    use crate::test_helpers::{
-//        assert::{assert_config, assert_empty, assert_not_found, assert_service, assert_services},
-//        fixture::service_fixture,
-//        helpers::{get_attribute, nyms},
-//    };
-//
-//    use cosmwasm_std::{
-//        testing::{mock_dependencies, mock_env, mock_info},
-//        Addr, Coin,
-//    };
-//    use nym_service_provider_directory_common::{msg::ExecuteMsg, ServiceId, ServiceInfo};
-//
-//    const DENOM: &str = "unym";
-//
-//    #[test]
-//    fn instantiate_contract() {
-//        let mut deps = mock_dependencies();
-//        let msg = InstantiateMsg {
-//            deposit_required: Coin::new(100u128, DENOM),
-//        };
-//        let info = mock_info("creator", &[]);
-//        let admin = info.sender.clone();
-//
-//        // Instantiate contract
-//        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-//        assert_eq!(res.messages.len(), 0);
-//
-//        // Check that it worked by querying the config, and checking that the list of services is
-//        // empty
-//        assert_config(deps.as_ref(), &admin, Coin::new(100u128, DENOM));
-//        assert_empty(deps.as_ref());
-//    }
-//
-//    #[test]
-//    fn announce_fails_incorrect_deposit() {
-//        let mut deps = mock_dependencies();
-//        let msg = InstantiateMsg::new(nyms(100));
-//        let info = mock_info("creator", &[]);
-//        let admin = info.sender.clone();
-//        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-//        assert_eq!(res.messages.len(), 0);
-//
-//        // Announce
-//        let msg: ExecuteMsg = service_fixture().into();
-//        let announcer = service_fixture().announcer.to_string();
-//
-//        assert_eq!(
-//            execute(
-//                deps.as_mut(),
-//                mock_env(),
-//                mock_info(&announcer, &[nyms(99)]),
-//                msg.clone()
-//            )
-//            .unwrap_err(),
-//            ContractError::InsufficientDeposit {
-//                funds: 99u128.into(),
-//                deposit_required: 100u128.into(),
-//            }
-//        );
-//
-//        assert_eq!(
-//            execute(
-//                deps.as_mut(),
-//                mock_env(),
-//                mock_info(&announcer, &[nyms(101)]),
-//                msg
-//            )
-//            .unwrap_err(),
-//            ContractError::TooLargeDeposit {
-//                funds: 101u128.into(),
-//                deposit_required: 100u128.into(),
-//            }
-//        );
-//
-//        assert_config(deps.as_ref(), &admin, Coin::new(100, DENOM));
-//        assert_empty(deps.as_ref());
-//    }
-//
-//    #[test]
-//    fn announce_success() {
-//        let mut deps = mock_dependencies();
-//        let msg = InstantiateMsg::new(nyms(100));
-//        let info = mock_info("creator", &[]);
-//        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-//        assert_eq!(res.messages.len(), 0);
-//
-//        // Announce
-//        let msg: ExecuteMsg = service_fixture().into();
-//        let info = mock_info("steve", &[nyms(100)]);
-//        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-//
-//        // Check that the service has had service id assigned to it
-//        let expected_id = 1;
-//        let id: ServiceId = get_attribute(&res, "announce", "service_id")
-//            .parse()
-//            .unwrap();
-//        assert_eq!(id, expected_id);
-//        assert_eq!(
-//            get_attribute(&res, "announce", "service_type"),
-//            "network_requester".to_string()
-//        );
-//
-//        // The expected announced service
-//        let expected_service = ServiceInfo {
-//            service_id: expected_id,
-//            service: service_fixture(),
-//        };
-//        assert_services(deps.as_ref(), &[expected_service.clone()]);
-//        assert_service(deps.as_ref(), &expected_service);
-//    }
-//
-//    #[test]
-//    fn delete() {
-//        let mut deps = mock_dependencies();
-//        let msg = InstantiateMsg::new(Coin::new(100, "unym"));
-//        let info = mock_info("creator", &[]);
-//        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-//        assert_eq!(res.messages.len(), 0);
-//
-//        // Announce
-//        let msg: ExecuteMsg = service_fixture().into();
-//        let info_steve = mock_info("steve", &[nyms(100)]);
-//        assert_eq!(info_steve.sender, service_fixture().announcer);
-//        execute(deps.as_mut(), mock_env(), info_steve, msg).unwrap();
-//
-//        // The expected announced service
-//        let expected_id = 1;
-//        let expected_service = ServiceInfo {
-//            service_id: expected_id,
-//            service: service_fixture(),
-//        };
-//        assert_services(deps.as_ref(), &[expected_service]);
-//
-//        // Removing someone else's service will fail
-//        let msg = ExecuteMsg::delete_id(expected_id);
-//        let info_timmy = mock_info("timmy", &[]);
-//        assert_eq!(
-//            execute(deps.as_mut(), mock_env(), info_timmy, msg).unwrap_err(),
-//            ContractError::Unauthorized {
-//                sender: Addr::unchecked("timmy")
-//            }
-//        );
-//
-//        // Removing an non-existent service will fail
-//        let msg = ExecuteMsg::delete_id(expected_id + 1);
-//        let info_announcer = MessageInfo {
-//            sender: service_fixture().announcer,
-//            funds: vec![],
-//        };
-//        assert_eq!(
-//            execute(deps.as_mut(), mock_env(), info_announcer.clone(), msg).unwrap_err(),
-//            ContractError::NotFound {
-//                service_id: expected_id + 1
-//            }
-//        );
-//
-//        // Remove as correct announcer succeeds
-//        let msg = ExecuteMsg::delete_id(expected_id);
-//        let res = execute(deps.as_mut(), mock_env(), info_announcer, msg).unwrap();
-//        assert_eq!(
-//            get_attribute(&res, "delete_id", "service_id"),
-//            expected_id.to_string()
-//        );
-//        assert_services(deps.as_ref(), &[]);
-//        assert_not_found(deps.as_ref(), expected_id);
-//    }
-//}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::test_helpers::{
+        assert::{assert_config, assert_empty, assert_not_found, assert_service, assert_services},
+        fixture::service_fixture,
+        helpers::{get_attribute, nyms},
+    };
+
+    use cosmwasm_std::{
+        testing::{mock_dependencies, mock_env, mock_info},
+        Addr, Coin,
+    };
+    use nym_contracts_common::signing::{
+        ContractMessageContent, MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose,
+    };
+    use nym_crypto::asymmetric::identity;
+    use nym_service_provider_directory_common::{
+        msg::ExecuteMsg,
+        signing_types::{
+            construct_service_provider_announce_sign_payload, ServiceProviderAnnounce,
+            SignableServiceProviderAnnounceMsg,
+        },
+        Service, ServiceDetails, ServiceId,
+    };
+
+    const DENOM: &str = "unym";
+
+    #[test]
+    fn instantiate_contract() {
+        let mut deps = mock_dependencies();
+        let msg = InstantiateMsg {
+            deposit_required: Coin::new(100u128, DENOM),
+        };
+        let info = mock_info("creator", &[]);
+        let admin = info.sender.clone();
+
+        // Instantiate contract
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
+
+        // Check that it worked by querying the config, and checking that the list of services is
+        // empty
+        assert_config(deps.as_ref(), &admin, Coin::new(100u128, DENOM));
+        assert_empty(deps.as_ref());
+    }
+
+    //#[test]
+    //fn announce_fails_incorrect_deposit() {
+    //    let mut deps = mock_dependencies();
+    //    let msg = InstantiateMsg::new(nyms(100));
+    //    let info = mock_info("creator", &[]);
+    //    let admin = info.sender.clone();
+    //    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+    //    assert_eq!(res.messages.len(), 0);
+
+    //    // Announce
+    //    let msg: ExecuteMsg = service_fixture().into();
+    //    let announcer = service_fixture().announcer.to_string();
+
+    //    assert_eq!(
+    //        execute(
+    //            deps.as_mut(),
+    //            mock_env(),
+    //            mock_info(&announcer, &[nyms(99)]),
+    //            msg.clone()
+    //        )
+    //        .unwrap_err(),
+    //        ContractError::InsufficientDeposit {
+    //            funds: 99u128.into(),
+    //            deposit_required: 100u128.into(),
+    //        }
+    //    );
+
+    //    assert_eq!(
+    //        execute(
+    //            deps.as_mut(),
+    //            mock_env(),
+    //            mock_info(&announcer, &[nyms(101)]),
+    //            msg
+    //        )
+    //        .unwrap_err(),
+    //        ContractError::TooLargeDeposit {
+    //            funds: 101u128.into(),
+    //            deposit_required: 100u128.into(),
+    //        }
+    //    );
+
+    //    assert_config(deps.as_ref(), &admin, Coin::new(100, DENOM));
+    //    assert_empty(deps.as_ref());
+    //}
+
+    fn test_rng() -> ChaCha20Rng {
+        let dummy_seed = [42u8; 32];
+        ChaCha20Rng::from_seed(dummy_seed)
+    }
+
+    #[test]
+    fn announce_success() {
+        let mut deps = mock_dependencies();
+        let msg = InstantiateMsg::new(nyms(100));
+        let info = mock_info("creator", &[]);
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
+
+        // Announce
+        //let service = service_fixture();
+
+        let mut rng = test_rng();
+        let keypair = identity::KeyPair::new(&mut rng);
+        let identity_key = keypair.public_key().to_base58_string();
+        let service = service_fixture();
+        let announcer = "steve";
+        let deposit = nyms(100);
+
+        let sign_msg = service_provider_announce_sign_payload(
+            deps.as_ref(),
+            announcer,
+            service.clone(),
+            deposit,
+        );
+        let owner_signature = ed25519_sign_message(sign_msg, keypair.private_key());
+
+        let msg = ExecuteMsg::Announce {
+            service: service.clone(),
+            owner_signature,
+        };
+
+        //let service = Service {
+        //    service_id: todo!(),
+        //    service: service_fixture(),
+        //    announcer: Addr::unchecked("steve"),
+        //    block_height: 12345,
+        //    deposit: nyms(100),
+        //};
+
+        //let msg: ExecuteMsg = service_fixture().into();
+        //let info = mock_info("steve", &[nyms(100)]);
+        //let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // Check that the service has had service id assigned to it
+        //let expected_id = 1;
+        //let id: ServiceId = get_attribute(&res, "announce", "service_id")
+        //    .parse()
+        //    .unwrap();
+        //assert_eq!(id, expected_id);
+        //assert_eq!(
+        //    get_attribute(&res, "announce", "service_type"),
+        //    "network_requester".to_string()
+        //);
+
+        //// The expected announced service
+        //let expected_service = ServiceInfo {
+        //    service_id: expected_id,
+        //    service: service_fixture(),
+        //};
+        //assert_services(deps.as_ref(), &[expected_service.clone()]);
+        //assert_service(deps.as_ref(), &expected_service);
+    }
+
+    use mixnet_contract::signing::storage as signing_storage;
+    use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
+    use serde::Serialize;
+
+    fn service_provider_announce_sign_payload(
+        deps: Deps<'_>,
+        owner: &str,
+        service: ServiceDetails,
+        deposit: Coin,
+    ) -> SignableServiceProviderAnnounceMsg {
+        let owner = Addr::unchecked(owner);
+        let nonce = signing_storage::get_signing_nonce(deps.storage, owner.clone()).unwrap();
+        construct_service_provider_announce_sign_payload(nonce, owner, deposit, service)
+    }
+
+    fn ed25519_sign_message<T: Serialize + SigningPurpose>(
+        message: SignableMessage<T>,
+        private_key: &identity::PrivateKey,
+    ) -> MessageSignature {
+        match message.algorithm {
+            SigningAlgorithm::Ed25519 => {
+                let plaintext = message.to_plaintext().unwrap();
+                let signature = private_key.sign(&plaintext);
+                MessageSignature::from(signature.to_bytes().as_ref())
+            }
+            SigningAlgorithm::Secp256k1 => {
+                unimplemented!()
+            }
+        }
+    }
+
+    //#[test]
+    //fn delete() {
+    //    let mut deps = mock_dependencies();
+    //    let msg = InstantiateMsg::new(Coin::new(100, "unym"));
+    //    let info = mock_info("creator", &[]);
+    //    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+    //    assert_eq!(res.messages.len(), 0);
+
+    //    // Announce
+    //    let msg: ExecuteMsg = service_fixture().into();
+    //    let info_steve = mock_info("steve", &[nyms(100)]);
+    //    assert_eq!(info_steve.sender, service_fixture().announcer);
+    //    execute(deps.as_mut(), mock_env(), info_steve, msg).unwrap();
+
+    //    // The expected announced service
+    //    let expected_id = 1;
+    //    let expected_service = ServiceInfo {
+    //        service_id: expected_id,
+    //        service: service_fixture(),
+    //    };
+    //    assert_services(deps.as_ref(), &[expected_service]);
+
+    //    // Removing someone else's service will fail
+    //    let msg = ExecuteMsg::delete_id(expected_id);
+    //    let info_timmy = mock_info("timmy", &[]);
+    //    assert_eq!(
+    //        execute(deps.as_mut(), mock_env(), info_timmy, msg).unwrap_err(),
+    //        ContractError::Unauthorized {
+    //            sender: Addr::unchecked("timmy")
+    //        }
+    //    );
+
+    //    // Removing an non-existent service will fail
+    //    let msg = ExecuteMsg::delete_id(expected_id + 1);
+    //    let info_announcer = MessageInfo {
+    //        sender: service_fixture().announcer,
+    //        funds: vec![],
+    //    };
+    //    assert_eq!(
+    //        execute(deps.as_mut(), mock_env(), info_announcer.clone(), msg).unwrap_err(),
+    //        ContractError::NotFound {
+    //            service_id: expected_id + 1
+    //        }
+    //    );
+
+    //    // Remove as correct announcer succeeds
+    //    let msg = ExecuteMsg::delete_id(expected_id);
+    //    let res = execute(deps.as_mut(), mock_env(), info_announcer, msg).unwrap();
+    //    assert_eq!(
+    //        get_attribute(&res, "delete_id", "service_id"),
+    //        expected_id.to_string()
+    //    );
+    //    assert_services(deps.as_ref(), &[]);
+    //    assert_not_found(deps.as_ref(), expected_id);
+    //}
+}

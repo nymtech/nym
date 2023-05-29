@@ -23,11 +23,11 @@ impl SigningPurpose for ServiceProviderAnnounce {
 pub fn construct_service_provider_announce_sign_payload(
     nonce: Nonce,
     sender: Addr,
-    pledge: Coin,
+    deposit: Coin,
     service: ServiceDetails,
 ) -> SignableServiceProviderAnnounceMsg {
     let payload = ServiceProviderAnnounce { service };
     let proxy = None;
-    let content = ContractMessageContent::new(sender, proxy, vec![pledge], payload);
+    let content = ContractMessageContent::new(sender, proxy, vec![deposit], payload);
     SignableMessage::new(nonce, content)
 }

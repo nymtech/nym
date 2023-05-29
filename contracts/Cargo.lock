@@ -1276,6 +1276,7 @@ dependencies = [
  "nym-crypto",
  "nym-mixnet-contract",
  "nym-service-provider-directory-common",
+ "rand_chacha 0.2.2",
  "semver",
  "serde",
  "thiserror",

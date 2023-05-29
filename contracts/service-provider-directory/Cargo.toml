@@ -27,3 +27,4 @@ vergen = { version = "=7.4.3", default-features = false, features = ["build", "g
 cw-multi-test = { workspace = true }
 anyhow = "1.0.40"
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+rand_chacha = "0.2"

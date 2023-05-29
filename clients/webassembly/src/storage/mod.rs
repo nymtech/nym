@@ -31,7 +31,7 @@ mod v1 {
     pub const GATEWAY_CONFIG: &str = "gateway_config";
 
     pub const ED25519_IDENTITY_KEYPAIR: &str = "ed25519_identity_keypair";
-    pub const X25519_ENCRYPTION_KEYPAIR: &str = "x25519_encryption_key";
+    pub const X25519_ENCRYPTION_KEYPAIR: &str = "x25519_encryption_keypair";
 
     // TODO: for those we could actually use the subtle crypto storage
     pub const AES128CTR_ACK_KEY: &str = "aes128ctr_ack_key";

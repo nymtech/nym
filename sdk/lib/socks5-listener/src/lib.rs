@@ -59,6 +59,10 @@ async fn stop_and_reset_shutdown_handle() {
     *guard = None
 }
 
+async fn is_shutdown_handle_set() -> bool {
+    CLIENT_SHUTDOWN_HANDLE.lock().await.is_some()
+}
+
 fn set_default_env() {
     if !ENV_SET.swap(true, Ordering::SeqCst) {
         setup_env(None);
@@ -75,9 +79,23 @@ fn rust_free_string(string: char_p::Box) {
 #[ffi_export]
 #[repr(u8)]
 pub enum ClientState {
-    Unknown,
+    Uninitialised,
     Connected,
     Disconnected,
+}
+
+#[ffi_export]
+pub fn get_client_state() -> ClientState {
+    // if the environment is not set, we never called start before
+    // if the shutdown was never set, the client can't possibly be running
+    // and similarly if it's set, it's most likely running
+    if !ENV_SET.load(Ordering::Relaxed) {
+        ClientState::Uninitialised
+    } else if RUNTIME.block_on(is_shutdown_handle_set()) {
+        ClientState::Connected
+    } else {
+        ClientState::Disconnected
+    }
 }
 
 #[ffi_export]

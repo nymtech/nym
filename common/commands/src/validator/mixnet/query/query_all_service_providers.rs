@@ -22,6 +22,7 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
                 let service = res.services.iter().find(|service| {
                     service
                         .service
+                        .service
                         .nym_address
                         .to_string()
                         .eq_ignore_ascii_case(&nym_address)
@@ -38,8 +39,8 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
                     table.add_row(vec![
                         service.service_id.to_string(),
                         service.service.announcer.to_string(),
-                        service.service.service_type.to_string(),
-                        service.service.nym_address.to_string(),
+                        service.service.service.service_type.to_string(),
+                        service.service.service.nym_address.to_string(),
                     ]);
                 }
 

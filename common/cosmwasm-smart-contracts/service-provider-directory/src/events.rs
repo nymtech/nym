@@ -39,8 +39,8 @@ pub fn new_announce_event(service_id: ServiceId, service: Service) -> Event {
     Event::new(ServiceProviderEventType::Announce)
         .add_attribute(ACTION, ServiceProviderEventType::Announce)
         .add_attribute(SERVICE_ID, service_id.to_string())
-        .add_attribute(SERVICE_TYPE, service.service_type.to_string())
-        .add_attribute(NYM_ADDRESS, service.nym_address.to_string())
+        .add_attribute(SERVICE_TYPE, service.service.service_type.to_string())
+        .add_attribute(NYM_ADDRESS, service.service.nym_address.to_string())
         .add_attribute(OWNER, service.announcer.to_string())
 }
 
@@ -48,7 +48,7 @@ pub fn new_delete_id_event(service_id: ServiceId, service: Service) -> Event {
     Event::new(ServiceProviderEventType::DeleteId)
         .add_attribute(ACTION, ServiceProviderEventType::DeleteId)
         .add_attribute(SERVICE_ID, service_id.to_string())
-        .add_attribute(NYM_ADDRESS, service.nym_address.to_string())
+        .add_attribute(NYM_ADDRESS, service.service.nym_address.to_string())
 }
 
 pub fn new_update_deposit_required_event(deposit_required: Coin) -> Event {

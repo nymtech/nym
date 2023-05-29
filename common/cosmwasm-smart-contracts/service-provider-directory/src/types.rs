@@ -9,11 +9,11 @@ pub type ServiceId = u32;
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
 pub struct Service {
-    /// The address of the service.
-    pub nym_address: NymAddress,
-    /// The service type.
-    pub service_type: ServiceType,
-    /// Service owner.
+    // WIP(JON): store service_id here
+    //pub service_id: ServiceId,
+    /// The announced service.
+    pub service: ServiceDetails,
+    /// Address of the service owner.
     pub announcer: Addr,
     /// Block height at which the service was added.
     pub block_height: u64,
@@ -21,7 +21,6 @@ pub struct Service {
     pub deposit: Coin,
 }
 
-/// WIP(JON): place this inside `Service`.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
 pub struct ServiceDetails {
     /// The address of the service.

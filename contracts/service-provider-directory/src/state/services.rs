@@ -26,7 +26,7 @@ impl<'a> IndexList<Service> for ServiceIndex<'a> {
 fn services<'a>() -> IndexedMap<'a, ServiceId, Service, ServiceIndex<'a>> {
     let indexes = ServiceIndex {
         nym_address: MultiIndex::new(
-            |d| d.nym_address.to_string(),
+            |d| d.service.nym_address.to_string(),
             SERVICES_PK_NAMESPACE,
             SERVICES_NYM_ADDRESS_IDX_NAMESPACE,
         ),

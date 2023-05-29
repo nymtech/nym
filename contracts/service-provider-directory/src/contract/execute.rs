@@ -106,8 +106,7 @@ pub fn announce(
     )?;
 
     let new_service = Service {
-        nym_address: service.nym_address,
-        service_type: service.service_type,
+        service,
         announcer: info.sender,
         block_height: env.block.height,
         deposit,

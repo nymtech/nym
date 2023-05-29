@@ -12,7 +12,7 @@ class RustSocks5: ObservableObject {
     @Published var operationInProgress = false
     @Published var clientAddress = ""
     @Published var connected = false
-    @Published var status: ClientState = CLIENT_STATE_UNKNOWN
+    @Published var status: ClientState = CLIENT_STATE_UNINITIALISED
     @Published var serviceProvider: String?;
     
     init() {

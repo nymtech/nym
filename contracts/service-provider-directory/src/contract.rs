@@ -72,10 +72,9 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Announce {
-            nym_address: client_address,
-            service_type,
-            signature,
-        } => execute::announce(deps, env, info, client_address, service_type, signature),
+            service,
+            owner_signature,
+        } => execute::announce(deps, env, info, service, owner_signature),
         ExecuteMsg::DeleteId { service_id } => execute::delete_id(deps, info, service_id),
         ExecuteMsg::DeleteNymAddress { nym_address } => {
             execute::delete_nym_address(deps, info, nym_address)

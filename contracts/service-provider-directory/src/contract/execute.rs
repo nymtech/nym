@@ -4,9 +4,12 @@ use crate::{
     state,
 };
 use cosmwasm_std::{Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Response, Uint128};
+use mixnet_contract::signing::storage as signing_storage;
+use nym_contracts_common::signing::{MessageSignature, Verifier};
 use nym_service_provider_directory_common::{
     events::{new_announce_event, new_delete_id_event, new_update_deposit_required_event},
-    NymAddress, Service, ServiceId, ServiceType,
+    signing_types::construct_service_provider_announce_sign_payload,
+    NymAddress, Service, ServiceDetails, ServiceId,
 };
 
 use super::query;
@@ -79,12 +82,11 @@ pub fn announce(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    nym_address: NymAddress,
-    service_type: ServiceType,
+    service: ServiceDetails,
     owner_signature: MessageSignature,
 ) -> Result<Response> {
     ensure_max_services_per_announcer(deps.as_ref(), info.sender.clone())?;
-    ensure_max_aliases_per_nym_address(deps.as_ref(), nym_address.clone())?;
+    ensure_max_aliases_per_nym_address(deps.as_ref(), service.nym_address.clone())?;
 
     let deposit_required = state::deposit_required(deps.storage)?;
     let denom = deposit_required.denom.clone();
@@ -92,20 +94,23 @@ pub fn announce(
         .map_err(|err| ContractError::DepositRequired { source: err })?;
     ensure_correct_deposit(will_deposit, deposit_required.amount)?;
 
+    let deposit = Coin::new(will_deposit.u128(), denom);
+
+    // Check that the sender actually owns the service provider by checking the signature
     verify_announce_signature(
-        &nym_address,
-        &service_type,
-        &owner_signature,
-        &info.sender,
-        &env.contract.address,
+        deps.as_ref(),
+        info.sender.clone(),
+        deposit.clone(),
+        service.clone(),
+        owner_signature,
     )?;
 
     let new_service = Service {
-        nym_address,
-        service_type,
+        nym_address: service.nym_address,
+        service_type: service.service_type,
         announcer: info.sender,
         block_height: env.block.height,
-        deposit: Coin::new(will_deposit.u128(), denom),
+        deposit,
     };
     let service_id = state::services::save(deps.storage, &new_service)?;
 
@@ -125,16 +130,29 @@ fn verify_announce_signature(
     // reconstruct the payload
     let nonce = signing_storage::get_signing_nonce(deps.storage, sender.clone())?;
 
-    // WIP(JON): what about sender here?
-    let msg =
-        construct_service_announce_payload(nonce, address, coin, service);
-        //construct_service_announce_payload(nonce, sender, proxy, pledge, mixnode, cost_params);
+    let msg = construct_service_provider_announce_sign_payload(nonce, sender, deposit, service);
 
     if deps.api.verify_message(msg, signature, &public_key)? {
         Ok(())
     } else {
-        Err(ContractError::InvalidSignature)
+        Err(ContractError::InvalidEd25519Signature)
     }
+}
+
+// WIP(JON): dedup this, and/or move to something more generic and common
+fn decode_ed25519_identity_key(encoded: &str) -> Result<[u8; 32]> {
+    let mut public_key = [0u8; 32];
+    let used = bs58::decode(encoded)
+        .into(&mut public_key)
+        .map_err(|err| ContractError::MalformedEd25519IdentityKey(err.to_string()))?;
+
+    if used != 32 {
+        return Err(ContractError::MalformedEd25519IdentityKey(
+            "Too few bytes provided for the public key".into(),
+        ));
+    }
+
+    Ok(public_key)
 }
 
 /// Delete an exsisting service.

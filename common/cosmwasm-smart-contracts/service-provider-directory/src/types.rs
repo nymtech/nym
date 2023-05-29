@@ -28,6 +28,8 @@ pub struct ServiceDetails {
     pub nym_address: NymAddress,
     /// The service type.
     pub service_type: ServiceType,
+    // WIP(JON): user `IdentityKey` instead
+    pub identity_key: String,
 }
 
 /// The types of addresses supported.

@@ -33,7 +33,7 @@ pub trait SpDirectorySigningClient {
             SpExecuteMsg::Announce {
                 nym_address: service.nym_address,
                 service_type: service.service_type,
-                signature: owner_signature,
+                owner_signature: owner_signature,
             },
             vec![deposit],
         )

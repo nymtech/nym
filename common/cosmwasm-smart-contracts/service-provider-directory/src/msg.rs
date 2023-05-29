@@ -1,4 +1,4 @@
-use crate::{NymAddress, ServiceId, ServiceType};
+use crate::{NymAddress, ServiceDetails, ServiceId};
 use cosmwasm_std::Coin;
 use nym_contracts_common::signing::MessageSignature;
 use serde::{Deserialize, Serialize};
@@ -23,10 +23,8 @@ pub struct MigrateMsg {}
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     Announce {
-        // WIP(JON): use `ServiceDetails`
-        nym_address: NymAddress,
-        service_type: ServiceType,
-        signature: MessageSignature,
+        service: ServiceDetails,
+        owner_signature: MessageSignature,
     },
     DeleteId {
         service_id: ServiceId,
@@ -47,10 +45,12 @@ impl ExecuteMsg {
     pub fn default_memo(&self) -> String {
         match self {
             ExecuteMsg::Announce {
-                nym_address,
-                service_type,
-                signature: _,
-            } => format!("announcing {nym_address} as type {service_type}"),
+                service,
+                owner_signature: _,
+            } => format!(
+                "announcing {} as type {}",
+                service.nym_address, service.service_type
+            ),
             ExecuteMsg::DeleteId { service_id } => {
                 format!("deleting service with service id {service_id}")
             }

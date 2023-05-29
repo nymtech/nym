@@ -58,6 +58,7 @@ pub struct ConfigResponse {
     pub deposit_required: Coin,
 }
 
+// WIP(JON)
 //impl From<Service> for ExecuteMsg {
 //    fn from(service: Service) -> Self {
 //        ExecuteMsg::Announce {

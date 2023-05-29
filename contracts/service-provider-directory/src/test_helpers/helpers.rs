@@ -7,7 +7,7 @@ use cw_multi_test::AppResponse;
 use nym_service_provider_directory_common::{
     events::{ServiceProviderEventType, SERVICE_ID},
     msg::{ExecuteMsg, InstantiateMsg},
-    Service, ServiceId,
+    Service, ServiceDetails, ServiceId,
 };
 
 pub fn nyms(amount: u64) -> Coin {
@@ -83,19 +83,31 @@ pub fn instantiate_test_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuer
     deps
 }
 
-pub fn announce_service(deps: DepsMut<'_>, service: &Service) -> ServiceId {
-    let msg: ExecuteMsg = service.clone().into();
-    let info = mock_info(service.announcer.as_str(), &coins(100, "unym"));
-    let res = crate::execute(deps, mock_env(), info, msg).unwrap();
-    let service_id: ServiceId = get_attribute(
-        &res,
-        &ServiceProviderEventType::Announce.to_string(),
-        SERVICE_ID,
-    )
-    .parse()
-    .unwrap();
-    service_id
-}
+//use nym_crypto::asymmetric::identity;
+
+//pub fn announce_service(deps: DepsMut<'_>, service: &ServiceDetails, announcer: &str) -> ServiceId {
+//    let keypair = identity::KeyPair::new();
+//    let identity_key = keypair.public_key().to_base58_string();
+//
+//    let msg = service_provider_announce_sign_payload(deps, sender, service.clone(), deposit);
+//
+//    //let msg: ExecuteMsg = service.clone().into();
+//    let msg = ExecuteMsg::Announce {
+//        service: service.clone(),
+//        owner_signature: todo!(),
+//    };
+//    //let info = mock_info(service.announcer.as_str(), &coins(100, "unym"));
+//    let info = mock_info(announcer, &coins(100, "unym"));
+//    let res = crate::execute(deps, mock_env(), info, msg).unwrap();
+//    let service_id: ServiceId = get_attribute(
+//        &res,
+//        &ServiceProviderEventType::Announce.to_string(),
+//        SERVICE_ID,
+//    )
+//    .parse()
+//    .unwrap();
+//    service_id
+//}
 
 pub fn delete_service(deps: DepsMut<'_>, service_id: ServiceId, announcer: &str) {
     let msg = ExecuteMsg::DeleteId { service_id };

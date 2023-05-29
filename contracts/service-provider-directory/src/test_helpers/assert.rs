@@ -2,7 +2,7 @@ use cosmwasm_std::{from_binary, testing::mock_env, Addr, Coin, Deps};
 use nym_service_provider_directory_common::{
     msg::QueryMsg,
     response::{ConfigResponse, PagedServicesListResponse},
-    ServiceId, ServiceInfo,
+    Service, ServiceId,
 };
 
 use crate::{constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT, error::ContractError};
@@ -14,7 +14,7 @@ pub fn assert_config(deps: Deps, admin: &Addr, deposit_required: Coin) {
     assert_eq!(config, ConfigResponse { deposit_required });
 }
 
-pub fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {
+pub fn assert_services(deps: Deps, expected_services: &[Service]) {
     let res = crate::contract::query(deps, mock_env(), QueryMsg::all()).unwrap();
     let services: PagedServicesListResponse = from_binary(&res).unwrap();
     let start_next_after = expected_services.iter().last().map(|s| s.service_id);
@@ -28,7 +28,7 @@ pub fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {
     );
 }
 
-pub fn assert_service(deps: Deps, expected_service: &ServiceInfo) {
+pub fn assert_service(deps: Deps, expected_service: &Service) {
     let res = crate::contract::query(
         deps,
         mock_env(),
@@ -37,7 +37,7 @@ pub fn assert_service(deps: Deps, expected_service: &ServiceInfo) {
         },
     )
     .unwrap();
-    let services: ServiceInfo = from_binary(&res).unwrap();
+    let services: Service = from_binary(&res).unwrap();
     assert_eq!(&services, expected_service);
 }
 

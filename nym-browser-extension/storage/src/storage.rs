@@ -25,6 +25,24 @@ pub struct ExtensionStorage {
     inner: Arc<WasmStorage>,
 }
 
+fn db_migration() -> Box<dyn Fn(&IdbVersionChangeEvent) -> Result<(), JsValue>> {
+    Box::new(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
+        // Even if the web-sys bindings expose the version as a f64, the IndexedDB API
+        // works with an unsigned integer.
+        // See <https://github.com/rustwasm/wasm-bindgen/issues/1149>
+        let old_version = evt.old_version() as u32;
+
+        if old_version < 1 {
+            // migrating to version 1
+            let db = evt.db();
+
+            db.create_object_store(v1::MNEMONICS_STORE)?;
+        }
+
+        Ok(())
+    })
+}
+
 #[wasm_bindgen]
 impl ExtensionStorage {
     pub(crate) async fn new_async(passphrase: String) -> Result<Self, ExtensionStorageError> {
@@ -32,28 +50,12 @@ impl ExtensionStorage {
         // special care must be taken on JS side to ensure it's correctly used there.
         let passphrase = Zeroizing::new(passphrase);
 
-        let migrate_fn = Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
-            // Even if the web-sys bindings expose the version as a f64, the IndexedDB API
-            // works with an unsigned integer.
-            // See <https://github.com/rustwasm/wasm-bindgen/issues/1149>
-            let old_version = evt.old_version() as u32;
-
-            if old_version < 1 {
-                // migrating to version 1
-                let db = evt.db();
-
-                db.create_object_store(v1::MNEMONICS_STORE)?;
-            }
-
-            Ok(())
-        });
-
         let pass_ref: &str = passphrase.as_ref();
 
         let inner = WasmStorage::new(
             STORAGE_NAME,
             STORAGE_VERSION,
-            migrate_fn,
+            Some(db_migration()),
             Some(pass_ref.as_bytes()),
         )
         .await?;
@@ -67,6 +69,14 @@ impl ExtensionStorage {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(passphrase: String) -> Promise {
         future_to_promise(async move { Self::new_async(passphrase).await.into_promise_result() })
+    }
+
+    pub(crate) async fn exists_async() -> Result<bool, ExtensionStorageError> {
+        Ok(WasmStorage::exists(STORAGE_NAME).await?)
+    }
+
+    pub fn exists() -> Promise {
+        future_to_promise(async move { Self::exists_async().await.into_promise_result() })
     }
 
     async fn store_mnemonic_async(

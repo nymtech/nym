@@ -88,6 +88,23 @@ impl WasmStorage {
         })
     }
 
+    pub async fn exists(db_name: &str) -> Result<bool, StorageError> {
+        let db_req: OpenDbRequest = IdbDatabase::open(db_name)?;
+        let db: IdbDatabase = db_req.into_future().await?;
+
+        // if the db was already created before, at the very least cipher info store should exist,
+        // thus the iterator should return at least one value
+        let some_stores_exist = db.object_store_names().next().is_some();
+
+        // that's super annoying - we have to do cleanup because opening db creates it
+        // (if it didn't exist before)
+        if !some_stores_exist {
+            db.delete()?.into_future().await?
+        }
+
+        Ok(some_stores_exist)
+    }
+
     pub fn serialize_value<T: Serialize>(&self, value: &T) -> Result<JsValue, StorageError> {
         if let Some(cipher) = &self.store_cipher {
             let encrypted = cipher.encrypt_json_value(value)?;

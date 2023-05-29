@@ -78,6 +78,7 @@ fn rust_free_string(string: char_p::Box) {
 #[derive_ReprC]
 #[ffi_export]
 #[repr(u8)]
+#[derive(Eq, PartialEq)]
 pub enum ClientState {
     Uninitialised,
     Connected,
@@ -105,6 +106,10 @@ pub fn start_client(
     on_start_callback: StartupCallback<'static>,
     on_shutdown_callback: ShutdownCallback<'static>,
 ) {
+    if get_client_state() == ClientState::Connected {
+        return;
+    }
+
     let storage_dir = storage_directory.map(|s| s.to_string());
     let service_provider = service_provider.map(|s| s.to_string());
     RUNTIME.spawn(async move {
@@ -121,6 +126,10 @@ pub fn start_client(
 
 #[ffi_export]
 pub fn stop_client() {
+    if get_client_state() == ClientState::Disconnected {
+        return;
+    }
+
     RUNTIME.block_on(async move { stop_and_reset_shutdown_handle().await })
 }
 
@@ -131,6 +140,10 @@ pub fn blocking_run_client(
     on_start_callback: StartupCallback<'_>,
     on_shutdown_callback: ShutdownCallback<'_>,
 ) {
+    if get_client_state() == ClientState::Connected {
+        return;
+    }
+
     let storage_dir = storage_directory.map(|s| s.to_string());
     let service_provider = service_provider.map(|s| s.to_string());
     RUNTIME
@@ -149,6 +162,10 @@ pub fn blocking_run_client(
 
 #[ffi_export]
 pub fn reset_client_data(root_directory: char_p::Ref<'_>) {
+    if get_client_state() == ClientState::Connected {
+        return;
+    }
+
     let root_dir = root_directory.to_string();
     _reset_client_data(root_dir)
 }

@@ -30,7 +30,7 @@
     "json-stringify-safe": "5.0.1",
     "tslog": "3.3.3",
     "uuid": "8.3.2",
-    "yaml": "^2.1.1"
+    "yaml": "^2.2.2"
   },
   "devDependencies": {
     "@types/jest": "28.1.6",

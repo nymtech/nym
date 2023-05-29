@@ -105,13 +105,17 @@ pub fn announce(
         owner_signature,
     )?;
 
+    //  WIP(JON): increment signing nonce
+
+    let service_id = state::next_service_id_counter(deps.storage)?;
     let new_service = Service {
+        service_id,
         service,
         announcer: info.sender,
         block_height: env.block.height,
         deposit,
     };
-    let service_id = state::services::save(deps.storage, &new_service)?;
+    state::services::save(deps.storage, &new_service)?;
 
     Ok(Response::new().add_event(new_announce_event(service_id, new_service)))
 }
@@ -165,7 +169,7 @@ pub fn delete_id(deps: DepsMut, info: MessageInfo, service_id: ServiceId) -> Res
 
     Ok(Response::new()
         .add_message(return_deposit_msg)
-        .add_event(new_delete_id_event(service_id, service_to_delete)))
+        .add_event(new_delete_id_event(service_to_delete)))
 }
 
 /// Delete an existing service by nym address. If there are multiple entries for a given nym
@@ -179,15 +183,12 @@ pub(crate) fn delete_nym_address(
     let services_to_delete = query::query_nym_address(deps.as_ref(), nym_address)?.services;
 
     for service_to_delete in services_to_delete {
-        if info.sender == service_to_delete.service.announcer {
+        if info.sender == service_to_delete.announcer {
             state::services::remove(deps.storage, service_to_delete.service_id)?;
-            let return_deposit_msg = return_deposit(&service_to_delete.service);
+            let return_deposit_msg = return_deposit(&service_to_delete);
             response = response
                 .add_message(return_deposit_msg)
-                .add_event(new_delete_id_event(
-                    service_to_delete.service_id,
-                    service_to_delete.service,
-                ));
+                .add_event(new_delete_id_event(service_to_delete));
         }
     }
     Ok(response)

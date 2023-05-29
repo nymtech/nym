@@ -44,10 +44,10 @@ pub fn new_announce_event(service_id: ServiceId, service: Service) -> Event {
         .add_attribute(OWNER, service.announcer.to_string())
 }
 
-pub fn new_delete_id_event(service_id: ServiceId, service: Service) -> Event {
+pub fn new_delete_id_event(service: Service) -> Event {
     Event::new(ServiceProviderEventType::DeleteId)
         .add_attribute(ACTION, ServiceProviderEventType::DeleteId)
-        .add_attribute(SERVICE_ID, service_id.to_string())
+        .add_attribute(SERVICE_ID, service.service_id.to_string())
         .add_attribute(NYM_ADDRESS, service.service.nym_address.to_string())
 }
 

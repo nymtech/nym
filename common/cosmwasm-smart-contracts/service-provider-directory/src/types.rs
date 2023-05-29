@@ -9,8 +9,8 @@ pub type ServiceId = u32;
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
 pub struct Service {
-    // WIP(JON): store service_id here
-    //pub service_id: ServiceId,
+    /// Unique id assigned to the anounced service.
+    pub service_id: ServiceId,
     /// The announced service.
     pub service: ServiceDetails,
     /// Address of the service owner.
@@ -74,21 +74,5 @@ impl std::fmt::Display for ServiceType {
             ServiceType::NetworkRequester => "network_requester",
         };
         write!(f, "{service_type}")
-    }
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct ServiceInfo {
-    pub service_id: ServiceId,
-    pub service: Service,
-}
-
-impl ServiceInfo {
-    pub fn new(service_id: ServiceId, service: Service) -> Self {
-        Self {
-            service_id,
-            service,
-        }
     }
 }

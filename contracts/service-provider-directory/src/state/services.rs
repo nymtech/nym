@@ -39,10 +39,10 @@ fn services<'a>() -> IndexedMap<'a, ServiceId, Service, ServiceIndex<'a>> {
     IndexedMap::new(SERVICES_PK_NAMESPACE, indexes)
 }
 
-pub fn save(store: &mut dyn Storage, new_service: &Service) -> Result<ServiceId> {
-    let service_id = super::next_service_id_counter(store)?;
+pub fn save(store: &mut dyn Storage, new_service: &Service) -> Result<()> {
+    let service_id = new_service.service_id;
     services().save(store, service_id, new_service)?;
-    Ok(service_id)
+    Ok(())
 }
 
 pub fn remove(store: &mut dyn Storage, service_id: ServiceId) -> Result<()> {
@@ -60,34 +60,33 @@ pub fn load_id(store: &dyn Storage, service_id: ServiceId) -> Result<Service> {
     })
 }
 
-pub fn load_announcer(store: &dyn Storage, announcer: Addr) -> Result<Vec<(ServiceId, Service)>> {
+pub fn load_announcer(store: &dyn Storage, announcer: Addr) -> Result<Vec<Service>> {
     let services = services()
         .idx
         .announcer
         .prefix(announcer)
         .range(store, None, None, Order::Ascending)
         .take(MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER as usize)
+        .map(|res| res.map(|item| item.1))
         .collect::<StdResult<Vec<_>>>()?;
     Ok(services)
 }
 
-pub fn load_nym_address(
-    store: &dyn Storage,
-    nym_address: NymAddress,
-) -> Result<Vec<(ServiceId, Service)>> {
+pub fn load_nym_address(store: &dyn Storage, nym_address: NymAddress) -> Result<Vec<Service>> {
     let services = services()
         .idx
         .nym_address
         .prefix(nym_address.to_string())
         .range(store, None, None, Order::Ascending)
         .take(MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS as usize)
+        .map(|res| res.map(|item| item.1))
         .collect::<StdResult<Vec<_>>>()?;
     Ok(services)
 }
 
 #[derive(Debug, PartialEq)]
 pub struct PagedLoad {
-    pub services: Vec<(ServiceId, Service)>,
+    pub services: Vec<Service>,
     pub limit: usize,
     pub start_next_after: Option<ServiceId>,
 }
@@ -106,9 +105,10 @@ pub fn load_all_paged(
     let services = services()
         .range(store, start, None, Order::Ascending)
         .take(limit)
-        .collect::<StdResult<Vec<_>>>()?;
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<Service>>>()?;
 
-    let start_next_after = services.last().map(|service| service.0);
+    let start_next_after = services.last().map(|service| service.service_id);
 
     Ok(PagedLoad {
         services,

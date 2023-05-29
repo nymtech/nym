@@ -2,7 +2,7 @@ use cosmwasm_std::Deps;
 use nym_contracts_common::ContractBuildInformation;
 use nym_service_provider_directory_common::{
     response::{ConfigResponse, PagedServicesListResponse, ServicesListResponse},
-    NymAddress, ServiceId, ServiceInfo,
+    NymAddress, Service, ServiceId,
 };
 
 use crate::{
@@ -10,12 +10,8 @@ use crate::{
     state::{self, services::PagedLoad},
 };
 
-pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<ServiceInfo> {
-    let service = state::services::load_id(deps.storage, service_id)?;
-    Ok(ServiceInfo {
-        service_id,
-        service,
-    })
+pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<Service> {
+    state::services::load_id(deps.storage, service_id)
 }
 
 pub fn query_announcer(deps: Deps, announcer: String) -> Result<ServicesListResponse> {

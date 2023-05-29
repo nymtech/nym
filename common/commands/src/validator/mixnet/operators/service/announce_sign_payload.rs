@@ -25,6 +25,9 @@ pub struct Args {
     #[clap(long)]
     pub amount: u128,
 
+    #[clap(long)]
+    pub identity_key: String,
+
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
@@ -33,6 +36,7 @@ pub async fn create_payload(args: Args, client: SigningClient) {
     let service = nym_service_provider_directory_common::ServiceDetails {
         nym_address: NymAddress::new(&args.nym_address.to_string()),
         service_type: NetworkRequester,
+        identity_key: args.identity_key,
     };
 
     let denom = client.current_chain_details().mix_denom.base.as_str();

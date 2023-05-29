@@ -4,7 +4,7 @@
 use async_trait::async_trait;
 use nym_contracts_common::signing::MessageSignature;
 use nym_service_provider_directory_common::{
-    msg::ExecuteMsg as SpExecuteMsg, NymAddress, ServiceDetails, ServiceId, ServiceType,
+    msg::ExecuteMsg as SpExecuteMsg, NymAddress, ServiceDetails, ServiceId,
 };
 
 use crate::nyxd::{
@@ -31,9 +31,8 @@ pub trait SpDirectorySigningClient {
         self.execute_service_provider_directory_contract(
             fee,
             SpExecuteMsg::Announce {
-                nym_address: service.nym_address,
-                service_type: service.service_type,
-                owner_signature: owner_signature,
+                service,
+                owner_signature,
             },
             vec![deposit],
         )

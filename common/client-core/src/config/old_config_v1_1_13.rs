@@ -125,6 +125,7 @@ impl From<OldDebugConfigV1_1_13> for DebugConfig {
                     .disable_main_poisson_packet_distribution,
                 primary_packet_size: PacketSize::RegularPacket,
                 secondary_packet_size: value.use_extended_packet_size.map(Into::into),
+                packet_type: None,
             },
             cover_traffic: CoverTraffic {
                 loop_cover_traffic_average_delay: value.loop_cover_traffic_average_delay,
@@ -210,8 +211,8 @@ impl<T, U> From<OldConfigV1_1_13<T>> for Config<U> {
                 database_path: value.client.database_path,
                 reply_surb_database_path: value.client.reply_surb_database_path,
                 nym_root_directory: value.client.nym_root_directory,
-
                 super_struct: PhantomData,
+                packet_type: Some(nym_sphinx::params::PacketType::Mix),
             },
             logging: value.logging,
             debug: value.debug.into(),

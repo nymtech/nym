@@ -15,7 +15,7 @@ use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessa
 use nym_sphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx::message::NymMessage;
-use nym_sphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
+use nym_sphinx::params::{PacketSize, PacketType, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
 use nym_sphinx::Delay;
 use nym_task::connections::TransmissionLane;
@@ -27,7 +27,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Error)]
 pub enum PreparationError {
     #[error(transparent)]
     NymTopologyError(#[from] NymTopologyError),
@@ -417,9 +417,10 @@ where
         recipient: Recipient,
         message: Vec<u8>,
         lane: TransmissionLane,
+        packet_type: PacketType,
     ) -> Result<(), PreparationError> {
         let message = NymMessage::new_plain(message);
-        self.try_split_and_send_non_reply_message(message, recipient, lane)
+        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type)
             .await
     }
 
@@ -428,7 +429,9 @@ where
         message: NymMessage,
         recipient: Recipient,
         lane: TransmissionLane,
+        packet_type: PacketType,
     ) -> Result<(), PreparationError> {
+        debug!("Sending non-reply message with packet type {packet_type}");
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
         debug_assert!(!matches!(message, NymMessage::Reply(_)));
 
@@ -436,7 +439,11 @@ where
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
-        let packet_size = self.optimal_packet_size(&message);
+        let packet_size = if packet_type == PacketType::Outfox {
+            PacketSize::OutfoxRegularPacket
+        } else {
+            self.optimal_packet_size(&message)
+        };
         debug!("Using {packet_size} packets for {message}");
         let fragments = self
             .message_preparer
@@ -453,6 +460,7 @@ where
                 topology,
                 &self.config.ack_key,
                 &recipient,
+                packet_type,
             )?;
 
             let real_message = RealMessage::new(
@@ -476,7 +484,9 @@ where
         &mut self,
         recipient: Recipient,
         amount: u32,
+        packet_type: PacketType,
     ) -> Result<(), PreparationError> {
+        debug!("Sending additional reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
         let (reply_surbs, reply_keys) =
             self.generate_reply_surbs_with_keys(amount as usize).await?;
@@ -490,6 +500,7 @@ where
             message,
             recipient,
             TransmissionLane::AdditionalReplySurbs,
+            packet_type,
         )
         .await?;
 
@@ -505,7 +516,9 @@ where
         message: Vec<u8>,
         num_reply_surbs: u32,
         lane: TransmissionLane,
+        packet_type: PacketType,
     ) -> Result<(), SurbWrappedPreparationError> {
+        debug!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
         let (reply_surbs, reply_keys) = self
             .generate_reply_surbs_with_keys(num_reply_surbs as usize)
@@ -514,7 +527,7 @@ where
         let message =
             NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
 
-        self.try_split_and_send_non_reply_message(message, recipient, lane)
+        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type)
             .await?;
 
         log::trace!("storing {} reply keys", reply_keys.len());
@@ -527,13 +540,21 @@ where
         &mut self,
         recipient: Recipient,
         chunk: Fragment,
+        packet_type: PacketType,
     ) -> Result<PreparedFragment, PreparationError> {
+        debug!("Sending single chunk with packet type {packet_type}");
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
         let prepared_fragment = self
             .message_preparer
-            .prepare_chunk_for_sending(chunk, topology, &self.config.ack_key, &recipient)
+            .prepare_chunk_for_sending(
+                chunk,
+                topology,
+                &self.config.ack_key,
+                &recipient,
+                packet_type,
+            )
             .unwrap();
 
         Ok(prepared_fragment)
@@ -569,6 +590,7 @@ where
                         topology,
                         &self.config.ack_key,
                         reply_surb,
+                        PacketType::Mix,
                     )
                     .unwrap()
             })
@@ -588,7 +610,13 @@ where
 
         let prepared_fragment = self
             .message_preparer
-            .prepare_reply_chunk_for_sending(chunk, topology, &self.config.ack_key, reply_surb)
+            .prepare_reply_chunk_for_sending(
+                chunk,
+                topology,
+                &self.config.ack_key,
+                reply_surb,
+                PacketType::Mix,
+            )
             .unwrap();
 
         Ok(prepared_fragment)

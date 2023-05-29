@@ -28,9 +28,6 @@ nym-sphinx-types = { path = "types" }
 nym-crypto = { path = "../crypto", version = "0.3.0" }
 nym-topology = { path = "../topology" }
 
-# outfox
-nym-outfox = { path = "../../nym-outfox" }
-
 [dev-dependencies]
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-crypto = { path = "../crypto", version = "0.3.0", features = ["asymmetric"] }

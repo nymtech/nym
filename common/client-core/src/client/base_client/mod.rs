@@ -37,6 +37,7 @@ use nym_gateway_client::{
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
+use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskManager};
@@ -275,6 +276,7 @@ where
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
         shutdown: TaskClient,
+        packet_type: PacketType,
     ) {
         info!("Starting real traffic stream...");
 
@@ -290,7 +292,7 @@ where
             lane_queue_lengths,
             client_connection_rx,
         )
-        .start_with_shutdown(shutdown);
+        .start_with_shutdown(shutdown, packet_type);
     }
 
     // buffer controlling all messages fetched from provider
@@ -426,7 +428,7 @@ where
         Ok(())
     }
 
-    // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
+    // controller for sending packets to mixnet (either real traffic or cover traffic)
     // TODO: if we want to send control messages to gateway_client, this CAN'T take the ownership
     // over it. Perhaps GatewayClient needs to be thread-shareable or have some channel for
     // requests?
@@ -477,7 +479,10 @@ where
         self.managed_keys = ManagedKeys::load_or_generate(&mut rng, &self.key_store).await;
     }
 
-    pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
+    pub async fn start_base(
+        mut self,
+        packet_type: PacketType,
+    ) -> Result<BaseClient, ClientCoreError>
     where
         <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         S::ReplyStore: Send + Sync,
@@ -548,11 +553,11 @@ where
             task_manager.subscribe(),
         );
 
-        // The sphinx_message_sender is the transmitter for any component generating sphinx packets
+        // The message_sender is the transmitter for any component generating sphinx packets
         // that are to be sent to the mixnet. They are used by cover traffic stream and real
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
-        let sphinx_message_sender =
+        let message_sender =
             Self::start_mix_traffic_controller(gateway_client, task_manager.subscribe());
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
@@ -574,13 +579,14 @@ where
             shared_topology_accessor.clone(),
             ack_receiver,
             input_receiver,
-            sphinx_message_sender.clone(),
+            message_sender.clone(),
             reply_storage,
             reply_controller_sender.clone(),
             reply_controller_receiver,
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
             task_manager.subscribe(),
+            packet_type,
         );
 
         if !self
@@ -593,7 +599,7 @@ where
                 self.managed_keys.ack_key(),
                 self_address,
                 shared_topology_accessor.clone(),
-                sphinx_message_sender,
+                message_sender,
                 task_manager.subscribe(),
             );
         }

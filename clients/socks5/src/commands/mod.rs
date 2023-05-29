@@ -10,6 +10,7 @@ use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_config::{NymConfig, OptionalSet};
 use nym_socks5_client_core::config::old_config_v1_1_13::OldConfigV1_1_13;
 use nym_socks5_client_core::config::{BaseConfig, Config};
+use nym_sphinx::params::PacketType;
 use std::error::Error;
 
 pub mod init;
@@ -64,6 +65,7 @@ pub(crate) struct OverrideConfig {
     no_cover: bool,
     nyxd_urls: Option<Vec<url::Url>>,
     enabled_credentials_mode: Option<bool>,
+    outfox: bool,
 }
 
 pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -80,9 +82,15 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
 }
 
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
+    let packet_type = if args.outfox {
+        PacketType::Outfox
+    } else {
+        PacketType::Mix
+    };
     config
         .with_base(BaseConfig::with_high_default_traffic_volume, args.fastmode)
         .with_base(BaseConfig::with_disabled_cover_traffic, args.no_cover)
+        .with_base(BaseConfig::with_packet_type, packet_type)
         .with_optional(Config::with_anonymous_replies, args.use_anonymous_replies)
         .with_optional(Config::with_port, args.port)
         .with_optional_custom_env_ext(

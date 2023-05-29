@@ -11,7 +11,7 @@ use nym_client_core::config::{
     DebugConfig as ConfigDebug, GatewayConnection as ConfigGatewayConnection,
     ReplySurbs as ConfigReplySurbs, Topology as ConfigTopology, Traffic as ConfigTraffic,
 };
-use nym_sphinx::params::PacketSize;
+use nym_sphinx::params::{PacketSize, PacketType};
 use nym_validator_client::client::IdentityKey;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -34,6 +34,8 @@ pub struct Config {
     pub(crate) gateway: Option<IdentityKey>,
 
     pub(crate) debug: ConfigDebug,
+
+    pub(crate) packet_type: PacketType,
 }
 
 #[wasm_bindgen]
@@ -42,9 +44,18 @@ impl Config {
     pub fn new(
         id: String,
         validator_server: String,
+        packet_type: Option<String>,
         gateway: Option<IdentityKey>,
         debug: Option<Debug>,
     ) -> Self {
+        let packet_type = if let Some(packet_type) = packet_type {
+            match packet_type.as_str() {
+                "outfox" => PacketType::Outfox,
+                _ => PacketType::Mix,
+            }
+        } else {
+            PacketType::Mix
+        };
         Config {
             id,
             nym_api_url: Some(
@@ -55,6 +66,7 @@ impl Config {
             disabled_credentials_mode: true,
             gateway,
             debug: debug.map(Into::into).unwrap_or_default(),
+            packet_type,
         }
     }
 }
@@ -97,6 +109,7 @@ impl From<Traffic> for ConfigTraffic {
                 .disable_main_poisson_packet_distribution,
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: use_extended_packet_size,
+            packet_type: None,
         }
     }
 }

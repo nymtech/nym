@@ -571,7 +571,7 @@ impl<C, St> GatewayClient<C, St> {
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {
         packets
             .iter()
-            .map(|packet| packet.sphinx_packet().len())
+            .map(|packet| packet.packet().len())
             .sum::<usize>() as i64
     }
 
@@ -579,6 +579,8 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), GatewayClientError> {
+        debug!("Sending {} mix packets", packets.len());
+
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
@@ -623,9 +625,10 @@ impl<C, St> GatewayClient<C, St> {
     ) -> Result<(), GatewayClientError> {
         if let Err(err) = self.send_websocket_message_without_response(msg).await {
             if err.is_closed_connection() && self.should_reconnect_on_failure {
-                info!("Going to attempt a reconnection");
+                debug!("Going to attempt a reconnection");
                 self.attempt_reconnection().await
             } else {
+                warn!("{err}");
                 Err(err)
             }
         } else {
@@ -652,9 +655,9 @@ impl<C, St> GatewayClient<C, St> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if (mix_packet.sphinx_packet().len() as i64) > self.bandwidth_remaining {
+        if (mix_packet.packet().len() as i64) > self.bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth(
-                mix_packet.sphinx_packet().len() as i64,
+                mix_packet.packet().len() as i64,
                 self.bandwidth_remaining,
             ));
         }

@@ -11,9 +11,9 @@ use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use crate::client::replies::reply_controller::ReplyControllerSender;
 use futures::StreamExt;
 use log::*;
-use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::preparer::PreparedFragment;
+use nym_sphinx::{addressing::clients::Recipient, params::PacketType};
 use nym_task::connections::TransmissionLane;
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
@@ -48,17 +48,20 @@ where
         &mut self,
         packet_recipient: Recipient,
         chunk_data: Fragment,
+        packet_type: PacketType,
     ) -> Result<PreparedFragment, PreparationError> {
         debug!("retransmitting normal packet...");
 
+        // TODO: Figure out retransmission packet type signaling
         self.message_handler
-            .try_prepare_single_chunk_for_sending(packet_recipient, chunk_data)
+            .try_prepare_single_chunk_for_sending(packet_recipient, chunk_data, packet_type)
             .await
     }
 
     async fn on_retransmission_request(
         &mut self,
         weak_timed_out_ack: Weak<PendingAcknowledgement>,
+        packet_type: PacketType,
     ) {
         let timed_out_ack = match weak_timed_out_ack.upgrade() {
             Some(timed_out_ack) => timed_out_ack,
@@ -85,6 +88,7 @@ where
                 self.prepare_normal_retransmission_chunk(
                     **recipient,
                     timed_out_ack.message_chunk.clone(),
+                    packet_type,
                 )
                 .await
             }
@@ -140,13 +144,17 @@ where
             .await
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    pub(super) async fn run_with_shutdown(
+        &mut self,
+        mut shutdown: nym_task::TaskClient,
+        packet_type: PacketType,
+    ) {
         debug!("Started RetransmissionRequestListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {
             tokio::select! {
                 timed_out_ack = self.request_receiver.next() => match timed_out_ack {
-                    Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack).await,
+                    Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack, packet_type).await,
                     None => {
                         log::trace!("RetransmissionRequestListener: Stopping since channel closed");
                         break;

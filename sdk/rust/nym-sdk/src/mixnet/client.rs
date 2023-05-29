@@ -472,7 +472,8 @@ where
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        let started_client = base_builder.start_base().await?;
+        let packet_type = self.config.packet_type();
+        let started_client = base_builder.start_base(packet_type).await?;
         let nym_address = started_client.address;
 
         Ok((started_client, nym_address))
@@ -509,6 +510,7 @@ where
             .clone()
             .ok_or(Error::Socks5Config { set: false })?;
         let debug_config = self.config.debug_config;
+        let packet_type = self.config.packet_type();
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let (socks5_status_tx, mut socks5_status_rx) = mpsc::channel(128);
 
@@ -524,6 +526,7 @@ where
             client_state.clone(),
             nym_address,
             started_client.task_manager.subscribe(),
+            packet_type,
         );
         started_client
             .task_manager
@@ -588,6 +591,7 @@ where
             client_state,
             reconstructed_receiver,
             task_manager: started_client.task_manager,
+            packet_type: None,
         })
     }
 }

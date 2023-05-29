@@ -4,7 +4,7 @@
 use nym_config::defaults::NymNetworkDetails;
 use nym_config::{NymConfig, OptionalSet, CRED_DB_FILE_NAME};
 use nym_crypto::asymmetric::identity;
-use nym_sphinx::params::PacketSize;
+use nym_sphinx::params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
@@ -259,6 +259,11 @@ impl<T> Config<T> {
         self
     }
 
+    pub fn with_packet_type(mut self, packet_type: PacketType) -> Self {
+        self.client.packet_type = Some(packet_type);
+        self
+    }
+
     pub fn set_high_default_traffic_volume(&mut self) {
         self.debug.traffic.average_packet_delay = Duration::from_millis(10);
         // basically don't really send cover messages
@@ -446,6 +451,10 @@ impl<T> Config<T> {
     pub fn get_maximum_reply_key_age(&self) -> Duration {
         self.debug.reply_surbs.maximum_reply_key_age
     }
+
+    pub fn get_packet_type(&self) -> PacketType {
+        self.client.packet_type.unwrap_or(PacketType::Mix)
+    }
 }
 
 impl<T: NymConfig> Default for Config<T> {
@@ -568,6 +577,8 @@ pub struct Client<T> {
 
     #[serde(skip)]
     pub super_struct: PhantomData<T>,
+
+    pub packet_type: Option<PacketType>,
 }
 
 impl<T: NymConfig> Default for Client<T> {
@@ -606,6 +617,7 @@ impl<T: NymConfig> Default for Client<T> {
             reply_surb_database_path: Default::default(),
             nym_root_directory: T::default_root_directory(),
             super_struct: Default::default(),
+            packet_type: Default::default(),
         }
     }
 }
@@ -677,6 +689,8 @@ pub struct Traffic {
     /// Note that its use decreases overall anonymity.
     /// Do not set it it unless you understand the consequences of that change.
     pub secondary_packet_size: Option<PacketSize>,
+
+    pub packet_type: Option<PacketType>,
 }
 
 impl Traffic {
@@ -700,6 +714,7 @@ impl Default for Traffic {
             disable_main_poisson_packet_distribution: false,
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: None,
+            packet_type: None,
         }
     }
 }

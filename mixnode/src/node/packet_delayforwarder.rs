@@ -58,12 +58,12 @@ where
 
     fn forward_packet(&mut self, packet: MixPacket) {
         let next_hop = packet.next_hop();
-        let packet_mode = packet.packet_mode();
-        let sphinx_packet = packet.into_sphinx_packet();
+        let packet_type = packet.packet_type();
+        let packet = packet.into_packet();
 
-        if let Err(err) =
-            self.mixnet_client
-                .send_without_response(next_hop, sphinx_packet, packet_mode)
+        if let Err(err) = self
+            .mixnet_client
+            .send_without_response(next_hop, packet, packet_type)
         {
             if err.kind() == io::ErrorKind::WouldBlock {
                 // we only know for sure if we dropped a packet if our sending queue was full
@@ -134,38 +134,38 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
+    use nym_sphinx::NymPacket;
     use nym_task::TaskManager;
 
     use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
     use nym_sphinx_params::packet_sizes::PacketSize;
-    use nym_sphinx_params::PacketMode;
-    use nym_sphinx_types::builder::SphinxPacketBuilder;
+    use nym_sphinx_params::PacketType;
     use nym_sphinx_types::{
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
-        SphinxPacket, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
+        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
 
     #[derive(Default)]
     struct TestClient {
-        pub packets_sent: Arc<Mutex<Vec<(NymNodeRoutingAddress, SphinxPacket, PacketMode)>>>,
+        pub packets_sent: Arc<Mutex<Vec<(NymNodeRoutingAddress, NymPacket, PacketType)>>>,
     }
 
     impl nym_mixnet_client::SendWithoutResponse for TestClient {
         fn send_without_response(
             &mut self,
             address: NymNodeRoutingAddress,
-            packet: SphinxPacket,
-            packet_mode: PacketMode,
+            packet: NymPacket,
+            packet_type: PacketType,
         ) -> io::Result<()> {
             self.packets_sent
                 .lock()
                 .unwrap()
-                .push((address, packet, packet_mode));
+                .push((address, packet, packet_type));
             Ok(())
         }
     }
 
-    fn make_valid_sphinx_packet(size: PacketSize) -> SphinxPacket {
+    fn make_valid_sphinx_packet(size: PacketSize) -> NymPacket {
         let (_, node1_pk) = crypto::keygen();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
@@ -192,10 +192,43 @@ mod tests {
             SphinxDelay::new_from_nanos(42),
             SphinxDelay::new_from_nanos(42),
         ];
-        SphinxPacketBuilder::new()
-            .with_payload_size(size.payload_size())
-            .build_packet(b"foomp", &route, &destination, &delays)
+        NymPacket::sphinx_build(size.payload_size(), b"foomp", &route, &destination, &delays)
             .unwrap()
+    }
+
+    fn make_valid_outfox_packet(size: PacketSize) -> NymPacket {
+        let (_, node1_pk) = crypto::keygen();
+        let node1 = Node::new(
+            NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
+            node1_pk,
+        );
+        let (_, node2_pk) = crypto::keygen();
+        let node2 = Node::new(
+            NodeAddressBytes::from_bytes([4u8; NODE_ADDRESS_LENGTH]),
+            node2_pk,
+        );
+        let (_, node3_pk) = crypto::keygen();
+        let node3 = Node::new(
+            NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
+            node3_pk,
+        );
+
+        let (_, node4_pk) = crypto::keygen();
+        let node4 = Node::new(
+            NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
+            node4_pk,
+        );
+
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([3u8; DESTINATION_ADDRESS_LENGTH]),
+            [4u8; IDENTIFIER_LENGTH],
+        );
+
+        let route = &[node1, node2, node3, node4];
+
+        let payload = vec![1; 48];
+
+        NymPacket::outfox_build(payload, route, &destination, Some(size.plaintext_size())).unwrap()
     }
 
     #[tokio::test]
@@ -219,7 +252,50 @@ mod tests {
         let mix_packet = MixPacket::new(
             next_hop,
             make_valid_sphinx_packet(PacketSize::default()),
-            PacketMode::default(),
+            PacketType::default(),
+        );
+        let forward_instant = None;
+        packet_sender
+            .unbounded_send((mix_packet, forward_instant))
+            .unwrap();
+
+        // Give the the worker a chance to act
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
+        // The client should have forwarded the packet straight away
+        assert_eq!(
+            client_packets_sent
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|(a, _, _)| *a)
+                .collect::<Vec<_>>(),
+            vec![next_hop]
+        );
+    }
+
+    #[tokio::test]
+    async fn outfox_packets_received_are_forwarded() {
+        // Wire up the DelayForwarder
+        let (stats_sender, _stats_receiver) = mpsc::unbounded();
+        let node_stats_update_sender = UpdateSender::new(stats_sender);
+        let client = TestClient::default();
+        let client_packets_sent = client.packets_sent.clone();
+        let shutdown = TaskManager::default();
+        let mut delay_forwarder =
+            DelayForwarder::new(client, node_stats_update_sender, shutdown.subscribe());
+        let packet_sender = delay_forwarder.sender();
+
+        // Spawn the worker, listening on packet_sender channel
+        tokio::spawn(async move { delay_forwarder.run().await });
+
+        // Send a `MixPacket` down the channel without any delay attached.
+        let next_hop =
+            NymNodeRoutingAddress::from(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 42));
+        let mix_packet = MixPacket::new(
+            next_hop,
+            make_valid_outfox_packet(PacketSize::default()),
+            PacketType::default(),
         );
         let forward_instant = None;
         packet_sender

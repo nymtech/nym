@@ -28,7 +28,7 @@ impl SizedData for RealMessage {
 
 impl SizedData for Fragment {
     fn data_size(&self) -> usize {
-        // note that raw `Fragment` is smaller than sphinx packet payload
+        // note that raw `Fragment` is smaller than packet payload
         // as it doesn't include surb-ack or the [shared] key materials
         self.payload_size()
     }

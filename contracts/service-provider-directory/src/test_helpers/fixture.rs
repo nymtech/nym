@@ -11,31 +11,29 @@ use super::{
     signing::{ed25519_sign_message, service_provider_announce_sign_payload},
 };
 
-pub fn service_fixture() -> ServiceDetails {
-    ServiceDetails {
-        nym_address: NymAddress::new("nym"),
-        service_type: ServiceType::NetworkRequester,
-        identity_key: "identity".to_string(),
-    }
-}
-
-pub fn service_fixture_with_address(service_id: ServiceId, nym_address: &str) -> ServiceDetails {
-    ServiceDetails {
-        nym_address: NymAddress::new(nym_address),
-        service_type: ServiceType::NetworkRequester,
-        identity_key: "identity".to_string(),
-    }
-}
-
-pub fn service_info(service_id: ServiceId, nym_address: NymAddress, announcer: Addr) -> Service {
+pub fn service_fixture(service_id: ServiceId) -> Service {
     Service {
         service_id,
         service: ServiceDetails {
-            nym_address,
+            nym_address: NymAddress::new("nym"),
             service_type: ServiceType::NetworkRequester,
             identity_key: "identity".to_string(),
         },
-        announcer,
+        announcer: Addr::unchecked("steve"),
+        block_height: 12345,
+        deposit: nyms(100),
+    }
+}
+
+pub fn service_fixture_with_address(service_id: ServiceId, nym_address: &str) -> Service {
+    Service {
+        service_id,
+        service: ServiceDetails {
+            nym_address: NymAddress::new(nym_address),
+            service_type: ServiceType::NetworkRequester,
+            identity_key: "identity".to_string(),
+        },
+        announcer: Addr::unchecked("steve"),
         block_height: 12345,
         deposit: nyms(100),
     }

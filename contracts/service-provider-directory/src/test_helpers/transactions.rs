@@ -28,9 +28,9 @@ pub fn instantiate_test_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuer
 pub fn announce_service<R>(
     mut deps: DepsMut<'_>,
     rng: &mut R,
-    service: &ServiceDetails,
+    nym_address: &str,
     announcer: &str,
-) -> ServiceId
+) -> (ServiceId, ServiceDetails)
 where
     R: RngCore + CryptoRng,
 {
@@ -38,17 +38,17 @@ where
     let (service, owner_signature) = super::fixture::signed_service_details(
         deps.branch(),
         rng,
-        service.nym_address.as_str(),
+        nym_address,
         announcer,
         deposit.clone(),
     );
 
     // Announce
     let msg = ExecuteMsg::Announce {
-        service,
+        service: service.clone(),
         owner_signature,
     };
-    let info = mock_info("steve", &[deposit]);
+    let info = mock_info(announcer, &[deposit]);
     let res = crate::execute(deps, mock_env(), info, msg).unwrap();
 
     let service_id: ServiceId = get_attribute(
@@ -59,7 +59,7 @@ where
     .parse()
     .unwrap();
 
-    service_id
+    (service_id, service)
 }
 
 pub fn delete_service(deps: DepsMut<'_>, service_id: ServiceId, announcer: &str) {

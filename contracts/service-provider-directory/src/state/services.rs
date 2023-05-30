@@ -117,174 +117,177 @@ pub fn load_all_paged(
     })
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use crate::{
-//        error::ContractError,
-//        test_helpers::{
-//            fixture::{service_fixture, service_fixture_with_address},
-//            helpers::instantiate_test_contract,
-//        },
-//    };
-//
-//    use super::*;
-//
-//    #[test]
-//    fn save_works() {
-//        let mut deps = instantiate_test_contract();
-//        assert!(!has_service(&deps.storage, 1));
-//        save(deps.as_mut().storage, &service_fixture()).unwrap();
-//        assert!(has_service(&deps.storage, 1));
-//    }
-//
-//    #[test]
-//    fn save_and_check_incorrect_id_fails() {
-//        let mut deps = instantiate_test_contract();
-//        assert!(!has_service(&deps.storage, 2));
-//        save(deps.as_mut().storage, &service_fixture()).unwrap();
-//        assert!(!has_service(&deps.storage, 2));
-//    }
-//
-//    #[test]
-//    fn remove_works() {
-//        let mut deps = instantiate_test_contract();
-//        let id = save(deps.as_mut().storage, &service_fixture()).unwrap();
-//        assert!(has_service(&deps.storage, id));
-//        remove(deps.as_mut().storage, id).unwrap();
-//        assert!(!has_service(&deps.storage, id));
-//    }
-//
-//    #[test]
-//    fn load_by_id_works() {
-//        let mut deps = instantiate_test_contract();
-//        let id = save(deps.as_mut().storage, &service_fixture()).unwrap();
-//        let service = load_id(deps.as_ref().storage, id).unwrap();
-//        assert_eq!(service, service_fixture());
-//    }
-//
-//    #[test]
-//    fn load_by_wrong_id_returns_not_found() {
-//        let mut deps = instantiate_test_contract();
-//        let id = save(deps.as_mut().storage, &service_fixture()).unwrap();
-//        assert_eq!(
-//            load_id(deps.as_ref().storage, id + 1).unwrap_err(),
-//            ContractError::NotFound { service_id: id + 1 }
-//        );
-//    }
-//
-//    #[test]
-//    fn load_by_announcer_works() {
-//        let mut deps = instantiate_test_contract();
-//        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
-//        assert_eq!(
-//            load_announcer(&deps.storage, Addr::unchecked("steve")).unwrap(),
-//            vec![
-//                (1, service_fixture_with_address("a")),
-//                (2, service_fixture_with_address("b")),
-//                (3, service_fixture_with_address("c")),
-//            ]
-//        );
-//    }
-//
-//    #[test]
-//    fn load_by_wrong_announcer_returns_empty() {
-//        let mut deps = instantiate_test_contract();
-//        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
-//        assert_eq!(
-//            load_announcer(&deps.storage, Addr::unchecked("timmy")).unwrap(),
-//            vec![]
-//        );
-//    }
-//
-//    #[test]
-//    fn load_by_nym_address_works() {
-//        let mut deps = instantiate_test_contract();
-//        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
-//        assert_eq!(
-//            load_nym_address(&deps.storage, NymAddress::new("b")).unwrap(),
-//            vec![(2, service_fixture_with_address("b"))]
-//        );
-//    }
-//
-//    #[test]
-//    fn load_by_wrong_nym_address_returns_empty() {
-//        let mut deps = instantiate_test_contract();
-//        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
-//        assert_eq!(
-//            load_nym_address(&deps.storage, NymAddress::new("d")).unwrap(),
-//            vec![]
-//        );
-//    }
-//
-//    #[test]
-//    fn load_all_paged_with_no_limit_works() {
-//        let mut deps = instantiate_test_contract();
-//        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
-//        assert_eq!(
-//            load_all_paged(&deps.storage, None, None).unwrap(),
-//            PagedLoad {
-//                services: vec![
-//                    (1, service_fixture_with_address("a")),
-//                    (2, service_fixture_with_address("b"))
-//                ],
-//                start_next_after: Some(2),
-//                limit: 100,
-//            }
-//        );
-//    }
-//
-//    #[test]
-//    fn load_all_paged_with_limit_works() {
-//        let mut deps = instantiate_test_contract();
-//        save(deps.as_mut().storage, &service_fixture_with_address("a")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("b")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("c")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("d")).unwrap();
-//        save(deps.as_mut().storage, &service_fixture_with_address("e")).unwrap();
-//        assert_eq!(
-//            load_all_paged(&deps.storage, Some(2), None).unwrap(),
-//            PagedLoad {
-//                services: vec![
-//                    (1, service_fixture_with_address("a")),
-//                    (2, service_fixture_with_address("b"))
-//                ],
-//                limit: 2,
-//                start_next_after: Some(2),
-//            }
-//        );
-//        assert_eq!(
-//            load_all_paged(&deps.storage, Some(2), Some(2)).unwrap(),
-//            PagedLoad {
-//                services: vec![
-//                    (3, service_fixture_with_address("c")),
-//                    (4, service_fixture_with_address("d"))
-//                ],
-//                limit: 2,
-//                start_next_after: Some(4),
-//            }
-//        );
-//        assert_eq!(
-//            load_all_paged(&deps.storage, Some(2), Some(4)).unwrap(),
-//            PagedLoad {
-//                services: vec![(5, service_fixture_with_address("e")),],
-//                start_next_after: Some(5),
-//                limit: 2,
-//            }
-//        );
-//    }
-//
-//    #[test]
-//    #[ignore]
-//    fn max_page_limit_is_applied() {
-//        todo!();
-//    }
-//}
+#[cfg(test)]
+mod tests {
+    use crate::{
+        error::ContractError,
+        test_helpers::{
+            fixture::{service_fixture, service_fixture_with_address},
+            transactions::instantiate_test_contract,
+        },
+    };
+
+    use super::*;
+
+    #[test]
+    fn save_works() {
+        let mut deps = instantiate_test_contract();
+        assert!(!has_service(&deps.storage, 1));
+        save(deps.as_mut().storage, &service_fixture(1)).unwrap();
+        assert!(has_service(&deps.storage, 1));
+    }
+
+    #[test]
+    fn save_and_check_incorrect_id_fails() {
+        let mut deps = instantiate_test_contract();
+        assert!(!has_service(&deps.storage, 2));
+        save(deps.as_mut().storage, &service_fixture(1)).unwrap();
+        assert!(!has_service(&deps.storage, 2));
+    }
+
+    #[test]
+    fn remove_works() {
+        let mut deps = instantiate_test_contract();
+        let id = 1;
+        save(deps.as_mut().storage, &service_fixture(id)).unwrap();
+        assert!(has_service(&deps.storage, id));
+        remove(deps.as_mut().storage, id).unwrap();
+        assert!(!has_service(&deps.storage, id));
+    }
+
+    #[test]
+    fn load_by_id_works() {
+        let mut deps = instantiate_test_contract();
+        let id = 1;
+        save(deps.as_mut().storage, &service_fixture(id)).unwrap();
+        let service = load_id(deps.as_ref().storage, id).unwrap();
+        assert_eq!(service, service_fixture(id));
+    }
+
+    #[test]
+    fn load_by_wrong_id_returns_not_found() {
+        let mut deps = instantiate_test_contract();
+        let id = 1;
+        save(deps.as_mut().storage, &service_fixture(id)).unwrap();
+        assert_eq!(
+            load_id(deps.as_ref().storage, id + 1).unwrap_err(),
+            ContractError::NotFound { service_id: id + 1 }
+        );
+    }
+
+    #[test]
+    fn load_by_announcer_works() {
+        let mut deps = instantiate_test_contract();
+        save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(3, "c")).unwrap();
+        assert_eq!(
+            load_announcer(&deps.storage, Addr::unchecked("steve")).unwrap(),
+            vec![
+                service_fixture_with_address(1, "a"),
+                service_fixture_with_address(2, "b"),
+                service_fixture_with_address(3, "c"),
+            ]
+        );
+    }
+
+    #[test]
+    fn load_by_wrong_announcer_returns_empty() {
+        let mut deps = instantiate_test_contract();
+        save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(3, "c")).unwrap();
+        assert_eq!(
+            load_announcer(&deps.storage, Addr::unchecked("timmy")).unwrap(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn load_by_nym_address_works() {
+        let mut deps = instantiate_test_contract();
+        save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(3, "c")).unwrap();
+        assert_eq!(
+            load_nym_address(&deps.storage, NymAddress::new("b")).unwrap(),
+            vec![service_fixture_with_address(2, "b")]
+        );
+    }
+
+    #[test]
+    fn load_by_wrong_nym_address_returns_empty() {
+        let mut deps = instantiate_test_contract();
+        save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(3, "c")).unwrap();
+        assert_eq!(
+            load_nym_address(&deps.storage, NymAddress::new("d")).unwrap(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn load_all_paged_with_no_limit_works() {
+        let mut deps = instantiate_test_contract();
+        save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
+        assert_eq!(
+            load_all_paged(&deps.storage, None, None).unwrap(),
+            PagedLoad {
+                services: vec![
+                    service_fixture_with_address(1, "a"),
+                    service_fixture_with_address(2, "b")
+                ],
+                start_next_after: Some(2),
+                limit: 100,
+            }
+        );
+    }
+
+    #[test]
+    fn load_all_paged_with_limit_works() {
+        let mut deps = instantiate_test_contract();
+        save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(3, "c")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(4, "d")).unwrap();
+        save(deps.as_mut().storage, &service_fixture_with_address(5, "e")).unwrap();
+        assert_eq!(
+            load_all_paged(&deps.storage, Some(2), None).unwrap(),
+            PagedLoad {
+                services: vec![
+                    service_fixture_with_address(1, "a"),
+                    service_fixture_with_address(2, "b")
+                ],
+                limit: 2,
+                start_next_after: Some(2),
+            }
+        );
+        assert_eq!(
+            load_all_paged(&deps.storage, Some(2), Some(2)).unwrap(),
+            PagedLoad {
+                services: vec![
+                    service_fixture_with_address(3, "c"),
+                    service_fixture_with_address(4, "d")
+                ],
+                limit: 2,
+                start_next_after: Some(4),
+            }
+        );
+        assert_eq!(
+            load_all_paged(&deps.storage, Some(2), Some(4)).unwrap(),
+            PagedLoad {
+                services: vec![service_fixture_with_address(5, "e")],
+                start_next_after: Some(5),
+                limit: 2,
+            }
+        );
+    }
+
+    #[test]
+    #[ignore]
+    fn max_page_limit_is_applied() {
+        todo!();
+    }
+}

@@ -17,61 +17,79 @@ pub(crate) fn next_service_id_counter(store: &mut dyn Storage) -> Result<Service
 #[cfg(test)]
 mod tests {
 
+    use cosmwasm_std::Addr;
     use nym_service_provider_directory_common::Service;
 
     use crate::test_helpers::{
         assert::assert_services,
-        fixture::service_fixture,
-        //helpers::{announce_service, delete_service, instantiate_test_contract},
+        helpers::{nyms, test_rng},
+        transactions::{announce_service, delete_service, instantiate_test_contract},
     };
 
-    //#[test]
-    //fn get_next_service_id() {
-    //    let mut deps = instantiate_test_contract();
+    #[test]
+    fn get_next_service_id() {
+        let mut deps = instantiate_test_contract();
+        let mut rng = test_rng();
 
-    //    assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 1);
-    //    assert_services(deps.as_ref(), &[Service::new(1, service_fixture())]);
+        let (id1, service1) = announce_service(deps.as_mut(), &mut rng, "addr1", "timmy");
+        let (id2, service2) = announce_service(deps.as_mut(), &mut rng, "addr2", "timmy");
+        let (id3, service3) = announce_service(deps.as_mut(), &mut rng, "addr3", "timmy");
+        assert_eq!(id1, 1);
+        assert_eq!(id2, 2);
+        assert_eq!(id3, 3);
+        assert_services(
+            deps.as_ref(),
+            &[
+                Service {
+                    service_id: 1,
+                    service: service1,
+                    announcer: Addr::unchecked("timmy"),
+                    block_height: 12345,
+                    deposit: nyms(100),
+                },
+                Service {
+                    service_id: 2,
+                    service: service2,
+                    announcer: Addr::unchecked("timmy"),
+                    block_height: 12345,
+                    deposit: nyms(100),
+                },
+                Service {
+                    service_id: 3,
+                    service: service3,
+                    announcer: Addr::unchecked("timmy"),
+                    block_height: 12345,
+                    deposit: nyms(100),
+                },
+            ],
+        );
+    }
 
-    //    assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 2);
-    //    assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 3);
-    //    assert_services(
-    //        deps.as_ref(),
-    //        &[
-    //            ServiceInfo::new(1, service_fixture()),
-    //            ServiceInfo::new(2, service_fixture()),
-    //            ServiceInfo::new(3, service_fixture()),
-    //        ],
-    //    );
-    //}
+    #[test]
+    fn deleted_service_id_is_not_reused() {
+        let mut deps = instantiate_test_contract();
+        let mut rng = test_rng();
 
-    //#[test]
-    //fn deleted_service_id_is_not_reused() {
-    //    let mut deps = instantiate_test_contract();
+        // Announce
+        let (_, service1) = announce_service(deps.as_mut(), &mut rng, "addr1", "timmy");
+        let _ = announce_service(deps.as_mut(), &mut rng, "addr2", "timmy");
 
-    //    // Announce
-    //    assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 1);
-    //    assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 2);
-    //    assert_services(
-    //        deps.as_ref(),
-    //        &[
-    //            ServiceInfo::new(1, service_fixture()),
-    //            ServiceInfo::new(2, service_fixture()),
-    //        ],
-    //    );
+        //// Delete the last entry
+        delete_service(deps.as_mut(), 2, "timmy");
+        assert_services(
+            deps.as_ref(),
+            &[Service {
+                service_id: 1,
+                service: service1,
+                announcer: Addr::unchecked("timmy"),
+                block_height: 12345,
+                deposit: nyms(100),
+            }],
+        );
 
-    //    // Delete the last entry
-    //    delete_service(deps.as_mut(), 2, "steve");
-    //    assert_services(deps.as_ref(), &[ServiceInfo::new(1, service_fixture())]);
-
-    //    // Create a third entry. The index should not reuse the previous entry that we just
-    //    // deleted.
-    //    assert_eq!(announce_service(deps.as_mut(), &service_fixture()), 3);
-    //    assert_services(
-    //        deps.as_ref(),
-    //        &[
-    //            ServiceInfo::new(1, service_fixture()),
-    //            ServiceInfo::new(3, service_fixture()),
-    //        ],
-    //    );
-    //}
+        // Create a third entry. The index should not reuse the previous entry that we just
+        // deleted.
+        let (id3, _) = announce_service(deps.as_mut(), &mut rng, "addr3", "timmy");
+        assert_eq!(id3, 3);
+    }
 }

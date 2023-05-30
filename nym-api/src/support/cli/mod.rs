@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::config::Config;
-use crate::support::config::{
-    default_config_directory, default_config_filepath, default_data_directory,
-};
+use crate::support::config::default_config_filepath;
+use crate::support::config::helpers::{initialise_new, try_load_current_config};
 use ::nym_config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, VESTING_CONTRACT_ADDRESS};
 use anyhow::Result;
 use clap::Parser;
@@ -12,7 +11,6 @@ use lazy_static::lazy_static;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_config::OptionalSet;
 use nym_validator_client::nyxd;
-use std::fs;
 
 lazy_static! {
     pub static ref PRETTY_BUILD_INFORMATION: String =
@@ -109,34 +107,6 @@ pub(crate) struct CliArgs {
     pub(crate) enable_coconut: Option<bool>,
 }
 
-pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
-    let id = args.id.clone();
-
-    // try to load config from the file, if it doesn't exist, use default values
-    let config = match Config::read_from_default_path(&id) {
-        Ok(cfg) => cfg,
-        Err(_) => {
-            let config_path = default_config_filepath(&id);
-            warn!(
-                "Could not load the configuration file from {}. Either the file did not exist or was malformed. Using the default values instead",
-                config_path.display()
-            );
-
-            let config = Config::new(&id);
-            fs::create_dir_all(default_config_directory(&id))
-                .expect("Could not create config directory");
-            fs::create_dir_all(default_data_directory(&id))
-                .expect("Could not create data directory");
-            crate::coconut::dkg::controller::init_keypair(&config.coconut_signer)?;
-            config
-        }
-    };
-
-    let config = override_config(config, args);
-
-    Ok(config)
-}
-
 pub(crate) fn override_config(config: Config, args: CliArgs) -> Config {
     config
         .with_optional(Config::with_custom_nyxd_validator, args.nyxd_validator)
@@ -171,4 +141,26 @@ pub(crate) fn override_config(config: Config, args: CliArgs) -> Config {
         )
         .with_optional(Config::with_announce_address, args.announce_address)
         .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut)
+}
+
+pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
+    let id = args.id.clone();
+
+    // try to load config from the file, if it doesn't exist, use default values
+    let config = match try_load_current_config(&id) {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            let config_path = default_config_filepath(&id);
+            warn!(
+                "Could not load the configuration file from {}: {err}. Either the file did not exist or was malformed. Using the default values instead",
+                config_path.display()
+            );
+
+            initialise_new(&id)?
+        }
+    };
+
+    let config = override_config(config, args);
+
+    Ok(config)
 }

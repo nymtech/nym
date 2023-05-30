@@ -16,6 +16,8 @@ class RustSocks5: ObservableObject {
     @Published var serviceProvider: String?;
     
     init() {
+        initialise_logger()
+
         let client_store_dir = clientStoreDirectory()
         let existingProvider = existingProvider(storageDirectory: client_store_dir)
         if let some = existingProvider {
@@ -53,13 +55,13 @@ class RustSocks5: ObservableObject {
     
     func startClient(storageDirectory: String, serviceProvider: String?) {
         self.serviceProvider = serviceProvider
-        
+
         let this1 = UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque())
         let startCb: @convention(c) (UnsafeMutableRawPointer?, UnsafeMutablePointer<CChar>?) -> Void = {
             let socks: RustSocks5 = Unmanaged.fromOpaque($0!).takeRetainedValue()
             socks.onConnect(clientAddress: $1)
         }
-        
+
         let this2 = UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque())
         let shutdownCb: @convention(c) (UnsafeMutableRawPointer?) -> Void = {
             let socks: RustSocks5 = Unmanaged.fromOpaque($0!).takeRetainedValue()
@@ -68,8 +70,8 @@ class RustSocks5: ObservableObject {
 
         let fn_start = RefDynFnMut1_void_char_ptr(env_ptr: this1, call: startCb)
         let fn_shutdown = RefDynFnMut0_void(env_ptr: this2, call: shutdownCb)
-        
-        
+
+
         start_client(storageDirectory, serviceProvider, fn_start, fn_shutdown)
     }
     

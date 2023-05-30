@@ -76,6 +76,10 @@ get_client_state (void);
 
 /** <No documentation available> */
 void
+initialise_logger (void);
+
+/** <No documentation available> */
+void
 reset_client_data (
     char const * root_directory);
 

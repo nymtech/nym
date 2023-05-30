@@ -5,6 +5,8 @@ use crate::persistence::MobileClientStorage;
 use ::safer_ffi::prelude::*;
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
+use log::{info, warn};
+use nym_bin_common::logging::setup_logging;
 use nym_config_common::defaults::setup_env;
 use nym_config_common::NymConfig;
 use nym_socks5_client_core::config::Config as Socks5Config;
@@ -71,8 +73,14 @@ fn set_default_env() {
 
 // to be used with the on startup callback which returns the address
 #[ffi_export]
-fn rust_free_string(string: char_p::Box) {
+pub fn rust_free_string(string: char_p::Box) {
     drop(string)
+}
+
+#[ffi_export]
+pub fn initialise_logger() {
+    setup_logging();
+    info!("logger initialised");
 }
 
 #[derive_ReprC]
@@ -107,6 +115,7 @@ pub fn start_client(
     on_shutdown_callback: ShutdownCallback<'static>,
 ) {
     if get_client_state() == ClientState::Connected {
+        warn!("could not start the client as it's already running");
         return;
     }
 
@@ -127,6 +136,7 @@ pub fn start_client(
 #[ffi_export]
 pub fn stop_client() {
     if get_client_state() == ClientState::Disconnected {
+        warn!("could not stop the client as it's not running    ");
         return;
     }
 
@@ -141,6 +151,7 @@ pub fn blocking_run_client(
     on_shutdown_callback: ShutdownCallback<'_>,
 ) {
     if get_client_state() == ClientState::Connected {
+        warn!("could not start the client as it's already running");
         return;
     }
 

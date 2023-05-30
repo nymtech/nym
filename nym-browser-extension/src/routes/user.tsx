@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 import { useAppContext } from 'src/context';
-import { Delegation, BalancePage, Receive, Send, Settings } from 'src/pages';
+import { Accounts, Delegation, BalancePage, Receive, Send, Settings } from 'src/pages';
 
 export const UserRoutes = () => {
   const { client } = useAppContext();
@@ -15,6 +15,7 @@ export const UserRoutes = () => {
     <Routes>
       <Route path="/balance" element={<BalancePage />} />
       <Route path="/delegation" element={<Delegation />} />
+      <Route path="/accounts" element={<Accounts />} />
       <Route path="/receive" element={<Receive />} />
       <Route path="/send" element={<Send />} />
       <Route path="/settings" element={<Settings />} />

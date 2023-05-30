@@ -1,3 +1,4 @@
+export * from './accounts';
 export * from './address';
 export * from './balance';
 export * from './receive';

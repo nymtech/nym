@@ -2894,7 +2894,7 @@
   dependencies:
     nx "15.9.3"
 
-"@nym/extension-storage@file:./nym-browser-extension/storage/pkg":
+"@nymproject/extension-storage@file:./nym-browser-extension/storage/pkg":
   version "0.1.0"
 
 "@nymproject/nym-validator-client@^0.18.0":

@@ -169,7 +169,7 @@ impl Client {
 
     pub async fn get_active_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
         self.query_nym_api(
-            &[routes::API_VERSION, routes::MIXNODES, routes::ACTIVE],
+            &[routes::API_VERSION, routes::MIXNODES],
             NO_PARAMS,
         )
         .await

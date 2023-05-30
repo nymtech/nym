@@ -3,6 +3,7 @@
 
 use crate::measure;
 use crate::packet_processor::error::MixProcessingError;
+use crate::packet_processor::key_storage::KeyStorage;
 use log::*;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
@@ -11,7 +12,7 @@ use nym_sphinx_framing::packet::FramedSphinxPacket;
 use nym_sphinx_params::{PacketMode, PacketSize};
 use nym_sphinx_types::{
     Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, Payload, PrivateKey,
-    ProcessedPacket, SphinxPacket,
+    ProcessedPacket, SphinxPacket, SharedSecret, RoutingKeys
 };
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -38,6 +39,7 @@ pub enum MixProcessingResult {
 pub struct SphinxPacketProcessor {
     /// Private sphinx key of this node required to unwrap received sphinx packet.
     sphinx_key: Arc<PrivateKey>,
+    key_storage: KeyStorage,
 }
 
 impl SphinxPacketProcessor {
@@ -45,6 +47,7 @@ impl SphinxPacketProcessor {
     pub fn new(sphinx_key: PrivateKey) -> Self {
         SphinxPacketProcessor {
             sphinx_key: Arc::new(sphinx_key),
+            key_storage: KeyStorage::new(),
         }
     }
 
@@ -65,6 +68,25 @@ impl SphinxPacketProcessor {
         })
     }
 
+    /// Performs a sphinx unwrapping using given keys.
+        #[cfg_attr(
+            feature = "cpucycles",
+            instrument(skip(self, packet), fields(cpucycles))
+        )]
+        fn perform_initial_sphinx_packet_processing_with_keys(
+            &self,
+            packet: SphinxPacket,
+            new_blinded_secret: &Option<SharedSecret>,
+            routing_keys: RoutingKeys,
+        ) -> Result<ProcessedPacket, MixProcessingError> {
+            measure!({
+                packet.process_with_derived_keys(new_blinded_secret, routing_keys).map_err(|err| {
+                    debug!("Failed to unwrap Sphinx packet: {err}");
+                    MixProcessingError::SphinxProcessingError(err)
+                })
+            })
+        }
+
     /// Takes the received framed packet and tries to unwrap it from the sphinx encryption.
     #[cfg_attr(
         feature = "cpucycles",
@@ -81,8 +103,17 @@ impl SphinxPacketProcessor {
             if packet_mode.is_old_vpn() {
                 return Err(MixProcessingError::ReceivedOldTypeVpnPacket);
             }
-
-            self.perform_initial_sphinx_packet_processing(sphinx_packet)
+            //here be shared secret retrieval and hashmap lookup
+            if let Some((routing_keys, blinded_shared_secret)) = self.key_storage.lookup(sphinx_packet.shared_secret()) {
+                debug!("Packet already seen, reusing keys");
+                self.perform_initial_sphinx_packet_processing_with_keys(sphinx_packet, &blinded_shared_secret, routing_keys)
+            } else {
+                debug!("New packet, deriving keys and storing them");
+                let key_secret = sphinx_packet.shared_secret();
+                let processed_packet = self.perform_initial_sphinx_packet_processing(sphinx_packet)?;
+                self.key_storage.store(key_secret, processed_packet.routing_keys(), processed_packet.shared_secret());
+                Ok(processed_packet)
+            }
         })
     }
 
@@ -175,12 +206,12 @@ impl SphinxPacketProcessor {
         packet_mode: PacketMode,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         match packet {
-            ProcessedPacket::ForwardHop(packet, address, delay) => {
+            ProcessedPacket::ForwardHop(packet, address, delay, _) => {
                 self.process_forward_hop(*packet, address, delay, packet_mode)
             }
             // right now there's no use for the surb_id included in the header - probably it should get removed from the
             // sphinx all together?
-            ProcessedPacket::FinalHop(destination, _, payload) => {
+            ProcessedPacket::FinalHop(destination, _, payload, _) => {
                 self.process_final_hop(destination, payload, packet_size, packet_mode)
             }
         }

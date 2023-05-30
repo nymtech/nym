@@ -8,7 +8,8 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-sphinx-packet = { version = "0.1.0" }
+#sphinx-packet = { version = "0.1.0" }
+sphinx-packet = { git = "https://github.com/nymtech/sphinx.git", branch = "simon/key-reuse"}
 
 #[patch.crates-io]
 #sphinx-packet = { path = "../../../../sphinx" }

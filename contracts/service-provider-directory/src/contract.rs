@@ -95,6 +95,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
         QueryMsg::All { limit, start_after } => {
             to_binary(&query::query_all_paged(deps, limit, start_after)?)
         }
+        QueryMsg::GetSigningNonce { address } => to_binary(&query::query_signing_nonce(deps, address)?),
         QueryMsg::Config {} => to_binary(&query::query_config(deps)?),
         QueryMsg::GetContractVersion {} => to_binary(&query::query_contract_version()),
         QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
@@ -112,8 +113,10 @@ mod tests {
             assert::{
                 assert_config, assert_empty, assert_not_found, assert_service, assert_services,
             },
-            fixture::service_fixture,
-            helpers::{get_attribute, nyms},
+            fixture::{self, service_fixture, signed_service_details},
+            helpers::{
+                ed25519_sign_message, get_attribute, nyms, service_provider_announce_sign_payload,
+            },
         },
     };
 
@@ -144,33 +147,6 @@ mod tests {
         ChaCha20Rng::from_seed(dummy_seed)
     }
 
-    fn service_provider_announce_sign_payload(
-        deps: Deps<'_>,
-        owner: &str,
-        service: ServiceDetails,
-        deposit: Coin,
-    ) -> SignableServiceProviderAnnounceMsg {
-        let owner = Addr::unchecked(owner);
-        let nonce = signing::storage::get_signing_nonce(deps.storage, owner.clone()).unwrap();
-        construct_service_provider_announce_sign_payload(nonce, owner, deposit, service)
-    }
-
-    fn ed25519_sign_message<T: Serialize + SigningPurpose>(
-        message: SignableMessage<T>,
-        private_key: &identity::PrivateKey,
-    ) -> MessageSignature {
-        match message.algorithm {
-            SigningAlgorithm::Ed25519 => {
-                let plaintext = message.to_plaintext().unwrap();
-                let signature = private_key.sign(&plaintext);
-                MessageSignature::from(signature.to_bytes().as_ref())
-            }
-            SigningAlgorithm::Secp256k1 => {
-                unimplemented!()
-            }
-        }
-    }
-
     #[test]
     fn instantiate_contract() {
         let mut deps = mock_dependencies();
@@ -190,53 +166,125 @@ mod tests {
         assert_empty(deps.as_ref());
     }
 
-    //#[test]
-    //fn announce_fails_incorrect_deposit() {
-    //    let mut deps = mock_dependencies();
-    //    let msg = InstantiateMsg::new(nyms(100));
-    //    let info = mock_info("creator", &[]);
-    //    let admin = info.sender.clone();
-    //    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-    //    assert_eq!(res.messages.len(), 0);
+    #[test]
+    fn announce_fails_incorrect_deposit_too_small() {
+        let mut rng = test_rng();
+        let mut deps = mock_dependencies();
+        let msg = InstantiateMsg::new(nyms(100));
+        let info = mock_info("creator", &[]);
+        let admin = info.sender.clone();
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
 
-    //    // Announce
-    //    let msg: ExecuteMsg = service_fixture().into();
-    //    let announcer = service_fixture().announcer.to_string();
+        // Setup service
+        let deposit = nyms(99);
+        let announcer = "steve";
+        let (service, owner_signature) =
+            signed_service_details(deps.as_mut(), &mut rng, "nym", announcer, deposit.clone());
 
-    //    assert_eq!(
-    //        execute(
-    //            deps.as_mut(),
-    //            mock_env(),
-    //            mock_info(&announcer, &[nyms(99)]),
-    //            msg.clone()
-    //        )
-    //        .unwrap_err(),
-    //        ContractError::InsufficientDeposit {
-    //            funds: 99u128.into(),
-    //            deposit_required: 100u128.into(),
-    //        }
-    //    );
+        // Announce
+        let msg = ExecuteMsg::Announce {
+            service: service.clone(),
+            owner_signature,
+        };
+        //let info = mock_info("steve", &[deposit.clone()]);
 
-    //    assert_eq!(
-    //        execute(
-    //            deps.as_mut(),
-    //            mock_env(),
-    //            mock_info(&announcer, &[nyms(101)]),
-    //            msg
-    //        )
-    //        .unwrap_err(),
-    //        ContractError::TooLargeDeposit {
-    //            funds: 101u128.into(),
-    //            deposit_required: 100u128.into(),
-    //        }
-    //    );
+        assert_eq!(
+            execute(
+                deps.as_mut(),
+                mock_env(),
+                mock_info(&announcer, &[nyms(99)]),
+                msg.clone()
+            )
+            .unwrap_err(),
+            ContractError::InsufficientDeposit {
+                funds: 99u128.into(),
+                deposit_required: 100u128.into(),
+            }
+        );
+    }
 
-    //    assert_config(deps.as_ref(), &admin, Coin::new(100, DENOM));
-    //    assert_empty(deps.as_ref());
-    //}
+    #[test]
+    fn announce_fails_incorrect_deposit_too_large() {
+        let mut rng = test_rng();
+        let mut deps = mock_dependencies();
+        let msg = InstantiateMsg::new(nyms(100));
+        let info = mock_info("creator", &[]);
+        let admin = info.sender.clone();
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
+
+        // Setup service
+        let deposit = nyms(101);
+        let announcer = "steve";
+        let (service, owner_signature) =
+            signed_service_details(deps.as_mut(), &mut rng, "nym", announcer, deposit.clone());
+
+        // Announce
+        let msg = ExecuteMsg::Announce {
+            service: service.clone(),
+            owner_signature,
+        };
+        assert_eq!(
+            execute(
+                deps.as_mut(),
+                mock_env(),
+                mock_info(&announcer, &[nyms(101)]),
+                msg
+            )
+            .unwrap_err(),
+            ContractError::TooLargeDeposit {
+                funds: 101u128.into(),
+                deposit_required: 100u128.into(),
+            }
+        );
+
+        assert_config(deps.as_ref(), &admin, Coin::new(100, DENOM));
+        assert_empty(deps.as_ref());
+    }
+
+    // Announcing a service fails due to the signed deposit being different from the deposit in
+    // the message.
+    #[test]
+    fn announce_fails_mismatch_deposit() {
+        let mut rng = test_rng();
+        let mut deps = mock_dependencies();
+        let msg = InstantiateMsg::new(nyms(100));
+        let info = mock_info("creator", &[]);
+        let admin = info.sender.clone();
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
+
+        // Setup service
+        let deposit = nyms(101); // NOTE: different from the deposit in the message
+        let announcer = "steve";
+        let (service, owner_signature) =
+            signed_service_details(deps.as_mut(), &mut rng, "nym", announcer, deposit.clone());
+
+        // Announce
+        let msg = ExecuteMsg::Announce {
+            service: service.clone(),
+            owner_signature,
+        };
+
+        assert_eq!(
+            execute(
+                deps.as_mut(),
+                mock_env(),
+                mock_info(&announcer, &[nyms(100)]),
+                msg.clone()
+            )
+            .unwrap_err(),
+            ContractError::InvalidEd25519Signature,
+        );
+
+        assert_config(deps.as_ref(), &admin, Coin::new(100, DENOM));
+        assert_empty(deps.as_ref());
+    }
 
     #[test]
     fn announce_success() {
+        let mut rng = test_rng();
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg::new(nyms(100));
         let info = mock_info("creator", &[]);
@@ -244,32 +292,17 @@ mod tests {
         assert_eq!(res.messages.len(), 0);
 
         // Setup service
-        let mut rng = test_rng();
-        let keypair = identity::KeyPair::new(&mut rng);
-        let identity_key = keypair.public_key().to_base58_string();
-        let service = ServiceDetails {
-            nym_address: NymAddress::new("nym"),
-            service_type: ServiceType::NetworkRequester,
-            identity_key,
-        };
-        let announcer = "steve";
         let deposit = nyms(100);
-
-        // Sign
-        let sign_msg = service_provider_announce_sign_payload(
-            deps.as_ref(),
-            announcer,
-            service.clone(),
-            deposit.clone(),
-        );
-        let owner_signature = ed25519_sign_message(sign_msg, keypair.private_key());
+        let owner = "steve";
+        let (service, owner_signature) =
+            signed_service_details(deps.as_mut(), &mut rng, "nym", owner, deposit.clone());
 
         // Announce
         let msg = ExecuteMsg::Announce {
             service: service.clone(),
             owner_signature,
         };
-        let info = mock_info("steve", &[nyms(100)]);
+        let info = mock_info("steve", &[deposit.clone()]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Check that the service has had service id assigned to it

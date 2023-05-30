@@ -1,9 +1,12 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Coin, DepsMut};
+use nym_contracts_common::signing::MessageSignature;
+use nym_crypto::asymmetric::identity;
 use nym_service_provider_directory_common::{
-    NymAddress, Service, ServiceDetails, ServiceId, ServiceType,
+    msg::ExecuteMsg, NymAddress, Service, ServiceDetails, ServiceId, ServiceType,
 };
+use rand_chacha::rand_core::{CryptoRng, RngCore};
 
-use super::helpers::nyms;
+use super::helpers::{ed25519_sign_message, nyms, service_provider_announce_sign_payload};
 
 pub fn service_fixture() -> ServiceDetails {
     ServiceDetails {
@@ -33,4 +36,41 @@ pub fn service_info(service_id: ServiceId, nym_address: NymAddress, announcer: A
         block_height: 12345,
         deposit: nyms(100),
     }
+}
+
+// Create a service, passing in the random number generator
+pub fn service_details<R>(rng: &mut R, nym_address: &str) -> (ServiceDetails, identity::KeyPair)
+where
+    R: RngCore + CryptoRng,
+{
+    let keypair = identity::KeyPair::new(rng);
+    (
+        ServiceDetails {
+            nym_address: NymAddress::new(nym_address),
+            service_type: ServiceType::NetworkRequester,
+            identity_key: keypair.public_key().to_base58_string(),
+        },
+        keypair,
+    )
+}
+
+pub fn signed_service_details<R>(
+    deps: DepsMut<'_>,
+    rng: &mut R,
+    nym_address: &str,
+    announcer: &str,
+    deposit: Coin,
+) -> (ServiceDetails, MessageSignature)
+where
+    R: RngCore + CryptoRng,
+{
+    // Service
+    let (service, keypair) = service_details(rng, nym_address);
+
+    // Sign
+    let sign_msg =
+        service_provider_announce_sign_payload(deps.as_ref(), announcer, service.clone(), deposit);
+    let owner_signature = ed25519_sign_message(sign_msg, keypair.private_key());
+
+    (service, owner_signature)
 }

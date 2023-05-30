@@ -1,14 +1,19 @@
 use cosmwasm_std::{
     coin, coins,
     testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier},
-    Coin, DepsMut, Event, MemoryStorage, OwnedDeps, Response,
+    Coin, DepsMut, Event, MemoryStorage, OwnedDeps, Response, Addr, Deps,
 };
 use cw_multi_test::AppResponse;
+use nym_contracts_common::signing::{SigningPurpose, SignableMessage, MessageSignature, SigningAlgorithm};
+use nym_crypto::asymmetric::identity;
 use nym_service_provider_directory_common::{
     events::{ServiceProviderEventType, SERVICE_ID},
     msg::{ExecuteMsg, InstantiateMsg},
-    Service, ServiceDetails, ServiceId,
+    Service, ServiceDetails, ServiceId, signing_types::{construct_service_provider_announce_sign_payload, SignableServiceProviderAnnounceMsg},
 };
+use serde::Serialize;
+
+use crate::signing;
 
 pub fn nyms(amount: u64) -> Coin {
     Coin::new(amount.into(), "unym")
@@ -113,4 +118,35 @@ pub fn delete_service(deps: DepsMut<'_>, service_id: ServiceId, announcer: &str)
     let msg = ExecuteMsg::DeleteId { service_id };
     let info = mock_info(announcer, &[]);
     crate::execute(deps, mock_env(), info, msg).unwrap();
+}
+
+//
+// Signing
+//
+
+pub fn service_provider_announce_sign_payload(
+    deps: Deps<'_>,
+    owner: &str,
+    service: ServiceDetails,
+    deposit: Coin,
+) -> SignableServiceProviderAnnounceMsg {
+    let owner = Addr::unchecked(owner);
+    let nonce = signing::storage::get_signing_nonce(deps.storage, owner.clone()).unwrap();
+    construct_service_provider_announce_sign_payload(nonce, owner, deposit, service)
+}
+
+pub fn ed25519_sign_message<T: Serialize + SigningPurpose>(
+    message: SignableMessage<T>,
+    private_key: &identity::PrivateKey,
+) -> MessageSignature {
+    match message.algorithm {
+        SigningAlgorithm::Ed25519 => {
+            let plaintext = message.to_plaintext().unwrap();
+            let signature = private_key.sign(&plaintext);
+            MessageSignature::from(signature.to_bytes().as_ref())
+        }
+        SigningAlgorithm::Secp256k1 => {
+            unimplemented!()
+        }
+    }
 }

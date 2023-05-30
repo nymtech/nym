@@ -1,5 +1,5 @@
 use cosmwasm_std::Deps;
-use nym_contracts_common::ContractBuildInformation;
+use nym_contracts_common::{signing::Nonce, ContractBuildInformation};
 use nym_service_provider_directory_common::{
     response::{ConfigResponse, PagedServicesListResponse, ServicesListResponse},
     NymAddress, Service, ServiceId,
@@ -7,6 +7,7 @@ use nym_service_provider_directory_common::{
 
 use crate::{
     error::Result,
+    signing,
     state::{self, services::PagedLoad},
 };
 
@@ -40,6 +41,10 @@ pub fn query_all_paged(
         limit,
         start_next_after,
     ))
+}
+
+pub fn query_signing_nonce(deps: Deps, nym_address: NymAddress) -> Result<Nonce> {
+    signing::queries::query_current_signing_nonce(deps, nym_address)
 }
 
 pub fn query_config(deps: Deps) -> Result<ConfigResponse> {

@@ -107,6 +107,13 @@ impl ExtensionStorage {
             .map_err(Into::into)
     }
 
+    async fn has_mnemonic_async(&self, name: String) -> Result<bool, ExtensionStorageError> {
+        self.inner
+            .has_value(v1::MNEMONICS_STORE, JsValue::from_str(&name))
+            .await
+            .map_err(Into::into)
+    }
+
     async fn get_all_mnemonic_keys_async(&self) -> Result<js_sys::Array, ExtensionStorageError> {
         self.inner
             .get_all_keys(v1::MNEMONICS_STORE)
@@ -153,6 +160,13 @@ impl ExtensionStorage {
                 .map(|_| JsValue::null())
                 .map_promise_err()
         })
+    }
+
+    #[wasm_bindgen]
+    pub fn has_mnemonic(&self, name: String) -> Promise {
+        // this clones the Arc pointer
+        let this = self.clone();
+        future_to_promise(async move { this.has_mnemonic_async(name).await.into_promise_result() })
     }
 
     #[wasm_bindgen]

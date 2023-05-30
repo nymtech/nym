@@ -134,7 +134,8 @@ class ProxyWorker(
 
     private fun createNotification(): Notification {
         val title = applicationContext.getString(R.string.notification_title)
-        val cancel = applicationContext.getString(R.string.stop_proxy)
+        val cancel = applicationContext.getString(R.string.notification_action_stop)
+        val content = applicationContext.getString(R.string.notification_content)
         // this pending intent is used to cancel the worker
         val stopPendingIntent = WorkManager.getInstance(applicationContext)
             .createCancelPendingIntent(id)
@@ -155,8 +156,7 @@ class ProxyWorker(
 
         return NotificationCompat.Builder(applicationContext, channelId)
             .setContentTitle(title)
-            .setTicker(title)
-            .setContentText("Nym socks5 proxy running")
+            .setContentText(content)
             .setSmallIcon(R.drawable.shield_24)
             .setOngoing(true)
             .setContentIntent(tapPendingIntent)

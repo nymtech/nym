@@ -22,11 +22,6 @@ class NymProxy {
         }
     }
 
-    /* fun start() {
-        Log.d(tag, "calling $nymNativeLib:startClient")
-        return startClient()
-    } */
-
     fun stop(callback: Any) {
         Log.d(tag, "calling $nymNativeLib:stopClient")
         try {

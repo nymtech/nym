@@ -5,6 +5,8 @@ use crate::persistence::MobileClientStorage;
 use ::safer_ffi::prelude::*;
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
+use log::{info, warn};
+use nym_bin_common::logging::setup_logging;
 use nym_config_common::defaults::setup_env;
 use nym_config_common::NymConfig;
 use nym_socks5_client_core::config::Config as Socks5Config;
@@ -59,6 +61,10 @@ async fn stop_and_reset_shutdown_handle() {
     *guard = None
 }
 
+async fn is_shutdown_handle_set() -> bool {
+    CLIENT_SHUTDOWN_HANDLE.lock().await.is_some()
+}
+
 fn set_default_env() {
     if !ENV_SET.swap(true, Ordering::SeqCst) {
         setup_env(None);
@@ -67,17 +73,38 @@ fn set_default_env() {
 
 // to be used with the on startup callback which returns the address
 #[ffi_export]
-fn rust_free_string(string: char_p::Box) {
+pub fn rust_free_string(string: char_p::Box) {
     drop(string)
+}
+
+#[ffi_export]
+pub fn initialise_logger() {
+    setup_logging();
+    info!("logger initialised");
 }
 
 #[derive_ReprC]
 #[ffi_export]
 #[repr(u8)]
+#[derive(Eq, PartialEq)]
 pub enum ClientState {
-    Unknown,
+    Uninitialised,
     Connected,
     Disconnected,
+}
+
+#[ffi_export]
+pub fn get_client_state() -> ClientState {
+    // if the environment is not set, we never called start before
+    // if the shutdown was never set, the client can't possibly be running
+    // and similarly if it's set, it's most likely running
+    if !ENV_SET.load(Ordering::Relaxed) {
+        ClientState::Uninitialised
+    } else if RUNTIME.block_on(is_shutdown_handle_set()) {
+        ClientState::Connected
+    } else {
+        ClientState::Disconnected
+    }
 }
 
 #[ffi_export]
@@ -87,6 +114,11 @@ pub fn start_client(
     on_start_callback: StartupCallback<'static>,
     on_shutdown_callback: ShutdownCallback<'static>,
 ) {
+    if get_client_state() == ClientState::Connected {
+        warn!("could not start the client as it's already running");
+        return;
+    }
+
     let storage_dir = storage_directory.map(|s| s.to_string());
     let service_provider = service_provider.map(|s| s.to_string());
     RUNTIME.spawn(async move {
@@ -103,6 +135,11 @@ pub fn start_client(
 
 #[ffi_export]
 pub fn stop_client() {
+    if get_client_state() == ClientState::Disconnected {
+        warn!("could not stop the client as it's not running    ");
+        return;
+    }
+
     RUNTIME.block_on(async move { stop_and_reset_shutdown_handle().await })
 }
 
@@ -113,6 +150,11 @@ pub fn blocking_run_client(
     on_start_callback: StartupCallback<'_>,
     on_shutdown_callback: ShutdownCallback<'_>,
 ) {
+    if get_client_state() == ClientState::Connected {
+        warn!("could not start the client as it's already running");
+        return;
+    }
+
     let storage_dir = storage_directory.map(|s| s.to_string());
     let service_provider = service_provider.map(|s| s.to_string());
     RUNTIME
@@ -131,6 +173,10 @@ pub fn blocking_run_client(
 
 #[ffi_export]
 pub fn reset_client_data(root_directory: char_p::Ref<'_>) {
+    if get_client_state() == ClientState::Connected {
+        return;
+    }
+
     let root_dir = root_directory.to_string();
     _reset_client_data(root_dir)
 }

@@ -4149,6 +4149,7 @@ dependencies = [
  "jni",
  "lazy_static",
  "log",
+ "nym-bin-common",
  "nym-client-core",
  "nym-config",
  "nym-credential-storage",

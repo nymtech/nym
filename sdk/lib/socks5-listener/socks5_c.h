@@ -24,7 +24,7 @@ typedef
 #endif
 enum ClientState {
     /** <No documentation available> */
-    CLIENT_STATE_UNKNOWN,
+    CLIENT_STATE_UNINITIALISED,
     /** <No documentation available> */
     CLIENT_STATE_CONNECTED,
     /** <No documentation available> */
@@ -69,6 +69,14 @@ blocking_run_client (
 char *
 existing_service_provider (
     char const * storage_directory);
+
+/** <No documentation available> */
+ClientState_t
+get_client_state (void);
+
+/** <No documentation available> */
+void
+initialise_logger (void);
 
 /** <No documentation available> */
 void

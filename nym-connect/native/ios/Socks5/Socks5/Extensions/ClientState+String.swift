@@ -8,8 +8,8 @@
 extension ClientState: CustomStringConvertible {
     public var description: String {
         switch self {
-        case CLIENT_STATE_UNKNOWN:
-            return "unknown"
+        case CLIENT_STATE_UNINITIALISED:
+            return "uninitialised"
         case CLIENT_STATE_CONNECTED:
             return "connected"
         case CLIENT_STATE_DISCONNECTED:

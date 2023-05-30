@@ -39,12 +39,6 @@ class MainViewModel(
     init {
         Log.d(tag, "____init")
 
-        // TODO ⚠ In some circumstances this `init` block can be run multiple
-        //  time which means the below observer will be registered more than once
-        //  This can leads to multiple sequential calls to `stopClient`
-        //  → nym_socks5_listener panics when this happens, crashing the
-        //  entire App
-
         // When the work is cancelled "externally" ie. when the user tap the
         // "Stop" action on the notification, or when the app is intentionally
         // killed the underlying proxy client keeps running in background

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::storage::PersistentStorage;
-use crate::config::persistence::paths::GatewayPaths;
 use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::active_clients::ActiveClientsStore;

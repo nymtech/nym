@@ -2,44 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::Config;
+use crate::commands::try_load_current_config;
 use clap::Args;
 use nym_bin_common::version_checker::Version;
-use std::fmt::Display;
 use std::process;
-
-#[allow(dead_code)]
-fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> ! {
-    print_failed_upgrade(from_version, to_version);
-    process::exit(1)
-}
-
-fn print_start_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    println!("\n==================\nTrying to upgrade client from {from} to {to} ...");
-}
-
-fn print_failed_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    eprintln!("Upgrade from {from} to {to} failed!\n==================\n");
-}
-
-fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    println!("Upgrade from {from} to {to} was successful!\n==================\n");
-}
-
-fn outdated_upgrade(config_version: &Version, package_version: &Version) -> ! {
-    eprintln!(
-        "Cannot perform upgrade from {config_version} to {package_version}. Your version is too old to perform the upgrade.!"
-    );
-    process::exit(1)
-}
-
-fn unsupported_upgrade(current_version: &Version, config_version: &Version) -> ! {
-    eprintln!("Cannot perform upgrade from {config_version} to {current_version}. Please let the developers know about this issue if you expected it to work!");
-    process::exit(1)
-}
 
 fn unimplemented_upgrade(current_version: &Version, config_version: &Version) -> ! {
     eprintln!("Cannot perform upgrade from {config_version} to {current_version} as it hasn't been implemented yet");
-    todo!();
     process::exit(1)
 }
 
@@ -80,25 +49,14 @@ fn parse_package_version() -> Version {
     version
 }
 
-fn do_upgrade(mut config: Config, args: &Upgrade, package_version: &Version) {
-    loop {
-        let config_version = parse_config_version(&config);
-
-        if &config_version == package_version {
-            println!("You're using the most recent version!");
-            return;
-        }
-
-        config = match config_version.major {
-            0 => outdated_upgrade(&config_version, package_version),
-            1 => match config_version.minor {
-                n if n <= 13 => outdated_upgrade(&config_version, package_version),
-                n if n > 13 && n < 19 => unimplemented_upgrade(&config_version, package_version),
-                _ => unsupported_upgrade(&config_version, package_version),
-            },
-            _ => unsupported_upgrade(&config_version, package_version),
-        }
+fn do_upgrade(config: Config, _args: &Upgrade, package_version: &Version) {
+    let config_version = parse_config_version(&config);
+    if &config_version == package_version {
+        println!("You're using the most recent version!");
+        return;
     }
+
+    unimplemented_upgrade(package_version, &config_version)
 }
 
 pub(crate) fn execute(args: &Upgrade) {
@@ -106,7 +64,7 @@ pub(crate) fn execute(args: &Upgrade) {
 
     let id = &args.id;
 
-    let existing_config = Config::read_from_default_path(id).unwrap_or_else(|err| {
+    let existing_config = try_load_current_config(id).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {err}");
         process::exit(1)
     });
@@ -116,6 +74,5 @@ pub(crate) fn execute(args: &Upgrade) {
         process::exit(1);
     }
 
-    // here be upgrade path to 0.9.X and beyond based on version number from config
     do_upgrade(existing_config, args, &package_version)
 }

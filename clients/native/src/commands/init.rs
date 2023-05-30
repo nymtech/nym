@@ -1,10 +1,10 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::{
     default_config_directory, default_config_filepath, default_data_directory,
 };
-use crate::commands::try_upgrade_v1_1_13_config;
+use crate::commands::try_upgrade_config;
 use crate::{
     client::config::Config,
     commands::{override_config, OverrideConfig},
@@ -135,7 +135,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     let already_init = if default_config_filepath(id).exists() {
         // in case we're using old config, try to upgrade it
         // (if we're using the current version, it's a no-op)
-        try_upgrade_v1_1_13_config(id)?;
+        try_upgrade_config(id)?;
         eprintln!("Client \"{id}\" was already initialised before");
         true
     } else {
@@ -163,7 +163,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys_paths.clone());
+    let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
     let gateway = nym_client_core::init::setup_gateway_from_config::<_>(
         &key_store,
         register_gateway,
@@ -186,7 +186,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     );
 
     let address = nym_client_core::init::get_client_address_from_stored_ondisk_keys(
-        &config.storage_paths.common_paths.keys_paths,
+        &config.storage_paths.common_paths.keys,
         &config.base.client.gateway_endpoint,
     )?;
 

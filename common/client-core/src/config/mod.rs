@@ -5,7 +5,6 @@ use nym_config::defaults::NymNetworkDetails;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
 
@@ -15,6 +14,7 @@ use wasm_bindgen::prelude::*;
 
 pub mod disk_persistence;
 pub mod old_config_v1_1_13;
+pub mod old_config_v1_1_19;
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;

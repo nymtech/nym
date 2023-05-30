@@ -1,14 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{
-    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, GatewayConnection, ReplySurbs,
-    Topology, Traffic, DEFAULT_ACK_WAIT_ADDITION, DEFAULT_ACK_WAIT_MULTIPLIER,
-    DEFAULT_AVERAGE_PACKET_DELAY, DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
-    DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY, DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
-    DEFAULT_MAXIMUM_REPLY_KEY_AGE, DEFAULT_MAXIMUM_REPLY_SURB_AGE,
-    DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD, DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
-    DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
+use crate::config::old_config_v1_1_19::{
+    AcknowledgementsV1_1_19, ClientV1_1_19, ConfigV1_1_19, CoverTrafficV1_1_19, DebugConfigV1_1_19,
+    GatewayConnectionV1_1_19, LoggingV1_1_19, ReplySurbsV1_1_19, TopologyV1_1_19, TrafficV1_1_19,
+    DEFAULT_ACK_WAIT_ADDITION, DEFAULT_ACK_WAIT_MULTIPLIER, DEFAULT_AVERAGE_PACKET_DELAY,
+    DEFAULT_GATEWAY_RESPONSE_TIMEOUT, DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
+    DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE, DEFAULT_MAXIMUM_REPLY_KEY_AGE,
+    DEFAULT_MAXIMUM_REPLY_SURB_AGE, DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD,
+    DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE, DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
     DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD, DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
     DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE, DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
     DEFAULT_TOPOLOGY_REFRESH_RATE, DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
@@ -17,8 +17,6 @@ use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::time::Duration;
-
-// use nym_config::NymConfig;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -41,22 +39,21 @@ impl From<ExtendedPacketSize> for PacketSize {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct OldConfigV1_1_13<T> {
-    pub client: PhantomData<T>,
-    // pub client: Client<T>,
-    // #[serde(default)]
-    // logging: Logging,
+    pub client: ClientV1_1_19<T>,
+
     #[serde(default)]
-    debug: OldDebugConfigV1_1_13,
+    pub logging: OldLoggingV1_1_13,
+    #[serde(default)]
+    pub debug: OldDebugConfigV1_1_13,
 }
 
-impl<T> Default for OldConfigV1_1_13<T> {
-    fn default() -> Self {
-        todo!()
-        // OldConfigV1_1_13 {
-        //     client: Client::<T>::default(),
-        //     logging: Default::default(),
-        //     debug: Default::default(),
-        // }
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OldLoggingV1_1_13 {}
+
+impl From<OldLoggingV1_1_13> for LoggingV1_1_19 {
+    fn from(_value: OldLoggingV1_1_13) -> Self {
+        LoggingV1_1_19 {}
     }
 }
 
@@ -117,10 +114,10 @@ pub struct OldDebugConfigV1_1_13 {
     pub maximum_reply_key_age: Duration,
 }
 
-impl From<OldDebugConfigV1_1_13> for DebugConfig {
+impl From<OldDebugConfigV1_1_13> for DebugConfigV1_1_19 {
     fn from(value: OldDebugConfigV1_1_13) -> Self {
-        DebugConfig {
-            traffic: Traffic {
+        DebugConfigV1_1_19 {
+            traffic: TrafficV1_1_19 {
                 average_packet_delay: value.average_packet_delay,
                 message_sending_average_delay: value.message_sending_average_delay,
                 disable_main_poisson_packet_distribution: value
@@ -128,25 +125,25 @@ impl From<OldDebugConfigV1_1_13> for DebugConfig {
                 primary_packet_size: PacketSize::RegularPacket,
                 secondary_packet_size: value.use_extended_packet_size.map(Into::into),
             },
-            cover_traffic: CoverTraffic {
+            cover_traffic: CoverTrafficV1_1_19 {
                 loop_cover_traffic_average_delay: value.loop_cover_traffic_average_delay,
                 disable_loop_cover_traffic_stream: value.disable_loop_cover_traffic_stream,
-                ..CoverTraffic::default()
+                ..CoverTrafficV1_1_19::default()
             },
-            gateway_connection: GatewayConnection {
+            gateway_connection: GatewayConnectionV1_1_19 {
                 gateway_response_timeout: value.gateway_response_timeout,
             },
-            acknowledgements: Acknowledgements {
+            acknowledgements: AcknowledgementsV1_1_19 {
                 average_ack_delay: value.average_ack_delay,
                 ack_wait_multiplier: value.ack_wait_multiplier,
                 ack_wait_addition: value.ack_wait_addition,
             },
-            topology: Topology {
+            topology: TopologyV1_1_19 {
                 topology_refresh_rate: value.topology_refresh_rate,
                 topology_resolution_timeout: value.topology_resolution_timeout,
                 disable_refreshing: false,
             },
-            reply_surbs: ReplySurbs {
+            reply_surbs: ReplySurbsV1_1_19 {
                 minimum_reply_surb_storage_threshold: value.minimum_reply_surb_storage_threshold,
                 maximum_reply_surb_storage_threshold: value.maximum_reply_surb_storage_threshold,
                 minimum_reply_surb_request_size: value.minimum_reply_surb_request_size,
@@ -193,31 +190,30 @@ impl Default for OldDebugConfigV1_1_13 {
     }
 }
 
-impl<T> From<OldConfigV1_1_13<T>> for Config {
+impl<T, U> From<OldConfigV1_1_13<T>> for ConfigV1_1_19<U> {
     fn from(value: OldConfigV1_1_13<T>) -> Self {
-        todo!()
-        // Config {
-        //     client: Client {
-        //         version: value.client.version,
-        //         id: value.client.id,
-        //         disabled_credentials_mode: value.client.disabled_credentials_mode,
-        //         nyxd_urls: value.client.nyxd_urls,
-        //         nym_api_urls: value.client.nym_api_urls,
-        //         private_identity_key_file: value.client.private_identity_key_file,
-        //         public_identity_key_file: value.client.public_identity_key_file,
-        //         private_encryption_key_file: value.client.private_encryption_key_file,
-        //         public_encryption_key_file: value.client.public_encryption_key_file,
-        //         gateway_shared_key_file: value.client.gateway_shared_key_file,
-        //         ack_key_file: value.client.ack_key_file,
-        //         gateway_endpoint: value.client.gateway_endpoint,
-        //         database_path: value.client.database_path,
-        //         reply_surb_database_path: value.client.reply_surb_database_path,
-        //         nym_root_directory: value.client.nym_root_directory,
-        //
-        //         super_struct: PhantomData,
-        //     },
-        //     logging: value.logging,
-        //     debug: value.debug.into(),
-        // }
+        ConfigV1_1_19 {
+            client: ClientV1_1_19 {
+                version: value.client.version,
+                id: value.client.id,
+                disabled_credentials_mode: value.client.disabled_credentials_mode,
+                nyxd_urls: value.client.nyxd_urls,
+                nym_api_urls: value.client.nym_api_urls,
+                private_identity_key_file: value.client.private_identity_key_file,
+                public_identity_key_file: value.client.public_identity_key_file,
+                private_encryption_key_file: value.client.private_encryption_key_file,
+                public_encryption_key_file: value.client.public_encryption_key_file,
+                gateway_shared_key_file: value.client.gateway_shared_key_file,
+                ack_key_file: value.client.ack_key_file,
+                gateway_endpoint: value.client.gateway_endpoint,
+                database_path: value.client.database_path,
+                reply_surb_database_path: value.client.reply_surb_database_path,
+                nym_root_directory: value.client.nym_root_directory,
+
+                super_struct: PhantomData,
+            },
+            logging: value.logging.into(),
+            debug: value.debug.into(),
+        }
     }
 }

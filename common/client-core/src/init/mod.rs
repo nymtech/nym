@@ -17,7 +17,6 @@ use nym_validator_client::client::IdentityKey;
 use rand::rngs::OsRng;
 use serde::Serialize;
 use std::fmt::{Debug, Display};
-use tap::TapFallible;
 use url::Url;
 
 mod helpers;

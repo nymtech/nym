@@ -12,16 +12,15 @@ pub const DEFAULT_CREDENTIALS_DB_FILENAME: &str = "credentials_database.db";
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 pub struct CommonClientPaths {
-    pub keys_paths: ClientKeysPaths,
+    pub keys: ClientKeysPaths,
 
     // TODO:
     // pub gateway_config_pathfinder: (),
     /// Path to the database containing bandwidth credentials of this client.
-    #[serde(alias = "database_path")]
     pub credentials_database: PathBuf,
 
     /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
-    pub reply_surb_database_path: PathBuf,
+    pub reply_surb_database: PathBuf,
 }
 
 impl CommonClientPaths {
@@ -30,8 +29,8 @@ impl CommonClientPaths {
 
         CommonClientPaths {
             credentials_database: base_dir.join(DEFAULT_CREDENTIALS_DB_FILENAME),
-            reply_surb_database_path: base_dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
-            keys_paths: ClientKeysPaths::new_default(base_data_directory),
+            reply_surb_database: base_dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
+            keys: ClientKeysPaths::new_default(base_data_directory),
         }
     }
 }

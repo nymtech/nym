@@ -19,6 +19,7 @@ use std::time::Duration;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+pub(crate) mod old_config_v1_1_19;
 pub mod persistence;
 mod template;
 

@@ -143,7 +143,6 @@ fn try_upgrade_v1_1_20_config(id: &str) -> std::io::Result<()> {
     info!("It is going to get updated to the current specification.");
 
     let updated: Config = old_config.into();
-    println!("upgraded to {:#?}", updated);
     updated.save_to_default_location()
 }
 

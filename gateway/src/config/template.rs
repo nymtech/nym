@@ -25,25 +25,6 @@ only_coconut_credentials = {{ gateway.only_coconut_credentials }}
 # Socket address to which this gateway will bind to and will be listening for packets.
 listening_address = '{{ gateway.listening_address }}'
 
-# Path to file containing private identity key.
-private_identity_key_file = '{{ gateway.private_identity_key_file }}'
-
-# Path to file containing public identity key.
-public_identity_key_file = '{{ gateway.public_identity_key_file }}'
-
-# Path to file containing private sphinx key.
-private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
-
-# Path to file containing public sphinx key.
-public_sphinx_key_file = '{{ gateway.public_sphinx_key_file }}'
-
-##### additional gateway config options #####
-
-# Optional address announced to the directory server for the clients to connect to.
-# It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
-# later on by using name resolvable with a DNS query, such as `nymtech.net`.
-announce_address = '{{ gateway.announce_address }}'
-
 # Port used for listening for all mixnet traffic.
 # (default: 1789)
 mix_port = {{ gateway.mix_port }}
@@ -74,18 +55,23 @@ nyxd_urls = [
 
 cosmos_mnemonic = "{{ gateway.cosmos_mnemonic }}"
 
-# Nym wallet address on the blockchain that should control this gateway
-wallet_address = '{{ gateway.wallet_address }}'
+[storage_paths] 
 
-##### advanced configuration options #####
+# Path to file containing private identity key.
+keys.private_identity_key_file = '{{ storage_paths.keys.private_identity_key_file }}'
 
-# nym_home_directory specifies absolute path to the home nym gateway directory.
-# It is expected to use default value and hence .toml file should not redefine this field.
-nym_root_directory = '{{ gateway.nym_root_directory }}'
+# Path to file containing public identity key.
+keys.public_identity_key_file = '{{ storage_paths.keys.public_identity_key_file }}'
+
+# Path to file containing private identity key.
+keys.private_sphinx_key_file = '{{ storage_paths.keys.private_sphinx_key_file }}'
+
+# Path to file containing public sphinx key.
+keys.public_sphinx_key_file = '{{ storage_paths.keys.public_sphinx_key_file }}'
 
 # Path to sqlite database containing all persistent data: messages for offline clients,
 # derived shared keys and available client bandwidths.
-persistent_storage = '{{ gateway.persistent_storage }}'
+clients_storage = '{{ storage_paths.clients_storage }}'
 
 ##### logging configuration options #####
 

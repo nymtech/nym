@@ -113,6 +113,7 @@ where
     // once merged, that's an easy rng injection point for sphinx packets : )
     let packet = SphinxPacketBuilder::new()
         .with_payload_size(packet_size.payload_size())
+        .with_initial_secret(&[42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42].into())
         .build_packet(packet_payload, &route, &destination, &delays)
         .unwrap();
 

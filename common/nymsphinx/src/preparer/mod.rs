@@ -208,6 +208,7 @@ pub trait FragmentPreparer {
         // there's absolutely no reason for this call to fail.
         let sphinx_packet = SphinxPacketBuilder::new()
             .with_payload_size(packet_size.payload_size())
+            .with_initial_secret(&[42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42].into())
             .build_packet(packet_payload, &route, &destination, &delays)
             .unwrap();
 

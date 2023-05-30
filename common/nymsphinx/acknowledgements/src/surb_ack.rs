@@ -60,6 +60,7 @@ impl SurbAck {
 
         let surb_ack_packet = SphinxPacketBuilder::new()
             .with_payload_size(PacketSize::AckPacket.payload_size())
+            .with_initial_secret(&[42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42].into())
             .build_packet(surb_ack_payload, &route, &destination, &delays)
             .unwrap();
 

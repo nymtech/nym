@@ -106,10 +106,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
 mod tests {
     use super::*;
 
-    use crate::test_helpers::{
-        assert::{assert_config, assert_empty, assert_not_found, assert_service, assert_services},
-        fixture::service_fixture,
-        helpers::{get_attribute, nyms},
+    use crate::{
+        signing,
+        test_helpers::{
+            assert::{
+                assert_config, assert_empty, assert_not_found, assert_service, assert_services,
+            },
+            fixture::service_fixture,
+            helpers::{get_attribute, nyms},
+        },
     };
 
     use cosmwasm_std::{
@@ -126,10 +131,45 @@ mod tests {
             construct_service_provider_announce_sign_payload, ServiceProviderAnnounce,
             SignableServiceProviderAnnounceMsg,
         },
-        Service, ServiceDetails, ServiceId,
+        NymAddress, Service, ServiceDetails, ServiceId, ServiceType,
     };
+    use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
+    use serde::Serialize;
 
     const DENOM: &str = "unym";
+
+    // WIP(JON): move to test helpers
+    fn test_rng() -> ChaCha20Rng {
+        let dummy_seed = [42u8; 32];
+        ChaCha20Rng::from_seed(dummy_seed)
+    }
+
+    fn service_provider_announce_sign_payload(
+        deps: Deps<'_>,
+        owner: &str,
+        service: ServiceDetails,
+        deposit: Coin,
+    ) -> SignableServiceProviderAnnounceMsg {
+        let owner = Addr::unchecked(owner);
+        let nonce = signing::storage::get_signing_nonce(deps.storage, owner.clone()).unwrap();
+        construct_service_provider_announce_sign_payload(nonce, owner, deposit, service)
+    }
+
+    fn ed25519_sign_message<T: Serialize + SigningPurpose>(
+        message: SignableMessage<T>,
+        private_key: &identity::PrivateKey,
+    ) -> MessageSignature {
+        match message.algorithm {
+            SigningAlgorithm::Ed25519 => {
+                let plaintext = message.to_plaintext().unwrap();
+                let signature = private_key.sign(&plaintext);
+                MessageSignature::from(signature.to_bytes().as_ref())
+            }
+            SigningAlgorithm::Secp256k1 => {
+                unimplemented!()
+            }
+        }
+    }
 
     #[test]
     fn instantiate_contract() {
@@ -195,11 +235,6 @@ mod tests {
     //    assert_empty(deps.as_ref());
     //}
 
-    fn test_rng() -> ChaCha20Rng {
-        let dummy_seed = [42u8; 32];
-        ChaCha20Rng::from_seed(dummy_seed)
-    }
-
     #[test]
     fn announce_success() {
         let mut deps = mock_dependencies();
@@ -208,90 +243,56 @@ mod tests {
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
 
-        // Announce
-        //let service = service_fixture();
-
+        // Setup service
         let mut rng = test_rng();
         let keypair = identity::KeyPair::new(&mut rng);
         let identity_key = keypair.public_key().to_base58_string();
-        let service = service_fixture();
+        let service = ServiceDetails {
+            nym_address: NymAddress::new("nym"),
+            service_type: ServiceType::NetworkRequester,
+            identity_key,
+        };
         let announcer = "steve";
         let deposit = nyms(100);
 
+        // Sign
         let sign_msg = service_provider_announce_sign_payload(
             deps.as_ref(),
             announcer,
             service.clone(),
-            deposit,
+            deposit.clone(),
         );
         let owner_signature = ed25519_sign_message(sign_msg, keypair.private_key());
 
+        // Announce
         let msg = ExecuteMsg::Announce {
             service: service.clone(),
             owner_signature,
         };
-
-        //let service = Service {
-        //    service_id: todo!(),
-        //    service: service_fixture(),
-        //    announcer: Addr::unchecked("steve"),
-        //    block_height: 12345,
-        //    deposit: nyms(100),
-        //};
-
-        //let msg: ExecuteMsg = service_fixture().into();
-        //let info = mock_info("steve", &[nyms(100)]);
-        //let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let info = mock_info("steve", &[nyms(100)]);
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Check that the service has had service id assigned to it
-        //let expected_id = 1;
-        //let id: ServiceId = get_attribute(&res, "announce", "service_id")
-        //    .parse()
-        //    .unwrap();
-        //assert_eq!(id, expected_id);
-        //assert_eq!(
-        //    get_attribute(&res, "announce", "service_type"),
-        //    "network_requester".to_string()
-        //);
+        let expected_id = 1;
+        let id: ServiceId = get_attribute(&res, "announce", "service_id")
+            .parse()
+            .unwrap();
+        assert_eq!(id, expected_id);
+        assert_eq!(
+            get_attribute(&res, "announce", "service_type"),
+            "network_requester".to_string()
+        );
 
-        //// The expected announced service
-        //let expected_service = ServiceInfo {
-        //    service_id: expected_id,
-        //    service: service_fixture(),
-        //};
-        //assert_services(deps.as_ref(), &[expected_service.clone()]);
-        //assert_service(deps.as_ref(), &expected_service);
-    }
-
-    use mixnet_contract::signing::storage as signing_storage;
-    use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
-    use serde::Serialize;
-
-    fn service_provider_announce_sign_payload(
-        deps: Deps<'_>,
-        owner: &str,
-        service: ServiceDetails,
-        deposit: Coin,
-    ) -> SignableServiceProviderAnnounceMsg {
-        let owner = Addr::unchecked(owner);
-        let nonce = signing_storage::get_signing_nonce(deps.storage, owner.clone()).unwrap();
-        construct_service_provider_announce_sign_payload(nonce, owner, deposit, service)
-    }
-
-    fn ed25519_sign_message<T: Serialize + SigningPurpose>(
-        message: SignableMessage<T>,
-        private_key: &identity::PrivateKey,
-    ) -> MessageSignature {
-        match message.algorithm {
-            SigningAlgorithm::Ed25519 => {
-                let plaintext = message.to_plaintext().unwrap();
-                let signature = private_key.sign(&plaintext);
-                MessageSignature::from(signature.to_bytes().as_ref())
-            }
-            SigningAlgorithm::Secp256k1 => {
-                unimplemented!()
-            }
-        }
+        // The expected announced service
+        let expected_service = Service {
+            service_id: expected_id,
+            service,
+            announcer: Addr::unchecked("steve"),
+            block_height: 12345,
+            deposit,
+        };
+        assert_services(deps.as_ref(), &[expected_service.clone()]);
+        assert_service(deps.as_ref(), &expected_service);
     }
 
     //#[test]

@@ -13,3 +13,5 @@ pub const SERVICE_ID_COUNTER_KEY: &str = "sidc";
 pub const SERVICES_PK_NAMESPACE: &str = "sernames";
 pub const SERVICES_ANNOUNCER_IDX_NAMESPACE: &str = "serown";
 pub const SERVICES_NYM_ADDRESS_IDX_NAMESPACE: &str = "sernyma";
+
+pub const SIGNING_NONCES_NAMESPACE: &str = "sn";

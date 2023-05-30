@@ -1,10 +1,10 @@
 use crate::{
     constants::{MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS, MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER},
     error::{ContractError, Result},
-    state,
+    state, signing::{self, storage},
 };
 use cosmwasm_std::{Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Response, Uint128};
-use mixnet_contract::signing::storage as signing_storage;
+//use mixnet_contract::signing::storage as signing_storage;
 use nym_contracts_common::signing::{MessageSignature, Verifier};
 use nym_service_provider_directory_common::{
     events::{new_announce_event, new_delete_id_event, new_update_deposit_required_event},
@@ -106,6 +106,7 @@ pub fn announce(
     )?;
 
     //  WIP(JON): increment signing nonce
+    signing::storage::increment_signing_nonce(deps.storage, info.sender.clone())?;
 
     let service_id = state::next_service_id_counter(deps.storage)?;
     let new_service = Service {
@@ -131,7 +132,8 @@ fn verify_announce_signature(
     let public_key = decode_ed25519_identity_key(&service.identity_key)?;
 
     // reconstruct the payload
-    let nonce = signing_storage::get_signing_nonce(deps.storage, sender.clone())?;
+    let nonce = signing::storage::get_signing_nonce(deps.storage, sender.clone())?;
+    dbg!(&nonce);
 
     let msg = construct_service_provider_announce_sign_payload(nonce, sender, deposit, service);
 

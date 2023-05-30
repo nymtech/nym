@@ -16,6 +16,7 @@ use error::ContractError;
 
 mod contract;
 mod error;
+mod signing;
 mod state;
 
 pub mod constants;

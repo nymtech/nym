@@ -12,7 +12,7 @@ pub mod nym_config {
     pub const DATA_DIR: &str = "data";
 
     // no need for anything to do with saving.
-    pub trait MigrationNymConfig: Default + Serialize + DeserializeOwned {
+    pub trait MigrationNymConfig: Serialize + DeserializeOwned {
         fn config_file_name() -> String {
             "config.toml".to_string()
         }

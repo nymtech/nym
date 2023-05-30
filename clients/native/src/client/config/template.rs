@@ -36,39 +36,35 @@ nym_api_urls = [
     {{/each}}
 ]
 
+[storage_paths] 
+
 # Path to file containing private identity key.
-private_identity_key_file = '{{ client.private_identity_key_file }}'
+keys.private_identity_key_file = '{{ storage_paths.keys.private_identity_key_file }}'
 
 # Path to file containing public identity key.
-public_identity_key_file = '{{ client.public_identity_key_file }}'
+keys.public_identity_key_file = '{{ storage_paths.keys.public_identity_key_file }}'
 
 # Path to file containing private encryption key.
-private_encryption_key_file = '{{ client.private_encryption_key_file }}'
+keys.private_encryption_key_file = '{{ storage_paths.keys.private_encryption_key_file }}'
 
 # Path to file containing public encryption key.
-public_encryption_key_file = '{{ client.public_encryption_key_file }}'
-
-# Path to the database containing bandwidth credentials
-database_path = '{{ client.database_path }}'
-
-# Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
-reply_surb_database_path = '{{ client.reply_surb_database_path }}'
-
-##### additional client config options #####
+keys.public_encryption_key_file = '{{ storage_paths.keys.public_encryption_key_file }}'
 
 # A gateway specific, optional, base58 stringified shared key used for
 # communication with particular gateway.
-gateway_shared_key_file = '{{ client.gateway_shared_key_file }}'
+keys.gateway_shared_key_file = '{{ storage_paths.keys.gateway_shared_key_file }}'
 
 # Path to file containing key used for encrypting and decrypting the content of an
 # acknowledgement so that nobody besides the client knows which packet it refers to.
-ack_key_file = '{{ client.ack_key_file }}'
-    
-##### advanced configuration options #####
+keys.ack_key_file = '{{ storage_paths.keys.ack_key_file }}'
 
-# Absolute path to the home Nym Clients directory.
-nym_root_directory = '{{ client.nym_root_directory }}'
+# Path to the database containing bandwidth credentials
+credentials_database = '{{ storage_paths.credentials_database }}'
 
+# Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
+reply_surb_database = '{{ storage_paths.reply_surb_database }}'
+
+# DEPRECATED
 [client.gateway_endpoint]
 # ID of the gateway from which the client should be fetching messages.
 gateway_id = '{{ client.gateway_endpoint.gateway_id }}'

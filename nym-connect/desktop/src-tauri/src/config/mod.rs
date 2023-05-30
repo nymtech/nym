@@ -154,7 +154,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys_paths.clone());
+    let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
     let gateway = nym_client_core::init::setup_gateway_from_config::<_>(
         &key_store,
         register_gateway,
@@ -175,7 +175,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     print_saved_config(&config);
 
     let address = nym_client_core::init::get_client_address_from_stored_ondisk_keys(
-        &config.storage_paths.common_paths.keys_paths,
+        &config.storage_paths.common_paths.keys,
         &config.socks5.base.client.gateway_endpoint,
     )?;
     log::info!("The address of this client is: {}", address);

@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::old_config_v1_1_13::OldConfigV1_1_13;
+use crate::client::config::old_config_v1_1_19::ConfigV1_1_19;
 use crate::client::config::{BaseClientConfig, Config};
+use crate::error::ClientError;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
-use log::info;
+use log::{error, info};
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_config::OptionalSet;
@@ -107,19 +109,67 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         )
 }
 
-fn try_upgrade_v1_1_13_config(id: &str) -> std::io::Result<()> {
-    todo!()
-    // // explicitly load it as v1.1.13 (which is incompatible with the current, i.e. 1.1.14+)
-    // let Ok(old_config) = OldConfigV1_1_13::load_from_file(id) else {
-    //     // if we failed to load it, there might have been nothing to upgrade
-    //     // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-    //     return Ok(());
-    // };
-    // info!("It seems the client is using <= v1.1.13 config template.");
-    // info!("It is going to get updated to the current specification.");
-    //
-    // let updated: Config = old_config.into();
-    // updated.save_to_file(None)
+fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, ClientError> {
+    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
+
+    // explicitly load it as v1.1.13 (which is incompatible with the next step, i.e. 1.1.19)
+    let Ok(old_config) = OldConfigV1_1_13::load_from_file(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(false);
+    };
+    info!("It seems the client is using <= v1.1.13 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let updated_step1: ConfigV1_1_19 = old_config.into();
+    let updated: Config = updated_step1.into();
+
+    updated.save_to_default_location()?;
+    Ok(true)
+}
+
+fn try_upgrade_v1_1_19_config(id: &str) -> Result<bool, ClientError> {
+    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
+
+    // explicitly load it as v1.1.19 (which is incompatible with the current one, i.e. +1.1.20)
+    let Ok(old_config) = ConfigV1_1_19::load_from_file(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(false);
+    };
+    info!("It seems the client is using <= v1.1.20 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let updated: Config = old_config.into();
+    updated.save_to_default_location()?;
+    Ok(true)
+}
+
+fn try_upgrade_config(id: &str) -> Result<(), ClientError> {
+    let upgraded = try_upgrade_v1_1_13_config(id)?;
+    if !upgraded {
+        try_upgrade_v1_1_19_config(id)?;
+    }
+
+    Ok(())
+}
+
+fn try_load_current_config(id: &str) -> Result<Config, ClientError> {
+    try_upgrade_config(id)?;
+
+    let config = match Config::read_from_default_path(id) {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            error!("Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})");
+            return Err(ClientError::FailedToLoadConfig(id.to_string()));
+        }
+    };
+
+    if !config.validate() {
+        return Err(ClientError::ConfigValidationFailure);
+    }
+
+    Ok(config)
 }
 
 #[cfg(test)]

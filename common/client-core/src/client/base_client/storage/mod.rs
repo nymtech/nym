@@ -100,10 +100,10 @@ impl OnDiskPersistent {
         paths: CommonClientPaths,
         debug_config: &config::DebugConfig,
     ) -> Result<Self, ClientCoreError> {
-        let key_store = OnDiskKeys::new(paths.keys_paths);
+        let key_store = OnDiskKeys::new(paths.keys);
 
         let reply_store = non_wasm_helpers::setup_fs_reply_surb_backend(
-            paths.reply_surb_database_path,
+            paths.reply_surb_database,
             &debug_config.reply_surbs,
         )
         .await?;

@@ -20,7 +20,7 @@ pub async fn get_identity_key(
         state.load_config()?
     };
 
-    let paths = config.storage_paths.common_paths.keys_paths;
+    let paths = config.storage_paths.common_paths.keys;
 
     // wtf, why are we loading EVERYTHING to just get identity key??
     let key_store = OnDiskKeys::from(paths);
@@ -52,7 +52,7 @@ pub async fn export_keys(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<
         state.load_config()?
     };
 
-    let key_paths = config.storage_paths.common_paths.keys_paths;
+    let key_paths = config.storage_paths.common_paths.keys;
 
     // Get key paths
     let ack_key_file = key_paths.ack_key();

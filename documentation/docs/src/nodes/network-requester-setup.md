@@ -2,12 +2,17 @@
 
 > The Nym network requester was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code on this page, go there first.
 
+
+## Current version
+```
+<!-- cmdrun ../../../../target/release/nym-network-requester --version | grep "Build Version" | cut -b 21-26  -->
+```
+
+
+## Network Requester Whitelist
 If you have access to a server, you can run the network requester, which allows Nym users to send outbound requests from their local machine through the mixnet to a server, which then makes the request on their behalf, shielding them (and their metadata) from clearnet, untrusted and unknown infrastructure, such as email or message client servers.
 
-> As of `v1.1.10`, the network requester longer requires a separate nym client instance for it to function, as it has a client embedded within the binary running as a single process.
->
-## Network Requester Whitelist
-The network requester is **not** an open proxy. It uses a file called `allowed.list` (located in `~/.nym/service-providers/network-requester/<network-requester-id>/`) as a whitelist for outbound requests.
+By default the network requester is **not** an open proxy (although it can be used as one). It uses a file called `allowed.list` (located in `~/.nym/service-providers/network-requester/<network-requester-id>/`) as a whitelist for outbound requests.
 
 Any request to a URL which is not on this list will be blocked.
 

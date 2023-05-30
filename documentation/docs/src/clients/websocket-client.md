@@ -2,6 +2,11 @@
 
 > The Nym Websocket Client was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code on this page, go there first.
 
+## Current version
+```
+<!-- cmdrun ../../../../target/release/nym-client --version | grep "Build Version" | cut -b 21-26  -->
+```
+
 ## Client setup
 ### Viewing command help
 

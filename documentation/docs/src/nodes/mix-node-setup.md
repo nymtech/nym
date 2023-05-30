@@ -2,9 +2,12 @@
 
 > The Nym mix node binary was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
-```admonish info
-The `nym-mixnode` binary is currently one point version ahead of the rest of the platform binaries due to a patch applied between releases.
+## Current version
 ```
+<!-- cmdrun ../../../../target/release/nym-mixnode --version | grep "Build Version" | cut -b 21-26  -->
+```
+
+The `nym-mixnode` binary is currently one point version ahead of the rest of the platform binaries due to a patch applied between releases.
 
 ## Preliminary steps
 

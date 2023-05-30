@@ -96,12 +96,20 @@ pub struct Config {
     pub rewarding: Rewarding,
 
     pub coconut_signer: CoconutSigner,
+
+    pub ephemera: Ephemera,
 }
 
 impl NymConfigTemplate for Config {
     fn template() -> &'static str {
         CONFIG_TEMPLATE
     }
+}
+
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct Ephemera {
+    args: crate::ephemera::Args,
 }
 
 impl Config {
@@ -527,5 +535,13 @@ impl Default for CoconutSignerDebug {
         CoconutSignerDebug {
             dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
         }
+    }
+
+    pub fn get_ephemera_args(&self) -> &crate::ephemera::Args {
+        &self.ephemera.args
+    }
+
+    pub fn get_ephemera_config_path(&self) -> String {
+        self.ephemera.args.ephemera_config.clone()
     }
 }

@@ -11,6 +11,7 @@ use crate::support::cli::CliArgs;
 use crate::support::config::Config;
 use crate::support::storage;
 use crate::support::storage::NymApiStorage;
+use ::ephemera::configuration::Configuration as EphemeraConfiguration;
 use ::nym_config::defaults::setup_env;
 use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
@@ -28,6 +29,7 @@ use support::{http, nyxd};
 
 mod circulating_supply_api;
 mod coconut;
+mod ephemera;
 mod epoch_operations;
 mod network_monitor;
 pub(crate) mod node_status_api;
@@ -118,6 +120,15 @@ async fn start_nym_api_tasks(
         )
         .await?;
     }
+
+    let ephemera_config =
+        EphemeraConfiguration::try_load(config.get_ephemera_config_path()).unwrap();
+    let (_shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+    let _nym_api = tokio::spawn(ephemera::application::NymApi::run(
+        config.get_ephemera_args().clone(),
+        ephemera_config,
+        shutdown_rx,
+    ));
 
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring if it's enabled

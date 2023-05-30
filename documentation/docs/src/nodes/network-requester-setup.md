@@ -190,7 +190,7 @@ sudo ufw status
 Finally open your requester's p2p port, as well as ports for ssh and incoming traffic connections:
 
 ```
-sudo ufw allow 1789,22,9000/tcp
+sudo ufw allow 22,9000/tcp
 # check the status of the firewall
 sudo ufw status
 ```

@@ -18,6 +18,8 @@ use std::time::Duration;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+pub(crate) mod helpers;
+pub(crate) mod old_config_v1_1_20;
 mod persistence;
 mod template;
 
@@ -228,6 +230,7 @@ pub struct Base {
     vesting_contract_address: nyxd::AccountId,
 
     /// Mnemonic used for rewarding and/or multisig operations
+    // TODO: similarly to the note in gateway, this should get moved to a separate file
     mnemonic: bip39::Mnemonic,
 }
 
@@ -254,10 +257,9 @@ pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
     pub enabled: bool,
 
-    #[serde(flatten)]
     pub storage_paths: NetworkMonitorPaths,
 
-    #[serde(flatten)]
+    #[serde(default)]
     pub debug: NetworkMonitorDebug,
 }
 
@@ -350,10 +352,9 @@ impl Default for NetworkMonitorDebug {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct NodeStatusAPI {
     // pub enabled: bool,
-    #[serde(flatten)]
     pub storage_paths: NodeStatusAPIPaths,
 
-    #[serde(flatten)]
+    #[serde(default)]
     pub debug: NodeStatusAPIDebug,
 }
 
@@ -389,7 +390,7 @@ pub struct TopologyCacher {
     // pub enabled: bool,
 
     // pub paths: TopologyCacherPathfinder,
-    #[serde(flatten)]
+    #[serde(default)]
     pub debug: TopologyCacherDebug,
 }
 
@@ -414,7 +415,7 @@ pub struct CirculatingSupplyCacher {
     pub enabled: bool,
 
     // pub paths: CirculatingSupplyCacherPathfinder,
-    #[serde(flatten)]
+    #[serde(default)]
     pub debug: CirculatingSupplyCacherDebug,
 }
 
@@ -450,7 +451,7 @@ pub struct Rewarding {
 
     // this should really be a thing too...
     // pub paths: RewardingPathfinder,
-    #[serde(flatten)]
+    #[serde(default)]
     pub debug: RewardingDebug,
 }
 
@@ -488,10 +489,9 @@ pub struct CoconutSigner {
 
     pub announce_address: Url,
 
-    #[serde(flatten)]
     pub storage_paths: CoconutSignerPaths,
 
-    #[serde(flatten)]
+    #[serde(default)]
     pub debug: CoconutSignerDebug,
 }
 

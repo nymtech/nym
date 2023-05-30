@@ -1,19 +1,24 @@
 use cosmwasm_std::{
     coin, coins,
     testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier},
-    Coin, DepsMut, Event, MemoryStorage, OwnedDeps, Response, Addr, Deps,
+    Addr, Coin, Deps, DepsMut, Event, MemoryStorage, OwnedDeps, Response,
 };
 use cw_multi_test::AppResponse;
-use nym_contracts_common::signing::{SigningPurpose, SignableMessage, MessageSignature, SigningAlgorithm};
+use nym_contracts_common::signing::{
+    MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose,
+};
 use nym_crypto::asymmetric::identity;
 use nym_service_provider_directory_common::{
     events::{ServiceProviderEventType, SERVICE_ID},
     msg::{ExecuteMsg, InstantiateMsg},
-    Service, ServiceDetails, ServiceId, signing_types::{construct_service_provider_announce_sign_payload, SignableServiceProviderAnnounceMsg},
+    signing_types::{
+        construct_service_provider_announce_sign_payload, SignableServiceProviderAnnounceMsg,
+    },
+    Service, ServiceDetails, ServiceId,
 };
 use serde::Serialize;
 
-use crate::signing;
+use crate::state;
 
 pub fn nyms(amount: u64) -> Coin {
     Coin::new(amount.into(), "unym")
@@ -131,7 +136,7 @@ pub fn service_provider_announce_sign_payload(
     deposit: Coin,
 ) -> SignableServiceProviderAnnounceMsg {
     let owner = Addr::unchecked(owner);
-    let nonce = signing::storage::get_signing_nonce(deps.storage, owner.clone()).unwrap();
+    let nonce = state::nonce::get_signing_nonce(deps.storage, owner.clone()).unwrap();
     construct_service_provider_announce_sign_payload(nonce, owner, deposit, service)
 }
 

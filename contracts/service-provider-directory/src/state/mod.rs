@@ -1,5 +1,7 @@
+// WIP(JON): consider removing pub
 pub mod admin;
 pub mod config;
+pub mod nonce;
 pub mod service_id_counter;
 pub mod services;
 

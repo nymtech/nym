@@ -7,7 +7,6 @@ use nym_service_provider_directory_common::{
 
 use crate::{
     error::Result,
-    signing,
     state::{self, services::PagedLoad},
 };
 
@@ -43,8 +42,13 @@ pub fn query_all_paged(
     ))
 }
 
-pub fn query_signing_nonce(deps: Deps, nym_address: NymAddress) -> Result<Nonce> {
-    signing::queries::query_current_signing_nonce(deps, nym_address)
+//pub fn query_signing_nonce(deps: Deps, nym_address: NymAddress) -> Result<Nonce> {
+//    signing::queries::query_current_signing_nonce(deps, nym_address)
+//}
+
+pub fn query_current_signing_nonce(deps: Deps<'_>, address: String) -> Result<Nonce> {
+    let address = deps.api.addr_validate(&address)?;
+    state::nonce::get_signing_nonce(deps.storage, address)
 }
 
 pub fn query_config(deps: Deps) -> Result<ConfigResponse> {

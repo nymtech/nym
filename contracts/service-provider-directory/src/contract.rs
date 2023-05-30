@@ -95,7 +95,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
         QueryMsg::All { limit, start_after } => {
             to_binary(&query::query_all_paged(deps, limit, start_after)?)
         }
-        QueryMsg::GetSigningNonce { address } => to_binary(&query::query_signing_nonce(deps, address)?),
+        QueryMsg::GetSigningNonce { address } => {
+            to_binary(&query::query_current_signing_nonce(deps, address)?)
+        }
         QueryMsg::Config {} => to_binary(&query::query_config(deps)?),
         QueryMsg::GetContractVersion {} => to_binary(&query::query_contract_version()),
         QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
@@ -107,16 +109,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
 mod tests {
     use super::*;
 
-    use crate::{
-        signing,
-        test_helpers::{
-            assert::{
-                assert_config, assert_empty, assert_not_found, assert_service, assert_services,
-            },
-            fixture::{self, service_fixture, signed_service_details},
-            helpers::{
-                ed25519_sign_message, get_attribute, nyms, service_provider_announce_sign_payload,
-            },
+    use crate::test_helpers::{
+        assert::{assert_config, assert_empty, assert_not_found, assert_service, assert_services},
+        fixture::{self, service_fixture, signed_service_details},
+        helpers::{
+            ed25519_sign_message, get_attribute, nyms, service_provider_announce_sign_payload,
         },
     };
 

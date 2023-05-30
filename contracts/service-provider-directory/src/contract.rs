@@ -110,9 +110,12 @@ mod tests {
     use super::*;
 
     use crate::test_helpers::{
-        assert::{assert_config, assert_empty, assert_not_found, assert_service, assert_services, assert_current_nonce},
+        assert::{
+            assert_config, assert_current_nonce, assert_empty, assert_not_found, assert_service,
+            assert_services,
+        },
         fixture::signed_service_details,
-        helpers::{get_attribute, nyms},
+        helpers::{get_attribute, nyms, test_rng},
     };
 
     use cosmwasm_std::{
@@ -120,15 +123,8 @@ mod tests {
         Addr, Coin,
     };
     use nym_service_provider_directory_common::{msg::ExecuteMsg, Service, ServiceId};
-    use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 
     const DENOM: &str = "unym";
-
-    // WIP(JON): move to test helpers
-    fn test_rng() -> ChaCha20Rng {
-        let dummy_seed = [42u8; 32];
-        ChaCha20Rng::from_seed(dummy_seed)
-    }
 
     #[test]
     fn instantiate_contract() {

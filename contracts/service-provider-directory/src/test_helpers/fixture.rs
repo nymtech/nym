@@ -2,11 +2,14 @@ use cosmwasm_std::{Addr, Coin, DepsMut};
 use nym_contracts_common::signing::MessageSignature;
 use nym_crypto::asymmetric::identity;
 use nym_service_provider_directory_common::{
-    msg::ExecuteMsg, NymAddress, Service, ServiceDetails, ServiceId, ServiceType,
+    NymAddress, Service, ServiceDetails, ServiceId, ServiceType,
 };
 use rand_chacha::rand_core::{CryptoRng, RngCore};
 
-use super::helpers::{ed25519_sign_message, nyms, service_provider_announce_sign_payload};
+use super::{
+    helpers::nyms,
+    signing::{ed25519_sign_message, service_provider_announce_sign_payload},
+};
 
 pub fn service_fixture() -> ServiceDetails {
     ServiceDetails {
@@ -37,6 +40,8 @@ pub fn service_info(service_id: ServiceId, nym_address: NymAddress, announcer: A
         deposit: nyms(100),
     }
 }
+
+// WIP(JON): move these two, they are not fixtures
 
 // Create a service, passing in the random number generator
 pub fn service_details<R>(rng: &mut R, nym_address: &str) -> (ServiceDetails, identity::KeyPair)

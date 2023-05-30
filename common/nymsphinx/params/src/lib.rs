@@ -8,11 +8,11 @@ use nym_crypto::ctr;
 type Aes128Ctr = ctr::Ctr64BE<Aes128>;
 
 // Re-export for ease of use
-pub use packet_modes::PacketMode;
 pub use packet_sizes::PacketSize;
+pub use packet_types::PacketType;
 
-pub mod packet_modes;
 pub mod packet_sizes;
+pub mod packet_types;
 pub mod packet_version;
 
 // If somebody can provide an argument why it might be reasonable to have more than 255 mix hops,
@@ -29,7 +29,7 @@ pub type SerializedFragmentIdentifier = [u8; FRAG_ID_LEN];
 // when packet header gets serialized, the following bytes (in that order) are put onto the wire:
 // - packet_version (starting with v1.1.0)
 // - packet_size indicator
-// - packet_mode
+// - packet_type
 // it also just so happens that the only valid values for packet_size indicator include values 1-6
 // therefore if we receive byte `7` (or larger than that) we'll know we received a versioned packet,
 // otherwise we should treat it as legacy

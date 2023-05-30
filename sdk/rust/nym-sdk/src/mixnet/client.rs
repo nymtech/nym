@@ -41,7 +41,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     storage_paths: Option<StoragePaths>,
     gateway_config: Option<GatewayEndpointConfig>,
     socks5_config: Option<Socks5>,
-    custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
@@ -172,7 +172,7 @@ where
     #[must_use]
     pub fn custom_topology_provider(
         mut self,
-        topology_provider: Box<dyn TopologyProvider>,
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     ) -> Self {
         self.custom_topology_provider = Some(topology_provider);
         self
@@ -242,7 +242,7 @@ where
     gateway_endpoint_config_path: Option<PathBuf>,
 
     /// Alternative provider of network topology used for constructing sphinx packets.
-    custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -264,7 +264,7 @@ where
         config: Config,
         socks5_config: Option<Socks5>,
         storage: S,
-        custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+        custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         gateway_endpoint_config_path: Option<PathBuf>,
     ) -> Result<DisconnectedMixnetClient<S>> {
         let (key_store, reply_storage_backend, credential_store) = storage.into_split();
@@ -472,7 +472,8 @@ where
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        let started_client = base_builder.start_base().await?;
+        let packet_type = self.config.packet_type();
+        let started_client = base_builder.start_base(packet_type).await?;
         let nym_address = started_client.address;
 
         Ok((started_client, nym_address))
@@ -509,6 +510,7 @@ where
             .clone()
             .ok_or(Error::Socks5Config { set: false })?;
         let debug_config = self.config.debug_config;
+        let packet_type = self.config.packet_type();
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let (socks5_status_tx, mut socks5_status_rx) = mpsc::channel(128);
 
@@ -516,7 +518,7 @@ where
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        nym_socks5_client_core::NymClient::start_socks5_listener(
+        nym_socks5_client_core::NymClient::<S>::start_socks5_listener(
             &socks5_config,
             debug_config,
             client_input,
@@ -524,6 +526,7 @@ where
             client_state.clone(),
             nym_address,
             started_client.task_manager.subscribe(),
+            packet_type,
         );
         started_client
             .task_manager
@@ -588,6 +591,7 @@ where
             client_state,
             reconstructed_receiver,
             task_manager: started_client.task_manager,
+            packet_type: None,
         })
     }
 }

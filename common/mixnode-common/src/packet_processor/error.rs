@@ -3,12 +3,15 @@
 
 use nym_sphinx_acknowledgements::surb_ack::SurbAckRecoveryError;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddressError;
-use nym_sphinx_types::Error as SphinxError;
+use nym_sphinx_types::{NymPacketError, SphinxError};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum MixProcessingError {
     #[error("failed to process received packet: {0}")]
+    NymPacketProcessingError(#[from] NymPacketError),
+
+    #[error("failed to process received sphinx packet: {0}")]
     SphinxProcessingError(#[from] SphinxError),
 
     #[error("the forward hop address was malformed: {0}")]

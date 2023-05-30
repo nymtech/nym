@@ -23,6 +23,7 @@ use nym_client_core::client::inbound_messages::InputMessage;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_client_core::config::{CoverTraffic, DebugConfig, Topology, Traffic};
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
+use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
 use nym_topology::provider_trait::{HardcodedTopologyProvider, TopologyProvider};
@@ -52,6 +53,7 @@ pub struct NymClient {
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
     _task_manager: TaskManager,
+    packet_type: Option<PacketType>,
 }
 
 #[wasm_bindgen]
@@ -68,6 +70,7 @@ pub struct NymClientBuilder {
     bandwidth_controller:
         Option<BandwidthController<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>,
     disabled_credentials: bool,
+    packet_type: Option<PacketType>,
 }
 
 #[wasm_bindgen]
@@ -86,6 +89,7 @@ impl NymClientBuilder {
             on_message,
             bandwidth_controller: None,
             disabled_credentials: true,
+            packet_type: None,
         }
     }
 
@@ -124,6 +128,7 @@ impl NymClientBuilder {
                 },
                 ..Default::default()
             },
+            packet_type: PacketType::Mix,
         };
 
         NymClientBuilder {
@@ -136,6 +141,7 @@ impl NymClientBuilder {
             bandwidth_controller: None,
             disabled_credentials: true,
             storage_passphrase: None,
+            packet_type: None,
         }
     }
 
@@ -143,7 +149,7 @@ impl NymClientBuilder {
         ResponsePusher::new(client_output, on_message).start()
     }
 
-    fn topology_provider(&mut self) -> Option<Box<dyn TopologyProvider>> {
+    fn topology_provider(&mut self) -> Option<Box<dyn TopologyProvider + Send + Sync>> {
         if let Some(hardcoded_topology) = self.custom_topology.take() {
             Some(Box::new(HardcodedTopologyProvider::new(hardcoded_topology)))
         } else {
@@ -202,7 +208,8 @@ impl NymClientBuilder {
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        let mut started_client = base_builder.start_base().await?;
+        let packet_type = self.config.packet_type;
+        let mut started_client = base_builder.start_base(packet_type).await?;
         let self_address = started_client.address.to_string();
 
         let client_input = started_client.client_input.register_producer();
@@ -216,6 +223,7 @@ impl NymClientBuilder {
             client_state: Arc::new(started_client.client_state),
             _full_topology: None,
             _task_manager: started_client.task_manager,
+            packet_type: self.packet_type,
         })
     }
 
@@ -291,7 +299,7 @@ impl NymClient {
         let input_msgs = request
             .test_msgs
             .into_iter()
-            .map(|p| InputMessage::new_regular(recipient, p, lane))
+            .map(|p| InputMessage::new_regular(recipient, p, lane, None))
             .collect();
 
         self.client_input.send_messages(input_msgs)
@@ -311,7 +319,7 @@ impl NymClient {
 
         let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_regular(recipient, message, lane);
+        let input_msg = InputMessage::new_regular(recipient, message, lane, self.packet_type);
         self.client_input.send_message(input_msg)
     }
 
@@ -338,7 +346,8 @@ impl NymClient {
 
         let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
+        let input_msg =
+            InputMessage::new_anonymous(recipient, message, reply_surbs, lane, self.packet_type);
         self.client_input.send_message(input_msg)
     }
 
@@ -356,7 +365,7 @@ impl NymClient {
 
         let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_reply(sender_tag, message, lane);
+        let input_msg = InputMessage::new_reply(sender_tag, message, lane, self.packet_type);
         self.client_input.send_message(input_msg)
     }
 }

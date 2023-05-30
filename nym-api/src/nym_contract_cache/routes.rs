@@ -137,7 +137,7 @@ pub async fn get_services(cache: &State<NymContractCache>) -> Json<ServicesListR
 
 #[openapi(tag = "contract-cache")]
 #[get("/names")]
-pub async fn get_names(cache: &State<NymContractCache>) -> Json<NamesListResponse> {
+pub async fn get_registered_names(cache: &State<NymContractCache>) -> Json<NamesListResponse> {
     let names = cache.names().await.value;
     Json(names.as_slice().into())
 }

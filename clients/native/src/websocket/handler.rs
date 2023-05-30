@@ -14,6 +14,7 @@ use nym_client_core::client::{
 use nym_client_websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandSender, ConnectionId, LaneQueueLengths, TransmissionLane,
@@ -41,6 +42,7 @@ pub(crate) struct HandlerBuilder {
     self_full_address: Recipient,
     lane_queue_lengths: LaneQueueLengths,
     reply_controller_sender: ReplyControllerSender,
+    packet_type: Option<PacketType>,
 }
 
 impl HandlerBuilder {
@@ -51,6 +53,7 @@ impl HandlerBuilder {
         self_full_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
         reply_controller_sender: ReplyControllerSender,
+        packet_type: Option<PacketType>,
     ) -> Self {
         Self {
             msg_input,
@@ -59,6 +62,7 @@ impl HandlerBuilder {
             self_full_address: *self_full_address,
             lane_queue_lengths,
             reply_controller_sender,
+            packet_type,
         }
     }
 
@@ -73,6 +77,7 @@ impl HandlerBuilder {
             received_response_type: Default::default(),
             lane_queue_lengths: self.lane_queue_lengths.clone(),
             reply_controller_sender: self.reply_controller_sender.clone(),
+            packet_type: self.packet_type,
         }
     }
 }
@@ -86,6 +91,7 @@ pub(crate) struct Handler {
     received_response_type: ReceivedResponseType,
     lane_queue_lengths: LaneQueueLengths,
     reply_controller_sender: ReplyControllerSender,
+    packet_type: Option<PacketType>,
 }
 
 impl Drop for Handler {
@@ -160,7 +166,7 @@ impl Handler {
         });
 
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new_regular(recipient, message, lane);
+        let input_msg = InputMessage::new_regular(recipient, message, lane, self.packet_type);
         self.msg_input
             .send(input_msg)
             .await
@@ -191,7 +197,8 @@ impl Handler {
             TransmissionLane::ConnectionId(id)
         });
 
-        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
+        let input_msg =
+            InputMessage::new_anonymous(recipient, message, reply_surbs, lane, self.packet_type);
         self.msg_input
             .send(input_msg)
             .await
@@ -218,7 +225,7 @@ impl Handler {
             TransmissionLane::ConnectionId(id)
         });
 
-        let input_msg = InputMessage::new_reply(recipient_tag, message, lane);
+        let input_msg = InputMessage::new_reply(recipient_tag, message, lane, self.packet_type);
         self.msg_input
             .send(input_msg)
             .await

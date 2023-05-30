@@ -4,6 +4,7 @@
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 
 pub type InputMessageSender = tokio::sync::mpsc::Sender<InputMessage>;
@@ -53,18 +54,49 @@ pub enum InputMessage {
         data: Vec<u8>,
         lane: TransmissionLane,
     },
+
+    MessageWrapper {
+        message: Box<InputMessage>,
+        packet_type: PacketType,
+    },
 }
 
 impl InputMessage {
-    pub fn new_premade(msgs: Vec<MixPacket>, lane: TransmissionLane) -> Self {
-        InputMessage::Premade { msgs, lane }
+    pub fn new_premade(
+        msgs: Vec<MixPacket>,
+        lane: TransmissionLane,
+        packet_type: PacketType,
+    ) -> Self {
+        let message = InputMessage::Premade { msgs, lane };
+        if packet_type == PacketType::Mix {
+            message
+        } else {
+            InputMessage::new_wrapper(message, packet_type)
+        }
     }
 
-    pub fn new_regular(recipient: Recipient, data: Vec<u8>, lane: TransmissionLane) -> Self {
-        InputMessage::Regular {
+    pub fn new_wrapper(message: InputMessage, packet_type: PacketType) -> Self {
+        InputMessage::MessageWrapper {
+            message: Box::new(message),
+            packet_type,
+        }
+    }
+
+    pub fn new_regular(
+        recipient: Recipient,
+        data: Vec<u8>,
+        lane: TransmissionLane,
+        packet_type: Option<PacketType>,
+    ) -> Self {
+        let message = InputMessage::Regular {
             recipient,
             data,
             lane,
+        };
+        if let Some(packet_type) = packet_type {
+            InputMessage::new_wrapper(message, packet_type)
+        } else {
+            message
         }
     }
 
@@ -73,12 +105,18 @@ impl InputMessage {
         data: Vec<u8>,
         reply_surbs: u32,
         lane: TransmissionLane,
+        packet_type: Option<PacketType>,
     ) -> Self {
-        InputMessage::Anonymous {
+        let message = InputMessage::Anonymous {
             recipient,
             data,
             reply_surbs,
             lane,
+        };
+        if let Some(packet_type) = packet_type {
+            InputMessage::new_wrapper(message, packet_type)
+        } else {
+            message
         }
     }
 
@@ -86,11 +124,17 @@ impl InputMessage {
         recipient_tag: AnonymousSenderTag,
         data: Vec<u8>,
         lane: TransmissionLane,
+        packet_type: Option<PacketType>,
     ) -> Self {
-        InputMessage::Reply {
+        let message = InputMessage::Reply {
             recipient_tag,
             data,
             lane,
+        };
+        if let Some(packet_type) = packet_type {
+            InputMessage::new_wrapper(message, packet_type)
+        } else {
+            message
         }
     }
 
@@ -100,6 +144,7 @@ impl InputMessage {
             | InputMessage::Anonymous { lane, .. }
             | InputMessage::Reply { lane, .. }
             | InputMessage::Premade { lane, .. } => lane,
+            InputMessage::MessageWrapper { message, .. } => message.lane(),
         }
     }
 }

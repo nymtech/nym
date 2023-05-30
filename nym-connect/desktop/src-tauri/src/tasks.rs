@@ -1,4 +1,5 @@
 use futures::{channel::mpsc, StreamExt};
+use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_client_core::{
     config::{ClientCoreConfigTrait, GatewayEndpointConfig},
     error::ClientCoreStatusMessage,
@@ -45,7 +46,6 @@ pub fn start_nym_socks5_client(
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
-    let socks5_client = Socks5NymClient::new(config);
     log::info!("Starting socks5 client");
 
     // Channel to send control messages to the socks5 client
@@ -65,6 +65,9 @@ pub fn start_nym_socks5_client(
         let result = tokio::runtime::Runtime::new()
             .expect("Failed to create runtime for SOCKS5 client")
             .block_on(async move {
+                let storage = OnDiskPersistent::from_config(config.get_base()).await?;
+                let socks5_client = Socks5NymClient::new(config, storage);
+
                 socks5_client
                     .run_and_listen(socks5_ctrl_rx, socks5_status_tx)
                     .await

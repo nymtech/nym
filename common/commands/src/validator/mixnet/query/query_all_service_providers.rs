@@ -19,7 +19,7 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
     match client.nym_api.get_service_providers().await {
         Ok(res) => {
             if let Some(nym_address) = args.nym_address {
-                let service = res.iter().find(|service| {
+                let service = res.services.iter().find(|service| {
                     service
                         .service
                         .nym_address
@@ -33,8 +33,8 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
             } else {
                 let mut table = Table::new();
 
-                table.set_header(vec!["Service Id", "Announcer", "Nym Address"]);
-                for service in res {
+                table.set_header(vec!["Service Id", "Announcer", "Type", "Nym Address"]);
+                for service in res.services {
                     table.add_row(vec![
                         service.service_id.to_string(),
                         service.service.announcer.to_string(),

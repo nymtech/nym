@@ -66,7 +66,7 @@ impl NymContractCache {
                 cache.mix_to_family.update(mix_to_family);
                 // Just return empty lists when these are not available
                 cache.service_providers.update(services.unwrap_or_default());
-                cache.names.update(names.unwrap_or_default());
+                cache.registered_names.update(names.unwrap_or_default());
             }
             Err(err) => {
                 error!("{err}");
@@ -305,7 +305,7 @@ impl NymContractCache {
 
     pub(crate) async fn names(&self) -> Cache<Vec<NameEntry>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.names.clone(),
+            Ok(cache) => cache.registered_names.clone(),
             Err(err) => {
                 error!("{err}");
                 Cache::new(Vec::new())

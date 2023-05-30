@@ -62,58 +62,85 @@ use chacha20poly1305::Tag;
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
-use sphinx_packet::route::Node;
 
 use std::convert::TryInto;
-
-const GROUPELEMENTBYTES: usize = 32;
-const TAGBYTES: usize = 16;
 
 use std::ops::Range;
 use std::u8;
 
+use crate::constants::groupelementbytes;
+use crate::constants::tagbytes;
+use crate::constants::DEFAULT_HOPS;
+use crate::constants::DEFAULT_ROUTING_INFO_SIZE;
+use crate::constants::GROUPELEMENTBYTES;
+use crate::constants::MIX_PARAMS_LEN;
+use crate::constants::ROUTING_INFORMATION_LENGTH_BY_STAGE;
+use crate::constants::TAGBYTES;
 use crate::error::OutfoxError;
 use crate::lion::*;
+use std::convert::TryFrom;
 
 /// A structure that holds mix packet construction parameters. These incluse the length
 /// of the routing information at each hop, the number of hops, and the payload length.
+#[derive(Eq, PartialEq, Debug)]
 pub struct MixCreationParameters {
     /// The routing length is inner first, so \[0\] is the innermost routing length, etc (in bytes)
-    pub routing_information_length_by_stage: Vec<usize>,
+    /// In our stratified topology this will always be 4
+    pub routing_information_length_by_stage: [u8; DEFAULT_HOPS],
     /// The payload length (in bytes)
-    pub payload_length_bytes: usize,
+    pub payload_length_bytes: u16,
+}
+
+impl TryFrom<&[u8]> for MixCreationParameters {
+    type Error = OutfoxError;
+
+    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+        if v.len() != MIX_PARAMS_LEN {
+            return Err(OutfoxError::InvalidHeaderLength(v.len()));
+        }
+        let (routing, payload) = v.split_at(DEFAULT_HOPS);
+        Ok(MixCreationParameters {
+            routing_information_length_by_stage: routing.try_into()?,
+            payload_length_bytes: u16::from_le_bytes(payload.try_into()?),
+        })
+    }
 }
 
 impl MixCreationParameters {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(5);
+        bytes.extend_from_slice(self.routing_information_length_by_stage.as_slice());
+        bytes.extend_from_slice(&self.payload_length_bytes.to_le_bytes());
+        bytes
+    }
+
+    pub fn payload_length_bytes(&self) -> usize {
+        self.payload_length_bytes as usize
+    }
+
     /// Create a set of parameters for a mix packet format.
-    pub fn new(payload_length_bytes: usize) -> MixCreationParameters {
+    pub fn new(payload_length_bytes: u16) -> MixCreationParameters {
         MixCreationParameters {
-            routing_information_length_by_stage: Vec::new(),
+            routing_information_length_by_stage: [DEFAULT_ROUTING_INFO_SIZE; DEFAULT_HOPS],
             payload_length_bytes,
         }
     }
 
-    /// Add another outer layer containing some byte length of routing data.
-    pub fn add_outer_layer(&mut self, routing_information_length_bytes: usize) {
-        self.routing_information_length_by_stage
-            .push(routing_information_length_bytes);
-    }
-
     /// The length of the buffer needed to build a packet.
     pub fn total_packet_length(&self) -> usize {
-        let mut len = self.payload_length_bytes;
-        for stage_len in &self.routing_information_length_by_stage {
-            len += stage_len + GROUPELEMENTBYTES + TAGBYTES
+        let mut len = self.payload_length_bytes();
+        for stage_len in ROUTING_INFORMATION_LENGTH_BY_STAGE.iter() {
+            len += *stage_len as usize + groupelementbytes() + tagbytes()
         }
         len
     }
 
     /// Get the mix packet parameters for a single stage of mixing.
     pub fn get_stage_params(&self, layer_number: usize) -> (Range<usize>, MixStageParameters) {
-        assert!(layer_number < self.routing_information_length_by_stage.len());
+        assert!(layer_number < ROUTING_INFORMATION_LENGTH_BY_STAGE.len());
 
         let mut remaining_header_length_bytes = 0;
-        for (i, stage_len) in self.routing_information_length_by_stage.iter().enumerate() {
+        for (i, stage_len) in ROUTING_INFORMATION_LENGTH_BY_STAGE.iter().enumerate() {
             if i == layer_number {
                 let params = MixStageParameters {
                     routing_information_length_bytes: *stage_len,
@@ -126,7 +153,7 @@ impl MixCreationParameters {
 
                 return (total_size - inner_size..total_size, params);
             } else {
-                remaining_header_length_bytes += stage_len + GROUPELEMENTBYTES + TAGBYTES;
+                remaining_header_length_bytes += (stage_len + GROUPELEMENTBYTES + TAGBYTES) as u16;
             }
         }
 
@@ -137,57 +164,70 @@ impl MixCreationParameters {
 /// A structure representing the parameters of a single stage of mixing.
 pub struct MixStageParameters {
     /// The routing information length for this stage of mixing
-    pub routing_information_length_bytes: usize,
+    pub routing_information_length_bytes: u8,
     /// The reamining header length for this stage of mixing
-    pub remaining_header_length_bytes: usize,
+    pub remaining_header_length_bytes: u16,
     /// The payload length
-    pub payload_length_bytes: usize,
+    pub payload_length_bytes: u16,
 }
 
 impl MixStageParameters {
+    pub fn routing_information_length_bytes(&self) -> usize {
+        self.routing_information_length_bytes as usize
+    }
+
+    pub fn remaining_header_length_bytes(&self) -> usize {
+        self.remaining_header_length_bytes as usize
+    }
+
+    pub fn payload_length_bytes(&self) -> usize {
+        self.payload_length_bytes as usize
+    }
+
     pub fn incoming_packet_length(&self) -> usize {
-        GROUPELEMENTBYTES + TAGBYTES + self.outgoing_packet_length()
+        groupelementbytes() + tagbytes() + self.outgoing_packet_length()
     }
 
     pub fn outgoing_packet_length(&self) -> usize {
-        self.routing_information_length_bytes
-            + self.remaining_header_length_bytes
-            + self.payload_length_bytes
+        self.routing_information_length_bytes()
+            + self.remaining_header_length_bytes()
+            + self.payload_length_bytes()
     }
 
     pub fn pub_element_range(&self) -> Range<usize> {
-        0..GROUPELEMENTBYTES
+        0..groupelementbytes()
     }
 
     pub fn tag_range(&self) -> Range<usize> {
-        GROUPELEMENTBYTES..GROUPELEMENTBYTES + TAGBYTES
+        groupelementbytes()..groupelementbytes() + tagbytes()
     }
 
     pub fn routing_data_range(&self) -> Range<usize> {
-        GROUPELEMENTBYTES + TAGBYTES
-            ..GROUPELEMENTBYTES + TAGBYTES + self.routing_information_length_bytes
+        groupelementbytes() + tagbytes()
+            ..groupelementbytes() + tagbytes() + self.routing_information_length_bytes()
     }
 
     pub fn header_range(&self) -> Range<usize> {
-        GROUPELEMENTBYTES + TAGBYTES
-            ..GROUPELEMENTBYTES
-                + TAGBYTES
-                + self.routing_information_length_bytes
-                + self.remaining_header_length_bytes
+        groupelementbytes() + tagbytes()
+            ..groupelementbytes()
+                + tagbytes()
+                + self.routing_information_length_bytes()
+                + self.remaining_header_length_bytes()
     }
 
     pub fn payload_range(&self) -> Range<usize> {
-        self.incoming_packet_length() - self.payload_length_bytes..self.incoming_packet_length()
+        self.incoming_packet_length() - self.payload_length_bytes()..self.incoming_packet_length()
     }
 
     pub fn encode_mix_layer(
         &self,
         buffer: &mut [u8],
         user_secret_key: &[u8],
-        node: &Node,
+        node_pub_key: &[u8],
+        destination: &[u8; 32],
     ) -> Result<MontgomeryPoint, OutfoxError> {
-        let routing_data = node.address.as_bytes().to_vec();
-        let mix_public_key = MontgomeryPoint(*node.pub_key.as_bytes());
+        let routing_data = destination;
+        let mix_public_key = MontgomeryPoint(node_pub_key.try_into()?);
         let user_secret_key = Scalar::from_bytes_mod_order(user_secret_key.try_into()?);
 
         if buffer.len() != self.incoming_packet_length() {
@@ -197,10 +237,10 @@ impl MixStageParameters {
             });
         }
 
-        if routing_data.len() != self.routing_information_length_bytes {
+        if routing_data.len() != self.routing_information_length_bytes() {
             return Err(OutfoxError::LenMismatch {
                 expected: routing_data.len(),
-                got: self.routing_information_length_bytes,
+                got: self.routing_information_length_bytes(),
             });
         }
 
@@ -208,7 +248,7 @@ impl MixStageParameters {
         let shared_key = user_secret_key * mix_public_key;
 
         // Copy rounting data into buffer
-        buffer[self.routing_data_range()].copy_from_slice(&routing_data);
+        buffer[self.routing_data_range()].copy_from_slice(routing_data);
 
         // Perform the AEAD
         let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key.0[..])?;
@@ -234,7 +274,7 @@ impl MixStageParameters {
         &self,
         buffer: &mut [u8],
         mix_secret_key: &[u8],
-    ) -> Result<MontgomeryPoint, OutfoxError> {
+    ) -> Result<Vec<u8>, OutfoxError> {
         // Check the length of the incoming buffer is correct.
 
         let mix_secret_key = Scalar::from_bytes_mod_order(mix_secret_key.try_into()?);
@@ -266,9 +306,32 @@ impl MixStageParameters {
             )
             .map_err(|e| OutfoxError::ChaCha20Poly1305Error(e.to_string()))?;
 
+        let routing_data = buffer[self.routing_data_range()].to_vec();
         // Do a round of LION on the payload
         lion_transform_decrypt(&mut buffer[self.payload_range()], &shared_key.0)?;
 
-        Ok(shared_key)
+        Ok(routing_data)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::MixCreationParameters;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn test_to_bytes() {
+        let mix_params = MixCreationParameters::new(1024);
+        assert_eq!(mix_params.to_bytes(), vec![32, 32, 32, 32, 0, 4])
+    }
+
+    #[test]
+    fn test_from_bytes() {
+        let params_bytes = vec![32, 32, 32, 32, 0, 4];
+        let mix_params = MixCreationParameters::new(1024);
+        assert_eq!(
+            mix_params,
+            MixCreationParameters::try_from(params_bytes.as_slice()).unwrap()
+        )
     }
 }

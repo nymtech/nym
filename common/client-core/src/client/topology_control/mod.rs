@@ -26,7 +26,7 @@ impl TopologyRefresherConfig {
 }
 
 pub struct TopologyRefresher {
-    topology_provider: Box<dyn TopologyProvider>,
+    topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     topology_accessor: TopologyAccessor,
 
     refresh_rate: Duration,
@@ -37,7 +37,7 @@ impl TopologyRefresher {
     pub fn new(
         cfg: TopologyRefresherConfig,
         topology_accessor: TopologyAccessor,
-        topology_provider: Box<dyn TopologyProvider>,
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     ) -> Self {
         TopologyRefresher {
             topology_provider,
@@ -47,7 +47,7 @@ impl TopologyRefresher {
         }
     }
 
-    pub fn change_topology_provider(&mut self, provider: Box<dyn TopologyProvider>) {
+    pub fn change_topology_provider(&mut self, provider: Box<dyn TopologyProvider + Send + Sync>) {
         self.topology_provider = provider;
     }
 

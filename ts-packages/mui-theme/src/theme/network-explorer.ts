@@ -180,13 +180,7 @@ export const getNetworkExplorerDesignTokens = (mode: PaletteMode): ThemeOptions 
           },
         },
       },
-      MuiListItem: {
-        styleOverrides: {
-          root: {
-            background: palette.secondary.dark,
-          },
-        },
-      },
+
       MuiPaper: {
         styleOverrides: {
           root: {

@@ -78,6 +78,7 @@ members = [
     "gateway/gateway-requests",
     "integrations/bity",
     "mixnode",
+    "sdk/lib/socks5-listener",
     "sdk/rust/nym-sdk",
     "service-providers/common",
     "service-providers/network-requester",

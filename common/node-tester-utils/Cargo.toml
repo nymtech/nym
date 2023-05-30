@@ -17,6 +17,7 @@ tokio = { workspace = true, features = ["macros"]}
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-task = { path = "../task" }
 nym-topology = { path = "../topology" }
+nym-sphinx-params = { path = "../nymsphinx/params" }
 # TODO: do we need the whole nymsphinx?
 nym-sphinx = { path = "../nymsphinx" }
 

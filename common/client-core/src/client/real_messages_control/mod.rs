@@ -26,6 +26,7 @@ use log::*;
 use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::params::PacketType;
 use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
@@ -207,7 +208,7 @@ impl RealMessagesController<OsRng> {
         }
     }
 
-    pub fn start_with_shutdown(self, shutdown: nym_task::TaskClient) {
+    pub fn start_with_shutdown(self, shutdown: nym_task::TaskClient, packet_type: PacketType) {
         let mut out_queue_control = self.out_queue_control;
         let ack_control = self.ack_control;
         let mut reply_control = self.reply_control;
@@ -223,6 +224,6 @@ impl RealMessagesController<OsRng> {
             debug!("The reply controller has finished execution!");
         });
 
-        ack_control.start_with_shutdown(shutdown);
+        ack_control.start_with_shutdown(shutdown, packet_type);
     }
 }

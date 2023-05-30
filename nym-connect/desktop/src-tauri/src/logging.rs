@@ -1,9 +1,26 @@
-use std::str::FromStr;
-
 use fern::colors::{Color, ColoredLevelConfig};
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use std::str::FromStr;
 use tauri::Manager;
+use time::{format_description, OffsetDateTime};
+
+fn formatted_time() -> String {
+    // if we fail to obtain local time according to local offset, fallback to utc
+    let _now = OffsetDateTime::now_local().unwrap_or_else(|_| OffsetDateTime::now_utc());
+
+    // if we're running it in the unit test, use the hardcoded value
+    #[cfg(test)]
+    let _now = OffsetDateTime::from_unix_timestamp(1666666666).unwrap();
+
+    // the unwraps are fine as we know this description is correct
+    // note: the reason for this very particular format is a very simple one
+    // it's what we've always been using since we copied it from the example,
+    // so feel free to update it to whatever
+    let format =
+        format_description::parse("[[[year]-[month]-[day]][[[hour]:[minute]:[second]]").unwrap();
+    _now.format(&format).unwrap()
+}
 
 pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerError> {
     let colors = ColoredLevelConfig::new()
@@ -21,7 +38,7 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
         .format(move |out, message, record| {
             out.finish(format_args!(
                 "{}[{}][{}] {}",
-                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                formatted_time(),
                 record.target(),
                 colors.color(record.level()),
                 message,
@@ -33,7 +50,7 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
         .format(move |out, message, record| {
             out.finish(format_args!(
                 "{}[{}] {}",
-                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                formatted_time(),
                 record.target(),
                 message,
             ))
@@ -114,5 +131,17 @@ impl From<log::Level> for LogLevel {
             log::Level::Warn => LogLevel::Warn,
             log::Level::Error => LogLevel::Error,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn log_formatting() {
+        let expected_chrono_formated = "[2022-10-25][02:57:46]".to_string();
+        let new_time_based = formatted_time();
+        assert_eq!(new_time_based, expected_chrono_formated)
     }
 }

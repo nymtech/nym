@@ -8,6 +8,7 @@ pub const MIXNODES: &str = "mixnodes";
 pub const GATEWAYS: &str = "gateways";
 
 pub const DETAILED: &str = "detailed";
+pub const DETAILED_UNFILTERED: &str = "detailed-unfiltered";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
 pub const COCONUT_ROUTES: &str = "coconut";
@@ -31,3 +32,6 @@ pub const COMPUTE_REWARD_ESTIMATION: &str = "compute-reward-estimation";
 pub const AVG_UPTIME: &str = "avg_uptime";
 pub const STAKE_SATURATION: &str = "stake-saturation";
 pub const INCLUSION_CHANCE: &str = "inclusion-probability";
+
+pub const SERVICE_PROVIDERS: &str = "services";
+pub const REGISTERED_NAMES: &str = "names";

@@ -29,7 +29,7 @@ export type TDelegation = {
 export type TBondGatewayArgs = {
   gateway: Gateway;
   pledge: DecCoin;
-  ownerSignature: string;
+  msgSignature: string;
   fee?: Fee;
 };
 
@@ -37,14 +37,30 @@ export type TBondMixNodeArgs = {
   mixnode: MixNode;
   costParams: MixNodeCostParams;
   pledge: DecCoin;
-  ownerSignature: string;
+  msgSignature: string;
   fee?: Fee;
 };
 
-export type TBondMoreArgs = {
-  additionalPledge: DecCoin;
+export type TBondMixnodeSignatureArgs = {
+  mixnode: MixNode;
+  costParams: MixNodeCostParams;
+  pledge: DecCoin;
+  tokenPool: 'balance' | 'locked';
+};
+
+export type TBondGatewaySignatureArgs = {
+  gateway: Gateway;
+  pledge: DecCoin;
+  tokenPool: 'balance' | 'locked';
+};
+
+export type TUpdateBondArgs = {
+  currentPledge: DecCoin;
+  newPledge: DecCoin;
   fee?: Fee;
 };
+
+export type TSimulateUpdateBondArgs = Omit<TUpdateBondArgs, 'fee'>;
 
 export type TNodeDescription = {
   name: string;

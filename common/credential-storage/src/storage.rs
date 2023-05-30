@@ -1,13 +1,14 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use async_trait::async_trait;
-
 use crate::models::CoconutCredential;
-use crate::StorageError;
+use async_trait::async_trait;
+use std::error::Error;
 
 #[async_trait]
 pub trait Storage: Send + Sync {
+    type StorageError: Error;
+
     /// Inserts provided signature into the database.
     ///
     /// # Arguments
@@ -26,15 +27,15 @@ pub trait Storage: Send + Sync {
         binding_number: String,
         signature: String,
         epoch_id: String,
-    ) -> Result<(), StorageError>;
+    ) -> Result<(), Self::StorageError>;
 
     /// Tries to retrieve one of the stored, unused credentials.
-    async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, StorageError>;
+    async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, Self::StorageError>;
 
     /// Marks as consumed in the database the specified credential.
     ///
     /// # Arguments
     ///
     /// * `id`: Id of the credential to be consumed.
-    async fn consume_coconut_credential(&self, id: i64) -> Result<(), StorageError>;
+    async fn consume_coconut_credential(&self, id: i64) -> Result<(), Self::StorageError>;
 }

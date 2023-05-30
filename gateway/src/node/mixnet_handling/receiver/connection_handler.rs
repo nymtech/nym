@@ -8,8 +8,8 @@ use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::StreamExt;
 use log::*;
-use mixnet_client::forwarder::MixForwardingSender;
-use mixnode_common::packet_processor::processor::ProcessedFinalHop;
+use nym_mixnet_client::forwarder::MixForwardingSender;
+use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::SphinxCodec;
 use nym_sphinx::framing::packet::FramedSphinxPacket;
@@ -189,9 +189,9 @@ impl<St: Storage> ConnectionHandler<St> {
                 _ = shutdown.recv() => {
                     log::trace!("ConnectionHandler: received shutdown");
                 }
-                Some(framed_sphinx_packet) = framed_conn.next() => {
+                framed_sphinx_packet = framed_conn.next() => {
                     match framed_sphinx_packet {
-                        Ok(framed_sphinx_packet) => {
+                        Some(Ok(framed_sphinx_packet)) => {
                             // TODO: benchmark spawning tokio task with full processing vs just processing it
                             // synchronously under higher load in single and multi-threaded situation.
 
@@ -200,12 +200,13 @@ impl<St: Storage> ConnectionHandler<St> {
                             // that change would only slow things down
                             self.handle_received_packet(framed_sphinx_packet).await;
                         }
-                        Err(err) => {
+                        Some(Err(err)) => {
                             error!(
                                 "The socket connection got corrupted with error: {err}. Closing the socket",
                             );
                             return;
                         }
+                        None => break, // stream got closed by remote
                     }
                 }
             }

@@ -54,6 +54,8 @@ yarn webpack:prod
 WRY_ANDROID_PACKAGE=net.nymtech.nym_connect WRY_ANDROID_LIBRARY=nym_connect cargo tauri android build --debug --apk
 ```
 
+**NOTE**: Production build without the `--debug` flag requires a signed build.
+
 # Storybook
 
 Run storybook with:

@@ -5,9 +5,9 @@ pub const MULTISIG_CONTRACT: &str = "multisig contract address";
 pub const POOL_CONTRACT: &str = "mix pool contract address";
 
 use crate::contract::instantiate;
-use coconut_bandwidth_contract_common::msg::InstantiateMsg;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
 use cosmwasm_std::{Empty, MemoryStorage, OwnedDeps};
+use nym_coconut_bandwidth_contract_common::msg::InstantiateMsg;
 
 use super::fixtures::TEST_MIX_DENOM;
 
@@ -20,6 +20,6 @@ pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> 
     };
     let env = mock_env();
     let info = mock_info("creator", &[]);
-    instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
+    instantiate(deps.as_mut(), env, info, msg).unwrap();
     deps
 }

@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
-import { Button, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover } from '@mui/material';
-import { ArrowDropDown, CheckSharp } from '@mui/icons-material';
+import { Button, List, ListItemButton, ListItemIcon, ListItemText, ListSubheader, Popover, Stack } from '@mui/material';
+import { ArrowDropDown, Check } from '@mui/icons-material';
 import { Network } from 'src/types';
 import { AppContext } from '../context/main';
 import { config } from '../config';
@@ -16,10 +16,29 @@ const NetworkItem: FCWithChildren<{ title: string; isSelected: boolean; onSelect
   isSelected,
   onSelect,
 }) => (
-  <ListItem button onClick={onSelect}>
-    <ListItemIcon>{isSelected && <CheckSharp color="success" />}</ListItemIcon>
-    <ListItemText>{title}</ListItemText>
-  </ListItem>
+  <ListItemButton
+    onClick={onSelect}
+    sx={{
+      minWidth: '180px',
+      '&:hover': {
+        backgroundColor: isSelected ? 'rgba(251, 110, 78, 0.08) !important' : undefined,
+      },
+    }}
+  >
+    <Stack direction="row" justifyContent="space-between" alignItems="center" gap={2} width="100%">
+      <ListItemText
+        primaryTypographyProps={{
+          color: isSelected ? 'primary' : undefined,
+        }}
+        primary={title}
+      />
+      {isSelected && (
+        <ListItemIcon sx={{ justifyContent: 'flex-end' }}>
+          <Check color="primary" fontSize="small" />
+        </ListItemIcon>
+      )}
+    </Stack>
+  </ListItemButton>
 );
 
 export const NetworkSelector = () => {

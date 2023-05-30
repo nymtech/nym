@@ -1,12 +1,12 @@
 use std::time::Duration;
 
 use ::nym_config_common::NymConfig;
-use client_core::error::ClientCoreStatusMessage;
 use futures::SinkExt;
+use nym_client_core::error::ClientCoreStatusMessage;
 use tap::TapFallible;
 use tauri::Manager;
 
-use nym_socks5::client::{
+use nym_socks5_client_core::{
     config::Config as Socks5Config, Socks5ControlMessage, Socks5ControlMessageSender,
 };
 use tokio::time::Instant;

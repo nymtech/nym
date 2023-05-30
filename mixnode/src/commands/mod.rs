@@ -10,9 +10,9 @@ use nym_bin_common::version_checker;
 use nym_config::defaults::var_names::{BECH32_PREFIX, NYM_API};
 use nym_config::OptionalSet;
 use nym_crypto::bech32_address_validation;
+use nym_validator_client::nyxd;
 use std::net::IpAddr;
 use std::process;
-use validator_client::nyxd;
 
 mod describe;
 mod init;
@@ -63,15 +63,13 @@ struct OverrideConfig {
 pub(crate) async fn execute(args: Cli) {
     let bin_name = "nym-mixnode";
 
-    let output = args.output();
-
     match args.command {
         Commands::Describe(m) => describe::execute(m),
-        Commands::Init(m) => init::execute(&m, output),
-        Commands::Run(m) => run::execute(&m, output).await,
+        Commands::Init(m) => init::execute(&m),
+        Commands::Run(m) => run::execute(&m).await,
         Commands::Sign(m) => sign::execute(&m),
         Commands::Upgrade(m) => upgrade::execute(&m),
-        Commands::NodeDetails(m) => node_details::execute(&m, output),
+        Commands::NodeDetails(m) => node_details::execute(&m),
         Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),
     }

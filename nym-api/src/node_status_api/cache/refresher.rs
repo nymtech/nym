@@ -109,13 +109,17 @@ impl NodeStatusCacheRefresher {
         log::info!("Updating node status cache");
 
         // Fetch contract cache data to work with
-        let mixnode_details = self.contract_cache.mixnodes().await;
+        let mixnode_details = self.contract_cache.mixnodes_all().await;
         let interval_reward_params = self.contract_cache.interval_reward_params().await;
         let current_interval = self.contract_cache.current_interval().await;
         let rewarded_set = self.contract_cache.rewarded_set().await;
         let active_set = self.contract_cache.active_set().await;
         let mix_to_family = self.contract_cache.mix_to_family().await;
-        let gateway_bonds = self.contract_cache.gateways().await;
+        let gateway_bonds = self.contract_cache.gateways_all().await;
+
+        // get blacklists
+        let mixnodes_blacklist = self.contract_cache.mixnodes_blacklist().await;
+        let gateways_blacklist = self.contract_cache.gateways_blacklist().await;
 
         let interval_reward_params =
             interval_reward_params.ok_or(NodeStatusCacheError::SourceDataMissing)?;
@@ -140,6 +144,7 @@ impl NodeStatusCacheRefresher {
             current_interval,
             &rewarded_set_node_status,
             mix_to_family.to_vec(),
+            &mixnodes_blacklist,
         )
         .await;
 
@@ -147,8 +152,13 @@ impl NodeStatusCacheRefresher {
         let (rewarded_set, active_set) =
             split_into_active_and_rewarded_set(&mixnodes_annotated, &rewarded_set_node_status);
 
-        let gateways_annotated =
-            annotate_gateways_with_details(&self.storage, gateway_bonds, current_interval).await;
+        let gateways_annotated = annotate_gateways_with_details(
+            &self.storage,
+            gateway_bonds,
+            current_interval,
+            &gateways_blacklist,
+        )
+        .await;
 
         // Update the cache
         self.cache

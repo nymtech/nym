@@ -17,6 +17,8 @@ import {
   switchAccount,
 } from '../requests';
 import { Console } from '../utils/console';
+import { createSignInWindow, getReactState, setReactState } from '../requests/app';
+import { toDisplay } from '../utils';
 
 export const urls = (networkName?: Network) =>
   networkName === 'MAINNET'
@@ -62,7 +64,15 @@ export type TAppContext = {
   handleShowTerminal: () => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
+  keepState: () => Promise<void>;
+  printBalance: string;
+  printVestedBalance?: string; // spendable vested token
 };
+
+interface RustState {
+  network?: Network;
+  loginType?: 'mnemonic' | 'password';
+}
 
 export const AppContext = createContext({} as TAppContext);
 
@@ -82,10 +92,34 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   const [isAdminAddress, setIsAdminAddress] = useState<boolean>(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [printBalance, setPrintBalance] = useState<string>('-');
+  const [printVestedBalance, setPrintVestedBalance] = useState<string | undefined>();
 
   const userBalance = useGetBalance(clientDetails);
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+
+  const initFromRustState = async () => {
+    const stateJson = await getReactState();
+    if (stateJson) {
+      const state: RustState = JSON.parse(stateJson);
+      setNetwork(state.network);
+      setLoginType(state.loginType);
+    }
+  };
+
+  useEffect(() => {
+    initFromRustState();
+  }, []);
+
+  const keepState = async () => {
+    // add any state from this context to store in the Rust process
+    const state: RustState = {
+      network,
+      loginType,
+    };
+    setReactState(JSON.stringify(state));
+  };
 
   const clearState = () => {
     userBalance.clearAll();
@@ -164,6 +198,18 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   }, [network]);
 
   useEffect(() => {
+    const currency = clientDetails?.display_mix_denom.toUpperCase() || 'NYM';
+    if (userBalance.originalVesting) {
+      setPrintVestedBalance(`${toDisplay(userBalance.tokenAllocation?.spendableVestedCoins || 0)} ${currency}`);
+    }
+    if (userBalance?.balance?.amount) {
+      setPrintBalance(`${toDisplay(userBalance.balance.amount.amount)} ${currency}`);
+    } else {
+      setPrintBalance(`${toDisplay(0)} ${currency}`);
+    }
+  }, [userBalance, clientDetails]);
+
+  useEffect(() => {
     let newValue = false;
     if (network && appEnv?.ADMIN_ADDRESS && clientDetails?.client_address) {
       try {
@@ -210,9 +256,16 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   };
 
   const logOut = async () => {
-    await signOut();
-    setClientDetails(undefined);
-    enqueueSnackbar('Successfully logged out', { variant: 'success' });
+    setIsLoading(true);
+    try {
+      await signOut();
+      await setReactState(undefined);
+      setClientDetails(undefined);
+      enqueueSnackbar('Successfully logged out', { variant: 'success' });
+      await createSignInWindow();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const onAccountChange = async ({ accountId, password }: { accountId: string; password: string }) => {
@@ -267,12 +320,15 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       handleShowTerminal,
       logIn,
       logOut,
+      keepState,
       onAccountChange,
       showSendModal,
       showReceiveModal,
       handleShowSendModal,
       handleShowReceiveModal,
       handleSwitchMode,
+      printBalance,
+      printVestedBalance,
     }),
     [
       appVersion,

@@ -11,7 +11,7 @@ use serde::Serialize;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::helpers::best_effort_small_dec_to_f64;
-use validator_client::models::MixNodeBondAnnotated;
+use nym_validator_client::models::MixNodeBondAnnotated;
 
 use super::utils::family_numerical_id;
 use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
@@ -153,6 +153,7 @@ impl ThreadsafeMixNodesCache {
             layer: node.mixnode_details.bond_information.layer,
             mix_node: node.mixnode_details.bond_information.mix_node.clone(),
             avg_uptime: node.performance.round_to_integer(),
+            node_performance: node.node_performance.clone(),
             stake_saturation: best_effort_small_dec_to_f64(node.stake_saturation) as f32,
             uncapped_saturation: best_effort_small_dec_to_f64(node.uncapped_stake_saturation)
                 as f32,
@@ -161,6 +162,7 @@ impl ThreadsafeMixNodesCache {
             operating_cost: rewarding_info.cost_params.interval_operating_cost.clone(),
             profit_margin_percent: rewarding_info.cost_params.profit_margin_percent,
             family_id,
+            blacklisted: node.blacklisted,
         }
     }
 

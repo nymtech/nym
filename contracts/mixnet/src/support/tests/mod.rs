@@ -5,8 +5,6 @@
 pub mod fixtures;
 #[cfg(test)]
 pub mod messages;
-#[cfg(test)]
-pub mod queries;
 
 #[cfg(test)]
 pub mod test_helpers {
@@ -15,16 +13,20 @@ pub mod test_helpers {
     use crate::delegations::queries::query_mixnode_delegations_paged;
     use crate::delegations::storage as delegations_storage;
     use crate::delegations::transactions::try_delegate_to_mixnode;
-    use crate::gateways::transactions::try_add_gateway;
+    use crate::families::transactions::{try_create_family, try_join_family};
+    use crate::gateways::storage as gateways_storage;
+    use crate::gateways::transactions::{try_add_gateway, try_add_gateway_on_behalf};
     use crate::interval::transactions::{
-        perform_pending_epoch_actions, perform_pending_interval_actions,
+        perform_pending_epoch_actions, perform_pending_interval_actions, try_begin_epoch_transition,
     };
     use crate::interval::{pending_events, storage as interval_storage};
-    use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+    use crate::mixnet_contract_settings::storage::{self as mixnet_params_storage};
     use crate::mixnet_contract_settings::storage::{
-        minimum_mixnode_pledge, rewarding_denom, rewarding_validator_address,
+        minimum_gateway_pledge, minimum_mixnode_pledge, rewarding_denom,
+        rewarding_validator_address,
     };
     use crate::mixnodes::storage as mixnodes_storage;
+    use crate::mixnodes::storage::mixnode_bonds;
     use crate::mixnodes::transactions::{
         try_add_mixnode, try_add_mixnode_on_behalf, try_remove_mixnode,
     };
@@ -33,14 +35,17 @@ pub mod test_helpers {
     };
     use crate::rewards::storage as rewards_storage;
     use crate::rewards::transactions::try_reward_mixnode;
+    use crate::signing::storage as signing_storage;
     use crate::support::tests;
-    use crate::support::tests::fixtures::TEST_COIN_DENOM;
+    use crate::support::tests::fixtures::{
+        good_gateway_pledge, good_mixnode_pledge, TEST_COIN_DENOM,
+    };
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::{coin, Addr, BankMsg, CosmosMsg, Storage};
+    use cosmwasm_std::{coin, coins, Addr, Api, BankMsg, CosmosMsg, Storage};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use cosmwasm_std::{Deps, OwnedDeps};
@@ -49,6 +54,7 @@ pub mod test_helpers {
     use mixnet_contract_common::events::{
         may_find_attribute, MixnetEventType, DELEGATES_REWARD_KEY, OPERATOR_REWARD_KEY,
     };
+    use mixnet_contract_common::families::FamilyHead;
     use mixnet_contract_common::mixnode::{MixNodeRewarding, UnbondedMixnode};
     use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
     use mixnet_contract_common::reward_params::{Performance, RewardingParams};
@@ -56,12 +62,19 @@ pub mod test_helpers {
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
-        Delegation, Gateway, InitialRewardingParams, InstantiateMsg, Interval, MixId, MixNode,
-        Percent, RewardedSetNodeStatus,
+        construct_family_join_permit, Delegation, EpochEventId, EpochState, EpochStatus, Gateway,
+        GatewayBondingPayload, IdentityKey, IdentityKeyRef, InitialRewardingParams, InstantiateMsg,
+        Interval, MixId, MixNode, MixNodeBond, MixnodeBondingPayload, Percent,
+        RewardedSetNodeStatus, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
     };
+    use nym_contracts_common::signing::{
+        ContractMessageContent, MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose,
+    };
+    use nym_crypto::asymmetric::identity;
     use nym_crypto::asymmetric::identity::KeyPair;
     use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
     use rand_chacha::ChaCha20Rng;
+    use serde::Serialize;
     use std::time::Duration;
 
     pub fn assert_eq_with_leeway(a: Uint128, b: Uint128, leeway: Uint128) {
@@ -146,6 +159,10 @@ pub mod test_helpers {
             coin(amount, rewarding_denom(self.deps().storage).unwrap())
         }
 
+        pub fn coins(&self, amount: u128) -> Vec<Coin> {
+            coins(amount, rewarding_denom(self.deps().storage).unwrap())
+        }
+
         pub fn current_interval(&self) -> Interval {
             interval_storage::current_interval(self.deps().storage).unwrap()
         }
@@ -157,7 +174,141 @@ pub mod test_helpers {
                 .collect::<Vec<_>>()
         }
 
+        pub fn generate_family_join_permit(
+            &mut self,
+            family_owner_keys: &identity::KeyPair,
+            member_node: IdentityKeyRef,
+            vesting: bool,
+        ) -> MessageSignature {
+            let identity = family_owner_keys.public_key().to_base58_string();
+
+            let head_mixnode = mixnodes_storage::mixnode_bonds()
+                .idx
+                .identity_key
+                .item(self.deps().storage, identity.clone())
+                .unwrap()
+                .map(|record| record.1)
+                .unwrap();
+
+            let family_head = FamilyHead::new(&identity);
+            let owner = head_mixnode.owner;
+
+            let nonce = signing_storage::get_signing_nonce(self.deps().storage, owner).unwrap();
+
+            let proxy = if vesting {
+                Some(self.vesting_contract())
+            } else {
+                None
+            };
+
+            let msg =
+                construct_family_join_permit(nonce, family_head, proxy, member_node.to_owned());
+
+            let sig_bytes = family_owner_keys
+                .private_key()
+                .sign(&msg.to_plaintext().unwrap())
+                .to_bytes();
+            MessageSignature::from(sig_bytes.as_ref())
+        }
+
+        #[allow(unused)]
+        pub fn join_family(
+            &mut self,
+            member: &str,
+            member_keys: &identity::KeyPair,
+            head_keys: &identity::KeyPair,
+            vesting: bool,
+        ) {
+            let member_identity = member_keys.public_key().to_base58_string();
+            let head_identity = head_keys.public_key().to_base58_string();
+
+            let join_permit =
+                self.generate_family_join_permit(head_keys, &member_identity, vesting);
+            let family_head = FamilyHead::new(&head_identity);
+
+            try_join_family(
+                self.deps_mut(),
+                mock_info(member, &[]),
+                join_permit,
+                family_head,
+            )
+            .unwrap();
+        }
+
+        pub fn create_dummy_mixnode_with_new_family(
+            &mut self,
+            head: &str,
+            label: &str,
+        ) -> (MixId, identity::KeyPair) {
+            let (mix_id, keys) = self.add_dummy_mixnode_with_proxy_and_keypair(head, None);
+
+            try_create_family(self.deps_mut(), mock_info(head, &[]), label.to_string()).unwrap();
+            (mix_id, keys)
+        }
+
+        pub fn set_pending_pledge_change(&mut self, mix_id: MixId, event_id: Option<EpochEventId>) {
+            let mut changes = mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .load(self.deps().storage, mix_id)
+                .unwrap_or_default();
+            changes.pledge_change = Some(event_id.unwrap_or(12345));
+
+            mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .save(self.deps_mut().storage, mix_id, &changes)
+                .unwrap();
+        }
+
         pub fn add_dummy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> MixId {
+            let stake = self.make_mix_pledge(stake);
+            let (mixnode, owner_signature, _) =
+                self.mixnode_with_signature(owner, Some(stake.clone()));
+
+            let info = mock_info(owner, stake.as_ref());
+            let current_id_counter = mixnodes_storage::MIXNODE_ID_COUNTER
+                .may_load(self.deps().storage)
+                .unwrap()
+                .unwrap_or_default();
+
+            let env = self.env();
+
+            try_add_mixnode(
+                self.deps_mut(),
+                env,
+                info,
+                mixnode,
+                tests::fixtures::mix_node_cost_params_fixture(),
+                owner_signature,
+            )
+            .unwrap();
+
+            // newly added mixnode gets assigned the current counter + 1
+            current_id_counter + 1
+        }
+
+        pub fn add_dummy_gateway(&mut self, sender: &str, stake: Option<Uint128>) -> IdentityKey {
+            let stake = self.make_gateway_pledge(stake);
+            let (gateway, owner_signature) =
+                self.gateway_with_signature(sender, Some(stake.clone()));
+
+            let info = mock_info(sender, &stake);
+            let key = gateway.identity_key.clone();
+            let env = self.env();
+            try_add_gateway(self.deps_mut(), env, info, gateway, owner_signature).unwrap();
+            key
+        }
+
+        pub fn add_dummy_mixnodes(&mut self, n: usize) {
+            for i in 0..n {
+                self.add_dummy_mixnode(&format!("owner{i}"), None);
+            }
+        }
+
+        pub fn add_dummy_gateways(&mut self, n: usize) {
+            for i in 0..n {
+                self.add_dummy_gateway(&format!("owner{i}"), None);
+            }
+        }
+
+        pub fn make_mix_pledge(&self, stake: Option<Uint128>) -> Vec<Coin> {
             let stake = match stake {
                 Some(amount) => {
                     let denom = rewarding_denom(self.deps().storage).unwrap();
@@ -165,35 +316,108 @@ pub mod test_helpers {
                 }
                 None => minimum_mixnode_pledge(self.deps.as_ref().storage).unwrap(),
             };
-
-            let env = self.env();
-            add_mixnode(&mut self.rng, self.deps.as_mut(), env, owner, vec![stake])
+            vec![stake]
         }
 
-        pub fn add_dummy_mixnode_with_proxy(
+        pub fn make_gateway_pledge(&self, stake: Option<Uint128>) -> Vec<Coin> {
+            let stake = match stake {
+                Some(amount) => {
+                    let denom = rewarding_denom(self.deps().storage).unwrap();
+                    Coin { denom, amount }
+                }
+                None => minimum_gateway_pledge(self.deps.as_ref().storage).unwrap(),
+            };
+            vec![stake]
+        }
+
+        pub fn mixnode_bonding_signature(
+            &mut self,
+            key: &identity::PrivateKey,
+            owner: &str,
+            mixnode: MixNode,
+            stake: Option<Uint128>,
+        ) -> MessageSignature {
+            let stake = self.make_mix_pledge(stake);
+            let msg = mixnode_bonding_sign_payload(self.deps(), owner, None, mixnode, stake);
+            ed25519_sign_message(msg, key)
+        }
+
+        pub fn add_dummy_mixnode_with_keypair(
             &mut self,
             owner: &str,
             stake: Option<Uint128>,
-            proxy: Addr,
-        ) -> MixId {
-            let stake = match stake {
-                Some(amount) => {
-                    let denom = rewarding_denom(self.deps().storage).unwrap();
-                    Coin { denom, amount }
-                }
-                None => minimum_mixnode_pledge(self.deps.as_ref().storage).unwrap(),
+        ) -> (MixId, identity::KeyPair) {
+            let stake = self.make_mix_pledge(stake);
+
+            let keypair = identity::KeyPair::new(&mut self.rng);
+            let identity_key = keypair.public_key().to_base58_string();
+            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+
+            let mixnode = MixNode {
+                identity_key,
+                sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
+                ..tests::fixtures::mix_node_fixture()
             };
 
-            let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut self.rng);
-            let owner_signature = keypair
-                .private_key()
-                .sign(owner.as_bytes())
-                .to_base58_string();
+            let msg = mixnode_bonding_sign_payload(
+                self.deps(),
+                owner,
+                None,
+                mixnode.clone(),
+                stake.clone(),
+            );
+            let owner_signature = ed25519_sign_message(msg, keypair.private_key());
 
-            let legit_sphinx_key = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+            let info = mock_info(owner, &stake);
+            let current_id_counter = mixnodes_storage::MIXNODE_ID_COUNTER
+                .may_load(self.deps().storage)
+                .unwrap()
+                .unwrap_or_default();
 
-            let info = mock_info(proxy.as_str(), &[stake]);
-            let key = keypair.public_key().to_base58_string();
+            let env = self.env();
+            try_add_mixnode(
+                self.deps_mut(),
+                env,
+                info,
+                mixnode,
+                tests::fixtures::mix_node_cost_params_fixture(),
+                owner_signature,
+            )
+            .unwrap();
+
+            // newly added mixnode gets assigned the current counter + 1
+            (current_id_counter + 1, keypair)
+        }
+
+        pub fn add_dummy_mixnode_with_proxy_and_keypair(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> (MixId, identity::KeyPair) {
+            let stake = self.make_mix_pledge(stake);
+
+            let proxy = self.vesting_contract();
+
+            let keypair = identity::KeyPair::new(&mut self.rng);
+            let identity_key = keypair.public_key().to_base58_string();
+            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+
+            let mixnode = MixNode {
+                identity_key,
+                sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
+                ..tests::fixtures::mix_node_fixture()
+            };
+
+            let msg = mixnode_bonding_sign_payload(
+                self.deps(),
+                owner,
+                Some(proxy.clone()),
+                mixnode.clone(),
+                stake.clone(),
+            );
+            let owner_signature = ed25519_sign_message(msg, keypair.private_key());
+
+            let info = mock_info(proxy.as_str(), &stake);
             let current_id_counter = mixnodes_storage::MIXNODE_ID_COUNTER
                 .may_load(self.deps().storage)
                 .unwrap()
@@ -204,11 +428,7 @@ pub mod test_helpers {
                 self.deps_mut(),
                 env,
                 info,
-                MixNode {
-                    identity_key: key,
-                    sphinx_key: legit_sphinx_key.public_key().to_base58_string(),
-                    ..tests::fixtures::mix_node_fixture()
-                },
+                mixnode,
                 tests::fixtures::mix_node_cost_params_fixture(),
                 owner.to_string(),
                 owner_signature,
@@ -216,7 +436,154 @@ pub mod test_helpers {
             .unwrap();
 
             // newly added mixnode gets assigned the current counter + 1
-            current_id_counter + 1
+            (current_id_counter + 1, keypair)
+        }
+
+        pub fn add_dummy_mixnode_with_legal_proxy(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> MixId {
+            self.add_dummy_mixnode_with_proxy_and_keypair(owner, stake)
+                .0
+        }
+
+        pub fn set_illegal_mixnode_proxy(&mut self, mix_id: MixId, proxy: Addr) {
+            let mut bond_details = mixnodes_storage::mixnode_bonds()
+                .load(self.deps().storage, mix_id)
+                .unwrap();
+            bond_details.proxy = Some(proxy);
+            mixnodes_storage::mixnode_bonds()
+                .save(self.deps_mut().storage, mix_id, &bond_details)
+                .unwrap();
+        }
+
+        pub fn add_dummy_gateway_with_illegal_proxy(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+            proxy: Addr,
+        ) -> IdentityKey {
+            let gateway_identity = self.add_dummy_gateway_with_legal_proxy(owner, stake);
+            self.set_illegal_gateway_proxy(&gateway_identity, proxy);
+            gateway_identity
+        }
+
+        pub fn set_illegal_gateway_proxy(&mut self, gateway_id: &str, proxy: Addr) {
+            let mut gateway = gateways_storage::gateways()
+                .load(self.deps().storage, gateway_id)
+                .unwrap();
+            gateway.proxy = Some(proxy);
+            gateways_storage::gateways()
+                .save(self.deps_mut().storage, gateway_id, &gateway)
+                .unwrap();
+        }
+
+        pub fn add_dummy_gateway_with_legal_proxy(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> IdentityKey {
+            let stake = match stake {
+                Some(amount) => {
+                    let denom = rewarding_denom(self.deps().storage).unwrap();
+                    Coin { denom, amount }
+                }
+                None => minimum_mixnode_pledge(self.deps.as_ref().storage).unwrap(),
+            };
+
+            let keypair = identity::KeyPair::new(&mut self.rng);
+            let identity_key = keypair.public_key().to_base58_string();
+            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+
+            let proxy = self.vesting_contract();
+
+            let gateway = Gateway {
+                identity_key,
+                sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
+                ..tests::fixtures::gateway_fixture()
+            };
+
+            let msg = gateway_bonding_sign_payload(
+                self.deps(),
+                owner,
+                Some(proxy.clone()),
+                gateway.clone(),
+                vec![stake.clone()],
+            );
+            let owner_signature = ed25519_sign_message(msg, keypair.private_key());
+
+            let env = self.env();
+            let info = mock_info(proxy.as_ref(), &[stake]);
+
+            try_add_gateway_on_behalf(
+                self.deps_mut(),
+                env,
+                info,
+                gateway,
+                owner.to_string(),
+                owner_signature,
+            )
+            .unwrap();
+            keypair.public_key().to_base58_string()
+        }
+
+        pub fn add_dummy_mixnode_with_illegal_proxy(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+            proxy: Addr,
+        ) -> MixId {
+            let mix_id = self.add_dummy_mixnode_with_legal_proxy(owner, stake);
+            self.set_illegal_mixnode_proxy(mix_id, proxy);
+            mix_id
+        }
+
+        pub fn mixnode_with_signature(
+            &mut self,
+            sender: &str,
+            stake: Option<Vec<Coin>>,
+        ) -> (MixNode, MessageSignature, KeyPair) {
+            let stake = stake.unwrap_or(good_mixnode_pledge());
+
+            let keypair = identity::KeyPair::new(&mut self.rng);
+            let identity_key = keypair.public_key().to_base58_string();
+            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+
+            let mixnode = MixNode {
+                identity_key,
+                sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
+                ..tests::fixtures::mix_node_fixture()
+            };
+            let msg =
+                mixnode_bonding_sign_payload(self.deps(), sender, None, mixnode.clone(), stake);
+            let owner_signature = ed25519_sign_message(msg, keypair.private_key());
+
+            (mixnode, owner_signature, keypair)
+        }
+
+        pub fn gateway_with_signature(
+            &mut self,
+            sender: &str,
+            stake: Option<Vec<Coin>>,
+        ) -> (Gateway, MessageSignature) {
+            let stake = stake.unwrap_or(good_gateway_pledge());
+
+            let keypair = identity::KeyPair::new(&mut self.rng);
+            let identity_key = keypair.public_key().to_base58_string();
+            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+
+            let gateway = Gateway {
+                identity_key,
+                sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
+                ..tests::fixtures::gateway_fixture()
+            };
+
+            let msg =
+                gateway_bonding_sign_payload(self.deps(), sender, None, gateway.clone(), stake);
+            let owner_signature = ed25519_sign_message(msg, keypair.private_key());
+
+            (gateway, owner_signature)
         }
 
         pub fn start_unbonding_mixnode(&mut self, mix_id: MixId) {
@@ -263,7 +630,34 @@ pub mod test_helpers {
             .unwrap();
         }
 
-        pub fn add_immediate_delegation_with_proxy(
+        pub fn add_immediate_delegation_with_legal_proxy(
+            &mut self,
+            delegator: &str,
+            amount: impl Into<Uint128>,
+            target: MixId,
+        ) {
+            let denom = rewarding_denom(self.deps().storage).unwrap();
+            let amount = Coin {
+                denom,
+                amount: amount.into(),
+            };
+            let env = self.env();
+            let proxy = self.vesting_contract();
+            pending_events::delegate(
+                self.deps_mut(),
+                &env,
+                env.block.height,
+                Addr::unchecked(delegator),
+                target,
+                amount,
+                Some(proxy),
+            )
+            .unwrap();
+        }
+
+        // to set illegal proxy we have to bypass "normal" flow and put the value
+        // directly into the storage
+        pub fn add_immediate_delegation_with_illegal_proxy(
             &mut self,
             delegator: &str,
             amount: impl Into<Uint128>,
@@ -275,17 +669,41 @@ pub mod test_helpers {
                 denom,
                 amount: amount.into(),
             };
-            let env = self.env();
-            pending_events::delegate(
-                self.deps_mut(),
-                &env,
-                env.block.height,
-                Addr::unchecked(delegator),
+
+            let owner = self.deps.api.addr_validate(delegator).unwrap();
+            let storage_key = Delegation::generate_storage_key(target, &owner, Some(&proxy));
+
+            let mut mix_rewarding = self.mix_rewarding(target);
+
+            let mut stored_delegation_amount = amount;
+
+            if let Some(existing_delegation) = delegations_storage::delegations()
+                .may_load(&self.deps.storage, storage_key.clone())
+                .unwrap()
+            {
+                let og_with_reward = mix_rewarding.undelegate(&existing_delegation).unwrap();
+                stored_delegation_amount.amount += og_with_reward.amount;
+            }
+
+            mix_rewarding
+                .add_base_delegation(stored_delegation_amount.amount)
+                .unwrap();
+
+            let delegation = Delegation::new(
+                owner,
                 target,
-                amount,
+                mix_rewarding.total_unit_reward,
+                stored_delegation_amount,
+                self.env.block.height,
                 Some(proxy),
-            )
-            .unwrap();
+            );
+
+            delegations_storage::delegations()
+                .save(&mut self.deps.storage, storage_key, &delegation)
+                .unwrap();
+            rewards_storage::MIXNODE_REWARDING
+                .save(&mut self.deps.storage, target, &mix_rewarding)
+                .unwrap();
         }
 
         #[allow(unused)]
@@ -312,6 +730,48 @@ pub mod test_helpers {
                 Addr::unchecked(delegator),
                 target,
                 None,
+            )
+            .unwrap();
+        }
+
+        pub fn start_epoch_transition(&mut self) {
+            let env = self.env.clone();
+            let sender = self.rewarding_validator.clone();
+            try_begin_epoch_transition(self.deps_mut(), env, sender).unwrap();
+        }
+
+        pub fn set_epoch_in_progress_state(&mut self) {
+            let being_advanced_by = self.rewarding_validator.sender.clone();
+            interval_storage::save_current_epoch_status(
+                self.deps_mut().storage,
+                &EpochStatus {
+                    being_advanced_by,
+                    state: EpochState::InProgress,
+                },
+            )
+            .unwrap();
+        }
+
+        pub fn set_epoch_reconciliation_state(&mut self) {
+            let being_advanced_by = self.rewarding_validator.sender.clone();
+            interval_storage::save_current_epoch_status(
+                self.deps_mut().storage,
+                &EpochStatus {
+                    being_advanced_by,
+                    state: EpochState::ReconcilingEvents,
+                },
+            )
+            .unwrap();
+        }
+
+        pub fn set_epoch_advancement_state(&mut self) {
+            let being_advanced_by = self.rewarding_validator.sender.clone();
+            interval_storage::save_current_epoch_status(
+                self.deps_mut().storage,
+                &EpochStatus {
+                    being_advanced_by,
+                    state: EpochState::AdvancingEpoch,
+                },
             )
             .unwrap();
         }
@@ -376,10 +836,12 @@ pub mod test_helpers {
                 )
             }
 
-            interval_storage::save_interval(self.deps_mut().storage, &advanced).unwrap()
+            interval_storage::save_interval(self.deps_mut().storage, &advanced).unwrap();
+            // if we're going into next epoch, we're back into in progress
+            self.set_epoch_in_progress_state();
         }
 
-        pub fn update_rewarded_set(&mut self, nodes: Vec<MixId>) {
+        pub fn force_change_rewarded_set(&mut self, nodes: Vec<MixId>) {
             let active_set_size = rewards_storage::REWARDING_PARAMS
                 .load(self.deps().storage)
                 .unwrap()
@@ -409,6 +871,20 @@ pub mod test_helpers {
                 .range(self.deps().storage, None, None, Order::Ascending)
                 .map(|res| res.unwrap().1)
                 .collect::<Vec<_>>()
+        }
+
+        pub fn reward_with_distribution_with_state_bypass(
+            &mut self,
+            mix_id: MixId,
+            performance: Performance,
+        ) -> RewardDistribution {
+            let initial_status =
+                interval_storage::current_epoch_status(self.deps().storage).unwrap();
+            self.start_epoch_transition();
+            let res = self.reward_with_distribution(mix_id, performance);
+            interval_storage::save_current_epoch_status(self.deps_mut().storage, &initial_status)
+                .unwrap();
+            res
         }
 
         pub fn reward_with_distribution(
@@ -463,8 +939,29 @@ pub mod test_helpers {
                 .unwrap()
         }
 
+        #[allow(unused)]
+        pub fn mix_bond(&self, mix_id: MixId) -> MixNodeBond {
+            mixnode_bonds().load(self.deps().storage, mix_id).unwrap()
+        }
+
         pub fn delegation(&self, mix: MixId, owner: &str, proxy: &Option<Addr>) -> Delegation {
             read_delegation(self.deps().storage, mix, &Addr::unchecked(owner), proxy).unwrap()
+        }
+    }
+
+    pub fn ed25519_sign_message<T: Serialize + SigningPurpose>(
+        message: SignableMessage<T>,
+        private_key: &identity::PrivateKey,
+    ) -> MessageSignature {
+        match message.algorithm {
+            SigningAlgorithm::Ed25519 => {
+                let plaintext = message.to_plaintext().unwrap();
+                let signature = private_key.sign(&plaintext);
+                MessageSignature::from(signature.to_bytes().as_ref())
+            }
+            SigningAlgorithm::Secp256k1 => {
+                unimplemented!()
+            }
         }
     }
 
@@ -554,54 +1051,54 @@ pub mod test_helpers {
         perform_pending_interval_actions(deps.branch(), &env, None).unwrap();
     }
 
-    pub fn mixnode_with_signature(
-        mut rng: impl RngCore + CryptoRng,
-        sender: &str,
-    ) -> (MixNode, String, KeyPair) {
-        let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
-        let legit_sphinx_key = nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng);
-        let owner_signature = keypair
-            .private_key()
-            .sign(sender.as_bytes())
-            .to_base58_string();
+    // pub fn mixnode_with_signature(
+    //     mut rng: impl RngCore + CryptoRng,
+    //     deps: Deps<'_>,
+    //     sender: &str,
+    //     stake: Option<Vec<Coin>>,
+    // ) -> (MixNode, MessageSignature, KeyPair) {
+    //     // hehe stupid workaround for bypassing the immutable borrow and removing duplicate code
+    //
+    //     let stake = stake.unwrap_or(good_mixnode_pledge());
+    //
+    //     let keypair = identity::KeyPair::new(&mut rng);
+    //     let identity_key = keypair.public_key().to_base58_string();
+    //     let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng);
+    //
+    //     let mixnode = MixNode {
+    //         identity_key,
+    //         sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
+    //         ..tests::fixtures::mix_node_fixture()
+    //     };
+    //     let msg = mixnode_bonding_sign_payload(deps, sender, None, mixnode.clone(), stake.clone());
+    //     let owner_signature = ed25519_sign_message(msg, keypair.private_key());
+    //
+    //     (mixnode, owner_signature, keypair)
+    // }
 
-        let identity_key = keypair.public_key().to_base58_string();
-        let sphinx_key = legit_sphinx_key.public_key().to_base58_string();
-
-        (
-            MixNode {
-                identity_key,
-                sphinx_key,
-                ..tests::fixtures::mix_node_fixture()
-            },
-            owner_signature,
-            keypair,
-        )
-    }
-
-    pub fn gateway_with_signature(
-        mut rng: impl RngCore + CryptoRng,
-        sender: &str,
-    ) -> (Gateway, String) {
-        let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
-        let legit_sphinx_key = nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng);
-        let owner_signature = keypair
-            .private_key()
-            .sign(sender.as_bytes())
-            .to_base58_string();
-
-        let identity_key = keypair.public_key().to_base58_string();
-        let sphinx_key = legit_sphinx_key.public_key().to_base58_string();
-
-        (
-            Gateway {
-                identity_key,
-                sphinx_key,
-                ..tests::fixtures::gateway_fixture()
-            },
-            owner_signature,
-        )
-    }
+    // pub fn gateway_with_signature(
+    //     mut rng: impl RngCore + CryptoRng,
+    //     deps: Deps<'_>,
+    //     sender: &str,
+    //     stake: Option<Vec<Coin>>,
+    // ) -> (Gateway, MessageSignature) {
+    //     let stake = stake.unwrap_or(good_gateway_pledge());
+    //
+    //     let keypair = identity::KeyPair::new(&mut rng);
+    //     let identity_key = keypair.public_key().to_base58_string();
+    //     let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng);
+    //
+    //     let gateway = Gateway {
+    //         identity_key,
+    //         sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
+    //         ..tests::fixtures::gateway_fixture()
+    //     };
+    //
+    //     let msg = gateway_bonding_sign_payload(deps, sender, None, gateway.clone(), stake.clone());
+    //     let owner_signature = ed25519_sign_message(msg, keypair.private_key());
+    //
+    //     (gateway, owner_signature)
+    // }
 
     pub fn add_dummy_delegations(mut deps: DepsMut<'_>, env: Env, mix_id: MixId, n: usize) {
         for i in 0..n {
@@ -609,7 +1106,7 @@ pub mod test_helpers {
                 deps.branch(),
                 &env,
                 env.block.height,
-                Addr::unchecked(&format!("owner{}", i)),
+                Addr::unchecked(format!("owner{}", i)),
                 mix_id,
                 tests::fixtures::good_mixnode_pledge().pop().unwrap(),
                 None,
@@ -618,39 +1115,22 @@ pub mod test_helpers {
         }
     }
 
-    pub fn add_dummy_mixnodes(
-        mut rng: impl RngCore + CryptoRng,
-        mut deps: DepsMut<'_>,
-        env: Env,
-        n: usize,
-    ) {
-        for i in 0..n {
-            add_mixnode(
-                &mut rng,
-                deps.branch(),
-                env.clone(),
-                &format!("owner{}", i),
-                tests::fixtures::good_mixnode_pledge(),
-            );
-        }
-    }
-
-    pub fn add_dummy_gateways(
-        mut rng: impl RngCore + CryptoRng,
-        mut deps: DepsMut<'_>,
-        env: Env,
-        n: usize,
-    ) {
-        for i in 0..n {
-            add_gateway(
-                &mut rng,
-                deps.branch(),
-                env.clone(),
-                &format!("owner{}", i),
-                tests::fixtures::good_mixnode_pledge(),
-            );
-        }
-    }
+    // pub fn add_dummy_mixnodes(
+    //     mut rng: impl RngCore + CryptoRng,
+    //     mut deps: DepsMut<'_>,
+    //     env: Env,
+    //     n: usize,
+    // ) {
+    //     for i in 0..n {
+    //         add_mixnode(
+    //             &mut rng,
+    //             deps.branch(),
+    //             env.clone(),
+    //             &format!("owner{}", i),
+    //             tests::fixtures::good_mixnode_pledge(),
+    //         );
+    //     }
+    // }
 
     pub fn add_dummy_unbonded_mixnodes(
         mut rng: impl RngCore + CryptoRng,
@@ -722,79 +1202,35 @@ pub mod test_helpers {
         id
     }
 
-    // note to whoever wants to refactor this function, you dont want to grab rng here directly
-    // via `let rng = test_rng()`
-    // because it's extremely likely you might end up calling `add_mixnode()` multiple times
-    // in the same test and thus you're going to get mixnodes with the same keys and that's
-    // not what you want (presumably)
-    pub fn add_mixnode(
-        mut rng: impl RngCore + CryptoRng,
-        deps: DepsMut<'_>,
-        env: Env,
-        sender: &str,
+    pub fn mixnode_bonding_sign_payload(
+        deps: Deps<'_>,
+        owner: &str,
+        proxy: Option<Addr>,
+        mixnode: MixNode,
         stake: Vec<Coin>,
-    ) -> MixId {
-        let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
-        let owner_signature = keypair
-            .private_key()
-            .sign(sender.as_bytes())
-            .to_base58_string();
+    ) -> SignableMixNodeBondingMsg {
+        let cost_params = tests::fixtures::mix_node_cost_params_fixture();
+        let nonce =
+            signing_storage::get_signing_nonce(deps.storage, Addr::unchecked(owner)).unwrap();
 
-        let legit_sphinx_key = nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng);
-
-        let info = mock_info(sender, &stake);
-        let key = keypair.public_key().to_base58_string();
-        let current_id_counter = mixnodes_storage::MIXNODE_ID_COUNTER
-            .may_load(deps.storage)
-            .unwrap()
-            .unwrap_or_default();
-
-        try_add_mixnode(
-            deps,
-            env,
-            info,
-            MixNode {
-                identity_key: key,
-                sphinx_key: legit_sphinx_key.public_key().to_base58_string(),
-                ..tests::fixtures::mix_node_fixture()
-            },
-            tests::fixtures::mix_node_cost_params_fixture(),
-            owner_signature,
-        )
-        .unwrap();
-
-        // newly added mixnode gets assigned the current counter + 1
-        current_id_counter + 1
+        let payload = MixnodeBondingPayload::new(mixnode, cost_params);
+        let content = ContractMessageContent::new(Addr::unchecked(owner), proxy, stake, payload);
+        SignableMixNodeBondingMsg::new(nonce, content)
     }
 
-    // same note as with `add_mixnode`
-    pub fn add_gateway(
-        mut rng: impl RngCore + CryptoRng,
-        deps: DepsMut<'_>,
-        env: Env,
-        sender: &str,
+    pub fn gateway_bonding_sign_payload(
+        deps: Deps<'_>,
+        owner: &str,
+        proxy: Option<Addr>,
+        gateway: Gateway,
         stake: Vec<Coin>,
-    ) -> String {
-        let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
-        let owner_signature = keypair
-            .private_key()
-            .sign(sender.as_bytes())
-            .to_base58_string();
+    ) -> SignableGatewayBondingMsg {
+        let nonce =
+            signing_storage::get_signing_nonce(deps.storage, Addr::unchecked(owner)).unwrap();
 
-        let info = mock_info(sender, &stake);
-        let key = keypair.public_key().to_base58_string();
-        try_add_gateway(
-            deps,
-            env,
-            info,
-            Gateway {
-                identity_key: key.clone(),
-                ..tests::fixtures::gateway_fixture()
-            },
-            owner_signature,
-        )
-        .unwrap();
-        key
+        let payload = GatewayBondingPayload::new(gateway);
+        let content = ContractMessageContent::new(Addr::unchecked(owner), proxy, stake, payload);
+        SignableGatewayBondingMsg::new(nonce, content)
     }
 
     fn initial_rewarding_params() -> InitialRewardingParams {

@@ -191,6 +191,11 @@ impl RepliableMessage {
             content,
         })
     }
+
+    pub fn serialized_size(&self, num_mix_hops: u8) -> usize {
+        let content_type_size = 1;
+        SENDER_TAG_SIZE + content_type_size + self.content.serialized_size(num_mix_hops)
+    }
 }
 
 // this recovery code is shared between all variants containing reply surbs
@@ -334,6 +339,31 @@ impl RepliableMessageContent {
             RepliableMessageContent::Heartbeat { .. } => RepliableMessageContentTag::Heartbeat,
         }
     }
+
+    fn serialized_size(&self, num_mix_hops: u8) -> usize {
+        match self {
+            RepliableMessageContent::Data {
+                message,
+                reply_surbs,
+            } => {
+                let num_reply_surbs_tag = mem::size_of::<u32>();
+                num_reply_surbs_tag
+                    + reply_surbs.len() * ReplySurb::serialized_len(num_mix_hops)
+                    + message.len()
+            }
+            RepliableMessageContent::AdditionalSurbs { reply_surbs } => {
+                let num_reply_surbs_tag = mem::size_of::<u32>();
+                num_reply_surbs_tag + reply_surbs.len() * ReplySurb::serialized_len(num_mix_hops)
+            }
+            RepliableMessageContent::Heartbeat {
+                additional_reply_surbs,
+            } => {
+                let num_reply_surbs_tag = mem::size_of::<u32>();
+                num_reply_surbs_tag
+                    + additional_reply_surbs.len() * ReplySurb::serialized_len(num_mix_hops)
+            }
+        }
+    }
 }
 
 // sent by the remote party who does **NOT** know the original sender's identity
@@ -390,6 +420,11 @@ impl ReplyMessage {
         let content = ReplyMessageContent::try_from_bytes(&bytes[1..], tag)?;
 
         Ok(ReplyMessage { content })
+    }
+
+    pub fn serialized_size(&self) -> usize {
+        let content_type_size = 1;
+        content_type_size + self.content.serialized_size()
     }
 }
 
@@ -471,6 +506,345 @@ impl ReplyMessageContent {
         match self {
             ReplyMessageContent::Data { .. } => ReplyMessageContentTag::Data,
             ReplyMessageContent::SurbRequest { .. } => ReplyMessageContentTag::SurbRequest,
+        }
+    }
+
+    pub fn serialized_size(&self) -> usize {
+        match self {
+            ReplyMessageContent::Data { message } => message.len(),
+            ReplyMessageContent::SurbRequest { amount, .. } => {
+                let amount_marker = mem::size_of_val(amount);
+                Recipient::LEN + amount_marker
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod fixtures {
+        use crate::requests::{AnonymousSenderTag, RepliableMessageContent, ReplyMessageContent};
+        use crate::{ReplySurb, SurbEncryptionKey};
+        use nym_crypto::asymmetric::{encryption, identity};
+        use nym_sphinx_addressing::clients::Recipient;
+        use nym_sphinx_types::{
+            Delay, Destination, DestinationAddressBytes, Node, NodeAddressBytes, PrivateKey,
+            SURBMaterial, NODE_ADDRESS_LENGTH,
+        };
+        use rand::{Rng, RngCore};
+        use rand_chacha::rand_core::SeedableRng;
+        use rand_chacha::ChaCha20Rng;
+
+        pub(super) fn test_rng() -> ChaCha20Rng {
+            let dummy_seed = [42u8; 32];
+            ChaCha20Rng::from_seed(dummy_seed)
+        }
+
+        pub(super) fn random_vec_u8(rng: &mut ChaCha20Rng, n: usize) -> Vec<u8> {
+            let mut vec = Vec::with_capacity(n);
+            for _ in 0..n {
+                vec.push(rng.gen())
+            }
+            vec
+        }
+
+        pub(super) fn sender_tag(rng: &mut ChaCha20Rng) -> AnonymousSenderTag {
+            AnonymousSenderTag::new_random(rng)
+        }
+
+        pub(super) fn recipient(rng: &mut ChaCha20Rng) -> Recipient {
+            let client_id = identity::KeyPair::new(rng);
+            let client_enc = encryption::KeyPair::new(rng);
+            let gateway_id = identity::KeyPair::new(rng);
+
+            Recipient::new(
+                *client_id.public_key(),
+                *client_enc.public_key(),
+                *gateway_id.public_key(),
+            )
+        }
+
+        fn node(rng: &mut ChaCha20Rng) -> Node {
+            let mut address_bytes = [0; NODE_ADDRESS_LENGTH];
+            rng.fill_bytes(&mut address_bytes);
+
+            let dummy_private = PrivateKey::new_with_rng(rng);
+            let pub_key = (&dummy_private).into();
+            Node {
+                address: NodeAddressBytes::from_bytes(address_bytes),
+                pub_key,
+            }
+        }
+
+        pub(super) fn reply_surb(rng: &mut ChaCha20Rng, num_mix_hops: u8) -> ReplySurb {
+            // due to gateway
+            let num_hops = num_mix_hops + 1;
+            let route = (0..num_hops).map(|_| node(rng)).collect();
+            let delays = (0..num_hops)
+                .map(|_| Delay::new_from_nanos(rng.next_u64()))
+                .collect();
+            let mut destination_bytes = [0u8; 32];
+            rng.fill_bytes(&mut destination_bytes);
+
+            let mut identifier_bytes = [0u8; 16];
+            rng.fill_bytes(&mut identifier_bytes);
+
+            let destination = Destination::new(
+                DestinationAddressBytes::from_bytes(destination_bytes),
+                identifier_bytes,
+            );
+
+            let surb = SURBMaterial::new(route, delays, destination)
+                .construct_SURB()
+                .unwrap();
+            ReplySurb {
+                surb,
+                encryption_key: SurbEncryptionKey::new(rng),
+            }
+        }
+
+        pub(super) fn reply_surbs(
+            rng: &mut ChaCha20Rng,
+            num_mix_hops: u8,
+            n: usize,
+        ) -> Vec<ReplySurb> {
+            let mut surbs = Vec::with_capacity(n);
+            for _ in 0..n {
+                surbs.push(reply_surb(rng, num_mix_hops))
+            }
+            surbs
+        }
+
+        pub(super) fn repliable_content_data(
+            rng: &mut ChaCha20Rng,
+            num_mix_hops: u8,
+            msg_len: usize,
+            surbs: usize,
+        ) -> RepliableMessageContent {
+            RepliableMessageContent::Data {
+                message: random_vec_u8(rng, msg_len),
+                reply_surbs: reply_surbs(rng, num_mix_hops, surbs),
+            }
+        }
+
+        pub(super) fn repliable_content_surbs(
+            rng: &mut ChaCha20Rng,
+            num_mix_hops: u8,
+            surbs: usize,
+        ) -> RepliableMessageContent {
+            RepliableMessageContent::AdditionalSurbs {
+                reply_surbs: reply_surbs(rng, num_mix_hops, surbs),
+            }
+        }
+
+        pub(super) fn repliable_content_heartbeat(
+            rng: &mut ChaCha20Rng,
+            num_mix_hops: u8,
+            surbs: usize,
+        ) -> RepliableMessageContent {
+            RepliableMessageContent::Heartbeat {
+                additional_reply_surbs: reply_surbs(rng, num_mix_hops, surbs),
+            }
+        }
+
+        pub(super) fn reply_content_data(
+            rng: &mut ChaCha20Rng,
+            msg_len: usize,
+        ) -> ReplyMessageContent {
+            ReplyMessageContent::Data {
+                message: random_vec_u8(rng, msg_len),
+            }
+        }
+
+        pub(super) fn reply_content_surbs(
+            rng: &mut ChaCha20Rng,
+            surbs: u32,
+        ) -> ReplyMessageContent {
+            ReplyMessageContent::SurbRequest {
+                recipient: Box::new(recipient(rng)),
+                amount: surbs,
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod repliable_message {
+        use super::*;
+
+        #[test]
+        fn serialized_size_matches_actual_serialization() {
+            let mut rng = fixtures::test_rng();
+            let num_mix_hops = 3;
+
+            let data1 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_data(&mut rng, num_mix_hops, 10000, 0),
+            };
+            assert_eq!(
+                data1.serialized_size(num_mix_hops),
+                data1.into_bytes().len()
+            );
+
+            let data2 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_data(&mut rng, num_mix_hops, 10, 100),
+            };
+            assert_eq!(
+                data2.serialized_size(num_mix_hops),
+                data2.into_bytes().len()
+            );
+
+            let data3 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_data(&mut rng, num_mix_hops, 100000, 1000),
+            };
+            assert_eq!(
+                data3.serialized_size(num_mix_hops),
+                data3.into_bytes().len()
+            );
+
+            let additional_surbs1 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_surbs(&mut rng, num_mix_hops, 1),
+            };
+            assert_eq!(
+                additional_surbs1.serialized_size(num_mix_hops),
+                additional_surbs1.into_bytes().len()
+            );
+
+            let additional_surbs2 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_surbs(&mut rng, num_mix_hops, 1000),
+            };
+            assert_eq!(
+                additional_surbs2.serialized_size(num_mix_hops),
+                additional_surbs2.into_bytes().len()
+            );
+
+            let heartbeat1 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_heartbeat(&mut rng, num_mix_hops, 1),
+            };
+            assert_eq!(
+                heartbeat1.serialized_size(num_mix_hops),
+                heartbeat1.into_bytes().len()
+            );
+
+            let heartbeat2 = RepliableMessage {
+                sender_tag: fixtures::sender_tag(&mut rng),
+                content: fixtures::repliable_content_heartbeat(&mut rng, num_mix_hops, 1000),
+            };
+            assert_eq!(
+                heartbeat2.serialized_size(num_mix_hops),
+                heartbeat2.into_bytes().len()
+            );
+        }
+    }
+
+    #[cfg(test)]
+    mod repliable_message_content {
+        use super::*;
+
+        #[test]
+        fn serialized_size_matches_actual_serialization() {
+            let mut rng = fixtures::test_rng();
+            let num_mix_hops = 3;
+
+            let data1 = fixtures::repliable_content_data(&mut rng, num_mix_hops, 10000, 0);
+            assert_eq!(
+                data1.serialized_size(num_mix_hops),
+                data1.into_bytes().len()
+            );
+
+            let data2 = fixtures::repliable_content_data(&mut rng, num_mix_hops, 10, 100);
+            assert_eq!(
+                data2.serialized_size(num_mix_hops),
+                data2.into_bytes().len()
+            );
+
+            let data3 = fixtures::repliable_content_data(&mut rng, num_mix_hops, 100000, 1000);
+            assert_eq!(
+                data3.serialized_size(num_mix_hops),
+                data3.into_bytes().len()
+            );
+
+            let additional_surbs1 = fixtures::repliable_content_surbs(&mut rng, num_mix_hops, 1);
+            assert_eq!(
+                additional_surbs1.serialized_size(num_mix_hops),
+                additional_surbs1.into_bytes().len()
+            );
+
+            let additional_surbs2 = fixtures::repliable_content_surbs(&mut rng, num_mix_hops, 1000);
+            assert_eq!(
+                additional_surbs2.serialized_size(num_mix_hops),
+                additional_surbs2.into_bytes().len()
+            );
+
+            let heartbeat1 = fixtures::repliable_content_heartbeat(&mut rng, num_mix_hops, 1);
+            assert_eq!(
+                heartbeat1.serialized_size(num_mix_hops),
+                heartbeat1.into_bytes().len()
+            );
+
+            let heartbeat2 = fixtures::repliable_content_heartbeat(&mut rng, num_mix_hops, 1000);
+            assert_eq!(
+                heartbeat2.serialized_size(num_mix_hops),
+                heartbeat2.into_bytes().len()
+            );
+        }
+    }
+
+    #[cfg(test)]
+    mod reply_message {
+        use super::*;
+
+        #[test]
+        fn serialized_size_matches_actual_serialization() {
+            let mut rng = fixtures::test_rng();
+
+            let data1 = ReplyMessage {
+                content: fixtures::reply_content_data(&mut rng, 100),
+            };
+            assert_eq!(data1.serialized_size(), data1.into_bytes().len());
+
+            let data2 = ReplyMessage {
+                content: fixtures::reply_content_data(&mut rng, 100000),
+            };
+            assert_eq!(data2.serialized_size(), data2.into_bytes().len());
+
+            let surbs1 = ReplyMessage {
+                content: fixtures::reply_content_surbs(&mut rng, 12),
+            };
+            assert_eq!(surbs1.serialized_size(), surbs1.into_bytes().len());
+
+            let surbs2 = ReplyMessage {
+                content: fixtures::reply_content_surbs(&mut rng, 1000),
+            };
+            assert_eq!(surbs2.serialized_size(), surbs2.into_bytes().len());
+        }
+    }
+
+    #[cfg(test)]
+    mod reply_message_content {
+        use super::*;
+
+        #[test]
+        fn serialized_size_matches_actual_serialization() {
+            let mut rng = fixtures::test_rng();
+
+            let data1 = fixtures::reply_content_data(&mut rng, 100);
+            assert_eq!(data1.serialized_size(), data1.into_bytes().len());
+
+            let data2 = fixtures::reply_content_data(&mut rng, 100000);
+            assert_eq!(data2.serialized_size(), data2.into_bytes().len());
+
+            let surbs1 = fixtures::reply_content_surbs(&mut rng, 12);
+            assert_eq!(surbs1.serialized_size(), surbs1.into_bytes().len());
+
+            let surbs2 = fixtures::reply_content_surbs(&mut rng, 1000);
+            assert_eq!(surbs2.serialized_size(), surbs2.into_bytes().len());
         }
     }
 }

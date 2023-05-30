@@ -4,7 +4,7 @@
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, NyxdClient};
 
-use group_contract_common::msg::QueryMsg;
+use nym_group_contract_common::msg::QueryMsg;
 
 use async_trait::async_trait;
 use cw4::MemberResponse;
@@ -15,7 +15,7 @@ pub trait GroupQueryClient {
 }
 
 #[async_trait]
-impl<C: CosmWasmClient + Sync + Send + Clone> GroupQueryClient for NyxdClient<C> {
+impl<C: CosmWasmClient + Sync + Send> GroupQueryClient for NyxdClient<C> {
     async fn member(&self, addr: String) -> Result<MemberResponse, NyxdError> {
         let request = QueryMsg::Member {
             addr,

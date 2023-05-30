@@ -1,16 +1,16 @@
 use crate::helpers::*;
-use coconut_bandwidth::error::ContractError;
-use coconut_bandwidth_contract_common::{
+use cosmwasm_std::{coins, Addr, Coin, Decimal};
+use cw_multi_test::Executor;
+use cw_utils::{Duration, Threshold};
+use nym_coconut_bandwidth::error::ContractError;
+use nym_coconut_bandwidth_contract_common::{
     msg::{
         ExecuteMsg as CoconutBandwidthExecuteMsg, InstantiateMsg as CoconutBandwidthInstantiateMsg,
     },
     spend_credential::SpendCredentialData,
 };
-use cosmwasm_std::{coins, Addr, Coin, Decimal};
-use cw_multi_test::Executor;
-use cw_utils::{Duration, Threshold};
-use group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
-use multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
+use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
+use nym_multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
 
 pub const TEST_COIN_DENOM: &str = "unym";
 pub const TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
@@ -101,7 +101,7 @@ fn spend_credential_creates_proposal() {
             Addr::unchecked(OWNER),
             coconut_bandwidth_contract_addr.clone(),
             &msg,
-            &vec![],
+            &[],
         )
         .unwrap();
     let proposal_id = res
@@ -124,7 +124,7 @@ fn spend_credential_creates_proposal() {
             Addr::unchecked(OWNER),
             coconut_bandwidth_contract_addr.clone(),
             &msg,
-            &vec![],
+            &[],
         )
         .unwrap_err();
     assert_eq!(
@@ -142,9 +142,9 @@ fn spend_credential_creates_proposal() {
     let res = app
         .execute_contract(
             Addr::unchecked(OWNER),
-            coconut_bandwidth_contract_addr.clone(),
+            coconut_bandwidth_contract_addr,
             &msg,
-            &vec![],
+            &[],
         )
         .unwrap();
     let proposal_id = res

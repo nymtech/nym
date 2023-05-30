@@ -4,12 +4,10 @@
 use std::time::SystemTimeError;
 use thiserror::Error;
 
-use credential_storage::error::StorageError;
-use credentials::error::Error as CredentialError;
-use nym_crypto::asymmetric::encryption::KeyRecoveryError;
-use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
-use validator_client::nyxd::error::NyxdError;
-use validator_client::ValidatorClientError;
+use nym_credential_storage::error::StorageError;
+use nym_credentials::error::Error as CredentialError;
+use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::ValidatorClientError;
 
 pub type Result<T> = std::result::Result<T, CredentialClientError>;
 
@@ -17,6 +15,9 @@ pub type Result<T> = std::result::Result<T, CredentialClientError>;
 pub enum CredentialClientError {
     #[error("IO error: {0}")]
     IOError(#[from] std::io::Error),
+
+    #[error("Bandwidth controller error: {0}")]
+    BandwidthControllerError(#[from] nym_bandwidth_controller::error::BandwidthControllerError),
 
     #[error("Nyxd error: {0}")]
     Nyxd(#[from] NyxdError),
@@ -27,21 +28,9 @@ pub enum CredentialClientError {
     #[error("Credential error: {0}")]
     Credential(#[from] CredentialError),
 
-    #[error("The tx hash provided is not valid")]
-    InvalidTxHash,
-
-    #[error("Could not parse Ed25519 data")]
-    Ed25519ParseError(#[from] Ed25519RecoveryError),
-
-    #[error("Could not parse X25519 data")]
-    X25519ParseError(#[from] KeyRecoveryError),
-
     #[error("Could not use shared storage")]
     SharedStorageError(#[from] StorageError),
 
     #[error("Could not get system time")]
     SysTimeError(#[from] SystemTimeError),
-
-    #[error("Threshold not set yet")]
-    NoThreshold,
 }

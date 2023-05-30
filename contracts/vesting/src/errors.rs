@@ -1,4 +1,5 @@
-use cosmwasm_std::{Addr, OverflowError, StdError, Uint128};
+use crate::storage::AccountStorageKey;
+use cosmwasm_std::{Addr, Coin, OverflowError, StdError, Uint128};
 use mixnet_contract_common::MixId;
 use thiserror::Error;
 
@@ -57,6 +58,9 @@ pub enum ContractError {
     #[error("VESTING ({}): No bond found for account {0}", line!())]
     NoBondFound(String),
 
+    #[error("VESTING: Attempted to reduce mixnode bond pledge below zero! The current pledge is {current} and we attempted to reduce it by {decrease_by}.")]
+    InvalidBondPledgeReduction { current: Coin, decrease_by: Coin },
+
     #[error("VESTING ({}): Action can only be executed by account owner -> {0}", line!())]
     NotOwner(String),
 
@@ -83,6 +87,21 @@ pub enum ContractError {
 
     #[error("VESTING: {address} is not permitted to perform staking on behalf of {for_account}")]
     InvalidStakingAccount { address: Addr, for_account: Addr },
+
+    #[error("VESTING: {address} ({acc_id} has already performed {num} individual delegations towards {mix_id}. No further delegations are allowed. Please consider consolidating those delegations instead. The current cap is {cap}.")]
+    TooManyDelegations {
+        address: Addr,
+        acc_id: AccountStorageKey,
+        mix_id: MixId,
+        num: u32,
+        cap: u32,
+    },
+
+    #[error("VESTING: Failed to parse {value} into a valid SemVer version: {error_message}")]
+    SemVerFailure {
+        value: String,
+        error_message: String,
+    },
 
     #[error("VESTING: {message}")]
     Other { message: String },

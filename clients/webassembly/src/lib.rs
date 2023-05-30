@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use wasm_bindgen::prelude::*;
@@ -8,9 +8,22 @@ mod client;
 #[cfg(target_arch = "wasm32")]
 pub mod encoded_payload_helper;
 #[cfg(target_arch = "wasm32")]
+pub mod error;
+#[cfg(target_arch = "wasm32")]
 pub mod gateway_selector;
 #[cfg(target_arch = "wasm32")]
+pub mod storage;
+#[cfg(target_arch = "wasm32")]
+pub mod tester;
+#[cfg(target_arch = "wasm32")]
+pub mod topology;
+#[cfg(target_arch = "wasm32")]
 pub mod validation;
+
+#[cfg(target_arch = "wasm32")]
+mod helpers;
+
+mod constants;
 
 #[wasm_bindgen]
 pub fn set_panic_hook() {

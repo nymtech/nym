@@ -14,15 +14,14 @@
 // In the future we might want to simplify by dropping the support for a single account entry,
 // instead treating as muliple accounts with one entry.
 
-use serde::{Deserialize, Serialize};
-use validator_client::nyxd::bip32::DerivationPath;
-use zeroize::Zeroize;
-
-use crate::error::BackendError;
-
 use super::encryption::EncryptedData;
 use super::password::{AccountId, LoginId};
 use super::UserPassword;
+use crate::error::BackendError;
+use bip39::Mnemonic;
+use nym_validator_client::nyxd::bip32::DerivationPath;
+use serde::{Deserialize, Serialize};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 const CURRENT_WALLET_FILE_VERSION: u32 = 1;
 
@@ -109,6 +108,22 @@ impl StoredWallet {
         self.get_encrypted_login(id)?.decrypt_struct(password)
     }
 
+    pub fn reencrypt_all(
+        &mut self,
+        current_password: &UserPassword,
+        new_password: &UserPassword,
+    ) -> Result<(), BackendError> {
+        if current_password == new_password {
+            return Ok(());
+        }
+        for encrypted_login in &mut self.accounts {
+            let login = encrypted_login.account.decrypt_struct(current_password)?;
+            *encrypted_login =
+                EncryptedLogin::encrypt(encrypted_login.id.clone(), &login, new_password)?;
+        }
+        Ok(())
+    }
+
     pub fn decrypt_all(&self, password: &UserPassword) -> Result<Vec<StoredLogin>, BackendError> {
         self.accounts
             .iter()
@@ -152,9 +167,8 @@ impl EncryptedLogin {
 
 /// A stored login is either a account, such as a mnemonic, or a list of multiple accounts where
 /// each has an inner id. Future proofed for having private key backed accounts.
-#[derive(Serialize, Deserialize, Debug, Zeroize)]
+#[derive(Serialize, Deserialize, Debug, Zeroize, ZeroizeOnDrop)]
 #[serde(untagged)]
-#[zeroize(drop)]
 pub(crate) enum StoredLogin {
     Mnemonic(MnemonicAccount),
     // PrivateKey(PrivateKeyAccount)
@@ -192,7 +206,7 @@ impl StoredLogin {
 }
 
 /// Multiple stored accounts, each entry having an id and a data field.
-#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 pub(crate) struct MultipleAccounts {
     accounts: Vec<WalletAccount>,
 }
@@ -220,8 +234,8 @@ impl MultipleAccounts {
             .find(|account| account.mnemonic() == mnemonic)
     }
 
-    pub(crate) fn into_accounts(self) -> impl Iterator<Item = WalletAccount> {
-        self.accounts.into_iter()
+    pub(crate) fn inner(&self) -> &[WalletAccount] {
+        &self.accounts
     }
 
     #[allow(unused)]
@@ -236,7 +250,7 @@ impl MultipleAccounts {
     pub(crate) fn add(
         &mut self,
         id: AccountId,
-        mnemonic: bip39::Mnemonic,
+        mnemonic: Mnemonic,
         hd_path: DerivationPath,
     ) -> Result<(), BackendError> {
         if self.get_account(&id).is_some() {
@@ -268,7 +282,7 @@ impl From<Vec<WalletAccount>> for MultipleAccounts {
 }
 
 /// An entry in the list of stored accounts
-#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 pub(crate) struct WalletAccount {
     id: AccountId,
     account: AccountData,
@@ -302,19 +316,20 @@ impl WalletAccount {
 
 /// An account usually is a mnemonic account, but in the future it might be backed by a private
 /// key.
-#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 #[serde(untagged)]
-#[zeroize(drop)]
 enum AccountData {
     Mnemonic(MnemonicAccount),
     // PrivateKey(PrivateKeyAccount)
 }
 
 /// An account backed by a unique mnemonic.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Zeroize, ZeroizeOnDrop, PartialEq, Eq)]
 pub(crate) struct MnemonicAccount {
     mnemonic: bip39::Mnemonic,
     #[serde(with = "display_hd_path")]
+    // there's nothing secret about our derivation path
+    #[zeroize(skip)]
     hd_path: DerivationPath,
 }
 
@@ -333,30 +348,9 @@ impl MnemonicAccount {
     }
 }
 
-impl Zeroize for MnemonicAccount {
-    fn zeroize(&mut self) {
-        // in ideal world, Mnemonic would have had zeroize defined on it (there's an almost year old PR that introduces it)
-        // and the memory would have been filled with zeroes.
-        //
-        // we really don't want to keep our real mnemonic in memory, so let's do the semi-nasty thing
-        // of overwriting it with a fresh mnemonic that was never used before
-        //
-        // note: this function can only fail on an invalid word count, which clearly is not the case here
-        self.mnemonic = bip39::Mnemonic::generate(self.mnemonic.word_count()).unwrap();
-
-        // further note: we don't really care about the hd_path, there's nothing secret about it.
-    }
-}
-
-impl Drop for MnemonicAccount {
-    fn drop(&mut self) {
-        self.zeroize()
-    }
-}
-
 mod display_hd_path {
+    use nym_validator_client::nyxd::bip32::DerivationPath;
     use serde::{Deserialize, Deserializer, Serializer};
-    use validator_client::nyxd::bip32::DerivationPath;
 
     pub fn serialize<S: Serializer>(
         hd_path: &DerivationPath,

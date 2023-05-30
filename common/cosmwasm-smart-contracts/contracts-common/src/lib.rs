@@ -6,6 +6,7 @@
 
 pub mod dealings;
 pub mod events;
+pub mod signing;
 pub mod types;
 
 pub use types::*;

@@ -9,8 +9,8 @@ use crate::node_status_api::models::{
 };
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
-use crate::storage::models::{NodeStatus, RewardingReport, TestingRoute};
-use nym_mixnet_contract_common::{EpochId, MixId};
+use crate::storage::models::{NodeStatus, TestingRoute};
+use nym_mixnet_contract_common::MixId;
 use rocket::fairing::AdHoc;
 use sqlx::ConnectOptions;
 use std::path::PathBuf;
@@ -713,26 +713,6 @@ impl NymApiStorage {
         self.manager.purge_old_mixnode_statuses(until).await?;
         self.manager
             .purge_old_gateway_statuses(until)
-            .await
-            .map_err(|err| err.into())
-    }
-
-    pub(crate) async fn insert_rewarding_report(
-        &self,
-        report: RewardingReport,
-    ) -> Result<(), NymApiStorageError> {
-        self.manager
-            .insert_rewarding_report(report)
-            .await
-            .map_err(|err| err.into())
-    }
-
-    pub(crate) async fn get_rewarding_report(
-        &self,
-        absolute_epoch_id: EpochId,
-    ) -> Result<Option<RewardingReport>, NymApiStorageError> {
-        self.manager
-            .get_rewarding_report(absolute_epoch_id)
             .await
             .map_err(|err| err.into())
     }

@@ -9,11 +9,19 @@ import {
   getOriginalVesting,
   getCurrentVestingPeriod,
   getVestingAccountInfo,
+  getSpendableRewardCoins,
+  getSpendableVestedCoins,
 } from '../requests';
 import { Console } from '../utils/console';
 
 type TTokenAllocation = {
-  [key in 'vesting' | 'vested' | 'locked' | 'spendable']: DecCoin['amount'];
+  [key in
+    | 'vesting'
+    | 'vested'
+    | 'locked'
+    | 'spendable'
+    | 'spendableRewardCoins'
+    | 'spendableVestedCoins']: DecCoin['amount'];
 };
 
 export type TUseuserBalance = {
@@ -54,6 +62,8 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
           vestedCoins,
           lockedCoins,
           spendableCoins,
+          spendableVestedCoins,
+          spendableRewardCoins,
           currentPeriod,
           vestingAccountDetail,
         ] = await Promise.all([
@@ -62,6 +72,8 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
           getVestedCoins(clientDetails?.client_address),
           getLockedCoins(),
           getSpendableCoins(),
+          getSpendableVestedCoins(),
+          getSpendableRewardCoins(),
           getCurrentVestingPeriod(clientDetails?.client_address),
           getVestingAccountInfo(clientDetails?.client_address),
         ]);
@@ -72,6 +84,8 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
           vested: vestedCoins.amount,
           locked: lockedCoins.amount,
           spendable: spendableCoins.amount,
+          spendableVestedCoins: spendableVestedCoins.amount,
+          spendableRewardCoins: spendableRewardCoins.amount,
         });
         setVestingAccountInfo(vestingAccountDetail);
       } catch (e) {

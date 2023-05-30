@@ -62,7 +62,6 @@ export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({ rows, columns
         }}
         columns={columns}
         pageSize={Number(pageSize)}
-        rowsPerPageOptions={[5]}
         disableSelectionOnClick
         autoHeight
         hideFooter={!pagination}

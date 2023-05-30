@@ -5,12 +5,13 @@ use clap::Parser;
 use cosmwasm_std::Uint128;
 use log::{info, warn};
 
+use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::{Coin, MixNodeCostParams, Percent};
 use nym_network_defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
-use validator_client::nyxd::traits::MixnetSigningClient;
-use validator_client::nyxd::CosmWasmCoin;
+use nym_validator_client::nyxd::traits::MixnetSigningClient;
+use nym_validator_client::nyxd::CosmWasmCoin;
 
 use crate::context::SigningClient;
 
@@ -20,7 +21,7 @@ pub struct Args {
     pub host: String,
 
     #[clap(long)]
-    pub signature: String,
+    pub signature: MessageSignature,
 
     #[clap(long)]
     pub mix_port: Option<u16>,

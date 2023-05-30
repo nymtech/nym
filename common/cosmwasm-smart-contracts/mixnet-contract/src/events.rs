@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::gateway::GatewayConfigUpdate;
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate};
 use crate::rewarding::RewardDistribution;
@@ -14,6 +15,8 @@ pub enum MixnetEventType {
     MixnodeBonding,
     PendingPledgeIncrease,
     PledgeIncrease,
+    PendingPledgeDecrease,
+    PledgeDecrease,
     GatewayBonding,
     GatewayUnbonding,
     PendingMixnodeUnbonding,
@@ -35,12 +38,14 @@ pub enum MixnetEventType {
     Undelegation,
     ContractSettingsUpdate,
     RewardingValidatorUpdate,
+    BeginEpochTransition,
     AdvanceEpoch,
     ExecutePendingEpochEvents,
     ExecutePendingIntervalEvents,
     ReconcilePendingEvents,
     PendingIntervalConfigUpdate,
     IntervalConfigUpdate,
+    GatewayConfigUpdate,
 }
 
 impl From<MixnetEventType> for String {
@@ -55,6 +60,8 @@ impl ToString for MixnetEventType {
             MixnetEventType::MixnodeBonding => "mixnode_bonding",
             MixnetEventType::PendingPledgeIncrease => "pending_pledge_increase",
             MixnetEventType::PledgeIncrease => "pledge_increase",
+            MixnetEventType::PendingPledgeDecrease => "pending_pledge_decrease",
+            MixnetEventType::PledgeDecrease => "pledge_decrease",
             MixnetEventType::GatewayBonding => "gateway_bonding",
             MixnetEventType::GatewayUnbonding => "gateway_unbonding",
             MixnetEventType::PendingMixnodeUnbonding => "pending_mixnode_unbonding",
@@ -77,6 +84,7 @@ impl ToString for MixnetEventType {
             MixnetEventType::Undelegation => "undelegation",
             MixnetEventType::ContractSettingsUpdate => "settings_update",
             MixnetEventType::RewardingValidatorUpdate => "rewarding_validator_address_update",
+            MixnetEventType::BeginEpochTransition => "beginning_epoch_transition",
             MixnetEventType::AdvanceEpoch => "advance_epoch",
             MixnetEventType::ExecutePendingEpochEvents => "execute_pending_epoch_events",
             MixnetEventType::ExecutePendingIntervalEvents => "execute_pending_interval_events",
@@ -84,6 +92,7 @@ impl ToString for MixnetEventType {
             MixnetEventType::PendingIntervalConfigUpdate => "pending_interval_config_update",
             MixnetEventType::IntervalConfigUpdate => "interval_config_update",
             MixnetEventType::DelegationOnUnbonding => "delegation_on_unbonding_node",
+            MixnetEventType::GatewayConfigUpdate => "gateway_config_update",
         };
 
         format!("{EVENT_VERSION_PREFIX}{event_name}")
@@ -120,6 +129,7 @@ pub const OLD_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "old_rewarding_validator_a
 pub const NEW_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "new_rewarding_validator_address";
 
 pub const UPDATED_MIXNODE_CONFIG_KEY: &str = "updated_mixnode_config";
+pub const UPDATED_GATEWAY_CONFIG_KEY: &str = "updated_gateway_config";
 pub const UPDATED_MIXNODE_COST_PARAMS_KEY: &str = "updated_mixnode_cost_params";
 
 // rewarding
@@ -139,6 +149,7 @@ pub const ZERO_PERFORMANCE_VALUE: &str = "zero_performance";
 // rewarded set update
 pub const ACTIVE_SET_SIZE_KEY: &str = "active_set_size";
 
+pub const CURRENT_EPOCH_KEY: &str = "current_epoch";
 pub const NEW_CURRENT_EPOCH_KEY: &str = "new_current_epoch";
 
 // interval
@@ -347,6 +358,19 @@ pub fn new_pledge_increase_event(created_at: BlockHeight, mix_id: MixId, amount:
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 
+pub fn new_pending_pledge_decrease_event(mix_id: MixId, amount: &Coin) -> Event {
+    Event::new(MixnetEventType::PendingPledgeDecrease)
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+}
+
+pub fn new_pledge_decrease_event(created_at: BlockHeight, mix_id: MixId, amount: &Coin) -> Event {
+    Event::new(MixnetEventType::PledgeDecrease)
+        .add_attribute(EVENT_CREATION_HEIGHT_KEY, created_at.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+}
+
 pub fn new_mixnode_unbonding_event(created_at: BlockHeight, mix_id: MixId) -> Event {
     Event::new(MixnetEventType::MixnodeUnbonding)
         .add_attribute(EVENT_CREATION_HEIGHT_KEY, created_at.to_string())
@@ -377,6 +401,17 @@ pub fn new_mixnode_config_update_event(
         .add_attribute(OWNER_KEY, owner)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(UPDATED_MIXNODE_CONFIG_KEY, update.to_inline_json())
+}
+
+pub fn new_gateway_config_update_event(
+    owner: &Addr,
+    proxy: &Option<Addr>,
+    update: &GatewayConfigUpdate,
+) -> Event {
+    Event::new(MixnetEventType::GatewayConfigUpdate)
+        .add_attribute(OWNER_KEY, owner)
+        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
+        .add_attribute(UPDATED_GATEWAY_CONFIG_KEY, update.to_inline_json())
 }
 
 pub fn new_mixnode_pending_cost_params_update_event(
@@ -498,6 +533,13 @@ pub fn new_mix_rewarding_event(
             DELEGATES_REWARD_KEY,
             reward_distribution.delegates.to_string(),
         )
+}
+
+pub fn new_epoch_transition_start_event(current_interval: Interval) -> Event {
+    Event::new(MixnetEventType::BeginEpochTransition).add_attribute(
+        CURRENT_EPOCH_KEY,
+        current_interval.current_epoch_absolute_id().to_string(),
+    )
 }
 
 pub fn new_advance_epoch_event(interval: Interval, rewarded_nodes: u32) -> Event {

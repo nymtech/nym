@@ -1,4 +1,4 @@
-use client_core::error::ClientCoreError;
+use nym_client_core::error::ClientCoreError;
 use serde::{Serialize, Serializer};
 use thiserror::Error;
 
@@ -70,6 +70,11 @@ pub enum BackendError {
     NewWindowError,
     #[error("unable to parse the specified gateway")]
     UnableToParseGateway,
+
+    #[error("unable to load keys: {source}")]
+    UnableToLoadKeys {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 
     #[error("HTTP get request failed: {status_code}")]
     RequestFail {

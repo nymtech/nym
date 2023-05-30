@@ -29,7 +29,7 @@ export const ConnectionPage = () => {
       // eslint-disable-next-line default-case
       switch (currentStatus) {
         case 'disconnected':
-          await context.setRandomSerivceProvider();
+          await context.setSerivceProvider();
           await context.startConnecting();
           context.setConnectedSince(DateTime.now());
           context.setShowInfoModal(true);

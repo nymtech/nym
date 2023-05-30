@@ -11,4 +11,4 @@ pub use manager::{StatusReceiver, StatusSender, TaskClient, TaskManager};
 #[cfg(not(target_arch = "wasm32"))]
 pub use signal::wait_for_signal_and_error;
 
-pub use spawn::spawn_with_report_error;
+pub use spawn::{spawn, spawn_with_report_error};

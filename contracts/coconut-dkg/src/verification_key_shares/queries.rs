@@ -3,10 +3,10 @@
 
 use crate::verification_key_shares::storage;
 use crate::verification_key_shares::storage::vk_shares;
-use coconut_dkg_common::types::EpochId;
-use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
+use nym_coconut_dkg_common::types::EpochId;
+use nym_coconut_dkg_common::verification_key::PagedVKSharesResponse;
 
 pub fn query_vk_shares_paged(
     deps: Deps<'_>,

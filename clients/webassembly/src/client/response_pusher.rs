@@ -1,11 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_core::client::base_client::ClientOutput;
-use client_core::client::received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use js_sys::Uint8Array;
+use nym_client_core::client::base_client::ClientOutput;
+use nym_client_core::client::received_buffer::{
+    ReceivedBufferMessage, ReconstructedMessagesReceiver,
+};
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
 use wasm_utils::console_error;

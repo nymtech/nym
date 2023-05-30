@@ -111,6 +111,7 @@ pub struct MixNodeBondAnnotated {
     pub estimated_operator_apy: Decimal,
     pub estimated_delegators_apy: Decimal,
     pub family: Option<FamilyHead>,
+    pub blacklisted: bool,
 }
 
 impl MixNodeBondAnnotated {
@@ -137,6 +138,7 @@ pub struct GatewayBondAnnotated {
     // NOTE: the performance field is deprecated in favour of node_performance
     pub performance: Performance,
     pub node_performance: NodePerformance,
+    pub blacklisted: bool,
 }
 
 impl GatewayBondAnnotated {

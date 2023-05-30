@@ -1,12 +1,20 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::error::Error;
-use std::fmt::Display;
-
-use cosmwasm_std::{Coin as CosmWasmCoin, Decimal};
+use cosmrs::AccountId;
+use cosmwasm_std::{Addr, Coin as CosmWasmCoin, Decimal};
 use log::error;
-use validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::Coin;
+use serde::Serialize;
+use std::error::Error;
+use std::fmt::{Display, Formatter};
+
+// TODO: perhaps it should be moved to some global common crate?
+pub fn account_id_to_cw_addr(account_id: &AccountId) -> Addr {
+    // the call to unchecked is fine here as we're converting directly from `AccountId`
+    // which must have been a valid bech32 address
+    Addr::unchecked(account_id.as_ref())
+}
 
 pub fn pretty_coin(coin: &Coin) -> String {
     let amount = Decimal::from_ratio(coin.amount, 1_000_000u128);
@@ -46,4 +54,24 @@ where
 {
     error!("{}", e);
     e
+}
+
+#[derive(Serialize)]
+pub(crate) struct DataWrapper<T> {
+    data: T,
+}
+
+impl<T> Display for DataWrapper<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.data)
+    }
+}
+
+impl<T> DataWrapper<T> {
+    pub(crate) fn new(data: T) -> Self {
+        DataWrapper { data }
+    }
 }

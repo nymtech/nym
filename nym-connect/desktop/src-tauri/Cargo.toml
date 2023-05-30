@@ -1,6 +1,6 @@
 [package]
 name = "nym-connect"
-version = "1.1.11"
+version = "1.1.13"
 description = "nym-connect"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -20,8 +20,7 @@ tauri-macros = "^1.2.1"
 
 [dependencies]
 anyhow = "1.0"
-bip39 = "1.0"
-chrono = "0.4"
+bip39 = { version = "2.0.0", features = ["zeroize"] }
 dirs = "4.0"
 eyre = "0.6.5"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs", branch = "release"}
@@ -40,17 +39,20 @@ tap = "1.0.1"
 tauri = { version = "^1.2.2", features = ["clipboard-write-text", "macos-private-api", "notification-all", "shell-open", "system-tray", "updater", "window-close", "window-minimize", "window-start-dragging"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
+time = { version = "0.3.17", features = ["local-offset"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
 url = "2.2"
 yaml-rust = "0.4"
 
-client-core = { path = "../../../clients/client-core" }
+
+nym-client-core = { path = "../../../common/client-core" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common"}
 nym-config-common = { path = "../../../common/config", package = "nym-config" }
 nym-crypto = { path = "../../../common/crypto" }
+nym-credential-storage = { path = "../../../common/credential-storage" }
 nym-bin-common = { path = "../../../common/bin-common"}
-nym-socks5-client = { path = "../../../clients/socks5" }
+nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
 nym-task = { path = "../../../common/task" }
 
 [dev-dependencies]

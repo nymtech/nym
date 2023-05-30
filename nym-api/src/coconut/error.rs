@@ -7,12 +7,12 @@ use rocket::{response, Request, Response};
 use std::io::Cursor;
 use thiserror::Error;
 
-use dkg::error::DkgError;
 use nym_crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
 };
-use validator_client::nyxd::error::NyxdError;
+use nym_dkg::error::DkgError;
+use nym_validator_client::nyxd::error::NyxdError;
 
 use crate::node_status_api::models::NymApiStorageError;
 
@@ -39,10 +39,10 @@ pub enum CoconutError {
     NyxdError(#[from] NyxdError),
 
     #[error("Validator client error - {0}")]
-    ValidatorClientError(#[from] validator_client::ValidatorClientError),
+    ValidatorClientError(#[from] nym_validator_client::ValidatorClientError),
 
     #[error("Coconut internal error - {0}")]
-    CoconutInternalError(#[from] nymcoconut::CoconutError),
+    CoconutInternalError(#[from] nym_coconut::CoconutError),
 
     #[error("Could not find a deposit event in the transaction provided")]
     DepositEventNotFound,
@@ -71,13 +71,13 @@ pub enum CoconutError {
     DifferentPublicAttributes(String, String),
 
     #[error("Error in coconut interface - {0}")]
-    CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
+    CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
     #[error("Storage error - {0}")]
     StorageError(#[from] NymApiStorageError),
 
     #[error("Credentials error - {0}")]
-    CredentialsError(#[from] credentials::error::Error),
+    CredentialsError(#[from] nym_credentials::error::Error),
 
     #[error("Incorrect credential proposal description: {reason}")]
     IncorrectProposal { reason: String },
@@ -91,7 +91,7 @@ pub enum CoconutError {
     #[error("Failed to recover assigned node index: {reason}")]
     NodeIndexRecoveryError { reason: String },
 
-    #[error("Unrecoverable state: {reason}. Process should be restarted")]
+    #[error("Unrecoverable state: {reason}")]
     UnrecoverableState { reason: String },
 
     #[error("DKG has not finished yet in order to derive the coconut key")]

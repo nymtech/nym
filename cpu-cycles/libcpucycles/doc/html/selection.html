@@ -1,0 +1,158 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style type="text/css">
+html{overflow-y:scroll}
+body{font-family:sans-serif}
+p,ul,ol,blockquote,pre{font-size:0.9em;line-height:1.6em}
+li p{font-size:1.0em}
+blockquote p{font-size:1.0em}
+tt{font-size:1.2em}
+code{font-size:1.2em}
+h1{font-size:1.5em}
+h2{font-size:1.3em}
+h3{font-size:1.0em}
+h1 a{text-decoration:none}
+table{border-collapse:collapse}
+th,td{border:1px solid black}
+table a{text-decoration:none}
+table tr{font-size:0.9em;line-height:1.6em}
+.links a:hover{text-decoration:underline}
+.links a:active{text-decoration:underline}
+.links img{width:200px;padding-left:1em}
+.links td{border:0px;padding-top:0.5em;padding-bottom:0.5em}
+.headline{padding:0;font-weight:bold;font-size:1.5em;vertical-align:top;padding-bottom:0.5em;color:#125d0d}
+.navt{display:inline-block;box-sizing:border-box;-moz-box-sizing:border-box;-webkit-box-sizing:border-box;
+min-width:14%;margin:0;padding:0;padding-left:0.5em;padding-right:0.5em;vertical-align:center;
+font-weight:bold;font-size:1.1em;text-align:center;border:1px solid black}
+.here{border-bottom:0px;background-color:#ffffff}
+.away{background-color:#125d0d;}
+.away a{text-decoration:none;display:block;color:#ffffff}
+.away a:hover,.away a:active{text-decoration:underline}
+.main{margin:0;padding-top:0em;padding-bottom:1%;clear:both}
+</style>
+<title>
+Selection</title>
+</head>
+<body>
+<div class=headline>
+libcpucycles
+</div>
+<div class=nav>
+<div class="navt away"><a href=index.html>Intro</a>
+</div><div class="navt away"><a href=download.html>Download</a>
+</div><div class="navt away"><a href=install.html>Install</a>
+</div><div class="navt away"><a href=api.html>API</a>
+</div><div class="navt away"><a href=counters.html>Counters</a>
+</div><div class="navt here">Selection
+</div><div class="navt away"><a href=security.html>Security</a>
+</div></div>
+<div class=main>
+<p>Here is how libcpucycles decides which cycle counter to use. The
+underlying principles are as follows:</p>
+<ul>
+<li>
+<p>Failure is not allowed. Using a low-resolution timer such as
+  <code>gettimeofday()</code> to estimate cycle counts is not desirable but is better
+  than providing no information.</p>
+</li>
+<li>
+<p>A counter that does well on some CPUs and OSes can do badly on others.
+  The counter selection in libcpucycles is based not just on rules set
+  at compile time but also on measurements of how well the counters
+  perform when the program first calls <code>cpucycles()</code>.</p>
+</li>
+<li>
+<p>A critical application of cycle counting is collecting cycle counts
+  for multiple options to see which option is faster. It is the caller's
+  responsibility to compute medians of cycle counts for many runs of
+  whatever is being benchmarked: medians filter out occasional
+  cycle-count jumps caused by migration to another core (if the
+  benchmark is not pinned to a single core) or interrupts from other OS
+  activity. libcpucycles does not reject an otherwise attractive counter
+  merely because of occasional jumps.</p>
+</li>
+<li>
+<p>Cycle-counting overhead is not desirable, but does not directly affect
+  comparisons of multiple options measured using the same cycle counter,
+  so it is less important than consistent major errors such as treating
+  2^32 + x cycles as x cycles. (Performance experts seeing a function
+  that takes billions of cycles usually focus on smaller subroutines,
+  but libcpucycles should not break larger measurements.) This is why
+  libcpucycles does not provide direct access to 32-bit cycle counters:
+  it provides wrappers that combine the counters with gettimeofday() to
+  produce 64 bits, even though this incurs some extra overhead.</p>
+</li>
+<li>
+<p>The noise introduced by typical off-core clocks, such as multiplying a
+  24MHz clock by 86 to estimate cycles on a 2.064GHz CPU core, comes in
+  small part from low resolution but much more from changes in CPU
+  frequency: e.g., a 10000-cycle computation might be measured as 20000
+  cycles when the CPU enters a power-saving mode. When libcpucycles has
+  access to what is believed to be an on-core cycle counter, it uses
+  that even when its measurements show some noise. (Choosing an on-core
+  cycle counter does not magically eliminate the change in the relative
+  speed of the CPU and DRAM; the usual advice to warm up the CPU and set
+  constant frequencies if possible still applies.)</p>
+</li>
+</ul>
+<p>When <code>cpucycles()</code> is first called, libcpucycles tries running each
+cycle counter that has been compiled into the library. For example, for
+64-bit ARM CPUs, libcpucycles will try <code>arm64-pmc</code>, <code>arm64-vct</code>,
+<code>default-gettimeofday</code>, <code>default-mach</code>, <code>default-monotonic</code>, and
+<code>default-perfevent</code>, minus any of those that failed to compile.</p>
+<p>Cycle counters that fail at run time with SIGILL (or SIGFPE or SIGBUS or
+SIGSEGV) are eliminated from the list. For example, <code>arm64-pmc</code> will
+fail with SIGILL if the kernel does not allow user access to
+<code>PMCCNTR_EL0</code>. Beware that libcpucycles does not catch SIGILL after its
+initial tests: if the kernel initially allows user access to
+<code>PMCCNTR_EL0</code> but later turns it off then <code>arm64-pmc</code> will crash.</p>
+<p>Independently of these counters, libcpucycles uses various OS mechanisms
+to obtain an <em>estimate</em> of the CPU frequency. This estimate is also
+available to the caller as <code>cpucycles_persecond()</code>.</p>
+<p>The methods that libcpucycles uses to ask the OS for an estimated CPU
+frequency fail on some OS-CPU combinations, in which case libcpucycles
+falls back to a <code>cpucyclespersecond</code> environment variable, or, if that
+variable does not exist, an estimate of 2399987654 cycles per second.
+(This estimate is in a realistic range of CPU speeds, and is close to
+multiples of 24MHz, 25MHz, and 19.2MHz, which are common crystal
+frequencies.) The sysadmin can create <code>/etc/cpucyclespersecond</code> to
+override all of the OS mechanisms.</p>
+<p>For counters that do not ask for scaling, the estimated CPU frequency is
+shown in <code>cpucycles-info</code> as a double-check on the counter results. For
+counters that ask for scaling, libcpucycles uses the estimated CPU
+frequency to compute the scaling, so this is not a double-check. If a
+counter asks for scaling and the estimated CPU frequency does not seem
+close to a multiple of the counter frequency (possibly with a small
+power-of-2 denominator) then libcpucycles will throw the counter away,
+except in the case of fixed-resolution OS counters such as
+<code>gettimeofday</code> and <code>CLOCK_MONOTONIC</code>.</p>
+<p>libcpucycles computes a precision estimate for each counter (times any
+applicable scaling) as follows. Call the counter 1000 times. Check that
+the counter has never decreased, and has increased at least once. (A
+counter where the decrease/increase checks fail is retried 10 times, so
+10000 calls overall, and removed if it fails all 10 times.) The
+precision estimate is then the smallest nonzero difference between
+adjacent counter results, plus a penalty explained below.</p>
+<p>The penalty is 100 cycles for off-core counters (including RDTSC) and
+<code>default-perfevent</code>, and 200 cycles for fixed-resolution OS counters.
+For example, an on-core CPU cycle counter will be selected even if it
+actually has, e.g., a resolution of 8 cycles and 50 cycles of overhead.</p>
+<p>Finally, libcpucycles selects the counter where the precision estimate
+is the smallest number of cycles. Note that an inaccurate estimate of
+CPU frequency can influence the choice between a scaled counter and an
+unscaled counter.</p>
+<p>libcpucycles does <em>not</em> carry out its counter selection (typically tens
+of milliseconds, sometimes even more) as a static initializer; callers
+are presumed to not want to incur the cost of initialization unless and
+until they are actually using <code>cpucycles()</code>. A multithreaded caller thus
+has to place locks around any possibly-first call to <code>cpucycles()</code>, or
+create its own static initializer (an <code>__attribute__((constructor))</code>
+function) with an initial <code>cpucycles()</code> call so that all subsequent
+<code>cpucycles()</code> calls are thread-safe.</p><hr><font size=1><b>Version:</b>
+This is version 2023.01.05 of the "Selection" web page.
+</font>
+</div>
+</body>
+</html>

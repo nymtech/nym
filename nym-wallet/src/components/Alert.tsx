@@ -1,8 +1,18 @@
 import React, { useState } from 'react';
-import { Alert as MuiAlert, IconButton } from '@mui/material';
+import { Alert as MuiAlert, IconButton, SxProps } from '@mui/material';
 import { Close } from '@mui/icons-material';
 
-export const Alert = ({ title, dismissable }: { title: string | React.ReactNode; dismissable?: boolean }) => {
+export const Alert = ({
+  title,
+  dismissable,
+  sxAlert,
+  bgColor,
+}: {
+  title: string | React.ReactNode;
+  dismissable?: boolean;
+  sxAlert?: SxProps;
+  bgColor?: string;
+}) => {
   const [displayAlert, setDisplayAlert] = useState(true);
   const handleDismiss = () => setDisplayAlert(false);
 
@@ -14,9 +24,10 @@ export const Alert = ({ title, dismissable }: { title: string | React.ReactNode;
       sx={{
         width: '100%',
         borderRadius: 0,
-        bgcolor: 'background.default',
+        bgcolor: bgColor || 'background.default',
         color: (theme) => theme.palette.nym.nymWallet.text.blue,
         '& .MuiAlert-icon': { color: 'nym.nymWallet.text.blue', mr: 1 },
+        ...sxAlert,
       }}
       action={
         dismissable && (

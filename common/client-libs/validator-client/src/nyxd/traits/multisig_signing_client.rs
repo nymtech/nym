@@ -6,9 +6,9 @@ use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Fee, NyxdClient};
 
-use coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
 use cw3::Vote;
-use multisig_contract_common::msg::ExecuteMsg;
+use nym_coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
+use nym_multisig_contract_common::msg::ExecuteMsg;
 
 use async_trait::async_trait;
 use cosmwasm_std::{to_binary, Coin, CosmosMsg, WasmMsg};
@@ -38,7 +38,7 @@ pub trait MultisigSigningClient {
 }
 
 #[async_trait]
-impl<C: SigningCosmWasmClient + Sync + Send + Clone> MultisigSigningClient for NyxdClient<C> {
+impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NyxdClient<C> {
     async fn propose_release_funds(
         &self,
         title: String,

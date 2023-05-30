@@ -4,12 +4,12 @@
 use std::error::Error;
 use std::net::IpAddr;
 
+use crate::commands::try_upgrade_v1_1_13_config;
 use crate::{
     client::{config::Config, SocketClient},
     commands::{override_config, OverrideConfig},
     error::ClientError,
 };
-
 use clap::Args;
 use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
@@ -100,6 +100,10 @@ fn version_check(cfg: &Config) -> bool {
 pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn Error + Send + Sync>> {
     let id = &args.id;
 
+    // in case we're using old config, try to upgrade it
+    // (if we're using the current version, it's a no-op)
+    try_upgrade_v1_1_13_config(id)?;
+
     let mut config = match Config::load_from_file(id) {
         Ok(cfg) => cfg,
         Err(err) => {
@@ -107,6 +111,10 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn Error + Send + Syn
             return Err(Box::new(ClientError::FailedToLoadConfig(id.to_string())));
         }
     };
+
+    if !config.validate() {
+        return Err(Box::new(ClientError::ConfigValidationFailure));
+    }
 
     let override_config_fields = OverrideConfig::from(args.clone());
     config = override_config(config, override_config_fields);

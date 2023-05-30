@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::*;
-use coconut_bandwidth::error::ContractError;
-use coconut_bandwidth_contract_common::{
-    deposit::DepositData,
-    msg::{ExecuteMsg, InstantiateMsg},
-};
 use cosmwasm_std::{coins, Addr};
 use cw_controllers::AdminError;
 use cw_multi_test::Executor;
+use nym_coconut_bandwidth::error::ContractError;
+use nym_coconut_bandwidth_contract_common::{
+    deposit::DepositData,
+    msg::{ExecuteMsg, InstantiateMsg},
+};
 
 const TEST_MIX_DENOM: &str = "unym";
 
@@ -89,13 +89,8 @@ fn deposit_and_release() {
     let msg = ExecuteMsg::ReleaseFunds {
         funds: deposit_funds[0].clone(),
     };
-    app.execute_contract(
-        Addr::unchecked(multisig_addr),
-        contract_addr.clone(),
-        &msg,
-        &[],
-    )
-    .unwrap();
+    app.execute_contract(Addr::unchecked(multisig_addr), contract_addr, &msg, &[])
+        .unwrap();
     let pool_bal = app.wrap().query_balance(pool_addr, TEST_MIX_DENOM).unwrap();
     assert_eq!(pool_bal, deposit_funds[0]);
 }

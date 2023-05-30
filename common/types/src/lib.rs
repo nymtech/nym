@@ -9,6 +9,7 @@ pub mod error;
 pub mod fees;
 pub mod gas;
 pub mod gateway;
+pub mod helpers;
 pub mod mixnode;
 pub mod pending_events;
 pub mod transaction;

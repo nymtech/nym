@@ -3,8 +3,8 @@
 
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::error::ContractError;
-use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Storage;
+use nym_coconut_dkg_common::types::EpochState;
 
 pub(crate) fn check_epoch_state(
     storage: &dyn Storage,
@@ -25,8 +25,8 @@ pub(crate) fn check_epoch_state(
 pub(crate) mod test {
     use super::*;
     use crate::support::tests::helpers::init_contract;
-    use coconut_dkg_common::types::{Epoch, TimeConfiguration};
     use cosmwasm_std::testing::mock_env;
+    use nym_coconut_dkg_common::types::{Epoch, TimeConfiguration};
 
     #[test]
     pub fn check_state() {

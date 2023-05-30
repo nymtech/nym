@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import shutil
+import tempfile
+
+prefix = sys.argv[1]
+dirs = 'man/man3','lib','include','bin'
+install = {}
+
+os.umask(0o22)
+
+for target in dirs:
+  install[target] = '%s/%s'%(prefix,target)
+  os.makedirs(install[target],exist_ok=True)
+
+os.umask(0o77)
+
+for target in dirs:
+  with tempfile.TemporaryDirectory(dir=install[target]) as t:
+    for fn in sorted(os.listdir('package/'+target)):
+      try:
+        shutil.copy2('package/%s/%s' % (target,fn),'%s/%s' % (t,fn),follow_symlinks=False)
+      except TypeError: # XXX: old python3; should copy symlinks manually
+        shutil.copy2('package/%s/%s' % (target,fn),'%s/%s' % (t,fn))
+      os.rename('%s/%s' % (t,fn),'%s/%s' % (install[target],fn))

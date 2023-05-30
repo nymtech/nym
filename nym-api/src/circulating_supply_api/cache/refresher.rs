@@ -6,11 +6,11 @@ use crate::circulating_supply_api::cache::CirculatingSupplyCacheError;
 use crate::support::nyxd::Client;
 use nym_contracts_common::truncate_decimal;
 use nym_task::TaskClient;
+use nym_validator_client::nyxd::Coin;
 use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::time;
-use validator_client::nyxd::Coin;
 
 pub(crate) struct CirculatingSupplyCacheRefresher {
     nyxd_client: Client,

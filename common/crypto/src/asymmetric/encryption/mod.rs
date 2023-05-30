@@ -1,9 +1,11 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Display, Formatter};
+use std::str::FromStr;
 use thiserror::Error;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
@@ -40,8 +42,14 @@ pub enum KeyRecoveryError {
     },
 }
 
+#[derive(Zeroize, ZeroizeOnDrop)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,
+
+    // nothing secret about public key
+    #[zeroize(skip)]
     pub(crate) public_key: PublicKey,
 }
 
@@ -131,6 +139,14 @@ impl PublicKey {
     }
 }
 
+impl FromStr for PublicKey {
+    type Err = KeyRecoveryError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PublicKey::from_base58_string(s)
+    }
+}
+
 #[cfg(feature = "serde")]
 impl Serialize for PublicKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -169,6 +185,7 @@ impl PemStorableKey for PublicKey {
     }
 }
 
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct PrivateKey(x25519_dalek::StaticSecret);
 
 impl Display for PrivateKey {
@@ -297,17 +314,24 @@ impl From<nym_sphinx_types::PrivateKey> for PrivateKey {
 #[cfg(test)]
 mod sphinx_key_conversion {
     use super::*;
+    use rand_chacha::rand_core::SeedableRng;
+    use rand_chacha::ChaCha20Rng;
+
+    pub(super) fn test_rng() -> ChaCha20Rng {
+        let dummy_seed = [42u8; 32];
+        ChaCha20Rng::from_seed(dummy_seed)
+    }
 
     const NUM_ITERATIONS: usize = 100;
 
     #[test]
     fn works_for_forward_conversion() {
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = test_rng();
 
         for _ in 0..NUM_ITERATIONS {
             let keys = KeyPair::new(&mut rng);
-            let private = keys.private_key;
-            let public = keys.public_key;
+            let private = &keys.private_key;
+            let public = &keys.public_key;
 
             let private_bytes = private.to_bytes();
             let public_bytes = public.to_bytes();

@@ -5,7 +5,7 @@ use crate::msg::ExecuteMsg;
 use crate::types::{EpochId, NodeIndex};
 use cosmwasm_std::{from_binary, to_binary, Addr, CosmosMsg, StdResult, Timestamp, WasmMsg};
 use cw_utils::Expiration;
-use multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
+use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 use serde::{Deserialize, Serialize};
 
 pub type VerificationKeyShare = String;

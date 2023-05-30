@@ -5,8 +5,8 @@ pub use crate::nyxd::cosmwasm_client::signing_client::SigningCosmWasmClient;
 use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, NyxdClient};
-use coconut_bandwidth_contract_common::spend_credential::SpendCredentialData;
-use coconut_bandwidth_contract_common::{deposit::DepositData, msg::ExecuteMsg};
+use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialData;
+use nym_coconut_bandwidth_contract_common::{deposit::DepositData, msg::ExecuteMsg};
 
 use async_trait::async_trait;
 
@@ -30,9 +30,7 @@ pub trait CoconutBandwidthSigningClient {
 }
 
 #[async_trait]
-impl<C: SigningCosmWasmClient + Sync + Send + Clone> CoconutBandwidthSigningClient
-    for NyxdClient<C>
-{
+impl<C: SigningCosmWasmClient + Sync + Send> CoconutBandwidthSigningClient for NyxdClient<C> {
     async fn deposit(
         &self,
         amount: Coin,

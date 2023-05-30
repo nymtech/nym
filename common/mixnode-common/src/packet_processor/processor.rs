@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::measure;
 use crate::packet_processor::error::MixProcessingError;
 use log::*;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
@@ -14,6 +15,8 @@ use nym_sphinx_types::{
 };
 use std::convert::TryFrom;
 use std::sync::Arc;
+#[cfg(feature = "cpucycles")]
+use tracing::instrument;
 
 type ForwardAck = MixPacket;
 
@@ -46,29 +49,41 @@ impl SphinxPacketProcessor {
     }
 
     /// Performs a fresh sphinx unwrapping using no cache.
+    #[cfg_attr(
+        feature = "cpucycles",
+        instrument(skip(self, packet), fields(cpucycles))
+    )]
     fn perform_initial_sphinx_packet_processing(
         &self,
         packet: SphinxPacket,
     ) -> Result<ProcessedPacket, MixProcessingError> {
-        packet.process(&self.sphinx_key).map_err(|err| {
-            debug!("Failed to unwrap Sphinx packet: {err}");
-            MixProcessingError::SphinxProcessingError(err)
+        measure!({
+            packet.process(&self.sphinx_key).map_err(|err| {
+                debug!("Failed to unwrap Sphinx packet: {err}");
+                MixProcessingError::SphinxProcessingError(err)
+            })
         })
     }
 
     /// Takes the received framed packet and tries to unwrap it from the sphinx encryption.
+    #[cfg_attr(
+        feature = "cpucycles",
+        instrument(skip(self, received), fields(cpucycles))
+    )]
     fn perform_initial_unwrapping(
         &self,
         received: FramedSphinxPacket,
     ) -> Result<ProcessedPacket, MixProcessingError> {
-        let packet_mode = received.packet_mode();
-        let sphinx_packet = received.into_inner();
+        measure!({
+            let packet_mode = received.packet_mode();
+            let sphinx_packet = received.into_inner();
 
-        if packet_mode.is_old_vpn() {
-            return Err(MixProcessingError::ReceivedOldTypeVpnPacket);
-        }
+            if packet_mode.is_old_vpn() {
+                return Err(MixProcessingError::ReceivedOldTypeVpnPacket);
+            }
 
-        self.perform_initial_sphinx_packet_processing(sphinx_packet)
+            self.perform_initial_sphinx_packet_processing(sphinx_packet)
+        })
     }
 
     /// Processed received forward hop packet - tries to extract next hop address, sets delay
@@ -171,20 +186,26 @@ impl SphinxPacketProcessor {
         }
     }
 
+    #[cfg_attr(
+        feature = "cpucycles",
+        instrument(skip(self, received), fields(cpucycles))
+    )]
     pub fn process_received(
         &self,
         received: FramedSphinxPacket,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         // explicit packet size will help to correctly parse final hop
-        let packet_size = received.packet_size();
-        let packet_mode = received.packet_mode();
+        measure!({
+            let packet_size = received.packet_size();
+            let packet_mode = received.packet_mode();
 
-        // unwrap the sphinx packet and if possible and appropriate, cache keys
-        let processed_packet = self.perform_initial_unwrapping(received)?;
+            // unwrap the sphinx packet and if possible and appropriate, cache keys
+            let processed_packet = self.perform_initial_unwrapping(received)?;
 
-        // for forward packets, extract next hop and set delay (but do NOT delay here)
-        // for final packets, extract SURBAck
-        self.perform_final_processing(processed_packet, packet_size, packet_mode)
+            // for forward packets, extract next hop and set delay (but do NOT delay here)
+            // for final packets, extract SURBAck
+            self.perform_final_processing(processed_packet, packet_size, packet_mode)
+        })
     }
 }
 

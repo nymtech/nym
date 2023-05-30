@@ -4,15 +4,16 @@
 use super::MixProxySender;
 use super::SHUTDOWN_TIMEOUT;
 use crate::available_reader::AvailableReader;
+use crate::proxy_runner::KEEPALIVE_INTERVAL;
 use bytes::Bytes;
 use futures::FutureExt;
 use futures::StreamExt;
 use log::*;
+use nym_ordered_buffer::OrderedMessageSender;
+use nym_socks5_requests::ConnectionId;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskClient;
-use ordered_buffer::OrderedMessageSender;
-use socks5_requests::ConnectionId;
 use std::fmt::Debug;
 use std::time::Duration;
 use std::{io, sync::Arc};
@@ -31,6 +32,23 @@ async fn send_empty_close<F, S>(
     let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
     mix_sender
         .send(adapter_fn(connection_id, ordered_msg, true))
+        .await
+        .expect("BatchRealMessageReceiver has stopped receiving!");
+}
+
+async fn send_empty_keepalive<F, S>(
+    connection_id: ConnectionId,
+    message_sender: &mut OrderedMessageSender,
+    mix_sender: &MixProxySender<S>,
+    adapter_fn: F,
+) where
+    F: Fn(ConnectionId, Vec<u8>, bool) -> S,
+    S: Debug,
+{
+    log::trace!("Sending keepalive for connection: {connection_id}");
+    let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
+    mix_sender
+        .send(adapter_fn(connection_id, ordered_msg, false))
         .await
         .expect("BatchRealMessageReceiver has stopped receiving!");
 }
@@ -167,6 +185,7 @@ pub(super) async fn run_inbound<F, S>(
     remote_source_address: String,
     connection_id: ConnectionId,
     mix_sender: MixProxySender<S>,
+    available_plaintext_per_mix_packet: usize,
     adapter_fn: F,
     shutdown_notify: Arc<Notify>,
     lane_queue_lengths: Option<LaneQueueLengths>,
@@ -176,11 +195,15 @@ where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
     S: Debug,
 {
-    let mut available_reader = AvailableReader::new(&mut reader);
+    // TODO: this multiplication by 4 is completely arbitrary here
+    let mut available_reader =
+        AvailableReader::new(&mut reader, Some(available_plaintext_per_mix_packet * 4));
     let mut message_sender = OrderedMessageSender::new();
     let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
 
     tokio::pin!(shutdown_future);
+
+    let mut keepalive_timer = tokio::time::interval(KEEPALIVE_INTERVAL);
 
     loop {
         select! {
@@ -197,6 +220,10 @@ where
                 ).await {
                     break
                 }
+                keepalive_timer.reset();
+            }
+            _ = keepalive_timer.tick() => {
+                send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
             }
             _ = &mut shutdown_future => {
                 debug!(

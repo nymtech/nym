@@ -1,6 +1,6 @@
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Config as ClientConfig, NyxdClient, QueryNyxdClient};
-use crate::NymApiClient;
+use crate::{NymApiClient, ValidatorClientError};
 
 use crate::nyxd::traits::MixnetQueryClient;
 use colored::Colorize;
@@ -43,6 +43,23 @@ pub async fn run_validator_connection_test<H: BuildHasher + 'static>(
         extract_and_collect_results_into_map(&connection_results, &UrlType::Nyxd),
         extract_and_collect_results_into_map(&connection_results, &UrlType::NymApi),
     )
+}
+
+pub async fn test_nyxd_url_connection(
+    network: NymNetworkDetails,
+    nyxd_url: Url,
+    address: cosmrs::AccountId,
+) -> Result<bool, ValidatorClientError> {
+    let config = ClientConfig::try_from_nym_network_details(&network)
+        .expect("failed to create valid nyxd client config");
+
+    let mut nyxd_client = NyxdClient::<QueryNyxdClient>::connect(config, nyxd_url.as_str())?;
+    // possibly redundant, but lets just leave it here
+    nyxd_client.set_mixnet_contract_address(address);
+    match test_nyxd_connection(network, &nyxd_url, &nyxd_client).await {
+        ConnectionResult::Nyxd(_, _, res) => Ok(res),
+        _ => Ok(false), // ✶ not possible to happens
+    }
 }
 
 fn setup_connection_tests<H: BuildHasher + 'static>(
@@ -105,7 +122,7 @@ async fn test_nyxd_connection(
     {
         Ok(Err(NyxdError::TendermintError(e))) => {
             // If we get a tendermint-rpc error, we classify the node as not contactable
-            log::debug!("Checking: nyxd url: {url}: {}: {}", "failed".red(), e);
+            log::warn!("Checking: nyxd url: {url}: {}: {}", "failed".red(), e);
             false
         }
         Ok(Err(NyxdError::AbciError { code, log, .. })) => {
@@ -117,13 +134,13 @@ async fn test_nyxd_connection(
             );
             code == 18
         }
-        Ok(Err(error @ NyxdError::NoContractAddressAvailable)) => {
-            log::debug!("Checking: nyxd url: {url}: {}: {error}", "failed".red());
+        Ok(Err(error @ NyxdError::NoContractAddressAvailable(_))) => {
+            log::warn!("Checking: nyxd url: {url}: {}: {error}", "failed".red());
             false
         }
         Ok(Err(e)) => {
             // For any other error, we're optimistic and just try anyway.
-            log::debug!(
+            log::warn!(
                 "Checking: nyxd_url: {url}: {}, but with error: {e}",
                 "success".green()
             );
@@ -134,7 +151,7 @@ async fn test_nyxd_connection(
             true
         }
         Err(e) => {
-            log::debug!("Checking: nyxd_url: {url}: {}: {e}", "failed".red());
+            log::warn!("Checking: nyxd_url: {url}: {}: {e}", "failed".red());
             false
         }
     };

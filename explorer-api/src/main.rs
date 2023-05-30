@@ -4,7 +4,7 @@ extern crate rocket;
 extern crate rocket_okapi;
 
 use clap::Parser;
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use log::info;
 use nym_bin_common::logging::setup_logging;
 use nym_network_defaults::setup_env;
@@ -23,6 +23,7 @@ mod mix_node;
 pub(crate) mod mix_nodes;
 mod overview;
 mod ping;
+pub(crate) mod service_providers;
 mod state;
 mod tasks;
 mod validators;

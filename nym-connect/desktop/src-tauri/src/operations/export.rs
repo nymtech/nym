@@ -5,8 +5,9 @@ use crate::{
     error::{BackendError, Result},
     state::State,
 };
-use client_core::client::key_manager::KeyManager;
-use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_client_core::client::key_manager::persistence::OnDiskKeys;
+use nym_client_core::client::key_manager::KeyManager;
+use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_crypto::asymmetric::identity;
 
 pub async fn get_identity_key(
@@ -18,7 +19,15 @@ pub async fn get_identity_key(
     };
 
     let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-    let key_manager = KeyManager::load_keys(&pathfinder)?;
+
+    // wtf, why are we loading EVERYTHING to just get identity key??
+    let key_store = OnDiskKeys::from(pathfinder);
+    let key_manager =
+        KeyManager::load_keys(&key_store)
+            .await
+            .map_err(|err| BackendError::UnableToLoadKeys {
+                source: Box::new(err),
+            })?;
     let identity_keypair = key_manager.identity_keypair();
 
     Ok(identity_keypair)

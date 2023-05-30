@@ -35,6 +35,9 @@ export const SendInput = () => {
       onClose={() => {}}
       onAddressChange={() => {}}
       onAmountChange={() => {}}
+      onUserFeesChange={() => {}}
+      onMemoChange={() => {}}
+      setShowMore={() => {}}
       {...storybookStylesModal(theme)}
     />
   );

@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+
+import os
+import datetime
+import markdown
+
+def load(fn):
+  with open(fn) as f:
+    return f.read()
+
+style = load('autogen/html-style')
+sitetitle = load('autogen/html-title')
+
+files = []
+
+with open('autogen/html-files') as f:
+  for line in f:
+    line = line.strip()
+    line = line.split(':')
+    if len(line) != 3: continue
+    files += [line]
+
+for md,html,pagetitle in files:
+  fnmd = 'doc/%s.md' % md
+  fnhtml = 'doc/html/%s.html' % html
+  output = ''
+
+  x = load(fnmd)
+  x = markdown.markdown(x,extensions=['markdown.extensions.extra','markdown.extensions.tables'])
+  mtime = datetime.datetime.utcfromtimestamp(os.path.getmtime(fnmd)).strftime('%Y.%m.%d')
+
+  output += '<html>\n<head>\n'
+  output += style
+  output += '<title>\n'
+  output += pagetitle
+  output += '</title>\n'
+  output += '</head>\n'
+  output += '<body>\n'
+
+  output += '<div class=headline>\n'
+  output += sitetitle
+  output += '</div>\n'
+
+  output += '<div class=nav>\n'
+  for submd,subhtml,subpagetitle in files:
+    if subhtml == html:
+      output += '<div class="navt here">'
+      output += pagetitle+'\n'
+    else:
+      output += '<div class="navt away">'
+      output += '<a href=%s.html>%s</a>\n' % (subhtml,subpagetitle)
+    output += '</div>'
+  output += '</div>\n'
+
+  output += '<div class=main>\n'
+  output += x
+  output += '<hr><font size=1><b>Version:</b>\n'
+  output += 'This is version %s of the "%s" web page.\n' % (mtime,pagetitle)
+  output += '</font>\n'
+  output += '</div>\n'
+
+  output += '</body>\n'
+  output += '</html>\n'
+
+  if not os.path.exists(fnhtml) or output != load(fnhtml):
+    with open(fnhtml+'.new','w') as f:
+      f.write(output)
+    os.chmod(fnhtml+'.new',0o444)
+    os.rename(fnhtml+'.new',fnhtml)

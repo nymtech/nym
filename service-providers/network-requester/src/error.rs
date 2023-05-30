@@ -1,5 +1,5 @@
-use client_core::error::ClientCoreError;
-use socks5_requests::Socks5RequestError;
+use nym_client_core::error::ClientCoreError;
+use nym_socks5_requests::Socks5RequestError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum NetworkRequesterError {
@@ -20,6 +20,10 @@ pub enum NetworkRequesterError {
 
     #[error("failed to load configuration file: {0}")]
     FailedToLoadConfig(String),
+
+    // TODO: add more details here
+    #[error("Failed to validate the loaded config")]
+    ConfigValidationFailure,
 
     #[error("failed local version check, client and config mismatch")]
     FailedLocalVersionCheck,

@@ -1,17 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_bandwidth_contract_common::spend_credential::{
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
+use nym_coconut_bandwidth_contract_common::spend_credential::{
     to_cosmos_msg, SpendCredential, SpendCredentialData,
 };
-use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
 use crate::state::{ADMIN, CONFIG};
 use crate::storage;
 
-use coconut_bandwidth_contract_common::deposit::DepositData;
-use coconut_bandwidth_contract_common::events::{
+use nym_coconut_bandwidth_contract_common::deposit::DepositData;
+use nym_coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
@@ -113,11 +113,11 @@ mod tests {
     use super::*;
     use crate::support::tests::fixtures::spend_credential_data_fixture;
     use crate::support::tests::helpers::{self, MULTISIG_CONTRACT, POOL_CONTRACT};
-    use coconut_bandwidth_contract_common::msg::ExecuteMsg;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{from_binary, Coin, CosmosMsg, WasmMsg};
     use cw_controllers::AdminError;
-    use multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
+    use nym_coconut_bandwidth_contract_common::msg::ExecuteMsg;
+    use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 
     #[test]
     fn invalid_deposit() {
@@ -173,7 +173,7 @@ mod tests {
         );
         let info = mock_info("requester", &[coin]);
 
-        let tx = deposit_funds(deps.as_mut(), env.clone(), info, data).unwrap();
+        let tx = deposit_funds(deps.as_mut(), env, info, data).unwrap();
 
         let events: Vec<_> = tx
             .events
@@ -246,13 +246,8 @@ mod tests {
 
         deps.querier
             .update_balance(env.contract.address.clone(), vec![funds.clone()]);
-        let err = release_funds(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(invalid_admin, &[]),
-            funds.clone(),
-        )
-        .unwrap_err();
+        let err =
+            release_funds(deps.as_mut(), env, mock_info(invalid_admin, &[]), funds).unwrap_err();
         assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
     }
 
@@ -294,7 +289,7 @@ mod tests {
         {
             assert_eq!(contract_addr, MULTISIG_CONTRACT);
             assert!(funds.is_empty());
-            let multisig_msg: MultisigExecuteMsg = from_binary(&msg).unwrap();
+            let multisig_msg: MultisigExecuteMsg = from_binary(msg).unwrap();
             if let MultisigExecuteMsg::Propose {
                 title: _,
                 description,
@@ -312,7 +307,7 @@ mod tests {
                 {
                     assert_eq!(*contract_addr, env.contract.address.into_string());
                     assert!(funds.is_empty());
-                    let release_funds_req: ExecuteMsg = from_binary(&msg).unwrap();
+                    let release_funds_req: ExecuteMsg = from_binary(msg).unwrap();
                     if let ExecuteMsg::ReleaseFunds { funds } = release_funds_req {
                         assert_eq!(funds, *data.funds());
                     } else {

@@ -10,7 +10,7 @@ anyhow = "1"
 ts-rs = "6.1.2"
 walkdir = "2"
 
-validator-client = { path = "../../common/client-libs/validator-client", features = [
+nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
     "nyxd-client", "generate-ts"
 ] }
 nym-api-requests = { path = "../../nym-api/nym-api-requests", features = ["generate-ts"] }

@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_interface::Credential;
+use nym_coconut_interface::Credential;
 
 pub struct Bandwidth {
     value: u64,

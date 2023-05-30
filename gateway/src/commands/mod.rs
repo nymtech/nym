@@ -10,10 +10,10 @@ use nym_bin_common::version_checker;
 use nym_config::OptionalSet;
 use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
+use nym_validator_client::nyxd::{self, AccountId};
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use validator_client::nyxd::{self, AccountId};
 
 pub(crate) mod init;
 pub(crate) mod node_details;
@@ -65,12 +65,10 @@ pub(crate) struct OverrideConfig {
 pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
     let bin_name = "nym-gateway";
 
-    let output = args.output();
-
     match args.command {
-        Commands::Init(m) => init::execute(m, output.clone()).await?,
-        Commands::NodeDetails(m) => node_details::execute(m, output.clone()).await?,
-        Commands::Run(m) => run::execute(m, output.clone()).await?,
+        Commands::Init(m) => init::execute(m).await?,
+        Commands::NodeDetails(m) => node_details::execute(m).await?,
+        Commands::Run(m) => run::execute(m).await?,
         Commands::Sign(m) => sign::execute(m)?,
         Commands::Upgrade(m) => upgrade::execute(&m).await,
         Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),

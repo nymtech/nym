@@ -1,10 +1,12 @@
 import React from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { TBondedGateway, urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { Network } from 'src/types';
 import { IdentityKey } from 'src/components/IdentityKey';
+import { useNavigate } from 'react-router-dom';
+import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedGatewayActions, TBondedGatwayActions } from './BondedGatewayAction';
 
@@ -17,12 +19,13 @@ const headers: Header[] = [
   {
     header: 'Routing score',
     id: 'routing-score',
-    tooltipText: 'Routing score',
+    tooltipText:
+      "Gateway's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test",
   },
   {
     header: 'Average score',
     id: 'average-score',
-    tooltipText: 'Average score',
+    tooltipText: "Gateway's average routing score in the last 24 hours",
   },
   {
     header: 'IP',
@@ -43,6 +46,7 @@ export const BondedGateway = ({
   onActionSelect: (action: TBondedGatwayActions) => void;
 }) => {
   const { name, bond, ip, identityKey, routingScore } = gateway;
+  const navigate = useNavigate();
   const cells: Cell[] = [
     {
       cell: `${bond.amount} ${bond.denom}`,
@@ -85,6 +89,18 @@ export const BondedGateway = ({
           )}
           <IdentityKey identityKey={identityKey} />
         </Stack>
+      }
+      Action={
+        <Box>
+          <Button
+            variant="text"
+            color="secondary"
+            onClick={() => navigate('/bonding/node-settings')}
+            startIcon={<NodeIcon />}
+          >
+            Gateway Settings
+          </Button>
+        </Box>
       }
     >
       <NodeTable headers={headers} cells={cells} />

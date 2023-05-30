@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Network } from 'src/types';
 import { BondingContext, TBondedGateway, TBondedMixnode } from '../bonding';
 import { mockSleep } from './utils';
+import { TBondGatewaySignatureArgs, TBondMixnodeSignatureArgs } from '../../types';
 
 const SLEEP_MS = 1000;
 
@@ -46,7 +47,6 @@ const bondedGatewayMock: TBondedGateway = {
     average: 100,
     current: 100,
   },
-  isUnbonding: false,
 };
 
 const TxResultMock: TransactionExecuteResult = {
@@ -154,7 +154,7 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const bondMore = async (): Promise<TransactionExecuteResult> => {
+  const updateBondAmount = async (): Promise<TransactionExecuteResult> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
@@ -168,6 +168,22 @@ export const MockBondingContextProvider = ({
     setFeeLoading(false);
     setFee(feeMock);
     return feeMock;
+  };
+
+  const generateMixnodeMsgPayload = async (_data: TBondMixnodeSignatureArgs) => {
+    setIsLoading(true);
+    await mockSleep(SLEEP_MS);
+    triggerStateUpdate();
+    setIsLoading(false);
+    return '77dcaba7f41409984f4ebce4a386f59b10f1e65ed5514d1acdccae30174bd84b';
+  };
+
+  const generateGatewayMsgPayload = async (_data: TBondGatewaySignatureArgs) => {
+    setIsLoading(true);
+    await mockSleep(SLEEP_MS);
+    triggerStateUpdate();
+    setIsLoading(false);
+    return '77dcaba7f41409984f4ebce4a386f59b10f1e65ed5514d1acdccae30174bd84b';
   };
 
   const resetFeeState = () => {};
@@ -186,8 +202,11 @@ export const MockBondingContextProvider = ({
       getFee,
       resetFeeState,
       updateMixnode,
-      bondMore,
+      updateBondAmount,
       checkOwnership,
+      generateMixnodeMsgPayload,
+      generateGatewayMsgPayload,
+      isVestingAccount: false,
     }),
     [isLoading, error, bondedMixnode, bondedGateway, trigger, fee],
   );

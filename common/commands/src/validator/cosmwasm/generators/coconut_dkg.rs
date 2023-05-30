@@ -5,9 +5,9 @@ use clap::Parser;
 use log::{debug, info};
 use std::str::FromStr;
 
-use coconut_dkg_common::msg::InstantiateMsg;
-use coconut_dkg_common::types::TimeConfiguration;
-use validator_client::nyxd::AccountId;
+use nym_coconut_dkg_common::msg::InstantiateMsg;
+use nym_coconut_dkg_common::types::TimeConfiguration;
+use nym_validator_client::nyxd::AccountId;
 
 #[derive(Debug, Parser)]
 pub struct Args {

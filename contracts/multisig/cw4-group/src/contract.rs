@@ -14,7 +14,7 @@ use cw_utils::maybe_addr;
 
 use crate::error::ContractError;
 use crate::state::{ADMIN, HOOKS, MEMBERS, TOTAL};
-use group_contract_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use nym_group_contract_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:cw4-group";

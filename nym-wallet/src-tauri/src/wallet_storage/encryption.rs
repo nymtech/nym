@@ -1,14 +1,12 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::password::UserPassword;
 use crate::error::BackendError;
-use aes_gcm::aead::generic_array::ArrayLength;
-use aes_gcm::aead::{Aead, NewAead};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
-use argon2::{
-    password_hash::rand_core::{OsRng, RngCore},
-    Algorithm, Argon2, Params, Version,
+use bip39::rand_core::OsRng;
+use nym_store_cipher::{
+    Aes256Gcm, Algorithm, EncryptedData as StoreEncryptedData, KdfInfo, Params, StoreCipher,
+    Version, CURRENT_VERSION,
 };
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -45,8 +43,6 @@ impl<T> Drop for EncryptedData<T> {
     }
 }
 
-// we only ever want to expose those getters in the test code
-#[cfg(test)]
 impl<T> EncryptedData<T> {
     pub(crate) fn ciphertext(&self) -> &[u8] {
         &self.ciphertext
@@ -77,14 +73,6 @@ mod base64 {
 }
 
 impl<T> EncryptedData<T> {
-    #[allow(unused)]
-    pub(crate) fn encrypt_struct(data: &T, password: &UserPassword) -> Result<Self, BackendError>
-    where
-        T: Serialize,
-    {
-        encrypt_struct(data, password)
-    }
-
     pub(crate) fn decrypt_struct(&self, password: &UserPassword) -> Result<T, BackendError>
     where
         T: for<'a> Deserialize<'a>,
@@ -93,88 +81,32 @@ impl<T> EncryptedData<T> {
     }
 }
 
-impl EncryptedData<Vec<u8>> {
-    #[allow(unused)]
-    pub(crate) fn encrypt_data(data: &[u8], password: &UserPassword) -> Result<Self, BackendError> {
-        encrypt_data(data, password)
+fn instantiate_cipher_store(
+    password: &UserPassword,
+    salt: &[u8],
+) -> Result<StoreCipher<Aes256Gcm>, BackendError> {
+    let mut kdf_salt: [u8; SALT_LEN] = Default::default();
+    kdf_salt.copy_from_slice(salt);
+
+    // use the same parameters as we did in the past
+    let kdf_info = KdfInfo::Argon2 {
+        params: Params::new(MEMORY_COST, ITERATIONS, PARALLELISM, Some(OUTPUT_LENGTH)).unwrap(),
+        algorithm: Algorithm::Argon2id,
+        version: Version::V0x13,
+        kdf_salt,
+    };
+
+    Ok(StoreCipher::new(password.as_ref(), kdf_info)?)
+}
+
+/// Wraps `ciphertext` and `iv` into `[nym_store_cipher::StoreEncryptedData]`
+fn new_store_encrypted_data(ciphertext: &[u8], iv: &[u8]) -> StoreEncryptedData {
+    StoreEncryptedData {
+        // well, we can only assume the current version
+        version: CURRENT_VERSION,
+        ciphertext: ciphertext.to_owned(),
+        nonce: iv.to_owned(),
     }
-
-    #[allow(unused)]
-    pub(crate) fn decrypt_data(&self, password: &UserPassword) -> Result<Vec<u8>, BackendError> {
-        decrypt_data(self, password)
-    }
-}
-
-fn derive_cipher_key<KeySize>(
-    password: &UserPassword,
-    salt: &[u8],
-) -> Result<Key<KeySize>, BackendError>
-where
-    KeySize: ArrayLength<u8>,
-{
-    // this can only fail if output length is either smaller than 4 or larger than 2^32 - 1 which is not the case here
-    let params = Params::new(MEMORY_COST, ITERATIONS, PARALLELISM, Some(OUTPUT_LENGTH)).unwrap();
-
-    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-
-    let mut key = Key::default();
-    argon2.hash_password_into(password.as_bytes(), salt, &mut key)?;
-
-    Ok(key)
-}
-
-fn random_salt_and_iv() -> (Vec<u8>, Vec<u8>) {
-    let mut rng = OsRng;
-
-    let mut salt = vec![0u8; SALT_LEN];
-    rng.fill_bytes(&mut salt);
-
-    let mut iv = vec![0u8; IV_LEN];
-    rng.fill_bytes(&mut iv);
-
-    (salt, iv)
-}
-
-fn encrypt(
-    data: &[u8],
-    password: &UserPassword,
-    salt: &[u8],
-    iv: &[u8],
-) -> Result<Vec<u8>, BackendError> {
-    let key = derive_cipher_key(password, salt)?;
-    let cipher = Aes256Gcm::new(&key);
-    cipher
-        .encrypt(Nonce::from_slice(iv), data)
-        .map_err(|_| BackendError::EncryptionError)
-}
-
-fn decrypt(
-    ciphertext: &[u8],
-    password: &UserPassword,
-    salt: &[u8],
-    iv: &[u8],
-) -> Result<Vec<u8>, BackendError> {
-    let key = derive_cipher_key(password, salt)?;
-    let cipher = Aes256Gcm::new(&key);
-    cipher
-        .decrypt(Nonce::from_slice(iv), ciphertext)
-        .map_err(|_| BackendError::DecryptionError)
-}
-
-#[allow(unused)]
-pub(crate) fn encrypt_data(
-    data: &[u8],
-    password: &UserPassword,
-) -> Result<EncryptedData<Vec<u8>>, BackendError> {
-    let (salt, iv) = random_salt_and_iv();
-    let ciphertext = encrypt(data, password, &salt, &iv)?;
-
-    Ok(EncryptedData {
-        ciphertext,
-        salt,
-        iv,
-        _marker: Default::default(),
-    })
 }
 
 pub(crate) fn encrypt_struct<T>(
@@ -184,30 +116,19 @@ pub(crate) fn encrypt_struct<T>(
 where
     T: Serialize,
 {
-    let bytes = serde_json::to_vec(data).map_err(|_| BackendError::EncryptionError)?;
+    let mut rng = OsRng;
+    let salt = KdfInfo::random_salt_with_rng(&mut rng)?;
 
-    let (salt, iv) = random_salt_and_iv();
-    let ciphertext = encrypt(&bytes, password, &salt, &iv)?;
+    let cipher = instantiate_cipher_store(password, &salt)?;
+    let ciphertext = cipher.encrypt_json_value(data)?;
+    assert_eq!(ciphertext.nonce.len(), IV_LEN);
 
     Ok(EncryptedData {
-        ciphertext,
-        salt,
-        iv,
+        ciphertext: ciphertext.ciphertext,
+        salt: salt.to_vec(),
+        iv: ciphertext.nonce,
         _marker: Default::default(),
     })
-}
-
-#[allow(unused)]
-pub(crate) fn decrypt_data(
-    encrypted_data: &EncryptedData<Vec<u8>>,
-    password: &UserPassword,
-) -> Result<Vec<u8>, BackendError> {
-    decrypt(
-        &encrypted_data.ciphertext,
-        password,
-        &encrypted_data.salt,
-        &encrypted_data.iv,
-    )
 }
 
 pub(crate) fn decrypt_struct<T>(
@@ -217,14 +138,11 @@ pub(crate) fn decrypt_struct<T>(
 where
     T: for<'a> Deserialize<'a>,
 {
-    let bytes = decrypt(
-        &encrypted_data.ciphertext,
-        password,
-        &encrypted_data.salt,
-        &encrypted_data.iv,
-    )?;
-
-    serde_json::from_slice(&bytes).map_err(|_| BackendError::DecryptionError)
+    let cipher = instantiate_cipher_store(password, encrypted_data.salt())?;
+    Ok(cipher.decrypt_json_value(new_store_encrypted_data(
+        encrypted_data.ciphertext(),
+        encrypted_data.iv(),
+    ))?)
 }
 
 #[cfg(test)]

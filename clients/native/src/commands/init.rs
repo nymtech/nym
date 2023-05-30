@@ -1,13 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::try_upgrade_v1_1_13_config;
 use crate::{
     client::config::Config,
     commands::{override_config, OverrideConfig},
     error::ClientError,
 };
 use clap::Args;
+use nym_bin_common::output_format::OutputFormat;
 use nym_config::NymConfig;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
@@ -70,9 +73,8 @@ pub(crate) struct Init {
     #[clap(long, hide = true)]
     enabled_credentials_mode: Option<bool>,
 
-    /// Save a summary of the initialization to a json file
-    #[clap(long)]
-    output_json: bool,
+    #[clap(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 }
 
 impl From<Init> for OverrideConfig {
@@ -94,15 +96,17 @@ impl From<Init> for OverrideConfig {
 #[derive(Debug, Serialize)]
 pub struct InitResults {
     #[serde(flatten)]
-    client_core: client_core::init::InitResults,
+    client_core: nym_client_core::init::InitResults,
     client_listening_port: String,
+    client_address: String,
 }
 
 impl InitResults {
     fn new(config: &Config, address: &Recipient) -> Self {
         Self {
-            client_core: client_core::init::InitResults::new(config.get_base(), address),
+            client_core: nym_client_core::init::InitResults::new(config.get_base(), address),
             client_listening_port: config.get_listening_port().to_string(),
+            client_address: address.to_string(),
         }
     }
 }
@@ -110,25 +114,29 @@ impl InitResults {
 impl Display for InitResults {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.client_core)?;
-        write!(f, "Client listening port: {}", self.client_listening_port)
+        writeln!(f, "Client listening port: {}", self.client_listening_port)?;
+        write!(f, "Address of this client: {}", self.client_address)
     }
 }
 
 pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
-    println!("Initialising client...");
+    eprintln!("Initialising client...");
 
     let id = &args.id;
 
     let already_init = Config::default_config_file_path(id).exists();
     if already_init {
-        println!("Client \"{id}\" was already initialised before");
+        // in case we're using old config, try to upgrade it
+        // (if we're using the current version, it's a no-op)
+        try_upgrade_v1_1_13_config(id)?;
+        eprintln!("Client \"{id}\" was already initialised before");
     }
 
     // Usually you only register with the gateway on the first init, however you can force
     // re-registering if wanted.
     let user_wants_force_register = args.force_register_gateway;
     if user_wants_force_register {
-        println!("Instructed to force registering gateway. This might overwrite keys!");
+        eprintln!("Instructed to force registering gateway. This might overwrite keys!");
     }
 
     // If the client was already initialized, don't generate new keys and don't re-register with
@@ -144,7 +152,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = client_core::init::setup_gateway_from_config::<Config, _>(
+    let gateway = nym_client_core::init::setup_gateway_from_config::<Config, _, PersistentStorage>(
         register_gateway,
         user_chosen_gateway_id,
         config.get_base(),
@@ -161,28 +169,22 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     print_saved_config(&config);
 
-    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
+    let address = nym_client_core::init::get_client_address_from_stored_keys(config.get_base())?;
     let init_results = InitResults::new(&config, &address);
-    println!("{init_results}");
+    println!("{}", args.output.format(&init_results));
 
-    // Output summary to a json file, if specified
-    if args.output_json {
-        client_core::init::output_to_json(&init_results, "client_init_results.json");
-    }
-
-    println!("\nThe address of this client is: {address}\n");
     Ok(())
 }
 
 fn print_saved_config(config: &Config) {
     let config_save_location = config.get_config_file_save_location();
-    println!("Saved configuration file to {config_save_location:?}");
-    println!("Using gateway: {}", config.get_base().get_gateway_id());
+    eprintln!("Saved configuration file to {config_save_location:?}");
+    eprintln!("Using gateway: {}", config.get_base().get_gateway_id());
     log::debug!("Gateway id: {}", config.get_base().get_gateway_id());
     log::debug!("Gateway owner: {}", config.get_base().get_gateway_owner());
     log::debug!(
         "Gateway listener: {}",
         config.get_base().get_gateway_listener()
     );
-    println!("Client configuration completed.\n");
+    eprintln!("Client configuration completed.\n");
 }

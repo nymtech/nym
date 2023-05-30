@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_bin_common::version_checker;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
 
 pub trait Versioned: Clone {
@@ -31,6 +31,19 @@ where
 impl<T, K, V> VersionFilterable<T> for HashMap<K, V>
 where
     K: Eq + Hash + Clone,
+    V: VersionFilterable<T>,
+    T: Versioned,
+{
+    fn filter_by_version(&self, expected_version: &str) -> Self {
+        self.iter()
+            .map(|(k, v)| (k.clone(), v.filter_by_version(expected_version)))
+            .collect()
+    }
+}
+
+impl<T, K, V> VersionFilterable<T> for BTreeMap<K, V>
+where
+    K: Eq + Ord + Clone,
     V: VersionFilterable<T>,
     T: Versioned,
 {

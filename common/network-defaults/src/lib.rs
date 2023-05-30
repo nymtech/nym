@@ -3,31 +3,22 @@
 
 use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_API, NYXD};
 use serde::{Deserialize, Serialize};
-use std::{env::var, ops::Not, path::PathBuf};
+use std::{
+    env::{var, VarError},
+    ffi::OsStr,
+    ops::Not,
+    path::PathBuf,
+};
 use url::Url;
 
 pub mod mainnet;
 pub mod var_names;
-
-pub const ETH_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_CONTRACT_ADDRESS;
-pub const ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] = mainnet::_ETH_ERC20_CONTRACT_ADDRESS;
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ChainDetails {
     pub bech32_account_prefix: String,
     pub mix_denom: DenomDetailsOwned,
     pub stake_denom: DenomDetailsOwned,
-}
-
-// by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
-impl Default for ChainDetails {
-    fn default() -> Self {
-        ChainDetails {
-            bech32_account_prefix: mainnet::BECH32_PREFIX.into(),
-            mix_denom: mainnet::MIX_DENOM.into(),
-            stake_denom: mainnet::STAKE_DENOM.into(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
@@ -39,24 +30,57 @@ pub struct NymContracts {
     pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
     pub coconut_dkg_contract_address: Option<String>,
+    pub service_provider_directory_contract_address: Option<String>,
+    pub name_service_contract_address: Option<String>,
 }
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
 // with `NetworkDetails` defined in all.rs...
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct NymNetworkDetails {
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
 }
 
+// by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
+impl Default for NymNetworkDetails {
+    fn default() -> Self {
+        NymNetworkDetails::new_mainnet()
+    }
+}
+
 impl NymNetworkDetails {
-    pub fn new() -> Self {
-        NymNetworkDetails::default()
+    pub fn new_empty() -> Self {
+        NymNetworkDetails {
+            chain_details: ChainDetails {
+                bech32_account_prefix: Default::default(),
+                mix_denom: DenomDetailsOwned {
+                    base: Default::default(),
+                    display: Default::default(),
+                    display_exponent: Default::default(),
+                },
+                stake_denom: DenomDetailsOwned {
+                    base: Default::default(),
+                    display: Default::default(),
+                    display_exponent: Default::default(),
+                },
+            },
+            endpoints: Default::default(),
+            contracts: Default::default(),
+        }
     }
 
     pub fn new_from_env() -> Self {
-        NymNetworkDetails::new()
+        fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
+            match var(env) {
+                Ok(var) => Some(var),
+                Err(VarError::NotPresent) => None,
+                err => panic!("Unable to set: {:?}", err),
+            }
+        }
+
+        NymNetworkDetails::new_empty()
             .with_bech32_account_prefix(
                 var(var_names::BECH32_PREFIX).expect("bech32 prefix not set"),
             )
@@ -105,6 +129,10 @@ impl NymNetworkDetails {
             .with_coconut_dkg_contract(Some(
                 var(var_names::COCONUT_DKG_CONTRACT_ADDRESS).expect("coconut dkg contract not set"),
             ))
+            .with_service_provider_directory_contract(get_optional_env(
+                var_names::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
+            ))
+            .with_name_service_contract(get_optional_env(var_names::NAME_SERVICE_CONTRACT_ADDRESS))
     }
 
     pub fn new_mainnet() -> Self {
@@ -134,6 +162,8 @@ impl NymNetworkDetails {
                 coconut_dkg_contract_address: parse_optional_str(
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
                 ),
+                service_provider_directory_contract_address: None,
+                name_service_contract_address: None,
             },
         }
     }
@@ -213,6 +243,21 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_coconut_dkg_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.coconut_dkg_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_service_provider_directory_contract<S: Into<String>>(
+        mut self,
+        contract: Option<S>,
+    ) -> Self {
+        self.contracts.service_provider_directory_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_name_service_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.name_service_contract_address = contract.map(Into::into);
         self
     }
 }
@@ -320,7 +365,7 @@ pub fn setup_env(config_env_file: Option<&PathBuf>) {
         // if the configuration is not already set in the env vars
         Err(std::env::VarError::NotPresent) => {
             if let Some(config_env_file) = config_env_file {
-                dotenv::from_path(config_env_file)
+                dotenvy::from_path(config_env_file)
                     .expect("Invalid path to environment configuration file");
                 fix_deprecated_environmental_variables();
             } else {

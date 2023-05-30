@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage::{self, IndexedDealersMap};
-use coconut_dkg_common::dealer::{DealerDetailsResponse, DealerType, PagedDealerResponse};
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
+use nym_coconut_dkg_common::dealer::{DealerDetailsResponse, DealerType, PagedDealerResponse};
 
 fn query_dealers(
     deps: Deps<'_>,

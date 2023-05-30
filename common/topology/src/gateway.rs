@@ -31,10 +31,6 @@ pub enum GatewayConversionError {
 #[derive(Debug, Clone)]
 pub struct Node {
     pub owner: String,
-    // somebody correct me if I'm wrong, but we should only ever have a single denom of currency
-    // on the network at a type, right?
-    pub stake: u128,
-    pub location: String,
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
     // hostname every time we want to construct a path via this node
@@ -46,6 +42,26 @@ pub struct Node {
 }
 
 impl Node {
+    pub fn parse_host(raw: &str) -> Result<NetworkAddress, GatewayConversionError> {
+        raw.parse()
+            .map_err(|err| GatewayConversionError::InvalidAddress {
+                value: raw.to_owned(),
+                source: err,
+            })
+    }
+
+    pub fn extract_mix_host(
+        host: &NetworkAddress,
+        mix_port: u16,
+    ) -> Result<SocketAddr, GatewayConversionError> {
+        Ok(host.to_socket_addrs(mix_port).map_err(|err| {
+            GatewayConversionError::InvalidAddress {
+                value: host.to_string(),
+                source: err,
+            }
+        })?[0])
+    }
+
     pub fn identity(&self) -> &NodeIdentity {
         &self.identity_key
     }
@@ -59,8 +75,8 @@ impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Node(id: {}, owner: {}, stake: {}, location: {}, host: {})",
-            self.identity_key, self.owner, self.stake, self.location, self.host,
+            "Node(id: {}, owner: {}, host: {})",
+            self.identity_key, self.owner, self.host,
         )
     }
 }
@@ -85,28 +101,14 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
     type Error = GatewayConversionError;
 
     fn try_from(bond: &'a GatewayBond) -> Result<Self, Self::Error> {
-        let host: NetworkAddress =
-            bond.gateway
-                .host
-                .parse()
-                .map_err(|err| GatewayConversionError::InvalidAddress {
-                    value: bond.gateway.host.clone(),
-                    source: err,
-                })?;
+        let host = Self::parse_host(&bond.gateway.host)?;
 
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
-        let mix_host = host.to_socket_addrs(bond.gateway.mix_port).map_err(|err| {
-            GatewayConversionError::InvalidAddress {
-                value: bond.gateway.host.clone(),
-                source: err,
-            }
-        })?[0];
+        let mix_host = Self::extract_mix_host(&host, bond.gateway.mix_port)?;
 
         Ok(Node {
             owner: bond.owner.as_str().to_owned(),
-            stake: bond.pledge_amount.amount.into(),
-            location: bond.gateway.location.clone(),
             host,
             mix_host,
             clients_port: bond.gateway.clients_port,

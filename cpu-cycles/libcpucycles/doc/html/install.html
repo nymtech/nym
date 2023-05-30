@@ -1,0 +1,101 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style type="text/css">
+html{overflow-y:scroll}
+body{font-family:sans-serif}
+p,ul,ol,blockquote,pre{font-size:0.9em;line-height:1.6em}
+li p{font-size:1.0em}
+blockquote p{font-size:1.0em}
+tt{font-size:1.2em}
+code{font-size:1.2em}
+h1{font-size:1.5em}
+h2{font-size:1.3em}
+h3{font-size:1.0em}
+h1 a{text-decoration:none}
+table{border-collapse:collapse}
+th,td{border:1px solid black}
+table a{text-decoration:none}
+table tr{font-size:0.9em;line-height:1.6em}
+.links a:hover{text-decoration:underline}
+.links a:active{text-decoration:underline}
+.links img{width:200px;padding-left:1em}
+.links td{border:0px;padding-top:0.5em;padding-bottom:0.5em}
+.headline{padding:0;font-weight:bold;font-size:1.5em;vertical-align:top;padding-bottom:0.5em;color:#125d0d}
+.navt{display:inline-block;box-sizing:border-box;-moz-box-sizing:border-box;-webkit-box-sizing:border-box;
+min-width:14%;margin:0;padding:0;padding-left:0.5em;padding-right:0.5em;vertical-align:center;
+font-weight:bold;font-size:1.1em;text-align:center;border:1px solid black}
+.here{border-bottom:0px;background-color:#ffffff}
+.away{background-color:#125d0d;}
+.away a{text-decoration:none;display:block;color:#ffffff}
+.away a:hover,.away a:active{text-decoration:underline}
+.main{margin:0;padding-top:0em;padding-bottom:1%;clear:both}
+</style>
+<title>
+Install</title>
+</head>
+<body>
+<div class=headline>
+libcpucycles
+</div>
+<div class=nav>
+<div class="navt away"><a href=index.html>Intro</a>
+</div><div class="navt away"><a href=download.html>Download</a>
+</div><div class="navt here">Install
+</div><div class="navt away"><a href=api.html>API</a>
+</div><div class="navt away"><a href=counters.html>Counters</a>
+</div><div class="navt away"><a href=selection.html>Selection</a>
+</div><div class="navt away"><a href=security.html>Security</a>
+</div></div>
+<div class=main>
+<p>Prerequisites: <code>python3</code>; <code>gcc</code> and/or <code>clang</code>. Currently tested only
+under Linux, but porting to other systems shouldn't be difficult.</p>
+<p>For sysadmins, to install in <code>/usr/local/{include,lib,bin}</code>:</p>
+<pre><code>    ./configure &amp;&amp; make -j8 install
+</code></pre>
+<p>For developers with an unprivileged account (typically with</p>
+<pre><code>    export LD_LIBRARY_PATH="$HOME/lib"
+    export LIBRARY_PATH="$HOME/lib"
+    export CPATH="$HOME/include"
+    export PATH="$HOME/bin:$PATH"
+</code></pre>
+<p>in <code>$HOME/.profile</code>), to install in <code>$HOME/{include,lib,bin}</code>:</p>
+<pre><code>    ./configure --prefix=$HOME &amp;&amp; make -j8 install
+</code></pre>
+<p>For distributors creating a package: Run</p>
+<pre><code>    ./configure --prefix=/usr &amp;&amp; make -j8
+</code></pre>
+<p>and then follow your usual packaging procedures for the
+<code>build/0/package</code> files:</p>
+<pre><code>    build/0/package/man/man3/cpucycles.3
+    build/0/package/include/cpucycles.h
+    build/0/package/lib/libcpucycles*
+    build/0/package/bin/cpucycles-info
+</code></pre>
+<p>There are some old systems where libcpucycles requires <code>-lrt</code> for
+<code>clock_gettime</code>; currently <code>libcpucycles.so</code> doesn't link to <code>-lrt</code>,
+so it's up to the caller to link to <code>-lrt</code>.</p>
+<p>More options: You can run</p>
+<pre><code>    ./configure --host=amd64
+</code></pre>
+<p>to override <code>./configure</code>'s guess of the architecture that it should
+compile for. The architecture controls which cycle counters to try
+compiling: e.g., <code>amd64</code> tries compiling <code>cpucycles/amd64*</code> and
+<code>cpucycles/default*</code>.</p>
+<p>Inside the <code>build</code> directory, <code>0</code> is symlinked to <code>amd64</code> for
+<code>--host=amd64</code>. Running <code>make clean</code> removes <code>build/amd64</code>. Re-running
+<code>./configure</code> automatically starts with <code>make clean</code>.</p>
+<p>A subsequent <code>./configure --host=arm64</code> will create <code>build/arm64</code> and
+symlink <code>0 -&gt; arm64</code>, without touching an existing <code>build/amd64</code>.
+However, cross-compilers aren't yet selected automatically.</p>
+<p>Compilers tried are listed in <code>compilers/default</code>. Each compiler
+includes <code>-fPIC</code> to create a shared library, <code>-fvisibility=hidden</code> to
+hide non-public symbols in the library, and <code>-fwrapv</code> to switch to a
+slightly less dangerous version of C. The first compiler that seems to
+work is used to compile everything.</p><hr><font size=1><b>Version:</b>
+This is version 2023.01.05 of the "Install" web page.
+</font>
+</div>
+</body>
+</html>

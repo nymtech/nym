@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{from_binary, to_binary, Addr, Coin, CosmosMsg, StdResult, WasmMsg};
-use multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
+use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

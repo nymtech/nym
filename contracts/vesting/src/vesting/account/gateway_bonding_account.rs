@@ -2,10 +2,14 @@ use super::PledgeData;
 use crate::errors::ContractError;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::GatewayBondingAccount;
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
-use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, Gateway};
+use mixnet_contract_common::{
+    gateway::GatewayConfigUpdate, ExecuteMsg as MixnetExecuteMsg, Gateway,
+};
 use vesting_contract_common::events::{
     new_vesting_gateway_bonding_event, new_vesting_gateway_unbonding_event,
+    new_vesting_update_gateway_config_event,
 };
 
 use super::Account;
@@ -14,7 +18,7 @@ impl GatewayBondingAccount for Account {
     fn try_bond_gateway(
         &self,
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         pledge: Coin,
         env: &Env,
         storage: &mut dyn Storage,
@@ -76,5 +80,23 @@ impl GatewayBondingAccount for Account {
 
         self.remove_gateway_pledge(storage)?;
         Ok(())
+    }
+
+    fn try_update_gateway_config(
+        &self,
+        new_config: GatewayConfigUpdate,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError> {
+        let msg = MixnetExecuteMsg::UpdateGatewayConfigOnBehalf {
+            new_config,
+            owner: self.owner_address().into_string(),
+        };
+
+        let update_gateway_config_msg =
+            wasm_execute(MIXNET_CONTRACT_ADDRESS.load(storage)?, &msg, vec![])?;
+
+        Ok(Response::new()
+            .add_message(update_gateway_config_msg)
+            .add_event(new_vesting_update_gateway_config_event()))
     }
 }

@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use log::{error, warn};
 use nym_bin_common::logging::setup_logging;
 use nym_cli_commands::context::{get_network_details, ClientArgs};
-use validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::AccountId;
 
 mod completion;
 mod validator;
@@ -135,13 +135,16 @@ async fn wait_for_interrupt() {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     setup_logging();
 
     let cli = Cli::parse();
 
     tokio::select! {
-        _ = wait_for_interrupt() => warn!("Received interrupt - the specified command might have not completed!"),
-        _ = execute(cli) => (),
+        _ = wait_for_interrupt() => {
+            warn!("Received interrupt - the specified command might have not completed!");
+            Ok(())
+        },
+        res = execute(cli) => res
     }
 }

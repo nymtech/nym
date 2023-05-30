@@ -237,14 +237,11 @@ impl SignatureShare {
 
 #[cfg(test)]
 mod tests {
-    use group::GroupEncoding;
-
     use crate::hash_to_scalar;
     use crate::scheme::aggregation::{aggregate_signatures, aggregate_verification_keys};
-    use crate::scheme::issuance::{blind_sign, prepare_blind_sign, sign};
+    use crate::scheme::issuance::{blind_sign, compute_hash, prepare_blind_sign, sign};
     use crate::scheme::keygen::{keygen, ttp_keygen};
     use crate::scheme::verification::{prove_bandwidth_credential, verify, verify_credential};
-    use crate::utils::hash_g1;
 
     use super::*;
 
@@ -262,7 +259,7 @@ mod tests {
 
         let wrong_commitment_opening = params.random_scalar();
         let wrong_commitment = params.gen1() * wrong_commitment_opening;
-        let fake_commitment_hash = hash_g1(wrong_commitment.to_bytes());
+        let fake_commitment_hash = compute_hash(wrong_commitment, &[]);
         let wrong_commitments_openings = params.n_random_scalars(private_attributes.len());
 
         assert!(sig1

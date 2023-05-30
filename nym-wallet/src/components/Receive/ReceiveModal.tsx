@@ -19,7 +19,6 @@ export const ReceiveModal = ({
   return (
     <SimpleModal
       header="Receive"
-      subHeader="Provide your address to receive tokens"
       open
       onClose={onClose}
       okLabel=""

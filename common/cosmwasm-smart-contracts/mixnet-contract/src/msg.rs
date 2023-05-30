@@ -3,14 +3,20 @@
 
 use crate::delegation::OwnerProxySubKey;
 use crate::error::MixnetContractError;
+use crate::families::FamilyHead;
+use crate::gateway::GatewayConfigUpdate;
 use crate::helpers::IntoBaseDecimal;
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
-use crate::{delegation, ContractStateParams, Layer, LayerAssignment, MixId, Percent};
+use crate::{
+    delegation, ContractStateParams, EpochEventId, IntervalEventId, Layer, LayerAssignment, MixId,
+    Percent,
+};
 use crate::{Gateway, IdentityKey, MixNode};
-use cosmwasm_std::Decimal;
+use contracts_common::signing::MessageSignature;
+use cosmwasm_std::{Coin, Decimal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -80,41 +86,35 @@ pub enum ExecuteMsg {
     // Families
     /// Only owner of the node can crate the family with node as head
     CreateFamily {
-        owner_signature: String,
         label: String,
     },
     /// Family head needs to sign the joining node IdentityKey
     JoinFamily {
-        signature: String,
-        family_head: IdentityKey,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
     },
     LeaveFamily {
-        signature: String,
-        family_head: IdentityKey,
+        family_head: FamilyHead,
     },
     KickFamilyMember {
-        signature: String,
         member: IdentityKey,
     },
     CreateFamilyOnBehalf {
         owner_address: String,
-        owner_signature: String,
         label: String,
     },
-    /// Family head needs to sign the joining node IdentityKey
+    /// Family head needs to sign the joining node IdentityKey, MixNode needs to provide its signature proving that it wants to join the family
     JoinFamilyOnBehalf {
         member_address: String,
-        signature: String,
-        family_head: IdentityKey,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
     },
     LeaveFamilyOnBehalf {
         member_address: String,
-        signature: String,
-        family_head: IdentityKey,
+        family_head: FamilyHead,
     },
     KickFamilyMemberOnBehalf {
         head_address: String,
-        signature: String,
         member: IdentityKey,
     },
 
@@ -138,6 +138,7 @@ pub enum ExecuteMsg {
         epoch_duration_secs: u64,
         force_immediately: bool,
     },
+    BeginEpochTransition {},
     AdvanceCurrentEpoch {
         new_rewarded_set: Vec<LayerAssignment>,
         // families_in_layer: HashMap<String, Layer>,
@@ -151,17 +152,24 @@ pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     BondMixnodeOnBehalf {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         owner: String,
     },
     PledgeMore {},
     PledgeMoreOnBehalf {
         owner: String,
+    },
+    DecreasePledge {
+        decrease_by: Coin,
+    },
+    DecreasePledgeOnBehalf {
+        owner: String,
+        decrease_by: Coin,
     },
     UnbondMixnode {},
     UnbondMixnodeOnBehalf {
@@ -185,15 +193,22 @@ pub enum ExecuteMsg {
     // gateway-related:
     BondGateway {
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     BondGatewayOnBehalf {
         gateway: Gateway,
         owner: String,
-        owner_signature: String,
+        owner_signature: MessageSignature,
     },
     UnbondGateway {},
     UnbondGatewayOnBehalf {
+        owner: String,
+    },
+    UpdateGatewayConfig {
+        new_config: GatewayConfigUpdate,
+    },
+    UpdateGatewayConfigOnBehalf {
+        new_config: GatewayConfigUpdate,
         owner: String,
     },
 
@@ -281,6 +296,7 @@ impl ExecuteMsg {
             ExecuteMsg::UpdateIntervalConfig {
                 force_immediately, ..
             } => format!("updating mixnet interval configuration. forced: {force_immediately}"),
+            ExecuteMsg::BeginEpochTransition {} => "beginning epoch transition".into(),
             ExecuteMsg::AdvanceCurrentEpoch { .. } => "advancing current epoch".into(),
             ExecuteMsg::ReconcileEpochEvents { .. } => "reconciling epoch events".into(),
             ExecuteMsg::BondMixnode { mix_node, .. } => {
@@ -291,6 +307,10 @@ impl ExecuteMsg {
             }
             ExecuteMsg::PledgeMore {} => "pledging additional tokens".into(),
             ExecuteMsg::PledgeMoreOnBehalf { .. } => "pledging additional tokens on behalf".into(),
+            ExecuteMsg::DecreasePledge { .. } => "decreasing mixnode pledge".into(),
+            ExecuteMsg::DecreasePledgeOnBehalf { .. } => {
+                "decreasing mixnode pledge on behalf".into()
+            }
             ExecuteMsg::UnbondMixnode { .. } => "unbonding mixnode".into(),
             ExecuteMsg::UnbondMixnodeOnBehalf { .. } => "unbonding mixnode on behalf".into(),
             ExecuteMsg::UpdateMixnodeCostParams { .. } => "updating mixnode cost parameters".into(),
@@ -309,6 +329,10 @@ impl ExecuteMsg {
             }
             ExecuteMsg::UnbondGateway { .. } => "unbonding gateway".into(),
             ExecuteMsg::UnbondGatewayOnBehalf { .. } => "unbonding gateway on behalf".into(),
+            ExecuteMsg::UpdateGatewayConfig { .. } => "updating gateway configuration".into(),
+            ExecuteMsg::UpdateGatewayConfigOnBehalf { .. } => {
+                "updating gateway configuration on behalf".into()
+            }
             ExecuteMsg::DelegateToMixnode { mix_id } => format!("delegating to mixnode {mix_id}"),
             ExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, .. } => {
                 format!("delegating to mixnode {mix_id} on behalf")
@@ -367,10 +391,13 @@ pub enum QueryMsg {
     },
     // state/sys-params-related
     GetContractVersion {},
+    #[serde(rename = "get_cw2_contract_version")]
+    GetCW2ContractVersion {},
     GetRewardingValidatorAddress {},
     GetStateParams {},
     GetState {},
     GetRewardingParams {},
+    GetEpochStatus {},
     GetCurrentIntervalDetails {},
     GetRewardedSet {
         limit: Option<u32>,
@@ -492,6 +519,18 @@ pub enum QueryMsg {
     GetPendingIntervalEvents {
         limit: Option<u32>,
         start_after: Option<u32>,
+    },
+    GetPendingEpochEvent {
+        event_id: EpochEventId,
+    },
+    GetPendingIntervalEvent {
+        event_id: IntervalEventId,
+    },
+    GetNumberOfPendingEvents {},
+
+    // signing-related
+    GetSigningNonce {
+        address: String,
     },
 }
 

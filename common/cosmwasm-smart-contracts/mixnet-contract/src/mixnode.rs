@@ -10,7 +10,7 @@ use crate::helpers::IntoBaseDecimal;
 use crate::reward_params::{NodeRewardParams, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::RewardDistribution;
-use crate::{Delegation, EpochId, IdentityKey, MixId, Percent, SphinxKey};
+use crate::{Delegation, EpochEventId, EpochId, IdentityKey, MixId, Percent, SphinxKey};
 use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -37,13 +37,20 @@ impl RewardedSetNodeStatus {
 pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
     pub rewarding_details: MixNodeRewarding,
+    #[serde(default)]
+    pub pending_changes: PendingMixNodeChanges,
 }
 
 impl MixNodeDetails {
-    pub fn new(bond_information: MixNodeBond, rewarding_details: MixNodeRewarding) -> Self {
+    pub fn new(
+        bond_information: MixNodeBond,
+        rewarding_details: MixNodeRewarding,
+        pending_changes: PendingMixNodeChanges,
+    ) -> Self {
         MixNodeDetails {
             bond_information,
             rewarding_details,
+            pending_changes,
         }
     }
 
@@ -72,6 +79,10 @@ impl MixNodeDetails {
 
     pub fn total_stake(&self) -> Decimal {
         self.rewarding_details.node_bond()
+    }
+
+    pub fn pending_pledge_change(&self) -> Option<EpochEventId> {
+        self.pending_changes.pledge_change
     }
 }
 
@@ -332,6 +343,22 @@ impl MixNodeRewarding {
         Ok(())
     }
 
+    /// Decreases total pledge of operator by the specified amount.
+    pub fn decrease_operator_uint128(
+        &mut self,
+        amount: Uint128,
+    ) -> Result<(), MixnetContractError> {
+        let amount_decimal = amount.into_base_decimal()?;
+        if self.operator < amount_decimal {
+            return Err(MixnetContractError::OverflowDecimalSubtraction {
+                minuend: self.operator,
+                subtrahend: amount_decimal,
+            });
+        }
+        self.operator -= amount_decimal;
+        Ok(())
+    }
+
     pub fn increase_delegates_uint128(
         &mut self,
         amount: Uint128,
@@ -542,7 +569,7 @@ pub struct MixNodeCostParams {
 
 impl MixNodeCostParams {
     pub fn to_inline_json(&self) -> String {
-        serde_json::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+        serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 
@@ -604,6 +631,25 @@ impl From<Layer> for u8 {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/PendingMixnodeChanges.ts")
+)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct PendingMixNodeChanges {
+    pub pledge_change: Option<EpochEventId>,
+    // pub cost_params_change: Option<IntervalEventId>,
+}
+
+impl PendingMixNodeChanges {
+    pub fn new_empty() -> PendingMixNodeChanges {
+        PendingMixNodeChanges {
+            pledge_change: None,
+        }
+    }
+}
+
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/UnbondedMixnode.ts")
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
@@ -636,7 +682,7 @@ pub struct MixNodeConfigUpdate {
 
 impl MixNodeConfigUpdate {
     pub fn to_inline_json(&self) -> String {
-        serde_json::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+        serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 

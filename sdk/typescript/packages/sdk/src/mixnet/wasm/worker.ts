@@ -273,6 +273,6 @@ init(wasmBytes())
     // listen for EventKinds.Connected before sending messages
     postMessageWithType<LoadedEvent>({ kind: EventKinds.Loaded, args: { loaded: true } });
   })
-  .catch((e) => {
+  .catch((e: Error) => {
     console.error('[Worker thread] failed to start', e);
   });

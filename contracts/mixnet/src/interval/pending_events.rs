@@ -1,21 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::delegations;
-use crate::delegations::storage as delegations_storage;
-use crate::interval::helpers::change_interval_config;
-use crate::interval::storage;
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
-use crate::mixnodes::storage as mixnodes_storage;
-use crate::rewards::storage as rewards_storage;
-use crate::support::helpers::send_to_proxy_or_owner;
-use cosmwasm_std::{wasm_execute, Addr, Coin, DepsMut, Env, Response};
+use cosmwasm_std::{Addr, Coin, DepsMut, Env, Response};
+
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_active_set_update_event, new_delegation_event, new_delegation_on_unbonded_node_event,
-    new_mixnode_cost_params_update_event, new_mixnode_unbonding_event, new_pledge_increase_event,
-    new_rewarding_params_update_event, new_undelegation_event,
+    new_mixnode_cost_params_update_event, new_mixnode_unbonding_event, new_pledge_decrease_event,
+    new_pledge_increase_event, new_rewarding_params_update_event, new_undelegation_event,
 };
 use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::pending_events::{
@@ -24,7 +16,15 @@ use mixnet_contract_common::pending_events::{
 };
 use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
 use mixnet_contract_common::{BlockHeight, Delegation, MixId};
-use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
+
+use crate::delegations;
+use crate::delegations::storage as delegations_storage;
+use crate::interval::helpers::change_interval_config;
+use crate::interval::storage;
+use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
+use crate::mixnodes::storage as mixnodes_storage;
+use crate::rewards::storage as rewards_storage;
+use crate::support::helpers::{send_to_proxy_or_owner, VestingTracking};
 
 pub(crate) trait ContractExecutableEvent {
     // note: the error only means a HARD error like we failed to read from storage.
@@ -56,27 +56,20 @@ pub(crate) fn delegate(
         _ => {
             // if mixnode is no longer bonded or in the process of unbonding, return the tokens back to the
             // delegator;
+            // (read the notes regarding possible epoch progressiong halting behaviour in `maybe_add_track_undelegation_message`)
             let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![amount.clone()]);
-            let mut response = Response::new().add_message(return_tokens).add_event(
-                new_delegation_on_unbonded_node_event(&owner, &proxy, mix_id),
-            );
-
-            if let Some(proxy) = &proxy {
-                // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
-                // otherwise, we don't care
-                let vesting_contract =
-                    mixnet_params_storage::vesting_contract_address(deps.storage)?;
-                if proxy == &vesting_contract {
-                    let msg = VestingContractExecuteMsg::TrackUndelegation {
-                        owner: owner.into_string(),
-                        mix_id,
-                        amount,
-                    };
-
-                    let track_undelegate_message = wasm_execute(proxy, &msg, vec![])?;
-                    response = response.add_message(track_undelegate_message);
-                }
-            }
+            let response = Response::new()
+                .add_message(return_tokens)
+                .add_event(new_delegation_on_unbonded_node_event(
+                    &owner, &proxy, mix_id,
+                ))
+                .maybe_add_track_vesting_undelegation_message(
+                    deps.storage,
+                    proxy,
+                    owner.to_string(),
+                    mix_id,
+                    amount,
+                )?;
 
             return Ok(response);
         }
@@ -155,34 +148,25 @@ pub(crate) fn undelegate(
         Some(delegation) => delegation,
     };
     let mix_rewarding =
-        rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?.ok_or(MixnetContractError::InconsistentState {
-            comment: "mixnode rewarding got removed from the storage whilst there's still an existing delegation"
-                .into(),
-        })?;
+        rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?.ok_or(MixnetContractError::inconsistent_state(
+            "mixnode rewarding got removed from the storage whilst there's still an existing delegation",
+        ))?;
     // this also appropriately adjusts the storage
     let tokens_to_return =
         delegations::helpers::undelegate(deps.storage, delegation, mix_rewarding)?;
 
+    // (read the notes regarding possible epoch progressiong halting behaviour in `maybe_add_track_undelegation_message`)
     let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![tokens_to_return.clone()]);
-    let mut response = Response::new()
+    let response = Response::new()
         .add_message(return_tokens)
-        .add_event(new_undelegation_event(created_at, &owner, &proxy, mix_id));
-
-    if let Some(proxy) = &proxy {
-        // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
-        // otherwise, we don't care
-        let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
-        if proxy == &vesting_contract {
-            let msg = VestingContractExecuteMsg::TrackUndelegation {
-                owner: owner.into_string(),
-                mix_id,
-                amount: tokens_to_return,
-            };
-
-            let track_undelegate_message = wasm_execute(proxy, &msg, vec![])?;
-            response = response.add_message(track_undelegate_message);
-        }
-    }
+        .add_event(new_undelegation_event(created_at, &owner, &proxy, mix_id))
+        .maybe_add_track_vesting_undelegation_message(
+            deps.storage,
+            proxy,
+            owner.to_string(),
+            mix_id,
+            tokens_to_return,
+        )?;
 
     Ok(response)
 }
@@ -197,11 +181,15 @@ pub(crate) fn unbond_mixnode(
     // in unbonding state and thus nothing could have been done to it (such as attempting to double unbond it)
     // thus the node with all its associated information MUST exist in the storage.
     let node_details = get_mixnode_details_by_id(deps.storage, mix_id)?.ok_or(
-        MixnetContractError::InconsistentState {
-            comment: "mixnode getting processed to get unbonded doesn't exist in the storage"
-                .into(),
-        },
+        MixnetContractError::inconsistent_state(
+            "mixnode getting processed to get unbonded doesn't exist in the storage",
+        ),
     )?;
+    if node_details.pending_changes.pledge_change.is_some() {
+        return Err(MixnetContractError::inconsistent_state(
+            "attempted to unbond mixnode while there are associated pending pledge changes",
+        ));
+    }
 
     // the denom on the original pledge was validated at the time of bonding so we can safely reuse it here
     let rewarding_denom = &node_details.bond_information.original_pledge.denom;
@@ -219,24 +207,15 @@ pub(crate) fn unbond_mixnode(
     // decrement the associated layer count
     cleanup_post_unbond_mixnode_storage(deps.storage, env, &node_details)?;
 
-    let mut response = Response::new()
+    let response = Response::new()
         .add_message(return_tokens)
-        .add_event(new_mixnode_unbonding_event(created_at, mix_id));
-
-    if let Some(proxy) = &proxy {
-        // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
-        // otherwise, we don't care
-        let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
-        if proxy == &vesting_contract {
-            let msg = VestingContractExecuteMsg::TrackUnbondMixnode {
-                owner: owner.clone().into_string(),
-                amount: tokens,
-            };
-
-            let track_unbond_message = wasm_execute(proxy, &msg, vec![])?;
-            response = response.add_message(track_unbond_message);
-        }
-    }
+        .add_event(new_mixnode_unbonding_event(created_at, mix_id))
+        .maybe_add_track_vesting_unbond_mixnode_message(
+            deps.storage,
+            proxy.clone(),
+            owner.clone().into_string(),
+            tokens,
+        )?;
 
     Ok(response)
 }
@@ -270,12 +249,15 @@ pub(crate) fn increase_pledge(
     // the target node MUST exist - we have checked it at the time of putting this event onto the queue
     // we have also verified there were no preceding unbond events
     let mix_details = get_mixnode_details_by_id(deps.storage, mix_id)?.ok_or(
-        MixnetContractError::InconsistentState {
-            comment:
-                "mixnode getting processed to increase its pledge doesn't exist in the storage"
-                    .into(),
-        },
+        MixnetContractError::inconsistent_state(
+            "mixnode getting processed to increase its pledge doesn't exist in the storage",
+        ),
     )?;
+    if mix_details.pending_changes.pledge_change.is_none() {
+        return Err(MixnetContractError::inconsistent_state(
+            "attempted to increase mixnode pledge while there are no associated pending changes",
+        ));
+    }
 
     let mut updated_bond = mix_details.bond_information.clone();
     let mut updated_rewarding = mix_details.rewarding_details;
@@ -283,7 +265,10 @@ pub(crate) fn increase_pledge(
     updated_bond.original_pledge.amount += increase.amount;
     updated_rewarding.increase_operator_uint128(increase.amount)?;
 
-    // update both, bond information and rewarding details
+    let mut pending_changes = mix_details.pending_changes;
+    pending_changes.pledge_change = None;
+
+    // update all: bond information, rewarding details and pending pledge changes
     mixnodes_storage::mixnode_bonds().replace(
         deps.storage,
         mix_id,
@@ -291,8 +276,68 @@ pub(crate) fn increase_pledge(
         Some(&mix_details.bond_information),
     )?;
     rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &updated_rewarding)?;
+    mixnodes_storage::PENDING_MIXNODE_CHANGES.save(deps.storage, mix_id, &pending_changes)?;
 
     Ok(Response::new().add_event(new_pledge_increase_event(created_at, mix_id, &increase)))
+}
+
+pub(crate) fn decrease_pledge(
+    deps: DepsMut<'_>,
+    created_at: BlockHeight,
+    mix_id: MixId,
+    decrease_by: Coin,
+) -> Result<Response, MixnetContractError> {
+    // the target node MUST exist - we have checked it at the time of putting this event onto the queue
+    // we have also verified there were no preceding unbond events
+    let mix_details = get_mixnode_details_by_id(deps.storage, mix_id)?.ok_or(
+        MixnetContractError::inconsistent_state(
+            "mixnode getting processed to increase its pledge doesn't exist in the storage",
+        ),
+    )?;
+    if mix_details.pending_changes.pledge_change.is_none() {
+        return Err(MixnetContractError::inconsistent_state(
+            "attempted to decrease mixnode pledge while there are no associated pending changes",
+        ));
+    }
+
+    let mut updated_bond = mix_details.bond_information.clone();
+    let mut updated_rewarding = mix_details.rewarding_details;
+
+    let mut pending_changes = mix_details.pending_changes;
+    pending_changes.pledge_change = None;
+
+    // SAFETY: the subtraction here can't overflow as before the event was pushed into the queue,
+    // we checked that the new value will be higher than minimum pledge (which is also strictly positive)
+    updated_bond.original_pledge.amount -= decrease_by.amount;
+    updated_rewarding.decrease_operator_uint128(decrease_by.amount)?;
+
+    let proxy = &mix_details.bond_information.proxy;
+    let owner = &mix_details.bond_information.owner;
+
+    // send the removed tokens back to the operator
+    let return_tokens = send_to_proxy_or_owner(proxy, owner, vec![decrease_by.clone()]);
+
+    // update all: bond information, rewarding details and pending pledge changes
+    mixnodes_storage::mixnode_bonds().replace(
+        deps.storage,
+        mix_id,
+        Some(&updated_bond),
+        Some(&mix_details.bond_information),
+    )?;
+    rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &updated_rewarding)?;
+    mixnodes_storage::PENDING_MIXNODE_CHANGES.save(deps.storage, mix_id, &pending_changes)?;
+
+    let response = Response::new()
+        .add_message(return_tokens)
+        .add_event(new_pledge_decrease_event(created_at, mix_id, &decrease_by))
+        .maybe_add_track_vesting_decrease_mixnode_pledge(
+            deps.storage,
+            proxy.clone(),
+            owner.clone().to_string(),
+            decrease_by,
+        )?;
+
+    Ok(response)
 }
 
 impl ContractExecutableEvent for PendingEpochEventData {
@@ -314,6 +359,10 @@ impl ContractExecutableEvent for PendingEpochEventData {
             PendingEpochEventKind::PledgeMore { mix_id, amount } => {
                 increase_pledge(deps, self.created_at, mix_id, amount)
             }
+            PendingEpochEventKind::DecreasePledge {
+                mix_id,
+                decrease_by,
+            } => decrease_pledge(deps, self.created_at, mix_id, decrease_by),
             PendingEpochEventKind::UnbondMixnode { mix_id } => {
                 unbond_mixnode(deps, env, self.created_at, mix_id)
             }
@@ -423,25 +472,33 @@ impl ContractExecutableEvent for PendingIntervalEventData {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::time::Duration;
+
+    use cosmwasm_std::Decimal;
+
+    use mixnet_contract_common::Percent;
+    use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
+
     use crate::support::tests::test_helpers;
     use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
-    use cosmwasm_std::Decimal;
-    use mixnet_contract_common::Percent;
-    use std::time::Duration;
+
+    use super::*;
 
     // note that authorization and basic validation has already been performed for all of those
     // before being pushed onto the event queues
 
     #[cfg(test)]
     mod delegating {
-        use super::*;
+        use cosmwasm_std::testing::mock_info;
+        use cosmwasm_std::{coin, to_binary, CosmosMsg, Decimal, WasmMsg};
+
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
         use crate::mixnodes::transactions::try_remove_mixnode;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::get_bank_send_msg;
-        use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{coin, to_binary, CosmosMsg, Decimal, WasmMsg};
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        use super::*;
 
         #[test]
         fn returns_the_tokens_if_mixnode_has_unbonded() {
@@ -628,19 +685,31 @@ mod tests {
             let delegation_coin_new = coin(delegation_new, TEST_COIN_DENOM);
 
             // perform some rewarding here to advance the unit delegation beyond the initial value
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let owner = "delegator";
             test.add_immediate_delegation(owner, delegation_og, mix_id);
 
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist1 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist2 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let storage_key =
                 Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
@@ -699,11 +768,17 @@ mod tests {
             let delegation_coin = coin(120_000_000u128, TEST_COIN_DENOM);
 
             // perform some rewarding here to advance the unit delegation beyond the initial value
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let storage_key =
                 Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
@@ -749,21 +824,19 @@ mod tests {
 
             let delegation = 120_000_000u128;
             let delegation_coin = coin(delegation, TEST_COIN_DENOM);
-            let owner1 = "delegator1";
-            let owner2 = "delegator2";
+            let owner = "delegator";
 
             let env = test.env();
             unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
 
             let vesting_contract = test.vesting_contract();
-            let dummy_proxy = Addr::unchecked("not-vesting-contract");
 
             // for a fresh delegation, nothing was added to the storage either
             let res_vesting = delegate(
                 test.deps_mut(),
                 &env,
                 123,
-                Addr::unchecked(owner1),
+                Addr::unchecked(owner),
                 mix_id,
                 delegation_coin.clone(),
                 Some(vesting_contract.clone()),
@@ -771,7 +844,7 @@ mod tests {
             .unwrap();
             let storage_key = Delegation::generate_storage_key(
                 mix_id,
-                &Addr::unchecked(owner1),
+                &Addr::unchecked(owner),
                 Some(vesting_contract.clone()).as_ref(),
             );
             assert!(delegations_storage::delegations()
@@ -795,7 +868,7 @@ mod tests {
                     found_track = true;
                     assert_eq!(contract_addr, vesting_contract.as_str());
                     let expected_msg = to_binary(&VestingContractExecuteMsg::TrackUndelegation {
-                        owner: owner1.to_string(),
+                        owner: owner.to_string(),
                         mix_id,
                         amount: delegation_coin.clone(),
                     })
@@ -805,47 +878,55 @@ mod tests {
                 }
             }
             assert!(found_track);
+        }
 
+        #[test]
+        fn returns_error_for_illegal_proxy() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let delegation = 120_000_000u128;
+            let delegation_coin = coin(delegation, TEST_COIN_DENOM);
+            let owner = "delegator";
+            let dummy_proxy = Addr::unchecked("not-vesting-contract");
+
+            let env = test.env();
+            unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
+
+            let vesting_contract = test.vesting_contract();
+
+            // try to add illegal delegation (with invalid proxy)
             let res_other_proxy = delegate(
                 test.deps_mut(),
                 &env,
                 123,
-                Addr::unchecked(owner1),
+                Addr::unchecked(owner),
                 mix_id,
-                delegation_coin.clone(),
+                delegation_coin,
                 Some(dummy_proxy.clone()),
             )
-            .unwrap();
-            let storage_key = Delegation::generate_storage_key(
-                mix_id,
-                &Addr::unchecked(owner2),
-                Some(dummy_proxy.clone()).as_ref(),
-            );
-            assert!(delegations_storage::delegations()
-                .may_load(test.deps().storage, storage_key)
-                .unwrap()
-                .is_none());
-            // and all tokens are returned back to the proxy
-            let (receiver, sent_amount) = get_bank_send_msg(&res_other_proxy).unwrap();
-            assert_eq!(receiver, dummy_proxy.as_str());
-            assert_eq!(sent_amount[0], delegation_coin);
+            .unwrap_err();
 
-            // no track messages here!
-            for msg in &res_other_proxy.messages {
-                if let CosmosMsg::Wasm(WasmMsg::Execute { .. }) = &msg.msg {
-                    panic!("we shouldn't have attempted to call any other contract!")
+            assert_eq!(
+                res_other_proxy,
+                MixnetContractError::ProxyIsNotVestingContract {
+                    received: dummy_proxy,
+                    vesting_contract,
                 }
-            }
+            );
         }
     }
 
     #[cfg(test)]
     mod undelegating {
-        use super::*;
+        use cosmwasm_std::{coin, to_binary, CosmosMsg, WasmMsg};
+
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::get_bank_send_msg;
-        use cosmwasm_std::{coin, to_binary, CosmosMsg, WasmMsg};
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        use super::*;
 
         #[test]
         fn doesnt_return_any_tokens_if_it_doesnt_exist() {
@@ -885,18 +966,30 @@ mod tests {
             let delegation = 120_000_000u128;
 
             // perform some rewarding here to advance the unit delegation beyond the initial value
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             test.add_immediate_delegation(owner, delegation, mix_id);
 
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist1 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist2 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let expected_reward = dist1.delegates + dist2.delegates;
             let truncated_reward = truncate_reward_amount(expected_reward);
@@ -930,37 +1023,23 @@ mod tests {
 
             let delegation = 120_000_000u128;
             let delegation_coin = coin(delegation, TEST_COIN_DENOM);
-            let owner1 = "delegator1";
-            let owner2 = "delegator2";
+            let owner = "delegator";
 
             let vesting_contract = test.vesting_contract();
-            let dummy_proxy = Addr::unchecked("not-vesting-contract");
 
-            test.add_immediate_delegation_with_proxy(
-                owner1,
-                delegation,
-                mix_id,
-                vesting_contract.clone(),
-            );
-            test.add_immediate_delegation_with_proxy(
-                owner2,
-                delegation,
-                mix_id,
-                dummy_proxy.clone(),
-            );
+            test.add_immediate_delegation_with_legal_proxy(owner, delegation, mix_id);
 
-            // for a fresh delegation, nothing was added to the storage either
             let res_vesting = undelegate(
                 test.deps_mut(),
                 123,
-                Addr::unchecked(owner1),
+                Addr::unchecked(owner),
                 mix_id,
                 Some(vesting_contract.clone()),
             )
             .unwrap();
             let storage_key = Delegation::generate_storage_key(
                 mix_id,
-                &Addr::unchecked(owner1),
+                &Addr::unchecked(owner),
                 Some(vesting_contract.clone()).as_ref(),
             );
             assert!(delegations_storage::delegations()
@@ -985,7 +1064,7 @@ mod tests {
                     found_track = true;
                     assert_eq!(contract_addr, vesting_contract.as_str());
                     let expected_msg = to_binary(&VestingContractExecuteMsg::TrackUndelegation {
-                        owner: owner1.to_string(),
+                        owner: owner.to_string(),
                         mix_id,
                         amount: delegation_coin.clone(),
                     })
@@ -995,47 +1074,57 @@ mod tests {
                 }
             }
             assert!(found_track);
+        }
+
+        #[test]
+        fn returns_error_for_illegal_proxy() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let delegation = 120_000_000u128;
+            let owner = "delegator1";
+
+            let vesting_contract = test.vesting_contract();
+            let dummy_proxy = Addr::unchecked("not-vesting-contract");
+
+            test.add_immediate_delegation_with_illegal_proxy(
+                owner,
+                delegation,
+                mix_id,
+                dummy_proxy.clone(),
+            );
 
             let res_other_proxy = undelegate(
                 test.deps_mut(),
                 123,
-                Addr::unchecked(owner2),
+                Addr::unchecked(owner),
                 mix_id,
                 Some(dummy_proxy.clone()),
             )
-            .unwrap();
-            let storage_key = Delegation::generate_storage_key(
-                mix_id,
-                &Addr::unchecked(owner2),
-                Some(dummy_proxy.clone()).as_ref(),
-            );
-            assert!(delegations_storage::delegations()
-                .may_load(test.deps().storage, storage_key)
-                .unwrap()
-                .is_none());
-            // and all tokens are returned back to the proxy
-            let (receiver, sent_amount) = get_bank_send_msg(&res_other_proxy).unwrap();
-            assert_eq!(receiver, dummy_proxy.as_str());
-            assert_eq!(sent_amount[0], delegation_coin);
-
-            // no track messages here!
-            for msg in &res_other_proxy.messages {
-                if let CosmosMsg::Wasm(WasmMsg::Execute { .. }) = &msg.msg {
-                    panic!("we shouldn't have attempted to call any other contract!")
+            .unwrap_err();
+            assert_eq!(
+                res_other_proxy,
+                MixnetContractError::ProxyIsNotVestingContract {
+                    received: dummy_proxy,
+                    vesting_contract,
                 }
-            }
+            );
         }
     }
 
     #[cfg(test)]
     mod mixnode_unbonding {
-        use super::*;
+        use cosmwasm_std::{coin, to_binary, CosmosMsg, Uint128, WasmMsg};
+
+        use mixnet_contract_common::mixnode::{PendingMixNodeChanges, UnbondedMixnode};
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
         use crate::mixnodes::storage as mixnodes_storage;
+        use crate::mixnodes::transactions::{_try_decrease_pledge, _try_increase_pledge};
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::get_bank_send_msg;
-        use cosmwasm_std::{coin, to_binary, CosmosMsg, Uint128, WasmMsg};
-        use mixnet_contract_common::mixnode::UnbondedMixnode;
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        use super::*;
 
         #[test]
         fn returns_hard_error_if_mixnode_doesnt_exist() {
@@ -1044,6 +1133,71 @@ mod tests {
             let env = test.env();
 
             let res = unbond_mixnode(test.deps_mut(), &env, 123, 1);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+        }
+
+        #[test]
+        fn returns_hard_error_if_there_are_pending_pledge_changes() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let change = test.coins(1234);
+
+            // increase
+            let owner = "mix-owner1";
+            let pledge = Uint128::new(250_000_000);
+            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+
+            _try_increase_pledge(
+                test.deps_mut(),
+                env.clone(),
+                change.clone(),
+                Addr::unchecked(owner),
+                None,
+            )
+            .unwrap();
+
+            let res = unbond_mixnode(test.deps_mut(), &env, 123, mix_id);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+
+            // decrease
+            let owner = "mix-owner2";
+            let pledge = Uint128::new(250_000_000);
+            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+
+            _try_decrease_pledge(
+                test.deps_mut(),
+                env.clone(),
+                change[0].clone(),
+                Addr::unchecked(owner),
+                None,
+            )
+            .unwrap();
+
+            let res = unbond_mixnode(test.deps_mut(), &env, 123, mix_id);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+
+            // artificial
+            let owner = "mix-owner3";
+            let pledge = Uint128::new(250_000_000);
+            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+
+            let changes = PendingMixNodeChanges {
+                pledge_change: Some(1234),
+            };
+
+            mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .save(test.deps_mut().storage, mix_id, &changes)
+                .unwrap();
+            let res = unbond_mixnode(test.deps_mut(), &env, 123, mix_id);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::InconsistentState { .. })
@@ -1062,11 +1216,17 @@ mod tests {
                 .unwrap();
             let layer = mix_details.layer;
 
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist1 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist2 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let expected_reward = dist1.operator + dist2.operator;
             let truncated_reward = truncate_reward_amount(expected_reward);
@@ -1109,19 +1269,14 @@ mod tests {
             let mut test = TestSetup::new();
 
             let vesting_contract = test.vesting_contract();
-            let dummy_proxy = Addr::unchecked("not-vesting-contract");
 
             let pledge = Uint128::new(250_000_000);
             let pledge_coin = coin(250_000_000, TEST_COIN_DENOM);
-            let owner1 = "mix-owner1";
-            let owner2 = "mix-owner2";
-            let mix_id_vesting =
-                test.add_dummy_mixnode_with_proxy(owner1, Some(pledge), vesting_contract.clone());
-            let mix_id_other_proxy =
-                test.add_dummy_mixnode_with_proxy(owner2, Some(pledge), dummy_proxy.clone());
+            let owner = "mix-owner1";
+            let mix_id_vesting = test.add_dummy_mixnode_with_legal_proxy(owner, Some(pledge));
 
             let env = test.env();
-            let res_vesting = unbond_mixnode(test.deps_mut(), &env, 123, mix_id_vesting).unwrap();
+            let res = unbond_mixnode(test.deps_mut(), &env, 123, mix_id_vesting).unwrap();
 
             assert!(mixnodes_storage::mixnode_bonds()
                 .may_load(test.deps().storage, mix_id_vesting)
@@ -1129,13 +1284,13 @@ mod tests {
                 .is_none());
 
             // and all tokens are returned back to the proxy
-            let (receiver, sent_amount) = get_bank_send_msg(&res_vesting).unwrap();
+            let (receiver, sent_amount) = get_bank_send_msg(&res).unwrap();
             assert_eq!(receiver, vesting_contract.as_str());
             assert_eq!(sent_amount[0], pledge_coin);
 
             // and we get appropriate track message
             let mut found_track = true;
-            for msg in &res_vesting.messages {
+            for msg in &res.messages {
                 if let CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr,
                     msg,
@@ -1145,7 +1300,7 @@ mod tests {
                     found_track = true;
                     assert_eq!(contract_addr, vesting_contract.as_str());
                     let expected_msg = to_binary(&VestingContractExecuteMsg::TrackUnbondMixnode {
-                        owner: owner1.to_string(),
+                        owner: owner.to_string(),
                         amount: pledge_coin.clone(),
                     })
                     .unwrap();
@@ -1154,32 +1309,42 @@ mod tests {
                 }
             }
             assert!(found_track);
+        }
 
+        #[test]
+        fn returns_error_for_illegal_proxy() {
+            let mut test = TestSetup::new();
+
+            let dummy_proxy = Addr::unchecked("not-vesting-contract");
+            let env = test.env();
+
+            let vesting_contract = test.vesting_contract();
+            let owner = "mix-owner";
+            let pledge = Uint128::new(250_000_000);
+
+            let mix_id_illegal_proxy =
+                test.add_dummy_mixnode_with_illegal_proxy(owner, Some(pledge), dummy_proxy.clone());
+
+            // this is the halting issue that should have never occurred
             let res_other_proxy =
-                unbond_mixnode(test.deps_mut(), &env, 123, mix_id_other_proxy).unwrap();
-            assert!(mixnodes_storage::mixnode_bonds()
-                .may_load(test.deps().storage, mix_id_other_proxy)
-                .unwrap()
-                .is_none());
-            // and all tokens are returned back to the proxy
-            let (receiver, sent_amount) = get_bank_send_msg(&res_other_proxy).unwrap();
-            assert_eq!(receiver, dummy_proxy.as_str());
-            assert_eq!(sent_amount[0], pledge_coin);
-
-            // no track messages here!
-            for msg in &res_other_proxy.messages {
-                if let CosmosMsg::Wasm(WasmMsg::Execute { .. }) = &msg.msg {
-                    panic!("we shouldn't have attempted to call any other contract!")
+                unbond_mixnode(test.deps_mut(), &env, 123, mix_id_illegal_proxy).unwrap_err();
+            assert_eq!(
+                res_other_proxy,
+                MixnetContractError::ProxyIsNotVestingContract {
+                    received: dummy_proxy,
+                    vesting_contract,
                 }
-            }
+            );
         }
     }
 
     #[cfg(test)]
     mod increasing_pledge {
-        use super::*;
         use cosmwasm_std::Uint128;
+
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        use super::*;
 
         #[test]
         fn returns_hard_error_if_mixnode_doesnt_exist() {
@@ -1195,9 +1360,26 @@ mod tests {
         }
 
         #[test]
+        fn returns_hard_error_if_there_are_no_pending_pledge_changes() {
+            let mut test = TestSetup::new();
+            let change = test.coin(1234);
+
+            let owner = "mix-owner";
+            let pledge = Uint128::new(250_000_000);
+            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+
+            let res = increase_pledge(test.deps_mut(), 123, mix_id, change);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+        }
+
+        #[test]
         fn updates_stored_bond_information_and_rewarding_details() {
             let mut test = TestSetup::new();
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            test.set_pending_pledge_change(mix_id, None);
 
             let old_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
                 .unwrap()
@@ -1230,6 +1412,8 @@ mod tests {
             let pledge3 = Uint128::new(200_000_000);
 
             let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
+
             let increase = test.coin(pledge2.u128());
             increase_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
 
@@ -1244,12 +1428,16 @@ mod tests {
             test.add_immediate_delegation("carol", 111_111_111u128, mix_id_full_pledge);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
-            let dist1 =
-                test.reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
-            let dist2 =
-                test.reward_with_distribution(mix_id_full_pledge, test_helpers::performance(100.0));
+            let dist1 = test.reward_with_distribution_with_state_bypass(
+                mix_id_repledge,
+                test_helpers::performance(100.0),
+            );
+            let dist2 = test.reward_with_distribution_with_state_bypass(
+                mix_id_full_pledge,
+                test_helpers::performance(100.0),
+            );
 
             assert_eq!(dist1, dist2)
         }
@@ -1261,16 +1449,19 @@ mod tests {
             let pledge2 = Uint128::new(50_000_000_000);
 
             let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
             test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
             test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_repledge]);
+            test.force_change_rewarded_set(vec![mix_id_repledge]);
 
-            let dist =
-                test.reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
+            let dist = test.reward_with_distribution_with_state_bypass(
+                mix_id_repledge,
+                test_helpers::performance(100.0),
+            );
 
             let increase = test.coin(pledge2.u128());
             increase_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
@@ -1306,15 +1497,19 @@ mod tests {
             );
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
             // go through few epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test
-                    .reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
-                let dist2 = test
-                    .reward_with_distribution(mix_id_full_pledge, test_helpers::performance(100.0));
+                let dist1 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_repledge,
+                    test_helpers::performance(100.0),
+                );
+                let dist2 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_full_pledge,
+                    test_helpers::performance(100.0),
+                );
 
                 assert_eq!(dist1, dist2)
             }
@@ -1327,13 +1522,14 @@ mod tests {
             let pledge2 = Uint128::new(50_000_000_000);
 
             let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
             test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
             test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_repledge]);
+            test.force_change_rewarded_set(vec![mix_id_repledge]);
 
             let mut cumulative_op_reward = Decimal::zero();
             let mut cumulative_del_reward = Decimal::zero();
@@ -1341,8 +1537,10 @@ mod tests {
             // go few epochs of rewarding before adding more pledge
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist = test
-                    .reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
+                let dist = test.reward_with_distribution_with_state_bypass(
+                    mix_id_repledge,
+                    test_helpers::performance(100.0),
+                );
                 cumulative_op_reward += dist.operator;
                 cumulative_del_reward += dist.delegates;
             }
@@ -1382,18 +1580,389 @@ mod tests {
             );
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
             // go through few more epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test
-                    .reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
-                let dist2 = test
-                    .reward_with_distribution(mix_id_full_pledge, test_helpers::performance(100.0));
+                let dist1 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_repledge,
+                    test_helpers::performance(100.0),
+                );
+                let dist2 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_full_pledge,
+                    test_helpers::performance(100.0),
+                );
 
                 assert_eq!(dist1, dist2)
             }
+        }
+
+        #[test]
+        fn updates_the_pending_pledge_changes_field() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            test.set_pending_pledge_change(mix_id, None);
+
+            let amount = test.coin(12345);
+            increase_pledge(test.deps_mut(), 123, mix_id, amount).unwrap();
+            let pending = mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .load(test.deps().storage, mix_id)
+                .unwrap();
+            assert!(pending.pledge_change.is_none())
+        }
+    }
+
+    #[cfg(test)]
+    mod decreasing_pledge {
+        use cosmwasm_std::{to_binary, BankMsg, CosmosMsg, Uint128, WasmMsg};
+
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        use super::*;
+
+        #[test]
+        fn returns_hard_error_if_mixnode_doesnt_exist() {
+            // this should have never happened so hard error MUST be thrown here
+            let mut test = TestSetup::new();
+
+            let amount = test.coin(123);
+            let res = decrease_pledge(test.deps_mut(), 123, 1, amount);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+        }
+
+        #[test]
+        fn returns_hard_error_if_there_are_no_pending_pledge_changes() {
+            let mut test = TestSetup::new();
+            let change = test.coin(1234);
+
+            let owner = "mix-owner";
+            let pledge = Uint128::new(250_000_000);
+            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+
+            let res = decrease_pledge(test.deps_mut(), 123, mix_id, change);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+        }
+
+        #[test]
+        fn updates_stored_bond_information_and_rewarding_details() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            test.set_pending_pledge_change(mix_id, None);
+
+            let old_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
+                .unwrap()
+                .unwrap();
+
+            let amount = test.coin(12345);
+            decrease_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
+
+            let updated_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
+                .unwrap()
+                .unwrap();
+
+            assert_eq!(
+                updated_details.bond_information.original_pledge.amount,
+                old_details.bond_information.original_pledge.amount - amount.amount
+            );
+
+            assert_eq!(
+                updated_details.rewarding_details.operator,
+                old_details.rewarding_details.operator
+                    - Decimal::from_atomics(amount.amount, 0).unwrap()
+            );
+        }
+
+        #[test]
+        fn returns_tokens_back_to_the_owner() {
+            let mut test = TestSetup::new();
+            let owner = "mix-owner";
+            let mix_id = test.add_dummy_mixnode(owner, None);
+            test.set_pending_pledge_change(mix_id, None);
+
+            let amount = test.coin(12345);
+            let res = decrease_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
+
+            assert_eq!(res.messages.len(), 1);
+            assert_eq!(
+                res.messages[0].msg,
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: owner.to_string(),
+                    amount: vec![amount],
+                })
+            )
+        }
+
+        #[test]
+        fn returns_tokens_back_to_the_proxy_if_bonded_with_vesting() {
+            let mut test = TestSetup::new();
+            let owner = "mix-owner";
+            let mix_id = test.add_dummy_mixnode_with_legal_proxy(owner, None);
+            test.set_pending_pledge_change(mix_id, None);
+
+            let vesting_contract = test.vesting_contract();
+
+            let amount = test.coin(12345);
+            let res = decrease_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
+
+            assert_eq!(res.messages.len(), 2);
+            assert_eq!(
+                res.messages[0].msg,
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: vesting_contract.to_string(),
+                    amount: vec![amount],
+                })
+            )
+        }
+
+        #[test]
+        fn attaches_vesting_track_message() {
+            let mut test = TestSetup::new();
+            let mix_id_no_proxy = test.add_dummy_mixnode("mix-owner1", None);
+            test.set_pending_pledge_change(mix_id_no_proxy, None);
+
+            let mix_id_proxy = test.add_dummy_mixnode_with_legal_proxy("mix-owner2", None);
+            test.set_pending_pledge_change(mix_id_proxy, None);
+
+            let vesting_contract = test.vesting_contract();
+
+            let amount = test.coin(12345);
+            let res_no_proxy =
+                decrease_pledge(test.deps_mut(), 123, mix_id_no_proxy, amount.clone()).unwrap();
+
+            // nothing was attached (apart from bank message tested in `returns_tokens_back_to_the_owner`)
+            // because it wasn't done with proxy!
+            assert_eq!(res_no_proxy.messages.len(), 1);
+
+            let res_proxy =
+                decrease_pledge(test.deps_mut(), 123, mix_id_proxy, amount.clone()).unwrap();
+            assert_eq!(res_proxy.messages.len(), 2);
+            assert_eq!(
+                res_proxy.messages[1].msg,
+                CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: vesting_contract.to_string(),
+                    msg: to_binary(&VestingContractExecuteMsg::TrackDecreasePledge {
+                        owner: "mix-owner2".to_string(),
+                        amount,
+                    })
+                    .unwrap(),
+                    funds: vec![],
+                })
+            );
+        }
+
+        #[test]
+        fn without_any_events_in_between_is_equivalent_to_pledging_the_same_amount_immediately() {
+            let mut test = TestSetup::new();
+            let pledge1 = Uint128::new(200_000_000);
+            let pledge_change = Uint128::new(50_000_000);
+            let pledge3 = Uint128::new(150_000_000);
+
+            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
+
+            let decrease = test.coin(pledge_change.u128());
+            decrease_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
+
+            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+
+            test.add_immediate_delegation("alice", 123_456_789u128, mix_id_repledge);
+            test.add_immediate_delegation("bob", 500_000_000u128, mix_id_repledge);
+            test.add_immediate_delegation("carol", 111_111_111u128, mix_id_repledge);
+
+            test.add_immediate_delegation("alice", 123_456_789u128, mix_id_full_pledge);
+            test.add_immediate_delegation("bob", 500_000_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation("carol", 111_111_111u128, mix_id_full_pledge);
+
+            test.skip_to_next_epoch_end();
+            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+
+            let dist1 = test.reward_with_distribution_with_state_bypass(
+                mix_id_repledge,
+                test_helpers::performance(100.0),
+            );
+            let dist2 = test.reward_with_distribution_with_state_bypass(
+                mix_id_full_pledge,
+                test_helpers::performance(100.0),
+            );
+
+            assert_eq!(dist1, dist2)
+        }
+
+        #[test]
+        fn correctly_decreases_future_rewards() {
+            let mut test = TestSetup::new();
+            let pledge1 = Uint128::new(200_000_000_000);
+            let pledge_change = Uint128::new(50_000_000_000);
+
+            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
+
+            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
+            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
+            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
+
+            test.skip_to_next_epoch_end();
+            test.force_change_rewarded_set(vec![mix_id_repledge]);
+
+            let dist = test.reward_with_distribution_with_state_bypass(
+                mix_id_repledge,
+                test_helpers::performance(100.0),
+            );
+
+            let decrease = test.coin(pledge_change.u128());
+            decrease_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
+
+            let pledge3 = Uint128::new(150_000_000_000) + truncate_reward_amount(dist.operator);
+            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+
+            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_full_pledge);
+
+            let lost_operator = dist.operator
+                - Decimal::from_atomics(truncate_reward_amount(dist.operator), 0).unwrap();
+            let lost_delegates = dist.delegates
+                - Decimal::from_atomics(truncate_reward_amount(dist.delegates), 0).unwrap();
+
+            // add the tiny bit of lost precision manually
+            let mut mix_rewarding_full = test.mix_rewarding(mix_id_full_pledge);
+            mix_rewarding_full.delegates += lost_delegates;
+            mix_rewarding_full.operator += lost_operator;
+            rewards_storage::MIXNODE_REWARDING
+                .save(
+                    test.deps_mut().storage,
+                    mix_id_full_pledge,
+                    &mix_rewarding_full,
+                )
+                .unwrap();
+
+            test.add_immediate_delegation(
+                "dave",
+                truncate_reward_amount(dist.delegates).u128(),
+                mix_id_full_pledge,
+            );
+
+            test.skip_to_next_epoch_end();
+            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+
+            // go through few epochs of rewarding
+            for _ in 0..500 {
+                test.skip_to_next_epoch_end();
+                let dist1 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_repledge,
+                    test_helpers::performance(100.0),
+                );
+                let dist2 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_full_pledge,
+                    test_helpers::performance(100.0),
+                );
+
+                assert_eq!(dist1, dist2)
+            }
+        }
+
+        #[test]
+        fn correctly_decreases_future_rewards_with_more_passed_epochs() {
+            let mut test = TestSetup::new();
+            let pledge1 = Uint128::new(200_000_000_000);
+            let pledge_change = Uint128::new(50_000_000_000);
+
+            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            test.set_pending_pledge_change(mix_id_repledge, None);
+
+            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
+            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
+            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
+
+            test.skip_to_next_epoch_end();
+            test.force_change_rewarded_set(vec![mix_id_repledge]);
+
+            let mut cumulative_op_reward = Decimal::zero();
+            let mut cumulative_del_reward = Decimal::zero();
+
+            // go few epochs of rewarding before decreasing pledge
+            for _ in 0..500 {
+                test.skip_to_next_epoch_end();
+                let dist = test.reward_with_distribution_with_state_bypass(
+                    mix_id_repledge,
+                    test_helpers::performance(100.0),
+                );
+                cumulative_op_reward += dist.operator;
+                cumulative_del_reward += dist.delegates;
+            }
+
+            let decrease = test.coin(pledge_change.u128());
+            decrease_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
+
+            let pledge3 =
+                Uint128::new(150_000_000_000) + truncate_reward_amount(cumulative_op_reward);
+            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+
+            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_full_pledge);
+
+            let lost_operator = cumulative_op_reward
+                - Decimal::from_atomics(truncate_reward_amount(cumulative_op_reward), 0).unwrap();
+            let lost_delegates = cumulative_del_reward
+                - Decimal::from_atomics(truncate_reward_amount(cumulative_del_reward), 0).unwrap();
+
+            // add the tiny bit of lost precision manually
+            let mut mix_rewarding_full = test.mix_rewarding(mix_id_full_pledge);
+            mix_rewarding_full.delegates += lost_delegates;
+            mix_rewarding_full.operator += lost_operator;
+            rewards_storage::MIXNODE_REWARDING
+                .save(
+                    test.deps_mut().storage,
+                    mix_id_full_pledge,
+                    &mix_rewarding_full,
+                )
+                .unwrap();
+
+            test.add_immediate_delegation(
+                "dave",
+                truncate_reward_amount(cumulative_del_reward).u128(),
+                mix_id_full_pledge,
+            );
+
+            test.skip_to_next_epoch_end();
+            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+
+            // go through few more epochs of rewarding
+            for _ in 0..500 {
+                test.skip_to_next_epoch_end();
+                let dist1 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_repledge,
+                    test_helpers::performance(100.0),
+                );
+                let dist2 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_full_pledge,
+                    test_helpers::performance(100.0),
+                );
+
+                assert_eq!(dist1, dist2)
+            }
+        }
+
+        #[test]
+        fn updates_the_pending_pledge_changes_field() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            test.set_pending_pledge_change(mix_id, None);
+
+            let amount = test.coin(12345);
+            decrease_pledge(test.deps_mut(), 123, mix_id, amount).unwrap();
+            let pending = mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .load(test.deps().storage, mix_id)
+                .unwrap();
+            assert!(pending.pledge_change.is_none())
         }
     }
 
@@ -1414,10 +1983,13 @@ mod tests {
 
     #[cfg(test)]
     mod changing_mix_cost_params {
-        use super::*;
-        use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use cosmwasm_std::coin;
+
         use mixnet_contract_common::Percent;
+
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
+
+        use super::*;
 
         #[test]
         fn doesnt_do_anything_if_mixnode_has_unbonded() {
@@ -1455,7 +2027,7 @@ mod tests {
                     Response::new().add_event(new_mixnode_cost_params_update_event(
                         123,
                         mix_id,
-                        &new_params
+                        &new_params,
                     ))
                 )
             );

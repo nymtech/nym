@@ -6,7 +6,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use tokio::sync::RwLock;
 
-use validator_client::nyxd::ValidatorResponse;
+use nym_validator_client::nyxd::ValidatorResponse;
 
 use crate::cache::Cache;
 

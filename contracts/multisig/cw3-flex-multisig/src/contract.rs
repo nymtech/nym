@@ -18,8 +18,8 @@ use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration, ThresholdResponse};
 
 use crate::state::{Config, CONFIG};
-use multisig_contract_common::error::ContractError;
-use multisig_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use nym_multisig_contract_common::error::ContractError;
+use nym_multisig_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:cw3-flex-multisig";
@@ -502,7 +502,7 @@ mod tests {
     // uploads code and returns address of group contract
     fn instantiate_group(app: &mut App, members: Vec<Member>) -> Addr {
         let group_id = app.store_code(contract_group());
-        let msg = group_contract_common::msg::InstantiateMsg {
+        let msg = nym_group_contract_common::msg::InstantiateMsg {
             admin: Some(OWNER.into()),
             members,
         };
@@ -780,7 +780,7 @@ mod tests {
         let err = app
             .execute_contract(
                 Addr::unchecked(TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string()),
-                flex_addr.clone(),
+                flex_addr,
                 &proposal_wrong_exp,
                 &[],
             )
@@ -856,12 +856,7 @@ mod tests {
 
         let proposer = TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string();
         let res = app
-            .execute_contract(
-                Addr::unchecked(&proposer),
-                flex_addr.clone(),
-                &proposal,
-                &[],
-            )
+            .execute_contract(Addr::unchecked(&proposer), flex_addr, &proposal, &[])
             .unwrap();
         assert_eq!(
             res.custom_attrs(1),
@@ -1410,7 +1405,7 @@ mod tests {
         // adds NEWBIE with 2 power -> with snapshot, invalid vote
         // removes VOTER3 -> with snapshot, can vote on proposal
         let newbie: &str = "newbie";
-        let update_msg = group_contract_common::msg::ExecuteMsg::UpdateMembers {
+        let update_msg = nym_group_contract_common::msg::ExecuteMsg::UpdateMembers {
             remove: vec![VOTER3.into()],
             add: vec![member(VOTER2, 21), member(newbie, 2)],
         };
@@ -1623,7 +1618,7 @@ mod tests {
 
         // admin changes the group (3 -> 0, 2 -> 9, 0 -> 29) - total = 56, require 29 to pass
         let newbie: &str = "newbie";
-        let update_msg = group_contract_common::msg::ExecuteMsg::UpdateMembers {
+        let update_msg = nym_group_contract_common::msg::ExecuteMsg::UpdateMembers {
             remove: vec![VOTER3.into()],
             add: vec![member(VOTER2, 9), member(newbie, 29)],
         };
@@ -1702,7 +1697,7 @@ mod tests {
 
         // admin changes the group (3 -> 0, 2 -> 9, 0 -> 28) - total = 55, require 28 to pass
         let newbie: &str = "newbie";
-        let update_msg = group_contract_common::msg::ExecuteMsg::UpdateMembers {
+        let update_msg = nym_group_contract_common::msg::ExecuteMsg::UpdateMembers {
             remove: vec![VOTER3.into()],
             add: vec![member(VOTER2, 9), member(newbie, 29)],
         };

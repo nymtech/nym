@@ -1,5 +1,5 @@
 [package]
-name = "proxy-helpers"
+name = "nym-socks5-proxy-helpers"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
@@ -16,8 +16,8 @@ futures = "0.3"
 log = { workspace = true }
 
 # internal
-ordered-buffer = { path = "../ordered-buffer" }
-socks5-requests = { path = "../requests" }
+nym-ordered-buffer = { path = "../ordered-buffer" }
+nym-socks5-requests = { path = "../requests" }
 nym-task = { path = "../../task" }
 
 [dev-dependencies]

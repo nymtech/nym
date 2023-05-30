@@ -2,10 +2,11 @@ use crate::{
     error::{BackendError, Result},
     state::State,
 };
-use client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
+use nym_client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
 use nym_config_common::NymConfig;
+use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_crypto::asymmetric::identity;
-use nym_socks5::client::config::Config as Socks5Config;
+use nym_socks5_client_core::config::{Config as Socks5Config, Socks5};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tap::TapFallible;
@@ -49,13 +50,17 @@ impl Config {
         }
     }
 
-    pub fn get_socks5(&self) -> &Socks5Config {
+    pub fn get_config(&self) -> &Socks5Config {
         &self.socks5
     }
 
+    pub fn get_socks5(&self) -> &Socks5 {
+        self.socks5.get_socks5()
+    }
+
     #[allow(unused)]
-    pub fn get_socks5_mut(&mut self) -> &mut Socks5Config {
-        &mut self.socks5
+    pub fn get_socks5_mut(&mut self) -> &mut Socks5 {
+        self.socks5.get_socks5_mut()
     }
 
     pub fn get_base(&self) -> &BaseConfig<Socks5Config> {
@@ -111,10 +116,10 @@ pub async fn init_socks5_config(
     let chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
-    let mut key_manager = client_core::init::new_client_keys();
+    let mut key_manager = nym_client_core::init::new_client_keys();
 
     // Setup gateway and register a new key each time
-    let gateway = client_core::init::register_with_gateway(
+    let gateway = nym_client_core::init::register_with_gateway::<EphemeralStorage>(
         &mut key_manager,
         nym_api_endpoints,
         Some(chosen_gateway_id),
@@ -135,7 +140,7 @@ pub async fn init_socks5_config(
 fn print_saved_config(config: &Config) {
     log::info!(
         "Saved configuration file to {:?}",
-        config.get_socks5().get_config_file_save_location()
+        config.get_config().get_config_file_save_location()
     );
     log::info!("Gateway id: {}", config.get_base().get_gateway_id());
     log::info!("Gateway owner: {}", config.get_base().get_gateway_owner());

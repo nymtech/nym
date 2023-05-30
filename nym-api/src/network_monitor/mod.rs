@@ -16,15 +16,15 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
 use crate::support::config::Config;
 use crate::support::nyxd;
-use credential_storage::PersistentStorage;
 use futures::channel::mpsc;
-use gateway_client::bandwidth::BandwidthController;
+use nym_bandwidth_controller::BandwidthController;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_sphinx::acknowledgements::AckKey;
+use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskManager;
 use std::sync::Arc;
-use validator_client::nyxd::SigningNyxdClient;
 
-pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
 pub(crate) mod monitor;
 pub(crate) mod test_packet;
@@ -36,13 +36,11 @@ pub(crate) fn setup<'a>(
     config: &'a Config,
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
-    _nyxd_client: nyxd::Client,
-    system_version: &str,
+    nyxd_client: nyxd::Client,
 ) -> NetworkMonitorBuilder<'a> {
     NetworkMonitorBuilder::new(
         config,
-        _nyxd_client,
-        system_version,
+        nyxd_client,
         storage.to_owned(),
         nym_contract_cache_state.to_owned(),
     )
@@ -50,8 +48,7 @@ pub(crate) fn setup<'a>(
 
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
-    _nyxd_client: nyxd::Client,
-    system_version: String,
+    nyxd_client: nyxd::Client,
     node_status_storage: NymApiStorage,
     validator_cache: NymContractCache,
 }
@@ -59,21 +56,21 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
 impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
-        _nyxd_client: nyxd::Client,
-        system_version: &str,
+        nyxd_client: nyxd::Client,
         node_status_storage: NymApiStorage,
         validator_cache: NymContractCache,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
-            _nyxd_client,
-            system_version: system_version.to_string(),
+            nyxd_client,
             node_status_storage,
             validator_cache,
         }
     }
 
-    pub(crate) async fn build(self) -> NetworkMonitorRunnables {
+    pub(crate) async fn build<R: MessageReceiver + Send + 'static>(
+        self,
+    ) -> NetworkMonitorRunnables<R> {
         // TODO: those keys change constant throughout the whole execution of the monitor.
         // and on top of that, they are used with ALL the gateways -> presumably this should change
         // in the future
@@ -81,25 +78,27 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
         let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
         let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
+        let ack_key = Arc::new(AckKey::new(&mut rng));
 
         let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
         let (received_processor_sender_channel, received_processor_receiver_channel) =
             mpsc::unbounded();
 
         let packet_preparer = new_packet_preparer(
-            &self.system_version,
             self.validator_cache,
             self.config.get_per_node_test_packets(),
+            Arc::clone(&ack_key),
             *identity_keypair.public_key(),
             *encryption_keypair.public_key(),
         );
 
         let bandwidth_controller = {
-            let client = self._nyxd_client.0.read().await;
             BandwidthController::new(
-                credential_storage::initialise_storage(self.config.get_credentials_database_path())
-                    .await,
-                client.clone(),
+                nym_credential_storage::initialise_persistent_storage(
+                    self.config.get_credentials_database_path(),
+                )
+                .await,
+                self.nyxd_client.clone(),
             )
         };
 
@@ -115,6 +114,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let received_processor = new_received_processor(
             received_processor_receiver_channel,
             Arc::clone(&encryption_keypair),
+            ack_key,
         );
         let summary_producer = new_summary_producer(self.config.get_per_node_test_packets());
         let packet_receiver = new_packet_receiver(
@@ -138,12 +138,12 @@ impl<'a> NetworkMonitorBuilder<'a> {
     }
 }
 
-pub(crate) struct NetworkMonitorRunnables {
-    monitor: Monitor,
+pub(crate) struct NetworkMonitorRunnables<R: MessageReceiver + Send + 'static> {
+    monitor: Monitor<R>,
     packet_receiver: PacketReceiver,
 }
 
-impl NetworkMonitorRunnables {
+impl<R: MessageReceiver + Send + 'static> NetworkMonitorRunnables<R> {
     // TODO: note, that is not exactly doing what we want, because when
     // `ReceivedProcessor` is constructed, it already spawns a future
     // this needs to be refactored!
@@ -158,16 +158,16 @@ impl NetworkMonitorRunnables {
 }
 
 fn new_packet_preparer(
-    system_version: &str,
     validator_cache: NymContractCache,
     per_node_test_packets: usize,
+    ack_key: Arc<AckKey>,
     self_public_identity: identity::PublicKey,
     self_public_encryption: encryption::PublicKey,
 ) -> PacketPreparer {
     PacketPreparer::new(
-        system_version,
         validator_cache,
         per_node_test_packets,
+        ack_key,
         self_public_identity,
         self_public_encryption,
     )
@@ -178,7 +178,7 @@ fn new_packet_sender(
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     max_sending_rate: usize,
-    bandwidth_controller: BandwidthController<SigningNyxdClient, PersistentStorage>,
+    bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
     disabled_credentials_mode: bool,
 ) -> PacketSender {
     PacketSender::new(
@@ -193,11 +193,12 @@ fn new_packet_sender(
     )
 }
 
-fn new_received_processor(
+fn new_received_processor<R: MessageReceiver + Send + 'static>(
     packets_receiver: ReceivedProcessorReceiver,
     client_encryption_keypair: Arc<encryption::KeyPair>,
-) -> ReceivedProcessor {
-    ReceivedProcessor::new(packets_receiver, client_encryption_keypair)
+    ack_key: Arc<AckKey>,
+) -> ReceivedProcessor<R> {
+    ReceivedProcessor::new(packets_receiver, client_encryption_keypair, ack_key)
 }
 
 fn new_summary_producer(per_node_test_packets: usize) -> SummaryProducer {
@@ -215,22 +216,16 @@ fn new_packet_receiver(
 
 // TODO: 1) does it still have to have separate builder or could we get rid of it now?
 // TODO: 2) how do we make it non-async as other 'start' methods?
-pub(crate) async fn start(
+pub(crate) async fn start<R: MessageReceiver + Send + 'static>(
     config: &Config,
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
-    system_version: &str,
     shutdown: &TaskManager,
 ) {
-    let monitor_builder = network_monitor::setup(
-        config,
-        nym_contract_cache_state,
-        storage,
-        nyxd_client,
-        system_version,
-    );
+    let monitor_builder =
+        network_monitor::setup(config, nym_contract_cache_state, storage, nyxd_client);
     info!("Starting network monitor...");
-    let runnables = monitor_builder.build().await;
+    let runnables: NetworkMonitorRunnables<R> = monitor_builder.build().await;
     runnables.spawn_tasks(shutdown);
 }

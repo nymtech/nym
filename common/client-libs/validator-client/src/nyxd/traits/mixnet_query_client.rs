@@ -6,6 +6,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::NyxdClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
+use nym_contracts_common::signing::Nonce;
 use nym_mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
 use nym_mixnet_contract_common::families::Family;
 use nym_mixnet_contract_common::mixnode::{
@@ -18,12 +19,14 @@ use nym_mixnet_contract_common::rewarding::{
 };
 use nym_mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
-    CurrentIntervalResponse, EpochEventId, GatewayBondResponse, GatewayOwnershipResponse,
-    IdentityKey, IntervalEventId, LayerDistribution, MixId, MixOwnershipResponse,
-    MixnodeDetailsResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedFamiliesResponse, PagedGatewayResponse, PagedMembersResponse,
-    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse,
-    PendingEpochEventsResponse, PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
+    CurrentIntervalResponse, EpochEventId, EpochStatus, GatewayBondResponse,
+    GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution, MixId,
+    MixOwnershipResponse, MixnodeDetailsResponse, NumberOfPendingEventsResponse,
+    PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedFamiliesResponse,
+    PagedGatewayResponse, PagedMembersResponse, PagedMixNodeDelegationsResponse,
+    PagedMixnodeBondsResponse, PagedRewardedSetResponse, PendingEpochEventResponse,
+    PendingEpochEventsResponse, PendingIntervalEventResponse, PendingIntervalEventsResponse,
+    QueryMsg as MixnetQueryMsg,
 };
 use serde::Deserialize;
 
@@ -57,6 +60,11 @@ pub trait MixnetQueryClient {
 
     async fn get_rewarding_parameters(&self) -> Result<RewardingParams, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetRewardingParams {})
+            .await
+    }
+
+    async fn get_current_epoch_status(&self) -> Result<EpochStatus, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetEpochStatus {})
             .await
     }
 
@@ -165,6 +173,16 @@ pub trait MixnetQueryClient {
     ) -> Result<MixnodeDetailsResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetMixnodeDetails { mix_id })
             .await
+    }
+
+    async fn get_mixnode_details_by_identity(
+        &self,
+        mix_identity: IdentityKey,
+    ) -> Result<Option<MixNodeDetails>, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity {
+            mix_identity,
+        })
+        .await
     }
 
     async fn get_mixnode_rewarding_details(
@@ -367,12 +385,32 @@ pub trait MixnetQueryClient {
             .await
     }
 
-    async fn get_mixnode_details_by_identity(
+    async fn get_pending_epoch_event(
         &self,
-        mix_identity: IdentityKey,
-    ) -> Result<Option<MixNodeDetails>, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity {
-            mix_identity,
+        event_id: EpochEventId,
+    ) -> Result<PendingEpochEventResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetPendingEpochEvent { event_id })
+            .await
+    }
+
+    async fn get_pending_interval_event(
+        &self,
+        event_id: IntervalEventId,
+    ) -> Result<PendingIntervalEventResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetPendingIntervalEvent { event_id })
+            .await
+    }
+
+    async fn get_number_of_pending_events(
+        &self,
+    ) -> Result<NumberOfPendingEventsResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetNumberOfPendingEvents {})
+            .await
+    }
+
+    async fn get_signing_nonce(&self, address: &AccountId) -> Result<Nonce, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetSigningNonce {
+            address: address.to_string(),
         })
         .await
     }
@@ -395,7 +433,7 @@ pub trait MixnetQueryClient {
 #[async_trait]
 impl<C> MixnetQueryClient for NyxdClient<C>
 where
-    C: CosmWasmClient + Sync + Send + Clone,
+    C: CosmWasmClient + Sync + Send,
 {
     async fn query_mixnet_contract<T>(&self, query: MixnetQueryMsg) -> Result<T, NyxdError>
     where
@@ -410,7 +448,7 @@ where
 #[async_trait]
 impl<C> MixnetQueryClient for crate::Client<C>
 where
-    C: CosmWasmClient + Sync + Send + Clone,
+    C: CosmWasmClient + Sync + Send,
 {
     async fn query_mixnet_contract<T>(&self, query: MixnetQueryMsg) -> Result<T, NyxdError>
     where

@@ -5,7 +5,7 @@ use cosmrs::AccountId;
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 
-use coconut_interface::{
+use nym_coconut_interface::{
     error::CoconutInterfaceError, Attribute, Base58, BlindSignRequest, Credential, VerificationKey,
 };
 

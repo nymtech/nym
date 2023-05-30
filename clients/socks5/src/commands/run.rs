@@ -1,17 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::try_upgrade_v1_1_13_config;
 use crate::{
-    client::{config::Config, NymClient},
     commands::{override_config, OverrideConfig},
     error::Socks5ClientError,
 };
-
 use clap::Args;
 use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
+use nym_socks5_client_core::{config::Config, NymClient};
 use nym_sphinx::addressing::clients::Recipient;
 
 #[derive(Args, Clone)]
@@ -108,6 +108,10 @@ fn version_check(cfg: &Config) -> bool {
 pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let id = &args.id;
 
+    // in case we're using old config, try to upgrade it
+    // (if we're using the current version, it's a no-op)
+    try_upgrade_v1_1_13_config(id)?;
+
     let mut config = match Config::load_from_file(id) {
         Ok(cfg) => cfg,
         Err(err) => {
@@ -117,6 +121,10 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error 
             )));
         }
     };
+
+    if !config.validate() {
+        return Err(Box::new(Socks5ClientError::ConfigValidationFailure));
+    }
 
     let override_config_fields = OverrideConfig::from(args.clone());
     config = override_config(config, override_config_fields);

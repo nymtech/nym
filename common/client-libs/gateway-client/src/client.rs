@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::bandwidth::BandwidthController;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
 pub use crate::packet_router::{
@@ -9,14 +8,15 @@ pub use crate::packet_router::{
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
-use coconut_interface::Credential;
 use futures::{SinkExt, StreamExt};
-use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
-use gateway_requests::iv::IV;
-use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
-use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, PROTOCOL_VERSION};
 use log::*;
+use nym_bandwidth_controller::BandwidthController;
+use nym_coconut_interface::Credential;
 use nym_crypto::asymmetric::identity;
+use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
+use nym_gateway_requests::iv::IV;
+use nym_gateway_requests::registration::handshake::{client_handshake, SharedKeys};
+use nym_gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, PROTOCOL_VERSION};
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
@@ -26,23 +26,14 @@ use std::sync::Arc;
 use std::time::Duration;
 use tungstenite::protocol::Message;
 
+use nym_credential_storage::storage::Storage;
+#[cfg(not(target_arch = "wasm32"))]
+use nym_validator_client::nyxd::traits::DkgQueryClient;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
-#[cfg(not(target_arch = "wasm32"))]
-use validator_client::nyxd::CosmWasmClient;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(feature = "mobile"))]
-use credential_storage::PersistentStorage;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "mobile")]
-use mobile_storage::PersistentStorage;
 
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::CosmWasmClient;
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::PersistentStorage;
+use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 #[cfg(target_arch = "wasm32")]
@@ -51,7 +42,7 @@ use wasm_utils::websocket::JSWebsocket;
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
-pub struct GatewayClient<C: Clone> {
+pub struct GatewayClient<C, St: Storage> {
     authenticated: bool,
     disabled_credentials_mode: bool,
     bandwidth_remaining: i64,
@@ -62,7 +53,7 @@ pub struct GatewayClient<C: Clone> {
     connection: SocketState,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
-    bandwidth_controller: Option<BandwidthController<C, PersistentStorage>>,
+    bandwidth_controller: Option<BandwidthController<C, St>>,
 
     // reconnection related variables
     /// Specifies whether client should try to reconnect to gateway on connection failure.
@@ -77,9 +68,11 @@ pub struct GatewayClient<C: Clone> {
     shutdown: TaskClient,
 }
 
-impl<C> GatewayClient<C>
+impl<C, St> GatewayClient<C, St>
 where
-    C: CosmWasmClient + Sync + Send + Clone,
+    C: Sync + Send,
+    St: Storage,
+    <St as Storage>::StorageError: Send + Sync + 'static,
 {
     // TODO: put it all in a Config struct
     #[allow(clippy::too_many_arguments)]
@@ -87,11 +80,12 @@ where
         gateway_address: String,
         local_identity: Arc<identity::KeyPair>,
         gateway_identity: identity::PublicKey,
+        // TODO: make it mandatory. if you don't want to pass it, use `new_init`
         shared_key: Option<Arc<SharedKeys>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
-        bandwidth_controller: Option<BandwidthController<C, PersistentStorage>>,
+        bandwidth_controller: Option<BandwidthController<C, St>>,
         shutdown: TaskClient,
     ) -> Self {
         GatewayClient {
@@ -145,7 +139,7 @@ where
         let shutdown = TaskClient::dummy();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
-        GatewayClient::<C> {
+        GatewayClient::<C, St> {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,
@@ -236,7 +230,7 @@ where
 
         for i in 1..self.reconnection_attempts {
             info!("attempt {}...", i);
-            if self.authenticate_and_start().await.is_ok() {
+            if self.try_reconnect().await.is_ok() {
                 info!("managed to reconnect!");
                 return Ok(());
             }
@@ -255,7 +249,7 @@ where
 
         // final attempt (done separately to be able to return a proper error)
         info!("attempt {}", self.reconnection_attempts);
-        match self.authenticate_and_start().await {
+        match self.try_reconnect().await {
             Ok(_) => {
                 info!("managed to reconnect!");
                 Ok(())
@@ -573,7 +567,10 @@ where
         Ok(())
     }
 
-    pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError> {
+    pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError>
+    where
+        C: DkgQueryClient,
+    {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
@@ -760,7 +757,24 @@ where
         Ok(())
     }
 
-    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError> {
+    async fn try_reconnect(&mut self) -> Result<(), GatewayClientError> {
+        if !self.connection.is_established() {
+            self.establish_connection().await?;
+        }
+
+        // TODO: the name of this method is very deceiving
+        self.perform_initial_authentication().await?;
+
+        // this call is NON-blocking
+        self.start_listening_for_mixnet_messages()?;
+
+        Ok(())
+    }
+
+    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError>
+    where
+        C: DkgQueryClient,
+    {
         if !self.connection.is_established() {
             self.establish_connection().await?;
         }

@@ -10,6 +10,7 @@ const mockValues: TClientContext = {
   gatewayPerformance: 'Good',
   showInfoModal: false,
   userDefinedGateway: { isActive: false, gateway: '' },
+  userDefinedSPAddress: { isActive: false, address: '' },
   setShowInfoModal: () => {},
   setMode: () => {},
   clearError: () => {},
@@ -18,8 +19,9 @@ const mockValues: TClientContext = {
   setConnectionStatus: () => {},
   startConnecting: async () => {},
   startDisconnecting: async () => {},
-  setRandomSerivceProvider: () => {},
+  setSerivceProvider: () => {},
   setUserDefinedGateway: () => {},
+  setUserDefinedSPAddress: () => {},
 };
 
 export const MockProvider: FCWithChildren<{

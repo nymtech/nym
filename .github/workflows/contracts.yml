@@ -30,6 +30,7 @@ jobs:
     continue-on-error: ${{ matrix.rust == 'nightly' }}
     needs: matrix_prep
     strategy:
+      fail-fast: false
       matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
     steps:
       - uses: actions/checkout@v2
@@ -63,4 +64,4 @@ jobs:
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --manifest-path contracts/Cargo.toml --workspace -- -D warnings
+          args: --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings

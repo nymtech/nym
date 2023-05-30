@@ -1,31 +1,30 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_interface::Credential;
+use super::authenticated::RequestHandlingError;
 use log::*;
-use std::time::{Duration, SystemTime};
-use validator_client::nyxd::traits::DkgQueryClient;
-use validator_client::{
+use nym_coconut_interface::Credential;
+use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::{
     nyxd::{
         cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
         traits::{CoconutBandwidthSigningClient, MultisigQueryClient, MultisigSigningClient},
-        Coin, Fee, SigningNyxdClient,
+        Coin, DirectSigningNyxdClient, Fee,
     },
     Client, CoconutApiClient,
 };
-
-use super::authenticated::RequestHandlingError;
+use std::time::{Duration, SystemTime};
 
 const ONE_HOUR_SEC: u64 = 3600;
 const MAX_FEEGRANT_UNYM: u128 = 10000;
 
 pub(crate) struct CoconutVerifier {
-    nyxd_client: Client<SigningNyxdClient>,
+    nyxd_client: Client<DirectSigningNyxdClient>,
     mix_denom_base: String,
 }
 
 impl CoconutVerifier {
-    pub fn new(nyxd_client: Client<SigningNyxdClient>) -> Self {
+    pub fn new(nyxd_client: Client<DirectSigningNyxdClient>) -> Self {
         let mix_denom_base = nyxd_client
             .nyxd
             .current_chain_details()

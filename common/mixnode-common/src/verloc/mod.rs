@@ -178,7 +178,7 @@ pub struct VerlocMeasurer {
     // It only does bunch of REST queries. If we update it at some point to a more sophisticated (maybe signing) client,
     // then it definitely cannot be constructed here and probably will need to be passed from outside,
     // as mixnodes/gateways would already be using an instance of said client.
-    validator_client: validator_client::NymApiClient,
+    validator_client: nym_validator_client::NymApiClient,
     results: AtomicVerlocResult,
 }
 
@@ -206,7 +206,9 @@ impl VerlocMeasurer {
             )),
             shutdown_listener,
             currently_used_api: 0,
-            validator_client: validator_client::NymApiClient::new(config.nym_api_urls[0].clone()),
+            validator_client: nym_validator_client::NymApiClient::new(
+                config.nym_api_urls[0].clone(),
+            ),
             config,
             results: AtomicVerlocResult::new(),
         }
@@ -234,8 +236,13 @@ impl VerlocMeasurer {
 
     async fn perform_measurement(&self, nodes_to_test: Vec<TestedNode>) -> MeasurementOutcome {
         log::trace!("Performing measurements");
+        if nodes_to_test.is_empty() {
+            log::debug!("there are no nodes to measure");
+            return MeasurementOutcome::Done;
+        }
 
         let mut shutdown_listener = self.shutdown_listener.clone();
+        shutdown_listener.mark_as_success();
 
         for chunk in nodes_to_test.chunks(self.config.tested_nodes_batch_size) {
             let mut chunk_results = Vec::with_capacity(chunk.len());
@@ -262,7 +269,12 @@ impl VerlocMeasurer {
             // exhaust the results
             while !shutdown_listener.is_shutdown() {
                 tokio::select! {
-                    Some(result) = measurement_chunk.next() => {
+                    measurement_result = measurement_chunk.next() => {
+                        let Some(result) = measurement_result  else {
+                            // if the stream has finished, it means we got everything we could have gotten
+                            break
+                        };
+
                         // if we receive JoinError it means the task failed to get executed, so either there's a bigger issue with tokio
                         // or there was a panic inside the task itself. In either case, we should just terminate ourselves.
                         let execution_result = result.expect("the measurement task panicked!");

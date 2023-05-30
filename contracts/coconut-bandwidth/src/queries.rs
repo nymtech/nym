@@ -1,11 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_bandwidth_contract_common::spend_credential::{
-    PagedSpendCredentialResponse, SpendCredential, SpendCredentialResponse,
-};
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
+use nym_coconut_bandwidth_contract_common::spend_credential::{
+    PagedSpendCredentialResponse, SpendCredential, SpendCredentialResponse,
+};
 
 use crate::storage::{self, SPEND_CREDENTIAL_PAGE_DEFAULT_LIMIT, SPEND_CREDENTIAL_PAGE_MAX_LIMIT};
 

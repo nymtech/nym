@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use bls12_381::{G2Projective, Scalar};
-use dkg::bte::{decrypt_share, keygen, setup};
-use dkg::dealing::RecoveredVerificationKeys;
-use dkg::interpolation::perform_lagrangian_interpolation_at_origin;
-use dkg::{combine_shares, try_recover_verification_keys, Dealing};
+use nym_dkg::bte::{decrypt_share, keygen, setup};
+use nym_dkg::dealing::RecoveredVerificationKeys;
+use nym_dkg::interpolation::perform_lagrangian_interpolation_at_origin;
+use nym_dkg::{combine_shares, try_recover_verification_keys, Dealing};
 use rand_core::SeedableRng;
 use std::collections::BTreeMap;
 

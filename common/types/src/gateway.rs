@@ -81,7 +81,6 @@ impl GatewayBond {
 pub struct GatewayNodeDetailsResponse {
     pub identity_key: String,
     pub sphinx_key: String,
-    pub owner_signature: String,
     pub announce_address: String,
     pub bind_address: String,
     pub version: String,
@@ -94,7 +93,6 @@ impl fmt::Display for GatewayNodeDetailsResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Identity Key: {}", self.identity_key)?;
         writeln!(f, "Sphinx Key: {}", self.sphinx_key)?;
-        writeln!(f, "Owner Signature: {}", self.owner_signature)?;
         writeln!(
             f,
             "Host: {} (bind address: {})",

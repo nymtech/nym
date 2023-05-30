@@ -13,8 +13,8 @@ use nym_types::deprecated::{
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::pending_events::PendingEpochEvent;
 use nym_types::transaction::TransactionExecuteResult;
-use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
-use validator_client::nyxd::Fee;
+use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_validator_client::nyxd::Fee;
 
 #[tauri::command]
 pub async fn get_pending_delegation_events(

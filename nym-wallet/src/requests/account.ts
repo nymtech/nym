@@ -2,7 +2,7 @@ import { Account, Balance, AccountEntry } from '@nymproject/types';
 import { invokeWrapper } from './wrapper';
 
 export const signInWithMnemonic = async (mnemonic: string): Promise<Account> =>
-  invokeWrapper<Account>('connect_with_mnemonic', { mnemonic });
+  invokeWrapper('connect_with_mnemonic', { mnemonic });
 
 export const userBalance = async () => invokeWrapper<Balance>('get_balance');
 
@@ -16,6 +16,14 @@ export const isPasswordCreated = async () => invokeWrapper<boolean>('does_passwo
 
 export const createPassword = async ({ mnemonic, password }: { mnemonic: string; password: string }) =>
   invokeWrapper<void>('create_password', { mnemonic, password });
+
+export const updatePassword = async ({
+  currentPassword,
+  newPassword,
+}: {
+  currentPassword: string;
+  newPassword: string;
+}) => invokeWrapper<void>('update_password', { currentPassword, newPassword });
 
 export const signInWithPassword = async (password: string) =>
   invokeWrapper<Account>('sign_in_with_password', { password });

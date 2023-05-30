@@ -1,5 +1,8 @@
+use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{Coin, Timestamp};
+use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{
+    gateway::GatewayConfigUpdate,
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
     Gateway, IdentityKey, MixId, MixNode,
 };
@@ -58,20 +61,17 @@ pub enum ExecuteMsg {
     // Families
     /// Only owner of the node can crate the family with node as head
     CreateFamily {
-        owner_signature: String,
         label: String,
     },
-    /// Family head needs to sign the joining node IdentityKey
+    /// Family head needs to sign the joining node IdentityKey, the Node provides its signature signaling consent to join the family
     JoinFamily {
-        signature: String,
-        family_head: IdentityKey,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
     },
     LeaveFamily {
-        signature: String,
-        family_head: IdentityKey,
+        family_head: FamilyHead,
     },
     KickFamilyMember {
-        signature: String,
         member: IdentityKey,
     },
     TrackReward {
@@ -117,10 +117,13 @@ pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         amount: Coin,
     },
     PledgeMore {
+        amount: Coin,
+    },
+    DecreasePledge {
         amount: Coin,
     },
     UnbondMixnode {},
@@ -128,15 +131,22 @@ pub enum ExecuteMsg {
         owner: String,
         amount: Coin,
     },
+    TrackDecreasePledge {
+        owner: String,
+        amount: Coin,
+    },
     BondGateway {
         gateway: Gateway,
-        owner_signature: String,
+        owner_signature: MessageSignature,
         amount: Coin,
     },
     UnbondGateway {},
     TrackUnbondGateway {
         owner: String,
         amount: Coin,
+    },
+    UpdateGatewayConfig {
+        new_config: GatewayConfigUpdate,
     },
     TransferOwnership {
         to_address: String,
@@ -172,11 +182,14 @@ impl ExecuteMsg {
             ExecuteMsg::TrackUndelegation { .. } => "VestingExecuteMsg::TrackUndelegation",
             ExecuteMsg::BondMixnode { .. } => "VestingExecuteMsg::BondMixnode",
             ExecuteMsg::PledgeMore { .. } => "VestingExecuteMsg::PledgeMore",
+            ExecuteMsg::DecreasePledge { .. } => "VestingExecuteMsg::DecreasePledge",
             ExecuteMsg::UnbondMixnode { .. } => "VestingExecuteMsg::UnbondMixnode",
             ExecuteMsg::TrackUnbondMixnode { .. } => "VestingExecuteMsg::TrackUnbondMixnode",
+            ExecuteMsg::TrackDecreasePledge { .. } => "VestingExecuteMsg::TrackDecreasePledge",
             ExecuteMsg::BondGateway { .. } => "VestingExecuteMsg::BondGateway",
             ExecuteMsg::UnbondGateway { .. } => "VestingExecuteMsg::UnbondGateway",
             ExecuteMsg::TrackUnbondGateway { .. } => "VestingExecuteMsg::TrackUnbondGateway",
+            ExecuteMsg::UpdateGatewayConfig { .. } => "VestingExecuteMsg::UpdateGatewayConfig",
             ExecuteMsg::TransferOwnership { .. } => "VestingExecuteMsg::TransferOwnership",
             ExecuteMsg::UpdateStakingAddress { .. } => "VestingExecuteMsg::UpdateStakingAddress",
             ExecuteMsg::UpdateLockedPledgeCap { .. } => "VestingExecuteMsg::UpdateLockedPledgeCap",
@@ -188,6 +201,8 @@ impl ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetContractVersion {},
+    #[serde(rename = "get_cw2_contract_version")]
+    GetCW2ContractVersion {},
     GetAccountsPaged {
         start_next_after: Option<String>,
         limit: Option<u32>,
@@ -253,6 +268,15 @@ pub enum QueryMsg {
     },
     GetCurrentVestingPeriod {
         address: String,
+    },
+    GetDelegation {
+        address: String,
+        mix_id: MixId,
+        block_timestamp_secs: u64,
+    },
+    GetTotalDelegationAmount {
+        address: String,
+        mix_id: MixId,
     },
     GetDelegationTimes {
         address: String,

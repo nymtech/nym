@@ -3,8 +3,8 @@
 
 use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA, THRESHOLD};
 use crate::error::ContractError;
-use coconut_dkg_common::types::{Epoch, InitialReplacementData};
 use cosmwasm_std::Storage;
+use nym_coconut_dkg_common::types::{Epoch, InitialReplacementData};
 
 pub(crate) fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
     CURRENT_EPOCH
@@ -28,8 +28,8 @@ pub(crate) fn query_initial_dealers(
 pub(crate) mod test {
     use super::*;
     use crate::support::tests::helpers::init_contract;
-    use coconut_dkg_common::types::{EpochState, TimeConfiguration};
     use cosmwasm_std::testing::mock_env;
+    use nym_coconut_dkg_common::types::{EpochState, TimeConfiguration};
 
     #[test]
     fn query_state() {

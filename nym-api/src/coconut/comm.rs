@@ -3,10 +3,10 @@
 
 use crate::coconut::error::Result;
 use crate::nyxd;
-use coconut_dkg_common::types::EpochId;
-use coconut_interface::VerificationKey;
-use credentials::coconut::utils::obtain_aggregate_verification_key;
-use validator_client::CoconutApiClient;
+use nym_coconut_dkg_common::types::EpochId;
+use nym_coconut_interface::VerificationKey;
+use nym_credentials::coconut::utils::obtain_aggregate_verification_key;
+use nym_validator_client::CoconutApiClient;
 
 #[async_trait]
 pub trait APICommunicationChannel {
@@ -28,7 +28,7 @@ impl APICommunicationChannel for QueryCommunicationChannel {
     async fn aggregated_verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey> {
         let client = self.nyxd_client.0.read().await;
         let coconut_api_clients =
-            CoconutApiClient::all_coconut_api_clients(&client, epoch_id).await?;
+            CoconutApiClient::all_coconut_api_clients(&client.nyxd, epoch_id).await?;
         let vk = obtain_aggregate_verification_key(&coconut_api_clients).await?;
         Ok(vk)
     }

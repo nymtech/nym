@@ -3,7 +3,7 @@
 
 use nym_cli_commands::context::{create_query_client, create_signing_client, ClientArgs};
 use nym_network_defaults::NymNetworkDetails;
-use validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::AccountId;
 
 pub(crate) async fn execute(
     global_args: ClientArgs,

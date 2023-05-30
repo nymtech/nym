@@ -1,17 +1,24 @@
 [package]
-name = "credential-storage"
+name = "nym-credential-storage"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = { version = "0.1.51" }
+async-trait = { workspace = true }
 
 log = { workspace = true }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
 thiserror = "1.0"
-tokio = { version = "1.24.1", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
+tokio = { version = "1.24.1", features = ["sync"]}
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
+version = "0.5"
+features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
+version = "1.24.1"
+features = [ "rt-multi-thread", "net", "signal", "fs" ]
 
 
 [build-dependencies]

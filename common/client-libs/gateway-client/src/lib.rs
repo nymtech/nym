@@ -1,23 +1,21 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::GatewayClientError;
 pub use client::GatewayClient;
-use gateway_requests::registration::handshake::SharedKeys;
-use gateway_requests::BinaryResponse;
 use log::warn;
+use nym_gateway_requests::BinaryResponse;
 pub use packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use tungstenite::{protocol::Message, Error as WsError};
 
-pub mod bandwidth;
+pub use nym_gateway_requests::registration::handshake::SharedKeys;
+
 pub mod client;
 pub mod error;
 pub mod packet_router;
 pub mod socket_state;
-#[cfg(target_arch = "wasm32")]
-pub mod wasm_mockups;
 
 /// Helper method for reading from websocket stream. Helps to flatten the structure.
 pub(crate) fn cleanup_socket_message(

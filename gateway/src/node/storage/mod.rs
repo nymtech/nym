@@ -7,8 +7,8 @@ use crate::node::storage::inboxes::InboxManager;
 use crate::node::storage::models::{PersistedSharedKeys, StoredMessage};
 use crate::node::storage::shared_keys::SharedKeysManager;
 use async_trait::async_trait;
-use gateway_requests::registration::handshake::SharedKeys;
 use log::{debug, error};
+use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
 use sqlx::ConnectOptions;
 use std::path::Path;
@@ -31,7 +31,7 @@ pub(crate) trait Storage: Send + Sync {
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: SharedKeys,
+        shared_keys: &SharedKeys,
     ) -> Result<(), StorageError>;
 
     /// Tries to retrieve shared keys stored for the particular client.
@@ -197,7 +197,7 @@ impl Storage for PersistentStorage {
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: SharedKeys,
+        shared_keys: &SharedKeys,
     ) -> Result<(), StorageError> {
         let persisted_shared_keys = PersistedSharedKeys {
             client_address_bs58: client_address.as_base58_string(),
@@ -311,13 +311,13 @@ impl Storage for PersistentStorage {
 #[derive(Clone)]
 pub(crate) struct InMemStorage;
 
-#[cfg(test)]
-impl InMemStorage {
-    #[allow(unused)]
-    async fn init<P: AsRef<Path> + Send>() -> Result<Self, StorageError> {
-        todo!()
-    }
-}
+//#[cfg(test)]
+//impl InMemStorage {
+//    #[allow(unused)]
+//    async fn init<P: AsRef<Path> + Send>() -> Result<Self, StorageError> {
+//        todo!()
+//    }
+//}
 
 #[cfg(test)]
 #[async_trait]
@@ -325,7 +325,7 @@ impl Storage for InMemStorage {
     async fn insert_shared_keys(
         &self,
         _client_address: DestinationAddressBytes,
-        _shared_keys: SharedKeys,
+        _shared_keys: &SharedKeys,
     ) -> Result<(), StorageError> {
         todo!()
     }

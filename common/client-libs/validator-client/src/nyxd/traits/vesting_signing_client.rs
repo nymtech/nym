@@ -6,6 +6,10 @@ use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, NyxdClient};
 use async_trait::async_trait;
+use cosmrs::AccountId;
+use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::families::FamilyHead;
+use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
 use nym_vesting_contract_common::messages::{
@@ -34,6 +38,12 @@ pub trait VestingSigningClient {
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
 
+    async fn vesting_update_gateway_config(
+        &self,
+        new_config: GatewayConfigUpdate,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError>;
+
     async fn update_mixnet_address(
         &self,
         address: &str,
@@ -43,7 +53,7 @@ pub trait VestingSigningClient {
     async fn vesting_bond_gateway(
         &self,
         gateway: Gateway,
-        owner_signature: &str,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
@@ -61,7 +71,7 @@ pub trait VestingSigningClient {
         &self,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: &str,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
@@ -75,6 +85,21 @@ pub trait VestingSigningClient {
             fee,
             VestingExecuteMsg::PledgeMore {
                 amount: additional_pledge.into(),
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn vesting_decrease_pledge(
+        &self,
+        decrease_by: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::DecreasePledge {
+                amount: decrease_by.into(),
             },
             vec![],
         )
@@ -128,10 +153,92 @@ pub trait VestingSigningClient {
         cap: Option<PledgeCap>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
+
+    async fn vesting_withdraw_operator_reward(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(fee, VestingExecuteMsg::ClaimOperatorReward {}, Vec::new())
+            .await
+    }
+
+    async fn vesting_withdraw_delegator_reward(
+        &self,
+        mix_id: MixId,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::ClaimDelegatorReward { mix_id },
+            Vec::new(),
+        )
+        .await
+    }
+
+    async fn update_locked_pledge_cap(
+        &self,
+        address: AccountId,
+        cap: PledgeCap,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::UpdateLockedPledgeCap {
+                address: address.to_string(),
+                cap,
+            },
+            Vec::new(),
+        )
+        .await
+    }
+
+    async fn vesting_create_family(
+        &self,
+        label: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(fee, VestingExecuteMsg::CreateFamily { label }, vec![])
+            .await
+    }
+
+    async fn vesting_join_family(
+        &self,
+        join_permit: MessageSignature,
+        family_head: FamilyHead,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::JoinFamily {
+                join_permit,
+                family_head,
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn vesting_leave_family(
+        &self,
+        family_head: FamilyHead,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(fee, VestingExecuteMsg::LeaveFamily { family_head }, vec![])
+            .await
+    }
+
+    async fn vesting_kick_family_member(
+        &self,
+        member: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(fee, VestingExecuteMsg::KickFamilyMember { member }, vec![])
+            .await
+    }
 }
 
 #[async_trait]
-impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for NyxdClient<C> {
+impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NyxdClient<C> {
     async fn execute_vesting_contract(
         &self,
         fee: Option<Fee>,
@@ -184,6 +291,19 @@ impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for Ny
             .await
     }
 
+    async fn vesting_update_gateway_config(
+        &self,
+        new_config: GatewayConfigUpdate,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::UpdateGatewayConfig { new_config },
+            vec![],
+        )
+        .await
+    }
+
     async fn update_mixnet_address(
         &self,
         address: &str,
@@ -208,14 +328,14 @@ impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for Ny
     async fn vesting_bond_gateway(
         &self,
         gateway: Gateway,
-        owner_signature: &str,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::BondGateway {
             gateway,
-            owner_signature: owner_signature.to_string(),
+            owner_signature,
             amount: pledge.into(),
         };
         self.client
@@ -272,7 +392,7 @@ impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for Ny
         &self,
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
-        owner_signature: &str,
+        owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -281,7 +401,7 @@ impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for Ny
             VestingExecuteMsg::BondMixnode {
                 mix_node,
                 cost_params,
-                owner_signature: owner_signature.to_string(),
+                owner_signature,
                 amount: pledge.into(),
             },
             vec![],

@@ -6,7 +6,7 @@
 // right now this has no double-spending protection, spender binding, etc
 // it's the simplest possible case
 
-use coconut_interface::{
+use nym_coconut_interface::{
     hash_to_scalar, prepare_blind_sign, Attribute, BlindSignRequest, Credential, Parameters,
     PrivateAttribute, PublicAttribute, Signature, VerificationKey,
 };
@@ -282,7 +282,7 @@ pub fn prepare_for_spending(
 #[cfg(test)]
 mod test {
     use super::*;
-    use coconut_interface::Base58;
+    use nym_coconut_interface::Base58;
     use rand::rngs::OsRng;
 
     fn voucher_fixture() -> BandwidthVoucher {

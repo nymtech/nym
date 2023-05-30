@@ -8,6 +8,7 @@ use tauri::{Manager, Menu};
 use nym_mixnet_contract_common::{Gateway, MixNode};
 
 use crate::menu::AddDefaultSubmenus;
+use crate::operations::app;
 use crate::operations::help;
 use crate::operations::mixnet;
 use crate::operations::nym_api;
@@ -29,17 +30,19 @@ mod wallet_storage;
 
 #[allow(clippy::too_many_lines)]
 fn main() {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
 
     let context = tauri::generate_context!();
     tauri::Builder::default()
         .manage(WalletState::default())
         .invoke_handler(tauri::generate_handler![
+            app::version::check_version,
             mixnet::account::add_account_for_password,
             mixnet::account::archive_wallet_file,
             mixnet::account::connect_with_mnemonic,
             mixnet::account::create_new_mnemonic,
             mixnet::account::create_password,
+            mixnet::account::update_password,
             mixnet::account::does_password_file_exist,
             mixnet::account::get_balance,
             mixnet::account::list_accounts,
@@ -55,7 +58,9 @@ fn main() {
             mixnet::admin::update_contract_settings,
             mixnet::bond::bond_gateway,
             mixnet::bond::bond_mixnode,
+            mixnet::bond::update_pledge,
             mixnet::bond::pledge_more,
+            mixnet::bond::decrease_pledge,
             mixnet::bond::gateway_bond_details,
             mixnet::bond::get_pending_operator_rewards,
             mixnet::bond::mixnode_bond_details,
@@ -63,6 +68,7 @@ fn main() {
             mixnet::bond::unbond_mixnode,
             mixnet::bond::update_mixnode_cost_params,
             mixnet::bond::update_mixnode_config,
+            mixnet::bond::update_gateway_config,
             mixnet::bond::get_number_of_mixnode_delegators,
             mixnet::bond::get_mix_node_description,
             mixnet::bond::get_mixnode_avg_uptime,
@@ -73,10 +79,6 @@ fn main() {
             mixnet::delegate::get_all_mix_delegations,
             mixnet::delegate::undelegate_from_mixnode,
             mixnet::delegate::undelegate_all_from_mixnode,
-            mixnet::families::create_family,
-            mixnet::families::join_family,
-            mixnet::families::leave_family,
-            mixnet::families::kick_family_member,
             mixnet::interval::get_current_interval,
             mixnet::interval::get_pending_epoch_events,
             mixnet::interval::get_pending_interval_events,
@@ -92,6 +94,9 @@ fn main() {
             network_config::remove_validator,
             network_config::select_nym_api_url,
             network_config::select_nyxd_url,
+            network_config::reset_nyxd_url,
+            network_config::get_default_nyxd_url,
+            network_config::get_selected_nyxd_url,
             network_config::update_nyxd_urls,
             state::load_config_from_files,
             state::save_config_to_files,
@@ -113,11 +118,14 @@ fn main() {
             vesting::rewards::vesting_claim_operator_reward,
             vesting::bond::vesting_bond_gateway,
             vesting::bond::vesting_bond_mixnode,
+            vesting::bond::vesting_update_pledge,
             vesting::bond::vesting_pledge_more,
+            vesting::bond::vesting_decrease_pledge,
             vesting::bond::vesting_unbond_gateway,
             vesting::bond::vesting_unbond_mixnode,
             vesting::bond::vesting_update_mixnode_cost_params,
             vesting::bond::vesting_update_mixnode_config,
+            vesting::bond::vesting_update_gateway_config,
             vesting::bond::withdraw_vested_coins,
             vesting::delegate::vesting_delegate_to_mixnode,
             vesting::delegate::vesting_undelegate_from_mixnode,
@@ -126,6 +134,8 @@ fn main() {
             vesting::queries::locked_coins,
             vesting::queries::original_vesting,
             vesting::queries::spendable_coins,
+            vesting::queries::spendable_vested_coins,
+            vesting::queries::spendable_reward_coins,
             vesting::queries::get_historical_vesting_staking_reward,
             vesting::queries::get_spendable_vested_coins,
             vesting::queries::get_spendable_reward_coins,
@@ -143,13 +153,16 @@ fn main() {
             vesting::queries::vesting_start_time,
             simulate::admin::simulate_update_contract_settings,
             simulate::cosmos::simulate_send,
+            simulate::cosmos::get_custom_fees,
             simulate::mixnet::simulate_bond_gateway,
             simulate::mixnet::simulate_unbond_gateway,
             simulate::mixnet::simulate_bond_mixnode,
+            simulate::mixnet::simulate_update_pledge,
             simulate::mixnet::simulate_pledge_more,
             simulate::mixnet::simulate_unbond_mixnode,
             simulate::mixnet::simulate_update_mixnode_config,
             simulate::mixnet::simulate_update_mixnode_cost_params,
+            simulate::mixnet::simulate_update_gateway_config,
             simulate::mixnet::simulate_delegate_to_mixnode,
             simulate::mixnet::simulate_undelegate_from_mixnode,
             simulate::vesting::simulate_vesting_delegate_to_mixnode,
@@ -157,9 +170,11 @@ fn main() {
             simulate::vesting::simulate_vesting_bond_gateway,
             simulate::vesting::simulate_vesting_unbond_gateway,
             simulate::vesting::simulate_vesting_bond_mixnode,
+            simulate::vesting::simulate_vesting_update_pledge,
             simulate::vesting::simulate_vesting_pledge_more,
             simulate::vesting::simulate_vesting_unbond_mixnode,
             simulate::vesting::simulate_vesting_update_mixnode_config,
+            simulate::vesting::simulate_vesting_update_gateway_config,
             simulate::vesting::simulate_vesting_update_mixnode_cost_params,
             simulate::vesting::simulate_withdraw_vested_coins,
             simulate::vesting::simulate_vesting_claim_delegator_reward,
@@ -168,7 +183,15 @@ fn main() {
             simulate::mixnet::simulate_claim_operator_reward,
             signatures::sign::sign,
             signatures::sign::verify,
+            signatures::ed25519_signing_payload::generate_mixnode_bonding_msg_payload,
+            signatures::ed25519_signing_payload::vesting_generate_mixnode_bonding_msg_payload,
+            signatures::ed25519_signing_payload::generate_gateway_bonding_msg_payload,
+            signatures::ed25519_signing_payload::vesting_generate_gateway_bonding_msg_payload,
             help::log::help_log_toggle_window,
+            app::window::create_main_window,
+            app::window::create_auth_window,
+            app::react::set_react_state,
+            app::react::get_react_state,
         ])
         .menu(Menu::os_default(&context.package_info().name).add_default_app_submenus())
         .on_menu_event(|event| {

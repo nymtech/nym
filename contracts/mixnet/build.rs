@@ -4,5 +4,10 @@
 use vergen::{vergen, Config};
 
 fn main() {
-    vergen(Config::default()).expect("failed to extract build metadata")
+    let mut config = Config::default();
+    if std::env::var("DOCS_RS").is_ok() {
+        // If we don't have access to git information, such as in a docs.rs build, don't error
+        *config.git_mut().skip_if_error_mut() = true;
+    }
+    vergen(config).expect("failed to extract build metadata");
 }

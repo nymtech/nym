@@ -84,10 +84,12 @@ export interface MixNodeResponseItem {
   };
   mix_node: MixNode;
   avg_uptime: number;
+  node_performance: NodePerformance;
   stake_saturation: number;
   uncapped_saturation: number;
   operating_cost: Amount;
   profit_margin_percent: string;
+  blacklisted: boolean;
 }
 
 export type MixNodeResponse = MixNodeResponseItem[];
@@ -235,4 +237,19 @@ export type MixNodeEconomicDynamicsStatsResponse = {
   estimated_operator_reward: number;
   estimated_delegators_reward: number;
   current_interval_uptime: number;
+};
+
+export type Environment = 'mainnet' | 'sandbox' | 'qa';
+
+export type DirectoryServiceProvider = {
+  id: string;
+  description: string;
+  address: string;
+  gateway: string;
+};
+
+export type DirectoryService = {
+  id: string;
+  descrtiption: string;
+  items: DirectoryServiceProvider[];
 };

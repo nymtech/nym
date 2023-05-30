@@ -1,0 +1,6 @@
+#!/bin/sh
+
+rm -f package/lib/libcpucycles.a
+ar cr package/lib/libcpucycles.a "$@"
+ranlib package/lib/libcpucycles.a || :
+chmod 644 package/lib/libcpucycles.a

@@ -2,10 +2,11 @@ use crate::{
     error::{BackendError, Result},
     state::State,
 };
-use client_core::config::Config as BaseConfig;
+use nym_client_core::config::Config as BaseConfig;
 use nym_config_common::NymConfig;
+use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity;
-use nym_socks5::client::config::Config as Socks5Config;
+use nym_socks5_client_core::config::{Config as Socks5Config, Socks5};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tap::TapFallible;
@@ -52,13 +53,17 @@ impl Config {
         }
     }
 
-    pub fn get_socks5(&self) -> &Socks5Config {
+    pub fn get_config(&self) -> &Socks5Config {
         &self.socks5
     }
 
+    pub fn get_socks5(&self) -> &Socks5 {
+        self.socks5.get_socks5()
+    }
+
     #[allow(unused)]
-    pub fn get_socks5_mut(&mut self) -> &mut Socks5Config {
-        &mut self.socks5
+    pub fn get_socks5_mut(&mut self) -> &mut Socks5 {
+        self.socks5.get_socks5_mut()
     }
 
     pub fn get_base(&self) -> &BaseConfig<Socks5Config> {
@@ -134,24 +139,25 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let gateway = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
-        register_gateway,
-        Some(chosen_gateway_id),
-        config.get_base(),
-        // TODO: another instance where this setting should probably get used
-        false,
-    )
-    .await?;
+    let gateway =
+        nym_client_core::init::setup_gateway_from_config::<Socks5Config, _, PersistentStorage>(
+            register_gateway,
+            Some(chosen_gateway_id),
+            config.get_base(),
+            // TODO: another instance where this setting should probably get used
+            false,
+        )
+        .await?;
 
     config.get_base_mut().set_gateway_endpoint(gateway);
 
-    config.get_socks5().save_to_file(None).tap_err(|_| {
+    config.get_config().save_to_file(None).tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;
 
     print_saved_config(&config);
 
-    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
+    let address = nym_client_core::init::get_client_address_from_stored_keys(config.get_base())?;
     log::info!("The address of this client is: {}", address);
     Ok(())
 }
@@ -159,7 +165,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 fn print_saved_config(config: &Config) {
     log::info!(
         "Saved configuration file to {:?}",
-        config.get_socks5().get_config_file_save_location()
+        config.get_config().get_config_file_save_location()
     );
     log::info!("Gateway id: {}", config.get_base().get_gateway_id());
     log::info!("Gateway owner: {}", config.get_base().get_gateway_owner());

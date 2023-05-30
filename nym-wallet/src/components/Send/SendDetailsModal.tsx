@@ -16,6 +16,7 @@ export const SendDetailsModal = ({
   onSend,
   sx,
   backdropProps,
+  memo,
 }: {
   fromAddress?: string;
   toAddress: string;
@@ -27,6 +28,7 @@ export const SendDetailsModal = ({
   onSend: (data: { val: DecCoin; to: string }) => void;
   sx?: SxProps;
   backdropProps?: object;
+  memo?: string;
 }) => (
   <SimpleModal
     header="Send details"
@@ -43,6 +45,20 @@ export const SendDetailsModal = ({
       <ModalListItem label="To" value={toAddress} divider />
       <ModalListItem label="Amount" value={`${amount?.amount} ${denom.toUpperCase()}`} divider />
       <ModalFee fee={fee} divider isLoading={false} />
+      {memo && (
+        <ModalListItem
+          label="Memo"
+          value={memo}
+          sxValue={{
+            textOverflow: 'ellipsis',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            overflowWrap: 'anywhere',
+            maxWidth: '300px',
+          }}
+          divider
+        />
+      )}
       <ModalTotalAmount fee={fee} amount={amount?.amount} divider isLoading={false} />
     </Stack>
   </SimpleModal>

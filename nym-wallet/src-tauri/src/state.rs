@@ -7,6 +7,11 @@ use itertools::Itertools;
 use log::warn;
 use nym_types::currency::{DecCoin, Denom, RegisteredCoins};
 use nym_types::fees::FeeDetails;
+use nym_validator_client::nyxd::cosmwasm_client::types::SimulateResponse;
+use nym_validator_client::nyxd::{
+    AccountId as CosmosAccountId, Coin, DirectSigningNyxdClient, Fee,
+};
+use nym_validator_client::Client;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config;
 use once_cell::sync::Lazy;
@@ -16,9 +21,6 @@ use std::time::Duration;
 use strum::IntoEnumIterator;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use url::Url;
-use validator_client::nyxd::cosmwasm_client::types::SimulateResponse;
-use validator_client::nyxd::{AccountId as CosmosAccountId, Coin, Fee, SigningNyxdClient};
-use validator_client::Client;
 
 // Some hardcoded metadata overrides
 static METADATA_OVERRIDES: Lazy<Vec<(Url, ValidatorMetadata)>> = Lazy::new(|| {
@@ -65,7 +67,7 @@ impl WalletState {
 #[derive(Default)]
 pub struct WalletStateInner {
     config: config::Config,
-    signing_clients: HashMap<Network, Client<SigningNyxdClient>>,
+    signing_clients: HashMap<Network, Client<DirectSigningNyxdClient>>,
     current_network: Network,
 
     // All the accounts the we get from decrypting the wallet. We hold on to these for being able to
@@ -78,6 +80,8 @@ pub struct WalletStateInner {
     /// We fetch (and cache) some metadata, such as names, when available
     validator_metadata: HashMap<Url, ValidatorMetadata>,
     registered_coins: HashMap<Network, RegisteredCoins>,
+
+    react_state: Option<String>,
 }
 
 pub(crate) struct WalletAccountIds {
@@ -88,6 +92,26 @@ pub(crate) struct WalletAccountIds {
 }
 
 impl WalletStateInner {
+    pub fn get_react_state(&self) -> Result<Option<String>, BackendError> {
+        Ok(self.react_state.clone())
+    }
+
+    pub fn set_react_state(&mut self, new_value: Option<String>) -> Result<(), BackendError> {
+        self.react_state = new_value;
+        Ok(())
+    }
+
+    pub fn attempt_convert_to_fixed_fee(&self, coin: DecCoin) -> Result<Fee, BackendError> {
+        // first we have to convert the coin to its base denomination
+        let base_coin = self.attempt_convert_to_base_coin(coin)?;
+
+        // then we get the gas price for the current network
+        let current_client = self.current_client()?;
+        let gas_price = current_client.nyxd.gas_price();
+
+        Ok(Fee::manual_with_gas_price(base_coin, gas_price.clone()))
+    }
+
     // note that `Coin` is ALWAYS the base coin
     pub fn attempt_convert_to_base_coin(&self, coin: DecCoin) -> Result<Coin, BackendError> {
         let registered_coins = self
@@ -169,7 +193,10 @@ impl WalletStateInner {
         Ok(FeeDetails::new(amount, res.to_fee()))
     }
 
-    pub fn client(&self, network: Network) -> Result<&Client<SigningNyxdClient>, BackendError> {
+    pub fn client(
+        &self,
+        network: Network,
+    ) -> Result<&Client<DirectSigningNyxdClient>, BackendError> {
         self.signing_clients
             .get(&network)
             .ok_or(BackendError::ClientNotInitialized)
@@ -178,20 +205,22 @@ impl WalletStateInner {
     pub fn client_mut(
         &mut self,
         network: Network,
-    ) -> Result<&mut Client<SigningNyxdClient>, BackendError> {
+    ) -> Result<&mut Client<DirectSigningNyxdClient>, BackendError> {
         self.signing_clients
             .get_mut(&network)
             .ok_or(BackendError::ClientNotInitialized)
     }
 
-    pub fn current_client(&self) -> Result<&Client<SigningNyxdClient>, BackendError> {
+    pub fn current_client(&self) -> Result<&Client<DirectSigningNyxdClient>, BackendError> {
         self.signing_clients
             .get(&self.current_network)
             .ok_or(BackendError::ClientNotInitialized)
     }
 
     #[allow(unused)]
-    pub fn current_client_mut(&mut self) -> Result<&mut Client<SigningNyxdClient>, BackendError> {
+    pub fn current_client_mut(
+        &mut self,
+    ) -> Result<&mut Client<DirectSigningNyxdClient>, BackendError> {
         self.signing_clients
             .get_mut(&self.current_network)
             .ok_or(BackendError::ClientNotInitialized)
@@ -211,7 +240,7 @@ impl WalletStateInner {
         Ok(self.config.save_to_files()?)
     }
 
-    pub fn add_client(&mut self, network: Network, client: Client<SigningNyxdClient>) {
+    pub fn add_client(&mut self, network: Network, client: Client<DirectSigningNyxdClient>) {
         self.signing_clients.insert(network, client);
     }
 
@@ -408,12 +437,48 @@ impl WalletStateInner {
         }
     }
 
-    pub fn select_nyxd_url(&mut self, url: &str, network: Network) -> Result<(), BackendError> {
+    pub async fn select_nyxd_url(
+        &mut self,
+        url: &str,
+        network: Network,
+    ) -> Result<(), BackendError> {
+        if !nym_validator_client::connection_tester::test_nyxd_url_connection(
+            network.into(),
+            url.parse()?,
+            self.config.get_mixnet_contract_address(network),
+        )
+        .await?
+        {
+            return Err(BackendError::WalletValidatorConnectionFailed);
+        }
         self.config.select_nyxd_url(url.parse()?, network);
         if let Ok(client) = self.client_mut(network) {
             client.change_nyxd(url.parse()?)?;
         }
         Ok(())
+    }
+
+    pub fn reset_nyxd_url(&mut self, network: Network) -> Result<(), BackendError> {
+        self.config.reset_nyxd_url(network);
+        let default_nyxd = self.config.get_default_nyxd_url(network);
+        if let Ok(client) = self.client_mut(network) {
+            if let Some(url) = default_nyxd {
+                client.change_nyxd(url)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn set_default_nyxd_urls(&mut self, urls: &HashMap<Network, Url>) {
+        self.config.set_default_nyxd_urls(urls);
+    }
+
+    pub fn get_selected_nyxd_url(&self, network: &Network) -> Option<Url> {
+        self.config.get_selected_validator_nyxd_url(*network)
+    }
+
+    pub fn get_default_nyxd_url(&self, network: &Network) -> Option<Url> {
+        self.config.get_default_nyxd_url(*network)
     }
 
     pub fn select_nym_api_url(&mut self, url: &str, network: Network) -> Result<(), BackendError> {
@@ -430,6 +495,34 @@ impl WalletStateInner {
 
     pub fn remove_validator_url(&mut self, url: config::ValidatorConfigEntry, network: Network) {
         self.config.remove_validator_url(url, network)
+    }
+
+    pub fn calculate_coin_delta(
+        &self,
+        coin1: &DecCoin,
+        coin2: &DecCoin,
+    ) -> Result<DecCoin, BackendError> {
+        if coin1.denom != coin2.denom {
+            return Err(BackendError::WalletPledgeUpdateInvalidCurrency);
+        }
+
+        match coin1.amount.cmp(&coin2.amount) {
+            std::cmp::Ordering::Greater => {
+                let delta = DecCoin {
+                    amount: coin1.amount - coin2.amount,
+                    denom: coin1.denom.clone(),
+                };
+                Ok(delta)
+            }
+            std::cmp::Ordering::Less => {
+                let delta = DecCoin {
+                    amount: coin2.amount - coin1.amount,
+                    denom: coin1.denom.clone(),
+                };
+                Ok(delta)
+            }
+            std::cmp::Ordering::Equal => Ok(coin1.to_owned()),
+        }
     }
 }
 

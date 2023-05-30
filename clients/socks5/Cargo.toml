@@ -1,24 +1,16 @@
 [package]
 name = "nym-socks5-client"
-version = "1.1.11"
+version = "1.1.19"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 description = "A SOCKS5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address"
 edition = "2021"
 rust-version = "1.56"
 
-[lib]
-name = "nym_socks5"
-path = "src/lib.rs"
-
 [dependencies]
 clap = { version = "4.0", features = ["cargo", "derive"] }
-dirs = "4.0"
-futures = "0.3"
 lazy_static = "1.4.0"
 log = { workspace = true }
-pin-project = "1.0"
 pretty_env_logger = "0.4"
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
 serde_json = { workspace = true }
 tap = "1.0.1"
@@ -27,28 +19,21 @@ tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
 url = "2.2"
 
 # internal
-nym-bin-common = { path = "../../common/bin-common" }
-client-core = { path = "../client-core", features = ["fs-surb-storage"] }
-coconut-interface = { path = "../../common/coconut-interface" }
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
+nym-client-core = { path = "../../common/client-core", features = ["fs-surb-storage"] }
+nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-config = { path = "../../common/config" }
-credential-storage = { path = "../../common/credential-storage", optional = true }
-mobile-storage = { path = "../../common/mobile-storage", optional = true }
-credentials = { path = "../../common/credentials" }
+nym-credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto" }
-gateway-client = { path = "../../common/client-libs/gateway-client" }
-gateway-requests = { path = "../../gateway/gateway-requests" }
+nym-gateway-requests = { path = "../../gateway/gateway-requests" }
+nym-credential-storage = { path = "../../common/credential-storage" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sphinx = { path = "../../common/nymsphinx" }
-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
+nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-pemstore = { path = "../../common/pemstore" }
-proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
-service-providers-common = { path = "../../service-providers/common" }
-socks5-requests = { path = "../../common/socks5/requests" }
-nym-task = { path = "../../common/task" }
 nym-topology = { path = "../../common/topology" }
-validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }
+nym-socks5-client-core = { path = "../../common/socks5-client-core" }
 
 [features]
-default = ["credential-storage"]
+default = []
 eth = []
-mobile = ["mobile-storage", "gateway-client/mobile"]

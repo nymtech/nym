@@ -1,8 +1,9 @@
+import { Coin } from 'cosmjs-types/cosmos/base/v1beta1/coin';
 import expect from 'expect';
 
 export const amountDemon = {
-    amount: expect.any(String),
-    denom: expect.any(String)
+    denom: expect.any(String),
+    amount: expect.any(String)
 }
 
 export const delegation = {
@@ -159,7 +160,6 @@ export const layerDistribution = {
     layer3: expect.any(Number)
 }
 
-
 export const intervalRewardParams = {
     reward_pool: expect.any(Number),
     staking_supply: expect.any(Number),
@@ -175,4 +175,80 @@ export const rewardingParams = {
     interval: intervalRewardParams,
     rewarded_set_size: expect.any(Number),
     active_set_size: expect.any(Number)
+}
+
+export const VestAccounts = [{
+    account_id: expect.any(String),
+    owner: expect.any(String)
+}]
+
+export const VestAccountCoin = [{
+    account_id: expect.any(String),
+    owner: expect.any(String),
+    still_vesting: Coin
+}]
+
+export const vestingAccountsPaged = {
+    accounts: VestAccounts,
+    start_next_after: expect.any(String)
+}
+
+export const VestingCoinAccounts = {
+    accounts: VestAccountCoin,
+    start_next_after: expect.any(String)
+}
+
+export const OriginalVestingDetails = {
+    amount: Coin,
+    number_of_periods: expect.any(Number),
+    period_duration: expect.any(Number)
+}
+
+export const PledgeCap = {
+    percent: expect.any(String) || null,
+};
+
+export const Periods = [{
+    period_seconds: expect.any(Number),
+    start_time: expect.any(Number),
+}]
+
+export const VestingAccountDetails = {
+    owner_address: expect.any(String),
+    staking_address: expect.any(String) || null,
+    start_time: expect.any(String),
+    periods: Periods,
+    coin: Coin,
+    storage_key: expect.any(Number),
+    pledge_cap: PledgeCap
+}
+
+export const Node = {
+    amount: Coin,
+    block_time: expect.any(String)
+}
+
+export type VestingPeriod = 'Before' | { In: number } | 'After';
+
+export const DelegationTimestamps = [
+    expect.any(Number)
+]
+
+export const DelegatorTimes = {
+    owner: expect.any(String),
+    account_id: expect.any(Number),
+    mix_id: expect.any(Number),
+    delegation_timestamps: DelegationTimestamps
+}
+
+export const DelegationBlock = [{
+    account_id: expect.any(Number),
+    amount: expect.any(String),
+    block_timestamp: expect.any(Number),
+    mix_id: expect.any(Number)
+}]
+
+export const Delegations = {
+    delegations: DelegationBlock,
+    start_next_after: expect.any(String) || null
 }

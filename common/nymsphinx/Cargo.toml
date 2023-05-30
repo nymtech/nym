@@ -8,9 +8,10 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
+log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 rand_distr = "0.3"
-thiserror = "1.0.37"
+thiserror = { workspace = true }
 
 nym-sphinx-acknowledgements = { path = "acknowledgements" }
 nym-sphinx-addressing = { path = "addressing" }
@@ -19,15 +20,20 @@ nym-sphinx-chunking = { path = "chunking" }
 nym-sphinx-cover = { path = "cover" }
 nym-sphinx-forwarding = { path = "forwarding" }
 nym-sphinx-params = { path = "params" }
+nym-sphinx-routing = { path = "routing" }
 nym-sphinx-types = { path = "types" }
 
 # those dependencies are due to intriducing preparer and receiver. Perpaphs that indicates they should be moved
 # to separate crate?
-nym-crypto = { path = "../crypto", version = "0.1.0" }
+nym-crypto = { path = "../crypto", version = "0.3.0" }
 nym-topology = { path = "../topology" }
+
+# outfox
+nym-outfox = { path = "../../nym-outfox" }
 
 [dev-dependencies]
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
+nym-crypto = { path = "../crypto", version = "0.3.0", features = ["asymmetric"] }
 
 # do not include this when compiling into wasm as it somehow when combined together with reqwest, it will require
 # net2 via tokio-util -> tokio -> mio -> net2

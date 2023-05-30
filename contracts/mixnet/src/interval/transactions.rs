@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
@@ -8,16 +8,18 @@ use crate::interval::storage::push_new_interval_event;
 use crate::mixnodes::transactions::update_mixnode_layer;
 use crate::rewards;
 use crate::rewards::storage as rewards_storage;
-use crate::support::helpers::{ensure_is_authorized, ensure_is_owner};
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
+use crate::support::helpers::{
+    ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_authorized, ensure_is_owner,
+};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
-    new_advance_epoch_event, new_pending_epoch_events_execution_event,
-    new_pending_interval_config_update_event, new_pending_interval_events_execution_event,
-    new_reconcile_pending_events,
+    new_advance_epoch_event, new_epoch_transition_start_event,
+    new_pending_epoch_events_execution_event, new_pending_interval_config_update_event,
+    new_pending_interval_events_execution_event, new_reconcile_pending_events,
 };
 use mixnet_contract_common::pending_events::PendingIntervalEventKind;
-use mixnet_contract_common::{LayerAssignment, MixId};
+use mixnet_contract_common::{EpochState, EpochStatus, LayerAssignment, MixId};
 use std::collections::BTreeSet;
 
 // those two should be called in separate tx (from advancing epoch),
@@ -121,7 +123,8 @@ pub fn try_reconcile_epoch_events(
     // - somebody sneaks in some extra delegations
     // - the same person decides to pay the transaction fees and reconcile epoch events themselves
     // - the validator API distributes the rewards -> this new sneaky delegation is now included in reward calculation!
-    ensure_is_authorized(info.sender, deps.storage)?;
+    let mut current_epoch_status = ensure_can_advance_epoch(&info.sender, deps.storage)?;
+    current_epoch_status.ensure_is_in_event_reconciliation_state()?;
 
     let mut response = Response::new().add_event(new_reconcile_pending_events());
 
@@ -156,6 +159,24 @@ pub fn try_reconcile_epoch_events(
         response
             .events
             .push(new_pending_interval_events_execution_event(executed));
+    }
+
+    // if there are no more events to clear, go into the next state
+    let pending_events = super::queries::query_number_of_pending_events(deps.as_ref())?;
+    // we can only progress if there are no epoch events AND if the interval has finished, that there are no interval events
+    let progress = if pending_events.epoch_events == 0 {
+        if interval.is_current_interval_over(&env) {
+            pending_events.interval_events == 0
+        } else {
+            true
+        }
+    } else {
+        false
+    };
+
+    if progress {
+        current_epoch_status.state = EpochState::AdvancingEpoch;
+        storage::save_current_epoch_status(deps.storage, &current_epoch_status)?;
     }
 
     Ok(response)
@@ -199,17 +220,66 @@ fn update_rewarded_set(
     )?)
 }
 
+pub fn try_begin_epoch_transition(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, MixnetContractError> {
+    // Only the rewarding validator(s) can attempt to advance epoch
+    ensure_is_authorized(&info.sender, deps.storage)?;
+
+    // can't do pre-mature epoch transition...
+    let current_interval = storage::current_interval(deps.storage)?;
+    if !current_interval.is_current_epoch_over(&env) {
+        return Err(MixnetContractError::EpochInProgress {
+            current_block_time: env.block.time.seconds(),
+            epoch_start: current_interval.current_epoch_start_unix_timestamp(),
+            epoch_end: current_interval.current_epoch_end_unix_timestamp(),
+        });
+    }
+
+    // ensure some other validator (currently not a problem), hasn't already committed to epoch progression
+    ensure_epoch_in_progress_state(deps.storage)?;
+
+    // Note: if at any point we decide to change our rewarded set to be few thousand nodes
+    // and the below call fails, we'll have to pass `last_node_in_rewarded_set` as an argument to this function
+    // and then verify whether the provided value is valid (by using range iterator on `REWARDED_SET`
+    // and checking if there are any other entries following the provided value)
+    let rewarded_set = storage::REWARDED_SET
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|kv| kv.map(|kv| kv.0))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // if there are no nodes to reward (i.e. empty rewarded set), we go straight into event reconciliation
+    let new_epoch_state = if let Some(last) = rewarded_set.last() {
+        EpochState::Rewarding {
+            last_rewarded: 0,
+            final_node_id: *last,
+        }
+    } else {
+        EpochState::ReconcilingEvents
+    };
+
+    // progress into the first stage of epoch progression
+    let new_epoch_status = EpochStatus {
+        being_advanced_by: info.sender,
+        state: new_epoch_state,
+    };
+
+    storage::save_current_epoch_status(deps.storage, &new_epoch_status)?;
+    Ok(Response::new().add_event(new_epoch_transition_start_event(current_interval)))
+}
+
 pub fn try_advance_epoch(
-    mut deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     layer_assignments: Vec<LayerAssignment>,
     expected_active_set_size: u32,
 ) -> Result<Response, MixnetContractError> {
     // Only rewarding validator can attempt to advance epoch
-    ensure_is_authorized(info.sender, deps.storage)?;
-
-    let mut response = Response::new();
+    let mut current_epoch_status = ensure_can_advance_epoch(&info.sender, deps.storage)?;
+    current_epoch_status.ensure_is_in_advancement_state()?;
 
     // we must make sure that we roll into new epoch / interval with up to date state
     // with no pending actions (like somebody wanting to update their profit margin)
@@ -220,29 +290,10 @@ pub fn try_advance_epoch(
             epoch_start: current_interval.current_epoch_start_unix_timestamp(),
             epoch_end: current_interval.current_epoch_end_unix_timestamp(),
         });
-    } else {
-        let (mut sub_response, executed) =
-            perform_pending_epoch_actions(deps.branch(), &env, None)?;
-        response.messages.append(&mut sub_response.messages);
-        response.attributes.append(&mut sub_response.attributes);
-        response.events.append(&mut sub_response.events);
-        response
-            .events
-            .push(new_pending_epoch_events_execution_event(executed));
     }
 
-    // first clear epoch events queue and then touch the interval actions
+    // if the current interval is over, apply reward pool changes
     if current_interval.is_current_interval_over(&env) {
-        // the interval has finished -> we can change things such as the profit margin
-        let (mut sub_response, executed) =
-            perform_pending_interval_actions(deps.branch(), &env, None)?;
-        response.messages.append(&mut sub_response.messages);
-        response.attributes.append(&mut sub_response.attributes);
-        response.events.append(&mut sub_response.events);
-        response
-            .events
-            .push(new_pending_interval_events_execution_event(executed));
-
         // this one is a very important one!
         rewards::helpers::apply_reward_pool_changes(deps.storage)?;
     }
@@ -260,7 +311,10 @@ pub fn try_advance_epoch(
         update_mixnode_layer(a.mix_id(), a.layer(), deps.storage)?;
     }
 
-    Ok(response.add_event(new_advance_epoch_event(updated_interval, num_nodes as u32)))
+    current_epoch_status.state = EpochState::InProgress;
+    storage::save_current_epoch_status(deps.storage, &current_epoch_status)?;
+
+    Ok(Response::new().add_event(new_advance_epoch_event(updated_interval, num_nodes as u32)))
 }
 
 pub(crate) fn try_update_interval_config(
@@ -273,6 +327,14 @@ pub(crate) fn try_update_interval_config(
 ) -> Result<Response, MixnetContractError> {
     ensure_is_owner(info.sender, deps.storage)?;
 
+    if epochs_in_interval == 0 {
+        return Err(MixnetContractError::EpochsInIntervalZero);
+    }
+
+    if epoch_duration_secs == 0 {
+        return Err(MixnetContractError::EpochDurationZero);
+    }
+
     let interval = storage::current_interval(deps.storage)?;
     if force_immediately || interval.is_current_interval_over(&env) {
         change_interval_config(
@@ -283,6 +345,10 @@ pub(crate) fn try_update_interval_config(
             epoch_duration_secs,
         )
     } else {
+        // changing interval config is only allowed if the epoch is currently not in the process of being advanced
+        // (unless the force flag was used)
+        ensure_epoch_in_progress_state(deps.storage)?;
+
         // push the interval event
         let interval_event = PendingIntervalEventKind::UpdateIntervalConfig {
             epochs_in_interval,
@@ -805,6 +871,136 @@ mod tests {
     }
 
     #[cfg(test)]
+    mod beginning_epoch_transition {
+        use super::*;
+        use cosmwasm_std::testing::mock_info;
+
+        #[test]
+        fn returns_error_if_epoch_is_in_progress() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let rewarding_validator = test.rewarding_validator();
+
+            let res = try_begin_epoch_transition(test.deps_mut(), env, rewarding_validator);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::EpochInProgress { .. })
+            ))
+        }
+
+        #[test]
+        fn can_only_be_performed_if_in_progress_state() {
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let rewarding_validator = test.rewarding_validator();
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
+
+                test.skip_to_current_epoch_end();
+                let env = test.env();
+
+                let res = try_begin_epoch_transition(test.deps_mut(), env, rewarding_validator);
+                assert_eq!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress {
+                        current_state: bad_state
+                    })
+                );
+            }
+        }
+
+        #[test]
+        fn returns_error_if_not_performed_by_the_rewarding_validator() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            test.skip_to_current_epoch_end();
+
+            let random = mock_info("alice", &[]);
+            let owner = test.owner();
+
+            let res = try_begin_epoch_transition(test.deps_mut(), env.clone(), random);
+            assert!(matches!(res, Err(MixnetContractError::Unauthorized)));
+
+            let res = try_begin_epoch_transition(test.deps_mut(), env, owner);
+            assert!(matches!(res, Err(MixnetContractError::Unauthorized)));
+        }
+
+        #[test]
+        fn returns_error_if_epoch_is_already_being_advanced() {
+            let mut test = TestSetup::new();
+            let rewarding_validator = test.rewarding_validator();
+
+            test.skip_to_current_epoch_end();
+            let env = test.env();
+
+            try_begin_epoch_transition(test.deps_mut(), env.clone(), rewarding_validator.clone())
+                .unwrap();
+
+            let res = try_begin_epoch_transition(test.deps_mut(), env, rewarding_validator);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::EpochAdvancementInProgress { .. })
+            ));
+        }
+
+        #[test]
+        fn epoch_state_is_correctly_updated_for_empty_rewarded_set() {
+            let mut test = TestSetup::new();
+            let rewarding_validator = test.rewarding_validator();
+
+            test.skip_to_current_epoch_end();
+            let env = test.env();
+
+            try_begin_epoch_transition(test.deps_mut(), env, rewarding_validator).unwrap();
+
+            let expected = EpochStatus {
+                being_advanced_by: test.rewarding_validator().sender,
+                state: EpochState::ReconcilingEvents,
+            };
+            assert_eq!(
+                expected,
+                storage::current_epoch_status(test.deps().storage).unwrap()
+            )
+        }
+
+        #[test]
+        fn epoch_state_is_correctly_updated_for_nonempty_rewarded_set() {
+            let mut test = TestSetup::new();
+            let rewarding_validator = test.rewarding_validator();
+
+            test.force_change_rewarded_set(vec![1, 2, 3, 4, 5]);
+            test.skip_to_current_epoch_end();
+            let env = test.env();
+
+            try_begin_epoch_transition(test.deps_mut(), env, rewarding_validator).unwrap();
+
+            let expected = EpochStatus {
+                being_advanced_by: test.rewarding_validator().sender,
+                state: EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 5,
+                },
+            };
+            assert_eq!(
+                expected,
+                storage::current_epoch_status(test.deps().storage).unwrap()
+            )
+        }
+    }
+
+    #[cfg(test)]
     mod reconciling_epoch_events {
         use super::*;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
@@ -817,11 +1013,139 @@ mod tests {
         use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
 
         #[test]
+        fn can_only_be_performed_if_in_reconciling_state() {
+            let bad_states = vec![
+                EpochState::InProgress,
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let rewarding_validator = test.rewarding_validator();
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
+
+                test.skip_to_current_epoch_end();
+                let env = test.env();
+
+                let res =
+                    try_reconcile_epoch_events(test.deps_mut(), env, rewarding_validator, None);
+                assert_eq!(
+                    res,
+                    Err(MixnetContractError::EpochNotInEventReconciliationState {
+                        current_state: bad_state
+                    })
+                );
+            }
+        }
+
+        #[test]
+        fn epoch_state_is_correctly_updated_if_there_are_no_events() {
+            let mut test = TestSetup::new();
+            let rewarding_validator = test.rewarding_validator();
+
+            test.skip_to_current_epoch_end();
+            test.set_epoch_reconciliation_state();
+            let env = test.env();
+
+            try_reconcile_epoch_events(test.deps_mut(), env, rewarding_validator, None).unwrap();
+
+            let expected = EpochStatus {
+                being_advanced_by: test.rewarding_validator().sender,
+                state: EpochState::AdvancingEpoch,
+            };
+            assert_eq!(
+                expected,
+                storage::current_epoch_status(test.deps().storage).unwrap()
+            )
+        }
+
+        #[test]
+        fn epoch_state_is_not_updated_if_some_events_are_cleared() {
+            let mut test = TestSetup::new();
+            let rewarding_validator = test.rewarding_validator();
+
+            test.skip_to_current_epoch_end();
+            let env = test.env();
+
+            push_n_dummy_epoch_actions(&mut test, 10);
+            push_n_dummy_interval_actions(&mut test, 10);
+            test.set_epoch_reconciliation_state();
+
+            try_reconcile_epoch_events(test.deps_mut(), env, rewarding_validator, Some(5)).unwrap();
+
+            let expected = EpochStatus {
+                being_advanced_by: test.rewarding_validator().sender,
+                state: EpochState::ReconcilingEvents,
+            };
+            assert_eq!(
+                expected,
+                storage::current_epoch_status(test.deps().storage).unwrap()
+            )
+        }
+
+        #[test]
+        fn epoch_state_is_correctly_updated_if_even_with_leftover_interval_events_if_interval_is_not_over(
+        ) {
+            let mut test = TestSetup::new();
+            let rewarding_validator = test.rewarding_validator();
+
+            test.skip_to_current_epoch_end();
+            let env = test.env();
+
+            push_n_dummy_epoch_actions(&mut test, 10);
+            push_n_dummy_interval_actions(&mut test, 10);
+            test.set_epoch_reconciliation_state();
+
+            try_reconcile_epoch_events(test.deps_mut(), env, rewarding_validator, None).unwrap();
+
+            let expected = EpochStatus {
+                being_advanced_by: test.rewarding_validator().sender,
+                state: EpochState::AdvancingEpoch,
+            };
+            assert_eq!(
+                expected,
+                storage::current_epoch_status(test.deps().storage).unwrap()
+            )
+        }
+
+        #[test]
+        fn epoch_state_is_correctly_updated_if_all_events_are_cleared() {
+            let mut test = TestSetup::new();
+            let rewarding_validator = test.rewarding_validator();
+
+            test.skip_to_current_interval_end();
+            let env = test.env();
+
+            push_n_dummy_epoch_actions(&mut test, 10);
+            push_n_dummy_interval_actions(&mut test, 10);
+            test.set_epoch_reconciliation_state();
+
+            try_reconcile_epoch_events(test.deps_mut(), env, rewarding_validator, None).unwrap();
+
+            let expected = EpochStatus {
+                being_advanced_by: test.rewarding_validator().sender,
+                state: EpochState::AdvancingEpoch,
+            };
+            assert_eq!(
+                expected,
+                storage::current_epoch_status(test.deps().storage).unwrap()
+            )
+        }
+
+        #[test]
         fn returns_error_if_epoch_is_in_progress() {
             let mut test = TestSetup::new();
             let env = test.env();
             let rewarding_validator = test.rewarding_validator();
 
+            test.set_epoch_reconciliation_state();
             let res = try_reconcile_epoch_events(test.deps_mut(), env, rewarding_validator, None);
             assert!(matches!(
                 res,
@@ -835,6 +1159,7 @@ mod tests {
             let env = test.env();
 
             test.skip_to_current_epoch_end();
+            test.set_epoch_reconciliation_state();
 
             let random = mock_info("alice", &[]);
             let owner = test.owner();
@@ -853,6 +1178,7 @@ mod tests {
             push_n_dummy_epoch_actions(&mut test, 10);
             push_n_dummy_interval_actions(&mut test, 10);
             test.skip_to_current_epoch_end();
+            test.set_epoch_reconciliation_state();
 
             let env = test.env();
             let rewarding_validator = test.rewarding_validator();
@@ -872,6 +1198,7 @@ mod tests {
             push_n_dummy_epoch_actions(&mut test, 10);
             push_n_dummy_interval_actions(&mut test, 10);
             test.skip_to_current_interval_end();
+            test.set_epoch_reconciliation_state();
             let rewarding_validator = test.rewarding_validator();
 
             let env = test.env();
@@ -900,6 +1227,7 @@ mod tests {
             // all test cases are using the same one
             let rewarding_validator = test1.rewarding_validator();
 
+            test1.set_epoch_reconciliation_state();
             try_reconcile_epoch_events(
                 test1.deps_mut(),
                 env.clone(),
@@ -948,6 +1276,7 @@ mod tests {
             assert!(epoch_events.is_empty());
             assert!(interval_events.is_empty());
 
+            test2.set_epoch_reconciliation_state();
             try_reconcile_epoch_events(
                 test2.deps_mut(),
                 env.clone(),
@@ -972,6 +1301,7 @@ mod tests {
             assert!(epoch_events.is_empty());
             assert!(interval_events.is_empty());
 
+            test3.set_epoch_reconciliation_state();
             try_reconcile_epoch_events(
                 test3.deps_mut(),
                 env.clone(),
@@ -984,6 +1314,7 @@ mod tests {
             assert!(epoch_events.is_empty());
             assert!(interval_events.is_empty());
 
+            test4.set_epoch_reconciliation_state();
             try_reconcile_epoch_events(test4.deps_mut(), env, rewarding_validator, Some(100))
                 .unwrap();
             let epoch_events = test4.pending_epoch_events();
@@ -1040,6 +1371,7 @@ mod tests {
             expected_events.push(new_pending_interval_events_execution_event(1));
 
             test.skip_to_current_interval_end();
+            test.set_epoch_reconciliation_state();
             let env = test.env();
             let rewarding_validator = test.rewarding_validator();
 
@@ -1142,14 +1474,96 @@ mod tests {
         use super::*;
         use crate::mixnodes::queries::query_mixnode_details;
         use crate::rewards::models::RewardPoolChange;
-        use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{coin, coins, BankMsg, Decimal, Empty, SubMsg, Uint128};
-        use mixnet_contract_common::events::{
-            new_delegation_on_unbonded_node_event, new_rewarding_params_update_event,
-        };
+        use cosmwasm_std::{Decimal, Uint128};
         use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
         use mixnet_contract_common::{Layer, RewardedSetNodeStatus};
+
+        #[test]
+        fn can_only_be_performed_if_in_advancing_epoch_state() {
+            let bad_states = vec![
+                EpochState::InProgress,
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
+                test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
+                test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
+                let current_active_set = test.rewarding_params().active_set_size;
+
+                test.skip_to_current_epoch_end();
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
+
+                let layer_assignments = vec![
+                    LayerAssignment::new(1, Layer::One),
+                    LayerAssignment::new(2, Layer::Two),
+                    LayerAssignment::new(3, Layer::Three),
+                ];
+
+                let env = test.env();
+                let sender = test.rewarding_validator();
+                let res = try_advance_epoch(
+                    test.deps_mut(),
+                    env,
+                    sender,
+                    layer_assignments,
+                    current_active_set,
+                );
+                assert_eq!(
+                    res,
+                    Err(MixnetContractError::EpochNotInAdvancementState {
+                        current_state: bad_state
+                    })
+                );
+            }
+        }
+
+        #[test]
+        fn epoch_state_is_correctly_updated() {
+            let mut test = TestSetup::new();
+            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
+            let current_active_set = test.rewarding_params().active_set_size;
+
+            test.skip_to_current_epoch_end();
+            test.set_epoch_advancement_state();
+
+            let layer_assignments = vec![
+                LayerAssignment::new(1, Layer::One),
+                LayerAssignment::new(2, Layer::Two),
+                LayerAssignment::new(3, Layer::Three),
+            ];
+
+            let env = test.env();
+            let sender = test.rewarding_validator();
+            try_advance_epoch(
+                test.deps_mut(),
+                env,
+                sender,
+                layer_assignments,
+                current_active_set,
+            )
+            .unwrap();
+
+            let expected = EpochStatus {
+                being_advanced_by: test.rewarding_validator().sender,
+                state: EpochState::InProgress,
+            };
+            assert_eq!(
+                expected,
+                storage::current_epoch_status(test.deps().storage).unwrap()
+            )
+        }
 
         #[test]
         fn can_only_be_performed_by_specified_rewarding_validator() {
@@ -1161,6 +1575,7 @@ mod tests {
             let some_sender = mock_info("foomper", &[]);
 
             test.skip_to_current_epoch_end();
+            test.set_epoch_advancement_state();
 
             let layer_assignments = vec![
                 LayerAssignment::new(1, Layer::One),
@@ -1188,13 +1603,14 @@ mod tests {
                 layer_assignments,
                 current_active_set,
             );
-            println!("{:?}", res);
             assert!(res.is_ok())
         }
 
         #[test]
         fn can_only_be_performed_if_epoch_is_over() {
             let mut test = TestSetup::new();
+            test.set_epoch_advancement_state();
+
             let current_active_set = test.rewarding_params().active_set_size;
 
             test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
@@ -1241,6 +1657,7 @@ mod tests {
 
             // sanity check
             test.skip_to_current_epoch_end();
+
             let env = test.env();
             let res = try_advance_epoch(
                 test.deps_mut(),
@@ -1253,170 +1670,10 @@ mod tests {
         }
 
         #[test]
-        fn only_clears_epoch_events_if_interval_is_in_progress() {
-            let mut test = TestSetup::new();
-            let current_active_set = test.rewarding_params().active_set_size;
-
-            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
-
-            push_n_dummy_epoch_actions(&mut test, 10);
-            push_n_dummy_interval_actions(&mut test, 10);
-            test.skip_to_current_epoch_end();
-
-            let layer_assignments = vec![
-                LayerAssignment::new(1, Layer::One),
-                LayerAssignment::new(2, Layer::Two),
-                LayerAssignment::new(3, Layer::Three),
-            ];
-
-            let env = test.env();
-            let sender = test.rewarding_validator();
-            try_advance_epoch(
-                test.deps_mut(),
-                env,
-                sender,
-                layer_assignments,
-                current_active_set,
-            )
-            .unwrap();
-
-            let epoch_events = test.pending_epoch_events();
-            let interval_events = test.pending_interval_events();
-            assert!(epoch_events.is_empty());
-            assert_eq!(interval_events.len(), 10);
-        }
-
-        #[test]
-        fn clears_both_epoch_and_interval_events_if_interval_has_finished() {
-            let mut test = TestSetup::new();
-            let current_active_set = test.rewarding_params().active_set_size;
-
-            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
-
-            push_n_dummy_epoch_actions(&mut test, 10);
-            push_n_dummy_interval_actions(&mut test, 10);
-            test.skip_to_current_interval_end();
-
-            let layer_assignments = vec![
-                LayerAssignment::new(1, Layer::One),
-                LayerAssignment::new(2, Layer::Two),
-                LayerAssignment::new(3, Layer::Three),
-            ];
-
-            let env = test.env();
-            let sender = test.rewarding_validator();
-            try_advance_epoch(
-                test.deps_mut(),
-                env,
-                sender,
-                layer_assignments,
-                current_active_set,
-            )
-            .unwrap();
-
-            let epoch_events = test.pending_epoch_events();
-            let interval_events = test.pending_interval_events();
-            assert!(epoch_events.is_empty());
-            assert!(interval_events.is_empty());
-        }
-
-        #[test]
-        fn if_executes_any_events_it_propagates_responses() {
-            let mut test = TestSetup::new();
-            let env = test.env();
-            let current_active_set = test.rewarding_params().active_set_size;
-
-            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
-
-            let mut expected_events = Vec::new();
-            let mut expected_messages: Vec<SubMsg<Empty>> = Vec::new();
-
-            let non_existent_delegation = PendingEpochEventKind::Delegate {
-                owner: Addr::unchecked("foomp"),
-                mix_id: 123,
-                amount: coin(123, TEST_COIN_DENOM),
-                proxy: None,
-            };
-            storage::push_new_epoch_event(test.deps_mut().storage, &env, non_existent_delegation)
-                .unwrap();
-            expected_events.push(new_delegation_on_unbonded_node_event(
-                &Addr::unchecked("foomp"),
-                &None,
-                123,
-            ));
-            expected_messages.push(SubMsg::new(BankMsg::Send {
-                to_address: "foomp".to_string(),
-                amount: coins(123, TEST_COIN_DENOM),
-            }));
-            expected_events.push(new_pending_epoch_events_execution_event(1));
-
-            // interval event
-            let update = IntervalRewardingParamsUpdate {
-                rewarded_set_size: Some(500),
-                ..Default::default()
-            };
-            let change_params = PendingIntervalEventKind::UpdateRewardingParams { update };
-            storage::push_new_interval_event(test.deps_mut().storage, &env, change_params).unwrap();
-            let interval = test.current_interval();
-            let mut expected_updated = test.rewarding_params();
-            expected_updated
-                .try_apply_updates(update, interval.epochs_in_interval())
-                .unwrap();
-            expected_events.push(new_rewarding_params_update_event(
-                env.block.height,
-                update,
-                expected_updated.interval,
-            ));
-            expected_events.push(new_pending_interval_events_execution_event(1));
-            let current_interval = test.current_interval();
-            let expected = current_interval.advance_epoch();
-            expected_events.push(new_advance_epoch_event(expected, 3));
-
-            test.skip_to_current_interval_end();
-
-            let layer_assignments = vec![
-                LayerAssignment::new(1, Layer::One),
-                LayerAssignment::new(2, Layer::Two),
-                LayerAssignment::new(3, Layer::Three),
-            ];
-
-            let env = test.env();
-            let sender = test.rewarding_validator();
-            let res = try_advance_epoch(
-                test.deps_mut(),
-                env,
-                sender,
-                layer_assignments,
-                current_active_set,
-            )
-            .unwrap();
-
-            let mut expected = Response::new().add_events(expected_events);
-            expected.messages = expected_messages;
-            assert_eq!(res, expected);
-            assert_eq!(
-                1,
-                storage::LAST_PROCESSED_EPOCH_EVENT
-                    .load(test.deps().storage)
-                    .unwrap()
-            );
-            assert_eq!(
-                1,
-                storage::LAST_PROCESSED_INTERVAL_EVENT
-                    .load(test.deps().storage)
-                    .unwrap()
-            );
-        }
-
-        #[test]
         fn if_interval_is_over_applies_reward_pool_changes() {
             let mut test = TestSetup::new();
+            test.set_epoch_advancement_state();
+
             let current_active_set = test.rewarding_params().active_set_size;
 
             test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
@@ -1446,6 +1703,7 @@ mod tests {
             // end of epoch - nothing has happened
             let sender = test.rewarding_validator();
             test.skip_to_current_epoch_end();
+
             let env = test.env();
             try_advance_epoch(
                 test.deps_mut(),
@@ -1465,6 +1723,8 @@ mod tests {
 
             let sender = test.rewarding_validator();
             test.skip_to_current_interval_end();
+            test.set_epoch_advancement_state();
+
             let env = test.env();
             try_advance_epoch(
                 test.deps_mut(),
@@ -1497,6 +1757,8 @@ mod tests {
         #[test]
         fn updates_rewarded_set_and_interval_data() {
             let mut test = TestSetup::new();
+            test.set_epoch_advancement_state();
+
             let current_active_set = test.rewarding_params().active_set_size;
 
             test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
@@ -1547,6 +1809,52 @@ mod tests {
         use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::Decimal;
         use std::time::Duration;
+
+        #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress_unless_forced() {
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let owner = test.owner();
+                let env = test.env();
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+
+                storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
+
+                let res = try_update_interval_config(
+                    test.deps_mut(),
+                    env.clone(),
+                    owner.clone(),
+                    100,
+                    1000,
+                    false,
+                );
+                assert!(matches!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress { .. })
+                ));
+
+                let res_forced = try_update_interval_config(
+                    test.deps_mut(),
+                    env.clone(),
+                    owner,
+                    100,
+                    1000,
+                    true,
+                );
+                assert!(res_forced.is_ok())
+            }
+        }
 
         #[test]
         fn can_only_be_done_by_contract_owner() {

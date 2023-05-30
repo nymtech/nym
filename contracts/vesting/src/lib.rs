@@ -5,9 +5,11 @@
 #![warn(clippy::unwrap_used)]
 
 pub mod contract;
-mod errors;
+pub mod errors;
+mod queries;
 mod queued_migrations;
 mod storage;
 mod support;
 mod traits;
+mod transactions;
 pub mod vesting;

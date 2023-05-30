@@ -4,14 +4,16 @@ import {
   ApiState,
   BlockResponse,
   CountryDataResponse,
+  DirectoryService,
   GatewayResponse,
   MixNodeResponse,
   MixnodeStatus,
   SummaryOverviewResponse,
   ValidatorsResponse,
+  Environment,
 } from '../typeDefs/explorer-api';
 import { EnumFilterKey } from '../typeDefs/filters';
-import { Api } from '../api';
+import { Api, getEnvironment } from '../api';
 import { NavOptionType, originalNavOptions } from './nav';
 
 interface StateData {
@@ -24,6 +26,8 @@ interface StateData {
   mode: PaletteMode;
   navState: NavOptionType[];
   validators?: ApiState<ValidatorsResponse>;
+  environment?: Environment;
+  serviceProviders?: ApiState<DirectoryService>;
 }
 
 interface StateApi {
@@ -47,6 +51,9 @@ export const MainContext = React.createContext<State>({
 export const useMainContext = (): React.ContextType<typeof MainContext> => React.useContext<State>(MainContext);
 
 export const MainContextProvider: FCWithChildren = ({ children }) => {
+  // network explorer environment
+  const [environment, setEnvironment] = React.useState<Environment>();
+
   // light/dark mode
   const [mode, setMode] = React.useState<PaletteMode>('dark');
 
@@ -63,6 +70,7 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
   const [validators, setValidators] = React.useState<ApiState<ValidatorsResponse>>();
   const [block, setBlock] = React.useState<ApiState<BlockResponse>>();
   const [countryData, setCountryData] = React.useState<ApiState<CountryDataResponse>>();
+  const [serviceProviders, setServiceProviders] = React.useState<ApiState<DirectoryService>>();
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
@@ -156,6 +164,20 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
       });
     }
   };
+
+  const fetchServiceProviders = async () => {
+    setServiceProviders({ data: undefined, isLoading: true });
+    try {
+      const [res] = await Api.fetchServiceProviders();
+      setServiceProviders({ data: res, isLoading: false });
+    } catch (error) {
+      setServiceProviders({
+        error: error instanceof Error ? error : new Error('Service provider api fail'),
+        isLoading: false,
+      });
+    }
+  };
+
   const updateNavState = (id: number) => {
     const updated = navState.map((option) => ({
       ...option,
@@ -165,11 +187,19 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
   };
 
   React.useEffect(() => {
+    if (environment === 'mainnet') {
+      fetchServiceProviders();
+    }
+  }, [environment]);
+
+  React.useEffect(() => {
+    setEnvironment(getEnvironment());
     Promise.all([fetchOverviewSummary(), fetchGateways(), fetchValidators(), fetchBlock(), fetchCountryData()]);
   }, []);
 
   const state = React.useMemo<State>(
     () => ({
+      environment,
       block,
       countryData,
       fetchMixnodes,
@@ -183,8 +213,21 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
       toggleMode,
       updateNavState,
       validators,
+      serviceProviders,
     }),
-    [block, countryData, gateways, globalError, mixnodes, mode, navState, summaryOverview, validators],
+    [
+      environment,
+      block,
+      countryData,
+      gateways,
+      globalError,
+      mixnodes,
+      mode,
+      navState,
+      summaryOverview,
+      validators,
+      serviceProviders,
+    ],
   );
 
   return <MainContext.Provider value={state}>{children}</MainContext.Provider>;

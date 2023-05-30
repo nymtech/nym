@@ -19,6 +19,7 @@ export * from './Gas';
 export * from './GasInfo';
 export * from './Gateway';
 export * from './GatewayBond';
+export * from './GatewayConfigUpdate';
 export * from './GatewayCoreStatusResponse';
 export * from './InclusionProbabilityResponse';
 export * from './IntervalRewardingParamsUpdate';

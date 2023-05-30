@@ -1,0 +1,97 @@
+[package]
+name = "nym-client-core"
+version = "1.1.14"
+authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
+edition = "2021"
+rust-version = "1.66"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = { workspace = true }
+dirs = "4.0"
+dashmap = "5.4.0"
+futures = "0.3"
+humantime-serde = "1.0"
+log = { workspace = true }
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tap = "1.0.1"
+thiserror = "1.0.34"
+url = { version ="2.2", features = ["serde"] }
+tungstenite = { version = "0.13.0", default-features = false }
+tokio = { version = "1.24.1", features = ["macros"]}
+time = "0.3.17"
+zeroize = { workspace = true }
+
+# internal
+nym-bandwidth-controller = { path = "../bandwidth-controller" }
+nym-config = { path = "../config" }
+nym-crypto = { path = "../crypto" }
+nym-gateway-client = { path = "../client-libs/gateway-client" }
+#gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
+nym-gateway-requests = { path = "../../gateway/gateway-requests" }
+nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
+nym-sphinx = { path = "../nymsphinx" }
+nym-pemstore = { path = "../pemstore" }
+nym-topology = { path = "../topology" }
+nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
+nym-task = { path = "../task" }
+nym-credential-storage = { path = "../credential-storage" }
+nym-network-defaults = { path = "../network-defaults" }
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
+path = "../client-libs/validator-client"
+features = ["nyxd-client"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
+version = "0.1.11"
+features = ["time"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
+version = "1.24.1"
+features = ["time"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
+version = "0.14"
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
+version = "0.6.2"
+features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
+optional = true
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
+version = "0.4"
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
+version = "0.2.83"
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-timer]
+git = "https://github.com/mmsinclair/wasm-timer"
+rev = "b9d1a54ad514c2f230a026afe0dde341e98cd7b6"
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.gloo-timers]
+version = "0.2.4"
+features = ["futures"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
+path = "../wasm-utils"
+features = ["websocket"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.time]
+version = "0.3.17"
+features = ["wasm-bindgen"]
+
+[dev-dependencies]
+tempfile = "3.1.0"
+
+[build-dependencies]
+tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
+sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+
+[features]
+default = []
+fs-surb-storage = ["sqlx"]
+wasm = ["nym-gateway-client/wasm"]
+

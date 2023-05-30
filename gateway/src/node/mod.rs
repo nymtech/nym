@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::storage::PersistentStorage;
-use crate::commands::ensure_correct_bech32_prefix;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
 use crate::error::GatewayError;
@@ -12,21 +11,19 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
-use crate::{commands::sign::load_identity_keys, OutputFormat};
-use colored::Colorize;
 use log::*;
-use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
+use nym_validator_client::Client;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
 use std::net::SocketAddr;
-use std::process;
 use std::sync::Arc;
-use validator_client::Client;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -109,28 +106,10 @@ where
         sphinx_keypair
     }
 
-    /// Signs the node config's bech32 address to produce a verification code for use in the wallet.
-    /// Exits if the address isn't valid (which should protect against manual edits).
-    fn generate_owner_signature(&self) -> Result<String, GatewayError> {
-        let pathfinder = GatewayPathfinder::new_from_config(&self.config);
-        let identity_keypair = load_identity_keys(&pathfinder);
-        let Some(address) = self.config.get_wallet_address() else {
-            let error_message = "Error: gateway hasn't set its wallet address".red();
-            eprintln!("{error_message}");
-            eprintln!("Exiting...");
-            process::exit(1);
-        };
-        // perform extra validation to ensure we have correct prefix
-        ensure_correct_bech32_prefix(&address)?;
-        let verification_code = identity_keypair.private_key().sign_text(address.as_ref());
-        Ok(verification_code)
-    }
-
-    pub(crate) fn print_node_details(&self, output: OutputFormat) -> Result<(), GatewayError> {
+    pub(crate) fn print_node_details(&self, output: OutputFormat) {
         let node_details = nym_types::gateway::GatewayNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
-            owner_signature: self.generate_owner_signature()?,
             announce_address: self.config.get_announce_address(),
             bind_address: self.config.get_listening_address().to_string(),
             version: self.config.get_version().to_string(),
@@ -144,15 +123,7 @@ where
                 .to_string(),
         };
 
-        match output {
-            OutputFormat::Json => println!(
-                "{}",
-                serde_json::to_string(&node_details)
-                    .unwrap_or_else(|_| "Could not serialize node details".to_string())
-            ),
-            OutputFormat::Text => println!("{}", node_details),
-        }
-        Ok(())
+        println!("{}", output.format(&node_details));
     }
 
     fn start_mix_socket_listener(
@@ -234,25 +205,25 @@ where
         res
     }
 
-    fn random_api_client(&self) -> validator_client::NymApiClient {
+    fn random_api_client(&self) -> nym_validator_client::NymApiClient {
         let endpoints = self.config.get_nym_api_endpoints();
         let nym_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
 
-        validator_client::NymApiClient::new(nym_api.clone())
+        nym_validator_client::NymApiClient::new(nym_api.clone())
     }
 
     fn random_nyxd_client(
         &self,
-    ) -> validator_client::Client<validator_client::nyxd::SigningNyxdClient> {
+    ) -> nym_validator_client::Client<nym_validator_client::nyxd::DirectSigningNyxdClient> {
         let endpoints = self.config.get_nyxd_urls();
         let validator_nyxd = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validators is empty");
 
         let network_details = NymNetworkDetails::new_from_env();
-        let client_config = validator_client::Config::try_from_nym_network_details(
+        let client_config = nym_validator_client::Config::try_from_nym_network_details(
             &network_details,
         )
         .expect("failed to construct valid validator client config with the provided network");

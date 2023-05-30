@@ -1,45 +1,30 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::filter::VersionFilterable;
 use log::warn;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::GatewayBond;
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
-use rand::Rng;
-use std::collections::HashMap;
+use rand::{CryptoRng, Rng};
+use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::str::FromStr;
-use thiserror::Error;
 
+pub mod error;
 pub mod filter;
 pub mod gateway;
 pub mod mix;
+pub mod random_route_provider;
 
-#[derive(Debug, Clone, Error)]
-pub enum NymTopologyError {
-    #[error("The provided network topology is empty - there are no mixnodes and no gateways on it - the network request(s) probably failed")]
-    EmptyNetworkTopology,
+#[cfg(feature = "provider-trait")]
+pub mod provider_trait;
 
-    #[error("The provided network topology has no gateways available")]
-    NoGatewaysAvailable,
-
-    #[error("The provided network topology has no mixnodes available")]
-    NoMixnodesAvailable,
-
-    #[error("Gateway with identity key {identity_key} doesn't exist")]
-    NonExistentGatewayError { identity_key: String },
-
-    #[error("Wanted to create a mix route with {requested} hops, while only {available} layers are available")]
-    InvalidNumberOfHopsError { available: usize, requested: usize },
-
-    #[error("No mixnodes available on layer {layer}")]
-    EmptyMixLayer { layer: MixLayer },
-}
+pub use error::NymTopologyError;
 
 #[derive(Debug, Clone)]
 pub enum NetworkAddress {
@@ -83,21 +68,56 @@ pub type MixLayer = u8;
 
 #[derive(Debug, Clone)]
 pub struct NymTopology {
-    mixes: HashMap<MixLayer, Vec<mix::Node>>,
+    mixes: BTreeMap<MixLayer, Vec<mix::Node>>,
     gateways: Vec<gateway::Node>,
 }
 
 impl NymTopology {
-    pub fn new(mixes: HashMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
+    pub fn new(mixes: BTreeMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
         NymTopology { mixes, gateways }
     }
 
-    pub fn mixes(&self) -> &HashMap<MixLayer, Vec<mix::Node>> {
+    pub fn from_detailed(
+        mix_details: Vec<MixNodeDetails>,
+        gateway_bonds: Vec<GatewayBond>,
+    ) -> Self {
+        nym_topology_from_detailed(mix_details, gateway_bonds)
+    }
+
+    pub fn find_mix(&self, mix_id: MixId) -> Option<&mix::Node> {
+        for nodes in self.mixes.values() {
+            for node in nodes {
+                if node.mix_id == mix_id {
+                    return Some(node);
+                }
+            }
+        }
+        None
+    }
+
+    pub fn find_mix_by_identity(&self, mixnode_identity: IdentityKeyRef) -> Option<&mix::Node> {
+        for nodes in self.mixes.values() {
+            for node in nodes {
+                if node.identity_key.to_base58_string() == mixnode_identity {
+                    return Some(node);
+                }
+            }
+        }
+        None
+    }
+
+    pub fn find_gateway(&self, gateway_identity: IdentityKeyRef) -> Option<&gateway::Node> {
+        self.gateways
+            .iter()
+            .find(|&gateway| gateway.identity_key.to_base58_string() == gateway_identity)
+    }
+
+    pub fn mixes(&self) -> &BTreeMap<MixLayer, Vec<mix::Node>> {
         &self.mixes
     }
 
     pub fn num_mixnodes(&self) -> usize {
-        self.mixes.values().flat_map(|m| m.iter()).count()
+        self.mixes.values().map(|m| m.len()).sum()
     }
 
     pub fn mixes_as_vec(&self) -> Vec<mix::Node> {
@@ -140,8 +160,7 @@ impl NymTopology {
         num_mix_hops: u8,
     ) -> Result<Vec<SphinxNode>, NymTopologyError>
     where
-        // I don't think there's a need for this RNG to be crypto-secure
-        R: Rng + ?Sized,
+        R: Rng + CryptoRng + ?Sized,
     {
         use rand::seq::SliceRandom;
 
@@ -181,8 +200,7 @@ impl NymTopology {
         gateway_identity: &NodeIdentity,
     ) -> Result<Vec<SphinxNode>, NymTopologyError>
     where
-        // I don't think there's a need for this RNG to be crypto-secure
-        R: Rng + ?Sized,
+        R: Rng + CryptoRng + ?Sized,
     {
         let gateway = self.get_gateway(gateway_identity).ok_or(
             NymTopologyError::NonExistentGatewayError {
@@ -238,6 +256,46 @@ impl NymTopology {
         Ok(())
     }
 
+    pub fn ensure_even_layer_distribution(
+        &self,
+        lower_threshold: f32,
+        upper_threshold: f32,
+    ) -> Result<(), NymTopologyError> {
+        let mixnodes_count = self.num_mixnodes();
+
+        let layers = self
+            .mixes
+            .iter()
+            .map(|(k, v)| (*k, v.len()))
+            .collect::<Vec<_>>();
+
+        if self.gateways.is_empty() {
+            return Err(NymTopologyError::NoGatewaysAvailable);
+        }
+
+        if layers.is_empty() {
+            return Err(NymTopologyError::NoMixnodesAvailable);
+        }
+
+        let upper_bound = (mixnodes_count as f32 * upper_threshold) as usize;
+        let lower_bound = (mixnodes_count as f32 * lower_threshold) as usize;
+
+        for (layer, nodes) in &layers {
+            if nodes < &lower_bound || nodes > &upper_bound {
+                return Err(NymTopologyError::UnevenLayerDistribution {
+                    layer: *layer,
+                    nodes: *nodes,
+                    lower_bound,
+                    upper_bound,
+                    total_nodes: mixnodes_count,
+                    layer_distribution: layers,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
     #[must_use]
     pub fn filter_system_version(&self, expected_version: &str) -> Self {
         self.filter_node_versions(expected_version)
@@ -256,7 +314,7 @@ pub fn nym_topology_from_detailed(
     mix_details: Vec<MixNodeDetails>,
     gateway_bonds: Vec<GatewayBond>,
 ) -> NymTopology {
-    let mut mixes = HashMap::new();
+    let mut mixes = BTreeMap::new();
     for bond in mix_details
         .into_iter()
         .map(|details| details.bond_information)
@@ -337,7 +395,7 @@ mod converting_mixes_to_vec {
                 ..node1.clone()
             };
 
-            let mut mixes: HashMap<MixLayer, Vec<mix::Node>> = HashMap::new();
+            let mut mixes: BTreeMap<MixLayer, Vec<mix::Node>> = BTreeMap::new();
             mixes.insert(1, vec![node1, node2]);
             mixes.insert(2, vec![node3]);
 
@@ -353,7 +411,7 @@ mod converting_mixes_to_vec {
 
         #[test]
         fn returns_an_empty_vec() {
-            let topology = NymTopology::new(HashMap::new(), vec![]);
+            let topology = NymTopology::new(BTreeMap::new(), vec![]);
             let mixvec = topology.mixes_as_vec();
             assert!(mixvec.is_empty());
         }

@@ -132,7 +132,7 @@ impl VestingAccount for Account {
     }
 
     fn get_end_time(&self) -> Timestamp {
-        self.periods[(self.num_vesting_periods() - 1)].end_time()
+        self.periods[self.num_vesting_periods() - 1].end_time()
     }
 
     fn get_original_vesting(&self) -> Result<OriginalVestingResponse, ContractError> {

@@ -89,8 +89,13 @@ impl NodeStatusCache {
         }
     }
 
-    pub(crate) async fn mixnodes_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
+    pub(crate) async fn mixnodes_annotated_full(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
         self.get(|c| c.mixnodes_annotated.clone()).await
+    }
+
+    pub(crate) async fn mixnodes_annotated_filtered(&self) -> Option<Vec<MixNodeBondAnnotated>> {
+        let full = self.mixnodes_annotated_full().await?;
+        Some(full.value.into_iter().filter(|m| !m.blacklisted).collect())
     }
 
     pub(crate) async fn rewarded_set_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
@@ -101,8 +106,13 @@ impl NodeStatusCache {
         self.get(|c| c.active_set_annotated.clone()).await
     }
 
-    pub(crate) async fn gateways_annotated(&self) -> Option<Cache<Vec<GatewayBondAnnotated>>> {
+    pub(crate) async fn gateways_annotated_full(&self) -> Option<Cache<Vec<GatewayBondAnnotated>>> {
         self.get(|c| c.gateways_annotated.clone()).await
+    }
+
+    pub(crate) async fn gateways_annotated_filtered(&self) -> Option<Vec<GatewayBondAnnotated>> {
+        let full = self.gateways_annotated_full().await?;
+        Some(full.value.into_iter().filter(|m| !m.blacklisted).collect())
     }
 
     pub(crate) async fn inclusion_probabilities(&self) -> Option<Cache<InclusionProbabilities>> {
@@ -126,7 +136,7 @@ impl NodeStatusCache {
             return (Some(bond.clone()), MixnodeStatus::Standby);
         }
 
-        let all_bonded = &self.mixnodes_annotated().await.unwrap().into_inner();
+        let all_bonded = &self.mixnodes_annotated_filtered().await.unwrap();
         if let Some(bond) = all_bonded.iter().find(|mix| mix.mix_id() == mix_id) {
             (Some(bond.clone()), MixnodeStatus::Inactive)
         } else {

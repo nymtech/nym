@@ -1,19 +1,25 @@
+use std::cmp::Ordering;
+
 use crate::error::BackendError;
 use crate::nyxd_client;
 use crate::state::WalletState;
 use crate::{Gateway, MixNode};
-use nym_mixnet_contract_common::MixNodeConfigUpdate;
+use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::{GatewayConfigUpdate, MixNodeConfigUpdate};
 
+use crate::operations::helpers::{
+    verify_gateway_bonding_sign_payload, verify_mixnode_bonding_sign_payload,
+};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::transaction::TransactionExecuteResult;
-use validator_client::nyxd::{Fee, VestingSigningClient};
+use nym_validator_client::nyxd::{Fee, VestingSigningClient};
 
 #[tauri::command]
 pub async fn vesting_bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
-    owner_signature: String,
+    msg_signature: MessageSignature,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
@@ -28,10 +34,20 @@ pub async fn vesting_bond_gateway(
         pledge_base,
         fee,
     );
+
+    let client = guard.current_client()?;
+    // check the signature to make sure the user copied it correctly
+    if let Err(err) =
+        verify_gateway_bonding_sign_payload(client, &gateway, &pledge_base, true, &msg_signature)
+            .await
+    {
+        log::warn!("failed to verify provided gateway bonding signature: {err}");
+        return Err(err);
+    }
     let res = guard
         .current_client()?
         .nyxd
-        .vesting_bond_gateway(gateway, &owner_signature, pledge_base, fee)
+        .vesting_bond_gateway(gateway, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -63,7 +79,7 @@ pub async fn vesting_unbond_gateway(
 pub async fn vesting_bond_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
-    owner_signature: String,
+    msg_signature: MessageSignature,
     pledge: DecCoin,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
@@ -81,13 +97,83 @@ pub async fn vesting_bond_mixnode(
       pledge_base,
       fee
     );
+
+    let client = guard.current_client()?;
+    // check the signature to make sure the user copied it correctly
+    if let Err(err) = verify_mixnode_bonding_sign_payload(
+        client,
+        &mixnode,
+        &cost_params,
+        &pledge_base,
+        true,
+        &msg_signature,
+    )
+    .await
+    {
+        log::warn!("failed to verify provided mixnode bonding signature: {err}");
+        return Err(err);
+    }
+
     let res = guard
         .current_client()?
         .nyxd
-        .vesting_bond_mixnode(mixnode, cost_params, &owner_signature, pledge_base, fee)
+        .vesting_bond_mixnode(mixnode, cost_params, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn vesting_update_pledge(
+    current_pledge: DecCoin,
+    new_pledge: DecCoin,
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    let dec_delta = guard.calculate_coin_delta(&current_pledge, &new_pledge)?;
+    let delta = guard.attempt_convert_to_base_coin(dec_delta.clone())?;
+    log::info!(
+        ">>> Pledge update, current pledge {}, new pledge {}",
+        &current_pledge,
+        &new_pledge,
+    );
+
+    let res = match new_pledge.amount.cmp(&current_pledge.amount) {
+        Ordering::Greater => {
+            log::info!(
+                "Pledge increase with locked tokens, calculated additional pledge {}, fee = {:?}",
+                dec_delta,
+                fee,
+            );
+            guard
+                .current_client()?
+                .nyxd
+                .vesting_pledge_more(delta, fee)
+                .await?
+        }
+        Ordering::Less => {
+            log::info!(
+                "Pledge reduction with locked tokens, calculated reduction pledge {}, fee = {:?}",
+                dec_delta,
+                fee,
+            );
+            guard
+                .current_client()?
+                .nyxd
+                .vesting_decrease_pledge(delta, fee)
+                .await?
+        }
+        Ordering::Equal => return Err(BackendError::WalletPledgeUpdateNoOp),
+    };
+
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -112,6 +198,33 @@ pub async fn vesting_pledge_more(
         .current_client()?
         .nyxd
         .vesting_pledge_more(additional_pledge_base, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn vesting_decrease_pledge(
+    fee: Option<Fee>,
+    decrease_by: DecCoin,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let decrease_by_base = guard.attempt_convert_to_base_coin(decrease_by.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    log::info!(
+        ">>> Decrease pledge with locked tokens, pledge_decrease_display = {}, pledge_decrease_base = {}, fee = {:?}",
+        decrease_by,
+        decrease_by_base,
+        fee,
+    );
+    let res = guard
+        .current_client()?
+        .nyxd
+        .vesting_decrease_pledge(decrease_by_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -216,6 +329,31 @@ pub async fn vesting_update_mixnode_config(
         .current_client()?
         .nyxd
         .vesting_update_mixnode_config(update, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn vesting_update_gateway_config(
+    update: GatewayConfigUpdate,
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    log::info!(
+        ">>> Update gateway config with locked tokens: update = {}, fee = {:?}",
+        update.to_inline_json(),
+        fee,
+    );
+    let res = guard
+        .current_client()?
+        .nyxd
+        .vesting_update_gateway_config(update, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);

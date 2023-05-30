@@ -6,7 +6,7 @@ use crate::utils::show_error_passthrough;
 use clap::Parser;
 use cosmrs::AccountId;
 use log::info;
-use validator_client::nyxd::cosmwasm_client::types::{ContractCodeId, EmptyMsg};
+use nym_validator_client::nyxd::cosmwasm_client::types::{ContractCodeId, EmptyMsg};
 
 #[derive(Debug, Parser)]
 pub struct Args {

@@ -17,8 +17,8 @@ pub enum ContextError {
     NyxdError(String),
 
     #[error(transparent)]
-    NyxdErrorPassthrough(#[from] validator_client::nyxd::error::NyxdError),
+    NyxdErrorPassthrough(#[from] nym_validator_client::nyxd::error::NyxdError),
 
     #[error(transparent)]
-    ValidatorClientError(#[from] validator_client::ValidatorClientError),
+    ValidatorClientError(#[from] nym_validator_client::ValidatorClientError),
 }

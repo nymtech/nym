@@ -5,6 +5,8 @@ use nym_mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeBond, MixNodeDetails,
     RewardingParams,
 };
+use nym_name_service_common::NameEntry;
+use nym_service_provider_directory_common::ServiceInfo;
 use rocket::fairing::AdHoc;
 use std::{
     collections::HashSet,
@@ -50,6 +52,8 @@ impl NymContractCache {
         rewarding_params: RewardingParams,
         current_interval: Interval,
         mix_to_family: Vec<(IdentityKey, FamilyHead)>,
+        services: Option<Vec<ServiceInfo>>,
+        names: Option<Vec<NameEntry>>,
     ) {
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
@@ -59,7 +63,10 @@ impl NymContractCache {
                 cache.active_set.update(active_set);
                 cache.current_reward_params.update(Some(rewarding_params));
                 cache.current_interval.update(Some(current_interval));
-                cache.mix_to_family.update(mix_to_family)
+                cache.mix_to_family.update(mix_to_family);
+                // Just return empty lists when these are not available
+                cache.service_providers.update(services.unwrap_or_default());
+                cache.registered_names.update(names.unwrap_or_default());
             }
             Err(err) => {
                 error!("{err}");
@@ -67,50 +74,48 @@ impl NymContractCache {
         }
     }
 
-    pub async fn mixnodes_blacklist(&self) -> Option<Cache<HashSet<MixId>>> {
+    pub async fn mixnodes_blacklist(&self) -> Cache<HashSet<MixId>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => Some(cache.mixnodes_blacklist.clone()),
+            Ok(cache) => cache.mixnodes_blacklist.clone(),
             Err(err) => {
                 error!("{err}");
-                None
+                Cache::new(HashSet::new())
             }
         }
     }
 
-    pub async fn gateways_blacklist(&self) -> Option<Cache<HashSet<IdentityKey>>> {
+    pub async fn gateways_blacklist(&self) -> Cache<HashSet<IdentityKey>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => Some(cache.gateways_blacklist.clone()),
+            Ok(cache) => cache.gateways_blacklist.clone(),
             Err(err) => {
                 error!("{err}");
-                None
+                Cache::new(HashSet::new())
             }
         }
     }
 
     pub async fn update_mixnodes_blacklist(&self, add: HashSet<MixId>, remove: HashSet<MixId>) {
         let blacklist = self.mixnodes_blacklist().await;
-        if let Some(blacklist) = blacklist {
-            let mut blacklist = blacklist
-                .value
-                .union(&add)
-                .cloned()
-                .collect::<HashSet<MixId>>();
-            let to_remove = blacklist
-                .intersection(&remove)
-                .cloned()
-                .collect::<HashSet<MixId>>();
-            for key in to_remove {
-                blacklist.remove(&key);
+        let mut blacklist = blacklist
+            .value
+            .union(&add)
+            .cloned()
+            .collect::<HashSet<MixId>>();
+        let to_remove = blacklist
+            .intersection(&remove)
+            .cloned()
+            .collect::<HashSet<MixId>>();
+        for key in to_remove {
+            blacklist.remove(&key);
+        }
+        match time::timeout(Duration::from_millis(100), self.inner.write()).await {
+            Ok(mut cache) => {
+                cache.mixnodes_blacklist.update(blacklist);
             }
-            match time::timeout(Duration::from_millis(100), self.inner.write()).await {
-                Ok(mut cache) => {
-                    cache.mixnodes_blacklist.update(blacklist);
-                    return;
-                }
-                Err(err) => error!("{err}"),
+            Err(err) => {
+                error!("Failed to update mixnodes blacklist: {err}");
             }
         }
-        error!("Failed to update mixnodes blacklist");
     }
 
     pub async fn update_gateways_blacklist(
@@ -119,49 +124,52 @@ impl NymContractCache {
         remove: HashSet<IdentityKey>,
     ) {
         let blacklist = self.gateways_blacklist().await;
-        if let Some(blacklist) = blacklist {
-            let mut blacklist = blacklist
-                .value
-                .union(&add)
-                .cloned()
-                .collect::<HashSet<IdentityKey>>();
-            let to_remove = blacklist
-                .intersection(&remove)
-                .cloned()
-                .collect::<HashSet<IdentityKey>>();
-            for key in to_remove {
-                blacklist.remove(&key);
+        let mut blacklist = blacklist
+            .value
+            .union(&add)
+            .cloned()
+            .collect::<HashSet<IdentityKey>>();
+        let to_remove = blacklist
+            .intersection(&remove)
+            .cloned()
+            .collect::<HashSet<IdentityKey>>();
+        for key in to_remove {
+            blacklist.remove(&key);
+        }
+        match time::timeout(Duration::from_millis(100), self.inner.write()).await {
+            Ok(mut cache) => {
+                cache.gateways_blacklist.update(blacklist);
             }
-            match time::timeout(Duration::from_millis(100), self.inner.write()).await {
-                Ok(mut cache) => {
-                    cache.gateways_blacklist.update(blacklist);
-                    return;
-                }
-                Err(err) => error!("{err}"),
+            Err(err) => {
+                error!("Failed to update gateways blacklist: {err}");
             }
         }
-        error!("Failed to update gateways blacklist");
     }
 
-    pub async fn mixnodes(&self) -> Vec<MixNodeDetails> {
+    pub async fn mixnodes_filtered(&self) -> Vec<MixNodeDetails> {
+        let mixnodes = self.mixnodes_all().await;
+        if mixnodes.is_empty() {
+            return Vec::new();
+        }
         let blacklist = self.mixnodes_blacklist().await;
-        let mixnodes = match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.mixnodes.clone(),
-            Err(err) => {
-                error!("{err}");
-                return Vec::new();
-            }
-        };
 
-        if let Some(blacklist) = blacklist {
+        if !blacklist.is_empty() {
             mixnodes
-                .value
-                .iter()
+                .into_iter()
                 .filter(|mix| !blacklist.value.contains(&mix.mix_id()))
-                .cloned()
                 .collect()
         } else {
-            mixnodes.value
+            mixnodes
+        }
+    }
+
+    pub async fn mixnodes_all(&self) -> Vec<MixNodeDetails> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.mixnodes.clone().value,
+            Err(err) => {
+                error!("{err}");
+                Vec::new()
+            }
         }
     }
 
@@ -181,25 +189,21 @@ impl NymContractCache {
         }
     }
 
-    pub async fn gateways(&self) -> Vec<GatewayBond> {
-        let blacklist = self.gateways_blacklist().await;
-        let gateways = match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.gateways.clone(),
-            Err(err) => {
-                error!("{err}");
-                return Vec::new();
-            }
-        };
+    pub async fn gateways_filtered(&self) -> Vec<GatewayBond> {
+        let gateways = self.gateways_all().await;
+        if gateways.is_empty() {
+            return Vec::new();
+        }
 
-        if let Some(blacklist) = blacklist {
+        let blacklist = self.gateways_blacklist().await;
+
+        if !blacklist.is_empty() {
             gateways
-                .value
-                .iter()
+                .into_iter()
                 .filter(|mix| !blacklist.value.contains(mix.identity()))
-                .cloned()
                 .collect()
         } else {
-            gateways.value
+            gateways
         }
     }
 
@@ -277,7 +281,7 @@ impl NymContractCache {
             return (Some(bond.clone()), MixnodeStatus::Standby);
         }
 
-        let all_bonded = &self.mixnodes().await;
+        let all_bonded = &self.mixnodes_filtered().await;
         if let Some(bond) = all_bonded.iter().find(|mix| mix.mix_id() == mix_id) {
             (Some(bond.clone()), MixnodeStatus::Inactive)
         } else {
@@ -287,6 +291,26 @@ impl NymContractCache {
 
     pub async fn mixnode_status(&self, mix_id: MixId) -> MixnodeStatus {
         self.mixnode_details(mix_id).await.1
+    }
+
+    pub(crate) async fn services(&self) -> Cache<Vec<ServiceInfo>> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.service_providers.clone(),
+            Err(err) => {
+                error!("{err}");
+                Cache::new(Vec::new())
+            }
+        }
+    }
+
+    pub(crate) async fn names(&self) -> Cache<Vec<NameEntry>> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.registered_names.clone(),
+            Err(err) => {
+                error!("{err}");
+                Cache::new(Vec::new())
+            }
+        }
     }
 
     pub fn initialised(&self) -> bool {

@@ -1,5 +1,6 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
 use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -12,6 +13,11 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
     ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
+use semver::Version;
+
+// version info for migration info
+const CONTRACT_NAME: &str = "crate:nym-mixnet-contract";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn default_initial_state(
     owner: Addr,
@@ -50,11 +56,19 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, MixnetContractError> {
+    if msg.epochs_in_interval == 0 {
+        return Err(MixnetContractError::EpochsInIntervalZero);
+    }
+
+    if msg.epoch_duration.as_secs() == 0 {
+        return Err(MixnetContractError::EpochDurationZero);
+    }
+
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let vesting_contract_address = deps.api.addr_validate(&msg.vesting_contract_address)?;
     let state = default_initial_state(
         info.sender,
-        rewarding_validator_address,
+        rewarding_validator_address.clone(),
         msg.rewarding_denom,
         vesting_contract_address,
     );
@@ -64,10 +78,15 @@ pub fn instantiate(
         .initial_rewarding_params
         .into_rewarding_params(msg.epochs_in_interval)?;
 
-    interval_storage::initialise_storage(deps.storage, starting_interval)?;
+    interval_storage::initialise_storage(
+        deps.storage,
+        starting_interval,
+        rewarding_validator_address,
+    )?;
     mixnet_params_storage::initialise_storage(deps.storage, state)?;
     mixnode_storage::initialise_storage(deps.storage)?;
     rewards_storage::initialise_storage(deps.storage, reward_params)?;
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     Ok(Response::default())
 }
@@ -85,64 +104,56 @@ pub fn execute(
             crate::mixnodes::transactions::assign_mixnode_layer(deps, info, mix_id, layer)
         }
         // families
-        ExecuteMsg::CreateFamily {
-            owner_signature,
-            label,
-        } => crate::families::transactions::try_create_family(deps, info, owner_signature, &label),
+        ExecuteMsg::CreateFamily { label } => {
+            crate::families::transactions::try_create_family(deps, info, label)
+        }
         ExecuteMsg::JoinFamily {
-            signature,
+            join_permit,
             family_head,
-        } => crate::families::transactions::try_join_family(deps, info, signature, family_head),
-        ExecuteMsg::LeaveFamily {
-            signature,
-            family_head,
-        } => crate::families::transactions::try_leave_family(deps, info, signature, family_head),
-        ExecuteMsg::KickFamilyMember { signature, member } => {
-            crate::families::transactions::try_head_kick_member(deps, info, signature, &member)
+        } => crate::families::transactions::try_join_family(deps, info, join_permit, family_head),
+        ExecuteMsg::LeaveFamily { family_head } => {
+            crate::families::transactions::try_leave_family(deps, info, family_head)
+        }
+        ExecuteMsg::KickFamilyMember { member } => {
+            crate::families::transactions::try_head_kick_member(deps, info, member)
         }
         ExecuteMsg::CreateFamilyOnBehalf {
             owner_address,
-            owner_signature,
             label,
         } => crate::families::transactions::try_create_family_on_behalf(
             deps,
             info,
             owner_address,
-            owner_signature,
-            &label,
+            label,
         ),
         ExecuteMsg::JoinFamilyOnBehalf {
             member_address,
-            signature,
+            join_permit,
             family_head,
         } => crate::families::transactions::try_join_family_on_behalf(
             deps,
             info,
             member_address,
-            signature,
+            join_permit,
             family_head,
         ),
         ExecuteMsg::LeaveFamilyOnBehalf {
             member_address,
-            signature,
             family_head,
         } => crate::families::transactions::try_leave_family_on_behalf(
             deps,
             info,
             member_address,
-            signature,
             family_head,
         ),
         ExecuteMsg::KickFamilyMemberOnBehalf {
             head_address,
-            signature,
             member,
         } => crate::families::transactions::try_head_kick_member_on_behalf(
             deps,
             info,
             head_address,
-            signature,
-            &member,
+            member,
         ),
         // state/sys-params-related
         ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
@@ -189,6 +200,9 @@ pub fn execute(
             epoch_duration_secs,
             force_immediately,
         ),
+        ExecuteMsg::BeginEpochTransition {} => {
+            crate::interval::transactions::try_begin_epoch_transition(deps, env, info)
+        }
         ExecuteMsg::AdvanceCurrentEpoch {
             new_rewarded_set,
             // families_in_layer,
@@ -236,6 +250,18 @@ pub fn execute(
         }
         ExecuteMsg::PledgeMoreOnBehalf { owner } => {
             crate::mixnodes::transactions::try_increase_pledge_on_behalf(deps, env, info, owner)
+        }
+        ExecuteMsg::DecreasePledge { decrease_by } => {
+            crate::mixnodes::transactions::try_decrease_pledge(deps, env, info, decrease_by)
+        }
+        ExecuteMsg::DecreasePledgeOnBehalf { owner, decrease_by } => {
+            crate::mixnodes::transactions::try_decrease_pledge_on_behalf(
+                deps,
+                env,
+                info,
+                decrease_by,
+                owner,
+            )
         }
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, env, info)
@@ -290,6 +316,14 @@ pub fn execute(
         }
         ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
             crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
+        }
+        ExecuteMsg::UpdateGatewayConfig { new_config } => {
+            crate::gateways::transactions::try_update_gateway_config(deps, info, new_config)
+        }
+        ExecuteMsg::UpdateGatewayConfigOnBehalf { new_config, owner } => {
+            crate::gateways::transactions::try_update_gateway_config_on_behalf(
+                deps, info, new_config, owner,
+            )
         }
 
         // delegation-related:
@@ -358,17 +392,18 @@ pub fn query(
             &crate::families::queries::get_family_by_head(&head, deps.storage)?,
         ),
         QueryMsg::GetFamilyByLabel { label } => to_binary(
-            &crate::families::queries::get_family_by_label(&label, deps.storage)?,
+            &crate::families::queries::get_family_by_label(label, deps.storage)?,
         ),
         QueryMsg::GetFamilyMembersByHead { head } => to_binary(
             &crate::families::queries::get_family_members_by_head(&head, deps.storage)?,
         ),
         QueryMsg::GetFamilyMembersByLabel { label } => to_binary(
-            &crate::families::queries::get_family_members_by_label(&label, deps.storage)?,
+            &crate::families::queries::get_family_members_by_label(label, deps.storage)?,
         ),
         QueryMsg::GetContractVersion {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
         }
+        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
         QueryMsg::GetStateParams {} => to_binary(
             &crate::mixnet_contract_settings::queries::query_contract_settings_params(deps)?,
         ),
@@ -380,6 +415,9 @@ pub fn query(
         }
         QueryMsg::GetRewardingParams {} => {
             to_binary(&crate::rewards::queries::query_rewarding_params(deps)?)
+        }
+        QueryMsg::GetEpochStatus {} => {
+            to_binary(&crate::interval::queries::query_epoch_status(deps)?)
         }
         QueryMsg::GetCurrentIntervalDetails {} => to_binary(
             &crate::interval::queries::query_current_interval_details(deps, env)?,
@@ -547,6 +585,18 @@ pub fn query(
                 limit,
             )?,
         ),
+        QueryMsg::GetPendingEpochEvent { event_id } => to_binary(
+            &crate::interval::queries::query_pending_epoch_event(deps, event_id)?,
+        ),
+        QueryMsg::GetPendingIntervalEvent { event_id } => to_binary(
+            &crate::interval::queries::query_pending_interval_event(deps, event_id)?,
+        ),
+        QueryMsg::GetNumberOfPendingEvents {} => to_binary(
+            &crate::interval::queries::query_number_of_pending_events(deps)?,
+        ),
+        QueryMsg::GetSigningNonce { address } => to_binary(
+            &crate::signing::queries::query_current_signing_nonce(deps, address)?,
+        ),
     };
 
     Ok(query_res?)
@@ -554,10 +604,35 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
+    // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
+    let version: Version = CONTRACT_VERSION.parse().map_err(|error: semver::Error| {
+        MixnetContractError::SemVerFailure {
+            value: CONTRACT_VERSION.to_string(),
+            error_message: error.to_string(),
+        }
+    })?;
+
+    let storage_version_raw = cw2::get_contract_version(deps.storage)?.version;
+    let storage_version: Version =
+        storage_version_raw
+            .parse()
+            .map_err(|error: semver::Error| MixnetContractError::SemVerFailure {
+                value: storage_version_raw,
+                error_message: error.to_string(),
+            })?;
+
+    if storage_version < version {
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+        // If state structure changed in any contract version in the way migration is needed, it
+        // should occur here, for example anything from `crate::queued_migrations::`
+        crate::queued_migrations::insert_pending_pledge_changes(deps.branch())?;
+    }
+
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
     // environment, one of the contracts will HAVE TO go through a migration

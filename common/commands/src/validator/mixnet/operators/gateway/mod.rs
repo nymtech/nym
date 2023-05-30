@@ -4,6 +4,8 @@
 use clap::{Args, Subcommand};
 
 pub mod bond_gateway;
+pub mod gateway_bonding_sign_payload;
+pub mod settings;
 pub mod unbond_gateway;
 pub mod vesting_bond_gateway;
 pub mod vesting_unbond_gateway;
@@ -17,12 +19,16 @@ pub struct MixnetOperatorsGateway {
 
 #[derive(Debug, Subcommand)]
 pub enum MixnetOperatorsGatewayCommands {
+    /// Manage your gateway settings stored in the directory
+    Settings(settings::MixnetOperatorsGatewaySettings),
     /// Bond to a gateway
     Bond(bond_gateway::Args),
-    /// Unbound from a gateway
-    Unbound(unbond_gateway::Args),
+    /// Unbond from a gateway
+    Unbond(unbond_gateway::Args),
     /// Bond to a gateway with locked tokens
     VestingBond(vesting_bond_gateway::Args),
-    /// Unbound from a gateway (when originally using locked tokens)
-    VestingUnbound(vesting_unbond_gateway::Args),
+    /// Unbond from a gateway (when originally using locked tokens)
+    VestingUnbond(vesting_unbond_gateway::Args),
+    /// Create base58-encoded payload required for producing valid bonding signature.
+    CreateGatewayBondingSignPayload(gateway_bonding_sign_payload::Args),
 }

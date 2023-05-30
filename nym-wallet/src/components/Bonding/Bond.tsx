@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from '@nymproject/react/link/Link';
 import { Box, Button, Typography } from '@mui/material';
 import { NymCard } from '../NymCard';
 
@@ -18,7 +19,12 @@ export const Bond = ({
         justifyContent: 'space-between',
       }}
     >
-      <Typography variant="body2">Bond a mixnode or a gateway</Typography>
+      <Typography variant="body2">
+        Bond a mix node or a gateway. Learn how to set up and run a node{' '}
+        <Link href="https://nymtech.net/docs/nodes/setup-guides.html" target="_blank">
+          here
+        </Link>
+      </Typography>
       <Box
         sx={{
           display: 'flex',

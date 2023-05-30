@@ -1,6 +1,6 @@
 [package]
 name = "nym-crypto"
-version = "0.1.0"
+version = "0.3.0"
 description = "Crypto library for the nym mixnet"
 edition = { workspace = true }
 authors = { workspace = true }
@@ -13,7 +13,7 @@ bs58 = "0.4.0"
 blake3 = { version = "1.3.1", features = ["traits-preview"], optional = true }
 ctr = { version = "0.9.1", optional = true }
 digest = { version = "0.10.3", optional = true }
-generic-array = { version = "0.14", optional = true }
+generic-array = { workspace = true, optional = true }
 hkdf = { version = "0.12.3", optional = true }
 hmac = { version = "0.12.1", optional = true }
 cipher = { version = "0.4.3", optional = true }
@@ -21,19 +21,20 @@ x25519-dalek = { version = "1.1", optional = true }
 ed25519-dalek = { version = "1.0", optional = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"], optional = true }
 serde_bytes = { version = "0.11.6", optional = true }
-serde_crate = { version = "1.0", optional = true, default_features = false, package = "serde" }
+serde_crate = { version = "1.0", optional = true, default_features = false, features = ["derive"], package = "serde" }
 subtle-encoding = { version = "0.5", features =  ["bech32-preview"]}
 thiserror = "1.0.37"
+zeroize = { workspace = true, optional = true, features = ["zeroize_derive"] }
 
 # internal
-nym-sphinx-types = { path = "../nymsphinx/types", version = "0.1.0" }
-nym-pemstore = { path = "../../common/pemstore", version = "0.1.0" }
+nym-sphinx-types = { path = "../nymsphinx/types", version = "0.2.0" }
+nym-pemstore = { path = "../../common/pemstore", version = "0.2.0" }
 
 [dev-dependencies]
 rand_chacha = "0.2"
 
 [features]
 serde = ["serde_crate", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
-asymmetric = ["x25519-dalek", "ed25519-dalek"]
+asymmetric = ["x25519-dalek", "ed25519-dalek", "zeroize"]
 hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array"]
 symmetric = ["aes", "ctr", "cipher", "generic-array"]

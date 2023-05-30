@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nyxd::Coin;
 use crate::nyxd::Gas;
+use crate::nyxd::{Coin, GasPrice};
 use cosmrs::{tx, AccountId};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -64,6 +64,12 @@ impl Display for Fee {
 }
 
 impl Fee {
+    pub fn manual_with_gas_price(fee: Coin, gas_price: GasPrice) -> Self {
+        let gas_limit = &fee / gas_price;
+
+        Fee::Manual(tx::Fee::from_amount_and_gas(fee.into(), gas_limit))
+    }
+
     pub fn new_payer_granter_auto(
         gas_adjustment: Option<GasAdjustment>,
         payer: Option<AccountId>,

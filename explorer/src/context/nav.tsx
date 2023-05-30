@@ -44,6 +44,11 @@ export const originalNavOptions: NavOptionType[] = [
         url: `${BIG_DIPPER}/validators`,
         title: 'Validators',
       },
+      {
+        id: 6,
+        url: 'network-components/service-providers',
+        title: 'Service Providers',
+      },
     ],
   },
   {

@@ -15,7 +15,9 @@ use nym_api_requests::models::{
 };
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
-use reqwest::Response;
+use nym_name_service_common::response::NamesListResponse;
+use nym_service_provider_directory_common::response::ServicesListResponse;
+use reqwest::{Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -76,6 +78,8 @@ impl Client {
         let res = self.send_get_request(path, params).await?;
         if res.status().is_success() {
             Ok(res.json().await?)
+        } else if res.status() == StatusCode::NOT_FOUND {
+            Err(NymAPIError::NotFound)
         } else {
             Err(NymAPIError::GenericRequestFailure(res.text().await?))
         }
@@ -138,6 +142,21 @@ impl Client {
                 routes::STATUS,
                 routes::MIXNODES,
                 routes::DETAILED,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_mixnodes_detailed_unfiltered(
+        &self,
+    ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
+        self.query_nym_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::MIXNODES,
+                routes::DETAILED_UNFILTERED,
             ],
             NO_PARAMS,
         )
@@ -464,6 +483,19 @@ impl Client {
             request_body,
         )
         .await
+    }
+
+    pub async fn get_service_providers(&self) -> Result<ServicesListResponse, NymAPIError> {
+        log::trace!("Getting service providers");
+        self.query_nym_api(&[routes::API_VERSION, routes::SERVICE_PROVIDERS], NO_PARAMS)
+            .await
+    }
+
+    //pub async fn get_registered_names(&self) -> Result<Vec<NameEntry>, NymAPIError> {
+    pub async fn get_registered_names(&self) -> Result<NamesListResponse, NymAPIError> {
+        log::trace!("Getting registered names");
+        self.query_nym_api(&[routes::API_VERSION, routes::REGISTERED_NAMES], NO_PARAMS)
+            .await
     }
 }
 

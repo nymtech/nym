@@ -30,7 +30,7 @@ export const ServiceProviderSettings = () => {
 
     if (match) return match.description;
 
-    return 'The service provider specified is not in our known list.';
+    return 'N/A';
   };
 
   const validateInput = (value: string) => {
@@ -86,7 +86,12 @@ export const ServiceProviderSettings = () => {
             )}
           </FormControl>
           {userDefinedSPAddress.address && userDefinedSPAddress.isActive && (
-            <Typography sx={{ mt: 1 }}>{getSPDescription(userDefinedSPAddress.address)}</Typography>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2">Name of Service Provider</Typography>
+              <Typography variant="body2" sx={{ mt: 0.5 }} color="grey.400">
+                {getSPDescription(userDefinedSPAddress.address)}
+              </Typography>
+            </Box>
           )}
         </Box>
         <AppVersion />

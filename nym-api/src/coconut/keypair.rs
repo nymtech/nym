@@ -6,7 +6,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 
 #[derive(Clone, Debug)]
 pub struct KeyPair {
-    inner: Arc<RwLock<Option<coconut_interface::KeyPair>>>,
+    inner: Arc<RwLock<Option<nym_coconut_interface::KeyPair>>>,
 }
 
 impl KeyPair {
@@ -16,11 +16,11 @@ impl KeyPair {
         }
     }
 
-    pub async fn get(&self) -> RwLockReadGuard<'_, Option<nymcoconut::KeyPair>> {
+    pub async fn get(&self) -> RwLockReadGuard<'_, Option<nym_coconut::KeyPair>> {
         self.inner.read().await
     }
 
-    pub async fn set(&self, keypair: Option<coconut_interface::KeyPair>) {
+    pub async fn set(&self, keypair: Option<nym_coconut_interface::KeyPair>) {
         let mut w_lock = self.inner.write().await;
         *w_lock = keypair;
     }

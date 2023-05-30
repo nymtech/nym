@@ -5,7 +5,7 @@ use clap::Parser;
 use log::info;
 use serde_json::json;
 
-use validator_client::nyxd::{AccountId, Coin};
+use nym_validator_client::nyxd::{AccountId, Coin};
 
 use crate::context::SigningClient;
 

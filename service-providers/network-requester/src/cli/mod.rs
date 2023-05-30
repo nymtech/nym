@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{CommandFactory, Parser, Subcommand};
+use log::info;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
+use nym_config::NymConfig;
 
+use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
 use crate::{
     config::{BaseConfig, Config},
     error::NetworkRequesterError,
@@ -92,6 +95,20 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
     }
     Ok(())
+}
+
+fn try_upgrade_v1_1_13_config(id: &str) -> std::io::Result<()> {
+    // explicitly load it as v1.1.13 (which is incompatible with the current, i.e. 1.1.14+)
+    let Ok(old_config) = OldConfigV1_1_13::load_from_file(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(());
+    };
+    info!("It seems the client is using <= v1.1.13 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let updated: Config = old_config.into();
+    updated.save_to_file(None)
 }
 
 #[cfg(test)]

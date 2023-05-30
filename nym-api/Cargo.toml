@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-api"
-version = "1.1.12"
+version = "1.1.20"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -15,14 +15,13 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.52"
+async-trait = { workspace = true }
 bs58 = {version = "0.4.0" }
-bip39 = "1"
+bip39 = { workspace = true }
 cfg-if = "1.0"
 clap = { version = "4.0", features = ["cargo", "derive"] }
 console-subscriber = { version = "0.1.1", optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
 dirs = "4.0"
-dotenv = "0.15.0"
 futures = "0.3.24"
 humantime-serde = "1.0"
 lazy_static = "1.4.0"
@@ -35,7 +34,7 @@ reqwest = { version = "0.11.11", features = ["json"] }
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
 rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", rev = "dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
 serde = "1.0"
-serde_json = "1.0"
+serde_json = { workspace = true }
 tap = "1.0"
 thiserror = "1.0"
 time = { version = "0.3.14", features = ["serde-human-readable", "parsing"] }
@@ -53,7 +52,7 @@ ts-rs = {version = "6.1", optional = true}
 anyhow = "1.0"
 getset = "0.1.1"
 
-sqlx = { version = "0.6.1", features = [
+sqlx = { version = "0.6.2", features = [
     "runtime-tokio-rustls",
     "sqlite",
     "macros",
@@ -65,33 +64,37 @@ rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
 schemars = { version = "0.8", features = ["preserve_order"] }
 
 ## internal
-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
-coconut-interface = { path = "../common/coconut-interface" }
+nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
+nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-coconut-interface = { path = "../common/coconut-interface" }
 nym-config = { path = "../common/config" }
-cosmwasm-std = "1.0.0"
-credential-storage = { path = "../common/credential-storage" }
-credentials = { path = "../common/credentials" }
+cosmwasm-std = { workspace = true }
+nym-credential-storage = { path = "../common/credential-storage" }
+nym-credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }
-cw3 = { version = "0.13.4" }
-cw4 = { version = "0.13.4" }
-dkg = { path = "../common/dkg", features = ["cw-types"] }
-gateway-client = { path = "../common/client-libs/gateway-client" }
+cw3 = { workspace = true }
+cw4 = { workspace = true }
+nym-dkg = { path = "../common/dkg", features = ["cw-types"] }
+nym-gateway-client = { path = "../common/client-libs/gateway-client" }
 nym-inclusion-probability = { path = "../common/inclusion-probability" }
 nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
-nymcoconut = { path = "../common/nymcoconut" }
+nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-service-provider-directory-common = { path = "../common/cosmwasm-smart-contracts/service-provider-directory" }
+nym-name-service-common = { path = "../common/cosmwasm-smart-contracts/name-service" }
+nym-coconut = { path = "../common/nymcoconut" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
 nym-api-requests = { path = "nym-api-requests" }
-validator-client = { path = "../common/client-libs/validator-client", features = [
+nym-validator-client = { path = "../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }
 nym-bin-common = { path = "../common/bin-common" }
+nym-node-tester-utils = { path = "../common/node-tester-utils" }
 
 [features]
 no-reward = []
@@ -107,5 +110,5 @@ sqlx = { version = "0.6.2", features = [
 ] }
 
 [dev-dependencies]
-cw3 = "0.13.4"
-cw-utils = "0.13.4"
+cw3 = { workspace = true }
+cw-utils = { workspace = true }

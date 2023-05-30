@@ -78,11 +78,6 @@ export interface StakeSaturation {
   as_at: number;
 }
 
-export interface AvgUptime {
-  mix_id: number;
-  avg_uptime: number;
-}
-
 export interface SingleInclusionProbability {
   in_active: number;
   in_reserve: number;
@@ -129,7 +124,7 @@ export interface NodeHistory {
   history: History[];
 }
 
-export interface NoUptime {
+export interface ErrorMsg {
   message: string;
 }
 
@@ -170,6 +165,12 @@ export interface nodePerformance {
   most_recent: string;
   last_hour: string;
   last_24h: string;
+}
+
+export interface AvgUptime {
+  mix_id: number;
+  avg_uptime: number;
+  node_performance: nodePerformance;
 }
 
 export interface DetailedGateway {

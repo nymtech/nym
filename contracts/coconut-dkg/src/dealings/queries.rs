@@ -3,10 +3,10 @@
 
 use crate::dealings::storage;
 use crate::dealings::storage::DEALINGS_BYTES;
-use coconut_dkg_common::dealer::{ContractDealing, PagedDealingsResponse};
-use coconut_dkg_common::types::TOTAL_DEALINGS;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
+use nym_coconut_dkg_common::dealer::{ContractDealing, PagedDealingsResponse};
+use nym_coconut_dkg_common::types::TOTAL_DEALINGS;
 
 pub fn query_dealings_paged(
     deps: Deps<'_>,
@@ -56,11 +56,11 @@ pub(crate) mod tests {
         for n in 0..size {
             let dealing_share = dealing_bytes_fixture();
             let sender = Addr::unchecked(format!("owner{}", n));
-            for idx in 0..TOTAL_DEALINGS {
+            (0..TOTAL_DEALINGS).for_each(|idx| {
                 DEALINGS_BYTES[idx]
                     .save(deps.storage, &sender, &dealing_share)
                     .unwrap();
-            }
+            });
         }
     }
 

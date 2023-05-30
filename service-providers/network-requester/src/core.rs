@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::allowed_hosts;
-use crate::allowed_hosts::OutboundRequestFilter;
+use crate::allowed_hosts::standard_list::StandardListUpdater;
+use crate::allowed_hosts::stored_allowed_hosts::{start_allowed_list_reloader, StoredAllowedHosts};
+use crate::allowed_hosts::{OutboundRequestFilter, StandardList};
 use crate::config::Config;
 use crate::error::NetworkRequesterError;
 use crate::reply::MixnetMessage;
@@ -12,22 +14,25 @@ use async_trait::async_trait;
 use futures::channel::mpsc;
 use log::warn;
 use nym_bin_common::build_information::BinaryBuildInformation;
-use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nym_statistics_common::collector::StatisticsSender;
-use nym_task::connections::LaneQueueLengths;
-use nym_task::{TaskClient, TaskManager};
-use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
-use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
-use service_providers_common::interface::{
+use nym_network_defaults::NymNetworkDetails;
+use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };
-use service_providers_common::ServiceProvider;
-use socks5_requests::{
+use nym_service_providers_common::ServiceProvider;
+use nym_socks5_proxy_helpers::connection_controller::{
+    Controller, ControllerCommand, ControllerSender,
+};
+use nym_socks5_proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
+use nym_socks5_requests::{
     ConnectRequest, ConnectionId, NetworkData, SendRequest, Socks5ProtocolVersion,
     Socks5ProviderRequest, Socks5Request, Socks5RequestContent, Socks5Response,
 };
-use std::path::PathBuf;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::params::PacketSize;
+use nym_statistics_common::collector::StatisticsSender;
+use nym_task::connections::LaneQueueLengths;
+use nym_task::{TaskClient, TaskManager};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
@@ -48,9 +53,13 @@ pub struct NRServiceProviderBuilder {
     open_proxy: bool,
     enable_statistics: bool,
     stats_provider_addr: Option<Recipient>,
+    standard_list: StandardList,
+    allowed_hosts: StoredAllowedHosts,
 }
 
 struct NRServiceProvider {
+    config: Config,
+
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
     mixnet_client: nym_sdk::mixnet::MixnetClient,
@@ -152,29 +161,22 @@ impl NRServiceProviderBuilder {
         enable_statistics: bool,
         stats_provider_addr: Option<Recipient>,
     ) -> NRServiceProviderBuilder {
-        let standard_hosts = allowed_hosts::fetch_standard_allowed_list().await;
+        let standard_list = StandardList::new();
 
-        log::info!("Standard allowed hosts: {:?}", standard_hosts);
+        let allowed_hosts = StoredAllowedHosts::new(config.allow_list_file_location());
+        let unknown_hosts = allowed_hosts::HostsStore::new(config.unknown_list_file_location());
 
-        let allowed_hosts = allowed_hosts::HostsStore::new(
-            allowed_hosts::HostsStore::default_base_dir(),
-            PathBuf::from("allowed.list"),
-            Some(standard_hosts),
-        );
+        let outbound_request_filter =
+            OutboundRequestFilter::new(allowed_hosts.clone(), standard_list.clone(), unknown_hosts);
 
-        let unknown_hosts = allowed_hosts::HostsStore::new(
-            allowed_hosts::HostsStore::default_base_dir(),
-            PathBuf::from("unknown.list"),
-            None,
-        );
-
-        let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
         NRServiceProviderBuilder {
             config,
             outbound_request_filter,
             open_proxy,
             enable_statistics,
             stats_provider_addr,
+            standard_list,
+            allowed_hosts,
         }
     }
 
@@ -229,7 +231,21 @@ impl NRServiceProviderBuilder {
             .await;
         });
 
+        // start the standard list updater
+        StandardListUpdater::new(
+            self.config
+                .network_requester_debug
+                .standard_list_update_interval,
+            self.standard_list,
+            shutdown.subscribe(),
+        )
+        .start();
+
+        // start the allowed.list watcher and updater
+        start_allowed_list_reloader(self.allowed_hosts, shutdown.subscribe()).await;
+
         let service_provider = NRServiceProvider {
+            config: self.config,
             outbound_request_filter: self.outbound_request_filter,
             open_proxy: self.open_proxy,
             mixnet_client,
@@ -317,6 +333,7 @@ impl NRServiceProvider {
         connection_id: ConnectionId,
         remote_addr: String,
         return_address: reply::MixnetAddress,
+        biggest_packet_size: PacketSize,
         controller_sender: ControllerSender,
         mix_input_sender: MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
@@ -373,6 +390,7 @@ impl NRServiceProvider {
         // run the proxy on the connection
         conn.run_proxy(
             remote_version,
+            biggest_packet_size,
             mix_receiver,
             mix_input_sender,
             lane_queue_lengths,
@@ -409,7 +427,7 @@ impl NRServiceProvider {
         let remote_addr = connect_req.remote_addr;
         let conn_id = connect_req.conn_id;
 
-        if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
+        if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr).await {
             let log_msg = format!("Domain {remote_addr:?} failed filter check");
             log::info!("{}", log_msg);
             let msg = MixnetMessage::new_connection_error(
@@ -425,6 +443,11 @@ impl NRServiceProvider {
             return;
         }
 
+        let traffic_config = self.config.get_base().get_debug_config().traffic;
+        let packet_size = traffic_config
+            .secondary_packet_size
+            .unwrap_or(traffic_config.primary_packet_size);
+
         let controller_sender_clone = self.controller_sender.clone();
         let mix_input_sender_clone = self.mix_input_sender.clone();
         let lane_queue_lengths_clone = self.mixnet_client.shared_lane_queue_lengths();
@@ -437,6 +460,7 @@ impl NRServiceProvider {
                 conn_id,
                 remote_addr,
                 return_address,
+                packet_size,
                 controller_sender_clone,
                 mix_input_sender_clone,
                 lane_queue_lengths_clone,
@@ -455,24 +479,25 @@ impl NRServiceProvider {
 // This is NOT in the SDK since we don't want to expose any of the client-core config types.
 // We could however consider moving it to a crate in common in the future.
 async fn create_mixnet_client<T>(
-    config: &client_core::config::Config<T>,
+    config: &nym_client_core::config::Config<T>,
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
-    let nym_api_endpoints = config.get_nym_api_endpoints();
-    let debug_config = config.get_debug_config().clone();
-
-    let mixnet_config = nym_sdk::mixnet::Config {
-        user_chosen_gateway: None,
-        nym_api_endpoints,
-        debug_config,
-    };
+    let debug_config = *config.get_debug_config();
 
     let storage_paths = nym_sdk::mixnet::StoragePaths::from(config);
 
-    let mixnet_client = nym_sdk::mixnet::MixnetClientBuilder::new()
-        .config(mixnet_config)
-        .enable_storage(storage_paths)
-        .gateway_config(config.get_gateway_endpoint_config().clone())
-        .build::<nym_sdk::mixnet::ReplyStorage>()
+    let mut client_builder =
+        nym_sdk::mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)
+            .await
+            .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?
+            .network_details(NymNetworkDetails::new_from_env())
+            .debug_config(debug_config)
+            .registered_gateway(config.get_gateway_endpoint_config().clone());
+    if !config.get_disabled_credentials_mode() {
+        client_builder = client_builder.enable_credentials_mode();
+    }
+
+    let mixnet_client = client_builder
+        .build()
         .await
         .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?;
 

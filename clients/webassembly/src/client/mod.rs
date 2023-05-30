@@ -1,26 +1,37 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
-use crate::client::helpers::InputSender;
+use crate::client::helpers::{InputSender, NymClientTestRequest, WasmTopologyExt};
 use crate::client::response_pusher::ResponsePusher;
-use client_core::client::base_client::{
-    BaseClientBuilder, ClientInput, ClientOutput, CredentialsToggle,
-};
-use client_core::client::replies::reply_storage::browser_backend;
-use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
-use gateway_client::bandwidth::BandwidthController;
-use gateway_client::wasm_mockups::SigningNyxdClient;
+use crate::constants::NODE_TESTER_CLIENT_ID;
+use crate::error::WasmClientError;
+use crate::helpers::{parse_recipient, parse_sender_tag, setup_reply_surb_storage_backend};
+use crate::storage::traits::FullWasmClientStorage;
+use crate::storage::ClientStorage;
+use crate::topology::WasmNymTopology;
 use js_sys::Promise;
-use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
+use nym_bandwidth_controller::BandwidthController;
+use nym_client_core::client::base_client::{
+    BaseClientBuilder, ClientInput, ClientOutput, ClientState, CredentialsToggle,
+};
+use nym_client_core::client::inbound_messages::InputMessage;
+use nym_client_core::client::replies::reply_storage::browser_backend;
+use nym_client_core::config::{
+    CoverTraffic, DebugConfig, GatewayEndpointConfig, Topology, Traffic,
+};
+use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
+use nym_topology::provider_trait::{HardcodedTopologyProvider, TopologyProvider};
+use nym_topology::NymTopology;
 use rand::rngs::OsRng;
+use rand::RngCore;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::{console_error, console_log};
+use wasm_utils::{check_promise_result, console_log, PromisableResult};
 
 pub mod config;
 mod helpers;
@@ -30,6 +41,11 @@ mod response_pusher;
 pub struct NymClient {
     self_address: String,
     client_input: Arc<ClientInput>,
+    client_state: Arc<ClientState>,
+
+    // keep track of the "old" topology for the purposes of node tester
+    // so that it could be restored after the check is done
+    _full_topology: Option<NymTopology>,
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
@@ -39,131 +55,224 @@ pub struct NymClient {
 #[wasm_bindgen]
 pub struct NymClientBuilder {
     config: Config,
+    custom_topology: Option<NymTopology>,
 
-    /// KeyManager object containing smart pointers to all relevant keys used by the client.
-    key_manager: KeyManager,
-
+    storage_passphrase: Option<String>,
     reply_surb_storage_backend: browser_backend::Backend,
 
     on_message: js_sys::Function,
 
     // unimplemented:
-    bandwidth_controller: Option<BandwidthController<SigningNyxdClient>>,
+    bandwidth_controller:
+        Option<BandwidthController<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>,
     disabled_credentials: bool,
 }
 
 #[wasm_bindgen]
 impl NymClientBuilder {
     #[wasm_bindgen(constructor)]
-    pub fn new(config: Config, on_message: js_sys::Function) -> Self {
-        //, key_manager: Option<KeyManager>) {
+    pub fn new(
+        config: Config,
+        on_message: js_sys::Function,
+        storage_passphrase: Option<String>,
+    ) -> Self {
         NymClientBuilder {
-            reply_surb_storage_backend: Self::setup_reply_surb_storage_backend(&config),
+            reply_surb_storage_backend: setup_reply_surb_storage_backend(config.debug.reply_surbs),
             config,
-            key_manager: Self::setup_key_manager(),
+            custom_topology: None,
+            storage_passphrase,
             on_message,
             bandwidth_controller: None,
             disabled_credentials: true,
         }
     }
 
-    // TODO: once we make keys persistent, we'll require some kind of `init` method to generate
-    // a prior shared keypair between the client and the gateway
+    // no cover traffic
+    // no poisson delay
+    // hardcoded topology
+    // NOTE: you most likely want to use `[NymNodeTester]` instead.
+    pub fn new_tester(
+        gateway_config: GatewayEndpointConfig,
+        topology: WasmNymTopology,
+        on_message: js_sys::Function,
+    ) -> Self {
+        if !topology.ensure_contains(&gateway_config) {
+            panic!("the specified topology does not contain the gateway used by the client")
+        }
 
-    // perhaps this should be public?
-    fn setup_key_manager() -> KeyManager {
-        let mut rng = OsRng;
-        // for time being generate new keys each time...
-        console_log!("generated new set of keys");
-        KeyManager::new(&mut rng)
-    }
+        let full_config = Config {
+            id: NODE_TESTER_CLIENT_ID.to_string(),
+            nym_api_url: None,
+            disabled_credentials_mode: true,
+            gateway_endpoint: gateway_config,
+            debug: DebugConfig {
+                traffic: Traffic {
+                    disable_main_poisson_packet_distribution: true,
+                    ..Default::default()
+                },
+                cover_traffic: CoverTraffic {
+                    disable_loop_cover_traffic_stream: true,
+                    ..Default::default()
+                },
+                topology: Topology {
+                    disable_refreshing: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        };
 
-    // don't get too excited about the name, under the hood it's just a big fat placeholder
-    // with no persistence
-    fn setup_reply_surb_storage_backend(config: &Config) -> browser_backend::Backend {
-        browser_backend::Backend::new(
-            config.debug.minimum_reply_surb_storage_threshold,
-            config.debug.maximum_reply_surb_storage_threshold,
-        )
+        NymClientBuilder {
+            reply_surb_storage_backend: setup_reply_surb_storage_backend(
+                full_config.debug.reply_surbs,
+            ),
+            config: full_config,
+            custom_topology: Some(topology.into()),
+            on_message,
+            bandwidth_controller: None,
+            disabled_credentials: true,
+            storage_passphrase: None,
+        }
     }
 
     fn start_reconstructed_pusher(client_output: ClientOutput, on_message: js_sys::Function) {
         ResponsePusher::new(client_output, on_message).start()
     }
 
-    pub async fn start_client(self) -> Promise {
-        future_to_promise(async move {
-            console_log!("Starting the wasm client");
+    fn topology_provider(&mut self) -> Option<Box<dyn TopologyProvider>> {
+        if let Some(hardcoded_topology) = self.custom_topology.take() {
+            Some(Box::new(HardcodedTopologyProvider::new(hardcoded_topology)))
+        } else {
+            None
+        }
+    }
 
-            let disabled_credentials = if self.disabled_credentials {
-                CredentialsToggle::Disabled
-            } else {
-                CredentialsToggle::Enabled
-            };
+    async fn start_client_async(mut self) -> Result<NymClient, WasmClientError> {
+        console_log!("Starting the wasm client");
 
-            let base_builder = BaseClientBuilder::new(
-                &self.config.gateway_endpoint,
-                &self.config.debug,
-                self.key_manager,
-                self.bandwidth_controller,
-                self.reply_surb_storage_backend,
-                disabled_credentials,
-                vec![self.config.nym_api_url.clone()],
-            );
+        let maybe_topology_provider = self.topology_provider();
 
-            let self_address = base_builder.as_mix_recipient().to_string();
-            let mut started_client = match base_builder.start_base().await {
-                Ok(base_client) => base_client,
-                Err(err) => {
-                    let error_msg = format!("failed to start the base client components - {err}");
-                    console_error!("{}", error_msg);
-                    let js_error = js_sys::Error::new(&error_msg);
-                    return Err(JsValue::from(js_error));
-                }
-            };
+        let disabled_credentials = if self.disabled_credentials {
+            CredentialsToggle::Disabled
+        } else {
+            CredentialsToggle::Enabled
+        };
 
-            let client_input = started_client.client_input.register_producer();
-            let client_output = started_client.client_output.register_consumer();
+        let nym_api_endpoints = match self.config.nym_api_url {
+            Some(endpoint) => vec![endpoint],
+            None => Vec::new(),
+        };
 
-            Self::start_reconstructed_pusher(client_output, self.on_message);
+        // TODO: this will have to be re-used for surbs. but this is a problem for another PR.
+        let key_store =
+            ClientStorage::new_async(&self.config.id, self.storage_passphrase.take()).await?;
 
-            Ok(JsValue::from(NymClient {
-                self_address,
-                client_input: Arc::new(client_input),
-                _task_manager: started_client.task_manager,
-            }))
+        let mut base_builder: BaseClientBuilder<_, FullWasmClientStorage> = BaseClientBuilder::new(
+            &self.config.gateway_endpoint,
+            &self.config.debug,
+            key_store,
+            self.bandwidth_controller,
+            self.reply_surb_storage_backend,
+            disabled_credentials,
+            nym_api_endpoints,
+        );
+        if let Some(topology_provider) = maybe_topology_provider {
+            base_builder = base_builder.with_topology_provider(topology_provider);
+        }
+
+        let mut started_client = base_builder.start_base().await?;
+        let self_address = started_client.address.to_string();
+
+        let client_input = started_client.client_input.register_producer();
+        let client_output = started_client.client_output.register_consumer();
+
+        Self::start_reconstructed_pusher(client_output, self.on_message);
+
+        Ok(NymClient {
+            self_address,
+            client_input: Arc::new(client_input),
+            client_state: Arc::new(started_client.client_state),
+            _full_topology: None,
+            _task_manager: started_client.task_manager,
         })
+    }
+
+    pub fn start_client(self) -> Promise {
+        future_to_promise(async move { self.start_client_async().await.into_promise_result() })
     }
 }
 
 #[wasm_bindgen]
 impl NymClient {
+    async fn _new(
+        config: Config,
+        on_message: js_sys::Function,
+        storage_passphrase: Option<String>,
+    ) -> Result<NymClient, WasmClientError> {
+        NymClientBuilder::new(config, on_message, storage_passphrase)
+            .start_client_async()
+            .await
+    }
+
+    #[wasm_bindgen(constructor)]
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(
+        config: Config,
+        on_message: js_sys::Function,
+        storage_passphrase: Option<String>,
+    ) -> Promise {
+        future_to_promise(async move {
+            Self::_new(config, on_message, storage_passphrase)
+                .await
+                .into_promise_result()
+        })
+    }
+
     pub fn self_address(&self) -> String {
         self.self_address.clone()
     }
 
-    fn parse_recipient(recipient: &str) -> Result<Recipient, JsValue> {
-        match Recipient::try_from_base58_string(recipient) {
-            Ok(recipient) => Ok(recipient),
-            Err(err) => {
-                let error_msg = format!("{recipient} is not a valid Nym network recipient - {err}");
-                console_error!("{}", error_msg);
-                let js_error = js_sys::Error::new(&error_msg);
-                Err(JsValue::from(js_error))
-            }
-        }
+    pub fn try_construct_test_packet_request(
+        &self,
+        mixnode_identity: String,
+        num_test_packets: Option<u32>,
+    ) -> Promise {
+        // TODO: improve the source of rng (i.e. don't make it ephemeral...)
+        let mut ephemeral_rng = OsRng;
+        let test_id = ephemeral_rng.next_u32();
+        self.client_state
+            .mix_test_request(test_id, mixnode_identity, num_test_packets)
     }
 
-    fn parse_sender_tag(tag: &str) -> Result<AnonymousSenderTag, JsValue> {
-        match AnonymousSenderTag::try_from_base58_string(tag) {
-            Ok(tag) => Ok(tag),
-            Err(err) => {
-                let error_msg = format!("{tag} is not a valid Nym AnonymousSenderTag - {err}");
-                console_error!("{}", error_msg);
-                let js_error = js_sys::Error::new(&error_msg);
-                Err(JsValue::from(js_error))
-            }
-        }
+    pub fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise {
+        self.client_state.change_hardcoded_topology(topology)
+    }
+
+    pub fn current_network_topology(&self) -> Promise {
+        self.client_state.current_topology()
+    }
+
+    /// Sends a test packet through the current network topology.
+    /// It's the responsibility of the caller to ensure the correct topology has been injected and
+    /// correct onmessage handlers have been setup.
+    pub fn try_send_test_packets(&mut self, request: NymClientTestRequest) -> Promise {
+        // TOOD: use the premade packets instead
+        console_log!(
+            "Attempting to send {} test packets",
+            request.test_msgs.len()
+        );
+
+        // our address MUST BE valid
+        let recipient = parse_recipient(&self.self_address()).unwrap();
+
+        let lane = TransmissionLane::General;
+        let input_msgs = request
+            .test_msgs
+            .into_iter()
+            .map(|p| InputMessage::new_regular(recipient, p, lane))
+            .collect();
+
+        self.client_input.send_messages(input_msgs)
     }
 
     /// The simplest message variant where no additional information is attached.
@@ -176,10 +285,8 @@ impl NymClient {
             message.len() as f64 / 1024.0
         );
 
-        let recipient = match Self::parse_recipient(&recipient) {
-            Ok(recipient) => recipient,
-            Err(err) => return Promise::reject(&err),
-        };
+        let recipient = check_promise_result!(parse_recipient(&recipient));
+
         let lane = TransmissionLane::General;
 
         let input_msg = InputMessage::new_regular(recipient, message, lane);
@@ -205,10 +312,8 @@ impl NymClient {
             message.len() as f64 / 1024.0
         );
 
-        let recipient = match Self::parse_recipient(&recipient) {
-            Ok(recipient) => recipient,
-            Err(err) => return Promise::reject(&err),
-        };
+        let recipient = check_promise_result!(parse_recipient(&recipient));
+
         let lane = TransmissionLane::General;
 
         let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
@@ -225,10 +330,8 @@ impl NymClient {
             message.len() as f64 / 1024.0
         );
 
-        let sender_tag = match Self::parse_sender_tag(&recipient_tag) {
-            Ok(recipient) => recipient,
-            Err(err) => return Promise::reject(&err),
-        };
+        let sender_tag = check_promise_result!(parse_sender_tag(&recipient_tag));
+
         let lane = TransmissionLane::General;
 
         let input_msg = InputMessage::new_reply(sender_tag, message, lane);

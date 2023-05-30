@@ -1,5 +1,5 @@
 [package]
-name = "dkg"
+name = "nym-dkg"
 version = "0.1.0"
 edition = "2021"
 resolver = "2"
@@ -37,7 +37,7 @@ version = "0.11"
 default-features = false
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.4"
 
 [[bench]]
 name = "benchmarks"

@@ -1,15 +1,16 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::ReceivedProcessor;
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestSummary};
-use crate::network_monitor::test_packet::TestPacket;
+use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
 use crate::support::config::Config;
 use log::{debug, error, info};
+use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
 use std::process;
@@ -23,11 +24,11 @@ pub(crate) mod receiver;
 pub(crate) mod sender;
 pub(crate) mod summary_producer;
 
-pub(super) struct Monitor {
+pub(super) struct Monitor<R: MessageReceiver + Send + 'static> {
     test_nonce: u64,
     packet_preparer: PacketPreparer,
     packet_sender: PacketSender,
-    received_processor: ReceivedProcessor,
+    received_processor: ReceivedProcessor<R>,
     summary_producer: SummaryProducer,
     node_status_storage: NymApiStorage,
     run_interval: Duration,
@@ -45,12 +46,12 @@ pub(super) struct Monitor {
     minimum_test_routes: usize,
 }
 
-impl Monitor {
+impl<R: MessageReceiver + Send> Monitor<R> {
     pub(super) fn new(
         config: &Config,
         packet_preparer: PacketPreparer,
         packet_sender: PacketSender,
-        received_processor: ReceivedProcessor,
+        received_processor: ReceivedProcessor<R>,
         summary_producer: SummaryProducer,
         node_status_storage: NymApiStorage,
     ) -> Self {
@@ -88,20 +89,20 @@ impl Monitor {
             )
             .await
         {
-            error!(
-                "Failed to submit monitor run information to the database - {}",
-                err
-            );
+            error!("Failed to submit monitor run information to the database - {err}",);
 
             // TODO: slightly more graceful shutdown here
             process::exit(1);
         }
     }
 
-    fn analyse_received_test_route_packets(&self, packets: &[TestPacket]) -> HashMap<u64, usize> {
+    fn analyse_received_test_route_packets(
+        &self,
+        packets: &[NodeTestMessage],
+    ) -> HashMap<u64, usize> {
         let mut received = HashMap::new();
         for packet in packets {
-            *received.entry(packet.route_id).or_insert(0usize) += 1usize
+            *received.entry(packet.ext.route_id).or_insert(0usize) += 1usize
         }
 
         received
@@ -124,12 +125,8 @@ impl Monitor {
         for route in routes {
             let mut packet_preparer = self.packet_preparer.clone();
             let route = route.clone();
-            let route_test_packets = self.route_test_packets;
-            let gateway_packets = tokio::spawn(async move {
-                packet_preparer.prepare_test_route_viability_packets(&route, route_test_packets)
-            })
-            .await
-            .unwrap();
+            let gateway_packets = packet_preparer
+                .prepare_test_route_viability_packets(&route, self.route_test_packets);
             packets.push(gateway_packets);
         }
 
@@ -264,7 +261,7 @@ impl Monitor {
 
         let received = self.received_processor.return_received().await;
         let total_received = received.len();
-        info!("Test routes: {:?}", routes);
+        info!("Test routes: {:#?}", routes);
         info!("Received {}/{} packets", total_received, total_sent);
 
         let summary = self.summary_producer.produce_summary(
@@ -277,7 +274,7 @@ impl Monitor {
         );
 
         let report = summary.create_report(total_sent, total_received);
-        info!("{}", report);
+        info!("{report}");
 
         self.submit_new_node_statuses(summary).await;
     }

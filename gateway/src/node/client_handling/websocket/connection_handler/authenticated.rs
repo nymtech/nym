@@ -6,10 +6,10 @@ use crate::node::client_handling::websocket::message_receiver::MixMessageReceive
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::StreamExt;
-use gateway_requests::iv::IVConversionError;
-use gateway_requests::types::{BinaryRequest, ServerResponse};
-use gateway_requests::{ClientControlRequest, GatewayRequestsError};
 use log::*;
+use nym_gateway_requests::iv::IVConversionError;
+use nym_gateway_requests::types::{BinaryRequest, ServerResponse};
+use nym_gateway_requests::{ClientControlRequest, GatewayRequestsError};
 use nym_sphinx::forwarding::packet::MixPacket;
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
@@ -20,7 +20,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 
 use crate::node::client_handling::bandwidth::Bandwidth;
 use crate::node::client_handling::FREE_TESTNET_BANDWIDTH_VALUE;
-use gateway_requests::iv::IV;
+use nym_gateway_requests::iv::IV;
 use nym_task::TaskClient;
 
 #[derive(Debug, Error)]
@@ -50,10 +50,10 @@ pub(crate) enum RequestHandlingError {
     OnlyCoconutCredentials,
 
     #[error("Nyxd Error - {0}")]
-    NyxdError(#[from] validator_client::nyxd::error::NyxdError),
+    NyxdError(#[from] nym_validator_client::nyxd::error::NyxdError),
 
     #[error("Validator API error - {0}")]
-    APIError(#[from] validator_client::ValidatorClientError),
+    APIError(#[from] nym_validator_client::ValidatorClientError),
 
     #[error("Not enough nym API endpoints provided. Needed {needed}, received {received}")]
     NotEnoughNymAPIs { received: usize, needed: usize },
@@ -62,10 +62,10 @@ pub(crate) enum RequestHandlingError {
     ProposalIdError { reason: String },
 
     #[error("Coconut interface error - {0}")]
-    CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
+    CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
     #[error("Credential error - {0}")]
-    CredentialError(#[from] credentials::error::Error),
+    CredentialError(#[from] nym_credentials::error::Error),
 }
 
 impl RequestHandlingError {
@@ -225,7 +225,7 @@ where
         }
 
         let aggregated_verification_key =
-            credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
+            nym_credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
 
         if !credential.verify(&aggregated_verification_key) {
             return Err(RequestHandlingError::InvalidBandwidthCredential(
@@ -400,7 +400,7 @@ where
                 },
                 mix_messages = self.mix_receiver.next() => {
                     let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
-                    if let Err(err) = self.inner.push_packets_to_client(self.client.shared_keys, mix_messages).await {
+                    if let Err(err) = self.inner.push_packets_to_client(&self.client.shared_keys, mix_messages).await {
                         warn!("failed to send the unwrapped sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;
                     }

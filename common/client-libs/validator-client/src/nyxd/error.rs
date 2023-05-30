@@ -3,7 +3,6 @@
 
 use crate::nyxd::cosmwasm_client::types::ContractCodeId;
 use cosmrs::{
-    bip32,
     rpc::endpoint::abci_query::AbciQuery,
     tendermint::{
         abci::{self, Code as AbciCode},
@@ -13,23 +12,20 @@ use cosmrs::{
 };
 use thiserror::Error;
 
-use std::{io, time::Duration};
-
+use crate::signing::direct_wallet::DirectSecp256k1HdWalletError;
 pub use cosmrs::rpc::{
     error::{Error as TendermintRpcError, ErrorDetail as TendermintRpcErrorDetail},
     response_error::{Code, ResponseError},
 };
+use std::{io, time::Duration};
 
 #[derive(Debug, Error)]
 pub enum NyxdError {
-    #[error("No contract address is available to perform the call")]
-    NoContractAddressAvailable,
+    #[error("No contract address is available to perform the call: {0}")]
+    NoContractAddressAvailable(String),
 
-    #[error("There was an issue with bip32 - {0}")]
-    Bip32Error(#[from] bip32::Error),
-
-    #[error("There was an issue with bip39 - {0}")]
-    Bip39Error(#[from] bip39::Error),
+    #[error(transparent)]
+    WalletError(#[from] DirectSecp256k1HdWalletError),
 
     #[error("There was an issue on the cosmrs side - {0}")]
     CosmrsError(#[from] cosmrs::Error),
@@ -140,7 +136,7 @@ pub enum NyxdError {
     CosmwasmStdError(#[from] cosmwasm_std::StdError),
 
     #[error("Coconut interface error: {0}")]
-    CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
+    CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
     #[error("Account had an unexpected bech32 prefix. Expected: {expected}, got: {got}")]
     UnexpectedBech32Prefix { got: String, expected: String },
@@ -166,7 +162,7 @@ fn try_parse_abci_log(log: &abci::Log) -> Option<String> {
         .value()
         .contains("Maximum amount of locked coins has already been pledged")
     {
-        Some("Maximum amount of locked tokens has alredy been used. You can only use up to 10% of your locked tokens for bonding and delegating.".to_string())
+        Some("Maximum amount of locked tokens has already been used. You can only use up to 10% of your locked tokens for bonding and delegating.".to_string())
     } else {
         None
     }

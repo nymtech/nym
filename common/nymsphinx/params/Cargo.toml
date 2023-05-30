@@ -9,6 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 thiserror = "1.0.37"
+serde = { workspace = true, features = ["derive"] }
 
 nym-crypto = { path = "../../crypto", features = ["hashing", "symmetric"] }
 nym-sphinx-types = { path = "../types" }

@@ -1,11 +1,14 @@
+use nym_contracts_common::signing::SigningAlgorithm;
+use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_types::error::TypesError;
+use nym_validator_client::nym_api::error::NymAPIError;
+use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWalletError;
+use nym_validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 use nym_wallet_types::network::Network;
 use serde::{Serialize, Serializer};
 use std::io;
 use std::num::ParseIntError;
 use thiserror::Error;
-use validator_client::nym_api::error::NymAPIError;
-use validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 
 #[derive(Error, Debug)]
 pub enum BackendError {
@@ -46,11 +49,6 @@ pub enum BackendError {
         source: NymAPIError,
     },
     #[error("{source}")]
-    KeyDerivationError {
-        #[from]
-        source: argon2::Error,
-    },
-    #[error("{source}")]
     IOError {
         #[from]
         source: io::Error,
@@ -75,10 +73,13 @@ pub enum BackendError {
         #[from]
         source: k256::ecdsa::Error,
     },
-    #[error("failed to encrypt the given data with the provided password")]
-    EncryptionError,
-    #[error("failed to decrypt the given data with the provided password")]
-    DecryptionError,
+
+    #[error(transparent)]
+    StoreCipherError {
+        #[from]
+        source: nym_store_cipher::Error,
+    },
+
     #[error("Client has not been initialized yet, connect with mnemonic to initialize")]
     ClientNotInitialized,
     #[error("No balance available for address {0}")]
@@ -91,6 +92,12 @@ pub enum BackendError {
     WalletFileAlreadyExists,
     #[error("The wallet file is not found")]
     WalletFileNotFound,
+    #[error("Invalid update pledge request, the new bond amount is the same as the current one")]
+    WalletPledgeUpdateNoOp,
+    #[error(
+        "Invalid update pledge request, the new bond is a different currency from the current one"
+    )]
+    WalletPledgeUpdateInvalidCurrency,
     #[error("The wallet file has a malformed name")]
     WalletFileMalformedFilename,
     #[error("Unable to archive wallet file")]
@@ -121,6 +128,26 @@ pub enum BackendError {
     SignatureError(String),
     #[error("Unable to open a new window")]
     NewWindowError,
+    #[error("Failed to check for application update")]
+    CheckAppVersionError,
+    #[error("Failed to connect to the provided validator URL")]
+    WalletValidatorConnectionFailed,
+    #[error("No defined default validator URL")]
+    WalletNoDefaultValidator,
+
+    #[error(transparent)]
+    WalletError {
+        #[from]
+        source: DirectSecp256k1HdWalletError,
+    },
+
+    #[error("received unexpected signing algorithm: {received:?}. Expected to get {expected:?}")]
+    UnexpectedSigningAlgorithm {
+        received: SigningAlgorithm,
+        expected: SigningAlgorithm,
+    },
+    #[error(transparent)]
+    Ed25519Recovery(#[from] Ed25519RecoveryError),
 
     #[error("This command ({name}) has been removed. Please try to use {alternative} instead.")]
     RemovedCommand { name: String, alternative: String },

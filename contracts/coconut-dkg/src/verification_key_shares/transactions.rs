@@ -8,9 +8,11 @@ use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::{MULTISIG, STATE};
 use crate::verification_key_shares::storage::vk_shares;
-use coconut_dkg_common::types::EpochState;
-use coconut_dkg_common::verification_key::{to_cosmos_msg, ContractVKShare, VerificationKeyShare};
 use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response};
+use nym_coconut_dkg_common::types::EpochState;
+use nym_coconut_dkg_common::verification_key::{
+    to_cosmos_msg, ContractVKShare, VerificationKeyShare,
+};
 
 pub fn try_commit_verification_key_share(
     deps: DepsMut<'_>,
@@ -92,10 +94,10 @@ mod tests {
     use crate::epoch_state::transactions::advance_epoch_state;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_fixture_dealer, MULTISIG_CONTRACT};
-    use coconut_dkg_common::dealer::DealerDetails;
-    use coconut_dkg_common::types::{EpochState, TimeConfiguration};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cw_controllers::AdminError;
+    use nym_coconut_dkg_common::dealer::DealerDetails;
+    use nym_coconut_dkg_common::types::{EpochState, TimeConfiguration};
 
     #[test]
     fn current_epoch_id() {
@@ -127,14 +129,8 @@ mod tests {
             .save(deps.as_mut().storage, &dealer, &dealer_details)
             .unwrap();
 
-        try_commit_verification_key_share(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            share.clone(),
-            false,
-        )
-        .unwrap();
+        try_commit_verification_key_share(deps.as_mut(), env, info.clone(), share.clone(), false)
+            .unwrap();
         let vk_share = vk_shares().load(&deps.storage, (&info.sender, 0)).unwrap();
         assert_eq!(
             vk_share,
@@ -213,14 +209,8 @@ mod tests {
         )
         .unwrap();
 
-        let ret = try_commit_verification_key_share(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            share.clone(),
-            false,
-        )
-        .unwrap_err();
+        let ret =
+            try_commit_verification_key_share(deps.as_mut(), env, info, share, false).unwrap_err();
         assert_eq!(
             ret,
             ContractError::AlreadyCommitted {
@@ -316,14 +306,7 @@ mod tests {
         dealers_storage::current_dealers()
             .save(deps.as_mut().storage, &owner, &dealer_details)
             .unwrap();
-        try_commit_verification_key_share(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            share.clone(),
-            false,
-        )
-        .unwrap();
+        try_commit_verification_key_share(deps.as_mut(), env.clone(), info, share, false).unwrap();
 
         env.block.time = env
             .block
@@ -336,7 +319,6 @@ mod tests {
             .plus_seconds(TimeConfiguration::default().verification_key_validation_time_secs);
         advance_epoch_state(deps.as_mut(), env).unwrap();
 
-        try_verify_verification_key_share(deps.as_mut(), multisig_info, owner.clone(), false)
-            .unwrap();
+        try_verify_verification_key_share(deps.as_mut(), multisig_info, owner, false).unwrap();
     }
 }

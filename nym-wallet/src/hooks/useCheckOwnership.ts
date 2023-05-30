@@ -18,7 +18,7 @@ export const useCheckOwnership = () => {
   const [error, setError] = useState<string>();
 
   const checkOwnership = useCallback(async () => {
-    const status = {} as TNodeOwnership;
+    const status = initial as TNodeOwnership;
 
     try {
       const [ownsMixnode, ownsGateway] = await Promise.all([checkMixnodeOwnership(), checkGatewayOwnership()]);

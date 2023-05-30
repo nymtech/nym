@@ -3,17 +3,17 @@
 
 use bls12_381::{G1Projective, G2Affine, G2Prepared, Scalar};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use dkg::bte::encryption::BabyStepGiantStepLookup;
-use dkg::bte::proof_chunking::ProofOfChunking;
-use dkg::bte::proof_discrete_log::ProofOfDiscreteLog;
-use dkg::bte::proof_sharing::ProofOfSecretSharing;
-use dkg::bte::{
+use ff::Field;
+use nym_dkg::bte::encryption::BabyStepGiantStepLookup;
+use nym_dkg::bte::proof_chunking::ProofOfChunking;
+use nym_dkg::bte::proof_discrete_log::ProofOfDiscreteLog;
+use nym_dkg::bte::proof_sharing::ProofOfSecretSharing;
+use nym_dkg::bte::{
     decrypt_share, encrypt_shares, keygen, proof_chunking, proof_sharing, setup, DecryptionKey,
     PublicKey,
 };
-use dkg::interpolation::polynomial::Polynomial;
-use dkg::{Dealing, NodeIndex, Share};
-use ff::Field;
+use nym_dkg::interpolation::polynomial::Polynomial;
+use nym_dkg::{Dealing, NodeIndex, Share};
 use rand_core::{RngCore, SeedableRng};
 use std::collections::BTreeMap;
 

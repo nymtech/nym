@@ -76,6 +76,14 @@ gateway_owner = '{{ client.gateway_endpoint.gateway_owner }}'
 # Address of the gateway listener to which all client requests should be sent.
 gateway_listener = '{{ client.gateway_endpoint.gateway_listener }}'
 
+##### network requester specific config options #####
+
+[network_requester]
+# Location of the file containing our allow.list
+allowed_list_location = '{{ network_requester.allowed_list_location }}'
+
+# Location of the file containing our unknown.list
+unknown_list_location = '{{ network_requester.unknown_list_location }}'
 
 ##### logging configuration options #####
 
@@ -90,10 +98,15 @@ gateway_listener = '{{ client.gateway_endpoint.gateway_listener }}'
 
 [debug]
 
-average_packet_delay = '{{ debug.average_packet_delay }}'
-average_ack_delay = '{{ debug.average_ack_delay }}'
-loop_cover_traffic_average_delay = '{{ debug.loop_cover_traffic_average_delay }}'
-message_sending_average_delay = '{{ debug.message_sending_average_delay }}'
+[debug.traffic]
+average_packet_delay = '{{ debug.traffic.average_packet_delay }}'
+message_sending_average_delay = '{{ debug.traffic.message_sending_average_delay }}'
+
+[debug.acknowledgements]
+average_ack_delay = '{{ debug.acknowledgements.average_ack_delay }}'
+
+[debug.cover_traffic]
+loop_cover_traffic_average_delay = '{{ debug.cover_traffic.loop_cover_traffic_average_delay }}'
 
 "#
 }

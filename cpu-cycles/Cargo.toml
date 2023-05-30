@@ -1,0 +1,12 @@
+[package]
+name = "cpu-cycles"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+links = "cpucycles"
+
+[dependencies]
+libc = "0.2.140"
+
+[build-dependencies]
+cfg-if = "1"

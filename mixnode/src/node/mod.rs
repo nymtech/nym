@@ -1,7 +1,6 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::validate_bech32_address_or_exit;
 use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::http::{
@@ -17,19 +16,19 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
-use crate::OutputFormat;
-use colored::Colorize;
-use log::{error, info, warn};
-use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
+use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::version_checker::parse_version;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_task::{TaskClient, TaskManager};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
+#[cfg(feature = "cpucycles")]
+use tracing::{error, info, warn};
 
 mod http;
 mod listener;
@@ -84,29 +83,11 @@ impl MixNode {
         sphinx_keypair
     }
 
-    /// Signs the node config's bech32 address to produce a verification code for use in the wallet.
-    /// Exits if the address isn't valid (which should protect against manual edits).
-    fn generate_owner_signature(&self) -> String {
-        let pathfinder = MixNodePathfinder::new_from_config(&self.config);
-        let identity_keypair = Self::load_identity_keys(&pathfinder);
-        let Some(address) = self.config.get_wallet_address() else {
-            let error_message = "Error: mixnode hasn't set its wallet address".red();
-            println!("{error_message}");
-            println!("Exiting...");
-            process::exit(1);
-        };
-        // perform extra validation to ensure we have correct prefix
-        validate_bech32_address_or_exit(address.as_ref());
-        let verification_code = identity_keypair.private_key().sign_text(address.as_ref());
-        verification_code
-    }
-
     /// Prints relevant node details to the console
     pub(crate) fn print_node_details(&self, output: OutputFormat) {
         let node_details = nym_types::mixnode::MixnodeNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
-            owner_signature: self.generate_owner_signature(),
             announce_address: self.config.get_announce_address(),
             bind_address: self.config.get_listening_address().to_string(),
             version: self.config.get_version().to_string(),
@@ -116,14 +97,7 @@ impl MixNode {
             wallet_address: self.config.get_wallet_address().map(|x| x.to_string()),
         };
 
-        match output {
-            OutputFormat::Json => println!(
-                "{}",
-                serde_json::to_string(&node_details)
-                    .unwrap_or_else(|_| "Could not serialize node details".to_string())
-            ),
-            OutputFormat::Text => println!("{node_details}"),
-        }
+        println!("{}", output.format(&node_details));
     }
 
     fn start_http_api(
@@ -199,7 +173,7 @@ impl MixNode {
     ) -> PacketDelayForwardSender {
         info!("Starting packet delay-forwarder...");
 
-        let client_config = mixnet_client::Config::new(
+        let client_config = nym_mixnet_client::Config::new(
             self.config.get_packet_forwarding_initial_backoff(),
             self.config.get_packet_forwarding_maximum_backoff(),
             self.config.get_initial_connection_timeout(),
@@ -208,7 +182,7 @@ impl MixNode {
         );
 
         let mut packet_forwarder = DelayForwarder::new(
-            mixnet_client::Client::new(client_config),
+            nym_mixnet_client::Client::new(client_config),
             node_stats_update_sender,
             shutdown,
         );
@@ -259,13 +233,13 @@ impl MixNode {
         atomic_verloc_results
     }
 
-    fn random_api_client(&self) -> validator_client::NymApiClient {
+    fn random_api_client(&self) -> nym_validator_client::NymApiClient {
         let endpoints = self.config.get_nym_api_endpoints();
         let nym_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
 
-        validator_client::NymApiClient::new(nym_api.clone())
+        nym_validator_client::NymApiClient::new(nym_api.clone())
     }
 
     // TODO: ask DH whether this function still makes sense in ^0.10

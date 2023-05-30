@@ -7,19 +7,19 @@ use crate::helpers::{
 use crate::spend_credential_creates_proposal::{
     TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS, TEST_COCONUT_DKG_CONTRACT_ADDRESS, TEST_COIN_DENOM,
 };
-use coconut_dkg_common::msg::ExecuteMsg::{
-    AdvanceEpochState, CommitVerificationKeyShare, RegisterDealer,
-};
-use coconut_dkg_common::msg::InstantiateMsg as DkgInstantiateMsg;
-use coconut_dkg_common::msg::QueryMsg::GetVerificationKeys;
-use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmwasm_std::{coins, Addr, Decimal};
 use cw4::Member;
 use cw_multi_test::Executor;
 use cw_utils::{Duration, Threshold};
-use group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
-use multisig_contract_common::msg::ExecuteMsg::{Execute, Vote};
-use multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
+use nym_coconut_dkg_common::msg::ExecuteMsg::{
+    AdvanceEpochState, CommitVerificationKeyShare, RegisterDealer,
+};
+use nym_coconut_dkg_common::msg::InstantiateMsg as DkgInstantiateMsg;
+use nym_coconut_dkg_common::msg::QueryMsg::GetVerificationKeys;
+use nym_coconut_dkg_common::verification_key::PagedVKSharesResponse;
+use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
+use nym_multisig_contract_common::msg::ExecuteMsg::{Execute, Vote};
+use nym_multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
 
 #[test]
 fn dkg_proposal() {
@@ -105,7 +105,7 @@ fn dkg_proposal() {
             announce_address: "127.0.0.1:8000".to_string(),
             resharing: false,
         },
-        &vec![],
+        &[],
     )
     .unwrap();
 
@@ -115,7 +115,7 @@ fn dkg_proposal() {
             Addr::unchecked(OWNER),
             coconut_dkg_contract_addr.clone(),
             &AdvanceEpochState {},
-            &vec![],
+            &[],
         )
         .unwrap();
     }
@@ -132,7 +132,7 @@ fn dkg_proposal() {
             Addr::unchecked(MEMBER1),
             coconut_dkg_contract_addr.clone(),
             &msg,
-            &vec![],
+            &[],
         )
         .unwrap();
 
@@ -174,7 +174,7 @@ fn dkg_proposal() {
             proposal_id,
             vote: cw3::Vote::Yes,
         },
-        &vec![],
+        &[],
     )
     .unwrap();
 
@@ -184,16 +184,16 @@ fn dkg_proposal() {
             Addr::unchecked(OWNER),
             coconut_dkg_contract_addr.clone(),
             &AdvanceEpochState {},
-            &vec![],
+            &[],
         )
         .unwrap();
     }
 
     app.execute_contract(
         Addr::unchecked(MEMBER1),
-        multisig_contract_addr.clone(),
+        multisig_contract_addr,
         &Execute { proposal_id },
-        &vec![],
+        &[],
     )
     .unwrap();
 

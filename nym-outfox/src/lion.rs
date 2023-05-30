@@ -36,7 +36,7 @@ use chacha20::XChaCha20;
 use chacha20::XNonce;
 use zeroize::Zeroize;
 
-use crate::error::OutFoxError;
+use crate::error::OutfoxError;
 
 pub const MIN_MESSAGE_LEN: usize = 24 * 2;
 const CONTEXT: &str = "LIONKEYS";
@@ -46,7 +46,7 @@ const TAG_LEN: usize = 24;
 ///
 /// The `key` must be 32 bytes, and the `message` >= 48. The message is
 /// mutated to the encrypted message.
-pub fn lion_transform_encrypt(message: &mut [u8], key: &[u8]) -> Result<(), OutFoxError> {
+pub fn lion_transform_encrypt(message: &mut [u8], key: &[u8]) -> Result<(), OutfoxError> {
     lion_transform(message, key, [1, 2, 3])
 }
 
@@ -54,7 +54,7 @@ pub fn lion_transform_encrypt(message: &mut [u8], key: &[u8]) -> Result<(), OutF
 ///
 /// The `key` must be 32 bytes, and the `message` >= 48. The message
 /// is mutated to the decrypted message.
-pub fn lion_transform_decrypt(message: &mut [u8], key: &[u8]) -> Result<(), OutFoxError> {
+pub fn lion_transform_decrypt(message: &mut [u8], key: &[u8]) -> Result<(), OutfoxError> {
     lion_transform(message, key, [3, 2, 1])
 }
 
@@ -70,13 +70,13 @@ pub fn lion_transform(
     message: &mut [u8],
     key: &[u8],
     key_schedule: [u64; 3],
-) -> Result<(), OutFoxError> {
+) -> Result<(), OutfoxError> {
     if key.len() != 32 {
-        return Err(OutFoxError::InvalidKeyLength);
+        return Err(OutfoxError::InvalidKeyLength);
     }
 
     if message.len() < MIN_MESSAGE_LEN {
-        return Err(OutFoxError::InvalidMessageLength);
+        return Err(OutfoxError::InvalidMessageLength);
     }
 
     // Stage 1: Use stream cipher with Nonce from left size, to xor to the right side

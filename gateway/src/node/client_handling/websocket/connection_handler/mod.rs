@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::storage::Storage;
-use gateway_requests::registration::handshake::SharedKeys;
-use gateway_requests::ServerResponse;
 use log::{trace, warn};
+use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
@@ -36,8 +37,9 @@ impl<S> SocketStream<S> {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub(crate) struct ClientDetails {
+    #[zeroize(skip)]
     pub(crate) address: DestinationAddressBytes,
     pub(crate) shared_keys: SharedKeys,
 }

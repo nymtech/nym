@@ -16,11 +16,6 @@ pub mod operations;
 mod state;
 mod tasks;
 
-#[cfg(desktop)]
-mod menu;
-#[cfg(desktop)]
-mod window;
-
 pub use state::State;
 
 #[cfg(mobile)]

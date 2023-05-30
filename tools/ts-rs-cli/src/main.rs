@@ -5,8 +5,9 @@ use nym_api_requests::models::{
 };
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
-    Interval as ContractInterval, IntervalRewardParams, IntervalRewardingParamsUpdate, MixNode,
-    MixNodeConfigUpdate, RewardedSetNodeStatus, RewardingParams, UnbondedMixnode,
+    GatewayConfigUpdate, Interval as ContractInterval, IntervalRewardParams,
+    IntervalRewardingParamsUpdate, MixNode, MixNodeConfigUpdate, RewardedSetNodeStatus,
+    RewardingParams, UnbondedMixnode,
 };
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
 use nym_types::currency::{CurrencyDenom, DecCoin};
@@ -28,6 +29,7 @@ use nym_types::vesting::{OriginalVestingResponse, PledgeData, VestingAccountInfo
 use nym_vesting_contract_common::Period;
 use nym_wallet_types::admin::TauriContractStateParams;
 use nym_wallet_types::app::AppEnv;
+use nym_wallet_types::app::AppVersion;
 use nym_wallet_types::interval::Interval;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
@@ -90,6 +92,7 @@ fn main() {
     do_export!(Gas);
     do_export!(GasInfo);
     do_export!(Gateway);
+    do_export!(GatewayConfigUpdate);
     do_export!(GatewayBond);
     do_export!(CurrencyDenom);
     do_export!(DecCoin);
@@ -124,6 +127,7 @@ fn main() {
 
     // nym-wallet
     do_export!(AppEnv);
+    do_export!(AppVersion);
     do_export!(Interval);
     do_export!(Network);
     do_export!(TauriContractStateParams);

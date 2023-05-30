@@ -46,11 +46,13 @@ mod tests {
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
+    use crate::vesting::{populate_vesting_periods, Account};
+    use contracts_common::signing::MessageSignature;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::mixnode::MixNodeCostParams;
     use mixnet_contract_common::{Gateway, MixNode, Percent};
-    use vesting_contract_common::messages::ExecuteMsg;
+    use vesting_contract_common::messages::{ExecuteMsg, VestingSpecification};
     use vesting_contract_common::Period;
     use vesting_contract_common::PledgeCap;
 
@@ -66,7 +68,7 @@ mod tests {
             cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
         };
         // Try creating an account when not admin
-        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
         assert!(response.is_err());
 
         let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
@@ -140,7 +142,7 @@ mod tests {
         assert!(old_owner_account.is_none());
 
         // Not the owner
-        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg);
+        let response = execute(deps.as_mut(), env.clone(), info, msg);
         assert!(response.is_err());
 
         // can't stake on behalf of the original owner anymore, but we can do it for the new one!
@@ -188,7 +190,7 @@ mod tests {
         assert!(response.is_ok());
 
         let info = mock_info("owner", &[]);
-        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        let response = execute(deps.as_mut(), env.clone(), info, msg);
         assert!(response.is_err());
     }
 
@@ -200,7 +202,7 @@ mod tests {
         let msg = ExecuteMsg::TransferOwnership {
             to_address: "new_owner".to_string(),
         };
-        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg);
         // Only owner can transfer
         assert!(response.is_err());
 
@@ -211,7 +213,7 @@ mod tests {
             },
         };
         env.block.time = Timestamp::from_nanos(env.block.time.nanos() + 100_000_000_000_000_000);
-        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        let response = execute(deps.as_mut(), env, info, msg);
         // Only owner can withdraw
         assert!(response.is_err());
     }
@@ -508,7 +510,7 @@ mod tests {
 
         assert_eq!(
             account.load_balance(&deps.storage).unwrap(),
-            Uint128::new(1000_000_000_000)
+            Uint128::new(1_000_000_000_000)
         );
 
         account
@@ -586,7 +588,7 @@ mod tests {
         };
         let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
 
-        let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+        let _response = execute(deps.as_mut(), env.clone(), info, msg);
         let account = load_account(Addr::unchecked("owner"), &deps.storage)
             .unwrap()
             .unwrap();
@@ -673,7 +675,7 @@ mod tests {
         let err = account.try_bond_mixnode(
             mix_node.clone(),
             cost_params.clone(),
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -686,7 +688,7 @@ mod tests {
         let ok = account.try_bond_mixnode(
             mix_node.clone(),
             cost_params.clone(),
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(90_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -703,7 +705,7 @@ mod tests {
         let err = account.try_bond_mixnode(
             mix_node,
             cost_params,
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(10_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -737,7 +739,7 @@ mod tests {
         // Try delegating too much
         let err = account.try_bond_gateway(
             gateway.clone(),
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -749,7 +751,7 @@ mod tests {
 
         let ok = account.try_bond_gateway(
             gateway.clone(),
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(90_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -765,7 +767,7 @@ mod tests {
         // Try delegating too much again
         let err = account.try_bond_gateway(
             gateway,
-            "alice".to_string(),
+            MessageSignature::from(vec![1, 2, 3]),
             Coin {
                 amount: Uint128::new(500_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -777,5 +779,76 @@ mod tests {
 
         let pledge = account.load_gateway_pledge(&deps.storage).unwrap().unwrap();
         assert_eq!(Uint128::new(90_000_000_000), pledge.amount().amount);
+    }
+
+    #[test]
+    fn test_delegations_cap() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+
+        let vesting_period_length_secs = 3600;
+
+        let account_creation_timestamp = 1650000000;
+        let account_creation_blockheight = 12345;
+
+        env.block.height = account_creation_blockheight;
+        env.block.time = Timestamp::from_seconds(account_creation_timestamp);
+
+        // lets define some helper timestamps
+
+        // lets create our vesting account
+        let periods = populate_vesting_periods(
+            account_creation_timestamp,
+            VestingSpecification::new(None, Some(vesting_period_length_secs), None),
+        );
+
+        let vesting_account = Account::new(
+            Addr::unchecked("owner"),
+            Some(Addr::unchecked("staking")),
+            Coin {
+                amount: Uint128::new(1_000_000_000_000),
+                denom: TEST_COIN_DENOM.to_string(),
+            },
+            Timestamp::from_seconds(account_creation_timestamp),
+            periods,
+            Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
+            deps.as_mut().storage,
+        )
+        .unwrap();
+
+        // time for some delegations
+
+        let mix_id = 42;
+
+        let delegation = Coin {
+            amount: Uint128::new(42),
+            denom: TEST_COIN_DENOM.to_string(),
+        };
+
+        // you can have at most `MAX_PER_MIX_DELEGATIONS` delegations so those should be fine
+        for _ in 0..MAX_PER_MIX_DELEGATIONS {
+            vesting_account
+                .try_delegate_to_mixnode(mix_id, delegation.clone(), &env, &mut deps.storage)
+                .unwrap();
+
+            env.block.height += 1;
+            env.block.time = env.block.time.plus_seconds(42);
+        }
+
+        // but the additional one is going to fail
+        let res = vesting_account
+            .try_delegate_to_mixnode(mix_id, delegation, &env, &mut deps.storage)
+            .unwrap_err();
+
+        assert_eq!(
+            res,
+            ContractError::TooManyDelegations {
+                address: vesting_account.owner_address(),
+                acc_id: vesting_account.storage_key(),
+                mix_id,
+                num: MAX_PER_MIX_DELEGATIONS,
+                cap: MAX_PER_MIX_DELEGATIONS
+            }
+        );
     }
 }

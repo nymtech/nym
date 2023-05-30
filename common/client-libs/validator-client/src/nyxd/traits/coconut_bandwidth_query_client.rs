@@ -4,8 +4,8 @@
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, NyxdClient};
 
-use coconut_bandwidth_contract_common::msg::QueryMsg;
-use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use nym_coconut_bandwidth_contract_common::msg::QueryMsg;
+use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 
 use async_trait::async_trait;
 
@@ -18,7 +18,7 @@ pub trait CoconutBandwidthQueryClient {
 }
 
 #[async_trait]
-impl<C: CosmWasmClient + Sync + Send + Clone> CoconutBandwidthQueryClient for NyxdClient<C> {
+impl<C: CosmWasmClient + Sync + Send> CoconutBandwidthQueryClient for NyxdClient<C> {
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,

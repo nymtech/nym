@@ -80,7 +80,7 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<ServiceId>,
     },
-    GetSigningNonce {
+    SigningNonce {
         address: String,
     },
     Config {},

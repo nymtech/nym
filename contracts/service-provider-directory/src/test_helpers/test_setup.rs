@@ -4,7 +4,7 @@ use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
 use nym_service_provider_directory_common::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     response::{ConfigResponse, PagedServicesListResponse},
-    NymAddress, ServiceId, ServiceInfo, ServiceType,
+    NymAddress, Service, ServiceId, ServiceType, ServiceDetails,
 };
 use serde::de::DeserializeOwned;
 
@@ -88,7 +88,7 @@ impl TestSetup {
         self.query(&QueryMsg::Config {})
     }
 
-    pub fn query_id(&self, service_id: ServiceId) -> ServiceInfo {
+    pub fn query_id(&self, service_id: ServiceId) -> Service {
         self.query(&QueryMsg::ServiceId { service_id })
     }
 
@@ -111,8 +111,12 @@ impl TestSetup {
                 announcer,
                 self.addr.clone(),
                 &ExecuteMsg::Announce {
-                    nym_address: address,
-                    service_type: ServiceType::NetworkRequester,
+                    service: ServiceDetails {
+                        nym_address: address,
+                        service_type: ServiceType::NetworkRequester,
+                        identity_key: todo!(),
+                    },
+                    owner_signature: todo!(),
                 },
                 &[Coin {
                     denom: DENOM.to_string(),

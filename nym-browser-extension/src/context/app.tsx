@@ -11,6 +11,7 @@ type TAppContext = {
   denom: 'NYM';
   minorDenom: 'unym';
   showSeedForAccount?: string;
+  setAccounts: (accounts: string[]) => void;
   setShowSeedForAccount: (accountName?: string) => void;
   handleUnlockWallet: (password: string) => void;
   getBalance: () => void;
@@ -23,7 +24,7 @@ const AppContext = React.createContext({} as TAppContext);
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [client, setClient] = useState<ValidatorClient>();
   const [balance, setBalance] = useState<TBalanceInNYMs>();
-  const [accounts, setAccounts] = useState([]);
+  const [accounts, setAccounts] = useState<string[]>([]);
   const [showSeedForAccount, setShowSeedForAccount] = useState<string>();
 
   const denom = 'NYM';
@@ -65,6 +66,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       getBalance,
       setShowSeedForAccount,
       showSeedForAccount,
+      setAccounts,
     }),
     [client, accounts, balance, denom, minorDenom, showSeedForAccount],
   );

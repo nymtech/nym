@@ -44,7 +44,7 @@ fn announce_and_query_service() {
     let nym_address = NymAddress::new("nymAddress");
     assert_eq!(setup.contract_balance(), nyms(0));
     assert_eq!(setup.balance(&announcer), nyms(250));
-    let keypair = setup
+    let key = setup
         .announce_net_req(nym_address.clone(), announcer.clone())
         .1;
 
@@ -61,7 +61,7 @@ fn announce_and_query_service() {
                 service: ServiceDetails {
                     nym_address: nym_address.clone(),
                     service_type: ServiceType::NetworkRequester,
-                    identity_key: keypair.public_key().to_base58_string(),
+                    identity_key: key.public_key().to_base58_string(),
                 },
                 announcer: announcer.clone(),
                 block_height: 12345,
@@ -80,7 +80,7 @@ fn announce_and_query_service() {
             service: ServiceDetails {
                 nym_address: nym_address.clone(),
                 service_type: ServiceType::NetworkRequester,
-                identity_key: keypair.public_key().to_base58_string(),
+                identity_key: key.public_key().to_base58_string(),
             },
             announcer: announcer.clone(),
             block_height: 12345,
@@ -91,12 +91,12 @@ fn announce_and_query_service() {
     // Announce a second service
     let announcer2 = Addr::unchecked("announcer2");
     let nym_address2 = NymAddress::new("nymAddress2");
-    let keypair2 = setup
+    let key2 = setup
         .announce_net_req(nym_address2.clone(), announcer2.clone())
         .1;
 
-    let identity_key = keypair.public_key().to_base58_string();
-    let identity_key2 = keypair2.public_key().to_base58_string();
+    let identity_key = key.public_key().to_base58_string();
+    let identity_key2 = key2.public_key().to_base58_string();
     assert_eq!(setup.contract_balance(), nyms(200));
     assert_eq!(
         setup.query_all(),
@@ -347,28 +347,22 @@ fn service_id_increases_for_new_services() {
 #[test]
 fn service_id_is_not_resused_when_deleting_and_then_adding_a_new_service() {
     let mut setup = TestSetup::new();
-    let k1 = setup
-        .announce_net_req(
-            NymAddress::new("nymAddress1"),
-            Addr::unchecked("announcer1"),
-        )
-        .1;
+    setup.announce_net_req(
+        NymAddress::new("nymAddress1"),
+        Addr::unchecked("announcer1"),
+    );
     let k2 = setup
         .announce_net_req(
             NymAddress::new("nymAddress2"),
             Addr::unchecked("announcer2"),
         )
         .1;
-    let k3 = setup
-        .announce_net_req(
-            NymAddress::new("nymAddress3"),
-            Addr::unchecked("announcer3"),
-        )
-        .1;
+    setup.announce_net_req(
+        NymAddress::new("nymAddress3"),
+        Addr::unchecked("announcer3"),
+    );
 
-    let id1 = k1.public_key().to_base58_string();
     let id2 = k2.public_key().to_base58_string();
-    let id3 = k3.public_key().to_base58_string();
 
     setup.delete(1, Addr::unchecked("announcer1"));
     setup.delete(3, Addr::unchecked("announcer3"));

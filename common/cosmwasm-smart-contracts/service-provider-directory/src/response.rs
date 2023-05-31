@@ -1,4 +1,4 @@
-use crate::{msg::ExecuteMsg, Service, ServiceId};
+use crate::{Service, ServiceId};
 use cosmwasm_std::Coin;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

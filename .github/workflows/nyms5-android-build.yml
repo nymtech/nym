@@ -1,0 +1,111 @@
+name: Nyms5 APK build
+# unsigned debug APKs only, supported archs:
+# - x86_64
+# - arm64-v8a
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "release/nyms5-android-v[0-9].[0-9].[0-9]*"
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: custom-runner-linux
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      NDK_VERSION: 25.2.9519653
+      NDK_HOME: ${{ github.workspace }}/android-sdk/ndk/25.2.9519653
+      SDK_PLATFORM_VERSION: android-33
+      SDK_BUILDTOOLS_VERSION: 33.0.2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install Android SDK manager
+        # https://developer.android.com/studio/command-line/sdkmanager
+        run: |
+          curl -sS https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -o cmdline-tools.zip
+          unzip cmdline-tools.zip
+          mkdir -p $ANDROID_HOME/cmdline-tools/latest
+          mv cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest
+          rm -rf cmdline-tools
+
+      - name: Install Android S/NDK
+        run: |
+          echo y | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          echo y | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;$SDK_PLATFORM_VERSION" \
+            "platform-tools" \
+            "ndk;$NDK_VERSION" \
+            "build-tools;$SDK_BUILDTOOLS_VERSION"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install rust android targets
+        run: |
+          rustup target add aarch64-linux-android \
+            x86_64-linux-android
+            # armv7-linux-androideabi \
+            # i686-linux-android \
+
+      - name: Clean android project
+        working-directory: nym-connect/native/android
+        env:
+          RELEASE: true
+        run: |
+          rm nym-connect/native/android/app/src/main/jniLibs/arm64-v8a/libnym_socks5_listener.so || true
+          rm nym-connect/native/android/app/src/main/jniLibs/x86_64/libnym_socks5_listener.so || true
+
+      - name: Build lib nym-socks5-listener
+        working-directory: sdk/lib/socks5-listener/
+        env:
+          RELEASE: true
+        run: ./build-android.sh
+
+      - name: Build APK (debug)
+        working-directory: nym-connect/native/android
+        env:
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+        run: ./gradlew :app:assembleDebug
+
+      - name: Prepare APKs
+        run: |
+          mkdir apk/
+          mv nym-connect/native/android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk \
+            apk/nyms5-arm64-debug.apk
+          mv nym-connect/native/android/app/build/outputs/apk/debug/app-x86_64-debug.apk \
+            apk/nyms5-x86_64-debug.apk
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v3
+        with:
+          name: nyms5-apk-debug
+          path: |
+            apk/nyms5-arm64-debug.apk
+            apk/nyms5-x86_64-debug.apk
+
+  # publish:
+  #   name: Publish APK
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+  #     - name: Download binary artifact
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: nc-apk-debug
+  #         path: apk
+  #     # TODO add a step to upload the APK somewhere
+  #     - name: Publish
+  #       uses: ???

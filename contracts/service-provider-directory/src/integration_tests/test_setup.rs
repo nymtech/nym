@@ -26,6 +26,8 @@ const ADDRESSES: &[&str] = &[
     "announcer2",
     "announcer3",
     "announcer4",
+    "steve",
+    "timmy",
 ];
 const WEALTHY_ADDRESSES: &[&str] = &["wealthy_announcer_1", "wealthy_announcer_2"];
 
@@ -146,26 +148,31 @@ impl TestSetup {
     }
 
     // Announce a new service
+    pub fn try_announce_net_req(
+        &mut self,
+        service: &SignedTestService,
+        announcer: &Addr,
+    ) -> Result<AppResponse> {
+        self.app.execute_contract(
+            announcer.clone(),
+            self.addr.clone(),
+            &ExecuteMsg::Announce {
+                service: service.service.clone(),
+                owner_signature: service.owner_signature.clone(),
+            },
+            &[Coin {
+                denom: DENOM.to_string(),
+                amount: Uint128::new(100),
+            }],
+        )
+    }
+
     pub fn announce_net_req(
         &mut self,
         service: &SignedTestService,
         announcer: &Addr,
     ) -> AppResponse {
-        let resp = self
-            .app
-            .execute_contract(
-                announcer.clone(),
-                self.addr.clone(),
-                &ExecuteMsg::Announce {
-                    service: service.service.clone(),
-                    owner_signature: service.owner_signature.clone(),
-                },
-                &[Coin {
-                    denom: DENOM.to_string(),
-                    amount: Uint128::new(100),
-                }],
-            )
-            .unwrap();
+        let resp = self.try_announce_net_req(service, announcer).unwrap();
         assert_eq!(
             get_app_attribute(&resp, "wasm-announce", "action"),
             "announce"

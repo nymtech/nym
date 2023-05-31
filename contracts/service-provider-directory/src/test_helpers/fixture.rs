@@ -11,32 +11,41 @@ use super::{
     signing::{ed25519_sign_message, service_provider_announce_sign_payload},
 };
 
-pub fn service_fixture(service_id: ServiceId) -> Service {
+pub fn service(
+    service_id: ServiceId,
+    nym_address: NymAddress,
+    announcer: Addr,
+    identity_key: &str,
+) -> Service {
     Service {
         service_id,
         service: ServiceDetails {
-            nym_address: NymAddress::new("nym"),
+            nym_address,
             service_type: ServiceType::NetworkRequester,
-            identity_key: "identity".to_string(),
+            identity_key: identity_key.to_string(),
         },
-        announcer: Addr::unchecked("steve"),
+        announcer,
         block_height: 12345,
         deposit: nyms(100),
     }
 }
 
-pub fn service_fixture_with_address(service_id: ServiceId, nym_address: &str) -> Service {
-    Service {
+pub fn service_fixture(service_id: ServiceId) -> Service {
+    service(
         service_id,
-        service: ServiceDetails {
-            nym_address: NymAddress::new(nym_address),
-            service_type: ServiceType::NetworkRequester,
-            identity_key: "identity".to_string(),
-        },
-        announcer: Addr::unchecked("steve"),
-        block_height: 12345,
-        deposit: nyms(100),
-    }
+        NymAddress::new("nym"),
+        Addr::unchecked("steve"),
+        "identity",
+    )
+}
+
+pub fn service_fixture_with_address(service_id: ServiceId, nym_address: &str) -> Service {
+    service(
+        service_id,
+        NymAddress::new(nym_address),
+        Addr::unchecked("steve"),
+        "identity",
+    )
 }
 
 // WIP(JON): move these two, they are not fixtures

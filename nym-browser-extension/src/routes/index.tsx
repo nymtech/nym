@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, MemoryRouter, Route, Routes } from 'react-router-dom';
-import { Home } from 'src/pages/';
+import { Home } from 'src/pages';
 import { ExtensionStorage } from '@nymproject/extension-storage';
 import { RegisterRoutes } from './register';
 import { UserRoutes } from './user';

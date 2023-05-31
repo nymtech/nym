@@ -12,10 +12,10 @@ export const SeedPhrase = () => {
 
   const seedPhrase = useRef(generateMnemonmic());
 
-  const { createNewAccount } = useRegisterContext();
+  const { createAccount, userPassword } = useRegisterContext();
 
   const handleEncryptSeedPhrase = async () => {
-    await createNewAccount(seedPhrase.current);
+    await createAccount({mnemonic: seedPhrase.current, password: userPassword, accountName: "Default account"});
     navigate('/register/complete');
   };
 

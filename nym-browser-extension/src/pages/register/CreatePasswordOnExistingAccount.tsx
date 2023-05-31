@@ -1,16 +1,16 @@
 import React from 'react';
 import { useCreatePassword } from 'src/hooks/useCreatePassword';
-import { CreatePassword } from 'src/components/register/CreatePassword';
 import { useRegisterContext } from 'src/context/register';
+import { CreatePasswordTemplate } from 'src/pages/templates/CreatePassword';
 
 export const CreatePasswordOnExistingAccount = ({ onComplete }: { onComplete: () => void }) => {
   const passwordState = useCreatePassword();
-  const { importExistingAccount } = useRegisterContext();
+  const { createAccount, userMnemonic } = useRegisterContext();
 
   const handleOnComplete = async () => {
-    await importExistingAccount(passwordState.password);
+    await createAccount({ mnemonic: userMnemonic, password: passwordState.password, accountName: 'Default account' });
     onComplete();
   };
 
-  return <CreatePassword {...passwordState} onNext={handleOnComplete} />;
+  return <CreatePasswordTemplate {...passwordState} onNext={handleOnComplete} />;
 };

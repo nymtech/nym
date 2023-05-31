@@ -1,7 +1,7 @@
-name: Nyms5 APK build
+name: Nyms5 Android
 # unsigned debug APKs only, supported archs:
-# - x86_64
 # - arm64-v8a
+# - x86_64
 
 on:
   workflow_dispatch:
@@ -55,24 +55,14 @@ jobs:
         run: |
           rustup target add aarch64-linux-android \
             x86_64-linux-android
-            # armv7-linux-androideabi \
-            # i686-linux-android \
-
-      - name: Clean android project
-        working-directory: nym-connect/native/android
-        env:
-          RELEASE: true
-        run: |
-          rm nym-connect/native/android/app/src/main/jniLibs/arm64-v8a/libnym_socks5_listener.so || true
-          rm nym-connect/native/android/app/src/main/jniLibs/x86_64/libnym_socks5_listener.so || true
 
       - name: Build lib nym-socks5-listener
         working-directory: sdk/lib/socks5-listener/
         env:
           RELEASE: true
-        run: ./build-android.sh
+        run: ./build-android.sh aarch64 x86_64
 
-      - name: Build APK (debug)
+      - name: Build APKs (unsigned debug)
         working-directory: nym-connect/native/android
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}

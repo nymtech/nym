@@ -13,18 +13,18 @@ use super::{
 
 pub fn new_service(
     service_id: ServiceId,
-    nym_address: NymAddress,
-    announcer: Addr,
+    nym_address: &NymAddress,
+    announcer: &Addr,
     identity_key: &str,
 ) -> Service {
     Service {
         service_id,
         service: ServiceDetails {
-            nym_address,
+            nym_address: nym_address.clone(),
             service_type: ServiceType::NetworkRequester,
             identity_key: identity_key.to_string(),
         },
-        announcer,
+        announcer: announcer.clone(),
         block_height: 12345,
         deposit: nyms(100),
     }
@@ -33,8 +33,8 @@ pub fn new_service(
 pub fn service_fixture(service_id: ServiceId) -> Service {
     new_service(
         service_id,
-        NymAddress::new("nym"),
-        Addr::unchecked("steve"),
+        &NymAddress::new("nym"),
+        &Addr::unchecked("steve"),
         "identity",
     )
 }
@@ -42,8 +42,8 @@ pub fn service_fixture(service_id: ServiceId) -> Service {
 pub fn service_fixture_with_address(service_id: ServiceId, nym_address: &str) -> Service {
     new_service(
         service_id,
-        NymAddress::new(nym_address),
-        Addr::unchecked("steve"),
+        &NymAddress::new(nym_address),
+        &Addr::unchecked("steve"),
         "identity",
     )
 }

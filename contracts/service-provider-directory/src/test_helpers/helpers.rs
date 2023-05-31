@@ -52,18 +52,3 @@ pub fn get_app_attribute(response: &AppResponse, event_type: &str, key: &str) ->
         .value
         .clone()
 }
-
-#[allow(dead_code)]
-pub fn get_app_attributes(response: &AppResponse, event_type: &str, key: &str) -> Vec<String> {
-    get_app_event_types(response, event_type)
-        .iter()
-        .map(|ev| {
-            ev.attributes
-                .iter()
-                .find(|attr| attr.key == key)
-                .unwrap()
-                .value
-                .clone()
-        })
-        .collect::<Vec<_>>()
-}

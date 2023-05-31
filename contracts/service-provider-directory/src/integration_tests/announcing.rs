@@ -118,13 +118,14 @@ fn announce_fails_when_announcer_mismatch() {
 fn creating_two_services_in_a_row_without_announcing_fails() {
     let mut setup = TestSetup::new();
     let announcer = Addr::unchecked("wealthy_announcer_1");
-    let nym_address = NymAddress::new("nymAddress");
+    let nym_address1 = NymAddress::new("nymAddress1");
+    let nym_address2 = NymAddress::new("nymAddress2");
     let deposit = nyms(100);
 
     // Signing two new services for the same announcer without announcing the first one will fail
     // since the nonce will not match
-    let s1 = setup.new_signed_service(&nym_address, &announcer, &deposit);
-    let s2 = setup.new_signed_service(&nym_address, &announcer, &deposit);
+    let s1 = setup.new_signed_service(&nym_address1, &announcer, &deposit);
+    let s2 = setup.new_signed_service(&nym_address2, &announcer, &deposit);
 
     // This will use the wrong nonce when verifying the signature
     // WIP(JON): appears broken!

@@ -50,7 +50,7 @@ export const AccountActions = ({ accountName }: { accountName: string }) => {
       </IconButton>
       <Menu anchorEl={anchorEl} id="account-menu" open={open} onClose={handleClose} onClick={handleClose}>
         {actions.map((action) => (
-          <ActionItem action={action} />
+          <ActionItem action={action} key={action.title} />
         ))}
       </Menu>
     </>

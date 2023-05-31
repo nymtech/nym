@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, CardContent, Typography } from '@mui/material';
+import { Box, Card, CardContent, Typography } from '@mui/material';
 import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { ExtensionStorage } from '@nymproject/extension-storage';
 import { Button, ConfirmationModal } from 'src/components/ui';
@@ -42,6 +42,7 @@ export const ViewSeedPhrase = ({ accountName, onDone }: { accountName: string; o
   return (
     <ConfirmationModal
       open
+      onClose={onDone}
       title={seed ? 'Account seed phrase' : 'Password'}
       subtitle={seed ? '' : 'Enter your account password'}
       ConfirmButton={
@@ -51,14 +52,16 @@ export const ViewSeedPhrase = ({ accountName, onDone }: { accountName: string; o
       {seed ? (
         <Seed seed={seed} />
       ) : (
-        <PasswordInput
-          label="Password"
-          error={error}
-          password={password}
-          onUpdatePassword={(pw: string) => {
-            setPassword(pw);
-          }}
-        />
+        <Box sx={{ mt: 2 }}>
+          <PasswordInput
+            label="Password"
+            error={error}
+            password={password}
+            onUpdatePassword={(pw: string) => {
+              setPassword(pw);
+            }}
+          />
+        </Box>
       )}
     </ConfirmationModal>
   );

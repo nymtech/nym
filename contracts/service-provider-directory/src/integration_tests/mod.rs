@@ -12,10 +12,10 @@ use crate::{
     test_helpers::{fixture::new_service, helpers::nyms},
 };
 
-use setup::TestSetup;
+use test_setup::TestSetup;
 
-mod setup;
 mod test_service;
+mod test_setup;
 
 #[test]
 fn instantiate_contract() {

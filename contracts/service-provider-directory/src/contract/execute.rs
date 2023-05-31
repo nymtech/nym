@@ -132,7 +132,6 @@ fn verify_announce_signature(
 
     // reconstruct the payload
     let nonce = state::nonce::get_signing_nonce(deps.storage, sender.clone())?;
-    dbg!(&nonce);
 
     let msg = construct_service_provider_announce_sign_payload(nonce, sender, deposit, service);
 

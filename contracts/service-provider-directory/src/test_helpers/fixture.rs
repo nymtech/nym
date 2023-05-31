@@ -11,7 +11,7 @@ use super::{
     signing::{ed25519_sign_message, service_provider_announce_sign_payload},
 };
 
-pub fn service(
+pub fn new_service(
     service_id: ServiceId,
     nym_address: NymAddress,
     announcer: Addr,
@@ -31,7 +31,7 @@ pub fn service(
 }
 
 pub fn service_fixture(service_id: ServiceId) -> Service {
-    service(
+    new_service(
         service_id,
         NymAddress::new("nym"),
         Addr::unchecked("steve"),
@@ -40,7 +40,7 @@ pub fn service_fixture(service_id: ServiceId) -> Service {
 }
 
 pub fn service_fixture_with_address(service_id: ServiceId, nym_address: &str) -> Service {
-    service(
+    new_service(
         service_id,
         NymAddress::new(nym_address),
         Addr::unchecked("steve"),

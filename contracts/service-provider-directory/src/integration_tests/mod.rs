@@ -9,8 +9,13 @@ use nym_service_provider_directory_common::{
 use crate::{
     constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
     error::ContractError,
-    test_helpers::{fixture::service, helpers::nyms, test_setup::TestSetup},
+    test_helpers::{fixture::new_service, helpers::nyms},
 };
+
+use setup::TestSetup;
+
+mod setup;
+mod test_service;
 
 #[test]
 fn instantiate_contract() {
@@ -44,9 +49,11 @@ fn announce_and_query_service() {
     let nym_address = NymAddress::new("nymAddress");
     assert_eq!(setup.contract_balance(), nyms(0));
     assert_eq!(setup.balance(&announcer), nyms(250));
-    let key = setup
-        .announce_net_req(nym_address.clone(), announcer.clone())
-        .1;
+
+    let service = setup.new_service(nym_address.clone());
+    let payload = setup.payload_to_sign(announcer.clone(), nyms(100), service.service.clone());
+    let service = service.sign(payload);
+    setup.announce_net_req(&service, announcer.clone());
 
     // Deposit is deposited to contract and deducted from announcers's balance
     assert_eq!(setup.contract_balance(), nyms(100));
@@ -61,7 +68,7 @@ fn announce_and_query_service() {
                 service: ServiceDetails {
                     nym_address: nym_address.clone(),
                     service_type: ServiceType::NetworkRequester,
-                    identity_key: key.public_key().to_base58_string(),
+                    identity_key: service.identity_key().to_string(),
                 },
                 announcer: announcer.clone(),
                 block_height: 12345,
@@ -77,11 +84,7 @@ fn announce_and_query_service() {
         setup.query_id(1),
         Service {
             service_id: 1,
-            service: ServiceDetails {
-                nym_address: nym_address.clone(),
-                service_type: ServiceType::NetworkRequester,
-                identity_key: key.public_key().to_base58_string(),
-            },
+            service: service.details().clone(),
             announcer: announcer.clone(),
             block_height: 12345,
             deposit: nyms(100),
@@ -91,19 +94,16 @@ fn announce_and_query_service() {
     // Announce a second service
     let announcer2 = Addr::unchecked("announcer2");
     let nym_address2 = NymAddress::new("nymAddress2");
-    let key2 = setup
-        .announce_net_req(nym_address2.clone(), announcer2.clone())
-        .1;
+    let service2 = setup.new_signed_service(nym_address2.clone(), announcer2.clone(), nyms(100));
+    setup.announce_net_req(&service2, announcer2.clone());
 
-    let identity_key = key.public_key().to_base58_string();
-    let identity_key2 = key2.public_key().to_base58_string();
     assert_eq!(setup.contract_balance(), nyms(200));
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {
             services: vec![
-                service(1, nym_address, announcer, &identity_key),
-                service(2, nym_address2, announcer2, &identity_key2)
+                new_service(1, nym_address, announcer.clone(), &service.identity_key()),
+                new_service(2, nym_address2, announcer2, &service2.identity_key())
             ],
             per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(2),
@@ -114,7 +114,7 @@ fn announce_and_query_service() {
 #[test]
 fn delete_service() {
     let mut setup = TestSetup::new();
-    setup.announce_net_req(NymAddress::new("nymAddress"), Addr::unchecked("announcer"));
+    setup.sign_and_announce_net_req(NymAddress::new("nymAddress"), Addr::unchecked("announcer"));
     assert_eq!(setup.contract_balance(), nyms(100));
     assert_eq!(setup.balance("announcer"), nyms(150));
     assert!(!setup.query_all().services.is_empty());
@@ -130,7 +130,7 @@ fn delete_service() {
 fn only_announcer_can_delete_service() {
     let mut setup = TestSetup::new();
     assert_eq!(setup.contract_balance(), nyms(0));
-    setup.announce_net_req(NymAddress::new("nymAddress"), Addr::unchecked("announcer"));
+    setup.sign_and_announce_net_req(NymAddress::new("nymAddress"), Addr::unchecked("announcer"));
     assert_eq!(setup.contract_balance(), nyms(100));
     assert!(!setup.query_all().services.is_empty());
 
@@ -152,7 +152,7 @@ fn only_announcer_can_delete_service() {
 #[test]
 fn cant_delete_service_that_does_not_exist() {
     let mut setup = TestSetup::new();
-    setup.announce_net_req(NymAddress::new("nymAddress"), Addr::unchecked("announcer"));
+    setup.sign_and_announce_net_req(NymAddress::new("nymAddress"), Addr::unchecked("announcer"));
     assert_eq!(setup.contract_balance(), nyms(100));
     assert!(!setup.query_all().services.is_empty());
 
@@ -185,31 +185,21 @@ fn announce_multiple_services_and_deleting_by_name() {
     let announcer2 = Addr::unchecked("wealthy_announcer_2");
     let nym_address1 = NymAddress::new("nymAddress1");
     let nym_address2 = NymAddress::new("nymAddress2");
+    let deposit = nyms(100);
 
     // We announce the same address three times, but with different annoucers
     assert_eq!(setup.contract_balance(), nyms(0));
     assert_eq!(setup.balance(&announcer1), nyms(1000));
-    let k1 = setup
-        .announce_net_req(nym_address1.clone(), announcer1.clone())
-        .1;
-    let k2 = setup
-        .announce_net_req(nym_address1.clone(), announcer1.clone())
-        .1;
-    let k3 = setup
-        .announce_net_req(nym_address2.clone(), announcer1.clone())
-        .1;
-    let k4 = setup
-        .announce_net_req(nym_address1.clone(), announcer2.clone())
-        .1;
-    let k5 = setup
-        .announce_net_req(nym_address2.clone(), announcer2.clone())
-        .1;
-
-    let id1 = k1.public_key().to_base58_string();
-    let id2 = k2.public_key().to_base58_string();
-    let id3 = k3.public_key().to_base58_string();
-    let id4 = k4.public_key().to_base58_string();
-    let id5 = k5.public_key().to_base58_string();
+    let s1 = setup.new_signed_service(nym_address1.clone(), announcer1.clone(), deposit.clone());
+    setup.announce_net_req(&s1, announcer1.clone());
+    let s2 = setup.new_signed_service(nym_address1.clone(), announcer1.clone(), deposit.clone());
+    setup.announce_net_req(&s2, announcer1.clone());
+    let s3 = setup.new_signed_service(nym_address2.clone(), announcer1.clone(), deposit.clone());
+    setup.announce_net_req(&s3, announcer1.clone());
+    let s4 = setup.new_signed_service(nym_address1.clone(), announcer2.clone(), deposit.clone());
+    setup.announce_net_req(&s4, announcer2.clone());
+    let s5 = setup.new_signed_service(nym_address2.clone(), announcer2.clone(), deposit.clone());
+    setup.announce_net_req(&s5, announcer2.clone());
 
     assert_eq!(setup.contract_balance(), nyms(500));
     assert_eq!(setup.balance(&announcer1), nyms(700));
@@ -217,11 +207,36 @@ fn announce_multiple_services_and_deleting_by_name() {
         setup.query_all(),
         PagedServicesListResponse {
             services: vec![
-                service(1, nym_address1.clone(), announcer1.clone(), &id1),
-                service(2, nym_address1.clone(), announcer1.clone(), &id2),
-                service(3, nym_address2.clone(), announcer1.clone(), &id3),
-                service(4, nym_address1.clone(), announcer2.clone(), &id4),
-                service(5, nym_address2.clone(), announcer2.clone(), &id5),
+                new_service(
+                    1,
+                    nym_address1.clone(),
+                    announcer1.clone(),
+                    &s1.identity_key()
+                ),
+                new_service(
+                    2,
+                    nym_address1.clone(),
+                    announcer1.clone(),
+                    &s2.identity_key()
+                ),
+                new_service(
+                    3,
+                    nym_address2.clone(),
+                    announcer1.clone(),
+                    &s3.identity_key()
+                ),
+                new_service(
+                    4,
+                    nym_address1.clone(),
+                    announcer2.clone(),
+                    &s4.identity_key()
+                ),
+                new_service(
+                    5,
+                    nym_address2.clone(),
+                    announcer2.clone(),
+                    &s5.identity_key()
+                ),
             ],
             per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(5),
@@ -238,9 +253,9 @@ fn announce_multiple_services_and_deleting_by_name() {
         setup.query_all(),
         PagedServicesListResponse {
             services: vec![
-                service(3, nym_address2.clone(), announcer1, &id3),
-                service(4, nym_address1, announcer2.clone(), &id4),
-                service(5, nym_address2, announcer2, &id5),
+                new_service(3, nym_address2.clone(), announcer1, &s3.identity_key()),
+                new_service(4, nym_address1, announcer2.clone(), &s4.identity_key()),
+                new_service(5, nym_address2, announcer2, &s5.identity_key()),
             ],
             per_page: SERVICE_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(5),
@@ -257,39 +272,54 @@ fn paging_works() {
     let announcer2 = Addr::unchecked("wealthy_announcer_2");
     let nym_address1 = NymAddress::new("nymAddress1");
     let nym_address2 = NymAddress::new("nymAddress2");
+    let deposit = nyms(100);
 
     // We announce the same address three times, but with different announcers
-    let k1 = setup
-        .announce_net_req(nym_address1.clone(), announcer1.clone())
-        .1;
-    let k2 = setup
-        .announce_net_req(nym_address1.clone(), announcer1.clone())
-        .1;
-    let k3 = setup
-        .announce_net_req(nym_address2.clone(), announcer1.clone())
-        .1;
-    let k4 = setup
-        .announce_net_req(nym_address1.clone(), announcer2.clone())
-        .1;
-    let k5 = setup
-        .announce_net_req(nym_address2.clone(), announcer2.clone())
-        .1;
-
-    let id1 = k1.public_key().to_base58_string();
-    let id2 = k2.public_key().to_base58_string();
-    let id3 = k3.public_key().to_base58_string();
-    let id4 = k4.public_key().to_base58_string();
-    let id5 = k5.public_key().to_base58_string();
+    let s1 = setup.new_signed_service(nym_address1.clone(), announcer1.clone(), deposit.clone());
+    setup.announce_net_req(&s1, announcer1.clone());
+    let s2 = setup.new_signed_service(nym_address1.clone(), announcer1.clone(), deposit.clone());
+    setup.announce_net_req(&s2, announcer1.clone());
+    let s3 = setup.new_signed_service(nym_address2.clone(), announcer1.clone(), deposit.clone());
+    setup.announce_net_req(&s3, announcer1.clone());
+    let s4 = setup.new_signed_service(nym_address1.clone(), announcer2.clone(), deposit.clone());
+    setup.announce_net_req(&s4, announcer2.clone());
+    let s5 = setup.new_signed_service(nym_address2.clone(), announcer2.clone(), deposit.clone());
+    setup.announce_net_req(&s5, announcer2.clone());
 
     assert_eq!(
         setup.query_all_with_limit(Some(10), None),
         PagedServicesListResponse {
             services: vec![
-                service(1, nym_address1.clone(), announcer1.clone(), &id1),
-                service(2, nym_address1.clone(), announcer1.clone(), &id2),
-                service(3, nym_address2.clone(), announcer1.clone(), &id3),
-                service(4, nym_address1.clone(), announcer2.clone(), &id4),
-                service(5, nym_address2.clone(), announcer2.clone(), &id5),
+                new_service(
+                    1,
+                    nym_address1.clone(),
+                    announcer1.clone(),
+                    &s1.identity_key()
+                ),
+                new_service(
+                    2,
+                    nym_address1.clone(),
+                    announcer1.clone(),
+                    &s2.identity_key()
+                ),
+                new_service(
+                    3,
+                    nym_address2.clone(),
+                    announcer1.clone(),
+                    &s3.identity_key()
+                ),
+                new_service(
+                    4,
+                    nym_address1.clone(),
+                    announcer2.clone(),
+                    &s4.identity_key()
+                ),
+                new_service(
+                    5,
+                    nym_address2.clone(),
+                    announcer2.clone(),
+                    &s5.identity_key()
+                ),
             ],
             per_page: 10,
             start_next_after: Some(5),
@@ -300,9 +330,19 @@ fn paging_works() {
         setup.query_all_with_limit(Some(3), None),
         PagedServicesListResponse {
             services: vec![
-                service(1, nym_address1.clone(), announcer1.clone(), &id1),
-                service(2, nym_address1.clone(), announcer1.clone(), &id2),
-                service(3, nym_address2.clone(), announcer1, &id3),
+                new_service(
+                    1,
+                    nym_address1.clone(),
+                    announcer1.clone(),
+                    &s1.identity_key()
+                ),
+                new_service(
+                    2,
+                    nym_address1.clone(),
+                    announcer1.clone(),
+                    &s2.identity_key()
+                ),
+                new_service(3, nym_address2.clone(), announcer1, &s3.identity_key()),
             ],
             per_page: 3,
             start_next_after: Some(3),
@@ -312,8 +352,8 @@ fn paging_works() {
         setup.query_all_with_limit(Some(3), Some(3)),
         PagedServicesListResponse {
             services: vec![
-                service(4, nym_address1, announcer2.clone(), &id4),
-                service(5, nym_address2, announcer2, &id5),
+                new_service(4, nym_address1, announcer2.clone(), &s4.identity_key()),
+                new_service(5, nym_address2, announcer2, &s5.identity_key()),
             ],
             per_page: 3,
             start_next_after: Some(5),
@@ -324,11 +364,11 @@ fn paging_works() {
 #[test]
 fn service_id_increases_for_new_services() {
     let mut setup = TestSetup::new();
-    setup.announce_net_req(
+    setup.sign_and_announce_net_req(
         NymAddress::new("nymAddress1"),
         Addr::unchecked("announcer1"),
     );
-    setup.announce_net_req(
+    setup.sign_and_announce_net_req(
         NymAddress::new("nymAddress2"),
         Addr::unchecked("announcer2"),
     );
@@ -347,58 +387,57 @@ fn service_id_increases_for_new_services() {
 #[test]
 fn service_id_is_not_resused_when_deleting_and_then_adding_a_new_service() {
     let mut setup = TestSetup::new();
-    setup.announce_net_req(
+    setup.sign_and_announce_net_req(
         NymAddress::new("nymAddress1"),
         Addr::unchecked("announcer1"),
     );
-    let k2 = setup
-        .announce_net_req(
-            NymAddress::new("nymAddress2"),
-            Addr::unchecked("announcer2"),
-        )
-        .1;
-    setup.announce_net_req(
+    let s2 = setup.new_signed_service(
+        NymAddress::new("nymAddress2"),
+        Addr::unchecked("announcer2"),
+        nyms(100),
+    );
+    setup.announce_net_req(&s2, Addr::unchecked("announcer2"));
+
+    setup.sign_and_announce_net_req(
         NymAddress::new("nymAddress3"),
         Addr::unchecked("announcer3"),
     );
-
-    let id2 = k2.public_key().to_base58_string();
 
     setup.delete(1, Addr::unchecked("announcer1"));
     setup.delete(3, Addr::unchecked("announcer3"));
 
     assert_eq!(
         setup.query_all().services,
-        vec![service(
+        vec![new_service(
             2,
             NymAddress::new("nymAddress2"),
             Addr::unchecked("announcer2"),
-            &id2,
+            &s2.identity_key(),
         )]
     );
 
-    let k4 = setup
-        .announce_net_req(
+    let s4 = setup
+        .new_signed_service(
             NymAddress::new("nymAddress4"),
             Addr::unchecked("announcer4"),
-        )
-        .1;
-    let id4 = k4.public_key().to_base58_string();
+            nyms(100),
+        );
+    setup.announce_net_req(&s4, Addr::unchecked("announcer4"));
 
     assert_eq!(
         setup.query_all().services,
         vec![
-            service(
+            new_service(
                 2,
                 NymAddress::new("nymAddress2"),
                 Addr::unchecked("announcer2"),
-                &id2,
+                &s2.identity_key(),
             ),
-            service(
+            new_service(
                 4,
                 NymAddress::new("nymAddress4"),
                 Addr::unchecked("announcer4"),
-                &id4,
+                &s4.identity_key(),
             )
         ]
     );

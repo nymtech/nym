@@ -1,23 +1,28 @@
 use anyhow::Result;
 use cosmwasm_std::{coins, Addr, Coin, Uint128};
 use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
-use nym_contracts_common::signing::Nonce;
+use nym_contracts_common::signing::{MessageSignature, Nonce};
 use nym_crypto::asymmetric::identity;
 use nym_service_provider_directory_common::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     response::{ConfigResponse, PagedServicesListResponse},
-    signing_types::construct_service_provider_announce_sign_payload,
+    signing_types::{
+        construct_service_provider_announce_sign_payload, SignableServiceProviderAnnounceMsg,
+    },
     NymAddress, Service, ServiceDetails, ServiceId, ServiceType,
 };
-use rand_chacha::ChaCha20Rng;
+use rand_chacha::{
+    rand_core::{CryptoRng, RngCore},
+    ChaCha20Rng,
+};
 use serde::de::DeserializeOwned;
 
 use crate::test_helpers::{
-    helpers::{get_app_attribute, nyms},
+    helpers::{get_app_attribute, nyms, test_rng},
     signing::ed25519_sign_message,
 };
 
-use super::helpers::test_rng;
+use super::test_service::{SignedTestService, TestService};
 
 const DENOM: &str = "unym";
 const ADDRESSES: &[&str] = &[
@@ -30,8 +35,6 @@ const ADDRESSES: &[&str] = &[
     "announcer4",
 ];
 const WEALTHY_ADDRESSES: &[&str] = &["wealthy_announcer_1", "wealthy_announcer_2"];
-
-// WIP(JON): consider moving this together with integration_tests
 
 /// Helper for being able to systematic integration tests
 pub struct TestSetup {
@@ -81,8 +84,6 @@ impl TestSetup {
         .unwrap()
     }
 
-    // WIP(JON): remove all allow unused once done
-    #[allow(unused)]
     pub fn address(&self) -> &Addr {
         &self.addr
     }
@@ -122,44 +123,48 @@ impl TestSetup {
         self.query(&QueryMsg::SigningNonce { address })
     }
 
-    pub fn announce_net_req(
+    // Create a new service, together with its signing keypair
+    pub fn new_service(&mut self, nym_address: NymAddress) -> TestService {
+        TestService::new(&mut self.rng, nym_address)
+    }
+
+    // Create payload for the service operator to sign
+    pub fn payload_to_sign(
+        &mut self,
+        announcer: Addr,
+        deposit: Coin,
+        service: ServiceDetails,
+    ) -> SignableServiceProviderAnnounceMsg {
+        let nonce = self.query_signing_nonce(announcer.to_string());
+        construct_service_provider_announce_sign_payload(nonce, announcer, deposit, service)
+    }
+
+    // Convenience function for creating a new service and signing it.
+    pub fn new_signed_service(
         &mut self,
         nym_address: NymAddress,
         announcer: Addr,
-    ) -> (AppResponse, identity::KeyPair) {
-        let keypair = identity::KeyPair::new(&mut self.rng);
+        deposit: Coin,
+    ) -> SignedTestService {
+        let service = self.new_service(nym_address);
+        let payload = self.payload_to_sign(announcer, deposit, service.details().clone());
+        service.sign(payload)
+    }
 
-        // WIP(JON): add fn new
-        let service = ServiceDetails {
-            nym_address,
-            service_type: ServiceType::NetworkRequester,
-            identity_key: keypair.public_key().to_base58_string(),
-        };
-
-        let deposit = nyms(100);
-
-        // Create payload, the same was as in announce_sign_payload
-        let nonce = self.query_signing_nonce(announcer.to_string());
-        println!("announcing: {announcer}");
-        dbg!(&nonce);
-        let payload_to_sign = construct_service_provider_announce_sign_payload(
-            nonce,
-            announcer.clone(),
-            deposit,
-            service.clone(),
-        );
-
-        // Now we sign it, like the user does manually
-        let owner_signature = ed25519_sign_message(payload_to_sign, keypair.private_key());
-
+    // Announce a new service
+    pub fn announce_net_req(
+        &mut self,
+        service: &SignedTestService,
+        announcer: Addr,
+    ) -> AppResponse {
         let resp = self
             .app
             .execute_contract(
                 announcer,
                 self.addr.clone(),
                 &ExecuteMsg::Announce {
-                    service,
-                    owner_signature,
+                    service: service.service.clone(),
+                    owner_signature: service.owner_signature.clone(),
                 },
                 &[Coin {
                     denom: DENOM.to_string(),
@@ -171,7 +176,18 @@ impl TestSetup {
             get_app_attribute(&resp, "wasm-announce", "action"),
             "announce"
         );
-        (resp, keypair)
+        resp
+    }
+
+    // Convenience function for create a new signed service and announcing it
+    pub fn sign_and_announce_net_req(
+        &mut self,
+        nym_address: NymAddress,
+        announcer: Addr,
+    ) -> AppResponse {
+        let deposit = nyms(100);
+        let service = self.new_signed_service(nym_address, announcer.clone(), deposit);
+        self.announce_net_req(&service, announcer)
     }
 
     pub fn try_delete(&mut self, service_id: ServiceId, announcer: Addr) -> Result<AppResponse> {

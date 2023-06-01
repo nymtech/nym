@@ -114,7 +114,7 @@ mod tests {
             assert_config, assert_current_nonce, assert_empty, assert_not_found, assert_service,
             assert_services,
         },
-        fixture::signed_service_details,
+        fixture::new_service_details_with_sign,
         helpers::{get_attribute, nyms, test_rng},
     };
 
@@ -158,7 +158,7 @@ mod tests {
         let deposit = nyms(99);
         let announcer = "steve";
         let (service, owner_signature) =
-            signed_service_details(deps.as_mut(), &mut rng, "nym", announcer, deposit);
+            new_service_details_with_sign(deps.as_mut(), &mut rng, "nym", announcer, deposit);
         let msg = ExecuteMsg::Announce {
             service,
             owner_signature,
@@ -206,7 +206,7 @@ mod tests {
         let deposit = nyms(101);
         let announcer = "steve";
         let (service, owner_signature) =
-            signed_service_details(deps.as_mut(), &mut rng, "nym", announcer, deposit);
+            new_service_details_with_sign(deps.as_mut(), &mut rng, "nym", announcer, deposit);
         let msg = ExecuteMsg::Announce {
             service,
             owner_signature,
@@ -254,7 +254,7 @@ mod tests {
         let deposit = nyms(100);
         let owner = "steve";
         let (service, owner_signature) =
-            signed_service_details(deps.as_mut(), &mut rng, "nym", owner, deposit.clone());
+            new_service_details_with_sign(deps.as_mut(), &mut rng, "nym", owner, deposit.clone());
 
         // Announce
         let msg = ExecuteMsg::Announce {
@@ -304,7 +304,7 @@ mod tests {
         let deposit = nyms(100);
         let steve = "steve";
         let (service, owner_signature) =
-            signed_service_details(deps.as_mut(), &mut rng, "nym", steve, deposit.clone());
+            new_service_details_with_sign(deps.as_mut(), &mut rng, "nym", steve, deposit.clone());
         let msg = ExecuteMsg::Announce {
             service: service.clone(),
             owner_signature,

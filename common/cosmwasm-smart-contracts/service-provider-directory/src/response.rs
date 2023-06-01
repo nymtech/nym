@@ -57,14 +57,3 @@ impl PagedServicesListResponse {
 pub struct ConfigResponse {
     pub deposit_required: Coin,
 }
-
-// WIP(JON)
-//impl From<Service> for ExecuteMsg {
-//    fn from(service: Service) -> Self {
-//        ExecuteMsg::Announce {
-//            nym_address: service.nym_address,
-//            service_type: service.service_type,
-//            owner_signature: service.signature,
-//        }
-//    }
-//}

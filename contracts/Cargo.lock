@@ -1276,6 +1276,7 @@ dependencies = [
  "nym-crypto",
  "nym-service-provider-directory-common",
  "rand_chacha 0.2.2",
+ "rstest",
  "semver",
  "serde",
  "thiserror",

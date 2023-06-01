@@ -1,10 +1,11 @@
 use nym_contracts_common::signing::MessageSignature;
 use nym_crypto::asymmetric::identity;
-use nym_service_provider_directory_common::{ServiceDetails, NymAddress, ServiceType, signing_types::SignableServiceProviderAnnounceMsg};
+use nym_service_provider_directory_common::{
+    signing_types::SignableServiceProviderAnnounceMsg, NymAddress, ServiceDetails, ServiceType,
+};
 use rand_chacha::ChaCha20Rng;
 
 use crate::test_helpers::signing::ed25519_sign_message;
-
 
 pub struct TestService {
     pub service: ServiceDetails,
@@ -72,4 +73,3 @@ impl From<SignedTestService> for ServiceDetails {
         signed_service.service
     }
 }
-

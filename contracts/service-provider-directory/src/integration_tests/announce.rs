@@ -2,6 +2,7 @@ use cosmwasm_std::Addr;
 use nym_service_provider_directory_common::{
     response::PagedServicesListResponse, NymAddress, Service, ServiceDetails, ServiceType,
 };
+use rstest::rstest;
 
 use crate::{
     constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
@@ -11,9 +12,13 @@ use crate::{
 
 use super::test_setup::TestSetup;
 
-#[test]
-fn basic_announce() {
-    let mut setup = TestSetup::new();
+#[rstest::fixture]
+fn setup() -> TestSetup {
+    TestSetup::new()
+}
+
+#[rstest]
+fn basic_announce(mut setup: TestSetup) {
     assert_eq!(
         setup.query_all(),
         PagedServicesListResponse {
@@ -95,9 +100,8 @@ fn basic_announce() {
     );
 }
 
-#[test]
-fn announce_fails_when_announcer_mismatch() {
-    let mut setup = TestSetup::new();
+#[rstest]
+fn announce_fails_when_announcer_mismatch(mut setup: TestSetup) {
     let announcer = Addr::unchecked("steve");
     let nym_address = NymAddress::new("foobar");
     let service = setup.new_signed_service(&nym_address, &announcer, &nyms(100));
@@ -113,10 +117,8 @@ fn announce_fails_when_announcer_mismatch() {
     assert_eq!(resp, ContractError::InvalidEd25519Signature);
 }
 
-#[test]
-fn signing_nonce_is_increased_when_announcing() {
-    let mut setup = TestSetup::new();
-
+#[rstest]
+fn signing_nonce_is_increased_when_announcing(mut setup: TestSetup) {
     let announcer1 = Addr::unchecked("announcer1");
     let announcer2 = Addr::unchecked("announcer2");
 
@@ -139,9 +141,8 @@ fn signing_nonce_is_increased_when_announcing() {
     assert_eq!(setup.query_signing_nonce(announcer2.to_string()), 2);
 }
 
-#[test]
-fn creating_two_services_in_a_row_without_announcing_fails() {
-    let mut setup = TestSetup::new();
+#[rstest]
+fn creating_two_services_in_a_row_without_announcing_fails(mut setup: TestSetup) {
     let announcer = Addr::unchecked("wealthy_announcer_1");
     let nym_address1 = NymAddress::new("nymAddress1");
     let nym_address2 = NymAddress::new("nymAddress2");
@@ -164,9 +165,8 @@ fn creating_two_services_in_a_row_without_announcing_fails() {
     assert_eq!(resp, ContractError::InvalidEd25519Signature,);
 }
 
-#[test]
-fn announcing_the_same_service_twice_fails() {
-    let mut setup = TestSetup::new();
+#[rstest]
+fn announcing_the_same_service_twice_fails(mut setup: TestSetup) {
     let announcer = Addr::unchecked("wealthy_announcer_1");
     let nym_address = NymAddress::new("nymAddress1");
 

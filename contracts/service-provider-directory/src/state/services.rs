@@ -119,6 +119,12 @@ pub fn load_all_paged(
 
 #[cfg(test)]
 mod tests {
+    use cosmwasm_std::{
+        testing::{MockApi, MockQuerier},
+        MemoryStorage, OwnedDeps,
+    };
+    use rstest::rstest;
+
     use crate::{
         error::ContractError,
         test_helpers::{
@@ -129,25 +135,29 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn save_works() {
-        let mut deps = instantiate_test_contract();
+    type TestDeps = OwnedDeps<MemoryStorage, MockApi, MockQuerier>;
+
+    #[rstest::fixture]
+    fn deps() -> TestDeps {
+        instantiate_test_contract()
+    }
+
+    #[rstest]
+    fn save_works(mut deps: TestDeps) {
         assert!(!has_service(&deps.storage, 1));
         save(deps.as_mut().storage, &service_fixture(1)).unwrap();
         assert!(has_service(&deps.storage, 1));
     }
 
-    #[test]
-    fn save_and_check_incorrect_id_fails() {
-        let mut deps = instantiate_test_contract();
+    #[rstest]
+    fn save_and_check_incorrect_id_fails(mut deps: TestDeps) {
         assert!(!has_service(&deps.storage, 2));
         save(deps.as_mut().storage, &service_fixture(1)).unwrap();
         assert!(!has_service(&deps.storage, 2));
     }
 
-    #[test]
-    fn remove_works() {
-        let mut deps = instantiate_test_contract();
+    #[rstest]
+    fn remove_works(mut deps: TestDeps) {
         let id = 1;
         save(deps.as_mut().storage, &service_fixture(id)).unwrap();
         assert!(has_service(&deps.storage, id));
@@ -155,18 +165,16 @@ mod tests {
         assert!(!has_service(&deps.storage, id));
     }
 
-    #[test]
-    fn load_by_id_works() {
-        let mut deps = instantiate_test_contract();
+    #[rstest]
+    fn load_by_id_works(mut deps: TestDeps) {
         let id = 1;
         save(deps.as_mut().storage, &service_fixture(id)).unwrap();
         let service = load_id(deps.as_ref().storage, id).unwrap();
         assert_eq!(service, service_fixture(id));
     }
 
-    #[test]
-    fn load_by_wrong_id_returns_not_found() {
-        let mut deps = instantiate_test_contract();
+    #[rstest]
+    fn load_by_wrong_id_returns_not_found(mut deps: TestDeps) {
         let id = 1;
         save(deps.as_mut().storage, &service_fixture(id)).unwrap();
         assert_eq!(
@@ -175,9 +183,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn load_by_announcer_works() {
-        let mut deps = instantiate_test_contract();
+    #[rstest]
+    fn load_by_announcer_works(mut deps: TestDeps) {
         save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address(3, "c")).unwrap();
@@ -191,9 +198,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn load_by_wrong_announcer_returns_empty() {
-        let mut deps = instantiate_test_contract();
+    #[rstest]
+    fn load_by_wrong_announcer_returns_empty(mut deps: TestDeps) {
         save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address(3, "c")).unwrap();
@@ -203,9 +209,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn load_by_nym_address_works() {
-        let mut deps = instantiate_test_contract();
+    #[rstest]
+    fn load_by_nym_address_works(mut deps: TestDeps) {
         save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address(3, "c")).unwrap();
@@ -215,9 +220,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn load_by_wrong_nym_address_returns_empty() {
-        let mut deps = instantiate_test_contract();
+    #[rstest]
+    fn load_by_wrong_nym_address_returns_empty(mut deps: TestDeps) {
         save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address(3, "c")).unwrap();
@@ -227,9 +231,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn load_all_paged_with_no_limit_works() {
-        let mut deps = instantiate_test_contract();
+    #[rstest]
+    fn load_all_paged_with_no_limit_works(mut deps: TestDeps) {
         save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
         assert_eq!(
@@ -245,9 +248,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn load_all_paged_with_limit_works() {
-        let mut deps = instantiate_test_contract();
+    #[rstest]
+    fn load_all_paged_with_limit_works(mut deps: TestDeps) {
         save(deps.as_mut().storage, &service_fixture_with_address(1, "a")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address(2, "b")).unwrap();
         save(deps.as_mut().storage, &service_fixture_with_address(3, "c")).unwrap();

@@ -27,3 +27,45 @@ pub fn increment_signing_nonce(storage: &mut dyn Storage, address: Addr) -> Resu
     // increment it for the next use
     update_signing_nonce(storage, address, nonce + 1)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::transactions::instantiate_test_contract;
+    use cosmwasm_std::{
+        testing::{MockApi, MockQuerier},
+        MemoryStorage, OwnedDeps,
+    };
+    use rstest::rstest;
+
+    type TestDeps = OwnedDeps<MemoryStorage, MockApi, MockQuerier>;
+
+    #[rstest::fixture]
+    fn deps() -> TestDeps {
+        instantiate_test_contract()
+    }
+
+    fn addr(s: &str) -> Addr {
+        Addr::unchecked(s)
+    }
+
+    #[rstest]
+    fn getting_signing_nonce_doesnt_increment_it(deps: TestDeps) {
+        assert_eq!(get_signing_nonce(&deps.storage, addr("gunnar")).unwrap(), 0);
+        assert_eq!(get_signing_nonce(&deps.storage, addr("gunnar")).unwrap(), 0);
+    }
+
+    #[rstest]
+    fn increment_works(mut deps: TestDeps) {
+        assert_eq!(get_signing_nonce(&deps.storage, addr("gunnar")).unwrap(), 0);
+        increment_signing_nonce(&mut deps.storage, addr("gunnar")).unwrap();
+        assert_eq!(get_signing_nonce(&deps.storage, addr("gunnar")).unwrap(), 1);
+    }
+
+    #[rstest]
+    fn incrementing_is_independent(mut deps: TestDeps) {
+        increment_signing_nonce(&mut deps.storage, addr("gunnar")).unwrap();
+        assert_eq!(get_signing_nonce(&deps.storage, addr("gunnar")).unwrap(), 1);
+        assert_eq!(get_signing_nonce(&deps.storage, addr("bjorn")).unwrap(), 0);
+    }
+}

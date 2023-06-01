@@ -48,10 +48,8 @@ pub fn service_fixture_with_address(service_id: ServiceId, nym_address: &str) ->
     )
 }
 
-// WIP(JON): move these two, they are not fixtures
-
-// Create a service, passing in the random number generator
-pub fn service_details<R>(rng: &mut R, nym_address: &str) -> (ServiceDetails, identity::KeyPair)
+// Create a new service, using a correctly generted identity key
+pub fn new_service_details<R>(rng: &mut R, nym_address: &str) -> (ServiceDetails, identity::KeyPair)
 where
     R: RngCore + CryptoRng,
 {
@@ -66,7 +64,8 @@ where
     )
 }
 
-pub fn signed_service_details<R>(
+// Create a new service, with a correctly generated identity key, and sign it
+pub fn new_service_details_with_sign<R>(
     deps: DepsMut<'_>,
     rng: &mut R,
     nym_address: &str,
@@ -77,7 +76,7 @@ where
     R: RngCore + CryptoRng,
 {
     // Service
-    let (service, keypair) = service_details(rng, nym_address);
+    let (service, keypair) = new_service_details(rng, nym_address);
 
     // Sign
     let sign_msg =

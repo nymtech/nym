@@ -8,7 +8,7 @@ use crate::{
         SERVICES_ANNOUNCER_IDX_NAMESPACE, SERVICES_NYM_ADDRESS_IDX_NAMESPACE,
         SERVICES_PK_NAMESPACE, SERVICE_DEFAULT_RETRIEVAL_LIMIT, SERVICE_MAX_RETRIEVAL_LIMIT,
     },
-    error::{ContractError, Result},
+    ContractError, Result,
 };
 
 struct ServiceIndex<'a> {
@@ -126,11 +126,11 @@ mod tests {
     use rstest::rstest;
 
     use crate::{
-        error::ContractError,
         test_helpers::{
             fixture::{service_fixture, service_fixture_with_address},
             transactions::instantiate_test_contract,
         },
+        ContractError,
     };
 
     use super::*;

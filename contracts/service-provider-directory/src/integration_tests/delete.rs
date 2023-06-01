@@ -3,7 +3,7 @@ use nym_service_provider_directory_common::{response::PagedServicesListResponse,
 
 use crate::{
     constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
-    error::ContractError,
+    ContractError,
     test_helpers::{fixture::new_service, helpers::nyms},
 };
 

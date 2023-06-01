@@ -1,8 +1,9 @@
 use cosmwasm_std::{Addr, StdError};
 use cw_controllers::AdminError;
 use nym_contracts_common::signing::verifier::ApiVerifierError;
-use nym_service_provider_directory_common::{NymAddress, ServiceId};
 use thiserror::Error;
+
+use crate::{NymAddress, ServiceId};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
@@ -64,4 +65,4 @@ pub enum ContractError {
     },
 }
 
-pub(crate) type Result<T, E = ContractError> = std::result::Result<T, E>;
+pub type Result<T, E = ContractError> = std::result::Result<T, E>;

@@ -6,8 +6,8 @@ use rstest::rstest;
 
 use crate::{
     constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
-    error::ContractError,
     test_helpers::{fixture::new_service, helpers::nyms},
+    ContractError,
 };
 
 use super::test_setup::TestSetup;

@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{constants::SIGNING_NONCES_NAMESPACE, error::Result};
+use crate::{constants::SIGNING_NONCES_NAMESPACE, Result};
 
 use cosmwasm_std::{Addr, Storage};
 use cw_storage_plus::Map;

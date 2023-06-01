@@ -6,8 +6,8 @@ use nym_service_provider_directory_common::{
 };
 
 use crate::{
-    error::Result,
     state::{self, PagedLoad},
+    Result,
 };
 
 pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<Service> {

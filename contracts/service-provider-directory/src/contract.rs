@@ -1,6 +1,6 @@
 use crate::{
-    error::{ContractError, Result},
     state::{self, Config},
+    ContractError, Result,
 };
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
 use nym_service_provider_directory_common::msg::{

@@ -6,7 +6,7 @@ use nym_service_provider_directory_common::{
     Service, ServiceId,
 };
 
-use crate::{constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT, error::ContractError};
+use crate::{constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT, ContractError};
 
 pub fn assert_config(deps: Deps, admin: &Addr, deposit_required: Coin) {
     crate::state::assert_admin(deps, admin).unwrap();

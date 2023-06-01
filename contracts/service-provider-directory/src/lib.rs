@@ -4,7 +4,8 @@
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
 
-use crate::error::Result;
+pub use nym_service_provider_directory_common::error::{ContractError, Result};
+
 use nym_service_provider_directory_common::msg::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
@@ -12,11 +13,8 @@ use nym_service_provider_directory_common::msg::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response};
-use error::ContractError;
 
 mod contract;
-mod error;
-//mod signing;
 mod state;
 
 pub mod constants;

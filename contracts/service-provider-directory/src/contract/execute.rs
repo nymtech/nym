@@ -1,10 +1,8 @@
 use crate::{
     constants::{MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS, MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER},
-    error::{ContractError, Result},
-    state,
+    state, ContractError, Result,
 };
 use cosmwasm_std::{Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Response, Uint128};
-//use mixnet_contract::signing::storage as signing_storage;
 use nym_contracts_common::signing::{MessageSignature, Verifier};
 use nym_service_provider_directory_common::{
     events::{new_announce_event, new_delete_id_event, new_update_deposit_required_event},

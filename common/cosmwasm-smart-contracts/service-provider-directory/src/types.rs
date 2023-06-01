@@ -41,7 +41,7 @@ pub enum NymAddress {
     /// String representation of a nym address, which is of the form
     /// client_id.client_enc@gateway_id.
     Address(String),
-    // For the future when we have a nym-dns contract
+    // String name that can looked up in the nym-name-service contract (once it exists)
     //Name(String),
 }
 
@@ -54,6 +54,7 @@ impl NymAddress {
     pub fn as_str(&self) -> &str {
         match self {
             NymAddress::Address(address) => address,
+            //NymAddress::Name(name) => name,
         }
     }
 }

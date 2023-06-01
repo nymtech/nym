@@ -42,8 +42,6 @@ pub async fn create_payload(args: Args, client: SigningClient) {
     let denom = client.current_chain_details().mix_denom.base.as_str();
     let deposit = Coin::new(args.amount, denom);
 
-    // WIP(JON)
-    dbg!(&client.address());
     let nonce = match client.get_service_signing_nonce(client.address()).await {
         Ok(nonce) => nonce,
         Err(err) => {

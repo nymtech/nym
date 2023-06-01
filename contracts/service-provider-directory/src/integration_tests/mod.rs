@@ -1,7 +1,7 @@
 //! Integration tests using cw-multi-test.
 
-mod announcing;
-mod deleting;
+mod announce;
+mod delete;
 mod query;
 mod service_id;
 mod test_service;

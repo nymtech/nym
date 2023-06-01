@@ -60,18 +60,13 @@ class MainActivity : ComponentActivity() {
             .getWorkInfoByIdLiveData(ProxyWorker.workId)
             // this observer is tied to the activity lifecycle
             .observe(this) { workInfo ->
-                if (workInfo != null) {
+                if (workInfo != null && workInfo.state == WorkInfo.State.RUNNING) {
                     val progress =
                         workInfo.progress.getString(ProxyWorker.State)
                     when (progress) {
                         ProxyWorker.Work.Status.CONNECTED.name -> {
                             Log.i(tag, "Nym proxy $progress")
                             viewModel.setConnected()
-                        }
-
-                        ProxyWorker.Work.Status.DISCONNECTED.name -> {
-                            Log.w(tag, "Nym proxy $progress")
-                            viewModel.setDisconnected()
                         }
 
                         else -> Log.i(tag, "Nym proxy $progress")

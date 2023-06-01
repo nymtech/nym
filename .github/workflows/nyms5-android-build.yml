@@ -60,29 +60,28 @@ jobs:
         working-directory: sdk/lib/socks5-listener/
         env:
           RELEASE: true
+        # build for arm64 and x86_64
         run: ./build-android.sh aarch64 x86_64
 
       - name: Build APKs (unsigned debug)
         working-directory: nym-connect/native/android
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
-        run: ./gradlew :app:assembleDebug
+        # build for arm64 and x86_64
+        run: ./gradlew :app:assembleArch64Debug
 
       - name: Prepare APKs
         run: |
-          mkdir apk/
-          mv nym-connect/native/android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk \
-            apk/nyms5-arm64-debug.apk
-          mv nym-connect/native/android/app/build/outputs/apk/debug/app-x86_64-debug.apk \
-            apk/nyms5-x86_64-debug.apk
+          mkdir apk
+          mv nym-connect/native/android/app/build/outputs/apk/arch64/debug/app-arch64-debug.apk \
+            apk/nyms5-arch64-debug.apk
 
       - name: Upload APKs
         uses: actions/upload-artifact@v3
         with:
           name: nyms5-apk-debug
           path: |
-            apk/nyms5-arm64-debug.apk
-            apk/nyms5-x86_64-debug.apk
+            apk/nyms5-arch64-debug.apk
 
   # publish:
   #   name: Publish APK

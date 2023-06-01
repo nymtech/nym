@@ -12,7 +12,9 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@OptIn(DelicateCoroutinesApi::class)
 class MainViewModel(
     private val workManager: WorkManager,
     private val nymProxy: NymProxy
@@ -41,15 +44,27 @@ class MainViewModel(
         Log.d(tag, "____init")
 
         // When the work is cancelled "externally" ie. when the user tap the
-        // "Stop" action on the notification, or when the app is intentionally
-        // killed the underlying proxy client keeps running in background
-        // We have to manually call `stopClient` to stop it
+        // "Stop" action on the notification, the underlying proxy process
+        // keeps running in background
+        // We have to manually call `stopClient` to kill it
         workManager.getWorkInfoByIdLiveData(ProxyWorker.workId)
-            // watch "forever", ie. even when the main activity has been stopped
+            // watch "forever", ie. even when this viewModel has been cleared
             .observeForever { workInfo ->
                 if (workInfo?.state == WorkInfo.State.CANCELLED || workInfo?.state == WorkInfo.State.FAILED) {
-                    cancelProxyWork()
-                    Log.d(tag, "proxy work cancelled")
+                    // ⚠ here one could be tempted to call cancelProxyWork
+                    // but it uses viewModelScope which is cancelled when
+                    // this viewModel instance is cleared
+                    // use GlobalScope instead
+                    GlobalScope.launch(Dispatchers.IO) {
+                        // if the proxy process is still running ie. connected
+                        // kill it
+                        if (nymProxy.getState() == NymProxy.Companion.State.CONNECTED) {
+                            Log.d(tag, "stopping proxy")
+                            nymProxy.stop()
+                            Log.i(tag, "proxy work cancelled")
+                        }
+                    }
+                    setDisconnected()
                 }
             }
     }
@@ -72,7 +87,7 @@ class MainViewModel(
         }
     }
 
-    fun setDisconnected() {
+    private fun setDisconnected() {
         _uiState.update { currentState ->
             currentState.copy(
                 connected = false,
@@ -113,12 +128,7 @@ class MainViewModel(
             // wait a bit to be sure the proxy client has enough time to
             // close connection
             delay(2000)
-            _uiState.update { currentState ->
-                currentState.copy(
-                    connected = false,
-                    loading = false,
-                )
-            }
+            setDisconnected()
         }
     }
 }

@@ -133,7 +133,7 @@ class ProxyWorker(
             // the state should be already set to DISCONNECTED at this point
             // but for the sake of it, reset it
             setProgress(workDataOf(State to Status.DISCONNECTED.name))
-            Log.d(tag, "work finished")
+            Log.i(tag, "work finished")
             Result.success()
         } catch (e: Throwable) {
             Log.e(tag, "error: ${e.message}")

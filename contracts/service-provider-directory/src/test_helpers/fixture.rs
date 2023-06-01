@@ -2,7 +2,7 @@ use cosmwasm_std::{Addr, Coin, DepsMut};
 use nym_contracts_common::signing::MessageSignature;
 use nym_crypto::asymmetric::identity;
 use nym_service_provider_directory_common::{
-    NymAddress, Service, ServiceDetails, ServiceId, ServiceType,
+    IdentityKeyRef, NymAddress, Service, ServiceDetails, ServiceId, ServiceType,
 };
 use rand_chacha::rand_core::{CryptoRng, RngCore};
 
@@ -15,7 +15,7 @@ pub fn new_service(
     service_id: ServiceId,
     nym_address: &NymAddress,
     announcer: &Addr,
-    identity_key: &str,
+    identity_key: IdentityKeyRef,
 ) -> Service {
     Service {
         service_id,

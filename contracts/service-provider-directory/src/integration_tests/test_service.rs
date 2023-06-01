@@ -1,7 +1,8 @@
 use nym_contracts_common::signing::MessageSignature;
 use nym_crypto::asymmetric::identity;
 use nym_service_provider_directory_common::{
-    signing_types::SignableServiceProviderAnnounceMsg, NymAddress, ServiceDetails, ServiceType,
+    signing_types::SignableServiceProviderAnnounceMsg, IdentityKey, NymAddress, ServiceDetails,
+    ServiceType,
 };
 use rand_chacha::ChaCha20Rng;
 
@@ -28,7 +29,7 @@ impl TestService {
         }
     }
 
-    pub fn identity_key(&self) -> &str {
+    pub fn identity_key(&self) -> &IdentityKey {
         &self.service.identity_key
     }
 
@@ -59,7 +60,7 @@ pub struct SignedTestService {
 }
 
 impl SignedTestService {
-    pub fn identity_key(&self) -> &str {
+    pub fn identity_key(&self) -> &IdentityKey {
         &self.service.identity_key
     }
 

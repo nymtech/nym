@@ -9,7 +9,7 @@ use nym_contracts_common::signing::{MessageSignature, Verifier};
 use nym_service_provider_directory_common::{
     events::{new_announce_event, new_delete_id_event, new_update_deposit_required_event},
     signing_types::construct_service_provider_announce_sign_payload,
-    NymAddress, Service, ServiceDetails, ServiceId,
+    IdentityKey, NymAddress, Service, ServiceDetails, ServiceId,
 };
 
 use super::query;
@@ -77,6 +77,43 @@ fn return_deposit(service_to_delete: &Service) -> BankMsg {
     }
 }
 
+fn verify_announce_signature(
+    deps: Deps<'_>,
+    sender: Addr,
+    deposit: Coin,
+    service: ServiceDetails,
+    signature: MessageSignature,
+) -> Result<()> {
+    // recover the public key
+    let public_key = decode_ed25519_identity_key(&service.identity_key)?;
+
+    // reconstruct the payload
+    let nonce = state::get_signing_nonce(deps.storage, sender.clone())?;
+
+    let msg = construct_service_provider_announce_sign_payload(nonce, sender, deposit, service);
+
+    if deps.api.verify_message(msg, signature, &public_key)? {
+        Ok(())
+    } else {
+        Err(ContractError::InvalidEd25519Signature)
+    }
+}
+
+fn decode_ed25519_identity_key(encoded: &IdentityKey) -> Result<[u8; 32]> {
+    let mut public_key = [0u8; 32];
+    let used = bs58::decode(encoded)
+        .into(&mut public_key)
+        .map_err(|err| ContractError::MalformedEd25519IdentityKey(err.to_string()))?;
+
+    if used != 32 {
+        return Err(ContractError::MalformedEd25519IdentityKey(
+            "Too few bytes provided for the public key".into(),
+        ));
+    }
+
+    Ok(public_key)
+}
+
 /// Announce a new service. It will be assigned a new service provider id.
 pub fn announce(
     deps: DepsMut,
@@ -118,44 +155,6 @@ pub fn announce(
     state::save(deps.storage, &new_service)?;
 
     Ok(Response::new().add_event(new_announce_event(service_id, new_service)))
-}
-
-fn verify_announce_signature(
-    deps: Deps<'_>,
-    sender: Addr,
-    deposit: Coin,
-    service: ServiceDetails,
-    signature: MessageSignature,
-) -> Result<()> {
-    // recover the public key
-    let public_key = decode_ed25519_identity_key(&service.identity_key)?;
-
-    // reconstruct the payload
-    let nonce = state::get_signing_nonce(deps.storage, sender.clone())?;
-
-    let msg = construct_service_provider_announce_sign_payload(nonce, sender, deposit, service);
-
-    if deps.api.verify_message(msg, signature, &public_key)? {
-        Ok(())
-    } else {
-        Err(ContractError::InvalidEd25519Signature)
-    }
-}
-
-// WIP(JON): dedup this, and/or move to something more generic and common
-fn decode_ed25519_identity_key(encoded: &str) -> Result<[u8; 32]> {
-    let mut public_key = [0u8; 32];
-    let used = bs58::decode(encoded)
-        .into(&mut public_key)
-        .map_err(|err| ContractError::MalformedEd25519IdentityKey(err.to_string()))?;
-
-    if used != 32 {
-        return Err(ContractError::MalformedEd25519IdentityKey(
-            "Too few bytes provided for the public key".into(),
-        ));
-    }
-
-    Ok(public_key)
 }
 
 /// Delete an exsisting service.

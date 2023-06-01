@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 /// The directory of services are indexed by [`ServiceId`].
 pub type ServiceId = u32;
 
+pub type IdentityKey = String;
+pub type IdentityKeyRef<'a> = &'a str;
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
 pub struct Service {
     /// Unique id assigned to the anounced service.
@@ -27,8 +30,8 @@ pub struct ServiceDetails {
     pub nym_address: NymAddress,
     /// The service type.
     pub service_type: ServiceType,
-    // WIP(JON): user `IdentityKey` instead
-    pub identity_key: String,
+    /// The identity key of the service.
+    pub identity_key: IdentityKey,
 }
 
 /// The types of addresses supported.

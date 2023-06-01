@@ -7,7 +7,7 @@ use rstest::rstest;
 use crate::{
     constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
     test_helpers::{fixture::new_service, helpers::nyms},
-    ContractError,
+    SpContractError,
 };
 
 use super::test_setup::TestSetup;
@@ -109,12 +109,12 @@ fn announce_fails_when_announcer_mismatch(mut setup: TestSetup) {
     // A difference announcer tries to announce the service
     let announcer2 = Addr::unchecked("timmy");
 
-    let resp: ContractError = setup
+    let resp: SpContractError = setup
         .try_announce_net_req(&service, &announcer2)
         .unwrap_err()
         .downcast()
         .unwrap();
-    assert_eq!(resp, ContractError::InvalidEd25519Signature);
+    assert_eq!(resp, SpContractError::InvalidEd25519Signature);
 }
 
 #[rstest]
@@ -157,12 +157,12 @@ fn creating_two_services_in_a_row_without_announcing_fails(mut setup: TestSetup)
     setup.announce_net_req(&s1, &announcer);
 
     // Now the nonce has been incremented, and the signature will not match
-    let resp: ContractError = setup
+    let resp: SpContractError = setup
         .try_announce_net_req(&s2, &announcer)
         .unwrap_err()
         .downcast()
         .unwrap();
-    assert_eq!(resp, ContractError::InvalidEd25519Signature,);
+    assert_eq!(resp, SpContractError::InvalidEd25519Signature,);
 }
 
 #[rstest]
@@ -174,10 +174,10 @@ fn announcing_the_same_service_twice_fails(mut setup: TestSetup) {
     setup.announce_net_req(&s1, &announcer);
 
     // Now the nonce has been incremented, and the signature will not match
-    let resp: ContractError = setup
+    let resp: SpContractError = setup
         .try_announce_net_req(&s1, &announcer)
         .unwrap_err()
         .downcast()
         .unwrap();
-    assert_eq!(resp, ContractError::InvalidEd25519Signature);
+    assert_eq!(resp, SpContractError::InvalidEd25519Signature);
 }

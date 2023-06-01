@@ -6,7 +6,7 @@ use thiserror::Error;
 use crate::{NymAddress, ServiceId};
 
 #[derive(Error, Debug, PartialEq)]
-pub enum ContractError {
+pub enum SpContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
@@ -65,4 +65,4 @@ pub enum ContractError {
     },
 }
 
-pub type Result<T, E = ContractError> = std::result::Result<T, E>;
+pub type Result<T, E = SpContractError> = std::result::Result<T, E>;

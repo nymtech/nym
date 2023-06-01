@@ -1,6 +1,6 @@
 use crate::{
     constants::{MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS, MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER},
-    state, ContractError, Result,
+    state, Result, SpContractError,
 };
 use cosmwasm_std::{Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Response, Uint128};
 use nym_contracts_common::signing::{MessageSignature, Verifier};
@@ -14,12 +14,12 @@ use super::query;
 
 fn ensure_correct_deposit(will_deposit: Uint128, deposit_required: Uint128) -> Result<()> {
     match will_deposit.cmp(&deposit_required) {
-        std::cmp::Ordering::Less => Err(ContractError::InsufficientDeposit {
+        std::cmp::Ordering::Less => Err(SpContractError::InsufficientDeposit {
             funds: will_deposit,
             deposit_required,
         }),
         std::cmp::Ordering::Equal => Ok(()),
-        std::cmp::Ordering::Greater => Err(ContractError::TooLargeDeposit {
+        std::cmp::Ordering::Greater => Err(SpContractError::TooLargeDeposit {
             funds: will_deposit,
             deposit_required,
         }),
@@ -31,7 +31,7 @@ fn ensure_max_services_per_announcer(deps: Deps, announcer: Addr) -> Result<()> 
     if current_entries.services.len() < MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER as usize {
         Ok(())
     } else {
-        Err(ContractError::ReachedMaxProvidersForAdmin {
+        Err(SpContractError::ReachedMaxProvidersForAdmin {
             max_providers: MAX_NUMBER_OF_PROVIDERS_PER_ANNOUNCER,
             announcer,
         })
@@ -43,7 +43,7 @@ fn ensure_max_aliases_per_nym_address(deps: Deps, nym_address: NymAddress) -> Re
     if current_entries.services.len() < MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS as usize {
         Ok(())
     } else {
-        Err(ContractError::ReachedMaxAliasesForNymAddress {
+        Err(SpContractError::ReachedMaxAliasesForNymAddress {
             max_aliases: MAX_NUMBER_OF_ALIASES_FOR_NYM_ADDRESS,
             nym_address,
         })
@@ -54,7 +54,7 @@ fn ensure_service_exists(deps: Deps, service_id: ServiceId) -> Result<()> {
     if state::has_service(deps.storage, service_id) {
         Ok(())
     } else {
-        Err(ContractError::NotFound { service_id })
+        Err(SpContractError::NotFound { service_id })
     }
 }
 
@@ -62,7 +62,7 @@ fn ensure_sender_authorized(info: MessageInfo, service: &Service) -> Result<()> 
     if info.sender == service.announcer {
         Ok(())
     } else {
-        Err(ContractError::Unauthorized {
+        Err(SpContractError::Unauthorized {
             sender: info.sender,
         })
     }
@@ -93,7 +93,7 @@ fn verify_announce_signature(
     if deps.api.verify_message(msg, signature, &public_key)? {
         Ok(())
     } else {
-        Err(ContractError::InvalidEd25519Signature)
+        Err(SpContractError::InvalidEd25519Signature)
     }
 }
 
@@ -101,10 +101,10 @@ fn decode_ed25519_identity_key(encoded: &IdentityKey) -> Result<[u8; 32]> {
     let mut public_key = [0u8; 32];
     let used = bs58::decode(encoded)
         .into(&mut public_key)
-        .map_err(|err| ContractError::MalformedEd25519IdentityKey(err.to_string()))?;
+        .map_err(|err| SpContractError::MalformedEd25519IdentityKey(err.to_string()))?;
 
     if used != 32 {
-        return Err(ContractError::MalformedEd25519IdentityKey(
+        return Err(SpContractError::MalformedEd25519IdentityKey(
             "Too few bytes provided for the public key".into(),
         ));
     }
@@ -126,7 +126,7 @@ pub fn announce(
     let deposit_required = state::deposit_required(deps.storage)?;
     let denom = deposit_required.denom.clone();
     let will_deposit = cw_utils::must_pay(&info, &denom)
-        .map_err(|err| ContractError::DepositRequired { source: err })?;
+        .map_err(|err| SpContractError::DepositRequired { source: err })?;
     ensure_correct_deposit(will_deposit, deposit_required.amount)?;
 
     let deposit = Coin::new(will_deposit.u128(), denom);

@@ -6,7 +6,7 @@ use nym_service_provider_directory_common::{
     Service, ServiceId,
 };
 
-use crate::{constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT, ContractError};
+use crate::{constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT, SpContractError};
 
 pub fn assert_config(deps: Deps, admin: &Addr, deposit_required: Coin) {
     crate::state::assert_admin(deps, admin).unwrap();
@@ -59,7 +59,7 @@ pub fn assert_not_found(deps: Deps, expected_id: ServiceId) {
     .unwrap_err();
     assert!(matches!(
         res,
-        ContractError::NotFound {
+        SpContractError::NotFound {
             service_id: _expected_id
         }
     ));

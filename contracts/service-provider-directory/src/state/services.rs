@@ -8,7 +8,7 @@ use crate::{
         SERVICES_ANNOUNCER_IDX_NAMESPACE, SERVICES_NYM_ADDRESS_IDX_NAMESPACE,
         SERVICES_PK_NAMESPACE, SERVICE_DEFAULT_RETRIEVAL_LIMIT, SERVICE_MAX_RETRIEVAL_LIMIT,
     },
-    ContractError, Result,
+    Result, SpContractError,
 };
 
 struct ServiceIndex<'a> {
@@ -55,7 +55,7 @@ pub fn has_service(store: &dyn Storage, service_id: ServiceId) -> bool {
 
 pub fn load_id(store: &dyn Storage, service_id: ServiceId) -> Result<Service> {
     services().load(store, service_id).map_err(|err| match err {
-        StdError::NotFound { .. } => ContractError::NotFound { service_id },
+        StdError::NotFound { .. } => SpContractError::NotFound { service_id },
         err => err.into(),
     })
 }
@@ -130,7 +130,7 @@ mod tests {
             fixture::{service_fixture, service_fixture_with_address},
             transactions::instantiate_test_contract,
         },
-        ContractError,
+        SpContractError,
     };
 
     use super::*;
@@ -179,7 +179,7 @@ mod tests {
         save(deps.as_mut().storage, &service_fixture(id)).unwrap();
         assert_eq!(
             load_id(deps.as_ref().storage, id + 1).unwrap_err(),
-            ContractError::NotFound { service_id: id + 1 }
+            SpContractError::NotFound { service_id: id + 1 }
         );
     }
 

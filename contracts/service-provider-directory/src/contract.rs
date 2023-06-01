@@ -1,6 +1,6 @@
 use crate::{
     state::{self, Config},
-    ContractError, Result,
+    Result, SpContractError,
 };
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
 use nym_service_provider_directory_common::msg::{
@@ -34,22 +34,25 @@ pub fn instantiate(
         .add_attribute("admin", info.sender))
 }
 
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(
+    deps: DepsMut<'_>,
+    _env: Env,
+    _msg: MigrateMsg,
+) -> Result<Response, SpContractError> {
     // Note: don't remove this particular bit of code as we have to ALWAYS check whether we have to
     // update the stored version
-    let version: Version =
-        CONTRACT_VERSION
-            .parse()
-            .map_err(|error: semver::Error| ContractError::SemVerFailure {
-                value: CONTRACT_VERSION.to_string(),
-                error_message: error.to_string(),
-            })?;
+    let version: Version = CONTRACT_VERSION.parse().map_err(|error: semver::Error| {
+        SpContractError::SemVerFailure {
+            value: CONTRACT_VERSION.to_string(),
+            error_message: error.to_string(),
+        }
+    })?;
 
     let storage_version_raw = cw2::get_contract_version(deps.storage)?.version;
     let storage_version: Version =
         storage_version_raw
             .parse()
-            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+            .map_err(|error: semver::Error| SpContractError::SemVerFailure {
                 value: storage_version_raw,
                 error_message: error.to_string(),
             })?;
@@ -69,7 +72,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SpContractError> {
     match msg {
         ExecuteMsg::Announce {
             service,
@@ -172,7 +175,7 @@ mod tests {
                 msg.clone()
             )
             .unwrap_err(),
-            ContractError::InsufficientDeposit {
+            SpContractError::InsufficientDeposit {
                 funds: 99u128.into(),
                 deposit_required: 100u128.into(),
             }
@@ -186,7 +189,7 @@ mod tests {
                 msg,
             )
             .unwrap_err(),
-            ContractError::InvalidEd25519Signature,
+            SpContractError::InvalidEd25519Signature,
         );
     }
 
@@ -220,7 +223,7 @@ mod tests {
                 msg.clone()
             )
             .unwrap_err(),
-            ContractError::InvalidEd25519Signature,
+            SpContractError::InvalidEd25519Signature,
         );
         assert_eq!(
             execute(
@@ -230,7 +233,7 @@ mod tests {
                 msg,
             )
             .unwrap_err(),
-            ContractError::TooLargeDeposit {
+            SpContractError::TooLargeDeposit {
                 funds: 101u128.into(),
                 deposit_required: 100u128.into(),
             }
@@ -328,7 +331,7 @@ mod tests {
         let info_timmy = mock_info("timmy", &[]);
         assert_eq!(
             execute(deps.as_mut(), mock_env(), info_timmy, msg).unwrap_err(),
-            ContractError::Unauthorized {
+            SpContractError::Unauthorized {
                 sender: Addr::unchecked("timmy")
             }
         );
@@ -337,7 +340,7 @@ mod tests {
         let msg = ExecuteMsg::delete_id(expected_id + 1);
         assert_eq!(
             execute(deps.as_mut(), mock_env(), info_steve.clone(), msg).unwrap_err(),
-            ContractError::NotFound {
+            SpContractError::NotFound {
                 service_id: expected_id + 1
             }
         );

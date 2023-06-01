@@ -3,8 +3,8 @@ use nym_service_provider_directory_common::{response::PagedServicesListResponse,
 
 use crate::{
     constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
-    ContractError,
     test_helpers::{fixture::new_service, helpers::nyms},
+    SpContractError,
 };
 
 use super::test_setup::TestSetup;
@@ -40,7 +40,7 @@ fn only_announcer_can_delete_service() {
     assert_eq!(setup.contract_balance(), nyms(100));
     assert!(!setup.query_all().services.is_empty());
 
-    let delete_resp: ContractError = setup
+    let delete_resp: SpContractError = setup
         .try_delete(1, &Addr::unchecked("not_announcer"))
         .unwrap_err()
         .downcast()
@@ -49,7 +49,7 @@ fn only_announcer_can_delete_service() {
     assert_eq!(setup.contract_balance(), nyms(100));
     assert_eq!(
         delete_resp,
-        ContractError::Unauthorized {
+        SpContractError::Unauthorized {
             sender: Addr::unchecked("not_announcer")
         }
     );
@@ -66,21 +66,21 @@ fn cant_delete_service_that_does_not_exist() {
     assert_eq!(setup.contract_balance(), nyms(100));
     assert!(!setup.query_all().services.is_empty());
 
-    let delete_resp: ContractError = setup
+    let delete_resp: SpContractError = setup
         .try_delete(0, &Addr::unchecked("announcer"))
         .unwrap_err()
         .downcast()
         .unwrap();
     assert_eq!(setup.contract_balance(), nyms(100));
-    assert_eq!(delete_resp, ContractError::NotFound { service_id: 0 });
+    assert_eq!(delete_resp, SpContractError::NotFound { service_id: 0 });
 
-    let delete_resp: ContractError = setup
+    let delete_resp: SpContractError = setup
         .try_delete(2, &Addr::unchecked("announcer"))
         .unwrap_err()
         .downcast()
         .unwrap();
     assert_eq!(setup.contract_balance(), nyms(100));
-    assert_eq!(delete_resp, ContractError::NotFound { service_id: 2 });
+    assert_eq!(delete_resp, SpContractError::NotFound { service_id: 2 });
 
     assert!(!setup.query_all().services.is_empty());
     setup.delete(1, &Addr::unchecked("announcer"));

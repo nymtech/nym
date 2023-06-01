@@ -1,17 +1,11 @@
+use crate::ClientState;
 use ::safer_ffi::prelude::*;
 use jni::{
     objects::{JClass, JObject, JString},
+    sys::jint,
     JNIEnv,
 };
-use safer_ffi::char_p::char_p_boxed;
-use safer_ffi::closure::{RefDynFnMut0, RefDynFnMut1};
-use std::{thread, time};
-
-extern "C" fn placeholder_startup_cb(address: char_p::Box) {
-    crate::rust_free_string(address)
-}
-
-extern "C" fn placeholder_shutdown_cb() {}
+use std::sync::{Arc, Mutex};
 
 fn init_jni_logger() {
     use android_logger::{Config, FilterBuilder};
@@ -32,11 +26,12 @@ fn init_jni_logger() {
 
 /// Blocking call that starts the socks5 listener
 #[no_mangle]
-pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_run(
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_startClient(
     mut env: JNIEnv,
     _class: JClass,
     service_provider: JString,
-    cb_object: JObject,
+    start_cb: JObject,
+    stop_cb: JObject,
 ) {
     init_jni_logger();
 
@@ -47,53 +42,50 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_run(
 
     log::debug!("using sp {}", sp_input);
 
-    // TODO pass this callback to blocking_run_client
-    env.call_method(cb_object, "onStart", "()V", &[])
-        .expect("failed to call Java callbacks");
-
     let service_provider = char_p::new(sp_input.as_str());
+
+    let arced = Arc::new(Mutex::new(env));
+    let env_start = arced.clone();
+    let env_stop = arced.clone();
+
     crate::blocking_run_client(
         None,
         Some(service_provider.as_ref()),
-        RefDynFnMut1::new(&mut |a| placeholder_startup_cb(a)),
-        RefDynFnMut0::new(&mut || placeholder_shutdown_cb()),
+        move |_| {
+            log::debug!("client connected");
+            env_start
+                .lock()
+                .unwrap()
+                .call_method(&start_cb, "onStart", "()V", &[])
+                .expect("failed to call Java callbacks");
+        },
+        move || {
+            log::debug!("client disconnected");
+            env_stop
+                .lock()
+                .unwrap()
+                .call_method(&stop_cb, "onStop", "()V", &[])
+                .expect("failed to call Java callbacks");
+        },
     );
 }
 
-// hehe, I know. this is beyond disgusting
-static mut STOP: fn() = || {};
-static mut START: fn(a: char_p_boxed) = |a| crate::rust_free_string(a);
-
 #[no_mangle]
-pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_startClient(
-    _env: JNIEnv,
-    _class: JClass,
-    _input: JString,
-) {
-    // TODO: how does this work if we are not doing blocking calls?
-    init_jni_logger();
-
-    let start_cb = RefDynFnMut1::new(&mut START);
-    let stop_cb = RefDynFnMut0::new(&mut STOP);
-
-    // TODO: get the service provider from input
-    let service_provider = char_p::new("DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh");
-    crate::start_client(None, Some(service_provider.as_ref()), start_cb, stop_cb);
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_stopClient(_env: JNIEnv, _class: JClass) {
+    crate::stop_client();
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_stopClient(
-    mut env: JNIEnv,
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_getClientState(
+    _env: JNIEnv,
     _class: JClass,
-    cb_object: JObject,
-) {
-    //init_jni_logger();
-    crate::stop_client();
+) -> jint {
+    let state = crate::get_client_state();
+    log::debug!("client state {:?}", state);
 
-    // TODO fake some workload
-    thread::sleep(time::Duration::from_secs(2));
-
-    // TODO pass this callback to stop_client
-    env.call_method(cb_object, "onStop", "()V", &[])
-        .expect("failed to call Java callbacks");
+    match state {
+        ClientState::Uninitialised => 0,
+        ClientState::Connected => 1,
+        ClientState::Disconnected => 2,
+    }
 }

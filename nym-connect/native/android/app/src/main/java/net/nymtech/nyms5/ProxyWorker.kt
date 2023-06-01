@@ -71,10 +71,17 @@ class ProxyWorker(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    private val callback = object {
+    private val onStartCb = object {
         fun onStart() {
             Log.d(tag, "⚡ ON START callback")
             setProgressAsync(workDataOf(State to Status.CONNECTED.name))
+        }
+    }
+
+    private val onStopCb = object {
+        fun onStop() {
+            Log.d(tag, "⚡ ON STOP callback")
+            setProgressAsync(workDataOf(State to Status.DISCONNECTED.name))
         }
     }
 
@@ -121,8 +128,10 @@ class ProxyWorker(
                 Log.w(tag, "using a default service provider $defaultSp")
             }
 
-            nymProxy.start(serviceProvider ?: defaultSp, callback)
+            nymProxy.start(serviceProvider ?: defaultSp, onStartCb, onStopCb)
 
+            // the state should be already set to DISCONNECTED at this point
+            // but for the sake of it, reset it
             setProgress(workDataOf(State to Status.DISCONNECTED.name))
             Log.d(tag, "work finished")
             Result.success()
@@ -137,6 +146,8 @@ class ProxyWorker(
         val cancel = applicationContext.getString(R.string.notification_action_stop)
         val content = applicationContext.getString(R.string.notification_content)
         // this pending intent is used to cancel the worker
+        // TODO instead of using this intent to cancel the work
+        //  use a custom intent to call `nymProxy.stopClient`
         val stopPendingIntent = WorkManager.getInstance(applicationContext)
             .createCancelPendingIntent(id)
 

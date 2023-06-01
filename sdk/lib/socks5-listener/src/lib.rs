@@ -12,7 +12,7 @@ use nym_config_common::NymConfig;
 use nym_socks5_client_core::config::Config as Socks5Config;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
 use safer_ffi::char_p::char_p_boxed;
-use safer_ffi::closure::{RefDynFnMut0, RefDynFnMut1};
+use std::marker::Send;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -30,10 +30,6 @@ pub mod android;
 mod persistence;
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
-
-type StartupCallback<'a> = RefDynFnMut1<'a, (), char_p::Box>;
-
-type ShutdownCallback<'a> = RefDynFnMut0<'a, ()>;
 
 // hehe, this is so disgusting : )
 lazy_static! {
@@ -86,7 +82,7 @@ pub fn initialise_logger() {
 #[derive_ReprC]
 #[ffi_export]
 #[repr(u8)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum ClientState {
     Uninitialised,
     Connected,
@@ -107,13 +103,15 @@ pub fn get_client_state() -> ClientState {
     }
 }
 
-#[ffi_export]
-pub fn start_client(
+pub fn start_client<F, S>(
     storage_directory: Option<char_p::Ref<'_>>,
     service_provider: Option<char_p::Ref<'_>>,
-    on_start_callback: StartupCallback<'static>,
-    on_shutdown_callback: ShutdownCallback<'static>,
-) {
+    on_start_callback: F,
+    on_shutdown_callback: S,
+) where
+    F: FnMut(String) + Send + 'static,
+    S: FnMut() + Send + 'static,
+{
     if get_client_state() == ClientState::Connected {
         warn!("could not start the client as it's already running");
         return;
@@ -140,16 +138,18 @@ pub fn stop_client() {
         return;
     }
 
-    RUNTIME.block_on(async move { stop_and_reset_shutdown_handle().await })
+    RUNTIME.block_on(async move { stop_and_reset_shutdown_handle().await });
 }
 
-#[ffi_export]
-pub fn blocking_run_client(
+pub fn blocking_run_client<'cb, F, S>(
     storage_directory: Option<char_p::Ref<'_>>,
     service_provider: Option<char_p::Ref<'_>>,
-    on_start_callback: StartupCallback<'_>,
-    on_shutdown_callback: ShutdownCallback<'_>,
-) {
+    on_start_callback: F,
+    on_shutdown_callback: S,
+) where
+    F: FnMut(String) + 'cb,
+    S: FnMut() + 'cb,
+{
     if get_client_state() == ClientState::Connected {
         warn!("could not start the client as it's already running");
         return;
@@ -206,13 +206,17 @@ fn _reset_client_data(root_directory: String) {
     std::fs::remove_dir_all(client_storage_dir).expect("failed to clear client data")
 }
 
-async fn _async_run_client(
+async fn _async_run_client<F, S>(
     storage_dir: Option<String>,
     client_id: String,
     service_provider: Option<String>,
-    mut on_start_callback: StartupCallback<'_>,
-    mut on_shutdown_callback: ShutdownCallback<'_>,
-) -> anyhow::Result<()> {
+    mut on_start_callback: F,
+    mut on_shutdown_callback: S,
+) -> anyhow::Result<()>
+where
+    F: FnMut(String),
+    S: FnMut(),
+{
     set_default_env();
     let stop_handle = Arc::new(Notify::new());
     set_shutdown_handle(stop_handle.clone()).await;
@@ -226,13 +230,7 @@ async fn _async_run_client(
     eprintln!("the client has started!");
 
     // invoke the callback since we've started!
-    on_start_callback.call(
-        started_client
-            .address
-            .to_string()
-            .try_into()
-            .expect("malformed C string"),
-    );
+    on_start_callback(started_client.address.to_string());
 
     // wait for notify to be set...
     stop_handle.notified().await;
@@ -242,7 +240,7 @@ async fn _async_run_client(
     started_client.shutdown_handle.wait_for_shutdown().await;
 
     // and the corresponding one for shutdown!
-    on_shutdown_callback.call();
+    on_shutdown_callback();
 
     Ok(())
 }

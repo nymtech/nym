@@ -13,6 +13,7 @@ import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,19 +54,6 @@ class MainViewModel(
             }
     }
 
-    private val callback = object {
-        fun onStop() {
-            Log.d(tag, "⚡ ON STOP callback")
-            _uiState.update { currentState ->
-                currentState.copy(
-                    connected = false,
-                    loading = false,
-                )
-            }
-            Log.i(tag, "Nym proxy disconnected")
-        }
-    }
-
     data class ProxyState(
         val connected: Boolean = false,
         val loading: Boolean = false
@@ -79,6 +67,15 @@ class MainViewModel(
         _uiState.update { currentState ->
             currentState.copy(
                 connected = true,
+                loading = false,
+            )
+        }
+    }
+
+    fun setDisconnected() {
+        _uiState.update { currentState ->
+            currentState.copy(
+                connected = false,
                 loading = false,
             )
         }
@@ -110,7 +107,16 @@ class MainViewModel(
             )
         }
         viewModelScope.launch(Dispatchers.IO) {
-            nymProxy.stop(callback)
+            nymProxy.stop()
+            // wait a bit to be sure the proxy client has enough time to
+            // close connection
+            delay(2000)
+            _uiState.update { currentState ->
+                currentState.copy(
+                    connected = false,
+                    loading = false,
+                )
+            }
         }
     }
 }

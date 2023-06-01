@@ -11,6 +11,7 @@ pub struct MixnetOperatorsService {
     pub command: MixnetOperatorsServiceCommands,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Subcommand)]
 pub enum MixnetOperatorsServiceCommands {
     /// Announce service provider to the world

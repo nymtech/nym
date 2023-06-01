@@ -186,6 +186,15 @@ pub fn get_client_address(
     )
 }
 
+pub fn load_identity_keys(
+    pathfinder: &ClientKeyPathfinder,
+) -> Result<identity::KeyPair, ClientCoreError> {
+    let identity_keypair: identity::KeyPair =
+        nym_pemstore::load_keypair(&pathfinder.identity_key_pair_path())
+            .tap_err(|_| log::error!("Failed to read stored identity key files"))?;
+    Ok(identity_keypair)
+}
+
 /// Get the client address by loading the keys from stored files.
 pub fn get_client_address_from_stored_keys<T>(
     config: &Config<T>,
@@ -193,18 +202,6 @@ pub fn get_client_address_from_stored_keys<T>(
 where
     T: nym_config::NymConfig,
 {
-    fn load_identity_keys(
-        pathfinder: &ClientKeyPathfinder,
-    ) -> Result<identity::KeyPair, ClientCoreError> {
-        let identity_keypair: identity::KeyPair =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                pathfinder.private_identity_key().to_owned(),
-                pathfinder.public_identity_key().to_owned(),
-            ))
-            .tap_err(|_| log::error!("Failed to read stored identity key files"))?;
-        Ok(identity_keypair)
-    }
-
     fn load_sphinx_keys(
         pathfinder: &ClientKeyPathfinder,
     ) -> Result<encryption::KeyPair, ClientCoreError> {

@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use nym_contracts_common::ContractBuildInformation;
+use nym_contracts_common::{signing::Nonce, ContractBuildInformation};
 use nym_service_provider_directory_common::{
     msg::QueryMsg as SpQueryMsg,
     response::{
         ConfigResponse, PagedServicesListResponse, ServiceInfoResponse, ServicesListResponse,
     },
-    NymAddress, ServiceId, Service,
+    NymAddress, Service, ServiceId,
 };
 use serde::Deserialize;
 
@@ -78,6 +78,13 @@ pub trait SpDirectoryQueryClient {
         }
 
         Ok(services)
+    }
+
+    async fn get_service_signing_nonce(&self, address: &AccountId) -> Result<Nonce, NyxdError> {
+        self.query_service_provider_contract(SpQueryMsg::SigningNonce {
+            address: address.to_string(),
+        })
+        .await
     }
 }
 

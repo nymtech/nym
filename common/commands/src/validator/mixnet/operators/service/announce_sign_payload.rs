@@ -15,7 +15,7 @@ use nym_service_provider_directory_common::{
     ServiceType::NetworkRequester,
 };
 use nym_sphinx::addressing::clients::Recipient;
-use nym_validator_client::nyxd::traits::MixnetQueryClient;
+use nym_validator_client::nyxd::traits::SpDirectoryQueryClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -42,8 +42,9 @@ pub async fn create_payload(args: Args, client: SigningClient) {
     let denom = client.current_chain_details().mix_denom.base.as_str();
     let deposit = Coin::new(args.amount, denom);
 
+    // WIP(JON)
     dbg!(&client.address());
-    let nonce = match client.get_signing_nonce(client.address()).await {
+    let nonce = match client.get_service_signing_nonce(client.address()).await {
         Ok(nonce) => nonce,
         Err(err) => {
             eprint!(
@@ -55,7 +56,8 @@ pub async fn create_payload(args: Args, client: SigningClient) {
     };
 
     let address = account_id_to_cw_addr(client.address());
-    let payload = construct_service_provider_announce_sign_payload(nonce, address, deposit, service);
+    let payload =
+        construct_service_provider_announce_sign_payload(nonce, address, deposit, service);
     let wrapper = DataWrapper::new(payload.to_base58_string().unwrap());
     println!("{}", args.output.format(&wrapper))
 }

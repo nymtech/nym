@@ -108,6 +108,8 @@ class MainViewModel(
         }
         viewModelScope.launch(Dispatchers.IO) {
             nymProxy.stop()
+            // TODO instead of delaying an arbitrary amount of time here,
+            //  rely on lib callback for the shutdown connection state
             // wait a bit to be sure the proxy client has enough time to
             // close connection
             delay(2000)

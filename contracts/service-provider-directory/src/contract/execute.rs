@@ -53,7 +53,7 @@ fn ensure_max_aliases_per_nym_address(deps: Deps, nym_address: NymAddress) -> Re
 }
 
 fn ensure_service_exists(deps: Deps, service_id: ServiceId) -> Result<()> {
-    if state::services::has_service(deps.storage, service_id) {
+    if state::has_service(deps.storage, service_id) {
         Ok(())
     } else {
         Err(ContractError::NotFound { service_id })
@@ -105,7 +105,7 @@ pub fn announce(
         owner_signature,
     )?;
 
-    state::nonce::increment_signing_nonce(deps.storage, info.sender.clone())?;
+    state::increment_signing_nonce(deps.storage, info.sender.clone())?;
 
     let service_id = state::next_service_id_counter(deps.storage)?;
     let new_service = Service {
@@ -115,7 +115,7 @@ pub fn announce(
         block_height: env.block.height,
         deposit,
     };
-    state::services::save(deps.storage, &new_service)?;
+    state::save(deps.storage, &new_service)?;
 
     Ok(Response::new().add_event(new_announce_event(service_id, new_service)))
 }
@@ -131,7 +131,7 @@ fn verify_announce_signature(
     let public_key = decode_ed25519_identity_key(&service.identity_key)?;
 
     // reconstruct the payload
-    let nonce = state::nonce::get_signing_nonce(deps.storage, sender.clone())?;
+    let nonce = state::get_signing_nonce(deps.storage, sender.clone())?;
 
     let msg = construct_service_provider_announce_sign_payload(nonce, sender, deposit, service);
 
@@ -161,10 +161,10 @@ fn decode_ed25519_identity_key(encoded: &str) -> Result<[u8; 32]> {
 /// Delete an exsisting service.
 pub fn delete_id(deps: DepsMut, info: MessageInfo, service_id: ServiceId) -> Result<Response> {
     ensure_service_exists(deps.as_ref(), service_id)?;
-    let service_to_delete = state::services::load_id(deps.storage, service_id)?;
+    let service_to_delete = state::load_id(deps.storage, service_id)?;
     ensure_sender_authorized(info, &service_to_delete)?;
 
-    state::services::remove(deps.storage, service_id)?;
+    state::remove(deps.storage, service_id)?;
     let return_deposit_msg = return_deposit(&service_to_delete);
 
     Ok(Response::new()
@@ -184,7 +184,7 @@ pub(crate) fn delete_nym_address(
 
     for service_to_delete in services_to_delete {
         if info.sender == service_to_delete.announcer {
-            state::services::remove(deps.storage, service_to_delete.service_id)?;
+            state::remove(deps.storage, service_to_delete.service_id)?;
             let return_deposit_msg = return_deposit(&service_to_delete);
             response = response
                 .add_message(return_deposit_msg)

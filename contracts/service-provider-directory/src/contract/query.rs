@@ -7,21 +7,21 @@ use nym_service_provider_directory_common::{
 
 use crate::{
     error::Result,
-    state::{self, services::PagedLoad},
+    state::{self, PagedLoad},
 };
 
 pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<Service> {
-    state::services::load_id(deps.storage, service_id)
+    state::load_id(deps.storage, service_id)
 }
 
 pub fn query_announcer(deps: Deps, announcer: String) -> Result<ServicesListResponse> {
     let announcer = deps.api.addr_validate(&announcer)?;
-    let services = state::services::load_announcer(deps.storage, announcer)?;
+    let services = state::load_announcer(deps.storage, announcer)?;
     Ok(ServicesListResponse::new(services))
 }
 
 pub fn query_nym_address(deps: Deps, nym_address: NymAddress) -> Result<ServicesListResponse> {
-    let services = state::services::load_nym_address(deps.storage, nym_address)?;
+    let services = state::load_nym_address(deps.storage, nym_address)?;
     Ok(ServicesListResponse::new(services))
 }
 
@@ -34,7 +34,7 @@ pub fn query_all_paged(
         services,
         limit,
         start_next_after,
-    } = state::services::load_all_paged(deps.storage, limit, start_after)?;
+    } = state::load_all_paged(deps.storage, limit, start_after)?;
     Ok(PagedServicesListResponse::new(
         services,
         limit,
@@ -42,13 +42,9 @@ pub fn query_all_paged(
     ))
 }
 
-//pub fn query_signing_nonce(deps: Deps, nym_address: NymAddress) -> Result<Nonce> {
-//    signing::queries::query_current_signing_nonce(deps, nym_address)
-//}
-
 pub fn query_current_signing_nonce(deps: Deps<'_>, address: String) -> Result<Nonce> {
     let address = deps.api.addr_validate(&address)?;
-    state::nonce::get_signing_nonce(deps.storage, address)
+    state::get_signing_nonce(deps.storage, address)
 }
 
 pub fn query_config(deps: Deps) -> Result<ConfigResponse> {

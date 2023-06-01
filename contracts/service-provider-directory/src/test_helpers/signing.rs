@@ -20,7 +20,7 @@ pub fn service_provider_announce_sign_payload(
     deposit: Coin,
 ) -> SignableServiceProviderAnnounceMsg {
     let owner = Addr::unchecked(owner);
-    let nonce = state::nonce::get_signing_nonce(deps.storage, owner.clone()).unwrap();
+    let nonce = state::get_signing_nonce(deps.storage, owner.clone()).unwrap();
     construct_service_provider_announce_sign_payload(nonce, owner, deposit, service)
 }
 

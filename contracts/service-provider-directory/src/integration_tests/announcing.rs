@@ -1,7 +1,6 @@
 use cosmwasm_std::Addr;
 use nym_service_provider_directory_common::{
-    response::{ConfigResponse, PagedServicesListResponse},
-    NymAddress, Service, ServiceDetails, ServiceType,
+    response::PagedServicesListResponse, NymAddress, Service, ServiceDetails, ServiceType,
 };
 
 use crate::{
@@ -115,29 +114,6 @@ fn announce_fails_when_announcer_mismatch() {
 }
 
 #[test]
-fn creating_two_services_in_a_row_without_announcing_fails() {
-    let mut setup = TestSetup::new();
-    let announcer = Addr::unchecked("wealthy_announcer_1");
-    let nym_address1 = NymAddress::new("nymAddress1");
-    let nym_address2 = NymAddress::new("nymAddress2");
-    let deposit = nyms(100);
-
-    // Signing two new services for the same announcer without announcing the first one will fail
-    // since the nonce will not match
-    let s1 = setup.new_signed_service(&nym_address1, &announcer, &deposit);
-    let s2 = setup.new_signed_service(&nym_address2, &announcer, &deposit);
-
-    // This will use the wrong nonce when verifying the signature
-    // WIP(JON): appears broken!
-    let resp: ContractError = setup
-        .try_announce_net_req(&s1, &announcer)
-        .unwrap_err()
-        .downcast()
-        .unwrap();
-    assert_eq!(resp, ContractError::InvalidEd25519Signature,);
-}
-
-#[test]
 fn signing_nonce_is_increased_when_announcing() {
     let mut setup = TestSetup::new();
 
@@ -161,4 +137,47 @@ fn signing_nonce_is_increased_when_announcing() {
 
     assert_eq!(setup.query_signing_nonce(announcer1.to_string()), 1);
     assert_eq!(setup.query_signing_nonce(announcer2.to_string()), 2);
+}
+
+#[test]
+fn creating_two_services_in_a_row_without_announcing_fails() {
+    let mut setup = TestSetup::new();
+    let announcer = Addr::unchecked("wealthy_announcer_1");
+    let nym_address1 = NymAddress::new("nymAddress1");
+    let nym_address2 = NymAddress::new("nymAddress2");
+    let deposit = nyms(100);
+
+    let s1 = setup.new_signed_service(&nym_address1, &announcer, &deposit);
+
+    // This second service will be signed with the same nonce
+    let s2 = setup.new_signed_service(&nym_address2, &announcer, &deposit);
+
+    // Announce the first service works, and this increments the nonce
+    setup.announce_net_req(&s1, &announcer);
+
+    // Now the nonce has been incremented, and the signature will not match
+    let resp: ContractError = setup
+        .try_announce_net_req(&s2, &announcer)
+        .unwrap_err()
+        .downcast()
+        .unwrap();
+    assert_eq!(resp, ContractError::InvalidEd25519Signature,);
+}
+
+#[test]
+fn announcing_the_same_service_twice_fails() {
+    let mut setup = TestSetup::new();
+    let announcer = Addr::unchecked("wealthy_announcer_1");
+    let nym_address = NymAddress::new("nymAddress1");
+
+    let s1 = setup.new_signed_service(&nym_address, &announcer, &nyms(100));
+    setup.announce_net_req(&s1, &announcer);
+
+    // Now the nonce has been incremented, and the signature will not match
+    let resp: ContractError = setup
+        .try_announce_net_req(&s1, &announcer)
+        .unwrap_err()
+        .downcast()
+        .unwrap();
+    assert_eq!(resp, ContractError::InvalidEd25519Signature);
 }

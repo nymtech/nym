@@ -1,8 +1,5 @@
 use cosmwasm_std::Addr;
-use nym_service_provider_directory_common::{
-    response::{ConfigResponse, PagedServicesListResponse},
-    NymAddress, Service, ServiceDetails, ServiceType,
-};
+use nym_service_provider_directory_common::{response::PagedServicesListResponse, NymAddress};
 
 use crate::{
     constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT,
@@ -145,4 +142,3 @@ fn announce_multiple_services_and_deleting_by_name() {
         }
     );
 }
-

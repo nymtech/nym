@@ -14,10 +14,9 @@ use nym_service_provider_directory_common::msg::{
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response};
 
+mod constants;
 mod contract;
 mod state;
-
-pub mod constants;
 
 #[cfg(test)]
 mod integration_tests;

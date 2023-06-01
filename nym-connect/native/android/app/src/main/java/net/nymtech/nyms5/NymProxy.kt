@@ -22,11 +22,11 @@ class NymProxy {
     }
 
     fun start(serviceProvider: String, onStartCbObj: Any, onStopCbObj: Any) {
-        Log.d(tag, "calling $nymNativeLib:run")
+        Log.d(tag, "calling $nymNativeLib:startClient")
         try {
             startClient(serviceProvider, onStartCbObj, onStopCbObj)
         } catch (e: Throwable) {
-            Log.e(tag, "$nymNativeLib:run internal error: $e")
+            Log.e(tag, "$nymNativeLib:startClient internal error: $e")
         }
     }
 

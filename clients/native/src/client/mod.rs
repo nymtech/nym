@@ -138,7 +138,7 @@ impl SocketClient {
         }
 
         let base_builder = self.create_base_client_builder().await?;
-        let packet_type = self.config.get_base().get_packet_type();
+        let packet_type = self.config.base.debug.traffic.packet_type;
         let mut started_client = base_builder.start_base(packet_type).await?;
         let self_address = started_client.address;
         let client_input = started_client.client_input.register_producer();
@@ -167,7 +167,7 @@ impl SocketClient {
         }
 
         let base_builder = self.create_base_client_builder().await?;
-        let packet_type = self.config.get_base().get_packet_type();
+        let packet_type = self.config.base.debug.traffic.packet_type;
         let mut started_client = base_builder.start_base(packet_type).await?;
         let address = started_client.address;
         let client_input = started_client.client_input.register_producer();

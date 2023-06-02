@@ -115,4 +115,5 @@ average_ack_delay = '{{ debug.acknowledgements.average_ack_delay }}'
 [debug.cover_traffic]
 loop_cover_traffic_average_delay = '{{ debug.cover_traffic.loop_cover_traffic_average_delay }}'
 
+
 "#;

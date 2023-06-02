@@ -120,7 +120,7 @@ impl Config {
     }
 
     pub fn with_packet_type(mut self, packet_type: PacketType) -> Self {
-        self.client.packet_type = Some(packet_type);
+        self.debug.traffic.packet_type = packet_type;
         self
     }
 
@@ -319,7 +319,6 @@ pub struct Traffic {
     /// Do not set it it unless you understand the consequences of that change.
     pub secondary_packet_size: Option<PacketSize>,
 
-    #[serde(default)]
     pub packet_type: PacketType,
 }
 
@@ -344,7 +343,7 @@ impl Default for Traffic {
             disable_main_poisson_packet_distribution: false,
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: None,
-            packet_type: None,
+            packet_type: PacketType::Mix,
         }
     }
 }

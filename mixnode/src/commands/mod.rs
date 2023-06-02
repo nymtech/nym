@@ -149,7 +149,7 @@ fn try_upgrade_v1_1_20_config(id: &str) -> std::io::Result<()> {
 fn try_load_current_config(id: &str) -> anyhow::Result<Config> {
     try_upgrade_v1_1_20_config(id)?;
 
-    Config::read_from_default_path(&id).map_err(|err| {
+    Config::read_from_default_path(id).map_err(|err| {
         let error_msg =
             format!(
                 "Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})",

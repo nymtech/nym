@@ -225,7 +225,8 @@ pub struct Gateway {
     pub nyxd_urls: Vec<Url>,
 
     /// Mnemonic of a cosmos wallet used in checking for double spending.
-    #[deprecated(note = "move to storage")]
+    // #[deprecated(note = "move to storage")]
+    // TODO: I don't think this should be stored directly in the config...
     pub cosmos_mnemonic: bip39::Mnemonic,
 }
 

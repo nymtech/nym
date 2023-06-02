@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{Config, Socks5};
+use crate::config::Config;
 use crate::error::Socks5ClientCoreError;
 use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},

@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::try_upgrade_v1_1_13_config;
+use crate::commands::try_upgrade_config;
 use crate::config::{
     default_config_directory, default_config_filepath, default_data_directory, Config,
 };
@@ -138,7 +138,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     let already_init = if default_config_filepath(id).exists() {
         // in case we're using old config, try to upgrade it
         // (if we're using the current version, it's a no-op)
-        try_upgrade_v1_1_13_config(id)?;
+        try_upgrade_config(id)?;
         eprintln!("SOCKS5 client \"{id}\" was already initialised before");
         true
     } else {

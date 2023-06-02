@@ -137,7 +137,7 @@ fn try_upgrade_v1_1_19_config(id: &str) -> Result<bool, ClientError> {
         // or maybe it was an even older file. in either way. just ignore it and carry on with our day
         return Ok(false);
     };
-    info!("It seems the client is using <= v1.1.20 config template.");
+    info!("It seems the client is using <= v1.1.19 config template.");
     info!("It is going to get updated to the current specification.");
 
     let updated: Config = old_config.into();

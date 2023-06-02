@@ -4,14 +4,15 @@
 pub use nym_client_core::config::Config as BaseClientConfig;
 use nym_config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
 use nym_config::OptionalSet;
-use nym_service_providers_common::interface::ProviderInterfaceVersion;
-use nym_socks5_requests::Socks5ProtocolVersion;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::str::FromStr;
 
-pub mod old_config_v1_1_13;
+pub use nym_service_providers_common::interface::ProviderInterfaceVersion;
+pub use nym_socks5_requests::Socks5ProtocolVersion;
+
+// pub mod old_config_v1_1_13;
 
 const DEFAULT_CONNECTION_START_SURBS: u32 = 20;
 const DEFAULT_PER_REQUEST_SURBS: u32 = 3;

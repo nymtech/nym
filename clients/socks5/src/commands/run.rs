@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::try_upgrade_v1_1_13_config;
+use crate::commands::try_load_current_config;
 use crate::config::Config;
 use crate::{
     commands::{override_config, OverrideConfig},
@@ -20,10 +20,6 @@ pub(crate) struct Run {
     /// Id of the nym-mixnet-client we want to run.
     #[clap(long)]
     id: String,
-
-    /// Custom path to the nym-mixnet-client configuration file
-    #[clap(long)]
-    config: Option<String>,
 
     /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
     /// While this is going to hide its actual address information, it will make the actual communication
@@ -97,8 +93,7 @@ fn version_check(cfg: &Config) -> bool {
         true
     } else {
         warn!(
-            "The mixnode binary has different version than what is specified in config file! {} and {}",
-            binary_version, config_version
+            "The socks5-client binary has different version than what is specified in config file! {binary_version} and {config_version}",
         );
         if is_minor_version_compatible(binary_version, config_version) {
             info!("but they are still semver compatible. However, consider running the `upgrade` command");
@@ -111,28 +106,10 @@ fn version_check(cfg: &Config) -> bool {
 }
 
 pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let id = &args.id;
+    eprintln!("Starting client {}...", args.id);
 
-    // in case we're using old config, try to upgrade it
-    // (if we're using the current version, it's a no-op)
-    try_upgrade_v1_1_13_config(id)?;
-
-    let mut config = match Config::read_from_default_path(id) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {err})", id);
-            return Err(Box::new(Socks5ClientError::FailedToLoadConfig(
-                id.to_string(),
-            )));
-        }
-    };
-
-    if !config.validate() {
-        return Err(Box::new(Socks5ClientError::ConfigValidationFailure));
-    }
-
-    let override_config_fields = OverrideConfig::from(args.clone());
-    config = override_config(config, override_config_fields);
+    let mut config = try_load_current_config(&args.id)?;
+    config = override_config(config, OverrideConfig::from(args.clone()));
 
     if !version_check(&config) {
         error!("failed the local version check");

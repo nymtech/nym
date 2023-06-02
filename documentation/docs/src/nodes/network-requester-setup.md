@@ -118,6 +118,7 @@ In the previous version of the network-requester, users were required to run a n
 If you are running an existing network requester registered with nym-connect, upgrading requires you move your old keys over to the new network requester configuration. We suggest following these instructions carefully to ensure a smooth transition.
 
 Initiate the new network requester:
+
 ```
 nym-network-requester init --id mynetworkrequester
 ```
@@ -214,7 +215,7 @@ ls $HOME/.nym/service-providers/network-requester/
 # returns: allowed.list  unknown.list
 ```
 
-We already know that `allowed.list` is what lets requests go through. All unknown requests are logged to `unknown.list`. If you want to try using a new client type, just start the new application, point it at your local [socks client](../clients/socsk5-client.md) (configured to use your remote `nym-network-requester`), and keep copying URLs from `unknown.list` into `allowed.list` (it may take multiple tries until you get all of them, depending on the complexity of the application). Make sure to restart your network requester!
+We already know that `allowed.list` is what lets requests go through. All unknown requests are logged to `unknown.list`. If you want to try using a new client type, just start the new application, point it at your local [socks client](../clients/socks5-client.md) (configured to use your remote `nym-network-requester`), and keep copying URLs from `unknown.list` into `allowed.list` (it may take multiple tries until you get all of them, depending on the complexity of the application). Make sure to restart your network requester!
 
 > If you are adding custom domains, please note that whilst they may appear in the logs of your network-requester as something like `api-0.core.keybaseapi.com:443`, you **only need** to include the main domain name, in this instance `keybaseapi.com`
 

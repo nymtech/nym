@@ -52,7 +52,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Config {
-    pub socks5: Socks5CoreConfig,
+    pub core: Socks5CoreConfig,
 
     pub storage_paths: NymConnectPaths,
 }
@@ -70,7 +70,7 @@ pub fn socks5_config_id_appended_with(gateway_id: &str) -> String {
 impl Config {
     pub fn new<S: AsRef<str>>(id: S, provider_mix_address: S) -> Self {
         Config {
-            socks5: Socks5CoreConfig::new(id.as_ref(), provider_mix_address.as_ref()),
+            core: Socks5CoreConfig::new(id.as_ref(), provider_mix_address.as_ref()),
             storage_paths: NymConnectPaths::new_default(default_data_directory(id.as_ref())),
         }
     }
@@ -84,7 +84,7 @@ impl Config {
     }
 
     pub fn default_location(&self) -> PathBuf {
-        default_config_filepath(&self.socks5.base.client.id)
+        default_config_filepath(&self.core.base.client.id)
     }
 
     pub fn save_to_default_location(&self) -> io::Result<()> {
@@ -101,6 +101,7 @@ impl Config {
         // The client initialization was originally not written for this use case, so there are
         // lots of ways it can panic. Until we have proper error handling in the init code for the
         // clients we'll catch any panics here by spawning a new runtime in a separate thread.
+        // JS: why are we spawning a new thread here?
         std::thread::spawn(move || {
             tokio::runtime::Runtime::new()
                 .expect("Failed to create tokio runtime")
@@ -147,7 +148,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     let mut config = Config::new(&id, &provider_address);
 
     if let Ok(raw_validators) = std::env::var(nym_config_common::defaults::var_names::NYM_API) {
-        config.socks5.base.client.nym_api_urls = nym_config_common::parse_urls(&raw_validators);
+        config.core.base.client.nym_api_urls = nym_config_common::parse_urls(&raw_validators);
     }
 
     let chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)
@@ -159,13 +160,13 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         &key_store,
         register_gateway,
         Some(chosen_gateway_id),
-        &config.socks5.base,
+        &config.core.base,
         // TODO: another instance where this setting should probably get used
         false,
     )
     .await?;
 
-    config.socks5.base.set_gateway_endpoint(gateway);
+    config.core.base.set_gateway_endpoint(gateway);
 
     config.save_to_default_location().tap_err(|_| {
         log::error!("Failed to save the config file");
@@ -175,7 +176,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 
     let address = nym_client_core::init::get_client_address_from_stored_ondisk_keys(
         &config.storage_paths.common_paths.keys,
-        &config.socks5.base.client.gateway_endpoint,
+        &config.core.base.client.gateway_endpoint,
     )?;
     log::info!("The address of this client is: {}", address);
     Ok(())
@@ -186,19 +187,19 @@ fn print_saved_config(config: &Config) {
         "Saved configuration file to {}",
         config.default_location().display()
     );
-    log::info!("Gateway id: {}", config.socks5.base.get_gateway_id());
-    log::info!("Gateway owner: {}", config.socks5.base.get_gateway_owner());
+    log::info!("Gateway id: {}", config.core.base.get_gateway_id());
+    log::info!("Gateway owner: {}", config.core.base.get_gateway_owner());
     log::info!(
         "Gateway listener: {}",
-        config.socks5.base.get_gateway_listener()
+        config.core.base.get_gateway_listener()
     );
     log::info!(
         "Service provider address: {}",
-        config.socks5.socks5.provider_mix_address
+        config.core.socks5.provider_mix_address
     );
     log::info!(
         "Service provider port: {}",
-        config.socks5.socks5.listening_port
+        config.core.socks5.listening_port
     );
     log::info!("Client configuration completed.");
 }

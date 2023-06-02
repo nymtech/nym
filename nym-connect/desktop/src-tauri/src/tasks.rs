@@ -40,7 +40,7 @@ pub fn start_nym_socks5_client(
     log::info!("Loading config from file: {id}");
     let config = Config::read_from_default_path(id)
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
-    let used_gateway = config.socks5.base.client.gateway_endpoint.clone();
+    let used_gateway = config.core.base.client.gateway_endpoint.clone();
 
     log::info!("Starting socks5 client");
 
@@ -63,10 +63,10 @@ pub fn start_nym_socks5_client(
             .block_on(async move {
                 let storage = OnDiskPersistent::from_paths(
                     config.storage_paths.common_paths,
-                    &config.socks5.base.debug,
+                    &config.core.base.debug,
                 )
                 .await?;
-                let socks5_client = Socks5NymClient::new(config.socks5, storage);
+                let socks5_client = Socks5NymClient::new(config.core, storage);
 
                 socks5_client
                     .run_and_listen(socks5_ctrl_rx, socks5_status_tx)

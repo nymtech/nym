@@ -5,7 +5,7 @@ use crate::config::{
     Acknowledgements, CoverTraffic, DebugConfig, GatewayConnection, GatewayEndpointConfig,
     ReplySurbs, Topology, Traffic,
 };
-use nym_sphinx::params::PacketSize;
+use nym_sphinx::params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::path::PathBuf;
@@ -132,6 +132,7 @@ impl From<TrafficV1_1_19> for Traffic {
                 .disable_main_poisson_packet_distribution,
             primary_packet_size: value.primary_packet_size,
             secondary_packet_size: value.secondary_packet_size,
+            packet_type: PacketType::Mix,
         }
     }
 }

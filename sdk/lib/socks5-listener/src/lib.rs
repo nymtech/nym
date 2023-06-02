@@ -242,7 +242,7 @@ async fn load_or_generate_base_config(
         return setup_new_client_config(None, client_id, service_provider).await;
     };
 
-    let expected_store_path = config_filepath_from_root(&storage_dir, &client_id.to_string());
+    let expected_store_path = config_filepath_from_root(&storage_dir, &client_id);
     eprintln!(
         "attempting to load socks5 config from {}",
         expected_store_path.display()

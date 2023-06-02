@@ -106,10 +106,12 @@ pub(crate) fn execute(args: &Init) {
     }
 
     let config_save_location = config.default_location();
-    config.save_to_default_location().expect(&format!(
-        "Failed to save the config file to {}",
-        config_save_location.display()
-    ));
+    config.save_to_default_location().unwrap_or_else(|_| {
+        panic!(
+            "Failed to save the config file to {}",
+            config_save_location.display()
+        )
+    });
     eprintln!(
         "Saved configuration file to {}",
         config_save_location.display()

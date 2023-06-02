@@ -1,8 +1,7 @@
-use nym_contracts_common::signing::MessageSignature;
+use nym_contracts_common::{signing::MessageSignature, IdentityKey};
 use nym_crypto::asymmetric::identity;
 use nym_service_provider_directory_common::{
-    signing_types::SignableServiceProviderAnnounceMsg, IdentityKey, NymAddress, ServiceDetails,
-    ServiceType,
+    signing_types::SignableServiceProviderAnnounceMsg, NymAddress, ServiceDetails, ServiceType,
 };
 use rand_chacha::ChaCha20Rng;
 

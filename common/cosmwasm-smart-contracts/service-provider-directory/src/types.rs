@@ -1,14 +1,12 @@
 use std::fmt::{Display, Formatter};
 
 use cosmwasm_std::{Addr, Coin};
+use nym_contracts_common::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// The directory of services are indexed by [`ServiceId`].
 pub type ServiceId = u32;
-
-pub type IdentityKey = String;
-pub type IdentityKeyRef<'a> = &'a str;
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
 pub struct Service {

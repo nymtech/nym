@@ -14,7 +14,7 @@ pub fn get_signing_nonce(storage: &dyn Storage, address: Addr) -> Result<Nonce> 
     Ok(nonce)
 }
 
-pub fn update_signing_nonce(storage: &mut dyn Storage, address: Addr, value: Nonce) -> Result<()> {
+fn update_signing_nonce(storage: &mut dyn Storage, address: Addr, value: Nonce) -> Result<()> {
     NONCES
         .save(storage, address, &value)
         .map_err(|err| err.into())

@@ -3,11 +3,14 @@ use crate::{
     state, Result, SpContractError,
 };
 use cosmwasm_std::{Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Response, Uint128};
-use nym_contracts_common::signing::{MessageSignature, Verifier};
+use nym_contracts_common::{
+    signing::{MessageSignature, Verifier},
+    IdentityKey,
+};
 use nym_service_provider_directory_common::{
     events::{new_announce_event, new_delete_id_event, new_update_deposit_required_event},
     signing_types::construct_service_provider_announce_sign_payload,
-    IdentityKey, NymAddress, Service, ServiceDetails, ServiceId,
+    NymAddress, Service, ServiceDetails, ServiceId,
 };
 
 use super::query;

@@ -1,15 +1,13 @@
-use futures::TryStreamExt;
 use std::path::Path;
-use std::{ffi::OsStr, fs, sync::Arc};
+use std::{fs, sync::Arc};
 use tokio::sync::RwLock;
 
 use crate::{
     error::{BackendError, Result},
     state::State,
 };
-use nym_client_core::client::key_manager::persistence::{KeyStore, OnDiskKeys};
+use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::key_manager::KeyManager;
-use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
 use nym_crypto::asymmetric::identity;
 
 pub async fn get_identity_key(
@@ -65,14 +63,14 @@ pub async fn export_keys(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<
     let priv_enc_key_file = key_paths.private_encryption_key();
 
     // Read file contents
-    let ack_key = fs::read_to_string(ack_key_file.clone())?;
-    let gateway_shared_key = fs::read_to_string(gateway_shared_key_file.clone())?;
+    let ack_key = fs::read_to_string(ack_key_file)?;
+    let gateway_shared_key = fs::read_to_string(gateway_shared_key_file)?;
 
-    let pub_id_key = fs::read_to_string(pub_id_key_file.clone())?;
-    let priv_id_key = fs::read_to_string(priv_id_key_file.clone())?;
+    let pub_id_key = fs::read_to_string(pub_id_key_file)?;
+    let priv_id_key = fs::read_to_string(priv_id_key_file)?;
 
-    let pub_enc_key = fs::read_to_string(pub_enc_key_file.clone())?;
-    let priv_enc_key = fs::read_to_string(priv_enc_key_file.clone())?;
+    let pub_enc_key = fs::read_to_string(pub_enc_key_file)?;
+    let priv_enc_key = fs::read_to_string(priv_enc_key_file)?;
 
     let ack_key_file = key_filename(&key_paths.ack_key_file)?;
     let gateway_shared_key_file = key_filename(&key_paths.gateway_shared_key_file)?;

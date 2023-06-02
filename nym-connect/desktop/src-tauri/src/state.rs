@@ -1,8 +1,6 @@
 use futures::SinkExt;
 use nym_client_core::error::ClientCoreStatusMessage;
-use nym_socks5_client_core::{
-    config::Config as Socks5Config, Socks5ControlMessage, Socks5ControlMessageSender,
-};
+use nym_socks5_client_core::{Socks5ControlMessage, Socks5ControlMessageSender};
 use std::time::Duration;
 use tap::TapFallible;
 use tauri::Manager;
@@ -153,7 +151,7 @@ impl State {
 
     pub fn load_config(&self) -> Result<Config> {
         let id = self.get_config_id()?;
-        let config = Config::read_from_default_path(&id)
+        let config = Config::read_from_default_path(id)
             .tap_err(|_| log::warn!("Failed to load configuration file"))?;
         Ok(config)
     }

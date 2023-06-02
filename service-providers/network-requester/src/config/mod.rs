@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::CONFIG_TEMPLATE;
+use nym_bin_common::logging::LoggingSettings;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     OptionalSet, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
@@ -18,6 +19,7 @@ pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
 
 pub mod old_config_v1_1_13;
+pub mod old_config_v1_1_19;
 mod persistence;
 mod template;
 
@@ -60,14 +62,14 @@ pub struct Config {
     pub base: BaseClientConfig,
 
     #[serde(default)]
-    pub network_requester_config: NetworkRequester,
+    pub network_requester: NetworkRequester,
 
-    // alias due to backwards compatibility
-    #[serde(alias = "network_requester")]
     pub storage_paths: NetworkRequesterPaths,
 
     #[serde(default)]
     pub network_requester_debug: Debug,
+
+    pub logging: LoggingSettings,
 }
 
 impl NymConfigTemplate for Config {
@@ -80,9 +82,10 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
             base: BaseClientConfig::new(id.as_ref()),
-            network_requester_config: Default::default(),
+            network_requester: Default::default(),
             storage_paths: NetworkRequesterPaths::new_default(default_data_directory(id.as_ref())),
             network_requester_debug: Default::default(),
+            logging: Default::default(),
         }
     }
 
@@ -127,6 +130,7 @@ impl Config {
         self
     }
 
+    #[allow(unused)]
     pub fn with_optional_base_env<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
     where
         F: Fn(BaseClientConfig, T) -> BaseClientConfig,
@@ -137,6 +141,7 @@ impl Config {
         self
     }
 
+    #[allow(unused)]
     pub fn with_optional_base_custom_env<F, T, G>(
         mut self,
         f: F,

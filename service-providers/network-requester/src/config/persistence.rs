@@ -30,23 +30,4 @@ impl NetworkRequesterPaths {
             unknown_list_location: base_dir.join(DEFAULT_UNKNOWN_LIST_FILENAME),
         }
     }
-
-    pub fn new_legacy<P: AsRef<Path>>(base_data_directory: P) -> Self {
-        let base_dir = base_data_directory.as_ref();
-
-        // that's a bit disgusting...
-        // go from `$HOME/.nym/service-providers/network-requester/<id>/data`
-        // to `$HOME/.nym/service-providers/network-requester`
-        let root_dir = base_dir
-            .parent()
-            .expect("invalid legacy path configuration")
-            .parent()
-            .expect("invalid legacy path configuration");
-
-        NetworkRequesterPaths {
-            common_paths: CommonClientPaths::new_default(base_dir),
-            allowed_list_location: root_dir.join(DEFAULT_ALLOWED_LIST_FILENAME),
-            unknown_list_location: root_dir.join(DEFAULT_UNKNOWN_LIST_FILENAME),
-        }
-    }
 }

@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cli::try_upgrade_v1_1_13_config;
+use crate::cli::try_upgrade_config;
 use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
 use crate::{
     cli::{override_config, OverrideConfig},
@@ -109,7 +109,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
     let already_init = if default_config_filepath(id).exists() {
         // in case we're using old config, try to upgrade it
         // (if we're using the current version, it's a no-op)
-        try_upgrade_v1_1_13_config(id)?;
+        try_upgrade_config(id)?;
         eprintln!("Client \"{id}\" was already initialised before");
         true
     } else {

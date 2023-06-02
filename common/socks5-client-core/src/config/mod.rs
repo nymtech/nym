@@ -12,8 +12,6 @@ use std::str::FromStr;
 pub use nym_service_providers_common::interface::ProviderInterfaceVersion;
 pub use nym_socks5_requests::Socks5ProtocolVersion;
 
-// pub mod old_config_v1_1_13;
-
 const DEFAULT_CONNECTION_START_SURBS: u32 = 20;
 const DEFAULT_PER_REQUEST_SURBS: u32 = 3;
 
@@ -139,26 +137,6 @@ impl Socks5 {
             socks5_debug: Default::default(),
         }
     }
-
-    // pub fn with_port(&mut self, port: u16) {
-    //     self.listening_port = port;
-    // }
-    //
-    // pub fn with_provider_mix_address(&mut self, address: String) {
-    //     self.provider_mix_address = address;
-    // }
-    //
-    // pub fn with_provider_interface_version(&mut self, version: ProviderInterfaceVersion) {
-    //     self.provider_interface_version = version;
-    // }
-    //
-    // pub fn with_socks5_protocol_version(&mut self, version: Socks5ProtocolVersion) {
-    //     self.socks5_protocol_version = version;
-    // }
-    //
-    // pub fn with_anonymous_replies(&mut self, anonymous_replies: bool) {
-    //     self.send_anonymously = anonymous_replies;
-    // }
 
     pub fn get_provider_mix_address(&self) -> Recipient {
         Recipient::try_from_base58_string(&self.provider_mix_address)

@@ -253,7 +253,8 @@ pub struct Client {
     pub nym_api_urls: Vec<Url>,
 
     /// Information regarding how the client should send data to gateway.
-    #[deprecated(note = "this shall be moved to separate file because it doesn't belong here...")]
+    // #[deprecated(note = "this shall be moved to separate file because it doesn't belong here...")]
+    // TODO: this should be removed from config files and be moved to separate file instead
     pub gateway_endpoint: GatewayEndpointConfig,
 }
 

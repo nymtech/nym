@@ -2,7 +2,7 @@ use futures::{channel::mpsc, StreamExt};
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_client_core::{config::GatewayEndpointConfig, error::ClientCoreStatusMessage};
 use nym_socks5_client_core::NymClient as Socks5NymClient;
-use nym_socks5_client_core::{config::Config as Socks5Config, Socks5ControlMessageSender};
+use nym_socks5_client_core::Socks5ControlMessageSender;
 use nym_task::manager::TaskStatus;
 use std::sync::Arc;
 use tap::TapFallible;

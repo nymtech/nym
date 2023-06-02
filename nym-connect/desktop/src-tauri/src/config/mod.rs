@@ -167,7 +167,6 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 
     config.socks5.base.set_gateway_endpoint(gateway);
 
-    let config_save_location = config.default_location();
     config.save_to_default_location().tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;

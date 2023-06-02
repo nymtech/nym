@@ -4181,6 +4181,7 @@ dependencies = [
  "openssl",
  "rand 0.7.3",
  "safer-ffi",
+ "serde",
  "tokio",
 ]
 

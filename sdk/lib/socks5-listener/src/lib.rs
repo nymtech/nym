@@ -1,15 +1,16 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::{config_filepath_from_root, Config};
 use crate::persistence::MobileClientStorage;
 use ::safer_ffi::prelude::*;
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use log::{info, warn};
 use nym_bin_common::logging::setup_logging;
+use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
+use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_config_common::defaults::setup_env;
-use nym_config_common::NymConfig;
-use nym_socks5_client_core::config::Config as Socks5Config;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
 use safer_ffi::char_p::char_p_boxed;
 use std::marker::Send;
@@ -19,14 +20,9 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, Notify};
 
-#[cfg(not(target_os = "android"))]
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-
-#[cfg(target_os = "android")]
-use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
-
 #[cfg(target_os = "android")]
 pub mod android;
+mod config;
 mod persistence;
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
@@ -183,19 +179,9 @@ pub fn reset_client_data(root_directory: char_p::Ref<'_>) {
 
 #[ffi_export]
 pub fn existing_service_provider(storage_directory: char_p::Ref<'_>) -> Option<char_p_boxed> {
-    let expected_store_path = Socks5Config::default_config_file_path_with_root(
-        storage_directory.to_string(),
-        SOCKS5_CONFIG_ID,
-    );
-
-    if let Ok(config) = Socks5Config::load_from_filepath(expected_store_path) {
-        Some(
-            config
-                .get_socks5()
-                .get_raw_provider_mix_address()
-                .try_into()
-                .unwrap(),
-        )
+    if let Ok(config) = Config::read_from_default_path(storage_directory.to_str(), SOCKS5_CONFIG_ID)
+    {
+        Some(config.core.socks5.provider_mix_address.try_into().unwrap())
     } else {
         None
     }
@@ -223,7 +209,7 @@ where
 
     let config = load_or_generate_base_config(storage_dir, client_id, service_provider).await?;
     let storage = MobileClientStorage::new(&config);
-    let socks5_client = Socks5NymClient::new(config, storage);
+    let socks5_client = Socks5NymClient::new(config.core, storage);
 
     eprintln!("starting the socks5 client");
     let mut started_client = socks5_client.start().await?;
@@ -250,31 +236,34 @@ async fn load_or_generate_base_config(
     storage_dir: Option<String>,
     client_id: String,
     service_provider: Option<String>,
-) -> Result<Socks5Config> {
+) -> Result<Config> {
     let Some(storage_dir) = storage_dir else {
         eprintln!("no storage path specified");
         return setup_new_client_config(None, client_id, service_provider).await;
     };
 
-    let expected_store_path =
-        Socks5Config::default_config_file_path_with_root(&storage_dir, &client_id.to_string());
+    let expected_store_path = config_filepath_from_root(&storage_dir, &client_id.to_string());
     eprintln!(
         "attempting to load socks5 config from {}",
         expected_store_path.display()
     );
 
     // simulator workaround
-    if let Ok(config) = Socks5Config::load_from_filepath(expected_store_path) {
+    if let Ok(mut config) = Config::read_from_toml_file(expected_store_path) {
         eprintln!("loaded config");
-        let root = config.get_base().get_nym_root_directory();
-        eprintln!("actual root: {storage_dir}");
-        eprintln!("retrieved root: {root:?}");
-
-        if root.to_str() == Some(storage_dir.as_str()) {
-            return Ok(config);
+        if let Some(storage_paths) = &mut config.storage_paths {
+            if !storage_paths
+                .common_paths
+                .keys
+                .public_identity_key_file
+                .starts_with(&storage_dir)
+            {
+                eprintln!("... but it seems to have been made for different container - fixing it up... (ASSUMING DEFAULT PATHS)");
+                storage_paths.change_root(storage_dir, &config.core.base.client.id);
+            }
         }
-        eprintln!("... but it seems to have been made for different container - fixing it up... (ASSUMING DEFAULT PATHS)");
-        return Ok(config.with_root_directory(storage_dir));
+
+        return Ok(config);
     };
 
     eprintln!("creating new config");
@@ -285,43 +274,44 @@ async fn setup_new_client_config(
     storage_dir: Option<String>,
     client_id: String,
     service_provider: Option<String>,
-) -> Result<Socks5Config> {
+) -> Result<Config> {
     let service_provider = service_provider.ok_or(anyhow!(
         "service provider was not specified for fresh config"
     ))?;
 
-    let mut new_config = Socks5Config::new(client_id, service_provider);
-    if let Some(storage_dir) = &storage_dir {
-        new_config = new_config.with_root_directory(storage_dir);
-    }
-
-    // ugh that's disgusting...
-    #[cfg(not(target_os = "android"))]
-    let key_store = OnDiskKeys::from_config(new_config.get_base());
-
-    #[cfg(target_os = "android")]
-    let key_store = InMemEphemeralKeys;
+    let mut new_config = Config::new(storage_dir.as_ref(), client_id, service_provider);
 
     if let Ok(raw_validators) = std::env::var(nym_config_common::defaults::var_names::NYM_API) {
         new_config
-            .get_base_mut()
+            .core
+            .base
             .set_custom_nym_apis(nym_config_common::parse_urls(&raw_validators));
     }
 
-    // note: this will also do key storage (annoyingly...)
-    let gateway = nym_client_core::init::setup_gateway_from_config::<Socks5Config, _, _>(
-        &key_store,
-        true,
-        None,
-        new_config.get_base(),
-        false,
-    )
-    .await?;
+    let gateway = if let Some(storage_paths) = &new_config.storage_paths {
+        nym_client_core::init::setup_gateway_from_config::<_>(
+            &OnDiskKeys::new(storage_paths.common_paths.keys.clone()),
+            true,
+            None,
+            &new_config.core.base,
+            false,
+        )
+        .await?
+    } else {
+        nym_client_core::init::setup_gateway_from_config::<_>(
+            &InMemEphemeralKeys,
+            true,
+            None,
+            &new_config.core.base,
+            false,
+        )
+        .await?
+    };
 
-    new_config.get_base_mut().set_gateway_endpoint(gateway);
+    new_config.core.base.set_gateway_endpoint(gateway);
 
-    if storage_dir.is_some() {
-        new_config.save_to_file(None)?;
+    if let Some(storage_dir) = storage_dir {
+        new_config.save_to_default_location(storage_dir)?;
     }
 
     Ok(new_config)

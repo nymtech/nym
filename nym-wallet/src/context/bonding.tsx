@@ -444,7 +444,6 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
   }, [ownership]);
 
   useEffect(() => {
-    console.log('____HERE_USE_EFFECT');
     refresh();
   }, [ownership, refresh]);
 

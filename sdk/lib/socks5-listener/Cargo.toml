@@ -16,7 +16,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 strip = true
 
 [dependencies]
-anyhow = "1.0"
+anyhow = { workspace = true }
 futures = "0.3"
 lazy_static = "1.4.0"
 nym-bin-common = { path = "../../../common/bin-common"}
@@ -26,7 +26,8 @@ nym-credential-storage = { path = "../../../common/credential-storage" }
 nym-crypto = { path = "../../../common/crypto" }
 nym-socks5-client-core = { path = "../../../common/socks5-client-core", default-features = false }
 openssl = { version = "0.10", features = ["vendored"] }
-tokio = { version = "1.24.1", features = ["sync", "time"] }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time"] }
 log = "0.4.17"
 rand = "0.7.3"
 

@@ -4,17 +4,18 @@
 use crate::config::persistence::SocksClientPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
-pub use nym_client_core::config::Config as BaseClientConfig;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
-pub use nym_socks5_client_core::config::Config as CoreConfig;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+
+pub use nym_client_core::config::Config as BaseClientConfig;
+pub use nym_socks5_client_core::config::Config as CoreConfig;
 
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_19;
@@ -90,14 +91,6 @@ impl Config {
         let config_save_location: PathBuf = self.default_location();
         save_formatted_config_to_file(self, config_save_location)
     }
-
-    //
-    // pub fn new<S: Into<String>>(id: S, provider_mix_address: S) -> Self {
-    //     Config {
-    //         base: BaseClientConfig::new(id),
-    //         socks5: Socks5::new(provider_mix_address),
-    //     }
-    // }
 
     pub fn validate(&self) -> bool {
         // no other sections have explicit requirements (yet)

@@ -7,7 +7,7 @@ use nym_bin_common::logging::LoggingSettings;
 pub use nym_client_core::config::Config as BaseClientConfig;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
-    OptionalSet, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 pub use nym_socks5_client_core::config::Config as CoreConfig;
 use serde::{Deserialize, Serialize};
@@ -17,6 +17,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 pub mod old_config_v1_1_13;
+pub mod old_config_v1_1_19;
 mod persistence;
 mod template;
 
@@ -51,7 +52,6 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    #[serde(flatten)]
     pub core: CoreConfig,
 
     pub storage_paths: SocksClientPaths,
@@ -132,6 +132,7 @@ impl Config {
         self
     }
 
+    #[allow(unused)]
     pub fn with_optional_base_env<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
     where
         F: Fn(BaseClientConfig, T) -> BaseClientConfig,
@@ -156,47 +157,6 @@ impl Config {
         self.core = self
             .core
             .with_optional_base_custom_env(f, val, env_var, parser);
-        self
-    }
-
-    pub fn with_core<F, T>(mut self, f: F, val: T) -> Self
-    where
-        F: Fn(CoreConfig, T) -> CoreConfig,
-    {
-        self.core = f(self.core, val);
-        self
-    }
-
-    pub fn with_optional_core<F, T>(mut self, f: F, val: Option<T>) -> Self
-    where
-        F: Fn(CoreConfig, T) -> CoreConfig,
-    {
-        self.core = self.core.with_optional(f, val);
-        self
-    }
-
-    pub fn with_optional_core_env<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
-    where
-        F: Fn(CoreConfig, T) -> CoreConfig,
-        T: FromStr,
-        <T as FromStr>::Err: Debug,
-    {
-        self.core = self.core.with_optional_env(f, val, env_var);
-        self
-    }
-
-    pub fn with_optional_core_custom_env<F, T, G>(
-        mut self,
-        f: F,
-        val: Option<T>,
-        env_var: &str,
-        parser: G,
-    ) -> Self
-    where
-        F: Fn(CoreConfig, T) -> CoreConfig,
-        G: Fn(&str) -> T,
-    {
-        self.core = self.core.with_optional_custom_env(f, val, env_var, parser);
         self
     }
 }

@@ -73,7 +73,7 @@ jobs:
       - name: Prepare APKs
         run: |
           mkdir apk
-          mv nym-connect/native/android/app/build/outputs/apk/arch64/release/app-arch64-release.apk \
+          mv nym-connect/native/android/app/build/outputs/apk/arch64/release/app-arch64-release-unsigned.apk \
             apk/nyms5-arch64-release.apk
 
       - name: Upload APKs

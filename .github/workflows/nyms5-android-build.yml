@@ -1,13 +1,13 @@
 name: Nyms5 Android
-# unsigned debug APKs only, supported archs:
-# - arm64-v8a
+# unsigned APKs only, supported archs:
+# - arm64-v8a (arm64)
 # - x86_64
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - "release/nyms5-android-v[0-9].[0-9].[0-9]*"
+    tags:
+      - nyms5-android-v*
 
 jobs:
   build:
@@ -63,38 +63,40 @@ jobs:
         # build for arm64 and x86_64
         run: ./build-android.sh aarch64 x86_64
 
-      - name: Build APKs (unsigned debug)
+      - name: Build APKs (unsigned)
         working-directory: nym-connect/native/android
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
         # build for arm64 and x86_64
-        run: ./gradlew :app:assembleArch64Debug
+        run: ./gradlew :app:assembleArch64Release
 
       - name: Prepare APKs
         run: |
           mkdir apk
-          mv nym-connect/native/android/app/build/outputs/apk/arch64/debug/app-arch64-debug.apk \
-            apk/nyms5-arch64-debug.apk
+          mv nym-connect/native/android/app/build/outputs/apk/arch64/release/app-arch64-release.apk \
+            apk/nyms5-arch64-release.apk
 
       - name: Upload APKs
         uses: actions/upload-artifact@v3
         with:
-          name: nyms5-apk-debug
+          name: nyms5-apk-arch64-release
           path: |
-            apk/nyms5-arch64-debug.apk
+            apk/nyms5-arch64-release.apk
 
-  # publish:
-  #   name: Publish APK
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #     - name: Download binary artifact
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: nc-apk-debug
-  #         path: apk
-  #     # TODO add a step to upload the APK somewhere
-  #     - name: Publish
-  #       uses: ???
+  gh-release:
+    name: Publish APK (GH release)
+    needs: build
+    runs-on: custom-runner-linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Download binary artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: nyms5-apk-arch64-release
+          path: apk
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: apk/nyms5-arch64-release.apk
+

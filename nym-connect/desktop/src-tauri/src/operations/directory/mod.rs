@@ -42,7 +42,7 @@ pub async fn get_services() -> Result<Vec<DirectoryServiceProvider>> {
     let mut filtered: Vec<DirectoryService> = vec![];
 
     for service in &services_res {
-        let items: _ = service
+        let items = service
             .items
             .clone()
             .into_iter()

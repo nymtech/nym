@@ -189,7 +189,7 @@ systemctl status nym-socks5-client.service
 
 ## Using your Socks5 Client
 
-After completing the steps above, your local Socks5 Client will be listening on `localhost:1080` ready to proxy traffic to the Network Requester set as the `--`provider` when initializing.
+After completing the steps above, your local Socks5 Client will be listening on `localhost:1080` ready to proxy traffic to the Network Requester set as the `--provider` when initialising.
 
 When trying to connect your app, generally the proxy settings are found in `settings->advanced` or `settings->connection`.
 

@@ -81,9 +81,9 @@ You can check the necessary parameters for the available commands by running:
 ./nym-client <command> --help
 ```
 
-### Initializing a new client instance
+### Initialising a new client instance
 
-Before you can use the client, you need to initialize a new instance of it, which can be done with the following command:
+Before you can use the client, you need to initialise a new instance of it, which can be done with the following command:
 
 ```
 ./nym-socks5-client init --id docs-example --provider Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf
@@ -111,13 +111,13 @@ However, there are several options for choosing a gateway, if you do not want on
 * You can also choose a gateway based on its location relative to your client. This can be done by appending the `--latency-based-selection` flag to your `init` command. This command means that to select a gateway, your client will:
 	* fetch a list of all available gateways
 	* send few ping messages to all of them, and measure response times.
-	* create a weighted distribution to randomly choose one, favoring ones with lower latency.
+	* create a weighted distribution to randomly choose one, favouring ones with lower latency.
 
 > Note this doesn't mean that your client will pick the closest gateway to you, but it will be far more likely to connect to gateway with a 20ms ping rather than 200ms
 
 ### Configuring your client
 
-When you initialize a client instance, a configuration directory will be generated and stored in `$HOME_DIR/.nym/socks5-clients/<client-name>/`.
+When you initialise a client instance, a configuration directory will be generated and stored in `$HOME_DIR/.nym/socks5-clients/<client-name>/`.
 
 ```
 tree $HOME/<user>/.nym/socks5-clients/docs-example
@@ -149,7 +149,7 @@ Alternatively, a custom host can be set in the `config.toml` file under the `soc
 
 ### Running the socks5 client
 
-You can run the initialized client by doing this:
+You can run the initialised client by doing this:
 
 ```
 ./nym-socks5-client run --id docs-example

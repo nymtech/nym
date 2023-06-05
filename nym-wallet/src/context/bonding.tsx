@@ -342,6 +342,8 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     setIsLoading(true);
     setError(undefined);
 
+    await checkOwnership();
+
     if (ownership.hasOwnership && ownership.nodeType === EnumNodeType.mixnode && clientDetails) {
       try {
         const data = await getMixnodeBondDetails();

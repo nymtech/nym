@@ -84,6 +84,11 @@ impl ManagedKeys {
         }
     }
 
+    pub fn must_get_gateway_shared_key(&self) -> Arc<SharedKeys> {
+        self.gateway_shared_key()
+            .expect("failed to extract gateway shared key")
+    }
+
     pub fn gateway_shared_key(&self) -> Option<Arc<SharedKeys>> {
         match self {
             ManagedKeys::Initial(_) => None,
@@ -108,6 +113,17 @@ impl ManagedKeys {
         }
     }
 
+    pub fn ensure_gateway_key(&self, gateway_shared_key: Arc<SharedKeys>) {
+        if let ManagedKeys::FullyDerived(key_manager) = &self {
+            if !Arc::ptr_eq(&key_manager.gateway_shared_key, &gateway_shared_key)
+                || key_manager.gateway_shared_key != gateway_shared_key
+            {
+                // this should NEVER happen thus panic here
+                panic!("derived fresh gateway shared key whilst already holding one!")
+            }
+        }
+    }
+
     pub async fn deal_with_gateway_key<S: KeyStore>(
         &mut self,
         gateway_shared_key: Arc<SharedKeys>,
@@ -120,12 +136,7 @@ impl ManagedKeys {
                 key_manager
             }
             ManagedKeys::FullyDerived(key_manager) => {
-                if !Arc::ptr_eq(&key_manager.gateway_shared_key, &gateway_shared_key)
-                    || key_manager.gateway_shared_key != gateway_shared_key
-                {
-                    // this should NEVER happen thus panic here
-                    panic!("derived fresh gateway shared key whilst already holding one!")
-                }
+                self.ensure_gateway_key(gateway_shared_key);
                 key_manager
             }
             ManagedKeys::Invalidated => unreachable!("the managed keys got invalidated"),

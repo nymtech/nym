@@ -36,6 +36,7 @@ pub enum OnDiskKeysError {
     KeyPairLoadFailure {
         keys: String,
         paths: nym_pemstore::KeyPairPath,
+        #[source]
         err: std::io::Error,
     },
 
@@ -43,6 +44,7 @@ pub enum OnDiskKeysError {
     KeyPairStoreFailure {
         keys: String,
         paths: nym_pemstore::KeyPairPath,
+        #[source]
         err: std::io::Error,
     },
 
@@ -50,6 +52,7 @@ pub enum OnDiskKeysError {
     KeyLoadFailure {
         key: String,
         path: String,
+        #[source]
         err: std::io::Error,
     },
 
@@ -57,6 +60,7 @@ pub enum OnDiskKeysError {
     KeyStoreFailure {
         key: String,
         path: String,
+        #[source]
         err: std::io::Error,
     },
 }

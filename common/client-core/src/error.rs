@@ -50,6 +50,11 @@ pub enum ClientCoreError {
         source: Box<dyn Error + Send + Sync>,
     },
 
+    #[error("experienced a failure with our gateway details storage: {source}")]
+    GatewayDetailsStoreError {
+        source: Box<dyn Error + Send + Sync>,
+    },
+
     #[error("The gateway id is invalid - {0}")]
     UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),
 
@@ -97,6 +102,20 @@ pub enum ClientCoreError {
         "This operation would have resulted in clients keys being overwritten without permission"
     )]
     ForbiddenKeyOverwrite,
+
+    #[error("gateway details are unavailable")]
+    UnavailableGatewayDetails {
+        source: Box<dyn Error + Send + Sync>,
+    },
+
+    #[error("gateway shared key is unavailable whilst we have full node information")]
+    UnavailableSharedKey,
+
+    #[error("attempted to obtain fresh gateway details whilst already knowing about one")]
+    UnexpectedGatewayDetails,
+
+    #[error("the provided gateway details (for gateway {gateway_id}) do not correspond to the shared keys")]
+    MismatchedGatewayDetails { gateway_id: String },
 }
 
 /// Set of messages that the client can send to listeners via the task manager

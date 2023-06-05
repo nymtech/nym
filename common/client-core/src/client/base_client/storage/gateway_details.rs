@@ -5,8 +5,10 @@ use crate::config::GatewayEndpointConfig;
 use async_trait::async_trait;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use serde::{Deserialize, Serialize};
+use std::convert::Infallible;
 use std::error::Error;
-use std::sync::Arc;
+use std::fs::File;
+use std::path::{Path, PathBuf};
 
 // TODO: to incorporate into `MixnetClientStorage`
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -22,22 +24,140 @@ pub trait GatewayDetailsStore {
     ) -> Result<(), Self::StorageError>;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedGatewayDetails {
     /// (to be determined), hash, ciphertext or tag derived from the details and the shared key
     /// to ensure they correspond to the same instance.
     magic_crypto_field: (),
 
     /// Actual gateway details being persisted.
-    details: GatewayEndpointConfig,
+    pub(crate) details: GatewayEndpointConfig,
+}
+
+impl Into<GatewayEndpointConfig> for PersistedGatewayDetails {
+    fn into(self) -> GatewayEndpointConfig {
+        self.details
+    }
 }
 
 impl PersistedGatewayDetails {
-    pub fn new(details: GatewayEndpointConfig, shared_key: Arc<SharedKeys>) -> Self {
-        todo!()
+    pub fn new(details: GatewayEndpointConfig, shared_key: &SharedKeys) -> Self {
+        let magic_crypto_field = {
+            // TODO:
+            shared_key;
+        };
+
+        PersistedGatewayDetails {
+            magic_crypto_field,
+            details,
+        }
     }
 
-    pub fn verify(&self, shared_key: Arc<SharedKeys>) -> bool {
+    pub fn verify(&self, shared_key: &SharedKeys) -> bool {
+        // TODO:
+        let magic = |_magic, _key| true;
+
+        magic(self.magic_crypto_field, shared_key)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, thiserror::Error)]
+pub enum OnDiskGatewayDetailsError {
+    #[error("JSON failure: {0}")]
+    SerializationFailure(#[from] serde_json::Error),
+
+    #[error("failed to store gateway details to {path}: {err}")]
+    StoreFailure {
+        path: String,
+        #[source]
+        err: std::io::Error,
+    },
+
+    #[error("failed to load gateway details from {path}: {err}")]
+    LoadFailure {
+        path: String,
+        #[source]
+        err: std::io::Error,
+    },
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub struct OnDiskGatewayDetails {
+    file_location: PathBuf,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl OnDiskGatewayDetails {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+        OnDiskGatewayDetails {
+            file_location: path.as_ref().to_owned(),
+        }
+    }
+
+    pub fn load_from_disk(&self) -> Result<PersistedGatewayDetails, OnDiskGatewayDetailsError> {
+        let file = File::open(&self.file_location).map_err(|err| {
+            OnDiskGatewayDetailsError::LoadFailure {
+                path: self.file_location.display().to_string(),
+                err,
+            }
+        })?;
+
+        Ok(serde_json::from_reader(file)?)
+    }
+
+    pub fn store_to_disk(
+        &self,
+        details: &PersistedGatewayDetails,
+    ) -> Result<(), OnDiskGatewayDetailsError> {
+        let file = File::open(&self.file_location).map_err(|err| {
+            OnDiskGatewayDetailsError::StoreFailure {
+                path: self.file_location.display().to_string(),
+                err,
+            }
+        })?;
+
+        Ok(serde_json::to_writer_pretty(file, details)?)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl GatewayDetailsStore for OnDiskGatewayDetails {
+    type StorageError = OnDiskGatewayDetailsError;
+
+    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails, Self::StorageError> {
+        self.load_from_disk()
+    }
+
+    async fn store_gateway_details(
+        &self,
+        gateway_details: &PersistedGatewayDetails,
+    ) -> Result<(), Self::StorageError> {
+        self.store_to_disk(gateway_details)
+    }
+}
+
+pub struct InMemGatewayDetails {
+    details: PersistedGatewayDetails,
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl GatewayDetailsStore for InMemGatewayDetails {
+    type StorageError = Infallible;
+
+    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails, Self::StorageError> {
+        Ok(self.details.clone())
+    }
+
+    async fn store_gateway_details(
+        &self,
+        gateway_details: &PersistedGatewayDetails,
+    ) -> Result<(), Self::StorageError> {
+        let _ = gateway_details;
         todo!()
+        // self.details = gateway_details.clone();
+        // Ok(())
     }
 }

@@ -101,7 +101,7 @@ pub(crate) async fn choose_gateway(
 
     // if NOTHING is specified nor available, choose gateway randomly.
     let setup = GatewaySetup::new(None, chosen_gateway, None);
-    let config = setup.try_get_gateway_details(nym_apis).await?;
+    let config = setup.try_get_new_gateway_details(nym_apis).await?;
 
     // perform registration + persist the new gateway info
     // TODO: this is actually quite bad. we shouldn't be persisting gateway info here since we did not have persisted

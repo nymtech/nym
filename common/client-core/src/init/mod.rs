@@ -3,7 +3,9 @@
 
 //! Collection of initialization steps used by client implementations
 
-use crate::client::base_client::storage::MixnetClientStorage;
+use crate::client::base_client::storage::gateway_details::{
+    GatewayDetailsStore, PersistedGatewayDetails,
+};
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::{KeyManager, ManagedKeys};
 use crate::init::helpers::{choose_gateway_by_latency, current_gateways, uniformly_random_gateway};
@@ -21,8 +23,26 @@ use url::Url;
 
 mod helpers;
 
+// TODO: rename to something better...
+pub struct InitialisationDetails {
+    pub gateway_details: GatewayEndpointConfig,
+    pub managed_keys: ManagedKeys,
+}
+
+impl InitialisationDetails {
+    pub fn new(gateway_details: GatewayEndpointConfig, managed_keys: ManagedKeys) -> Self {
+        InitialisationDetails {
+            gateway_details,
+            managed_keys,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum GatewaySetup {
+    /// The gateway specification MUST BE loaded from the underlying storage.
+    MustLoad,
+
     /// Specifies usage of a new, random, gateway.
     New {
         /// Should the new gateway be selected based on latency.
@@ -34,13 +54,13 @@ pub enum GatewaySetup {
     },
     Predefined {
         /// Full gateway configuration
-        config: GatewayEndpointConfig,
+        details: PersistedGatewayDetails,
     },
 }
 
-impl From<GatewayEndpointConfig> for GatewaySetup {
-    fn from(config: GatewayEndpointConfig) -> Self {
-        GatewaySetup::Predefined { config }
+impl From<PersistedGatewayDetails> for GatewaySetup {
+    fn from(details: PersistedGatewayDetails) -> Self {
+        GatewaySetup::Predefined { details }
     }
 }
 
@@ -58,12 +78,12 @@ impl Default for GatewaySetup {
 
 impl GatewaySetup {
     pub fn new(
-        full_config: Option<GatewayEndpointConfig>,
+        full_config: Option<PersistedGatewayDetails>,
         gateway_identity: Option<IdentityKey>,
         latency_based_selection: Option<bool>,
     ) -> Self {
         if let Some(config) = full_config {
-            GatewaySetup::Predefined { config }
+            GatewaySetup::Predefined { details: config }
         } else if let Some(gateway_identity) = gateway_identity {
             GatewaySetup::Specified { gateway_identity }
         } else {
@@ -73,15 +93,23 @@ impl GatewaySetup {
         }
     }
 
-    pub async fn try_get_gateway_details(
-        self,
+    pub fn is_must_load(&self) -> bool {
+        matches!(self, GatewaySetup::MustLoad)
+    }
+
+    pub fn has_full_details(&self) -> bool {
+        matches!(self, GatewaySetup::Predefined { .. }) || self.is_must_load()
+    }
+
+    pub async fn try_get_new_gateway_details(
+        &self,
         validator_servers: &[Url],
     ) -> Result<GatewayEndpointConfig, ClientCoreError> {
         match self {
             GatewaySetup::New { by_latency } => {
                 let mut rng = OsRng;
                 let gateways = current_gateways(&mut rng, validator_servers).await?;
-                if by_latency {
+                if *by_latency {
                     choose_gateway_by_latency(&mut rng, gateways).await
                 } else {
                     uniformly_random_gateway(&mut rng, gateways)
@@ -89,7 +117,7 @@ impl GatewaySetup {
             }
             .map(Into::into),
             GatewaySetup::Specified { gateway_identity } => {
-                let user_gateway = identity::PublicKey::from_base58_string(&gateway_identity)
+                let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
                     .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
                 let mut rng = OsRng;
@@ -100,7 +128,7 @@ impl GatewaySetup {
                     .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))
             }
             .map(Into::into),
-            GatewaySetup::Predefined { config } => Ok(config),
+            _ => Err(ClientCoreError::UnexpectedGatewayDetails),
         }
     }
 }
@@ -117,14 +145,14 @@ pub struct InitResults {
 }
 
 impl InitResults {
-    pub fn new(config: &Config, address: &Recipient) -> Self {
+    pub fn new(config: &Config, address: &Recipient, gateway: &GatewayEndpointConfig) -> Self {
         Self {
             version: config.client.version.clone(),
             id: config.client.id.clone(),
             identity_key: address.identity().to_base58_string(),
             encryption_key: address.encryption_key().to_base58_string(),
-            gateway_id: config.get_gateway_id(),
-            gateway_listener: config.get_gateway_listener(),
+            gateway_id: gateway.gateway_id.clone(),
+            gateway_listener: gateway.gateway_listener.clone(),
         }
     }
 }
@@ -140,38 +168,109 @@ impl Display for InitResults {
     }
 }
 
-/// Recovers the already present gateway information or attempts to register with new gateway
-/// and stores the newly obtained key
-pub async fn get_registered_gateway<S>(
-    validator_servers: Vec<Url>,
-    key_store: &S::KeyStore,
-    setup: GatewaySetup,
-    overwrite_keys: bool,
-) -> Result<(GatewayEndpointConfig, ManagedKeys), ClientCoreError>
+// helpers for error wrapping
+async fn _store_gateway_details<D>(
+    details_store: &D,
+    details: &PersistedGatewayDetails,
+) -> Result<(), ClientCoreError>
 where
-    S: MixnetClientStorage,
-    <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
+    D: GatewayDetailsStore,
+    D::StorageError: Send + Sync + 'static,
+{
+    details_store
+        .store_gateway_details(details)
+        .await
+        .map_err(|source| ClientCoreError::GatewayDetailsStoreError {
+            source: Box::new(source),
+        })
+}
+
+async fn _load_gateway_details<D>(
+    details_store: &D,
+) -> Result<PersistedGatewayDetails, ClientCoreError>
+where
+    D: GatewayDetailsStore,
+    D::StorageError: Send + Sync + 'static,
+{
+    details_store
+        .load_gateway_details()
+        .await
+        .map_err(|source| ClientCoreError::UnavailableGatewayDetails {
+            source: Box::new(source),
+        })
+}
+
+pub async fn setup_gateway<K, D>(
+    setup: &GatewaySetup,
+    key_store: &K,
+    details_store: &D,
+    overwrite_data: bool,
+    validator_servers: Option<&[Url]>,
+) -> Result<InitialisationDetails, ClientCoreError>
+where
+    K: KeyStore,
+    D: GatewayDetailsStore,
+    K::StorageError: Send + Sync + 'static,
+    D::StorageError: Send + Sync + 'static,
 {
     let mut rng = OsRng;
+
+    // try load gateway details
+    let loaded_details = _load_gateway_details(details_store).await;
 
     // try load keys
     let mut managed_keys = match ManagedKeys::try_load(key_store).await {
         Ok(loaded_keys) => {
-            // if we loaded something and we don't have full gateway details, check if we can overwrite the data
-            if let GatewaySetup::Predefined { config } = setup {
-                // we already have defined gateway details AND a shared key, so nothing more for us to do
-                return Ok((config, loaded_keys));
-            } else if overwrite_keys {
+            if let GatewaySetup::MustLoad = setup {
+                // get EVERYTHING from the storage
+                let details = loaded_details?;
+                if !details.verify(&loaded_keys.must_get_gateway_shared_key()) {
+                    return Err(ClientCoreError::MismatchedGatewayDetails {
+                        gateway_id: details.details.gateway_id,
+                    });
+                }
+                // no need to persist anything as we got everything from the storage
+                return Ok(InitialisationDetails::new(details.into(), loaded_keys));
+            } else if let GatewaySetup::Predefined { details } = setup {
+                // we already have defined gateway details AND a shared key
+                if !details.verify(&loaded_keys.must_get_gateway_shared_key()) {
+                    return Err(ClientCoreError::MismatchedGatewayDetails {
+                        gateway_id: details.details.gateway_id.clone(),
+                    });
+                }
+
+                // if nothing was stored or we're allowed to overwrite what's there, just persist the passed data
+                if overwrite_data || loaded_details.is_err() {
+                    _store_gateway_details(details_store, details).await?;
+                }
+
+                return Ok(InitialisationDetails::new(
+                    details.clone().into(),
+                    loaded_keys,
+                ));
+            } else if overwrite_data {
+                // whatever the state of the loaded data was, we can't use it since we'll be deriving
+                // fresh gateway key
+                _ = loaded_details;
                 ManagedKeys::generate_new(&mut rng)
             } else {
                 return Err(ClientCoreError::ForbiddenKeyOverwrite);
             }
         }
-        Err(_) => ManagedKeys::generate_new(&mut rng),
+        Err(_) => {
+            // if we failed to load the keys, ensure we didn't provide gateway details in some form
+            // (in that case we CAN'T generate new keys
+            if setup.has_full_details() {
+                return Err(ClientCoreError::UnavailableSharedKey);
+            }
+            ManagedKeys::generate_new(&mut rng)
+        }
     };
 
     // choose gateway
-    let gateway_details = setup.try_get_gateway_details(&validator_servers).await?;
+    let gateway_details = setup
+        .try_get_new_gateway_details(validator_servers.unwrap_or_default())
+        .await?;
 
     // get our identity key
     let our_identity = managed_keys.identity_keypair();
@@ -179,6 +278,9 @@ where
     // Establish connection, authenticate and generate keys for talking with the gateway
     let shared_keys = helpers::register_with_gateway(&gateway_details, our_identity).await?;
 
+    let persisted_details = PersistedGatewayDetails::new(gateway_details, &shared_keys);
+
+    // persist gateway keys
     managed_keys
         .deal_with_gateway_key(shared_keys, key_store)
         .await
@@ -186,74 +288,131 @@ where
             source: Box::new(source),
         })?;
 
-    // TODO: here we should be probably persisting gateway details as opposed to returning them
+    // persist gateway config
+    _store_gateway_details(details_store, &persisted_details).await?;
 
-    Ok((gateway_details, managed_keys))
+    Ok(InitialisationDetails::new(
+        persisted_details.into(),
+        managed_keys,
+    ))
 }
 
-/// Convenience function for setting up the gateway for a client given a `Config`. Depending on the
-/// arguments given it will do the sensible thing. Either it will
-///
-/// a. Reuse existing gateway configuration from storage.
-/// b. Create a new gateway configuration but keep existing keys. This assumes that the caller
-///    knows what they are doing and that the keys match the requested gateway.
-/// c. Create a new gateway configuration with a newly registered gateway and keys.
-pub async fn setup_gateway_from_config<KSt>(
-    key_store: &KSt,
-    register_gateway: bool,
-    user_chosen_gateway_id: Option<identity::PublicKey>,
-    config: &Config,
-    old_gateway_config: Option<GatewayEndpointConfig>,
-    by_latency: bool,
-) -> Result<GatewayEndpointConfig, ClientCoreError>
-where
-    KSt: KeyStore,
-    <KSt as KeyStore>::StorageError: Send + Sync + 'static,
-{
-    // If we are not going to register gateway, and an explicitly chosen gateway is not passed in,
-    // load the existing configuration file
-    if !register_gateway && user_chosen_gateway_id.is_none() {
-        eprintln!("Not registering gateway, will reuse existing config and keys");
-        return old_gateway_config.ok_or(ClientCoreError::FailedToSetupGateway);
-    }
-
-    let gateway_setup = GatewaySetup::new(
-        None,
-        user_chosen_gateway_id.map(|id| id.to_base58_string()),
-        Some(by_latency),
-    );
-    // Else, we proceed by querying the nym-api
-    let gateway = gateway_setup
-        .try_get_gateway_details(&config.get_nym_api_endpoints())
-        .await?;
-    log::debug!("Querying gateway gives: {:?}", gateway);
-
-    // If we are not registering, just return this and assume the caller has the keys already and
-    // wants to keep the,
-    if !register_gateway && user_chosen_gateway_id.is_some() {
-        eprintln!("Using gateway provided by user, keeping existing keys");
-        return Ok(gateway);
-    }
-
-    let mut rng = OsRng;
-    let mut managed_keys =
-        crate::client::key_manager::ManagedKeys::load_or_generate(&mut rng, key_store).await;
-
-    // Create new keys and derive our identity
-    let our_identity = managed_keys.identity_keypair();
-
-    // Establish connection, authenticate and generate keys for talking with the gateway
-    eprintln!("Registering with new gateway");
-    let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
-    managed_keys
-        .deal_with_gateway_key(shared_keys, key_store)
-        .await
-        .map_err(|source| ClientCoreError::KeyStoreError {
-            source: Box::new(source),
-        })?;
-
-    Ok(gateway)
-}
+//
+// /// Recovers the already present gateway information or attempts to register with new gateway
+// /// and stores the newly obtained key
+// pub async fn get_registered_gateway<S>(
+//     validator_servers: Vec<Url>,
+//     key_store: &S::KeyStore,
+//     setup: GatewaySetup,
+//     overwrite_keys: bool,
+// ) -> Result<(GatewayEndpointConfig, ManagedKeys), ClientCoreError>
+// where
+//     S: MixnetClientStorage,
+//     <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
+// {
+//     let mut rng = OsRng;
+//
+//     // try load keys
+//     let mut managed_keys = match ManagedKeys::try_load(key_store).await {
+//         Ok(loaded_keys) => {
+//             // if we loaded something and we don't have full gateway details, check if we can overwrite the data
+//             if let GatewaySetup::Predefined { details: config } = setup {
+//                 // we already have defined gateway details AND a shared key, so nothing more for us to do
+//                 return Ok((config, loaded_keys));
+//             } else if overwrite_keys {
+//                 ManagedKeys::generate_new(&mut rng)
+//             } else {
+//                 return Err(ClientCoreError::ForbiddenKeyOverwrite);
+//             }
+//         }
+//         Err(_) => ManagedKeys::generate_new(&mut rng),
+//     };
+//
+//     // choose gateway
+//     let gateway_details = setup
+//         .try_get_new_gateway_details(&validator_servers)
+//         .await?;
+//
+//     // get our identity key
+//     let our_identity = managed_keys.identity_keypair();
+//
+//     // Establish connection, authenticate and generate keys for talking with the gateway
+//     let shared_keys = helpers::register_with_gateway(&gateway_details, our_identity).await?;
+//
+//     managed_keys
+//         .deal_with_gateway_key(shared_keys, key_store)
+//         .await
+//         .map_err(|source| ClientCoreError::KeyStoreError {
+//             source: Box::new(source),
+//         })?;
+//
+//     // TODO: here we should be probably persisting gateway details as opposed to returning them
+//
+//     Ok((gateway_details, managed_keys))
+// }
+//
+// /// Convenience function for setting up the gateway for a client given a `Config`. Depending on the
+// /// arguments given it will do the sensible thing. Either it will
+// ///
+// /// a. Reuse existing gateway configuration from storage.
+// /// b. Create a new gateway configuration but keep existing keys. This assumes that the caller
+// ///    knows what they are doing and that the keys match the requested gateway.
+// /// c. Create a new gateway configuration with a newly registered gateway and keys.
+// pub async fn setup_gateway_from_config<KSt>(
+//     key_store: &KSt,
+//     register_gateway: bool,
+//     user_chosen_gateway_id: Option<identity::PublicKey>,
+//     config: &Config,
+//     by_latency: bool,
+// ) -> Result<GatewayEndpointConfig, ClientCoreError>
+// where
+//     KSt: KeyStore,
+//     <KSt as KeyStore>::StorageError: Send + Sync + 'static,
+// {
+//     // If we are not going to register gateway, and an explicitly chosen gateway is not passed in,
+//     // load the existing configuration file
+//     if !register_gateway && user_chosen_gateway_id.is_none() {
+//         eprintln!("Not registering gateway, will reuse existing config and keys");
+//         return Ok(config.client.gateway_endpoint.clone());
+//     }
+//
+//     let gateway_setup = GatewaySetup::new(
+//         None,
+//         user_chosen_gateway_id.map(|id| id.to_base58_string()),
+//         Some(by_latency),
+//     );
+//     // Else, we proceed by querying the nym-api
+//     let gateway = gateway_setup
+//         .try_get_new_gateway_details(&config.get_nym_api_endpoints())
+//         .await?;
+//     log::debug!("Querying gateway gives: {:?}", gateway);
+//
+//     // If we are not registering, just return this and assume the caller has the keys already and
+//     // wants to keep the,
+//     if !register_gateway && user_chosen_gateway_id.is_some() {
+//         eprintln!("Using gateway provided by user, keeping existing keys");
+//         return Ok(gateway);
+//     }
+//
+//     let mut rng = OsRng;
+//     let mut managed_keys =
+//         crate::client::key_manager::ManagedKeys::load_or_generate(&mut rng, key_store).await;
+//
+//     // Create new keys and derive our identity
+//     let our_identity = managed_keys.identity_keypair();
+//
+//     // Establish connection, authenticate and generate keys for talking with the gateway
+//     eprintln!("Registering with new gateway");
+//     let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
+//     managed_keys
+//         .deal_with_gateway_key(shared_keys, key_store)
+//         .await
+//         .map_err(|source| ClientCoreError::KeyStoreError {
+//             source: Box::new(source),
+//         })?;
+//
+//     Ok(gateway)
+// }
 
 /// Get the full client address from the client keys and the gateway identity
 pub fn get_client_address(

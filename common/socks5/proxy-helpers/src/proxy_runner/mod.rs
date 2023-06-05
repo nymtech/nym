@@ -13,7 +13,7 @@ mod inbound;
 mod outbound;
 
 // TODO: make this configurable
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(3);
 
 // Send empty keepalive messages regurarly to keep the connection alive. This should be smaller
 // than [`MIX_TTL`].

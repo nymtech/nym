@@ -356,7 +356,7 @@ where
         let api_endpoints = self.get_api_endpoints();
         let gateway_setup = GatewaySetup::new(None, self.config.user_chosen_gateway.clone(), None);
 
-        let gateway_config = nym_client_core::init::get_registered_gateway::<S>(
+        let (gateway_config, managed_keys) = nym_client_core::init::get_registered_gateway::<S>(
             api_endpoints,
             &self.key_store,
             gateway_setup,
@@ -367,6 +367,7 @@ where
         self.state = BuilderState::Registered {
             gateway_endpoint_config: gateway_config,
         };
+        self.managed_keys = managed_keys;
         Ok(())
     }
 

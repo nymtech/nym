@@ -155,7 +155,7 @@ pub async fn get_registered_gateway<S>(
     key_store: &S::KeyStore,
     setup: GatewaySetup,
     overwrite_keys: bool,
-) -> Result<GatewayEndpointConfig, ClientCoreError>
+) -> Result<(GatewayEndpointConfig, ManagedKeys), ClientCoreError>
 where
     S: MixnetClientStorage,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
@@ -164,11 +164,11 @@ where
 
     // try load keys
     let mut managed_keys = match ManagedKeys::try_load(key_store).await {
-        Ok(_) => {
+        Ok(loaded_keys) => {
             // if we loaded something and we don't have full gateway details, check if we can overwrite the data
             if let GatewaySetup::Predefined { config } = setup {
                 // we already have defined gateway details AND a shared key, so nothing more for us to do
-                return Ok(config);
+                return Ok((config, loaded_keys));
             } else if overwrite_keys {
                 ManagedKeys::generate_new(&mut rng)
             } else {
@@ -196,7 +196,7 @@ where
 
     // TODO: here we should be probably persisting gateway details as opposed to returning them
 
-    Ok(gateway_details)
+    Ok((gateway_details, managed_keys))
 }
 
 /// Convenience function for setting up the gateway for a client given a `Config`. Depending on the

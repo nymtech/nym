@@ -4098,6 +4098,7 @@ dependencies = [
  "log",
  "nym-bin-common",
  "nym-sdk",
+ "nym-socks5-requests",
  "nym-sphinx-anonymous-replies",
  "serde",
  "serde_json",

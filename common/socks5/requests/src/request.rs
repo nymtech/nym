@@ -166,6 +166,13 @@ impl Socks5Request {
             content: Socks5RequestContent::new_send(conn_id, data, local_closed),
         }
     }
+
+    pub fn new_open_proxy(protocol_version: Socks5ProtocolVersion) -> Socks5Request {
+        Socks5Request {
+            protocol_version,
+            content: Socks5RequestContent::OpenProxy,
+        }
+    }
 }
 
 /// A request from a SOCKS5 client that a Nym Socks5 service provider should
@@ -179,6 +186,9 @@ pub enum Socks5RequestContent {
 
     /// Re-use an existing TCP connection, sending more request data up it.
     Send(SendRequest),
+
+    /// Query if the proxy is open.
+    OpenProxy,
 }
 
 impl Socks5RequestContent {
@@ -317,6 +327,8 @@ impl Socks5RequestContent {
                 .chain(std::iter::once(req.local_closed as u8))
                 .chain(req.data.into_iter())
                 .collect(),
+
+            Socks5RequestContent::OpenProxy => panic!("OpenProxy is not serializable"),
         }
     }
 }

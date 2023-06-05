@@ -151,6 +151,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
                 }
                 self.handle_proxy_send(req)
             }
+            Socks5RequestContent::OpenProxy => return self.handle_open_proxy(),
         }
 
         Ok(None)
@@ -474,6 +475,11 @@ impl NRServiceProvider {
 
     fn handle_proxy_send(&mut self, req: SendRequest) {
         self.controller_sender.unbounded_send(req.into()).unwrap()
+    }
+
+    fn handle_open_proxy(&self) -> Result<Option<Socks5Response>, NetworkRequesterError> {
+        let protocol_version = Socks5ProtocolVersion::default();
+        Ok(Some(Socks5Response::new_open_proxy(protocol_version, self.open_proxy)))
     }
 }
 

@@ -7,6 +7,7 @@ use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, Recipient, ReconstructedMessa
 use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, Request, Response, ResponseContent,
 };
+use nym_socks5_requests::Socks5Request;
 
 fn parse_control_response(received: Vec<ReconstructedMessage>) -> ControlResponse {
     assert_eq!(received.len(), 1);
@@ -41,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
     let request_health = ControlRequest::Health;
     let request_binary_info = ControlRequest::BinaryInfo;
     let request_versions = ControlRequest::SupportedRequestVersions;
-    let request_open_proxy = ControlRequest::OpenProxy;
+    //let request_open_proxy = ControlRequest::OpenProxy;
 
     let full_request_health: Request =
         Request::new_control(ProviderInterfaceVersion::new_current(), request_health);
@@ -49,8 +50,12 @@ async fn main() -> anyhow::Result<()> {
         Request::new_control(ProviderInterfaceVersion::new_current(), request_binary_info);
     let full_request_versions: Request =
         Request::new_control(ProviderInterfaceVersion::new_current(), request_versions);
-    let full_request_versions: Request =
-        Request::new_control(ProviderInterfaceVersion::new_current(), request_open_proxy);
+    //let full_request_versions: Request =
+    //Request::new_control(ProviderInterfaceVersion::new_current(), request_open_proxy);
+    let a: Request = Request::new_provider_data(
+        ProviderInterfaceVersion::new_current(),
+        Socks5Request::new_open_proxy(Socks5ProtocolVersion::Legacy),
+    );
 
     // // TODO: currently we HAVE TO use surbs unfortunately
     println!("Sending 'Health' request...");

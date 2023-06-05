@@ -85,6 +85,13 @@ impl MixnetResponseListener {
                     .unwrap();
                 Ok(())
             }
+            Socks5ResponseContent::OpenProxy(response) => {
+                //self.controller_sender
+                //    .unbounded_send(response.into())
+                //    .unwrap();
+                log::info!("Open proxy response: {:?}", response);
+                Ok(())
+            }
         }
     }
 

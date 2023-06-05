@@ -13,6 +13,7 @@ use thiserror::Error;
 pub enum ResponseFlag {
     NetworkData = 1,
     ConnectionError = 2,
+    OpenProxy = 3,
 }
 
 impl TryFrom<u8> for ResponseFlag {
@@ -22,6 +23,7 @@ impl TryFrom<u8> for ResponseFlag {
         match value {
             _ if value == (ResponseFlag::NetworkData as u8) => Ok(Self::NetworkData),
             _ if value == (ResponseFlag::ConnectionError as u8) => Ok(Self::ConnectionError),
+            _ if value == (ResponseFlag::OpenProxy as u8) => Ok(Self::OpenProxy),
             value => Err(ResponseDeserializationError::UnknownResponseFlag { value }),
         }
     }
@@ -135,12 +137,23 @@ impl Socks5Response {
             content: Socks5ResponseContent::new_connection_error(connection_id, error_message),
         }
     }
+
+    pub fn new_open_proxy(
+        protocol_version: Socks5ProtocolVersion,
+        is_open: bool,
+    ) -> Socks5Response {
+        Socks5Response {
+            protocol_version,
+            content: Socks5ResponseContent::OpenProxy(is_open),
+        }
+    }
 }
 
 #[derive(Debug)]
 pub enum Socks5ResponseContent {
     NetworkData(NetworkData),
     ConnectionError(ConnectionError),
+    OpenProxy(bool),
 }
 
 impl Socks5ResponseContent {
@@ -175,6 +188,9 @@ impl Socks5ResponseContent {
                     .chain(res.into_bytes().into_iter())
                     .collect()
             }
+            Socks5ResponseContent::OpenProxy(res) => std::iter::once(ResponseFlag::OpenProxy as u8)
+                .chain(std::iter::once(res as u8))
+                .collect(),
         }
     }
 
@@ -193,6 +209,10 @@ impl Socks5ResponseContent {
             ResponseFlag::ConnectionError => Ok(Socks5ResponseContent::ConnectionError(
                 ConnectionError::try_from_bytes(&b[1..])?,
             )),
+            ResponseFlag::OpenProxy => {
+                let is_open = b[1] != 0;
+                Ok(Socks5ResponseContent::OpenProxy(is_open))
+            }
         }
     }
 }

@@ -4,8 +4,10 @@
  */
 
 use crate::ephemeral_storage::EphemeralStorage;
+
 #[cfg(not(target_arch = "wasm32"))]
 use crate::persistent_storage::PersistentStorage;
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
 mod backends;

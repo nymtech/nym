@@ -21,7 +21,6 @@ use nym_client_core::client::base_client::{
 };
 use nym_client_core::client::inbound_messages::InputMessage;
 use nym_client_core::client::replies::reply_storage::browser_backend;
-use nym_client_core::config::{CoverTraffic, DebugConfig, Topology, Traffic};
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
@@ -53,13 +52,15 @@ pub struct NymClient {
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
     _task_manager: TaskManager,
-    packet_type: Option<PacketType>,
+
+    packet_type: PacketType,
 }
 
 #[wasm_bindgen]
 pub struct NymClientBuilder {
     config: Config,
     custom_topology: Option<NymTopology>,
+    preferred_gateway: Option<IdentityKey>,
 
     storage_passphrase: Option<String>,
     reply_surb_storage_backend: browser_backend::Backend,
@@ -70,7 +71,6 @@ pub struct NymClientBuilder {
     bandwidth_controller:
         Option<BandwidthController<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>,
     disabled_credentials: bool,
-    packet_type: Option<PacketType>,
 }
 
 #[wasm_bindgen]
@@ -79,17 +79,20 @@ impl NymClientBuilder {
     pub fn new(
         config: Config,
         on_message: js_sys::Function,
+        preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Self {
         NymClientBuilder {
-            reply_surb_storage_backend: setup_reply_surb_storage_backend(config.debug.reply_surbs),
+            reply_surb_storage_backend: setup_reply_surb_storage_backend(
+                config.base.debug.reply_surbs,
+            ),
             config,
             custom_topology: None,
             storage_passphrase,
             on_message,
             bandwidth_controller: None,
             disabled_credentials: true,
-            packet_type: None,
+            preferred_gateway,
         }
     }
 
@@ -108,32 +111,11 @@ impl NymClientBuilder {
             }
         }
 
-        let full_config = Config {
-            id: NODE_TESTER_CLIENT_ID.to_string(),
-            nym_api_url: None,
-            disabled_credentials_mode: true,
-            gateway,
-            debug: DebugConfig {
-                traffic: Traffic {
-                    disable_main_poisson_packet_distribution: true,
-                    ..Default::default()
-                },
-                cover_traffic: CoverTraffic {
-                    disable_loop_cover_traffic_stream: true,
-                    ..Default::default()
-                },
-                topology: Topology {
-                    disable_refreshing: true,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            packet_type: PacketType::Mix,
-        };
+        let full_config = Config::new_tester_config(NODE_TESTER_CLIENT_ID);
 
         NymClientBuilder {
             reply_surb_storage_backend: setup_reply_surb_storage_backend(
-                full_config.debug.reply_surbs,
+                full_config.base.debug.reply_surbs,
             ),
             config: full_config,
             custom_topology: Some(topology.into()),
@@ -141,7 +123,7 @@ impl NymClientBuilder {
             bandwidth_controller: None,
             disabled_credentials: true,
             storage_passphrase: None,
-            packet_type: None,
+            preferred_gateway: gateway,
         }
     }
 
@@ -166,20 +148,18 @@ impl NymClientBuilder {
             CredentialsToggle::Enabled
         };
 
-        let nym_api_endpoints = match &self.config.nym_api_url {
-            Some(endpoint) => vec![endpoint.clone()],
-            None => Vec::new(),
-        };
+        let nym_api_endpoints = self.config.base.client.nym_api_urls.clone();
 
         // TODO: this will have to be re-used for surbs. but this is a problem for another PR.
         let client_store =
-            ClientStorage::new_async(&self.config.id, self.storage_passphrase.take()).await?;
+            ClientStorage::new_async(&self.config.base.client.id, self.storage_passphrase.take())
+                .await?;
 
         // if we provided hardcoded topology, get gateway from it, otherwise get it the 'standard' way
         let gateway_endpoint = if let Some(topology) = &self.custom_topology {
             gateway_from_topology(
                 &mut thread_rng(),
-                self.config.gateway.as_deref(),
+                self.preferred_gateway.as_deref(),
                 topology,
                 &client_store,
             )
@@ -187,7 +167,7 @@ impl NymClientBuilder {
         } else {
             choose_gateway(
                 &client_store,
-                self.config.gateway.clone(),
+                self.preferred_gateway.clone(),
                 &nym_api_endpoints,
             )
             .await?
@@ -197,7 +177,7 @@ impl NymClientBuilder {
 
         let mut base_builder: BaseClientBuilder<_, FullWasmClientStorage> = BaseClientBuilder::new(
             &gateway_endpoint,
-            &self.config.debug,
+            &self.config.base.debug,
             client_store,
             self.bandwidth_controller,
             self.reply_surb_storage_backend,
@@ -208,8 +188,7 @@ impl NymClientBuilder {
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        let packet_type = self.config.packet_type;
-        let mut started_client = base_builder.start_base(packet_type).await?;
+        let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address.to_string();
 
         let client_input = started_client.client_input.register_producer();
@@ -223,7 +202,7 @@ impl NymClientBuilder {
             client_state: Arc::new(started_client.client_state),
             _full_topology: None,
             _task_manager: started_client.task_manager,
-            packet_type: self.packet_type,
+            packet_type: self.config.base.debug.traffic.packet_type,
         })
     }
 
@@ -237,9 +216,10 @@ impl NymClient {
     async fn _new(
         config: Config,
         on_message: js_sys::Function,
+        preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Result<NymClient, WasmClientError> {
-        NymClientBuilder::new(config, on_message, storage_passphrase)
+        NymClientBuilder::new(config, on_message, preferred_gateway, storage_passphrase)
             .start_client_async()
             .await
     }
@@ -249,10 +229,11 @@ impl NymClient {
     pub fn new(
         config: Config,
         on_message: js_sys::Function,
+        preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Promise {
         future_to_promise(async move {
-            Self::_new(config, on_message, storage_passphrase)
+            Self::_new(config, on_message, preferred_gateway, storage_passphrase)
                 .await
                 .into_promise_result()
         })
@@ -319,7 +300,7 @@ impl NymClient {
 
         let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_regular(recipient, message, lane, self.packet_type);
+        let input_msg = InputMessage::new_regular(recipient, message, lane, Some(self.packet_type));
         self.client_input.send_message(input_msg)
     }
 
@@ -346,8 +327,13 @@ impl NymClient {
 
         let lane = TransmissionLane::General;
 
-        let input_msg =
-            InputMessage::new_anonymous(recipient, message, reply_surbs, lane, self.packet_type);
+        let input_msg = InputMessage::new_anonymous(
+            recipient,
+            message,
+            reply_surbs,
+            lane,
+            Some(self.packet_type),
+        );
         self.client_input.send_message(input_msg)
     }
 
@@ -365,7 +351,7 @@ impl NymClient {
 
         let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_reply(sender_tag, message, lane, self.packet_type);
+        let input_msg = InputMessage::new_reply(sender_tag, message, lane, Some(self.packet_type));
         self.client_input.send_message(input_msg)
     }
 }

@@ -479,10 +479,7 @@ where
         self.managed_keys = ManagedKeys::load_or_generate(&mut rng, &self.key_store).await;
     }
 
-    pub async fn start_base(
-        mut self,
-        packet_type: PacketType,
-    ) -> Result<BaseClient, ClientCoreError>
+    pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
     where
         <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         S::ReplyStore: Send + Sync,
@@ -586,7 +583,7 @@ where
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
             task_manager.subscribe(),
-            packet_type,
+            self.debug_config.traffic.packet_type,
         );
 
         if !self

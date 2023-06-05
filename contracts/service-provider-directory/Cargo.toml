@@ -7,6 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+bs58 = "0.4.0"
 cosmwasm-std = { workspace = true }
 cw-controllers = { workspace = true }
 cw-storage-plus = { workspace = true }
@@ -22,5 +23,8 @@ thiserror = "1.0.39"
 vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc"] }
 
 [dev-dependencies]
-cw-multi-test = { workspace = true }
 anyhow = "1.0.40"
+cw-multi-test = { workspace = true }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+rand_chacha = "0.2"
+rstest = "0.17.0"

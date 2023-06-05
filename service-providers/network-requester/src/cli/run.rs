@@ -1,14 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cli::try_upgrade_v1_1_13_config;
+use crate::cli::{try_upgrade_v1_1_13_config, version_check};
 use crate::{
     cli::{override_config, OverrideConfig},
     config::Config,
     error::NetworkRequesterError,
 };
 use clap::Args;
-use nym_bin_common::version_checker;
 use nym_config::NymConfig;
 use nym_sphinx::addressing::clients::Recipient;
 
@@ -57,36 +56,6 @@ impl From<Run> for OverrideConfig {
             no_cover: run_config.no_cover,
             nyxd_urls: None,
             enabled_credentials_mode: run_config.enabled_credentials_mode,
-        }
-    }
-}
-
-// this only checks compatibility between config the binary. It does not take into consideration
-// network version. It might do so in the future.
-fn version_check(cfg: &Config) -> bool {
-    let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_base().get_version();
-    if binary_version == config_version {
-        true
-    } else {
-        log::warn!(
-            "The native-client binary has different version than what is specified \
-            in config file! {} and {}",
-            binary_version,
-            config_version
-        );
-        if version_checker::is_minor_version_compatible(binary_version, config_version) {
-            log::info!(
-                "but they are still semver compatible. \
-                However, consider running the `upgrade` command"
-            );
-            true
-        } else {
-            log::error!(
-                "and they are semver incompatible! - \
-                please run the `upgrade` command before attempting `run` again"
-            );
-            false
         }
     }
 }
@@ -145,7 +114,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
         return Err(NetworkRequesterError::FailedLocalVersionCheck);
     }
 
-    // TODO: consider incorporating statistics_recipient, open_proxuy and enable_statistics in
+    // TODO: consider incorporating statistics_recipient, open_proxy and enable_statistics in
     // `Config`.
 
     let stats_provider_addr = args

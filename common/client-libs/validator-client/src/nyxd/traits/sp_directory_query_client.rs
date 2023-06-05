@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use nym_contracts_common::ContractBuildInformation;
+use nym_contracts_common::{signing::Nonce, ContractBuildInformation};
 use nym_service_provider_directory_common::{
     msg::QueryMsg as SpQueryMsg,
     response::{
         ConfigResponse, PagedServicesListResponse, ServiceInfoResponse, ServicesListResponse,
     },
-    NymAddress, ServiceId, ServiceInfo,
+    NymAddress, Service, ServiceId,
 };
 use serde::Deserialize;
 
@@ -63,17 +63,14 @@ pub trait SpDirectoryQueryClient {
             .await
     }
 
-    async fn get_all_services(&self) -> Result<Vec<ServiceInfo>, NyxdError> {
+    async fn get_all_services(&self) -> Result<Vec<Service>, NyxdError> {
         let mut services = Vec::new();
         let mut start_after = None;
-
         loop {
             let mut paged_response = self.get_services_paged(start_after.take(), None).await?;
-
-            let last_id = paged_response.services.last().map(|serv| serv.service_id);
             services.append(&mut paged_response.services);
 
-            if let Some(start_after_res) = last_id {
+            if let Some(start_after_res) = paged_response.start_next_after {
                 start_after = Some(start_after_res)
             } else {
                 break;
@@ -81,6 +78,13 @@ pub trait SpDirectoryQueryClient {
         }
 
         Ok(services)
+    }
+
+    async fn get_service_signing_nonce(&self, address: &AccountId) -> Result<Nonce, NyxdError> {
+        self.query_service_provider_contract(SpQueryMsg::SigningNonce {
+            address: address.to_string(),
+        })
+        .await
     }
 }
 

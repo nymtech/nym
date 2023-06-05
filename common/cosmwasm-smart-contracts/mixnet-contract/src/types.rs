@@ -4,6 +4,7 @@
 use crate::error::MixnetContractError;
 use crate::families::{Family, FamilyHead};
 use crate::{Layer, RewardedSetNodeStatus};
+use contracts_common::IdentityKey;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Coin;
 use schemars::JsonSchema;
@@ -11,8 +12,6 @@ use serde::{Deserialize, Serialize};
 use std::ops::Index;
 
 // type aliases for better reasoning about available data
-pub type IdentityKey = String;
-pub type IdentityKeyRef<'a> = &'a str;
 pub type SphinxKey = String;
 pub type SphinxKeyRef<'a> = &'a str;
 pub type EpochId = u32;

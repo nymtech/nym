@@ -1202,6 +1202,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-controllers"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f0bc6019b4d3d81e11f5c384bcce7173e2210bd654d75c6c9668e12cca05dfa"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "cw-storage-plus"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3268,6 +3282,7 @@ dependencies = [
  "nym-name-service-common",
  "nym-network-defaults",
  "nym-service-provider-directory-common",
+ "nym-sphinx",
  "nym-validator-client",
  "nym-vesting-contract-common",
  "rand 0.6.5",
@@ -3819,6 +3834,7 @@ version = "1.1.19"
 dependencies = [
  "async-file-watcher",
  "async-trait",
+ "bs58",
  "clap 4.2.7",
  "dirs",
  "futures",
@@ -3841,11 +3857,13 @@ dependencies = [
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
+ "nym-types",
  "pretty_env_logger",
  "publicsuffix",
  "rand 0.7.3",
  "reqwest",
  "serde",
+ "serde_json",
  "sqlx 0.6.3",
  "tap",
  "tempfile",
@@ -3970,8 +3988,12 @@ name = "nym-service-provider-directory-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "cw-controllers",
+ "cw-utils",
+ "nym-contracts-common",
  "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

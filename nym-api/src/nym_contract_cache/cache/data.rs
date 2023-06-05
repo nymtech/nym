@@ -7,7 +7,7 @@ use nym_mixnet_contract_common::{
     RewardingParams,
 };
 use nym_name_service_common::NameEntry;
-use nym_service_provider_directory_common::ServiceInfo;
+use nym_service_provider_directory_common::Service;
 use std::collections::HashSet;
 
 pub(crate) struct ValidatorCacheData {
@@ -25,7 +25,7 @@ pub(crate) struct ValidatorCacheData {
 
     pub(crate) mix_to_family: Cache<Vec<(IdentityKey, FamilyHead)>>,
 
-    pub(crate) service_providers: Cache<Vec<ServiceInfo>>,
+    pub(crate) service_providers: Cache<Vec<Service>>,
     pub(crate) registered_names: Cache<Vec<NameEntry>>,
 }
 

@@ -1,6 +1,7 @@
 use clap::{Args, Subcommand};
 
 pub mod announce;
+pub mod announce_sign_payload;
 pub mod delete;
 
 #[derive(Debug, Args)]
@@ -10,10 +11,13 @@ pub struct MixnetOperatorsService {
     pub command: MixnetOperatorsServiceCommands,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Subcommand)]
 pub enum MixnetOperatorsServiceCommands {
     /// Announce service provider to the world
     Announce(announce::Args),
     /// Delete entry for service provider from the directory
     Delete(delete::Args),
+    /// Create base58-encoded payload required for producing valid announce signature.
+    CreateServiceAnnounceSignPayload(announce_sign_payload::Args),
 }

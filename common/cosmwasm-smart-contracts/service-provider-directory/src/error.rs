@@ -1,10 +1,12 @@
 use cosmwasm_std::{Addr, StdError};
 use cw_controllers::AdminError;
-use nym_service_provider_directory_common::{NymAddress, ServiceId};
+use nym_contracts_common::signing::verifier::ApiVerifierError;
 use thiserror::Error;
 
+use crate::{NymAddress, ServiceId};
+
 #[derive(Error, Debug, PartialEq)]
-pub enum ContractError {
+pub enum SpContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
@@ -46,6 +48,21 @@ pub enum ContractError {
         value: String,
         error_message: String,
     },
+
+    #[error("Failed to recover ed25519 public key from its base58 representation - {0}")]
+    MalformedEd25519IdentityKey(String),
+
+    #[error("Failed to recover ed25519 signature from its base58 representation - {0}")]
+    MalformedEd25519Signature(String),
+
+    #[error("Provided ed25519 signature did not verify correctly")]
+    InvalidEd25519Signature,
+
+    #[error("failed to verify message signature: {source}")]
+    SignatureVerificationFailure {
+        #[from]
+        source: ApiVerifierError,
+    },
 }
 
-pub(crate) type Result<T, E = ContractError> = std::result::Result<T, E>;
+pub type Result<T, E = SpContractError> = std::result::Result<T, E>;

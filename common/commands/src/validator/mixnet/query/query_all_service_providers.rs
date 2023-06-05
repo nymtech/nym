@@ -37,7 +37,7 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
                 for service in res.services {
                     table.add_row(vec![
                         service.service_id.to_string(),
-                        service.service.announcer.to_string(),
+                        service.announcer.to_string(),
                         service.service.service_type.to_string(),
                         service.service.nym_address.to_string(),
                     ]);

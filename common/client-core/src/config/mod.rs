@@ -76,6 +76,11 @@ impl Config {
         self.client.validate() && self.debug.validate()
     }
 
+    pub fn with_debug_config(mut self, debug: DebugConfig) -> Self {
+        self.debug = debug;
+        self
+    }
+
     pub fn with_disabled_credentials(mut self, disabled_credentials_mode: bool) -> Self {
         self.client.disabled_credentials_mode = disabled_credentials_mode;
         self
@@ -137,6 +142,11 @@ impl Config {
         if disabled {
             self.set_no_cover_traffic()
         }
+        self
+    }
+
+    pub fn with_disabled_topology_refresh(mut self, disable_topology_refresh: bool) -> Self {
+        self.debug.topology.disable_refreshing = disable_topology_refresh;
         self
     }
 

@@ -7,73 +7,49 @@
 #![allow(clippy::drop_copy)]
 
 use nym_client_core::config::{
-    Acknowledgements as ConfigAcknowledgements, CoverTraffic as ConfigCoverTraffic,
-    DebugConfig as ConfigDebug, GatewayConnection as ConfigGatewayConnection,
-    ReplySurbs as ConfigReplySurbs, Topology as ConfigTopology, Traffic as ConfigTraffic,
+    Acknowledgements as ConfigAcknowledgements, Config as BaseClientConfig,
+    CoverTraffic as ConfigCoverTraffic, DebugConfig as ConfigDebug,
+    GatewayConnection as ConfigGatewayConnection, ReplySurbs as ConfigReplySurbs,
+    Topology as ConfigTopology, Traffic as ConfigTraffic,
 };
 use nym_sphinx::params::{PacketSize, PacketType};
-use nym_validator_client::client::IdentityKey;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use url::Url;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    /// ID specifies the human readable ID of this particular client.
-    pub(crate) id: String,
-
-    pub(crate) nym_api_url: Option<Url>,
-
-    pub(crate) disabled_credentials_mode: bool,
-
-    /// Information regarding how the client should choose gateway.
-    /// If unspecified, the client will attempt to load the config from the storage.
-    pub(crate) gateway: Option<IdentityKey>,
-
-    pub(crate) debug: ConfigDebug,
-
-    pub(crate) packet_type: PacketType,
+    pub(crate) base: BaseClientConfig,
 }
 
 #[wasm_bindgen]
 impl Config {
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        id: String,
-        validator_server: String,
-        packet_type: Option<String>,
-        gateway: Option<IdentityKey>,
-        debug: Option<Debug>,
-    ) -> Self {
-        let packet_type = if let Some(packet_type) = packet_type {
-            match packet_type.as_str() {
-                "outfox" => PacketType::Outfox,
-                _ => PacketType::Mix,
-            }
-        } else {
-            PacketType::Mix
-        };
+    pub fn new(id: String, validator_server: String, debug: Option<DebugWasm>) -> Self {
         Config {
-            id,
-            nym_api_url: Some(
-                validator_server
+            base: BaseClientConfig::new(id)
+                .with_custom_nyxd(vec![validator_server
                     .parse()
-                    .expect("provided url was malformed"),
-            ),
-            disabled_credentials_mode: true,
-            gateway,
-            debug: debug.map(Into::into).unwrap_or_default(),
-            packet_type,
+                    .expect("provided url was malformed")])
+                .with_debug_config(debug.map(Into::into).unwrap_or_default()),
+        }
+    }
+
+    pub(crate) fn new_tester_config<S: Into<String>>(id: S) -> Self {
+        Config {
+            base: BaseClientConfig::new(id)
+                .with_disabled_credentials(true)
+                .with_disabled_cover_traffic(true)
+                .with_disabled_topology_refresh(true),
         }
     }
 }
 
 #[wasm_bindgen]
 #[derive(Debug, Copy, Clone)]
-pub struct Traffic {
+pub struct TrafficWasm {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
@@ -92,13 +68,22 @@ pub struct Traffic {
 
     /// Controls whether the sent sphinx packet use the NON-DEFAULT bigger size.
     pub use_extended_packet_size: bool,
+
+    /// Controls whether the sent packets should use outfox as opposed to the default sphinx.
+    pub use_outfox: bool,
 }
 
-impl From<Traffic> for ConfigTraffic {
-    fn from(traffic: Traffic) -> Self {
+impl From<TrafficWasm> for ConfigTraffic {
+    fn from(traffic: TrafficWasm) -> Self {
         let use_extended_packet_size = traffic
             .use_extended_packet_size
             .then(|| PacketSize::ExtendedPacket32);
+
+        let packet_type = if traffic.use_outfox {
+            PacketType::Outfox
+        } else {
+            PacketType::Mix
+        };
 
         ConfigTraffic {
             average_packet_delay: Duration::from_millis(traffic.average_packet_delay_ms),
@@ -109,27 +94,28 @@ impl From<Traffic> for ConfigTraffic {
                 .disable_main_poisson_packet_distribution,
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: use_extended_packet_size,
-            packet_type: None,
+            packet_type,
         }
     }
 }
 
-impl From<ConfigTraffic> for Traffic {
+impl From<ConfigTraffic> for TrafficWasm {
     fn from(traffic: ConfigTraffic) -> Self {
-        Traffic {
+        TrafficWasm {
             average_packet_delay_ms: traffic.average_packet_delay.as_millis() as u64,
             message_sending_average_delay_ms: traffic.message_sending_average_delay.as_millis()
                 as u64,
             disable_main_poisson_packet_distribution: traffic
                 .disable_main_poisson_packet_distribution,
             use_extended_packet_size: traffic.secondary_packet_size.is_some(),
+            use_outfox: traffic.packet_type == PacketType::Outfox,
         }
     }
 }
 
 #[wasm_bindgen]
 #[derive(Debug, Copy, Clone)]
-pub struct CoverTraffic {
+pub struct CoverTrafficWasm {
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
     pub loop_cover_traffic_average_delay_ms: u64,
@@ -143,8 +129,8 @@ pub struct CoverTraffic {
     pub disable_loop_cover_traffic_stream: bool,
 }
 
-impl From<CoverTraffic> for ConfigCoverTraffic {
-    fn from(cover_traffic: CoverTraffic) -> Self {
+impl From<CoverTrafficWasm> for ConfigCoverTraffic {
+    fn from(cover_traffic: CoverTrafficWasm) -> Self {
         ConfigCoverTraffic {
             loop_cover_traffic_average_delay: Duration::from_millis(
                 cover_traffic.loop_cover_traffic_average_delay_ms,
@@ -155,9 +141,9 @@ impl From<CoverTraffic> for ConfigCoverTraffic {
     }
 }
 
-impl From<ConfigCoverTraffic> for CoverTraffic {
+impl From<ConfigCoverTraffic> for CoverTrafficWasm {
     fn from(cover_traffic: ConfigCoverTraffic) -> Self {
-        CoverTraffic {
+        CoverTrafficWasm {
             loop_cover_traffic_average_delay_ms: cover_traffic
                 .loop_cover_traffic_average_delay
                 .as_millis() as u64,
@@ -169,14 +155,14 @@ impl From<ConfigCoverTraffic> for CoverTraffic {
 
 #[wasm_bindgen]
 #[derive(Debug, Copy, Clone)]
-pub struct GatewayConnection {
+pub struct GatewayConnectionWasm {
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
     pub gateway_response_timeout_ms: u64,
 }
 
-impl From<GatewayConnection> for ConfigGatewayConnection {
-    fn from(gateway_connection: GatewayConnection) -> Self {
+impl From<GatewayConnectionWasm> for ConfigGatewayConnection {
+    fn from(gateway_connection: GatewayConnectionWasm) -> Self {
         ConfigGatewayConnection {
             gateway_response_timeout: Duration::from_millis(
                 gateway_connection.gateway_response_timeout_ms,
@@ -185,9 +171,9 @@ impl From<GatewayConnection> for ConfigGatewayConnection {
     }
 }
 
-impl From<ConfigGatewayConnection> for GatewayConnection {
+impl From<ConfigGatewayConnection> for GatewayConnectionWasm {
     fn from(gateway_connection: ConfigGatewayConnection) -> Self {
-        GatewayConnection {
+        GatewayConnectionWasm {
             gateway_response_timeout_ms: gateway_connection.gateway_response_timeout.as_millis()
                 as u64,
         }
@@ -196,7 +182,7 @@ impl From<ConfigGatewayConnection> for GatewayConnection {
 
 #[wasm_bindgen]
 #[derive(Debug, Copy, Clone)]
-pub struct Acknowledgements {
+pub struct AcknowledgementsWasm {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
@@ -214,8 +200,8 @@ pub struct Acknowledgements {
     pub ack_wait_addition_ms: u64,
 }
 
-impl From<Acknowledgements> for ConfigAcknowledgements {
-    fn from(acknowledgements: Acknowledgements) -> Self {
+impl From<AcknowledgementsWasm> for ConfigAcknowledgements {
+    fn from(acknowledgements: AcknowledgementsWasm) -> Self {
         ConfigAcknowledgements {
             average_ack_delay: Duration::from_millis(acknowledgements.average_ack_delay_ms),
             ack_wait_multiplier: acknowledgements.ack_wait_multiplier,
@@ -224,9 +210,9 @@ impl From<Acknowledgements> for ConfigAcknowledgements {
     }
 }
 
-impl From<ConfigAcknowledgements> for Acknowledgements {
+impl From<ConfigAcknowledgements> for AcknowledgementsWasm {
     fn from(acknowledgements: ConfigAcknowledgements) -> Self {
-        Acknowledgements {
+        AcknowledgementsWasm {
             average_ack_delay_ms: acknowledgements.average_ack_delay.as_millis() as u64,
             ack_wait_multiplier: acknowledgements.ack_wait_multiplier,
             ack_wait_addition_ms: acknowledgements.ack_wait_addition.as_millis() as u64,
@@ -236,7 +222,7 @@ impl From<ConfigAcknowledgements> for Acknowledgements {
 
 #[wasm_bindgen]
 #[derive(Debug, Copy, Clone)]
-pub struct Topology {
+pub struct TopologyWasm {
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
     pub topology_refresh_rate_ms: u64,
@@ -252,8 +238,8 @@ pub struct Topology {
     pub disable_refreshing: bool,
 }
 
-impl From<Topology> for ConfigTopology {
-    fn from(topology: Topology) -> Self {
+impl From<TopologyWasm> for ConfigTopology {
+    fn from(topology: TopologyWasm) -> Self {
         ConfigTopology {
             topology_refresh_rate: Duration::from_millis(topology.topology_refresh_rate_ms),
             topology_resolution_timeout: Duration::from_millis(
@@ -264,9 +250,9 @@ impl From<Topology> for ConfigTopology {
     }
 }
 
-impl From<ConfigTopology> for Topology {
+impl From<ConfigTopology> for TopologyWasm {
     fn from(topology: ConfigTopology) -> Self {
-        Topology {
+        TopologyWasm {
             topology_refresh_rate_ms: topology.topology_refresh_rate.as_millis() as u64,
             topology_resolution_timeout_ms: topology.topology_resolution_timeout.as_millis() as u64,
             disable_refreshing: topology.disable_refreshing,
@@ -276,7 +262,7 @@ impl From<ConfigTopology> for Topology {
 
 #[wasm_bindgen]
 #[derive(Debug, Copy, Clone)]
-pub struct ReplySurbs {
+pub struct ReplySurbsWasm {
     /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
     /// It can only allow to go below that value if its to request additional reply surbs.
     pub minimum_reply_surb_storage_threshold: usize,
@@ -310,8 +296,8 @@ pub struct ReplySurbs {
     pub maximum_reply_key_age_ms: u64,
 }
 
-impl From<ReplySurbs> for ConfigReplySurbs {
-    fn from(reply_surbs: ReplySurbs) -> Self {
+impl From<ReplySurbsWasm> for ConfigReplySurbs {
+    fn from(reply_surbs: ReplySurbsWasm) -> Self {
         ConfigReplySurbs {
             minimum_reply_surb_storage_threshold: reply_surbs.minimum_reply_surb_storage_threshold,
             maximum_reply_surb_storage_threshold: reply_surbs.maximum_reply_surb_storage_threshold,
@@ -331,9 +317,9 @@ impl From<ReplySurbs> for ConfigReplySurbs {
     }
 }
 
-impl From<ConfigReplySurbs> for ReplySurbs {
+impl From<ConfigReplySurbs> for ReplySurbsWasm {
     fn from(reply_surbs: ConfigReplySurbs) -> Self {
-        ReplySurbs {
+        ReplySurbsWasm {
             minimum_reply_surb_storage_threshold: reply_surbs.minimum_reply_surb_storage_threshold,
             maximum_reply_surb_storage_threshold: reply_surbs.maximum_reply_surb_storage_threshold,
             minimum_reply_surb_request_size: reply_surbs.minimum_reply_surb_request_size,
@@ -355,28 +341,28 @@ impl From<ConfigReplySurbs> for ReplySurbs {
 // just a helper structure to more easily pass through the JS boundary
 #[wasm_bindgen]
 #[derive(Debug, Copy, Clone)]
-pub struct Debug {
+pub struct DebugWasm {
     /// Defines all configuration options related to traffic streams.
-    pub traffic: Traffic,
+    pub traffic: TrafficWasm,
 
     /// Defines all configuration options related to cover traffic stream(s).
-    pub cover_traffic: CoverTraffic,
+    pub cover_traffic: CoverTrafficWasm,
 
     /// Defines all configuration options related to the gateway connection.
-    pub gateway_connection: GatewayConnection,
+    pub gateway_connection: GatewayConnectionWasm,
 
     /// Defines all configuration options related to acknowledgements, such as delays or wait timeouts.
-    pub acknowledgements: Acknowledgements,
+    pub acknowledgements: AcknowledgementsWasm,
 
     /// Defines all configuration options related topology, such as refresh rates or timeouts.
-    pub topology: Topology,
+    pub topology: TopologyWasm,
 
     /// Defines all configuration options related to reply SURBs.
-    pub reply_surbs: ReplySurbs,
+    pub reply_surbs: ReplySurbsWasm,
 }
 
-impl From<Debug> for ConfigDebug {
-    fn from(debug: Debug) -> Self {
+impl From<DebugWasm> for ConfigDebug {
+    fn from(debug: DebugWasm) -> Self {
         ConfigDebug {
             traffic: debug.traffic.into(),
             cover_traffic: debug.cover_traffic.into(),
@@ -388,9 +374,9 @@ impl From<Debug> for ConfigDebug {
     }
 }
 
-impl From<ConfigDebug> for Debug {
+impl From<ConfigDebug> for DebugWasm {
     fn from(debug: ConfigDebug) -> Self {
-        Debug {
+        DebugWasm {
             traffic: debug.traffic.into(),
             cover_traffic: debug.cover_traffic.into(),
             gateway_connection: debug.gateway_connection.into(),
@@ -402,6 +388,6 @@ impl From<ConfigDebug> for Debug {
 }
 
 #[wasm_bindgen]
-pub fn default_debug() -> Debug {
+pub fn default_debug() -> DebugWasm {
     ConfigDebug::default().into()
 }

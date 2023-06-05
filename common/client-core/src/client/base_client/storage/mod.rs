@@ -17,15 +17,13 @@ use crate::client::base_client::non_wasm_helpers;
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use crate::client::key_manager::persistence::OnDiskKeys;
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-use crate::config::disk_persistence::CommonClientPaths;
+use crate::client::replies::reply_storage::fs_backend;
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
+use crate::config::{self, disk_persistence::CommonClientPaths};
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use crate::error::ClientCoreError;
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
-
-#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-use crate::client::replies::reply_storage::fs_backend;
-use crate::config;
 
 pub trait MixnetClientStorage {
     type KeyStore: KeyStore;

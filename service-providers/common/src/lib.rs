@@ -85,6 +85,16 @@ where
                 ControlRequest::SupportedRequestVersions => {
                     let versions = self.handle_supported_request_versions_request().await?;
                     Some(ControlResponse::SupportedRequestVersions(versions))
+                }
+                // Version 4 requests:
+                ControlRequest::OpenProxy => {
+                    if interface_version == ProviderInterfaceVersion::Versioned(3) {
+                        log::info!("Received OpenProxy request for interface version 3. Ignoring.");
+                        None
+                    } else {
+                        let is_open = self.handle_open_proxy_control_request().await?;
+                        Some(ControlResponse::OpenProxy(is_open))
+                    }
                 } //
                   // TODO: if we ever add new request for interface version 4 (or higher),
                   // we need to include a check to make sure we return a `None` if passed `interface_version` was 3
@@ -112,6 +122,8 @@ where
             provider_version: T::max_supported_version().to_string(),
         })
     }
+
+    async fn handle_open_proxy_control_request(&self) -> Result<bool, Self::ServiceProviderError>;
 
     async fn handle_provider_data_request(
         &mut self,

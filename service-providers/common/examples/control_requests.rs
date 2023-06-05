@@ -34,12 +34,14 @@ async fn main() -> anyhow::Result<()> {
     // but I needed an easy way of sending to and receiving from the mixnet
     // and that was the most straightforward way of achieving it
     let mut client = MixnetClient::connect_new().await.unwrap();
-    let provider: Recipient = "AN8eLxYWFitCkMn92zim3PrPszxJZDYyFFKP7qnnAAew.8UAxL3LwQBis6WpM3GGXaqKGaVdnLCpGJWumHT6KNdTH@77TSuVU8d1oXKbPzjec2xh4i3Wj5WwUyy9Lr36sm8gZm".parse().unwrap();
+    //let provider: Recipient = "AN8eLxYWFitCkMn92zim3PrPszxJZDYyFFKP7qnnAAew.8UAxL3LwQBis6WpM3GGXaqKGaVdnLCpGJWumHT6KNdTH@77TSuVU8d1oXKbPzjec2xh4i3Wj5WwUyy9Lr36sm8gZm".parse().unwrap();
+    let provider: Recipient = "85xZUGsMi8koFGXnoKQpn3wkcajSghu99uW3P4aQqP3E.D5PdTNtPZnek28BsctU1pYGFzMSTx9z7g9EL9ryjDB5Z@9xJM74FwwHhEKKJHihD21QSZnHM2QBRMoFx9Wst6qNBS".parse().unwrap();
 
     // generic service provider request, so we don't even need to care it's to the socks5 provider
     let request_health = ControlRequest::Health;
     let request_binary_info = ControlRequest::BinaryInfo;
     let request_versions = ControlRequest::SupportedRequestVersions;
+    let request_open_proxy = ControlRequest::OpenProxy;
 
     let full_request_health: Request =
         Request::new_control(ProviderInterfaceVersion::new_current(), request_health);
@@ -47,6 +49,8 @@ async fn main() -> anyhow::Result<()> {
         Request::new_control(ProviderInterfaceVersion::new_current(), request_binary_info);
     let full_request_versions: Request =
         Request::new_control(ProviderInterfaceVersion::new_current(), request_versions);
+    let full_request_versions: Request =
+        Request::new_control(ProviderInterfaceVersion::new_current(), request_open_proxy);
 
     // // TODO: currently we HAVE TO use surbs unfortunately
     println!("Sending 'Health' request...");

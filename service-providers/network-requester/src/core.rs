@@ -66,7 +66,6 @@ struct NRServiceProvider {
 
     controller_sender: ControllerSender,
     mix_input_sender: MixProxySender<MixnetMessage>,
-    //shared_lane_queue_lengths: LaneQueueLengths,
     stats_collector: Option<ServiceStatisticsCollector>,
     shutdown: TaskManager,
 }
@@ -104,6 +103,10 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
         })
     }
 
+    async fn handle_open_proxy_control_request(&self) -> Result<bool, Self::ServiceProviderError> {
+        Ok(self.open_proxy.clone())
+    }
+
     async fn handle_provider_data_request(
         &mut self,
         sender: Option<AnonymousSenderTag>,
@@ -113,7 +116,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
         // TODO: streamline this a bit more
         let request_version = RequestVersion::new(interface_version, request.protocol_version);
 
-        log::debug!(
+        log::info!(
             "received request of version {:?} (interface) / {:?} (socks5)",
             interface_version,
             request.protocol_version
@@ -251,7 +254,6 @@ impl NRServiceProviderBuilder {
             mixnet_client,
             controller_sender,
             mix_input_sender,
-            //shared_lane_queue_lengths: mixnet_client.shared_lane_queue_lengths(),
             stats_collector,
             shutdown,
         };

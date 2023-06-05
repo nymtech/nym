@@ -12,7 +12,7 @@ use nym_sphinx_framing::packet::FramedSphinxPacket;
 use nym_sphinx_params::{PacketMode, PacketSize};
 use nym_sphinx_types::{
     Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, Payload, PrivateKey,
-    ProcessedPacket, SphinxPacket, SharedSecret, RoutingKeys
+    ProcessedPacket, RoutingKeys, SharedSecret, SphinxPacket,
 };
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -69,23 +69,25 @@ impl SphinxPacketProcessor {
     }
 
     /// Performs a sphinx unwrapping using given keys.
-        #[cfg_attr(
-            feature = "cpucycles",
-            instrument(skip(self, packet), fields(cpucycles))
-        )]
-        fn perform_initial_sphinx_packet_processing_with_keys(
-            &self,
-            packet: SphinxPacket,
-            new_blinded_secret: &Option<SharedSecret>,
-            routing_keys: RoutingKeys,
-        ) -> Result<ProcessedPacket, MixProcessingError> {
-            measure!({
-                packet.process_with_derived_keys(new_blinded_secret, routing_keys).map_err(|err| {
+    #[cfg_attr(
+        feature = "cpucycles",
+        instrument(skip(self, packet), fields(cpucycles))
+    )]
+    fn perform_initial_sphinx_packet_processing_with_keys(
+        &self,
+        packet: SphinxPacket,
+        new_blinded_secret: &Option<SharedSecret>,
+        routing_keys: RoutingKeys,
+    ) -> Result<ProcessedPacket, MixProcessingError> {
+        measure!({
+            packet
+                .process_with_derived_keys(new_blinded_secret, routing_keys)
+                .map_err(|err| {
                     debug!("Failed to unwrap Sphinx packet: {err}");
                     MixProcessingError::SphinxProcessingError(err)
                 })
-            })
-        }
+        })
+    }
 
     /// Takes the received framed packet and tries to unwrap it from the sphinx encryption.
     #[cfg_attr(
@@ -104,14 +106,25 @@ impl SphinxPacketProcessor {
                 return Err(MixProcessingError::ReceivedOldTypeVpnPacket);
             }
             //here be shared secret retrieval and hashmap lookup
-            if let Some((routing_keys, blinded_shared_secret)) = self.key_storage.lookup(sphinx_packet.shared_secret()) {
-                debug!("Packet already seen, reusing keys");
-                self.perform_initial_sphinx_packet_processing_with_keys(sphinx_packet, &blinded_shared_secret, routing_keys)
+            if let Some((routing_keys, blinded_shared_secret)) =
+                self.key_storage.lookup(sphinx_packet.shared_secret())
+            {
+                trace!("Packet already seen, reusing keys");
+                self.perform_initial_sphinx_packet_processing_with_keys(
+                    sphinx_packet,
+                    &blinded_shared_secret,
+                    routing_keys,
+                )
             } else {
-                debug!("New packet, deriving keys and storing them");
+                trace!("New packet, deriving keys and storing them");
                 let key_secret = sphinx_packet.shared_secret();
-                let processed_packet = self.perform_initial_sphinx_packet_processing(sphinx_packet)?;
-                self.key_storage.store(key_secret, processed_packet.routing_keys(), processed_packet.shared_secret());
+                let processed_packet =
+                    self.perform_initial_sphinx_packet_processing(sphinx_packet)?;
+                self.key_storage.store(
+                    key_secret,
+                    processed_packet.routing_keys(),
+                    processed_packet.shared_secret(),
+                );
                 Ok(processed_packet)
             }
         })

@@ -6,8 +6,7 @@ use crate::error::ClientError;
 use crate::websocket;
 use futures::channel::mpsc;
 use log::*;
-use nym_bandwidth_controller::BandwidthController;
-use nym_client_core::client::base_client::non_wasm_helpers::create_bandwidth_controller;
+use nym_client_core::client::base_client::non_wasm_helpers::default_query_dkg_client_from_config;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_client_core::client::base_client::{
     non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
@@ -17,7 +16,8 @@ use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
-use nym_credential_storage::persistent_storage::PersistentStorage;
+use nym_client_core::client::replies::reply_storage::fs_backend;
+use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
@@ -43,17 +43,6 @@ pub struct SocketClient {
 impl SocketClient {
     pub fn new(config: Config) -> Self {
         SocketClient { config }
-    }
-
-    async fn create_bandwidth_controller(
-        config: &Config,
-    ) -> BandwidthController<Client<QueryNyxdClient>, PersistentStorage> {
-        let storage = nym_credential_storage::initialise_persistent_storage(
-            &config.storage_paths.common_paths.credentials_database,
-        )
-        .await;
-
-        create_bandwidth_controller(&config.base, storage)
     }
 
     fn start_websocket_listener(
@@ -105,29 +94,46 @@ impl SocketClient {
         res
     }
 
-    fn key_store(&self) -> OnDiskKeys {
+    fn initialise_key_store(&self) -> OnDiskKeys {
         OnDiskKeys::new(self.config.storage_paths.common_paths.keys.clone())
+    }
+
+    async fn initialise_credential_store(&self) -> PersistentCredentialStorage {
+        nym_credential_storage::initialise_persistent_storage(
+            &self.config.storage_paths.common_paths.credentials_database,
+        )
+        .await
+    }
+
+    async fn initialise_reply_surb_store(&self) -> Result<fs_backend::Backend, ClientError> {
+        non_wasm_helpers::setup_fs_reply_surb_backend(
+            &self.config.storage_paths.common_paths.reply_surb_database,
+            &self.config.base.debug.reply_surbs,
+        )
+        .await
+        .map_err(Into::into)
+    }
+
+    async fn initialise_storage(&self) -> Result<OnDiskPersistent, ClientError> {
+        Ok(OnDiskPersistent::new(
+            self.initialise_key_store(),
+            self.initialise_reply_surb_store().await?,
+            self.initialise_credential_store().await,
+        ))
     }
 
     // TODO: see if this could also be shared with socks5 client / nym-sdk maybe
     async fn create_base_client_builder(&self) -> Result<NativeClientBuilder, ClientError> {
-        // don't create bandwidth controller if credentials are disabled
-        let bandwidth_controller = if self.config.base.client.disabled_credentials_mode {
+        // don't create dkg client for the bandwidth controller if credentials are disabled
+        let dkg_query_client = if self.config.base.client.disabled_credentials_mode {
             None
         } else {
-            Some(Self::create_bandwidth_controller(&self.config).await)
+            Some(default_query_dkg_client_from_config(&self.config.base))
         };
 
-        let base_client = BaseClientBuilder::new_from_base_config(
-            &self.config.base,
-            self.key_store(),
-            bandwidth_controller,
-            non_wasm_helpers::setup_fs_reply_surb_backend(
-                &self.config.storage_paths.common_paths.reply_surb_database,
-                &self.config.base.debug.reply_surbs,
-            )
-            .await?,
-        );
+        let storage = self.initialise_storage().await?;
+
+        let base_client = BaseClientBuilder::new(&self.config.base, storage, dkg_query_client);
 
         Ok(base_client)
     }

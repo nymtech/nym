@@ -14,9 +14,9 @@ use wasm_utils::console_log;
 // temporary until other variants are properly implemented (probably it should get changed into `ClientStorage`
 // implementing all traits and everything getting combined
 pub struct FullWasmClientStorage {
-    key_store: ClientStorage,
-    reply_storage: browser_backend::Backend,
-    credential_storage: EphemeralCredentialStorage,
+    pub(crate) key_store: ClientStorage,
+    pub(crate) reply_storage: browser_backend::Backend,
+    pub(crate) credential_storage: EphemeralCredentialStorage,
 }
 
 impl MixnetClientStorage for FullWasmClientStorage {

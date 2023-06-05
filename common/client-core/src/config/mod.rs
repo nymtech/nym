@@ -72,6 +72,10 @@ impl Config {
         }
     }
 
+    pub fn from_client_config(client: Client, debug: DebugConfig) -> Self {
+        Config { client, debug }
+    }
+
     pub fn validate(&self) -> bool {
         self.client.validate() && self.debug.validate()
     }
@@ -251,6 +255,7 @@ pub struct Client {
 
     /// Indicates whether this client is running in a disabled credentials mode, thus attempting
     /// to claim bandwidth without presenting bandwidth credentials.
+    // TODO: this should be moved to `debug.gateway_connection`
     #[serde(default)]
     pub disabled_credentials_mode: bool,
 
@@ -289,6 +294,23 @@ impl Client {
             nyxd_urls,
             nym_api_urls,
             gateway_endpoint: Default::default(),
+        }
+    }
+
+    pub fn new<S: Into<String>>(
+        id: S,
+        disabled_credentials_mode: bool,
+        nyxd_urls: Vec<Url>,
+        nym_api_urls: Vec<Url>,
+        gateway_endpoint: GatewayEndpointConfig,
+    ) -> Self {
+        Client {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            id: id.into(),
+            disabled_credentials_mode,
+            nyxd_urls,
+            nym_api_urls,
+            gateway_endpoint,
         }
     }
 

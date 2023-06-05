@@ -15,13 +15,11 @@ use crate::storage::ClientStorage;
 use crate::topology::WasmNymTopology;
 use js_sys::Promise;
 use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
-use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::base_client::{
-    BaseClientBuilder, ClientInput, ClientOutput, ClientState, CredentialsToggle,
+    BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use nym_client_core::client::inbound_messages::InputMessage;
-use nym_client_core::client::replies::reply_storage::browser_backend;
-use nym_credential_storage::ephemeral_storage::EphemeralStorage;
+use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
@@ -63,14 +61,7 @@ pub struct NymClientBuilder {
     preferred_gateway: Option<IdentityKey>,
 
     storage_passphrase: Option<String>,
-    reply_surb_storage_backend: browser_backend::Backend,
-
     on_message: js_sys::Function,
-
-    // unimplemented:
-    bandwidth_controller:
-        Option<BandwidthController<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>,
-    disabled_credentials: bool,
 }
 
 #[wasm_bindgen]
@@ -83,15 +74,10 @@ impl NymClientBuilder {
         storage_passphrase: Option<String>,
     ) -> Self {
         NymClientBuilder {
-            reply_surb_storage_backend: setup_reply_surb_storage_backend(
-                config.base.debug.reply_surbs,
-            ),
             config,
             custom_topology: None,
             storage_passphrase,
             on_message,
-            bandwidth_controller: None,
-            disabled_credentials: true,
             preferred_gateway,
         }
     }
@@ -114,14 +100,9 @@ impl NymClientBuilder {
         let full_config = Config::new_tester_config(NODE_TESTER_CLIENT_ID);
 
         NymClientBuilder {
-            reply_surb_storage_backend: setup_reply_surb_storage_backend(
-                full_config.base.debug.reply_surbs,
-            ),
             config: full_config,
             custom_topology: Some(topology.into()),
             on_message,
-            bandwidth_controller: None,
-            disabled_credentials: true,
             storage_passphrase: None,
             preferred_gateway: gateway,
         }
@@ -139,14 +120,16 @@ impl NymClientBuilder {
         }
     }
 
+    fn initialise_storage(config: &Config, base_storage: ClientStorage) -> FullWasmClientStorage {
+        FullWasmClientStorage {
+            key_store: base_storage,
+            reply_storage: setup_reply_surb_storage_backend(config.base.debug.reply_surbs),
+            credential_storage: EphemeralCredentialStorage::default(),
+        }
+    }
+
     async fn start_client_async(mut self) -> Result<NymClient, WasmClientError> {
         console_log!("Starting the wasm client");
-
-        let disabled_credentials = if self.disabled_credentials {
-            CredentialsToggle::Disabled
-        } else {
-            CredentialsToggle::Enabled
-        };
 
         let nym_api_endpoints = self.config.base.client.nym_api_urls.clone();
 
@@ -173,17 +156,20 @@ impl NymClientBuilder {
             .await?
         };
 
+        let packet_type = self.config.base.debug.traffic.packet_type;
+
+        // temporary workaround until it's properly moved into storage
+        self.config.base = self.config.base.with_gateway_endpoint(gateway_endpoint);
+        let storage = Self::initialise_storage(&self.config, client_store);
+
         let maybe_topology_provider = self.topology_provider();
 
-        let mut base_builder: BaseClientBuilder<_, FullWasmClientStorage> = BaseClientBuilder::new(
-            &gateway_endpoint,
-            &self.config.base.debug,
-            client_store,
-            self.bandwidth_controller,
-            self.reply_surb_storage_backend,
-            disabled_credentials,
-            nym_api_endpoints,
-        );
+        let mut base_builder: BaseClientBuilder<_, FullWasmClientStorage> =
+            BaseClientBuilder::<FakeClient<DirectSigningNyxdClient>, _>::new(
+                &self.config.base,
+                storage,
+                None,
+            );
         if let Some(topology_provider) = maybe_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
@@ -202,7 +188,7 @@ impl NymClientBuilder {
             client_state: Arc::new(started_client.client_state),
             _full_topology: None,
             _task_manager: started_client.task_manager,
-            packet_type: self.config.base.debug.traffic.packet_type,
+            packet_type,
         })
     }
 

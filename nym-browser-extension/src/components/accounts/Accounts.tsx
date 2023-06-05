@@ -1,23 +1,46 @@
 import React from 'react';
-import { Avatar, ListItem, ListItemAvatar, ListItemText } from '@mui/material';
+import { Avatar, ListItem, ListItemAvatar, ListItemButton, ListItemText } from '@mui/material';
 import { useAppContext } from 'src/context';
 import { AccountActions } from './Actions';
+import { useNavigate } from 'react-router';
 
-const AccountItem = ({ accountName }: { accountName: string }) => (
-  <ListItem disableGutters secondaryAction={<AccountActions accountName={accountName} />} divider>
-    <ListItemAvatar>
-      <Avatar>{accountName[0]}</Avatar>
-    </ListItemAvatar>
-    <ListItemText primary={accountName} />
+const AccountItem = ({
+  accountName,
+  disabled,
+  onSelect,
+}: {
+  accountName: string;
+  disabled: boolean;
+  onSelect: () => void;
+}) => (
+  <ListItem disableGutters disablePadding secondaryAction={<AccountActions accountName={accountName} />} divider>
+    <ListItemButton onClick={onSelect} disabled={disabled}>
+      <ListItemAvatar>
+        <Avatar>{accountName[0]}</Avatar>
+      </ListItemAvatar>
+      <ListItemText primary={accountName} secondary={disabled && '(Selected)'} />
+    </ListItemButton>
   </ListItem>
 );
 
 export const AccountList = () => {
-  const { accounts } = useAppContext();
+  const navigate = useNavigate();
+  const { accounts, selectAccount, selectedAccount } = useAppContext();
+
+  const handleSelectAccount = async (accountName: string) => {
+    await selectAccount(accountName);
+    navigate('/user/balance');
+  };
+
   return (
     <>
       {accounts.map((accountName) => (
-        <AccountItem accountName={accountName} key={accountName} />
+        <AccountItem
+          disabled={selectedAccount === accountName}
+          accountName={accountName}
+          key={accountName}
+          onSelect={() => handleSelectAccount(accountName)}
+        />
       ))}
     </>
   );

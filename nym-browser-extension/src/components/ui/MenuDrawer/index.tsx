@@ -11,6 +11,11 @@ import { Link } from 'react-router-dom';
 
 const menuSchema = [
   {
+    title: 'Accounts',
+    Icon: <AccountCircleRounded />,
+    path: '/user/accounts',
+  },
+  {
     title: 'Balance',
     Icon: <AccountBalanceWalletRounded />,
     path: '/user/balance',
@@ -19,11 +24,6 @@ const menuSchema = [
     title: 'Send',
     Icon: <ArrowDownwardRounded />,
     path: '/user/send',
-  },
-  {
-    title: 'Accounts',
-    Icon: <AccountCircleRounded />,
-    path: '/user/accounts',
   },
 ];
 

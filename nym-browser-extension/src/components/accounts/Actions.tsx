@@ -35,8 +35,6 @@ export const AccountActions = ({ accountName }: { accountName: string }) => {
       title: 'View seed phrase',
       Icon: <VisibilityOutlined />,
       onSelect: () => {
-        console.log(accountName);
-
         setShowSeedForAccount(accountName);
       },
     },

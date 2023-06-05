@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ValidatorClient from '@nymproject/nym-validator-client';
+import { ExtensionStorage } from '@nymproject/extension-storage';
 import { connectToValidator } from 'src/validator-client';
 import { unymToNym } from 'src/utils/coin';
-import { ExtensionStorage } from '@nymproject/extension-storage';
 
 type TAppContext = {
   client?: ValidatorClient;
@@ -11,6 +11,8 @@ type TAppContext = {
   denom: 'NYM';
   minorDenom: 'unym';
   showSeedForAccount?: string;
+  selectedAccount: string;
+  selectAccount: (accountName: string) => Promise<void>;
   setAccounts: (accounts: string[]) => void;
   setShowSeedForAccount: (accountName?: string) => void;
   handleUnlockWallet: (password: string) => void;
@@ -19,24 +21,36 @@ type TAppContext = {
 
 type TBalanceInNYMs = string;
 
+const DEFAULT_ACCOUNT_NAME = 'Default account';
+
 const AppContext = React.createContext({} as TAppContext);
 
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [client, setClient] = useState<ValidatorClient>();
+  const [selectedAccount, setSelected] = useState<string>(DEFAULT_ACCOUNT_NAME);
   const [balance, setBalance] = useState<TBalanceInNYMs>();
   const [accounts, setAccounts] = useState<string[]>([]);
   const [showSeedForAccount, setShowSeedForAccount] = useState<string>();
+  const [storage, setStorage] = useState<ExtensionStorage>();
 
   const denom = 'NYM';
   const minorDenom = 'unym';
 
   const handleUnlockWallet = async (password: string) => {
-    const storage = await new ExtensionStorage(password);
-    const mnemonic = await storage.read_mnemonic('Default account');
-    const userAccounts = await storage.get_all_mnemonic_keys();
+    const store = await new ExtensionStorage(password);
+    const mnemonic = await store.read_mnemonic(DEFAULT_ACCOUNT_NAME);
+    const userAccounts = await store.get_all_mnemonic_keys();
     const clientFromMnemonic = await connectToValidator(mnemonic);
 
+    setStorage(store);
     setAccounts(userAccounts);
+    setClient(clientFromMnemonic);
+  };
+
+  const selectAccount = async (accountName: string) => {
+    const mnemonic = await storage!.read_mnemonic(accountName);
+    const clientFromMnemonic = await connectToValidator(mnemonic);
+    setSelected(accountName);
     setClient(clientFromMnemonic);
   };
 
@@ -62,13 +76,15 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       balance,
       denom,
       minorDenom,
+      selectedAccount,
       handleUnlockWallet,
       getBalance,
       setShowSeedForAccount,
       showSeedForAccount,
       setAccounts,
+      selectAccount,
     }),
-    [client, accounts, balance, denom, minorDenom, showSeedForAccount],
+    [client, accounts, balance, denom, minorDenom, selectedAccount, showSeedForAccount],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

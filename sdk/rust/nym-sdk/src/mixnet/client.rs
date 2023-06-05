@@ -472,8 +472,7 @@ where
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        let packet_type = self.config.packet_type();
-        let started_client = base_builder.start_base(packet_type).await?;
+        let started_client = base_builder.start_base().await?;
         let nym_address = started_client.address;
 
         Ok((started_client, nym_address))

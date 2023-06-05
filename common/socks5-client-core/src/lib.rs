@@ -207,7 +207,7 @@ where
         );
 
         let packet_type = self.config.base.debug.traffic.packet_type;
-        let mut started_client = base_builder.start_base(packet_type).await?;
+        let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();

@@ -172,7 +172,9 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
       const res = await Api.fetchServiceProviders();
       const resWithRoutingScorePercentage = res.map((item) => ({
         ...item,
-        routing_score: item.routing_score ? `${toPercentIntegerString(item.routing_score.toString())}%` : undefined,
+        routing_score: item.routing_score
+          ? `${toPercentIntegerString(item.routing_score.toString())}%`
+          : item.routing_score,
       }));
       setServiceProviders({ data: resWithRoutingScorePercentage, isLoading: false });
     } catch (error) {

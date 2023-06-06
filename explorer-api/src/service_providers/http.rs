@@ -64,29 +64,14 @@ pub async fn get_services() -> Result<Vec<DirectorySpDetailed>, GetSpError> {
             .items
             .iter()
             .find(|item| item.service_provider_client_id == dir_sp.address);
-        if let Some(sp) = directory_sp {
-            acc.push(DirectorySpDetailed {
-                id: sp.service_provider_client_id.clone(),
-                description: dir_sp.description.clone(),
-                address: dir_sp.address.clone(),
-                gateway: dir_sp.gateway.clone(),
-                routing_score: Some(sp.routing_score),
-                service_type: "Network requester".into(),
-            });
-        } else {
-            acc.push(DirectorySpDetailed {
-                id: dir_sp.address.clone(),
-                description: dir_sp.description.clone(),
-                address: dir_sp.address.clone(),
-                gateway: dir_sp.gateway.clone(),
-                routing_score: None,
-                service_type: "Network requester".into(),
-            });
-            log::warn!(
-                "service provider info not found in Harbour Master data {}",
-                dir_sp.address
-            );
-        }
+        acc.push(DirectorySpDetailed {
+            id: dir_sp.id.clone(),
+            description: dir_sp.description.clone(),
+            address: dir_sp.address.clone(),
+            gateway: dir_sp.gateway.clone(),
+            routing_score: directory_sp.map(|sp| sp.routing_score),
+            service_type: "Network requester".into(),
+        });
         acc
     });
 

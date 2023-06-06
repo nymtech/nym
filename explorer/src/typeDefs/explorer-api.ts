@@ -248,7 +248,7 @@ export type DirectoryServiceProvider = {
   description: string;
   address: string;
   gateway: string;
-  routing_score?: string;
+  routing_score: string | null;
   service_type: ServiceProviderType;
 };
 

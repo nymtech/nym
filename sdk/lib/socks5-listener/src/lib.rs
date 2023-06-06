@@ -8,8 +8,6 @@ use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use log::{info, warn};
 use nym_bin_common::logging::setup_logging;
-use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_config_common::defaults::setup_env;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
 use safer_ffi::char_p::char_p_boxed;
@@ -288,29 +286,9 @@ async fn setup_new_client_config(
             .set_custom_nym_apis(nym_config_common::parse_urls(&raw_validators));
     }
 
-    let gateway = if let Some(storage_paths) = &new_config.storage_paths {
-        nym_client_core::init::setup_gateway_from_config::<_>(
-            &OnDiskKeys::new(storage_paths.common_paths.keys.clone()),
-            true,
-            None,
-            &new_config.core.base,
-            None,
-            false,
-        )
-        .await?
-    } else {
-        nym_client_core::init::setup_gateway_from_config::<_>(
-            &InMemEphemeralKeys,
-            true,
-            None,
-            &new_config.core.base,
-            None,
-            false,
-        )
-        .await?
+    if let Some(_storage_paths) = &new_config.storage_paths {
+        println!("persistent storage is not implemented");
     };
-
-    new_config.core.base.set_gateway_endpoint(gateway);
 
     if let Some(storage_dir) = storage_dir {
         new_config.save_to_default_location(storage_dir)?;

@@ -152,7 +152,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
         &key_store,
         &details_store,
         register_gateway,
-        Some(&config.core.base.client.nym_api_urls),
+        Some(&config.base.client.nym_api_urls),
     )
     .await
     .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
@@ -170,7 +170,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
 
     eprintln!("Client configuration completed.\n");
 
-    let init_results = InitResults::new(&config, &address);
+    let init_results = InitResults::new(&config, &address, &init_details.gateway_details);
     println!("{}", args.output.format(&init_results));
 
     Ok(())

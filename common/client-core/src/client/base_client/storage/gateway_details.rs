@@ -7,9 +7,7 @@ use nym_gateway_requests::registration::handshake::SharedKeys;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::error::Error;
-use std::fs::File;
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
 use tokio::sync::Mutex;
 use zeroize::Zeroizing;
 
@@ -90,19 +88,19 @@ pub enum OnDiskGatewayDetailsError {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub struct OnDiskGatewayDetails {
-    file_location: PathBuf,
+    file_location: std::path::PathBuf,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl OnDiskGatewayDetails {
-    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+    pub fn new<P: AsRef<std::path::Path>>(path: P) -> Self {
         OnDiskGatewayDetails {
             file_location: path.as_ref().to_owned(),
         }
     }
 
     pub fn load_from_disk(&self) -> Result<PersistedGatewayDetails, OnDiskGatewayDetailsError> {
-        let file = File::open(&self.file_location).map_err(|err| {
+        let file = std::fs::File::open(&self.file_location).map_err(|err| {
             OnDiskGatewayDetailsError::LoadFailure {
                 path: self.file_location.display().to_string(),
                 err,
@@ -126,7 +124,7 @@ impl OnDiskGatewayDetails {
             })?
         }
 
-        let file = File::create(&self.file_location).map_err(|err| {
+        let file = std::fs::File::create(&self.file_location).map_err(|err| {
             OnDiskGatewayDetailsError::StoreFailure {
                 path: self.file_location.display().to_string(),
                 err,

@@ -211,7 +211,7 @@ fn try_load_current_config(id: &str) -> Result<Config, NetworkRequesterError> {
     // try to load the config as is
     if let Ok(cfg) = Config::read_from_default_path(id) {
         return if !cfg.validate() {
-            Err(Socks5ClientError::ConfigValidationFailure)
+            Err(NetworkRequesterError::ConfigValidationFailure)
         } else {
             Ok(cfg)
         };

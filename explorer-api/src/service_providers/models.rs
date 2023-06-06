@@ -14,7 +14,7 @@ pub struct DirectorySpDetailed {
     pub description: String,
     pub address: String,
     pub gateway: String,
-    pub routing_score: f32,
+    pub routing_score: Option<f32>,
     pub service_type: String,
 }
 

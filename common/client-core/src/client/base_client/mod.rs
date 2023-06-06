@@ -443,21 +443,21 @@ where
         <S::KeyStore as KeyStore>::StorageError: Sync + Send,
         <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Sync + Send,
     {
-        Ok(setup_gateway(
+        setup_gateway(
             &self.setup_method,
             self.client_store.key_store(),
             self.client_store.gateway_details_store(),
             false,
             Some(&self.config.client.nym_api_urls),
         )
-        .await?)
+        .await
     }
 
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
     where
-        <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         S::ReplyStore: Send + Sync,
         <S::KeyStore as KeyStore>::StorageError: Send + Sync,
+        <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
         <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Sync + Send,
     {

@@ -31,6 +31,7 @@ pub struct PersistedGatewayDetails {
     // counterargument: if we wanted to modify, say, the host information in the stored file on disk,
     // in order to actually use it, we'd have to recompute the whole checksum which would be a huge pain.
     /// The hash of the shared keys to ensure the correct ones are used with those gateway details.
+    #[serde(with = "base64")]
     key_hash: Vec<u8>,
 
     /// Actual gateway details being persisted.
@@ -62,6 +63,22 @@ impl PersistedGatewayDetails {
         let key_hash = key_hasher.finalize();
 
         self.key_hash == key_hash.deref()
+    }
+}
+
+// helper to make Vec<u8> serialization use base64 representation to make it human readable
+// so that it would be easier for users to copy contents from the disk if they wanted to use it elsewhere
+mod base64 {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&STANDARD.encode(bytes))
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
+        let s = <&str>::deserialize(deserializer)?;
+        STANDARD.decode(s).map_err(serde::de::Error::custom)
     }
 }
 

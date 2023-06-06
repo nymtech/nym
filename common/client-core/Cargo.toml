@@ -9,6 +9,7 @@ rust-version = "1.66"
 
 [dependencies]
 async-trait = { workspace = true }
+base64 = "0.21.2"
 dirs = "4.0"
 dashmap = "5.4.0"
 futures = "0.3"

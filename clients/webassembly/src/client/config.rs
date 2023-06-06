@@ -29,7 +29,7 @@ impl Config {
     #[wasm_bindgen(constructor)]
     pub fn new(id: String, validator_server: String, debug: Option<DebugWasm>) -> Self {
         Config {
-            base: BaseClientConfig::new(id)
+            base: BaseClientConfig::new(id, env!("CARGO_PKG_VERSION").to_string())
                 .with_custom_nyxd(vec![validator_server
                     .parse()
                     .expect("provided url was malformed")])
@@ -39,7 +39,7 @@ impl Config {
 
     pub(crate) fn new_tester_config<S: Into<String>>(id: S) -> Self {
         Config {
-            base: BaseClientConfig::new(id)
+            base: BaseClientConfig::new(id.into(), env!("CARGO_PKG_VERSION").to_string())
                 .with_disabled_credentials(true)
                 .with_disabled_cover_traffic(true)
                 .with_disabled_topology_refresh(true),

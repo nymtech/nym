@@ -29,7 +29,7 @@ pub struct Config {
 impl Config {
     pub fn new<S: Into<String>>(id: S, provider_mix_address: S) -> Self {
         Config {
-            base: BaseClientConfig::new(id),
+            base: BaseClientConfig::new(id.into(), env!("CARGO_PKG_VERSION").to_string()),
             socks5: Socks5::new(provider_mix_address),
         }
     }

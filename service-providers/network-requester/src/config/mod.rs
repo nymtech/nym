@@ -82,7 +82,7 @@ impl NymConfigTemplate for Config {
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
-            base: BaseClientConfig::new(id.as_ref()),
+            base: BaseClientConfig::new(id.as_ref(), env!("CARGO_PKG_VERSION")),
             network_requester: Default::default(),
             storage_paths: NetworkRequesterPaths::new_default(default_data_directory(id.as_ref())),
             network_requester_debug: Default::default(),

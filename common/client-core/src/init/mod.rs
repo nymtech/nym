@@ -7,7 +7,7 @@ use crate::client::base_client::storage::gateway_details::{
     GatewayDetailsStore, PersistedGatewayDetails,
 };
 use crate::client::key_manager::persistence::KeyStore;
-use crate::client::key_manager::{KeyManager, ManagedKeys};
+use crate::client::key_manager::ManagedKeys;
 use crate::init::helpers::{choose_gateway_by_latency, current_gateways, uniformly_random_gateway};
 use crate::{
     config::{Config, GatewayEndpointConfig},
@@ -15,13 +15,14 @@ use crate::{
 };
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
+use nym_topology::gateway;
 use nym_validator_client::client::IdentityKey;
 use rand::rngs::OsRng;
 use serde::Serialize;
 use std::fmt::{Debug, Display};
 use url::Url;
 
-mod helpers;
+pub mod helpers;
 
 // TODO: rename to something better...
 #[derive(Debug)]
@@ -36,6 +37,28 @@ impl InitialisationDetails {
             gateway_details,
             managed_keys,
         }
+    }
+
+    pub async fn try_load<K, D>(key_store: &K, details_store: &D) -> Result<Self, ClientCoreError>
+    where
+        K: KeyStore,
+        D: GatewayDetailsStore,
+        K::StorageError: Send + Sync + 'static,
+        D::StorageError: Send + Sync + 'static,
+    {
+        let loaded_details = _load_gateway_details(details_store).await?;
+        let loaded_keys = _load_managed_keys(key_store).await?;
+
+        if !loaded_details.verify(&loaded_keys.must_get_gateway_shared_key()) {
+            return Err(ClientCoreError::MismatchedGatewayDetails {
+                gateway_id: loaded_details.details.gateway_id,
+            });
+        }
+
+        Ok(InitialisationDetails {
+            gateway_details: loaded_details.into(),
+            managed_keys: loaded_keys,
+        })
     }
 
     pub fn client_address(&self) -> Result<Recipient, ClientCoreError> {
@@ -111,14 +134,13 @@ impl GatewaySetup {
         matches!(self, GatewaySetup::Predefined { .. }) || self.is_must_load()
     }
 
-    pub async fn try_get_new_gateway_details(
+    pub async fn choose_gateway(
         &self,
-        validator_servers: &[Url],
+        gateways: &[gateway::Node],
     ) -> Result<GatewayEndpointConfig, ClientCoreError> {
         match self {
             GatewaySetup::New { by_latency } => {
                 let mut rng = OsRng;
-                let gateways = current_gateways(&mut rng, validator_servers).await?;
                 if *by_latency {
                     choose_gateway_by_latency(&mut rng, gateways).await
                 } else {
@@ -130,16 +152,24 @@ impl GatewaySetup {
                 let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
                     .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
-                let mut rng = OsRng;
-                let gateways = current_gateways(&mut rng, validator_servers).await?;
                 gateways
-                    .into_iter()
+                    .iter()
                     .find(|gateway| gateway.identity_key == user_gateway)
                     .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))
+                    .cloned()
             }
             .map(Into::into),
             _ => Err(ClientCoreError::UnexpectedGatewayDetails),
         }
+    }
+
+    pub async fn try_get_new_gateway_details(
+        &self,
+        validator_servers: &[Url],
+    ) -> Result<GatewayEndpointConfig, ClientCoreError> {
+        let mut rng = OsRng;
+        let gateways = current_gateways(&mut rng, validator_servers).await?;
+        self.choose_gateway(&gateways).await
     }
 }
 
@@ -210,12 +240,24 @@ where
         })
 }
 
-pub async fn setup_gateway<K, D>(
+async fn _load_managed_keys<K>(key_store: &K) -> Result<ManagedKeys, ClientCoreError>
+where
+    K: KeyStore,
+    K::StorageError: Send + Sync + 'static,
+{
+    ManagedKeys::try_load(key_store)
+        .await
+        .map_err(|source| ClientCoreError::KeyStoreError {
+            source: Box::new(source),
+        })
+}
+
+pub async fn setup_gateway_from<K, D>(
     setup: &GatewaySetup,
     key_store: &K,
     details_store: &D,
     overwrite_data: bool,
-    validator_servers: Option<&[Url]>,
+    gateways: Option<&[gateway::Node]>,
 ) -> Result<InitialisationDetails, ClientCoreError>
 where
     K: KeyStore,
@@ -278,9 +320,7 @@ where
     };
 
     // choose gateway
-    let gateway_details = setup
-        .try_get_new_gateway_details(validator_servers.unwrap_or_default())
-        .await?;
+    let gateway_details = setup.choose_gateway(gateways.unwrap_or_default()).await?;
 
     // get our identity key
     let our_identity = managed_keys.identity_keypair();
@@ -307,19 +347,30 @@ where
     ))
 }
 
-/// Get the full client address from the client keys and the gateway identity
-#[deprecated]
-pub fn get_client_address(
-    key_manager: &KeyManager,
-    gateway_config: &GatewayEndpointConfig,
-) -> Recipient {
-    Recipient::new(
-        *key_manager.identity_keypair().public_key(),
-        *key_manager.encryption_keypair().public_key(),
-        // TODO: below only works under assumption that gateway address == gateway id
-        // (which currently is true)
-        NodeIdentity::from_base58_string(&gateway_config.gateway_id).unwrap(),
+pub async fn setup_gateway<K, D>(
+    setup: &GatewaySetup,
+    key_store: &K,
+    details_store: &D,
+    overwrite_data: bool,
+    validator_servers: Option<&[Url]>,
+) -> Result<InitialisationDetails, ClientCoreError>
+where
+    K: KeyStore,
+    D: GatewayDetailsStore,
+    K::StorageError: Send + Sync + 'static,
+    D::StorageError: Send + Sync + 'static,
+{
+    let mut rng = OsRng;
+    let gateways = current_gateways(&mut rng, validator_servers.unwrap_or_default()).await?;
+
+    setup_gateway_from(
+        setup,
+        key_store,
+        details_store,
+        overwrite_data,
+        Some(&gateways),
     )
+    .await
 }
 
 pub fn output_to_json<T: Serialize>(init_results: &T, output_file: &str) {

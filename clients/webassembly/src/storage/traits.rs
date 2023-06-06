@@ -4,6 +4,9 @@
 use crate::storage::errors::ClientStorageError;
 use crate::storage::ClientStorage;
 use async_trait::async_trait;
+use nym_client_core::client::base_client::storage::gateway_details::{
+    GatewayDetailsStore, PersistedGatewayDetails,
+};
 use nym_client_core::client::base_client::storage::MixnetClientStorage;
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::key_manager::KeyManager;
@@ -14,7 +17,7 @@ use wasm_utils::console_log;
 // temporary until other variants are properly implemented (probably it should get changed into `ClientStorage`
 // implementing all traits and everything getting combined
 pub struct FullWasmClientStorage {
-    pub(crate) key_store: ClientStorage,
+    pub(crate) keys_and_gateway_store: ClientStorage,
     pub(crate) reply_storage: browser_backend::Backend,
     pub(crate) credential_storage: EphemeralCredentialStorage,
 }
@@ -24,12 +27,14 @@ impl MixnetClientStorage for FullWasmClientStorage {
     type ReplyStore = browser_backend::Backend;
     type CredentialStore = EphemeralCredentialStorage;
 
-    fn into_split(self) -> (Self::KeyStore, Self::ReplyStore, Self::CredentialStore) {
-        (self.key_store, self.reply_storage, self.credential_storage)
+    type GatewayDetailsStore = ClientStorage;
+
+    fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore) {
+        (self.reply_storage, self.credential_storage)
     }
 
     fn key_store(&self) -> &Self::KeyStore {
-        &self.key_store
+        &self.keys_and_gateway_store
     }
 
     fn reply_store(&self) -> &Self::ReplyStore {
@@ -38,6 +43,10 @@ impl MixnetClientStorage for FullWasmClientStorage {
 
     fn credential_store(&self) -> &Self::CredentialStore {
         &self.credential_storage
+    }
+
+    fn gateway_details_store(&self) -> &Self::GatewayDetailsStore {
+        &self.keys_and_gateway_store
     }
 }
 
@@ -72,5 +81,21 @@ impl KeyStore for ClientStorage {
         self.store_ack_key(&keys.ack_key()).await?;
         self.store_gateway_shared_key(&keys.gateway_shared_key())
             .await
+    }
+}
+
+#[async_trait(?Send)]
+impl GatewayDetailsStore for ClientStorage {
+    type StorageError = ClientStorageError;
+
+    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails, Self::StorageError> {
+        self.must_read_gateway_details().await
+    }
+
+    async fn store_gateway_details(
+        &self,
+        details: &PersistedGatewayDetails,
+    ) -> Result<(), Self::StorageError> {
+        self.store_gateway_details(details).await
     }
 }

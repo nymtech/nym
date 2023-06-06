@@ -7,7 +7,7 @@ use crate::client::response_pusher::ResponsePusher;
 use crate::constants::NODE_TESTER_CLIENT_ID;
 use crate::error::WasmClientError;
 use crate::helpers::{
-    choose_gateway, gateway_from_topology, parse_recipient, parse_sender_tag,
+    parse_recipient, parse_sender_tag, setup_from_topology, setup_gateway_from_api,
     setup_reply_surb_storage_backend,
 };
 use crate::storage::traits::FullWasmClientStorage;
@@ -27,7 +27,7 @@ use nym_topology::provider_trait::{HardcodedTopologyProvider, TopologyProvider};
 use nym_topology::NymTopology;
 use nym_validator_client::client::IdentityKey;
 use rand::rngs::OsRng;
-use rand::{thread_rng, RngCore};
+use rand::RngCore;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
@@ -122,7 +122,7 @@ impl NymClientBuilder {
 
     fn initialise_storage(config: &Config, base_storage: ClientStorage) -> FullWasmClientStorage {
         FullWasmClientStorage {
-            key_store: base_storage,
+            keys_and_gateway_store: base_storage,
             reply_storage: setup_reply_surb_storage_backend(config.base.debug.reply_surbs),
             credential_storage: EphemeralCredentialStorage::default(),
         }
@@ -138,30 +138,17 @@ impl NymClientBuilder {
             ClientStorage::new_async(&self.config.base.client.id, self.storage_passphrase.take())
                 .await?;
 
+        let user_chosen = self.preferred_gateway.clone();
+
         // if we provided hardcoded topology, get gateway from it, otherwise get it the 'standard' way
-        let gateway_endpoint = if let Some(topology) = &self.custom_topology {
-            gateway_from_topology(
-                &mut thread_rng(),
-                self.preferred_gateway.as_deref(),
-                topology,
-                &client_store,
-            )
-            .await?
+        if let Some(topology) = &self.custom_topology {
+            setup_from_topology(user_chosen, topology, &client_store).await?
         } else {
-            choose_gateway(
-                &client_store,
-                self.preferred_gateway.clone(),
-                &nym_api_endpoints,
-            )
-            .await?
+            setup_gateway_from_api(&client_store, user_chosen, &nym_api_endpoints).await?
         };
 
         let packet_type = self.config.base.debug.traffic.packet_type;
-
-        // temporary workaround until it's properly moved into storage
-        self.config.base = self.config.base.with_gateway_endpoint(gateway_endpoint);
         let storage = Self::initialise_storage(&self.config, client_store);
-
         let maybe_topology_provider = self.topology_provider();
 
         let mut base_builder: BaseClientBuilder<_, FullWasmClientStorage> =

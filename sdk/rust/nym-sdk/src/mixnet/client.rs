@@ -287,21 +287,21 @@ where
             .collect()
     }
 
-    // /// Client keys are generated at client creation if none were found. The gateway shared
-    // /// key, however, is created during the gateway registration handshake so it might not
-    // /// necessarily be available.
-    // /// Furthermore, it has to be coupled with particular gateway's config.
-    // fn has_gateway_info(&self) -> bool {
-    //     matches!(self.managed_keys, ManagedKeys::FullyDerived(..))
-    // }
-    //
-    // fn remove_gateway_key(&mut self) {
-    //     assert!(self.has_gateway_info());
-    //     let ManagedKeys::FullyDerived(keys) = std::mem::replace(&mut self.managed_keys, ManagedKeys::Invalidated) else {
-    //         unreachable!()
-    //     };
-    //     self.managed_keys = ManagedKeys::Initial(keys.remove_gateway_key())
-    // }
+    /// Client keys are generated at client creation if none were found. The gateway shared
+    /// key, however, is created during the gateway registration handshake so it might not
+    /// necessarily be available.
+    /// Furthermore, it has to be coupled with particular gateway's config.
+    async fn has_gateway_info(&self) -> bool {
+        let has_keys = self.storage.key_store().load_keys().await.is_ok();
+        let has_gateway_details = self
+            .storage
+            .gateway_details_store()
+            .load_gateway_details()
+            .await
+            .is_ok();
+
+        has_keys && has_gateway_details
+    }
 
     /// Register with a gateway. If a gateway is provided in the config then that will try to be
     /// used. If none is specified, a gateway at random will be picked.
@@ -318,7 +318,12 @@ where
         log::debug!("Registering with gateway");
 
         let api_endpoints = self.get_api_endpoints();
-        let gateway_setup = GatewaySetup::new_fresh(self.config.user_chosen_gateway.clone(), None);
+
+        let gateway_setup = if self.has_gateway_info().await {
+            GatewaySetup::MustLoad
+        } else {
+            GatewaySetup::new_fresh(self.config.user_chosen_gateway.clone(), None)
+        };
 
         // this will perform necessary key and details load and optional store
         let _init_result = nym_client_core::init::setup_gateway(
@@ -352,10 +357,8 @@ where
 
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
         // if we don't care about our keys, explicitly register
-        let mut already_setup = false;
         if !self.config.key_mode.is_keep() {
             self.register_and_authenticate_gateway().await?;
-            already_setup = true;
         }
 
         // otherwise, the whole key setup and gateway selection dance will be done for us
@@ -369,10 +372,12 @@ where
             .config
             .as_base_client_config(nyxd_endpoints, nym_api_endpoints);
 
+        let known_gateway = self.has_gateway_info().await;
+
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client);
 
-        if !already_setup {
+        if !known_gateway {
             base_builder = base_builder.with_gateway_setup(GatewaySetup::new_fresh(
                 self.config.user_chosen_gateway,
                 None,

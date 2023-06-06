@@ -3,7 +3,7 @@
 
 use crate::constants::NODE_TESTER_ID;
 use crate::error::WasmClientError;
-use crate::helpers::{current_network_topology_async, gateway_from_topology};
+use crate::helpers::{current_network_topology_async, setup_from_topology};
 use crate::storage::ClientStorage;
 use crate::tester::ephemeral_receiver::EphemeralTestReceiver;
 use crate::tester::helpers::{
@@ -15,7 +15,7 @@ use js_sys::Promise;
 use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::key_manager::ManagedKeys;
-use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::init::InitialisationDetails;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_gateway_client::GatewayClient;
 use nym_node_tester_utils::receiver::SimpleMessageReceiver;
@@ -28,7 +28,6 @@ use nym_task::TaskManager;
 use nym_topology::NymTopology;
 use nym_validator_client::client::IdentityKey;
 use rand::rngs::OsRng;
-use rand::{CryptoRng, Rng};
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex as SyncMutex};
@@ -120,29 +119,26 @@ impl NymNodeTesterBuilder {
         })
     }
 
-    async fn gateway_info<R: Rng + CryptoRng>(
+    async fn gateway_info(
         &self,
-        rng: &mut R,
         client_store: &ClientStorage,
-    ) -> Result<GatewayEndpointConfig, WasmClientError> {
-        gateway_from_topology(
-            rng,
-            self.gateway.as_deref(),
-            &self.base_topology,
-            client_store,
-        )
-        .await
+    ) -> Result<InitialisationDetails, WasmClientError> {
+        if let Ok(loaded) = InitialisationDetails::try_load(client_store, client_store).await {
+            Ok(loaded)
+        } else {
+            setup_from_topology(self.gateway.clone(), &self.base_topology, client_store).await
+        }
     }
 
     async fn _setup_client(mut self) -> Result<NymNodeTester, WasmClientError> {
-        let mut rng = OsRng;
         let task_manager = TaskManager::default();
 
         let client_store = ClientStorage::new_async(NODE_TESTER_ID, None).await?;
 
-        let gateway_endpoint = self.gateway_info(&mut rng, &client_store).await?;
+        let init_details = self.gateway_info(&client_store).await?;
+        let gateway_endpoint = init_details.gateway_details;
         let gateway_identity = gateway_endpoint.try_get_gateway_identity_key()?;
-        let mut managed_keys = ManagedKeys::load_or_generate(&mut rng, &client_store).await;
+        let managed_keys = init_details.managed_keys;
 
         let (mixnet_message_sender, mixnet_message_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
@@ -151,7 +147,7 @@ impl NymNodeTesterBuilder {
             gateway_endpoint.gateway_listener,
             managed_keys.identity_keypair(),
             gateway_identity,
-            managed_keys.gateway_shared_key(),
+            Some(managed_keys.must_get_gateway_shared_key()),
             mixnet_message_sender,
             ack_sender,
             Duration::from_secs(10),
@@ -160,14 +156,11 @@ impl NymNodeTesterBuilder {
         );
 
         gateway_client.set_disabled_credentials_mode(true);
-        let shared_keys = gateway_client.authenticate_and_start().await?;
-        managed_keys
-            .deal_with_gateway_key(shared_keys, &client_store)
-            .await?;
+        gateway_client.authenticate_and_start().await?;
 
         // TODO: make those values configurable later
         let tester = NodeTester::new(
-            rng,
+            OsRng,
             self.base_topology,
             Some(address(&managed_keys, gateway_identity)),
             PacketSize::default(),

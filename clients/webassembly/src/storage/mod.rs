@@ -111,6 +111,8 @@ impl ClientStorage {
         })
     }
 
+    // TODO: persist client's config
+    #[allow(dead_code)]
     pub(crate) async fn read_config(&self) -> Result<Option<Config>, ClientStorageError> {
         self.inner
             .read_value(v1::CORE_STORE, JsValue::from_str(v1::CONFIG))
@@ -274,6 +276,8 @@ impl ClientStorage {
             .map_err(Into::into)
     }
 
+    // TODO: persist client's config
+    #[allow(dead_code)]
     pub(crate) async fn store_config(&self, config: &Config) -> Result<(), ClientStorageError> {
         self.inner
             .store_value(v1::CORE_STORE, JsValue::from_str(v1::CONFIG), config)

@@ -8,7 +8,8 @@ pub struct DirectoryServiceProvider {
     pub gateway: String,
 }
 
-pub struct DirectoryServiceProviderDetailed {
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct DirectorySpDetailed {
     pub id: String,
     pub description: String,
     pub address: String,

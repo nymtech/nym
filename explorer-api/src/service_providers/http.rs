@@ -73,6 +73,11 @@ pub async fn get_services() -> Result<Vec<DirectorySpDetailed>, GetSpError> {
                 routing_score: sp.routing_score,
                 service_type: "something".into(),
             });
+        } else {
+            log::warn!(
+                "service provider info not found in Harbour Master data {}",
+                dir_sp.address
+            );
         }
         acc
     });
@@ -85,6 +90,9 @@ pub async fn get_services() -> Result<Vec<DirectorySpDetailed>, GetSpError> {
 pub(crate) async fn get_service_providers() -> Result<Json<Vec<DirectorySpDetailed>>, Status> {
     match get_services().await {
         Ok(res) => Ok(Json(res)),
-        Err(_) => Err(Status::InternalServerError),
+        Err(err) => {
+            log::error!("{:?}", err);
+            Err(Status::InternalServerError)
+        }
     }
 }

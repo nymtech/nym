@@ -3,7 +3,7 @@
 
 use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
 use crate::config::old_config_v1_1_20::ConfigV1_1_20;
-use crate::config::old_config_v1_1_20::ConfigV1_1_20_2;
+use crate::config::old_config_v1_1_20_2::ConfigV1_1_20_2;
 use crate::{
     config::{BaseClientConfig, Config},
     error::NetworkRequesterError,

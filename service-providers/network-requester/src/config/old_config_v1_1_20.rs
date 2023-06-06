@@ -1,99 +1,111 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::NetworkRequesterPaths;
-use crate::config::{default_config_filepath, Config, Debug, NetworkRequester};
-use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::config::disk_persistence::old_v1_1_20::CommonClientPathsV1_1_20;
-use nym_client_core::config::old_config_v1_1_20::ConfigV1_1_20 as BaseClientConfigV1_1_20;
-use nym_client_core::config::GatewayEndpointConfig;
-use nym_config::read_config_from_toml_file;
+use crate::config::old_config_v1_1_20_2::{
+    ConfigV1_1_20_2, DebugV1_1_20_2, NetworkRequesterPathsV1_1_20_2,
+};
+use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
+use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
+use nym_client_core::config::old_config_v1_1_20::ConfigV1_1_20 as BaseConfigV1_1_20;
+use nym_client_core::config::old_config_v1_1_20_2::{
+    ClientV1_1_20_2, ConfigV1_1_20_2 as BaseClientConfigV1_1_20_2,
+};
+use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 use serde::{Deserialize, Serialize};
-use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 
-pub const DEFAULT_STANDARD_LIST_UPDATE_INTERVAL: Duration = Duration::from_secs(30 * 60);
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
-pub struct NetworkRequesterPathsV1_1_20 {
-    #[serde(flatten)]
-    pub common_paths: CommonClientPathsV1_1_20,
-
-    /// Location of the file containing our allow.list
-    pub allowed_list_location: PathBuf,
-
-    /// Location of the file containing our unknown.list
-    pub unknown_list_location: PathBuf,
-}
+const DEFAULT_STANDARD_LIST_UPDATE_INTERVAL: Duration = Duration::from_secs(30 * 60);
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigV1_1_20 {
     #[serde(flatten)]
-    pub base: BaseClientConfigV1_1_20,
+    pub base: BaseConfigV1_1_20<ConfigV1_1_20>,
 
     #[serde(default)]
-    pub network_requester: NetworkRequesterV1_1_20,
-
-    pub storage_paths: NetworkRequesterPathsV1_1_20,
+    pub network_requester: NetworkRequster,
 
     #[serde(default)]
     pub network_requester_debug: DebugV1_1_20,
-
-    pub logging: LoggingSettings,
 }
 
-impl ConfigV1_1_20 {
-    pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        read_config_from_toml_file(path)
-    }
-
-    pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
-        Self::read_from_toml_file(default_config_filepath(id))
-    }
-
-    // in this upgrade, gateway endpoint configuration was moved out of the config file,
-    // so its returned to be stored elsewhere.
-    pub fn upgrade(self) -> (Config, GatewayEndpointConfig) {
-        let gateway_details = self.base.client.gateway_endpoint.clone().into();
-        let config = Config {
-            base: self.base.into(),
-            storage_paths: NetworkRequesterPaths {
-                common_paths: self.storage_paths.common_paths.upgrade_default(),
-                allowed_list_location: self.storage_paths.allowed_list_location,
-                unknown_list_location: self.storage_paths.unknown_list_location,
+impl From<ConfigV1_1_20> for ConfigV1_1_20_2 {
+    fn from(value: ConfigV1_1_20) -> Self {
+        ConfigV1_1_20_2 {
+            base: BaseClientConfigV1_1_20_2 {
+                client: ClientV1_1_20_2 {
+                    version: value.base.client.version,
+                    id: value.base.client.id,
+                    disabled_credentials_mode: value.base.client.disabled_credentials_mode,
+                    nyxd_urls: value.base.client.nyxd_urls,
+                    nym_api_urls: value.base.client.nym_api_urls,
+                    gateway_endpoint: value.base.client.gateway_endpoint.into(),
+                },
+                debug: Default::default(),
             },
-            network_requester_debug: self.network_requester_debug.into(),
-            logging: self.logging,
-            network_requester: self.network_requester.into(),
-        };
-
-        (config, gateway_details)
+            network_requester: Default::default(),
+            storage_paths: NetworkRequesterPathsV1_1_20_2 {
+                common_paths: CommonClientPathsV1_1_20_2 {
+                    keys: ClientKeysPaths {
+                        private_identity_key_file: value.base.client.private_identity_key_file,
+                        public_identity_key_file: value.base.client.public_identity_key_file,
+                        private_encryption_key_file: value.base.client.private_encryption_key_file,
+                        public_encryption_key_file: value.base.client.public_encryption_key_file,
+                        gateway_shared_key_file: value.base.client.gateway_shared_key_file,
+                        ack_key_file: value.base.client.ack_key_file,
+                    },
+                    credentials_database: value.base.client.database_path,
+                    reply_surb_database: value.base.client.reply_surb_database_path,
+                },
+                allowed_list_location: value.network_requester.allowed_list_location,
+                unknown_list_location: value.network_requester.unknown_list_location,
+            },
+            network_requester_debug: value.network_requester_debug.into(),
+            logging: Default::default(),
+        }
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct NetworkRequesterV1_1_20 {}
+impl MigrationNymConfig for ConfigV1_1_20 {
+    fn default_root_directory() -> PathBuf {
+        dirs::home_dir()
+            .expect("Failed to evaluate $HOME value")
+            .join(".nym")
+            .join("service-providers")
+            .join("network-requester")
+    }
+}
 
-impl From<NetworkRequesterV1_1_20> for NetworkRequester {
-    fn from(_value: NetworkRequesterV1_1_20) -> Self {
-        NetworkRequester {}
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NetworkRequster {
+    pub allowed_list_location: PathBuf,
+    pub unknown_list_location: PathBuf,
+}
+
+impl Default for NetworkRequster {
+    fn default() -> Self {
+        // same defaults as we had in <= v1.1.13
+        NetworkRequster {
+            allowed_list_location: <ConfigV1_1_20 as MigrationNymConfig>::default_root_directory()
+                .join("allowed.list"),
+            unknown_list_location: <ConfigV1_1_20 as MigrationNymConfig>::default_root_directory()
+                .join("unknown.list"),
+        }
     }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DebugV1_1_20 {
-    /// Defines how often the standard allow list should get updated
     #[serde(with = "humantime_serde")]
     pub standard_list_update_interval: Duration,
 }
 
-impl From<DebugV1_1_20> for Debug {
+impl From<DebugV1_1_20> for DebugV1_1_20_2 {
     fn from(value: DebugV1_1_20) -> Self {
-        Debug {
+        DebugV1_1_20_2 {
             standard_list_update_interval: value.standard_list_update_interval,
         }
     }

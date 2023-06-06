@@ -15,6 +15,7 @@ use wasm_bindgen::prelude::*;
 pub mod disk_persistence;
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;
+pub mod old_config_v1_1_20_2;
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
@@ -217,6 +218,8 @@ impl From<nym_topology::gateway::Node> for GatewayEndpointConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+// note: the deny_unknown_fields is VITAL here to allow upgrades from v1.1.20_2
+#[serde(deny_unknown_fields)]
 pub struct Client {
     /// Version of the client for which this configuration was created.
     pub version: String,

@@ -6,12 +6,14 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 pub mod keys_paths;
+pub mod old_v1_1_20_2;
 
 pub const DEFAULT_GATEWAY_DETAILS_FILENAME: &str = "gateway_details.json";
 pub const DEFAULT_REPLY_SURB_DB_FILENAME: &str = "persistent_reply_store.sqlite";
 pub const DEFAULT_CREDENTIALS_DB_FILENAME: &str = "credentials_database.db";
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct CommonClientPaths {
     pub keys: ClientKeysPaths,
 

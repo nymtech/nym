@@ -117,6 +117,16 @@ impl OnDiskGatewayDetails {
         &self,
         details: &PersistedGatewayDetails,
     ) -> Result<(), OnDiskGatewayDetailsError> {
+        // ensure the whole directory structure exists
+        if let Some(parent_dir) = &self.file_location.parent() {
+            std::fs::create_dir_all(parent_dir).map_err(|err| {
+                OnDiskGatewayDetailsError::StoreFailure {
+                    path: self.file_location.display().to_string(),
+                    err,
+                }
+            })?
+        }
+
         let file = File::open(&self.file_location).map_err(|err| {
             OnDiskGatewayDetailsError::StoreFailure {
                 path: self.file_location.display().to_string(),

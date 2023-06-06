@@ -4,6 +4,7 @@
 use crate::client::key_manager::KeyManager;
 use async_trait::async_trait;
 use std::error::Error;
+use zeroize::Zeroizing;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::config::disk_persistence::keys_paths::ClientKeysPaths;
@@ -83,11 +84,19 @@ impl OnDiskKeys {
         OnDiskKeys { paths }
     }
 
+    #[doc(hidden)]
+    pub fn ephemeral_load_gateway_keys(&self) -> Result<Zeroizing<SharedKeys>, OnDiskKeysError> {
+        self.load_key(self.paths.gateway_shared_key(), "gateway shared keys")
+            .map(Zeroizing::new)
+    }
+
+    #[doc(hidden)]
     pub fn load_encryption_keypair(&self) -> Result<encryption::KeyPair, OnDiskKeysError> {
         let encryption_paths = self.paths.encryption_key_pair_path();
         self.load_keypair(encryption_paths, "encryption keys")
     }
 
+    #[doc(hidden)]
     pub fn load_identity_keypair(&self) -> Result<identity::KeyPair, OnDiskKeysError> {
         let identity_paths = self.paths.identity_key_pair_path();
         self.load_keypair(identity_paths, "identity keys")

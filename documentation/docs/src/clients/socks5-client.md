@@ -2,6 +2,12 @@
 
 > The Nym socks5 client was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code on this page, go there first.
 
+## Current version
+```
+<!-- cmdrun ../../../../target/release/nym-socks5-client --version | grep "Build Version" | cut -b 21-26  -->
+```
+
+## What is this client for?
 Many existing applications are able to use either the SOCKS4, SOCKS4A, or SOCKS5 proxy protocols. If you want to send such an application's traffic through the mixnet, you can use the `nym-socks5-client` to bounce network traffic through the Nym network, like this:
 
 ```

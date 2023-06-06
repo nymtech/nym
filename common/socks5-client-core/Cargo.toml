@@ -14,9 +14,9 @@ serde = { workspace = true, features = ["derive"] } # for config serialization/d
 thiserror = "1.0.34"
 tap = "1.0.1"
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
+futures = "0.3"
 
 nym-client-core = { path = "../client-core", features = ["fs-surb-storage"] }
-futures = "0.3"
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-config = { path = "../config" }
 nym-credential-storage = { path = "../credential-storage" }

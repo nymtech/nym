@@ -2,9 +2,12 @@
 
 > The Nym mix node binary was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
-```admonish info
-The `nym-mixnode` binary is currently one point version ahead of the rest of the platform binaries due to a patch applied between releases.
+## Current version
 ```
+<!-- cmdrun ../../../../target/release/nym-mixnode --version | grep "Build Version" | cut -b 21-26  -->
+```
+
+The `nym-mixnode` binary is currently one point version ahead of the rest of the platform binaries due to a patch applied between releases.
 
 ## Preliminary steps
 
@@ -228,10 +231,10 @@ sudo ufw enable
 sudo ufw status
 ```
 
-Finally open your mix node's p2p port, as well as ports for ssh, http, and https connections, and ports `8000` and `1790` for verloc and measurement pings:
+Finally open your mix node's p2p port, as well as ports for ssh and ports `8000` and `1790` for verloc and measurement pings:
 
 ```
-sudo ufw allow 1789,1790,8000,22,80,443/tcp
+sudo ufw allow 1789,1790,8000,22/tcp
 # check the status of the firewall
 sudo ufw status
 ```

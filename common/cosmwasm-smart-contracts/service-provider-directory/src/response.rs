@@ -1,4 +1,4 @@
-use crate::{msg::ExecuteMsg, Service, ServiceId, ServiceInfo};
+use crate::{Service, ServiceId};
 use cosmwasm_std::Coin;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -13,22 +13,17 @@ pub struct ServiceInfoResponse {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ServicesListResponse {
-    pub services: Vec<ServiceInfo>,
+    pub services: Vec<Service>,
 }
 
 impl ServicesListResponse {
-    pub fn new(services: Vec<(ServiceId, Service)>) -> ServicesListResponse {
-        ServicesListResponse {
-            services: services
-                .into_iter()
-                .map(|(service_id, service)| ServiceInfo::new(service_id, service))
-                .collect(),
-        }
+    pub fn new(services: Vec<Service>) -> ServicesListResponse {
+        ServicesListResponse { services }
     }
 }
 
-impl From<&[ServiceInfo]> for ServicesListResponse {
-    fn from(services: &[ServiceInfo]) -> Self {
+impl From<&[Service]> for ServicesListResponse {
+    fn from(services: &[Service]) -> Self {
         Self {
             services: services.to_vec(),
         }
@@ -38,21 +33,17 @@ impl From<&[ServiceInfo]> for ServicesListResponse {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct PagedServicesListResponse {
-    pub services: Vec<ServiceInfo>,
+    pub services: Vec<Service>,
     pub per_page: usize,
     pub start_next_after: Option<ServiceId>,
 }
 
 impl PagedServicesListResponse {
     pub fn new(
-        services: Vec<(ServiceId, Service)>,
+        services: Vec<Service>,
         per_page: usize,
         start_next_after: Option<ServiceId>,
     ) -> PagedServicesListResponse {
-        let services = services
-            .into_iter()
-            .map(|(service_id, service)| ServiceInfo::new(service_id, service))
-            .collect();
         PagedServicesListResponse {
             services,
             per_page,
@@ -65,13 +56,4 @@ impl PagedServicesListResponse {
 #[serde(rename_all = "snake_case")]
 pub struct ConfigResponse {
     pub deposit_required: Coin,
-}
-
-impl From<Service> for ExecuteMsg {
-    fn from(service: Service) -> Self {
-        ExecuteMsg::Announce {
-            nym_address: service.nym_address,
-            service_type: service.service_type,
-        }
-    }
 }

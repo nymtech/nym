@@ -4,7 +4,8 @@
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
 
-use crate::error::Result;
+pub use nym_service_provider_directory_common::error::{Result, SpContractError};
+
 use nym_service_provider_directory_common::msg::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
@@ -12,13 +13,10 @@ use nym_service_provider_directory_common::msg::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response};
-use error::ContractError;
 
+mod constants;
 mod contract;
-mod error;
 mod state;
-
-pub mod constants;
 
 #[cfg(test)]
 mod integration_tests;
@@ -38,7 +36,7 @@ pub fn instantiate(
 
 /// Contract entry point for migrations.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, SpContractError> {
     contract::migrate(deps, env, msg)
 }
 
@@ -49,7 +47,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SpContractError> {
     contract::execute(deps, env, info, msg)
 }
 

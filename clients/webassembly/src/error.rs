@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::storage::errors::ClientStorageError;
 use crate::topology::WasmTopologyError;
 use js_sys::Promise;
 use nym_client_core::error::ClientCoreError;
@@ -77,6 +78,12 @@ pub enum WasmClientError {
     MalformedSenderTag {
         raw: String,
         source: InvalidAnonymousSenderTagRepresentation,
+    },
+
+    #[error(transparent)]
+    StorageError {
+        #[from]
+        source: ClientStorageError,
     },
 }
 

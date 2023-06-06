@@ -9,10 +9,10 @@ async fn main() {
 
     let sandbox_network = mixnet::NymNetworkDetails::new_from_env();
 
-    let mixnet_client = mixnet::MixnetClientBuilder::new()
+    let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .network_details(sandbox_network)
         .enable_credentials_mode()
-        .build::<mixnet::EmptyReplyStorage>()
+        .build()
         .await
         .unwrap();
 

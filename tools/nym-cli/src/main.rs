@@ -54,6 +54,7 @@ pub(crate) struct Cli {
     command: Commands,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Subcommand)]
 pub(crate) enum Commands {
     /// Query and manage Nyx blockchain accounts

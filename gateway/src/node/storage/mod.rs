@@ -31,7 +31,7 @@ pub(crate) trait Storage: Send + Sync {
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: SharedKeys,
+        shared_keys: &SharedKeys,
     ) -> Result<(), StorageError>;
 
     /// Tries to retrieve shared keys stored for the particular client.
@@ -197,7 +197,7 @@ impl Storage for PersistentStorage {
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: SharedKeys,
+        shared_keys: &SharedKeys,
     ) -> Result<(), StorageError> {
         let persisted_shared_keys = PersistedSharedKeys {
             client_address_bs58: client_address.as_base58_string(),
@@ -325,7 +325,7 @@ impl Storage for InMemStorage {
     async fn insert_shared_keys(
         &self,
         _client_address: DestinationAddressBytes,
-        _shared_keys: SharedKeys,
+        _shared_keys: &SharedKeys,
     ) -> Result<(), StorageError> {
         todo!()
     }

@@ -5,6 +5,7 @@ use clap::{Args, Subcommand};
 
 pub mod gateway;
 pub mod mixnode;
+pub mod name;
 pub mod service;
 
 #[derive(Debug, Args)]
@@ -14,6 +15,7 @@ pub struct MixnetOperators {
     pub command: MixnetOperatorsCommands,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Subcommand)]
 pub enum MixnetOperatorsCommands {
     /// Manage your mixnode
@@ -22,4 +24,6 @@ pub enum MixnetOperatorsCommands {
     Gateway(gateway::MixnetOperatorsGateway),
     /// Manage your service
     ServiceProvider(service::MixnetOperatorsService),
+    /// Manage your registered name
+    Name(name::MixnetOperatorsName),
 }

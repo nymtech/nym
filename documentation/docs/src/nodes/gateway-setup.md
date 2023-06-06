@@ -2,6 +2,12 @@
 
 > The Nym gateway was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
+## Current version
+```
+<!-- cmdrun ../../../../target/release/nym-gateway --version | grep "Build Version" | cut -b 21-26  -->
+```
+
+
 ## Preliminary steps
 There are a couple of steps that need completing before starting to set up your gateway:
 

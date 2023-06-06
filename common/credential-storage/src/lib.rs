@@ -10,7 +10,7 @@ use crate::persistent_storage::PersistentStorage;
 mod backends;
 pub mod ephemeral_storage;
 pub mod error;
-mod models;
+pub mod models;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod persistent_storage;
 pub mod storage;

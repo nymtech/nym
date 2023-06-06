@@ -1,4 +1,4 @@
-export interface Debug {
+export interface Acknowledgements {
   free(): void;
   /**
    * Value added to the expected round trip time of an acknowledgement packet before
@@ -19,33 +19,38 @@ export interface Debug {
    * until the packet reaches its destination.
    */
   average_ack_delay_ms: bigint;
+}
+
+export interface CoverTraffic {
+  free(): void;
   /**
-   * The parameter of Poisson distribution determining how long, on average,
-   * sent packet is going to be delayed at any given mix node.
-   * So for a packet going through three mix nodes, on average, it will take three times this value
-   * until the packet reaches its destination.
+   * Specifies the ratio of `primary_packet_size` to `secondary_packet_size` used in cover traffic.
+   * Only applicable if `secondary_packet_size` is enabled.
    */
-  average_packet_delay_ms: bigint;
+  cover_traffic_primary_size_ratio: number;
   /**
    * Controls whether the dedicated loop cover traffic stream should be enabled.
-   * (and sending packets, on average, every [Self::loop_cover_traffic_average_delay_ms])
+   * (and sending packets, on average, every [Self::loop_cover_traffic_average_delay])
    */
   disable_loop_cover_traffic_stream: boolean;
-  /**
-   * Controls whether the main packet stream constantly produces packets according to the predefined
-   * poisson distribution.
-   */
-  disable_main_poisson_packet_distribution: boolean;
-  /**
-   * How long we're willing to wait for a response to a message sent to the gateway,
-   * before giving up on it.
-   */
-  gateway_response_timeout_ms: bigint;
   /**
    * The parameter of Poisson distribution determining how long, on average,
    * it is going to take for another loop cover traffic message to be sent.
    */
   loop_cover_traffic_average_delay_ms: bigint;
+}
+
+export interface GatewayConnection {
+  free(): void;
+  /**
+   * How long we're willing to wait for a response to a message sent to the gateway,
+   * before giving up on it.
+   */
+  gateway_response_timeout_ms: bigint;
+}
+
+export interface ReplySurbs {
+  free(): void;
   /**
    * Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
    */
@@ -79,13 +84,6 @@ export interface Debug {
    */
   maximum_reply_surb_storage_threshold: number;
   /**
-   * The parameter of Poisson distribution determining how long, on average,
-   * it is going to take another 'real traffic stream' message to be sent.
-   * If no real packets are available and cover traffic is enabled,
-   * a loop cover message is sent instead in order to preserve the rate.
-   */
-  message_sending_average_delay_ms: bigint;
-  /**
    * Defines the minimum number of reply surbs the client would request.
    */
   minimum_reply_surb_request_size: number;
@@ -94,6 +92,44 @@ export interface Debug {
    * It can only allow to go below that value if its to request additional reply surbs.
    */
   minimum_reply_surb_storage_threshold: number;
+}
+
+export interface Debug {
+  free(): void;
+  /**
+   * Defines all configuration options related to acknowledgements, such as delays or wait timeouts.
+   */
+  acknowledgements: Acknowledgements;
+  /**
+   * Defines all configuration options related to cover traffic stream(s).
+   */
+  cover_traffic: CoverTraffic;
+  /**
+   * Defines all configuration options related to the gateway connection.
+   */
+  gateway_connection: GatewayConnection;
+  /**
+   * Defines all configuration options related to reply SURBs.
+   */
+  reply_surbs: ReplySurbs;
+  /**
+   * Defines all configuration options related topology, such as refresh rates or timeouts.
+   */
+  topology: Topology;
+  /**
+   * Defines all configuration options related to traffic streams.
+   */
+  traffic: Traffic;
+}
+
+export interface Topology {
+  free(): void;
+  /**
+   * Specifies whether the client should not refresh the network topology after obtaining
+   * the first valid instance.
+   * Supersedes `topology_refresh_rate_ms`.
+   */
+  disable_refreshing: boolean;
   /**
    * The uniform delay every which clients are querying the directory server
    * to try to obtain a compatible network topology to send sphinx packets through.
@@ -105,6 +141,29 @@ export interface Debug {
    * did not reach its destination.
    */
   topology_resolution_timeout_ms: bigint;
+}
+
+export interface Traffic {
+  free(): void;
+  /**
+   * The parameter of Poisson distribution determining how long, on average,
+   * sent packet is going to be delayed at any given mix node.
+   * So for a packet going through three mix nodes, on average, it will take three times this value
+   * until the packet reaches its destination.
+   */
+  average_packet_delay_ms: bigint;
+  /**
+   * Controls whether the main packet stream constantly produces packets according to the predefined
+   * poisson distribution.
+   */
+  disable_main_poisson_packet_distribution: boolean;
+  /**
+   * The parameter of Poisson distribution determining how long, on average,
+   * it is going to take another 'real traffic stream' message to be sent.
+   * If no real packets are available and cover traffic is enabled,
+   * a loop cover message is sent instead in order to preserve the rate.
+   */
+  message_sending_average_delay_ms: bigint;
   /**
    * Controls whether the sent sphinx packet use the NON-DEFAULT bigger size.
    */

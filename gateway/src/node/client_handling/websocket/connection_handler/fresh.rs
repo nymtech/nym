@@ -194,7 +194,7 @@ where
     /// * `packets`: unwrapped packets that are to be pushed back to the client.
     pub(crate) async fn push_packets_to_client(
         &mut self,
-        shared_keys: SharedKeys,
+        shared_keys: &SharedKeys,
         packets: Vec<Vec<u8>>,
     ) -> Result<(), WsError>
     where
@@ -206,7 +206,7 @@ where
             .into_iter()
             .map(|received_message| {
                 Ok(BinaryResponse::new_pushed_mix_message(received_message)
-                    .into_ws_message(&shared_keys))
+                    .into_ws_message(shared_keys))
             })
             .collect();
         let mut send_stream = futures::stream::iter(messages);
@@ -249,7 +249,7 @@ where
     async fn push_stored_messages_to_client(
         &mut self,
         client_address: DestinationAddressBytes,
-        shared_keys: SharedKeys,
+        shared_keys: &SharedKeys,
     ) -> Result<(), InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -386,7 +386,7 @@ where
             .await?;
 
         if let Some(shared_keys) = shared_keys {
-            self.push_stored_messages_to_client(client_address, shared_keys)
+            self.push_stored_messages_to_client(client_address, &shared_keys)
                 .await?;
             Ok(Some(shared_keys))
         } else {
@@ -454,7 +454,7 @@ where
     /// * `client`: details (i.e. address and shared keys) of the registered client
     async fn register_client(
         &mut self,
-        client: ClientDetails,
+        client: &ClientDetails,
     ) -> Result<bool, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -465,7 +465,7 @@ where
         );
 
         self.storage
-            .insert_shared_keys(client.address, client.shared_keys)
+            .insert_shared_keys(client.address, &client.shared_keys)
             .await?;
 
         // see if we have bandwidth entry for the client already, if not, create one with zero value
@@ -478,7 +478,7 @@ where
             self.storage.create_bandwidth_entry(client.address).await?;
         }
 
-        self.push_stored_messages_to_client(client.address, client.shared_keys)
+        self.push_stored_messages_to_client(client.address, &client.shared_keys)
             .await?;
 
         Ok(true)
@@ -510,7 +510,7 @@ where
         let shared_keys = self.perform_registration_handshake(init_data).await?;
         let client_details = ClientDetails::new(remote_address, shared_keys);
 
-        let status = self.register_client(client_details).await?;
+        let status = self.register_client(&client_details).await?;
 
         Ok(InitialAuthResult::new(
             Some(client_details),

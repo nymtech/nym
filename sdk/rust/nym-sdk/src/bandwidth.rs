@@ -10,9 +10,9 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let mixnet_client = mixnet::MixnetClientBuilder::new()
+//!     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
 //!         .enable_credentials_mode()
-//!         .build::<mixnet::EmptyReplyStorage>()
+//!         .build()
 //!         .await
 //!         .unwrap();
 //!

@@ -8,9 +8,9 @@ async fn main() {
     let mut receiving_client = mixnet::MixnetClient::connect_new().await.unwrap();
 
     let socks5_config = mixnet::Socks5::new(receiving_client.nym_address().to_string());
-    let sending_client = mixnet::MixnetClientBuilder::new()
+    let sending_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .socks5_config(socks5_config)
-        .build::<mixnet::EmptyReplyStorage>()
+        .build()
         .await
         .unwrap();
 

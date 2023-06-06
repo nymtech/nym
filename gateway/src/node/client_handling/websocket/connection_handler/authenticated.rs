@@ -400,7 +400,7 @@ where
                 },
                 mix_messages = self.mix_receiver.next() => {
                     let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
-                    if let Err(err) = self.inner.push_packets_to_client(self.client.shared_keys, mix_messages).await {
+                    if let Err(err) = self.inner.push_packets_to_client(&self.client.shared_keys, mix_messages).await {
                         warn!("failed to send the unwrapped sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;
                     }

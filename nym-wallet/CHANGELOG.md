@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v1.2.4] (2023-06-06)
+
+- Wallet - Bonding page does not load the node info automatically unless you navigate back and forth from it! ([#3478])
+
+[#3478]: https://github.com/nymtech/nym/issues/3478
+
 ## [v1.2.3] (2023-05-16)
 
 - Wallet - Allow users to choose validator under the Advanced Settings 🟢 ([#2489])

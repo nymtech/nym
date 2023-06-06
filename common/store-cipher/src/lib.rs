@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use aes_gcm::aead::{Aead, Nonce};
-use aes_gcm::{AeadCore, AeadInPlace, Key, KeyInit, KeySizeUser};
+use aes_gcm::{AeadCore, AeadInPlace, KeyInit};
 use rand::{thread_rng, CryptoRng, Fill, RngCore};
 use serde::{Deserialize, Serialize};
 use serde_helpers::{argon2_algorithm_helper, argon2_params_helper, argon2_version_helper};
@@ -10,7 +10,9 @@ use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub use aes_gcm::Aes256Gcm;
+pub use aes_gcm::{Key, KeySizeUser};
 pub use argon2::{Algorithm, Argon2, Params, Version};
+pub use generic_array::typenum::Unsigned;
 
 mod serde_helpers;
 
@@ -18,8 +20,13 @@ pub const CURRENT_VERSION: u8 = 1;
 pub const ARGON2_SALT_SIZE: usize = 16;
 pub const AES256GCM_NONCE_SIZE: usize = 12;
 
+const VERIFICATION_PHRASE: &[u8] = &[0u8; 32];
+
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("Unsupported cipher")]
+    UnsupportedCipher,
+
     #[error("failed to encrypt/decrypt provided data: {cause}")]
     AesFailure { cause: aes_gcm::Error },
 
@@ -41,6 +48,12 @@ pub enum Error {
 
     #[error("the received ciphertext was encrypted with different store version ({received}). The current version is {CURRENT_VERSION}")]
     VersionMismatch { received: u8 },
+
+    #[error("the decoded verification phrase did not match the expected value")]
+    VerificationPhraseMismatch,
+
+    #[error("could not import the store - the provided passphrase was invalid")]
+    InvalidImportPassphrase,
 }
 
 // it's weird that this couldn't be auto-derived with a `#[from]`...
@@ -56,7 +69,7 @@ impl From<argon2::Error> for Error {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum KdfInfo {
     Argon2 {
         /// The Argon2 parameters that were used when deriving the store key.
@@ -122,12 +135,93 @@ impl KdfInfo {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum CiphertextInfo {
+    Aes256Gcm {
+        /// The nonce that was used to encrypt the ciphertext.
+        nonce: [u8; AES256GCM_NONCE_SIZE],
+        ciphertext: Vec<u8>,
+    },
+}
+
+impl CiphertextInfo {
+    pub fn nonce<C>(&self) -> &Nonce<C>
+    where
+        C: AeadCore,
+    {
+        match self {
+            CiphertextInfo::Aes256Gcm { nonce, .. } => Nonce::<C>::from_slice(nonce),
+        }
+    }
+
+    pub fn ciphertext(&self) -> &[u8] {
+        match self {
+            CiphertextInfo::Aes256Gcm { ciphertext, .. } => ciphertext,
+        }
+    }
+}
+
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct StoreCipher<C = Aes256Gcm>
 where
     C: KeySizeUser,
 {
     key: Key<C>,
+
+    #[zeroize(skip)]
+    kdf_info: KdfInfo,
+}
+
+impl StoreCipher<Aes256Gcm> {
+    pub fn import_aes256gcm(
+        passphrase: &[u8],
+        exported: ExportedStoreCipher,
+    ) -> Result<Self, Error> {
+        // that's a terrible interface, but we can refactor it later
+        if !matches!(exported.ciphertext_info, CiphertextInfo::Aes256Gcm { .. }) {
+            return Err(Error::UnsupportedCipher);
+        }
+
+        let mut key = exported.kdf_info.expand_key::<Aes256Gcm>(passphrase)?;
+
+        // check if correct key was derived
+        let Ok(plaintext) = Aes256Gcm::new(&key).decrypt(
+            exported.ciphertext_info.nonce::<Aes256Gcm>(),
+            exported.ciphertext_info.ciphertext(),
+        ) else {
+            key.zeroize();
+            return Err(Error::InvalidImportPassphrase)
+        };
+
+        // if we successfully decrypted aes256gcm ciphertext, it's almost certainly correct
+        // otherwise the tag wouldn't match, but let's do the sanity sake
+        if plaintext != VERIFICATION_PHRASE {
+            key.zeroize();
+            return Err(Error::VerificationPhraseMismatch);
+        }
+
+        Ok(StoreCipher {
+            key,
+            kdf_info: exported.kdf_info,
+        })
+    }
+
+    pub fn export_aes256gcm(&self) -> Result<ExportedStoreCipher, Error> {
+        let verification_ciphertext = self.encrypt_data_ref(VERIFICATION_PHRASE)?;
+
+        Ok(ExportedStoreCipher {
+            kdf_info: self.kdf_info.clone(),
+            ciphertext_info: CiphertextInfo::Aes256Gcm {
+                // the unwrap is fine, otherwise it implies we've been using incorrect nonces all along!
+                nonce: verification_ciphertext.nonce.try_into().unwrap(),
+                ciphertext: verification_ciphertext.ciphertext,
+            },
+        })
+    }
+
+    pub fn new_aes256gcm(passphrase: &[u8], kdf_info: KdfInfo) -> Result<Self, Error> {
+        Self::new(passphrase, kdf_info)
+    }
 }
 
 impl<C: KeySizeUser + KeyInit> StoreCipher<C>
@@ -136,7 +230,7 @@ where
 {
     pub fn new(passphrase: &[u8], kdf_info: KdfInfo) -> Result<Self, Error> {
         let key = kdf_info.expand_key::<C>(passphrase)?;
-        Ok(StoreCipher { key })
+        Ok(StoreCipher { key, kdf_info })
     }
 
     pub fn new_with_default_kdf(passphrase: &[u8]) -> Result<Self, Error> {
@@ -195,14 +289,9 @@ where
     where
         C: AeadInPlace,
     {
-        let mut plaintext = self.decrypt_data(data)?;
-
-        // DO NOT USE `?` here!!
-        // We need to make sure to zeroize the plaintext even if deserialization fails!!
-        let value = serde_json::from_slice(&plaintext);
-
-        plaintext.zeroize();
-        Ok(value?)
+        let plaintext = zeroize::Zeroizing::new(self.decrypt_data(data)?);
+        let value = serde_json::from_slice(&plaintext)?;
+        Ok(value)
     }
 
     pub fn decrypt_data_unchecked(&self, data: EncryptedData) -> Result<Vec<u8>, Error>
@@ -246,6 +335,17 @@ where
         nonce.try_fill(rng)?;
         Ok(nonce)
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ExportedStoreCipher {
+    /// Info about the key derivation method that was used to expand the
+    /// passphrase into an encryption key.
+    pub kdf_info: KdfInfo,
+
+    /// The ciphertext of known plaintext and additional data that is needed to
+    /// verify correct key derivation and cipher choice.
+    pub ciphertext_info: CiphertextInfo,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]

@@ -4,24 +4,16 @@
 use crate::error::WasmClientError;
 use crate::topology::WasmNymTopology;
 use js_sys::Promise;
-use nym_client_core::client::key_manager::KeyManager;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_client_core::config;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_topology::NymTopology;
 use nym_validator_client::NymApiClient;
-use rand::rngs::OsRng;
 use url::Url;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::{console_log, PromisableResult};
-
-pub(crate) fn setup_new_key_manager() -> KeyManager {
-    let mut rng = OsRng;
-    console_log!("generated new set of keys");
-    KeyManager::new(&mut rng)
-}
+use wasm_utils::PromisableResult;
 
 // don't get too excited about the name, under the hood it's just a big fat placeholder
 // with no persistence

@@ -5,10 +5,13 @@ use crate::config::GatewayEndpointConfig;
 use async_trait::async_trait;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::convert::Infallible;
 use std::error::Error;
 use std::fs::File;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use zeroize::Zeroizing;
 
 // TODO: to incorporate into `MixnetClientStorage`
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -26,38 +29,42 @@ pub trait GatewayDetailsStore {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedGatewayDetails {
-    /// (to be determined), hash, ciphertext or tag derived from the details and the shared key
-    /// to ensure they correspond to the same instance.
-    magic_crypto_field: (),
+    // TODO: should we also verify correctness of the details themselves?
+    // i.e. we could include a checksum or tag (via the shared keys)
+    // counterargument: if we wanted to modify, say, the host information in the stored file on disk,
+    // in order to actually use it, we'd have to recompute the whole checksum which would be a huge pain.
+    /// The hash of the shared keys to ensure the correct ones are used with those gateway details.
+    key_hash: Vec<u8>,
 
     /// Actual gateway details being persisted.
     pub(crate) details: GatewayEndpointConfig,
 }
 
-impl Into<GatewayEndpointConfig> for PersistedGatewayDetails {
-    fn into(self) -> GatewayEndpointConfig {
-        self.details
+impl From<PersistedGatewayDetails> for GatewayEndpointConfig {
+    fn from(value: PersistedGatewayDetails) -> Self {
+        value.details
     }
 }
 
 impl PersistedGatewayDetails {
     pub fn new(details: GatewayEndpointConfig, shared_key: &SharedKeys) -> Self {
-        let magic_crypto_field = {
-            // TODO:
-            shared_key;
-        };
+        let key_bytes = Zeroizing::new(shared_key.to_bytes());
 
-        PersistedGatewayDetails {
-            magic_crypto_field,
-            details,
-        }
+        let mut key_hasher = Sha256::new();
+        key_hasher.update(&key_bytes);
+        let key_hash = key_hasher.finalize().to_vec();
+
+        PersistedGatewayDetails { key_hash, details }
     }
 
     pub fn verify(&self, shared_key: &SharedKeys) -> bool {
-        // TODO:
-        let magic = |_magic, _key| true;
+        let key_bytes = Zeroizing::new(shared_key.to_bytes());
 
-        magic(self.magic_crypto_field, shared_key)
+        let mut key_hasher = Sha256::new();
+        key_hasher.update(&key_bytes);
+        let key_hash = key_hasher.finalize();
+
+        self.key_hash == key_hash.deref()
     }
 }
 

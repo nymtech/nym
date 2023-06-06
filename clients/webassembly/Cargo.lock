@@ -2280,6 +2280,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
+ "sha2 0.10.6",
  "sqlx 0.6.3",
  "tap",
  "thiserror",

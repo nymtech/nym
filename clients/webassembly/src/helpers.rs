@@ -110,5 +110,5 @@ pub(crate) async fn setup_from_topology(
     client_store: &ClientStorage,
 ) -> Result<InitialisationDetails, WasmClientError> {
     let gateways = topology.gateways();
-    setup_gateway(client_store, explicit_gateway, &gateways).await
+    setup_gateway(client_store, explicit_gateway, gateways).await
 }

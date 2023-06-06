@@ -77,7 +77,7 @@ mod base64 {
     }
 
     pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
-        let s = <&str>::deserialize(deserializer)?;
+        let s = <String>::deserialize(deserializer)?;
         STANDARD.decode(s).map_err(serde::de::Error::custom)
     }
 }

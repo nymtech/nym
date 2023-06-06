@@ -1,8 +1,8 @@
 import React from 'react';
 import { Avatar, ListItem, ListItemAvatar, ListItemButton, ListItemText } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useAppContext } from 'src/context';
 import { AccountActions } from './Actions';
-import { useNavigate } from 'react-router';
 
 const AccountItem = ({
   accountName,

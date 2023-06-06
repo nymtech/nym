@@ -1,8 +1,8 @@
 import React from 'react';
+import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { Button } from 'src/components';
 import { useAppContext, useRegisterContext } from 'src/context';
 import { TopLogoLayout } from 'src/layouts';
-import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { useNavigate } from 'react-router-dom';
 
 export const ConfirmPassword = () => {
@@ -14,7 +14,7 @@ export const ConfirmPassword = () => {
   const handleOnComplete = async () => {
     const accounts = await importAccount();
     setAccounts(accounts);
-    navigate('/user/accounts/import-account/complete');
+    navigate('/user/accounts/complete');
   };
 
   return (

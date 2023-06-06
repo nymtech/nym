@@ -7,8 +7,14 @@ export const BackButton = ({ onBack }: { onBack?: () => void }) => {
   const navigate = useNavigate();
 
   const handleClick = () => {
-    onBack ? onBack() : navigate(-1);
+    if (onBack) {
+      onBack();
+    } else {
+      navigate(-1);
+    }
+    return undefined;
   };
+
   return (
     <IconButton size="small" onClick={handleClick}>
       <ArrowBackIosRounded fontSize="small" />

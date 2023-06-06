@@ -1,15 +1,14 @@
 import React from 'react';
-import { ImportAccountTemplate } from '../templates';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useRegisterContext } from 'src/context/register';
+import { ImportAccountTemplate } from '../templates';
 
 export const ImportAccount = () => {
   const { userMnemonic, setUserMnemonic } = useRegisterContext();
-  const location = useLocation();
   const navigate = useNavigate();
 
   const handleOnNext = () => {
-    navigate(`${location.pathname}/name-account`);
+    navigate('/user/accounts/name-account');
   };
 
   return (

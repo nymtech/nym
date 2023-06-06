@@ -20,29 +20,34 @@ export const RegisterContextProvider = ({ children }: { children: React.ReactNod
   const [userMnemonic, setUserMnemonic] = useState('');
   const [accountName, setAccountName] = useState('');
 
+  const resetState = () => {
+    setUserMnemonic('');
+    setUserPassword('');
+    setAccountName('');
+  };
+
   const createAccount = async ({
     mnemonic,
     password,
-    accountName,
+    accName,
   }: {
     mnemonic: string;
     password: string;
-    accountName: string;
+    accName: string;
   }) => {
     const storage = await new ExtensionStorage(password);
-    await storage.store_mnemonic(accountName, mnemonic);
+    await storage.store_mnemonic(accName, mnemonic);
   };
 
   const importAccount = async () => {
     const storage = await new ExtensionStorage(userPassword);
     await storage.store_mnemonic(accountName, userMnemonic);
     const accounts = await storage.get_all_mnemonic_keys();
+    resetState();
     return accounts;
   };
 
-  const checkAccountName = async () => {
-    return true;
-  };
+  const checkAccountName = async () => true;
 
   const value = useMemo(
     () => ({

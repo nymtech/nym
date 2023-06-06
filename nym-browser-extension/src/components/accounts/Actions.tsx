@@ -1,6 +1,6 @@
 import React from 'react';
 import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
-import { CreateOutlined, MoreVert, VisibilityOutlined } from '@mui/icons-material';
+import { MoreVert, VisibilityOutlined } from '@mui/icons-material';
 import { useAppContext } from 'src/context';
 
 type ActionType = {
@@ -38,7 +38,6 @@ export const AccountActions = ({ accountName }: { accountName: string }) => {
         setShowSeedForAccount(accountName);
       },
     },
-    { title: 'Rename account', Icon: <CreateOutlined />, onSelect: () => undefined },
   ];
 
   return (

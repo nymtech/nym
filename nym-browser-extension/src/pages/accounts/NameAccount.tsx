@@ -10,7 +10,7 @@ export const NameAccount = () => {
   const navigate = useNavigate();
 
   const handleNext = async () => {
-    navigate('/user/accounts/import-account/confirm-password');
+    navigate('/user/accounts/confirm-password');
   };
 
   return (

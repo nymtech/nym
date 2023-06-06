@@ -24,6 +24,7 @@ use url::Url;
 mod helpers;
 
 // TODO: rename to something better...
+#[derive(Debug)]
 pub struct InitialisationDetails {
     pub gateway_details: GatewayEndpointConfig,
     pub managed_keys: ManagedKeys,
@@ -50,7 +51,7 @@ impl InitialisationDetails {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum GatewaySetup {
     /// The gateway specification MUST BE loaded from the underlying storage.
     MustLoad,

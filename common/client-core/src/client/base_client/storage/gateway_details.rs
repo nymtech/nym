@@ -6,14 +6,13 @@ use async_trait::async_trait;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::convert::Infallible;
 use std::error::Error;
 use std::fs::File;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use tokio::sync::Mutex;
 use zeroize::Zeroizing;
 
-// TODO: to incorporate into `MixnetClientStorage`
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait GatewayDetailsStore {
@@ -127,7 +126,7 @@ impl OnDiskGatewayDetails {
             })?
         }
 
-        let file = File::open(&self.file_location).map_err(|err| {
+        let file = File::create(&self.file_location).map_err(|err| {
             OnDiskGatewayDetailsError::StoreFailure {
                 path: self.file_location.display().to_string(),
                 err,
@@ -155,26 +154,33 @@ impl GatewayDetailsStore for OnDiskGatewayDetails {
     }
 }
 
+#[derive(Default)]
 pub struct InMemGatewayDetails {
-    details: PersistedGatewayDetails,
+    details: Mutex<Option<PersistedGatewayDetails>>,
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("old ephemeral gateway details can't be loaded from storage")]
+pub struct EphemeralGatewayDetailsError;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl GatewayDetailsStore for InMemGatewayDetails {
-    type StorageError = Infallible;
+    type StorageError = EphemeralGatewayDetailsError;
 
     async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails, Self::StorageError> {
-        Ok(self.details.clone())
+        self.details
+            .lock()
+            .await
+            .clone()
+            .ok_or(EphemeralGatewayDetailsError)
     }
 
     async fn store_gateway_details(
         &self,
         gateway_details: &PersistedGatewayDetails,
     ) -> Result<(), Self::StorageError> {
-        let _ = gateway_details;
-        todo!()
-        // self.details = gateway_details.clone();
-        // Ok(())
+        *self.details.lock().await = Some(gateway_details.clone());
+        Ok(())
     }
 }

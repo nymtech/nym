@@ -49,7 +49,7 @@ pub trait MixnetClientStorage {
     fn gateway_details_store(&self) -> &Self::GatewayDetailsStore;
 }
 
-// #[derive(Default)]
+#[derive(Default)]
 pub struct Ephemeral {
     key_store: InMemEphemeralKeys,
     reply_store: reply_storage::Empty,
@@ -57,21 +57,17 @@ pub struct Ephemeral {
     gateway_details_store: InMemGatewayDetails,
 }
 
-// impl Ephemeral {
-//     pub fn new() -> Self {
-//         Default::default()
-//     }
-// }
+impl Ephemeral {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
 
 impl MixnetClientStorage for Ephemeral {
     type KeyStore = InMemEphemeralKeys;
     type ReplyStore = reply_storage::Empty;
     type CredentialStore = EphemeralCredentialStorage;
     type GatewayDetailsStore = InMemGatewayDetails;
-
-    // fn into_split(self) -> (Self::KeyStore, Self::ReplyStore, Self::CredentialStore) {
-    //     (self.key_store, self.reply_store, self.credential_store)
-    // }
 
     fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore) {
         (self.reply_store, self.credential_store)
@@ -150,10 +146,6 @@ impl MixnetClientStorage for OnDiskPersistent {
     type ReplyStore = fs_backend::Backend;
     type CredentialStore = PersistentCredentialStorage;
     type GatewayDetailsStore = OnDiskGatewayDetails;
-
-    // fn into_split(self) -> (Self::KeyStore, Self::ReplyStore, Self::CredentialStore) {
-    //     (self.key_store, self.reply_store, self.credential_store)
-    // }
 
     fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore) {
         (self.reply_store, self.credential_store)

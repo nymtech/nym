@@ -6,6 +6,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
 use rand::{CryptoRng, RngCore};
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use zeroize::ZeroizeOnDrop;
 
@@ -18,6 +19,16 @@ pub enum ManagedKeys {
     // I really hate the existence of this variant, but I couldn't come up with a better way to handle
     // `Self::deal_with_gateway_key` otherwise.
     Invalidated,
+}
+
+impl Debug for ManagedKeys {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ManagedKeys::Initial(_) => write!(f, "initial"),
+            ManagedKeys::FullyDerived(_) => write!(f, "fully derived"),
+            ManagedKeys::Invalidated => write!(f, "invalidated"),
+        }
+    }
 }
 
 impl From<KeyManagerBuilder> for ManagedKeys {

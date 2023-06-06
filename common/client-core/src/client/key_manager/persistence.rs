@@ -4,6 +4,7 @@
 use crate::client::key_manager::KeyManager;
 use async_trait::async_trait;
 use std::error::Error;
+use tokio::sync::Mutex;
 use zeroize::Zeroizing;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -211,10 +212,12 @@ impl KeyStore for OnDiskKeys {
 }
 
 #[derive(Default)]
-pub struct InMemEphemeralKeys;
+pub struct InMemEphemeralKeys {
+    keys: Mutex<Option<KeyManager>>,
+}
 
 #[derive(Debug, thiserror::Error)]
-#[error("ephemeral keys can't be loaded from storage")]
+#[error("old ephemeral keys can't be loaded from storage")]
 pub struct EphemeralKeysError;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -223,10 +226,11 @@ impl KeyStore for InMemEphemeralKeys {
     type StorageError = EphemeralKeysError;
 
     async fn load_keys(&self) -> Result<KeyManager, Self::StorageError> {
-        Err(EphemeralKeysError)
+        self.keys.lock().await.clone().ok_or(EphemeralKeysError)
     }
 
-    async fn store_keys(&self, _keys: &KeyManager) -> Result<(), Self::StorageError> {
+    async fn store_keys(&self, keys: &KeyManager) -> Result<(), Self::StorageError> {
+        *self.keys.lock().await = Some(keys.clone());
         Ok(())
     }
 }

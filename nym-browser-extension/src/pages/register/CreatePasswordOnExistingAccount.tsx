@@ -8,7 +8,7 @@ export const CreatePasswordOnExistingAccount = ({ onComplete }: { onComplete: ()
   const { createAccount, userMnemonic } = useRegisterContext();
 
   const handleOnComplete = async () => {
-    await createAccount({ mnemonic: userMnemonic, password: passwordState.password, accountName: 'Default account' });
+    await createAccount({ mnemonic: userMnemonic, password: passwordState.password, accName: 'Default account' });
     onComplete();
   };
 

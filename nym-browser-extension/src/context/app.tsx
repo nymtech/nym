@@ -12,6 +12,7 @@ type TAppContext = {
   minorDenom: 'unym';
   showSeedForAccount?: string;
   selectedAccount: string;
+  storage?: ExtensionStorage;
   selectAccount: (accountName: string) => Promise<void>;
   setAccounts: (accounts: string[]) => void;
   setShowSeedForAccount: (accountName?: string) => void;
@@ -77,6 +78,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       denom,
       minorDenom,
       selectedAccount,
+      storage,
       handleUnlockWallet,
       getBalance,
       setShowSeedForAccount,
@@ -84,7 +86,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       setAccounts,
       selectAccount,
     }),
-    [client, accounts, balance, denom, minorDenom, selectedAccount, showSeedForAccount],
+    [client, accounts, balance, denom, minorDenom, selectedAccount, showSeedForAccount, storage],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

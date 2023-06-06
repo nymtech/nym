@@ -11,8 +11,9 @@ type TRegisterContext = {
   setUserPassword: (password: string) => void;
   setUserMnemonic: (mnemonic: string) => void;
   setAccountName: (name: string) => void;
-  createAccount: (args: { mnemonic: string; password: string; accountName: string }) => Promise<void>;
+  createAccount: (args: { mnemonic: string; password: string; accName: string }) => Promise<void>;
   importAccount: () => Promise<string[]>;
+  resetState: () => void;
 };
 
 export const RegisterContextProvider = ({ children }: { children: React.ReactNode }) => {
@@ -43,7 +44,6 @@ export const RegisterContextProvider = ({ children }: { children: React.ReactNod
     const storage = await new ExtensionStorage(userPassword);
     await storage.store_mnemonic(accountName, userMnemonic);
     const accounts = await storage.get_all_mnemonic_keys();
-    resetState();
     return accounts;
   };
 
@@ -60,6 +60,7 @@ export const RegisterContextProvider = ({ children }: { children: React.ReactNod
       createAccount,
       checkAccountName,
       importAccount,
+      resetState,
     }),
     [userPassword, userMnemonic, accountName],
   );

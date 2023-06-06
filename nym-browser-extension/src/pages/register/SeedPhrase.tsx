@@ -9,7 +9,7 @@ export const SeedPhrase = () => {
   const { createAccount, userPassword } = useRegisterContext();
 
   const handleEncryptSeedPhrase = async (seedPhrase: string) => {
-    await createAccount({ mnemonic: seedPhrase, password: userPassword, accountName: 'Default account' });
+    await createAccount({ mnemonic: seedPhrase, password: userPassword, accName: 'Default account' });
     navigate('/register/complete');
   };
 

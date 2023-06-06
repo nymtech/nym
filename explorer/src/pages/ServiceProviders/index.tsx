@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button, Card, FormControl, Grid, ListItem, Menu, SelectChangeEvent, Typography } from '@mui/material';
+import { GridRenderCellParams } from '@mui/x-data-grid';
 import { TableToolbar } from '../../components/TableToolbar';
 import { Title } from '../../components/Title';
 import { UniversalDataGrid } from '../../components/Universal-DataGrid';
@@ -14,15 +15,27 @@ const columns = [
   },
   {
     headerName: 'Type',
-    field: 'type',
+    field: 'service_type',
     disableColumnMenu: true,
     flex: 1,
   },
   {
     headerName: 'Routing score',
-    field: 'routingScore',
+    field: 'routing_score',
     disableColumnMenu: true,
     flex: 1,
+    sortComparator: (a?: string, b?: string) => {
+      if (!a) return 1; // Place undefined values at the end
+      if (!b) return -1; // Place undefined values at the end
+
+      const aToNum = parseInt(a, 10);
+      const bToNum = parseInt(b, 10);
+
+      if (aToNum > bToNum) return -1;
+
+      return 1; // Sort numbers in ascending order
+    },
+    renderCell: (params: GridRenderCellParams) => (!params.value ? '-' : params.value),
   },
 ];
 
@@ -49,7 +62,7 @@ const SupportedApps = () => {
       >
         Supported Apps
       </Button>
-      <Menu id="basic-menu" anchorEl={anchorEl} open={open} onClose={handleClose}>
+      <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
         <ListItem>Keybase</ListItem>
         <ListItem>Telegram</ListItem>
         <ListItem>Electrum</ListItem>
@@ -84,12 +97,7 @@ export const ServiceProviders = () => {
                   pageSize={pageSize}
                   childrenBefore={<SupportedApps />}
                 />
-                <UniversalDataGrid
-                  pagination
-                  rows={serviceProviders?.data?.items}
-                  columns={columns}
-                  pageSize={pageSize}
-                />
+                <UniversalDataGrid pagination rows={serviceProviders.data} columns={columns} pageSize={pageSize} />
               </>
             ) : (
               <Typography>No service providers to display</Typography>

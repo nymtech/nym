@@ -4,17 +4,18 @@ import {
   ApiState,
   BlockResponse,
   CountryDataResponse,
-  DirectoryService,
   GatewayResponse,
   MixNodeResponse,
   MixnodeStatus,
   SummaryOverviewResponse,
   ValidatorsResponse,
   Environment,
+  DirectoryServiceProvider,
 } from '../typeDefs/explorer-api';
 import { EnumFilterKey } from '../typeDefs/filters';
 import { Api, getEnvironment } from '../api';
 import { NavOptionType, originalNavOptions } from './nav';
+import { toPercentIntegerString } from '../utils';
 
 interface StateData {
   summaryOverview?: ApiState<SummaryOverviewResponse>;
@@ -27,7 +28,7 @@ interface StateData {
   navState: NavOptionType[];
   validators?: ApiState<ValidatorsResponse>;
   environment?: Environment;
-  serviceProviders?: ApiState<DirectoryService>;
+  serviceProviders?: ApiState<DirectoryServiceProvider[]>;
 }
 
 interface StateApi {
@@ -70,7 +71,7 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
   const [validators, setValidators] = React.useState<ApiState<ValidatorsResponse>>();
   const [block, setBlock] = React.useState<ApiState<BlockResponse>>();
   const [countryData, setCountryData] = React.useState<ApiState<CountryDataResponse>>();
-  const [serviceProviders, setServiceProviders] = React.useState<ApiState<DirectoryService>>();
+  const [serviceProviders, setServiceProviders] = React.useState<ApiState<DirectoryServiceProvider[]>>();
 
   const toggleMode = () => setMode((m) => (m !== 'light' ? 'light' : 'dark'));
 
@@ -168,8 +169,12 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
   const fetchServiceProviders = async () => {
     setServiceProviders({ data: undefined, isLoading: true });
     try {
-      const [res] = await Api.fetchServiceProviders();
-      setServiceProviders({ data: res, isLoading: false });
+      const res = await Api.fetchServiceProviders();
+      const resWithRoutingScorePercentage = res.map((item) => ({
+        ...item,
+        routing_score: item.routing_score ? `${toPercentIntegerString(item.routing_score.toString())}%` : undefined,
+      }));
+      setServiceProviders({ data: resWithRoutingScorePercentage, isLoading: false });
     } catch (error) {
       setServiceProviders({
         error: error instanceof Error ? error : new Error('Service provider api fail'),
@@ -187,9 +192,7 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
   };
 
   React.useEffect(() => {
-    if (environment === 'mainnet') {
-      fetchServiceProviders();
-    }
+    fetchServiceProviders();
   }, [environment]);
 
   React.useEffect(() => {

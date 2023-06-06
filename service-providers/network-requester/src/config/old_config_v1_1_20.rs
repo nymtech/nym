@@ -1,12 +1,15 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::NetworkRequesterPaths;
-use crate::config::{BaseClientConfig, Config, Debug};
+use crate::config::old_config_v1_1_20_2::{
+    ConfigV1_1_20_2, DebugV1_1_20_2, NetworkRequesterPathsV1_1_20_2,
+};
 use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
-use nym_client_core::config::disk_persistence::CommonClientPaths;
+use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_20::ConfigV1_1_20 as BaseConfigV1_1_20;
-use nym_client_core::config::Client;
+use nym_client_core::config::old_config_v1_1_20_2::{
+    ClientV1_1_20_2, ConfigV1_1_20_2 as BaseClientConfigV1_1_20_2,
+};
 use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -27,11 +30,11 @@ pub struct ConfigV1_1_20 {
     pub network_requester_debug: DebugV1_1_20,
 }
 
-impl From<ConfigV1_1_20> for Config {
+impl From<ConfigV1_1_20> for ConfigV1_1_20_2 {
     fn from(value: ConfigV1_1_20) -> Self {
-        Config {
-            base: BaseClientConfig {
-                client: Client {
+        ConfigV1_1_20_2 {
+            base: BaseClientConfigV1_1_20_2 {
+                client: ClientV1_1_20_2 {
                     version: value.base.client.version,
                     id: value.base.client.id,
                     disabled_credentials_mode: value.base.client.disabled_credentials_mode,
@@ -42,8 +45,8 @@ impl From<ConfigV1_1_20> for Config {
                 debug: Default::default(),
             },
             network_requester: Default::default(),
-            storage_paths: NetworkRequesterPaths {
-                common_paths: CommonClientPaths {
+            storage_paths: NetworkRequesterPathsV1_1_20_2 {
+                common_paths: CommonClientPathsV1_1_20_2 {
                     keys: ClientKeysPaths {
                         private_identity_key_file: value.base.client.private_identity_key_file,
                         public_identity_key_file: value.base.client.public_identity_key_file,
@@ -100,9 +103,9 @@ pub struct DebugV1_1_20 {
     pub standard_list_update_interval: Duration,
 }
 
-impl From<DebugV1_1_20> for Debug {
+impl From<DebugV1_1_20> for DebugV1_1_20_2 {
     fn from(value: DebugV1_1_20) -> Self {
-        Debug {
+        DebugV1_1_20_2 {
             standard_list_update_interval: value.standard_list_update_interval,
         }
     }

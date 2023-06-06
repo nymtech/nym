@@ -62,6 +62,10 @@ keys.ack_key_file = '{{ storage_paths.keys.ack_key_file }}'
 # Path to the database containing bandwidth credentials
 credentials_database = '{{ storage_paths.credentials_database }}'
 
+# Path to the file containing information about gateway used by this client,
+# i.e. details such as its public key, owner address or the network information.
+gateway_details = '{{ storage_paths.gateway_details }}'
+
 # Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
 reply_surb_database = '{{ storage_paths.reply_surb_database }}'
 
@@ -71,17 +75,6 @@ allowed_list_location = '{{ storage_paths.allowed_list_location }}'
 # Location of the file containing our unknown.list
 unknown_list_location = '{{ storage_paths.unknown_list_location }}'
 
-
-# DEPRECATED
-[client.gateway_endpoint]
-# ID of the gateway from which the client should be fetching messages.
-gateway_id = '{{ client.gateway_endpoint.gateway_id }}'
-
-# Address of the gateway owner to which the client should send messages.
-gateway_owner = '{{ client.gateway_endpoint.gateway_owner }}'
-
-# Address of the gateway listener to which all client requests should be sent.
-gateway_listener = '{{ client.gateway_endpoint.gateway_listener }}'
 
 ##### logging configuration options #####
 

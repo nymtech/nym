@@ -10,6 +10,18 @@ const columns = [
     headerName: 'Client ID',
     field: 'address',
     disableColumnMenu: true,
+    flex: 2,
+  },
+  {
+    headerName: 'Type',
+    field: 'type',
+    disableColumnMenu: true,
+    flex: 1,
+  },
+  {
+    headerName: 'Routing score',
+    field: 'routingScore',
+    disableColumnMenu: true,
     flex: 1,
   },
 ];

@@ -3,7 +3,7 @@ use crate::service_providers::models::{
 };
 use okapi::openapi3::OpenApi;
 use reqwest::{Client, Error as ReqwestError};
-use rocket::{serde::json::Json, Route};
+use rocket::{http::Status, serde::json::Json, Route};
 use rocket_okapi::settings::OpenApiSettings;
 
 const SERVICE_PROVIDER_WELLKNOWN_URL: &str =
@@ -82,7 +82,9 @@ pub async fn get_services() -> Result<Vec<DirectorySpDetailed>, GetSpError> {
 
 #[openapi(tag = "service_providers")]
 #[get("/")]
-pub(crate) async fn get_service_providers() -> Json<Vec<DirectorySpDetailed>> {
-    let result = get_services().await.unwrap();
-    Json(result)
+pub(crate) async fn get_service_providers() -> Result<Json<Vec<DirectorySpDetailed>>, Status> {
+    match get_services().await {
+        Ok(res) => Ok(Json(res)),
+        Err(_) => Err(Status::InternalServerError),
+    }
 }

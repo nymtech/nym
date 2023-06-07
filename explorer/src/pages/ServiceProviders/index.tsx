@@ -5,13 +5,14 @@ import { TableToolbar } from '../../components/TableToolbar';
 import { Title } from '../../components/Title';
 import { UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { useMainContext } from '../../context/main';
+import { CustomColumnHeading } from '../../components/CustomColumnHeading';
 
 const columns: GridColDef[] = [
   {
     headerName: 'Client ID',
     field: 'address',
     disableColumnMenu: true,
-    flex: 2,
+    flex: 3,
   },
   {
     headerName: 'Type',
@@ -23,9 +24,8 @@ const columns: GridColDef[] = [
     headerName: 'Routing score',
     field: 'routing_score',
     disableColumnMenu: true,
-    flex: 1,
+    flex: 2,
     sortingOrder: ['asc', 'desc'],
-
     sortComparator: (a?: string, b?: string) => {
       if (!a) return -1; // Place undefined values at the end
       if (!b) return 1; // Place undefined values at the end
@@ -38,6 +38,12 @@ const columns: GridColDef[] = [
       return -1; // Sort numbers in ascending order
     },
     renderCell: (params: GridRenderCellParams) => (!params.value ? '-' : params.value),
+    renderHeader: () => (
+      <CustomColumnHeading
+        headingTitle="Routing score"
+        tooltipInfo="Routing score is only displayed for the service providers that had a successful ping within the last two hours"
+      />
+    ),
   },
 ];
 

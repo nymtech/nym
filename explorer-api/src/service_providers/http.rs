@@ -59,21 +59,24 @@ pub async fn get_services() -> Result<Vec<DirectorySpDetailed>, GetSpError> {
         .json::<PagedResult<HarbourMasterService>>()
         .await?;
 
-    let sp_list = directory_sp.items.iter().fold(vec![], |mut acc, dir_sp| {
-        let directory_sp = hm_services
-            .items
-            .iter()
-            .find(|item| item.service_provider_client_id == dir_sp.address);
-        acc.push(DirectorySpDetailed {
-            id: dir_sp.id.clone(),
-            description: dir_sp.description.clone(),
-            address: dir_sp.address.clone(),
-            gateway: dir_sp.gateway.clone(),
-            routing_score: directory_sp.map(|sp| sp.routing_score),
-            service_type: "Network requester".into(),
-        });
-        acc
-    });
+    let sp_list: Vec<_> = directory_sp
+        .items
+        .iter()
+        .map(|sp| {
+            let directory_sp = hm_services
+                .items
+                .iter()
+                .find(|item| item.service_provider_client_id == sp.address);
+            DirectorySpDetailed {
+                id: sp.id.clone(),
+                description: sp.description.clone(),
+                address: sp.address.clone(),
+                gateway: sp.gateway.clone(),
+                routing_score: directory_sp.map(|sp| sp.routing_score),
+                service_type: "Network requester".into(),
+            }
+        })
+        .collect();
 
     Ok(sp_list)
 }

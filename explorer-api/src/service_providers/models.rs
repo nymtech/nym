@@ -13,7 +13,6 @@ pub struct DirectorySpDetailed {
     pub id: String,
     pub description: String,
     pub address: String,
-    pub gateway: String,
     pub routing_score: Option<f32>,
     pub service_type: String,
 }

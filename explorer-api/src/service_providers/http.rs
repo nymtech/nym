@@ -71,7 +71,6 @@ pub async fn get_services() -> Result<Vec<DirectorySpDetailed>, GetSpError> {
                 id: sp.id.clone(),
                 description: sp.description.clone(),
                 address: sp.address.clone(),
-                gateway: sp.gateway.clone(),
                 routing_score: directory_sp.map(|sp| sp.routing_score),
                 service_type: "Network requester".into(),
             }

@@ -36,8 +36,8 @@ Sentry.init({
       ),
     }),
     new Sentry.Replay(),
-    // captures all Console API calls and redirects them to Sentry
-    new CaptureConsole(),
+    // captures Console API calls
+    new CaptureConsole({ levels: ['error', 'warn'] }),
   ],
 
   // TODO adjust this in the future, 100% is not recommended for production

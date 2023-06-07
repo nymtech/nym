@@ -48,7 +48,7 @@ fn test_function() {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "cpucycles")] {
             setup_tracing!("mixnode");
@@ -63,12 +63,14 @@ async fn main() {
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
-    commands::execute(args).await;
+    commands::execute(args).await?;
 
     cfg_if::cfg_if! {
     if #[cfg(feature = "cpucycles")] {
         opentelemetry::global::shutdown_tracer_provider();
     }}
+
+    Ok(())
 }
 
 #[cfg(test)]

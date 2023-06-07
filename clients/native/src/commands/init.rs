@@ -1,7 +1,10 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::try_upgrade_v1_1_13_config;
+use crate::client::config::{
+    default_config_directory, default_config_filepath, default_data_directory,
+};
+use crate::commands::try_load_current_config;
 use crate::{
     client::config::Config,
     commands::{override_config, OverrideConfig},
@@ -10,12 +13,12 @@ use crate::{
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;
 use std::net::IpAddr;
+use std::{fs, io};
 use tap::TapFallible;
 
 #[derive(Args, Clone)]
@@ -97,15 +100,15 @@ impl From<Init> for OverrideConfig {
 pub struct InitResults {
     #[serde(flatten)]
     client_core: nym_client_core::init::InitResults,
-    client_listening_port: String,
+    client_listening_port: u16,
     client_address: String,
 }
 
 impl InitResults {
     fn new(config: &Config, address: &Recipient) -> Self {
         Self {
-            client_core: nym_client_core::init::InitResults::new(config.get_base(), address),
-            client_listening_port: config.get_listening_port().to_string(),
+            client_core: nym_client_core::init::InitResults::new(&config.base, address),
+            client_listening_port: config.socket.listening_port,
             client_address: address.to_string(),
         }
     }
@@ -119,18 +122,24 @@ impl Display for InitResults {
     }
 }
 
+fn init_paths(id: &str) -> io::Result<()> {
+    fs::create_dir_all(default_data_directory(id))?;
+    fs::create_dir_all(default_config_directory(id))
+}
+
 pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     eprintln!("Initialising client...");
 
     let id = &args.id;
 
-    let already_init = Config::default_config_file_path(id).exists();
-    if already_init {
-        // in case we're using old config, try to upgrade it
-        // (if we're using the current version, it's a no-op)
-        try_upgrade_v1_1_13_config(id)?;
+    let old_config = if default_config_filepath(id).exists() {
         eprintln!("Client \"{id}\" was already initialised before");
-    }
+        // if the file exist, try to load it (with checking for errors)
+        Some(try_load_current_config(&args.id)?)
+    } else {
+        init_paths(&args.id)?;
+        None
+    };
 
     // Usually you only register with the gateway on the first init, however you can force
     // re-registering if wanted.
@@ -142,7 +151,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
     // Unless the user really wants to.
-    let register_gateway = !already_init || user_wants_force_register;
+    let register_gateway = old_config.is_none() || user_wants_force_register;
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = args.gateway;
@@ -152,42 +161,38 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let key_store = OnDiskKeys::from_config(config.get_base());
-    let gateway = nym_client_core::init::setup_gateway_from_config::<Config, _, _>(
+    let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
+    let gateway = nym_client_core::init::setup_gateway_from_config::<_>(
         &key_store,
         register_gateway,
         user_chosen_gateway_id,
-        config.get_base(),
+        &config.base,
+        old_config.map(|cfg| cfg.base.client.gateway_endpoint),
         args.latency_based_selection,
     )
     .await
     .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
 
-    config.get_base_mut().set_gateway_endpoint(gateway);
+    config.base.set_gateway_endpoint(gateway);
 
-    config.save_to_file(None).tap_err(|_| {
+    let config_save_location = config.default_location();
+    config.save_to_default_location().tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;
+    eprintln!(
+        "Saved configuration file to {}",
+        config_save_location.display()
+    );
 
-    print_saved_config(&config);
+    let address = nym_client_core::init::get_client_address_from_stored_ondisk_keys(
+        &config.storage_paths.common_paths.keys,
+        &config.base.client.gateway_endpoint,
+    )?;
 
-    let address =
-        nym_client_core::init::get_client_address_from_stored_ondisk_keys(config.get_base())?;
+    eprintln!("Client configuration completed.\n");
+
     let init_results = InitResults::new(&config, &address);
     println!("{}", args.output.format(&init_results));
 
     Ok(())
-}
-
-fn print_saved_config(config: &Config) {
-    let config_save_location = config.get_config_file_save_location();
-    eprintln!("Saved configuration file to {config_save_location:?}");
-    eprintln!("Using gateway: {}", config.get_base().get_gateway_id());
-    log::debug!("Gateway id: {}", config.get_base().get_gateway_id());
-    log::debug!("Gateway owner: {}", config.get_base().get_gateway_owner());
-    log::debug!(
-        "Gateway listener: {}",
-        config.get_base().get_gateway_listener()
-    );
-    eprintln!("Client configuration completed.\n");
 }

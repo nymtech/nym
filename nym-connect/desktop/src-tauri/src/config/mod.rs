@@ -1,77 +1,95 @@
-use crate::{
-    error::{BackendError, Result},
-    state::State,
-};
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::config::persistence::NymConnectPaths;
+use crate::config::template::CONFIG_TEMPLATE;
+use crate::error::{BackendError, Result};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_client_core::config::Config as BaseConfig;
-use nym_config_common::NymConfig;
+use nym_config_common::{
+    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
+    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+};
 use nym_crypto::asymmetric::identity;
-use nym_socks5_client_core::config::{Config as Socks5Config, Socks5};
-use std::path::PathBuf;
-use std::sync::Arc;
+use nym_socks5_client_core::config::Config as Socks5CoreConfig;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use std::{fs, io};
 use tap::TapFallible;
-use tokio::sync::RwLock;
+
+mod persistence;
+mod template;
 
 static SOCKS5_CONFIG_ID: &str = "nym-connect";
 
-pub fn socks5_config_id_appended_with(gateway_id: &str) -> Result<String> {
-    use std::fmt::Write as _;
-    let mut id = SOCKS5_CONFIG_ID.to_string();
-    write!(id, "-{gateway_id}")?;
-    Ok(id)
+// backwards compatibility : )
+const DEFAULT_NYM_CONNECT_CLIENTS_DIR: &str = "socks5-clients";
+
+/// Derive default path to clients's config directory.
+/// It should get resolved to `$HOME/.nym/socks5-clients/<id>/config`
+pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
+    must_get_home()
+        .join(NYM_DIR)
+        .join(DEFAULT_NYM_CONNECT_CLIENTS_DIR)
+        .join(id)
+        .join(DEFAULT_CONFIG_DIR)
 }
 
-#[tauri::command]
-pub async fn get_config_id(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<String> {
-    state.read().await.get_config_id()
+/// Derive default path to client's config file.
+/// It should get resolved to `$HOME/.nym/socks5-clients/<id>/config/config.toml`
+pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
 }
 
-#[tauri::command]
-pub async fn get_config_file_location(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<String> {
-    let id = get_config_id(state).await?;
-    Config::config_file_location(&id).map(|d| d.to_string_lossy().to_string())
+/// Derive default path to nym connects's data directory where files, such as keys, are stored.
+/// It should get resolved to `$HOME/.nym/socks5-clients/<id>/data`
+pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
+    must_get_home()
+        .join(NYM_DIR)
+        .join(DEFAULT_NYM_CONNECT_CLIENTS_DIR)
+        .join(id)
+        .join(DEFAULT_DATA_DIR)
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Config {
-    socks5: Socks5Config,
+    pub core: Socks5CoreConfig,
+
+    pub storage_paths: NymConnectPaths,
+}
+
+impl NymConfigTemplate for Config {
+    fn template() -> &'static str {
+        CONFIG_TEMPLATE
+    }
+}
+
+pub fn socks5_config_id_appended_with(gateway_id: &str) -> String {
+    format!("{SOCKS5_CONFIG_ID}-{gateway_id}")
 }
 
 impl Config {
-    pub fn new<S: Into<String>>(id: S, provider_mix_address: S) -> Self {
+    pub fn new<S: AsRef<str>>(id: S, provider_mix_address: S) -> Self {
         Config {
-            socks5: Socks5Config::new(id, provider_mix_address),
+            core: Socks5CoreConfig::new(id.as_ref(), provider_mix_address.as_ref()),
+            storage_paths: NymConnectPaths::new_default(default_data_directory(id.as_ref())),
         }
     }
 
-    #[allow(unused)]
-    pub fn new_with_port<S: Into<String>>(id: S, provider_mix_address: S, port: u16) -> Self {
-        Config {
-            socks5: Socks5Config::new(id, provider_mix_address).with_port(port),
-        }
+    pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        read_config_from_toml_file(path)
     }
 
-    pub fn get_config(&self) -> &Socks5Config {
-        &self.socks5
+    pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
+        Self::read_from_toml_file(default_config_filepath(id))
     }
 
-    pub fn get_socks5(&self) -> &Socks5 {
-        self.socks5.get_socks5()
+    pub fn default_location(&self) -> PathBuf {
+        default_config_filepath(&self.core.base.client.id)
     }
 
-    #[allow(unused)]
-    pub fn get_socks5_mut(&mut self) -> &mut Socks5 {
-        self.socks5.get_socks5_mut()
-    }
-
-    pub fn get_base(&self) -> &BaseConfig<Socks5Config> {
-        self.socks5.get_base()
-    }
-
-    pub fn get_base_mut(&mut self) -> &mut BaseConfig<Socks5Config> {
-        self.socks5.get_base_mut()
+    pub fn save_to_default_location(&self) -> io::Result<()> {
+        let config_save_location: PathBuf = self.default_location();
+        save_formatted_config_to_file(self, config_save_location)
     }
 
     pub async fn init(service_provider: &str, chosen_gateway_id: &str) -> Result<()> {
@@ -83,6 +101,7 @@ impl Config {
         // The client initialization was originally not written for this use case, so there are
         // lots of ways it can panic. Until we have proper error handling in the init code for the
         // clients we'll catch any panics here by spawning a new runtime in a separate thread.
+        // JS: why are we spawning a new thread here?
         std::thread::spawn(move || {
             tokio::runtime::Runtime::new()
                 .expect("Failed to create tokio runtime")
@@ -96,27 +115,26 @@ impl Config {
         log::info!("Configuration saved 🚀");
         Ok(())
     }
+}
 
-    pub fn config_file_location(id: &str) -> Result<PathBuf> {
-        Socks5Config::try_default_config_file_path(id)
-            .ok_or(BackendError::CouldNotGetConfigFilename)
-    }
+fn init_paths(id: &str) -> io::Result<()> {
+    fs::create_dir_all(default_data_directory(id))?;
+    fs::create_dir_all(default_config_directory(id))
 }
 
 pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: String) -> Result<()> {
     log::trace!("Initialising client...");
 
     // Append the gateway id to the name id that we store the config under
-    let id = socks5_config_id_appended_with(&chosen_gateway_id)?;
+    let id = socks5_config_id_appended_with(&chosen_gateway_id);
 
-    log::debug!(
-        "Attempting to use config file location: {}",
-        Config::config_file_location(&id)?.to_string_lossy(),
-    );
-    let already_init = Config::config_file_location(&id)?.exists();
-    if already_init {
-        log::info!("SOCKS5 client \"{id}\" was already initialised before");
-    }
+    let old_config = if default_config_filepath(&id).exists() {
+        eprintln!("SOCKS5 client \"{id}\" was already initialised before");
+        Some(Config::read_from_default_path(&id)?)
+    } else {
+        init_paths(&id)?;
+        None
+    };
 
     // Future proofing. This flag exists for the other clients
     let user_wants_force_register = false;
@@ -124,64 +142,65 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
     // Unless the user really wants to.
-    let register_gateway = !already_init || user_wants_force_register;
+    let register_gateway = old_config.is_none() || user_wants_force_register;
 
-    log::trace!("Creating config for id: {}", id);
-    let mut config = Config::new(id.as_str(), &provider_address);
+    log::trace!("Creating config for id: {id}");
+    let mut config = Config::new(&id, &provider_address);
 
     if let Ok(raw_validators) = std::env::var(nym_config_common::defaults::var_names::NYM_API) {
-        config
-            .get_base_mut()
-            .set_custom_nym_apis(nym_config_common::parse_urls(&raw_validators));
+        config.core.base.client.nym_api_urls = nym_config_common::parse_urls(&raw_validators);
     }
 
     let chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let key_store = OnDiskKeys::from_config(config.get_base());
-    let gateway = nym_client_core::init::setup_gateway_from_config::<Socks5Config, _, _>(
+    let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
+    let gateway = nym_client_core::init::setup_gateway_from_config::<_>(
         &key_store,
         register_gateway,
         Some(chosen_gateway_id),
-        config.get_base(),
+        &config.core.base,
+        old_config.map(|cfg| cfg.core.base.client.gateway_endpoint),
         // TODO: another instance where this setting should probably get used
         false,
     )
     .await?;
 
-    config.get_base_mut().set_gateway_endpoint(gateway);
+    config.core.base.set_gateway_endpoint(gateway);
 
-    config.get_config().save_to_file(None).tap_err(|_| {
+    config.save_to_default_location().tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;
 
     print_saved_config(&config);
 
-    let address =
-        nym_client_core::init::get_client_address_from_stored_ondisk_keys(config.get_base())?;
+    let address = nym_client_core::init::get_client_address_from_stored_ondisk_keys(
+        &config.storage_paths.common_paths.keys,
+        &config.core.base.client.gateway_endpoint,
+    )?;
     log::info!("The address of this client is: {}", address);
     Ok(())
 }
 
 fn print_saved_config(config: &Config) {
     log::info!(
-        "Saved configuration file to {:?}",
-        config.get_config().get_config_file_save_location()
+        "Saved configuration file to {}",
+        config.default_location().display()
     );
-    log::info!("Gateway id: {}", config.get_base().get_gateway_id());
-    log::info!("Gateway owner: {}", config.get_base().get_gateway_owner());
+    log::info!("Gateway id: {}", config.core.base.get_gateway_id());
+    log::info!("Gateway owner: {}", config.core.base.get_gateway_owner());
     log::info!(
         "Gateway listener: {}",
-        config.get_base().get_gateway_listener()
+        config.core.base.get_gateway_listener()
     );
     log::info!(
         "Service provider address: {}",
-        config.get_socks5().get_provider_mix_address()
+        config.core.socks5.provider_mix_address
     );
     log::info!(
         "Service provider port: {}",
-        config.get_socks5().get_listening_port()
+        config.core.socks5.listening_port
     );
     log::info!("Client configuration completed.");
 }

@@ -1,7 +1,9 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::old_config_v1_1_21::ConfigV1_1_21;
 use crate::{config::Config, Cli};
+use anyhow::anyhow;
 use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
@@ -10,7 +12,6 @@ use nym_bin_common::version_checker;
 use nym_config::defaults::var_names::{BECH32_PREFIX, NYM_API};
 use nym_config::OptionalSet;
 use nym_crypto::bech32_address_validation;
-use nym_validator_client::nyxd;
 use std::net::IpAddr;
 use std::process;
 
@@ -52,45 +53,31 @@ pub(crate) enum Commands {
 struct OverrideConfig {
     id: String,
     host: Option<IpAddr>,
-    wallet_address: Option<nyxd::AccountId>,
     mix_port: Option<u16>,
     verloc_port: Option<u16>,
     http_api_port: Option<u16>,
-    announce_host: Option<String>,
     nym_apis: Option<Vec<url::Url>>,
 }
 
-pub(crate) async fn execute(args: Cli) {
+pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
     let bin_name = "nym-mixnode";
 
     match args.command {
-        Commands::Describe(m) => describe::execute(m),
+        Commands::Describe(m) => describe::execute(m)?,
         Commands::Init(m) => init::execute(&m),
-        Commands::Run(m) => run::execute(&m).await,
-        Commands::Sign(m) => sign::execute(&m),
-        Commands::Upgrade(m) => upgrade::execute(&m),
-        Commands::NodeDetails(m) => node_details::execute(&m),
+        Commands::Run(m) => run::execute(&m).await?,
+        Commands::Sign(m) => sign::execute(&m)?,
+        Commands::Upgrade(m) => upgrade::execute(&m)?,
+        Commands::NodeDetails(m) => node_details::execute(&m)?,
         Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),
     }
+    Ok(())
 }
 
-fn override_config(mut config: Config, args: OverrideConfig) -> Config {
-    // special case that I'm not sure could be easily handled with the trait
-    let mut was_host_overridden = false;
-    if let Some(host) = args.host {
-        config = config.with_listening_address(host);
-        was_host_overridden = true;
-    }
-
-    if let Some(announce_host) = args.announce_host {
-        config = config.with_announce_address(announce_host);
-    } else if was_host_overridden {
-        // make sure our 'announce-host' always defaults to 'host'
-        config = config.announce_address_from_listening_address()
-    }
-
+fn override_config(config: Config, args: OverrideConfig) -> Config {
     config
+        .with_optional(Config::with_listening_address, args.host)
         .with_optional(Config::with_mix_port, args.mix_port)
         .with_optional(Config::with_verloc_port, args.verloc_port)
         .with_optional(Config::with_http_api_port, args.http_api_port)
@@ -99,13 +86,6 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
             args.nym_apis,
             NYM_API,
             nym_config::parse_urls,
-        )
-        .with_optional(
-            |cfg, wallet_address| {
-                validate_bech32_address_or_exit(wallet_address.as_ref());
-                cfg.with_wallet_address(wallet_address)
-            },
-            args.wallet_address,
         )
 }
 
@@ -135,7 +115,7 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
 // network version. It might do so in the future.
 pub(crate) fn version_check(cfg: &Config) -> bool {
     let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_version();
+    let config_version = &cfg.mixnode.version;
     if binary_version == config_version {
         true
     } else {
@@ -147,5 +127,45 @@ pub(crate) fn version_check(cfg: &Config) -> bool {
             error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
             false
         }
+    }
+}
+
+fn try_upgrade_v1_1_21_config(id: &str) -> std::io::Result<()> {
+    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
+
+    // explicitly load it as v1.1.21 (which is incompatible with the current, i.e. 1.1.22+)
+    let Ok(old_config) = ConfigV1_1_21::load_from_file(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(());
+    };
+    info!("It seems the mixnode is using <= v1.1.21 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let updated: Config = old_config.into();
+    updated.save_to_default_location()
+}
+
+fn try_load_current_config(id: &str) -> anyhow::Result<Config> {
+    try_upgrade_v1_1_21_config(id)?;
+
+    Config::read_from_default_path(id).map_err(|err| {
+        let error_msg =
+            format!(
+                "Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})",
+            );
+        error!("{error_msg}");
+        anyhow!(error_msg)
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        Cli::command().debug_assert();
     }
 }

@@ -101,8 +101,8 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
     }
 }
 
-pub fn create_bandwidth_controller<T, St: CredentialStorage>(
-    config: &Config<T>,
+pub fn create_bandwidth_controller<St: CredentialStorage>(
+    config: &Config,
     storage: St,
 ) -> BandwidthController<Client<QueryNyxdClient>, St> {
     let nyxd_url = config

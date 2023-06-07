@@ -8,20 +8,15 @@ use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::{KeyManager, ManagedKeys};
 use crate::init::helpers::{choose_gateway_by_latency, current_gateways, uniformly_random_gateway};
 use crate::{
-    config::{
-        persistence::key_pathfinder::ClientKeyPathfinder, ClientCoreConfigTrait, Config,
-        GatewayEndpointConfig,
-    },
+    config::{disk_persistence::keys_paths::ClientKeysPaths, Config, GatewayEndpointConfig},
     error::ClientCoreError,
 };
-use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
 use nym_validator_client::client::IdentityKey;
 use rand::rngs::OsRng;
 use serde::Serialize;
 use std::fmt::{Debug, Display};
-use tap::TapFallible;
 use url::Url;
 
 mod helpers;
@@ -122,13 +117,10 @@ pub struct InitResults {
 }
 
 impl InitResults {
-    pub fn new<T>(config: &Config<T>, address: &Recipient) -> Self
-    where
-        T: NymConfig,
-    {
+    pub fn new(config: &Config, address: &Recipient) -> Self {
         Self {
-            version: config.get_version().to_string(),
-            id: config.get_id(),
+            version: config.client.version.clone(),
+            id: config.client.id.clone(),
             identity_key: address.identity().to_base58_string(),
             encryption_key: address.encryption_key().to_base58_string(),
             gateway_id: config.get_gateway_id(),
@@ -206,26 +198,23 @@ where
 /// b. Create a new gateway configuration but keep existing keys. This assumes that the caller
 ///    knows what they are doing and that the keys match the requested gateway.
 /// c. Create a new gateway configuration with a newly registered gateway and keys.
-pub async fn setup_gateway_from_config<C, T, KSt>(
+pub async fn setup_gateway_from_config<KSt>(
     key_store: &KSt,
     register_gateway: bool,
     user_chosen_gateway_id: Option<identity::PublicKey>,
-    config: &Config<T>,
+    config: &Config,
+    old_gateway_config: Option<GatewayEndpointConfig>,
     by_latency: bool,
 ) -> Result<GatewayEndpointConfig, ClientCoreError>
 where
-    C: NymConfig + ClientCoreConfigTrait,
-    T: NymConfig,
     KSt: KeyStore,
     <KSt as KeyStore>::StorageError: Send + Sync + 'static,
 {
-    let id = config.get_id();
-
     // If we are not going to register gateway, and an explicitly chosen gateway is not passed in,
     // load the existing configuration file
     if !register_gateway && user_chosen_gateway_id.is_none() {
         eprintln!("Not registering gateway, will reuse existing config and keys");
-        return load_existing_gateway_config::<C>(&id);
+        return old_gateway_config.ok_or(ClientCoreError::FailedToSetupGateway);
     }
 
     let gateway_setup = GatewaySetup::new(
@@ -266,25 +255,6 @@ where
     Ok(gateway)
 }
 
-/// Read and reuse the existing gateway configuration from a file that was generate earlier.
-pub fn load_existing_gateway_config<T>(id: &str) -> Result<GatewayEndpointConfig, ClientCoreError>
-where
-    T: NymConfig + ClientCoreConfigTrait,
-{
-    T::load_from_file(id)
-        .map(|existing_config| existing_config.get_gateway_endpoint().clone())
-        .map_err(|err| {
-            log::error!(
-                "Unable to configure gateway: {err}. \n
-                Seems like the client was already initialized but it was not possible to read \
-                the existing configuration file. \n
-                CAUTION: Consider backing up your gateway keys and try force gateway registration, or \
-                removing the existing configuration and starting over."
-            );
-            ClientCoreError::CouldNotLoadExistingGatewayConfiguration(err)
-        })
-}
-
 /// Get the full client address from the client keys and the gateway identity
 pub fn get_client_address(
     key_manager: &KeyManager,
@@ -299,51 +269,23 @@ pub fn get_client_address(
     )
 }
 
-pub fn load_identity_keys(
-    pathfinder: &ClientKeyPathfinder,
-) -> Result<identity::KeyPair, ClientCoreError> {
-    let identity_keypair: identity::KeyPair =
-        nym_pemstore::load_keypair(&pathfinder.identity_key_pair_path())
-            .tap_err(|_| log::error!("Failed to read stored identity key files"))?;
-    Ok(identity_keypair)
-}
-
 /// Get the client address by loading the keys from stored files.
 // TODO: rethink that sucker
-pub fn get_client_address_from_stored_ondisk_keys<T>(
-    config: &Config<T>,
-) -> Result<Recipient, ClientCoreError>
-where
-    T: nym_config::NymConfig,
-{
-    fn load_identity_keys(
-        pathfinder: &ClientKeyPathfinder,
-    ) -> Result<identity::KeyPair, ClientCoreError> {
-        let identity_keypair: identity::KeyPair =
-            nym_pemstore::load_keypair(&pathfinder.identity_key_pair_path())
-                .tap_err(|_| log::error!("Failed to read stored identity key files"))?;
-        Ok(identity_keypair)
-    }
-
-    fn load_sphinx_keys(
-        pathfinder: &ClientKeyPathfinder,
-    ) -> Result<encryption::KeyPair, ClientCoreError> {
-        let sphinx_keypair: encryption::KeyPair =
-            nym_pemstore::load_keypair(&pathfinder.encryption_key_pair_path())
-                .tap_err(|_| log::error!("Failed to read stored sphinx key files"))?;
-        Ok(sphinx_keypair)
-    }
-
-    let pathfinder = ClientKeyPathfinder::new_from_config(config);
-    let identity_keypair = load_identity_keys(&pathfinder)?;
-    let sphinx_keypair = load_sphinx_keys(&pathfinder)?;
+pub fn get_client_address_from_stored_ondisk_keys(
+    keys_paths: &ClientKeysPaths,
+    gateway_config: &GatewayEndpointConfig,
+) -> Result<Recipient, ClientCoreError> {
+    let public_identity: identity::PublicKey =
+        nym_pemstore::load_key(&keys_paths.public_identity_key_file)?;
+    let public_encryption: encryption::PublicKey =
+        nym_pemstore::load_key(&keys_paths.public_encryption_key_file)?;
 
     let client_recipient = Recipient::new(
-        *identity_keypair.public_key(),
-        *sphinx_keypair.public_key(),
+        public_identity,
+        public_encryption,
         // TODO: below only works under assumption that gateway address == gateway id
         // (which currently is true)
-        NodeIdentity::from_base58_string(config.get_gateway_id())?,
+        NodeIdentity::from_base58_string(&gateway_config.gateway_id)?,
     );
 
     Ok(client_recipient)

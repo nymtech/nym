@@ -19,7 +19,6 @@ use coconut::dkg::controller::DkgController;
 use log::info;
 use node_status_api::NodeStatusCache;
 use nym_bin_common::logging::setup_logging;
-use nym_config::NymConfig;
 use nym_contract_cache::cache::NymContractCache;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
@@ -88,13 +87,13 @@ async fn start_nym_api_tasks(
 
     // start all the caches first
     let nym_contract_cache_listener = nym_contract_cache::start_refresher(
-        &config,
+        &config.node_status_api,
         nym_contract_cache_state,
         nyxd_client.clone(),
         &shutdown,
     );
     node_status_api::start_cache_refresh(
-        &config,
+        &config.node_status_api,
         nym_contract_cache_state,
         node_status_cache_state,
         maybe_storage,
@@ -102,16 +101,16 @@ async fn start_nym_api_tasks(
         &shutdown,
     );
     circulating_supply_api::start_cache_refresh(
-        &config,
+        &config.circulating_supply_cacher,
         nyxd_client.clone(),
         circulating_supply_cache_state,
         &shutdown,
     );
 
     // start dkg task
-    if config.get_coconut_signer_enabled() {
+    if config.coconut_signer.enabled {
         DkgController::start(
-            &config,
+            &config.coconut_signer,
             nyxd_client.clone(),
             coconut_keypair,
             OsRng,
@@ -122,12 +121,12 @@ async fn start_nym_api_tasks(
 
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring if it's enabled
-    if config.get_network_monitor_enabled() {
+    if config.network_monitor.enabled {
         // if network monitor is enabled, the storage MUST BE available
         let storage = maybe_storage.unwrap();
 
         network_monitor::start::<SphinxMessageReceiver>(
-            &config,
+            &config.network_monitor,
             nym_contract_cache_state,
             storage,
             nyxd_client.clone(),
@@ -138,7 +137,7 @@ async fn start_nym_api_tasks(
         HistoricalUptimeUpdater::start(storage, &shutdown);
 
         // start 'rewarding' if its enabled
-        if config.get_rewarding_enabled() {
+        if config.rewarding.enabled {
             epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
             RewardedSetUpdater::start(nyxd_client, nym_contract_cache_state, storage, &shutdown);
         }
@@ -160,7 +159,7 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
     // if we just wanted to write data to the config, exit, don't start any tasks
     if save_to_file {
         info!("Saving the configuration to a file");
-        config.save_to_file(None)?;
+        config.save_to_default_location()?;
         return Ok(());
     }
 

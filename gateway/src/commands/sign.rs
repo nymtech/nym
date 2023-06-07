@@ -5,8 +5,7 @@ use crate::commands::{ensure_correct_bech32_prefix, OverrideConfig};
 use crate::error::GatewayError;
 use crate::support::config::build_config;
 use crate::{
-    commands::ensure_config_version_compatibility,
-    config::persistence::pathfinder::GatewayPathfinder,
+    commands::ensure_config_version_compatibility, config::persistence::paths::GatewayPaths,
 };
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
@@ -65,11 +64,11 @@ impl TryFrom<Sign> for SignedTarget {
     }
 }
 
-pub fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
+pub fn load_identity_keys(paths: &GatewayPaths) -> identity::KeyPair {
     let identity_keypair: identity::KeyPair =
         nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-            pathfinder.private_identity_key().to_owned(),
-            pathfinder.public_identity_key().to_owned(),
+            paths.private_identity_key().to_owned(),
+            paths.public_identity_key().to_owned(),
         ))
         .expect("Failed to read stored identity key files");
     identity_keypair
@@ -139,8 +138,8 @@ pub fn execute(args: Sign) -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let output = args.output;
     let signed_target = SignedTarget::try_from(args)?;
-    let pathfinder = GatewayPathfinder::new_from_config(&config);
-    let identity_keypair = load_identity_keys(&pathfinder);
+
+    let identity_keypair = load_identity_keys(&config.storage_paths);
 
     match signed_target {
         SignedTarget::Text(text) => {

@@ -1,13 +1,14 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::cli::{try_load_current_config, version_check};
+use crate::error::NetworkRequesterError;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
-use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use nym_config::NymConfig;
+use nym_client_core::client::key_manager::persistence::OnDiskKeys;
+use nym_client_core::error::ClientCoreError;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
-
-use crate::{config::Config, error::NetworkRequesterError};
-
-use super::version_check;
 
 #[derive(Args, Clone)]
 pub(crate) struct Sign {
@@ -54,37 +55,19 @@ fn print_signed_contract_msg(
 }
 
 pub(crate) async fn execute(args: &Sign) -> Result<(), NetworkRequesterError> {
-    let id = &args.id;
-
-    let mut config = match Config::load_from_file(id) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            log::error!(
-                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {err})",
-                id,
-            );
-            return Err(NetworkRequesterError::FailedToLoadConfig(id.to_string()));
-        }
-    };
-
-    if !config.validate() {
-        return Err(NetworkRequesterError::ConfigValidationFailure);
-    }
-
-    if config.get_base_mut().set_empty_fields_to_defaults() {
-        log::warn!(
-            "Some of the core config options were left unset. \
-            The default values are going to get used instead."
-        );
-    }
+    let config = try_load_current_config(&args.id)?;
 
     if !version_check(&config) {
         log::error!("Failed the local version check");
         return Err(NetworkRequesterError::FailedLocalVersionCheck);
     }
 
-    let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-    let identity_keypair = nym_client_core::init::load_identity_keys(&pathfinder)?;
+    let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys);
+    let identity_keypair = key_store.load_identity_keypair().map_err(|source| {
+        NetworkRequesterError::ClientCoreError(ClientCoreError::KeyStoreError {
+            source: Box::new(source),
+        })
+    })?;
 
     print_signed_contract_msg(
         identity_keypair.private_key(),

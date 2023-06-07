@@ -244,6 +244,7 @@ impl PacketSize {
     ) -> Result<Self, InvalidPacketSize> {
         let overhead = match packet_type {
             PacketType::Mix => SPHINX_PACKET_OVERHEAD,
+            #[allow(deprecated)]
             PacketType::Vpn => SPHINX_PACKET_OVERHEAD,
             PacketType::Outfox => OUTFOX_PACKET_OVERHEAD,
         };

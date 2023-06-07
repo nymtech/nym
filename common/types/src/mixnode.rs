@@ -13,6 +13,7 @@ use nym_mixnet_contract_common::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::net::IpAddr;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -167,31 +168,23 @@ impl MixNodeCostParams {
 pub struct MixnodeNodeDetailsResponse {
     pub identity_key: String,
     pub sphinx_key: String,
-    pub announce_address: String,
-    pub bind_address: String,
+    pub bind_address: IpAddr,
     pub version: String,
     pub mix_port: u16,
     pub http_api_port: u16,
     pub verloc_port: u16,
-    pub wallet_address: Option<String>,
 }
 
 impl fmt::Display for MixnodeNodeDetailsResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let wallet_address = self.wallet_address.clone().unwrap_or_default();
         writeln!(f, "Identity Key: {}", self.identity_key)?;
         writeln!(f, "Sphinx Key: {}", self.sphinx_key)?;
-        writeln!(
-            f,
-            "Host: {} (bind address: {})",
-            self.announce_address, self.bind_address
-        )?;
+        writeln!(f, "Host: {}", self.bind_address)?;
         writeln!(f, "Version: {}", self.version)?;
         writeln!(
             f,
             "Mix Port: {}, Verloc port: {}, Http Port: {}\n",
             self.mix_port, self.verloc_port, self.http_api_port
-        )?;
-        writeln!(f, "You are bonding to wallet address: {wallet_address}\n\n")
+        )
     }
 }

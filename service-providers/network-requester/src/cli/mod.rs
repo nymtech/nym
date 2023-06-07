@@ -1,18 +1,17 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
+use crate::config::old_config_v1_1_20::ConfigV1_1_20;
+use crate::{
+    config::{BaseClientConfig, Config},
+    error::NetworkRequesterError,
+};
 use clap::{CommandFactory, Parser, Subcommand};
-use log::info;
+use log::{error, info};
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
-use nym_config::NymConfig;
-
-use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
-use crate::{
-    config::{BaseConfig, Config},
-    error::NetworkRequesterError,
-};
 
 mod init;
 mod run;
@@ -70,22 +69,25 @@ pub(crate) struct OverrideConfig {
 
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
     config
-        .with_base(BaseConfig::with_high_default_traffic_volume, args.fastmode)
-        .with_base(BaseConfig::with_disabled_cover_traffic, args.no_cover)
-        .with_optional_custom_env_ext(
-            BaseConfig::with_custom_nym_apis,
+        .with_base(
+            BaseClientConfig::with_high_default_traffic_volume,
+            args.fastmode,
+        )
+        .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
+        .with_optional_base_custom_env(
+            BaseClientConfig::with_custom_nym_apis,
             args.nym_apis,
             nym_network_defaults::var_names::NYM_API,
             nym_config::parse_urls,
         )
-        .with_optional_custom_env_ext(
-            BaseConfig::with_custom_nyxd,
+        .with_optional_base_custom_env(
+            BaseClientConfig::with_custom_nyxd,
             args.nyxd_urls,
             nym_network_defaults::var_names::NYXD,
             nym_config::parse_urls,
         )
-        .with_optional_ext(
-            BaseConfig::with_disabled_credentials,
+        .with_optional_base(
+            BaseClientConfig::with_disabled_credentials,
             args.enabled_credentials_mode.map(|b| !b),
         )
 }
@@ -103,33 +105,81 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
     Ok(())
 }
 
-fn try_upgrade_v1_1_13_config(id: &str) -> std::io::Result<()> {
-    // explicitly load it as v1.1.13 (which is incompatible with the current, i.e. 1.1.14+)
+fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, NetworkRequesterError> {
+    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
+
+    // explicitly load it as v1.1.13 (which is incompatible with the next step, i.e. 1.1.19)
     let Ok(old_config) = OldConfigV1_1_13::load_from_file(id) else {
         // if we failed to load it, there might have been nothing to upgrade
         // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(());
+        return Ok(false);
     };
     info!("It seems the client is using <= v1.1.13 config template.");
     info!("It is going to get updated to the current specification.");
 
+    let updated_step1: ConfigV1_1_20 = old_config.into();
+    let updated: Config = updated_step1.into();
+
+    updated.save_to_default_location()?;
+    Ok(true)
+}
+
+fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, NetworkRequesterError> {
+    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
+
+    // explicitly load it as v1.1.20 (which is incompatible with the current one, i.e. +1.1.21)
+    let Ok(old_config) = ConfigV1_1_20::load_from_file(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(false);
+    };
+
+    info!("It seems the client is using <= v1.1.20 config template.");
+    info!("It is going to get updated to the current specification.");
+
     let updated: Config = old_config.into();
-    updated.save_to_file(None)
+    updated.save_to_default_location()?;
+    Ok(true)
+}
+
+fn try_upgrade_config(id: &str) -> Result<(), NetworkRequesterError> {
+    let upgraded = try_upgrade_v1_1_13_config(id)?;
+    if !upgraded {
+        try_upgrade_v1_1_20_config(id)?;
+    }
+
+    Ok(())
+}
+
+fn try_load_current_config(id: &str) -> Result<Config, NetworkRequesterError> {
+    try_upgrade_config(id)?;
+
+    let config = match Config::read_from_default_path(id) {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            error!("Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})");
+            return Err(NetworkRequesterError::FailedToLoadConfig(id.to_string()));
+        }
+    };
+
+    if !config.validate() {
+        return Err(NetworkRequesterError::ConfigValidationFailure);
+    }
+
+    Ok(config)
 }
 
 // this only checks compatibility between config the binary. It does not take into consideration
 // network version. It might do so in the future.
 fn version_check(cfg: &Config) -> bool {
     let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_base().get_version();
+    let config_version = &cfg.base.client.version;
     if binary_version == config_version {
         true
     } else {
         log::warn!(
             "The native-client binary has different version than what is specified \
-            in config file! {} and {}",
-            binary_version,
-            config_version
+            in config file! {binary_version} and {config_version}",
         );
         if version_checker::is_minor_version_compatible(binary_version, config_version) {
             log::info!(

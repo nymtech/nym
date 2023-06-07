@@ -4,15 +4,13 @@
 use nym_client_core::client::base_client::storage::MixnetClientStorage;
 use nym_client_core::client::replies::reply_storage;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
-use nym_socks5_client_core::config::Config as Socks5Config;
 
 #[cfg(target_os = "android")]
 use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
 
+use crate::config::Config;
 #[cfg(not(target_os = "android"))]
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-#[cfg(not(target_os = "android"))]
-use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 
 pub struct MobileClientStorage {
     #[cfg(not(target_os = "android"))]
@@ -53,7 +51,7 @@ impl MixnetClientStorage for MobileClientStorage {
 }
 
 impl MobileClientStorage {
-    pub fn new(config: &Socks5Config) -> Self {
+    pub fn new(config: &Config) -> Self {
         #[cfg(target_os = "android")]
         let key_store = {
             let _ = config;
@@ -61,10 +59,14 @@ impl MobileClientStorage {
         };
 
         #[cfg(not(target_os = "android"))]
-        let key_store = {
-            let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-            OnDiskKeys::new(pathfinder)
-        };
+        let key_store = OnDiskKeys::new(
+            config
+                .storage_paths
+                .clone()
+                .expect("storage paths unavailable")
+                .common_paths
+                .keys,
+        );
 
         MobileClientStorage {
             key_store,

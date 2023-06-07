@@ -1,14 +1,13 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::http::{
     description::description,
     hardware::hardware,
     not_found,
     stats::stats,
-    verloc::{verloc as verlocRoute, VerlocState},
+    verloc::{verloc as verloc_route, VerlocState},
 };
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
@@ -18,7 +17,6 @@ use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::version_checker::parse_version;
-use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_task::{TaskClient, TaskManager};
@@ -27,6 +25,7 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
+
 #[cfg(feature = "cpucycles")]
 use tracing::{error, info, warn};
 
@@ -46,38 +45,35 @@ pub struct MixNode {
 
 impl MixNode {
     pub fn new(config: Config) -> Self {
-        let pathfinder = MixNodePathfinder::new_from_config(&config);
-
         MixNode {
             descriptor: Self::load_node_description(&config),
-            identity_keypair: Arc::new(Self::load_identity_keys(&pathfinder)),
-            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&pathfinder)),
+            identity_keypair: Arc::new(Self::load_identity_keys(&config)),
+            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&config)),
             config,
         }
     }
 
     fn load_node_description(config: &Config) -> NodeDescription {
-        NodeDescription::load_from_file(Config::default_config_directory(&config.get_id()))
-            .unwrap_or_default()
+        NodeDescription::load_from_file(&config.storage_paths.node_description).unwrap_or_default()
     }
 
     /// Loads identity keys stored on disk
-    pub(crate) fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
+    pub(crate) fn load_identity_keys(config: &Config) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
             nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                pathfinder.private_identity_key().to_owned(),
-                pathfinder.public_identity_key().to_owned(),
+                config.storage_paths.keys.private_identity_key(),
+                config.storage_paths.keys.public_identity_key(),
             ))
             .expect("Failed to read stored identity key files");
         identity_keypair
     }
 
     /// Loads Sphinx keys stored on disk
-    fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
+    fn load_sphinx_keys(config: &Config) -> encryption::KeyPair {
         let sphinx_keypair: encryption::KeyPair =
             nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                pathfinder.private_encryption_key().to_owned(),
-                pathfinder.public_encryption_key().to_owned(),
+                config.storage_paths.keys.private_encryption_key(),
+                config.storage_paths.keys.public_encryption_key(),
             ))
             .expect("Failed to read stored sphinx key files");
         sphinx_keypair
@@ -88,13 +84,11 @@ impl MixNode {
         let node_details = nym_types::mixnode::MixnodeNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
-            announce_address: self.config.get_announce_address(),
-            bind_address: self.config.get_listening_address().to_string(),
-            version: self.config.get_version().to_string(),
-            mix_port: self.config.get_mix_port(),
-            http_api_port: self.config.get_http_api_port(),
-            verloc_port: self.config.get_verloc_port(),
-            wallet_address: self.config.get_wallet_address().map(|x| x.to_string()),
+            bind_address: self.config.mixnode.listening_address,
+            version: self.config.mixnode.version.clone(),
+            mix_port: self.config.mixnode.mix_port,
+            http_api_port: self.config.mixnode.http_api_port,
+            verloc_port: self.config.mixnode.verloc_port,
         };
 
         println!("{}", output.format(&node_details));
@@ -105,13 +99,16 @@ impl MixNode {
         atomic_verloc_result: AtomicVerlocResult,
         node_stats_pointer: SharedNodeStats,
     ) {
-        info!("Starting HTTP API on http://localhost:8000");
+        info!(
+            "Starting HTTP API on http://{}:{}",
+            self.config.mixnode.listening_address, self.config.mixnode.http_api_port
+        );
 
         let mut config = rocket::config::Config::release_default();
 
         // bind to the same address as we are using for mixnodes
-        config.address = self.config.get_listening_address();
-        config.port = self.config.get_http_api_port();
+        config.address = self.config.mixnode.listening_address;
+        config.port = self.config.mixnode.http_api_port;
 
         let verloc_state = VerlocState::new(atomic_verloc_result);
         let descriptor = self.descriptor.clone();
@@ -119,7 +116,7 @@ impl MixNode {
         tokio::spawn(async move {
             rocket::build()
                 .configure(config)
-                .mount("/", routes![verlocRoute, description, stats, hardware])
+                .mount("/", routes![verloc_route, description, stats, hardware])
                 .register("/", catchers![not_found])
                 .manage(verloc_state)
                 .manage(descriptor)
@@ -135,8 +132,8 @@ impl MixNode {
     ) -> (SharedNodeStats, node_statistics::UpdateSender) {
         info!("Starting node stats controller...");
         let controller = node_statistics::Controller::new(
-            self.config.get_node_stats_logging_delay(),
-            self.config.get_node_stats_updating_delay(),
+            self.config.debug.node_stats_logging_delay,
+            self.config.debug.node_stats_updating_delay,
             shutdown,
         );
         let node_stats_pointer = controller.get_node_stats_data_pointer();
@@ -159,8 +156,8 @@ impl MixNode {
         let connection_handler = ConnectionHandler::new(packet_processor, delay_forwarding_channel);
 
         let listening_address = SocketAddr::new(
-            self.config.get_listening_address(),
-            self.config.get_mix_port(),
+            self.config.mixnode.listening_address,
+            self.config.mixnode.mix_port,
         );
 
         Listener::new(listening_address, shutdown).start(connection_handler);
@@ -174,11 +171,11 @@ impl MixNode {
         info!("Starting packet delay-forwarder...");
 
         let client_config = nym_mixnet_client::Config::new(
-            self.config.get_packet_forwarding_initial_backoff(),
-            self.config.get_packet_forwarding_maximum_backoff(),
-            self.config.get_initial_connection_timeout(),
-            self.config.get_maximum_connection_buffer_size(),
-            self.config.get_use_legacy_sphinx_framing(),
+            self.config.debug.packet_forwarding_initial_backoff,
+            self.config.debug.packet_forwarding_maximum_backoff,
+            self.config.debug.initial_connection_timeout,
+            self.config.debug.maximum_connection_buffer_size,
+            self.config.debug.use_legacy_framed_packet_version,
         );
 
         let mut packet_forwarder = DelayForwarder::new(
@@ -199,8 +196,8 @@ impl MixNode {
         // this is a sanity check to make sure we didn't mess up with the minimum version at some point
         // and whether the user has run update if they're using old config
         // if this code exists in the node, it MUST BE compatible
-        let config_version =
-            parse_version(self.config.get_version()).expect("malformed version in the config file");
+        let config_version = parse_version(&self.config.mixnode.version)
+            .expect("malformed version in the config file");
         let minimum_version = parse_version(verloc::MINIMUM_NODE_VERSION).unwrap();
         if config_version < minimum_version {
             error!("You seem to have not updated your mixnode configuration file - please run `upgrade` before attempting again");
@@ -210,19 +207,19 @@ impl MixNode {
         // use the same binding address with the HARDCODED port for time being (I don't like that approach personally)
 
         let listening_address = SocketAddr::new(
-            self.config.get_listening_address(),
-            self.config.get_verloc_port(),
+            self.config.mixnode.listening_address,
+            self.config.mixnode.verloc_port,
         );
 
         let config = verloc::ConfigBuilder::new()
             .listening_address(listening_address)
-            .packets_per_node(self.config.get_measurement_packets_per_node())
-            .connection_timeout(self.config.get_measurement_connection_timeout())
-            .packet_timeout(self.config.get_measurement_packet_timeout())
-            .delay_between_packets(self.config.get_measurement_delay_between_packets())
-            .tested_nodes_batch_size(self.config.get_measurement_tested_nodes_batch_size())
-            .testing_interval(self.config.get_measurement_testing_interval())
-            .retry_timeout(self.config.get_measurement_retry_timeout())
+            .packets_per_node(self.config.verloc.packets_per_node)
+            .connection_timeout(self.config.verloc.connection_timeout)
+            .packet_timeout(self.config.verloc.packet_timeout)
+            .delay_between_packets(self.config.verloc.delay_between_packets)
+            .tested_nodes_batch_size(self.config.verloc.tested_nodes_batch_size)
+            .testing_interval(self.config.verloc.testing_interval)
+            .retry_timeout(self.config.verloc.retry_timeout)
             .nym_api_urls(self.config.get_nym_api_endpoints())
             .build();
 
@@ -242,8 +239,7 @@ impl MixNode {
         nym_validator_client::NymApiClient::new(nym_api.clone())
     }
 
-    // TODO: ask DH whether this function still makes sense in ^0.10
-    async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
+    async fn check_if_bonded(&self) -> bool {
         // TODO: if anything, this should be getting data directly from the contract
         // as opposed to the validator API
         let validator_client = self.random_api_client();
@@ -258,12 +254,10 @@ impl MixNode {
             }
         };
 
-        let our_host = self.config.get_announce_address();
-
-        existing_nodes
-            .iter()
-            .find(|node| node.bond_information.mix_node.host == our_host)
-            .map(|node| node.bond_information.mix_node.identity_key.clone())
+        existing_nodes.iter().any(|node| {
+            node.bond_information.mix_node.identity_key
+                == self.identity_keypair.public_key().to_base58_string()
+        })
     }
 
     async fn wait_for_interrupt(&self, shutdown: TaskManager) {
@@ -274,16 +268,8 @@ impl MixNode {
     pub async fn run(&mut self) {
         info!("Starting nym mixnode");
 
-        if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
-            if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
-                warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
-            } else {
-                log::error!(
-                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
-                    duplicate_node_key
-                );
-                return;
-            }
+        if self.check_if_bonded().await {
+            warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
         }
 
         let shutdown = TaskManager::default();

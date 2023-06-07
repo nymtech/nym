@@ -1,14 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cli::{try_upgrade_v1_1_13_config, version_check};
+use crate::cli::{try_load_current_config, version_check};
 use crate::{
     cli::{override_config, OverrideConfig},
-    config::Config,
     error::NetworkRequesterError,
 };
 use clap::Args;
-use nym_config::NymConfig;
+use log::error;
 use nym_sphinx::addressing::clients::Recipient;
 
 const ENABLE_STATISTICS: &str = "enable-statistics";
@@ -77,40 +76,11 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
         );
     }
 
-    let id = &args.id;
-
-    // in case we're using old config, try to upgrade it
-    // (if we're using the current version, it's a no-op)
-    try_upgrade_v1_1_13_config(id)?;
-
-    let mut config = match Config::load_from_file(id) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            log::error!(
-                "Failed to load config for {}. \
-                Are you sure you have run `init` before? (Error was: {err})",
-                id
-            );
-            return Err(NetworkRequesterError::FailedToLoadConfig(id.to_string()));
-        }
-    };
-
-    if !config.validate() {
-        return Err(NetworkRequesterError::ConfigValidationFailure);
-    }
-
-    let override_config_fields = OverrideConfig::from(args.clone());
-    config = override_config(config, override_config_fields);
-
-    if config.get_base_mut().set_empty_fields_to_defaults() {
-        log::warn!(
-            "Some of the core config options were left unset. \
-            The default values are going to get used instead."
-        );
-    }
+    let mut config = try_load_current_config(&args.id)?;
+    config = override_config(config, OverrideConfig::from(args.clone()));
 
     if !version_check(&config) {
-        log::error!("Failed the local version check");
+        error!("failed the local version check");
         return Err(NetworkRequesterError::FailedLocalVersionCheck);
     }
 

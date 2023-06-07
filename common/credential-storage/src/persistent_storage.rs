@@ -23,7 +23,7 @@ impl PersistentStorage {
     /// # Arguments
     ///
     /// * `database_path`: path to the database.
-    pub async fn init<P: AsRef<Path> + Send>(database_path: P) -> Result<Self, StorageError> {
+    pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
         debug!(
             "Attempting to connect to database {:?}",
             database_path.as_ref().as_os_str()

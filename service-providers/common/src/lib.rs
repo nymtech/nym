@@ -10,6 +10,8 @@ use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 
 pub mod interface;
 
+pub const DEFAULT_SERVICE_PROVIDERS_DIR: &str = "service-providers";
+
 // FUTURE WORK:
 // for next version (v4) of the interface, refactor `reply::MixnetAddress` from the socks5 SP
 // and move it here so that you could optionally attach your sender address with any request for easier responses

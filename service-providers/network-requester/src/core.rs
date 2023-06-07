@@ -5,7 +5,7 @@ use crate::allowed_hosts;
 use crate::allowed_hosts::standard_list::StandardListUpdater;
 use crate::allowed_hosts::stored_allowed_hosts::{start_allowed_list_reloader, StoredAllowedHosts};
 use crate::allowed_hosts::{OutboundRequestFilter, StandardList};
-use crate::config::Config;
+use crate::config::{BaseClientConfig, Config};
 use crate::error::NetworkRequesterError;
 use crate::reply::MixnetMessage;
 use crate::statistics::ServiceStatisticsCollector;
@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use futures::channel::mpsc;
 use log::warn;
 use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_network_defaults::NymNetworkDetails;
 use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
@@ -163,8 +164,9 @@ impl NRServiceProviderBuilder {
     ) -> NRServiceProviderBuilder {
         let standard_list = StandardList::new();
 
-        let allowed_hosts = StoredAllowedHosts::new(config.allow_list_file_location());
-        let unknown_hosts = allowed_hosts::HostsStore::new(config.unknown_list_file_location());
+        let allowed_hosts = StoredAllowedHosts::new(&config.storage_paths.allowed_list_location);
+        let unknown_hosts =
+            allowed_hosts::HostsStore::new(&config.storage_paths.unknown_list_location);
 
         let outbound_request_filter =
             OutboundRequestFilter::new(allowed_hosts.clone(), standard_list.clone(), unknown_hosts);
@@ -183,7 +185,9 @@ impl NRServiceProviderBuilder {
     /// Start all subsystems
     pub async fn run_service_provider(self) -> Result<(), NetworkRequesterError> {
         // Connect to the mixnet
-        let mixnet_client = create_mixnet_client(self.config.get_base()).await?;
+        let mixnet_client =
+            create_mixnet_client(&self.config.base, &self.config.storage_paths.common_paths)
+                .await?;
 
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
@@ -443,7 +447,7 @@ impl NRServiceProvider {
             return;
         }
 
-        let traffic_config = self.config.get_base().get_debug_config().traffic;
+        let traffic_config = self.config.base.debug.traffic;
         let packet_size = traffic_config
             .secondary_packet_size
             .unwrap_or(traffic_config.primary_packet_size);
@@ -478,12 +482,13 @@ impl NRServiceProvider {
 // Helper function to create the mixnet client.
 // This is NOT in the SDK since we don't want to expose any of the client-core config types.
 // We could however consider moving it to a crate in common in the future.
-async fn create_mixnet_client<T>(
-    config: &nym_client_core::config::Config<T>,
+async fn create_mixnet_client(
+    config: &BaseClientConfig,
+    paths: &CommonClientPaths,
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
-    let debug_config = *config.get_debug_config();
+    let debug_config = config.debug;
 
-    let storage_paths = nym_sdk::mixnet::StoragePaths::from(config);
+    let storage_paths = nym_sdk::mixnet::StoragePaths::from(paths.clone());
 
     let mut client_builder =
         nym_sdk::mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)

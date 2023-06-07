@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nym_contract_cache::cache::NymContractCache;
-use crate::support::config::Config;
-use crate::support::{self, nyxd};
+use crate::support::{self, config, nyxd};
 use nym_task::TaskManager;
 use okapi::openapi3::OpenApi;
 use rocket::Route;
@@ -34,14 +33,14 @@ pub(crate) fn nym_contract_cache_routes(settings: &OpenApiSettings) -> (Vec<Rout
 }
 
 pub(crate) fn start_refresher(
-    config: &Config,
+    config: &config::NodeStatusAPI,
     nym_contract_cache_state: &NymContractCache,
     nyxd_client: nyxd::Client,
     shutdown: &TaskManager,
 ) -> tokio::sync::watch::Receiver<support::caching::CacheNotification> {
     let nym_contract_cache_refresher = NymContractCacheRefresher::new(
         nyxd_client,
-        config.get_topology_caching_interval(),
+        config.debug.caching_interval,
         nym_contract_cache_state.to_owned(),
     );
     let nym_contract_cache_listener = nym_contract_cache_refresher.subscribe();

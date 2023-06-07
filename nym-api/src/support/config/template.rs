@@ -1,8 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) fn config_template() -> &'static str {
-    r#"
+pub(crate) const CONFIG_TEMPLATE: &str = r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
 
@@ -16,11 +15,6 @@ id = '{{ base.id }}'
 # Validator server to which the API will be getting information about the network.
 local_validator = '{{ base.local_validator }}'
 
-# Address announced to the directory server for the clients to connect to.
-# It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
-# later on by using name resolvable with a DNS query, such as `nymtech.net`.
-announce_address = '{{ base.announce_address }}'
-
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ base.mixnet_contract_address }}'
 
@@ -30,59 +24,72 @@ vesting_contract_address = '{{ base.vesting_contract_address }}'
 # Mnemonic used for rewarding and validator interaction
 mnemonic = '{{ base.mnemonic }}'
 
+
 ##### network monitor config options #####
 
 [network_monitor]
 # Specifies whether network monitoring service is enabled in this process.
 enabled = {{ network_monitor.enabled }}
 
+[network_monitor.storage_paths]
+
+# Path to the database containing bandwidth credentials of this client.
+credentials_database_path = '{{ network_monitor.storage_paths.credentials_database_path }}'
+
+[network_monitor.debug]
+
 # Indicates whether this validator api is running in a disabled credentials mode, thus attempting
 # to claim bandwidth without presenting bandwidth credentials.
-disabled_credentials_mode = {{ network_monitor.disabled_credentials_mode }}
+disabled_credentials_mode = {{ network_monitor.debug.disabled_credentials_mode }}
 
 # Specifies the interval at which the network monitor sends the test packets.
-run_interval = '{{ network_monitor.run_interval }}'
-
-# Specifies interval at which we should be sending ping packets to all active gateways
-# in order to keep the websocket connections alive.
-gateway_ping_interval = '{{ network_monitor.gateway_ping_interval }}'
-
-# Specifies maximum rate (in packets per second) of test packets being sent to gateway
-gateway_sending_rate = {{ network_monitor.gateway_sending_rate }}
-
-# Maximum number of gateway clients the network monitor will try to talk to concurrently.
-max_concurrent_gateway_clients = {{ network_monitor.max_concurrent_gateway_clients }}
-
-# Maximum allowed time for receiving gateway response.
-gateway_response_timeout = '{{ network_monitor.gateway_response_timeout }}'
-
-# Maximum allowed time for the gateway connection to get established.
-gateway_connection_timeout = '{{ network_monitor.gateway_connection_timeout }}'
-
-# Specifies the duration the monitor is going to wait after sending all measurement
-# packets before declaring nodes unreachable.
-packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
-
-credentials_database_path = '{{ network_monitor.credentials_database_path }}'
+run_interval = '{{ network_monitor.debug.run_interval }}'
 
 # Desired number of test routes to be constructed (and working) during a monitor test run.
-test_routes = {{ network_monitor.test_routes }}
+test_routes = {{ network_monitor.debug.test_routes }}
 
 # The minimum number of test routes that need to be constructed (and working) in order for
 # a monitor test run to be valid.
-minimum_test_routes = {{ network_monitor.minimum_test_routes }}
+minimum_test_routes = {{ network_monitor.debug.minimum_test_routes }}
 
 # Number of test packets sent via each pseudorandom route to verify whether they work correctly,
 # before using them for testing the rest of the network.
-route_test_packets = {{ network_monitor.route_test_packets }}
+route_test_packets = {{ network_monitor.debug.route_test_packets }}
 
 # Number of test packets sent to each node during regular monitor test run.
-per_node_test_packets = {{ network_monitor.per_node_test_packets }}
+per_node_test_packets = {{ network_monitor.debug.per_node_test_packets }}
     
-[node_status_api]
+
+##### node status api config options #####
+
+[node_status_api.storage_paths]
 
 # Path to the database file containing uptime statuses for all mixnodes and gateways.
-database_path = '{{ node_status_api.database_path }}'
+database_path = '{{ node_status_api.storage_paths.database_path }}'
+
+[node_status_api.debug]
+
+caching_interval = '{{ node_status_api.debug.caching_interval }}'
+
+
+##### topology cacher config options #####
+
+[topology_cacher.debug]
+
+caching_interval = '{{ topology_cacher.debug.caching_interval }}'
+
+
+##### circulating supply cacher config options #####
+
+[circulating_supply_cacher]
+
+# Specifies whether circulating supply caching service is enabled in this process.
+enabled = {{ circulating_supply_cacher.enabled }}
+
+[circulating_supply_cacher.debug]
+
+caching_interval = '{{ circulating_supply_cacher.debug.caching_interval }}'
+
 
 ##### rewarding config options #####
 
@@ -91,27 +98,36 @@ database_path = '{{ node_status_api.database_path }}'
 # Specifies whether rewarding service is enabled in this process.
 enabled = {{ rewarding.enabled }}
 
+[rewarding.debug]
+
 # Specifies the minimum percentage of monitor test run data present in order to
 # distribute rewards for given interval.
 # Note, only values in range 0-100 are valid
-minimum_interval_monitor_threshold = {{ rewarding.minimum_interval_monitor_threshold }}
+minimum_interval_monitor_threshold = {{ rewarding.debug.minimum_interval_monitor_threshold }}
 
 [coconut_signer]
 
 # Specifies whether coconut signing protocol is enabled in this process.
 enabled = {{ coconut_signer.enabled }}
 
-# Path to the coconut verification key
-verification_key_path = '{{ coconut_signer.verification_key_path }}'
+# address of this nym-api as announced to other instances for the purposes of performing the DKG.
+announce_address = '{{ coconut_signer.announce_address }}'
+
+[coconut_signer.storage_paths]
+
+# Path to a JSON file where state is persisted between different stages of DKG.
+dkg_persistent_state_path = '{{ coconut_signer.storage_paths.dkg_persistent_state_path }}'
 
 # Path to the coconut verification key
-secret_key_path = '{{ coconut_signer.secret_key_path }}'
+verification_key_path = '{{ coconut_signer.storage_paths.verification_key_path }}'
+
+# Path to the coconut verification key
+secret_key_path = '{{ coconut_signer.storage_paths.secret_key_path }}'
 
 # Path to the dkg dealer decryption key
-decryption_key_path = '{{ coconut_signer.decryption_key_path }}'
+decryption_key_path = '{{ coconut_signer.storage_paths.decryption_key_path }}'
 
 # Path to the dkg dealer public key with proof
-public_key_with_proof_path = '{{ coconut_signer.public_key_with_proof_path }}'
+public_key_with_proof_path = '{{ coconut_signer.storage_paths.public_key_with_proof_path }}'
 
-"#
-}
+"#;

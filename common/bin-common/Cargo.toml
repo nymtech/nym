@@ -15,7 +15,7 @@ clap_complete_fig = "4.0"
 log = { workspace = true }
 pretty_env_logger = "0.4.0"
 semver = "0.11"
-serde = { workspace = true, features = ["derive"], optional = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 
 ## tracing
@@ -42,7 +42,7 @@ vergen = { version = "=7.4.3", default-features = false, features = [
 
 [features]
 default = []
-output_format = ["serde", "serde_json"]
+output_format = ["serde_json"]
 tracing = [
     "tracing-subscriber",
     "tracing-tree",

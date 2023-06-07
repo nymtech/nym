@@ -173,7 +173,7 @@ fn try_load_current_config(id: &str) -> Result<Config, NetworkRequesterError> {
 // network version. It might do so in the future.
 fn version_check(cfg: &Config) -> bool {
     let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_base().get_version();
+    let config_version = &cfg.base.client.version;
     if binary_version == config_version {
         true
     } else {

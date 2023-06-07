@@ -79,6 +79,16 @@ impl OnDiskKeys {
         OnDiskKeys { paths }
     }
 
+    pub fn load_encryption_keypair(&self) -> Result<encryption::KeyPair, OnDiskKeysError> {
+        let encryption_paths = self.paths.encryption_key_pair_path();
+        self.load_keypair(encryption_paths, "encryption keys")
+    }
+
+    pub fn load_identity_keypair(&self) -> Result<identity::KeyPair, OnDiskKeysError> {
+        let identity_paths = self.paths.identity_key_pair_path();
+        self.load_keypair(identity_paths, "identity keys")
+    }
+
     fn load_key<T: PemStorableKey>(
         &self,
         path: &std::path::Path,
@@ -132,13 +142,8 @@ impl OnDiskKeys {
     }
 
     fn load_keys(&self) -> Result<KeyManager, OnDiskKeysError> {
-        let identity_paths = self.paths.identity_key_pair_path();
-        let encryption_paths = self.paths.encryption_key_pair_path();
-
-        let identity_keypair: identity::KeyPair =
-            self.load_keypair(identity_paths, "identity keys")?;
-        let encryption_keypair: encryption::KeyPair =
-            self.load_keypair(encryption_paths, "encryption keys")?;
+        let identity_keypair = self.load_identity_keypair()?;
+        let encryption_keypair = self.load_encryption_keypair()?;
 
         let ack_key: AckKey = self.load_key(self.paths.ack_key(), "ack key")?;
         let gateway_shared_key: SharedKeys =

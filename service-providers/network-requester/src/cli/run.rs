@@ -4,7 +4,6 @@
 use crate::cli::{try_load_current_config, version_check};
 use crate::{
     cli::{override_config, OverrideConfig},
-    config::Config,
     error::NetworkRequesterError,
 };
 use clap::Args;

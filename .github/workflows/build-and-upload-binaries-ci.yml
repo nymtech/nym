@@ -63,7 +63,7 @@ jobs:
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.69.0
 
       - name: Build all binaries
         uses: actions-rs/cargo@v1
@@ -74,7 +74,7 @@ jobs:
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.69.0
           target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy

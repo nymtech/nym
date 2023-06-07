@@ -130,7 +130,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 
     let old_config = if default_config_filepath(&id).exists() {
         eprintln!("SOCKS5 client \"{id}\" was already initialised before");
-        Some(Config::read_from_default_path(id)?)
+        Some(Config::read_from_default_path(&id)?)
     } else {
         init_paths(&id)?;
         None

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 import { ConnectionPage } from 'src/pages/connection';
 import { Menu } from 'src/pages/menu';
 import { CompatibleApps } from 'src/pages/menu/Apps';
@@ -8,8 +9,10 @@ import { SettingsMenu } from 'src/pages/menu/settings';
 import { GatewaySettings } from 'src/pages/menu/settings/GatewaySettings';
 import { ServiceProviderSettings } from 'src/pages/menu/settings/ServiceProviderSettings';
 
+const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
+
 export const AppRoutes = () => (
-  <Routes>
+  <SentryRoutes>
     <Route index path="/" element={<ConnectionPage />} />
     <Route path="menu">
       <Route index element={<Menu />} />
@@ -21,5 +24,5 @@ export const AppRoutes = () => (
         <Route path="service-provider" element={<ServiceProviderSettings />} />
       </Route>
     </Route>
-  </Routes>
+  </SentryRoutes>
 );

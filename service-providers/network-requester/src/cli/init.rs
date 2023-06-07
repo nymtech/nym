@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cli::try_upgrade_config;
+use crate::cli::try_load_current_config;
 use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
 use crate::{
     cli::{override_config, OverrideConfig},
@@ -106,15 +106,13 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
 
     let id = &args.id;
 
-    let already_init = if default_config_filepath(id).exists() {
-        // in case we're using old config, try to upgrade it
-        // (if we're using the current version, it's a no-op)
-        try_upgrade_config(id)?;
+    let old_config = if default_config_filepath(id).exists() {
         eprintln!("Client \"{id}\" was already initialised before");
-        true
+        // if the file exist, try to load it (with checking for errors)
+        Some(try_load_current_config(&args.id)?)
     } else {
         init_paths(&args.id)?;
-        false
+        None
     };
 
     // Usually you only register with the gateway on the first init, however you can force
@@ -127,7 +125,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
     // Unless the user really wants to.
-    let register_gateway = !already_init || user_wants_force_register;
+    let register_gateway = old_config.is_none() || user_wants_force_register;
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = args.gateway;
@@ -143,6 +141,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
         register_gateway,
         user_chosen_gateway_id,
         &config.base,
+        old_config.map(|cfg| cfg.base.client.gateway_endpoint),
         args.latency_based_selection,
     )
     .await

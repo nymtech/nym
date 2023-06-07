@@ -128,12 +128,12 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     // Append the gateway id to the name id that we store the config under
     let id = socks5_config_id_appended_with(&chosen_gateway_id);
 
-    let already_init = if default_config_filepath(&id).exists() {
+    let old_config = if default_config_filepath(&id).exists() {
         eprintln!("SOCKS5 client \"{id}\" was already initialised before");
-        true
+        Some(Config::read_from_default_path(id)?)
     } else {
         init_paths(&id)?;
-        false
+        None
     };
 
     // Future proofing. This flag exists for the other clients
@@ -142,7 +142,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
     // Unless the user really wants to.
-    let register_gateway = !already_init || user_wants_force_register;
+    let register_gateway = old_config.is_none() || user_wants_force_register;
 
     log::trace!("Creating config for id: {id}");
     let mut config = Config::new(&id, &provider_address);
@@ -161,6 +161,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         register_gateway,
         Some(chosen_gateway_id),
         &config.core.base,
+        old_config.map(|cfg| cfg.core.base.client.gateway_endpoint),
         // TODO: another instance where this setting should probably get used
         false,
     )

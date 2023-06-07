@@ -203,6 +203,7 @@ pub async fn setup_gateway_from_config<KSt>(
     register_gateway: bool,
     user_chosen_gateway_id: Option<identity::PublicKey>,
     config: &Config,
+    old_gateway_config: Option<GatewayEndpointConfig>,
     by_latency: bool,
 ) -> Result<GatewayEndpointConfig, ClientCoreError>
 where
@@ -213,7 +214,7 @@ where
     // load the existing configuration file
     if !register_gateway && user_chosen_gateway_id.is_none() {
         eprintln!("Not registering gateway, will reuse existing config and keys");
-        return Ok(config.client.gateway_endpoint.clone());
+        return old_gateway_config.ok_or(ClientCoreError::FailedToSetupGateway);
     }
 
     let gateway_setup = GatewaySetup::new(

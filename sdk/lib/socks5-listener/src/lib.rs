@@ -294,6 +294,7 @@ async fn setup_new_client_config(
             true,
             None,
             &new_config.core.base,
+            None,
             false,
         )
         .await?
@@ -303,6 +304,7 @@ async fn setup_new_client_config(
             true,
             None,
             &new_config.core.base,
+            None,
             false,
         )
         .await?

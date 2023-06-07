@@ -8,7 +8,7 @@
     "webpack:dev": "yarn webpack serve --config webpack.dev.js",
     "webpack:dev:onlyThis": "yarn webpack serve --config webpack.dev.js",
     "webpack:prod": "yarn webpack --progress --config webpack.prod.js",
-    "tauri:dev": "RUST_DEBUG=1 yarn tauri dev",
+    "tauri:dev": "DISABLE_MONITORING=1 RUST_DEBUG=1 yarn tauri dev",
     "tauri:build": "yarn tauri build",
     "dev": "run-p webpack:dev tauri:dev",
     "prebuild": "yarn --cwd ../.. build",

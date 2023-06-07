@@ -40,6 +40,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             crate::operations::config::get_config_file_location,
             crate::operations::config::get_config_id,
+            crate::operations::common::get_env,
             crate::operations::connection::connect::get_gateway,
             crate::operations::connection::connect::get_service_provider,
             crate::operations::connection::connect::set_gateway,

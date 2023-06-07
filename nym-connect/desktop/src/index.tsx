@@ -10,6 +10,7 @@ import {
 } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
 import { CaptureConsole } from '@sentry/integrations';
+import { invoke } from '@tauri-apps/api';
 import { getVersion } from '@tauri-apps/api/app';
 import { GlobalStyles } from '@mui/material';
 import { ClientContextProvider } from './context/main';
@@ -21,58 +22,67 @@ import { AppRoutes } from './routes';
 
 const elem = document.getElementById('root');
 
-Sentry.init({
-  dsn: 'https://625e2658da4945a7a253f3ee04413a31@o967446.ingest.sentry.io/4505306292289536',
-  integrations: [
-    new Sentry.BrowserTracing({
-      // Set `tracePropagationTargets` to control for which URLs distributed tracing should be enabled
-      tracePropagationTargets: ['localhost'],
-      routingInstrumentation: Sentry.reactRouterV6Instrumentation(
-        React.useEffect,
-        useLocation,
-        useNavigationType,
-        createRoutesFromChildren,
-        matchRoutes,
-      ),
-    }),
-    new Sentry.Replay(),
-    // captures Console API calls
-    new CaptureConsole({ levels: ['error', 'warn'] }),
-  ],
-
-  // TODO adjust this in the future, 100% is not recommended for production
-  tracesSampleRate: 1.0,
-
-  // Capture Replay for 10% of all sessions,
-  // plus for 100% of sessions with an error
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
-
-  environment: process.env.NODE_ENV,
-});
-
 (async () => {
-  getVersion().then((version) => {
-    Sentry.setTag('app_version', version);
-  });
-})();
+  const monitoring = !(await invoke<string | undefined>('get_env', {
+    variable: 'DISABLE_MONITORING',
+  }));
 
-if (elem) {
-  const root = createRoot(elem);
-  root.render(
-    <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <Router>
-        <ClientContextProvider>
-          <TestAndEarnContextProvider>
-            <GlobalStyles styles={{ html: { borderRadius: 10 } }} />
-            <NymMixnetTheme mode="dark">
-              <AppWindowFrame>
-                <AppRoutes />
-              </AppWindowFrame>
-            </NymMixnetTheme>
-          </TestAndEarnContextProvider>
-        </ClientContextProvider>
-      </Router>
-    </ErrorBoundary>,
-  );
-}
+  if (monitoring) {
+    console.warn('error tracking and performance monitoring activated');
+    console.log('to turn off tracking and monitoring, set the env variable DISABLE_MONITORING');
+
+    Sentry.init({
+      dsn: 'https://625e2658da4945a7a253f3ee04413a31@o967446.ingest.sentry.io/4505306292289536',
+      integrations: [
+        new Sentry.BrowserTracing({
+          // Set `tracePropagationTargets` to control for which URLs distributed tracing should be enabled
+          tracePropagationTargets: ['localhost'],
+          routingInstrumentation: Sentry.reactRouterV6Instrumentation(
+            React.useEffect,
+            useLocation,
+            useNavigationType,
+            createRoutesFromChildren,
+            matchRoutes,
+          ),
+        }),
+        new Sentry.Replay(),
+        // captures Console API calls
+        new CaptureConsole({ levels: ['error', 'warn'] }),
+      ],
+
+      // TODO adjust this in the future, 100% is not recommended for production
+      tracesSampleRate: 1.0,
+
+      // Capture Replay for 10% of all sessions,
+      // plus for 100% of sessions with an error
+      replaysSessionSampleRate: 0.1,
+      replaysOnErrorSampleRate: 1.0,
+
+      environment: process.env.NODE_ENV,
+    });
+
+    getVersion().then((version) => {
+      Sentry.setTag('app_version', version);
+    });
+  }
+
+  if (elem) {
+    const root = createRoot(elem);
+    root.render(
+      <ErrorBoundary FallbackComponent={ErrorFallback}>
+        <Router>
+          <ClientContextProvider>
+            <TestAndEarnContextProvider>
+              <GlobalStyles styles={{ html: { borderRadius: 10 } }} />
+              <NymMixnetTheme mode="dark">
+                <AppWindowFrame>
+                  <AppRoutes monitoring={monitoring} />
+                </AppWindowFrame>
+              </NymMixnetTheme>
+            </TestAndEarnContextProvider>
+          </ClientContextProvider>
+        </Router>
+      </ErrorBoundary>,
+    );
+  }
+})();

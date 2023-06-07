@@ -56,21 +56,21 @@ fn bind_all_address() -> IpAddr {
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV1_1_20 {
-    mixnode: MixNodeV1_1_20,
+pub struct ConfigV1_1_21 {
+    mixnode: MixNodeV1_1_21,
 
     #[serde(default)]
-    verloc: VerlocV1_1_20,
+    verloc: VerlocV1_1_21,
     #[serde(default)]
-    logging: LoggingV1_1_20,
+    logging: LoggingV1_1_21,
     #[serde(default)]
-    debug: DebugV1_1_20,
+    debug: DebugV1_1_21,
 }
 
-impl From<ConfigV1_1_20> for Config {
-    fn from(value: ConfigV1_1_20) -> Self {
+impl From<ConfigV1_1_21> for Config {
+    fn from(value: ConfigV1_1_21) -> Self {
         let node_description =
-            ConfigV1_1_20::default_config_directory(&value.mixnode.id).join(DESCRIPTION_FILE);
+            ConfigV1_1_21::default_config_directory(&value.mixnode.id).join(DESCRIPTION_FILE);
 
         Config {
             mixnode: MixNode {
@@ -98,7 +98,7 @@ impl From<ConfigV1_1_20> for Config {
     }
 }
 
-impl MigrationNymConfig for ConfigV1_1_20 {
+impl MigrationNymConfig for ConfigV1_1_21 {
     fn default_root_directory() -> PathBuf {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
@@ -108,7 +108,7 @@ impl MigrationNymConfig for ConfigV1_1_20 {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-struct MixNodeV1_1_20 {
+struct MixNodeV1_1_21 {
     version: String,
     id: String,
     #[serde(deserialize_with = "de_ipaddr_from_maybe_str_socks_addr")]
@@ -126,9 +126,9 @@ struct MixNodeV1_1_20 {
     wallet_address: Option<nyxd::AccountId>,
 }
 
-impl Default for MixNodeV1_1_20 {
+impl Default for MixNodeV1_1_21 {
     fn default() -> Self {
-        MixNodeV1_1_20 {
+        MixNodeV1_1_21 {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             listening_address: bind_all_address(),
@@ -141,7 +141,7 @@ impl Default for MixNodeV1_1_20 {
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             nym_api_urls: vec![Url::from_str(NYM_API).expect("Invalid default API URL")],
-            nym_root_directory: ConfigV1_1_20::default_root_directory(),
+            nym_root_directory: ConfigV1_1_21::default_root_directory(),
             wallet_address: None,
         }
     }
@@ -149,17 +149,17 @@ impl Default for MixNodeV1_1_20 {
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-struct LoggingV1_1_20 {}
+struct LoggingV1_1_21 {}
 
-impl From<LoggingV1_1_20> for LoggingSettings {
-    fn from(_value: LoggingV1_1_20) -> Self {
+impl From<LoggingV1_1_21> for LoggingSettings {
+    fn from(_value: LoggingV1_1_21) -> Self {
         LoggingSettings {}
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-struct VerlocV1_1_20 {
+struct VerlocV1_1_21 {
     packets_per_node: usize,
     connection_timeout: Duration,
     packet_timeout: Duration,
@@ -169,8 +169,8 @@ struct VerlocV1_1_20 {
     retry_timeout: Duration,
 }
 
-impl From<VerlocV1_1_20> for Verloc {
-    fn from(value: VerlocV1_1_20) -> Self {
+impl From<VerlocV1_1_21> for Verloc {
+    fn from(value: VerlocV1_1_21) -> Self {
         Verloc {
             packets_per_node: value.packets_per_node,
             connection_timeout: value.connection_timeout,
@@ -183,9 +183,9 @@ impl From<VerlocV1_1_20> for Verloc {
     }
 }
 
-impl Default for VerlocV1_1_20 {
+impl Default for VerlocV1_1_21 {
     fn default() -> Self {
-        VerlocV1_1_20 {
+        VerlocV1_1_21 {
             packets_per_node: DEFAULT_PACKETS_PER_NODE,
             connection_timeout: DEFAULT_CONNECTION_TIMEOUT,
             packet_timeout: DEFAULT_PACKET_TIMEOUT,
@@ -199,7 +199,7 @@ impl Default for VerlocV1_1_20 {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-struct DebugV1_1_20 {
+struct DebugV1_1_21 {
     #[serde(with = "humantime_serde")]
     node_stats_logging_delay: Duration,
 
@@ -220,8 +220,8 @@ struct DebugV1_1_20 {
     use_legacy_framed_packet_version: bool,
 }
 
-impl From<DebugV1_1_20> for Debug {
-    fn from(value: DebugV1_1_20) -> Self {
+impl From<DebugV1_1_21> for Debug {
+    fn from(value: DebugV1_1_21) -> Self {
         Debug {
             node_stats_logging_delay: value.node_stats_logging_delay,
             node_stats_updating_delay: value.node_stats_updating_delay,
@@ -234,9 +234,9 @@ impl From<DebugV1_1_20> for Debug {
     }
 }
 
-impl Default for DebugV1_1_20 {
+impl Default for DebugV1_1_21 {
     fn default() -> Self {
-        DebugV1_1_20 {
+        DebugV1_1_21 {
             node_stats_logging_delay: DEFAULT_NODE_STATS_LOGGING_DELAY,
             node_stats_updating_delay: DEFAULT_NODE_STATS_UPDATING_DELAY,
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,

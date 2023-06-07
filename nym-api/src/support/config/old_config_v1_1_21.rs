@@ -52,36 +52,36 @@ const DEFAULT_MIN_GATEWAY_RELIABILITY: u8 = 20;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV1_1_20 {
+pub struct ConfigV1_1_21 {
     #[serde(default)]
-    base: BaseV1_1_20,
+    base: BaseV1_1_21,
 
     #[serde(default)]
-    network_monitor: NetworkMonitorV1_1_20,
+    network_monitor: NetworkMonitorV1_1_21,
 
     #[serde(default)]
-    node_status_api: NodeStatusAPIV1_1_20,
+    node_status_api: NodeStatusAPIV1_1_21,
 
     #[serde(default)]
-    topology_cacher: TopologyCacherV1_1_20,
+    topology_cacher: TopologyCacherV1_1_21,
 
     #[serde(default)]
-    circulating_supply_cacher: CirculatingSupplyCacherV1_1_20,
+    circulating_supply_cacher: CirculatingSupplyCacherV1_1_21,
 
     #[serde(default)]
-    rewarding: RewardingV1_1_20,
+    rewarding: RewardingV1_1_21,
 
     #[serde(default)]
-    coconut_signer: CoconutSignerV1_1_20,
+    coconut_signer: CoconutSignerV1_1_21,
 }
 
-impl From<ConfigV1_1_20> for Config {
-    fn from(value: ConfigV1_1_20) -> Self {
+impl From<ConfigV1_1_21> for Config {
+    fn from(value: ConfigV1_1_21) -> Self {
         // this value was never properly saved (probably a bug)
         // so explicitly set it to the default
 
         let dkg_persistent_state_path =
-            CoconutSignerV1_1_20::default_dkg_persistent_state_path(&value.base.id);
+            CoconutSignerV1_1_21::default_dkg_persistent_state_path(&value.base.id);
 
         Config {
             base: Base {
@@ -160,7 +160,7 @@ impl From<ConfigV1_1_20> for Config {
     }
 }
 
-impl MigrationNymConfig for ConfigV1_1_20 {
+impl MigrationNymConfig for ConfigV1_1_21 {
     fn default_root_directory() -> PathBuf {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
@@ -172,7 +172,7 @@ impl MigrationNymConfig for ConfigV1_1_20 {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct BaseV1_1_20 {
+pub struct BaseV1_1_21 {
     /// ID specifies the human readable ID of this particular nym-api.
     id: String,
 
@@ -193,7 +193,7 @@ pub struct BaseV1_1_20 {
     mnemonic: bip39::Mnemonic,
 }
 
-impl Default for BaseV1_1_20 {
+impl Default for BaseV1_1_21 {
     fn default() -> Self {
         let default_validator: Url = DEFAULT_LOCAL_VALIDATOR
             .parse()
@@ -203,7 +203,7 @@ impl Default for BaseV1_1_20 {
             .set_port(Some(DEFAULT_NYM_API_PORT))
             .expect("default local validator is malformed!");
 
-        BaseV1_1_20 {
+        BaseV1_1_21 {
             id: String::default(),
             local_validator: default_validator,
             announce_address: default_announce_address,
@@ -217,7 +217,7 @@ impl Default for BaseV1_1_20 {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct NetworkMonitorV1_1_20 {
+pub struct NetworkMonitorV1_1_21 {
     min_mixnode_reliability: u8, // defaults to 50
     min_gateway_reliability: u8, // defaults to 20
     enabled: bool,
@@ -242,9 +242,9 @@ pub struct NetworkMonitorV1_1_20 {
     per_node_test_packets: usize,
 }
 
-impl Default for NetworkMonitorV1_1_20 {
+impl Default for NetworkMonitorV1_1_21 {
     fn default() -> Self {
-        NetworkMonitorV1_1_20 {
+        NetworkMonitorV1_1_21 {
             min_mixnode_reliability: DEFAULT_MIN_MIXNODE_RELIABILITY,
             min_gateway_reliability: DEFAULT_MIN_GATEWAY_RELIABILITY,
             enabled: false,
@@ -268,15 +268,15 @@ impl Default for NetworkMonitorV1_1_20 {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct NodeStatusAPIV1_1_20 {
+pub struct NodeStatusAPIV1_1_21 {
     database_path: PathBuf,
     #[serde(with = "humantime_serde")]
     caching_interval: Duration,
 }
 
-impl Default for NodeStatusAPIV1_1_20 {
+impl Default for NodeStatusAPIV1_1_21 {
     fn default() -> Self {
-        NodeStatusAPIV1_1_20 {
+        NodeStatusAPIV1_1_21 {
             database_path: Default::default(),
             caching_interval: DEFAULT_NODE_STATUS_CACHE_INTERVAL,
         }
@@ -286,14 +286,14 @@ impl Default for NodeStatusAPIV1_1_20 {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct TopologyCacherV1_1_20 {
+pub struct TopologyCacherV1_1_21 {
     #[serde(with = "humantime_serde")]
     caching_interval: Duration,
 }
 
-impl Default for TopologyCacherV1_1_20 {
+impl Default for TopologyCacherV1_1_21 {
     fn default() -> Self {
-        TopologyCacherV1_1_20 {
+        TopologyCacherV1_1_21 {
             caching_interval: DEFAULT_TOPOLOGY_CACHE_INTERVAL,
         }
     }
@@ -302,16 +302,16 @@ impl Default for TopologyCacherV1_1_20 {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct CirculatingSupplyCacherV1_1_20 {
+pub struct CirculatingSupplyCacherV1_1_21 {
     enabled: bool,
 
     #[serde(with = "humantime_serde")]
     caching_interval: Duration,
 }
 
-impl Default for CirculatingSupplyCacherV1_1_20 {
+impl Default for CirculatingSupplyCacherV1_1_21 {
     fn default() -> Self {
-        CirculatingSupplyCacherV1_1_20 {
+        CirculatingSupplyCacherV1_1_21 {
             enabled: true,
             caching_interval: DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL,
         }
@@ -321,14 +321,14 @@ impl Default for CirculatingSupplyCacherV1_1_20 {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct RewardingV1_1_20 {
+pub struct RewardingV1_1_21 {
     enabled: bool,
     minimum_interval_monitor_threshold: u8,
 }
 
-impl Default for RewardingV1_1_20 {
+impl Default for RewardingV1_1_21 {
     fn default() -> Self {
-        RewardingV1_1_20 {
+        RewardingV1_1_21 {
             enabled: false,
             minimum_interval_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
         }
@@ -338,7 +338,7 @@ impl Default for RewardingV1_1_20 {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct CoconutSignerV1_1_20 {
+pub struct CoconutSignerV1_1_21 {
     enabled: bool,
     dkg_persistent_state_path: PathBuf,
     verification_key_path: PathBuf,
@@ -348,15 +348,15 @@ pub struct CoconutSignerV1_1_20 {
     dkg_contract_polling_rate: Duration,
 }
 
-impl CoconutSignerV1_1_20 {
+impl CoconutSignerV1_1_21 {
     pub const DKG_PERSISTENT_STATE_FILE: &'static str = "dkg_persistent_state.json";
 
     fn default_dkg_persistent_state_path(id: &str) -> PathBuf {
-        ConfigV1_1_20::default_data_directory(id).join(Self::DKG_PERSISTENT_STATE_FILE)
+        ConfigV1_1_21::default_data_directory(id).join(Self::DKG_PERSISTENT_STATE_FILE)
     }
 }
 
-impl Default for CoconutSignerV1_1_20 {
+impl Default for CoconutSignerV1_1_21 {
     fn default() -> Self {
         Self {
             enabled: Default::default(),

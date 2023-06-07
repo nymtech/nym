@@ -33,17 +33,17 @@ fn bind_all_address() -> IpAddr {
 }
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
-pub struct ConfigV1_1_19 {
-    gateway: GatewayV1_1_19,
+pub struct ConfigV1_1_20 {
+    gateway: GatewayV1_1_20,
 
     #[serde(default)]
-    logging: LoggingV1_1_19,
+    logging: LoggingV1_1_20,
     #[serde(default)]
-    debug: DebugV1_1_19,
+    debug: DebugV1_1_20,
 }
 
-impl From<ConfigV1_1_19> for Config {
-    fn from(value: ConfigV1_1_19) -> Self {
+impl From<ConfigV1_1_20> for Config {
+    fn from(value: ConfigV1_1_20) -> Self {
         Config {
             gateway: Gateway {
                 version: value.gateway.version,
@@ -73,7 +73,7 @@ impl From<ConfigV1_1_19> for Config {
     }
 }
 
-impl MigrationNymConfig for ConfigV1_1_19 {
+impl MigrationNymConfig for ConfigV1_1_20 {
     fn default_root_directory() -> PathBuf {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
@@ -83,7 +83,7 @@ impl MigrationNymConfig for ConfigV1_1_19 {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct GatewayV1_1_19 {
+pub struct GatewayV1_1_20 {
     version: String,
     id: String,
 
@@ -110,9 +110,9 @@ pub struct GatewayV1_1_19 {
     wallet_address: Option<nyxd::AccountId>,
 }
 
-impl Default for GatewayV1_1_19 {
+impl Default for GatewayV1_1_20 {
     fn default() -> Self {
-        GatewayV1_1_19 {
+        GatewayV1_1_20 {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             only_coconut_credentials: false,
@@ -130,7 +130,7 @@ impl Default for GatewayV1_1_19 {
             nym_api_urls: vec![Url::from_str(NYM_API).expect("Invalid default API URL")],
             nyxd_urls: vec![Url::from_str(NYXD_URL).expect("Invalid default nyxd URL")],
             cosmos_mnemonic: bip39::Mnemonic::generate(24).unwrap(),
-            nym_root_directory: ConfigV1_1_19::default_root_directory(),
+            nym_root_directory: ConfigV1_1_20::default_root_directory(),
             persistent_storage: Default::default(),
             wallet_address: None,
         }
@@ -139,17 +139,17 @@ impl Default for GatewayV1_1_19 {
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-struct LoggingV1_1_19 {}
+struct LoggingV1_1_20 {}
 
-impl From<LoggingV1_1_19> for LoggingSettings {
-    fn from(_value: LoggingV1_1_19) -> Self {
+impl From<LoggingV1_1_20> for LoggingSettings {
+    fn from(_value: LoggingV1_1_20) -> Self {
         LoggingSettings {}
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-struct DebugV1_1_19 {
+struct DebugV1_1_20 {
     #[serde(with = "humantime_serde")]
     packet_forwarding_initial_backoff: Duration,
     #[serde(with = "humantime_serde")]
@@ -164,8 +164,8 @@ struct DebugV1_1_19 {
     use_legacy_framed_packet_version: bool,
 }
 
-impl From<DebugV1_1_19> for Debug {
-    fn from(value: DebugV1_1_19) -> Self {
+impl From<DebugV1_1_20> for Debug {
+    fn from(value: DebugV1_1_20) -> Self {
         Debug {
             packet_forwarding_initial_backoff: value.packet_forwarding_initial_backoff,
             packet_forwarding_maximum_backoff: value.packet_forwarding_maximum_backoff,
@@ -179,9 +179,9 @@ impl From<DebugV1_1_19> for Debug {
     }
 }
 
-impl Default for DebugV1_1_19 {
+impl Default for DebugV1_1_20 {
     fn default() -> Self {
-        DebugV1_1_19 {
+        DebugV1_1_20 {
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,

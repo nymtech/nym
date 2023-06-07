@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::default_config_filepath;
-use crate::config::old_config_v1_1_19::ConfigV1_1_19;
+use crate::config::old_config_v1_1_20::ConfigV1_1_20;
 use crate::error::GatewayError;
 use crate::{config::Config, Cli};
 use clap::CommandFactory;
@@ -153,16 +153,16 @@ pub(crate) fn ensure_config_version_compatibility(cfg: &Config) -> Result<(), Ga
     }
 }
 
-fn try_upgrade_v1_1_19_config(id: &str) -> Result<(), GatewayError> {
+fn try_upgrade_v1_1_20_config(id: &str) -> Result<(), GatewayError> {
     use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 
-    // explicitly load it as v1.1.19 (which is incompatible with the current, i.e. 1.1.20+)
-    let Ok(old_config) = ConfigV1_1_19::load_from_file(id) else {
+    // explicitly load it as v1.1.20 (which is incompatible with the current, i.e. 1.1.21+)
+    let Ok(old_config) = ConfigV1_1_20::load_from_file(id) else {
         // if we failed to load it, there might have been nothing to upgrade
         // or maybe it was an even older file. in either way. just ignore it and carry on with our day
         return Ok(());
     };
-    info!("It seems the gateway is using <= v1.1.19 config template.");
+    info!("It seems the gateway is using <= v1.1.20 config template.");
     info!("It is going to get updated to the current specification.");
 
     let updated: Config = old_config.into();
@@ -176,7 +176,7 @@ fn try_upgrade_v1_1_19_config(id: &str) -> Result<(), GatewayError> {
 }
 
 pub(crate) fn try_load_current_config(id: &str) -> Result<Config, GatewayError> {
-    try_upgrade_v1_1_19_config(id)?;
+    try_upgrade_v1_1_20_config(id)?;
 
     Config::read_from_default_path(id).map_err(|err| {
         error!(

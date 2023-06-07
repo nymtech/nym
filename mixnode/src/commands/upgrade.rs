@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::try_upgrade_v1_1_20_config;
+use crate::commands::try_upgrade_v1_1_21_config;
 use crate::config::Config;
 use clap::Args;
 use nym_bin_common::version_checker::Version;
@@ -125,7 +125,7 @@ fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
 }
 
 pub(crate) fn execute(args: &Upgrade) -> anyhow::Result<()> {
-    try_upgrade_v1_1_20_config(&args.id)?;
+    try_upgrade_v1_1_21_config(&args.id)?;
 
     let package_version = parse_package_version();
 

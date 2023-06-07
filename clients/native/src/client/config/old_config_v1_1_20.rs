@@ -6,7 +6,7 @@ use crate::client::config::{Config, Socket, SocketType};
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
-use nym_client_core::config::old_config_v1_1_19::ConfigV1_1_19 as BaseConfigV1_1_19;
+use nym_client_core::config::old_config_v1_1_20::ConfigV1_1_20 as BaseConfigV1_1_20;
 use nym_client_core::config::{Client, Config as BaseConfig};
 use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
@@ -17,31 +17,31 @@ use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone, Copy)]
 #[serde(deny_unknown_fields)]
-pub enum SocketTypeV1_1_19 {
+pub enum SocketTypeV1_1_20 {
     WebSocket,
     None,
 }
 
-impl From<SocketTypeV1_1_19> for SocketType {
-    fn from(value: SocketTypeV1_1_19) -> Self {
+impl From<SocketTypeV1_1_20> for SocketType {
+    fn from(value: SocketTypeV1_1_20) -> Self {
         match value {
-            SocketTypeV1_1_19::WebSocket => SocketType::WebSocket,
-            SocketTypeV1_1_19::None => SocketType::None,
+            SocketTypeV1_1_20::WebSocket => SocketType::WebSocket,
+            SocketTypeV1_1_20::None => SocketType::None,
         }
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV1_1_19 {
+pub struct ConfigV1_1_20 {
     #[serde(flatten)]
-    pub base: BaseConfigV1_1_19<ConfigV1_1_19>,
+    pub base: BaseConfigV1_1_20<ConfigV1_1_20>,
 
-    pub socket: SocketV1_1_19,
+    pub socket: SocketV1_1_20,
 }
 
-impl From<ConfigV1_1_19> for Config {
-    fn from(value: ConfigV1_1_19) -> Self {
+impl From<ConfigV1_1_20> for Config {
+    fn from(value: ConfigV1_1_20) -> Self {
         Config {
             base: BaseConfig {
                 client: Client {
@@ -74,7 +74,7 @@ impl From<ConfigV1_1_19> for Config {
     }
 }
 
-impl MigrationNymConfig for ConfigV1_1_19 {
+impl MigrationNymConfig for ConfigV1_1_20 {
     fn default_root_directory() -> PathBuf {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
@@ -85,14 +85,14 @@ impl MigrationNymConfig for ConfigV1_1_19 {
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct SocketV1_1_19 {
-    socket_type: SocketTypeV1_1_19,
+pub struct SocketV1_1_20 {
+    socket_type: SocketTypeV1_1_20,
     host: IpAddr,
     listening_port: u16,
 }
 
-impl From<SocketV1_1_19> for Socket {
-    fn from(value: SocketV1_1_19) -> Self {
+impl From<SocketV1_1_20> for Socket {
+    fn from(value: SocketV1_1_20) -> Self {
         Socket {
             socket_type: value.socket_type.into(),
             host: value.host,
@@ -101,10 +101,10 @@ impl From<SocketV1_1_19> for Socket {
     }
 }
 
-impl Default for SocketV1_1_19 {
+impl Default for SocketV1_1_20 {
     fn default() -> Self {
-        SocketV1_1_19 {
-            socket_type: SocketTypeV1_1_19::WebSocket,
+        SocketV1_1_20 {
+            socket_type: SocketTypeV1_1_20::WebSocket,
             host: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             listening_port: DEFAULT_WEBSOCKET_LISTENING_PORT,
         }

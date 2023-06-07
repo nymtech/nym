@@ -19,7 +19,7 @@ use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) mod helpers;
-pub(crate) mod old_config_v1_1_20;
+pub(crate) mod old_config_v1_1_21;
 mod persistence;
 mod template;
 

@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::old_config_v1_1_19::ConfigV1_1_19;
+use crate::config::old_config_v1_1_20::ConfigV1_1_20;
 use nym_client_core::config::old_config_v1_1_13::OldConfigV1_1_13 as OldBaseConfigV1_1_13;
 use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 use serde::{Deserialize, Serialize};
@@ -24,9 +24,9 @@ impl MigrationNymConfig for OldConfigV1_1_13 {
     }
 }
 
-impl From<OldConfigV1_1_13> for ConfigV1_1_19 {
+impl From<OldConfigV1_1_13> for ConfigV1_1_20 {
     fn from(value: OldConfigV1_1_13) -> Self {
-        ConfigV1_1_19 {
+        ConfigV1_1_20 {
             base: value.base.into(),
             network_requester: Default::default(),
             network_requester_debug: Default::default(),

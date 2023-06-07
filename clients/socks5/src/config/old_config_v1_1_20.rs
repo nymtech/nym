@@ -6,7 +6,7 @@ use crate::config::{BaseClientConfig, Config, CoreConfig};
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
-use nym_client_core::config::old_config_v1_1_19::ConfigV1_1_19 as BaseConfigV1_1_19;
+use nym_client_core::config::old_config_v1_1_20::ConfigV1_1_20 as BaseConfigV1_1_20;
 use nym_client_core::config::Client;
 use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 use nym_config::must_get_home;
@@ -22,15 +22,15 @@ const DEFAULT_PER_REQUEST_SURBS: u32 = 3;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV1_1_19 {
+pub struct ConfigV1_1_20 {
     #[serde(flatten)]
-    pub base: BaseConfigV1_1_19<ConfigV1_1_19>,
+    pub base: BaseConfigV1_1_20<ConfigV1_1_20>,
 
-    pub socks5: Socks5V1_1_19,
+    pub socks5: Socks5V1_1_20,
 }
 
-impl From<ConfigV1_1_19> for Config {
-    fn from(value: ConfigV1_1_19) -> Self {
+impl From<ConfigV1_1_20> for Config {
+    fn from(value: ConfigV1_1_20) -> Self {
         Config {
             core: CoreConfig {
                 base: BaseClientConfig {
@@ -65,7 +65,7 @@ impl From<ConfigV1_1_19> for Config {
     }
 }
 
-impl MigrationNymConfig for ConfigV1_1_19 {
+impl MigrationNymConfig for ConfigV1_1_20 {
     fn default_root_directory() -> PathBuf {
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         let base_dir = must_get_home();
@@ -78,7 +78,7 @@ impl MigrationNymConfig for ConfigV1_1_19 {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Socks5V1_1_19 {
+pub struct Socks5V1_1_20 {
     pub listening_port: u16,
 
     pub provider_mix_address: String,
@@ -93,11 +93,11 @@ pub struct Socks5V1_1_19 {
     pub send_anonymously: bool,
 
     #[serde(default)]
-    pub socks5_debug: Socks5DebugV1_1_19,
+    pub socks5_debug: Socks5DebugV1_1_20,
 }
 
-impl From<Socks5V1_1_19> for Socks5 {
-    fn from(value: Socks5V1_1_19) -> Self {
+impl From<Socks5V1_1_20> for Socks5 {
+    fn from(value: Socks5V1_1_20) -> Self {
         Socks5 {
             listening_port: value.listening_port,
             provider_mix_address: value.provider_mix_address,
@@ -111,13 +111,13 @@ impl From<Socks5V1_1_19> for Socks5 {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Socks5DebugV1_1_19 {
+pub struct Socks5DebugV1_1_20 {
     connection_start_surbs: u32,
     per_request_surbs: u32,
 }
 
-impl From<Socks5DebugV1_1_19> for Socks5Debug {
-    fn from(value: Socks5DebugV1_1_19) -> Self {
+impl From<Socks5DebugV1_1_20> for Socks5Debug {
+    fn from(value: Socks5DebugV1_1_20) -> Self {
         Socks5Debug {
             connection_start_surbs: value.connection_start_surbs,
             per_request_surbs: value.per_request_surbs,
@@ -125,9 +125,9 @@ impl From<Socks5DebugV1_1_19> for Socks5Debug {
     }
 }
 
-impl Default for Socks5DebugV1_1_19 {
+impl Default for Socks5DebugV1_1_20 {
     fn default() -> Self {
-        Socks5DebugV1_1_19 {
+        Socks5DebugV1_1_20 {
             connection_start_surbs: DEFAULT_CONNECTION_START_SURBS,
             per_request_surbs: DEFAULT_PER_REQUEST_SURBS,
         }

@@ -55,24 +55,24 @@ pub(crate) const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(2
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV1_1_19<T> {
-    pub client: ClientV1_1_19<T>,
+pub struct ConfigV1_1_20<T> {
+    pub client: ClientV1_1_20<T>,
 
     #[serde(default)]
-    pub logging: LoggingV1_1_19,
+    pub logging: LoggingV1_1_20,
     #[serde(default)]
-    pub debug: DebugConfigV1_1_19,
+    pub debug: DebugConfigV1_1_20,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-pub struct GatewayEndpointConfigV1_1_19 {
+pub struct GatewayEndpointConfigV1_1_20 {
     pub gateway_id: String,
     pub gateway_owner: String,
     pub gateway_listener: String,
 }
 
-impl From<GatewayEndpointConfigV1_1_19> for GatewayEndpointConfig {
-    fn from(value: GatewayEndpointConfigV1_1_19) -> Self {
+impl From<GatewayEndpointConfigV1_1_20> for GatewayEndpointConfig {
+    fn from(value: GatewayEndpointConfigV1_1_20) -> Self {
         GatewayEndpointConfig {
             gateway_id: value.gateway_id,
             gateway_owner: value.gateway_owner,
@@ -82,7 +82,7 @@ impl From<GatewayEndpointConfigV1_1_19> for GatewayEndpointConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-pub struct ClientV1_1_19<T> {
+pub struct ClientV1_1_20<T> {
     pub version: String,
     pub id: String,
     #[serde(default)]
@@ -97,7 +97,7 @@ pub struct ClientV1_1_19<T> {
     pub public_encryption_key_file: PathBuf,
     pub gateway_shared_key_file: PathBuf,
     pub ack_key_file: PathBuf,
-    pub gateway_endpoint: GatewayEndpointConfigV1_1_19,
+    pub gateway_endpoint: GatewayEndpointConfigV1_1_20,
     pub database_path: PathBuf,
     #[serde(default)]
     pub reply_surb_database_path: PathBuf,
@@ -109,11 +109,11 @@ pub struct ClientV1_1_19<T> {
 
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct LoggingV1_1_19 {}
+pub struct LoggingV1_1_20 {}
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct TrafficV1_1_19 {
+pub struct TrafficV1_1_20 {
     #[serde(with = "humantime_serde")]
     pub average_packet_delay: Duration,
     #[serde(with = "humantime_serde")]
@@ -123,8 +123,8 @@ pub struct TrafficV1_1_19 {
     pub secondary_packet_size: Option<PacketSize>,
 }
 
-impl From<TrafficV1_1_19> for Traffic {
-    fn from(value: TrafficV1_1_19) -> Self {
+impl From<TrafficV1_1_20> for Traffic {
+    fn from(value: TrafficV1_1_20) -> Self {
         Traffic {
             average_packet_delay: value.average_packet_delay,
             message_sending_average_delay: value.message_sending_average_delay,
@@ -137,9 +137,9 @@ impl From<TrafficV1_1_19> for Traffic {
     }
 }
 
-impl Default for TrafficV1_1_19 {
+impl Default for TrafficV1_1_20 {
     fn default() -> Self {
-        TrafficV1_1_19 {
+        TrafficV1_1_20 {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
             disable_main_poisson_packet_distribution: false,
@@ -151,15 +151,15 @@ impl Default for TrafficV1_1_19 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct CoverTrafficV1_1_19 {
+pub struct CoverTrafficV1_1_20 {
     #[serde(with = "humantime_serde")]
     pub loop_cover_traffic_average_delay: Duration,
     pub cover_traffic_primary_size_ratio: f64,
     pub disable_loop_cover_traffic_stream: bool,
 }
 
-impl From<CoverTrafficV1_1_19> for CoverTraffic {
-    fn from(value: CoverTrafficV1_1_19) -> Self {
+impl From<CoverTrafficV1_1_20> for CoverTraffic {
+    fn from(value: CoverTrafficV1_1_20) -> Self {
         CoverTraffic {
             loop_cover_traffic_average_delay: value.loop_cover_traffic_average_delay,
             cover_traffic_primary_size_ratio: value.cover_traffic_primary_size_ratio,
@@ -168,9 +168,9 @@ impl From<CoverTrafficV1_1_19> for CoverTraffic {
     }
 }
 
-impl Default for CoverTrafficV1_1_19 {
+impl Default for CoverTrafficV1_1_20 {
     fn default() -> Self {
-        CoverTrafficV1_1_19 {
+        CoverTrafficV1_1_20 {
             loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
             cover_traffic_primary_size_ratio: DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO,
             disable_loop_cover_traffic_stream: false,
@@ -180,22 +180,22 @@ impl Default for CoverTrafficV1_1_19 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct GatewayConnectionV1_1_19 {
+pub struct GatewayConnectionV1_1_20 {
     #[serde(with = "humantime_serde")]
     pub gateway_response_timeout: Duration,
 }
 
-impl From<GatewayConnectionV1_1_19> for GatewayConnection {
-    fn from(value: GatewayConnectionV1_1_19) -> Self {
+impl From<GatewayConnectionV1_1_20> for GatewayConnection {
+    fn from(value: GatewayConnectionV1_1_20) -> Self {
         GatewayConnection {
             gateway_response_timeout: value.gateway_response_timeout,
         }
     }
 }
 
-impl Default for GatewayConnectionV1_1_19 {
+impl Default for GatewayConnectionV1_1_20 {
     fn default() -> Self {
-        GatewayConnectionV1_1_19 {
+        GatewayConnectionV1_1_20 {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
         }
     }
@@ -203,7 +203,7 @@ impl Default for GatewayConnectionV1_1_19 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct AcknowledgementsV1_1_19 {
+pub struct AcknowledgementsV1_1_20 {
     #[serde(with = "humantime_serde")]
     pub average_ack_delay: Duration,
     pub ack_wait_multiplier: f64,
@@ -211,8 +211,8 @@ pub struct AcknowledgementsV1_1_19 {
     pub ack_wait_addition: Duration,
 }
 
-impl From<AcknowledgementsV1_1_19> for Acknowledgements {
-    fn from(value: AcknowledgementsV1_1_19) -> Self {
+impl From<AcknowledgementsV1_1_20> for Acknowledgements {
+    fn from(value: AcknowledgementsV1_1_20) -> Self {
         Acknowledgements {
             average_ack_delay: value.average_ack_delay,
             ack_wait_multiplier: value.ack_wait_multiplier,
@@ -221,9 +221,9 @@ impl From<AcknowledgementsV1_1_19> for Acknowledgements {
     }
 }
 
-impl Default for AcknowledgementsV1_1_19 {
+impl Default for AcknowledgementsV1_1_20 {
     fn default() -> Self {
-        AcknowledgementsV1_1_19 {
+        AcknowledgementsV1_1_20 {
             average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             ack_wait_multiplier: DEFAULT_ACK_WAIT_MULTIPLIER,
             ack_wait_addition: DEFAULT_ACK_WAIT_ADDITION,
@@ -233,7 +233,7 @@ impl Default for AcknowledgementsV1_1_19 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct TopologyV1_1_19 {
+pub struct TopologyV1_1_20 {
     #[serde(with = "humantime_serde")]
     pub topology_refresh_rate: Duration,
     #[serde(with = "humantime_serde")]
@@ -241,8 +241,8 @@ pub struct TopologyV1_1_19 {
     pub disable_refreshing: bool,
 }
 
-impl From<TopologyV1_1_19> for Topology {
-    fn from(value: TopologyV1_1_19) -> Self {
+impl From<TopologyV1_1_20> for Topology {
+    fn from(value: TopologyV1_1_20) -> Self {
         Topology {
             topology_refresh_rate: value.topology_refresh_rate,
             topology_resolution_timeout: value.topology_resolution_timeout,
@@ -251,9 +251,9 @@ impl From<TopologyV1_1_19> for Topology {
     }
 }
 
-impl Default for TopologyV1_1_19 {
+impl Default for TopologyV1_1_20 {
     fn default() -> Self {
-        TopologyV1_1_19 {
+        TopologyV1_1_20 {
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_refreshing: false,
@@ -263,7 +263,7 @@ impl Default for TopologyV1_1_19 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct ReplySurbsV1_1_19 {
+pub struct ReplySurbsV1_1_20 {
     pub minimum_reply_surb_storage_threshold: usize,
     pub maximum_reply_surb_storage_threshold: usize,
     pub minimum_reply_surb_request_size: u32,
@@ -279,8 +279,8 @@ pub struct ReplySurbsV1_1_19 {
     pub maximum_reply_key_age: Duration,
 }
 
-impl From<ReplySurbsV1_1_19> for ReplySurbs {
-    fn from(value: ReplySurbsV1_1_19) -> Self {
+impl From<ReplySurbsV1_1_20> for ReplySurbs {
+    fn from(value: ReplySurbsV1_1_20) -> Self {
         ReplySurbs {
             minimum_reply_surb_storage_threshold: value.minimum_reply_surb_storage_threshold,
             maximum_reply_surb_storage_threshold: value.maximum_reply_surb_storage_threshold,
@@ -296,9 +296,9 @@ impl From<ReplySurbsV1_1_19> for ReplySurbs {
     }
 }
 
-impl Default for ReplySurbsV1_1_19 {
+impl Default for ReplySurbsV1_1_20 {
     fn default() -> Self {
-        ReplySurbsV1_1_19 {
+        ReplySurbsV1_1_20 {
             minimum_reply_surb_storage_threshold: DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
             maximum_reply_surb_storage_threshold: DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD,
             minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
@@ -315,17 +315,17 @@ impl Default for ReplySurbsV1_1_19 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct DebugConfigV1_1_19 {
-    pub traffic: TrafficV1_1_19,
-    pub cover_traffic: CoverTrafficV1_1_19,
-    pub gateway_connection: GatewayConnectionV1_1_19,
-    pub acknowledgements: AcknowledgementsV1_1_19,
-    pub topology: TopologyV1_1_19,
-    pub reply_surbs: ReplySurbsV1_1_19,
+pub struct DebugConfigV1_1_20 {
+    pub traffic: TrafficV1_1_20,
+    pub cover_traffic: CoverTrafficV1_1_20,
+    pub gateway_connection: GatewayConnectionV1_1_20,
+    pub acknowledgements: AcknowledgementsV1_1_20,
+    pub topology: TopologyV1_1_20,
+    pub reply_surbs: ReplySurbsV1_1_20,
 }
 
-impl From<DebugConfigV1_1_19> for DebugConfig {
-    fn from(value: DebugConfigV1_1_19) -> Self {
+impl From<DebugConfigV1_1_20> for DebugConfig {
+    fn from(value: DebugConfigV1_1_20) -> Self {
         DebugConfig {
             traffic: value.traffic.into(),
             cover_traffic: value.cover_traffic.into(),
@@ -340,9 +340,9 @@ impl From<DebugConfigV1_1_19> for DebugConfig {
 // it could be derived, sure, but I'd rather have an explicit implementation in case we had to change
 // something manually at some point
 #[allow(clippy::derivable_impls)]
-impl Default for DebugConfigV1_1_19 {
+impl Default for DebugConfigV1_1_20 {
     fn default() -> Self {
-        DebugConfigV1_1_19 {
+        DebugConfigV1_1_20 {
             traffic: Default::default(),
             cover_traffic: Default::default(),
             gateway_connection: Default::default(),

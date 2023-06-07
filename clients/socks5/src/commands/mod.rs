@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
-use crate::config::old_config_v1_1_19::ConfigV1_1_19;
+use crate::config::old_config_v1_1_20::ConfigV1_1_20;
 use crate::config::{BaseClientConfig, Config};
 use crate::error::Socks5ClientError;
 use clap::CommandFactory;
@@ -128,23 +128,23 @@ fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, Socks5ClientError> {
     info!("It seems the client is using <= v1.1.13 config template.");
     info!("It is going to get updated to the current specification.");
 
-    let updated_step1: ConfigV1_1_19 = old_config.into();
+    let updated_step1: ConfigV1_1_20 = old_config.into();
     let updated: Config = updated_step1.into();
 
     updated.save_to_default_location()?;
     Ok(true)
 }
 
-fn try_upgrade_v1_1_19_config(id: &str) -> Result<bool, Socks5ClientError> {
+fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, Socks5ClientError> {
     use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 
-    // explicitly load it as v1.1.19 (which is incompatible with the current one, i.e. +1.1.20)
-    let Ok(old_config) = ConfigV1_1_19::load_from_file(id) else {
+    // explicitly load it as v1.1.20 (which is incompatible with the current one, i.e. +1.1.21)
+    let Ok(old_config) = ConfigV1_1_20::load_from_file(id) else {
         // if we failed to load it, there might have been nothing to upgrade
         // or maybe it was an even older file. in either way. just ignore it and carry on with our day
         return Ok(false);
     };
-    info!("It seems the client is using <= v1.1.19 config template.");
+    info!("It seems the client is using <= v1.1.20 config template.");
     info!("It is going to get updated to the current specification.");
 
     let updated: Config = old_config.into();
@@ -155,7 +155,7 @@ fn try_upgrade_v1_1_19_config(id: &str) -> Result<bool, Socks5ClientError> {
 fn try_upgrade_config(id: &str) -> Result<(), Socks5ClientError> {
     let upgraded = try_upgrade_v1_1_13_config(id)?;
     if !upgraded {
-        try_upgrade_v1_1_19_config(id)?;
+        try_upgrade_v1_1_20_config(id)?;
     }
 
     Ok(())

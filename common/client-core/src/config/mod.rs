@@ -14,7 +14,7 @@ use wasm_bindgen::prelude::*;
 
 pub mod disk_persistence;
 pub mod old_config_v1_1_13;
-pub mod old_config_v1_1_19;
+pub mod old_config_v1_1_20;
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;

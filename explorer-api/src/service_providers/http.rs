@@ -10,7 +10,7 @@ const SERVICE_PROVIDER_WELLKNOWN_URL: &str =
     "https://nymtech.net/.wellknown/connect/service-providers.json";
 
 const HARBOUR_MASTER_URL: &str = "https://harbourmaster.nymtech.net/v1/services";
-const HM_SINCE_MIN: u32 = 60;
+const HM_SINCE_MIN: u32 = 120;
 const HM_SIZE: u8 = 100;
 
 #[derive(Debug)]

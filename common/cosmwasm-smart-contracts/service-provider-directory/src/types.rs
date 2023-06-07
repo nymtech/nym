@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use cosmwasm_std::{Addr, Coin};
+use nym_contracts_common::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -9,16 +10,26 @@ pub type ServiceId = u32;
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
 pub struct Service {
-    /// The address of the service.
-    pub nym_address: NymAddress,
-    /// The service type.
-    pub service_type: ServiceType,
-    /// Service owner.
+    /// Unique id assigned to the anounced service.
+    pub service_id: ServiceId,
+    /// The announced service.
+    pub service: ServiceDetails,
+    /// Address of the service owner.
     pub announcer: Addr,
     /// Block height at which the service was added.
     pub block_height: u64,
     /// The deposit used to announce the service.
     pub deposit: Coin,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
+pub struct ServiceDetails {
+    /// The address of the service.
+    pub nym_address: NymAddress,
+    /// The service type.
+    pub service_type: ServiceType,
+    /// The identity key of the service.
+    pub identity_key: IdentityKey,
 }
 
 /// The types of addresses supported.
@@ -28,7 +39,7 @@ pub enum NymAddress {
     /// String representation of a nym address, which is of the form
     /// client_id.client_enc@gateway_id.
     Address(String),
-    // For the future when we have a nym-dns contract
+    // String name that can looked up in the nym-name-service contract (once it exists)
     //Name(String),
 }
 
@@ -41,6 +52,7 @@ impl NymAddress {
     pub fn as_str(&self) -> &str {
         match self {
             NymAddress::Address(address) => address,
+            //NymAddress::Name(name) => name,
         }
     }
 }
@@ -64,21 +76,5 @@ impl std::fmt::Display for ServiceType {
             ServiceType::NetworkRequester => "network_requester",
         };
         write!(f, "{service_type}")
-    }
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct ServiceInfo {
-    pub service_id: ServiceId,
-    pub service: Service,
-}
-
-impl ServiceInfo {
-    pub fn new(service_id: ServiceId, service: Service) -> Self {
-        Self {
-            service_id,
-            service,
-        }
     }
 }

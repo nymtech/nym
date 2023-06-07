@@ -866,6 +866,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-controllers"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f0bc6019b4d3d81e11f5c384bcce7173e2210bd654d75c6c9668e12cca05dfa"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "cw-storage-plus"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2367,7 +2381,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -2402,7 +2416,7 @@ dependencies = [
 
 [[package]]
 name = "nym-crypto"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "aes 0.8.2",
  "blake3",
@@ -2509,7 +2523,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -2609,7 +2623,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pemstore"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "pem",
 ]
@@ -2619,8 +2633,12 @@ name = "nym-service-provider-directory-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "cw-controllers",
+ "cw-utils",
+ "nym-contracts-common",
  "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -2873,7 +2891,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",

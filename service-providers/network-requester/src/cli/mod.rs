@@ -5,6 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use log::info;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
+use nym_bin_common::version_checker;
 use nym_config::NymConfig;
 
 use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
@@ -15,6 +16,7 @@ use crate::{
 
 mod init;
 mod run;
+mod sign;
 
 lazy_static::lazy_static! {
     pub static ref PRETTY_BUILD_INFORMATION: String =
@@ -46,6 +48,9 @@ pub(crate) enum Commands {
     /// Run the network requester with the provided configuration and optionally override
     /// parameters.
     Run(run::Run),
+
+    /// Sign to prove ownership of this network requester
+    Sign(sign::Sign),
 
     /// Generate shell completions
     Completions(ArgShell),
@@ -91,6 +96,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
     match &args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(m).await?,
+        Commands::Sign(m) => sign::execute(m).await?,
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
     }
@@ -109,6 +115,36 @@ fn try_upgrade_v1_1_13_config(id: &str) -> std::io::Result<()> {
 
     let updated: Config = old_config.into();
     updated.save_to_file(None)
+}
+
+// this only checks compatibility between config the binary. It does not take into consideration
+// network version. It might do so in the future.
+fn version_check(cfg: &Config) -> bool {
+    let binary_version = env!("CARGO_PKG_VERSION");
+    let config_version = cfg.get_base().get_version();
+    if binary_version == config_version {
+        true
+    } else {
+        log::warn!(
+            "The native-client binary has different version than what is specified \
+            in config file! {} and {}",
+            binary_version,
+            config_version
+        );
+        if version_checker::is_minor_version_compatible(binary_version, config_version) {
+            log::info!(
+                "but they are still semver compatible. \
+                However, consider running the `upgrade` command"
+            );
+            true
+        } else {
+            log::error!(
+                "and they are semver incompatible! - \
+                please run the `upgrade` command before attempting `run` again"
+            );
+            false
+        }
+    }
 }
 
 #[cfg(test)]

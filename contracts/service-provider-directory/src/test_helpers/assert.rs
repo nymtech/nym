@@ -1,11 +1,12 @@
 use cosmwasm_std::{from_binary, testing::mock_env, Addr, Coin, Deps};
+use nym_contracts_common::signing::Nonce;
 use nym_service_provider_directory_common::{
     msg::QueryMsg,
     response::{ConfigResponse, PagedServicesListResponse},
-    ServiceId, ServiceInfo,
+    Service, ServiceId,
 };
 
-use crate::{constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT, error::ContractError};
+use crate::{constants::SERVICE_DEFAULT_RETRIEVAL_LIMIT, SpContractError};
 
 pub fn assert_config(deps: Deps, admin: &Addr, deposit_required: Coin) {
     crate::state::assert_admin(deps, admin).unwrap();
@@ -14,7 +15,7 @@ pub fn assert_config(deps: Deps, admin: &Addr, deposit_required: Coin) {
     assert_eq!(config, ConfigResponse { deposit_required });
 }
 
-pub fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {
+pub fn assert_services(deps: Deps, expected_services: &[Service]) {
     let res = crate::contract::query(deps, mock_env(), QueryMsg::all()).unwrap();
     let services: PagedServicesListResponse = from_binary(&res).unwrap();
     let start_next_after = expected_services.iter().last().map(|s| s.service_id);
@@ -28,7 +29,7 @@ pub fn assert_services(deps: Deps, expected_services: &[ServiceInfo]) {
     );
 }
 
-pub fn assert_service(deps: Deps, expected_service: &ServiceInfo) {
+pub fn assert_service(deps: Deps, expected_service: &Service) {
     let res = crate::contract::query(
         deps,
         mock_env(),
@@ -37,7 +38,7 @@ pub fn assert_service(deps: Deps, expected_service: &ServiceInfo) {
         },
     )
     .unwrap();
-    let services: ServiceInfo = from_binary(&res).unwrap();
+    let services: Service = from_binary(&res).unwrap();
     assert_eq!(&services, expected_service);
 }
 
@@ -58,8 +59,21 @@ pub fn assert_not_found(deps: Deps, expected_id: ServiceId) {
     .unwrap_err();
     assert!(matches!(
         res,
-        ContractError::NotFound {
+        SpContractError::NotFound {
             service_id: _expected_id
         }
     ));
+}
+
+pub fn assert_current_nonce(deps: Deps, address: &Addr, expected_nonce: Nonce) {
+    let res = crate::contract::query(
+        deps,
+        mock_env(),
+        QueryMsg::SigningNonce {
+            address: address.to_string(),
+        },
+    )
+    .unwrap();
+    let nonce: Nonce = from_binary(&res).unwrap();
+    assert_eq!(nonce, expected_nonce);
 }

@@ -299,6 +299,15 @@ pub fn get_client_address(
     )
 }
 
+pub fn load_identity_keys(
+    pathfinder: &ClientKeyPathfinder,
+) -> Result<identity::KeyPair, ClientCoreError> {
+    let identity_keypair: identity::KeyPair =
+        nym_pemstore::load_keypair(&pathfinder.identity_key_pair_path())
+            .tap_err(|_| log::error!("Failed to read stored identity key files"))?;
+    Ok(identity_keypair)
+}
+
 /// Get the client address by loading the keys from stored files.
 // TODO: rethink that sucker
 pub fn get_client_address_from_stored_ondisk_keys<T>(

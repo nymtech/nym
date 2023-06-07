@@ -1,5 +1,6 @@
 # Nym-CLI
 
+## What is this tool for?
 This is a CLI tool for interacting with:
 
 * the Nyx blockchain (account management, querying the chain state, etc)
@@ -7,20 +8,20 @@ This is a CLI tool for interacting with:
 
 It provides a convenient wrapper around the `nymd` client, and has similar functionality to the `nyxd` binary for querying the chain or executing smart contract methods.
 
-## Building 
-The `nym-cli` binary can be built by running `cargo build --release` in the `nym/tools/nym-cli` directory. 
+## Building
+The `nym-cli` binary can be built by running `cargo build --release` in the `nym/tools/nym-cli` directory.
 
-### Useage 
-You can see all available commands with: 
+### Useage
+You can see all available commands with:
 
 ```
-./nym-cli --help      
+./nym-cli --help
 ```
 
 ~~~admonish example collapsible=true title="Console output"
 ```
 
-nym-cli 
+nym-cli
 A client for interacting with Nym smart contracts and the Nyx blockchain
 
 USAGE:
@@ -67,13 +68,13 @@ subcommands:
 ```
 ~~~
 
-## Example Usage 
-Below we have listed some example commands for some of the features listed above. 
+## Example Usage
+Below we have listed some example commands for some of the features listed above.
 
 If ever in doubt what you need to type, or if you want to see alternative parameters for a command, use the `nym-cli <subcommand_name> --help` to view all available options.
 
 ```
-./nym-cli account create --help     
+./nym-cli account create --help
 ```
 
 ~~~admonish example collapsible=true title="Console output"
@@ -120,7 +121,7 @@ OPTIONS:
 Creates an account with a random Mnemonic and a new address.
 
 ```
-./nym-cli account create     
+./nym-cli account create
 
 # Result:
 # 1. Mnemonic
@@ -136,7 +137,7 @@ Queries the existing balance of an account.
 
 ```
 # Using adddress below for example purposes.
-./nym-cli account balance n1hzn28p2c6pzr98r85jp3h53fy8mju5w7ndd5vh     
+./nym-cli account balance n1hzn28p2c6pzr98r85jp3h53fy8mju5w7ndd5vh
 
 # Result:
 2022-11-10T10:28:54.009Z INFO  nym_cli_commands::validator::account::balance > Getting balance for n1hzn28p2c6pzr98r85jp3h53fy8mju5w7ndd5vh...
@@ -149,7 +150,7 @@ Queries the existing balance of an account.
 You can also query an accounts balance by using its mnemonic:
 
 ```
-./nym-cli account balance --mnemonic <mnemonic>  
+./nym-cli account balance --mnemonic <mnemonic>
 ```
 
 ### Send tokens to an account
@@ -167,7 +168,7 @@ Queries the specified blockchain (Nyx chain by default) for the current block he
 ```
 ./nym-cli block current-height --mnemonic <mnemonic>
 
-# Result: 
+# Result:
 Current block height:
 <BLOCK_HEIGHT>
 ```
@@ -183,50 +184,50 @@ Query a mix node on the mixnet.
 
 ### Bond a mix node
 
-Bonding a mix node is a process that takes a few steps due to the need to sign a transaction with your nym address for replay attack protection. 
+Bonding a mix node is a process that takes a few steps due to the need to sign a transaction with your nym address for replay attack protection.
 
-* generate a signature payload: 
+* generate a signature payload:
 ```
-./nym-cli mixnet operators mixnode create-mixnode-bonding-sign-payload 
+./nym-cli mixnet operators mixnode create-mixnode-bonding-sign-payload
 
-# returns something like 
+# returns something like
 97GEhgMrPTmQVZgHqJeqWmgQ154GLKqy8xNGtLkV8xy5xc1SuwsEnqjhtZVshBYK74n53fFkKbSrS6kxkBE3vUikbU76JZmLMFmfR7aaU2NdBnfTPPHP2nwb2hJiEueq4SvvtDtQckxv7ZJzdxyXHxUeDPhzbprxTff78U3NGNk4cg6Q2K4EFqishdaqToedsXAPvVCWNbC1iWVjEq8nJ95Eb3NJyi3KmXcNDy4i8ZXgZHu4v8F4htXq2vZUdBSbizdkNr1NRvEg6PGVQdTseyuN8JxD3yuvrqprPY2kvJaT2YiYLPgWxoQtbfwcpkX4PP1PvwuMg4W8EXhitMpM2WHqLDP5vgfDGxdDCmRS44pM8ya4hcQ4g3McHWxduGWdbCzNNEsX6oQw4LVFcWn4mhbXSgqHwNQMm2TQW6LatYZSwCczdhEwV2CXe36UGCUzozmm4nj9qfUtXqDzMrHAAS8kjbKaVNaVaRRKgauQrHnK7QGg1QpVnnaxCs14wvUb62sio8XZmMzP2SjVaRJFCyJB3UwZ6L4oXMGMXSRsiKe8ZNTaa6iX69tx54CAAHBHoiReiq7E5T2VuR5v
 ```
 
-* sign this payload: 
+* sign this payload:
 ```
 ./nym-mixnode sign --id upgrade_test --contract-msg 97GEhgMrPTmQVZgHqJeqWmgQ154GLKqy8xNGtLkV8xy5xc1SuwsEnqjhtZVshBYK74n53fFkKbSrS6kxkBE3vUikbU76JZmLMFmfR7aaU2NdBnfTPPHP2nwb2hJiEueq4SvvtDtQckxv7ZJzdxyXHxUeDPhzbprxTff78U3NGNk4cg6Q2K4EFqishdaqToedsXAPvVCWNbC1iWVjEq8nJ95Eb3NJyi3KmXcNDy4i8ZXgZHu4v8F4htXq2vZUdBSbizdkNr1NRvEg6PGVQdTseyuN8JxD3yuvrqprPY2kvJaT2YiYLPgWxoQtbfwcpkX4PP1PvwuMg4W8EXhitMpM2WHqLDP5vgfDGxdDCmRS44pM8ya4hcQ4g3McHWxduGWdbCzNNEsX6oQw4LVFcWn4mhbXSgqHwNQMm2TQW6LatYZSwCczdhEwV2CXe36UGCUzozmm4nj9qfUtXqDzMrHAAS8kjbKaVNaVaRRKgauQrHnK7QGg1QpVnnaxCs14wvUb62sio8XZmMzP2SjVaRJFCyJB3UwZ6L4oXMGMXSRsiKe8ZNTaa6iX69tx54CAAHBHoiReiq7E5T2VuR5v
 ```
 
-* bond the node using the signature: 
+* bond the node using the signature:
 ```
 ./nym-cli --mnemonic <mnemonic> mixnet operators mixnode bond --amount 100000000 --mix-port 1789 --version "1.1.13" --host "85.163.111.99" --identity-key "B6pWscxYb8sPAdKTci8zPy5AgMzn5Zx8KpWwQNCyUSU7" --location "nym-town" --sphinx-key "o6MmKHzRewpNzVwaV37ZX9G3BfK4AmfYvsQfyoyAFRk" --signature "2TujBZfer8r5QM639Yb8coD9xH6f5eXzjAT5dD7wMom9fH8D1u36d7UpPdVaaZrWsCynmYpobwMWqiMKr5kM6CprD"
 ```
 
-### Bond a gateway 
-Bonding a mix node is a process that takes a few steps due to the need to sign a transaction with your nym address for replay attack protection. 
+### Bond a gateway
+Bonding a mix node is a process that takes a few steps due to the need to sign a transaction with your nym address for replay attack protection.
 
-* generate a signature payload: 
+* generate a signature payload:
 ```
-./nym-cli mixnet operators gateway create-gateway-bonding-sign-payload 
+./nym-cli mixnet operators gateway create-gateway-bonding-sign-payload
 
-# returns something like 
+# returns something like
 97GEhgMrPTmQVZgHqJeqWmgQ154GLKqy8xNGtLkV8xy5xc1SuwsEnqjhtZVshBYK74n53fFkKbSrS6kxkBE3vUikbU76JZmLMFmfR7aaU2NdBnfTPPHP2nwb2hJiEueq4SvvtDtQckxv7ZJzdxyXHxUeDPhzbprxTff78U3NGNk4cg6Q2K4EFqishdaqToedsXAPvVCWNbC1iWVjEq8nJ95Eb3NJyi3KmXcNDy4i8ZXgZHu4v8F4htXq2vZUdBSbizdkNr1NRvEg6PGVQdTseyuN8JxD3yuvrqprPY2kvJaT2YiYLPgWxoQtbfwcpkX4PP1PvwuMg4W8EXhitMpM2WHqLDP5vgfDGxdDCmRS44pM8ya4hcQ4g3McHWxduGWdbCzNNEsX6oQw4LVFcWn4mhbXSgqHwNQMm2TQW6LatYZSwCczdhEwV2CXe36UGCUzozmm4nj9qfUtXqDzMrHAAS8kjbKaVNaVaRRKgauQrHnK7QGg1QpVnnaxCs14wvUb62sio8XZmMzP2SjVaRJFCyJB3UwZ6L4oXMGMXSRsiKe8ZNTaa6iX69tx54CAAHBHoiReiq7E5T2VuR5v
 ```
 
-* sign this payload: 
+* sign this payload:
 ```
 ./nym-gateway sign --id upgrade_test --contract-msg 97GEhgMrPTmQVZgHqJeqWmgQ154GLKqy8xNGtLkV8xy5xc1SuwsEnqjhtZVshBYK74n53fFkKbSrS6kxkBE3vUikbU76JZmLMFmfR7aaU2NdBnfTPPHP2nwb2hJiEueq4SvvtDtQckxv7ZJzdxyXHxUeDPhzbprxTff78U3NGNk4cg6Q2K4EFqishdaqToedsXAPvVCWNbC1iWVjEq8nJ95Eb3NJyi3KmXcNDy4i8ZXgZHu4v8F4htXq2vZUdBSbizdkNr1NRvEg6PGVQdTseyuN8JxD3yuvrqprPY2kvJaT2YiYLPgWxoQtbfwcpkX4PP1PvwuMg4W8EXhitMpM2WHqLDP5vgfDGxdDCmRS44pM8ya4hcQ4g3McHWxduGWdbCzNNEsX6oQw4LVFcWn4mhbXSgqHwNQMm2TQW6LatYZSwCczdhEwV2CXe36UGCUzozmm4nj9qfUtXqDzMrHAAS8kjbKaVNaVaRRKgauQrHnK7QGg1QpVnnaxCs14wvUb62sio8XZmMzP2SjVaRJFCyJB3UwZ6L4oXMGMXSRsiKe8ZNTaa6iX69tx54CAAHBHoiReiq7E5T2VuR5v
 ```
 
-* bond the node using this signature: 
+* bond the node using this signature:
 ```
 ./nym-cli --mnemonic <mnemonic> mixnet operators gateway bond --amount 100000000 --mix-port 1789 --version "1.1.13" --host "85.163.111.99" --identity-key "B6pWscxYb8sPAdKTci8zPy5AgMzn5Zx8KpWwQNCyUSU7" --location "nym-town" --sphinx-key "o6MmKHzRewpNzVwaV37ZX9G3BfK4AmfYvsQfyoyAFRk" --signature "2TujBZfer8r5QM639Yb8coD9xH6f5eXzjAT5dD7wMom9fH8D1u36d7UpPdVaaZrWsCynmYpobwMWqiMKr5kM6CprD"
 ```
 
 ### Unbond a node
 
-Unbond a mix node or gateway. 
+Unbond a mix node or gateway.
 ```
 ./nym-cli mixnet operators gateway unbound --mnemonic <mnemonic>
 ```
@@ -235,7 +236,7 @@ Unbond a mix node or gateway.
 
 ### Upgrade a mix node
 
-Upgrade your node config. 
+Upgrade your node config.
 ```
 ./nym-cli mixnet operators mixnode settings update-config --version <new_version>
 ```
@@ -298,7 +299,7 @@ Sign a message.
 
 Verify a signature.
 ```
-./nym-cli signature verify  --mnemonic <mnemonic> <PUBLIC_KEY_OR_ADDRESS> <SIGNATURE_AS_HEX> <MESSAGE> 
+./nym-cli signature verify  --mnemonic <mnemonic> <PUBLIC_KEY_OR_ADDRESS> <SIGNATURE_AS_HEX> <MESSAGE>
 ```
 
 ### Create a Vesting Schedule
@@ -336,12 +337,3 @@ Query for staking on behlaf of someone else
 ```
 ./nym-cli --mnemonic <staking address mnemonic>  mixnet delegators delegate --mix-id <input> --identity-key <input> --amount <input>
 ```
-
-
-
-
-
-
-
-
-

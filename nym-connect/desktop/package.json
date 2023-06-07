@@ -33,6 +33,7 @@
     "@mui/styles": "^5.2.2",
     "@mui/system": ">= 5",
     "@nymproject/react": "^1.0.0",
+    "@sentry/integrations": "^7.54.0",
     "@sentry/react": "^7.54.0",
     "@tauri-apps/api": "^1.2.0",
     "@tauri-apps/tauri-forage": "^1.0.0-beta.2",

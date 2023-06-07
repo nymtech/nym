@@ -4,6 +4,7 @@ import { DataGrid, GridColDef, useGridApiContext, useGridState } from '@mui/x-da
 import Pagination from '@mui/material/Pagination';
 import { SxProps } from '@mui/system';
 import { LinearProgress } from '@mui/material';
+import { GridInitialStateCommunity } from '@mui/x-data-grid/models/gridStateCommunity';
 
 const useStyles = makeStyles({
   root: {
@@ -49,8 +50,16 @@ type DataGridProps = {
   pageSize?: string | undefined;
   rows: any;
   loading?: boolean;
+  initialState?: GridInitialStateCommunity;
 };
-export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({ rows, columns, loading, pagination, pageSize }) => {
+export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({
+  rows,
+  columns,
+  loading,
+  pagination,
+  pageSize,
+  initialState,
+}) => {
   if (loading) return <LinearProgress />;
 
   return (
@@ -65,6 +74,7 @@ export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({ rows, columns
       disableSelectionOnClick
       autoHeight
       hideFooter={!pagination}
+      initialState={initialState}
       style={{
         width: '100%',
         border: 'none',

@@ -194,7 +194,9 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
   };
 
   React.useEffect(() => {
-    fetchServiceProviders();
+    if (environment === 'mainnet') {
+      fetchServiceProviders();
+    }
   }, [environment]);
 
   React.useEffect(() => {

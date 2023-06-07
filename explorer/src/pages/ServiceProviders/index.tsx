@@ -1,12 +1,12 @@
 import React from 'react';
 import { Button, Card, FormControl, Grid, ListItem, Menu, SelectChangeEvent, Typography } from '@mui/material';
-import { GridRenderCellParams } from '@mui/x-data-grid';
+import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { TableToolbar } from '../../components/TableToolbar';
 import { Title } from '../../components/Title';
 import { UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { useMainContext } from '../../context/main';
 
-const columns = [
+const columns: GridColDef[] = [
   {
     headerName: 'Client ID',
     field: 'address',
@@ -24,16 +24,18 @@ const columns = [
     field: 'routing_score',
     disableColumnMenu: true,
     flex: 1,
+    sortingOrder: ['asc', 'desc'],
+
     sortComparator: (a?: string, b?: string) => {
-      if (!a) return 1; // Place undefined values at the end
-      if (!b) return -1; // Place undefined values at the end
+      if (!a) return -1; // Place undefined values at the end
+      if (!b) return 1; // Place undefined values at the end
 
       const aToNum = parseInt(a, 10);
       const bToNum = parseInt(b, 10);
 
-      if (aToNum > bToNum) return -1;
+      if (aToNum > bToNum) return 1;
 
-      return 1; // Sort numbers in ascending order
+      return -1; // Sort numbers in ascending order
     },
     renderCell: (params: GridRenderCellParams) => (!params.value ? '-' : params.value),
   },
@@ -97,7 +99,22 @@ export const ServiceProviders = () => {
                   pageSize={pageSize}
                   childrenBefore={<SupportedApps />}
                 />
-                <UniversalDataGrid pagination rows={serviceProviders.data} columns={columns} pageSize={pageSize} />
+                <UniversalDataGrid
+                  pagination
+                  rows={serviceProviders.data}
+                  columns={columns}
+                  pageSize={pageSize}
+                  initialState={{
+                    sorting: {
+                      sortModel: [
+                        {
+                          field: 'routing_score',
+                          sort: 'desc',
+                        },
+                      ],
+                    },
+                  }}
+                />
               </>
             ) : (
               <Typography>No service providers to display</Typography>

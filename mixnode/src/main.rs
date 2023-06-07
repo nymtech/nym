@@ -51,10 +51,7 @@ fn test_function() {
 async fn main() {
     cfg_if::cfg_if! {
         if #[cfg(feature = "cpucycles")] {
-            let home_dir = dirs::home_dir().expect("Could not get $HOME");
-            let logs_dir = home_dir.join(".nym").join("logs");
-            let logs_dir_str = logs_dir.to_str().expect("Could not construct logs path");
-            setup_tracing!(logs_dir_str);
+            setup_tracing!("mixnode");
             info!("CPU cycles measurement is ON")
         } else {
             setup_logging();

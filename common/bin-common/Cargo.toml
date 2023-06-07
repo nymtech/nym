@@ -19,11 +19,17 @@ serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 
 ## tracing
-tracing-appender = { version = "0.2.2", optional = true }
 tracing-subscriber = { version = "0.3.16", features = [
     "env-filter",
 ], optional = true }
 tracing-tree = { version = "0.2.2", optional = true }
+opentelemetry-jaeger = { version = "0.18.0", optional = true, features = [
+    "rt-tokio",
+    "collector_client",
+    "isahc_collector_client",
+] }
+tracing-opentelemetry = { version = "0.19.0", optional = true }
+opentelemetry = { version = "0.19.0", optional = true, features = ["rt-tokio"] }
 
 
 [build-dependencies]
@@ -37,4 +43,10 @@ vergen = { version = "=7.4.3", default-features = false, features = [
 [features]
 default = []
 output_format = ["serde", "serde_json"]
-tracing = ["tracing-appender", "tracing-subscriber", "tracing-tree"]
+tracing = [
+    "tracing-subscriber",
+    "tracing-tree",
+    "opentelemetry-jaeger",
+    "tracing-opentelemetry",
+    "opentelemetry",
+]

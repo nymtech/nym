@@ -19,20 +19,20 @@ macro_rules! measure {
         cfg_if::cfg_if! {
             if #[cfg(feature = "cpucycles")] {
                 let start_cycles = $crate::cpu_cycles();
-        // if the block needs to return something, we can return it
-        let r = $x;
-        let end_cycles = $crate::cpu_cycles();
-        let name = if let Some(meta) = tracing::Span::current().metadata() {
-            meta.name()
-        } else {
-            "measure"
-        };
-        match (start_cycles, end_cycles) {
-            (Ok(start), Ok(end)) => info!("{} cpucycles: {}", name, end - start),
-            (Err(e), _) => error!("{e}"),
-            (_, Err(e)) => error!("{e}"),
-        }
-        r
+                // if the block needs to return something, we can return it
+                let r = $x;
+                let end_cycles = $crate::cpu_cycles();
+                let name = if let Some(meta) = tracing::Span::current().metadata() {
+                    meta.name()
+                } else {
+                    "measure"
+                };
+                match (start_cycles, end_cycles) {
+                    (Ok(start), Ok(end)) => log::trace!("{} cpucycles: {}", name, end - start),
+                    (Err(e), _) => error!("{e}"),
+                    (_, Err(e)) => error!("{e}"),
+                }
+                r
             } else {
                 $x
             }

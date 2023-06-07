@@ -7,15 +7,17 @@ use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, Recipient, ReconstructedMessa
 use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, Request, Response, ResponseContent,
 };
-use nym_socks5_requests::Socks5Request;
+use nym_socks5_requests::{Socks5Request, Socks5Response};
 
 fn parse_control_response(received: Vec<ReconstructedMessage>) -> ControlResponse {
     assert_eq!(received.len(), 1);
-    let response: Response = Response::try_from_bytes(&received[0].message).unwrap();
+    let response: Response<Socks5Request> = Response::try_from_bytes(&received[0].message).unwrap();
     match response.content {
         ResponseContent::Control(control) => control,
-        ResponseContent::ProviderData(_) => {
-            panic!("received provider data even though we sent control request!")
+        ResponseContent::ProviderData(data) => {
+            println!("received provider data: {:?}", data);
+            dbg!(&data);
+            panic!();
         }
     }
 }
@@ -31,6 +33,8 @@ async fn wait_for_control_response(client: &mut MixnetClient) -> ControlResponse
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    nym_bin_common::logging::setup_logging();
+
     // technically we don't need to start the entire client with all the subroutines,
     // but I needed an easy way of sending to and receiving from the mixnet
     // and that was the most straightforward way of achieving it
@@ -50,12 +54,6 @@ async fn main() -> anyhow::Result<()> {
         Request::new_control(ProviderInterfaceVersion::new_current(), request_binary_info);
     let full_request_versions: Request =
         Request::new_control(ProviderInterfaceVersion::new_current(), request_versions);
-    //let full_request_versions: Request =
-    //Request::new_control(ProviderInterfaceVersion::new_current(), request_open_proxy);
-    let a: Request = Request::new_provider_data(
-        ProviderInterfaceVersion::new_current(),
-        Socks5Request::new_open_proxy(Socks5ProtocolVersion::Legacy),
-    );
 
     // // TODO: currently we HAVE TO use surbs unfortunately
     println!("Sending 'Health' request...");
@@ -90,6 +88,26 @@ async fn main() -> anyhow::Result<()> {
         .await;
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'SupportedRequestVersions' request: {response:#?}");
+
+    //let full_request_versions: Request =
+    //Request::new_control(ProviderInterfaceVersion::new_current(), request_open_proxy);
+
+    use nym_socks5_requests::Socks5ProtocolVersion;
+
+    let open_proxy_request = Request::new_provider_data(
+        ProviderInterfaceVersion::new_current(),
+        Socks5Request::new_open_proxy(Socks5ProtocolVersion::new_current()),
+    );
+    println!("Sending 'Open Proxy' request...");
+    client
+        .send_bytes(
+            provider,
+            open_proxy_request.into_bytes(),
+            //IncludedSurbs::none(),
+            IncludedSurbs::new(10), //crashes??
+        )
+        .await;
+    let response = wait_for_control_response(&mut client).await;
 
     Ok(())
 }

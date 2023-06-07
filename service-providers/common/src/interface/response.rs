@@ -22,6 +22,7 @@ pub enum ResponseContent<T: ServiceProviderRequest = EmptyMessage> {
     ProviderData(T::Response),
 }
 
+#[derive(Debug)]
 #[repr(u8)]
 pub enum ResponseTag {
     /// Value tag representing [`Control`] variant of the [`Response`]
@@ -78,14 +79,23 @@ where
     }
 
     pub fn try_from_bytes(b: &[u8]) -> Result<Response<T>, <T as ServiceProviderRequest>::Error> {
+        println!(
+            "Response::try_from_bytes - Received response of length {}",
+            b.len()
+        );
+        log::error!("Response::try_from_bytes - Received response of length {}", b.len());
+        dbg!(&b);
         if b.is_empty() {
+            log::error!("Response::try_from_bytes - received empty response!");
             return Err(ServiceProviderMessagingError::EmptyResponse.into());
         }
 
         let interface_version = ProviderInterfaceVersion::from(b[0]);
         let content = if interface_version.is_legacy() {
+            log::info!("Response::try_from_bytes - received legacy response");
             ResponseContent::try_from_bytes(b, interface_version)
         } else {
+            log::info!("Response::try_from_bytes - received non-legacy response");
             ResponseContent::try_from_bytes(&b[1..], interface_version)
         }?;
 
@@ -135,6 +145,12 @@ where
         b: &[u8],
         interface_version: ProviderInterfaceVersion,
     ) -> Result<ResponseContent<T>, <T as ServiceProviderRequest>::Error> {
+        log::info!(
+            "ResponseContent::try_from_bytes - Received response of length {}",
+            b.len()
+        );
+        dbg!(&b);
+
         if interface_version.is_legacy() {
             // we received a request from an old client which can only possibly
             // use an old Socks5Message, which uses the entire buffer for deserialization
@@ -150,13 +166,17 @@ where
             }
 
             let request_tag = ResponseTag::try_from(b[0])?;
+            dbg!(&request_tag);
             match request_tag {
                 ResponseTag::Control => Ok(ResponseContent::Control(
                     ControlResponse::try_from_bytes(&b[1..])?,
                 )),
-                ResponseTag::ProviderData => Ok(ResponseContent::ProviderData(
-                    T::Response::try_from_bytes(&b[1..])?,
-                )),
+                ResponseTag::ProviderData => {
+                    println!("ReponseTag::ProviderData");
+                    Ok(ResponseContent::ProviderData(T::Response::try_from_bytes(
+                        &b[1..],
+                    )?))
+                }
             }
         }
     }

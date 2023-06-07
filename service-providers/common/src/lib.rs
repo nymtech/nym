@@ -36,6 +36,7 @@ where
         sender: Option<AnonymousSenderTag>,
         request: Request<T>,
     ) -> Result<Option<Response<T>>, Self::ServiceProviderError> {
+        log::info!("handle_request - {:?}", request);
         match request.content {
             RequestContent::Control(control_request) => self
                 .handle_control_request(sender, control_request, request.interface_version)
@@ -54,6 +55,7 @@ where
                 )
                 .await
                 .map(|maybe_res| {
+                    println!("maybe_res: {:?}", maybe_res);
                     maybe_res.map(|provider_data_res| Response {
                         interface_version: request.interface_version,
                         content: ResponseContent::ProviderData(provider_data_res),

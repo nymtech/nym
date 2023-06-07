@@ -15,6 +15,7 @@ pub type RemoteAddress = String;
 pub enum RequestFlag {
     Connect = 0,
     Send = 1,
+    OpenProxy = 2,
 }
 
 impl TryFrom<u8> for RequestFlag {
@@ -24,6 +25,7 @@ impl TryFrom<u8> for RequestFlag {
         match value {
             _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
             _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
+            _ if value == (RequestFlag::OpenProxy as u8) => Ok(Self::OpenProxy),
             value => Err(RequestDeserializationError::UnknownRequestFlag { value }),
         }
     }
@@ -233,17 +235,24 @@ impl Socks5RequestContent {
     /// an already-established connection we should send up (`new_send`), or
     /// a request to close an established connection (`new_close`).
     pub fn try_from_bytes(b: &[u8]) -> Result<Socks5RequestContent, RequestDeserializationError> {
+        println!("Socks5RequestContent::try_from_bytes");
         // each request needs to at least contain flag and ConnectionId
         if b.is_empty() {
             return Err(RequestDeserializationError::NoData);
         }
 
-        if b.len() < 9 {
-            return Err(RequestDeserializationError::ConnectionIdTooShort);
-        }
-        let conn_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
+        //dbg!(&b.len());
+        //if b.len() < 9 {
+        //    return Err(RequestDeserializationError::ConnectionIdTooShort);
+        //}
+        //let conn_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
         match RequestFlag::try_from(b[0])? {
             RequestFlag::Connect => {
+                if b.len() < 9 {
+                    return Err(RequestDeserializationError::ConnectionIdTooShort);
+                }
+                let conn_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
+
                 let connect_request_bytes = &b[9..];
 
                 // we need to be able to read at least 2 bytes that specify address length
@@ -289,6 +298,11 @@ impl Socks5RequestContent {
                 ))
             }
             RequestFlag::Send => {
+                if b.len() < 9 {
+                    return Err(RequestDeserializationError::ConnectionIdTooShort);
+                }
+                let conn_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
+
                 let local_closed = b[9] != 0;
                 let data = b[10..].to_vec();
 
@@ -298,6 +312,7 @@ impl Socks5RequestContent {
                     local_closed,
                 }))
             }
+            RequestFlag::OpenProxy => Ok(Socks5RequestContent::OpenProxy),
         }
     }
 
@@ -328,7 +343,9 @@ impl Socks5RequestContent {
                 .chain(req.data.into_iter())
                 .collect(),
 
-            Socks5RequestContent::OpenProxy => panic!("OpenProxy is not serializable"),
+            Socks5RequestContent::OpenProxy => {
+                vec![RequestFlag::OpenProxy as u8]
+            }
         }
     }
 }

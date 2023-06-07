@@ -79,7 +79,9 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
         sender: Option<AnonymousSenderTag>,
         request: Request<Socks5Request>,
     ) -> Result<(), Self::ServiceProviderError> {
+        log::info!("on_request");
         if let Some(response) = self.handle_request(sender, request).await? {
+            dbg!(&response);
             // TODO: this (i.e. `reply::MixnetAddress`) should be incorporated into the actual interface
             if let Some(return_address) = reply::MixnetAddress::new(None, sender) {
                 let msg = MixnetMessage::new_provider_response(return_address, 0, response);
@@ -113,6 +115,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
         request: Socks5Request,
         interface_version: ProviderInterfaceVersion,
     ) -> Result<Option<Socks5Response>, Self::ServiceProviderError> {
+        log::info!("handle_provider_data_request");
         // TODO: streamline this a bit more
         let request_version = RequestVersion::new(interface_version, request.protocol_version);
 
@@ -478,6 +481,7 @@ impl NRServiceProvider {
     }
 
     fn handle_open_proxy(&self) -> Result<Option<Socks5Response>, NetworkRequesterError> {
+        log::info!("handle_open_proxy");
         let protocol_version = Socks5ProtocolVersion::default();
         Ok(Some(Socks5Response::new_open_proxy(protocol_version, self.open_proxy)))
     }

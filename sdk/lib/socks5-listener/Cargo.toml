@@ -14,6 +14,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [profile.release]
 strip = true
+codegen-units = 1
 
 [dependencies]
 anyhow = { workspace = true }

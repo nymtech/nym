@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::MixProxySender;
@@ -10,7 +10,7 @@ use futures::FutureExt;
 use futures::StreamExt;
 use log::*;
 use nym_ordered_buffer::OrderedMessageSender;
-use nym_socks5_requests::ConnectionId;
+use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::LaneQueueLengths;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskClient;
@@ -26,12 +26,12 @@ async fn send_empty_close<F, S>(
     mix_sender: &MixProxySender<S>,
     adapter_fn: F,
 ) where
-    F: Fn(ConnectionId, Vec<u8>, bool) -> S,
+    F: Fn(SocketData) -> S,
     S: Debug,
 {
-    let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
+    let message = SocketData::new(message_sender.sequence(), connection_id, true, Vec::new());
     mix_sender
-        .send(adapter_fn(connection_id, ordered_msg, true))
+        .send(adapter_fn(message))
         .await
         .expect("BatchRealMessageReceiver has stopped receiving!");
 }
@@ -42,13 +42,14 @@ async fn send_empty_keepalive<F, S>(
     mix_sender: &MixProxySender<S>,
     adapter_fn: F,
 ) where
-    F: Fn(ConnectionId, Vec<u8>, bool) -> S,
+    F: Fn(SocketData) -> S,
     S: Debug,
 {
     log::trace!("Sending keepalive for connection: {connection_id}");
-    let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
+    let message = SocketData::new(message_sender.sequence(), connection_id, false, Vec::new());
+
     mix_sender
-        .send(adapter_fn(connection_id, ordered_msg, false))
+        .send(adapter_fn(message))
         .await
         .expect("BatchRealMessageReceiver has stopped receiving!");
 }
@@ -63,7 +64,7 @@ async fn deal_with_data<F, S>(
     adapter_fn: F,
 ) -> bool
 where
-    F: Fn(ConnectionId, Vec<u8>, bool) -> S,
+    F: Fn(SocketData) -> S,
     S: Debug,
 {
     let (read_data, is_finished) = match read_data {
@@ -86,15 +87,15 @@ where
         is_finished
     );
 
-    // if we're sending through the mixnet increase the sequence number...
-    let ordered_msg = message_sender.wrap_message(read_data.to_vec()).into_bytes();
-    log::trace!(
-        "pushing data down the input sender: size: {}",
-        ordered_msg.len()
+    let message = SocketData::new(
+        message_sender.sequence(),
+        connection_id,
+        is_finished,
+        read_data.into(),
     );
 
     mix_sender
-        .send(adapter_fn(connection_id, ordered_msg, is_finished))
+        .send(adapter_fn(message))
         .await
         .expect("InputMessageReceiver has stopped receiving!");
 
@@ -172,7 +173,7 @@ pub(super) async fn run_inbound<F, S>(
     mut shutdown_listener: TaskClient,
 ) -> OwnedReadHalf
 where
-    F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
+    F: Fn(SocketData) -> S + Send + 'static,
     S: Debug,
 {
     // TODO: this multiplication by 4 is completely arbitrary here

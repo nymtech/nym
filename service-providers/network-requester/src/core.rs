@@ -137,13 +137,13 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
                         .connected_services
                         .read()
                         .await
-                        .get(&req.conn_id)
+                        .get(&req.data.header.connection_id)
                     {
                         stats_collector
                             .request_stats_data
                             .write()
                             .await
-                            .processed(remote_addr, req.data.len() as u32);
+                            .processed(remote_addr, req.data.data.len() as u32);
                     }
                 }
                 self.handle_proxy_send(req)

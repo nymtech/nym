@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::connection_controller::ConnectionReceiver;
-use nym_socks5_requests::ConnectionId;
+use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::LaneQueueLengths;
 use nym_task::TaskClient;
 use std::fmt::Debug;
@@ -92,7 +92,7 @@ where
     // request/response as required by entity running particular side of the proxy.
     pub async fn run<F>(mut self, adapter_fn: F) -> Self
     where
-        F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + Sync + 'static,
+        F: Fn(SocketData) -> S + Send + Sync + 'static,
     {
         let (read_half, write_half) = self.socket.take().unwrap().into_split();
         let shutdown_notify = Arc::new(Notify::new());

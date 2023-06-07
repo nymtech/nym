@@ -58,10 +58,12 @@ impl From<NetworkData> for ControllerCommand {
 
 impl From<SendRequest> for ControllerCommand {
     fn from(value: SendRequest) -> Self {
+        // TODO: do we care about sequence number here?
+
         ControllerCommand::Send {
-            connection_id: value.conn_id,
-            data: value.data,
-            is_closed: value.local_closed,
+            connection_id: value.data.header.connection_id,
+            data: value.data.data,
+            is_closed: value.data.header.local_socket_closed,
         }
     }
 }

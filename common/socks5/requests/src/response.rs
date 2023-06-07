@@ -239,6 +239,7 @@ impl Socks5ResponseContent {
 /// can be serialized and sent back through the mixnet to the requesting
 /// application.
 #[derive(Clone, Debug, PartialEq, Eq)]
+// #[deprecated]
 pub struct NetworkData {
     pub data: Vec<u8>,
     pub connection_id: ConnectionId,

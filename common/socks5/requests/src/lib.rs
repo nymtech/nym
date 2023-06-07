@@ -3,6 +3,7 @@
 
 use nym_service_providers_common::interface;
 use nym_service_providers_common::interface::ServiceProviderMessagingError;
+use std::mem;
 use thiserror::Error;
 
 pub use request::*;
@@ -15,6 +16,126 @@ pub mod version;
 
 pub type Socks5ProviderRequest = interface::Request<Socks5Request>;
 pub type Socks5ProviderResponse = interface::Response<Socks5Request>;
+
+#[derive(Debug, Error)]
+#[error(
+    "didn't receive enough data to recover socket data. got {received}, but expected {expected}"
+)]
+pub struct InsufficientSocketDataError {
+    received: usize,
+    expected: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SocketDataHeader {
+    pub seq: u64,
+    pub connection_id: ConnectionId,
+    pub local_socket_closed: bool,
+}
+
+impl SocketDataHeader {
+    const SERIALIZED_LEN: usize = mem::size_of::<u64>() + mem::size_of::<ConnectionId>() + 1;
+
+    pub fn try_from_bytes(b: &[u8]) -> Result<SocketDataHeader, InsufficientSocketDataError> {
+        if b.is_empty() {
+            return Err(InsufficientSocketDataError {
+                received: 0,
+                expected: Self::SERIALIZED_LEN,
+            });
+        }
+
+        if b.len() != Self::SERIALIZED_LEN {
+            return Err(InsufficientSocketDataError {
+                received: b.len(),
+                expected: Self::SERIALIZED_LEN,
+            });
+        }
+
+        // the unwraps here are fine as we just ensured we have the exact amount of bytes we need
+        let seq = u64::from_be_bytes(b[0..8].try_into().unwrap());
+        let local_socket_closed = b[8] != 0;
+        let connection_id = ConnectionId::from_be_bytes(b[9..17].try_into().unwrap());
+
+        Ok(SocketDataHeader {
+            seq,
+            connection_id,
+            local_socket_closed,
+        })
+    }
+
+    // the serialization of the header looks as follows:
+    // (it's vital it's not modified as we need this exact structure for backwards compatibility)
+    // CONNECTION_ID (8B) || SOCKET_CLOSED (1B) || SEQUENCE (8B)
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.into_bytes_iter().collect()
+    }
+
+    pub fn into_bytes_iter(self) -> impl Iterator<Item = u8> {
+        self.connection_id
+            .to_be_bytes()
+            .into_iter()
+            .chain(std::iter::once(self.local_socket_closed as u8))
+            .chain(self.seq.to_be_bytes().into_iter())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SocketData {
+    pub header: SocketDataHeader,
+    pub data: Vec<u8>,
+}
+
+impl SocketData {
+    pub fn new(
+        seq: u64,
+        connection_id: ConnectionId,
+        local_socket_closed: bool,
+        data: Vec<u8>,
+    ) -> Self {
+        SocketData {
+            header: SocketDataHeader {
+                seq,
+                connection_id,
+                local_socket_closed,
+            },
+            data,
+        }
+    }
+
+    pub fn try_from_bytes(b: &[u8]) -> Result<SocketData, InsufficientSocketDataError> {
+        if b.is_empty() {
+            return Err(InsufficientSocketDataError {
+                received: 0,
+                expected: SocketDataHeader::SERIALIZED_LEN,
+            });
+        }
+
+        if b.len() < SocketDataHeader::SERIALIZED_LEN {
+            return Err(InsufficientSocketDataError {
+                received: b.len(),
+                expected: SocketDataHeader::SERIALIZED_LEN,
+            });
+        }
+
+        let header = SocketDataHeader::try_from_bytes(&b[..SocketDataHeader::SERIALIZED_LEN])?;
+        let data = b[..SocketDataHeader::SERIALIZED_LEN].to_vec();
+
+        Ok(SocketData { header, data })
+    }
+
+    // the serialization of the socket data looks as follows:
+    // HEADER || DATA
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.header
+            .into_bytes_iter()
+            .chain(self.data.into_iter())
+            .collect()
+    }
+
+    pub fn into_bytes_iter(self) -> impl Iterator<Item = u8> {
+        self.header.into_bytes_iter().chain(self.data.into_iter())
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum Socks5RequestError {
@@ -99,9 +220,9 @@ mod tests {
             match new_deserialized.content {
                 RequestContent::ProviderData(req) => match req.content {
                     Socks5RequestContent::Send(send_req) => {
-                        assert_eq!(send_req.conn_id, 7810961472501196273);
-                        assert_eq!(send_req.data.len(), 111);
-                        assert!(!send_req.local_closed);
+                        assert_eq!(send_req.data.header.connection_id, 7810961472501196273);
+                        assert_eq!(send_req.data.data.len(), 111);
+                        assert!(!send_req.data.header.local_socket_closed);
                     }
                     _ => panic!("unexpected request"),
                 },

@@ -1,7 +1,10 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{make_bincode_serializer, Socks5ProtocolVersion, Socks5RequestError, Socks5Response};
+use crate::{
+    make_bincode_serializer, InsufficientSocketDataError, SocketData, Socks5ProtocolVersion,
+    Socks5RequestError, Socks5Response,
+};
 use nym_service_providers_common::interface::{Serializable, ServiceProviderRequest};
 use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use serde::{Deserialize, Serialize};
@@ -61,6 +64,9 @@ pub enum RequestDeserializationError {
         #[from]
         source: bincode::Error,
     },
+
+    #[error(transparent)]
+    InvalidSocketData(#[from] InsufficientSocketDataError),
 }
 
 impl RequestDeserializationError {
@@ -79,9 +85,7 @@ pub struct ConnectRequest {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SendRequest {
-    pub conn_id: ConnectionId,
-    pub data: Vec<u8>,
-    pub local_closed: bool,
+    pub data: SocketData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -178,15 +182,10 @@ impl Socks5Request {
         }
     }
 
-    pub fn new_send(
-        protocol_version: Socks5ProtocolVersion,
-        conn_id: ConnectionId,
-        data: Vec<u8>,
-        local_closed: bool,
-    ) -> Socks5Request {
+    pub fn new_send(protocol_version: Socks5ProtocolVersion, data: SocketData) -> Socks5Request {
         Socks5Request {
             protocol_version,
-            content: Socks5RequestContent::new_send(conn_id, data, local_closed),
+            content: Socks5RequestContent::new_send(data),
         }
     }
 
@@ -231,16 +230,8 @@ impl Socks5RequestContent {
     }
 
     /// Construct a new Request::Send instance
-    pub fn new_send(
-        conn_id: ConnectionId,
-        data: Vec<u8>,
-        local_closed: bool,
-    ) -> Socks5RequestContent {
-        Socks5RequestContent::Send(SendRequest {
-            conn_id,
-            data,
-            local_closed,
-        })
+    pub fn new_send(data: SocketData) -> Socks5RequestContent {
+        Socks5RequestContent::Send(SendRequest { data })
     }
 
     /// Deserialize the request type, connection id, destination address and port,
@@ -257,6 +248,14 @@ impl Socks5RequestContent {
     /// The request_flag tells us whether this is a new connection request (`new_connect`),
     /// an already-established connection we should send up (`new_send`), or
     /// a request to close an established connection (`new_close`).
+
+    // connect:
+    // RequestFlag::Connect || CONN_ID || ADDR_LEN || ADDR || <RETURN_ADDR>
+    //
+    // send:
+    // RequestFlag::Send || CONN_ID || LOCAL_CLOSED || DATA
+    // where DATA: SEQ || TRUE_DATA
+
     pub fn try_from_bytes(b: &[u8]) -> Result<Socks5RequestContent, RequestDeserializationError> {
         // each request needs to at least contain flag and ConnectionId
         if b.is_empty() {
@@ -314,21 +313,9 @@ impl Socks5RequestContent {
                     return_address,
                 ))
             }
-            RequestFlag::Send => {
-                if b.len() < 9 {
-                    return Err(RequestDeserializationError::ConnectionIdTooShort);
-                }
-                let conn_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
-
-                let local_closed = b[9] != 0;
-                let data = b[10..].to_vec();
-
-                Ok(Socks5RequestContent::Send(SendRequest {
-                    conn_id,
-                    data,
-                    local_closed,
-                }))
-            }
+            RequestFlag::Send => Ok(Socks5RequestContent::Send(SendRequest {
+                data: SocketData::try_from_bytes(&b[1..])?,
+            })),
             RequestFlag::Query => {
                 use bincode::Options;
                 let query = make_bincode_serializer().deserialize(&b[1..])?;
@@ -359,9 +346,7 @@ impl Socks5RequestContent {
                 }
             }
             Socks5RequestContent::Send(req) => std::iter::once(RequestFlag::Send as u8)
-                .chain(req.conn_id.to_be_bytes().into_iter())
-                .chain(std::iter::once(req.local_closed as u8))
-                .chain(req.data.into_iter())
+                .chain(req.data.into_bytes_iter())
                 .collect(),
 
             Socks5RequestContent::Query(query) => {

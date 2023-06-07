@@ -428,18 +428,14 @@ impl SocksClient {
             Some(self.lane_queue_lengths.clone()),
             self.shutdown_listener.clone(),
         )
-        .run(move |conn_id, read_data, socket_closed| {
-            let provider_request = Socks5Request::new_send(
-                request_version.provider_protocol,
-                conn_id,
-                read_data,
-                socket_closed,
-            );
+        .run(move |socket_data| {
+            let lane = TransmissionLane::ConnectionId(socket_data.header.connection_id);
+            let provider_request =
+                Socks5Request::new_send(request_version.provider_protocol, socket_data);
             let provider_message = Socks5ProviderRequest::new_provider_data(
                 request_version.provider_interface,
                 provider_request,
             );
-            let lane = TransmissionLane::ConnectionId(conn_id);
             if anonymous {
                 InputMessage::new_anonymous(
                     recipient,

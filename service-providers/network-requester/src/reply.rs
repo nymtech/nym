@@ -135,11 +135,12 @@ impl MixnetMessage {
     pub(crate) fn new_network_data_response_content(
         address: MixnetAddress,
         request_version: RequestVersion<Socks5Request>,
+        seq: u64,
         connection_id: ConnectionId,
         data: Vec<u8>,
         closed_socket: bool,
     ) -> Self {
-        let response_content = NetworkData::new(connection_id, data, closed_socket);
+        let response_content = NetworkData::new(seq, connection_id, data, closed_socket);
         Self::new_network_data_response(address, request_version, connection_id, response_content)
     }
 

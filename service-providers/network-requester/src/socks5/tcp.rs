@@ -70,6 +70,7 @@ impl Connection {
             MixnetMessage::new_network_data_response_content(
                 return_address.clone(),
                 remote_version.clone(),
+                socket_data.header.seq,
                 socket_data.header.connection_id,
                 socket_data.data,
                 socket_data.header.local_socket_closed,

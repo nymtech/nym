@@ -314,7 +314,7 @@ impl Socks5RequestContent {
                 ))
             }
             RequestFlag::Send => Ok(Socks5RequestContent::Send(SendRequest {
-                data: SocketData::try_from_bytes(&b[1..])?,
+                data: SocketData::try_from_request_bytes(&b[1..])?,
             })),
             RequestFlag::Query => {
                 use bincode::Options;
@@ -346,7 +346,7 @@ impl Socks5RequestContent {
                 }
             }
             Socks5RequestContent::Send(req) => std::iter::once(RequestFlag::Send as u8)
-                .chain(req.data.into_bytes_iter())
+                .chain(req.data.into_request_bytes_iter())
                 .collect(),
 
             Socks5RequestContent::Query(query) => {

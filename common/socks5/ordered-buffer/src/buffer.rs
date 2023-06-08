@@ -1,6 +1,8 @@
-use crate::message::OrderedMessage;
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use log::*;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Stores messages and emits them in order.
 ///
@@ -9,36 +11,49 @@ use std::collections::HashMap;
 /// to fill up with the full sequence.
 #[derive(Debug)]
 pub struct OrderedMessageBuffer {
-    next_index: u64,
-    messages: HashMap<u64, OrderedMessage>,
+    next_sequence: u64,
+    messages: BTreeMap<u64, Vec<u8>>,
 }
 
 /// Data returned from `OrderedMessageBuffer` on a successful read of gapless ordered data.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReadContiguousData {
     pub data: Vec<u8>,
-    pub last_index: u64,
+    pub last_sequence: u64,
 }
+
+const MAX_REASONABLE_OFFSET: u64 = 1000;
 
 impl OrderedMessageBuffer {
     pub fn new() -> OrderedMessageBuffer {
         OrderedMessageBuffer {
-            next_index: 0,
-            messages: HashMap::new(),
+            next_sequence: 0,
+            messages: BTreeMap::new(),
         }
     }
 
     /// Writes a message to the buffer. messages are sort on insertion, so
     /// that later on multiple reads for incomplete sequences don't result in
     /// useless sort work.
-    pub fn write(&mut self, message: OrderedMessage) {
+    pub fn write(&mut self, sequence: u64, data: Vec<u8>) {
+        // reject messages that have clearly malformed sequence
+        if sequence > self.next_sequence + MAX_REASONABLE_OFFSET {
+            error!("attempted to write message at index {sequence} while the next expected message was at only {}", self.next_sequence);
+            return;
+        }
+
+        // TODO: make it return an error
+        if sequence < self.next_sequence {
+            panic!("received already reassembled message")
+        }
+
         trace!(
-            "Writing message index: {} length {:?} to OrderedMessageBuffer.",
-            message.index,
-            message.data.len()
+            "Writing message index: {} length {} to OrderedMessageBuffer.",
+            sequence,
+            data.len()
         );
 
-        self.messages.insert(message.index, message);
+        self.messages.insert(sequence, data);
     }
 
     /// Returns `Option<Vec<u8>>` where it's `Some(bytes)` if there is gapless
@@ -50,32 +65,29 @@ impl OrderedMessageBuffer {
     /// return `None` until message 3 comes in, at which point 3, 4, and any
     /// further contiguous messages which have arrived will be returned.
     pub fn read(&mut self) -> Option<ReadContiguousData> {
-        if !self.messages.contains_key(&self.next_index) {
+        if !self.messages.contains_key(&self.next_sequence) {
             return None;
         }
 
         let mut contiguous_messages = Vec::new();
-        let mut index = self.next_index;
+        let mut seq = self.next_sequence;
 
-        while let Some(ordered_message) = self.messages.remove(&index) {
-            contiguous_messages.push(ordered_message);
-            index += 1;
+        while let Some(mut data) = self.messages.remove(&seq) {
+            contiguous_messages.append(&mut data);
+            seq += 1;
         }
 
-        let high_water = index;
-        self.next_index = high_water;
-        trace!("Next high water mark is: {}", high_water);
+        let high_water = seq;
+        self.next_sequence = high_water;
+        trace!("Next high water mark is: {high_water}");
 
-        // dig out the bytes from inside the struct
-        let data: Vec<u8> = contiguous_messages
-            .into_iter()
-            .flat_map(|message| message.data)
-            .collect();
-
-        trace!("Returning {} bytes from ordered message buffer", data.len());
+        trace!(
+            "Returning {} bytes from ordered message buffer",
+            contiguous_messages.len()
+        );
         Some(ReadContiguousData {
-            data,
-            last_index: index,
+            data: contiguous_messages,
+            last_sequence: seq,
         })
     }
 }
@@ -268,7 +280,7 @@ mod test_chunking_and_reassembling {
                 buffer.write(two_message);
                 buffer.write(one_message);
                 assert!(buffer.read().is_some());
-                assert_eq!(buffer.next_index, 3);
+                assert_eq!(buffer.next_sequence, 3);
             }
 
             #[test]
@@ -296,23 +308,23 @@ mod test_chunking_and_reassembling {
                 };
                 buffer.write(zero_message);
                 assert!(buffer.read().is_some());
-                assert_eq!(buffer.next_index, 1);
+                assert_eq!(buffer.next_sequence, 1);
 
                 buffer.write(four_message);
                 assert!(buffer.read().is_none());
-                assert_eq!(buffer.next_index, 1);
+                assert_eq!(buffer.next_sequence, 1);
 
                 buffer.write(three_message);
                 assert!(buffer.read().is_none());
-                assert_eq!(buffer.next_index, 1);
+                assert_eq!(buffer.next_sequence, 1);
 
                 buffer.write(two_message);
                 assert!(buffer.read().is_none());
-                assert_eq!(buffer.next_index, 1);
+                assert_eq!(buffer.next_sequence, 1);
 
                 buffer.write(one_message);
                 assert!(buffer.read().is_some());
-                assert_eq!(buffer.next_index, 5)
+                assert_eq!(buffer.next_sequence, 5)
             }
         }
     }

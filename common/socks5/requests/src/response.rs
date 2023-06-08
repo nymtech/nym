@@ -1,7 +1,10 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{make_bincode_serializer, ConnectionId, Socks5ProtocolVersion, Socks5RequestError};
+use crate::{
+    make_bincode_serializer, ConnectionId, InsufficientSocketDataError, SocketData,
+    Socks5ProtocolVersion, Socks5RequestError,
+};
 use nym_service_providers_common::interface::{Serializable, ServiceProviderResponse};
 use serde::{Deserialize, Serialize};
 use tap::TapFallible;
@@ -33,6 +36,12 @@ impl TryFrom<u8> for ResponseFlag {
 
 #[derive(Debug, Error)]
 pub enum ResponseDeserializationError {
+    #[error("the network data was malformed: {source}")]
+    MalformedNetworkData {
+        #[from]
+        source: InsufficientSocketDataError,
+    },
+
     #[error("not enough bytes to recover the connection id")]
     ConnectionIdTooShort,
 
@@ -115,23 +124,14 @@ impl Socks5Response {
 
     pub fn new_network_data(
         protocol_version: Socks5ProtocolVersion,
+        seq: u64,
         connection_id: ConnectionId,
         data: Vec<u8>,
         is_closed: bool,
     ) -> Socks5Response {
         Socks5Response {
             protocol_version,
-            content: Socks5ResponseContent::new_network_data(connection_id, data, is_closed),
-        }
-    }
-
-    pub fn new_closed_empty(
-        protocol_version: Socks5ProtocolVersion,
-        connection_id: ConnectionId,
-    ) -> Socks5Response {
-        Socks5Response {
-            protocol_version,
-            content: Socks5ResponseContent::new_closed_empty(connection_id),
+            content: Socks5ResponseContent::new_network_data(seq, connection_id, data, is_closed),
         }
     }
 
@@ -166,15 +166,12 @@ pub enum Socks5ResponseContent {
 
 impl Socks5ResponseContent {
     pub fn new_network_data(
+        seq: u64,
         connection_id: ConnectionId,
         data: Vec<u8>,
         is_closed: bool,
     ) -> Socks5ResponseContent {
-        Socks5ResponseContent::NetworkData(NetworkData::new(connection_id, data, is_closed))
-    }
-
-    pub fn new_closed_empty(connection_id: ConnectionId) -> Socks5ResponseContent {
-        Socks5ResponseContent::NetworkData(NetworkData::new_closed_empty(connection_id))
+        Socks5ResponseContent::NetworkData(NetworkData::new(seq, connection_id, data, is_closed))
     }
 
     pub fn new_connection_error(
@@ -239,67 +236,27 @@ impl Socks5ResponseContent {
 /// can be serialized and sent back through the mixnet to the requesting
 /// application.
 #[derive(Clone, Debug, PartialEq, Eq)]
-// #[deprecated]
 pub struct NetworkData {
-    pub data: Vec<u8>,
-    pub connection_id: ConnectionId,
-    pub is_closed: bool,
+    pub inner: SocketData,
 }
 
 impl NetworkData {
     /// Constructor for responses
-    pub fn new(connection_id: ConnectionId, data: Vec<u8>, is_closed: bool) -> Self {
+    pub fn new(seq: u64, connection_id: ConnectionId, data: Vec<u8>, is_closed: bool) -> Self {
         NetworkData {
-            data,
-            connection_id,
-            is_closed,
-        }
-    }
-
-    pub fn new_closed_empty(connection_id: ConnectionId) -> Self {
-        NetworkData {
-            data: vec![],
-            connection_id,
-            is_closed: false,
+            inner: SocketData::new(seq, connection_id, is_closed, data),
         }
     }
 
     pub fn try_from_bytes(b: &[u8]) -> Result<NetworkData, ResponseDeserializationError> {
-        if b.is_empty() {
-            return Err(ResponseDeserializationError::NoData);
-        }
-
-        let is_closed = b[0] != 0;
-
-        if b.len() < 9 {
-            return Err(ResponseDeserializationError::ConnectionIdTooShort);
-        }
-
-        let mut connection_id_bytes = b.to_vec();
-        let data = connection_id_bytes.split_off(9);
-
-        let connection_id = u64::from_be_bytes([
-            connection_id_bytes[1],
-            connection_id_bytes[2],
-            connection_id_bytes[3],
-            connection_id_bytes[4],
-            connection_id_bytes[5],
-            connection_id_bytes[6],
-            connection_id_bytes[7],
-            connection_id_bytes[8],
-        ]);
-
-        let response = NetworkData::new(connection_id, data, is_closed);
-        Ok(response)
+        let inner = SocketData::try_from_response_bytes(b)?;
+        Ok(NetworkData { inner })
     }
 
     /// Serializes the response into bytes so that it can be sent back through
     /// the mixnet to the requesting application.
     pub fn into_bytes(self) -> Vec<u8> {
-        std::iter::once(self.is_closed as u8)
-            .chain(self.connection_id.to_be_bytes().iter().cloned())
-            .chain(self.data.into_iter())
-            .collect()
+        self.inner.into_response_bytes()
     }
 }
 

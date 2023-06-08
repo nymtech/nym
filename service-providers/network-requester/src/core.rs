@@ -359,7 +359,7 @@ impl NRServiceProvider {
                     return_address,
                     remote_version,
                     connection_id,
-                    NetworkData::new_closed_empty(connection_id),
+                    NetworkData::new(0, connection_id, Vec::new(), true),
                 );
 
                 mix_input_sender

@@ -1,7 +1,10 @@
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::error::Socks5ClientCoreError;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-
 use nym_client_core::client::received_buffer::ReconstructedMessagesReceiver;
 use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender,
@@ -11,8 +14,6 @@ use nym_socks5_proxy_helpers::connection_controller::ControllerSender;
 use nym_socks5_requests::{Socks5ProviderResponse, Socks5Response, Socks5ResponseContent};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskClient;
-
-use crate::error::Socks5ClientCoreError;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,

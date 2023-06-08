@@ -17,9 +17,9 @@ pub mod version;
 pub type Socks5ProviderRequest = interface::Request<Socks5Request>;
 pub type Socks5ProviderResponse = interface::Response<Socks5Request>;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 #[error(
-    "didn't receive enough data to recover socket data. got {received}, but expected {expected}"
+    "didn't receive enough data to recover socket data. got {received}, but expected at least {expected}"
 )]
 pub struct InsufficientSocketDataError {
     received: usize,
@@ -34,16 +34,14 @@ pub struct SocketDataHeader {
 }
 
 impl SocketDataHeader {
-    const SERIALIZED_LEN: usize = mem::size_of::<u64>() + mem::size_of::<ConnectionId>() + 1;
+    const SERIALIZED_LEN: usize = mem::size_of::<ConnectionId>() + 1 + mem::size_of::<u64>();
 
-    pub fn try_from_bytes(b: &[u8]) -> Result<SocketDataHeader, InsufficientSocketDataError> {
-        if b.is_empty() {
-            return Err(InsufficientSocketDataError {
-                received: 0,
-                expected: Self::SERIALIZED_LEN,
-            });
-        }
+    // we need to have two serialization methods for backwards compatibility,
+    // since we serialized those fields differently depending on whether it was ingress vs egress...
 
+    pub fn try_from_request_bytes(
+        b: &[u8],
+    ) -> Result<SocketDataHeader, InsufficientSocketDataError> {
         if b.len() != Self::SERIALIZED_LEN {
             return Err(InsufficientSocketDataError {
                 received: b.len(),
@@ -52,9 +50,76 @@ impl SocketDataHeader {
         }
 
         // the unwraps here are fine as we just ensured we have the exact amount of bytes we need
-        let seq = u64::from_be_bytes(b[0..8].try_into().unwrap());
+        let connection_id = ConnectionId::from_be_bytes(b[0..8].try_into().unwrap());
         let local_socket_closed = b[8] != 0;
-        let connection_id = ConnectionId::from_be_bytes(b[9..17].try_into().unwrap());
+        let seq = u64::from_be_bytes(b[9..].try_into().unwrap());
+
+        Ok(SocketDataHeader {
+            seq,
+            connection_id,
+            local_socket_closed,
+        })
+
+        //
+        // let with_seq = mem::size_of::<ConnectionId>() + 1 + mem::size_of::<u64>();
+        // let without_seq = mem::size_of::<ConnectionId>() + 1;
+        //
+        // if b.len() < without_seq {
+        //     return Err(InsufficientSocketDataError {
+        //         received: b.len(),
+        //         expected: without_seq,
+        //     });
+        // }
+        //
+        // // the unwraps here are fine as we just ensured we have the exact amount of bytes we need
+        // let connection_id = ConnectionId::from_be_bytes(b[0..8].try_into().unwrap());
+        // let local_socket_closed = b[8] != 0;
+        //
+        // if b.len() > without_seq {
+        //     return Err(InsufficientSocketDataError {
+        //         received: b.len(),
+        //         expected: without_seq,
+        //     });
+        // }
+        //
+        // let seq = u64::from_be_bytes(b[0..8].try_into().unwrap());
+        //
+        // Ok(SocketDataHeader {
+        //     seq,
+        //     connection_id,
+        //     local_socket_closed: local_socket_closed,
+        // })
+    }
+
+    // the serialization of the header looks as follows:
+    // (it's vital it's not modified as we need this exact structure for backwards compatibility)
+    // CONNECTION_ID (8B) || SOCKET_CLOSED (1B) || SEQUENCE (8B)
+    pub fn into_request_bytes(self) -> Vec<u8> {
+        self.into_request_bytes_iter().collect()
+    }
+
+    pub fn into_request_bytes_iter(self) -> impl Iterator<Item = u8> {
+        self.connection_id
+            .to_be_bytes()
+            .into_iter()
+            .chain(std::iter::once(self.local_socket_closed as u8))
+            .chain(self.seq.to_be_bytes().into_iter())
+    }
+
+    pub fn try_from_response_bytes(
+        b: &[u8],
+    ) -> Result<SocketDataHeader, InsufficientSocketDataError> {
+        if b.len() != Self::SERIALIZED_LEN {
+            return Err(InsufficientSocketDataError {
+                received: b.len(),
+                expected: Self::SERIALIZED_LEN,
+            });
+        }
+
+        // the unwraps here are fine as we just ensured we have the exact amount of bytes we need
+        let local_socket_closed = b[0] != 0;
+        let connection_id = ConnectionId::from_be_bytes(b[1..9].try_into().unwrap());
+        let seq = u64::from_be_bytes(b[9..].try_into().unwrap());
 
         Ok(SocketDataHeader {
             seq,
@@ -65,16 +130,14 @@ impl SocketDataHeader {
 
     // the serialization of the header looks as follows:
     // (it's vital it's not modified as we need this exact structure for backwards compatibility)
-    // CONNECTION_ID (8B) || SOCKET_CLOSED (1B) || SEQUENCE (8B)
-    pub fn into_bytes(self) -> Vec<u8> {
-        self.into_bytes_iter().collect()
+    // SOCKET_CLOSED (1B) || CONNECTION_ID (8B) || SEQUENCE (8B)
+    pub fn into_response_bytes(self) -> Vec<u8> {
+        self.into_response_bytes_iter().collect()
     }
 
-    pub fn into_bytes_iter(self) -> impl Iterator<Item = u8> {
-        self.connection_id
-            .to_be_bytes()
-            .into_iter()
-            .chain(std::iter::once(self.local_socket_closed as u8))
+    pub fn into_response_bytes_iter(self) -> impl Iterator<Item = u8> {
+        std::iter::once(self.local_socket_closed as u8)
+            .chain(self.connection_id.to_be_bytes().into_iter())
             .chain(self.seq.to_be_bytes().into_iter())
     }
 }
@@ -92,6 +155,10 @@ impl SocketData {
         local_socket_closed: bool,
         data: Vec<u8>,
     ) -> Self {
+        if data.is_empty() {
+            println!("making socket data with no data");
+            println!("{local_socket_closed}");
+        }
         SocketData {
             header: SocketDataHeader {
                 seq,
@@ -102,7 +169,7 @@ impl SocketData {
         }
     }
 
-    pub fn try_from_bytes(b: &[u8]) -> Result<SocketData, InsufficientSocketDataError> {
+    fn verify_deserialization_len(b: &[u8]) -> Result<(), InsufficientSocketDataError> {
         if b.is_empty() {
             return Err(InsufficientSocketDataError {
                 received: 0,
@@ -116,24 +183,60 @@ impl SocketData {
                 expected: SocketDataHeader::SERIALIZED_LEN,
             });
         }
+        Ok(())
+    }
 
-        let header = SocketDataHeader::try_from_bytes(&b[..SocketDataHeader::SERIALIZED_LEN])?;
-        let data = b[..SocketDataHeader::SERIALIZED_LEN].to_vec();
+    // we need to have two serialization methods for backwards compatibility,
+    // since we serialized those fields differently depending on whether it was ingress vs egress...
+    pub fn try_from_request_bytes(b: &[u8]) -> Result<SocketData, InsufficientSocketDataError> {
+        Self::verify_deserialization_len(b)?;
+        let header =
+            SocketDataHeader::try_from_request_bytes(&b[..SocketDataHeader::SERIALIZED_LEN])?;
+        println!(
+            "req: {} bytes of data ",
+            b[SocketDataHeader::SERIALIZED_LEN..].len()
+        );
+        println!("seq: {}", header.seq);
+        let data = b[SocketDataHeader::SERIALIZED_LEN..].to_vec();
 
         Ok(SocketData { header, data })
     }
 
     // the serialization of the socket data looks as follows:
     // HEADER || DATA
-    pub fn into_bytes(self) -> Vec<u8> {
-        self.header
-            .into_bytes_iter()
-            .chain(self.data.into_iter())
-            .collect()
+    pub fn into_request_bytes(self) -> Vec<u8> {
+        self.into_request_bytes_iter().collect()
     }
 
-    pub fn into_bytes_iter(self) -> impl Iterator<Item = u8> {
-        self.header.into_bytes_iter().chain(self.data.into_iter())
+    pub fn into_request_bytes_iter(self) -> impl Iterator<Item = u8> {
+        self.header
+            .into_request_bytes_iter()
+            .chain(self.data.into_iter())
+    }
+
+    pub fn try_from_response_bytes(b: &[u8]) -> Result<SocketData, InsufficientSocketDataError> {
+        Self::verify_deserialization_len(b)?;
+
+        let header =
+            SocketDataHeader::try_from_response_bytes(&b[..SocketDataHeader::SERIALIZED_LEN])?;
+        println!(
+            "res: {} bytes of data ",
+            b[SocketDataHeader::SERIALIZED_LEN..].len()
+        );
+        println!("seq: {}", header.seq);
+        let data = b[SocketDataHeader::SERIALIZED_LEN..].to_vec();
+
+        Ok(SocketData { header, data })
+    }
+
+    pub fn into_response_bytes(self) -> Vec<u8> {
+        self.into_response_bytes_iter().collect()
+    }
+
+    pub fn into_response_bytes_iter(self) -> impl Iterator<Item = u8> {
+        self.header
+            .into_response_bytes_iter()
+            .chain(self.data.into_iter())
     }
 }
 

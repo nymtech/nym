@@ -89,6 +89,8 @@ class ProxyWorker(
     override suspend fun doWork(): Result {
         setProgress(workDataOf(State to Status.STARTING.name))
 
+        // set this work as a long running worker
+        // see https://developer.android.com/guide/background/persistent/how-to/long-running
         // `setForeground` can fail
         // see https://developer.android.com/guide/background/persistent/getting-started/define-work#coroutineworker
         try {
@@ -179,11 +181,26 @@ class ProxyWorker(
     // ongoing notification.
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createForegroundInfo(): ForegroundInfo {
+        Log.d(tag, "__createForegroundInfo")
+
         // Create a Notification channel if necessary
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             createChannel()
         }
 
+        return ForegroundInfo(notificationId, createNotification())
+    }
+
+    // TODO without this override, under Android 11 the app crashes
+    //  see https://developer.android.com/guide/background/persistent/getting-started/define-work#coroutineworker
+    //  override doesn't seem to be a problem for newer versions
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        Log.d(tag, "__getForegroundInfo")
+
+        // Create a Notification channel if necessary
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            createChannel()
+        }
         return ForegroundInfo(notificationId, createNotification())
     }
 
@@ -197,12 +214,5 @@ class ProxyWorker(
                 NotificationManager.IMPORTANCE_DEFAULT
             )
         )
-    }
-
-    // TODO without this override, under Android 11 the app crashes
-    //  see https://developer.android.com/guide/background/persistent/getting-started/define-work#coroutineworker
-    //  override doesn't seem to be a problem for newer versions
-    override suspend fun getForegroundInfo(): ForegroundInfo {
-        return ForegroundInfo(notificationId, createNotification())
     }
 }

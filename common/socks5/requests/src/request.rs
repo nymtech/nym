@@ -117,6 +117,13 @@ impl Serializable for Socks5Request {
         }
 
         let protocol_version = Socks5ProtocolVersion::from(b[0]);
+        if protocol_version > Self::max_supported_version() {
+            return Err(Socks5RequestError::UnsupportedProtocolVersion { protocol_version });
+        }
+
+        // TODO: handle the case then protocol version if less then the current one. Then we should
+        // make sure to only respond with the same version
+
         Ok(Socks5Request {
             protocol_version,
             content: Socks5RequestContent::try_from_bytes(&b[1..])?,

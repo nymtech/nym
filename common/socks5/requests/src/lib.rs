@@ -32,6 +32,11 @@ pub enum Socks5RequestError {
 
     #[error(transparent)]
     ProviderInterfaceError(#[from] ServiceProviderMessagingError),
+
+    #[error("received unsupported request protocol version: {protocol_version:?}")]
+    UnsupportedProtocolVersion {
+        protocol_version: <Socks5Request as interface::ServiceProviderRequest>::ProtocolVersion,
+    },
 }
 
 #[cfg(test)]

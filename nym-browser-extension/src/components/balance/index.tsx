@@ -4,20 +4,13 @@ import { useAppContext } from 'src/context';
 import Big from 'big.js';
 
 export const Balance = () => {
-  const { balance, getBalance } = useAppContext();
+  const { balance, fiatBalance, currency, getBalance } = useAppContext();
 
   useEffect(() => {
     getBalance();
   }, []);
 
-  const calculateUSD = () => {
-    if (balance) {
-      const val = Big(balance).mul(0.15).round(0);
-      return Intl.NumberFormat().format(Number(val));
-    }
-
-    return '-';
-  };
+  const fiat = fiatBalance ? `~ ${Intl.NumberFormat().format(fiatBalance)} ${currency.toUpperCase()}` : '-';
 
   return (
     <Stack alignItems="center" gap={1}>
@@ -25,7 +18,7 @@ export const Balance = () => {
       <Typography variant="h4" textAlign="center">
         {balance} NYM
       </Typography>
-      <Typography sx={{ color: 'grey.600' }}>~ £{calculateUSD()}</Typography>
+      <Typography sx={{ color: 'grey.600' }}>{fiat}</Typography>
     </Stack>
   );
 };

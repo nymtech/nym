@@ -3,13 +3,16 @@ import ValidatorClient from '@nymproject/nym-validator-client';
 import { ExtensionStorage } from '@nymproject/extension-storage';
 import { connectToValidator } from 'src/validator-client';
 import { unymToNym } from 'src/utils/coin';
+import { Currency, getTokenPrice } from 'src/utils/price';
 
 type TAppContext = {
   client?: ValidatorClient;
   accounts: string[];
   balance?: string;
+  fiatBalance?: number;
   denom: 'NYM';
   minorDenom: 'unym';
+  currency: Currency;
   showSeedForAccount?: string;
   selectedAccount: string;
   storage?: ExtensionStorage;
@@ -30,12 +33,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [client, setClient] = useState<ValidatorClient>();
   const [selectedAccount, setSelected] = useState<string>(DEFAULT_ACCOUNT_NAME);
   const [balance, setBalance] = useState<TBalanceInNYMs>();
+  const [fiatBalance, setFiatBalance] = useState<number>();
   const [accounts, setAccounts] = useState<string[]>([]);
   const [showSeedForAccount, setShowSeedForAccount] = useState<string>();
   const [storage, setStorage] = useState<ExtensionStorage>();
 
   const denom = 'NYM';
   const minorDenom = 'unym';
+  const currency = 'gbp';
 
   const handleUnlockWallet = async (password: string) => {
     const store = await new ExtensionStorage(password);
@@ -57,11 +62,18 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
   const getBalance = async () => {
     const bal = await client?.getBalance(client.address);
-
     if (bal) {
       const nym = unymToNym(Number(bal.amount));
+      const fiat = await getFiatBalance(nym);
+      setFiatBalance(fiat);
       setBalance(nym.toString());
     }
+  };
+
+  const getFiatBalance = async (balance: number) => {
+    const tokenPrice = await getTokenPrice('nym', currency);
+    const fiatBalance = tokenPrice.nym.gbp * balance;
+    return fiatBalance;
   };
 
   useEffect(() => {
@@ -75,6 +87,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       client,
       accounts,
       balance,
+      fiatBalance,
+      currency,
       denom,
       minorDenom,
       selectedAccount,
@@ -86,7 +100,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       setAccounts,
       selectAccount,
     }),
-    [client, accounts, balance, denom, minorDenom, selectedAccount, showSeedForAccount, storage],
+    [client, accounts, balance, fiatBalance, denom, minorDenom, selectedAccount, showSeedForAccount, storage],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

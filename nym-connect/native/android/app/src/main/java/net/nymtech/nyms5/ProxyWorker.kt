@@ -189,6 +189,7 @@ class ProxyWorker(
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createChannel() {
+        Log.d(tag, "creating notification channel")
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 channelId,

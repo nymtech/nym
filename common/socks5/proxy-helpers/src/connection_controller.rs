@@ -62,7 +62,9 @@ impl ActiveConnection {
         if is_closed {
             self.closed_at_index = Some(seq);
         }
-        self.ordered_buffer.write(seq, payload);
+        if let Err(err) = self.ordered_buffer.write(seq, payload) {
+            error!("failed to write to the buffer: {err}")
+        }
     }
 
     fn read_from_buf(&mut self) -> Option<ReadContiguousData> {

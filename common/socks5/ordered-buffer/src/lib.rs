@@ -1,3 +1,3 @@
 mod buffer;
 
-pub use buffer::{OrderedMessageBuffer, ReadContiguousData};
+pub use buffer::{OrderedMessageBuffer, OrderedMessageError, ReadContiguousData};

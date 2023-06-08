@@ -3,6 +3,19 @@
 
 use log::*;
 use std::collections::BTreeMap;
+use thiserror::Error;
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum OrderedMessageError {
+    #[error("received message with sequence number {received}, which is way higher than our current {current}")]
+    MessageSequenceTooLarge { current: u64, received: u64 },
+
+    #[error("received message with sequence number {received}, while we're already at {current}!")]
+    MessageAlreadyReconstructed { current: u64, received: u64 },
+
+    #[error("attempted to overwrite message at sequence {received}")]
+    AttemptedToOverwriteSequence { received: u64 },
+}
 
 /// Stores messages and emits them in order.
 ///
@@ -35,16 +48,24 @@ impl OrderedMessageBuffer {
     /// Writes a message to the buffer. messages are sort on insertion, so
     /// that later on multiple reads for incomplete sequences don't result in
     /// useless sort work.
-    pub fn write(&mut self, sequence: u64, data: Vec<u8>) {
+    pub fn write(&mut self, sequence: u64, data: Vec<u8>) -> Result<(), OrderedMessageError> {
         // reject messages that have clearly malformed sequence
         if sequence > self.next_sequence + MAX_REASONABLE_OFFSET {
-            error!("attempted to write message at index {sequence} while the next expected message was at only {}", self.next_sequence);
-            return;
+            return Err(OrderedMessageError::MessageSequenceTooLarge {
+                current: self.next_sequence,
+                received: sequence,
+            });
         }
 
-        // TODO: make it return an error
+        if self.messages.contains_key(&sequence) {
+            return Err(OrderedMessageError::AttemptedToOverwriteSequence { received: sequence });
+        }
+
         if sequence < self.next_sequence {
-            panic!("received already reassembled message")
+            return Err(OrderedMessageError::MessageAlreadyReconstructed {
+                current: self.next_sequence,
+                received: sequence,
+            });
         }
 
         trace!(
@@ -54,6 +75,7 @@ impl OrderedMessageBuffer {
         );
 
         self.messages.insert(sequence, data);
+        Ok(())
     }
 
     /// Returns `Option<Vec<u8>>` where it's `Some(bytes)` if there is gapless
@@ -64,6 +86,7 @@ impl OrderedMessageBuffer {
     /// a read will return the bytes of messages 0, 1, 2. Subsequent reads will
     /// return `None` until message 3 comes in, at which point 3, 4, and any
     /// further contiguous messages which have arrived will be returned.
+    #[must_use]
     pub fn read(&mut self) -> Option<ReadContiguousData> {
         if !self.messages.contains_key(&self.next_sequence) {
             return None;
@@ -102,6 +125,64 @@ impl Default for OrderedMessageBuffer {
 mod test_chunking_and_reassembling {
     use super::*;
 
+    #[test]
+    fn trying_to_write_unreasonable_high_sequence() {
+        let mut buffer = OrderedMessageBuffer::new();
+        let first_message = vec![1, 2, 3, 4];
+        let second_message = vec![5, 6, 7, 8];
+
+        buffer.write(0, first_message).unwrap();
+        buffer.write(1, second_message).unwrap();
+
+        assert_eq!(
+            Err(OrderedMessageError::MessageSequenceTooLarge {
+                current: 0,
+                received: 12345678
+            }),
+            buffer.write(12345678, b"foomp".to_vec())
+        )
+    }
+
+    #[test]
+    fn trying_to_overwrite_sequence() {
+        let mut buffer = OrderedMessageBuffer::new();
+        let message = vec![1, 2, 3, 4];
+
+        buffer.write(0, message.clone()).unwrap();
+        buffer.write(1, message.clone()).unwrap();
+        buffer.write(2, message.clone()).unwrap();
+        buffer.write(3, message.clone()).unwrap();
+
+        for seq in 0..=3 {
+            assert_eq!(
+                Err(OrderedMessageError::AttemptedToOverwriteSequence { received: seq }),
+                buffer.write(seq, message.clone())
+            )
+        }
+    }
+
+    #[test]
+    fn writing_past_data() {
+        let mut buffer = OrderedMessageBuffer::new();
+        let message = vec![1, 2, 3, 4];
+
+        buffer.write(0, message.clone()).unwrap();
+        buffer.write(1, message.clone()).unwrap();
+        buffer.write(2, message.clone()).unwrap();
+        buffer.write(3, message.clone()).unwrap();
+        let _ = buffer.read().unwrap();
+
+        for seq in 0..=3 {
+            assert_eq!(
+                Err(OrderedMessageError::MessageAlreadyReconstructed {
+                    current: 4,
+                    received: seq
+                }),
+                buffer.write(seq, message.clone())
+            )
+        }
+    }
+
     #[cfg(test)]
     mod reading_from_and_writing_to_the_buffer {
         use super::*;
@@ -114,20 +195,14 @@ mod test_chunking_and_reassembling {
             fn read_returns_ordered_bytes_and_resets_buffer() {
                 let mut buffer = OrderedMessageBuffer::new();
 
-                let first_message = OrderedMessage {
-                    data: vec![1, 2, 3, 4],
-                    index: 0,
-                };
-                let second_message = OrderedMessage {
-                    data: vec![5, 6, 7, 8],
-                    index: 1,
-                };
+                let first_message = vec![1, 2, 3, 4];
+                let second_message = vec![5, 6, 7, 8];
 
-                buffer.write(first_message);
+                buffer.write(0, first_message).unwrap();
                 let first_read = buffer.read().unwrap().data;
                 assert_eq!(vec![1, 2, 3, 4], first_read);
 
-                buffer.write(second_message);
+                buffer.write(1, second_message).unwrap();
                 let second_read = buffer.read().unwrap().data;
                 assert_eq!(vec![5, 6, 7, 8], second_read);
 
@@ -138,17 +213,11 @@ mod test_chunking_and_reassembling {
             fn test_multiple_adds_stacks_up_bytes_in_the_buffer() {
                 let mut buffer = OrderedMessageBuffer::new();
 
-                let first_message = OrderedMessage {
-                    data: vec![1, 2, 3, 4],
-                    index: 0,
-                };
-                let second_message = OrderedMessage {
-                    data: vec![5, 6, 7, 8],
-                    index: 1,
-                };
+                let first_message = vec![1, 2, 3, 4];
+                let second_message = vec![5, 6, 7, 8];
 
-                buffer.write(first_message);
-                buffer.write(second_message);
+                buffer.write(0, first_message).unwrap();
+                buffer.write(1, second_message).unwrap();
                 let second_read = buffer.read();
                 assert_eq!(vec![1, 2, 3, 4, 5, 6, 7, 8], second_read.unwrap().data);
                 assert_eq!(None, buffer.read()); // second read on fully ordered result set is empty
@@ -158,17 +227,11 @@ mod test_chunking_and_reassembling {
             fn out_of_order_adds_results_in_ordered_byte_vector() {
                 let mut buffer = OrderedMessageBuffer::new();
 
-                let first_message = OrderedMessage {
-                    data: vec![1, 2, 3, 4],
-                    index: 0,
-                };
-                let second_message = OrderedMessage {
-                    data: vec![5, 6, 7, 8],
-                    index: 1,
-                };
+                let first_message = vec![1, 2, 3, 4];
+                let second_message = vec![5, 6, 7, 8];
 
-                buffer.write(second_message);
-                buffer.write(first_message);
+                buffer.write(1, second_message).unwrap();
+                buffer.write(0, first_message).unwrap();
                 let read = buffer.read().unwrap().data;
                 assert_eq!(vec![1, 2, 3, 4, 5, 6, 7, 8], read);
                 assert_eq!(None, buffer.read()); // second read on fully ordered result set is empty
@@ -182,23 +245,13 @@ mod test_chunking_and_reassembling {
             fn setup() -> OrderedMessageBuffer {
                 let mut buffer = OrderedMessageBuffer::new();
 
-                let zero_message = OrderedMessage {
-                    data: vec![0, 0, 0, 0],
-                    index: 0,
-                };
-                let one_message = OrderedMessage {
-                    data: vec![1, 1, 1, 1],
-                    index: 1,
-                };
+                let zero_message = vec![0, 0, 0, 0];
+                let one_message = vec![1, 1, 1, 1];
+                let three_message = vec![3, 3, 3, 3];
 
-                let three_message = OrderedMessage {
-                    data: vec![3, 3, 3, 3],
-                    index: 3,
-                };
-
-                buffer.write(zero_message);
-                buffer.write(one_message);
-                buffer.write(three_message);
+                buffer.write(0, zero_message).unwrap();
+                buffer.write(1, one_message).unwrap();
+                buffer.write(3, three_message).unwrap();
                 buffer
             }
             #[test]
@@ -211,43 +264,31 @@ mod test_chunking_and_reassembling {
                 assert_eq!(None, buffer.read());
 
                 // let's add another message, leaving a gap in place at index 2
-                let five_message = OrderedMessage {
-                    data: vec![5, 5, 5, 5],
-                    index: 5,
-                };
-                buffer.write(five_message);
+                let five_message = vec![5, 5, 5, 5];
+                buffer.write(5, five_message).unwrap();
                 assert_eq!(None, buffer.read());
             }
 
             #[test]
             fn filling_the_gap_allows_us_to_get_everything() {
                 let mut buffer = setup();
-                buffer.read(); // that burns the first two. We still have a gap before the 3s.
+                let _ = buffer.read(); // that burns the first two. We still have a gap before the 3s.
 
-                let two_message = OrderedMessage {
-                    data: vec![2, 2, 2, 2],
-                    index: 2,
-                };
-                buffer.write(two_message);
+                let two_message = vec![2, 2, 2, 2];
+                buffer.write(2, two_message).unwrap();
 
                 let more_ordered_bytes = buffer.read().unwrap().data;
                 assert_eq!([2, 2, 2, 2, 3, 3, 3, 3].to_vec(), more_ordered_bytes);
 
                 // let's add another message
-                let five_message = OrderedMessage {
-                    data: vec![5, 5, 5, 5],
-                    index: 5,
-                };
-                buffer.write(five_message);
+                let five_message = vec![5, 5, 5, 5];
+                buffer.write(5, five_message).unwrap();
 
                 assert_eq!(None, buffer.read());
 
                 // let's fill in the gap of 4s now and read again
-                let four_message = OrderedMessage {
-                    data: vec![4, 4, 4, 4],
-                    index: 4,
-                };
-                buffer.write(four_message);
+                let four_message = vec![4, 4, 4, 4];
+                buffer.write(4, four_message).unwrap();
 
                 assert_eq!(
                     [4, 4, 4, 4, 5, 5, 5, 5].to_vec(),
@@ -261,24 +302,15 @@ mod test_chunking_and_reassembling {
             #[test]
             fn filling_the_gap_allows_us_to_get_everything_when_last_element_is_empty() {
                 let mut buffer = OrderedMessageBuffer::new();
-                let zero_message = OrderedMessage {
-                    data: vec![0, 0, 0, 0],
-                    index: 0,
-                };
-                let one_message = OrderedMessage {
-                    data: vec![2, 2, 2, 2],
-                    index: 1,
-                };
-                let two_message = OrderedMessage {
-                    data: vec![],
-                    index: 2,
-                };
+                let zero_message = vec![0, 0, 0, 0];
+                let one_message = vec![2, 2, 2, 2];
+                let two_message = vec![];
 
-                buffer.write(zero_message);
+                buffer.write(0, zero_message).unwrap();
                 assert!(buffer.read().is_some()); // burn the buffer
 
-                buffer.write(two_message);
-                buffer.write(one_message);
+                buffer.write(2, two_message).unwrap();
+                buffer.write(1, one_message).unwrap();
                 assert!(buffer.read().is_some());
                 assert_eq!(buffer.next_sequence, 3);
             }
@@ -286,43 +318,29 @@ mod test_chunking_and_reassembling {
             #[test]
             fn works_with_gaps_bigger_than_one() {
                 let mut buffer = OrderedMessageBuffer::new();
-                let zero_message = OrderedMessage {
-                    data: vec![0, 0, 0, 0],
-                    index: 0,
-                };
-                let one_message = OrderedMessage {
-                    data: vec![2, 2, 2, 2],
-                    index: 1,
-                };
-                let two_message = OrderedMessage {
-                    data: vec![2, 2, 2, 2],
-                    index: 2,
-                };
-                let three_message = OrderedMessage {
-                    data: vec![2, 2, 2, 2],
-                    index: 3,
-                };
-                let four_message = OrderedMessage {
-                    data: vec![2, 2, 2, 2],
-                    index: 4,
-                };
-                buffer.write(zero_message);
+                let zero_message = vec![0, 0, 0, 0];
+                let one_message = vec![2, 2, 2, 2];
+                let two_message = vec![2, 2, 2, 2];
+                let three_message = vec![2, 2, 2, 2];
+                let four_message = vec![2, 2, 2, 2];
+
+                buffer.write(0, zero_message).unwrap();
                 assert!(buffer.read().is_some());
                 assert_eq!(buffer.next_sequence, 1);
 
-                buffer.write(four_message);
+                buffer.write(4, four_message).unwrap();
                 assert!(buffer.read().is_none());
                 assert_eq!(buffer.next_sequence, 1);
 
-                buffer.write(three_message);
+                buffer.write(3, three_message).unwrap();
                 assert!(buffer.read().is_none());
                 assert_eq!(buffer.next_sequence, 1);
 
-                buffer.write(two_message);
+                buffer.write(2, two_message).unwrap();
                 assert!(buffer.read().is_none());
                 assert_eq!(buffer.next_sequence, 1);
 
-                buffer.write(one_message);
+                buffer.write(1, one_message).unwrap();
                 assert!(buffer.read().is_some());
                 assert_eq!(buffer.next_sequence, 5)
             }

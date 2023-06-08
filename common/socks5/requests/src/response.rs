@@ -76,7 +76,6 @@ impl Serializable for Socks5Response {
     }
 
     fn try_from_bytes(b: &[u8]) -> Result<Self, Self::Error> {
-        println!("Socks5Response::try_from_bytes - received {:?}", b);
         if b.is_empty() {
             return Err(ResponseDeserializationError::NoData.into());
         }

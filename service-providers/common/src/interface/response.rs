@@ -79,12 +79,6 @@ where
     }
 
     pub fn try_from_bytes(b: &[u8]) -> Result<Response<T>, <T as ServiceProviderRequest>::Error> {
-        println!(
-            "Response::try_from_bytes - Received response of length {}",
-            b.len()
-        );
-        log::error!("Response::try_from_bytes - Received response of length {}", b.len());
-        dbg!(&b);
         if b.is_empty() {
             log::error!("Response::try_from_bytes - received empty response!");
             return Err(ServiceProviderMessagingError::EmptyResponse.into());
@@ -92,10 +86,8 @@ where
 
         let interface_version = ProviderInterfaceVersion::from(b[0]);
         let content = if interface_version.is_legacy() {
-            log::info!("Response::try_from_bytes - received legacy response");
             ResponseContent::try_from_bytes(b, interface_version)
         } else {
-            log::info!("Response::try_from_bytes - received non-legacy response");
             ResponseContent::try_from_bytes(&b[1..], interface_version)
         }?;
 
@@ -149,7 +141,6 @@ where
             "ResponseContent::try_from_bytes - Received response of length {}",
             b.len()
         );
-        dbg!(&b);
 
         if interface_version.is_legacy() {
             // we received a request from an old client which can only possibly
@@ -166,17 +157,13 @@ where
             }
 
             let request_tag = ResponseTag::try_from(b[0])?;
-            dbg!(&request_tag);
             match request_tag {
                 ResponseTag::Control => Ok(ResponseContent::Control(
                     ControlResponse::try_from_bytes(&b[1..])?,
                 )),
-                ResponseTag::ProviderData => {
-                    println!("ReponseTag::ProviderData");
-                    Ok(ResponseContent::ProviderData(T::Response::try_from_bytes(
-                        &b[1..],
-                    )?))
-                }
+                ResponseTag::ProviderData => Ok(ResponseContent::ProviderData(
+                    T::Response::try_from_bytes(&b[1..])?,
+                )),
             }
         }
     }

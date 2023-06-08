@@ -253,9 +253,6 @@ where
             None
         };
 
-        // let mut rng = thread_rng();
-        // let managed_keys = ManagedKeys::load_or_generate(&mut rng, storage.key_store()).await;
-
         Ok(DisconnectedMixnetClient {
             config,
             socks5_config,
@@ -263,7 +260,6 @@ where
             dkg_query_client,
             storage,
             custom_topology_provider,
-            // managed_keys,
         })
     }
 

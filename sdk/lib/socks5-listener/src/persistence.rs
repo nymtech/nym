@@ -9,11 +9,6 @@ use nym_client_core::client::replies::reply_storage;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 
 pub struct MobileClientStorage {
-    // #[cfg(not(target_os = "android"))]
-    // key_store: OnDiskKeys,
-
-    // #[cfg(target_os = "android")]
-
     // the key storage is now useless without gateway details store. so use ephemeral for everything.
     key_store: InMemEphemeralKeys,
     gateway_details_store: InMemGatewayDetails,
@@ -51,15 +46,6 @@ impl MixnetClientStorage for MobileClientStorage {
 
 impl MobileClientStorage {
     pub fn new(_config: &Config) -> Self {
-        // let key_store = OnDiskKeys::new(
-        //     config
-        //         .storage_paths
-        //         .clone()
-        //         .expect("storage paths unavailable")
-        //         .common_paths
-        //         .keys,
-        // );
-
         MobileClientStorage {
             key_store: Default::default(),
             gateway_details_store: Default::default(),

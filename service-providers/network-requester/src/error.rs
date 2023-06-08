@@ -15,8 +15,6 @@ pub enum NetworkRequesterError {
         source: Socks5RequestError,
     },
 
-    // #[error("failed to setup gateway: {source}")]
-    // FailedToSetupGateway { source: ClientCoreError },
     #[error("failed to load configuration file: {0}")]
     FailedToLoadConfig(String),
 

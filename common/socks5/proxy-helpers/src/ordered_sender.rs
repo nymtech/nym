@@ -7,24 +7,31 @@ use log::{debug, error};
 use nym_socks5_requests::{ConnectionId, SocketData};
 use std::io;
 
-pub struct OrderedMessageSender<S, F> {
+pub(crate) struct OrderedMessageSender<F, S> {
     connection_id: ConnectionId,
+    // addresses are provided for better logging
+    local_destination_address: String,
+    remote_source_address: String,
     mixnet_sender: MixProxySender<S>,
 
     next_message_seq: u64,
     mix_message_adapter: F,
 }
 
-impl<S, F> OrderedMessageSender<S, F>
+impl<F, S> OrderedMessageSender<F, S>
 where
     F: Fn(SocketData) -> S,
 {
-    pub fn new(
+    pub(crate) fn new(
+        local_destination_address: String,
+        remote_source_address: String,
         connection_id: ConnectionId,
         mixnet_sender: MixProxySender<S>,
         mix_message_adapter: F,
     ) -> Self {
         OrderedMessageSender {
+            local_destination_address,
+            remote_source_address,
             connection_id,
             mixnet_sender,
             next_message_seq: 0,
@@ -54,46 +61,56 @@ where
         }
     }
 
-    pub async fn send_empty_close(&mut self) {
+    pub(crate) async fn send_empty_close(&mut self) {
         let message = self.construct_message(Vec::new(), true);
         self.send_message(message).await
     }
 
-    pub async fn send_empty_keepalive(&mut self) {
+    pub(crate) async fn send_empty_keepalive(&mut self) {
         log::trace!("Sending keepalive for connection: {}", self.connection_id);
         let message = self.construct_message(Vec::new(), false);
         self.send_message(message).await
     }
 
-    pub async fn deal_with_data(
-        &mut self,
-        read_data: Option<io::Result<Bytes>>,
-        local_destination_address: &str,
-        remote_source_address: &str,
-    ) -> bool {
-        let connection_id = self.connection_id;
+    pub(crate) fn process_data(&self, read_data: Option<io::Result<Bytes>>) -> ProcessedData {
         let (read_data, is_finished) = match read_data {
             Some(data) => match data {
                 Ok(data) => (data, false),
                 Err(err) => {
-                    error!(target: &*format!("({connection_id}) socks5 inbound"), "failed to read request from the socket - {err}");
+                    error!(target: &*format!("({}) socks5 inbound", self.connection_id), "failed to read request from the socket - {err}");
                     (Default::default(), true)
                 }
             },
             None => (Default::default(), true),
         };
 
-        debug!(
-            target: &*format!("({connection_id}) socks5 inbound"),
-            "[{} bytes]\t{} → local → mixnet → remote → {}. Local closed: {}",
-            read_data.len(),
-            local_destination_address,
-            remote_source_address,
-            is_finished
-        );
-        let message = self.construct_message(read_data.into(), is_finished);
-        self.send_message(message).await;
-
-        is_finished
+        ProcessedData {
+            data: read_data,
+            is_done: is_finished,
+        }
     }
+
+    fn log_sent_message(&self, data: &ProcessedData) {
+        debug!(
+            target: &*format!("({}) socks5 inbound", self.connection_id),
+            "[{} bytes]\t{} → local → mixnet → remote → {}. Local closed: {}",
+            data.data.len(),
+            self.local_destination_address,
+            self.remote_source_address,
+            data.is_done
+        );
+    }
+
+    /// Send data read from local socket into the mixnet
+    pub(crate) async fn send_data(&mut self, data: ProcessedData) {
+        self.log_sent_message(&data);
+        let message = self.construct_message(data.data.into(), data.is_done);
+        self.send_message(message).await;
+    }
+}
+
+// helper wrapper to keep track of field meanings
+pub(crate) struct ProcessedData {
+    data: Bytes,
+    pub(crate) is_done: bool,
 }

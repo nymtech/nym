@@ -1,7 +1,6 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::MixProxySender;
 use super::SHUTDOWN_TIMEOUT;
 use crate::available_reader::AvailableReader;
 use crate::ordered_sender::OrderedMessageSender;
@@ -13,7 +12,6 @@ use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::LaneQueueLengths;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskClient;
-use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
@@ -76,27 +74,21 @@ async fn wait_for_lane(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) async fn run_inbound<F, S>(
     mut reader: OwnedReadHalf,
-    local_destination_address: String, // addresses are provided for better logging
-    remote_source_address: String,
+    mut message_sender: OrderedMessageSender<F, S>,
     connection_id: ConnectionId,
-    mix_sender: MixProxySender<S>,
     available_plaintext_per_mix_packet: usize,
-    adapter_fn: F,
     shutdown_notify: Arc<Notify>,
     lane_queue_lengths: Option<LaneQueueLengths>,
     mut shutdown_listener: TaskClient,
 ) -> OwnedReadHalf
 where
     F: Fn(SocketData) -> S + Send + 'static,
-    S: Debug,
 {
     // TODO: this multiplication by 4 is completely arbitrary here
     let mut available_reader =
         AvailableReader::new(&mut reader, Some(available_plaintext_per_mix_packet * 4));
-    let mut message_sender = OrderedMessageSender::new(connection_id, mix_sender, adapter_fn);
 
     // Shutdown if outbound signled to shutdown
     let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
@@ -159,8 +151,12 @@ where
             read_data = wait_until_lane_almost_empty(&lane_queue_lengths, connection_id)
                 .then(|_| available_reader.next()), if !we_are_closed =>
             {
-                if message_sender.deal_with_data(read_data, &local_destination_address,
-                    &remote_source_address).await {
+                let processed = message_sender.process_data(read_data);
+                let is_done = processed.is_done;
+
+                message_sender.send_data(processed).await;
+
+                if is_done {
                     // After reading the last data, notify the closing_future to wait until the
                     // lane is clear before exiting.
                     // We don't wait here since we want to be able to cancel the wait on close or

@@ -59,36 +59,6 @@ impl SocketDataHeader {
             connection_id,
             local_socket_closed,
         })
-
-        //
-        // let with_seq = mem::size_of::<ConnectionId>() + 1 + mem::size_of::<u64>();
-        // let without_seq = mem::size_of::<ConnectionId>() + 1;
-        //
-        // if b.len() < without_seq {
-        //     return Err(InsufficientSocketDataError {
-        //         received: b.len(),
-        //         expected: without_seq,
-        //     });
-        // }
-        //
-        // // the unwraps here are fine as we just ensured we have the exact amount of bytes we need
-        // let connection_id = ConnectionId::from_be_bytes(b[0..8].try_into().unwrap());
-        // let local_socket_closed = b[8] != 0;
-        //
-        // if b.len() > without_seq {
-        //     return Err(InsufficientSocketDataError {
-        //         received: b.len(),
-        //         expected: without_seq,
-        //     });
-        // }
-        //
-        // let seq = u64::from_be_bytes(b[0..8].try_into().unwrap());
-        //
-        // Ok(SocketDataHeader {
-        //     seq,
-        //     connection_id,
-        //     local_socket_closed: local_socket_closed,
-        // })
     }
 
     // the serialization of the header looks as follows:

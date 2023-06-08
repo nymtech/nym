@@ -69,31 +69,31 @@ export const createNymMixnetClient = async (options?: {
     subscribeToConnected: (handler) => {
       getSubscriptions<ConnectedEvent>(EventKinds.Connected).push(handler);
       return () => {
-        getSubscriptions<ConnectedEvent>(EventKinds.Connected).unshift(handler);
+        getSubscriptions<ConnectedEvent>(EventKinds.Connected).pop();
       };
     },
     subscribeToLoaded: (handler) => {
       getSubscriptions<LoadedEvent>(EventKinds.Loaded).push(handler);
       return () => {
-        getSubscriptions<LoadedEvent>(EventKinds.Loaded).unshift(handler);
+        getSubscriptions<LoadedEvent>(EventKinds.Loaded).pop();
       };
     },
     subscribeToTextMessageReceivedEvent: (handler) => {
       getSubscriptions<StringMessageReceivedEvent>(EventKinds.StringMessageReceived).push(handler);
       return () => {
-        getSubscriptions<StringMessageReceivedEvent>(EventKinds.StringMessageReceived).unshift(handler);
+        getSubscriptions<StringMessageReceivedEvent>(EventKinds.StringMessageReceived).pop();
       };
     },
     subscribeToBinaryMessageReceivedEvent: (handler) => {
       getSubscriptions<BinaryMessageReceivedEvent>(EventKinds.BinaryMessageReceived).push(handler);
       return () => {
-        getSubscriptions<BinaryMessageReceivedEvent>(EventKinds.BinaryMessageReceived).unshift(handler);
+        getSubscriptions<BinaryMessageReceivedEvent>(EventKinds.BinaryMessageReceived).pop();
       };
     },
     subscribeToRawMessageReceivedEvent: (handler) => {
       getSubscriptions<RawMessageReceivedEvent>(EventKinds.RawMessageReceived).push(handler);
       return () => {
-        getSubscriptions<RawMessageReceivedEvent>(EventKinds.RawMessageReceived).unshift(handler);
+        getSubscriptions<RawMessageReceivedEvent>(EventKinds.RawMessageReceived).pop();
       };
     },
   };

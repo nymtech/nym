@@ -10,7 +10,6 @@ pub enum ControlRequest {
     Health,
     BinaryInfo,
     SupportedRequestVersions,
-    OpenProxy,
 }
 
 #[repr(u8)]
@@ -23,9 +22,6 @@ enum ControlRequestTag {
 
     /// Value tag representing [`SupportedRequestVersions`] variant of the [`ControlRequest`]
     RequestVersions = 0x02,
-
-    /// Value tag representing [`OpenProxy`] variant of the [`ControlRequest`]
-    OpenProxy = 0x03,
 }
 
 impl TryFrom<u8> for ControlRequestTag {
@@ -36,7 +32,6 @@ impl TryFrom<u8> for ControlRequestTag {
             _ if value == (Self::Health as u8) => Ok(Self::Health),
             _ if value == (Self::BinaryInfo as u8) => Ok(Self::BinaryInfo),
             _ if value == (Self::RequestVersions as u8) => Ok(Self::RequestVersions),
-            _ if value == (Self::OpenProxy as u8) => Ok(Self::OpenProxy),
             received => Err(ServiceProviderMessagingError::InvalidControlRequestTag { received }),
         }
     }
@@ -60,7 +55,6 @@ impl Serializable for ControlRequest {
             ControlRequestTag::Health => Ok(ControlRequest::Health),
             ControlRequestTag::BinaryInfo => Ok(ControlRequest::BinaryInfo),
             ControlRequestTag::RequestVersions => Ok(ControlRequest::SupportedRequestVersions),
-            ControlRequestTag::OpenProxy => Ok(ControlRequest::OpenProxy),
         }
     }
 }
@@ -71,7 +65,6 @@ impl ControlRequest {
             ControlRequest::Health => ControlRequestTag::Health,
             ControlRequest::BinaryInfo => ControlRequestTag::BinaryInfo,
             ControlRequest::SupportedRequestVersions => ControlRequestTag::RequestVersions,
-            ControlRequest::OpenProxy => ControlRequestTag::OpenProxy,
         }
     }
 }
@@ -99,7 +92,6 @@ pub enum ControlResponse {
     BinaryInfo(Box<BinaryInformation>),
     SupportedRequestVersions(SupportedVersions),
     Error(ErrorResponse),
-    OpenProxy(bool),
 }
 
 #[repr(u8)]
@@ -112,9 +104,6 @@ enum ControlResponseTag {
 
     /// Value tag representing [`SupportedRequestVersions`] variant of the [`ControlResponse`]
     SupportedRequestVersions = 0x02,
-
-    /// Value tag representing [`OpenProxy`] variant of the [`ControlResponse`]
-    OpenProxy = 0x03,
 
     /// Value tag representing [`Error`] variant of the [`ControlResponse`]
     Error = 0xFF,
@@ -130,7 +119,6 @@ impl TryFrom<u8> for ControlResponseTag {
             _ if value == (Self::SupportedRequestVersions as u8) => {
                 Ok(Self::SupportedRequestVersions)
             }
-            _ if value == (Self::OpenProxy as u8) => Ok(Self::OpenProxy),
             _ if value == (Self::Error as u8) => Ok(Self::Error),
             received => Err(ServiceProviderMessagingError::InvalidControlResponseTag { received }),
         }
@@ -168,12 +156,6 @@ impl Serializable for ControlResponse {
                     Err(ServiceProviderMessagingError::MalformedErrorControlResponse { source })
                 }
             },
-            ControlResponseTag::OpenProxy => match serde_json::from_slice(&b[1..]) {
-                Ok(open_proxy) => Ok(ControlResponse::OpenProxy(open_proxy)),
-                Err(source) => {
-                    Err(ServiceProviderMessagingError::MalformedErrorControlResponse { source })
-                }
-            },
             ControlResponseTag::Error => match serde_json::from_slice(&b[1..]) {
                 Ok(error_response) => Ok(ControlResponse::Error(error_response)),
                 Err(source) => {
@@ -192,7 +174,6 @@ impl ControlResponse {
             ControlResponse::SupportedRequestVersions(_) => {
                 ControlResponseTag::SupportedRequestVersions
             }
-            ControlResponse::OpenProxy(_) => ControlResponseTag::OpenProxy,
             ControlResponse::Error(_) => ControlResponseTag::Error,
         }
     }
@@ -217,7 +198,6 @@ impl ControlResponse {
             ControlResponse::SupportedRequestVersions(supported_versions) => {
                 serde_json::to_vec(&supported_versions).unwrap()
             }
-            ControlResponse::OpenProxy(open) => serde_json::to_vec(&open).unwrap(),
             ControlResponse::Error(error_response) => serde_json::to_vec(&error_response).unwrap(),
         }
     }

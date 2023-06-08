@@ -6,7 +6,6 @@ use crate::core::new_legacy_request_version;
 use crate::reply::MixnetMessage;
 use async_trait::async_trait;
 use log::*;
-use nym_ordered_buffer::OrderedMessageSender;
 use nym_service_providers_common::interface::RequestVersion;
 use nym_socks5_proxy_helpers::proxy_runner::MixProxySender;
 use nym_socks5_requests::{
@@ -192,9 +191,8 @@ impl StatisticsCollector for ServiceStatisticsCollector {
             .expect("MixProxyReader has stopped receiving!");
 
         trace!("Sending data to statistics service");
-        let mut message_sender = OrderedMessageSender::new();
-        // let ordered_msg = message_sender.wrap_message(msg).into_bytes();
-        let message = SocketData::new(message_sender.sequence(), conn_id, true, msg);
+
+        let message = SocketData::new(0, conn_id, true, msg);
         let send_req = Socks5RequestContent::new_send(message);
 
         let mixnet_message = MixnetMessage::new_network_data_request(

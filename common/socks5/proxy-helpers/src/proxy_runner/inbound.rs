@@ -4,103 +4,20 @@
 use super::MixProxySender;
 use super::SHUTDOWN_TIMEOUT;
 use crate::available_reader::AvailableReader;
+use crate::ordered_sender::OrderedMessageSender;
 use crate::proxy_runner::KEEPALIVE_INTERVAL;
-use bytes::Bytes;
 use futures::FutureExt;
 use futures::StreamExt;
 use log::*;
-use nym_ordered_buffer::OrderedMessageSender;
 use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::LaneQueueLengths;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskClient;
 use std::fmt::Debug;
+use std::sync::Arc;
 use std::time::Duration;
-use std::{io, sync::Arc};
 use tokio::select;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
-
-async fn send_empty_close<F, S>(
-    connection_id: ConnectionId,
-    message_sender: &mut OrderedMessageSender,
-    mix_sender: &MixProxySender<S>,
-    adapter_fn: F,
-) where
-    F: Fn(SocketData) -> S,
-    S: Debug,
-{
-    let message = SocketData::new(message_sender.sequence(), connection_id, true, Vec::new());
-    mix_sender
-        .send(adapter_fn(message))
-        .await
-        .expect("BatchRealMessageReceiver has stopped receiving!");
-}
-
-async fn send_empty_keepalive<F, S>(
-    connection_id: ConnectionId,
-    message_sender: &mut OrderedMessageSender,
-    mix_sender: &MixProxySender<S>,
-    adapter_fn: F,
-) where
-    F: Fn(SocketData) -> S,
-    S: Debug,
-{
-    log::trace!("Sending keepalive for connection: {connection_id}");
-    let message = SocketData::new(message_sender.sequence(), connection_id, false, Vec::new());
-
-    mix_sender
-        .send(adapter_fn(message))
-        .await
-        .expect("BatchRealMessageReceiver has stopped receiving!");
-}
-
-async fn deal_with_data<F, S>(
-    read_data: Option<io::Result<Bytes>>,
-    local_destination_address: &str,
-    remote_source_address: &str,
-    connection_id: ConnectionId,
-    message_sender: &mut OrderedMessageSender,
-    mix_sender: &MixProxySender<S>,
-    adapter_fn: F,
-) -> bool
-where
-    F: Fn(SocketData) -> S,
-    S: Debug,
-{
-    let (read_data, is_finished) = match read_data {
-        Some(data) => match data {
-            Ok(data) => (data, false),
-            Err(err) => {
-                error!(target: &*format!("({connection_id}) socks5 inbound"), "failed to read request from the socket - {err}");
-                (Default::default(), true)
-            }
-        },
-        None => (Default::default(), true),
-    };
-
-    debug!(
-        target: &*format!("({connection_id}) socks5 inbound"),
-        "[{} bytes]\t{} → local → mixnet → remote → {}. Local closed: {}",
-        read_data.len(),
-        local_destination_address,
-        remote_source_address,
-        is_finished
-    );
-
-    let message = SocketData::new(
-        message_sender.sequence(),
-        connection_id,
-        is_finished,
-        read_data.into(),
-    );
-
-    mix_sender
-        .send(adapter_fn(message))
-        .await
-        .expect("InputMessageReceiver has stopped receiving!");
-
-    is_finished
-}
 
 async fn wait_until_lane_empty(lane_queue_lengths: &Option<LaneQueueLengths>, connection_id: u64) {
     if let Some(lane_queue_lengths) = lane_queue_lengths {
@@ -179,7 +96,7 @@ where
     // TODO: this multiplication by 4 is completely arbitrary here
     let mut available_reader =
         AvailableReader::new(&mut reader, Some(available_plaintext_per_mix_packet * 4));
-    let mut message_sender = OrderedMessageSender::new();
+    let mut message_sender = OrderedMessageSender::new(connection_id, mix_sender, adapter_fn);
 
     // Shutdown if outbound signled to shutdown
     let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
@@ -218,7 +135,7 @@ where
                 );
                 // inform remote just in case it was closed because of lack of heartbeat.
                 // worst case the remote will just have couple of false negatives
-                send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
+                message_sender.send_empty_close().await;
                 break;
             }
             _ = shutdown_listener.recv() => {
@@ -234,7 +151,7 @@ where
                 break;
             }
             _ = keepalive_timer.tick() => {
-                send_empty_keepalive(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
+                message_sender.send_empty_keepalive().await;
             }
             // Read the next data when there is space in the lane.
             // The purpose of chaining the wait here is that it makes sure we can cancel the
@@ -242,15 +159,8 @@ where
             read_data = wait_until_lane_almost_empty(&lane_queue_lengths, connection_id)
                 .then(|_| available_reader.next()), if !we_are_closed =>
             {
-                if deal_with_data(
-                    read_data,
-                    &local_destination_address,
-                    &remote_source_address,
-                    connection_id,
-                    &mut message_sender,
-                    &mix_sender,
-                    &adapter_fn,
-                ).await {
+                if message_sender.deal_with_data(read_data, &local_destination_address,
+                    &remote_source_address).await {
                     // After reading the last data, notify the closing_future to wait until the
                     // lane is clear before exiting.
                     // We don't wait here since we want to be able to cancel the wait on close or

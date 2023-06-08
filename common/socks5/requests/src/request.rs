@@ -603,26 +603,7 @@ mod request_deserialization_tests {
 
         #[test]
         fn works_when_request_is_sized_properly_even_without_data() {
-            // correct 8 bytes of connection_id, 1 byte of local_closed and 0 bytes request data
-            let request_bytes = [RequestFlag::Send as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0].to_vec();
-            let request = Socks5RequestContent::try_from_bytes(&request_bytes).unwrap();
-            match request {
-                Socks5RequestContent::Send(SendRequest {
-                    conn_id,
-                    data: data,
-                    local_closed,
-                }) => {
-                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
-                    assert_eq!(Vec::<u8>::new(), data);
-                    assert!(!local_closed)
-                }
-                _ => unreachable!(),
-            }
-        }
-
-        #[test]
-        fn works_when_request_is_sized_properly_and_has_data() {
-            // correct 8 bytes of connection_id, 1 byte of local_closed and 3 bytes request data (all 255)
+            // correct 8 bytes of connection_id, 1 byte of local_closed, 8 bytes of sequence and 0 bytes request data
             let request_bytes = [
                 RequestFlag::Send as u8,
                 1,
@@ -634,6 +615,53 @@ mod request_deserialization_tests {
                 7,
                 8,
                 0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+            ]
+            .to_vec();
+            let request = Socks5RequestContent::try_from_bytes(&request_bytes).unwrap();
+            match request {
+                Socks5RequestContent::Send(SendRequest { data }) => {
+                    assert_eq!(
+                        u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]),
+                        data.header.connection_id
+                    );
+                    assert!(!data.header.local_socket_closed);
+                    assert_eq!(1, data.header.seq);
+                    assert!(data.data.is_empty());
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        #[test]
+        fn works_when_request_is_sized_properly_and_has_data() {
+            // correct 8 bytes of connection_id, 1 byte of local_closed, 8 bytes of sequence and 3 bytes request data (all 255)
+            let request_bytes = [
+                RequestFlag::Send as u8,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
                 255,
                 255,
                 255,
@@ -642,14 +670,14 @@ mod request_deserialization_tests {
 
             let request = Socks5RequestContent::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Socks5RequestContent::Send(SendRequest {
-                    conn_id,
-                    data: data,
-                    local_closed,
-                }) => {
-                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
-                    assert_eq!(vec![255, 255, 255], data);
-                    assert!(!local_closed)
+                Socks5RequestContent::Send(SendRequest { data }) => {
+                    assert_eq!(
+                        u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]),
+                        data.header.connection_id
+                    );
+                    assert!(data.header.local_socket_closed);
+                    assert_eq!(1, data.header.seq);
+                    assert_eq!(vec![255, 255, 255], data.data);
                 }
                 _ => unreachable!(),
             }

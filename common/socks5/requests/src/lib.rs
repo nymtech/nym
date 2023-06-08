@@ -26,7 +26,7 @@ pub struct InsufficientSocketDataError {
     expected: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct SocketDataHeader {
     pub seq: u64,
     pub connection_id: ConnectionId,
@@ -112,7 +112,7 @@ impl SocketDataHeader {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SocketData {
     pub header: SocketDataHeader,
     pub data: Vec<u8>,
@@ -232,6 +232,103 @@ mod tests {
     use nym_service_providers_common::interface::RequestContent;
 
     #[cfg(test)]
+    mod socket_data_serialization {
+        use super::*;
+
+        #[test]
+        fn for_requests() {
+            assert_eq!(
+                InsufficientSocketDataError {
+                    received: 0,
+                    expected: SocketDataHeader::SERIALIZED_LEN
+                },
+                SocketData::try_from_request_bytes(&[]).unwrap_err()
+            );
+
+            assert_eq!(
+                InsufficientSocketDataError {
+                    received: 10,
+                    expected: SocketDataHeader::SERIALIZED_LEN
+                },
+                SocketData::try_from_request_bytes(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).unwrap_err()
+            );
+
+            let good_data = SocketData::new(42, 12345, false, vec![2, 3]);
+            let serialized = good_data.clone().into_request_bytes();
+
+            assert_eq!(
+                good_data,
+                SocketData::try_from_request_bytes(&serialized).unwrap()
+            );
+            assert_ne!(
+                good_data,
+                SocketData::try_from_response_bytes(&serialized).unwrap()
+            );
+
+            let raw_bytes = [
+                6, 6, 6, 6, 6, 6, 6, 6, 0, 0, 1, 2, 3, 4, 5, 6, 7, 255, 255, 255,
+            ];
+            assert_eq!(
+                SocketData {
+                    header: SocketDataHeader {
+                        seq: u64::from_be_bytes([0, 1, 2, 3, 4, 5, 6, 7]),
+                        connection_id: ConnectionId::from_be_bytes([6, 6, 6, 6, 6, 6, 6, 6]),
+                        local_socket_closed: false,
+                    },
+                    data: vec![255, 255, 255],
+                },
+                SocketData::try_from_request_bytes(&raw_bytes).unwrap()
+            )
+        }
+
+        #[test]
+        fn for_responses() {
+            assert_eq!(
+                InsufficientSocketDataError {
+                    received: 0,
+                    expected: SocketDataHeader::SERIALIZED_LEN
+                },
+                SocketData::try_from_response_bytes(&[]).unwrap_err()
+            );
+
+            assert_eq!(
+                InsufficientSocketDataError {
+                    received: 10,
+                    expected: SocketDataHeader::SERIALIZED_LEN
+                },
+                SocketData::try_from_response_bytes(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).unwrap_err()
+            );
+
+            let good_data = SocketData::new(42, 12345, false, vec![2, 3]);
+            let serialized = good_data.clone().into_response_bytes();
+
+            assert_eq!(
+                good_data,
+                SocketData::try_from_response_bytes(&serialized).unwrap()
+            );
+            assert_ne!(
+                good_data,
+                SocketData::try_from_request_bytes(&serialized).unwrap()
+            );
+
+            let raw_bytes = [
+                0, 6, 6, 6, 6, 6, 6, 6, 6, 0, 1, 2, 3, 4, 5, 6, 7, 255, 255, 255,
+            ];
+            assert_eq!(
+                SocketData {
+                    header: SocketDataHeader {
+                        seq: u64::from_be_bytes([0, 1, 2, 3, 4, 5, 6, 7]),
+                        connection_id: ConnectionId::from_be_bytes([6, 6, 6, 6, 6, 6, 6, 6]),
+                        local_socket_closed: false,
+                    },
+                    data: vec![255, 255, 255],
+                },
+                SocketData::try_from_response_bytes(&raw_bytes).unwrap()
+            )
+        }
+    }
+
+    #[cfg(test)]
     mod interface_backwards_compatibility {
         use super::*;
         use nym_service_providers_common::interface::ProviderInterfaceVersion;
@@ -280,7 +377,8 @@ mod tests {
                 RequestContent::ProviderData(req) => match req.content {
                     Socks5RequestContent::Send(send_req) => {
                         assert_eq!(send_req.data.header.connection_id, 7810961472501196273);
-                        assert_eq!(send_req.data.data.len(), 111);
+                        assert_eq!(send_req.data.header.seq, 0);
+                        assert_eq!(send_req.data.data.len(), 103);
                         assert!(!send_req.data.header.local_socket_closed);
                     }
                     _ => panic!("unexpected request"),

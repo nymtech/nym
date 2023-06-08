@@ -299,57 +299,6 @@ mod tests {
     use super::*;
 
     #[cfg(test)]
-    mod constructing_socks5_data_responses_from_bytes {
-        use super::*;
-
-        #[test]
-        fn fails_when_zero_bytes_are_supplied() {
-            let response_bytes = Vec::new();
-
-            let err = NetworkData::try_from_bytes(&response_bytes).unwrap_err();
-            assert!(matches!(err, ResponseDeserializationError::NoData));
-        }
-
-        #[test]
-        fn fails_when_connection_id_bytes_are_too_short() {
-            let response_bytes = vec![0, 1, 2, 3, 4, 5, 6];
-            let err = NetworkData::try_from_bytes(&response_bytes).unwrap_err();
-            assert!(matches!(
-                err,
-                ResponseDeserializationError::ConnectionIdTooShort,
-            ));
-        }
-
-        #[test]
-        fn works_when_there_is_no_data() {
-            let response_bytes = vec![0, 0, 1, 2, 3, 4, 5, 6, 7];
-            let expected = NetworkData::new(
-                u64::from_be_bytes([0, 1, 2, 3, 4, 5, 6, 7]),
-                Vec::new(),
-                false,
-            );
-            let actual = NetworkData::try_from_bytes(&response_bytes).unwrap();
-            assert_eq!(expected.connection_id, actual.connection_id);
-            assert_eq!(expected.data, actual.data);
-            assert_eq!(expected.is_closed, actual.is_closed);
-        }
-
-        #[test]
-        fn works_when_there_is_data() {
-            let response_bytes = vec![0, 0, 1, 2, 3, 4, 5, 6, 7, 255, 255, 255];
-            let expected = NetworkData::new(
-                u64::from_be_bytes([0, 1, 2, 3, 4, 5, 6, 7]),
-                vec![255, 255, 255],
-                false,
-            );
-            let actual = NetworkData::try_from_bytes(&response_bytes).unwrap();
-            assert_eq!(expected.connection_id, actual.connection_id);
-            assert_eq!(expected.data, actual.data);
-            assert_eq!(expected.is_closed, actual.is_closed);
-        }
-    }
-
-    #[cfg(test)]
     mod connection_error_response_serde_tests {
         use super::*;
 

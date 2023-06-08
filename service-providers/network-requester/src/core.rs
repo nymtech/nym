@@ -478,7 +478,6 @@ impl NRServiceProvider {
         &self,
         query: QueryRequest,
     ) -> Result<Option<Socks5Response>, NetworkRequesterError> {
-        log::info!("handle_query");
         let protocol_version = Socks5ProtocolVersion::default();
         let response = match query {
             QueryRequest::OpenProxy => Socks5Response::new_query(

@@ -27,7 +27,7 @@ async fn wait_for_response(client: &mut MixnetClient) -> Socks5Response {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    nym_bin_common::logging::setup_logging();
+    //nym_bin_common::logging::setup_logging();
     let mut client = MixnetClient::connect_new().await.unwrap();
     //let provider: Recipient = "AN8eLxYWFitCkMn92zim3PrPszxJZDYyFFKP7qnnAAew.8UAxL3LwQBis6WpM3GGXaqKGaVdnLCpGJWumHT6KNdTH@77TSuVU8d1oXKbPzjec2xh4i3Wj5WwUyy9Lr36sm8gZm".parse().unwrap();
     let provider: Recipient = "85xZUGsMi8koFGXnoKQpn3wkcajSghu99uW3P4aQqP3E.D5PdTNtPZnek28BsctU1pYGFzMSTx9z7g9EL9ryjDB5Z@9xJM74FwwHhEKKJHihD21QSZnHM2QBRMoFx9Wst6qNBS".parse().unwrap();

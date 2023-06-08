@@ -244,7 +244,6 @@ impl Socks5RequestContent {
     /// an already-established connection we should send up (`new_send`), or
     /// a request to close an established connection (`new_close`).
     pub fn try_from_bytes(b: &[u8]) -> Result<Socks5RequestContent, RequestDeserializationError> {
-        println!("Socks5RequestContent::try_from_bytes");
         // each request needs to at least contain flag and ConnectionId
         if b.is_empty() {
             return Err(RequestDeserializationError::NoData);

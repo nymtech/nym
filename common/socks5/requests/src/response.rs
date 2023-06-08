@@ -1,9 +1,10 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{ConnectionId, Socks5ProtocolVersion, Socks5RequestError};
+use crate::{make_bincode_serializer, ConnectionId, Socks5ProtocolVersion, Socks5RequestError};
 use nym_service_providers_common::interface::{Serializable, ServiceProviderResponse};
 use serde::{Deserialize, Serialize};
+use tap::TapFallible;
 use thiserror::Error;
 
 // don't start tags from 0 for easier backwards compatibility since `NetworkData`
@@ -30,7 +31,7 @@ impl TryFrom<u8> for ResponseFlag {
     }
 }
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum ResponseDeserializationError {
     #[error("not enough bytes to recover the connection id")]
     ConnectionIdTooShort,
@@ -45,6 +46,12 @@ pub enum ResponseDeserializationError {
     MalformedErrorMessage {
         #[from]
         source: std::string::FromUtf8Error,
+    },
+
+    #[error("failed to deserialize query response: {source}")]
+    QueryDeserializationError {
+        #[from]
+        source: bincode::Error,
     },
 }
 
@@ -150,7 +157,7 @@ impl Socks5Response {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Socks5ResponseContent {
     NetworkData(NetworkData),
     ConnectionError(ConnectionError),
@@ -191,11 +198,12 @@ impl Socks5ResponseContent {
             }
             Socks5ResponseContent::Query(query) => {
                 use bincode::Options;
-                let query_bytes: Vec<u8> = bincode::DefaultOptions::new()
-                    .with_big_endian()
-                    .with_varint_encoding()
+                let query_bytes: Vec<u8> = make_bincode_serializer()
                     .serialize(&query)
-                    .expect("WIP(JON");
+                    .tap_err(|err| {
+                        log::error!("Failed to serialize query response: {:?}: {err}", query);
+                    })
+                    .unwrap_or_default();
                 std::iter::once(ResponseFlag::Query as u8)
                     .chain(query_bytes.into_iter())
                     .collect()
@@ -220,11 +228,7 @@ impl Socks5ResponseContent {
             )),
             ResponseFlag::Query => {
                 use bincode::Options;
-                let query = bincode::DefaultOptions::new()
-                    .with_big_endian()
-                    .with_varint_encoding()
-                    .deserialize(&b[1..])
-                    .expect("WIP(JON)");
+                let query = make_bincode_serializer().deserialize(&b[1..])?;
                 Ok(Socks5ResponseContent::Query(query))
             }
         }
@@ -234,7 +238,7 @@ impl Socks5ResponseContent {
 /// A remote network network data response retrieved by the Socks5 service provider. This
 /// can be serialized and sent back through the mixnet to the requesting
 /// application.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NetworkData {
     pub data: Vec<u8>,
     pub connection_id: ConnectionId,
@@ -298,7 +302,7 @@ impl NetworkData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConnectionError {
     pub connection_id: ConnectionId,
     pub network_requester_error: String,
@@ -352,7 +356,7 @@ impl ConnectionError {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum QueryResponse {
     OpenProxy(bool),
     Description(String),
@@ -370,19 +374,18 @@ mod tests {
         fn fails_when_zero_bytes_are_supplied() {
             let response_bytes = Vec::new();
 
-            assert_eq!(
-                ResponseDeserializationError::NoData,
-                NetworkData::try_from_bytes(&response_bytes).unwrap_err()
-            );
+            let err = NetworkData::try_from_bytes(&response_bytes).unwrap_err();
+            assert!(matches!(err, ResponseDeserializationError::NoData));
         }
 
         #[test]
         fn fails_when_connection_id_bytes_are_too_short() {
             let response_bytes = vec![0, 1, 2, 3, 4, 5, 6];
-            assert_eq!(
+            let err = NetworkData::try_from_bytes(&response_bytes).unwrap_err();
+            assert!(matches!(
+                err,
                 ResponseDeserializationError::ConnectionIdTooShort,
-                NetworkData::try_from_bytes(&response_bytes).unwrap_err()
-            );
+            ));
         }
 
         #[test]
@@ -436,11 +439,14 @@ mod tests {
         #[test]
         fn deserialization_errors() {
             let err = ConnectionError::try_from_bytes(&[]).err().unwrap();
-            assert_eq!(err, ResponseDeserializationError::NoData);
+            assert!(matches!(err, ResponseDeserializationError::NoData));
 
             let bytes: [u8; 5] = [1, 2, 3, 4, 5];
             let err = ConnectionError::try_from_bytes(&bytes).err().unwrap();
-            assert_eq!(err, ResponseDeserializationError::ConnectionIdTooShort);
+            assert!(matches!(
+                err,
+                ResponseDeserializationError::ConnectionIdTooShort
+            ));
 
             let bytes: Vec<u8> = 42u64
                 .to_be_bytes()
@@ -452,6 +458,29 @@ mod tests {
                 err,
                 ResponseDeserializationError::MalformedErrorMessage { .. }
             ));
+        }
+    }
+
+    #[cfg(test)]
+    mod serialize_query_response {
+        use super::*;
+
+        #[test]
+        fn serialize_there_and_back() {
+            let open_proxy = Socks5ResponseContent::Query(QueryResponse::OpenProxy(true));
+            let bytes_open_proxy = open_proxy.clone().into_bytes();
+            assert_eq!(bytes_open_proxy, vec![3, 0, 1]);
+
+            let description =
+                Socks5ResponseContent::Query(QueryResponse::Description("foo".to_string()));
+            let bytes_description = description.clone().into_bytes();
+            assert_eq!(bytes_description, vec![3, 1, 3, 102, 111, 111]);
+
+            let open_proxy2 = Socks5ResponseContent::try_from_bytes(&bytes_open_proxy).unwrap();
+            let description2 = Socks5ResponseContent::try_from_bytes(&bytes_description).unwrap();
+
+            assert_eq!(open_proxy, open_proxy2);
+            assert_eq!(description, description2);
         }
     }
 }

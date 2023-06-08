@@ -1,11 +1,12 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Socks5ProtocolVersion, Socks5RequestError, Socks5Response};
+use crate::{make_bincode_serializer, Socks5ProtocolVersion, Socks5RequestError, Socks5Response};
 use nym_service_providers_common::interface::{Serializable, ServiceProviderRequest};
 use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use tap::TapFallible;
 use thiserror::Error;
 
 pub type ConnectionId = u64;
@@ -54,6 +55,12 @@ pub enum RequestDeserializationError {
 
     #[error("malformed return address - {0}")]
     MalformedReturnAddress(RecipientFormattingError),
+
+    #[error("failed to deserialize query request: {source}")]
+    QueryDeserializationError {
+        #[from]
+        source: bincode::Error,
+    },
 }
 
 impl RequestDeserializationError {
@@ -62,7 +69,7 @@ impl RequestDeserializationError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConnectRequest {
     // TODO: is connection_id redundant now?
     pub conn_id: ConnectionId,
@@ -70,14 +77,14 @@ pub struct ConnectRequest {
     pub return_address: Option<Recipient>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SendRequest {
     pub conn_id: ConnectionId,
     pub data: Vec<u8>,
     pub local_closed: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum QueryRequest {
     OpenProxy,
     Description,
@@ -196,7 +203,7 @@ impl Socks5Request {
 
 /// A request from a SOCKS5 client that a Nym Socks5 service provider should
 /// take an action for an application using a (probably local) Nym Socks5 proxy.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Socks5RequestContent {
     /// Start a new TCP connection to the specified `RemoteAddress` and send
     /// the request data up the connection.
@@ -323,13 +330,8 @@ impl Socks5RequestContent {
                 }))
             }
             RequestFlag::Query => {
-                //let query = bincode::deserialize(&b[1..]).expect("WIP(JON)");
                 use bincode::Options;
-                let query = bincode::DefaultOptions::new()
-                    .with_big_endian()
-                    .with_varint_encoding()
-                    .deserialize(&b[1..])
-                    .expect("WIP(JON)");
+                let query = make_bincode_serializer().deserialize(&b[1..])?;
                 Ok(Socks5RequestContent::Query(query))
             }
         }
@@ -363,13 +365,13 @@ impl Socks5RequestContent {
                 .collect(),
 
             Socks5RequestContent::Query(query) => {
-                //let query_bytes: Vec<u8> = bincode::serialize(&query).expect("WIP(JON)");
                 use bincode::Options;
-                let query_bytes: Vec<u8> = bincode::DefaultOptions::new()
-                    .with_big_endian()
-                    .with_varint_encoding()
+                let query_bytes: Vec<u8> = make_bincode_serializer()
                     .serialize(&query)
-                    .expect("WIP(JON");
+                    .tap_err(|err| {
+                        log::error!("Failed to serialize query request: {:?}: {err}", query);
+                    })
+                    .unwrap_or_default();
                 std::iter::once(RequestFlag::Query as u8)
                     .chain(query_bytes.into_iter())
                     .collect()
@@ -669,20 +671,25 @@ mod request_deserialization_tests {
         }
     }
 
-    #[test]
-    fn serialize_tests() {
-        let request2 = Socks5RequestContent::Query(QueryRequest::OpenProxy);
-        let b = request2.into_bytes();
-        dbg!(&b);
+    #[cfg(test)]
+    mod serialize_query_request {
+        use super::*;
 
-        let request3 = Socks5RequestContent::Query(QueryRequest::Description);
-        let c = request3.into_bytes();
-        dbg!(&c);
+        #[test]
+        fn serialize_there_and_back() {
+            let open_proxy = Socks5RequestContent::Query(QueryRequest::OpenProxy);
+            let bytes_open_proxy = open_proxy.clone().into_bytes();
+            assert_eq!(bytes_open_proxy, vec![2, 0]);
 
-        let bb = Socks5RequestContent::try_from_bytes(&b).unwrap();
-        let cc = Socks5RequestContent::try_from_bytes(&c).unwrap();
+            let description = Socks5RequestContent::Query(QueryRequest::Description);
+            let bytes_description = description.clone().into_bytes();
+            assert_eq!(bytes_description, vec![2, 1]);
 
-        dbg!(&bb);
-        dbg!(&cc);
+            let open_proxy2 = Socks5RequestContent::try_from_bytes(&bytes_open_proxy).unwrap();
+            let description2 = Socks5RequestContent::try_from_bytes(&bytes_description).unwrap();
+
+            assert_eq!(open_proxy, open_proxy2);
+            assert_eq!(description, description2);
+        }
     }
 }

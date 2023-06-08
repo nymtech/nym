@@ -4214,10 +4214,12 @@ name = "nym-socks5-requests"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "log",
  "nym-service-providers-common",
  "nym-sphinx-addressing",
  "serde",
  "serde_json",
+ "tap",
  "thiserror",
 ]
 

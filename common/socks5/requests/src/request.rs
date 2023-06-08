@@ -231,7 +231,7 @@ impl Socks5RequestContent {
 
     /// Construct a new Request::Send instance
     pub fn new_send(data: SocketData) -> Socks5RequestContent {
-        Socks5RequestContent::Send(SendRequest { data })
+        Socks5RequestContent::Send(SendRequest { data: data })
     }
 
     /// Deserialize the request type, connection id, destination address and port,
@@ -609,7 +609,7 @@ mod request_deserialization_tests {
             match request {
                 Socks5RequestContent::Send(SendRequest {
                     conn_id,
-                    data,
+                    data: data,
                     local_closed,
                 }) => {
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
@@ -644,7 +644,7 @@ mod request_deserialization_tests {
             match request {
                 Socks5RequestContent::Send(SendRequest {
                     conn_id,
-                    data,
+                    data: data,
                     local_closed,
                 }) => {
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);

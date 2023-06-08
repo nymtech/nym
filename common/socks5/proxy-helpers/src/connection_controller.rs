@@ -1,11 +1,11 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nym_ordered_buffer::{OrderedMessageBuffer, ReadContiguousData};
-use nym_socks5_requests::{ConnectionId, NetworkData, SendRequest, SocketData};
+use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::{ConnectionCommand, ConnectionCommandSender};
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
@@ -44,21 +44,9 @@ pub enum ControllerCommand {
     },
 }
 
-impl From<NetworkData> for ControllerCommand {
-    fn from(value: NetworkData) -> Self {
-        if value.inner.data.is_empty() {
-            println!("1: EMPTY SOCKET DATA")
-        }
-        ControllerCommand::Send { data: value.inner }
-    }
-}
-
-impl From<SendRequest> for ControllerCommand {
-    fn from(value: SendRequest) -> Self {
-        if value.data.data.is_empty() {
-            println!("2: EMPTY SOCKET DATA")
-        }
-        ControllerCommand::Send { data: value.data }
+impl ControllerCommand {
+    pub fn new_send(data: SocketData) -> Self {
+        ControllerCommand::Send { data }
     }
 }
 
@@ -176,12 +164,8 @@ impl Controller {
     fn send_to_connection(&mut self, message: SocketData) {
         let hdr = message.header;
         if let Some(active_connection) = self.active_connections.get_mut(&hdr.connection_id) {
-            if !message.data.is_empty() {
-                active_connection.write_to_buf(hdr.seq, message.data, hdr.local_socket_closed);
-            } else if !hdr.local_socket_closed {
-                error!("Tried to write an empty message to a not-closing connection. Please let us know if you see this message");
-                active_connection.write_to_buf(hdr.seq, message.data, hdr.local_socket_closed);
-            }
+            // always write to the buffer even if payload is empty (because it could have been the keep-alive message)
+            active_connection.write_to_buf(hdr.seq, message.data, hdr.local_socket_closed);
 
             if let Some(payload) = active_connection.read_from_buf() {
                 if let Some(closed_at_index) = active_connection.closed_at_index {
@@ -189,6 +173,13 @@ impl Controller {
                         active_connection.is_closed = true;
                     }
                 }
+
+                // however, don't send empty payload to the actual connection if it's not a close message
+                // TODO: or should we?
+                if payload.data.is_empty() && !active_connection.is_closed {
+                    return;
+                }
+
                 if let Err(err) = active_connection
                     .connection_sender
                     .as_mut()
@@ -198,16 +189,8 @@ impl Controller {
                         socket_closed: active_connection.is_closed,
                     })
                 {
-                    error!("WTF IS THIS: {err}");
+                    error!("failed to send on the active connection channel: {err}");
                 }
-
-                // TODO: ABOVE UNWRAP CAUSED A CRASH IN A NORMAL USE!!!!
-                // TODO:
-                // TODO: surprisingly it only happened on socks client, never on nSP
-                // TODO:
-                // TODO:
-                // TODO:
-                // TODO:
             }
         } else if !self.recently_closed.contains(&hdr.connection_id) {
             debug!("Received a 'Send' before 'Connect' - going to buffer the data");
@@ -233,23 +216,20 @@ impl Controller {
     pub async fn run(&mut self) {
         loop {
             tokio::select! {
-                    command = self.receiver.next() => match command {
-                        Some(ControllerCommand::Send{data}) => {
-                            if data.data.is_empty() {
-                println!("3: EMPTY SOCKET DATA")
+                command = self.receiver.next() => match command {
+                    Some(ControllerCommand::Send{data}) => {
+                        self.send_to_connection(data)
+                    }
+                    Some(ControllerCommand::Insert{connection_id, connection_sender}) => {
+                        self.insert_connection(connection_id, connection_sender)
+                    }
+                    Some(ControllerCommand::Remove{ connection_id }) => self.remove_connection(connection_id),
+                    None => {
+                        log::trace!("SOCKS5 Controller: Stopping since channel closed");
+                        break;
+                    }
+                },
             }
-                            self.send_to_connection(data)
-                        }
-                        Some(ControllerCommand::Insert{connection_id, connection_sender}) => {
-                            self.insert_connection(connection_id, connection_sender)
-                        }
-                        Some(ControllerCommand::Remove{ connection_id }) => self.remove_connection(connection_id),
-                        None => {
-                            log::trace!("SOCKS5 Controller: Stopping since channel closed");
-                            break;
-                        }
-                    },
-                }
         }
         self.shutdown.recv_timeout().await;
         log::debug!("SOCKS5 Controller: Exiting");

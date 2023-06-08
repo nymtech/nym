@@ -155,10 +155,6 @@ impl SocketData {
         local_socket_closed: bool,
         data: Vec<u8>,
     ) -> Self {
-        if data.is_empty() {
-            println!("making socket data with no data");
-            println!("{local_socket_closed}");
-        }
         SocketData {
             header: SocketDataHeader {
                 seq,
@@ -192,11 +188,6 @@ impl SocketData {
         Self::verify_deserialization_len(b)?;
         let header =
             SocketDataHeader::try_from_request_bytes(&b[..SocketDataHeader::SERIALIZED_LEN])?;
-        println!(
-            "req: {} bytes of data ",
-            b[SocketDataHeader::SERIALIZED_LEN..].len()
-        );
-        println!("seq: {}", header.seq);
         let data = b[SocketDataHeader::SERIALIZED_LEN..].to_vec();
 
         Ok(SocketData { header, data })
@@ -219,11 +210,6 @@ impl SocketData {
 
         let header =
             SocketDataHeader::try_from_response_bytes(&b[..SocketDataHeader::SERIALIZED_LEN])?;
-        println!(
-            "res: {} bytes of data ",
-            b[SocketDataHeader::SERIALIZED_LEN..].len()
-        );
-        println!("seq: {}", header.seq);
         let data = b[SocketDataHeader::SERIALIZED_LEN..].to_vec();
 
         Ok(SocketData { header, data })

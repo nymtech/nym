@@ -159,7 +159,7 @@ impl Socks5Response {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Socks5ResponseContent {
-    NetworkData(NetworkData),
+    NetworkData { content: SocketData },
     ConnectionError(ConnectionError),
     Query(QueryResponse),
 }
@@ -171,7 +171,9 @@ impl Socks5ResponseContent {
         data: Vec<u8>,
         is_closed: bool,
     ) -> Socks5ResponseContent {
-        Socks5ResponseContent::NetworkData(NetworkData::new(seq, connection_id, data, is_closed))
+        Socks5ResponseContent::NetworkData {
+            content: SocketData::new(seq, connection_id, is_closed, data),
+        }
     }
 
     pub fn new_connection_error(
@@ -183,9 +185,9 @@ impl Socks5ResponseContent {
 
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
-            Socks5ResponseContent::NetworkData(res) => {
+            Socks5ResponseContent::NetworkData { content } => {
                 std::iter::once(ResponseFlag::NetworkData as u8)
-                    .chain(res.into_bytes().into_iter())
+                    .chain(content.into_response_bytes_iter())
                     .collect()
             }
             Socks5ResponseContent::ConnectionError(res) => {
@@ -217,9 +219,9 @@ impl Socks5ResponseContent {
 
         let response_flag = ResponseFlag::try_from(b[0])?;
         match response_flag {
-            ResponseFlag::NetworkData => Ok(Socks5ResponseContent::NetworkData(
-                NetworkData::try_from_bytes(&b[1..])?,
-            )),
+            ResponseFlag::NetworkData => Ok(Socks5ResponseContent::NetworkData {
+                content: SocketData::try_from_response_bytes(&b[1..])?,
+            }),
             ResponseFlag::ConnectionError => Ok(Socks5ResponseContent::ConnectionError(
                 ConnectionError::try_from_bytes(&b[1..])?,
             )),
@@ -229,34 +231,6 @@ impl Socks5ResponseContent {
                 Ok(Socks5ResponseContent::Query(query))
             }
         }
-    }
-}
-
-/// A remote network network data response retrieved by the Socks5 service provider. This
-/// can be serialized and sent back through the mixnet to the requesting
-/// application.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NetworkData {
-    pub inner: SocketData,
-}
-
-impl NetworkData {
-    /// Constructor for responses
-    pub fn new(seq: u64, connection_id: ConnectionId, data: Vec<u8>, is_closed: bool) -> Self {
-        NetworkData {
-            inner: SocketData::new(seq, connection_id, is_closed, data),
-        }
-    }
-
-    pub fn try_from_bytes(b: &[u8]) -> Result<NetworkData, ResponseDeserializationError> {
-        let inner = SocketData::try_from_response_bytes(b)?;
-        Ok(NetworkData { inner })
-    }
-
-    /// Serializes the response into bytes so that it can be sent back through
-    /// the mixnet to the requesting application.
-    pub fn into_bytes(self) -> Vec<u8> {
-        self.inner.into_response_bytes()
     }
 }
 

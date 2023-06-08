@@ -6,7 +6,7 @@ use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, RequestVersion,
 };
 use nym_socks5_requests::{
-    ConnectionId, NetworkData, Socks5ProviderRequest, Socks5ProviderResponse, Socks5Request,
+    ConnectionId, SocketData, Socks5ProviderRequest, Socks5ProviderResponse, Socks5Request,
     Socks5RequestContent, Socks5Response, Socks5ResponseContent,
 };
 use nym_sphinx::addressing::clients::Recipient;
@@ -78,12 +78,12 @@ impl MixnetMessage {
         address: MixnetAddress,
         request_version: RequestVersion<Socks5Request>,
         connection_id: ConnectionId,
-        content: NetworkData,
+        content: SocketData,
     ) -> Self {
         // TODO: simplify by providing better constructor for `PlaceholderResponse`
         let res = Socks5Response::new(
             request_version.provider_protocol,
-            Socks5ResponseContent::NetworkData(content),
+            Socks5ResponseContent::NetworkData { content },
         );
         let msg =
             Socks5ProviderResponse::new_provider_data(request_version.provider_interface, res);
@@ -140,7 +140,10 @@ impl MixnetMessage {
         data: Vec<u8>,
         closed_socket: bool,
     ) -> Self {
-        let response_content = NetworkData::new(seq, connection_id, data, closed_socket);
+        if seq == 0 && data.is_empty() {
+            println!("new empty response with 0 seq")
+        }
+        let response_content = SocketData::new(seq, connection_id, closed_socket, data);
         Self::new_network_data_response(address, request_version, connection_id, response_content)
     }
 

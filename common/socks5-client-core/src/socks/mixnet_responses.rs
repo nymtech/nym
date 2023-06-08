@@ -85,15 +85,12 @@ impl MixnetResponseListener {
                     .unwrap();
                 Ok(())
             }
-            Socks5ResponseContent::OpenProxy(response) => {
-                //self.controller_sender
-                //    .unbounded_send(response.into())
-                //    .unwrap();
-                log::info!("Open proxy response: {:?}", response);
-                Ok(())
-            }
             Socks5ResponseContent::Query(response) => {
-                log::info!("Query response: {:?}", response);
+                error!("received a query response which we don't know how to handle yet!");
+                error!("got: {:?}", response);
+
+                // I guess we'd need another channel here to forward those to where they need to go
+
                 Ok(())
             }
         }

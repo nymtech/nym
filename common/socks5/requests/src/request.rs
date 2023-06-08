@@ -16,8 +16,7 @@ pub type RemoteAddress = String;
 pub enum RequestFlag {
     Connect = 0,
     Send = 1,
-    OpenProxy = 2,
-    Query = 3,
+    Query = 2,
 }
 
 impl TryFrom<u8> for RequestFlag {
@@ -27,7 +26,6 @@ impl TryFrom<u8> for RequestFlag {
         match value {
             _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
             _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
-            _ if value == (RequestFlag::OpenProxy as u8) => Ok(Self::OpenProxy),
             _ if value == (RequestFlag::Query as u8) => Ok(Self::Query),
             value => Err(RequestDeserializationError::UnknownRequestFlag { value }),
         }
@@ -178,13 +176,6 @@ impl Socks5Request {
         }
     }
 
-    pub fn new_open_proxy(protocol_version: Socks5ProtocolVersion) -> Socks5Request {
-        Socks5Request {
-            protocol_version,
-            content: Socks5RequestContent::OpenProxy,
-        }
-    }
-
     pub fn new_query(
         protocol_version: Socks5ProtocolVersion,
         query: QueryRequest,
@@ -207,9 +198,6 @@ pub enum Socks5RequestContent {
 
     /// Re-use an existing TCP connection, sending more request data up it.
     Send(SendRequest),
-
-    /// Query if the proxy is open.
-    OpenProxy,
 
     Query(QueryRequest),
 }
@@ -333,7 +321,6 @@ impl Socks5RequestContent {
                     local_closed,
                 }))
             }
-            RequestFlag::OpenProxy => Ok(Socks5RequestContent::OpenProxy),
             RequestFlag::Query => {
                 //let query = bincode::deserialize(&b[1..]).expect("WIP(JON)");
                 use bincode::Options;
@@ -373,10 +360,6 @@ impl Socks5RequestContent {
                 .chain(std::iter::once(req.local_closed as u8))
                 .chain(req.data.into_iter())
                 .collect(),
-
-            Socks5RequestContent::OpenProxy => {
-                vec![RequestFlag::OpenProxy as u8]
-            }
 
             Socks5RequestContent::Query(query) => {
                 //let query_bytes: Vec<u8> = bincode::serialize(&query).expect("WIP(JON)");
@@ -687,10 +670,6 @@ mod request_deserialization_tests {
 
     #[test]
     fn serialize_tests() {
-        let request = Socks5RequestContent::OpenProxy;
-        let a = request.into_bytes();
-        dbg!(&a);
-
         let request2 = Socks5RequestContent::Query(QueryRequest::OpenProxy);
         let b = request2.into_bytes();
         dbg!(&b);
@@ -699,11 +678,9 @@ mod request_deserialization_tests {
         let c = request3.into_bytes();
         dbg!(&c);
 
-        let aa = Socks5RequestContent::try_from_bytes(&a).unwrap();
         let bb = Socks5RequestContent::try_from_bytes(&b).unwrap();
         let cc = Socks5RequestContent::try_from_bytes(&c).unwrap();
 
-        dbg!(&aa);
         dbg!(&bb);
         dbg!(&cc);
     }

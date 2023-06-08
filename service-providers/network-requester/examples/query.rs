@@ -36,7 +36,10 @@ async fn main() -> anyhow::Result<()> {
 
     let open_proxy_request = Request::new_provider_data(
         ProviderInterfaceVersion::new_current(),
-        Socks5Request::new_open_proxy(Socks5ProtocolVersion::new_current()),
+        Socks5Request::new_query(
+            Socks5ProtocolVersion::new_current(),
+            QueryRequest::OpenProxy,
+        ),
     );
     let description_request = Request::new_provider_data(
         ProviderInterfaceVersion::new_current(),

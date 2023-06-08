@@ -14,8 +14,7 @@ use thiserror::Error;
 pub enum ResponseFlag {
     NetworkData = 1,
     ConnectionError = 2,
-    OpenProxy = 3,
-    Query = 4,
+    Query = 3,
 }
 
 impl TryFrom<u8> for ResponseFlag {
@@ -25,7 +24,6 @@ impl TryFrom<u8> for ResponseFlag {
         match value {
             _ if value == (ResponseFlag::NetworkData as u8) => Ok(Self::NetworkData),
             _ if value == (ResponseFlag::ConnectionError as u8) => Ok(Self::ConnectionError),
-            _ if value == (ResponseFlag::OpenProxy as u8) => Ok(Self::OpenProxy),
             _ if value == (ResponseFlag::Query as u8) => Ok(Self::Query),
             value => Err(ResponseDeserializationError::UnknownResponseFlag { value }),
         }
@@ -142,16 +140,6 @@ impl Socks5Response {
         }
     }
 
-    pub fn new_open_proxy(
-        protocol_version: Socks5ProtocolVersion,
-        is_open: bool,
-    ) -> Socks5Response {
-        Socks5Response {
-            protocol_version,
-            content: Socks5ResponseContent::OpenProxy(is_open),
-        }
-    }
-
     pub fn new_query(
         protocol_version: Socks5ProtocolVersion,
         query_response: QueryResponse,
@@ -167,7 +155,6 @@ impl Socks5Response {
 pub enum Socks5ResponseContent {
     NetworkData(NetworkData),
     ConnectionError(ConnectionError),
-    OpenProxy(bool),
     Query(QueryResponse),
 }
 
@@ -203,9 +190,6 @@ impl Socks5ResponseContent {
                     .chain(res.into_bytes().into_iter())
                     .collect()
             }
-            Socks5ResponseContent::OpenProxy(res) => std::iter::once(ResponseFlag::OpenProxy as u8)
-                .chain(std::iter::once(res as u8))
-                .collect(),
             Socks5ResponseContent::Query(query) => {
                 use bincode::Options;
                 let query_bytes: Vec<u8> = bincode::DefaultOptions::new()
@@ -235,10 +219,6 @@ impl Socks5ResponseContent {
             ResponseFlag::ConnectionError => Ok(Socks5ResponseContent::ConnectionError(
                 ConnectionError::try_from_bytes(&b[1..])?,
             )),
-            ResponseFlag::OpenProxy => {
-                let is_open = b[1] != 0;
-                Ok(Socks5ResponseContent::OpenProxy(is_open))
-            }
             ResponseFlag::Query => {
                 use bincode::Options;
                 let query = bincode::DefaultOptions::new()

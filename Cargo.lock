@@ -3931,6 +3931,7 @@ dependencies = [
 name = "nym-network-requester"
 version = "1.1.20"
 dependencies = [
+ "anyhow",
  "async-file-watcher",
  "async-trait",
  "bs58",

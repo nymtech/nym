@@ -13,3 +13,4 @@ serde_json = { workspace = true }
 
 nym-sphinx-addressing = { path = "../../../common/nymsphinx/addressing" }
 nym-service-providers-common = { path = "../../../service-providers/common" }
+bincode = "1.3.3"

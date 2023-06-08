@@ -4,6 +4,7 @@
 use crate::{Socks5ProtocolVersion, Socks5RequestError, Socks5Response};
 use nym_service_providers_common::interface::{Serializable, ServiceProviderRequest};
 use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use thiserror::Error;
 
@@ -16,6 +17,7 @@ pub enum RequestFlag {
     Connect = 0,
     Send = 1,
     OpenProxy = 2,
+    Query = 3,
 }
 
 impl TryFrom<u8> for RequestFlag {
@@ -26,6 +28,7 @@ impl TryFrom<u8> for RequestFlag {
             _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
             _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
             _ if value == (RequestFlag::OpenProxy as u8) => Ok(Self::OpenProxy),
+            _ if value == (RequestFlag::Query as u8) => Ok(Self::Query),
             value => Err(RequestDeserializationError::UnknownRequestFlag { value }),
         }
     }
@@ -74,6 +77,12 @@ pub struct SendRequest {
     pub conn_id: ConnectionId,
     pub data: Vec<u8>,
     pub local_closed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum QueryRequest {
+    OpenProxy,
+    Description,
 }
 
 #[derive(Debug, Clone)]
@@ -175,6 +184,16 @@ impl Socks5Request {
             content: Socks5RequestContent::OpenProxy,
         }
     }
+
+    pub fn new_query(
+        protocol_version: Socks5ProtocolVersion,
+        query: QueryRequest,
+    ) -> Socks5Request {
+        Socks5Request {
+            protocol_version,
+            content: Socks5RequestContent::Query(query),
+        }
+    }
 }
 
 /// A request from a SOCKS5 client that a Nym Socks5 service provider should
@@ -191,6 +210,8 @@ pub enum Socks5RequestContent {
 
     /// Query if the proxy is open.
     OpenProxy,
+
+    Query(QueryRequest),
 }
 
 impl Socks5RequestContent {
@@ -313,6 +334,16 @@ impl Socks5RequestContent {
                 }))
             }
             RequestFlag::OpenProxy => Ok(Socks5RequestContent::OpenProxy),
+            RequestFlag::Query => {
+                //let query = bincode::deserialize(&b[1..]).expect("WIP(JON)");
+                use bincode::Options;
+                let query = bincode::DefaultOptions::new()
+                    .with_big_endian()
+                    .with_varint_encoding()
+                    .deserialize(&b[1..])
+                    .expect("WIP(JON)");
+                Ok(Socks5RequestContent::Query(query))
+            }
         }
     }
 
@@ -345,6 +376,19 @@ impl Socks5RequestContent {
 
             Socks5RequestContent::OpenProxy => {
                 vec![RequestFlag::OpenProxy as u8]
+            }
+
+            Socks5RequestContent::Query(query) => {
+                //let query_bytes: Vec<u8> = bincode::serialize(&query).expect("WIP(JON)");
+                use bincode::Options;
+                let query_bytes: Vec<u8> = bincode::DefaultOptions::new()
+                    .with_big_endian()
+                    .with_varint_encoding()
+                    .serialize(&query)
+                    .expect("WIP(JON");
+                std::iter::once(RequestFlag::Query as u8)
+                    .chain(query_bytes.into_iter())
+                    .collect()
             }
         }
     }
@@ -639,5 +683,28 @@ mod request_deserialization_tests {
                 _ => unreachable!(),
             }
         }
+    }
+
+    #[test]
+    fn serialize_tests() {
+        let request = Socks5RequestContent::OpenProxy;
+        let a = request.into_bytes();
+        dbg!(&a);
+
+        let request2 = Socks5RequestContent::Query(QueryRequest::OpenProxy);
+        let b = request2.into_bytes();
+        dbg!(&b);
+
+        let request3 = Socks5RequestContent::Query(QueryRequest::Description);
+        let c = request3.into_bytes();
+        dbg!(&c);
+
+        let aa = Socks5RequestContent::try_from_bytes(&a).unwrap();
+        let bb = Socks5RequestContent::try_from_bytes(&b).unwrap();
+        let cc = Socks5RequestContent::try_from_bytes(&c).unwrap();
+
+        dbg!(&aa);
+        dbg!(&bb);
+        dbg!(&cc);
     }
 }

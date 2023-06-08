@@ -3,6 +3,7 @@
 
 use crate::{ConnectionId, Socks5ProtocolVersion, Socks5RequestError};
 use nym_service_providers_common::interface::{Serializable, ServiceProviderResponse};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 // don't start tags from 0 for easier backwards compatibility since `NetworkData`
@@ -14,6 +15,7 @@ pub enum ResponseFlag {
     NetworkData = 1,
     ConnectionError = 2,
     OpenProxy = 3,
+    Query = 4,
 }
 
 impl TryFrom<u8> for ResponseFlag {
@@ -24,6 +26,7 @@ impl TryFrom<u8> for ResponseFlag {
             _ if value == (ResponseFlag::NetworkData as u8) => Ok(Self::NetworkData),
             _ if value == (ResponseFlag::ConnectionError as u8) => Ok(Self::ConnectionError),
             _ if value == (ResponseFlag::OpenProxy as u8) => Ok(Self::OpenProxy),
+            _ if value == (ResponseFlag::Query as u8) => Ok(Self::Query),
             value => Err(ResponseDeserializationError::UnknownResponseFlag { value }),
         }
     }
@@ -148,6 +151,16 @@ impl Socks5Response {
             content: Socks5ResponseContent::OpenProxy(is_open),
         }
     }
+
+    pub fn new_query(
+        protocol_version: Socks5ProtocolVersion,
+        query_response: QueryResponse,
+    ) -> Socks5Response {
+        Socks5Response {
+            protocol_version,
+            content: Socks5ResponseContent::Query(query_response),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -155,6 +168,7 @@ pub enum Socks5ResponseContent {
     NetworkData(NetworkData),
     ConnectionError(ConnectionError),
     OpenProxy(bool),
+    Query(QueryResponse),
 }
 
 impl Socks5ResponseContent {
@@ -192,6 +206,17 @@ impl Socks5ResponseContent {
             Socks5ResponseContent::OpenProxy(res) => std::iter::once(ResponseFlag::OpenProxy as u8)
                 .chain(std::iter::once(res as u8))
                 .collect(),
+            Socks5ResponseContent::Query(query) => {
+                use bincode::Options;
+                let query_bytes: Vec<u8> = bincode::DefaultOptions::new()
+                    .with_big_endian()
+                    .with_varint_encoding()
+                    .serialize(&query)
+                    .expect("WIP(JON");
+                std::iter::once(ResponseFlag::Query as u8)
+                    .chain(query_bytes.into_iter())
+                    .collect()
+            }
         }
     }
 
@@ -213,6 +238,15 @@ impl Socks5ResponseContent {
             ResponseFlag::OpenProxy => {
                 let is_open = b[1] != 0;
                 Ok(Socks5ResponseContent::OpenProxy(is_open))
+            }
+            ResponseFlag::Query => {
+                use bincode::Options;
+                let query = bincode::DefaultOptions::new()
+                    .with_big_endian()
+                    .with_varint_encoding()
+                    .deserialize(&b[1..])
+                    .expect("WIP(JON)");
+                Ok(Socks5ResponseContent::Query(query))
             }
         }
     }
@@ -337,6 +371,12 @@ impl ConnectionError {
             .chain(self.network_requester_error.into_bytes().into_iter())
             .collect()
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum QueryResponse {
+    OpenProxy(bool),
+    Description(String),
 }
 
 #[cfg(test)]

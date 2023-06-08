@@ -92,6 +92,10 @@ impl MixnetResponseListener {
                 log::info!("Open proxy response: {:?}", response);
                 Ok(())
             }
+            Socks5ResponseContent::Query(response) => {
+                log::info!("Query response: {:?}", response);
+                Ok(())
+            }
         }
     }
 

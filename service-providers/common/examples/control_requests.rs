@@ -96,7 +96,12 @@ async fn main() -> anyhow::Result<()> {
 
     let open_proxy_request = Request::new_provider_data(
         ProviderInterfaceVersion::new_current(),
-        Socks5Request::new_open_proxy(Socks5ProtocolVersion::new_current()),
+        //Socks5Request::new_open_proxy(Socks5ProtocolVersion::new_current()),
+        Socks5Request::new_query(
+            Socks5ProtocolVersion::new_current(),
+            //nym_socks5_requests::QueryRequest::OpenProxy,
+            nym_socks5_requests::QueryRequest::Description,
+        ),
     );
     println!("Sending 'Open Proxy' request...");
     client

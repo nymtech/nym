@@ -250,11 +250,6 @@ impl Socks5RequestContent {
             return Err(RequestDeserializationError::NoData);
         }
 
-        //dbg!(&b.len());
-        //if b.len() < 9 {
-        //    return Err(RequestDeserializationError::ConnectionIdTooShort);
-        //}
-        //let conn_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
         match RequestFlag::try_from(b[0])? {
             RequestFlag::Connect => {
                 if b.len() < 9 {

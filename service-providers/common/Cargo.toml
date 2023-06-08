@@ -22,6 +22,4 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-socks5-requests = { path = "../../common/socks5/requests" }
-#nym-network-requester = { path = "../network-requester" }
-#nym-bin-common = { path = "../../bin-commokn" }
 

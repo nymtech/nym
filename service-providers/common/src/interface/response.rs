@@ -80,7 +80,6 @@ where
 
     pub fn try_from_bytes(b: &[u8]) -> Result<Response<T>, <T as ServiceProviderRequest>::Error> {
         if b.is_empty() {
-            log::error!("Response::try_from_bytes - received empty response!");
             return Err(ServiceProviderMessagingError::EmptyResponse.into());
         }
 
@@ -137,11 +136,6 @@ where
         b: &[u8],
         interface_version: ProviderInterfaceVersion,
     ) -> Result<ResponseContent<T>, <T as ServiceProviderRequest>::Error> {
-        log::info!(
-            "ResponseContent::try_from_bytes - Received response of length {}",
-            b.len()
-        );
-
         if interface_version.is_legacy() {
             // we received a request from an old client which can only possibly
             // use an old Socks5Message, which uses the entire buffer for deserialization

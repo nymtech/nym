@@ -32,6 +32,18 @@ pub enum Socks5RequestError {
 
     #[error(transparent)]
     ProviderInterfaceError(#[from] ServiceProviderMessagingError),
+
+    #[error("received unsupported request protocol version: {protocol_version}")]
+    UnsupportedProtocolVersion {
+        protocol_version: <Socks5Request as interface::ServiceProviderRequest>::ProtocolVersion,
+    },
+}
+
+fn make_bincode_serializer() -> impl bincode::Options {
+    use bincode::Options;
+    bincode::DefaultOptions::new()
+        .with_big_endian()
+        .with_varint_encoding()
 }
 
 #[cfg(test)]

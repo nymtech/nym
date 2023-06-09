@@ -85,6 +85,14 @@ impl MixnetResponseListener {
                     .unwrap();
                 Ok(())
             }
+            Socks5ResponseContent::Query(response) => {
+                error!("received a query response which we don't know how to handle yet!");
+                error!("got: {:?}", response);
+
+                // I guess we'd need another channel here to forward those to where they need to go
+
+                Ok(())
+            }
         }
     }
 

@@ -46,9 +46,6 @@ enum Commands {
 
     /// Check if the network requester is acting a an open proxy
     OpenProxy,
-
-    /// Query all available properties
-    All,
 }
 
 fn parse_control_response(received: Vec<mixnet::ReconstructedMessage>) -> ControlResponse {

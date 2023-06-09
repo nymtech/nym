@@ -26,6 +26,7 @@ pub mod validation;
 mod helpers;
 
 mod constants;
+mod config;
 
 #[wasm_bindgen]
 pub fn set_panic_hook() {

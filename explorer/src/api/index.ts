@@ -31,7 +31,7 @@ import {
   Environment,
   GatewayBondAnnotated,
   GatewayBond,
-  DirectoryService,
+  DirectoryServiceProvider,
 } from '../typeDefs/explorer-api';
 
 function getFromCache(key: string) {
@@ -153,7 +153,7 @@ export class Api {
   static fetchUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>
     (await fetch(`${UPTIME_STORY_API}/${id}/history`)).json();
 
-  static fetchServiceProviders = async (): Promise<DirectoryService[]> => {
+  static fetchServiceProviders = async (): Promise<DirectoryServiceProvider[]> => {
     const res = await fetch(SERVICE_PROVIDERS);
     const json = await res.json();
     return json;

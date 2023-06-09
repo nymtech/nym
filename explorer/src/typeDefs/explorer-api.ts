@@ -241,11 +241,15 @@ export type MixNodeEconomicDynamicsStatsResponse = {
 
 export type Environment = 'mainnet' | 'sandbox' | 'qa';
 
+export type ServiceProviderType = 'Network Requester';
+
 export type DirectoryServiceProvider = {
   id: string;
   description: string;
   address: string;
   gateway: string;
+  routing_score: string | null;
+  service_type: ServiceProviderType;
 };
 
 export type DirectoryService = {

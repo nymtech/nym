@@ -5,7 +5,7 @@ use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, Recipient, ReconstructedMessa
 use nym_service_providers_common::interface::{
     ProviderInterfaceVersion, Request, Response, ResponseContent,
 };
-use nym_socks5_requests::{QueryRequest, Socks5Request, Socks5Response};
+use nym_socks5_requests::{QueryRequest, Socks5ProtocolVersion, Socks5Request, Socks5Response};
 
 fn parse_response(received: Vec<ReconstructedMessage>) -> Socks5Response {
     assert_eq!(received.len(), 1);
@@ -30,8 +30,6 @@ async fn main() -> anyhow::Result<()> {
     //nym_bin_common::logging::setup_logging();
     let mut client = MixnetClient::connect_new().await.unwrap();
     let provider: Recipient = "AN8eLxYWFitCkMn92zim3PrPszxJZDYyFFKP7qnnAAew.8UAxL3LwQBis6WpM3GGXaqKGaVdnLCpGJWumHT6KNdTH@77TSuVU8d1oXKbPzjec2xh4i3Wj5WwUyy9Lr36sm8gZm".parse().unwrap();
-
-    use nym_socks5_requests::Socks5ProtocolVersion;
 
     let open_proxy_request = Request::new_provider_data(
         ProviderInterfaceVersion::new_current(),

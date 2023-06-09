@@ -4149,6 +4149,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-nr-query"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.2.7",
+ "log",
+ "nym-network-defaults",
+ "nym-sdk",
+ "nym-service-providers-common",
+ "nym-socks5-requests",
+ "tokio",
+]
+
+[[package]]
 name = "nym-ordered-buffer"
 version = "0.1.0"
 dependencies = [

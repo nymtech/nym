@@ -1,22 +1,22 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error;
 use bytecodec::bytes::BytesEncoder;
 use bytecodec::bytes::RemainingBytesDecoder;
 use bytecodec::io::IoEncodeExt;
 use bytecodec::{DecodeExt, Encode};
 use httpcodec::{BodyDecoder, ResponseDecoder};
 use httpcodec::{BodyEncoder, Request, RequestEncoder};
-
-use crate::error;
-use nym_ordered_buffer::OrderedMessage;
-use nym_socks5_requests::{Socks5ProtocolVersion, Socks5Response, Socks5ResponseContent};
+use nym_socks5_requests::{
+    SocketData, Socks5ProtocolVersion, Socks5Response, Socks5ResponseContent,
+};
 
 pub fn encode_http_request_as_socks_request(
     socks5_version: Socks5ProtocolVersion,
     conn_id: u64,
     request: Request<Vec<u8>>,
-    ordered_message_index: Option<u64>,
+    seq: Option<u64>,
     local_closed: bool,
 ) -> Result<nym_socks5_requests::request::Socks5Request, error::MixHttpRequestError> {
     // Encode HTTP request as bytes
@@ -25,18 +25,10 @@ pub fn encode_http_request_as_socks_request(
     let mut buf = Vec::new();
     encoder.encode_all(&mut buf)?;
 
-    // Create an ordered message
-    let ordered_msg = OrderedMessage {
-        data: buf,
-        index: ordered_message_index.unwrap_or(0u64),
-    };
-
     // Wrap is SOCKS send request
     Ok(nym_socks5_requests::request::Socks5Request::new_send(
         socks5_version,
-        conn_id,
-        ordered_msg.into_bytes(),
-        local_closed,
+        SocketData::new(seq.unwrap_or_default(), conn_id, local_closed, buf),
     ))
 }
 
@@ -45,26 +37,22 @@ pub struct MixHttpResponse {
     pub connection_id: u64,
     pub is_closed: bool,
     pub http_response: httpcodec::Response<Vec<u8>>,
-    pub ordered_message_index: u64,
+    pub seq: u64,
 }
 
 pub fn decode_socks_response_as_http_response(
     socks5_response: Socks5Response,
 ) -> Result<MixHttpResponse, error::MixHttpRequestError> {
-    if let Socks5ResponseContent::NetworkData(data) = socks5_response.content {
-        // data.data is really an OrderedMessage
-        let response_ordered_message = OrderedMessage::try_from_bytes(data.data)?;
-
-        if !response_ordered_message.data.is_empty() {
+    if let Socks5ResponseContent::NetworkData { content } = socks5_response.content {
+        if !content.data.is_empty() {
             let mut decoder = ResponseDecoder::<BodyDecoder<RemainingBytesDecoder>>::default();
-            let http_response =
-                decoder.decode_from_bytes(response_ordered_message.data.as_ref())?;
+            let http_response = decoder.decode_from_bytes(content.data.as_ref())?;
 
             return Ok(MixHttpResponse {
-                connection_id: data.connection_id,
-                is_closed: data.is_closed,
+                connection_id: content.header.connection_id,
+                is_closed: content.header.local_socket_closed,
                 http_response,
-                ordered_message_index: response_ordered_message.index,
+                seq: content.header.seq,
             });
         }
     }
@@ -76,7 +64,19 @@ mod http_requests_tests {
     use super::*;
     use httpcodec::{HeaderField, HttpVersion, Method, RequestTarget};
     use nym_service_providers_common::interface::Serializable;
-    use nym_socks5_requests::NetworkData;
+
+    fn create_http_get_request() -> Request<Vec<u8>> {
+        let mut request = Request::new(
+            Method::new("GET").unwrap(),
+            RequestTarget::new("/.wellknown/wallet/validators.json").unwrap(),
+            HttpVersion::V1_1,
+            b"".to_vec(),
+        );
+        let mut headers = request.header_mut();
+        headers.add_field(HeaderField::new("Host", "nymtech.net").unwrap());
+
+        request
+    }
 
     fn create_socks5_request_buffer() -> Vec<u8> {
         let request = create_http_get_request();
@@ -134,17 +134,14 @@ mod http_requests_tests {
         // HTTP response is just a string
         let http_response_string = "HTTP/1.1 200 OK\r\nServer: foo/0.0.1\r\n\r\n";
 
-        // wrap in an ordered message
-        let data = OrderedMessage {
-            data: http_response_string.as_bytes().to_vec(),
-            index: 42u64,
-        }
-        .into_bytes();
+        let data = http_response_string.as_bytes().to_vec();
 
         // wrap in `NetworkData`, then Socks5Response
         Socks5Response::new(
             Socks5ProtocolVersion::Versioned(5),
-            Socks5ResponseContent::NetworkData(NetworkData::new(99u64, data, false)),
+            Socks5ResponseContent::NetworkData {
+                content: SocketData::new(42, 99u64, false, data),
+            },
         )
     }
 
@@ -163,7 +160,7 @@ mod http_requests_tests {
         let socks5_response = create_socks_response();
         let response = decode_socks_response_as_http_response(socks5_response).unwrap();
 
-        assert_eq!(42u64, response.ordered_message_index); // OrderedMessage index as expected
+        assert_eq!(42u64, response.seq); // OrderedMessage index as expected
         assert_eq!(HttpVersion::V1_1, response.http_response.http_version());
         assert_eq!(200u16, response.http_response.status_code().as_u16());
         assert_eq!(

@@ -23,12 +23,8 @@ pub fn encode_http_request_as_string(
 
 #[cfg(test)]
 mod http_requests_tests {
-    use httpcodec::{HeaderField, HttpVersion, Method, RequestTarget};
-
-    use nym_service_providers_common::interface::Serializable;
-    use nym_socks5_requests::NetworkData;
-
     use super::*;
+    use httpcodec::{HeaderField, HttpVersion, Method, RequestTarget};
 
     fn create_http_get_request() -> Request<Vec<u8>> {
         let mut request = Request::new(

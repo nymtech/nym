@@ -16,14 +16,14 @@ use wasm_utils::{console_error, console_log};
 pub(crate) struct ResponsePusher {
     reconstructed_receiver: ReconstructedMessagesReceiver,
     on_message: js_sys::Function,
-    on_mix_fetch_message: js_sys::Function,
+    // on_mix_fetch_message: js_sys::Function,
 }
 
 impl ResponsePusher {
     pub(crate) fn new(
         client_output: ClientOutput,
         on_message: js_sys::Function,
-        on_mix_fetch_message: js_sys::Function,
+        // on_mix_fetch_message: js_sys::Function,
     ) -> Self {
         // register our output
         let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();
@@ -39,7 +39,7 @@ impl ResponsePusher {
         ResponsePusher {
             reconstructed_receiver,
             on_message,
-            on_mix_fetch_message,
+            // on_mix_fetch_message,
         }
     }
 

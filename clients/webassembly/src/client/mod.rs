@@ -23,8 +23,6 @@ use nym_client_core::client::base_client::{
 use nym_client_core::client::inbound_messages::InputMessage;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_http_requests::error::MixHttpRequestError;
-use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
@@ -36,7 +34,7 @@ use rand::RngCore;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::{check_promise_result, console_error, console_log, PromisableResult};
+use wasm_utils::{check_promise_result, console_log, PromisableResult};
 use web_sys::Request;
 
 pub mod config;
@@ -70,7 +68,7 @@ pub struct NymClientBuilder {
 
     storage_passphrase: Option<String>,
     on_message: js_sys::Function,
-    on_mix_fetch_message: js_sys::Function,
+    // on_mix_fetch_message: Option<js_sys::Function>,
 }
 
 #[wasm_bindgen]
@@ -79,7 +77,7 @@ impl NymClientBuilder {
     pub fn new(
         config: Config,
         on_message: js_sys::Function,
-        on_mix_fetch_message: js_sys::Function,
+        // on_mix_fetch_message: js_sys::Function,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Self {
@@ -88,7 +86,7 @@ impl NymClientBuilder {
             custom_topology: None,
             storage_passphrase,
             on_message,
-            on_mix_fetch_message,
+            // on_mix_fetch_message: Some(on_mix_fetch_message),
             preferred_gateway,
         }
     }
@@ -114,6 +112,9 @@ impl NymClientBuilder {
             config: full_config,
             custom_topology: Some(topology.into()),
             on_message,
+            // on_mix_fetch_message: None,
+            bandwidth_controller: None,
+            disabled_credentials: true,
             storage_passphrase: None,
             preferred_gateway: gateway,
         }
@@ -122,9 +123,10 @@ impl NymClientBuilder {
     fn start_reconstructed_pusher(
         client_output: ClientOutput,
         on_message: js_sys::Function,
-        on_mix_fetch_message: js_sys::Function,
+        // on_mix_fetch_message: js_sys::Function,
     ) {
-        ResponsePusher::new(client_output, on_message, on_mix_fetch_message).start()
+        // ResponsePusher::new(client_output, on_message, on_mix_fetch_message).start()
+        ResponsePusher::new(client_output, on_message).start()
     }
 
     fn topology_provider(&mut self) -> Option<Box<dyn TopologyProvider + Send + Sync>> {
@@ -182,7 +184,9 @@ impl NymClientBuilder {
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
 
-        Self::start_reconstructed_pusher(client_output, self.on_message);
+        // let on_mix_fetch = self.on_mix_fetch_message.expect("TODO: handle this error");
+
+        Self::start_reconstructed_pusher(client_output, self.on_message); //, on_mix_fetch);
 
         Ok(NymClient {
             self_address,
@@ -205,12 +209,19 @@ impl NymClient {
     async fn _new(
         config: Config,
         on_message: js_sys::Function,
+        // on_mix_fetch_message: js_sys::Function,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Result<NymClient, WasmClientError> {
-        NymClientBuilder::new(config, on_message, preferred_gateway, storage_passphrase)
-            .start_client_async()
-            .await
+        NymClientBuilder::new(
+            config,
+            on_message,
+            // on_mix_fetch_message,
+            preferred_gateway,
+            storage_passphrase,
+        )
+        .start_client_async()
+        .await
     }
 
     #[wasm_bindgen(constructor)]
@@ -345,9 +356,9 @@ impl NymClient {
     }
 
     pub fn fetch_with_request(&self, input: &Request) -> Promise {
-        let recipient = match Self::parse_recipient(&self.mix_fetch_network_requester_address) {
+        let recipient = match parse_recipient(&self.mix_fetch_network_requester_address) {
             Ok(recipient) => recipient,
-            Err(err) => return Promise::reject(&err),
+            Err(err) => return err.into_rejected_promise(),
         };
         match WebSysRequestAdapter::new_from_request(input) {
             Ok(req) => self.client_input.send_mix_fetch_message(
@@ -362,9 +373,9 @@ impl NymClient {
     }
 
     pub fn fetch_with_str(&self, input: &str) -> Promise {
-        let recipient = match Self::parse_recipient(&self.mix_fetch_network_requester_address) {
+        let recipient = match parse_recipient(&self.mix_fetch_network_requester_address) {
             Ok(recipient) => recipient,
-            Err(err) => return Promise::reject(&err),
+            Err(err) => return err.into_rejected_promise(),
         };
         match WebSysRequestAdapter::new_from_string(input) {
             Ok(req) => self.client_input.send_mix_fetch_message(
@@ -383,9 +394,9 @@ impl NymClient {
         input: &Request,
         init: &RequestInitWithTypescriptType,
     ) -> Promise {
-        let recipient = match Self::parse_recipient(&self.mix_fetch_network_requester_address) {
+        let recipient = match parse_recipient(&self.mix_fetch_network_requester_address) {
             Ok(recipient) => recipient,
-            Err(err) => return Promise::reject(&err),
+            Err(err) => return err.into_rejected_promise(),
         };
         match WebSysRequestAdapter::new_from_init_or_input(None, Some(input), init) {
             Ok(req) => self.client_input.send_mix_fetch_message(
@@ -404,9 +415,9 @@ impl NymClient {
         input: String,
         init: &RequestInitWithTypescriptType,
     ) -> Promise {
-        let recipient = match Self::parse_recipient(&self.mix_fetch_network_requester_address) {
+        let recipient = match parse_recipient(&self.mix_fetch_network_requester_address) {
             Ok(recipient) => recipient,
-            Err(err) => return Promise::reject(&err),
+            Err(err) => return err.into_rejected_promise(),
         };
         match WebSysRequestAdapter::new_from_init_or_input(Some(input), None, init) {
             Ok(req) => self.client_input.send_mix_fetch_message(

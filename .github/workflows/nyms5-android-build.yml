@@ -69,19 +69,24 @@ jobs:
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
         # build for arm64 and x86_64
-        run: ./gradlew :app:assembleArch64Release
+        run: |
+          ./gradlew :app:assembleArch64Debug
+          ./gradlew :app:assembleArch64Release
 
       - name: Prepare APKs
         run: |
           mkdir apk
+          mv nym-connect/native/android/app/build/outputs/apk/arch64/debug/app-arch64-debug.apk \
+            apk/nyms5-arch64-debug.apk
           mv nym-connect/native/android/app/build/outputs/apk/arch64/release/app-arch64-release-unsigned.apk \
             apk/nyms5-arch64-release.apk
 
       - name: Upload APKs
         uses: actions/upload-artifact@v3
         with:
-          name: nyms5-apk-arch64-release
+          name: nyms5-apk-arch64
           path: |
+            apk/nyms5-arch64-debug.apk
             apk/nyms5-arch64-release.apk
 
   gh-release:
@@ -94,10 +99,12 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v3
         with:
-          name: nyms5-apk-arch64-release
+          name: nyms5-apk-arch64
           path: apk
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: apk/nyms5-arch64-release.apk
+          files: |
+            apk/nyms5-arch64-debug.apk
+            apk/nyms5-arch64-release.apk
 

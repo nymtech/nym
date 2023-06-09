@@ -3,6 +3,9 @@ use nym_sdk::mixnet::{self};
 use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, Request, Response, ResponseContent,
 };
+use nym_socks5_requests::{
+    QueryRequest, Socks5ProtocolVersion, Socks5Request, Socks5Response, Socks5ResponseContent,
+};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -33,6 +36,24 @@ async fn wait_for_control_response(client: &mut mixnet::MixnetClient) -> Control
         let next = client.wait_for_messages().await.unwrap();
         if !next.is_empty() {
             return parse_control_response(next);
+        }
+    }
+}
+
+fn parse_socks5_response(received: Vec<mixnet::ReconstructedMessage>) -> Socks5Response {
+    assert_eq!(received.len(), 1);
+    let response: Response<Socks5Request> = Response::try_from_bytes(&received[0].message).unwrap();
+    match response.content {
+        ResponseContent::Control(control) => panic!("unexpected control response: {:?}", control),
+        ResponseContent::ProviderData(data) => data,
+    }
+}
+
+async fn wait_for_socks5_response(client: &mut mixnet::MixnetClient) -> Socks5Response {
+    loop {
+        let next = client.wait_for_messages().await.unwrap();
+        if !next.is_empty() {
+            return parse_socks5_response(next);
         }
     }
 }
@@ -96,6 +117,30 @@ async fn main() -> anyhow::Result<()> {
         .await;
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'SupportedRequestVersions' request: {response:#?}");
+
+    //
+    // OpenProxy
+    //
+
+    let request_open_proxy = Socks5Request::new_query(
+        Socks5ProtocolVersion::new_current(),
+        QueryRequest::OpenProxy,
+    );
+    let open_proxy_request =
+        Request::new_provider_data(ProviderInterfaceVersion::new_current(), request_open_proxy);
+    client
+        .send_bytes(
+            provider,
+            open_proxy_request.into_bytes(),
+            mixnet::IncludedSurbs::new(10), //crashes??
+        )
+        .await;
+    let response = wait_for_socks5_response(&mut client).await;
+    let open_proxy = match response.content {
+        Socks5ResponseContent::Query(query) => query,
+        _ => panic!("received wrong response type!"),
+    };
+    println!("response to 'OpenProxy' request: {open_proxy:#?}");
 
     Ok(())
 }

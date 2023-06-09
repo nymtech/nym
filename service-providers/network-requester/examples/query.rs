@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
         .send_bytes(
             provider,
             open_proxy_request.into_bytes(),
-            IncludedSurbs::new(10), //crashes??
+            IncludedSurbs::new(10),
         )
         .await;
     let response = wait_for_response(&mut client).await;
@@ -67,5 +67,6 @@ async fn main() -> anyhow::Result<()> {
     let response = wait_for_response(&mut client).await;
     println!("response to 'Description' query: {response:#?}");
 
+    client.disconnect().await;
     Ok(())
 }

@@ -82,5 +82,6 @@ async fn main() -> anyhow::Result<()> {
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'SupportedRequestVersions' request: {response:#?}");
 
+    client.disconnect().await;
     Ok(())
 }

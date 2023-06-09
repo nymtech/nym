@@ -97,7 +97,7 @@ impl InputSender for Arc<ClientInput> {
             ) {
                 Ok(request) => {
                     let lane = TransmissionLane::General;
-                    let message = InputMessage::new_regular(recipient, request, lane);
+                    let message = InputMessage::new_regular(recipient, request, lane, None);
                     match this.input_sender.send(message).await {
                         Ok(_) => Ok(JsValue::null()),
                         Err(_) => {

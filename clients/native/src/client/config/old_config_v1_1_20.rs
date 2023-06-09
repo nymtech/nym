@@ -1,13 +1,16 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::persistence::ClientPaths;
-use crate::client::config::{Config, Socket, SocketType};
+use crate::client::config::old_config_v1_1_20_2::{
+    ClientPathsV1_1_20_2, ConfigV1_1_20_2, SocketTypeV1_1_20_2, SocketV1_1_20_2,
+};
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
-use nym_client_core::config::disk_persistence::CommonClientPaths;
+use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_20::ConfigV1_1_20 as BaseConfigV1_1_20;
-use nym_client_core::config::{Client, Config as BaseConfig};
+use nym_client_core::config::old_config_v1_1_20_2::{
+    ClientV1_1_20_2, ConfigV1_1_20_2 as BaseConfigV1_1_20_2,
+};
 use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 use serde::{Deserialize, Serialize};
@@ -22,11 +25,11 @@ pub enum SocketTypeV1_1_20 {
     None,
 }
 
-impl From<SocketTypeV1_1_20> for SocketType {
+impl From<SocketTypeV1_1_20> for SocketTypeV1_1_20_2 {
     fn from(value: SocketTypeV1_1_20) -> Self {
         match value {
-            SocketTypeV1_1_20::WebSocket => SocketType::WebSocket,
-            SocketTypeV1_1_20::None => SocketType::None,
+            SocketTypeV1_1_20::WebSocket => SocketTypeV1_1_20_2::WebSocket,
+            SocketTypeV1_1_20::None => SocketTypeV1_1_20_2::None,
         }
     }
 }
@@ -40,11 +43,11 @@ pub struct ConfigV1_1_20 {
     pub socket: SocketV1_1_20,
 }
 
-impl From<ConfigV1_1_20> for Config {
+impl From<ConfigV1_1_20> for ConfigV1_1_20_2 {
     fn from(value: ConfigV1_1_20) -> Self {
-        Config {
-            base: BaseConfig {
-                client: Client {
+        ConfigV1_1_20_2 {
+            base: BaseConfigV1_1_20_2 {
+                client: ClientV1_1_20_2 {
                     version: value.base.client.version,
                     id: value.base.client.id,
                     disabled_credentials_mode: value.base.client.disabled_credentials_mode,
@@ -55,8 +58,8 @@ impl From<ConfigV1_1_20> for Config {
                 debug: value.base.debug.into(),
             },
             socket: value.socket.into(),
-            storage_paths: ClientPaths {
-                common_paths: CommonClientPaths {
+            storage_paths: ClientPathsV1_1_20_2 {
+                common_paths: CommonClientPathsV1_1_20_2 {
                     keys: ClientKeysPaths {
                         private_identity_key_file: value.base.client.private_identity_key_file,
                         public_identity_key_file: value.base.client.public_identity_key_file,
@@ -91,9 +94,9 @@ pub struct SocketV1_1_20 {
     listening_port: u16,
 }
 
-impl From<SocketV1_1_20> for Socket {
+impl From<SocketV1_1_20> for SocketV1_1_20_2 {
     fn from(value: SocketV1_1_20) -> Self {
-        Socket {
+        SocketV1_1_20_2 {
             socket_type: value.socket_type.into(),
             host: value.host,
             listening_port: value.listening_port,

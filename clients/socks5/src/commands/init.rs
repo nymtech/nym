@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::try_load_current_config;
+use crate::commands::try_upgrade_config;
 use crate::config::{
     default_config_directory, default_config_filepath, default_data_directory, Config,
 };
@@ -11,7 +11,10 @@ use crate::{
 };
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
+use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
+use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::init::GatewaySetup;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
@@ -107,9 +110,13 @@ pub struct InitResults {
 }
 
 impl InitResults {
-    fn new(config: &Config, address: &Recipient) -> Self {
+    fn new(config: &Config, address: &Recipient, gateway: &GatewayEndpointConfig) -> Self {
         Self {
-            client_core: nym_client_core::init::InitResults::new(&config.core.base, address),
+            client_core: nym_client_core::init::InitResults::new(
+                &config.core.base,
+                address,
+                gateway,
+            ),
             socks5_listening_port: config.core.socks5.listening_port,
             client_address: address.to_string(),
         }
@@ -135,13 +142,15 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     let id = &args.id;
     let provider_address = &args.provider;
 
-    let old_config = if default_config_filepath(id).exists() {
+    let already_init = if default_config_filepath(id).exists() {
+        // in case we're using old config, try to upgrade it
+        // (if we're using the current version, it's a no-op)
+        try_upgrade_config(id)?;
         eprintln!("SOCKS5 client \"{id}\" was already initialised before");
-        // if the file exist, try to load it (with checking for errors)
-        Some(try_load_current_config(&args.id)?)
+        true
     } else {
-        init_paths(&args.id)?;
-        None
+        init_paths(id)?;
+        false
     };
 
     // Usually you only register with the gateway on the first init, however you can force
@@ -154,13 +163,17 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
     // Unless the user really wants to.
-    let register_gateway = old_config.is_none() || user_wants_force_register;
+    let register_gateway = !already_init || user_wants_force_register;
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = args.gateway;
+    let gateway_setup = GatewaySetup::new_fresh(
+        user_chosen_gateway_id.map(|id| id.to_base58_string()),
+        Some(args.latency_based_selection),
+    );
 
     // Load and potentially override config
-    let mut config = override_config(
+    let config = override_config(
         Config::new(id, &provider_address.to_string()),
         OverrideConfig::from(args.clone()),
     );
@@ -168,18 +181,17 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
     let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
-    let gateway = nym_client_core::init::setup_gateway_from_config::<_>(
+    let details_store =
+        OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
+    let init_details = nym_client_core::init::setup_gateway(
+        &gateway_setup,
         &key_store,
+        &details_store,
         register_gateway,
-        user_chosen_gateway_id,
-        &config.core.base,
-        old_config.map(|cfg| cfg.core.base.client.gateway_endpoint),
-        args.latency_based_selection,
+        Some(&config.core.base.client.nym_api_urls),
     )
     .await
     .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
-
-    config.core.base.set_gateway_endpoint(gateway);
 
     // TODO: ask the service provider we specified for its interface version and set it in the config
 
@@ -192,11 +204,9 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
         config_save_location.display()
     );
 
-    let address = nym_client_core::init::get_client_address_from_stored_ondisk_keys(
-        &config.storage_paths.common_paths.keys,
-        &config.core.base.client.gateway_endpoint,
-    )?;
-    let init_results = InitResults::new(&config, &address);
+    let address = init_details.client_address()?;
+
+    let init_results = InitResults::new(&config, &address, &init_details.gateway_details);
     println!("{}", args.output.format(&init_results));
 
     Ok(())

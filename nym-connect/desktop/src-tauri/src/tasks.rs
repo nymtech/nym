@@ -1,5 +1,6 @@
 use futures::{channel::mpsc, StreamExt};
-use nym_client_core::client::base_client::storage::OnDiskPersistent;
+use nym_client_core::client::base_client::storage::gateway_details::GatewayDetailsStore;
+use nym_client_core::client::base_client::storage::{MixnetClientStorage, OnDiskPersistent};
 use nym_client_core::{config::GatewayEndpointConfig, error::ClientCoreStatusMessage};
 use nym_socks5_client_core::NymClient as Socks5NymClient;
 use nym_socks5_client_core::Socks5ControlMessageSender;
@@ -29,7 +30,7 @@ pub enum Socks5ExitStatusMessage {
 }
 
 /// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
-pub fn start_nym_socks5_client(
+pub async fn start_nym_socks5_client(
     id: &str,
 ) -> Result<(
     Socks5ControlMessageSender,
@@ -40,7 +41,17 @@ pub fn start_nym_socks5_client(
     log::info!("Loading config from file: {id}");
     let config = Config::read_from_default_path(id)
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
-    let used_gateway = config.core.base.client.gateway_endpoint.clone();
+
+    let storage =
+        OnDiskPersistent::from_paths(config.storage_paths.common_paths, &config.core.base.debug)
+            .await?;
+
+    let used_gateway = storage
+        .gateway_details_store()
+        .load_gateway_details()
+        .await
+        .expect("failed to load gateway details")
+        .into();
 
     log::info!("Starting socks5 client");
 
@@ -61,11 +72,6 @@ pub fn start_nym_socks5_client(
         let result = tokio::runtime::Runtime::new()
             .expect("Failed to create runtime for SOCKS5 client")
             .block_on(async move {
-                let storage = OnDiskPersistent::from_paths(
-                    config.storage_paths.common_paths,
-                    &config.core.base.debug,
-                )
-                .await?;
                 let socks5_client = Socks5NymClient::new(config.core, storage);
 
                 socks5_client

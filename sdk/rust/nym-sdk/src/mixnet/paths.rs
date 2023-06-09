@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::{Error, Result};
+use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
 use nym_client_core::client::base_client::{non_wasm_helpers, storage};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::replies::reply_storage::fs_backend;
@@ -38,6 +39,9 @@ pub struct StoragePaths {
 
     /// The database storing reply surbs in-between sessions
     pub reply_surb_database_path: PathBuf,
+
+    /// Details of the used gateway
+    pub gateway_details_path: PathBuf,
 }
 
 impl StoragePaths {
@@ -61,6 +65,7 @@ impl StoragePaths {
             gateway_shared_key: dir.join("gateway_shared.pem"),
             credential_database_path: dir.join("db.sqlite"),
             reply_surb_database_path: dir.join("persistent_reply_store.sqlite"),
+            gateway_details_path: dir.join("gateway_details.json"),
         })
     }
 
@@ -72,6 +77,7 @@ impl StoragePaths {
             self.on_disk_key_storage_spec(),
             self.default_persistent_fs_reply_backend().await?,
             self.persistent_credential_storage().await?,
+            self.on_disk_gateway_details_storage(),
         ))
     }
 
@@ -85,6 +91,7 @@ impl StoragePaths {
             self.persistent_fs_reply_backend(&config.reply_surbs)
                 .await?,
             self.persistent_credential_storage().await?,
+            self.on_disk_gateway_details_storage(),
         ))
     }
 
@@ -121,6 +128,10 @@ impl StoragePaths {
         OnDiskKeys::new(self.client_keys_paths())
     }
 
+    pub fn on_disk_gateway_details_storage(&self) -> OnDiskGatewayDetails {
+        OnDiskGatewayDetails::new(&self.gateway_details_path)
+    }
+
     fn client_keys_paths(&self) -> ClientKeysPaths {
         ClientKeysPaths {
             private_identity_key_file: self.private_identity.clone(),
@@ -144,6 +155,7 @@ impl From<StoragePaths> for CommonClientPaths {
                 gateway_shared_key_file: value.gateway_shared_key,
                 ack_key_file: value.ack_key,
             },
+            gateway_details: value.gateway_details_path,
             credentials_database: value.credential_database_path,
             reply_surb_database: value.reply_surb_database_path,
         }
@@ -161,6 +173,7 @@ impl From<CommonClientPaths> for StoragePaths {
             gateway_shared_key: value.keys.gateway_shared_key_file,
             credential_database_path: value.credentials_database,
             reply_surb_database_path: value.reply_surb_database,
+            gateway_details_path: value.gateway_details,
         }
     }
 }

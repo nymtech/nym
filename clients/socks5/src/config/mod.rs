@@ -19,6 +19,7 @@ pub use nym_socks5_client_core::config::Config as CoreConfig;
 
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;
+pub mod old_config_v1_1_20_2;
 mod persistence;
 mod template;
 

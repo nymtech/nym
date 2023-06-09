@@ -9,15 +9,12 @@ use log::*;
 use nym_client_core::client::base_client::non_wasm_helpers::default_query_dkg_client_from_config;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_client_core::client::base_client::{
-    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
+    BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use nym_client_core::client::inbound_messages::InputMessage;
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
-use nym_client_core::client::replies::reply_storage::fs_backend;
-use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
@@ -94,32 +91,12 @@ impl SocketClient {
         res
     }
 
-    fn initialise_key_store(&self) -> OnDiskKeys {
-        OnDiskKeys::new(self.config.storage_paths.common_paths.keys.clone())
-    }
-
-    async fn initialise_credential_store(&self) -> PersistentCredentialStorage {
-        nym_credential_storage::initialise_persistent_storage(
-            &self.config.storage_paths.common_paths.credentials_database,
-        )
-        .await
-    }
-
-    async fn initialise_reply_surb_store(&self) -> Result<fs_backend::Backend, ClientError> {
-        non_wasm_helpers::setup_fs_reply_surb_backend(
-            &self.config.storage_paths.common_paths.reply_surb_database,
-            &self.config.base.debug.reply_surbs,
-        )
-        .await
-        .map_err(Into::into)
-    }
-
     async fn initialise_storage(&self) -> Result<OnDiskPersistent, ClientError> {
-        Ok(OnDiskPersistent::new(
-            self.initialise_key_store(),
-            self.initialise_reply_surb_store().await?,
-            self.initialise_credential_store().await,
-        ))
+        Ok(OnDiskPersistent::from_paths(
+            self.config.storage_paths.common_paths.clone(),
+            &self.config.base.debug,
+        )
+        .await?)
     }
 
     // TODO: see if this could also be shared with socks5 client / nym-sdk maybe

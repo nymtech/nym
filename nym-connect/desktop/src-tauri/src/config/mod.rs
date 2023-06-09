@@ -4,7 +4,10 @@
 use crate::config::persistence::NymConnectPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::{BackendError, Result};
+use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
+use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::init::GatewaySetup;
 use nym_config_common::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
@@ -127,13 +130,15 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 
     // Append the gateway id to the name id that we store the config under
     let id = socks5_config_id_appended_with(&chosen_gateway_id);
+    let _validated = identity::PublicKey::from_base58_string(&chosen_gateway_id)
+        .map_err(|_| BackendError::UnableToParseGateway)?;
 
-    let old_config = if default_config_filepath(&id).exists() {
+    let already_init = if default_config_filepath(&id).exists() {
         eprintln!("SOCKS5 client \"{id}\" was already initialised before");
-        Some(Config::read_from_default_path(&id)?)
+        true
     } else {
         init_paths(&id)?;
-        None
+        false
     };
 
     // Future proofing. This flag exists for the other clients
@@ -142,7 +147,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
     // Unless the user really wants to.
-    let register_gateway = old_config.is_none() || user_wants_force_register;
+    let register_gateway = !already_init || user_wants_force_register;
 
     log::trace!("Creating config for id: {id}");
     let mut config = Config::new(&id, &provider_address);
@@ -151,49 +156,40 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         config.core.base.client.nym_api_urls = nym_config_common::parse_urls(&raw_validators);
     }
 
-    let chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)
-        .map_err(|_| BackendError::UnableToParseGateway)?;
+    let gateway_setup = GatewaySetup::new_fresh(Some(chosen_gateway_id), None);
 
     // Setup gateway by either registering a new one, or reusing exiting keys
     let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
-    let gateway = nym_client_core::init::setup_gateway_from_config::<_>(
+    let details_store =
+        OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
+    let init_details = nym_client_core::init::setup_gateway(
+        &gateway_setup,
         &key_store,
+        &details_store,
         register_gateway,
-        Some(chosen_gateway_id),
-        &config.core.base,
-        old_config.map(|cfg| cfg.core.base.client.gateway_endpoint),
-        // TODO: another instance where this setting should probably get used
-        false,
+        Some(&config.core.base.client.nym_api_urls),
     )
     .await?;
-
-    config.core.base.set_gateway_endpoint(gateway);
 
     config.save_to_default_location().tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;
 
-    print_saved_config(&config);
+    print_saved_config(&config, &init_details.gateway_details);
 
-    let address = nym_client_core::init::get_client_address_from_stored_ondisk_keys(
-        &config.storage_paths.common_paths.keys,
-        &config.core.base.client.gateway_endpoint,
-    )?;
-    log::info!("The address of this client is: {}", address);
+    let address = init_details.client_address()?;
+    log::info!("The address of this client is: {address}");
     Ok(())
 }
 
-fn print_saved_config(config: &Config) {
+fn print_saved_config(config: &Config, gateway_details: &GatewayEndpointConfig) {
     log::info!(
         "Saved configuration file to {}",
         config.default_location().display()
     );
-    log::info!("Gateway id: {}", config.core.base.get_gateway_id());
-    log::info!("Gateway owner: {}", config.core.base.get_gateway_owner());
-    log::info!(
-        "Gateway listener: {}",
-        config.core.base.get_gateway_listener()
-    );
+    log::info!("Gateway id: {}", gateway_details.gateway_id);
+    log::info!("Gateway owner: {}", gateway_details.gateway_owner);
+    log::info!("Gateway listener: {}", gateway_details.gateway_listener);
     log::info!(
         "Service provider address: {}",
         config.core.socks5.provider_mix_address

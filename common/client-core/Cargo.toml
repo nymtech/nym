@@ -9,6 +9,7 @@ rust-version = "1.66"
 
 [dependencies]
 async-trait = { workspace = true }
+base64 = "0.21.2"
 dirs = "4.0"
 dashmap = "5.4.0"
 futures = "0.3"
@@ -17,6 +18,7 @@ log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+sha2 = "0.10.6"
 tap = "1.0.1"
 thiserror = "1.0.34"
 url = { version ="2.2", features = ["serde"] }

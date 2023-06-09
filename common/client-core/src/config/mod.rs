@@ -15,6 +15,7 @@ use wasm_bindgen::prelude::*;
 pub mod disk_persistence;
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;
+pub mod old_config_v1_1_20_2;
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
@@ -77,7 +78,7 @@ impl Config {
     }
 
     pub fn validate(&self) -> bool {
-        self.client.validate() && self.debug.validate()
+        self.debug.validate()
     }
 
     pub fn with_debug_config(mut self, debug: DebugConfig) -> Self {
@@ -88,19 +89,6 @@ impl Config {
     pub fn with_disabled_credentials(mut self, disabled_credentials_mode: bool) -> Self {
         self.client.disabled_credentials_mode = disabled_credentials_mode;
         self
-    }
-
-    pub fn set_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpointConfig) {
-        self.client.gateway_endpoint = gateway_endpoint;
-    }
-
-    pub fn with_gateway_endpoint(mut self, gateway_endpoint: GatewayEndpointConfig) -> Self {
-        self.client.gateway_endpoint = gateway_endpoint;
-        self
-    }
-
-    pub fn with_gateway_id<S: Into<String>>(&mut self, id: S) {
-        self.client.gateway_endpoint.gateway_id = id.into();
     }
 
     pub fn with_custom_nyxd(mut self, urls: Vec<Url>) -> Self {
@@ -178,22 +166,6 @@ impl Config {
     pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
         self.client.nym_api_urls.clone()
     }
-
-    pub fn get_gateway_id(&self) -> String {
-        self.client.gateway_endpoint.gateway_id.clone()
-    }
-
-    pub fn get_gateway_owner(&self) -> String {
-        self.client.gateway_endpoint.gateway_owner.clone()
-    }
-
-    pub fn get_gateway_listener(&self) -> String {
-        self.client.gateway_endpoint.gateway_listener.clone()
-    }
-
-    pub fn get_gateway_endpoint_config(&self) -> &GatewayEndpointConfig {
-        &self.client.gateway_endpoint
-    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
@@ -246,6 +218,8 @@ impl From<nym_topology::gateway::Node> for GatewayEndpointConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+// note: the deny_unknown_fields is VITAL here to allow upgrades from v1.1.20_2
+#[serde(deny_unknown_fields)]
 pub struct Client {
     /// Version of the client for which this configuration was created.
     pub version: String,
@@ -266,11 +240,6 @@ pub struct Client {
     /// Addresses to APIs running on validator from which the client gets the view of the network.
     #[serde(alias = "validator_api_urls")]
     pub nym_api_urls: Vec<Url>,
-
-    /// Information regarding how the client should send data to gateway.
-    // #[deprecated(note = "this shall be moved to separate file because it doesn't belong here...")]
-    // TODO: this should be removed from config files and be moved to separate file instead
-    pub gateway_endpoint: GatewayEndpointConfig,
 }
 
 impl Client {
@@ -293,7 +262,6 @@ impl Client {
             disabled_credentials_mode: true,
             nyxd_urls,
             nym_api_urls,
-            gateway_endpoint: Default::default(),
         }
     }
 
@@ -302,7 +270,6 @@ impl Client {
         disabled_credentials_mode: bool,
         nyxd_urls: Vec<Url>,
         nym_api_urls: Vec<Url>,
-        gateway_endpoint: GatewayEndpointConfig,
     ) -> Self {
         Client {
             version: env!("CARGO_PKG_VERSION").to_string(),
@@ -310,14 +277,7 @@ impl Client {
             disabled_credentials_mode,
             nyxd_urls,
             nym_api_urls,
-            gateway_endpoint,
         }
-    }
-
-    pub fn validate(&self) -> bool {
-        !self.gateway_endpoint.gateway_id.is_empty()
-            && !self.gateway_endpoint.gateway_owner.is_empty()
-            && !self.gateway_endpoint.gateway_owner.is_empty()
     }
 }
 

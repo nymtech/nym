@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::str::FromStr;
 
+pub mod old_config_v1_1_20_2;
+
 pub use nym_service_providers_common::interface::ProviderInterfaceVersion;
 pub use nym_socks5_requests::Socks5ProtocolVersion;
 

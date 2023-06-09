@@ -21,6 +21,7 @@ pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
 
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;
+pub mod old_config_v1_1_20_2;
 mod persistence;
 mod template;
 
@@ -50,19 +51,6 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
         .join(DEFAULT_CLIENTS_DIR)
         .join(id)
         .join(DEFAULT_DATA_DIR)
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone, Copy)]
-#[serde(deny_unknown_fields)]
-pub enum SocketType {
-    WebSocket,
-    None,
-}
-
-impl SocketType {
-    pub fn is_websocket(&self) -> bool {
-        matches!(self, SocketType::WebSocket)
-    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -186,6 +174,19 @@ impl Config {
 }
 
 // define_optional_set_inner!(Config, base, BaseClientConfig);
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone, Copy)]
+#[serde(deny_unknown_fields)]
+pub enum SocketType {
+    WebSocket,
+    None,
+}
+
+impl SocketType {
+    pub fn is_websocket(&self) -> bool {
+        matches!(self, SocketType::WebSocket)
+    }
+}
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default, deny_unknown_fields)]

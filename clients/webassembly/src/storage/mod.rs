@@ -1,9 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::config::Config;
 use crate::storage::errors::ClientStorageError;
 use js_sys::Promise;
-use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::client::base_client::storage::gateway_details::PersistedGatewayDetails;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::SharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
@@ -27,8 +28,8 @@ mod v1 {
     pub const CORE_STORE: &str = "core";
 
     // keys
-    // TODO: to replace with FULL config
-    pub const GATEWAY_CONFIG: &str = "gateway_config";
+    pub const CONFIG: &str = "config";
+    pub const GATEWAY_DETAILS: &str = "gateway_details";
 
     pub const ED25519_IDENTITY_KEYPAIR: &str = "ed25519_identity_keypair";
     pub const X25519_ENCRYPTION_KEYPAIR: &str = "x25519_encryption_keypair";
@@ -110,13 +111,30 @@ impl ClientStorage {
         })
     }
 
-    pub(crate) async fn read_gateway_config(
-        &self,
-    ) -> Result<Option<GatewayEndpointConfig>, ClientStorageError> {
+    // TODO: persist client's config
+    #[allow(dead_code)]
+    pub(crate) async fn read_config(&self) -> Result<Option<Config>, ClientStorageError> {
         self.inner
-            .read_value(v1::CORE_STORE, JsValue::from_str(v1::GATEWAY_CONFIG))
+            .read_value(v1::CORE_STORE, JsValue::from_str(v1::CONFIG))
             .await
             .map_err(Into::into)
+    }
+
+    pub(crate) async fn may_read_gateway_details(
+        &self,
+    ) -> Result<Option<PersistedGatewayDetails>, ClientStorageError> {
+        self.inner
+            .read_value(v1::CORE_STORE, JsValue::from_str(v1::GATEWAY_DETAILS))
+            .await
+            .map_err(Into::into)
+    }
+
+    pub(crate) async fn must_read_gateway_details(
+        &self,
+    ) -> Result<PersistedGatewayDetails, ClientStorageError> {
+        self.may_read_gateway_details()
+            .await?
+            .ok_or(ClientStorageError::GatewayDetailsNotInStorage)
     }
 
     async fn may_read_identity_keypair(
@@ -244,17 +262,33 @@ impl ClientStorage {
             .map_err(Into::into)
     }
 
-    pub(crate) async fn store_gateway_config(
+    pub(crate) async fn store_gateway_details(
         &self,
-        gateway_endpoint: &GatewayEndpointConfig,
+        gateway_endpoint: &PersistedGatewayDetails,
     ) -> Result<(), ClientStorageError> {
         self.inner
             .store_value(
                 v1::CORE_STORE,
-                JsValue::from_str(v1::GATEWAY_CONFIG),
+                JsValue::from_str(v1::GATEWAY_DETAILS),
                 gateway_endpoint,
             )
             .await
             .map_err(Into::into)
+    }
+
+    // TODO: persist client's config
+    #[allow(dead_code)]
+    pub(crate) async fn store_config(&self, config: &Config) -> Result<(), ClientStorageError> {
+        self.inner
+            .store_value(v1::CORE_STORE, JsValue::from_str(v1::CONFIG), config)
+            .await
+            .map_err(Into::into)
+    }
+
+    pub(crate) async fn has_full_gateway_info(&self) -> Result<bool, ClientStorageError> {
+        let has_keys = self.may_read_gateway_shared_key().await?.is_some();
+        let has_details = self.may_read_gateway_details().await?.is_some();
+
+        Ok(has_keys && has_details)
     }
 }

@@ -3,6 +3,7 @@
 
 use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
 use crate::config::old_config_v1_1_20::ConfigV1_1_20;
+use crate::config::old_config_v1_1_20_2::ConfigV1_1_20_2;
 use crate::{
     config::{BaseClientConfig, Config},
     error::NetworkRequesterError,
@@ -12,6 +13,12 @@ use log::{error, info};
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
+use nym_client_core::client::base_client::storage::gateway_details::{
+    OnDiskGatewayDetails, PersistedGatewayDetails,
+};
+use nym_client_core::client::key_manager::persistence::OnDiskKeys;
+use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::error::ClientCoreError;
 
 mod init;
 mod run;
@@ -105,6 +112,28 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
     Ok(())
 }
 
+fn persist_gateway_details(
+    config: &Config,
+    details: GatewayEndpointConfig,
+) -> Result<(), NetworkRequesterError> {
+    let details_store =
+        OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
+    let keys_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
+    let shared_keys = keys_store.ephemeral_load_gateway_keys().map_err(|source| {
+        NetworkRequesterError::ClientCoreError(ClientCoreError::KeyStoreError {
+            source: Box::new(source),
+        })
+    })?;
+    let persisted_details = PersistedGatewayDetails::new(details, &shared_keys);
+    details_store
+        .store_to_disk(&persisted_details)
+        .map_err(|source| {
+            NetworkRequesterError::ClientCoreError(ClientCoreError::GatewayDetailsStoreError {
+                source: Box::new(source),
+            })
+        })
+}
+
 fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, NetworkRequesterError> {
     use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 
@@ -118,7 +147,9 @@ fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, NetworkRequesterError> {
     info!("It is going to get updated to the current specification.");
 
     let updated_step1: ConfigV1_1_20 = old_config.into();
-    let updated: Config = updated_step1.into();
+    let updated_step2: ConfigV1_1_20_2 = updated_step1.into();
+    let (updated, gateway_config) = updated_step2.upgrade();
+    persist_gateway_details(&updated, gateway_config)?;
 
     updated.save_to_default_location()?;
     Ok(true)
@@ -137,21 +168,56 @@ fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, NetworkRequesterError> {
     info!("It seems the client is using <= v1.1.20 config template.");
     info!("It is going to get updated to the current specification.");
 
-    let updated: Config = old_config.into();
+    let updated_step1: ConfigV1_1_20_2 = old_config.into();
+    let (updated, gateway_config) = updated_step1.upgrade();
+    persist_gateway_details(&updated, gateway_config)?;
+
+    updated.save_to_default_location()?;
+    Ok(true)
+}
+
+fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, NetworkRequesterError> {
+    // explicitly load it as v1.1.20_2 (which is incompatible with the current one, i.e. +1.1.21)
+    let Ok(old_config) = ConfigV1_1_20_2::read_from_default_path(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(false);
+    };
+    info!("It seems the client is using <= v1.1.20_2 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let (updated, gateway_config) = old_config.upgrade();
+    persist_gateway_details(&updated, gateway_config)?;
+
     updated.save_to_default_location()?;
     Ok(true)
 }
 
 fn try_upgrade_config(id: &str) -> Result<(), NetworkRequesterError> {
-    let upgraded = try_upgrade_v1_1_13_config(id)?;
-    if !upgraded {
-        try_upgrade_v1_1_20_config(id)?;
+    if try_upgrade_v1_1_13_config(id)? {
+        return Ok(());
+    }
+    if try_upgrade_v1_1_20_config(id)? {
+        return Ok(());
+    }
+    if try_upgrade_v1_1_20_2_config(id)? {
+        return Ok(());
     }
 
     Ok(())
 }
 
 fn try_load_current_config(id: &str) -> Result<Config, NetworkRequesterError> {
+    // try to load the config as is
+    if let Ok(cfg) = Config::read_from_default_path(id) {
+        return if !cfg.validate() {
+            Err(NetworkRequesterError::ConfigValidationFailure)
+        } else {
+            Ok(cfg)
+        };
+    }
+
+    // we couldn't load it - try upgrading it from older revisions
     try_upgrade_config(id)?;
 
     let config = match Config::read_from_default_path(id) {

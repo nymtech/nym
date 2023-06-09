@@ -513,8 +513,7 @@ async fn create_mixnet_client(
             .await
             .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?
             .network_details(NymNetworkDetails::new_from_env())
-            .debug_config(debug_config)
-            .registered_gateway(config.get_gateway_endpoint_config().clone());
+            .debug_config(debug_config);
     if !config.get_disabled_credentials_mode() {
         client_builder = client_builder.enable_credentials_mode();
     }

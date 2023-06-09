@@ -231,7 +231,7 @@ impl Socks5RequestContent {
 
     /// Construct a new Request::Send instance
     pub fn new_send(data: SocketData) -> Socks5RequestContent {
-        Socks5RequestContent::Send(SendRequest { data: data })
+        Socks5RequestContent::Send(SendRequest { data })
     }
 
     /// Deserialize the request type, connection id, destination address and port,

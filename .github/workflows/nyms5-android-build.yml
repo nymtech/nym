@@ -14,9 +14,9 @@ jobs:
     name: Build APK
     runs-on: custom-runner-linux
     env:
-      ANDROID_HOME: /opt/android-sdk
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
       NDK_VERSION: 25.2.9519653
-      NDK_HOME: /opt/android-sdk/ndk/25.2.9519653
+      NDK_HOME: ${{ github.workspace }}/android-sdk/ndk/25.2.9519653
       SDK_PLATFORM_VERSION: android-33
       SDK_BUILDTOOLS_VERSION: 33.0.2
 

@@ -86,7 +86,7 @@ pub struct ErrorResponse {
     message: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum ControlResponse {
     Health,
     BinaryInfo(Box<BinaryInformation>),

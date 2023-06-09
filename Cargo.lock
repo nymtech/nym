@@ -4155,10 +4155,12 @@ dependencies = [
  "anyhow",
  "clap 4.2.7",
  "log",
+ "nym-bin-common",
  "nym-network-defaults",
  "nym-sdk",
  "nym-service-providers-common",
  "nym-socks5-requests",
+ "serde",
  "tokio",
 ]
 

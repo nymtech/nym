@@ -1,4 +1,7 @@
+use std::fmt;
+
 use clap::{Parser, Subcommand};
+use nym_bin_common::output_format::OutputFormat;
 use nym_sdk::mixnet::{self, IncludedSurbs};
 use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, Request, Response, ResponseContent,
@@ -6,6 +9,8 @@ use nym_service_providers_common::interface::{
 use nym_socks5_requests::{
     QueryRequest, QueryResponse, Socks5ProtocolVersion, Socks5Request, Socks5Response,
 };
+use serde::Serialize;
+use tokio::time::{timeout, Duration};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -14,10 +19,16 @@ struct Cli {
     config_env_file: Option<std::path::PathBuf>,
 
     #[arg(short, long)]
+    debug: bool,
+
+    #[arg(short, long)]
     provider: mixnet::Recipient,
 
     #[arg(short, long)]
     gateway: Option<mixnet::NodeIdentity>,
+
+    #[arg(short, long, default_value_t = OutputFormat::default())]
+    output: OutputFormat,
 
     #[command(subcommand)]
     command: Commands,
@@ -60,7 +71,11 @@ fn parse_socks5_response(received: Vec<mixnet::ReconstructedMessage>) -> Socks5R
 
 async fn wait_for_control_response(client: &mut mixnet::MixnetClient) -> ControlResponse {
     loop {
-        let next = client.wait_for_messages().await.unwrap();
+        let Ok(next) = timeout(Duration::from_secs(5), client.wait_for_messages()).await else {
+            eprintln!("Timeout waiting for response");
+            std::process::exit(1);
+        };
+        let next = next.unwrap();
         if !next.is_empty() {
             return parse_control_response(next);
         }
@@ -69,7 +84,11 @@ async fn wait_for_control_response(client: &mut mixnet::MixnetClient) -> Control
 
 async fn wait_for_socks5_response(client: &mut mixnet::MixnetClient) -> Socks5Response {
     loop {
-        let next = client.wait_for_messages().await.unwrap();
+        let Ok(next) = timeout(Duration::from_secs(5), client.wait_for_messages()).await else {
+            eprintln!("Timeout waiting for response");
+            std::process::exit(1);
+        };
+        let next = next.unwrap();
         if !next.is_empty() {
             return parse_socks5_response(next);
         }
@@ -131,6 +150,7 @@ impl QueryClient {
                 IncludedSurbs::new(10),
             )
             .await;
+        println!("waiting for response");
         wait_for_control_response(&mut self.client).await
     }
 
@@ -162,10 +182,19 @@ impl QueryClient {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 enum ClientResponse {
     Control(ControlResponse),
     Query(QueryResponse),
+}
+
+impl fmt::Display for ClientResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClientResponse::Control(control) => write!(f, "{:#?}", control),
+            ClientResponse::Query(query) => write!(f, "{:#?}", query),
+        }
+    }
 }
 
 impl From<ControlResponse> for ClientResponse {
@@ -180,22 +209,26 @@ impl From<QueryResponse> for ClientResponse {
     }
 }
 
+fn text_print(input: &str, output: &OutputFormat) {
+    if output.is_text() {
+        println!("{input}");
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // WIP(JON): should we expose this through the sdk?
-    //if logging {
-    //nym_bin_common::logging::setup_logging();
-    //}
-
     let args = Cli::parse();
 
-    // WIP(JON): should we expose this through the sdk?
+    if args.debug {
+        nym_bin_common::logging::setup_logging();
+    }
+
     nym_network_defaults::setup_env(args.config_env_file.as_ref());
 
-    println!("Connecting to mixnet...");
+    text_print("Connecting to mixnet...", &args.output);
     let mut client = QueryClient::new(args.provider, args.gateway).await;
 
-    println!("Sending request...");
+    text_print("Sending request...", &args.output);
     let resp: ClientResponse = match args.command {
         Commands::BinaryInfo => client.query_bin_info().await.into(),
         Commands::SupportedRequestVersions => {
@@ -204,10 +237,21 @@ async fn main() -> anyhow::Result<()> {
         Commands::OpenProxy => client.query_open_proxy().await.into(),
         Commands::All => todo!(),
     };
-    println!("{resp:#?}");
+    println!("{}", args.output.format(&resp));
 
-    println!("Disconnecting...");
+    text_print("Disconnecting...", &args.output);
     client.client.disconnect().await;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        Cli::command().debug_assert();
+    }
 }

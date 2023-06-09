@@ -9,8 +9,10 @@ edition = "2021"
 anyhow = "1.0.68"
 clap = {version = "4.0", features = ["cargo", "derive"]}
 log = { workspace = true }
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-service-providers-common = { path = "../../service-providers/common" }
 nym-socks5-requests = { path = "../../common/socks5/requests" }
+serde = { workspace = true }
 tokio = { workspace = true, features = [ "net", "rt-multi-thread", "macros" ] }

@@ -201,4 +201,18 @@ impl ControlResponse {
             ControlResponse::Error(error_response) => serde_json::to_vec(&error_response).unwrap(),
         }
     }
+
+    pub fn binary_info(&self) -> Option<&BinaryInformation> {
+        match self {
+            ControlResponse::BinaryInfo(info) => Some(info),
+            _ => None,
+        }
+    }
+
+    pub fn supported_request_versions(&self) -> Option<&SupportedVersions> {
+        match self {
+            ControlResponse::SupportedRequestVersions(versions) => Some(versions),
+            _ => None,
+        }
+    }
 }

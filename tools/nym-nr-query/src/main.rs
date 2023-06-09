@@ -21,7 +21,7 @@ struct Cli {
     gateway: Option<mixnet::NodeIdentity>,
 
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
 #[derive(Subcommand)]
@@ -91,34 +91,29 @@ async fn connect_to_mixnet(gateway: Option<mixnet::NodeIdentity>) -> mixnet::Mix
     }
 }
 
-//async fn query(provider: mixnet::Recipient, request: Request) {
-//    //let request_binary_info = ControlRequest::BinaryInfo;
-//    //let full_request_binary_info: Request =
-//        //Request::new_control(ProviderInterfaceVersion::new_current(), request);
-//
-//    // TODO: currently we HAVE TO use surbs unfortunately
-//    println!("Sending 'BinaryInfo' request...");
-//    client
-//        .send_bytes(
-//            provider,
-//            request.into_bytes(),
-//            mixnet::IncludedSurbs::new(10),
-//        )
-//        .await;
-//    let response = wait_for_control_response(&mut client).await;
-//    let binary_info = match response {
-//        ControlResponse::BinaryInfo(binary_info) => binary_info,
-//        _ => panic!("received wrong response type!"),
-//    };
-//    //println!("response to 'BinaryInfo' request: {response:#?}");
-//    println!("{:#?}", *binary_info);
-//}
+fn new_bin_info_request() -> Vec<u8> {
+    let request_binary_info = ControlRequest::BinaryInfo;
+    let request: Request =
+        Request::new_control(ProviderInterfaceVersion::new_current(), request_binary_info);
+    request.into_bytes()
+}
 
-//fn new_bin_info_request() -> Vec<u8> {
-//    let request_binary_info = ControlRequest::BinaryInfo;
-//    Request::<Empty>::new_control(ProviderInterfaceVersion::new_current(), request_binary_info)
-//        .into_bytes()
-//}
+fn new_supported_request_versions_request() -> Vec<u8> {
+    let request_versions = ControlRequest::SupportedRequestVersions;
+    let request: Request =
+        Request::new_control(ProviderInterfaceVersion::new_current(), request_versions);
+    request.into_bytes()
+}
+
+fn new_open_proxy_request() -> Vec<u8> {
+    let request_open_proxy = Socks5Request::new_query(
+        Socks5ProtocolVersion::new_current(),
+        QueryRequest::OpenProxy,
+    );
+    let open_proxy_request =
+        Request::new_provider_data(ProviderInterfaceVersion::new_current(), request_open_proxy);
+    open_proxy_request.into_bytes()
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -135,88 +130,46 @@ async fn main() -> anyhow::Result<()> {
     let provider = args.provider;
     let mut client = connect_to_mixnet(args.gateway).await;
 
-    //match args.command {
-    //    Some(Commands::BinaryInfo) => todo!(),
-    //    Some(Commands::SupportedRequestVersions) => todo!(),
-    //    Some(Commands::OpenProxy) => todo!(),
-    //    Some(Commands::All) => todo!(),
-    //    None => todo!(),
-    //}
+    match args.command {
+        Commands::BinaryInfo => {
+            println!("Sending 'BinaryInfo' request...");
+            client
+                .send_bytes(provider, new_bin_info_request(), IncludedSurbs::new(10))
+                .await;
+            let response = wait_for_control_response(&mut client).await;
+            let binary_info = response.binary_info().expect("Unexpected response type!");
+            println!("{:#?}", *binary_info);
+        }
+        Commands::SupportedRequestVersions => {
+            println!("Sending 'SupportedRequestVersions' request...");
+            client
+                .send_bytes(
+                    provider,
+                    new_supported_request_versions_request(),
+                    IncludedSurbs::new(10),
+                )
+                .await;
+            let response = wait_for_control_response(&mut client).await;
+            let supported_request_versions = response
+                .supported_request_versions()
+                .expect("Unexpected response type!");
+            println!("{supported_request_versions:#?}");
+        }
+        Commands::OpenProxy => {
+            client
+                .send_bytes(provider, new_open_proxy_request(), IncludedSurbs::new(10))
+                .await;
+            let response = wait_for_socks5_response(&mut client).await;
+            let open_proxy = response
+                .content
+                .as_query()
+                .expect("Unexpected response type!");
+            println!("{open_proxy:#?}");
+        }
+        Commands::All => todo!(),
+    }
 
-    //println!("Sending 'BinaryInfo' request...");
-    //client
-    //    .send_bytes(provider, new_bin_info_request(), IncludedSurbs::new(10))
-    //    .await;
-
-    //
-    // BinaryInfo
-    //
-
-    let request_binary_info = ControlRequest::BinaryInfo;
-    let full_request_binary_info: Request =
-        Request::new_control(ProviderInterfaceVersion::new_current(), request_binary_info);
-
-    // TODO: currently we HAVE TO use surbs unfortunately
-    println!("Sending 'BinaryInfo' request...");
-    client
-        .send_bytes(
-            provider,
-            full_request_binary_info.into_bytes(),
-            IncludedSurbs::new(10),
-        )
-        .await;
-    let response = wait_for_control_response(&mut client).await;
-    let binary_info = match response {
-        ControlResponse::BinaryInfo(binary_info) => binary_info,
-        _ => panic!("received wrong response type!"),
-    };
-    //println!("response to 'BinaryInfo' request: {response:#?}");
-    println!("{:#?}", *binary_info);
-
-    //
-    // SupportedRequestVersions
-    //
-
-    let request_versions = ControlRequest::SupportedRequestVersions;
-    let full_request_versions: Request =
-        Request::new_control(ProviderInterfaceVersion::new_current(), request_versions);
-
-    println!("Sending 'SupportedRequestVersions' request...");
-    client
-        .send_bytes(
-            provider,
-            full_request_versions.into_bytes(),
-            IncludedSurbs::new(10),
-        )
-        .await;
-    let response = wait_for_control_response(&mut client).await;
-    println!("response to 'SupportedRequestVersions' request: {response:#?}");
-
-    //
-    // OpenProxy
-    //
-
-    let request_open_proxy = Socks5Request::new_query(
-        Socks5ProtocolVersion::new_current(),
-        QueryRequest::OpenProxy,
-    );
-    let open_proxy_request =
-        Request::new_provider_data(ProviderInterfaceVersion::new_current(), request_open_proxy);
-    client
-        .send_bytes(
-            provider,
-            open_proxy_request.into_bytes(),
-            IncludedSurbs::new(10),
-        )
-        .await;
-    let response = wait_for_socks5_response(&mut client).await;
-    let open_proxy = match response.content {
-        Socks5ResponseContent::Query(query) => query,
-        _ => panic!("received wrong response type!"),
-    };
-    println!("response to 'OpenProxy' request: {open_proxy:#?}");
-
-    println!("disconnecting");
+    //println!("disconnecting");
     client.disconnect().await;
 
     Ok(())

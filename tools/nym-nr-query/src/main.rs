@@ -231,7 +231,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::BinaryInfo => client.query_bin_info().await.into(),
         Commands::SupportedRequestVersions => client.query_supported_versions().await.into(),
         Commands::OpenProxy => client.query_open_proxy().await.into(),
-        Commands::All => todo!(),
     };
     println!("{}", args.output.format(&resp));
 

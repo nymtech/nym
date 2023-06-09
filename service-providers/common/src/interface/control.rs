@@ -69,13 +69,13 @@ impl ControlRequest {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BinaryInformation {
     pub binary_name: String,
     pub build_information: BinaryBuildInformationOwned,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SupportedVersions {
     pub interface_version: String,
     pub provider_version: String,
@@ -199,20 +199,6 @@ impl ControlResponse {
                 serde_json::to_vec(&supported_versions).unwrap()
             }
             ControlResponse::Error(error_response) => serde_json::to_vec(&error_response).unwrap(),
-        }
-    }
-
-    pub fn binary_info(&self) -> Option<&BinaryInformation> {
-        match self {
-            ControlResponse::BinaryInfo(info) => Some(info),
-            _ => None,
-        }
-    }
-
-    pub fn supported_request_versions(&self) -> Option<&SupportedVersions> {
-        match self {
-            ControlResponse::SupportedRequestVersions(versions) => Some(versions),
-            _ => None,
         }
     }
 }

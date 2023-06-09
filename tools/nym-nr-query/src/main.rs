@@ -1,11 +1,10 @@
 use clap::{Parser, Subcommand};
 use nym_sdk::mixnet::{self, IncludedSurbs};
 use nym_service_providers_common::interface::{
-    ControlRequest, ControlResponse, Empty, ProviderInterfaceVersion, Request, Response,
-    ResponseContent,
+    ControlRequest, ControlResponse, ProviderInterfaceVersion, Request, Response, ResponseContent,
 };
 use nym_socks5_requests::{
-    QueryRequest, Socks5ProtocolVersion, Socks5Request, Socks5Response, Socks5ResponseContent,
+    QueryRequest, QueryResponse, Socks5ProtocolVersion, Socks5Request, Socks5Response,
 };
 
 #[derive(Parser)]
@@ -50,21 +49,21 @@ fn parse_control_response(received: Vec<mixnet::ReconstructedMessage>) -> Contro
     }
 }
 
-async fn wait_for_control_response(client: &mut mixnet::MixnetClient) -> ControlResponse {
-    loop {
-        let next = client.wait_for_messages().await.unwrap();
-        if !next.is_empty() {
-            return parse_control_response(next);
-        }
-    }
-}
-
 fn parse_socks5_response(received: Vec<mixnet::ReconstructedMessage>) -> Socks5Response {
     assert_eq!(received.len(), 1);
     let response: Response<Socks5Request> = Response::try_from_bytes(&received[0].message).unwrap();
     match response.content {
         ResponseContent::Control(control) => panic!("unexpected control response: {:?}", control),
         ResponseContent::ProviderData(data) => data,
+    }
+}
+
+async fn wait_for_control_response(client: &mut mixnet::MixnetClient) -> ControlResponse {
+    loop {
+        let next = client.wait_for_messages().await.unwrap();
+        if !next.is_empty() {
+            return parse_control_response(next);
+        }
     }
 }
 
@@ -91,11 +90,9 @@ async fn connect_to_mixnet(gateway: Option<mixnet::NodeIdentity>) -> mixnet::Mix
     }
 }
 
-fn new_bin_info_request() -> Vec<u8> {
+fn new_bin_info_request() -> Request {
     let request_binary_info = ControlRequest::BinaryInfo;
-    let request: Request =
-        Request::new_control(ProviderInterfaceVersion::new_current(), request_binary_info);
-    request.into_bytes()
+    Request::new_control(ProviderInterfaceVersion::new_current(), request_binary_info)
 }
 
 fn new_supported_request_versions_request() -> Vec<u8> {
@@ -115,6 +112,74 @@ fn new_open_proxy_request() -> Vec<u8> {
     open_proxy_request.into_bytes()
 }
 
+struct QueryClient {
+    pub client: mixnet::MixnetClient,
+    pub provider: mixnet::Recipient,
+}
+
+impl QueryClient {
+    async fn new(provider: mixnet::Recipient, gateway: Option<mixnet::NodeIdentity>) -> Self {
+        let client = connect_to_mixnet(gateway).await;
+        Self { client, provider }
+    }
+
+    async fn query_bin_info(&mut self) -> ControlResponse {
+        self.client
+            .send_bytes(
+                self.provider,
+                new_bin_info_request().into_bytes(),
+                IncludedSurbs::new(10),
+            )
+            .await;
+        wait_for_control_response(&mut self.client).await
+    }
+
+    async fn query_supported_request_versions(&mut self) -> ControlResponse {
+        self.client
+            .send_bytes(
+                self.provider,
+                new_supported_request_versions_request(),
+                IncludedSurbs::new(10),
+            )
+            .await;
+        wait_for_control_response(&mut self.client).await
+    }
+
+    async fn query_open_proxy(&mut self) -> QueryResponse {
+        self.client
+            .send_bytes(
+                self.provider,
+                new_open_proxy_request(),
+                IncludedSurbs::new(10),
+            )
+            .await;
+        let response = wait_for_socks5_response(&mut self.client).await;
+        response
+            .content
+            .as_query()
+            .expect("Unexpected response type!")
+            .clone()
+    }
+}
+
+#[derive(Debug)]
+enum ClientResponse {
+    Control(ControlResponse),
+    Query(QueryResponse),
+}
+
+impl From<ControlResponse> for ClientResponse {
+    fn from(response: ControlResponse) -> Self {
+        ClientResponse::Control(response)
+    }
+}
+
+impl From<QueryResponse> for ClientResponse {
+    fn from(response: QueryResponse) -> Self {
+        ClientResponse::Query(response)
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // WIP(JON): should we expose this through the sdk?
@@ -127,50 +192,22 @@ async fn main() -> anyhow::Result<()> {
     // WIP(JON): should we expose this through the sdk?
     nym_network_defaults::setup_env(args.config_env_file.as_ref());
 
-    let provider = args.provider;
-    let mut client = connect_to_mixnet(args.gateway).await;
+    println!("Connecting to mixnet...");
+    let mut client = QueryClient::new(args.provider, args.gateway).await;
 
-    match args.command {
-        Commands::BinaryInfo => {
-            println!("Sending 'BinaryInfo' request...");
-            client
-                .send_bytes(provider, new_bin_info_request(), IncludedSurbs::new(10))
-                .await;
-            let response = wait_for_control_response(&mut client).await;
-            let binary_info = response.binary_info().expect("Unexpected response type!");
-            println!("{:#?}", *binary_info);
-        }
+    println!("Sending request...");
+    let resp: ClientResponse = match args.command {
+        Commands::BinaryInfo => client.query_bin_info().await.into(),
         Commands::SupportedRequestVersions => {
-            println!("Sending 'SupportedRequestVersions' request...");
-            client
-                .send_bytes(
-                    provider,
-                    new_supported_request_versions_request(),
-                    IncludedSurbs::new(10),
-                )
-                .await;
-            let response = wait_for_control_response(&mut client).await;
-            let supported_request_versions = response
-                .supported_request_versions()
-                .expect("Unexpected response type!");
-            println!("{supported_request_versions:#?}");
+            client.query_supported_request_versions().await.into()
         }
-        Commands::OpenProxy => {
-            client
-                .send_bytes(provider, new_open_proxy_request(), IncludedSurbs::new(10))
-                .await;
-            let response = wait_for_socks5_response(&mut client).await;
-            let open_proxy = response
-                .content
-                .as_query()
-                .expect("Unexpected response type!");
-            println!("{open_proxy:#?}");
-        }
+        Commands::OpenProxy => client.query_open_proxy().await.into(),
         Commands::All => todo!(),
-    }
+    };
+    println!("{resp:#?}");
 
-    //println!("disconnecting");
-    client.disconnect().await;
+    println!("Disconnecting...");
+    client.client.disconnect().await;
 
     Ok(())
 }

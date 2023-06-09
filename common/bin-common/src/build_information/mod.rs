@@ -101,7 +101,7 @@ impl BinaryBuildInformation {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BinaryBuildInformationOwned {
     // VERGEN_BUILD_TIMESTAMP
     /// Provides the build timestamp, for example `2021-02-23T20:14:46.558472672+00:00`.

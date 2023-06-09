@@ -195,10 +195,10 @@ impl ControlResponse {
                 // (unless the serde's macro is bugged but at this point we're already out of luck)
                 serde_json::to_vec(&info).unwrap()
             }
-            ControlResponse::Error(error_response) => serde_json::to_vec(&error_response).unwrap(),
             ControlResponse::SupportedRequestVersions(supported_versions) => {
                 serde_json::to_vec(&supported_versions).unwrap()
             }
+            ControlResponse::Error(error_response) => serde_json::to_vec(&error_response).unwrap(),
         }
     }
 }

@@ -24,8 +24,9 @@ use nym_socks5_proxy_helpers::connection_controller::{
 };
 use nym_socks5_proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use nym_socks5_requests::{
-    ConnectRequest, ConnectionId, NetworkData, SendRequest, Socks5ProtocolVersion,
-    Socks5ProviderRequest, Socks5Request, Socks5RequestContent, Socks5Response,
+    ConnectRequest, ConnectionId, NetworkData, QueryRequest, QueryResponse, SendRequest,
+    Socks5ProtocolVersion, Socks5ProviderRequest, Socks5Request, Socks5RequestContent,
+    Socks5Response,
 };
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
@@ -66,7 +67,6 @@ struct NRServiceProvider {
 
     controller_sender: ControllerSender,
     mix_input_sender: MixProxySender<MixnetMessage>,
-    //shared_lane_queue_lengths: LaneQueueLengths,
     stats_collector: Option<ServiceStatisticsCollector>,
     shutdown: TaskManager,
 }
@@ -148,6 +148,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
                 }
                 self.handle_proxy_send(req)
             }
+            Socks5RequestContent::Query(query) => return self.handle_query(query),
         }
 
         Ok(None)
@@ -251,7 +252,6 @@ impl NRServiceProviderBuilder {
             mixnet_client,
             controller_sender,
             mix_input_sender,
-            //shared_lane_queue_lengths: mixnet_client.shared_lane_queue_lengths(),
             stats_collector,
             shutdown,
         };
@@ -472,6 +472,24 @@ impl NRServiceProvider {
 
     fn handle_proxy_send(&mut self, req: SendRequest) {
         self.controller_sender.unbounded_send(req.into()).unwrap()
+    }
+
+    fn handle_query(
+        &self,
+        query: QueryRequest,
+    ) -> Result<Option<Socks5Response>, NetworkRequesterError> {
+        let protocol_version = Socks5ProtocolVersion::default();
+        let response = match query {
+            QueryRequest::OpenProxy => Socks5Response::new_query(
+                protocol_version,
+                QueryResponse::OpenProxy(self.open_proxy),
+            ),
+            QueryRequest::Description => Socks5Response::new_query(
+                protocol_version,
+                QueryResponse::Description("Description (placeholder)".to_string()),
+            ),
+        };
+        Ok(Some(response))
     }
 }
 

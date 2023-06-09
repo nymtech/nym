@@ -1,10 +1,12 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Socks5ProtocolVersion, Socks5RequestError, Socks5Response};
+use crate::{make_bincode_serializer, Socks5ProtocolVersion, Socks5RequestError, Socks5Response};
 use nym_service_providers_common::interface::{Serializable, ServiceProviderRequest};
 use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use tap::TapFallible;
 use thiserror::Error;
 
 pub type ConnectionId = u64;
@@ -15,6 +17,7 @@ pub type RemoteAddress = String;
 pub enum RequestFlag {
     Connect = 0,
     Send = 1,
+    Query = 2,
 }
 
 impl TryFrom<u8> for RequestFlag {
@@ -24,6 +27,7 @@ impl TryFrom<u8> for RequestFlag {
         match value {
             _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
             _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
+            _ if value == (RequestFlag::Query as u8) => Ok(Self::Query),
             value => Err(RequestDeserializationError::UnknownRequestFlag { value }),
         }
     }
@@ -51,6 +55,12 @@ pub enum RequestDeserializationError {
 
     #[error("malformed return address - {0}")]
     MalformedReturnAddress(RecipientFormattingError),
+
+    #[error("failed to deserialize query request: {source}")]
+    QueryDeserializationError {
+        #[from]
+        source: bincode::Error,
+    },
 }
 
 impl RequestDeserializationError {
@@ -59,7 +69,7 @@ impl RequestDeserializationError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConnectRequest {
     // TODO: is connection_id redundant now?
     pub conn_id: ConnectionId,
@@ -67,11 +77,17 @@ pub struct ConnectRequest {
     pub return_address: Option<Recipient>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SendRequest {
     pub conn_id: ConnectionId,
     pub data: Vec<u8>,
     pub local_closed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum QueryRequest {
+    OpenProxy,
+    Description,
 }
 
 #[derive(Debug, Clone)]
@@ -108,6 +124,13 @@ impl Serializable for Socks5Request {
         }
 
         let protocol_version = Socks5ProtocolVersion::from(b[0]);
+        if protocol_version > Self::max_supported_version() {
+            return Err(Socks5RequestError::UnsupportedProtocolVersion { protocol_version });
+        }
+
+        // TODO: handle the case then protocol version if less then the current one. Then we should
+        // make sure to only respond with the same version
+
         Ok(Socks5Request {
             protocol_version,
             content: Socks5RequestContent::try_from_bytes(&b[1..])?,
@@ -166,11 +189,21 @@ impl Socks5Request {
             content: Socks5RequestContent::new_send(conn_id, data, local_closed),
         }
     }
+
+    pub fn new_query(
+        protocol_version: Socks5ProtocolVersion,
+        query: QueryRequest,
+    ) -> Socks5Request {
+        Socks5Request {
+            protocol_version,
+            content: Socks5RequestContent::Query(query),
+        }
+    }
 }
 
 /// A request from a SOCKS5 client that a Nym Socks5 service provider should
 /// take an action for an application using a (probably local) Nym Socks5 proxy.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Socks5RequestContent {
     /// Start a new TCP connection to the specified `RemoteAddress` and send
     /// the request data up the connection.
@@ -179,6 +212,8 @@ pub enum Socks5RequestContent {
 
     /// Re-use an existing TCP connection, sending more request data up it.
     Send(SendRequest),
+
+    Query(QueryRequest),
 }
 
 impl Socks5RequestContent {
@@ -228,12 +263,13 @@ impl Socks5RequestContent {
             return Err(RequestDeserializationError::NoData);
         }
 
-        if b.len() < 9 {
-            return Err(RequestDeserializationError::ConnectionIdTooShort);
-        }
-        let conn_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
         match RequestFlag::try_from(b[0])? {
             RequestFlag::Connect => {
+                if b.len() < 9 {
+                    return Err(RequestDeserializationError::ConnectionIdTooShort);
+                }
+                let conn_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
+
                 let connect_request_bytes = &b[9..];
 
                 // we need to be able to read at least 2 bytes that specify address length
@@ -279,6 +315,11 @@ impl Socks5RequestContent {
                 ))
             }
             RequestFlag::Send => {
+                if b.len() < 9 {
+                    return Err(RequestDeserializationError::ConnectionIdTooShort);
+                }
+                let conn_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
+
                 let local_closed = b[9] != 0;
                 let data = b[10..].to_vec();
 
@@ -287,6 +328,11 @@ impl Socks5RequestContent {
                     data,
                     local_closed,
                 }))
+            }
+            RequestFlag::Query => {
+                use bincode::Options;
+                let query = make_bincode_serializer().deserialize(&b[1..])?;
+                Ok(Socks5RequestContent::Query(query))
             }
         }
     }
@@ -317,6 +363,19 @@ impl Socks5RequestContent {
                 .chain(std::iter::once(req.local_closed as u8))
                 .chain(req.data.into_iter())
                 .collect(),
+
+            Socks5RequestContent::Query(query) => {
+                use bincode::Options;
+                let query_bytes: Vec<u8> = make_bincode_serializer()
+                    .serialize(&query)
+                    .tap_err(|err| {
+                        log::error!("Failed to serialize query request: {:?}: {err}", query);
+                    })
+                    .unwrap_or_default();
+                std::iter::once(RequestFlag::Query as u8)
+                    .chain(query_bytes.into_iter())
+                    .collect()
+            }
         }
     }
 }
@@ -609,6 +668,28 @@ mod request_deserialization_tests {
                 }
                 _ => unreachable!(),
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod serialize_query_request {
+        use super::*;
+
+        #[test]
+        fn serialize_there_and_back() {
+            let open_proxy = Socks5RequestContent::Query(QueryRequest::OpenProxy);
+            let bytes_open_proxy = open_proxy.clone().into_bytes();
+            assert_eq!(bytes_open_proxy, vec![2, 0]);
+
+            let description = Socks5RequestContent::Query(QueryRequest::Description);
+            let bytes_description = description.clone().into_bytes();
+            assert_eq!(bytes_description, vec![2, 1]);
+
+            let open_proxy2 = Socks5RequestContent::try_from_bytes(&bytes_open_proxy).unwrap();
+            let description2 = Socks5RequestContent::try_from_bytes(&bytes_description).unwrap();
+
+            assert_eq!(open_proxy, open_proxy2);
+            assert_eq!(description, description2);
         }
     }
 }

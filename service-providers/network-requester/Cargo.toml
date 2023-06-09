@@ -54,3 +54,4 @@ nym-client-websocket-requests = { path = "../../clients/native/websocket-request
 
 [dev-dependencies]
 tempfile = "3.5.0"
+anyhow = "1.0.68"

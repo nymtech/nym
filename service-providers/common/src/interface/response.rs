@@ -22,6 +22,7 @@ pub enum ResponseContent<T: ServiceProviderRequest = EmptyMessage> {
     ProviderData(T::Response),
 }
 
+#[derive(Debug)]
 #[repr(u8)]
 pub enum ResponseTag {
     /// Value tag representing [`Control`] variant of the [`Response`]

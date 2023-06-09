@@ -1,6 +1,5 @@
 use nym_client_core::config::DebugConfig;
 use nym_network_defaults::NymNetworkDetails;
-use nym_sphinx::params::PacketType;
 
 #[derive(Clone, Debug, Default)]
 pub enum KeyMode {
@@ -35,12 +34,4 @@ pub struct Config {
     /// Flags controlling all sorts of internal client behaviour.
     /// Changing these risk compromising network anonymity!
     pub debug_config: DebugConfig,
-
-    pub packet_type: PacketType,
-}
-
-impl Config {
-    pub fn packet_type(&self) -> PacketType {
-        self.packet_type
-    }
 }

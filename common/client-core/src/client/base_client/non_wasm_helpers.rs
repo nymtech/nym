@@ -122,13 +122,30 @@ pub fn create_bandwidth_controller_with_urls<St: CredentialStorage>(
     nym_api_url: Url,
     storage: St,
 ) -> BandwidthController<Client<QueryNyxdClient>, St> {
+    let client = default_query_dkg_client(nyxd_url, nym_api_url);
+
+    BandwidthController::new(storage, client)
+}
+
+pub fn default_query_dkg_client_from_config(config: &Config) -> Client<QueryNyxdClient> {
+    let nyxd_url = config
+        .get_validator_endpoints()
+        .pop()
+        .expect("No nyxd validator endpoint provided");
+    let api_url = config
+        .get_nym_api_endpoints()
+        .pop()
+        .expect("No validator api endpoint provided");
+
+    default_query_dkg_client(nyxd_url, api_url)
+}
+
+pub fn default_query_dkg_client(nyxd_url: Url, nym_api_url: Url) -> Client<QueryNyxdClient> {
     let details = nym_network_defaults::NymNetworkDetails::new_from_env();
     let mut client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
         .expect("failed to construct validator client config");
     // overwrite env configuration with config URLs
     client_config = client_config.with_urls(nyxd_url, nym_api_url);
-    let client = nym_validator_client::Client::new_query(client_config)
-        .expect("Could not construct query client");
-
-    BandwidthController::new(storage, client)
+    nym_validator_client::Client::new_query(client_config)
+        .expect("Could not construct query client")
 }

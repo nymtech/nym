@@ -10,9 +10,10 @@ use crate::socks::{
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nym_client_core::client::base_client::non_wasm_helpers::default_query_dkg_client_from_config;
 use nym_client_core::client::base_client::storage::MixnetClientStorage;
 use nym_client_core::client::base_client::{
-    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
+    BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
@@ -187,24 +188,15 @@ where
     }
 
     pub async fn start(self) -> Result<StartedSocks5Client, Socks5ClientCoreError> {
-        let (key_store, reply_storage_backend, credential_store) = self.storage.into_split();
-
-        // don't create bandwidth controller if credentials are disabled
-        let bandwidth_controller = if self.config.base.client.disabled_credentials_mode {
+        // don't create dkg client for the bandwidth controller if credentials are disabled
+        let dkg_query_client = if self.config.base.client.disabled_credentials_mode {
             None
         } else {
-            Some(non_wasm_helpers::create_bandwidth_controller(
-                &self.config.base,
-                credential_store,
-            ))
+            Some(default_query_dkg_client_from_config(&self.config.base))
         };
 
-        let base_builder = BaseClientBuilder::<_, S>::new_from_base_config(
-            &self.config.base,
-            key_store,
-            bandwidth_controller,
-            reply_storage_backend,
-        );
+        let base_builder =
+            BaseClientBuilder::new(&self.config.base, self.storage, dkg_query_client);
 
         let packet_type = self.config.base.debug.traffic.packet_type;
         let mut started_client = base_builder.start_base().await?;

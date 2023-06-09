@@ -1,6 +1,6 @@
 use std::fmt;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, ValueEnum};
 use nym_bin_common::output_format::OutputFormat;
 use nym_sdk::mixnet::{self, IncludedSurbs};
 use nym_service_providers_common::interface::{
@@ -11,6 +11,8 @@ use nym_socks5_requests::{
 };
 use serde::Serialize;
 use tokio::time::{timeout, Duration};
+
+const RESPONSE_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -30,11 +32,11 @@ struct Cli {
     #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 
-    #[command(subcommand)]
+    #[arg(value_enum)]
     command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Clone, ValueEnum)]
 enum Commands {
     /// Binary information
     BinaryInfo,
@@ -71,7 +73,7 @@ fn parse_socks5_response(received: Vec<mixnet::ReconstructedMessage>) -> Socks5R
 
 async fn wait_for_control_response(client: &mut mixnet::MixnetClient) -> ControlResponse {
     loop {
-        let Ok(next) = timeout(Duration::from_secs(5), client.wait_for_messages()).await else {
+        let Ok(next) = timeout(RESPONSE_TIMEOUT, client.wait_for_messages()).await else {
             eprintln!("Timeout waiting for response");
             std::process::exit(1);
         };
@@ -84,7 +86,7 @@ async fn wait_for_control_response(client: &mut mixnet::MixnetClient) -> Control
 
 async fn wait_for_socks5_response(client: &mut mixnet::MixnetClient) -> Socks5Response {
     loop {
-        let Ok(next) = timeout(Duration::from_secs(5), client.wait_for_messages()).await else {
+        let Ok(next) = timeout(RESPONSE_TIMEOUT, client.wait_for_messages()).await else {
             eprintln!("Timeout waiting for response");
             std::process::exit(1);
         };
@@ -150,11 +152,10 @@ impl QueryClient {
                 IncludedSurbs::new(10),
             )
             .await;
-        println!("waiting for response");
         wait_for_control_response(&mut self.client).await
     }
 
-    async fn query_supported_request_versions(&mut self) -> ControlResponse {
+    async fn query_supported_versions(&mut self) -> ControlResponse {
         self.client
             .send_bytes(
                 self.provider,
@@ -231,9 +232,7 @@ async fn main() -> anyhow::Result<()> {
     text_print("Sending request...", &args.output);
     let resp: ClientResponse = match args.command {
         Commands::BinaryInfo => client.query_bin_info().await.into(),
-        Commands::SupportedRequestVersions => {
-            client.query_supported_request_versions().await.into()
-        }
+        Commands::SupportedRequestVersions => client.query_supported_versions().await.into(),
         Commands::OpenProxy => client.query_open_proxy().await.into(),
         Commands::All => todo!(),
     };

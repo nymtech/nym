@@ -252,6 +252,19 @@ where
         })
 }
 
+fn ensure_valid_details(
+    details: &PersistedGatewayDetails,
+    loaded_keys: &ManagedKeys,
+) -> Result<(), ClientCoreError> {
+    if !details.verify(&loaded_keys.must_get_gateway_shared_key()) {
+        Err(ClientCoreError::MismatchedGatewayDetails {
+            gateway_id: details.details.gateway_id.clone(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
 pub async fn setup_gateway_from<K, D>(
     setup: &GatewaySetup,
     key_store: &K,
@@ -270,43 +283,75 @@ where
     // try load gateway details
     let loaded_details = _load_gateway_details(details_store).await;
 
-    // try load keys
+    // try load keys and decide what to do based on the GatewaySetup
     let mut managed_keys = match ManagedKeys::try_load(key_store).await {
         Ok(loaded_keys) => {
-            if let GatewaySetup::MustLoad = setup {
-                // get EVERYTHING from the storage
-                let details = loaded_details?;
-                if !details.verify(&loaded_keys.must_get_gateway_shared_key()) {
-                    return Err(ClientCoreError::MismatchedGatewayDetails {
-                        gateway_id: details.details.gateway_id,
-                    });
-                }
-                // no need to persist anything as we got everything from the storage
-                return Ok(InitialisationDetails::new(details.into(), loaded_keys));
-            } else if let GatewaySetup::Predefined { details } = setup {
-                // we already have defined gateway details AND a shared key
-                if !details.verify(&loaded_keys.must_get_gateway_shared_key()) {
-                    return Err(ClientCoreError::MismatchedGatewayDetails {
-                        gateway_id: details.details.gateway_id.clone(),
-                    });
-                }
+            match setup {
+                GatewaySetup::MustLoad => {
+                    // get EVERYTHING from the storage
+                    let details = loaded_details?;
+                    ensure_valid_details(&details, &loaded_keys)?;
 
-                // if nothing was stored or we're allowed to overwrite what's there, just persist the passed data
-                if overwrite_data || loaded_details.is_err() {
-                    _store_gateway_details(details_store, details).await?;
+                    // no need to persist anything as we got everything from the storage
+                    return Ok(InitialisationDetails::new(details.into(), loaded_keys));
                 }
+                GatewaySetup::Predefined { details } => {
+                    // we already have defined gateway details AND a shared key
+                    ensure_valid_details(details, &loaded_keys)?;
 
-                return Ok(InitialisationDetails::new(
-                    details.clone().into(),
-                    loaded_keys,
-                ));
-            } else if overwrite_data {
-                // whatever the state of the loaded data was, we can't use it since we'll be deriving
-                // fresh gateway key
-                _ = loaded_details;
-                ManagedKeys::generate_new(&mut rng)
-            } else {
-                return Err(ClientCoreError::ForbiddenKeyOverwrite);
+                    // if nothing was stored or we're allowed to overwrite what's there, just persist the passed data
+                    if overwrite_data || loaded_details.is_err() {
+                        _store_gateway_details(details_store, details).await?;
+                    }
+
+                    return Ok(InitialisationDetails::new(
+                        details.clone().into(),
+                        loaded_keys,
+                    ));
+                }
+                GatewaySetup::Specified { gateway_identity } => {
+                    // if that data was already stored...
+                    if let Ok(existing_gateway) = loaded_details {
+                        ensure_valid_details(&existing_gateway, &loaded_keys)?;
+                        if &existing_gateway.details.gateway_id != gateway_identity
+                            && !overwrite_data
+                        {
+                            // if our loaded details don't match requested value and we CANT overwrite it...
+                            return Err(ClientCoreError::UnexpectedGatewayDetails);
+                        } else if &existing_gateway.details.gateway_id == gateway_identity {
+                            // if they do match up, just return it
+                            return Ok(InitialisationDetails::new(
+                                existing_gateway.into(),
+                                loaded_keys,
+                            ));
+                        }
+                    }
+
+                    // we didn't get full details from the store and we have loaded some keys
+                    // so we can only continue if we're allowed to overwrite keys
+                    if overwrite_data {
+                        ManagedKeys::generate_new(&mut rng)
+                    } else {
+                        return Err(ClientCoreError::ForbiddenKeyOverwrite);
+                    }
+                }
+                GatewaySetup::New { .. } => {
+                    if let Ok(existing_gateway) = loaded_details {
+                        ensure_valid_details(&existing_gateway, &loaded_keys)?;
+                        return Ok(InitialisationDetails::new(
+                            existing_gateway.into(),
+                            loaded_keys,
+                        ));
+                    }
+
+                    // we didn't get full details from the store and we have loaded some keys
+                    // so we can only continue if we're allowed to overwrite keys
+                    if overwrite_data {
+                        ManagedKeys::generate_new(&mut rng)
+                    } else {
+                        return Err(ClientCoreError::ForbiddenKeyOverwrite);
+                    }
+                }
             }
         }
         Err(_) => {

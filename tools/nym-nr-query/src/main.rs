@@ -46,6 +46,9 @@ enum Commands {
 
     /// Check if the network requester is acting a an open proxy
     OpenProxy,
+
+    /// Ping the network requester
+    Ping,
 }
 
 fn parse_control_response(received: Vec<mixnet::ReconstructedMessage>) -> ControlResponse {
@@ -113,21 +116,22 @@ fn new_bin_info_request() -> Request {
     Request::new_control(ProviderInterfaceVersion::new_current(), request_binary_info)
 }
 
-fn new_supported_request_versions_request() -> Vec<u8> {
+fn new_supported_request_versions_request() -> Request {
     let request_versions = ControlRequest::SupportedRequestVersions;
-    let request: Request =
-        Request::new_control(ProviderInterfaceVersion::new_current(), request_versions);
-    request.into_bytes()
+    Request::new_control(ProviderInterfaceVersion::new_current(), request_versions)
 }
 
-fn new_open_proxy_request() -> Vec<u8> {
+fn new_open_proxy_request() -> Request<Socks5Request> {
     let request_open_proxy = Socks5Request::new_query(
         Socks5ProtocolVersion::new_current(),
         QueryRequest::OpenProxy,
     );
-    let open_proxy_request =
-        Request::new_provider_data(ProviderInterfaceVersion::new_current(), request_open_proxy);
-    open_proxy_request.into_bytes()
+    Request::new_provider_data(ProviderInterfaceVersion::new_current(), request_open_proxy)
+}
+
+fn new_ping_request() -> Request {
+    let request_ping = ControlRequest::Health;
+    Request::new_control(ProviderInterfaceVersion::new_current(), request_ping)
 }
 
 struct QueryClient {
@@ -156,7 +160,7 @@ impl QueryClient {
         self.client
             .send_bytes(
                 self.provider,
-                new_supported_request_versions_request(),
+                new_supported_request_versions_request().into_bytes(),
                 IncludedSurbs::new(10),
             )
             .await;
@@ -167,7 +171,7 @@ impl QueryClient {
         self.client
             .send_bytes(
                 self.provider,
-                new_open_proxy_request(),
+                new_open_proxy_request().into_bytes(),
                 IncludedSurbs::new(10),
             )
             .await;
@@ -178,12 +182,43 @@ impl QueryClient {
             .expect("Unexpected response type!")
             .clone()
     }
+
+    async fn ping(&mut self) -> PingResponse {
+        let now = std::time::Instant::now();
+        self.client
+            .send_bytes(
+                self.provider,
+                new_ping_request().into_bytes(),
+                IncludedSurbs::new(10),
+            )
+            .await;
+        let response = wait_for_control_response(&mut self.client).await;
+        assert!(matches!(response, ControlResponse::Health));
+        let elapsed = now.elapsed();
+        PingResponse {
+            provider: self.provider.to_string(),
+            ping_ms: elapsed.as_millis(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct PingResponse {
+    provider: String,
+    ping_ms: u128,
+}
+
+impl fmt::Display for PingResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:  time={} ms", self.provider, self.ping_ms)
+    }
 }
 
 #[derive(Debug, Serialize)]
 enum ClientResponse {
     Control(ControlResponse),
     Query(QueryResponse),
+    Ping(PingResponse),
 }
 
 impl fmt::Display for ClientResponse {
@@ -191,6 +226,7 @@ impl fmt::Display for ClientResponse {
         match self {
             ClientResponse::Control(control) => write!(f, "{:#?}", control),
             ClientResponse::Query(query) => write!(f, "{:#?}", query),
+            ClientResponse::Ping(ping) => write!(f, "{}", ping),
         }
     }
 }
@@ -204,6 +240,12 @@ impl From<ControlResponse> for ClientResponse {
 impl From<QueryResponse> for ClientResponse {
     fn from(response: QueryResponse) -> Self {
         ClientResponse::Query(response)
+    }
+}
+
+impl From<PingResponse> for ClientResponse {
+    fn from(response: PingResponse) -> Self {
+        ClientResponse::Ping(response)
     }
 }
 
@@ -231,6 +273,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::BinaryInfo => client.query_bin_info().await.into(),
         Commands::SupportedRequestVersions => client.query_supported_versions().await.into(),
         Commands::OpenProxy => client.query_open_proxy().await.into(),
+        Commands::Ping => client.ping().await.into(),
     };
     println!("{}", args.output.format(&resp));
 

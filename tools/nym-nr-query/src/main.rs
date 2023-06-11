@@ -32,11 +32,11 @@ struct Cli {
     #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 
-    #[arg(value_enum)]
+    #[arg(value_enum, default_value_t = Commands::Ping)]
     command: Commands,
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(Clone, ValueEnum, PartialEq, Eq)]
 enum Commands {
     /// Binary information
     BinaryInfo,
@@ -265,17 +265,25 @@ async fn main() -> anyhow::Result<()> {
 
     nym_network_defaults::setup_env(args.config_env_file.as_ref());
 
-    text_print("Connecting to mixnet...", &args.output);
+    text_print("Registering with gateway...", &args.output);
     let mut client = QueryClient::new(args.provider, args.gateway).await;
 
     text_print("Sending request...", &args.output);
-    let resp: ClientResponse = match args.command {
-        Commands::BinaryInfo => client.query_bin_info().await.into(),
-        Commands::SupportedRequestVersions => client.query_supported_versions().await.into(),
-        Commands::OpenProxy => client.query_open_proxy().await.into(),
-        Commands::Ping => client.ping().await.into(),
-    };
-    println!("{}", args.output.format(&resp));
+    if args.command == Commands::Ping {
+        for _ in 0..4 {
+            let resp: ClientResponse = client.ping().await.into();
+            println!("{}", args.output.format(&resp));
+        }
+
+    } else {
+        let resp: ClientResponse = match args.command {
+            Commands::BinaryInfo => client.query_bin_info().await.into(),
+            Commands::SupportedRequestVersions => client.query_supported_versions().await.into(),
+            Commands::OpenProxy => client.query_open_proxy().await.into(),
+            Commands::Ping => unreachable!(),
+        };
+        println!("{}", args.output.format(&resp));
+    }
 
     text_print("Disconnecting...", &args.output);
     client.client.disconnect().await;

@@ -34,6 +34,11 @@ struct Cli {
 
     #[arg(value_enum, default_value_t = Commands::Ping)]
     command: Commands,
+
+    /// By default, pinging is done continuously until manually stopped. This flag
+    /// specifies how many pings should be sent before stopping.
+    #[arg(short = 'n', long)]
+    ping_count: Option<usize>,
 }
 
 #[derive(Clone, ValueEnum, PartialEq, Eq)]
@@ -251,6 +256,12 @@ impl From<PingResponse> for ClientResponse {
 
 fn text_print(input: &str, output: &OutputFormat) {
     if output.is_text() {
+        print!("{input}");
+    }
+}
+
+fn text_println(input: &str, output: &OutputFormat) {
+    if output.is_text() {
         println!("{input}");
     }
 }
@@ -267,14 +278,35 @@ async fn main() -> anyhow::Result<()> {
 
     text_print("Registering with gateway...", &args.output);
     let mut client = QueryClient::new(args.provider, args.gateway).await;
+    let our_gateway = client.client.nym_address().gateway();
+    text_println(&format!("{our_gateway}"), &args.output);
 
-    text_print("Sending request...", &args.output);
+    text_println("Sending request(s)...", &args.output);
     if args.command == Commands::Ping {
-        for _ in 0..4 {
-            let resp: ClientResponse = client.ping().await.into();
-            println!("{}", args.output.format(&resp));
+        let mut count = 0;
+        loop {
+            tokio::select! {
+                resp = client.ping() => {
+                    println!("{}", args.output.format(&resp));
+                }
+                _ = tokio::signal::ctrl_c() => {
+                    println!("Ctrl-C received, exiting...");
+                    break;
+                }
+            }
+            // Normally we loop until the use stops, but we can also specify a ping count.
+            count += 1;
+            if let Some(ping_count) = args.ping_count {
+                if count >= ping_count {
+                    break;
+                }
+            }
+            // If we specified json output, just run once, since this is likely to be called from a
+            // script.
+            if !args.output.is_text() {
+                break;
+            }
         }
-
     } else {
         let resp: ClientResponse = match args.command {
             Commands::BinaryInfo => client.query_bin_info().await.into(),
@@ -285,7 +317,7 @@ async fn main() -> anyhow::Result<()> {
         println!("{}", args.output.format(&resp));
     }
 
-    text_print("Disconnecting...", &args.output);
+    text_println("Disconnecting...", &args.output);
     client.client.disconnect().await;
 
     Ok(())

@@ -84,6 +84,6 @@ opt-level = 'z'
 
 # TODO:
 [features]
-default = ["console_error_panic_hook"]
+default = ["console_error_panic_hook", "mix-fetch"]
 node-tester = []
-mix-fetch = []
+mix-fetch = ["web-sys/Response"]

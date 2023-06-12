@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::Mutex;
+use wasm_utils::console_log;
 
 pub type Response = Result<httpcodec::Response<Vec<u8>>, RequestError>;
 pub type ResponseSender = oneshot::Sender<Response>;
@@ -27,14 +28,16 @@ pub struct ActiveRequests {
 }
 
 impl ActiveRequests {
-    pub async fn new(&self, id: RequestId, response_sender: ResponseSender) {
+    pub async fn start_new(&self, id: RequestId, response_sender: ResponseSender) {
         let mut guard = self.inner.lock().await;
         if guard.insert(id, response_sender).is_some() {
             panic!("attempted to insert duplicate request for {id}")
         }
+        console_log!("started new request {id}");
     }
 
     async fn send_response(&self, id: RequestId, response: Response) {
+        console_log!("sending response for {id}");
         let mut guard = self.inner.lock().await;
         let sender = guard
             .remove(&id)

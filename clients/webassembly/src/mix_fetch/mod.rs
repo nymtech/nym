@@ -17,8 +17,13 @@ use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReconstructedMessagesReceiver,
 };
 use nym_http_requests::socks::MixHttpResponse;
-use nym_service_providers_common::interface::{ProviderInterfaceVersion, Serializable};
-use nym_socks5_requests::{ConnectionId, RemoteAddress, Socks5ProtocolVersion};
+use nym_service_providers_common::interface::{
+    ProviderInterfaceVersion, ResponseContent, Serializable,
+};
+use nym_socks5_requests::{
+    ConnectionId, RemoteAddress, Socks5ProtocolVersion, Socks5ProviderResponse,
+    Socks5ResponseContent,
+};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::connections::TransmissionLane;
 use rand::{thread_rng, RngCore};
@@ -147,12 +152,15 @@ impl Placeholder {
         let mut rng = thread_rng();
         let request_id = rng.next_u64();
 
+        console_log!("raw id: {:?}", request_id.to_be_bytes());
+
         self.send_connect(request_id, req.target).await?;
         self.send_request_data(request_id, local_closed, ordered_message_index, req.request)
             .await?;
 
         let (tx, rx) = oneshot::channel();
-        self.requests.new(request_id, tx).await;
+        self.requests.start_new(request_id, tx).await;
+        console_log!("waiting for response");
         let res = rx.await.expect("TODO: error handling for closed channel");
         console_log!("got response!");
 
@@ -184,6 +192,7 @@ impl Placeholder2 {
         }
     }
 
+    // TODO: obviously collapse all ifs and clean it up
     pub(crate) fn start(mut self) {
         spawn_local(async move {
             while let Some(reconstructed) = self.reconstructed_receiver.next().await {
@@ -197,24 +206,65 @@ impl Placeholder2 {
                         panic!("TODO: error handling for set tag")
                     }
 
-                    if let Ok(socks5_response) =
-                        nym_socks5_requests::Socks5Response::try_from_bytes(&msg)
-                    {
-                        if let Ok(mix_http_response) =
-                            MixHttpResponse::try_from(socks5_response.clone())
-                        {
-                            self.requests
-                                .resolve(
-                                    mix_http_response.connection_id,
-                                    mix_http_response.http_response,
-                                )
-                                .await
-                        } else {
-                            console_log!("{:?}", socks5_response);
+                    match Socks5ProviderResponse::try_from_bytes(&msg) {
+                        Err(err) => {
+                            console_error!("failed to deserialize provider response: {err}")
                         }
-                    } else {
-                        panic!("TODO: error handling for receiving something that's not socks5 response")
+                        Ok(provider_response) => {
+                            if let ResponseContent::ProviderData(response) =
+                                provider_response.content
+                            {
+                                match MixHttpResponse::try_from(response.clone()) {
+                                    Ok(mix_http_response) => {
+                                        self.requests
+                                            .resolve(
+                                                mix_http_response.connection_id,
+                                                mix_http_response.http_response,
+                                            )
+                                            .await
+                                    }
+                                    Err(err) => {
+                                        console_error!("this wasn't mix http response...: {err}");
+                                        console_log!("{:?}", response);
+                                    }
+                                }
+                            } else {
+                                console_error!("received data was not a provider data response")
+                            }
+                        }
                     }
+
+                    // if let Ok(socks5_response) =
+                    //     nym_socks5_requests::Socks5Response::try_from_bytes(&msg)
+                    // {
+                    //     if let Socks5ResponseContent::NetworkData { content } =
+                    //         &socks5_response.content
+                    //     {
+                    //         console_log!("raw res: {:?}", content.header);
+                    //         console_log!(
+                    //             "raw res: {:?}",
+                    //             content.header.connection_id.to_be_bytes()
+                    //         );
+                    //         console_log!("raw res: {:?}", content.header.seq.to_be_bytes());
+                    //     }
+                    //
+                    //     match MixHttpResponse::try_from(socks5_response.clone()) {
+                    //         Ok(mix_http_response) => {
+                    //             self.requests
+                    //                 .resolve(
+                    //                     mix_http_response.connection_id,
+                    //                     mix_http_response.http_response,
+                    //                 )
+                    //                 .await
+                    //         }
+                    //         Err(err) => {
+                    //             console_error!("this wasn't mix http response...: {err}");
+                    //             console_log!("{:?}", socks5_response);
+                    //         }
+                    //     }
+                    // } else {
+                    //     panic!("TODO: error handling for receiving something that's not socks5 response")
+                    // }
                 }
             }
 

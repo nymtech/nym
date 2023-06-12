@@ -3,7 +3,7 @@
 
 use nym_sphinx_acknowledgements::surb_ack::SurbAckRecoveryError;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddressError;
-use nym_sphinx_types::{NymPacketError, SphinxError};
+use nym_sphinx_types::{NymPacketError, OutfoxError, SphinxError};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -25,4 +25,7 @@ pub enum MixProcessingError {
 
     #[error("the received packet was set to use the very old and very much deprecated 'VPN' mode")]
     ReceivedOldTypeVpnPacket,
+
+    #[error("failed to process received outfox packet: {0}")]
+    OutfoxProcessingError(#[from] OutfoxError),
 }

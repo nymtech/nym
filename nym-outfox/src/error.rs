@@ -1,3 +1,4 @@
+use crate::constants::MAGIC_SLICE;
 use crate::constants::MIN_MESSAGE_LEN;
 use crate::constants::MIX_PARAMS_LEN;
 use chacha20::cipher::InvalidLength;
@@ -25,4 +26,6 @@ pub enum OutfoxError {
     },
     #[error("Header length must be {MIX_PARAMS_LEN}, got {0}")]
     InvalidHeaderLength(usize),
+    #[error("Invalid magic bytes, expected: {:?}, got: {:?}", MAGIC_SLICE, 0)]
+    InvalidMagicBytes(Vec<u8>),
 }

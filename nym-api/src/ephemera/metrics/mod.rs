@@ -59,7 +59,7 @@ impl MetricsCollector {
     }
 
     fn generate_metrics(&self) -> Vec<MixnodeResult> {
-        let mut metrics = Vec::with_capacity(NR_OF_MIX_NODES);
+        let mut metrics = Vec::with_capacity(NR_OF_MIX_NODES as usize);
         let mut rng = rand::thread_rng();
 
         for i in 0..NR_OF_MIX_NODES {

@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use ephemera::configuration::Configuration;
+use nym_mixnet_contract_common::reward_params::Performance;
+use nym_mixnet_contract_common::MixId;
 
 use super::contract::http::{get_epoch, get_nym_apis, submit_reward};
 use super::epoch::{Epoch, EpochInfo};
@@ -29,12 +31,12 @@ pub mod http;
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub struct MixnodeToReward {
-    pub mix_id: usize,
-    pub performance: u8,
+    pub mix_id: MixId,
+    pub performance: Performance,
 }
 
 impl MixnodeToReward {
-    pub fn new(mix_id: usize, performance: u8) -> Self {
+    pub fn new(mix_id: MixId, performance: Performance) -> Self {
         Self {
             mix_id,
             performance,

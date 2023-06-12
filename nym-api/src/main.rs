@@ -127,6 +127,7 @@ async fn start_nym_api_tasks(
     let _nym_api = tokio::spawn(ephemera::application::NymApi::run(
         config.get_ephemera_args().clone(),
         ephemera_config,
+        nyxd_client.clone(),
         shutdown_rx,
     ));
 

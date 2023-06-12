@@ -9,17 +9,17 @@ use ephemera::{
     crypto::Keypair,
     ephemera_api::{self, ApiBlock, ApiEphemeraMessage, ApiError, CommandExecutor},
 };
+use nym_mixnet_contract_common::MixId;
 
 use super::contract::MixnodeToReward;
 use super::epoch::Epoch;
 use super::reward::new::aggregator::RewardsAggregator;
 use super::storage::db::{MetricsStorageType, Storage};
 use super::{Args, HTTP_NYM_API_HEADER, NR_OF_MIX_NODES};
+use crate::support::nyxd;
 
 pub(crate) mod new;
 mod old;
-
-type MixId = usize;
 
 pub(crate) struct V1;
 
@@ -43,6 +43,7 @@ pub(crate) trait EpochOperations {
 
 pub(crate) struct RewardManager<V> {
     pub storage: Arc<Mutex<Storage<MetricsStorageType>>>,
+    pub nyxd_client: nyxd::Client,
     pub epoch: Epoch,
     pub args: Args,
     pub version: PhantomData<V>,
@@ -56,6 +57,7 @@ where
 {
     pub(crate) fn new(
         storage: Arc<Mutex<Storage<MetricsStorageType>>>,
+        nyxd_client: nyxd::Client,
         args: Args,
         ephemera_access: Option<EphemeraAccess>,
         aggregator: Option<RewardsAggregator>,
@@ -67,6 +69,7 @@ where
         );
         Self {
             storage,
+            nyxd_client,
             epoch,
             args,
             version: Default::default(),
@@ -106,12 +109,12 @@ where
 
         let storage = self.storage.lock().await;
 
-        let mut uptimes = Vec::with_capacity(NR_OF_MIX_NODES);
+        let mut uptimes = Vec::with_capacity(NR_OF_MIX_NODES as usize);
         for mix_id in mix_nodes {
             let reliability = storage.get_mixnode_average_reliability(mix_id, start, end)?;
             uptimes.push(MixnodeToReward::new(
                 mix_id,
-                reliability.unwrap_or_default() as u8,
+                reliability.unwrap_or_default(),
             ));
         }
 
@@ -122,6 +125,7 @@ where
         &self,
         rewards: Vec<MixnodeToReward>,
     ) -> anyhow::Result<()> {
+        // self.nyxd_client.send_rewarding_messages(&rewards).await?;
         let url = format!(
             "http://{}/contract/submit_rewards",
             self.args.smart_contract_url

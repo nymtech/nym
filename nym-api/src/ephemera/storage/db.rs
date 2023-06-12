@@ -1,6 +1,8 @@
 use crate::ephemera::contract::MixnodeToReward;
 use crate::ephemera::epoch::EpochInfo;
 use crate::ephemera::metrics::types::MixnodeResult;
+use nym_mixnet_contract_common::reward_params::Performance;
+use nym_mixnet_contract_common::MixId;
 
 #[derive(Clone)]
 pub struct MetricsStorageType;
@@ -36,10 +38,10 @@ impl Storage<MetricsStorageType> {
 
     pub fn get_mixnode_average_reliability(
         &self,
-        _id: usize,
+        _id: MixId,
         _start: u64,
         _end: u64,
-    ) -> anyhow::Result<Option<f32>> {
+    ) -> anyhow::Result<Option<Performance>> {
         Ok(None)
     }
 

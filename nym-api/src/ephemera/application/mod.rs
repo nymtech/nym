@@ -10,6 +10,7 @@ use tokio::sync::oneshot::Receiver;
 use tokio::sync::{broadcast, Mutex};
 use tokio::task::JoinHandle;
 
+use crate::support::nyxd;
 use ephemera::configuration::Configuration;
 use ephemera::crypto::{EphemeraKeypair, Keypair};
 use ephemera::ephemera_api::CommandExecutor;
@@ -29,9 +30,10 @@ pub(crate) mod application;
 pub struct NymApi;
 
 impl NymApi {
-    pub async fn run(
+    pub(crate) async fn run(
         args: Args,
         ephemera_config: Configuration,
+        nyxd_client: nyxd::Client,
         shutdown: Receiver<()>,
     ) -> anyhow::Result<()> {
         info!(
@@ -51,9 +53,14 @@ impl NymApi {
         let metrics = Self::create_metrics_collector(&args, &storage);
 
         //REWARDS
-        let rewards =
-            Self::create_rewards_manager(args, key_pair, storage, ephemera_handle.api.clone())
-                .await;
+        let rewards = Self::create_rewards_manager(
+            args,
+            key_pair,
+            storage,
+            nyxd_client,
+            ephemera_handle.api.clone(),
+        )
+        .await;
 
         //STARTING
         info!("Starting Nym-Api services");
@@ -108,11 +115,13 @@ impl NymApi {
         args: Args,
         key_pair: Keypair,
         storage: Arc<Mutex<Storage<MetricsStorageType>>>,
+        nyxd_client: nyxd::Client,
         ephemera_api: CommandExecutor,
     ) -> RewardManager<V2> {
         let epoch = Epoch::request_epoch(args.smart_contract_url.clone()).await;
         let rewards: RewardManager<V2> = RewardManager::new(
             storage.clone(),
+            nyxd_client,
             args.clone(),
             EphemeraAccess::new(ephemera_api, key_pair).into(),
             Some(RewardsAggregator),

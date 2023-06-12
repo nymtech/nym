@@ -1,4 +1,6 @@
+use cosmwasm_std::Decimal;
 use log::{info, trace};
+use nym_mixnet_contract_common::reward_params::Performance;
 use std::collections::HashMap;
 
 use crate::ephemera::contract::MixnodeToReward;
@@ -22,11 +24,11 @@ impl RewardsAggregator {
         trace!("Calculating mean average for each node");
         let mut mean_avg = vec![];
         for (mix_id, rewards) in mix_rewards {
-            let sum: u8 = rewards.iter().sum();
-            let avg = sum / rewards.len() as u8;
+            let sum: Decimal = rewards.iter().map(|r| r.value()).sum();
+            let avg = sum / Decimal::raw(rewards.len() as u128);
             mean_avg.push(MixnodeToReward {
                 mix_id,
-                performance: avg,
+                performance: Performance::new(avg).expect("Decimal average done wrong"),
             });
         }
         info!("Mean average rewards: {:?}", mean_avg);

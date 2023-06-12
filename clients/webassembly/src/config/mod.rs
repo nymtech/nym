@@ -1,4 +1,4 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-mod base_wasm;
+pub mod base_wasm;

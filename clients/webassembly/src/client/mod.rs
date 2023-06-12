@@ -68,7 +68,6 @@ pub struct NymClientBuilder {
 
     storage_passphrase: Option<String>,
     on_message: js_sys::Function,
-    // on_mix_fetch_message: Option<js_sys::Function>,
 }
 
 #[wasm_bindgen]
@@ -77,7 +76,6 @@ impl NymClientBuilder {
     pub fn new(
         config: Config,
         on_message: js_sys::Function,
-        // on_mix_fetch_message: js_sys::Function,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Self {
@@ -112,9 +110,6 @@ impl NymClientBuilder {
             config: full_config,
             custom_topology: Some(topology.into()),
             on_message,
-            // on_mix_fetch_message: None,
-            bandwidth_controller: None,
-            disabled_credentials: true,
             storage_passphrase: None,
             preferred_gateway: gateway,
         }
@@ -123,9 +118,7 @@ impl NymClientBuilder {
     fn start_reconstructed_pusher(
         client_output: ClientOutput,
         on_message: js_sys::Function,
-        // on_mix_fetch_message: js_sys::Function,
     ) {
-        // ResponsePusher::new(client_output, on_message, on_mix_fetch_message).start()
         ResponsePusher::new(client_output, on_message).start()
     }
 
@@ -183,10 +176,8 @@ impl NymClientBuilder {
 
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
-
-        // let on_mix_fetch = self.on_mix_fetch_message.expect("TODO: handle this error");
-
-        Self::start_reconstructed_pusher(client_output, self.on_message); //, on_mix_fetch);
+        
+        Self::start_reconstructed_pusher(client_output, self.on_message);
 
         Ok(NymClient {
             self_address,
@@ -209,14 +200,12 @@ impl NymClient {
     async fn _new(
         config: Config,
         on_message: js_sys::Function,
-        // on_mix_fetch_message: js_sys::Function,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Result<NymClient, WasmClientError> {
         NymClientBuilder::new(
             config,
             on_message,
-            // on_mix_fetch_message,
             preferred_gateway,
             storage_passphrase,
         )
@@ -354,84 +343,4 @@ impl NymClient {
         let input_msg = InputMessage::new_reply(sender_tag, message, lane, Some(self.packet_type));
         self.client_input.send_message(input_msg)
     }
-
-    pub fn fetch_with_request(&self, input: &Request) -> Promise {
-        let recipient = match parse_recipient(&self.mix_fetch_network_requester_address) {
-            Ok(recipient) => recipient,
-            Err(err) => return err.into_rejected_promise(),
-        };
-        match WebSysRequestAdapter::new_from_request(input) {
-            Ok(req) => self.client_input.send_mix_fetch_message(
-                recipient,
-                0u64,
-                true,
-                0u64,
-                req.http_codec_request(),
-            ),
-            Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
-        }
-    }
-
-    pub fn fetch_with_str(&self, input: &str) -> Promise {
-        let recipient = match parse_recipient(&self.mix_fetch_network_requester_address) {
-            Ok(recipient) => recipient,
-            Err(err) => return err.into_rejected_promise(),
-        };
-        match WebSysRequestAdapter::new_from_string(input) {
-            Ok(req) => self.client_input.send_mix_fetch_message(
-                recipient,
-                0u64,
-                true,
-                0u64,
-                req.http_codec_request(),
-            ),
-            Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
-        }
-    }
-
-    pub fn fetch_with_request_and_init(
-        &self,
-        input: &Request,
-        init: &RequestInitWithTypescriptType,
-    ) -> Promise {
-        let recipient = match parse_recipient(&self.mix_fetch_network_requester_address) {
-            Ok(recipient) => recipient,
-            Err(err) => return err.into_rejected_promise(),
-        };
-        match WebSysRequestAdapter::new_from_init_or_input(None, Some(input), init) {
-            Ok(req) => self.client_input.send_mix_fetch_message(
-                recipient,
-                0u64,
-                true,
-                0u64,
-                req.http_codec_request(),
-            ),
-            Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
-        }
-    }
-
-    pub fn fetch_with_str_and_init(
-        &self,
-        input: String,
-        init: &RequestInitWithTypescriptType,
-    ) -> Promise {
-        let recipient = match parse_recipient(&self.mix_fetch_network_requester_address) {
-            Ok(recipient) => recipient,
-            Err(err) => return err.into_rejected_promise(),
-        };
-        match WebSysRequestAdapter::new_from_init_or_input(Some(input), None, init) {
-            Ok(req) => self.client_input.send_mix_fetch_message(
-                recipient,
-                0u64,
-                true,
-                0u64,
-                req.http_codec_request(),
-            ),
-            Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
-        }
-    }
-}
-
-fn mix_http_request_error_to_js_error(err: MixHttpRequestError) -> JsValue {
-    JsValue::from(JsError::new(&format!("{}", err)))
 }

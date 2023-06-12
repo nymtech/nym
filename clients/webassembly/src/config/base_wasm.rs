@@ -1,27 +1,58 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// due to expansion of #[wasm_bindgen] macro on `Debug` Config struct
+#![allow(clippy::drop_non_drop)]
+// another issue due to #[wasm_bindgen] and `Copy` trait
+#![allow(clippy::drop_copy)]
+
+use crate::error::WasmClientError;
+use nym_client_core::config::Config as BaseClientConfig;
 use nym_client_core::config::{
-    Acknowledgements as ConfigAcknowledgements, Config as BaseClientConfig,
-    CoverTraffic as ConfigCoverTraffic, DebugConfig as ConfigDebug,
-    GatewayConnection as ConfigGatewayConnection, ReplySurbs as ConfigReplySurbs,
-    Topology as ConfigTopology, Traffic as ConfigTraffic,
+    Acknowledgements as ConfigAcknowledgements, CoverTraffic as ConfigCoverTraffic,
+    DebugConfig as ConfigDebug, GatewayConnection as ConfigGatewayConnection,
+    ReplySurbs as ConfigReplySurbs, Topology as ConfigTopology, Traffic as ConfigTraffic,
 };
 use nym_sphinx::params::{PacketSize, PacketType};
-use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use url::Url;
 use wasm_bindgen::prelude::*;
 
-// a wasm-friendly way of getting `BaseClientConfig` across the JS boundary
+pub(crate) fn new_base_client(
+    id: String,
+    version: String,
+    nym_api: Option<String>,
+    nyxd: Option<String>,
+    debug: Option<DebugWasm>,
+) -> Result<BaseClientConfig, WasmClientError> {
+    let nym_api_url = match nym_api {
+        Some(raw) => raw
+            .parse()
+            .map_err(|source| WasmClientError::MalformedUrl { raw, source })?,
+        None => None,
+    };
 
-pub struct BaseClientConfigWasm {
-    pub client: ClientWasm,
-    pub debug: DebugWasm,
+    let nyxd_url = match nyxd {
+        Some(raw) => raw
+            .parse()
+            .map_err(|source| WasmClientError::MalformedUrl { raw, source })?,
+        None => None,
+    };
+
+    Ok(BaseClientConfig::new(id, version)
+        .with_optional(
+            BaseClientConfig::with_custom_nym_apis,
+            nym_api_url.map(|u| vec![u]),
+        )
+        .with_optional(
+            BaseClientConfig::with_custom_nyxd,
+            nyxd_url.map(|u| vec![u]),
+        )
+        .with_debug_config(debug.map(Into::into).unwrap_or_default()))
 }
 
-pub struct ClientWasm {
-    //
+#[wasm_bindgen]
+pub fn default_debug() -> DebugWasm {
+    ConfigDebug::default().into()
 }
 
 // just a helper structure to more easily pass through the JS boundary

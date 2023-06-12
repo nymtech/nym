@@ -12,10 +12,6 @@ rust-version = "1.56"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-default = ["console_error_panic_hook"]
-offline-test = []
-
 [dependencies]
 async-trait = "0.1.68"
 bs58 = "0.4.0"
@@ -84,3 +80,9 @@ wasm-opt = false
 [profile.release]
 lto = true
 opt-level = 'z'
+
+# TODO:
+[features]
+default = ["console_error_panic_hook"]
+node-tester = []
+mix-fetch = []

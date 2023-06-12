@@ -1,10 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::base_wasm::{new_base_client, DebugWasm};
+use crate::error::WasmClientError;
+use crate::helpers::parse_recipient;
 use nym_client_core::config::Config as BaseClientConfig;
-use nym_sphinx::params::{PacketSize, PacketType};
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::params::PacketType;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -17,8 +20,33 @@ pub struct Config {
 }
 
 #[wasm_bindgen]
+impl Config {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        id: String,
+        network_requester_address: String,
+        nym_api: Option<String>,
+        nyxd: Option<String>,
+        debug: Option<DebugWasm>,
+    ) -> Result<Config, WasmClientError> {
+        Ok(Config {
+            base: new_base_client(id, nym_api, nyxd, debug)?,
+            mix_fetch: MixFetch::new(network_requester_address)?,
+        })
+    }
+}
+
+#[wasm_bindgen]
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MixFetch {
-    //
+    pub(crate) network_requester_address: Recipient,
+}
+
+impl MixFetch {
+    pub(crate) fn new(network_requester_address: String) -> Result<Self, MixFetch> {
+        Ok(MixFetch {
+            network_requester_address: parse_recipient(&network_requester_address)?,
+        })
+    }
 }

@@ -1,5 +1,6 @@
 use chrono::{DateTime, Duration, NaiveDateTime, Timelike, Utc};
 use log::info;
+use nym_mixnet_contract_common::Interval as RewardsInterval;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use tokio::time::{Instant, Interval};
@@ -27,6 +28,16 @@ impl EpochInfo {
             start_time,
             duration,
         }
+    }
+}
+
+impl From<RewardsInterval> for Epoch {
+    fn from(value: RewardsInterval) -> Self {
+        Epoch::new(EpochInfo::new(
+            value.current_epoch_id() as u64,
+            value.current_epoch_start().unix_timestamp(),
+            value.epoch_length_secs(),
+        ))
     }
 }
 

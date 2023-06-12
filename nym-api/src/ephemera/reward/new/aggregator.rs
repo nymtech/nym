@@ -4,12 +4,16 @@ use nym_mixnet_contract_common::reward_params::Performance;
 use std::collections::HashMap;
 
 use crate::ephemera::contract::MixnodeToReward;
+use crate::epoch_operations::MixnodeWithPerformance;
 
 pub(crate) struct RewardsAggregator;
 
 impl RewardsAggregator {
     //Simple mean average
-    pub(crate) fn aggregate(&self, all_rewards: Vec<Vec<MixnodeToReward>>) -> Vec<MixnodeToReward> {
+    pub(crate) fn aggregate(
+        &self,
+        all_rewards: Vec<Vec<MixnodeToReward>>,
+    ) -> Vec<MixnodeWithPerformance> {
         let mut mix_rewards = HashMap::new();
         for api_rewards in all_rewards {
             for mixnode in api_rewards {
@@ -26,7 +30,7 @@ impl RewardsAggregator {
         for (mix_id, rewards) in mix_rewards {
             let sum: Decimal = rewards.iter().map(|r| r.value()).sum();
             let avg = sum / Decimal::raw(rewards.len() as u128);
-            mean_avg.push(MixnodeToReward {
+            mean_avg.push(MixnodeWithPerformance {
                 mix_id,
                 performance: Performance::new(avg).expect("Decimal average done wrong"),
             });

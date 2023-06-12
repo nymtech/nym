@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use log::{debug, error, info, trace};
 use tokio::{sync::broadcast::Receiver, sync::Mutex};
 
+use crate::epoch_operations::MixnodeWithPerformance;
 use ephemera::{
     crypto::Keypair,
     ephemera_api::{self, ApiBlock, ApiEphemeraMessage, ApiError, CommandExecutor},
@@ -15,7 +16,7 @@ use super::contract::MixnodeToReward;
 use super::epoch::Epoch;
 use super::reward::new::aggregator::RewardsAggregator;
 use super::storage::db::{MetricsStorageType, Storage};
-use super::{Args, HTTP_NYM_API_HEADER, NR_OF_MIX_NODES};
+use super::{Args, NR_OF_MIX_NODES};
 use crate::support::nyxd;
 
 pub(crate) mod new;
@@ -99,7 +100,7 @@ where
 
     pub(crate) async fn calculate_rewards_for_previous_epoch(
         &self,
-    ) -> anyhow::Result<Vec<MixnodeToReward>> {
+    ) -> anyhow::Result<Vec<MixnodeWithPerformance>> {
         let start = self.epoch.current_epoch_start_time().timestamp() as u64;
         let end = self.epoch.current_epoch_end_time().timestamp() as u64;
         info!("Calculating rewards for interval {} - {}", start, end);
@@ -112,10 +113,10 @@ where
         let mut uptimes = Vec::with_capacity(NR_OF_MIX_NODES as usize);
         for mix_id in mix_nodes {
             let reliability = storage.get_mixnode_average_reliability(mix_id, start, end)?;
-            uptimes.push(MixnodeToReward::new(
+            uptimes.push(MixnodeWithPerformance {
                 mix_id,
-                reliability.unwrap_or_default(),
-            ));
+                performance: reliability.unwrap_or_default(),
+            });
         }
 
         Ok(uptimes)
@@ -123,27 +124,15 @@ where
 
     pub(crate) async fn submit_rewards_to_contract(
         &self,
-        rewards: Vec<MixnodeToReward>,
+        rewards: Vec<MixnodeWithPerformance>,
     ) -> anyhow::Result<()> {
-        // self.nyxd_client.send_rewarding_messages(&rewards).await?;
-        let url = format!(
-            "http://{}/contract/submit_rewards",
-            self.args.smart_contract_url
-        );
-        info!("Submitting rewards to {}", url);
-        let response = reqwest::Client::new()
-            .post(url.clone())
-            .header(HTTP_NYM_API_HEADER, self.args.nym_api_id.clone())
-            .json(&rewards)
-            .send()
-            .await?;
+        info!("Submitting rewards to contract");
+        let ret = self.nyxd_client.send_rewarding_messages(&rewards).await;
 
-        info!("Response from contract: {:?}", response);
-
-        if !response.status().is_success() {
+        if ret.is_err() {
             return Err(anyhow::anyhow!(
-                "Failed to submit rewards to contract with status {}",
-                response.status()
+                "Failed to submit rewards to contract because of {:?}",
+                ret
             ));
         }
         Ok(())
@@ -209,7 +198,7 @@ where
 
     pub(crate) async fn send_rewards_to_ephemera(
         &self,
-        rewards: Vec<MixnodeToReward>,
+        rewards: Vec<MixnodeWithPerformance>,
     ) -> anyhow::Result<()> {
         let ephemera_msg = self.create_ephemera_message(rewards)?;
         debug!("Sending rewards to ephemera: {:?}", ephemera_msg);
@@ -225,7 +214,7 @@ where
 
     fn create_ephemera_message(
         &self,
-        rewards: Vec<MixnodeToReward>,
+        rewards: Vec<MixnodeWithPerformance>,
     ) -> anyhow::Result<ApiEphemeraMessage> {
         let keypair = &self
             .ephemera_access

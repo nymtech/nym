@@ -1,5 +1,6 @@
 use httpcodec::{HeaderField, HttpVersion, Method, Request as HttpCodecRequest, RequestTarget};
 use nym_http_requests::error::MixHttpRequestError;
+use nym_socks5_requests::RemoteAddress;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use web_sys::Request;
@@ -7,7 +8,9 @@ use web_sys::Request;
 use crate::mix_fetch::mix_http_requests::RequestInitWithTypescriptType;
 
 pub(crate) struct WebSysRequestAdapter {
-    request: HttpCodecRequest<Vec<u8>>,
+    // TODO: that doesnt really fit in here. to refactor later.
+    pub(crate) target: RemoteAddress,
+    pub(crate) request: HttpCodecRequest<Vec<u8>>,
 }
 
 impl WebSysRequestAdapter {
@@ -29,7 +32,10 @@ impl WebSysRequestAdapter {
         let origin = url.origin().unicode_serialization();
         request_headers.add_field(HeaderField::new("Host", &origin)?);
 
-        Ok(WebSysRequestAdapter { request })
+        Ok(WebSysRequestAdapter {
+            target: target.as_str().to_owned(),
+            request,
+        })
     }
 
     pub(crate) fn new_from_request(
@@ -146,7 +152,10 @@ impl WebSysRequestAdapter {
             }
         }
 
-        Ok(WebSysRequestAdapter { request })
+        Ok(WebSysRequestAdapter {
+            target: target.as_str().to_owned(),
+            request,
+        })
     }
 
     pub(crate) fn http_codec_request(self) -> HttpCodecRequest<Vec<u8>> {

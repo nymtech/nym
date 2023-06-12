@@ -64,7 +64,7 @@ pub enum ResponseDeserializationError {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Socks5Response {
     pub protocol_version: Socks5ProtocolVersion,
     pub content: Socks5ResponseContent,

@@ -233,38 +233,6 @@ impl Placeholder2 {
                             }
                         }
                     }
-
-                    // if let Ok(socks5_response) =
-                    //     nym_socks5_requests::Socks5Response::try_from_bytes(&msg)
-                    // {
-                    //     if let Socks5ResponseContent::NetworkData { content } =
-                    //         &socks5_response.content
-                    //     {
-                    //         console_log!("raw res: {:?}", content.header);
-                    //         console_log!(
-                    //             "raw res: {:?}",
-                    //             content.header.connection_id.to_be_bytes()
-                    //         );
-                    //         console_log!("raw res: {:?}", content.header.seq.to_be_bytes());
-                    //     }
-                    //
-                    //     match MixHttpResponse::try_from(socks5_response.clone()) {
-                    //         Ok(mix_http_response) => {
-                    //             self.requests
-                    //                 .resolve(
-                    //                     mix_http_response.connection_id,
-                    //                     mix_http_response.http_response,
-                    //                 )
-                    //                 .await
-                    //         }
-                    //         Err(err) => {
-                    //             console_error!("this wasn't mix http response...: {err}");
-                    //             console_log!("{:?}", socks5_response);
-                    //         }
-                    //     }
-                    // } else {
-                    //     panic!("TODO: error handling for receiving something that's not socks5 response")
-                    // }
                 }
             }
 

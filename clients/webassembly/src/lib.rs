@@ -11,7 +11,7 @@ pub mod encoded_payload_helper;
 pub mod error;
 #[cfg(target_arch = "wasm32")]
 pub mod gateway_selector;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "mix-fetch"))]
 pub mod mix_fetch;
 #[cfg(target_arch = "wasm32")]
 pub mod storage;
@@ -25,8 +25,8 @@ pub mod validation;
 #[cfg(target_arch = "wasm32")]
 mod helpers;
 
-mod constants;
 mod config;
+mod constants;
 
 #[wasm_bindgen]
 pub fn set_panic_hook() {

@@ -10,8 +10,6 @@ use crate::helpers::{
     parse_recipient, parse_sender_tag, setup_from_topology, setup_gateway_from_api,
     setup_reply_surb_storage_backend,
 };
-use crate::mix_fetch::mix_http_requests::RequestInitWithTypescriptType;
-use crate::mix_fetch::request_adapter::WebSysRequestAdapter;
 use crate::storage::traits::FullWasmClientStorage;
 use crate::storage::ClientStorage;
 use crate::topology::WasmNymTopology;
@@ -22,7 +20,6 @@ use nym_client_core::client::base_client::{
 };
 use nym_client_core::client::inbound_messages::InputMessage;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
-use nym_http_requests::error::MixHttpRequestError;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
@@ -35,7 +32,6 @@ use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::{check_promise_result, console_log, PromisableResult};
-use web_sys::Request;
 
 pub mod config;
 mod helpers;
@@ -54,8 +50,6 @@ pub struct NymClient {
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
     _task_manager: TaskManager,
-
-    mix_fetch_network_requester_address: String,
 
     packet_type: PacketType,
 }
@@ -115,10 +109,7 @@ impl NymClientBuilder {
         }
     }
 
-    fn start_reconstructed_pusher(
-        client_output: ClientOutput,
-        on_message: js_sys::Function,
-    ) {
+    fn start_reconstructed_pusher(client_output: ClientOutput, on_message: js_sys::Function) {
         ResponsePusher::new(client_output, on_message).start()
     }
 
@@ -176,7 +167,7 @@ impl NymClientBuilder {
 
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
-        
+
         Self::start_reconstructed_pusher(client_output, self.on_message);
 
         Ok(NymClient {
@@ -186,7 +177,7 @@ impl NymClientBuilder {
             _full_topology: None,
             _task_manager: started_client.task_manager,
             packet_type,
-            mix_fetch_network_requester_address: "8YF6f8x17j3fviBdU87EGD9g9MAgn9DARxunwLEVM7Bm.4ydfpjbTjCmzj58hWdQjxU2gT6CRVnTbnKajr2hAGBBM@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW".to_string(),
+            // mix_fetch_network_requester_address: "8YF6f8x17j3fviBdU87EGD9g9MAgn9DARxunwLEVM7Bm.4ydfpjbTjCmzj58hWdQjxU2gT6CRVnTbnKajr2hAGBBM@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW".to_string(),
         })
     }
 
@@ -203,14 +194,9 @@ impl NymClient {
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Result<NymClient, WasmClientError> {
-        NymClientBuilder::new(
-            config,
-            on_message,
-            preferred_gateway,
-            storage_passphrase,
-        )
-        .start_client_async()
-        .await
+        NymClientBuilder::new(config, on_message, preferred_gateway, storage_passphrase)
+            .start_client_async()
+            .await
     }
 
     #[wasm_bindgen(constructor)]

@@ -2345,6 +2345,7 @@ dependencies = [
  "nym-bandwidth-controller",
  "nym-client-core",
  "nym-coconut-interface",
+ "nym-config",
  "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",

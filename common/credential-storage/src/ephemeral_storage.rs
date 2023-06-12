@@ -5,8 +5,9 @@ use crate::backends::memory::CoconutCredentialManager;
 use crate::error::StorageError;
 use crate::models::CoconutCredential;
 use crate::storage::Storage;
-
 use async_trait::async_trait;
+
+pub type EphemeralCredentialStorage = EphemeralStorage;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]

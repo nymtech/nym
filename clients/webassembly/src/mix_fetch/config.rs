@@ -6,21 +6,20 @@ use crate::error::WasmClientError;
 use crate::helpers::parse_recipient;
 use nym_client_core::config::Config as BaseClientConfig;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::params::PacketType;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Config {
+pub struct MixFetchConfig {
     pub(crate) base: BaseClientConfig,
 
     pub(crate) mix_fetch: MixFetch,
 }
 
 #[wasm_bindgen]
-impl Config {
+impl MixFetchConfig {
     #[wasm_bindgen(constructor)]
     pub fn new(
         id: String,
@@ -28,8 +27,8 @@ impl Config {
         nym_api: Option<String>,
         nyxd: Option<String>,
         debug: Option<DebugWasm>,
-    ) -> Result<Config, WasmClientError> {
-        Ok(Config {
+    ) -> Result<MixFetchConfig, WasmClientError> {
+        Ok(MixFetchConfig {
             base: new_base_client(id, nym_api, nyxd, debug)?,
             mix_fetch: MixFetch::new(network_requester_address)?,
         })
@@ -44,7 +43,7 @@ pub struct MixFetch {
 }
 
 impl MixFetch {
-    pub(crate) fn new(network_requester_address: String) -> Result<Self, MixFetch> {
+    pub(crate) fn new(network_requester_address: String) -> Result<MixFetch, WasmClientError> {
         Ok(MixFetch {
             network_requester_address: parse_recipient(&network_requester_address)?,
         })

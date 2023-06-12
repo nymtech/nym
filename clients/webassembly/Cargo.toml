@@ -36,6 +36,7 @@ nym-node-tester-utils = { path = "../../common/node-tester-utils" }
 nym-client-core = { path = "../../common/client-core", default-features = false, features = ["wasm"] }
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
+nym-config = { path = "../../common/config" }
 nym-credentials = { path = "../../common/credentials" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }

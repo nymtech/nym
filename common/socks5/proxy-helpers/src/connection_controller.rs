@@ -1,11 +1,11 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use nym_ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
-use nym_socks5_requests::{ConnectionId, NetworkData, SendRequest};
+use nym_ordered_buffer::{OrderedMessageBuffer, ReadContiguousData};
+use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::{ConnectionCommand, ConnectionCommandSender};
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
@@ -40,29 +40,13 @@ pub enum ControllerCommand {
         connection_id: ConnectionId,
     },
     Send {
-        connection_id: ConnectionId,
-        data: Vec<u8>,
-        is_closed: bool,
+        data: SocketData,
     },
 }
 
-impl From<NetworkData> for ControllerCommand {
-    fn from(value: NetworkData) -> Self {
-        ControllerCommand::Send {
-            connection_id: value.connection_id,
-            data: value.data,
-            is_closed: value.is_closed,
-        }
-    }
-}
-
-impl From<SendRequest> for ControllerCommand {
-    fn from(value: SendRequest) -> Self {
-        ControllerCommand::Send {
-            connection_id: value.conn_id,
-            data: value.data,
-            is_closed: value.local_closed,
-        }
+impl ControllerCommand {
+    pub fn new_send(data: SocketData) -> Self {
+        ControllerCommand::Send { data }
     }
 }
 
@@ -74,18 +58,13 @@ struct ActiveConnection {
 }
 
 impl ActiveConnection {
-    fn write_to_buf(&mut self, payload: Vec<u8>, is_closed: bool) {
-        let ordered_message = match OrderedMessage::try_from_bytes(payload) {
-            Ok(msg) => msg,
-            Err(err) => {
-                error!("Malformed ordered message - {err}");
-                return;
-            }
-        };
+    fn write_to_buf(&mut self, seq: u64, payload: Vec<u8>, is_closed: bool) {
         if is_closed {
-            self.closed_at_index = Some(ordered_message.index);
+            self.closed_at_index = Some(seq);
         }
-        self.ordered_buffer.write(ordered_message);
+        if let Err(err) = self.ordered_buffer.write(seq, payload) {
+            error!("failed to write to the buffer: {err}")
+        }
     }
 
     fn read_from_buf(&mut self) -> Option<ReadContiguousData> {
@@ -117,7 +96,7 @@ pub struct Controller {
 
     // buffer for messages received before connection was established due to mixnet being able to
     // un-order messages. Note we don't ever expect to have more than 1-2 messages per connection here
-    pending_messages: HashMap<ConnectionId, Vec<(Vec<u8>, bool)>>,
+    pending_messages: HashMap<ConnectionId, Vec<SocketData>>,
 
     shutdown: TaskClient,
 }
@@ -154,8 +133,8 @@ impl Controller {
             // check if there were any pending messages
             if let Some(pending) = self.pending_messages.remove(&conn_id) {
                 debug!("There were some pending messages for {}", conn_id);
-                for (payload, is_closed) in pending {
-                    self.send_to_connection(conn_id, payload, is_closed)
+                for data in pending {
+                    self.send_to_connection(data)
                 }
             }
         }
@@ -184,20 +163,25 @@ impl Controller {
         }
     }
 
-    fn send_to_connection(&mut self, conn_id: ConnectionId, payload: Vec<u8>, is_closed: bool) {
-        if let Some(active_connection) = self.active_connections.get_mut(&conn_id) {
-            if !payload.is_empty() {
-                active_connection.write_to_buf(payload, is_closed);
-            } else if !is_closed {
-                error!("Tried to write an empty message to a not-closing connection. Please let us know if you see this message");
-            }
+    fn send_to_connection(&mut self, message: SocketData) {
+        let hdr = message.header;
+        if let Some(active_connection) = self.active_connections.get_mut(&hdr.connection_id) {
+            // always write to the buffer even if payload is empty (because it could have been the keep-alive message)
+            active_connection.write_to_buf(hdr.seq, message.data, hdr.local_socket_closed);
 
             if let Some(payload) = active_connection.read_from_buf() {
                 if let Some(closed_at_index) = active_connection.closed_at_index {
-                    if payload.last_index > closed_at_index {
+                    if payload.last_sequence > closed_at_index {
                         active_connection.is_closed = true;
                     }
                 }
+
+                // however, don't send empty payload to the actual connection if it's not a close message
+                // TODO: or should we?
+                if payload.data.is_empty() && !active_connection.is_closed {
+                    return;
+                }
+
                 if let Err(err) = active_connection
                     .connection_sender
                     .as_mut()
@@ -207,34 +191,26 @@ impl Controller {
                         socket_closed: active_connection.is_closed,
                     })
                 {
-                    error!("WTF IS THIS: {err}");
+                    error!("failed to send on the active connection channel: {err}");
                 }
-
-                // TODO: ABOVE UNWRAP CAUSED A CRASH IN A NORMAL USE!!!!
-                // TODO:
-                // TODO: surprisingly it only happened on socks client, never on nSP
-                // TODO:
-                // TODO:
-                // TODO:
-                // TODO:
             }
-        } else if !self.recently_closed.contains(&conn_id) {
+        } else if !self.recently_closed.contains(&hdr.connection_id) {
             debug!("Received a 'Send' before 'Connect' - going to buffer the data");
             let pending = self
                 .pending_messages
-                .entry(conn_id)
+                .entry(hdr.connection_id)
                 .or_insert_with(Vec::new);
-            pending.push((payload, is_closed));
-        } else if !is_closed {
+            pending.push(message);
+        } else if !hdr.local_socket_closed {
             error!(
                 "Tried to write to closed connection {} ({} bytes were 'lost)",
-                conn_id,
-                payload.len()
+                hdr.connection_id,
+                message.data.len()
             );
         } else {
             debug!(
                 "Tried to write to closed connection {}, but remote is already closed",
-                conn_id
+                hdr.connection_id
             )
         }
     }
@@ -243,8 +219,8 @@ impl Controller {
         loop {
             tokio::select! {
                 command = self.receiver.next() => match command {
-                    Some(ControllerCommand::Send{connection_id, data, is_closed}) => {
-                        self.send_to_connection(connection_id, data, is_closed)
+                    Some(ControllerCommand::Send{data}) => {
+                        self.send_to_connection(data)
                     }
                     Some(ControllerCommand::Insert{connection_id, connection_sender}) => {
                         self.insert_connection(connection_id, connection_sender)

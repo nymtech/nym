@@ -3949,7 +3949,6 @@ dependencies = [
  "nym-credential-storage",
  "nym-crypto",
  "nym-network-defaults",
- "nym-ordered-buffer",
  "nym-sdk",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",

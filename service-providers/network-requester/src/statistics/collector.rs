@@ -6,10 +6,11 @@ use crate::core::new_legacy_request_version;
 use crate::reply::MixnetMessage;
 use async_trait::async_trait;
 use log::*;
-use nym_ordered_buffer::OrderedMessageSender;
 use nym_service_providers_common::interface::RequestVersion;
 use nym_socks5_proxy_helpers::proxy_runner::MixProxySender;
-use nym_socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
+use nym_socks5_requests::{
+    ConnectionId, RemoteAddress, SocketData, Socks5Request, Socks5RequestContent,
+};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_statistics_common::api::{
     build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
@@ -190,9 +191,9 @@ impl StatisticsCollector for ServiceStatisticsCollector {
             .expect("MixProxyReader has stopped receiving!");
 
         trace!("Sending data to statistics service");
-        let mut message_sender = OrderedMessageSender::new();
-        let ordered_msg = message_sender.wrap_message(msg).into_bytes();
-        let send_req = Socks5RequestContent::new_send(conn_id, ordered_msg, true);
+
+        let message = SocketData::new(0, conn_id, true, msg);
+        let send_req = Socks5RequestContent::new_send(message);
 
         let mixnet_message = MixnetMessage::new_network_data_request(
             self.stats_provider_addr,

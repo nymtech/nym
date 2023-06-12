@@ -3,4 +3,5 @@
 
 pub mod available_reader;
 pub mod connection_controller;
+pub mod ordered_sender;
 pub mod proxy_runner;

@@ -24,7 +24,7 @@ use nym_socks5_proxy_helpers::connection_controller::{
 };
 use nym_socks5_proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use nym_socks5_requests::{
-    ConnectRequest, ConnectionId, NetworkData, QueryRequest, QueryResponse, SendRequest,
+    ConnectRequest, ConnectionId, QueryRequest, QueryResponse, SendRequest, SocketData,
     Socks5ProtocolVersion, Socks5ProviderRequest, Socks5Request, Socks5RequestContent,
     Socks5Response,
 };
@@ -137,13 +137,13 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
                         .connected_services
                         .read()
                         .await
-                        .get(&req.conn_id)
+                        .get(&req.data.header.connection_id)
                     {
                         stats_collector
                             .request_stats_data
                             .write()
                             .await
-                            .processed(remote_addr, req.data.len() as u32);
+                            .processed(remote_addr, req.data.data.len() as u32);
                     }
                 }
                 self.handle_proxy_send(req)
@@ -359,7 +359,7 @@ impl NRServiceProvider {
                     return_address,
                     remote_version,
                     connection_id,
-                    NetworkData::new_closed_empty(connection_id),
+                    SocketData::new(0, connection_id, true, Vec::new()),
                 );
 
                 mix_input_sender
@@ -471,7 +471,9 @@ impl NRServiceProvider {
     }
 
     fn handle_proxy_send(&mut self, req: SendRequest) {
-        self.controller_sender.unbounded_send(req.into()).unwrap()
+        self.controller_sender
+            .unbounded_send(ControllerCommand::new_send(req.data))
+            .unwrap()
     }
 
     fn handle_query(

@@ -57,14 +57,14 @@ class WebWorkerClient {
         });
     };
 
-    sendTestPacket = (mixnodeIdentity) => {
+    sendMagicPayload = (mixnodeIdentity) => {
         if (!this.worker) {
             console.error('Could not send message because worker does not exist');
             return;
         }
 
         this.worker.postMessage({
-            kind: 'TestPacket',
+            kind: 'MagicPayload',
             args: {
                 mixnodeIdentity,
             },
@@ -84,7 +84,7 @@ async function main() {
 
     const magicButton = document.querySelector('#magic-button');
     magicButton.onclick = function () {
-        sendTestPacket();
+        sendMagicPayload();
     }
 }
 
@@ -102,11 +102,11 @@ async function sendMessageTo() {
     displaySend(message);
 }
 
-async function sendTestPacket() {
-    const mixnodeIdentity = document.getElementById('mixnode_identity').value;
+async function sendMagicPayload() {
+    const payload = document.getElementById('magic_payload').value;
+    await client.sendMagicPayload(payload)
 
-    await client.sendTestPacket(mixnodeIdentity)
-    displaySend(`sending test packets to: ${mixnodeIdentity}...`);
+    displaySend(`clicked the button and the payload is: ${payload}...`);
 }
 
 /**

@@ -24,6 +24,7 @@ use web_sys::Request;
 
 #[wasm_bindgen]
 pub struct MixFetchClient {
+    self_address: String,
     placeholder: Placeholder,
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
@@ -92,6 +93,7 @@ impl MixFetchClientBuilder {
         )
         .start_base()
         .await?;
+        let self_address = started_client.address.to_string();
 
         let active_requests = ActiveRequests::default();
 
@@ -101,8 +103,10 @@ impl MixFetchClientBuilder {
         Self::start_reconstructor(client_output, active_requests.clone());
 
         Ok(MixFetchClient {
+            self_address,
             placeholder: Placeholder::new(
                 self.config.mix_fetch.network_requester_address,
+                started_client.address,
                 client_input,
                 active_requests,
             ),
@@ -137,20 +141,20 @@ impl MixFetchClient {
         })
     }
 
+    pub fn self_address(&self) -> String {
+        self.self_address.clone()
+    }
+
     pub fn fetch_with_request(&self, input: &Request) -> Promise {
         match WebSysRequestAdapter::new_from_request(input) {
-            Ok(req) => self
-                .placeholder
-                .fetch(0u64, true, 0u64, req.http_codec_request()),
+            Ok(req) => self.placeholder.fetch(true, 0u64, req),
             Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
         }
     }
 
     pub fn fetch_with_str(&self, input: &str) -> Promise {
         match WebSysRequestAdapter::new_from_string(input) {
-            Ok(req) => self
-                .placeholder
-                .fetch(0u64, true, 0u64, req.http_codec_request()),
+            Ok(req) => self.placeholder.fetch(true, 0u64, req),
             Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
         }
     }
@@ -161,9 +165,7 @@ impl MixFetchClient {
         init: &RequestInitWithTypescriptType,
     ) -> Promise {
         match WebSysRequestAdapter::new_from_init_or_input(None, Some(input), init) {
-            Ok(req) => self
-                .placeholder
-                .fetch(0u64, true, 0u64, req.http_codec_request()),
+            Ok(req) => self.placeholder.fetch(true, 0u64, req),
             Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
         }
     }
@@ -174,9 +176,7 @@ impl MixFetchClient {
         init: &RequestInitWithTypescriptType,
     ) -> Promise {
         match WebSysRequestAdapter::new_from_init_or_input(Some(input), None, init) {
-            Ok(req) => self
-                .placeholder
-                .fetch(0u64, true, 0u64, req.http_codec_request()),
+            Ok(req) => self.placeholder.fetch(true, 0u64, req),
             Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
         }
     }

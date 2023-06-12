@@ -30,6 +30,8 @@ const {
     GatewayEndpointConfig,
     FetchToMixnetRequest,
     ClientStorage,
+    MixFetchConfig,
+    MixFetchClient,
     current_network_topology,
     make_key,
     make_key2
@@ -130,7 +132,7 @@ async function testWithTester() {
     self.onmessage = async event => {
         if (event.data && event.data.kind) {
             switch (event.data.kind) {
-                case 'TestPacket': {
+                case 'MagicPayload': {
                     const {mixnodeIdentity} = event.data.args;
                     console.log("starting node test...");
 
@@ -155,7 +157,7 @@ async function testWithNymClient() {
             args: {
                 message,
                 senderTag: undefined,
-                isTestPacket: true,
+                isMagicPayload: true,
             },
         });
 
@@ -194,7 +196,7 @@ async function testWithNymClient() {
                     await client.send_regular_message(uint8Array, recipient);
                     break;
                 }
-                case 'TestPacket': {
+                case 'MagicPayload': {
                     const {mixnodeIdentity} = event.data.args;
                     const req = await client.try_construct_test_packet_request(mixnodeIdentity);
                     await client.change_hardcoded_topology(req.injectable_topology());
@@ -276,7 +278,7 @@ async function messWithStorage() {
     self.onmessage = async event => {
         if (event.data && event.data.kind) {
             switch (event.data.kind) {
-                case 'TestPacket': {
+                case 'MagicPayload': {
                     const { mixnodeIdentity } = event.data.args;
                     console.log("button clicked...", mixnodeIdentity);
 
@@ -321,26 +323,20 @@ async function messWithStorage() {
 
 
 async function testMixFetch() {
-    self.postMessage({kind: 'DisableMagicTestButton'});
+    // self.postMessage({kind: 'DisableMagicTestButton'});
 
     // only really useful if you want to adjust some settings like traffic rate
     // (if not needed you can just pass a null)
     const debug = default_debug();
-
     debug.disable_main_poisson_packet_distribution = true;
     debug.disable_loop_cover_traffic_stream = true;
     debug.use_extended_packet_size = false;
-    // debug.average_packet_delay_ms = BigInt(10);
-    // debug.average_ack_delay_ms = BigInt(10);
-    // debug.ack_wait_addition_ms = BigInt(3000);
-    // debug.ack_wait_multiplier = 10;
-
-    debug.topology_refresh_rate_ms = BigInt(60000)
 
     const preferredGateway = "336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9";
     const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
+    const mix_fetch_network_requester_address= "FbFmrWX1xkd3MUv1LinQ4emXrtP8krvGEngXPECDpN3c.BZJ9zVb19q8JDWRYSvcwQMSivBWt8FJPdK7dY2A3Aqx1@6Lnxj9vD2YMtSmfe8zp5RBtj1uZLYQAFRxY9q7ANwrZz";
 
-    const config = new Config('my-awesome-wasm-client', validator, preferredGateway, debug);
+    const config = new MixFetchConfig('my-awesome-mix-fetch-client', mix_fetch_network_requester_address, validator, undefined, debug);
 
     const onMessageHandler = (message) => {
         console.log(message);
@@ -352,16 +348,15 @@ async function testMixFetch() {
         });
     };
 
-    console.log('Instantiating WASM client...');
+    console.log('Instantiating Mix Fetch client...');
 
-    let builder = new NymClientBuilder(config, onMessageHandler);
-    let localClient = await builder.start_client();
-    console.log('WASM client running!');
+    let mix_fetch = await new MixFetchClient(config, preferredGateway)
+    console.log('Mix Fetch client running!');
 
-    const selfAddress = localClient.self_address();
+    const selfAddress = mix_fetch.self_address();
 
     // set the global (I guess we don't have to anymore?)
-    client = localClient;
+    client = mix_fetch;
 
     console.log(`Client address is ${selfAddress}`);
     self.postMessage({
@@ -397,19 +392,21 @@ async function testMixFetch() {
         console.log(event)
         if (event.data && event.data.kind) {
             switch (event.data.kind) {
-                case 'SendMessage': {
-                    const {message, recipient} = event.data.args;
-                    let uint8Array = new TextEncoder().encode(message);
-                    await client.send_regular_message(uint8Array, recipient);
-                    break;
+                case 'MagicPayload': {
+                    // ignore the field naming : ) I'm just abusing that a bit...
+                    const {mixnodeIdentity} = event.data.args;
+                    const url = mixnodeIdentity;
+
+                    console.log('using mixFetch...');
+                    await client.fetch_with_str(url);
+                    console.log('mixFetch done');
                 }
             }
         }
     };
 
-    console.log('using mixFetch...');
-    await client.fetch_with_str('https://nymtech.net/.wellknown/wallet/validators.json');
-    console.log('mixFetch done');
+    // console.log('using mixFetch...');
+    // await client.fetch_with_str('https://nymtech.net/.wellknown/wallet/validators.json');
 }
 
 async function main() {

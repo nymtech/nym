@@ -8,27 +8,35 @@ use bytecodec::io::IoEncodeExt;
 use bytecodec::{DecodeExt, Encode};
 use httpcodec::{BodyDecoder, ResponseDecoder};
 use httpcodec::{BodyEncoder, Request, RequestEncoder};
+use nym_service_providers_common::interface::ProviderInterfaceVersion;
 use nym_socks5_requests::{
-    SocketData, Socks5ProtocolVersion, Socks5Response, Socks5ResponseContent,
+    SocketData, Socks5ProtocolVersion, Socks5ProviderRequest, Socks5Response, Socks5ResponseContent,
 };
 
-pub fn encode_http_request_as_socks_request(
-    socks5_version: Socks5ProtocolVersion,
+pub fn encode_http_request_as_socks_send_request(
+    provider_interface: ProviderInterfaceVersion,
+    socks5_protocol: Socks5ProtocolVersion,
     conn_id: u64,
     request: Request<Vec<u8>>,
     seq: Option<u64>,
     local_closed: bool,
-) -> Result<nym_socks5_requests::request::Socks5Request, error::MixHttpRequestError> {
+) -> Result<nym_socks5_requests::Socks5ProviderRequest, error::MixHttpRequestError> {
     // Encode HTTP request as bytes
     let mut encoder = RequestEncoder::new(BodyEncoder::new(BytesEncoder::new()));
     encoder.start_encoding(request)?;
     let mut buf = Vec::new();
     encoder.encode_all(&mut buf)?;
 
-    // Wrap is SOCKS send request
-    Ok(nym_socks5_requests::request::Socks5Request::new_send(
-        socks5_version,
+    // Wrap it as SOCKS send request
+    let request_content = nym_socks5_requests::request::Socks5Request::new_send(
+        socks5_protocol,
         SocketData::new(seq.unwrap_or_default(), conn_id, local_closed, buf),
+    );
+
+    // and wrap it in provider request
+    Ok(Socks5ProviderRequest::new_provider_data(
+        provider_interface,
+        request_content,
     ))
 }
 
@@ -88,8 +96,8 @@ mod http_requests_tests {
 
     fn create_socks5_request_buffer() -> Vec<u8> {
         let request = create_http_get_request();
-        let socks5_request = encode_http_request_as_socks_request(
-            Socks5ProtocolVersion::Versioned(5),
+        let socks5_request = encode_http_request_as_socks_send_request(
+            Socks5ProtocolVersion::new_current(),
             99u64,
             request,
             Some(42u64),
@@ -146,7 +154,7 @@ mod http_requests_tests {
 
         // wrap in `NetworkData`, then Socks5Response
         Socks5Response::new(
-            Socks5ProtocolVersion::Versioned(5),
+            Socks5ProtocolVersion::new_current(),
             Socks5ResponseContent::NetworkData {
                 content: SocketData::new(42, 99u64, false, data),
             },

@@ -177,7 +177,6 @@ impl NymClientBuilder {
             _full_topology: None,
             _task_manager: started_client.task_manager,
             packet_type,
-            // mix_fetch_network_requester_address: "8YF6f8x17j3fviBdU87EGD9g9MAgn9DARxunwLEVM7Bm.4ydfpjbTjCmzj58hWdQjxU2gT6CRVnTbnKajr2hAGBBM@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW".to_string(),
         })
     }
 

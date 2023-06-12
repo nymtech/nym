@@ -7,12 +7,19 @@ use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, Request, Response, ResponseContent,
 };
 use nym_socks5_requests::{
-    QueryRequest, QueryResponse, Socks5ProtocolVersion, Socks5Request, Socks5Response,
+    QueryRequest, QueryRequestId, QueryResponse, Socks5ProtocolVersion, Socks5Request,
+    Socks5Response,
 };
+use rand::RngCore;
 use serde::Serialize;
 use tokio::time::{timeout, Duration};
 
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(10);
+
+fn generate_random() -> u64 {
+    let mut rng = rand::rngs::OsRng;
+    rng.next_u64()
+}
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -128,9 +135,10 @@ fn new_supported_request_versions_request() -> Request {
     Request::new_control(ProviderInterfaceVersion::new_current(), request_versions)
 }
 
-fn new_open_proxy_request() -> Request<Socks5Request> {
+fn new_open_proxy_request(query_id: QueryRequestId) -> Request<Socks5Request> {
     let request_open_proxy = Socks5Request::new_query(
         Socks5ProtocolVersion::new_current(),
+        query_id,
         QueryRequest::OpenProxy,
     );
     Request::new_provider_data(ProviderInterfaceVersion::new_current(), request_open_proxy)
@@ -175,19 +183,22 @@ impl QueryClient {
     }
 
     async fn query_open_proxy(&mut self) -> QueryResponse {
+        let query_id: QueryRequestId = generate_random();
         self.client
             .send_bytes(
                 self.provider,
-                new_open_proxy_request().into_bytes(),
+                new_open_proxy_request(query_id).into_bytes(),
                 IncludedSurbs::new(10),
             )
             .await;
         let response = wait_for_socks5_response(&mut self.client).await;
-        response
+        let query_response = response
             .content
             .as_query()
-            .expect("Unexpected response type!")
-            .clone()
+            .expect("Unexpected response type!");
+        // TODO: we should just drop unexpected messages
+        assert_eq!(&query_id, query_response.0);
+        query_response.1.clone()
     }
 
     async fn ping(&mut self) -> PingResponse {

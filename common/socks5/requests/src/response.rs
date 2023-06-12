@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{make_bincode_serializer, ConnectionId, Socks5ProtocolVersion, Socks5RequestError};
+use crate::{make_bincode_serializer, ConnectionId, Socks5ProtocolVersion, Socks5RequestError, QueryRequestId};
 use nym_service_providers_common::interface::{Serializable, ServiceProviderResponse};
 use serde::{Deserialize, Serialize};
 use tap::TapFallible;
@@ -148,11 +148,12 @@ impl Socks5Response {
 
     pub fn new_query(
         protocol_version: Socks5ProtocolVersion,
+        query_request_id: QueryRequestId,
         query_response: QueryResponse,
     ) -> Socks5Response {
         Socks5Response {
             protocol_version,
-            content: Socks5ResponseContent::Query(query_response),
+            content: Socks5ResponseContent::Query((query_request_id, query_response)),
         }
     }
 }
@@ -161,7 +162,7 @@ impl Socks5Response {
 pub enum Socks5ResponseContent {
     NetworkData(NetworkData),
     ConnectionError(ConnectionError),
-    Query(QueryResponse),
+    Query((QueryRequestId, QueryResponse)),
 }
 
 impl Socks5ResponseContent {
@@ -234,9 +235,9 @@ impl Socks5ResponseContent {
         }
     }
 
-    pub fn as_query(&self) -> Option<&QueryResponse> {
+    pub fn as_query(&self) -> Option<(&QueryRequestId, &QueryResponse)> {
         match self {
-            Socks5ResponseContent::Query(query) => Some(query),
+            Socks5ResponseContent::Query((query_id, query)) => Some((query_id, query)),
             _ => None,
         }
     }

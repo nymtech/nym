@@ -4162,6 +4162,7 @@ dependencies = [
  "nym-sdk",
  "nym-service-providers-common",
  "nym-socks5-requests",
+ "rand 0.8.5",
  "serde",
  "tokio",
 ]

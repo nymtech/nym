@@ -14,5 +14,6 @@ nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-service-providers-common = { path = "../../service-providers/common" }
 nym-socks5-requests = { path = "../../common/socks5/requests" }
+rand = "0.8"
 serde = { workspace = true }
 tokio = { workspace = true, features = [ "net", "rt-multi-thread", "macros" ] }

@@ -84,6 +84,8 @@ pub struct SendRequest {
     pub local_closed: bool,
 }
 
+pub type QueryRequestId = u64;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum QueryRequest {
     OpenProxy,
@@ -192,11 +194,12 @@ impl Socks5Request {
 
     pub fn new_query(
         protocol_version: Socks5ProtocolVersion,
+        req_id: u64,
         query: QueryRequest,
     ) -> Socks5Request {
         Socks5Request {
             protocol_version,
-            content: Socks5RequestContent::Query(query),
+            content: Socks5RequestContent::Query((req_id, query)),
         }
     }
 }
@@ -213,7 +216,7 @@ pub enum Socks5RequestContent {
     /// Re-use an existing TCP connection, sending more request data up it.
     Send(SendRequest),
 
-    Query(QueryRequest),
+    Query((QueryRequestId, QueryRequest)),
 }
 
 impl Socks5RequestContent {
@@ -677,13 +680,13 @@ mod request_deserialization_tests {
 
         #[test]
         fn serialize_there_and_back() {
-            let open_proxy = Socks5RequestContent::Query(QueryRequest::OpenProxy);
+            let open_proxy = Socks5RequestContent::Query((42, QueryRequest::OpenProxy));
             let bytes_open_proxy = open_proxy.clone().into_bytes();
-            assert_eq!(bytes_open_proxy, vec![2, 0]);
+            assert_eq!(bytes_open_proxy, vec![42, 2, 0]);
 
-            let description = Socks5RequestContent::Query(QueryRequest::Description);
+            let description = Socks5RequestContent::Query((8723647823, QueryRequest::Description));
             let bytes_description = description.clone().into_bytes();
-            assert_eq!(bytes_description, vec![2, 1]);
+            assert_eq!(bytes_description, vec![23, 2, 1]);
 
             let open_proxy2 = Socks5RequestContent::try_from_bytes(&bytes_open_proxy).unwrap();
             let description2 = Socks5RequestContent::try_from_bytes(&bytes_description).unwrap();

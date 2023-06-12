@@ -25,8 +25,8 @@ use nym_socks5_proxy_helpers::connection_controller::{
 };
 use nym_socks5_proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use nym_socks5_requests::{
-    ConnectRequest, ConnectionId, NetworkData, QueryRequest, QueryResponse, SendRequest,
-    Socks5ProtocolVersion, Socks5ProviderRequest, Socks5Request, Socks5RequestContent,
+    ConnectRequest, ConnectionId, NetworkData, QueryRequest, QueryRequestId, QueryResponse,
+    SendRequest, Socks5ProtocolVersion, Socks5ProviderRequest, Socks5Request, Socks5RequestContent,
     Socks5Response,
 };
 use nym_sphinx::addressing::clients::Recipient;
@@ -149,7 +149,9 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
                 }
                 self.handle_proxy_send(req)
             }
-            Socks5RequestContent::Query(query) => return self.handle_query(query),
+            Socks5RequestContent::Query((query_id, query)) => {
+                return self.handle_query(query_id, query)
+            }
         }
 
         Ok(None)
@@ -480,16 +482,19 @@ impl NRServiceProvider {
 
     fn handle_query(
         &self,
+        query_id: QueryRequestId,
         query: QueryRequest,
     ) -> Result<Option<Socks5Response>, NetworkRequesterError> {
         let protocol_version = Socks5ProtocolVersion::default();
         let response = match query {
             QueryRequest::OpenProxy => Socks5Response::new_query(
                 protocol_version,
+                query_id,
                 QueryResponse::OpenProxy(self.open_proxy),
             ),
             QueryRequest::Description => Socks5Response::new_query(
                 protocol_version,
+                query_id,
                 QueryResponse::Description("Description (placeholder)".to_string()),
             ),
         };

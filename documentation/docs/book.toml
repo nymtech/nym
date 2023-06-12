@@ -50,7 +50,7 @@ assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 minimum_rust_version = "1.66"
 
 # old variables - this is still needed for links.. TODO change to develop?
-platform_release_version = "v1.1.20"
+platform_release_version = "v1.1.21"
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"

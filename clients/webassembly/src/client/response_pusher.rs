@@ -16,7 +16,6 @@ use wasm_utils::{console_error, console_log};
 pub(crate) struct ResponsePusher {
     reconstructed_receiver: ReconstructedMessagesReceiver,
     on_message: js_sys::Function,
-    // on_mix_fetch_message: js_sys::Function,
 }
 
 impl ResponsePusher {
@@ -39,7 +38,6 @@ impl ResponsePusher {
         ResponsePusher {
             reconstructed_receiver,
             on_message,
-            // on_mix_fetch_message,
         }
     }
 

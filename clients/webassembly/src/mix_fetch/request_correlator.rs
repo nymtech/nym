@@ -20,7 +20,7 @@ pub enum RequestError {
     Timeout { id: RequestId, timeout: Duration },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ActiveRequests {
     // TODO: think whether we need sync or async mutex here
     inner: Arc<Mutex<HashMap<RequestId, ResponseSender>>>,

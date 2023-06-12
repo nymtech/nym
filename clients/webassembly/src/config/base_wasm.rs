@@ -13,6 +13,7 @@ use nym_client_core::config::{
     DebugConfig as ConfigDebug, GatewayConnection as ConfigGatewayConnection,
     ReplySurbs as ConfigReplySurbs, Topology as ConfigTopology, Traffic as ConfigTraffic,
 };
+use nym_config::helpers::OptionalSet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
@@ -25,16 +26,18 @@ pub(crate) fn new_base_client(
     debug: Option<DebugWasm>,
 ) -> Result<BaseClientConfig, WasmClientError> {
     let nym_api_url = match nym_api {
-        Some(raw) => raw
-            .parse()
-            .map_err(|source| WasmClientError::MalformedUrl { raw, source })?,
+        Some(raw) => Some(
+            raw.parse()
+                .map_err(|source| WasmClientError::MalformedUrl { raw, source })?,
+        ),
         None => None,
     };
 
     let nyxd_url = match nyxd {
-        Some(raw) => raw
-            .parse()
-            .map_err(|source| WasmClientError::MalformedUrl { raw, source })?,
+        Some(raw) => Some(
+            raw.parse()
+                .map_err(|source| WasmClientError::MalformedUrl { raw, source })?,
+        ),
         None => None,
     };
 

@@ -121,6 +121,7 @@ However, there are several options for choosing a gateway, if you do not want on
 > Note this doesn't mean that your client will pick the closest gateway to you, but it will be far more likely to connect to gateway with a 20ms ping rather than 200ms
 
 ### Configuring your client
+
 When you initalise a client instance, a configuration directory will be generated and stored in `$HOME_DIR/.nym/socks5-clients/<client-name>/`.
 
 ```
@@ -151,14 +152,44 @@ You can set this via the `--host` flag during either the `init` or `run` command
 
 Alternatively, a custom host can be set in the `config.toml` file under the `socket` section. If you do this, remember to restart your client process.
 
-
-
 ### Running the socks5 client
 
 You can run the initalised client by doing this:
 
 ```
 ./nym-socks5-client run --id docs-example
+```
+
+## Automating your socks5 client with systemd
+
+Stop the running process with `CTRL-C`, and create a service file for the socks5 client as we did with our client instance previously at `/etc/systemd/system/nym-socks5-client.service`:
+
+```ini
+[Unit]
+Description=Nym Socks5 Client ({{platform_release_version}})
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=nym # replace this with whatever user you wish
+LimitNOFILE=65536
+ExecStart=/home/nym/nym-socks5-client run --id <your_id>
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Now enable and start your socks5 client:
+
+```
+systemctl enable nym-socks5-client.service
+systemctl start nym-socks5-client.service
+
+# you can always check your socks5 client has succesfully started with:
+systemctl status nym-socks5-client.service
 ```
 
 ## Using your Socks5 Client

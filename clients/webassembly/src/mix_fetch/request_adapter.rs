@@ -1,11 +1,20 @@
 use httpcodec::{HeaderField, HttpVersion, Method, Request as HttpCodecRequest, RequestTarget};
 use nym_http_requests::error::MixHttpRequestError;
 use nym_socks5_requests::RemoteAddress;
+use url::{Origin, Url};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use web_sys::Request;
 
 use crate::mix_fetch::mix_http_requests::RequestInitWithTypescriptType;
+
+fn remote_address_from_url(url: &Url) -> Result<RemoteAddress, MixHttpRequestError> {
+    let origin = url.origin();
+    match origin {
+        Origin::Opaque(_) => todo!(),
+        Origin::Tuple(ref _scheme, ref host, port) => Ok(format!("{}:{}", host, port)),
+    }
+}
 
 pub(crate) struct WebSysRequestAdapter {
     // TODO: that doesnt really fit in here. to refactor later.
@@ -33,7 +42,7 @@ impl WebSysRequestAdapter {
         request_headers.add_field(HeaderField::new("Host", &origin)?);
 
         Ok(WebSysRequestAdapter {
-            target: target.as_str().to_owned(),
+            target: remote_address_from_url(&url)?,
             request,
         })
     }
@@ -153,7 +162,7 @@ impl WebSysRequestAdapter {
         }
 
         Ok(WebSysRequestAdapter {
-            target: target.as_str().to_owned(),
+            target: remote_address_from_url(&parsed_url)?,
             request,
         })
     }

@@ -398,8 +398,9 @@ async function testMixFetch() {
                     const url = mixnodeIdentity;
 
                     console.log('using mixFetch...');
-                    await client.fetch_with_str(url);
+                    let res = await client.fetch_with_str(url);
                     console.log('mixFetch done');
+                    console.log(res)
                 }
             }
         }

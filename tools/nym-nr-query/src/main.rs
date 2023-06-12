@@ -196,7 +196,7 @@ impl QueryClient {
             .send_bytes(
                 self.provider,
                 new_ping_request().into_bytes(),
-                IncludedSurbs::new(10),
+                IncludedSurbs::new(5),
             )
             .await;
         let response = wait_for_control_response(&mut self.client).await;

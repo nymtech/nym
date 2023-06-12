@@ -80,6 +80,8 @@ async fn wait_for_control_response(client: &mut mixnet::MixnetClient) -> Control
     loop {
         let Ok(next) = timeout(RESPONSE_TIMEOUT, client.wait_for_messages()).await else {
             eprintln!("Timeout waiting for response");
+            // Currently the control messages are not tagged with ID, so if we loose one we might
+            // en up out of sync. For now, just exit.
             std::process::exit(1);
         };
         let next = next.unwrap();
@@ -215,7 +217,7 @@ struct PingResponse {
 
 impl fmt::Display for PingResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:  time={} ms", self.provider, self.ping_ms)
+        write!(f, "{}:  (surb) time={} ms", self.provider, self.ping_ms)
     }
 }
 
@@ -254,12 +256,6 @@ impl From<PingResponse> for ClientResponse {
     }
 }
 
-fn text_print(input: &str, output: &OutputFormat) {
-    if output.is_text() {
-        print!("{input}");
-    }
-}
-
 fn text_println(input: &str, output: &OutputFormat) {
     if output.is_text() {
         println!("{input}");
@@ -276,10 +272,10 @@ async fn main() -> anyhow::Result<()> {
 
     nym_network_defaults::setup_env(args.config_env_file.as_ref());
 
-    text_print("Registering with gateway...", &args.output);
+    text_println("Registering with gateway...", &args.output);
     let mut client = QueryClient::new(args.provider, args.gateway).await;
     let our_gateway = client.client.nym_address().gateway();
-    text_println(&format!("{our_gateway}"), &args.output);
+    text_println(&format!("  gateway: {our_gateway}"), &args.output);
 
     text_println("Sending request(s)...", &args.output);
     if args.command == Commands::Ping {

@@ -48,7 +48,7 @@ async fn main() -> anyhow::Result<()> {
     let full_request_versions: Request =
         Request::new_control(ProviderInterfaceVersion::new_current(), request_versions);
 
-    // // TODO: currently we HAVE TO use surbs unfortunately
+    // TODO: currently we HAVE TO use surbs unfortunately
     println!("Sending 'Health' request...");
     client
         .send_bytes(
@@ -82,5 +82,6 @@ async fn main() -> anyhow::Result<()> {
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'SupportedRequestVersions' request: {response:#?}");
 
+    client.disconnect().await;
     Ok(())
 }

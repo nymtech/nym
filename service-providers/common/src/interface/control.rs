@@ -69,13 +69,13 @@ impl ControlRequest {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BinaryInformation {
     pub binary_name: String,
     pub build_information: BinaryBuildInformationOwned,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SupportedVersions {
     pub interface_version: String,
     pub provider_version: String,
@@ -86,7 +86,7 @@ pub struct ErrorResponse {
     message: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum ControlResponse {
     Health,
     BinaryInfo(Box<BinaryInformation>),

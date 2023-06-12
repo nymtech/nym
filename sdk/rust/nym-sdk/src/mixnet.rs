@@ -63,7 +63,10 @@ pub use nym_credential_storage::{
 pub use nym_network_defaults::NymNetworkDetails;
 pub use nym_socks5_client_core::config::Socks5;
 pub use nym_sphinx::{
-    addressing::clients::{ClientIdentity, Recipient},
+    addressing::{
+        clients::{ClientIdentity, Recipient},
+        nodes::NodeIdentity,
+    },
     receiver::ReconstructedMessage,
 };
 pub use nym_topology::{provider_trait::TopologyProvider, NymTopology};

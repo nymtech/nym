@@ -233,6 +233,13 @@ impl Socks5ResponseContent {
             }
         }
     }
+
+    pub fn as_query(&self) -> Option<&QueryResponse> {
+        match self {
+            Socks5ResponseContent::Query(query) => Some(query),
+            _ => None,
+        }
+    }
 }
 
 /// A remote network network data response retrieved by the Socks5 service provider. This

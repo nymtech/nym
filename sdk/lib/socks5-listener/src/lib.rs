@@ -8,6 +8,7 @@ use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use log::{info, warn};
 use nym_bin_common::logging::setup_logging;
+use nym_client_core::init::GatewaySetup;
 use nym_config_common::defaults::setup_env;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
 use safer_ffi::char_p::char_p_boxed;
@@ -207,7 +208,8 @@ where
 
     let config = load_or_generate_base_config(storage_dir, client_id, service_provider).await?;
     let storage = MobileClientStorage::new(&config);
-    let socks5_client = Socks5NymClient::new(config.core, storage);
+    let socks5_client = Socks5NymClient::new(config.core, storage)
+        .with_gateway_setup(GatewaySetup::New { by_latency: false });
 
     eprintln!("starting the socks5 client");
     let mut started_client = socks5_client.start().await?;

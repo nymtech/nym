@@ -19,6 +19,7 @@ use nym_client_core::client::base_client::{
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
 use nym_client_core::config::DebugConfig;
+use nym_client_core::init::GatewaySetup;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
@@ -53,6 +54,8 @@ pub struct NymClient<S> {
     config: Config,
 
     storage: S,
+
+    setup_method: GatewaySetup,
 }
 
 impl<S> NymClient<S>
@@ -65,7 +68,16 @@ where
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
 {
     pub fn new(config: Config, storage: S) -> Self {
-        NymClient { config, storage }
+        NymClient {
+            config,
+            storage,
+            setup_method: GatewaySetup::MustLoad,
+        }
+    }
+
+    pub fn with_gateway_setup(mut self, setup: GatewaySetup) -> Self {
+        self.setup_method = setup;
+        self
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -198,7 +210,8 @@ where
         };
 
         let base_builder =
-            BaseClientBuilder::new(&self.config.base, self.storage, dkg_query_client);
+            BaseClientBuilder::new(&self.config.base, self.storage, dkg_query_client)
+                .with_gateway_setup(self.setup_method);
 
         let packet_type = self.config.base.debug.traffic.packet_type;
         let mut started_client = base_builder.start_base().await?;

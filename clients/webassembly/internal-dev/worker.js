@@ -141,6 +141,40 @@ async function testWithTester() {
     };
 }
 
+async function testerReconnection() {
+    const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
+    const nodeTester = await NymNodeTester.new_with_api(validator);
+
+    self.onmessage = async event => {
+        if (event.data && event.data.kind) {
+            switch (event.data.kind) {
+                case 'TestPacket': {
+                    const {mixnodeIdentity} = event.data.args;
+                    console.log("starting node test...");
+
+                    let result1 = await nodeTester.test_node(mixnodeIdentity);
+                    console.log("sleeping for 5s");
+                    await new Promise(r => setTimeout(r, 5000));
+                    await nodeTester.disconnect_from_gateway();
+
+                    console.log("sleeping for 5s");
+                    await new Promise(r => setTimeout(r, 5000));
+
+                    await nodeTester.reconnect_to_gateway();
+                    let result2 = await nodeTester.test_node(mixnodeIdentity);
+
+                    printAndDisplayTestResult(result1)
+                    printAndDisplayTestResult(result2)
+                }
+            }
+        }
+    };
+
+
+
+
+}
+
 async function testWithNymClient() {
     const preferredGateway = "336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9";
     const topology = dummyTopology()
@@ -329,6 +363,9 @@ async function main() {
 
     // sets up better stack traces in case of in-rust panics
     set_panic_hook();
+
+    // show reconnection capabilities
+    await testerReconnection()
 
     // run test on simplified and dedicated tester:
     // await testWithTester()

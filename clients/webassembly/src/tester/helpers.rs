@@ -4,6 +4,9 @@
 // due to expansion of #[wasm_bindgen] macro on NodeTestResult
 #![allow(clippy::drop_non_drop)]
 
+use crate::error::WasmClientError;
+use crate::tester::LockedGatewayClient;
+use js_sys::Promise;
 use nym_node_tester_utils::processor::Received;
 use nym_node_tester_utils::receiver::ReceivedReceiver;
 use serde::{Deserialize, Serialize};
@@ -12,6 +15,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::{console_log, console_warn};
 
 #[derive(Clone)]
@@ -105,5 +109,39 @@ impl Drop for TestMarker {
     // make sure to clear the test flag when the marker is dropped
     fn drop(&mut self) {
         self.value.store(false, Ordering::SeqCst)
+    }
+}
+
+pub(crate) trait GatewayReconnection {
+    fn disconnect_from_gateway(&self) -> Promise;
+
+    fn reconnect_to_gateway(&self) -> Promise;
+}
+
+impl GatewayReconnection for LockedGatewayClient {
+    fn disconnect_from_gateway(&self) -> Promise {
+        let this = self.clone();
+
+        future_to_promise(async move {
+            let mut guard = this.lock().await;
+            guard
+                .disconnect()
+                .await
+                .map_err(|err| JsValue::from(WasmClientError::from(err)))?;
+            Ok(JsValue::undefined())
+        })
+    }
+
+    fn reconnect_to_gateway(&self) -> Promise {
+        let this = self.clone();
+
+        future_to_promise(async move {
+            let mut guard = this.lock().await;
+            guard
+                .try_reconnect()
+                .await
+                .map_err(|err| JsValue::from(WasmClientError::from(err)))?;
+            Ok(JsValue::undefined())
+        })
     }
 }

@@ -1,16 +1,49 @@
 import React from 'react';
 import { Button, Card, FormControl, Grid, ListItem, Menu, SelectChangeEvent, Typography } from '@mui/material';
+import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { TableToolbar } from '../../components/TableToolbar';
 import { Title } from '../../components/Title';
 import { UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { useMainContext } from '../../context/main';
+import { CustomColumnHeading } from '../../components/CustomColumnHeading';
 
-const columns = [
+const columns: GridColDef[] = [
   {
     headerName: 'Client ID',
     field: 'address',
     disableColumnMenu: true,
+    flex: 3,
+  },
+  {
+    headerName: 'Type',
+    field: 'service_type',
+    disableColumnMenu: true,
     flex: 1,
+  },
+  {
+    headerName: 'Routing score',
+    field: 'routing_score',
+    disableColumnMenu: true,
+    flex: 2,
+    sortingOrder: ['asc', 'desc'],
+    sortComparator: (a?: string, b?: string) => {
+      if (!a) return -1; // Place undefined values at the end
+      if (!b) return 1; // Place undefined values at the end
+
+      const aToNum = parseInt(a, 10);
+      const bToNum = parseInt(b, 10);
+
+      if (aToNum > bToNum) return 1;
+
+      return -1; // Sort numbers in ascending order
+    },
+    renderCell: (params: GridRenderCellParams) => (!params.value ? '-' : params.value),
+    renderHeader: () => (
+      <CustomColumnHeading
+        headingTitle="Routing score"
+        tooltipInfo="Routing score is only displayed for the service providers that had a successful ping within the last two hours"
+      />
+    ),
   },
 ];
 
@@ -37,7 +70,7 @@ const SupportedApps = () => {
       >
         Supported Apps
       </Button>
-      <Menu id="basic-menu" anchorEl={anchorEl} open={open} onClose={handleClose}>
+      <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
         <ListItem>Keybase</ListItem>
         <ListItem>Telegram</ListItem>
         <ListItem>Electrum</ListItem>
@@ -74,9 +107,19 @@ export const ServiceProviders = () => {
                 />
                 <UniversalDataGrid
                   pagination
-                  rows={serviceProviders?.data?.items}
+                  rows={serviceProviders.data}
                   columns={columns}
                   pageSize={pageSize}
+                  initialState={{
+                    sorting: {
+                      sortModel: [
+                        {
+                          field: 'routing_score',
+                          sort: 'desc',
+                        },
+                      ],
+                    },
+                  }}
                 />
               </>
             ) : (

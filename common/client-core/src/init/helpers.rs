@@ -44,18 +44,18 @@ const MEASUREMENTS: usize = 3;
 const CONN_TIMEOUT: Duration = Duration::from_millis(1500);
 const PING_TIMEOUT: Duration = Duration::from_millis(1000);
 
-struct GatewayWithLatency {
-    gateway: gateway::Node,
+struct GatewayWithLatency<'a> {
+    gateway: &'a gateway::Node,
     latency: Duration,
 }
 
-impl GatewayWithLatency {
-    fn new(gateway: gateway::Node, latency: Duration) -> Self {
+impl<'a> GatewayWithLatency<'a> {
+    fn new(gateway: &'a gateway::Node, latency: Duration) -> Self {
         GatewayWithLatency { gateway, latency }
     }
 }
 
-pub(super) async fn current_gateways<R: Rng>(
+pub async fn current_gateways<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
 ) -> Result<Vec<gateway::Node>, ClientCoreError> {
@@ -64,7 +64,7 @@ pub(super) async fn current_gateways<R: Rng>(
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
     let client = nym_validator_client::client::NymApiClient::new(nym_api.clone());
 
-    log::trace!("Fetching list of gateways from: {}", nym_api);
+    log::trace!("Fetching list of gateways from: {nym_api}");
 
     let gateways = client.get_cached_gateways().await?;
     let valid_gateways = gateways
@@ -91,7 +91,7 @@ async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
     JSWebsocket::new(endpoint).map_err(|_| ClientCoreError::GatewayJsConnectionFailure)
 }
 
-async fn measure_latency(gateway: gateway::Node) -> Result<GatewayWithLatency, ClientCoreError> {
+async fn measure_latency(gateway: &gateway::Node) -> Result<GatewayWithLatency, ClientCoreError> {
     let addr = gateway.clients_address();
     trace!(
         "establishing connection to {} ({addr})...",
@@ -156,7 +156,7 @@ async fn measure_latency(gateway: gateway::Node) -> Result<GatewayWithLatency, C
 
 pub(super) async fn choose_gateway_by_latency<R: Rng>(
     rng: &mut R,
-    gateways: Vec<gateway::Node>,
+    gateways: &[gateway::Node],
 ) -> Result<gateway::Node, ClientCoreError> {
     info!("choosing gateway by latency...");
 
@@ -189,7 +189,7 @@ pub(super) async fn choose_gateway_by_latency<R: Rng>(
 
 pub(super) fn uniformly_random_gateway<R: Rng>(
     rng: &mut R,
-    gateways: Vec<gateway::Node>,
+    gateways: &[gateway::Node],
 ) -> Result<gateway::Node, ClientCoreError> {
     gateways
         .choose(rng)

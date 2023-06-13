@@ -1,4 +1,4 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::Config;
@@ -6,19 +6,15 @@ use crate::error::ClientError;
 use crate::websocket;
 use futures::channel::mpsc;
 use log::*;
-use nym_bandwidth_controller::BandwidthController;
-use nym_client_core::client::base_client::non_wasm_helpers::create_bandwidth_controller;
+use nym_client_core::client::base_client::non_wasm_helpers::default_query_dkg_client_from_config;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_client_core::client::base_client::{
-    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
+    BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use nym_client_core::client::inbound_messages::InputMessage;
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
-use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
@@ -44,17 +40,6 @@ pub struct SocketClient {
 impl SocketClient {
     pub fn new(config: Config) -> Self {
         SocketClient { config }
-    }
-
-    async fn create_bandwidth_controller(
-        config: &Config,
-    ) -> BandwidthController<Client<QueryNyxdClient>, PersistentStorage> {
-        let storage = nym_credential_storage::initialise_persistent_storage(
-            config.get_base().get_database_path(),
-        )
-        .await;
-
-        create_bandwidth_controller(config.get_base(), storage)
     }
 
     fn start_websocket_listener(
@@ -93,7 +78,7 @@ impl SocketClient {
             Some(packet_type),
         );
 
-        websocket::Listener::new(config.get_listening_ip(), config.get_listening_port())
+        websocket::Listener::new(config.socket.host, config.socket.listening_port)
             .start(websocket_handler, shutdown);
     }
 
@@ -106,42 +91,38 @@ impl SocketClient {
         res
     }
 
-    fn key_store(&self) -> OnDiskKeys {
-        let pathfinder = ClientKeyPathfinder::new_from_config(self.config.get_base());
-        OnDiskKeys::new(pathfinder)
+    async fn initialise_storage(&self) -> Result<OnDiskPersistent, ClientError> {
+        Ok(OnDiskPersistent::from_paths(
+            self.config.storage_paths.common_paths.clone(),
+            &self.config.base.debug,
+        )
+        .await?)
     }
 
     // TODO: see if this could also be shared with socks5 client / nym-sdk maybe
     async fn create_base_client_builder(&self) -> Result<NativeClientBuilder, ClientError> {
-        // don't create bandwidth controller if credentials are disabled
-        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+        // don't create dkg client for the bandwidth controller if credentials are disabled
+        let dkg_query_client = if self.config.base.client.disabled_credentials_mode {
             None
         } else {
-            Some(Self::create_bandwidth_controller(&self.config).await)
+            Some(default_query_dkg_client_from_config(&self.config.base))
         };
 
-        let base_client = BaseClientBuilder::new_from_base_config(
-            self.config.get_base(),
-            self.key_store(),
-            bandwidth_controller,
-            non_wasm_helpers::setup_fs_reply_surb_backend(
-                self.config.get_base().get_reply_surb_database_path(),
-                &self.config.get_debug_settings().reply_surbs,
-            )
-            .await?,
-        );
+        let storage = self.initialise_storage().await?;
+
+        let base_client = BaseClientBuilder::new(&self.config.base, storage, dkg_query_client);
 
         Ok(base_client)
     }
 
     pub async fn start_socket(self) -> Result<TaskManager, ClientError> {
-        if !self.config.get_socket_type().is_websocket() {
+        if !self.config.socket.socket_type.is_websocket() {
             return Err(ClientError::InvalidSocketMode);
         }
 
         let base_builder = self.create_base_client_builder().await?;
-        let packet_type = self.config.get_base().get_packet_type();
-        let mut started_client = base_builder.start_base(packet_type).await?;
+        let packet_type = self.config.base.debug.traffic.packet_type;
+        let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
@@ -164,13 +145,13 @@ impl SocketClient {
     }
 
     pub async fn start_direct(self) -> Result<DirectClient, ClientError> {
-        if self.config.get_socket_type().is_websocket() {
+        if self.config.socket.socket_type.is_websocket() {
             return Err(ClientError::InvalidSocketMode);
         }
 
         let base_builder = self.create_base_client_builder().await?;
-        let packet_type = self.config.get_base().get_packet_type();
-        let mut started_client = base_builder.start_base(packet_type).await?;
+        let packet_type = self.config.base.debug.traffic.packet_type;
+        let mut started_client = base_builder.start_base().await?;
         let address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();

@@ -6,7 +6,7 @@ use crate::{
     state::State,
 };
 use nym_client_core::client::key_manager::KeyManager;
-use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use nym_client_core::config::persistence::keys_paths::ClientKeysPaths;
 use nym_crypto::asymmetric::identity;
 
 pub async fn get_identity_key(
@@ -17,8 +17,8 @@ pub async fn get_identity_key(
         state.load_socks5_config()?
     };
 
-    let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-    let key_manager = KeyManager::load_keys(&pathfinder)?;
+    let paths = ClientKeysPaths::new_from_config(config.get_base());
+    let key_manager = KeyManager::load_keys(&paths)?;
     let identity_keypair = key_manager.identity_keypair();
 
     Ok(identity_keypair)

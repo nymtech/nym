@@ -1,19 +1,18 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{
-    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, GatewayConnection, Logging,
-    ReplySurbs, Topology, Traffic, DEFAULT_ACK_WAIT_ADDITION, DEFAULT_ACK_WAIT_MULTIPLIER,
-    DEFAULT_AVERAGE_PACKET_DELAY, DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
-    DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY, DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
-    DEFAULT_MAXIMUM_REPLY_KEY_AGE, DEFAULT_MAXIMUM_REPLY_SURB_AGE,
-    DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD, DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
-    DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
+use crate::config::old_config_v1_1_20::{
+    AcknowledgementsV1_1_20, ClientV1_1_20, ConfigV1_1_20, CoverTrafficV1_1_20, DebugConfigV1_1_20,
+    GatewayConnectionV1_1_20, LoggingV1_1_20, ReplySurbsV1_1_20, TopologyV1_1_20, TrafficV1_1_20,
+    DEFAULT_ACK_WAIT_ADDITION, DEFAULT_ACK_WAIT_MULTIPLIER, DEFAULT_AVERAGE_PACKET_DELAY,
+    DEFAULT_GATEWAY_RESPONSE_TIMEOUT, DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
+    DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE, DEFAULT_MAXIMUM_REPLY_KEY_AGE,
+    DEFAULT_MAXIMUM_REPLY_SURB_AGE, DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD,
+    DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE, DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
     DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD, DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
     DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE, DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
     DEFAULT_TOPOLOGY_REFRESH_RATE, DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
 };
-use nym_config::NymConfig;
 use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -40,21 +39,21 @@ impl From<ExtendedPacketSize> for PacketSize {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct OldConfigV1_1_13<T> {
-    pub client: Client<T>,
+    pub client: ClientV1_1_20<T>,
 
     #[serde(default)]
-    logging: Logging,
+    pub logging: OldLoggingV1_1_13,
     #[serde(default)]
-    debug: OldDebugConfigV1_1_13,
+    pub debug: OldDebugConfigV1_1_13,
 }
 
-impl<T: NymConfig> Default for OldConfigV1_1_13<T> {
-    fn default() -> Self {
-        OldConfigV1_1_13 {
-            client: Client::<T>::default(),
-            logging: Default::default(),
-            debug: Default::default(),
-        }
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OldLoggingV1_1_13 {}
+
+impl From<OldLoggingV1_1_13> for LoggingV1_1_20 {
+    fn from(_value: OldLoggingV1_1_13) -> Self {
+        LoggingV1_1_20 {}
     }
 }
 
@@ -115,37 +114,36 @@ pub struct OldDebugConfigV1_1_13 {
     pub maximum_reply_key_age: Duration,
 }
 
-impl From<OldDebugConfigV1_1_13> for DebugConfig {
+impl From<OldDebugConfigV1_1_13> for DebugConfigV1_1_20 {
     fn from(value: OldDebugConfigV1_1_13) -> Self {
-        DebugConfig {
-            traffic: Traffic {
+        DebugConfigV1_1_20 {
+            traffic: TrafficV1_1_20 {
                 average_packet_delay: value.average_packet_delay,
                 message_sending_average_delay: value.message_sending_average_delay,
                 disable_main_poisson_packet_distribution: value
                     .disable_main_poisson_packet_distribution,
                 primary_packet_size: PacketSize::RegularPacket,
                 secondary_packet_size: value.use_extended_packet_size.map(Into::into),
-                packet_type: None,
             },
-            cover_traffic: CoverTraffic {
+            cover_traffic: CoverTrafficV1_1_20 {
                 loop_cover_traffic_average_delay: value.loop_cover_traffic_average_delay,
                 disable_loop_cover_traffic_stream: value.disable_loop_cover_traffic_stream,
-                ..CoverTraffic::default()
+                ..CoverTrafficV1_1_20::default()
             },
-            gateway_connection: GatewayConnection {
+            gateway_connection: GatewayConnectionV1_1_20 {
                 gateway_response_timeout: value.gateway_response_timeout,
             },
-            acknowledgements: Acknowledgements {
+            acknowledgements: AcknowledgementsV1_1_20 {
                 average_ack_delay: value.average_ack_delay,
                 ack_wait_multiplier: value.ack_wait_multiplier,
                 ack_wait_addition: value.ack_wait_addition,
             },
-            topology: Topology {
+            topology: TopologyV1_1_20 {
                 topology_refresh_rate: value.topology_refresh_rate,
                 topology_resolution_timeout: value.topology_resolution_timeout,
                 disable_refreshing: false,
             },
-            reply_surbs: ReplySurbs {
+            reply_surbs: ReplySurbsV1_1_20 {
                 minimum_reply_surb_storage_threshold: value.minimum_reply_surb_storage_threshold,
                 maximum_reply_surb_storage_threshold: value.maximum_reply_surb_storage_threshold,
                 minimum_reply_surb_request_size: value.minimum_reply_surb_request_size,
@@ -192,10 +190,10 @@ impl Default for OldDebugConfigV1_1_13 {
     }
 }
 
-impl<T, U> From<OldConfigV1_1_13<T>> for Config<U> {
+impl<T, U> From<OldConfigV1_1_13<T>> for ConfigV1_1_20<U> {
     fn from(value: OldConfigV1_1_13<T>) -> Self {
-        Config {
-            client: Client {
+        ConfigV1_1_20 {
+            client: ClientV1_1_20 {
                 version: value.client.version,
                 id: value.client.id,
                 disabled_credentials_mode: value.client.disabled_credentials_mode,
@@ -211,10 +209,10 @@ impl<T, U> From<OldConfigV1_1_13<T>> for Config<U> {
                 database_path: value.client.database_path,
                 reply_surb_database_path: value.client.reply_surb_database_path,
                 nym_root_directory: value.client.nym_root_directory,
+
                 super_struct: PhantomData,
-                packet_type: Some(nym_sphinx::params::PacketType::Mix),
             },
-            logging: value.logging,
+            logging: value.logging.into(),
             debug: value.debug.into(),
         }
     }

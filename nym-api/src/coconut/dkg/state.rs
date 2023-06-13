@@ -14,7 +14,7 @@ use nym_dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use url::Url;
 
 fn bte_pk_serialize<S: Serializer>(
@@ -192,12 +192,12 @@ impl From<&State> for PersistentState {
 }
 
 impl PersistentState {
-    pub fn save_to_file(&self, path: PathBuf) -> Result<(), CoconutError> {
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), CoconutError> {
         std::fs::write(path, serde_json::to_string(self)?)?;
         Ok(())
     }
 
-    pub fn load_from_file(path: PathBuf) -> Result<Self, CoconutError> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, CoconutError> {
         Ok(serde_json::from_str(&std::fs::read_to_string(path)?)?)
     }
 }

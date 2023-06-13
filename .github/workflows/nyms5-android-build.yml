@@ -1,0 +1,110 @@
+name: Nyms5 Android
+# unsigned APKs only, supported archs:
+# - arm64-v8a (arm64)
+# - x86_64
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - nyms5-android-v*
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: custom-runner-linux
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      NDK_VERSION: 25.2.9519653
+      NDK_HOME: ${{ github.workspace }}/android-sdk/ndk/25.2.9519653
+      SDK_PLATFORM_VERSION: android-33
+      SDK_BUILDTOOLS_VERSION: 33.0.2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install Android SDK manager
+        # https://developer.android.com/studio/command-line/sdkmanager
+        run: |
+          curl -sS https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -o cmdline-tools.zip
+          unzip cmdline-tools.zip
+          mkdir -p $ANDROID_HOME/cmdline-tools/latest
+          mv cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest
+          rm -rf cmdline-tools
+
+      - name: Install Android S/NDK
+        run: |
+          echo y | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          echo y | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;$SDK_PLATFORM_VERSION" \
+            "platform-tools" \
+            "ndk;$NDK_VERSION" \
+            "build-tools;$SDK_BUILDTOOLS_VERSION"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.70.0
+
+      - name: Install rust android targets
+        run: |
+          rustup target add aarch64-linux-android \
+            x86_64-linux-android
+
+      - name: Build lib nym-socks5-listener
+        working-directory: sdk/lib/socks5-listener/
+        env:
+          RELEASE: true
+          RUSTFLAGS: "-C link-args=-Wl,--hash-style=gnu"
+        # build for arm64 and x86_64
+        run: ./build-android.sh aarch64 x86_64
+
+      - name: Build APKs (unsigned)
+        working-directory: nym-connect/native/android
+        env:
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+        # build for arm64 and x86_64
+        run: |
+          ./gradlew :app:assembleArch64Debug
+          ./gradlew :app:assembleArch64Release
+
+      - name: Prepare APKs
+        run: |
+          mkdir apk
+          mv nym-connect/native/android/app/build/outputs/apk/arch64/debug/app-arch64-debug.apk \
+            apk/nyms5-arch64-debug.apk
+          mv nym-connect/native/android/app/build/outputs/apk/arch64/release/app-arch64-release-unsigned.apk \
+            apk/nyms5-arch64-release.apk
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v3
+        with:
+          name: nyms5-apk-arch64
+          path: |
+            apk/nyms5-arch64-debug.apk
+            apk/nyms5-arch64-release.apk
+
+  gh-release:
+    name: Publish APK (GH release)
+    needs: build
+    runs-on: custom-runner-linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Download binary artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: nyms5-apk-arch64
+          path: apk
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            apk/nyms5-arch64-debug.apk
+            apk/nyms5-arch64-release.apk
+

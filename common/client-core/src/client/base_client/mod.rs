@@ -42,7 +42,6 @@ use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
-use rand::rngs::OsRng;
 use std::sync::Arc;
 use tap::TapFallible;
 use url::Url;
@@ -50,6 +49,8 @@ use url::Url;
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 
+use crate::client::base_client::storage::gateway_details::GatewayDetailsStore;
+use crate::init::{setup_gateway, GatewaySetup, InitialisationDetails};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
@@ -157,17 +158,11 @@ impl From<bool> for CredentialsToggle {
 }
 
 pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
-    // due to wasm limitations I had to split it like this : (
-    gateway_config: &'a GatewayEndpointConfig,
-    debug_config: &'a DebugConfig,
-    disabled_credentials: bool,
-    nym_api_endpoints: Vec<Url>,
-    reply_storage_backend: S::ReplyStore,
-    key_store: S::KeyStore,
-
+    config: &'a Config,
+    client_store: S,
+    dkg_query_client: Option<C>,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
-    bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
-    managed_keys: ManagedKeys,
+    setup_method: GatewaySetup,
 }
 
 impl<'a, C, S> BaseClientBuilder<'a, C, S>
@@ -175,47 +170,23 @@ where
     S: MixnetClientStorage + 'static,
     C: DkgQueryClient + Send + Sync + 'static,
 {
-    // TODO: combine all storages
-    pub fn new_from_base_config<T>(
-        base_config: &'a Config<T>,
-        key_store: S::KeyStore,
-        bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
-        reply_storage_backend: S::ReplyStore,
+    pub fn new(
+        base_config: &'a Config,
+        client_store: S,
+        dkg_query_client: Option<C>,
     ) -> BaseClientBuilder<'a, C, S> {
         BaseClientBuilder {
-            gateway_config: base_config.get_gateway_endpoint_config(),
-            debug_config: base_config.get_debug_config(),
-            disabled_credentials: base_config.get_disabled_credentials_mode(),
-            nym_api_endpoints: base_config.get_nym_api_endpoints(),
-            bandwidth_controller,
-            reply_storage_backend,
-            key_store,
-            managed_keys: ManagedKeys::Invalidated,
+            config: base_config,
+            client_store,
+            dkg_query_client,
             custom_topology_provider: None,
+            setup_method: GatewaySetup::MustLoad,
         }
     }
 
-    // TODO: combine all storages
-    pub fn new(
-        gateway_config: &'a GatewayEndpointConfig,
-        debug_config: &'a DebugConfig,
-        key_store: S::KeyStore,
-        bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
-        reply_storage_backend: S::ReplyStore,
-        credentials_toggle: CredentialsToggle,
-        nym_api_endpoints: Vec<Url>,
-    ) -> BaseClientBuilder<'a, C, S> {
-        BaseClientBuilder {
-            gateway_config,
-            debug_config,
-            disabled_credentials: credentials_toggle.is_disabled(),
-            nym_api_endpoints,
-            reply_storage_backend,
-            custom_topology_provider: None,
-            bandwidth_controller,
-            key_store,
-            managed_keys: ManagedKeys::Invalidated,
-        }
+    pub fn with_gateway_setup(mut self, setup: GatewaySetup) -> Self {
+        self.setup_method = setup;
+        self
     }
 
     pub fn with_topology_provider(
@@ -228,13 +199,16 @@ where
 
     // note: do **NOT** make this method public as its only valid usage is from within `start_base`
     // because it relies on the crypto keys being already loaded
-    fn as_mix_recipient(&self) -> Recipient {
+    fn mix_address(
+        managed_keys: &ManagedKeys,
+        gateway_config: &GatewayEndpointConfig,
+    ) -> Recipient {
         Recipient::new(
-            *self.managed_keys.identity_public_key(),
-            *self.managed_keys.encryption_public_key(),
+            *managed_keys.identity_public_key(),
+            *managed_keys.encryption_public_key(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
-            NodeIdentity::from_base58_string(&self.gateway_config.gateway_id).unwrap(),
+            NodeIdentity::from_base58_string(&gateway_config.gateway_id).unwrap(),
         )
     }
 
@@ -318,7 +292,10 @@ where
     }
 
     async fn start_gateway_client(
-        &mut self,
+        config: &Config,
+        gateway_config: GatewayEndpointConfig,
+        managed_keys: &ManagedKeys,
+        bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         shutdown: TaskClient,
@@ -327,33 +304,26 @@ where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
-        let gateway_id = self.gateway_config.gateway_id.clone();
-        if gateway_id.is_empty() {
-            return Err(ClientCoreError::GatewayIdUnknown);
-        }
-        let gateway_address = self.gateway_config.gateway_listener.clone();
-        if gateway_address.is_empty() {
-            return Err(ClientCoreError::GatewayAddressUnknown);
-        }
+        let gateway_address = gateway_config.gateway_listener.clone();
+        let gateway_id = gateway_config.gateway_id;
 
+        // TODO: in theory, at this point, this should be infallible
         let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
             .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
         let mut gateway_client = GatewayClient::new(
             gateway_address,
-            self.managed_keys.identity_keypair(),
+            managed_keys.identity_keypair(),
             gateway_identity,
-            self.managed_keys.gateway_shared_key(),
+            Some(managed_keys.must_get_gateway_shared_key()),
             mixnet_message_sender,
             ack_sender,
-            self.debug_config
-                .gateway_connection
-                .gateway_response_timeout,
-            self.bandwidth_controller.take(),
+            config.debug.gateway_connection.gateway_response_timeout,
+            bandwidth_controller,
             shutdown,
         );
 
-        gateway_client.set_disabled_credentials_mode(self.disabled_credentials);
+        gateway_client.set_disabled_credentials_mode(config.client.disabled_credentials_mode);
 
         let shared_key = gateway_client
             .authenticate_and_start()
@@ -362,12 +332,7 @@ where
                 log::error!("Could not authenticate and start up the gateway connection - {err}")
             })?;
 
-        self.managed_keys
-            .deal_with_gateway_key(shared_key, &self.key_store)
-            .await
-            .map_err(|source| ClientCoreError::KeyStoreError {
-                source: Box::new(source),
-            })?;
+        managed_keys.ensure_gateway_key(shared_key);
 
         Ok(gateway_client)
     }
@@ -473,24 +438,41 @@ where
         Ok(mem_store)
     }
 
-    async fn initial_key_setup(&mut self) {
-        assert!(!self.managed_keys.is_valid());
-        let mut rng = OsRng;
-        self.managed_keys = ManagedKeys::load_or_generate(&mut rng, &self.key_store).await;
+    async fn initialise_keys_and_gateway(&self) -> Result<InitialisationDetails, ClientCoreError>
+    where
+        <S::KeyStore as KeyStore>::StorageError: Sync + Send,
+        <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Sync + Send,
+    {
+        setup_gateway(
+            &self.setup_method,
+            self.client_store.key_store(),
+            self.client_store.gateway_details_store(),
+            false,
+            Some(&self.config.client.nym_api_urls),
+        )
+        .await
     }
 
-    pub async fn start_base(
-        mut self,
-        packet_type: PacketType,
-    ) -> Result<BaseClient, ClientCoreError>
+    pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
     where
-        <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         S::ReplyStore: Send + Sync,
         <S::KeyStore as KeyStore>::StorageError: Send + Sync,
+        <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
+        <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Sync + Send,
     {
         info!("Starting nym client");
-        self.initial_key_setup().await;
+
+        // derive (or load) client keys and gateway configuration
+        let details = self.initialise_keys_and_gateway().await?;
+        let gateway_config = details.gateway_details;
+        let managed_keys = details.managed_keys;
+
+        let (reply_storage_backend, credential_store) = self.client_store.into_runtime_stores();
+
+        let bandwidth_controller = self
+            .dkg_query_client
+            .map(|client| BandwidthController::new(credential_store, client));
 
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -518,34 +500,39 @@ where
         let (reply_controller_sender, reply_controller_receiver) =
             reply_controller::requests::new_control_channels();
 
-        let self_address = self.as_mix_recipient();
+        let self_address = Self::mix_address(&managed_keys, &gateway_config);
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
-        let gateway_client = self
-            .start_gateway_client(mixnet_messages_sender, ack_sender, task_manager.subscribe())
-            .await?;
-
-        let reply_storage = Self::setup_persistent_reply_storage(
-            self.reply_storage_backend,
+        let gateway_client = Self::start_gateway_client(
+            self.config,
+            gateway_config,
+            &managed_keys,
+            bandwidth_controller,
+            mixnet_messages_sender,
+            ack_sender,
             task_manager.subscribe(),
         )
         .await?;
 
+        let reply_storage =
+            Self::setup_persistent_reply_storage(reply_storage_backend, task_manager.subscribe())
+                .await?;
+
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),
-            self.nym_api_endpoints,
+            self.config.get_nym_api_endpoints(),
         );
         Self::start_topology_refresher(
             topology_provider,
-            self.debug_config.topology,
+            self.config.debug.topology,
             shared_topology_accessor.clone(),
             task_manager.subscribe(),
         )
         .await?;
 
         Self::start_received_messages_buffer_controller(
-            self.managed_keys.encryption_keypair(),
+            managed_keys.encryption_keypair(),
             received_buffer_request_receiver,
             mixnet_messages_receiver,
             reply_storage.key_storage(),
@@ -569,8 +556,8 @@ where
         let shared_lane_queue_lengths = LaneQueueLengths::new();
 
         let controller_config = real_messages_control::Config::new(
-            self.debug_config,
-            self.managed_keys.ack_key(),
+            &self.config.debug,
+            managed_keys.ack_key(),
             self_address,
         );
 
@@ -586,17 +573,18 @@ where
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
             task_manager.subscribe(),
-            packet_type,
+            self.config.debug.traffic.packet_type,
         );
 
         if !self
-            .debug_config
+            .config
+            .debug
             .cover_traffic
             .disable_loop_cover_traffic_stream
         {
             Self::start_cover_traffic_stream(
-                self.debug_config,
-                self.managed_keys.ack_key(),
+                &self.config.debug,
+                managed_keys.ack_key(),
                 self_address,
                 shared_topology_accessor.clone(),
                 message_sender,

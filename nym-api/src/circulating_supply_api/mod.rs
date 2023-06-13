@@ -6,7 +6,7 @@ use okapi::openapi3::OpenApi;
 use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
 
-use crate::support::{config::Config, nyxd};
+use crate::support::{config, nyxd};
 
 use self::cache::refresher::CirculatingSupplyCacheRefresher;
 
@@ -24,16 +24,16 @@ pub(crate) fn circulating_supply_routes(settings: &OpenApiSettings) -> (Vec<Rout
 
 /// Spawn the circulating supply cache refresher.
 pub(crate) fn start_cache_refresh(
-    config: &Config,
+    config: &config::CirculatingSupplyCacher,
     nyxd_client: nyxd::Client,
     circulating_supply_cache: &cache::CirculatingSupplyCache,
     shutdown: &TaskManager,
 ) {
-    if config.get_circulating_supply_enabled() {
+    if config.enabled {
         let refresher = CirculatingSupplyCacheRefresher::new(
             nyxd_client,
             circulating_supply_cache.to_owned(),
-            config.get_circulating_supply_caching_interval(),
+            config.debug.caching_interval,
         );
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { refresher.run(shutdown_listener).await });

@@ -4,6 +4,7 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCodeV4, ResponseCodeV5, SocksProxyError};
 use super::{SocksVersion, RESERVED, SOCKS4_VERSION, SOCKS5_VERSION};
+use crate::config;
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
@@ -147,16 +148,15 @@ impl Config {
         provider_interface_version: ProviderInterfaceVersion,
         socks5_protocol_version: Socks5ProtocolVersion,
         use_surbs_for_responses: bool,
-        connection_start_surbs: u32,
-        per_request_surbs: u32,
+        debug_config: config::Socks5Debug,
     ) -> Self {
         Self {
             biggest_packet_size,
             provider_interface_version,
             socks5_protocol_version,
             use_surbs_for_responses,
-            connection_start_surbs,
-            per_request_surbs,
+            connection_start_surbs: debug_config.connection_start_surbs,
+            per_request_surbs: debug_config.per_request_surbs,
         }
     }
 
@@ -428,18 +428,14 @@ impl SocksClient {
             Some(self.lane_queue_lengths.clone()),
             self.shutdown_listener.clone(),
         )
-        .run(move |conn_id, read_data, socket_closed| {
-            let provider_request = Socks5Request::new_send(
-                request_version.provider_protocol,
-                conn_id,
-                read_data,
-                socket_closed,
-            );
+        .run(move |socket_data| {
+            let lane = TransmissionLane::ConnectionId(socket_data.header.connection_id);
+            let provider_request =
+                Socks5Request::new_send(request_version.provider_protocol, socket_data);
             let provider_message = Socks5ProviderRequest::new_provider_data(
                 request_version.provider_interface,
                 provider_request,
             );
-            let lane = TransmissionLane::ConnectionId(conn_id);
             if anonymous {
                 InputMessage::new_anonymous(
                     recipient,

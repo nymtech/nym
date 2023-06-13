@@ -251,6 +251,7 @@ pub trait FragmentPreparer {
                 &destination,
                 &delays,
             )?,
+            #[allow(deprecated)]
             PacketType::Vpn => NymPacket::sphinx_build(
                 packet_size.payload_size(),
                 packet_payload,

@@ -16,6 +16,9 @@ pub enum ClientStorageError {
 
     #[error("{typ} cryptographic key is not available in storage")]
     CryptoKeyNotInStorage { typ: String },
+
+    #[error("the prior gateway details are not available in the storage")]
+    GatewayDetailsNotInStorage,
 }
 
 impl From<ClientStorageError> for JsValue {

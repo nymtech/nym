@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-api"
-version = "1.1.20"
+version = "1.1.22"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -62,6 +62,7 @@ sqlx = { version = "0.6.2", features = [
 okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
 rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
 schemars = { version = "0.8", features = ["preserve_order"] }
+zeroize = { workspace = true }
 
 ## internal
 ephemera = { path = "../ephemera" }

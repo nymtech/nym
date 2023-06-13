@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 mod commands;
@@ -9,13 +9,14 @@ use commands::*;
 use error::Result;
 use log::*;
 use nym_bin_common::completions::fig_generate;
-use nym_config::{CRED_DB_FILE_NAME, DATA_DIR};
+use nym_config::DEFAULT_DATA_DIR;
 use nym_network_defaults::{setup_env, NymNetworkDetails};
 use std::process::exit;
 use std::time::{Duration, SystemTime};
 
 use clap::{CommandFactory, Parser};
 use nym_bin_common::logging::setup_logging;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::Config;
@@ -71,10 +72,11 @@ async fn main() -> Result<()> {
 
     match args.command {
         Command::Run(r) => {
-            let db_path = r
-                .client_home_directory
-                .join(DATA_DIR)
-                .join(CRED_DB_FILE_NAME);
+            // we assume the structure of <home-dir>/data
+            let data_dir = r.client_home_directory.join(DEFAULT_DATA_DIR);
+            let paths = CommonClientPaths::new_default(data_dir);
+            let db_path = paths.credentials_database;
+
             let shared_storage =
                 nym_credential_storage::initialise_persistent_storage(db_path).await;
             let recovery_storage = recovery_storage::RecoveryStorage::new(r.recovery_dir)?;

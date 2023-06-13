@@ -1,10 +1,9 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{Config, MISSING_VALUE};
+use crate::config::Config;
 use clap::Args;
 use nym_bin_common::version_checker::Version;
-use nym_config::NymConfig;
 use std::fmt::Display;
 use std::process;
 
@@ -56,7 +55,7 @@ fn unsupported_upgrade(current_version: &Version, config_version: &Version) -> !
 }
 
 fn parse_config_version(config: &Config) -> Version {
-    let version = Version::parse(config.get_version()).unwrap_or_else(|err| {
+    let version = Version::parse(&config.gateway.version).unwrap_or_else(|err| {
         eprintln!("failed to parse client version! - {err}");
         process::exit(1)
     });
@@ -105,11 +104,13 @@ fn minor_0_12_upgrade(
 
     let upgraded_config = config.with_custom_version(to_version.to_string());
 
-    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
-        eprintln!("failed to overwrite config file! - {err}");
-        print_failed_upgrade(config_version, &to_version);
-        process::exit(1);
-    });
+    upgraded_config
+        .save_to_default_location()
+        .unwrap_or_else(|err| {
+            eprintln!("failed to overwrite config file! - {err}");
+            print_failed_upgrade(config_version, &to_version);
+            process::exit(1);
+        });
 
     print_successful_upgrade(config_version, to_version);
 
@@ -139,12 +140,12 @@ fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
 pub async fn execute(args: &Upgrade) {
     let package_version = parse_package_version();
 
-    let existing_config = Config::load_from_file(&args.id).unwrap_or_else(|err| {
+    let existing_config = Config::read_from_default_path(&args.id).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {err}");
         process::exit(1)
     });
 
-    if existing_config.get_version() == MISSING_VALUE {
+    if existing_config.gateway.version.is_empty() {
         eprintln!("the existing configuration file does not seem to contain version number.");
         process::exit(1);
     }

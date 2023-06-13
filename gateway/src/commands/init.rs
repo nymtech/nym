@@ -1,18 +1,18 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
 use crate::{
     commands::{override_config, OverrideConfig},
-    config::{persistence::pathfinder::GatewayPathfinder, Config},
+    config::Config,
     OutputFormat,
 };
 use clap::Args;
-use nym_config::NymConfig;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_validator_client::nyxd;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
+use std::{fs, io};
 
 #[derive(Args, Clone)]
 pub struct Init {
@@ -24,10 +24,6 @@ pub struct Init {
     #[clap(long)]
     host: IpAddr,
 
-    /// The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
-    #[clap(long)]
-    wallet_address: nyxd::AccountId,
-
     /// The port on which the gateway will be listening for sphinx packets
     #[clap(long)]
     mix_port: Option<u16>,
@@ -35,11 +31,6 @@ pub struct Init {
     /// The port on which the gateway will be listening for clients gateway-requests
     #[clap(long)]
     clients_port: Option<u16>,
-
-    /// The host that will be reported to the directory server
-    #[clap(long)]
-    // TODO: could this be changed to `Option<url::Url>`?
-    announce_host: Option<String>,
 
     /// Path to sqlite database containing all gateway persistent data
     #[clap(long)]
@@ -86,11 +77,9 @@ impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
             host: Some(init_config.host),
-            wallet_address: Some(init_config.wallet_address),
             mix_port: init_config.mix_port,
             clients_port: init_config.clients_port,
             datastore: init_config.datastore,
-            announce_host: init_config.announce_host,
             nym_apis: init_config.nym_apis,
             mnemonic: init_config.mnemonic,
 
@@ -103,10 +92,15 @@ impl From<Init> for OverrideConfig {
     }
 }
 
+fn init_paths(id: &str) -> io::Result<()> {
+    fs::create_dir_all(default_data_directory(id))?;
+    fs::create_dir_all(default_config_directory(id))
+}
+
 pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
     eprintln!("Initialising gateway {}...", args.id);
 
-    let already_init = if Config::default_config_file_path(&args.id).exists() {
+    let already_init = if default_config_filepath(&args.id).exists() {
         eprintln!(
             "Gateway \"{}\" was already initialised before! Config information will be \
             overwritten (but keys will be kept)!",
@@ -114,6 +108,7 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
         );
         true
     } else {
+        init_paths(&args.id)?;
         false
     };
 
@@ -128,33 +123,36 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
 
         let identity_keys = identity::KeyPair::new(&mut rng);
         let sphinx_keys = encryption::KeyPair::new(&mut rng);
-        let pathfinder = GatewayPathfinder::new_from_config(&config);
-        nym_pemstore::store_keypair(
-            &sphinx_keys,
-            &nym_pemstore::KeyPairPath::new(
-                pathfinder.private_encryption_key().to_owned(),
-                pathfinder.public_encryption_key().to_owned(),
-            ),
-        )
-        .expect("Failed to save sphinx keys");
 
         nym_pemstore::store_keypair(
             &identity_keys,
             &nym_pemstore::KeyPairPath::new(
-                pathfinder.private_identity_key().to_owned(),
-                pathfinder.public_identity_key().to_owned(),
+                config.storage_paths.private_identity_key(),
+                config.storage_paths.public_identity_key(),
             ),
         )
         .expect("Failed to save identity keys");
 
+        nym_pemstore::store_keypair(
+            &sphinx_keys,
+            &nym_pemstore::KeyPairPath::new(
+                config.storage_paths.private_encryption_key(),
+                config.storage_paths.public_encryption_key(),
+            ),
+        )
+        .expect("Failed to save sphinx keys");
+
         eprintln!("Saved identity and mixnet sphinx keypairs");
     }
 
-    let config_save_location = config.get_config_file_save_location();
+    let config_save_location = config.default_location();
     config
-        .save_to_file(None)
+        .save_to_default_location()
         .expect("Failed to save the config file");
-    eprintln!("Saved configuration file to {:?}", config_save_location);
+    eprintln!(
+        "Saved configuration file to {}",
+        config_save_location.display()
+    );
     eprintln!("Gateway configuration completed.\n\n\n");
 
     crate::node::create_gateway(config)
@@ -176,10 +174,8 @@ mod tests {
         let args = Init {
             id: "foo-id".to_string(),
             host: "1.1.1.1".parse().unwrap(),
-            wallet_address: "n1z9egw0knv47nmur0p8vk4rcx59h9gg4zjx9ede".parse().unwrap(),
             mix_port: Some(42),
             clients_port: Some(43),
-            announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("/foo-datastore".parse().unwrap()),
             nym_apis: None,
             mnemonic: None,

@@ -48,13 +48,10 @@ fn test_function() {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "cpucycles")] {
-            let home_dir = dirs::home_dir().expect("Could not get $HOME");
-            let logs_dir = home_dir.join(".nym").join("logs");
-            let logs_dir_str = logs_dir.to_str().expect("Could not construct logs path");
-            setup_tracing!(logs_dir_str);
+            setup_tracing!("mixnode");
             info!("CPU cycles measurement is ON")
         } else {
             setup_logging();
@@ -66,12 +63,14 @@ async fn main() {
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
-    commands::execute(args).await;
+    commands::execute(args).await?;
 
     cfg_if::cfg_if! {
     if #[cfg(feature = "cpucycles")] {
         opentelemetry::global::shutdown_tracer_provider();
     }}
+
+    Ok(())
 }
 
 #[cfg(test)]

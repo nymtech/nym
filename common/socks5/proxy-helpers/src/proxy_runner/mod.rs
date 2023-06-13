@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::connection_controller::ConnectionReceiver;
-use nym_socks5_requests::ConnectionId;
+use crate::ordered_sender::OrderedMessageSender;
+use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::LaneQueueLengths;
 use nym_task::TaskClient;
 use std::fmt::Debug;
@@ -13,7 +14,7 @@ mod inbound;
 mod outbound;
 
 // TODO: make this configurable
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(3);
 
 // Send empty keepalive messages regurarly to keep the connection alive. This should be smaller
 // than [`MIX_TTL`].
@@ -92,20 +93,24 @@ where
     // request/response as required by entity running particular side of the proxy.
     pub async fn run<F>(mut self, adapter_fn: F) -> Self
     where
-        F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + Sync + 'static,
+        F: Fn(SocketData) -> S + Send + Sync + 'static,
     {
         let (read_half, write_half) = self.socket.take().unwrap().into_split();
         let shutdown_notify = Arc::new(Notify::new());
 
         // should run until either inbound closes or is notified from outbound
-        let inbound_future = inbound::run_inbound(
-            read_half,
+        let ordered_sender = OrderedMessageSender::new(
             self.local_destination_address.clone(),
             self.remote_source_address.clone(),
             self.connection_id,
             self.mix_sender.clone(),
-            self.available_plaintext_per_mix_packet,
             adapter_fn,
+        );
+        let inbound_future = inbound::run_inbound(
+            read_half,
+            ordered_sender,
+            self.connection_id,
+            self.available_plaintext_per_mix_packet,
             Arc::clone(&shutdown_notify),
             self.lane_queue_lengths.clone(),
             self.shutdown_listener.clone(),

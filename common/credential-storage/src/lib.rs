@@ -4,8 +4,11 @@
  */
 
 use crate::ephemeral_storage::EphemeralStorage;
+
 #[cfg(not(target_arch = "wasm32"))]
 use crate::persistent_storage::PersistentStorage;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
 
 mod backends;
 pub mod ephemeral_storage;
@@ -16,7 +19,7 @@ pub mod persistent_storage;
 pub mod storage;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn initialise_persistent_storage(path: std::path::PathBuf) -> PersistentStorage {
+pub async fn initialise_persistent_storage<P: AsRef<Path>>(path: P) -> PersistentStorage {
     match persistent_storage::PersistentStorage::init(path).await {
         Err(err) => panic!("failed to initialise credential storage - {err}"),
         Ok(storage) => storage,

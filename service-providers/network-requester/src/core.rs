@@ -5,7 +5,7 @@ use crate::allowed_hosts;
 use crate::allowed_hosts::standard_list::StandardListUpdater;
 use crate::allowed_hosts::stored_allowed_hosts::{start_allowed_list_reloader, StoredAllowedHosts};
 use crate::allowed_hosts::{OutboundRequestFilter, StandardList};
-use crate::config::Config;
+use crate::config::{BaseClientConfig, Config};
 use crate::error::NetworkRequesterError;
 use crate::reply::MixnetMessage;
 use crate::statistics::ServiceStatisticsCollector;
@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use futures::channel::mpsc;
 use log::warn;
 use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_network_defaults::NymNetworkDetails;
 use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
@@ -24,8 +25,9 @@ use nym_socks5_proxy_helpers::connection_controller::{
 };
 use nym_socks5_proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use nym_socks5_requests::{
-    ConnectRequest, ConnectionId, NetworkData, SendRequest, Socks5ProtocolVersion,
-    Socks5ProviderRequest, Socks5Request, Socks5RequestContent, Socks5Response,
+    ConnectRequest, ConnectionId, QueryRequest, QueryResponse, SendRequest, SocketData,
+    Socks5ProtocolVersion, Socks5ProviderRequest, Socks5Request, Socks5RequestContent,
+    Socks5Response,
 };
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
@@ -66,7 +68,6 @@ struct NRServiceProvider {
 
     controller_sender: ControllerSender,
     mix_input_sender: MixProxySender<MixnetMessage>,
-    //shared_lane_queue_lengths: LaneQueueLengths,
     stats_collector: Option<ServiceStatisticsCollector>,
     shutdown: TaskManager,
 }
@@ -137,17 +138,18 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
                         .connected_services
                         .read()
                         .await
-                        .get(&req.conn_id)
+                        .get(&req.data.header.connection_id)
                     {
                         stats_collector
                             .request_stats_data
                             .write()
                             .await
-                            .processed(remote_addr, req.data.len() as u32);
+                            .processed(remote_addr, req.data.data.len() as u32);
                     }
                 }
                 self.handle_proxy_send(req)
             }
+            Socks5RequestContent::Query(query) => return self.handle_query(query),
         }
 
         Ok(None)
@@ -163,8 +165,9 @@ impl NRServiceProviderBuilder {
     ) -> NRServiceProviderBuilder {
         let standard_list = StandardList::new();
 
-        let allowed_hosts = StoredAllowedHosts::new(config.allow_list_file_location());
-        let unknown_hosts = allowed_hosts::HostsStore::new(config.unknown_list_file_location());
+        let allowed_hosts = StoredAllowedHosts::new(&config.storage_paths.allowed_list_location);
+        let unknown_hosts =
+            allowed_hosts::HostsStore::new(&config.storage_paths.unknown_list_location);
 
         let outbound_request_filter =
             OutboundRequestFilter::new(allowed_hosts.clone(), standard_list.clone(), unknown_hosts);
@@ -183,7 +186,9 @@ impl NRServiceProviderBuilder {
     /// Start all subsystems
     pub async fn run_service_provider(self) -> Result<(), NetworkRequesterError> {
         // Connect to the mixnet
-        let mixnet_client = create_mixnet_client(self.config.get_base()).await?;
+        let mixnet_client =
+            create_mixnet_client(&self.config.base, &self.config.storage_paths.common_paths)
+                .await?;
 
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
@@ -251,7 +256,6 @@ impl NRServiceProviderBuilder {
             mixnet_client,
             controller_sender,
             mix_input_sender,
-            //shared_lane_queue_lengths: mixnet_client.shared_lane_queue_lengths(),
             stats_collector,
             shutdown,
         };
@@ -359,7 +363,7 @@ impl NRServiceProvider {
                     return_address,
                     remote_version,
                     connection_id,
-                    NetworkData::new_closed_empty(connection_id),
+                    SocketData::new(0, connection_id, true, Vec::new()),
                 );
 
                 mix_input_sender
@@ -443,7 +447,7 @@ impl NRServiceProvider {
             return;
         }
 
-        let traffic_config = self.config.get_base().get_debug_config().traffic;
+        let traffic_config = self.config.base.debug.traffic;
         let packet_size = traffic_config
             .secondary_packet_size
             .unwrap_or(traffic_config.primary_packet_size);
@@ -471,27 +475,47 @@ impl NRServiceProvider {
     }
 
     fn handle_proxy_send(&mut self, req: SendRequest) {
-        self.controller_sender.unbounded_send(req.into()).unwrap()
+        self.controller_sender
+            .unbounded_send(ControllerCommand::new_send(req.data))
+            .unwrap()
+    }
+
+    fn handle_query(
+        &self,
+        query: QueryRequest,
+    ) -> Result<Option<Socks5Response>, NetworkRequesterError> {
+        let protocol_version = Socks5ProtocolVersion::default();
+        let response = match query {
+            QueryRequest::OpenProxy => Socks5Response::new_query(
+                protocol_version,
+                QueryResponse::OpenProxy(self.open_proxy),
+            ),
+            QueryRequest::Description => Socks5Response::new_query(
+                protocol_version,
+                QueryResponse::Description("Description (placeholder)".to_string()),
+            ),
+        };
+        Ok(Some(response))
     }
 }
 
 // Helper function to create the mixnet client.
 // This is NOT in the SDK since we don't want to expose any of the client-core config types.
 // We could however consider moving it to a crate in common in the future.
-async fn create_mixnet_client<T>(
-    config: &nym_client_core::config::Config<T>,
+async fn create_mixnet_client(
+    config: &BaseClientConfig,
+    paths: &CommonClientPaths,
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
-    let debug_config = *config.get_debug_config();
+    let debug_config = config.debug;
 
-    let storage_paths = nym_sdk::mixnet::StoragePaths::from(config);
+    let storage_paths = nym_sdk::mixnet::StoragePaths::from(paths.clone());
 
     let mut client_builder =
         nym_sdk::mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)
             .await
             .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?
             .network_details(NymNetworkDetails::new_from_env())
-            .debug_config(debug_config)
-            .registered_gateway(config.get_gateway_endpoint_config().clone());
+            .debug_config(debug_config);
     if !config.get_disabled_credentials_mode() {
         client_builder = client_builder.enable_credentials_mode();
     }

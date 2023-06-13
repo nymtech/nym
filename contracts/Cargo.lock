@@ -1388,7 +1388,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -1399,7 +1399,7 @@ dependencies = [
 
 [[package]]
 name = "nym-crypto"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bs58",
  "ed25519-dalek",
@@ -1449,7 +1449,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bs58",
  "cosmwasm-std",
@@ -1528,7 +1528,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pemstore"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "pem",
 ]
@@ -1538,6 +1538,7 @@ name = "nym-service-provider-directory"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bs58",
  "cosmwasm-std",
  "cw-controllers",
  "cw-multi-test",
@@ -1545,7 +1546,10 @@ dependencies = [
  "cw-utils",
  "cw2",
  "nym-contracts-common",
+ "nym-crypto",
  "nym-service-provider-directory-common",
+ "rand_chacha 0.2.2",
+ "rstest",
  "semver",
  "serde",
  "thiserror",
@@ -1557,8 +1561,12 @@ name = "nym-service-provider-directory-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "cw-controllers",
+ "cw-utils",
+ "nym-contracts-common",
  "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -1595,7 +1603,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "cosmwasm-std",
  "nym-contracts-common",

@@ -8,13 +8,12 @@ use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
 use crate::{Error, Result};
 use futures::channel::mpsc;
 use futures::StreamExt;
-use nym_bandwidth_controller::BandwidthController;
+use nym_client_core::client::base_client::storage::gateway_details::GatewayDetailsStore;
 use nym_client_core::client::base_client::storage::{
     Ephemeral, MixnetClientStorage, OnDiskPersistent,
 };
 use nym_client_core::client::base_client::BaseClient;
 use nym_client_core::client::key_manager::persistence::KeyStore;
-use nym_client_core::client::key_manager::ManagedKeys;
 use nym_client_core::config::DebugConfig;
 use nym_client_core::init::GatewaySetup;
 use nym_client_core::{
@@ -27,7 +26,6 @@ use nym_task::manager::TaskStatus;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::nyxd::QueryNyxdClient;
 use nym_validator_client::Client;
-use rand::thread_rng;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
@@ -84,10 +82,11 @@ impl MixnetClientBuilder<OnDiskPersistent> {
 impl<S> MixnetClientBuilder<S>
 where
     S: MixnetClientStorage + 'static,
+    S::ReplyStore: Send + Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
     <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
-    S::ReplyStore: Send + Sync,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
+    <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Send + Sync,
 {
     /// Creates a client builder with the provided client storage implementation.
     #[must_use]
@@ -117,7 +116,7 @@ where
         }
     }
 
-    /// Change the underlying storage of this builder to use default implementation of on-disk persistence.
+    /// Change the underlying storage of this builder to use default implementation of on-disk disk_persistence.
     #[must_use]
     pub fn set_default_storage(
         self,
@@ -154,13 +153,6 @@ where
         self
     }
 
-    /// Use a gateway that you previously registered with.
-    #[must_use]
-    pub fn registered_gateway(mut self, gateway_config: GatewayEndpointConfig) -> Self {
-        self.gateway_config = Some(gateway_config);
-        self
-    }
-
     /// Configure the SOCKS5 mode.
     #[must_use]
     pub fn socks5_config(mut self, socks5_config: Socks5) -> Self {
@@ -186,20 +178,13 @@ where
 
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
     pub async fn build(self) -> Result<DisconnectedMixnetClient<S>> {
-        let mut client = DisconnectedMixnetClient::new(
+        let client = DisconnectedMixnetClient::new(
             self.config,
             self.socks5_config,
             self.storage,
             self.custom_topology_provider,
-            self.gateway_endpoint_config_path,
         )
         .await?;
-
-        // If we have a gateway config, we can move the client into a registered state. This will
-        // fail if no gateway key is set.
-        if let Some(gateway_config) = self.gateway_config {
-            client.register_gateway_with_config(gateway_config)?;
-        }
 
         Ok(client)
     }
@@ -224,22 +209,12 @@ where
     /// connected to the mixnet.
     state: BuilderState,
 
-    // TODO: refactor storages and combine everything into a single struct
-    /// Controller of bandwidth credentials that the mixnet client can use to connect
-    bandwidth_controller: Option<BandwidthController<Client<QueryNyxdClient>, S::CredentialStore>>,
+    /// Underlying storage of this client.
+    storage: S,
 
-    /// The storage backend for reply-SURBs
-    reply_storage_backend: S::ReplyStore,
-
-    /// The storage backend for cryptographic keys
-    key_store: S::KeyStore,
-
-    /// Keys handled by the client
-    managed_keys: ManagedKeys,
-
-    // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
-    /// Path to optionally persist gateway configuration. Note that it's required if one were to use persistent keys.
-    gateway_endpoint_config_path: Option<PathBuf>,
+    /// In the case of enabled credentials, a client instance responsible for querying the state of the
+    /// dkg and coconut contracts
+    dkg_query_client: Option<Client<QueryNyxdClient>>,
 
     /// Alternative provider of network topology used for constructing sphinx packets.
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
@@ -248,10 +223,11 @@ where
 impl<S> DisconnectedMixnetClient<S>
 where
     S: MixnetClientStorage + 'static,
+    S::ReplyStore: Send + Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
     <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
-    S::ReplyStore: Send + Sync,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
+    <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Send + Sync,
 {
     /// Create a new mixnet client in a disconnected state. The default configuration,
     /// creates a new mainnet client with ephemeral keys stored in RAM, which will be discarded at
@@ -265,34 +241,25 @@ where
         socks5_config: Option<Socks5>,
         storage: S,
         custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
-        gateway_endpoint_config_path: Option<PathBuf>,
     ) -> Result<DisconnectedMixnetClient<S>> {
-        let (key_store, reply_storage_backend, credential_store) = storage.into_split();
-
-        // don't create bandwidth controller if credentials are disabled
-        let bandwidth_controller = if config.enabled_credentials_mode {
+        // don't create dkg client for the bandwidth controller if credentials are disabled
+        let dkg_query_client = if config.enabled_credentials_mode {
             let client_config = nym_validator_client::Config::try_from_nym_network_details(
                 &config.network_details,
             )?;
             let client = nym_validator_client::Client::new_query(client_config)?;
-            Some(BandwidthController::new(credential_store, client))
+            Some(client)
         } else {
             None
         };
-
-        let mut rng = thread_rng();
-        let managed_keys = ManagedKeys::load_or_generate(&mut rng, &key_store).await;
 
         Ok(DisconnectedMixnetClient {
             config,
             socks5_config,
             state: BuilderState::New,
-            reply_storage_backend,
-            key_store,
-            bandwidth_controller,
+            dkg_query_client,
+            storage,
             custom_topology_provider,
-            managed_keys,
-            gateway_endpoint_config_path,
         })
     }
 
@@ -306,38 +273,30 @@ where
             .collect()
     }
 
+    fn get_nyxd_endpoints(&self) -> Vec<Url> {
+        self.config
+            .network_details
+            .endpoints
+            .iter()
+            .map(|details| details.nyxd_url.as_ref())
+            .filter_map(|s| Url::parse(s).ok())
+            .collect()
+    }
+
     /// Client keys are generated at client creation if none were found. The gateway shared
     /// key, however, is created during the gateway registration handshake so it might not
     /// necessarily be available.
-    fn has_gateway_key(&self) -> bool {
-        matches!(self.managed_keys, ManagedKeys::FullyDerived(..))
-    }
+    /// Furthermore, it has to be coupled with particular gateway's config.
+    async fn has_gateway_info(&self) -> bool {
+        let has_keys = self.storage.key_store().load_keys().await.is_ok();
+        let has_gateway_details = self
+            .storage
+            .gateway_details_store()
+            .load_gateway_details()
+            .await
+            .is_ok();
 
-    fn remove_gateway_key(&mut self) {
-        assert!(self.has_gateway_key());
-        let ManagedKeys::FullyDerived(keys) = std::mem::replace(&mut self.managed_keys, ManagedKeys::Invalidated) else {
-            unreachable!()
-        };
-        self.managed_keys = ManagedKeys::Initial(keys.remove_gateway_key())
-    }
-
-    /// Sets the gateway endpoint of this [`MixnetClientBuilder`].
-    ///
-    /// NOTE: this will mark this builder as `Registered`, and the it is assumed that the keys are
-    /// also explicitly set.
-    pub fn register_gateway_with_config(
-        &mut self,
-        gateway_endpoint_config: GatewayEndpointConfig,
-    ) -> Result<()> {
-        if !self.has_gateway_key() {
-            return Err(Error::NoGatewayKeySet);
-        }
-
-        self.state = BuilderState::Registered {
-            gateway_endpoint_config,
-        };
-
-        Ok(())
+        has_keys && has_gateway_details
     }
 
     /// Register with a gateway. If a gateway is provided in the config then that will try to be
@@ -348,58 +307,31 @@ where
     /// This function will return an error if you try to re-register when in an already registered
     /// state.
     pub async fn register_and_authenticate_gateway(&mut self) -> Result<()> {
-        if self.state != BuilderState::New {
+        if !matches!(self.state, BuilderState::New) {
             return Err(Error::ReregisteringGatewayNotSupported);
         }
+
         log::debug!("Registering with gateway");
 
         let api_endpoints = self.get_api_endpoints();
-        let gateway_setup = GatewaySetup::new(None, self.config.user_chosen_gateway.clone(), None);
 
-        let gateway_config = nym_client_core::init::get_registered_gateway::<S>(
-            api_endpoints,
-            &self.key_store,
-            gateway_setup,
+        let gateway_setup = if self.has_gateway_info().await {
+            GatewaySetup::MustLoad
+        } else {
+            GatewaySetup::new_fresh(self.config.user_chosen_gateway.clone(), None)
+        };
+
+        // this will perform necessary key and details load and optional store
+        let _init_result = nym_client_core::init::setup_gateway(
+            &gateway_setup,
+            self.storage.key_store(),
+            self.storage.gateway_details_store(),
             !self.config.key_mode.is_keep(),
+            Some(&api_endpoints),
         )
         .await?;
 
-        self.state = BuilderState::Registered {
-            gateway_endpoint_config: gateway_config,
-        };
-        Ok(())
-    }
-
-    /// Returns the get gateway endpoint of this [`MixnetClientBuilder`].
-    pub fn get_gateway_endpoint(&self) -> Option<&GatewayEndpointConfig> {
-        self.state.gateway_endpoint_config()
-    }
-
-    fn write_gateway_endpoint_config(&self, gateway_endpoint_config_path: &Path) -> Result<()> {
-        let gateway_endpoint_config = toml::to_string(
-            self.get_gateway_endpoint()
-                .ok_or(Error::GatewayNotAvailableForWriting)?,
-        )?;
-
-        // Ensure the whole directory structure exists
-        if let Some(parent_dir) = gateway_endpoint_config_path.parent() {
-            std::fs::create_dir_all(parent_dir)?;
-        }
-        std::fs::write(gateway_endpoint_config_path, gateway_endpoint_config)?;
-        Ok(())
-    }
-
-    fn read_gateway_endpoint_config<P: AsRef<Path>>(
-        &mut self,
-        gateway_endpoint_config_path: P,
-    ) -> Result<()> {
-        let gateway_endpoint_config: GatewayEndpointConfig =
-            std::fs::read_to_string(gateway_endpoint_config_path)
-                .map(|str| toml::from_str(&str))??;
-
-        self.state = BuilderState::Registered {
-            gateway_endpoint_config,
-        };
+        self.state = BuilderState::Registered {};
         Ok(())
     }
 
@@ -412,68 +344,48 @@ where
         if !self.config.enabled_credentials_mode {
             return Err(Error::DisabledCredentialsMode);
         }
-        if let Some(bandwidth_controller) = &self.bandwidth_controller {
-            BandwidthAcquireClient::new(
-                self.config.network_details.clone(),
-                mnemonic,
-                bandwidth_controller.storage(),
-            )
-        } else {
-            Err(Error::DisabledCredentialsMode)
-        }
+        BandwidthAcquireClient::new(
+            self.config.network_details.clone(),
+            mnemonic,
+            self.storage.credential_store(),
+        )
     }
 
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
-        // For some simple cases we can figure how to setup gateway without it having to have been
-        // called in advance.
-        if matches!(self.state, BuilderState::New) {
-            let already_registered = self.has_gateway_key();
-            if already_registered {
-                if let Some(gateway_endpoint_path) = self.gateway_endpoint_config_path.clone() {
-                    self.read_gateway_endpoint_config(gateway_endpoint_path)?;
-                } else if !self.config.key_mode.is_keep() {
-                    // if we don't have gateway configuration available and we're not keeping the keys,
-                    // purge them
-                    self.remove_gateway_key();
-                }
-            } else {
-                // TODO: that is redundant since the base client will perform gateway registration
-                self.register_and_authenticate_gateway().await?;
-                if let Some(gateway_endpoint_path) = &self.gateway_endpoint_config_path {
-                    self.write_gateway_endpoint_config(gateway_endpoint_path)?;
-                }
-            }
+        // if we don't care about our keys, explicitly register
+        if !self.config.key_mode.is_keep() {
+            self.register_and_authenticate_gateway().await?;
         }
 
-        // If the gateway is in a registered state, but without the gateway key set.
-        if matches!(self.state, BuilderState::Registered { .. }) && !self.has_gateway_key() {
-            return Err(Error::NoGatewayKeySet);
-        }
+        // otherwise, the whole key setup and gateway selection dance will be done for us
+        // when we start the base client
 
-        // At this point we should be in a registered state, either at function entry or by the
-        // above convenience logic.
-        let BuilderState::Registered { gateway_endpoint_config } = &self.state else {
-            return Err(Error::FailedToTransitionToRegisteredState);
-        };
-
+        let nyxd_endpoints = self.get_nyxd_endpoints();
         let nym_api_endpoints = self.get_api_endpoints();
 
-        let mut base_builder: BaseClientBuilder<_, S> = BaseClientBuilder::new(
-            gateway_endpoint_config,
-            &self.config.debug_config,
-            self.key_store,
-            self.bandwidth_controller,
-            self.reply_storage_backend,
-            self.config.enabled_credentials_mode.into(),
-            nym_api_endpoints,
-        );
+        // a temporary workaround
+        let base_config = self
+            .config
+            .as_base_client_config(nyxd_endpoints, nym_api_endpoints);
+
+        let known_gateway = self.has_gateway_info().await;
+
+        let mut base_builder: BaseClientBuilder<_, _> =
+            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client);
+
+        if !known_gateway {
+            base_builder = base_builder.with_gateway_setup(GatewaySetup::new_fresh(
+                self.config.user_chosen_gateway,
+                None,
+            ))
+        }
 
         if let Some(topology_provider) = self.custom_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        let packet_type = self.config.packet_type();
-        let started_client = base_builder.start_base(packet_type).await?;
+        let started_client = base_builder.start_base().await?;
+        self.state = BuilderState::Registered {};
         let nym_address = started_client.address;
 
         Ok((started_client, nym_address))
@@ -510,7 +422,7 @@ where
             .clone()
             .ok_or(Error::Socks5Config { set: false })?;
         let debug_config = self.config.debug_config;
-        let packet_type = self.config.packet_type();
+        let packet_type = self.config.debug_config.traffic.packet_type;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let (socks5_status_tx, mut socks5_status_rx) = mpsc::channel(128);
 

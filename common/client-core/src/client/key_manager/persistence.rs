@@ -4,11 +4,10 @@
 use crate::client::key_manager::KeyManager;
 use async_trait::async_trait;
 use std::error::Error;
+use tokio::sync::Mutex;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::config::Config;
+use crate::config::disk_persistence::keys_paths::ClientKeysPaths;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_crypto::asymmetric::{encryption, identity};
 #[cfg(not(target_arch = "wasm32"))]
@@ -38,6 +37,7 @@ pub enum OnDiskKeysError {
     KeyPairLoadFailure {
         keys: String,
         paths: nym_pemstore::KeyPairPath,
+        #[source]
         err: std::io::Error,
     },
 
@@ -45,6 +45,7 @@ pub enum OnDiskKeysError {
     KeyPairStoreFailure {
         keys: String,
         paths: nym_pemstore::KeyPairPath,
+        #[source]
         err: std::io::Error,
     },
 
@@ -52,6 +53,7 @@ pub enum OnDiskKeysError {
     KeyLoadFailure {
         key: String,
         path: String,
+        #[source]
         err: std::io::Error,
     },
 
@@ -59,30 +61,47 @@ pub enum OnDiskKeysError {
     KeyStoreFailure {
         key: String,
         path: String,
+        #[source]
         err: std::io::Error,
     },
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub struct OnDiskKeys {
-    pathfinder: ClientKeyPathfinder,
+    paths: ClientKeysPaths,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<ClientKeyPathfinder> for OnDiskKeys {
-    fn from(pathfinder: ClientKeyPathfinder) -> Self {
-        OnDiskKeys { pathfinder }
+impl From<ClientKeysPaths> for OnDiskKeys {
+    fn from(paths: ClientKeysPaths) -> Self {
+        OnDiskKeys { paths }
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl OnDiskKeys {
-    pub fn new(pathfinder: ClientKeyPathfinder) -> Self {
-        OnDiskKeys { pathfinder }
+    pub fn new(paths: ClientKeysPaths) -> Self {
+        OnDiskKeys { paths }
     }
 
-    pub fn from_config<T>(config: &Config<T>) -> Self {
-        OnDiskKeys::new(ClientKeyPathfinder::new_from_config(config))
+    #[doc(hidden)]
+    pub fn ephemeral_load_gateway_keys(
+        &self,
+    ) -> Result<zeroize::Zeroizing<SharedKeys>, OnDiskKeysError> {
+        self.load_key(self.paths.gateway_shared_key(), "gateway shared keys")
+            .map(zeroize::Zeroizing::new)
+    }
+
+    #[doc(hidden)]
+    pub fn load_encryption_keypair(&self) -> Result<encryption::KeyPair, OnDiskKeysError> {
+        let encryption_paths = self.paths.encryption_key_pair_path();
+        self.load_keypair(encryption_paths, "encryption keys")
+    }
+
+    #[doc(hidden)]
+    pub fn load_identity_keypair(&self) -> Result<identity::KeyPair, OnDiskKeysError> {
+        let identity_paths = self.paths.identity_key_pair_path();
+        self.load_keypair(identity_paths, "identity keys")
     }
 
     fn load_key<T: PemStorableKey>(
@@ -138,17 +157,12 @@ impl OnDiskKeys {
     }
 
     fn load_keys(&self) -> Result<KeyManager, OnDiskKeysError> {
-        let identity_paths = self.pathfinder.identity_key_pair_path();
-        let encryption_paths = self.pathfinder.encryption_key_pair_path();
+        let identity_keypair = self.load_identity_keypair()?;
+        let encryption_keypair = self.load_encryption_keypair()?;
 
-        let identity_keypair: identity::KeyPair =
-            self.load_keypair(identity_paths, "identity keys")?;
-        let encryption_keypair: encryption::KeyPair =
-            self.load_keypair(encryption_paths, "encryption keys")?;
-
-        let ack_key: AckKey = self.load_key(self.pathfinder.ack_key(), "ack key")?;
+        let ack_key: AckKey = self.load_key(self.paths.ack_key(), "ack key")?;
         let gateway_shared_key: SharedKeys =
-            self.load_key(self.pathfinder.gateway_shared_key(), "gateway shared keys")?;
+            self.load_key(self.paths.gateway_shared_key(), "gateway shared keys")?;
 
         Ok(KeyManager::from_keys(
             identity_keypair,
@@ -159,8 +173,8 @@ impl OnDiskKeys {
     }
 
     fn store_keys(&self, keys: &KeyManager) -> Result<(), OnDiskKeysError> {
-        let identity_paths = self.pathfinder.identity_key_pair_path();
-        let encryption_paths = self.pathfinder.encryption_key_pair_path();
+        let identity_paths = self.paths.identity_key_pair_path();
+        let encryption_paths = self.paths.encryption_key_pair_path();
 
         self.store_keypair(
             keys.identity_keypair.as_ref(),
@@ -173,10 +187,10 @@ impl OnDiskKeys {
             "encryption keys",
         )?;
 
-        self.store_key(keys.ack_key.as_ref(), self.pathfinder.ack_key(), "ack key")?;
+        self.store_key(keys.ack_key.as_ref(), self.paths.ack_key(), "ack key")?;
         self.store_key(
             keys.gateway_shared_key.as_ref(),
-            self.pathfinder.gateway_shared_key(),
+            self.paths.gateway_shared_key(),
             "gateway shared keys",
         )?;
 
@@ -199,10 +213,12 @@ impl KeyStore for OnDiskKeys {
 }
 
 #[derive(Default)]
-pub struct InMemEphemeralKeys;
+pub struct InMemEphemeralKeys {
+    keys: Mutex<Option<KeyManager>>,
+}
 
 #[derive(Debug, thiserror::Error)]
-#[error("ephemeral keys can't be loaded from storage")]
+#[error("old ephemeral keys can't be loaded from storage")]
 pub struct EphemeralKeysError;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -211,10 +227,11 @@ impl KeyStore for InMemEphemeralKeys {
     type StorageError = EphemeralKeysError;
 
     async fn load_keys(&self) -> Result<KeyManager, Self::StorageError> {
-        Err(EphemeralKeysError)
+        self.keys.lock().await.clone().ok_or(EphemeralKeysError)
     }
 
-    async fn store_keys(&self, _keys: &KeyManager) -> Result<(), Self::StorageError> {
+    async fn store_keys(&self, keys: &KeyManager) -> Result<(), Self::StorageError> {
+        *self.keys.lock().await = Some(keys.clone());
         Ok(())
     }
 }

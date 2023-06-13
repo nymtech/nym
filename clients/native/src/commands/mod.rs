@@ -2,14 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::old_config_v1_1_13::OldConfigV1_1_13;
-use crate::client::config::{BaseConfig, Config};
+use crate::client::config::old_config_v1_1_20::ConfigV1_1_20;
+use crate::client::config::old_config_v1_1_20_2::ConfigV1_1_20_2;
+use crate::client::config::{BaseClientConfig, Config};
+use crate::error::ClientError;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
-use log::info;
+use log::{error, info};
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_bin_common::completions::{fig_generate, ArgShell};
-use nym_config::{NymConfig, OptionalSet};
+use nym_client_core::client::base_client::storage::gateway_details::{
+    OnDiskGatewayDetails, PersistedGatewayDetails,
+};
+use nym_client_core::client::key_manager::persistence::OnDiskKeys;
+use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::error::ClientCoreError;
+use nym_config::OptionalSet;
 use std::error::Error;
 use std::net::IpAddr;
 
@@ -82,40 +91,151 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
     config
         .with_optional(Config::with_disabled_socket, args.disable_socket)
-        .with_base(BaseConfig::with_high_default_traffic_volume, args.fastmode)
-        .with_base(BaseConfig::with_disabled_cover_traffic, args.no_cover)
+        .with_base(
+            BaseClientConfig::with_high_default_traffic_volume,
+            args.fastmode,
+        )
+        .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
         .with_optional(Config::with_port, args.port)
         .with_optional(Config::with_host, args.host)
         .with_optional_custom_env_ext(
-            BaseConfig::with_custom_nym_apis,
+            BaseClientConfig::with_custom_nym_apis,
             args.nym_apis,
             nym_network_defaults::var_names::NYM_API,
             nym_config::parse_urls,
         )
         .with_optional_custom_env_ext(
-            BaseConfig::with_custom_nyxd,
+            BaseClientConfig::with_custom_nyxd,
             args.nyxd_urls,
             nym_network_defaults::var_names::NYXD,
             nym_config::parse_urls,
         )
         .with_optional_ext(
-            BaseConfig::with_disabled_credentials,
+            BaseClientConfig::with_disabled_credentials,
             args.enabled_credentials_mode.map(|b| !b),
         )
 }
 
-fn try_upgrade_v1_1_13_config(id: &str) -> std::io::Result<()> {
-    // explicitly load it as v1.1.13 (which is incompatible with the current, i.e. 1.1.14+)
+fn persist_gateway_details(
+    config: &Config,
+    details: GatewayEndpointConfig,
+) -> Result<(), ClientError> {
+    let details_store =
+        OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
+    let keys_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
+    let shared_keys = keys_store.ephemeral_load_gateway_keys().map_err(|source| {
+        ClientError::ClientCoreError(ClientCoreError::KeyStoreError {
+            source: Box::new(source),
+        })
+    })?;
+    let persisted_details = PersistedGatewayDetails::new(details, &shared_keys);
+    details_store
+        .store_to_disk(&persisted_details)
+        .map_err(|source| {
+            ClientError::ClientCoreError(ClientCoreError::GatewayDetailsStoreError {
+                source: Box::new(source),
+            })
+        })
+}
+
+fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, ClientError> {
+    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
+
+    // explicitly load it as v1.1.13 (which is incompatible with the next step, i.e. 1.1.19)
     let Ok(old_config) = OldConfigV1_1_13::load_from_file(id) else {
         // if we failed to load it, there might have been nothing to upgrade
         // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(());
+        return Ok(false);
     };
     info!("It seems the client is using <= v1.1.13 config template.");
     info!("It is going to get updated to the current specification.");
 
-    let updated: Config = old_config.into();
-    updated.save_to_file(None)
+    let updated_step1: ConfigV1_1_20 = old_config.into();
+    let updated_step2: ConfigV1_1_20_2 = updated_step1.into();
+    let (updated, gateway_config) = updated_step2.upgrade();
+    persist_gateway_details(&updated, gateway_config)?;
+
+    updated.save_to_default_location()?;
+    Ok(true)
+}
+
+fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, ClientError> {
+    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
+
+    // explicitly load it as v1.1.20 (which is incompatible with the current one, i.e. +1.1.21)
+    let Ok(old_config) = ConfigV1_1_20::load_from_file(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(false);
+    };
+    info!("It seems the client is using <= v1.1.20 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let updated_step1: ConfigV1_1_20_2 = old_config.into();
+    let (updated, gateway_config) = updated_step1.upgrade();
+    persist_gateway_details(&updated, gateway_config)?;
+
+    updated.save_to_default_location()?;
+    Ok(true)
+}
+
+fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, ClientError> {
+    // explicitly load it as v1.1.20_2 (which is incompatible with the current one, i.e. +1.1.21)
+    let Ok(old_config) = ConfigV1_1_20_2::read_from_default_path(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(false);
+    };
+    info!("It seems the client is using <= v1.1.20_2 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let (updated, gateway_config) = old_config.upgrade();
+    persist_gateway_details(&updated, gateway_config)?;
+
+    updated.save_to_default_location()?;
+    Ok(true)
+}
+
+fn try_upgrade_config(id: &str) -> Result<(), ClientError> {
+    if try_upgrade_v1_1_13_config(id)? {
+        return Ok(());
+    }
+    if try_upgrade_v1_1_20_config(id)? {
+        return Ok(());
+    }
+    if try_upgrade_v1_1_20_2_config(id)? {
+        return Ok(());
+    }
+
+    Ok(())
+}
+
+fn try_load_current_config(id: &str) -> Result<Config, ClientError> {
+    // try to load the config as is
+    if let Ok(cfg) = Config::read_from_default_path(id) {
+        return if !cfg.validate() {
+            Err(ClientError::ConfigValidationFailure)
+        } else {
+            Ok(cfg)
+        };
+    }
+
+    // we couldn't load it - try upgrading it from older revisions
+    try_upgrade_config(id)?;
+
+    let config = match Config::read_from_default_path(id) {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            error!("Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})");
+            return Err(ClientError::FailedToLoadConfig(id.to_string()));
+        }
+    };
+
+    if !config.validate() {
+        return Err(ClientError::ConfigValidationFailure);
+    }
+
+    Ok(config)
 }
 
 #[cfg(test)]

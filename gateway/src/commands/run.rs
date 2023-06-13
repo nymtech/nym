@@ -5,7 +5,7 @@ use crate::commands::{ensure_config_version_compatibility, OverrideConfig};
 use crate::support::config::build_config;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
-use nym_validator_client::nyxd;
+use nym_config::helpers::SPECIAL_ADDRESSES;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -20,10 +20,6 @@ pub struct Run {
     #[clap(long)]
     host: Option<IpAddr>,
 
-    /// The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
-    #[clap(long)]
-    wallet_address: Option<nyxd::AccountId>,
-
     /// The port on which the gateway will be listening for sphinx packets
     #[clap(long)]
     mix_port: Option<u16>,
@@ -31,11 +27,6 @@ pub struct Run {
     /// The port on which the gateway will be listening for clients gateway-requests
     #[clap(long)]
     clients_port: Option<u16>,
-
-    /// The host that will be reported to the directory server
-    #[clap(long)]
-    // TODO: could this be changed to `Option<url::Url>`?
-    announce_host: Option<String>,
 
     /// Path to sqlite database containing all gateway persistent data
     #[clap(long)]
@@ -82,11 +73,9 @@ impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
             host: run_config.host,
-            wallet_address: run_config.wallet_address,
             mix_port: run_config.mix_port,
             clients_port: run_config.clients_port,
             datastore: run_config.datastore,
-            announce_host: run_config.announce_host,
             nym_apis: run_config.nym_apis,
             mnemonic: run_config.mnemonic,
 
@@ -98,19 +87,14 @@ impl From<Run> for OverrideConfig {
     }
 }
 
-fn show_binding_warning(address: String) {
+fn show_binding_warning(address: &str) {
     eprintln!("\n##### NOTE #####");
     eprintln!(
-        "\nYou are trying to bind to {} - you might not be accessible to other nodes\n\
+        "\nYou are trying to bind to {address} - you might not be accessible to other nodes\n\
          You can ignore this warning if you're running setup on a local network \n\
-         or have set a custom 'announce-host'",
-        address
+         or have used different host when bonding your node"
     );
     eprintln!("\n\n");
-}
-
-fn special_addresses() -> Vec<&'static str> {
-    vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
 pub async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -121,8 +105,8 @@ pub async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync>> {
     let config = build_config(id, args)?;
     ensure_config_version_compatibility(&config)?;
 
-    if special_addresses().contains(&&*config.get_listening_address().to_string()) {
-        show_binding_warning(config.get_listening_address().to_string());
+    if SPECIAL_ADDRESSES.contains(&config.gateway.listening_address) {
+        show_binding_warning(&config.gateway.listening_address.to_string());
     }
 
     let mut gateway = crate::node::create_gateway(config).await;

@@ -7,36 +7,59 @@ const val nymNativeLib = "nym_socks5_listener"
 class NymProxy {
     private val tag = "NymProxy"
 
+    companion object {
+        enum class State {
+            UNINITIALIZED,
+            CONNECTED,
+            DISCONNECTED
+        }
+    }
+
     // Load the native library "libnym_socks5_listener.so"
     init {
         System.loadLibrary(nymNativeLib)
         Log.i(tag, "loaded native library $nymNativeLib")
     }
 
-    fun start(serviceProvider: String, callback: Any) {
-        Log.d(tag, "calling $nymNativeLib:run")
+    fun start(serviceProvider: String, onStartCbObj: Any, onStopCbObj: Any) {
+        Log.d(tag, "calling $nymNativeLib:startClient")
         try {
-            run(serviceProvider, callback)
+            startClient(serviceProvider, onStartCbObj, onStopCbObj)
         } catch (e: Throwable) {
-            Log.e(tag, "$nymNativeLib:run internal error: $e")
+            Log.e(tag, "$nymNativeLib:startClient internal error: $e")
         }
     }
 
-    /* fun start() {
-        Log.d(tag, "calling $nymNativeLib:startClient")
-        return startClient()
-    } */
-
-    fun stop(callback: Any) {
+    fun stop() {
         Log.d(tag, "calling $nymNativeLib:stopClient")
         try {
-            stopClient(callback)
+            stopClient()
         } catch (e: Throwable) {
             Log.e(tag, "$nymNativeLib:stopClient internal error: $e")
         }
     }
 
-    private external fun run(spAddress: String, callback: Any)
-    private external fun stopClient(callbacks: Any)
-    // private external fun startClient()
+    fun getState(): State {
+        Log.d(tag, "calling $nymNativeLib:getClientState")
+        try {
+            return when (getClientState()) {
+                0 -> State.UNINITIALIZED
+                1 -> State.CONNECTED
+                2 -> State.DISCONNECTED
+                else -> throw Error("unknown state")
+            }
+        } catch (e: Throwable) {
+            Log.e(tag, "$nymNativeLib:getClientState internal error: $e")
+        }
+        return State.UNINITIALIZED
+    }
+
+    private external fun startClient(
+        spAddress: String,
+        onStartCbObj: Any,
+        onStopCbObj: Any
+    )
+
+    private external fun stopClient()
+    private external fun getClientState(): Int
 }

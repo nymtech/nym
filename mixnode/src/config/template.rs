@@ -1,12 +1,11 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) fn config_template() -> &'static str {
-    // While using normal toml marshalling would have been way simpler with less overhead,
-    // I think it's useful to have comments attached to the saved config file to explain behaviour of
-    // particular fields.
-    // Note: any changes to the template must be reflected in the appropriate structs in verloc.
-    r#"
+// While using normal toml marshalling would have been way simpler with less overhead,
+// I think it's useful to have comments attached to the saved config file to explain behaviour of
+// particular fields.
+// Note: any changes to the template must be reflected in the appropriate structs.
+pub(crate) const CONFIG_TEMPLATE: &str = r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
 
@@ -21,25 +20,6 @@ id = '{{ mixnode.id }}'
 
 # Socket address to which this mixnode will bind to and will be listening for packets.
 listening_address = '{{ mixnode.listening_address }}'
-
-# Path to file containing private identity key.
-private_identity_key_file = '{{ mixnode.private_identity_key_file }}'
-
-# Path to file containing public identity key.
-public_identity_key_file = '{{ mixnode.public_identity_key_file }}'
-
-# Path to file containing private identity key.
-private_sphinx_key_file = '{{ mixnode.private_sphinx_key_file }}'
-
-# Path to file containing public sphinx key.
-public_sphinx_key_file = '{{ mixnode.public_sphinx_key_file }}'
-
-##### additional mixnode config options #####
-
-# Optional address announced to the directory server for the clients to connect to.
-# It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
-# later on by using name resolvable with a DNS query, such as `nymtech.net`.
-announce_address = '{{ mixnode.announce_address }}'
 
 # Port used for listening for all mixnet traffic.
 # (default: 1789)
@@ -60,14 +40,22 @@ nym_api_urls = [
     {{/each}}
 ]
 
-# Nym wallet address on the blockchain that should control this mixnode
-wallet_address = '{{ mixnode.wallet_address }}'
+[storage_paths] 
 
-##### advanced configuration options #####
+# Path to file containing private identity key.
+keys.private_identity_key_file = '{{ storage_paths.keys.private_identity_key_file }}'
 
-# Absolute path to the home Nym Clients directory.
-nym_root_directory = '{{ mixnode.nym_root_directory }}'
+# Path to file containing public identity key.
+keys.public_identity_key_file = '{{ storage_paths.keys.public_identity_key_file }}'
 
+# Path to file containing private identity key.
+keys.private_sphinx_key_file = '{{ storage_paths.keys.private_sphinx_key_file }}'
+
+# Path to file containing public sphinx key.
+keys.public_sphinx_key_file = '{{ storage_paths.keys.public_sphinx_key_file }}'
+
+# Path to file containing description of this node.
+node_description = '{{ storage_paths.node_description }}'
 
 ##### logging configuration options #####
 
@@ -75,5 +63,4 @@ nym_root_directory = '{{ mixnode.nym_root_directory }}'
 
 # TODO
 
-"#
-}
+"#;

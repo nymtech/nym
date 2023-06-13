@@ -1,95 +1,167 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::template::config_template;
-use nym_client_core::config::ClientCoreConfigTrait;
-use nym_config::{NymConfig, OptionalSet};
+use crate::config::persistence::NetworkRequesterPaths;
+use crate::config::template::CONFIG_TEMPLATE;
+use nym_bin_common::logging::LoggingSettings;
+use nym_config::{
+    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
+    OptionalSet, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+};
+use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::io;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::Duration;
 
-pub use nym_client_core::config::Config as BaseConfig;
-pub use nym_client_core::config::MISSING_VALUE;
+pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
+
+pub mod old_config_v1_1_13;
+pub mod old_config_v1_1_20;
+pub mod old_config_v1_1_20_2;
+mod persistence;
+mod template;
+
+const DEFAULT_NETWORK_REQUESTERS_DIR: &str = "network-requester";
 
 pub const DEFAULT_STANDARD_LIST_UPDATE_INTERVAL: Duration = Duration::from_secs(30 * 60);
 
-pub mod old_config_v1_1_13;
-mod template;
+/// Derive default path to network requester's config directory.
+/// It should get resolved to `$HOME/.nym/service-providers/network-requester/<id>/config`
+pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
+    must_get_home()
+        .join(NYM_DIR)
+        .join(DEFAULT_SERVICE_PROVIDERS_DIR)
+        .join(DEFAULT_NETWORK_REQUESTERS_DIR)
+        .join(id)
+        .join(DEFAULT_CONFIG_DIR)
+}
 
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+/// Derive default path to network requester's config file.
+/// It should get resolved to `$HOME/.nym/service-providers/network-requester/<id>/config/config.toml`
+pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
+}
+
+/// Derive default path to network requester's data directory where files, such as keys, are stored.
+/// It should get resolved to `$HOME/.nym/service-providers/network-requester/<id>/data`
+pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
+    must_get_home()
+        .join(NYM_DIR)
+        .join(DEFAULT_SERVICE_PROVIDERS_DIR)
+        .join(DEFAULT_NETWORK_REQUESTERS_DIR)
+        .join(id)
+        .join(DEFAULT_DATA_DIR)
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(flatten)]
-    base: BaseConfig<Config>,
+    pub base: BaseClientConfig,
 
     #[serde(default)]
-    pub network_requester: NetworkRequster,
+    pub network_requester: NetworkRequester,
+
+    pub storage_paths: NetworkRequesterPaths,
 
     #[serde(default)]
     pub network_requester_debug: Debug,
+
+    pub logging: LoggingSettings,
 }
 
-impl NymConfig for Config {
+impl NymConfigTemplate for Config {
     fn template() -> &'static str {
-        config_template()
-    }
-
-    fn default_root_directory() -> PathBuf {
-        dirs::home_dir()
-            .expect("Failed to evaluate $HOME value")
-            .join(".nym")
-            .join("service-providers")
-            .join("network-requester")
-    }
-
-    fn try_default_root_directory() -> Option<PathBuf> {
-        dirs::home_dir().map(|path| path.join(".nym").join("clients"))
-    }
-
-    fn root_directory(&self) -> PathBuf {
-        self.base.get_nym_root_directory()
-    }
-
-    fn config_directory(&self) -> PathBuf {
-        self.root_directory()
-            .join(self.base.get_id())
-            .join("config")
-    }
-
-    fn data_directory(&self) -> PathBuf {
-        self.root_directory().join(self.base.get_id()).join("data")
+        CONFIG_TEMPLATE
     }
 }
 
-impl ClientCoreConfigTrait for Config {
-    fn get_gateway_endpoint(&self) -> &nym_client_core::config::GatewayEndpointConfig {
-        self.base.get_gateway_endpoint()
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct NetworkRequster {
-    /// Location of the file containing our allow.list
-    pub allowed_list_location: PathBuf,
-
-    /// Location of the file containing our unknown.list
-    pub unknown_list_location: PathBuf,
-}
-
-impl Default for NetworkRequster {
-    fn default() -> Self {
-        // same defaults as we had in <= v1.1.13
-        NetworkRequster {
-            allowed_list_location: <Config as NymConfig>::default_root_directory()
-                .join("allowed.list"),
-            unknown_list_location: <Config as NymConfig>::default_root_directory()
-                .join("unknown.list"),
+impl Config {
+    pub fn new<S: AsRef<str>>(id: S) -> Self {
+        Config {
+            base: BaseClientConfig::new(id.as_ref()),
+            network_requester: Default::default(),
+            storage_paths: NetworkRequesterPaths::new_default(default_data_directory(id.as_ref())),
+            network_requester_debug: Default::default(),
+            logging: Default::default(),
         }
     }
+
+    pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        read_config_from_toml_file(path)
+    }
+
+    pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
+        Self::read_from_toml_file(default_config_filepath(id))
+    }
+
+    pub fn default_location(&self) -> PathBuf {
+        default_config_filepath(&self.base.client.id)
+    }
+
+    pub fn save_to_default_location(&self) -> io::Result<()> {
+        let config_save_location: PathBuf = self.default_location();
+        save_formatted_config_to_file(self, config_save_location)
+    }
+
+    pub fn validate(&self) -> bool {
+        // no other sections have explicit requirements (yet)
+        self.base.validate()
+    }
+
+    // poor man's 'builder' method
+    pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
+    where
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
+    {
+        self.base = f(self.base, val);
+        self
+    }
+
+    // helper methods to use `OptionalSet` trait. Those are defined due to very... ehm. 'specific' structure of this config
+    // (plz, lets refactor it)
+    pub fn with_optional_base<F, T>(mut self, f: F, val: Option<T>) -> Self
+    where
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
+    {
+        self.base = self.base.with_optional(f, val);
+        self
+    }
+
+    #[allow(unused)]
+    pub fn with_optional_base_env<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
+    where
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
+        T: FromStr,
+        <T as FromStr>::Err: std::fmt::Debug,
+    {
+        self.base = self.base.with_optional_env(f, val, env_var);
+        self
+    }
+
+    #[allow(unused)]
+    pub fn with_optional_base_custom_env<F, T, G>(
+        mut self,
+        f: F,
+        val: Option<T>,
+        env_var: &str,
+        parser: G,
+    ) -> Self
+    where
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
+        G: Fn(&str) -> T,
+    {
+        self.base = self.base.with_optional_custom_env(f, val, env_var, parser);
+        self
+    }
 }
+
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NetworkRequester {}
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -104,89 +176,5 @@ impl Default for Debug {
         Debug {
             standard_list_update_interval: DEFAULT_STANDARD_LIST_UPDATE_INTERVAL,
         }
-    }
-}
-
-impl Config {
-    pub fn new<S: Into<String>>(id: S) -> Self {
-        let mut cfg = Config {
-            base: BaseConfig::new(id),
-            ..Default::default()
-        };
-
-        cfg.network_requester.allowed_list_location = cfg.data_directory().join("allowed.list");
-        cfg.network_requester.unknown_list_location = cfg.data_directory().join("unknown.list");
-        cfg
-    }
-
-    pub fn validate(&self) -> bool {
-        // no other sections have explicit requirements (yet)
-        self.base.validate()
-    }
-
-    // getters
-    pub fn get_config_file_save_location(&self) -> PathBuf {
-        self.config_directory().join(Self::config_file_name())
-    }
-
-    pub fn allow_list_file_location(&self) -> PathBuf {
-        self.network_requester.allowed_list_location.clone()
-    }
-
-    pub fn unknown_list_file_location(&self) -> PathBuf {
-        self.network_requester.unknown_list_location.clone()
-    }
-
-    pub fn get_base(&self) -> &BaseConfig<Self> {
-        &self.base
-    }
-
-    pub fn get_base_mut(&mut self) -> &mut BaseConfig<Self> {
-        &mut self.base
-    }
-
-    // poor man's 'builder' method
-    pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
-    where
-        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
-    {
-        self.base = f(self.base, val);
-        self
-    }
-
-    // helper methods to use `OptionalSet` trait. Those are defined due to very... ehm. 'specific' structure of this config
-    // (plz, lets refactor it)
-    pub fn with_optional_ext<F, T>(mut self, f: F, val: Option<T>) -> Self
-    where
-        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
-    {
-        self.base = self.base.with_optional(f, val);
-        self
-    }
-
-    #[allow(dead_code)]
-    pub fn with_optional_env_ext<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
-    where
-        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
-        T: FromStr,
-        <T as FromStr>::Err: std::fmt::Debug,
-    {
-        self.base = self.base.with_optional_env(f, val, env_var);
-        self
-    }
-
-    pub fn with_optional_custom_env_ext<F, T, G>(
-        mut self,
-        f: F,
-        val: Option<T>,
-        env_var: &str,
-        parser: G,
-    ) -> Self
-    where
-        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
-        G: Fn(&str) -> T,
-    {
-        self.base = self.base.with_optional_custom_env(f, val, env_var, parser);
-        self
     }
 }

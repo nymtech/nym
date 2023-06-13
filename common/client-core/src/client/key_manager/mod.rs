@@ -6,6 +6,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
 use rand::{CryptoRng, RngCore};
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use zeroize::ZeroizeOnDrop;
 
@@ -18,6 +19,16 @@ pub enum ManagedKeys {
     // I really hate the existence of this variant, but I couldn't come up with a better way to handle
     // `Self::deal_with_gateway_key` otherwise.
     Invalidated,
+}
+
+impl Debug for ManagedKeys {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ManagedKeys::Initial(_) => write!(f, "initial"),
+            ManagedKeys::FullyDerived(_) => write!(f, "fully derived"),
+            ManagedKeys::Invalidated => write!(f, "invalidated"),
+        }
+    }
 }
 
 impl From<KeyManagerBuilder> for ManagedKeys {
@@ -84,6 +95,11 @@ impl ManagedKeys {
         }
     }
 
+    pub fn must_get_gateway_shared_key(&self) -> Arc<SharedKeys> {
+        self.gateway_shared_key()
+            .expect("failed to extract gateway shared key")
+    }
+
     pub fn gateway_shared_key(&self) -> Option<Arc<SharedKeys>> {
         match self {
             ManagedKeys::Initial(_) => None,
@@ -108,6 +124,17 @@ impl ManagedKeys {
         }
     }
 
+    pub fn ensure_gateway_key(&self, gateway_shared_key: Arc<SharedKeys>) {
+        if let ManagedKeys::FullyDerived(key_manager) = &self {
+            if !Arc::ptr_eq(&key_manager.gateway_shared_key, &gateway_shared_key)
+                || key_manager.gateway_shared_key != gateway_shared_key
+            {
+                // this should NEVER happen thus panic here
+                panic!("derived fresh gateway shared key whilst already holding one!")
+            }
+        }
+    }
+
     pub async fn deal_with_gateway_key<S: KeyStore>(
         &mut self,
         gateway_shared_key: Arc<SharedKeys>,
@@ -120,12 +147,7 @@ impl ManagedKeys {
                 key_manager
             }
             ManagedKeys::FullyDerived(key_manager) => {
-                if !Arc::ptr_eq(&key_manager.gateway_shared_key, &gateway_shared_key)
-                    || key_manager.gateway_shared_key != gateway_shared_key
-                {
-                    // this should NEVER happen thus panic here
-                    panic!("derived fresh gateway shared key whilst already holding one!")
-                }
+                self.ensure_gateway_key(gateway_shared_key);
                 key_manager
             }
             ManagedKeys::Invalidated => unreachable!("the managed keys got invalidated"),

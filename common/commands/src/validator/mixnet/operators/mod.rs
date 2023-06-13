@@ -15,6 +15,7 @@ pub struct MixnetOperators {
     pub command: MixnetOperatorsCommands,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Subcommand)]
 pub enum MixnetOperatorsCommands {
     /// Manage your mixnode

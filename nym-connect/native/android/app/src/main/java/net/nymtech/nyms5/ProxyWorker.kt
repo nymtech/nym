@@ -71,10 +71,17 @@ class ProxyWorker(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    private val callback = object {
+    private val onStartCb = object {
         fun onStart() {
             Log.d(tag, "⚡ ON START callback")
             setProgressAsync(workDataOf(State to Status.CONNECTED.name))
+        }
+    }
+
+    private val onStopCb = object {
+        fun onStop() {
+            Log.d(tag, "⚡ ON STOP callback")
+            setProgressAsync(workDataOf(State to Status.DISCONNECTED.name))
         }
     }
 
@@ -82,6 +89,8 @@ class ProxyWorker(
     override suspend fun doWork(): Result {
         setProgress(workDataOf(State to Status.STARTING.name))
 
+        // set this work as a long running worker
+        // see https://developer.android.com/guide/background/persistent/how-to/long-running
         // `setForeground` can fail
         // see https://developer.android.com/guide/background/persistent/getting-started/define-work#coroutineworker
         try {
@@ -121,10 +130,12 @@ class ProxyWorker(
                 Log.w(tag, "using a default service provider $defaultSp")
             }
 
-            nymProxy.start(serviceProvider ?: defaultSp, callback)
+            nymProxy.start(serviceProvider ?: defaultSp, onStartCb, onStopCb)
 
+            // the state should be already set to DISCONNECTED at this point
+            // but for the sake of it, reset it
             setProgress(workDataOf(State to Status.DISCONNECTED.name))
-            Log.d(tag, "work finished")
+            Log.i(tag, "work finished")
             Result.success()
         } catch (e: Throwable) {
             Log.e(tag, "error: ${e.message}")
@@ -134,8 +145,11 @@ class ProxyWorker(
 
     private fun createNotification(): Notification {
         val title = applicationContext.getString(R.string.notification_title)
-        val cancel = applicationContext.getString(R.string.stop_proxy)
+        val cancel = applicationContext.getString(R.string.notification_action_stop)
+        val content = applicationContext.getString(R.string.notification_content)
         // this pending intent is used to cancel the worker
+        // TODO instead of using this intent to cancel the work
+        //  use a custom intent to call `nymProxy.stopClient`
         val stopPendingIntent = WorkManager.getInstance(applicationContext)
             .createCancelPendingIntent(id)
 
@@ -155,8 +169,7 @@ class ProxyWorker(
 
         return NotificationCompat.Builder(applicationContext, channelId)
             .setContentTitle(title)
-            .setTicker(title)
-            .setContentText("Nym socks5 proxy running")
+            .setContentText(content)
             .setSmallIcon(R.drawable.shield_24)
             .setOngoing(true)
             .setContentIntent(tapPendingIntent)
@@ -168,6 +181,8 @@ class ProxyWorker(
     // ongoing notification.
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createForegroundInfo(): ForegroundInfo {
+        Log.d(tag, "__createForegroundInfo")
+
         // Create a Notification channel if necessary
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             createChannel()
@@ -176,8 +191,22 @@ class ProxyWorker(
         return ForegroundInfo(notificationId, createNotification())
     }
 
+    // TODO without this override, under Android 11 the app crashes
+    //  see https://developer.android.com/guide/background/persistent/getting-started/define-work#coroutineworker
+    //  override doesn't seem to be a problem for newer versions
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        Log.d(tag, "__getForegroundInfo")
+
+        // Create a Notification channel if necessary
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            createChannel()
+        }
+        return ForegroundInfo(notificationId, createNotification())
+    }
+
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createChannel() {
+        Log.d(tag, "creating notification channel")
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 channelId,
@@ -185,12 +214,5 @@ class ProxyWorker(
                 NotificationManager.IMPORTANCE_DEFAULT
             )
         )
-    }
-
-    // TODO without this override, under Android 11 the app crashes
-    //  see https://developer.android.com/guide/background/persistent/getting-started/define-work#coroutineworker
-    //  override doesn't seem to be a problem for newer versions
-    override suspend fun getForegroundInfo(): ForegroundInfo {
-        return ForegroundInfo(notificationId, createNotification())
     }
 }

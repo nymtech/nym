@@ -14,6 +14,7 @@ pub struct Mixnet {
     pub command: MixnetCommands,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Subcommand)]
 pub enum MixnetCommands {
     /// Query the mixnet directory

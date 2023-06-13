@@ -12,7 +12,7 @@ use crate::coconut::dkg::{
 };
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
 use crate::nyxd;
-use crate::support::config::Config;
+use crate::support::config;
 use anyhow::Result;
 use nym_coconut_dkg_common::types::EpochState;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
@@ -23,15 +23,15 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 use tokio::time::interval;
 
-pub(crate) fn init_keypair(config: &Config) -> Result<()> {
+pub(crate) fn init_keypair(config: &config::CoconutSigner) -> Result<()> {
     let mut rng = OsRng;
     let dkg_params = nym_dkg::bte::setup();
     let kp = DkgKeyPair::new(&dkg_params, &mut rng);
     nym_pemstore::store_keypair(
         &kp,
         &nym_pemstore::KeyPairPath::new(
-            config.decryption_key_path(),
-            config.public_key_with_proof_path(),
+            &config.storage_paths.decryption_key_path,
+            &config.storage_paths.public_key_with_proof_path,
         ),
     )?;
     Ok(())
@@ -48,39 +48,40 @@ pub(crate) struct DkgController<R> {
 
 impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     pub(crate) async fn new(
-        config: &Config,
+        config: &config::CoconutSigner,
         nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
         rng: R,
     ) -> Result<Self> {
         let dkg_keypair = nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-            config.decryption_key_path(),
-            config.public_key_with_proof_path(),
+            &config.storage_paths.decryption_key_path,
+            &config.storage_paths.public_key_with_proof_path,
         ))?;
         if let Ok(coconut_keypair_value) =
             nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.secret_key_path(),
-                config.verification_key_path(),
+                &config.storage_paths.secret_key_path,
+                &config.storage_paths.verification_key_path,
             ))
         {
             coconut_keypair.set(Some(coconut_keypair_value)).await;
         }
         let persistent_state =
-            PersistentState::load_from_file(config.persistent_state_path()).unwrap_or_default();
+            PersistentState::load_from_file(&config.storage_paths.dkg_persistent_state_path)
+                .unwrap_or_default();
 
         Ok(DkgController {
             dkg_client: DkgClient::new(nyxd_client),
-            secret_key_path: config.secret_key_path(),
-            verification_key_path: config.verification_key_path(),
+            secret_key_path: config.storage_paths.secret_key_path.clone(),
+            verification_key_path: config.storage_paths.verification_key_path.clone(),
             state: State::new(
-                config.persistent_state_path(),
+                config.storage_paths.dkg_persistent_state_path.clone(),
                 persistent_state,
-                config.get_announce_address(),
+                config.announce_address.clone(),
                 dkg_keypair,
                 coconut_keypair,
             ),
             rng,
-            polling_rate: config.get_dkg_contract_polling_rate(),
+            polling_rate: config.debug.dkg_contract_polling_rate,
         })
     }
 
@@ -199,7 +200,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     // TODO: can we make it non-async? it seems we'd have to modify `coconut_keypair.set(coconut_keypair_value)` in new
     // could we do it?
     pub(crate) async fn start(
-        config: &Config,
+        config: &config::CoconutSigner,
         nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
         rng: R,

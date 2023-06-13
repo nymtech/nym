@@ -4,6 +4,54 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.21] (2023-06-13)
+
+- mixFetch: Change socks5 `SendRequest` to include OrderedMessage index as a field rather than making it serialized inside the `data` field ([#3534])
+- Explorer - add more data columns to the Service Provider section: ([#3474])
+- network-requester: support report if they run an open proxy using `ControlRequest` API ([#3461])
+- Refactor client configs (London discussion) ([#3444])
+- Increase `DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE` to 2000 to improve reliability ([#3433])
+- socks5: sender waits for lanes to clear even though the connection is closed ([#3366])
+- version bump for variables ([#3545])
+
+[#3534]: https://github.com/nymtech/nym/issues/3534
+[#3474]: https://github.com/nymtech/nym/issues/3474
+[#3461]: https://github.com/nymtech/nym/issues/3461
+[#3444]: https://github.com/nymtech/nym/issues/3444
+[#3433]: https://github.com/nymtech/nym/issues/3433
+[#3366]: https://github.com/nymtech/nym/issues/3366
+[#3545]: https://github.com/nymtech/nym/pull/3545
+
+## [v1.1.20] (2023-06-06)
+
+- Explorer - Fix SP supported apps list ([#3458])
+- Investigate if we need to lower `SHUTDOWN_TIMEOUT` in  socks5 to zero (or almost zero) ([#3438])
+- Explorer - show all gateways in the default view regardless of the version number ([#3427])
+- service-provider-directory: add signature check when announcing ([#3360])
+- Support functionality for nym-name-service (nym-api, nym-cli, etc) ([#3355])
+- Edit the nym-network-requester to support the enabled-credentials-mode flag ([#3101])
+- [BUG] network requester documentation update ([#3493])
+- removing hardcoded version numbers ([#3485])
+- [BUG] network requester documentation update ([#3481])
+- [BUG] network requester documentation update ([#3469])
+- Sign when announcing service providers to the directory contract ([#3459])
+- mixnode documentation update ([#3435])
+- updated readme with new developer chat links + new docs links ([#3141])
+
+[#3458]: https://github.com/nymtech/nym/issues/3458
+[#3438]: https://github.com/nymtech/nym/issues/3438
+[#3427]: https://github.com/nymtech/nym/issues/3427
+[#3360]: https://github.com/nymtech/nym/issues/3360
+[#3355]: https://github.com/nymtech/nym/issues/3355
+[#3101]: https://github.com/nymtech/nym/issues/3101
+[#3493]: https://github.com/nymtech/nym/pull/3493
+[#3485]: https://github.com/nymtech/nym/pull/3485
+[#3481]: https://github.com/nymtech/nym/pull/3481
+[#3469]: https://github.com/nymtech/nym/pull/3469
+[#3459]: https://github.com/nymtech/nym/pull/3459
+[#3435]: https://github.com/nymtech/nym/pull/3435
+[#3141]: https://github.com/nymtech/nym/pull/3141
+
 ## [v1.1.19] (2023-05-16)
 
 - nym-name-service endpoint in nym-api ([#3403])

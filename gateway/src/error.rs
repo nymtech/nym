@@ -19,17 +19,20 @@ pub(crate) enum GatewayError {
         source: io::Error,
     },
 
+    #[error(
+        "failed to save config file for id {id} using path {path}. detailed message: {source}"
+    )]
+    ConfigSaveFailure {
+        id: String,
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
     #[error("the configured version of the gateway ({config_version}) is incompatible with the binary version ({binary_version})")]
     LocalVersionCheckFailure {
         binary_version: String,
         config_version: String,
-    },
-
-    #[error("another node on the network seems to have identical announce-host ({host})! Their identity is {remote_identity}, while ours is {local_identity}")]
-    DuplicateNodeHost {
-        host: String,
-        local_identity: String,
-        remote_identity: String,
     },
 
     #[error("could not obtain the information about current gateways on the network: {source}")]

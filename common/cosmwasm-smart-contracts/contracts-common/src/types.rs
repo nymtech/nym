@@ -11,6 +11,9 @@ use std::ops::Mul;
 use std::str::FromStr;
 use thiserror::Error;
 
+pub type IdentityKey = String;
+pub type IdentityKeyRef<'a> = &'a str;
+
 pub fn truncate_decimal(amount: Decimal) -> Uint128 {
     amount * Uint128::new(1)
 }

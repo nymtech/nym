@@ -78,7 +78,7 @@ export const PageOverview: FCWithChildren = () => {
                   onClick={() => navigate('/network-components/service-providers')}
                   title="Service providers"
                   icon={<PeopleAlt />}
-                  count={serviceProviders.data?.items.length}
+                  count={serviceProviders.data?.length}
                   errorMsg={summaryOverview?.error}
                 />
               </Grid>

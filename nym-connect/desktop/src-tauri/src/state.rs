@@ -1,16 +1,12 @@
-use std::time::Duration;
-
-use ::nym_config_common::NymConfig;
 use futures::SinkExt;
 use nym_client_core::error::ClientCoreStatusMessage;
+use nym_socks5_client_core::{Socks5ControlMessage, Socks5ControlMessageSender};
+use std::time::Duration;
 use tap::TapFallible;
 use tauri::Manager;
-
-use nym_socks5_client_core::{
-    config::Config as Socks5Config, Socks5ControlMessage, Socks5ControlMessageSender,
-};
 use tokio::time::Instant;
 
+use crate::config::Config;
 use crate::{
     config::{self, socks5_config_id_appended_with},
     error::{BackendError, Result},
@@ -22,7 +18,7 @@ use crate::{
 };
 
 // The client will emit messages if the connection to the gateway is poor (or the gateway can't
-// keep up with the messages we are sendind). If no messages about this has been received for a
+// keep up with the messages we are sending). If no messages about this has been received for a
 // certain duration then we assume it's all good.
 const GATEWAY_CONNECTIVITY_TIMEOUT_SECS: u64 = 20;
 
@@ -146,15 +142,16 @@ impl State {
 
     /// The effective config id is the static config id appended with the id of the gateway
     pub fn get_config_id(&self) -> Result<String> {
-        self.get_gateway()
+        let gateway_id = self
+            .get_gateway()
             .as_ref()
-            .ok_or(BackendError::CouldNotGetIdWithoutGateway)
-            .and_then(|gateway_id| socks5_config_id_appended_with(gateway_id))
+            .ok_or(BackendError::CouldNotGetIdWithoutGateway)?;
+        Ok(socks5_config_id_appended_with(gateway_id))
     }
 
-    pub fn load_socks5_config(&self) -> Result<Socks5Config> {
+    pub fn load_config(&self) -> Result<Config> {
         let id = self.get_config_id()?;
-        let config = Socks5Config::load_from_file(&id)
+        let config = Config::read_from_default_path(id)
             .tap_err(|_| log::warn!("Failed to load configuration file"))?;
         Ok(config)
     }
@@ -179,7 +176,7 @@ impl State {
         }
 
         // Kick off the main task and get the channel for controlling it
-        self.start_nym_socks5_client()
+        self.start_nym_socks5_client().await
     }
 
     /// Create a configuration file
@@ -199,12 +196,12 @@ impl State {
     }
 
     /// Spawn a new thread running the SOCKS5 client
-    fn start_nym_socks5_client(
+    async fn start_nym_socks5_client(
         &mut self,
     ) -> Result<(nym_task::StatusReceiver, ExitStatusReceiver)> {
         let id = self.get_config_id()?;
         let (control_tx, msg_rx, exit_status_rx, used_gateway) =
-            tasks::start_nym_socks5_client(&id)?;
+            tasks::start_nym_socks5_client(&id).await?;
         self.socks5_client_sender = Some(control_tx);
         self.gateway = Some(used_gateway.gateway_id);
         Ok((msg_rx, exit_status_rx))

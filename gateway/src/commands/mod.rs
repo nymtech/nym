@@ -1,16 +1,19 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::default_config_filepath;
+use crate::config::old_config_v1_1_20::ConfigV1_1_20;
 use crate::error::GatewayError;
 use crate::{config::Config, Cli};
 use clap::CommandFactory;
 use clap::Subcommand;
+use log::{error, info};
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
 use nym_config::OptionalSet;
 use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
-use nym_validator_client::nyxd::{self, AccountId};
+use nym_validator_client::nyxd::AccountId;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -49,11 +52,9 @@ pub(crate) enum Commands {
 #[derive(Default)]
 pub(crate) struct OverrideConfig {
     host: Option<IpAddr>,
-    wallet_address: Option<nyxd::AccountId>,
     mix_port: Option<u16>,
     clients_port: Option<u16>,
     datastore: Option<PathBuf>,
-    announce_host: Option<String>,
     enabled_statistics: Option<bool>,
     statistics_service_url: Option<url::Url>,
     nym_apis: Option<Vec<url::Url>>,
@@ -81,21 +82,8 @@ pub(crate) fn override_config(
     mut config: Config,
     args: OverrideConfig,
 ) -> Result<Config, GatewayError> {
-    // special case that I'm not sure could be easily handled with the trait
-    let mut was_host_overridden = false;
-    if let Some(host) = args.host {
-        config = config.with_listening_address(host);
-        was_host_overridden = true;
-    }
-
-    if let Some(announce_host) = args.announce_host {
-        config = config.with_announce_address(announce_host);
-    } else if was_host_overridden {
-        // make sure our 'mix-announce-host' always defaults to 'mix-host'
-        config = config.announce_host_from_listening_host();
-    }
-
     config = config
+        .with_optional(Config::with_listening_address, args.host)
         .with_optional(Config::with_mix_port, args.mix_port)
         .with_optional(Config::with_clients_port, args.clients_port)
         .with_optional_custom_env(
@@ -110,11 +98,6 @@ pub(crate) fn override_config(
             args.statistics_service_url,
             STATISTICS_SERVICE_DOMAIN_ADDRESS,
         )
-        .with_validated_optional(
-            |cfg, wallet_address| cfg.with_wallet_address(wallet_address),
-            args.wallet_address,
-            ensure_correct_bech32_prefix,
-        )?
         .with_optional(Config::with_custom_persistent_store, args.datastore)
         .with_optional(Config::with_cosmos_mnemonic, args.mnemonic)
         .with_optional_custom_env(
@@ -150,7 +133,7 @@ pub(crate) fn ensure_correct_bech32_prefix(address: &AccountId) -> Result<(), Ga
 // network version. It might do so in the future.
 pub(crate) fn ensure_config_version_compatibility(cfg: &Config) -> Result<(), GatewayError> {
     let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = cfg.get_version();
+    let config_version = &cfg.gateway.version;
 
     if binary_version == config_version {
         Ok(())
@@ -167,5 +150,53 @@ pub(crate) fn ensure_config_version_compatibility(cfg: &Config) -> Result<(), Ga
             binary_version: binary_version.to_owned(),
             config_version: config_version.to_owned(),
         })
+    }
+}
+
+fn try_upgrade_v1_1_20_config(id: &str) -> Result<(), GatewayError> {
+    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
+
+    // explicitly load it as v1.1.20 (which is incompatible with the current, i.e. 1.1.21+)
+    let Ok(old_config) = ConfigV1_1_20::load_from_file(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(());
+    };
+    info!("It seems the gateway is using <= v1.1.20 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let updated: Config = old_config.into();
+    updated
+        .save_to_default_location()
+        .map_err(|err| GatewayError::ConfigSaveFailure {
+            path: default_config_filepath(id),
+            id: id.to_string(),
+            source: err,
+        })
+}
+
+pub(crate) fn try_load_current_config(id: &str) -> Result<Config, GatewayError> {
+    try_upgrade_v1_1_20_config(id)?;
+
+    Config::read_from_default_path(id).map_err(|err| {
+        error!(
+            "Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})",
+        );
+        GatewayError::ConfigLoadFailure {
+            path: default_config_filepath(id),
+            id: id.to_string(),
+            source: err,
+        }
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        Cli::command().debug_assert();
     }
 }

@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use self::sending_delay_controller::SendingDelayController;
@@ -247,7 +247,7 @@ where
                         self.config.average_ack_delay,
                         self.config.traffic.average_packet_delay,
                         cover_traffic_packet_size,
-                        self.config.traffic.packet_type.unwrap_or_default(),
+                        self.config.traffic.packet_type,
                     )
                     .expect(
                         "Somehow failed to generate a loop cover message with a valid topology",

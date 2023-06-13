@@ -188,6 +188,7 @@ mod tests {
     use super::*;
 
     type TestDeps = OwnedDeps<MemoryStorage, MockApi, MockQuerier>;
+
     #[rstest::fixture]
     fn deps() -> TestDeps {
         instantiate_test_contract()
@@ -691,7 +692,6 @@ mod tests {
     #[test]
     #[ignore]
     fn max_page_limit_is_applied() {
-        // WIP(JON)
         todo!();
     }
 }

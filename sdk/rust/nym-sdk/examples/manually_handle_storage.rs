@@ -1,3 +1,6 @@
+use nym_client_core::client::base_client::storage::gateway_details::{
+    GatewayDetailsStore, PersistedGatewayDetails,
+};
 use nym_sdk::mixnet::{
     self, EmptyReplyStorage, EphemeralCredentialStorage, KeyManager, KeyStore, MixnetClientStorage,
 };
@@ -10,37 +13,13 @@ async fn main() {
     // Just some plain data to pretend we have some external storage that the application
     // implementer is using.
     let mock_storage = MockClientStorage::empty();
-    let mut mock_gw_storage = MockGatewayConfigStorage::empty();
-
-    let first_run = true;
-
-    let client = if first_run {
-        // Create a client without a storage backend
-        let mut client = mixnet::MixnetClientBuilder::new_with_storage(mock_storage)
-            .build()
-            .await
-            .unwrap();
-
-        // In this we want to provide our own gateway config struct, and handle persisting this info to disk
-        // ourselves (e.g., as part of our own configuration file).
-        // during registration, our key storage will be automatically called to persist the keys
-        client.register_and_authenticate_gateway().await.unwrap();
-        mock_gw_storage.write_config(client.get_gateway_endpoint().unwrap());
-        client
-    } else {
-        let gateway_config = mock_gw_storage.read_config();
-
-        // Create a client with a storage backend, so that our keys could be loaded.
-        // This creates the client in a registered state.
-        mixnet::MixnetClientBuilder::new_with_storage(mock_storage)
-            .registered_gateway(gateway_config)
-            .build()
-            .await
-            .unwrap()
-    };
-
-    // Connect to the mixnet, now we're listening for incoming
-    let mut client = client.connect_to_mixnet().await.unwrap();
+    let mut client = mixnet::MixnetClientBuilder::new_with_storage(mock_storage)
+        .build()
+        .await
+        .unwrap()
+        .connect_to_mixnet()
+        .await
+        .unwrap();
 
     // Be able to get our client address
     let our_address = client.nym_address();
@@ -60,29 +39,9 @@ async fn main() {
 }
 
 #[allow(unused)]
-struct MockGatewayConfigStorage {
-    pub gateway_config: Option<mixnet::GatewayEndpointConfig>,
-}
-
-impl MockGatewayConfigStorage {
-    fn read_config(&self) -> mixnet::GatewayEndpointConfig {
-        todo!();
-    }
-
-    fn write_config(&mut self, _gateway_config: &mixnet::GatewayEndpointConfig) {
-        log::info!("todo");
-    }
-
-    fn empty() -> Self {
-        Self {
-            gateway_config: None,
-        }
-    }
-}
-
-#[allow(unused)]
 struct MockClientStorage {
     pub key_store: MockKeyStore,
+    pub gateway_details_store: MockGatewayDetailsStore,
     pub reply_store: EmptyReplyStorage,
     pub credential_store: EphemeralCredentialStorage,
 }
@@ -91,6 +50,7 @@ impl MockClientStorage {
     fn empty() -> Self {
         Self {
             key_store: MockKeyStore,
+            gateway_details_store: MockGatewayDetailsStore,
             reply_store: EmptyReplyStorage::default(),
             credential_store: EphemeralCredentialStorage::default(),
         }
@@ -101,9 +61,10 @@ impl MixnetClientStorage for MockClientStorage {
     type KeyStore = MockKeyStore;
     type ReplyStore = EmptyReplyStorage;
     type CredentialStore = EphemeralCredentialStorage;
+    type GatewayDetailsStore = MockGatewayDetailsStore;
 
-    fn into_split(self) -> (Self::KeyStore, Self::ReplyStore, Self::CredentialStore) {
-        (self.key_store, self.reply_store, self.credential_store)
+    fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore) {
+        (self.reply_store, self.credential_store)
     }
 
     fn key_store(&self) -> &Self::KeyStore {
@@ -116,6 +77,10 @@ impl MixnetClientStorage for MockClientStorage {
 
     fn credential_store(&self) -> &Self::CredentialStore {
         &self.credential_store
+    }
+
+    fn gateway_details_store(&self) -> &Self::GatewayDetailsStore {
+        &self.gateway_details_store
     }
 }
 
@@ -137,6 +102,29 @@ impl KeyStore for MockKeyStore {
         Ok(())
     }
 }
+
+struct MockGatewayDetailsStore;
+
+#[async_trait]
+impl GatewayDetailsStore for MockGatewayDetailsStore {
+    type StorageError = MyError;
+
+    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails, Self::StorageError> {
+        println!("loading stored gateway details");
+
+        Err(MyError)
+    }
+
+    async fn store_gateway_details(
+        &self,
+        _details: &PersistedGatewayDetails,
+    ) -> Result<(), Self::StorageError> {
+        println!("storing gateway details");
+
+        Ok(())
+    }
+}
+
 //
 // struct MockReplyStore;
 //

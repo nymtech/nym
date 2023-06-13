@@ -565,7 +565,7 @@ where
         fragments: Vec<Fragment>,
         reply_surbs: Vec<ReplySurb>,
     ) -> Result<Vec<PreparedFragment>, SurbWrappedPreparationError> {
-        debug_assert_ne!(
+        debug_assert_eq!(
             fragments.len(),
             reply_surbs.len(),
             "attempted to send {} fragments with {} reply surbs",

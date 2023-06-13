@@ -1,31 +1,27 @@
 use cosmwasm_std::Deps;
-use nym_contracts_common::ContractBuildInformation;
+use nym_contracts_common::{signing::Nonce, ContractBuildInformation};
 use nym_service_provider_directory_common::{
     response::{ConfigResponse, PagedServicesListResponse, ServicesListResponse},
-    NymAddress, ServiceId, ServiceInfo,
+    NymAddress, Service, ServiceId,
 };
 
 use crate::{
-    error::Result,
-    state::{self, services::PagedLoad},
+    state::{self, PagedLoad},
+    Result,
 };
 
-pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<ServiceInfo> {
-    let service = state::services::load_id(deps.storage, service_id)?;
-    Ok(ServiceInfo {
-        service_id,
-        service,
-    })
+pub fn query_id(deps: Deps, service_id: ServiceId) -> Result<Service> {
+    state::load_id(deps.storage, service_id)
 }
 
 pub fn query_announcer(deps: Deps, announcer: String) -> Result<ServicesListResponse> {
     let announcer = deps.api.addr_validate(&announcer)?;
-    let services = state::services::load_announcer(deps.storage, announcer)?;
+    let services = state::load_announcer(deps.storage, announcer)?;
     Ok(ServicesListResponse::new(services))
 }
 
 pub fn query_nym_address(deps: Deps, nym_address: NymAddress) -> Result<ServicesListResponse> {
-    let services = state::services::load_nym_address(deps.storage, nym_address)?;
+    let services = state::load_nym_address(deps.storage, nym_address)?;
     Ok(ServicesListResponse::new(services))
 }
 
@@ -38,12 +34,17 @@ pub fn query_all_paged(
         services,
         limit,
         start_next_after,
-    } = state::services::load_all_paged(deps.storage, limit, start_after)?;
+    } = state::load_all_paged(deps.storage, limit, start_after)?;
     Ok(PagedServicesListResponse::new(
         services,
         limit,
         start_next_after,
     ))
+}
+
+pub fn query_current_signing_nonce(deps: Deps<'_>, address: String) -> Result<Nonce> {
+    let address = deps.api.addr_validate(&address)?;
+    state::get_signing_nonce(deps.storage, address)
 }
 
 pub fn query_config(deps: Deps) -> Result<ConfigResponse> {

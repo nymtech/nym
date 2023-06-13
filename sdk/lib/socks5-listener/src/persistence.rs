@@ -1,42 +1,30 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::Config;
+use nym_client_core::client::base_client::storage::gateway_details::InMemGatewayDetails;
 use nym_client_core::client::base_client::storage::MixnetClientStorage;
+use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
 use nym_client_core::client::replies::reply_storage;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
-use nym_socks5_client_core::config::Config as Socks5Config;
-
-#[cfg(target_os = "android")]
-use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
-
-#[cfg(not(target_os = "android"))]
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-#[cfg(not(target_os = "android"))]
-use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 
 pub struct MobileClientStorage {
-    #[cfg(not(target_os = "android"))]
-    key_store: OnDiskKeys,
-
-    #[cfg(target_os = "android")]
+    // the key storage is now useless without gateway details store. so use ephemeral for everything.
     key_store: InMemEphemeralKeys,
+    gateway_details_store: InMemGatewayDetails,
 
     reply_store: reply_storage::Empty,
     credential_store: EphemeralCredentialStorage,
 }
 
 impl MixnetClientStorage for MobileClientStorage {
-    #[cfg(not(target_os = "android"))]
-    type KeyStore = OnDiskKeys;
-
-    #[cfg(target_os = "android")]
     type KeyStore = InMemEphemeralKeys;
-
     type ReplyStore = reply_storage::Empty;
     type CredentialStore = EphemeralCredentialStorage;
+    type GatewayDetailsStore = InMemGatewayDetails;
 
-    fn into_split(self) -> (Self::KeyStore, Self::ReplyStore, Self::CredentialStore) {
-        (self.key_store, self.reply_store, self.credential_store)
+    fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore) {
+        (self.reply_store, self.credential_store)
     }
 
     fn key_store(&self) -> &Self::KeyStore {
@@ -50,24 +38,17 @@ impl MixnetClientStorage for MobileClientStorage {
     fn credential_store(&self) -> &Self::CredentialStore {
         &self.credential_store
     }
+
+    fn gateway_details_store(&self) -> &Self::GatewayDetailsStore {
+        &self.gateway_details_store
+    }
 }
 
 impl MobileClientStorage {
-    pub fn new(config: &Socks5Config) -> Self {
-        #[cfg(target_os = "android")]
-        let key_store = {
-            let _ = config;
-            InMemEphemeralKeys
-        };
-
-        #[cfg(not(target_os = "android"))]
-        let key_store = {
-            let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-            OnDiskKeys::new(pathfinder)
-        };
-
+    pub fn new(_config: &Config) -> Self {
         MobileClientStorage {
-            key_store,
+            key_store: Default::default(),
+            gateway_details_store: Default::default(),
             reply_store: Default::default(),
             credential_store: Default::default(),
         }

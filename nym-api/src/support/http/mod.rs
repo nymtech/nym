@@ -33,7 +33,7 @@ pub(crate) async fn setup_rocket(
         "/" => (vec![], openapi::custom_openapi_spec()),
         "" => circulating_supply_api::circulating_supply_routes(&openapi_settings),
         "" => nym_contract_cache::nym_contract_cache_routes(&openapi_settings),
-        "/status" => node_status_api::node_status_routes(&openapi_settings, config.get_network_monitor_enabled()),
+        "/status" => node_status_api::node_status_routes(&openapi_settings, config.network_monitor.enabled),
     }
 
     let rocket = rocket
@@ -45,13 +45,16 @@ pub(crate) async fn setup_rocket(
 
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465
-    let storage = if config.get_coconut_signer_enabled() || config.get_network_monitor_enabled() {
-        Some(storage::NymApiStorage::init(config.get_node_status_api_database_path()).await?)
+    let storage = if config.coconut_signer.enabled || config.network_monitor.enabled {
+        Some(
+            storage::NymApiStorage::init(&config.node_status_api.storage_paths.database_path)
+                .await?,
+        )
     } else {
         None
     };
 
-    let rocket = if config.get_coconut_signer_enabled() {
+    let rocket = if config.coconut_signer.enabled {
         let comm_channel = QueryCommunicationChannel::new(_nyxd_client.clone());
         rocket.attach(InternalSignRequest::stage(
             _nyxd_client.clone(),
@@ -65,7 +68,7 @@ pub(crate) async fn setup_rocket(
     };
 
     // see if we should start up network monitor
-    let rocket = if config.get_network_monitor_enabled() {
+    let rocket = if config.network_monitor.enabled {
         rocket.attach(storage::NymApiStorage::stage(storage.unwrap()))
     } else {
         rocket

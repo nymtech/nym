@@ -1,5 +1,6 @@
 package net.nymtech.nyms5
 
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -13,12 +14,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -35,6 +38,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -54,6 +58,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d(tag, "____onCreate")
+        Log.i(tag, "device SDK [${Build.VERSION.SDK_INT}]")
 
         // observe proxy work progress
         WorkManager.getInstance(applicationContext)
@@ -111,6 +116,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun S5ClientSwitch(
     connected: Boolean,
@@ -119,7 +125,8 @@ fun S5ClientSwitch(
     modifier: Modifier = Modifier
 ) {
     val clipboardManager = LocalClipboardManager.current
-    val proxyHost = stringResource(R.string.proxy_host)
+    val host = stringResource(R.string.proxy_host)
+    val port = stringResource(R.string.proxy_port)
     if (loading) {
         Row {
             LinearProgressIndicator(
@@ -148,15 +155,42 @@ fun S5ClientSwitch(
                     fontStyle = FontStyle.Italic,
                     text = stringResource(R.string.connected_text)
                 )
+                Spacer(modifier = modifier.height(10.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(proxyHost)
-                    Spacer(modifier = modifier.width(14.dp))
-                    TextButton(onClick = {
-                        clipboardManager.setText(AnnotatedString(proxyHost))
-                    }) {
-                        Text("Copy")
+                    Surface(
+                        onClick = { clipboardManager.setText(AnnotatedString(host)) },
+                        shape = RoundedCornerShape(6.dp),
+                    ) {
+                        Row(
+                            modifier = modifier.padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(host)
+                            Spacer(modifier = modifier.width(8.dp))
+                            Icon(
+                                painter = painterResource(R.drawable.copy_24),
+                                contentDescription = "copy to clipboard"
+                            )
+                        }
+                    }
+                    Spacer(modifier = modifier.width(12.dp))
+                    Surface(
+                        onClick = { clipboardManager.setText(AnnotatedString(port)) },
+                        shape = RoundedCornerShape(6.dp),
+                    ) {
+                        Row(
+                            modifier = modifier.padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(port)
+                            Spacer(modifier = modifier.width(8.dp))
+                            Icon(
+                                painter = painterResource(R.drawable.copy_24),
+                                contentDescription = "copy to clipboard"
+                            )
+                        }
                     }
                 }
             }
@@ -181,7 +215,7 @@ fun PreviewSocks5Client() {
                     else -> Log.d(tag, "switch OFF")
                 }
                 connected = it
-                loading = !loading
+                loading = false
             })
         }
     }

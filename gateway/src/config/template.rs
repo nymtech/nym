@@ -1,12 +1,11 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) fn config_template() -> &'static str {
-    // While using normal toml marshalling would have been way simpler with less overhead,
-    // I think it's useful to have comments attached to the saved config file to explain behaviour of
-    // particular fields.
-    // Note: any changes to the template must be reflected in the appropriate structs in verloc.
-    r#"
+// While using normal toml marshalling would have been way simpler with less overhead,
+// I think it's useful to have comments attached to the saved config file to explain behaviour of
+// particular fields.
+// Note: any changes to the template must be reflected in the appropriate structs.
+pub(crate) const CONFIG_TEMPLATE: &str = r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
 
@@ -25,25 +24,6 @@ only_coconut_credentials = {{ gateway.only_coconut_credentials }}
 
 # Socket address to which this gateway will bind to and will be listening for packets.
 listening_address = '{{ gateway.listening_address }}'
-
-# Path to file containing private identity key.
-private_identity_key_file = '{{ gateway.private_identity_key_file }}'
-
-# Path to file containing public identity key.
-public_identity_key_file = '{{ gateway.public_identity_key_file }}'
-
-# Path to file containing private sphinx key.
-private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
-
-# Path to file containing public sphinx key.
-public_sphinx_key_file = '{{ gateway.public_sphinx_key_file }}'
-
-##### additional gateway config options #####
-
-# Optional address announced to the directory server for the clients to connect to.
-# It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
-# later on by using name resolvable with a DNS query, such as `nymtech.net`.
-announce_address = '{{ gateway.announce_address }}'
 
 # Port used for listening for all mixnet traffic.
 # (default: 1789)
@@ -75,18 +55,23 @@ nyxd_urls = [
 
 cosmos_mnemonic = "{{ gateway.cosmos_mnemonic }}"
 
-# Nym wallet address on the blockchain that should control this gateway
-wallet_address = '{{ gateway.wallet_address }}'
+[storage_paths] 
 
-##### advanced configuration options #####
+# Path to file containing private identity key.
+keys.private_identity_key_file = '{{ storage_paths.keys.private_identity_key_file }}'
 
-# nym_home_directory specifies absolute path to the home nym gateway directory.
-# It is expected to use default value and hence .toml file should not redefine this field.
-nym_root_directory = '{{ gateway.nym_root_directory }}'
+# Path to file containing public identity key.
+keys.public_identity_key_file = '{{ storage_paths.keys.public_identity_key_file }}'
+
+# Path to file containing private identity key.
+keys.private_sphinx_key_file = '{{ storage_paths.keys.private_sphinx_key_file }}'
+
+# Path to file containing public sphinx key.
+keys.public_sphinx_key_file = '{{ storage_paths.keys.public_sphinx_key_file }}'
 
 # Path to sqlite database containing all persistent data: messages for offline clients,
 # derived shared keys and available client bandwidths.
-persistent_storage = '{{ gateway.persistent_storage }}'
+clients_storage = '{{ storage_paths.clients_storage }}'
 
 ##### logging configuration options #####
 
@@ -94,5 +79,4 @@ persistent_storage = '{{ gateway.persistent_storage }}'
 
 # TODO
 
-"#
-}
+"#;

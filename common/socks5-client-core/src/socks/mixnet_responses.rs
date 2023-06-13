@@ -1,18 +1,19 @@
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::error::Socks5ClientCoreError;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-
 use nym_client_core::client::received_buffer::ReconstructedMessagesReceiver;
 use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender,
 };
 use nym_service_providers_common::interface::{ControlResponse, ResponseContent};
-use nym_socks5_proxy_helpers::connection_controller::ControllerSender;
+use nym_socks5_proxy_helpers::connection_controller::{ControllerCommand, ControllerSender};
 use nym_socks5_requests::{Socks5ProviderResponse, Socks5Response, Socks5ResponseContent};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskClient;
-
-use crate::error::Socks5ClientCoreError;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
@@ -79,10 +80,18 @@ impl MixnetResponseListener {
                 );
                 Err(err_response.into())
             }
-            Socks5ResponseContent::NetworkData(response) => {
+            Socks5ResponseContent::NetworkData { content } => {
                 self.controller_sender
-                    .unbounded_send(response.into())
+                    .unbounded_send(ControllerCommand::new_send(content))
                     .unwrap();
+                Ok(())
+            }
+            Socks5ResponseContent::Query(response) => {
+                error!("received a query response which we don't know how to handle yet!");
+                error!("got: {:?}", response);
+
+                // I guess we'd need another channel here to forward those to where they need to go
+
                 Ok(())
             }
         }

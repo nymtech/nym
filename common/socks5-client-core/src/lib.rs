@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{Config, Socks5};
+use crate::config::Config;
 use crate::error::Socks5ClientCoreError;
 use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
@@ -10,13 +10,16 @@ use crate::socks::{
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nym_client_core::client::base_client::non_wasm_helpers::default_query_dkg_client_from_config;
+use nym_client_core::client::base_client::storage::gateway_details::GatewayDetailsStore;
 use nym_client_core::client::base_client::storage::MixnetClientStorage;
 use nym_client_core::client::base_client::{
-    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
+    BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
 use nym_client_core::config::DebugConfig;
+use nym_client_core::init::GatewaySetup;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
@@ -51,6 +54,8 @@ pub struct NymClient<S> {
     config: Config,
 
     storage: S,
+
+    setup_method: GatewaySetup,
 }
 
 impl<S> NymClient<S>
@@ -59,16 +64,26 @@ where
     S::ReplyStore: Send + Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
     <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
+    <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Sync + Send,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
 {
     pub fn new(config: Config, storage: S) -> Self {
-        NymClient { config, storage }
+        NymClient {
+            config,
+            storage,
+            setup_method: GatewaySetup::MustLoad,
+        }
+    }
+
+    pub fn with_gateway_setup(mut self, setup: GatewaySetup) -> Self {
+        self.setup_method = setup;
+        self
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn start_socks5_listener(
-        socks5_config: &Socks5,
-        debug_config: DebugConfig,
+        socks5_config: &config::Socks5,
+        base_debug: DebugConfig,
         client_input: ClientInput,
         client_output: ClientOutput,
         client_status: ClientState,
@@ -94,25 +109,24 @@ where
             ..
         } = client_status;
 
-        let packet_size = debug_config
+        let packet_size = base_debug
             .traffic
             .secondary_packet_size
-            .unwrap_or(debug_config.traffic.primary_packet_size);
+            .unwrap_or(base_debug.traffic.primary_packet_size);
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = NymSocksServer::new(
-            socks5_config.get_listening_port(),
+            socks5_config.listening_port,
             authenticator,
             socks5_config.get_provider_mix_address(),
             self_address,
             shared_lane_queue_lengths,
             socks::client::Config::new(
                 packet_size,
-                socks5_config.get_provider_interface_version(),
-                socks5_config.get_socks5_protocol_version(),
-                socks5_config.get_send_anonymously(),
-                socks5_config.get_connection_start_surbs(),
-                socks5_config.get_per_request_surbs(),
+                socks5_config.provider_interface_version,
+                socks5_config.socks5_protocol_version,
+                socks5_config.send_anonymously,
+                socks5_config.socks5_debug,
             ),
             shutdown.clone(),
             packet_type,
@@ -188,46 +202,35 @@ where
     }
 
     pub async fn start(self) -> Result<StartedSocks5Client, Socks5ClientCoreError> {
-        let (key_store, reply_storage_backend, credential_store) = self.storage.into_split();
-
-        // don't create bandwidth controller if credentials are disabled
-        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+        // don't create dkg client for the bandwidth controller if credentials are disabled
+        let dkg_query_client = if self.config.base.client.disabled_credentials_mode {
             None
         } else {
-            Some(non_wasm_helpers::create_bandwidth_controller(
-                self.config.get_base(),
-                credential_store,
-            ))
+            Some(default_query_dkg_client_from_config(&self.config.base))
         };
 
-        let base_builder = BaseClientBuilder::<_, S>::new_from_base_config(
-            self.config.get_base(),
-            key_store,
-            bandwidth_controller,
-            reply_storage_backend,
-        );
+        let base_builder =
+            BaseClientBuilder::new(&self.config.base, self.storage, dkg_query_client)
+                .with_gateway_setup(self.setup_method);
 
-        let packet_type = self.config.get_base().get_packet_type();
-        let mut started_client = base_builder.start_base(packet_type).await?;
+        let packet_type = self.config.base.debug.traffic.packet_type;
+        let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
-        info!(
-            "Running with {:?} packets",
-            self.config.get_base().get_packet_type()
-        );
+        info!("Running with {packet_type} packets",);
 
         Self::start_socks5_listener(
-            self.config.get_socks5(),
-            *self.config.get_debug_settings(),
+            &self.config.socks5,
+            self.config.base.debug,
             client_input,
             client_output,
             client_state,
             self_address,
             started_client.task_manager.subscribe(),
-            self.config.get_base().get_packet_type(),
+            packet_type,
         );
 
         info!("Client startup finished!");

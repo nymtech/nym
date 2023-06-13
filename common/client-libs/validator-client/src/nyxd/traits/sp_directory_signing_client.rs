@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
+use nym_contracts_common::signing::MessageSignature;
 use nym_service_provider_directory_common::{
-    msg::ExecuteMsg as SpExecuteMsg, NymAddress, ServiceId, ServiceType,
+    msg::ExecuteMsg as SpExecuteMsg, NymAddress, ServiceDetails, ServiceId,
 };
 
 use crate::nyxd::{
@@ -22,16 +23,16 @@ pub trait SpDirectorySigningClient {
 
     async fn announce_service_provider(
         &self,
-        nym_address: NymAddress,
-        service_type: ServiceType,
+        service: ServiceDetails,
+        owner_signature: MessageSignature,
         deposit: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_service_provider_directory_contract(
             fee,
             SpExecuteMsg::Announce {
-                nym_address,
-                service_type,
+                service,
+                owner_signature,
             },
             vec![deposit],
         )

@@ -87,6 +87,7 @@ members = [
     "nym-api/nym-api-requests",
     "nym-outfox",
     "tools/nym-cli",
+    "tools/nym-nr-query",
     "tools/ts-rs-cli"
 ]
 

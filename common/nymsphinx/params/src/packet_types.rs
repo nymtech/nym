@@ -1,12 +1,14 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(deprecated)]
+// allow the u8 repr of `Vpn` PacketType whilst deprecating all of its other uses
+
+use crate::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt;
 use thiserror::Error;
-
-use crate::PacketSize;
 
 #[derive(Error, Debug)]
 #[error("{received} is not a valid packet mode tag")]
@@ -15,17 +17,23 @@ pub struct InvalidPacketType {
 }
 
 #[repr(u8)]
+#[allow(deprecated)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum PacketType {
     /// Represents 'normal' packet sent through the network that should be delayed by an appropriate
     /// value at each hop.
     #[default]
+    #[serde(rename = "mix")]
+    #[serde(alias = "sphinx")]
     Mix = 0,
 
     /// Represents a packet that should be sent through the network as fast as possible.
+    #[deprecated]
+    #[serde(rename = "unsupported-mix-vpn")]
     Vpn = 1,
 
     /// Abusing this to add Outfox support
+    #[serde(rename = "outfox")]
     Outfox = 2,
 }
 
@@ -33,6 +41,7 @@ impl fmt::Display for PacketType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             PacketType::Mix => write!(f, "Mix"),
+            #[allow(deprecated)]
             PacketType::Vpn => write!(f, "Vpn"),
             PacketType::Outfox => write!(f, "Outfox"),
         }

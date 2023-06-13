@@ -1,6 +1,6 @@
 use crate::{
-    error::{ContractError, Result},
     state::{self, Config},
+    Result, SpContractError,
 };
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
 use nym_service_provider_directory_common::msg::{
@@ -34,22 +34,25 @@ pub fn instantiate(
         .add_attribute("admin", info.sender))
 }
 
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(
+    deps: DepsMut<'_>,
+    _env: Env,
+    _msg: MigrateMsg,
+) -> Result<Response, SpContractError> {
     // Note: don't remove this particular bit of code as we have to ALWAYS check whether we have to
     // update the stored version
-    let version: Version =
-        CONTRACT_VERSION
-            .parse()
-            .map_err(|error: semver::Error| ContractError::SemVerFailure {
-                value: CONTRACT_VERSION.to_string(),
-                error_message: error.to_string(),
-            })?;
+    let version: Version = CONTRACT_VERSION.parse().map_err(|error: semver::Error| {
+        SpContractError::SemVerFailure {
+            value: CONTRACT_VERSION.to_string(),
+            error_message: error.to_string(),
+        }
+    })?;
 
     let storage_version_raw = cw2::get_contract_version(deps.storage)?.version;
     let storage_version: Version =
         storage_version_raw
             .parse()
-            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+            .map_err(|error: semver::Error| SpContractError::SemVerFailure {
                 value: storage_version_raw,
                 error_message: error.to_string(),
             })?;
@@ -69,12 +72,12 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, SpContractError> {
     match msg {
         ExecuteMsg::Announce {
-            nym_address: client_address,
-            service_type,
-        } => execute::announce(deps, env, info, client_address, service_type),
+            service,
+            owner_signature,
+        } => execute::announce(deps, env, info, service, owner_signature),
         ExecuteMsg::DeleteId { service_id } => execute::delete_id(deps, info, service_id),
         ExecuteMsg::DeleteNymAddress { nym_address } => {
             execute::delete_nym_address(deps, info, nym_address)
@@ -95,6 +98,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
         QueryMsg::All { limit, start_after } => {
             to_binary(&query::query_all_paged(deps, limit, start_after)?)
         }
+        QueryMsg::SigningNonce { address } => {
+            to_binary(&query::query_current_signing_nonce(deps, address)?)
+        }
         QueryMsg::Config {} => to_binary(&query::query_config(deps)?),
         QueryMsg::GetContractVersion {} => to_binary(&query::query_contract_version()),
         QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
@@ -107,16 +113,19 @@ mod tests {
     use super::*;
 
     use crate::test_helpers::{
-        assert::{assert_config, assert_empty, assert_not_found, assert_service, assert_services},
-        fixture::service_fixture,
-        helpers::{get_attribute, nyms},
+        assert::{
+            assert_config, assert_current_nonce, assert_empty, assert_not_found, assert_service,
+            assert_services,
+        },
+        fixture::new_service_details_with_sign,
+        helpers::{get_attribute, nyms, test_rng},
     };
 
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Coin,
     };
-    use nym_service_provider_directory_common::{msg::ExecuteMsg, ServiceId, ServiceInfo};
+    use nym_service_provider_directory_common::{msg::ExecuteMsg, Service, ServiceId};
 
     const DENOM: &str = "unym";
 
@@ -140,27 +149,33 @@ mod tests {
     }
 
     #[test]
-    fn announce_fails_incorrect_deposit() {
+    fn announce_fails_incorrect_deposit_too_small() {
+        let mut rng = test_rng();
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg::new(nyms(100));
         let info = mock_info("creator", &[]);
-        let admin = info.sender.clone();
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
 
-        // Announce
-        let msg: ExecuteMsg = service_fixture().into();
-        let announcer = service_fixture().announcer.to_string();
+        // Setup service
+        let deposit = nyms(99);
+        let announcer = "steve";
+        let (service, owner_signature) =
+            new_service_details_with_sign(deps.as_mut(), &mut rng, "nym", announcer, deposit);
+        let msg = ExecuteMsg::Announce {
+            service,
+            owner_signature,
+        };
 
         assert_eq!(
             execute(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(&announcer, &[nyms(99)]),
+                mock_info(announcer, &[nyms(99)]),
                 msg.clone()
             )
             .unwrap_err(),
-            ContractError::InsufficientDeposit {
+            SpContractError::InsufficientDeposit {
                 funds: 99u128.into(),
                 deposit_required: 100u128.into(),
             }
@@ -170,11 +185,55 @@ mod tests {
             execute(
                 deps.as_mut(),
                 mock_env(),
-                mock_info(&announcer, &[nyms(101)]),
-                msg
+                mock_info(announcer, &[nyms(100)]),
+                msg,
             )
             .unwrap_err(),
-            ContractError::TooLargeDeposit {
+            SpContractError::InvalidEd25519Signature,
+        );
+    }
+
+    // Announcing a service fails due to the signed deposit being different from the deposit in
+    // the message.
+    #[test]
+    fn announce_fails_incorrect_deposit_too_large() {
+        let mut rng = test_rng();
+        let mut deps = mock_dependencies();
+        let msg = InstantiateMsg::new(nyms(100));
+        let info = mock_info("creator", &[]);
+        let admin = info.sender.clone();
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(res.messages.len(), 0);
+
+        // Setup service
+        let deposit = nyms(101);
+        let announcer = "steve";
+        let (service, owner_signature) =
+            new_service_details_with_sign(deps.as_mut(), &mut rng, "nym", announcer, deposit);
+        let msg = ExecuteMsg::Announce {
+            service,
+            owner_signature,
+        };
+
+        assert_eq!(
+            execute(
+                deps.as_mut(),
+                mock_env(),
+                mock_info(announcer, &[nyms(100)]),
+                msg.clone()
+            )
+            .unwrap_err(),
+            SpContractError::InvalidEd25519Signature,
+        );
+        assert_eq!(
+            execute(
+                deps.as_mut(),
+                mock_env(),
+                mock_info(announcer, &[nyms(101)]),
+                msg,
+            )
+            .unwrap_err(),
+            SpContractError::TooLargeDeposit {
                 funds: 101u128.into(),
                 deposit_required: 100u128.into(),
             }
@@ -186,15 +245,26 @@ mod tests {
 
     #[test]
     fn announce_success() {
+        let mut rng = test_rng();
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg::new(nyms(100));
         let info = mock_info("creator", &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
+        assert_current_nonce(deps.as_ref(), &Addr::unchecked("steve"), 0);
+
+        // Setup service
+        let deposit = nyms(100);
+        let owner = "steve";
+        let (service, owner_signature) =
+            new_service_details_with_sign(deps.as_mut(), &mut rng, "nym", owner, deposit.clone());
 
         // Announce
-        let msg: ExecuteMsg = service_fixture().into();
-        let info = mock_info("steve", &[nyms(100)]);
+        let msg = ExecuteMsg::Announce {
+            service: service.clone(),
+            owner_signature,
+        };
+        let info = mock_info("steve", &[deposit.clone()]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Check that the service has had service id assigned to it
@@ -208,10 +278,17 @@ mod tests {
             "network_requester".to_string()
         );
 
+        // Check that the nonce has been incremented, but only for the owner
+        assert_current_nonce(deps.as_ref(), &Addr::unchecked("steve"), 1);
+        assert_current_nonce(deps.as_ref(), &Addr::unchecked("timmy"), 0);
+
         // The expected announced service
-        let expected_service = ServiceInfo {
+        let expected_service = Service {
             service_id: expected_id,
-            service: service_fixture(),
+            service,
+            announcer: Addr::unchecked("steve"),
+            block_height: 12345,
+            deposit,
         };
         assert_services(deps.as_ref(), &[expected_service.clone()]);
         assert_service(deps.as_ref(), &expected_service);
@@ -219,6 +296,7 @@ mod tests {
 
     #[test]
     fn delete() {
+        let mut rng = test_rng();
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg::new(Coin::new(100, "unym"));
         let info = mock_info("creator", &[]);
@@ -226,16 +304,25 @@ mod tests {
         assert_eq!(res.messages.len(), 0);
 
         // Announce
-        let msg: ExecuteMsg = service_fixture().into();
-        let info_steve = mock_info("steve", &[nyms(100)]);
-        assert_eq!(info_steve.sender, service_fixture().announcer);
-        execute(deps.as_mut(), mock_env(), info_steve, msg).unwrap();
+        let deposit = nyms(100);
+        let steve = "steve";
+        let (service, owner_signature) =
+            new_service_details_with_sign(deps.as_mut(), &mut rng, "nym", steve, deposit.clone());
+        let msg = ExecuteMsg::Announce {
+            service: service.clone(),
+            owner_signature,
+        };
+        let info_steve = mock_info(steve, &[deposit.clone()]);
+        execute(deps.as_mut(), mock_env(), info_steve.clone(), msg).unwrap();
 
         // The expected announced service
         let expected_id = 1;
-        let expected_service = ServiceInfo {
+        let expected_service = Service {
             service_id: expected_id,
-            service: service_fixture(),
+            service,
+            announcer: Addr::unchecked(steve),
+            block_height: 12345,
+            deposit,
         };
         assert_services(deps.as_ref(), &[expected_service]);
 
@@ -244,27 +331,23 @@ mod tests {
         let info_timmy = mock_info("timmy", &[]);
         assert_eq!(
             execute(deps.as_mut(), mock_env(), info_timmy, msg).unwrap_err(),
-            ContractError::Unauthorized {
+            SpContractError::Unauthorized {
                 sender: Addr::unchecked("timmy")
             }
         );
 
         // Removing an non-existent service will fail
         let msg = ExecuteMsg::delete_id(expected_id + 1);
-        let info_announcer = MessageInfo {
-            sender: service_fixture().announcer,
-            funds: vec![],
-        };
         assert_eq!(
-            execute(deps.as_mut(), mock_env(), info_announcer.clone(), msg).unwrap_err(),
-            ContractError::NotFound {
+            execute(deps.as_mut(), mock_env(), info_steve.clone(), msg).unwrap_err(),
+            SpContractError::NotFound {
                 service_id: expected_id + 1
             }
         );
 
         // Remove as correct announcer succeeds
         let msg = ExecuteMsg::delete_id(expected_id);
-        let res = execute(deps.as_mut(), mock_env(), info_announcer, msg).unwrap();
+        let res = execute(deps.as_mut(), mock_env(), info_steve, msg).unwrap();
         assert_eq!(
             get_attribute(&res, "delete_id", "service_id"),
             expected_id.to_string()

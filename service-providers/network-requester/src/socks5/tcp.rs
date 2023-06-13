@@ -66,13 +66,14 @@ impl Connection {
             Some(lane_queue_lengths),
             shutdown,
         )
-        .run(move |conn_id, read_data, socket_closed| {
+        .run(move |socket_data| {
             MixnetMessage::new_network_data_response_content(
                 return_address.clone(),
                 remote_version.clone(),
-                conn_id,
-                read_data,
-                socket_closed,
+                socket_data.header.seq,
+                socket_data.header.connection_id,
+                socket_data.data,
+                socket_data.header.local_socket_closed,
             )
         })
         .await

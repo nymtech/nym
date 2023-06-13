@@ -8,7 +8,7 @@ use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestSum
 use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
-use crate::support::config::Config;
+use crate::support::config;
 use log::{debug, error, info};
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
@@ -51,7 +51,7 @@ pub(super) struct Monitor<R: MessageReceiver + Send + 'static> {
 
 impl<R: MessageReceiver + Send> Monitor<R> {
     pub(super) fn new(
-        config: &Config,
+        config: &config::NetworkMonitor,
         packet_preparer: PacketPreparer,
         packet_sender: PacketSender,
         received_processor: ReceivedProcessor<R>,
@@ -66,12 +66,12 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             received_processor,
             summary_producer,
             node_status_storage,
-            run_interval: config.get_network_monitor_run_interval(),
-            gateway_ping_interval: config.get_gateway_ping_interval(),
-            packet_delivery_timeout: config.get_packet_delivery_timeout(),
-            route_test_packets: config.get_route_test_packets(),
-            test_routes: config.get_test_routes(),
-            minimum_test_routes: config.get_minimum_test_routes(),
+            run_interval: config.debug.run_interval,
+            gateway_ping_interval: config.debug.gateway_ping_interval,
+            packet_delivery_timeout: config.debug.packet_delivery_timeout,
+            route_test_packets: config.debug.route_test_packets,
+            test_routes: config.debug.test_routes,
+            minimum_test_routes: config.debug.minimum_test_routes,
             packet_type,
         }
     }

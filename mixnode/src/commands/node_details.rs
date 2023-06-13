@@ -1,11 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::Config;
+use crate::commands::try_load_current_config;
 use crate::node::MixNode;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
-use nym_config::NymConfig;
 
 #[derive(Args)]
 pub(crate) struct NodeDetails {
@@ -17,18 +16,9 @@ pub(crate) struct NodeDetails {
     output: OutputFormat,
 }
 
-pub(crate) fn execute(args: &NodeDetails) {
-    let config = match Config::load_from_file(&args.id) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            error!(
-                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
-                args.id,
-                err,
-            );
-            return;
-        }
-    };
+pub(crate) fn execute(args: &NodeDetails) -> anyhow::Result<()> {
+    let config = try_load_current_config(&args.id)?;
 
-    MixNode::new(config).print_node_details(args.output)
+    MixNode::new(config).print_node_details(args.output);
+    Ok(())
 }

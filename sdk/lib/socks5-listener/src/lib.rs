@@ -1,39 +1,30 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::{config_filepath_from_root, Config};
 use crate::persistence::MobileClientStorage;
 use ::safer_ffi::prelude::*;
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use log::{info, warn};
 use nym_bin_common::logging::setup_logging;
+use nym_client_core::init::GatewaySetup;
 use nym_config_common::defaults::setup_env;
-use nym_config_common::NymConfig;
-use nym_socks5_client_core::config::Config as Socks5Config;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
 use safer_ffi::char_p::char_p_boxed;
-use safer_ffi::closure::{RefDynFnMut0, RefDynFnMut1};
+use std::marker::Send;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, Notify};
 
-#[cfg(not(target_os = "android"))]
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-
-#[cfg(target_os = "android")]
-use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
-
 #[cfg(target_os = "android")]
 pub mod android;
+mod config;
 mod persistence;
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
-
-type StartupCallback<'a> = RefDynFnMut1<'a, (), char_p::Box>;
-
-type ShutdownCallback<'a> = RefDynFnMut0<'a, ()>;
 
 // hehe, this is so disgusting : )
 lazy_static! {
@@ -86,7 +77,7 @@ pub fn initialise_logger() {
 #[derive_ReprC]
 #[ffi_export]
 #[repr(u8)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum ClientState {
     Uninitialised,
     Connected,
@@ -107,13 +98,15 @@ pub fn get_client_state() -> ClientState {
     }
 }
 
-#[ffi_export]
-pub fn start_client(
+pub fn start_client<F, S>(
     storage_directory: Option<char_p::Ref<'_>>,
     service_provider: Option<char_p::Ref<'_>>,
-    on_start_callback: StartupCallback<'static>,
-    on_shutdown_callback: ShutdownCallback<'static>,
-) {
+    on_start_callback: F,
+    on_shutdown_callback: S,
+) where
+    F: FnMut(String) + Send + 'static,
+    S: FnMut() + Send + 'static,
+{
     if get_client_state() == ClientState::Connected {
         warn!("could not start the client as it's already running");
         return;
@@ -140,16 +133,18 @@ pub fn stop_client() {
         return;
     }
 
-    RUNTIME.block_on(async move { stop_and_reset_shutdown_handle().await })
+    RUNTIME.block_on(async move { stop_and_reset_shutdown_handle().await });
 }
 
-#[ffi_export]
-pub fn blocking_run_client(
+pub fn blocking_run_client<'cb, F, S>(
     storage_directory: Option<char_p::Ref<'_>>,
     service_provider: Option<char_p::Ref<'_>>,
-    on_start_callback: StartupCallback<'_>,
-    on_shutdown_callback: ShutdownCallback<'_>,
-) {
+    on_start_callback: F,
+    on_shutdown_callback: S,
+) where
+    F: FnMut(String) + 'cb,
+    S: FnMut() + 'cb,
+{
     if get_client_state() == ClientState::Connected {
         warn!("could not start the client as it's already running");
         return;
@@ -183,19 +178,9 @@ pub fn reset_client_data(root_directory: char_p::Ref<'_>) {
 
 #[ffi_export]
 pub fn existing_service_provider(storage_directory: char_p::Ref<'_>) -> Option<char_p_boxed> {
-    let expected_store_path = Socks5Config::default_config_file_path_with_root(
-        storage_directory.to_string(),
-        SOCKS5_CONFIG_ID,
-    );
-
-    if let Ok(config) = Socks5Config::load_from_filepath(expected_store_path) {
-        Some(
-            config
-                .get_socks5()
-                .get_raw_provider_mix_address()
-                .try_into()
-                .unwrap(),
-        )
+    if let Ok(config) = Config::read_from_default_path(storage_directory.to_str(), SOCKS5_CONFIG_ID)
+    {
+        Some(config.core.socks5.provider_mix_address.try_into().unwrap())
     } else {
         None
     }
@@ -206,33 +191,32 @@ fn _reset_client_data(root_directory: String) {
     std::fs::remove_dir_all(client_storage_dir).expect("failed to clear client data")
 }
 
-async fn _async_run_client(
+async fn _async_run_client<F, S>(
     storage_dir: Option<String>,
     client_id: String,
     service_provider: Option<String>,
-    mut on_start_callback: StartupCallback<'_>,
-    mut on_shutdown_callback: ShutdownCallback<'_>,
-) -> anyhow::Result<()> {
+    mut on_start_callback: F,
+    mut on_shutdown_callback: S,
+) -> anyhow::Result<()>
+where
+    F: FnMut(String),
+    S: FnMut(),
+{
     set_default_env();
     let stop_handle = Arc::new(Notify::new());
     set_shutdown_handle(stop_handle.clone()).await;
 
     let config = load_or_generate_base_config(storage_dir, client_id, service_provider).await?;
     let storage = MobileClientStorage::new(&config);
-    let socks5_client = Socks5NymClient::new(config, storage);
+    let socks5_client = Socks5NymClient::new(config.core, storage)
+        .with_gateway_setup(GatewaySetup::New { by_latency: false });
 
     eprintln!("starting the socks5 client");
     let mut started_client = socks5_client.start().await?;
     eprintln!("the client has started!");
 
     // invoke the callback since we've started!
-    on_start_callback.call(
-        started_client
-            .address
-            .to_string()
-            .try_into()
-            .expect("malformed C string"),
-    );
+    on_start_callback(started_client.address.to_string());
 
     // wait for notify to be set...
     stop_handle.notified().await;
@@ -242,7 +226,7 @@ async fn _async_run_client(
     started_client.shutdown_handle.wait_for_shutdown().await;
 
     // and the corresponding one for shutdown!
-    on_shutdown_callback.call();
+    on_shutdown_callback();
 
     Ok(())
 }
@@ -252,28 +236,34 @@ async fn load_or_generate_base_config(
     storage_dir: Option<String>,
     client_id: String,
     service_provider: Option<String>,
-) -> Result<Socks5Config> {
+) -> Result<Config> {
     let Some(storage_dir) = storage_dir else {
         eprintln!("no storage path specified");
         return setup_new_client_config(None, client_id, service_provider).await;
     };
 
-    let expected_store_path =
-        Socks5Config::default_config_file_path_with_root(&storage_dir, &client_id.to_string());
-    eprintln!("attempting to load socks5 config from {expected_store_path:?}");
+    let expected_store_path = config_filepath_from_root(&storage_dir, &client_id);
+    eprintln!(
+        "attempting to load socks5 config from {}",
+        expected_store_path.display()
+    );
 
     // simulator workaround
-    if let Ok(config) = Socks5Config::load_from_filepath(expected_store_path) {
+    if let Ok(mut config) = Config::read_from_toml_file(expected_store_path) {
         eprintln!("loaded config");
-        let root = config.get_base().get_nym_root_directory();
-        eprintln!("actual root: {storage_dir}");
-        eprintln!("retrieved root: {root:?}");
-
-        if root.to_str() == Some(storage_dir.as_str()) {
-            return Ok(config);
+        if let Some(storage_paths) = &mut config.storage_paths {
+            if !storage_paths
+                .common_paths
+                .keys
+                .public_identity_key_file
+                .starts_with(&storage_dir)
+            {
+                eprintln!("... but it seems to have been made for different container - fixing it up... (ASSUMING DEFAULT PATHS)");
+                storage_paths.change_root(storage_dir, &config.core.base.client.id);
+            }
         }
-        eprintln!("... but it seems to have been made for different container - fixing it up... (ASSUMING DEFAULT PATHS)");
-        return Ok(config.with_root_directory(storage_dir));
+
+        return Ok(config);
     };
 
     eprintln!("creating new config");
@@ -284,43 +274,26 @@ async fn setup_new_client_config(
     storage_dir: Option<String>,
     client_id: String,
     service_provider: Option<String>,
-) -> Result<Socks5Config> {
+) -> Result<Config> {
     let service_provider = service_provider.ok_or(anyhow!(
         "service provider was not specified for fresh config"
     ))?;
 
-    let mut new_config = Socks5Config::new(client_id, service_provider);
-    if let Some(storage_dir) = &storage_dir {
-        new_config = new_config.with_root_directory(storage_dir);
-    }
-
-    // ugh that's disgusting...
-    #[cfg(not(target_os = "android"))]
-    let key_store = OnDiskKeys::from_config(new_config.get_base());
-
-    #[cfg(target_os = "android")]
-    let key_store = InMemEphemeralKeys;
+    let mut new_config = Config::new(storage_dir.as_ref(), client_id, service_provider);
 
     if let Ok(raw_validators) = std::env::var(nym_config_common::defaults::var_names::NYM_API) {
         new_config
-            .get_base_mut()
+            .core
+            .base
             .set_custom_nym_apis(nym_config_common::parse_urls(&raw_validators));
     }
 
-    // note: this will also do key storage (annoyingly...)
-    let gateway = nym_client_core::init::setup_gateway_from_config::<Socks5Config, _, _>(
-        &key_store,
-        true,
-        None,
-        new_config.get_base(),
-        false,
-    )
-    .await?;
+    if let Some(_storage_paths) = &new_config.storage_paths {
+        println!("persistent storage is not implemented");
+    };
 
-    new_config.get_base_mut().set_gateway_endpoint(gateway);
-
-    if storage_dir.is_some() {
-        new_config.save_to_file(None)?;
+    if let Some(storage_dir) = storage_dir {
+        new_config.save_to_default_location(storage_dir)?;
     }
 
     Ok(new_config)

@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// use nym_client::client::config::{BaseConfig, Config, GatewayEndpointConfig};
+// use nym_client::client::config::{BaseClientConfig, Config, GatewayEndpointConfig};
 // use nym_client::client::{DirectClient, KeyManager, Recipient, ReconstructedMessage, SocketClient};
 use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, Recipient, ReconstructedMessage};
 use nym_service_providers_common::interface::{
@@ -48,7 +48,7 @@ async fn main() -> anyhow::Result<()> {
     let full_request_versions: Request =
         Request::new_control(ProviderInterfaceVersion::new_current(), request_versions);
 
-    // // TODO: currently we HAVE TO use surbs unfortunately
+    // TODO: currently we HAVE TO use surbs unfortunately
     println!("Sending 'Health' request...");
     client
         .send_bytes(
@@ -82,5 +82,6 @@ async fn main() -> anyhow::Result<()> {
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'SupportedRequestVersions' request: {response:#?}");
 
+    client.disconnect().await;
     Ok(())
 }

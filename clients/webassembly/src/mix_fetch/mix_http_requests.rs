@@ -5,6 +5,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use wasm_bindgen::prelude::*;
 use web_sys::Request;
 
+use crate::mix_fetch::error::MixFetchError;
 use crate::mix_fetch::request_adapter::WebSysRequestAdapter;
 use crate::mix_fetch::{PROVIDER_INTERFACE_VERSION, SOCKS5_PROTOCOL_VERSION};
 
@@ -131,7 +132,7 @@ fn http_request_to_mixnet_request_byte_array(
     local_closed: bool,
     ordered_message_index: u64,
     req: HttpCodecRequest<Vec<u8>>,
-) -> Result<Uint8Array, JsError> {
+) -> Result<Uint8Array, MixFetchError> {
     let local_closed = true;
     let mixnet_req = nym_http_requests::socks::encode_http_request_as_socks_send_request(
         PROVIDER_INTERFACE_VERSION,
@@ -150,7 +151,7 @@ pub(crate) fn http_request_to_mixnet_request_to_vec_u8(
     local_closed: bool,
     ordered_message_index: u64,
     req: HttpCodecRequest<Vec<u8>>,
-) -> Result<Vec<u8>, JsError> {
+) -> Result<Vec<u8>, MixFetchError> {
     let local_closed = true;
     let socks_req = nym_http_requests::socks::encode_http_request_as_socks_send_request(
         PROVIDER_INTERFACE_VERSION,

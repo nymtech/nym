@@ -7,6 +7,7 @@ use crate::mix_fetch::mix_http_requests::{
 };
 use crate::mix_fetch::request_adapter::WebSysRequestAdapter;
 use crate::mix_fetch::request_correlator::{ActiveRequests, Response};
+use crate::mix_fetch::response_adapter::FetchResponse;
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 use httpcodec::{Request as HttpCodecRequest, RequestTarget};
@@ -16,19 +17,26 @@ use nym_client_core::client::inbound_messages::InputMessage;
 use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReconstructedMessagesReceiver,
 };
+use nym_http_requests::error::MixHttpRequestError;
 use nym_http_requests::socks::MixHttpResponse;
 use nym_service_providers_common::interface::{
     ProviderInterfaceVersion, ResponseContent, Serializable,
 };
 use nym_socks5_requests::{
-    ConnectionId, RemoteAddress, Socks5ProtocolVersion, Socks5ProviderResponse,
+    ConnectionId, RemoteAddress, Socks5ProtocolVersion, Socks5ProviderResponse, Socks5Request,
     Socks5ResponseContent,
 };
 use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::connections::TransmissionLane;
 use rand::{thread_rng, RngCore};
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
+use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::{future_to_promise, spawn_local};
+use wasm_timer::Delay;
 use wasm_utils::{console_error, console_log, PromisableResult};
 
 mod client;
@@ -37,6 +45,7 @@ pub mod error;
 pub mod mix_http_requests;
 pub(crate) mod request_adapter;
 mod request_correlator;
+mod response_adapter;
 
 pub const MIX_FETCH_CLIENT_ID_PREFIX: &str = "mix-fetch-";
 
@@ -78,12 +87,9 @@ impl Placeholder {
         let this = self.clone();
         future_to_promise(async move {
             this.fetch_async(local_closed, ordered_message_index, req)
-                .await
-                .map(|res| {
-                    console_log!("raw response: {:?}", res);
-                    "placeholder return value".to_string()
-                })
-                .into_promise_result()
+                .await?
+                .try_into_fetch_response()
+                .map(Into::into)
         })
     }
 
@@ -144,7 +150,10 @@ impl Placeholder {
         local_closed: bool,
         ordered_message_index: u64,
         req: WebSysRequestAdapter,
-    ) -> Result<Response, MixFetchError> {
+    ) -> Result<httpcodec::Response<Vec<u8>>, MixFetchError> {
+        // TODO: make it user configurable
+        const TIMEOUT: Duration = Duration::from_secs(5);
+
         console_log!("started fetch async for {:?}", req.target);
 
         // TODO: regenerate id in case of collisions
@@ -161,10 +170,28 @@ impl Placeholder {
         let (tx, rx) = oneshot::channel();
         self.requests.start_new(request_id, tx).await;
         console_log!("waiting for response");
-        let res = rx.await.expect("TODO: error handling for closed channel");
-        console_log!("got response!");
 
-        Ok(res)
+        let timeout = Delay::new(TIMEOUT);
+
+        tokio::select! {
+            _ = timeout => {
+                console_error!("timed out while waiting for response");
+                self.requests.abort(request_id).await;
+                Err(MixFetchError::Timeout {
+                    id: request_id, timeout: TIMEOUT
+                })
+            }
+            res = rx => {
+                let Ok(res) = res else {
+                    // we can't do anything more than abort here. this situation should have never occurred
+                    // in the first place
+                    panic!("our response channel has been dropped.");
+                };
+
+                console_log!("received response to our fetch request");
+                res
+            }
+        }
     }
 }
 
@@ -192,50 +219,55 @@ impl Placeholder2 {
         }
     }
 
-    // TODO: obviously collapse all ifs and clean it up
+    async fn handle_reconstructed(&mut self, reconstructed_message: ReconstructedMessage) {
+        let (msg, tag) = reconstructed_message.into_inner();
+
+        if tag.is_some() {
+            console_error!(
+                "received a response with an anonymous sender tag - this is highly unexpected!"
+            );
+        }
+
+        match Socks5ProviderResponse::try_from_bytes(&msg) {
+            Err(err) => {
+                console_error!("failed to deserialize provider response. it was most likely not a response to our fetch: {err}")
+            }
+            Ok(provider_response) => {
+                match provider_response.content {
+                    ResponseContent::Control(control) => {
+                        console_error!("received a provider control response even though we didnt send any requests! - {control:#?}")
+                    }
+                    ResponseContent::ProviderData(data_response) => match data_response.content {
+                        Socks5ResponseContent::ConnectionError(err) => {
+                            self.requests.reject(err.connection_id, err.into()).await;
+                        }
+                        Socks5ResponseContent::Query(query) => {
+                            console_error!("received a provider query response even though we didn't send any queries! - {query:#?}")
+                        }
+                        Socks5ResponseContent::NetworkData { content } => {
+                            match MixHttpResponse::try_from(content) {
+                                Ok(mix_http_response) => {
+                                    self.requests.resolve(mix_http_response).await
+                                }
+                                Err(err) => {
+                                    // welp, we failed to decode it so we don't know what request to reject...
+                                    console_error!("failed to recover http response from the provided socks5 data: {err}")
+                                }
+                            }
+                        }
+                    },
+                }
+            }
+        }
+    }
+
     pub(crate) fn start(mut self) {
         spawn_local(async move {
             while let Some(reconstructed) = self.reconstructed_receiver.next().await {
-                console_log!("got reply!");
                 for reconstructed_msg in reconstructed {
-                    let (msg, tag) = reconstructed_msg.into_inner();
-                    let raw = String::from_utf8_lossy(&msg);
-                    console_log!("raw: {raw}");
-
-                    if tag.is_some() {
-                        panic!("TODO: error handling for set tag")
-                    }
-
-                    match Socks5ProviderResponse::try_from_bytes(&msg) {
-                        Err(err) => {
-                            console_error!("failed to deserialize provider response: {err}")
-                        }
-                        Ok(provider_response) => {
-                            if let ResponseContent::ProviderData(response) =
-                                provider_response.content
-                            {
-                                match MixHttpResponse::try_from(response.clone()) {
-                                    Ok(mix_http_response) => {
-                                        self.requests
-                                            .resolve(
-                                                mix_http_response.connection_id,
-                                                mix_http_response.http_response,
-                                            )
-                                            .await
-                                    }
-                                    Err(err) => {
-                                        console_error!("this wasn't mix http response...: {err}");
-                                        console_log!("{:?}", response);
-                                    }
-                                }
-                            } else {
-                                console_error!("received data was not a provider data response")
-                            }
-                        }
-                    }
+                    self.handle_reconstructed(reconstructed_msg).await
                 }
             }
-
             console_error!("we stopped receiving reconstructed messages!")
         })
     }

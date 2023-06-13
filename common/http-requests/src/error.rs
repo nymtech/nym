@@ -6,6 +6,9 @@ pub enum MixHttpRequestError {
     #[error("invalid Socks5 response")]
     InvalidSocks5Response,
 
+    #[error("the received Socks5 response was empty")]
+    EmptySocks5Response,
+
     #[error("bytecodec Error: {0}")]
     ByteCodecError(#[from] bytecodec::Error),
 

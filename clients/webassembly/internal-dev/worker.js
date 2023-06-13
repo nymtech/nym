@@ -400,7 +400,13 @@ async function testMixFetch() {
                     console.log('using mixFetch...');
                     let res = await client.fetch_with_str(url);
                     console.log('mixFetch done');
-                    console.log(res)
+                    console.log("HEADERS:     ", ...res.headers)
+                    console.log("STATUS:      ", res.status)
+                    console.log("STATUS TEXT: ", res.statusText)
+                    console.log("OK:          ", res.ok)
+                    console.log("TYPE:        ", res.type)
+                    console.log("URL:         ", res.url)
+                    console.log("TEXT:\n",await res.text())
                 }
             }
         }

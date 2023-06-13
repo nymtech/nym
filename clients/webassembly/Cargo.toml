@@ -62,6 +62,7 @@ wee_alloc = { version = "0.4", optional = true }
 
 # TODO: verify those dependencies (mix-fetch)
 nym-socks5-requests = { path = "../../common/socks5/requests" }
+nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-service-providers-common = { path = "../../service-providers/common" }
 nym-http-requests = { path = "../../common/http-requests" }
 bytecodec = "0.4.15"

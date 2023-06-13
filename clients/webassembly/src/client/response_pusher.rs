@@ -49,18 +49,6 @@ impl ResponsePusher {
                 for reconstructed_msg in reconstructed {
                     let (msg, tag) = reconstructed_msg.into_inner();
 
-                    if let Ok(socks5_response) =
-                        nym_socks5_requests::Socks5Response::try_from_bytes(&msg)
-                    {
-                        if let Ok(mix_http_response) =
-                            nym_http_requests::socks::decode_socks_response_as_http_response(
-                                socks5_response,
-                            )
-                        {
-                            console_log!("mix_fetch response {:?}", mix_http_response);
-                        }
-                    }
-
                     let msg_slice: &[u8] = &msg;
                     let array = Uint8Array::from(msg_slice);
                     let arg1 = JsValue::from(array);

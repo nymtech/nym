@@ -4,6 +4,7 @@
 use crate::mix_fetch::request_correlator::RequestId;
 use js_sys::Promise;
 use nym_http_requests::error::MixHttpRequestError;
+use nym_ordered_buffer::OrderedMessageError;
 use nym_socks5_requests::ConnectionError;
 use std::time::Duration;
 use thiserror::Error;
@@ -20,6 +21,19 @@ pub enum MixFetchError {
 
     #[error("network requester has rejected our request: {network_requester_message}")]
     ConnectionError { network_requester_message: String },
+
+    #[error("failed to reconstruct the response: {source}")]
+    MalformedData {
+        #[from]
+        source: OrderedMessageError,
+    },
+
+    #[error("received multiple messages about the remote socket being closed for request {request}. The first was on seq {first} and the other on {other}")]
+    DuplicateSocketClosure {
+        request: RequestId,
+        first: u64,
+        other: u64,
+    },
 
     #[error("request {id} timed out after {timeout:?}")]
     Timeout { id: RequestId, timeout: Duration },

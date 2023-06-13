@@ -232,32 +232,24 @@ impl Placeholder2 {
             Err(err) => {
                 console_error!("failed to deserialize provider response. it was most likely not a response to our fetch: {err}")
             }
-            Ok(provider_response) => {
-                match provider_response.content {
-                    ResponseContent::Control(control) => {
-                        console_error!("received a provider control response even though we didnt send any requests! - {control:#?}")
-                    }
-                    ResponseContent::ProviderData(data_response) => match data_response.content {
-                        Socks5ResponseContent::ConnectionError(err) => {
-                            self.requests.reject(err.connection_id, err.into()).await;
-                        }
-                        Socks5ResponseContent::Query(query) => {
-                            console_error!("received a provider query response even though we didn't send any queries! - {query:#?}")
-                        }
-                        Socks5ResponseContent::NetworkData { content } => {
-                            match MixHttpResponse::try_from(content) {
-                                Ok(mix_http_response) => {
-                                    self.requests.resolve(mix_http_response).await
-                                }
-                                Err(err) => {
-                                    // welp, we failed to decode it so we don't know what request to reject...
-                                    console_error!("failed to recover http response from the provided socks5 data: {err}")
-                                }
-                            }
-                        }
-                    },
+            Ok(provider_response) => match provider_response.content {
+                ResponseContent::Control(control) => {
+                    console_error!("received a provider control response even though we didnt send any requests! - {control:#?}")
                 }
-            }
+                ResponseContent::ProviderData(data_response) => match data_response.content {
+                    Socks5ResponseContent::ConnectionError(err) => {
+                        self.requests.reject(err.connection_id, err.into()).await;
+                    }
+                    Socks5ResponseContent::Query(query) => {
+                        console_error!("received a provider query response even though we didn't send any queries! - {query:#?}")
+                    }
+                    Socks5ResponseContent::NetworkData { content } => {
+                        console_log!("received raw: content: {content:?}");
+
+                        self.requests.attempt_resolve(content).await;
+                    }
+                },
+            },
         }
     }
 

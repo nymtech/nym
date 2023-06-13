@@ -7,7 +7,7 @@ use crate::helpers::{current_network_topology_async, setup_from_topology};
 use crate::storage::ClientStorage;
 use crate::tester::ephemeral_receiver::EphemeralTestReceiver;
 use crate::tester::helpers::{
-    NodeTestResult, ReceivedReceiverWrapper, TestMarker, WasmTestMessageExt,
+    GatewayReconnection, NodeTestResult, ReceivedReceiverWrapper, TestMarker, WasmTestMessageExt,
 };
 use crate::topology::WasmNymTopology;
 use futures::channel::mpsc;
@@ -255,6 +255,14 @@ impl NymNodeTester {
                 .await
                 .into_promise_result()
         })
+    }
+
+    pub fn disconnect_from_gateway(&self) -> Promise {
+        self.gateway_client.disconnect_from_gateway()
+    }
+
+    pub fn reconnect_to_gateway(&self) -> Promise {
+        self.gateway_client.reconnect_to_gateway()
     }
 
     fn prepare_test_packets(

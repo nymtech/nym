@@ -7,7 +7,7 @@ use crate::mix_fetch::config::MixFetchConfig;
 use crate::mix_fetch::mix_http_requests::RequestInitWithTypescriptType;
 use crate::mix_fetch::request_adapter::WebSysRequestAdapter;
 use crate::mix_fetch::request_correlator::ActiveRequests;
-use crate::mix_fetch::{Placeholder, Placeholder2};
+use crate::mix_fetch::{Fetcher, RequestResolver};
 use crate::storage::traits::FullWasmClientStorage;
 use crate::storage::ClientStorage;
 use js_sys::Promise;
@@ -25,7 +25,7 @@ use web_sys::Request;
 #[wasm_bindgen]
 pub struct MixFetchClient {
     self_address: String,
-    placeholder: Placeholder,
+    fetcher: Fetcher,
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
@@ -68,7 +68,7 @@ impl MixFetchClientBuilder {
     }
 
     fn start_reconstructor(client_output: ClientOutput, requests: ActiveRequests) {
-        Placeholder2::new(client_output, requests).start()
+        RequestResolver::new(client_output, requests).start()
     }
 
     // TODO: combine with normal wasm client
@@ -104,7 +104,7 @@ impl MixFetchClientBuilder {
 
         Ok(MixFetchClient {
             self_address,
-            placeholder: Placeholder::new(
+            fetcher: Fetcher::new(
                 self.config.mix_fetch.network_requester_address,
                 started_client.address,
                 client_input,
@@ -147,14 +147,14 @@ impl MixFetchClient {
 
     pub fn fetch_with_request(&self, input: &Request) -> Promise {
         match WebSysRequestAdapter::new_from_request(input) {
-            Ok(req) => self.placeholder.fetch(true, 0u64, req),
+            Ok(req) => self.fetcher.fetch(true, 0u64, req),
             Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
         }
     }
 
     pub fn fetch_with_str(&self, input: &str) -> Promise {
         match WebSysRequestAdapter::new_from_string(input) {
-            Ok(req) => self.placeholder.fetch(true, 0u64, req),
+            Ok(req) => self.fetcher.fetch(true, 0u64, req),
             Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
         }
     }
@@ -165,7 +165,7 @@ impl MixFetchClient {
         init: &RequestInitWithTypescriptType,
     ) -> Promise {
         match WebSysRequestAdapter::new_from_init_or_input(None, Some(input), init) {
-            Ok(req) => self.placeholder.fetch(true, 0u64, req),
+            Ok(req) => self.fetcher.fetch(true, 0u64, req),
             Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
         }
     }
@@ -176,7 +176,7 @@ impl MixFetchClient {
         init: &RequestInitWithTypescriptType,
     ) -> Promise {
         match WebSysRequestAdapter::new_from_init_or_input(Some(input), None, init) {
-            Ok(req) => self.placeholder.fetch(true, 0u64, req),
+            Ok(req) => self.fetcher.fetch(true, 0u64, req),
             Err(err) => Promise::reject(&mix_http_request_error_to_js_error(err)),
         }
     }

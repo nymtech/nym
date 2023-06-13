@@ -55,21 +55,21 @@ pub(crate) const SOCKS5_PROTOCOL_VERSION: Socks5ProtocolVersion =
     Socks5ProtocolVersion::new_current();
 
 #[derive(Clone)]
-struct Placeholder {
+struct Fetcher {
     fetch_provider: Recipient,
     self_address: Recipient,
     client_input: Arc<ClientInput>,
     requests: ActiveRequests,
 }
 
-impl Placeholder {
+impl Fetcher {
     pub(crate) fn new(
         fetch_provider: Recipient,
         self_address: Recipient,
         client_input: ClientInput,
         requests: ActiveRequests,
     ) -> Self {
-        Placeholder {
+        Fetcher {
             fetch_provider,
             self_address,
             client_input: Arc::new(client_input),
@@ -195,12 +195,12 @@ impl Placeholder {
     }
 }
 
-struct Placeholder2 {
+struct RequestResolver {
     reconstructed_receiver: ReconstructedMessagesReceiver,
     requests: ActiveRequests,
 }
 
-impl Placeholder2 {
+impl RequestResolver {
     pub(crate) fn new(client_output: ClientOutput, requests: ActiveRequests) -> Self {
         // register our output
         let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();
@@ -213,7 +213,7 @@ impl Placeholder2 {
             ))
             .expect("the buffer request failed!");
 
-        Placeholder2 {
+        RequestResolver {
             reconstructed_receiver,
             requests,
         }

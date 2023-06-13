@@ -399,6 +399,7 @@ async function testMixFetch() {
 
                     console.log('using mixFetch...');
                     let res = await client.fetch_with_str(url);
+                    let text = await res.text()
                     console.log('mixFetch done');
                     console.log("HEADERS:     ", ...res.headers)
                     console.log("STATUS:      ", res.status)
@@ -406,7 +407,14 @@ async function testMixFetch() {
                     console.log("OK:          ", res.ok)
                     console.log("TYPE:        ", res.type)
                     console.log("URL:         ", res.url)
-                    console.log("TEXT:\n",await res.text())
+                    console.log("TEXT:\n",text)
+
+                    self.postMessage({
+                        kind: 'DisplayString',
+                        args: {
+                            rawString: text,
+                        },
+                    });
                 }
             }
         }

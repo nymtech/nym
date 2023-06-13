@@ -29,6 +29,10 @@ class WebWorkerClient {
                         const {message, senderTag, isTestPacket } = ev.data.args;
                         displayReceived(message, senderTag, isTestPacket);
                         break;
+                    case 'DisplayString':
+                        const { rawString } = ev.data.args;
+                        displayReceivedRawString(rawString)
+                        break;
                     case 'DisableMagicTestButton':
                         const magicButton = document.querySelector('#magic-button');
                         magicButton.setAttribute('disabled', "true")
@@ -145,7 +149,6 @@ function displayReceived(raw, sender_tag, isTestPacket) {
 
     displayReceivedRawString(content)
 }
-
 
 function displayReceivedRawString(raw) {
     let timestamp = new Date().toISOString().substr(11, 12);

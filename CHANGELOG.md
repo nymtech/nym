@@ -4,6 +4,24 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.21] (2023-06-13)
+
+- mixFetch: Change socks5 `SendRequest` to include OrderedMessage index as a field rather than making it serialized inside the `data` field ([#3534])
+- Explorer - add more data columns to the Service Provider section: ([#3474])
+- network-requester: support report if they run an open proxy using `ControlRequest` API ([#3461])
+- Refactor client configs (London discussion) ([#3444])
+- Increase `DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE` to 2000 to improve reliability ([#3433])
+- socks5: sender waits for lanes to clear even though the connection is closed ([#3366])
+- version bump for variables ([#3545])
+
+[#3534]: https://github.com/nymtech/nym/issues/3534
+[#3474]: https://github.com/nymtech/nym/issues/3474
+[#3461]: https://github.com/nymtech/nym/issues/3461
+[#3444]: https://github.com/nymtech/nym/issues/3444
+[#3433]: https://github.com/nymtech/nym/issues/3433
+[#3366]: https://github.com/nymtech/nym/issues/3366
+[#3545]: https://github.com/nymtech/nym/pull/3545
+
 ## [v1.1.20] (2023-06-06)
 
 - Explorer - Fix SP supported apps list ([#3458])

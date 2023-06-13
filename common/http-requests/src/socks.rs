@@ -42,49 +42,64 @@ pub fn encode_http_request_as_socks_send_request(
 
 #[derive(Debug)]
 pub struct MixHttpResponse {
-    pub connection_id: u64,
-    pub is_closed: bool,
+    // pub connection_id: u64,
+    // #[deprecated]
+    // pub is_closed: bool,
     pub http_response: httpcodec::Response<Vec<u8>>,
-    pub seq: u64,
+    // #[deprecated]
+    // pub seq: u64,
 }
 
-impl TryFrom<Socks5Response> for MixHttpResponse {
-    type Error = error::MixHttpRequestError;
-
-    fn try_from(value: Socks5Response) -> Result<Self, Self::Error> {
-        if let Socks5ResponseContent::NetworkData { content } = value.content {
-            content.try_into()
-        } else {
-            Err(error::MixHttpRequestError::InvalidSocks5Response)
-        }
-    }
-}
-
-impl TryFrom<SocketData> for MixHttpResponse {
-    type Error = error::MixHttpRequestError;
-
-    fn try_from(value: SocketData) -> Result<Self, Self::Error> {
-        if value.data.is_empty() {
+impl MixHttpResponse {
+    pub fn try_from_bytes(b: &[u8]) -> Result<MixHttpResponse, error::MixHttpRequestError> {
+        if b.is_empty() {
             Err(error::MixHttpRequestError::EmptySocks5Response)
         } else {
             let mut decoder = ResponseDecoder::<BodyDecoder<RemainingBytesDecoder>>::default();
-            let http_response = decoder.decode_from_bytes(value.data.as_ref())?;
+            let http_response = decoder.decode_from_bytes(b)?;
 
-            Ok(MixHttpResponse {
-                connection_id: value.header.connection_id,
-                is_closed: value.header.local_socket_closed,
-                http_response,
-                seq: value.header.seq,
-            })
+            Ok(MixHttpResponse { http_response })
         }
     }
 }
 
-pub fn decode_socks_response_as_http_response(
-    socks5_response: Socks5Response,
-) -> Result<MixHttpResponse, error::MixHttpRequestError> {
-    socks5_response.try_into()
-}
+// impl TryFrom<Socks5Response> for MixHttpResponse {
+//     type Error = error::MixHttpRequestError;
+//
+//     fn try_from(value: Socks5Response) -> Result<Self, Self::Error> {
+//         if let Socks5ResponseContent::NetworkData { content } = value.content {
+//             content.try_into()
+//         } else {
+//             Err(error::MixHttpRequestError::InvalidSocks5Response)
+//         }
+//     }
+// }
+//
+// impl TryFrom<SocketData> for MixHttpResponse {
+//     type Error = error::MixHttpRequestError;
+//
+//     fn try_from(value: SocketData) -> Result<Self, Self::Error> {
+//         if value.data.is_empty() {
+//             Err(error::MixHttpRequestError::EmptySocks5Response)
+//         } else {
+//             let mut decoder = ResponseDecoder::<BodyDecoder<RemainingBytesDecoder>>::default();
+//             let http_response = decoder.decode_from_bytes(value.data.as_ref())?;
+//
+//             Ok(MixHttpResponse {
+//                 connection_id: value.header.connection_id,
+//                 is_closed: value.header.local_socket_closed,
+//                 http_response,
+//                 seq: value.header.seq,
+//             })
+//         }
+//     }
+// }
+
+// pub fn decode_socks_response_as_http_response(
+//     socks5_response: Socks5Response,
+// ) -> Result<MixHttpResponse, error::MixHttpRequestError> {
+//     socks5_response.try_into()
+// }
 
 #[cfg(test)]
 mod http_requests_tests {

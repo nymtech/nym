@@ -78,6 +78,16 @@ impl OrderedMessageBuffer {
         Ok(())
     }
 
+    /// Checks whether the buffer contains enough contiguous regions to read until the specified target sequence.
+    pub fn can_read_until(&self, target: u64) -> bool {
+        for seq in self.next_sequence..=target {
+            if !self.messages.contains_key(&seq) {
+                return false;
+            }
+        }
+        true
+    }
+
     /// Returns `Option<Vec<u8>>` where it's `Some(bytes)` if there is gapless
     /// ordered data in the buffer, and `None` if the buffer is empty or has
     /// gaps in the contained data.
@@ -110,7 +120,7 @@ impl OrderedMessageBuffer {
         );
         Some(ReadContiguousData {
             data: contiguous_messages,
-            last_sequence: seq,
+            last_sequence: self.next_sequence - 1,
         })
     }
 }

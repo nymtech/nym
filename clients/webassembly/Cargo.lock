@@ -2560,6 +2560,7 @@ dependencies = [
  "nym-gateway-client",
  "nym-http-requests",
  "nym-node-tester-utils",
+ "nym-ordered-buffer",
  "nym-service-providers-common",
  "nym-socks5-requests",
  "nym-sphinx",

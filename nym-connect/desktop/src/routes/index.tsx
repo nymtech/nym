@@ -8,14 +8,15 @@ import { HelpGuide } from 'src/pages/menu/Guide';
 import { SettingsMenu } from 'src/pages/menu/settings';
 import { GatewaySettings } from 'src/pages/menu/settings/GatewaySettings';
 import { ServiceProviderSettings } from 'src/pages/menu/settings/ServiceProviderSettings';
+import { MonitoringSettings } from '../pages/menu/settings/MonitoringSettings';
+import { useClientContext } from '../context/main';
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
-export const AppRoutes = ({ monitoring }: { monitoring?: boolean }) => {
-  if (monitoring) {
-    console.log('router performance monitoring enabled');
-  }
-  const RoutesContainer = monitoring ? SentryRoutes : Routes;
+export const AppRoutes = () => {
+  const { monitoringEnabled } = useClientContext();
+
+  const RoutesContainer = monitoringEnabled ? SentryRoutes : Routes;
 
   return (
     <RoutesContainer>
@@ -28,6 +29,7 @@ export const AppRoutes = ({ monitoring }: { monitoring?: boolean }) => {
           <Route index element={<SettingsMenu />} />
           <Route path="gateway" element={<GatewaySettings />} />
           <Route path="service-provider" element={<ServiceProviderSettings />} />
+          <Route path="monitoring" element={<MonitoringSettings />} />
         </Route>
       </Route>
     </RoutesContainer>

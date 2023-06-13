@@ -7,6 +7,7 @@ import { toggleLogViewer } from 'src/utils';
 const menuSchema = [
   { title: 'Select your gateway', path: 'gateway' },
   { title: 'Select a service provider', path: 'service-provider' },
+  { title: 'Monitoring', path: 'monitoring' },
 ];
 
 export const SettingsMenu = () => (

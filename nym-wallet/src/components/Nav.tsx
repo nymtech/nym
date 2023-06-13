@@ -67,6 +67,12 @@ export const Nav = () => {
       Icon: Toll,
       onClick: () => navigate('/buy'),
     },
+    {
+      label: 'Test Node',
+      route: '/test',
+      Icon: Toll,
+      onClick: () => navigate('/test'),
+    },
   ]);
 
   return (

@@ -5,3 +5,4 @@ export * from './delegation';
 export * from './internal-docs';
 export * from './buy';
 export * from './settings';
+export * from './node-tester';

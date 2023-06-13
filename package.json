@@ -10,7 +10,8 @@
     "nym-connect/**",
     "explorer",
     "types",
-    "clients/validator"
+    "clients/validator",
+    "clients/webassembly/*"
   ],
   "scripts": {
     "clean": "lerna run clean",

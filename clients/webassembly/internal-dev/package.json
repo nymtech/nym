@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "webpack --config webpack.config.js",
+    "build:wasm": "cd ../ && make wasm-build",
     "start": "webpack-dev-server --port 8001"
   },
   "repository": {

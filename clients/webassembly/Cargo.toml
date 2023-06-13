@@ -86,4 +86,4 @@ opt-level = 'z'
 [features]
 default = ["console_error_panic_hook", "mix-fetch"]
 node-tester = []
-mix-fetch = ["web-sys/Response"]
+mix-fetch = ["web-sys/Response", "web-sys/ResponseInit"]

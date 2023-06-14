@@ -4,15 +4,15 @@ use async_trait::async_trait;
 use log::{error, info, trace};
 
 use crate::ephemera::reward::{EpochOperations, RewardManager, V2};
+use crate::epoch_operations::MixnodeWithPerformance;
 
 pub(crate) mod aggregator;
 
 #[async_trait]
 impl EpochOperations for RewardManager<V2> {
-    async fn perform_epoch_operations(&mut self) -> anyhow::Result<()> {
+    async fn perform_epoch_operations(&mut self) -> anyhow::Result<Vec<MixnodeWithPerformance>> {
         //Calculate rewards for the epoch which just ended
         let rewards = self.calculate_rewards_for_previous_epoch().await?;
-        let nr_of_rewards = rewards.len();
 
         //Submit our own rewards message.
         //It will be included in the next block(ours and/or others)
@@ -25,7 +25,6 @@ impl EpochOperations for RewardManager<V2> {
 
         //Poll next block which should include all messages from the previous epoch from almost all Nym-Api nodes
         let mut counter = 0;
-        let mut winning_block = None;
         info!(
             "Waiting for block with height {next_height} maximum {} seconds",
             self.args.block_polling_max_attempts * self.args.block_polling_interval_seconds
@@ -38,12 +37,12 @@ impl EpochOperations for RewardManager<V2> {
             tokio::select! {
                 Ok(Some(block)) = self.get_block_by_height(next_height) => {
                     info!("Received local block with height {next_height}, hash:{:?}", block.header.hash);
-                    if self.try_submit_rewards_to_contract(nr_of_rewards, block.clone()).await.is_ok(){
+                    if let Ok(agg_rewards) = self.try_aggregate_rewards(block.clone()).await{
                         info!("Submitted rewards to smart contract");
                         let epoch_id = self.epoch.current_epoch_numer();
                         self.store_in_dht(epoch_id, &block).await?;
                         info!("Stored rewards in DHT");
-                        winning_block = Some(block);
+                        return Ok(agg_rewards);
                     }
                     break;
                 }
@@ -54,26 +53,26 @@ impl EpochOperations for RewardManager<V2> {
             counter += 1;
         }
 
-        if winning_block.is_none() {
-            info!("Querying for block with height {next_height} from the DHT");
-            counter = 0;
-            let epoch_id = self.epoch.current_epoch_numer();
-            loop {
-                if counter > self.args.block_polling_max_attempts {
-                    error!("DHT: Block for height {next_height} is not available after {counter} attempts");
-                    break;
-                }
-                tokio::select! {
-                   Ok(Some(block)) = self.query_dht(epoch_id) => {
-                       info!("DHT: Received block {block}");
-                       break;
-                   }
-                   _= tokio::time::sleep(Duration::from_secs(self.args.block_polling_interval_seconds)) => {
-                       trace!("DHT: Block for height {next_height} is not available in yet, waiting...");
-                   }
-                }
-                counter += 1;
+        info!("Querying for block with height {next_height} from the DHT");
+        counter = 0;
+        let epoch_id = self.epoch.current_epoch_numer();
+        loop {
+            if counter > self.args.block_polling_max_attempts {
+                error!(
+                    "DHT: Block for height {next_height} is not available after {counter} attempts"
+                );
+                break;
             }
+            tokio::select! {
+               Ok(Some(block)) = self.query_dht(epoch_id) => {
+                   info!("DHT: Received block {block}");
+                   break;
+               }
+               _= tokio::time::sleep(Duration::from_secs(self.args.block_polling_interval_seconds)) => {
+                   trace!("DHT: Block for height {next_height} is not available in yet, waiting...");
+               }
+            }
+            counter += 1;
         }
 
         // TODO: query smart contract for the nym-api which was able to submit rewards and query its block.
@@ -81,6 +80,6 @@ impl EpochOperations for RewardManager<V2> {
         // TODO: already during RB. In case of failure of that node.
 
         info!("Finished reward calculation for previous epoch");
-        Ok(())
+        Ok(vec![])
     }
 }

@@ -34,8 +34,7 @@ impl NymApi {
         args: Args,
         ephemera_config: Configuration,
         nyxd_client: nyxd::Client,
-        shutdown: Receiver<()>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<RewardManager<V2>> {
         info!(
             "Starting nym api with ephemera {} ...",
             args.ephemera_config
@@ -65,21 +64,11 @@ impl NymApi {
         //STARTING
         info!("Starting Nym-Api services");
         let (shutdown_signal_tx, _shutdown_signal_rcv) = broadcast::channel(1);
-        let ephemera_task = tokio::spawn(ephemera.run());
-        let rewards_task = tokio::spawn(rewards.start(shutdown_signal_tx.subscribe()));
-        let metrics_task = tokio::spawn(metrics.start(shutdown_signal_tx.subscribe()));
+        let _ephemera_task = tokio::spawn(ephemera.run());
+        // let rewards_task = tokio::spawn(rewards.start(shutdown_signal_tx.subscribe()));
+        let _metrics_task = tokio::spawn(metrics.start(shutdown_signal_tx.subscribe()));
 
-        //SHUTDOWN
-        Self::shutdown_nym_api(
-            shutdown,
-            &mut ephemera_handle.shutdown,
-            shutdown_signal_tx,
-            vec![ephemera_task, rewards_task, metrics_task],
-        )
-        .await?;
-
-        info!("Shut down complete");
-        Ok(())
+        Ok(rewards)
     }
 
     pub(crate) async fn init_ephemera(

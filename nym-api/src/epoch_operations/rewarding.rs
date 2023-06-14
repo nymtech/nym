@@ -9,6 +9,7 @@ use nym_mixnet_contract_common::{EpochState, Interval, MixId};
 impl RewardedSetUpdater {
     pub(super) async fn reward_current_rewarded_set(
         &self,
+        to_reward: &[MixnodeWithPerformance],
         current_interval: Interval,
     ) -> Result<(), RewardingError> {
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
@@ -34,7 +35,10 @@ impl RewardedSetUpdater {
                     return Err(RewardingError::MidMixRewarding { last_rewarded });
                 }
 
-                if let Err(err) = self._reward_current_rewarded_set(current_interval).await {
+                if let Err(err) = self
+                    ._reward_current_rewarded_set(to_reward, current_interval)
+                    .await
+                {
                     log::error!("FAILED to reward rewarded set - {err}");
                     Err(err)
                 } else {
@@ -47,14 +51,15 @@ impl RewardedSetUpdater {
 
     async fn _reward_current_rewarded_set(
         &self,
+        to_reward: &[MixnodeWithPerformance],
         current_interval: Interval,
     ) -> Result<(), RewardingError> {
-        let mut to_reward = self.nodes_to_reward(current_interval).await;
-        to_reward.sort_by_key(|a| a.mix_id);
+        // let mut to_reward = self.nodes_to_reward(current_interval).await;
+        // to_reward.sort_by_key(|a| a.mix_id);
 
         if to_reward.is_empty() {
             error!("There are no nodes to reward in this epoch - we shouldn't have been in the 'Rewarding' state!");
-        } else if let Err(err) = self.nyxd_client.send_rewarding_messages(&to_reward).await {
+        } else if let Err(err) = self.nyxd_client.send_rewarding_messages(to_reward).await {
             error!(
                 "failed to perform mixnode rewarding for epoch {}! Error encountered: {err}",
                 current_interval.current_epoch_absolute_id(),

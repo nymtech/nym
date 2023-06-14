@@ -123,13 +123,12 @@ async fn start_nym_api_tasks(
 
     let ephemera_config =
         EphemeraConfiguration::try_load(config.get_ephemera_config_path()).unwrap();
-    let (_shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
-    let _nym_api = tokio::spawn(ephemera::application::NymApi::run(
+    let ephemera_reward_manager = ephemera::application::NymApi::run(
         config.get_ephemera_args().clone(),
         ephemera_config,
         nyxd_client.clone(),
-        shutdown_rx,
-    ));
+    )
+    .await?;
 
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring if it's enabled
@@ -151,7 +150,13 @@ async fn start_nym_api_tasks(
         // start 'rewarding' if its enabled
         if config.rewarding.enabled {
             epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-            RewardedSetUpdater::start(nyxd_client, nym_contract_cache_state, storage, &shutdown);
+            RewardedSetUpdater::start(
+                ephemera_reward_manager,
+                nyxd_client,
+                nym_contract_cache_state,
+                storage,
+                &shutdown,
+            );
         }
     }
 

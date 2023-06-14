@@ -39,7 +39,7 @@ impl EphemeraAccess {
 
 #[async_trait]
 pub(crate) trait EpochOperations {
-    async fn perform_epoch_operations(&mut self) -> anyhow::Result<()>;
+    async fn perform_epoch_operations(&mut self) -> anyhow::Result<Vec<MixnodeWithPerformance>>;
 }
 
 pub(crate) struct RewardManager<V> {
@@ -234,11 +234,10 @@ where
 
     //By current assumption, all nodes will try submit their aggregated rewards
     //and contract will reject all but first one.
-    async fn try_submit_rewards_to_contract(
+    async fn try_aggregate_rewards(
         &mut self,
-        nr_of_rewards: usize,
         block: ApiBlock,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Vec<MixnodeWithPerformance>> {
         info!(
             "Calculating aggregated rewards from block with height: {:?}",
             block.header.height
@@ -254,18 +253,7 @@ where
         let aggregated_rewards = self.aggregator().aggregate(mix_node_rewards);
         debug!("Aggregated rewards: {:?}", aggregated_rewards);
 
-        self.submit_rewards_to_contract(aggregated_rewards).await?;
-
-        self.storage
-            .lock()
-            .await
-            .save_rewarding_results(self.epoch.current_epoch_numer(), nr_of_rewards)?;
-        info!(
-            "Saved rewarding results for epoch: {:?}",
-            self.epoch.current_epoch_numer()
-        );
-
-        Ok(())
+        Ok(aggregated_rewards)
     }
 
     fn aggregator(&self) -> &RewardsAggregator {

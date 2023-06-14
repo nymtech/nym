@@ -1,10 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
+import { AppContext, useBondingContext } from 'src/context';
+import { NodeTestEvent } from './types';
 
 export const NodeTester = () => {
   const [nodeTestWorker, setNodeTestWorker] = useState<Worker>();
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
+
+  const { network } = useContext(AppContext);
+  const { bondedNode } = useBondingContext();
 
   const loadWorker = () => {
     try {
@@ -13,6 +18,20 @@ export const NodeTester = () => {
     } catch (e) {
       setError('Error loading worker');
     }
+  };
+
+  const handleWorkerMessages = (worker: Worker) => {
+    worker.onmessage = (ev: MessageEvent<NodeTestEvent>) => {
+      const eventKind = ev.data.kind;
+
+      if (eventKind === 'Error') {
+        setError(ev.data.args.message);
+      }
+      if (eventKind === 'DisplayTesterResults') {
+        console.log(ev.data.args.data);
+      }
+    };
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -24,20 +43,6 @@ export const NodeTester = () => {
       }
     };
   }, []);
-
-  const handleWorkerMessages = (worker: Worker) => {
-    worker.onmessage = (ev) => {
-      const messageKind = ev?.data?.kind;
-
-      if (messageKind === 'Error') {
-        setError(ev.data.args.message);
-      }
-      if (messageKind === 'DisplayTesterResults') {
-        console.log(ev.data);
-      }
-    };
-    setIsLoading(false);
-  };
 
   useEffect(() => {
     if (nodeTestWorker) {
@@ -53,7 +58,8 @@ export const NodeTester = () => {
       nodeTestWorker.postMessage({
         kind: 'TestPacket',
         args: {
-          mixnodeIdentity: '7sVjiMrPYZrDWRujku9QLxgE8noT7NTgBAqizCsu7AoK',
+          mixnodeIdentity: bondedNode?.identityKey,
+          network,
         },
       });
     }

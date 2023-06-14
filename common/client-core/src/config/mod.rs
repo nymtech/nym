@@ -66,9 +66,9 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new<S: Into<String>>(id: S) -> Self {
+    pub fn new<S: Into<String>>(id: S, version: S) -> Self {
         Config {
-            client: Client::new_default(id),
+            client: Client::new_default(id, version),
             debug: Default::default(),
         }
     }
@@ -243,7 +243,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new_default<S: Into<String>>(id: S) -> Self {
+    pub fn new_default<S: Into<String>>(id: S, version: S) -> Self {
         let network = NymNetworkDetails::new_mainnet();
         let nyxd_urls = network
             .endpoints
@@ -257,7 +257,7 @@ impl Client {
             .collect::<Vec<_>>();
 
         Client {
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: version.into(),
             id: id.into(),
             disabled_credentials_mode: true,
             nyxd_urls,

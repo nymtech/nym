@@ -70,7 +70,11 @@ impl NymConfigTemplate for Config {
 impl Config {
     pub fn new<S: AsRef<str>>(id: S, provider_mix_address: S) -> Self {
         Config {
-            core: CoreConfig::new(id.as_ref(), provider_mix_address.as_ref()),
+            core: CoreConfig::new(
+                id.as_ref(),
+                env!("CARGO_PKG_VERSION"),
+                provider_mix_address.as_ref(),
+            ),
             storage_paths: SocksClientPaths::new_default(default_data_directory(id.as_ref())),
             logging: Default::default(),
         }

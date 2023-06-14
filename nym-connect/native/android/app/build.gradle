@@ -2,7 +2,6 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.serialization' version '1.8.21'
-    id 'io.sentry.android.gradle' version '3.7.0'
 }
 
 android {

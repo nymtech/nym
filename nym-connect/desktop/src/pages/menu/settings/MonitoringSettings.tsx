@@ -29,7 +29,13 @@ export const MonitoringSettings = () => {
               label="Enable"
             />
             <FormHelperText sx={{ m: 0, my: 2 }}>
-              Help developers to fix errors and improve the application.
+              Help Nym developers to fix errors, crashes and improve the application by enabling this option. If errors
+              occur or if the app crashes, it will automatically send a report. Also it tracks various performance
+              metrics. We use sentry.io service to handle this.
+            </FormHelperText>
+            <FormHelperText sx={{ m: 0, mb: 2 }}>
+              Note: A report can include your external IP, this can be useful to catch issues related to IP location.
+              All recorded data is used by Nym developers and for app development purposes only.
             </FormHelperText>
           </FormControl>
           <Typography variant="caption" color={(t) => t.palette.nym.warning}>

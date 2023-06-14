@@ -6,17 +6,10 @@ import { getVersion } from '@tauri-apps/api/app';
 
 const SENTRY_DSN = 'https://625e2658da4945a7a253f3ee04413a31@o967446.ingest.sentry.io/4505306292289536';
 
-let initialized = false;
-
-async function initSentry(enabled: boolean) {
-  console.log(`⚠ performance monitoring and error reporting ${enabled ? 'enabled' : 'disabled'}`);
-
-  if (initialized) {
-    return;
-  }
-  initialized = true;
-
+async function initSentry() {
+  console.log('⚠ performance monitoring and error reporting enabled');
   console.log('initializing sentry');
+
   Sentry.init({
     dsn: SENTRY_DSN,
     integrations: [
@@ -45,14 +38,6 @@ async function initSentry(enabled: boolean) {
     replaysOnErrorSampleRate: 1.0,
 
     environment: process.env.NODE_ENV,
-
-    enabled,
-    beforeSend(event) {
-      if (enabled) {
-        return event;
-      }
-      return null;
-    },
   });
 
   getVersion().then((version) => {

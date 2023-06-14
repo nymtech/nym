@@ -77,7 +77,9 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     const initSentryClient = async () => {
       const monitoring = await getItemFromStorage({ key: FORAGE_MONITORING_ENABLED });
       setMonitoringEnabled(Boolean(monitoring));
-      await initSentry(Boolean(monitoring));
+      if (monitoring) {
+        await initSentry();
+      }
     };
 
     initSentryClient();

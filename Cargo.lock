@@ -68,7 +68,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fcb51a0695d8f838b1ee009b3fbf66bda078cd64590202a864a8f3e8c4315c47"
 dependencies = [
- "getrandom 0.2.9",
+ "getrandom 0.2.10",
  "once_cell",
  "version_check",
 ]
@@ -920,7 +920,7 @@ dependencies = [
  "cosmos-sdk-proto",
  "ecdsa",
  "eyre",
- "getrandom 0.2.9",
+ "getrandom 0.2.10",
  "k256",
  "prost 0.10.4",
  "prost-types 0.10.1",
@@ -2025,9 +2025,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.2.9"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c85e1d9ab2eadba7e5040d4e09cbd6d072b76a557ad64e797c2cb9d4da21d7e4"
+checksum = "be4136b2a15dd319360be1c07d9933517ccf0be8f16bf62a3bee4f0d618df427"
 dependencies = [
  "cfg-if",
  "js-sys",
@@ -3494,7 +3494,7 @@ dependencies = [
  "digest 0.9.0",
  "doc-comment",
  "ff 0.11.1",
- "getrandom 0.2.9",
+ "getrandom 0.2.10",
  "group 0.11.0",
  "itertools",
  "nym-dkg",
@@ -3721,7 +3721,7 @@ name = "nym-gateway-client"
 version = "0.1.0"
 dependencies = [
  "futures",
- "getrandom 0.2.9",
+ "getrandom 0.2.10",
  "log",
  "nym-bandwidth-controller",
  "nym-coconut-interface",
@@ -4038,7 +4038,7 @@ dependencies = [
  "criterion",
  "curve25519-dalek",
  "fastrand",
- "getrandom 0.2.9",
+ "getrandom 0.2.10",
  "log",
  "rand 0.7.3",
  "rayon",
@@ -4390,7 +4390,7 @@ dependencies = [
  "aes-gcm",
  "argon2",
  "generic-array 0.14.7",
- "getrandom 0.2.9",
+ "getrandom 0.2.10",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -5285,7 +5285,7 @@ version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
- "getrandom 0.2.9",
+ "getrandom 0.2.10",
 ]
 
 [[package]]
@@ -5442,7 +5442,7 @@ version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b033d837a7cf162d7993aded9304e30a83213c648b6e389db233191f891e5c2b"
 dependencies = [
- "getrandom 0.2.9",
+ "getrandom 0.2.10",
  "redox_syscall 0.2.16",
  "thiserror",
 ]
@@ -6712,7 +6712,7 @@ dependencies = [
  "bytes",
  "flex-error",
  "futures",
- "getrandom 0.2.9",
+ "getrandom 0.2.10",
  "http",
  "hyper",
  "hyper-proxy",
@@ -7412,7 +7412,7 @@ version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "345444e32442451b267fc254ae85a209c64be56d2890e601a0c37ff0c3c5ecd2"
 dependencies = [
- "getrandom 0.2.9",
+ "getrandom 0.2.10",
  "wasm-bindgen",
 ]
 
@@ -7574,7 +7574,7 @@ name = "wasm-utils"
 version = "0.1.0"
 dependencies = [
  "futures",
- "getrandom 0.2.9",
+ "getrandom 0.2.10",
  "indexed_db_futures",
  "js-sys",
  "nym-store-cipher",

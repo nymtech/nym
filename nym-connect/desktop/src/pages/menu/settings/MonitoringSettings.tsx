@@ -1,4 +1,5 @@
 import React, { ChangeEvent, useState } from 'react';
+import { Warning as WarningIcon } from '@mui/icons-material';
 import { Box, FormControl, FormControlLabel, FormHelperText, Stack, Switch, Typography } from '@mui/material';
 import { useClientContext } from 'src/context/main';
 
@@ -38,9 +39,12 @@ export const MonitoringSettings = () => {
               All recorded data is used by Nym developers and for app development purposes only.
             </FormHelperText>
           </FormControl>
-          <Typography variant="caption" color={(t) => t.palette.nym.warning}>
-            ⚠ You must restart the application for the change to take effect.
-          </Typography>
+          <Stack direction="row" gap={1} alignItems="center">
+            <WarningIcon color="warning" fontSize="small" />
+            <Typography variant="caption" color="warning.main">
+              You must restart the application for the change to take effect.
+            </Typography>
+          </Stack>
         </Box>
       </Stack>
     </Box>

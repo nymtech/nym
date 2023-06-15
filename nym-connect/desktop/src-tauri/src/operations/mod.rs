@@ -1,3 +1,4 @@
+pub mod common;
 pub mod config;
 pub mod connection;
 pub mod directory;

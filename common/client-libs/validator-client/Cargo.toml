@@ -78,13 +78,14 @@ required-features = ["nyxd-client"]
 nyxd-client = [
     "async-trait",
     "cosmrs",
+    "cosmwasm-std",
     "cw3",
     "cw4",
-    "prost",
     "flate2",
-    "sha2",
     "itertools",
-    "cosmwasm-std",
+    "openssl",
+    "prost",
+    "sha2",
     "signing"
 ]
 signing = [

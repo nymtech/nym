@@ -91,9 +91,10 @@ impl RewardedSetUpdater {
     /// 7. it purges old (older than 48h) measurement data
     /// 8. the whole process repeats once the new epoch finishes
     async fn perform_epoch_operations(&mut self, interval: Interval) -> Result<(), RewardingError> {
+        let raw_rewards = self.nodes_to_reward(interval).await;
         let mut to_reward = self
             .ephemera_reward_manager
-            .perform_epoch_operations()
+            .perform_epoch_operations(raw_rewards)
             .await
             .unwrap();
         to_reward.sort_by_key(|a| a.mix_id);

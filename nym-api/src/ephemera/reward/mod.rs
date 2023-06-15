@@ -1,10 +1,8 @@
 use std::marker::PhantomData;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use log::{debug, info, trace};
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
 
 use crate::epoch_operations::MixnodeWithPerformance;
 use ephemera::{
@@ -16,8 +14,7 @@ use nym_mixnet_contract_common::MixId;
 
 use super::epoch::Epoch;
 use super::reward::new::aggregator::RewardsAggregator;
-use super::storage::db::Storage;
-use super::{Args, NR_OF_MIX_NODES};
+use super::Args;
 use crate::support::nyxd;
 
 pub(crate) mod new;
@@ -46,12 +43,15 @@ impl EphemeraAccess {
 
 #[async_trait]
 pub(crate) trait EpochOperations {
-    async fn perform_epoch_operations(&mut self) -> anyhow::Result<Vec<MixnodeWithPerformance>>;
+    async fn perform_epoch_operations(
+        &mut self,
+        rewards: Vec<MixnodeWithPerformance>,
+    ) -> anyhow::Result<Vec<MixnodeWithPerformance>>;
 }
 
 pub(crate) struct RewardManager<V> {
-    pub storage: Arc<Mutex<Storage>>,
     pub nyxd_client: nyxd::Client,
+
     pub epoch: Epoch,
     pub args: Args,
     pub version: PhantomData<V>,
@@ -64,7 +64,6 @@ where
     Self: EpochOperations,
 {
     pub(crate) fn new(
-        storage: Arc<Mutex<Storage>>,
         nyxd_client: nyxd::Client,
         args: Args,
         ephemera_access: Option<EphemeraAccess>,
@@ -76,7 +75,6 @@ where
             epoch.current_epoch_numer()
         );
         Self {
-            storage,
             nyxd_client,
             epoch,
             args,
@@ -84,30 +82,6 @@ where
             ephemera_access,
             aggregator,
         }
-    }
-
-    pub(crate) async fn calculate_rewards_for_previous_epoch(
-        &self,
-    ) -> anyhow::Result<Vec<MixnodeWithPerformance>> {
-        let start = self.epoch.current_epoch_start_time().timestamp() as u64;
-        let end = self.epoch.current_epoch_end_time().timestamp() as u64;
-        info!("Calculating rewards for interval {} - {}", start, end);
-
-        let mix_nodes = self.get_mix_nodes_to_reward();
-        debug!("Mix nodes to reward: {:?}", mix_nodes);
-
-        let storage = self.storage.lock().await;
-
-        let mut uptimes = Vec::with_capacity(NR_OF_MIX_NODES as usize);
-        for mix_id in mix_nodes {
-            let reliability = storage.get_mixnode_average_reliability(mix_id, start, end)?;
-            uptimes.push(MixnodeWithPerformance {
-                mix_id,
-                performance: reliability.unwrap_or_default(),
-            });
-        }
-
-        Ok(uptimes)
     }
 
     pub(crate) async fn get_last_block(&self) -> Result<ApiBlock, ApiError> {
@@ -230,9 +204,5 @@ where
 
     fn aggregator(&self) -> &RewardsAggregator {
         self.aggregator.as_ref().expect("Aggregator not set")
-    }
-
-    fn get_mix_nodes_to_reward(&self) -> Vec<MixId> {
-        (0..NR_OF_MIX_NODES).collect::<Vec<_>>()
     }
 }

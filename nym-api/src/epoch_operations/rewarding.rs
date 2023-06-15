@@ -54,9 +54,6 @@ impl RewardedSetUpdater {
         to_reward: &[MixnodeWithPerformance],
         current_interval: Interval,
     ) -> Result<(), RewardingError> {
-        // let mut to_reward = self.nodes_to_reward(current_interval).await;
-        // to_reward.sort_by_key(|a| a.mix_id);
-
         if to_reward.is_empty() {
             error!("There are no nodes to reward in this epoch - we shouldn't have been in the 'Rewarding' state!");
         } else if let Err(err) = self.nyxd_client.send_rewarding_messages(to_reward).await {
@@ -72,7 +69,7 @@ impl RewardedSetUpdater {
         Ok(())
     }
 
-    async fn nodes_to_reward(&self, interval: Interval) -> Vec<MixnodeWithPerformance> {
+    pub(crate) async fn nodes_to_reward(&self, interval: Interval) -> Vec<MixnodeWithPerformance> {
         // try to get current up to date view of the network bypassing the cache
         // in case the epochs were significantly shortened for the purposes of testing
         let rewarded_set: Vec<MixId> = match self.nyxd_client.get_rewarded_set_mixnodes().await {

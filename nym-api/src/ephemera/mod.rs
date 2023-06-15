@@ -4,7 +4,6 @@
 extern crate core;
 
 use clap::Parser;
-use nym_mixnet_contract_common::MixId;
 use serde_derive::{Deserialize, Serialize};
 
 pub mod application;
@@ -12,9 +11,6 @@ pub mod epoch;
 pub mod metrics;
 pub mod peers;
 pub mod reward;
-pub mod storage;
-
-pub const NR_OF_MIX_NODES: MixId = 5;
 
 #[derive(Parser, Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Args {

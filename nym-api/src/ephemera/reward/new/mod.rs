@@ -10,10 +10,10 @@ pub(crate) mod aggregator;
 
 #[async_trait]
 impl EpochOperations for RewardManager<V2> {
-    async fn perform_epoch_operations(&mut self) -> anyhow::Result<Vec<MixnodeWithPerformance>> {
-        //Calculate rewards for the epoch which just ended
-        let rewards = self.calculate_rewards_for_previous_epoch().await?;
-
+    async fn perform_epoch_operations(
+        &mut self,
+        rewards: Vec<MixnodeWithPerformance>,
+    ) -> anyhow::Result<Vec<MixnodeWithPerformance>> {
         //Submit our own rewards message.
         //It will be included in the next block(ours and/or others)
         self.send_rewards_to_ephemera(rewards).await?;

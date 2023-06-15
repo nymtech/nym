@@ -1,4 +1,4 @@
-use chrono::{DateTime, Duration, NaiveDateTime, Timelike, Utc};
+use chrono::{DateTime, NaiveDateTime, Timelike, Utc};
 use log::info;
 use nym_mixnet_contract_common::Interval as RewardsInterval;
 use serde::{Deserialize, Serialize};
@@ -54,16 +54,6 @@ impl Epoch {
             interval,
             epoch_start_id: start_time.minute().into(),
         }
-    }
-
-    pub fn current_epoch_start_time(&self) -> DateTime<Utc> {
-        let since_start = Utc::now().timestamp() - self.start_time.timestamp();
-        let current_epoch = since_start / (self.interval.period().as_secs() as i64);
-        self.start_time + Duration::seconds(current_epoch * self.interval.period().as_secs() as i64)
-    }
-
-    pub fn current_epoch_end_time(&self) -> DateTime<Utc> {
-        self.current_epoch_start_time() + Duration::seconds(self.interval.period().as_secs() as i64)
     }
 
     pub fn current_epoch_numer(&self) -> u64 {

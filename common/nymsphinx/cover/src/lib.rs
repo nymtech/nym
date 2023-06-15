@@ -91,6 +91,7 @@ where
     >(rng, full_address.encryption_key());
 
     let public_key_bytes = ephemeral_keypair.public_key().to_bytes();
+
     let cover_size = packet_size.plaintext_size() - public_key_bytes.len() - ack_bytes.len();
 
     let mut cover_content: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
@@ -122,19 +123,35 @@ where
     let delays = delays::generate_from_average_duration(route.len(), average_packet_delay);
     let destination = full_address.as_sphinx_destination();
 
-    // once merged, that's an easy rng injection point for sphinx packets : )
-    let packet = NymPacket::sphinx_build(
-        packet_size.payload_size(),
-        packet_payload,
-        &route,
-        &destination,
-        &delays,
-    )?;
-
     let first_hop_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
-    Ok(MixPacket::new(first_hop_address, packet, PacketType::Mix))
+    // once merged, that's an easy rng injection point for sphinx packets : )
+    let packet = match packet_type {
+        PacketType::Mix => NymPacket::sphinx_build(
+            packet_size.payload_size(),
+            packet_payload,
+            &route,
+            &destination,
+            &delays,
+        )?,
+        #[allow(deprecated)]
+        PacketType::Vpn => NymPacket::sphinx_build(
+            packet_size.payload_size(),
+            packet_payload,
+            &route,
+            &destination,
+            &delays,
+        )?,
+        PacketType::Outfox => NymPacket::outfox_build(
+            packet_payload,
+            &route,
+            &destination,
+            Some(packet_size.plaintext_size()),
+        )?,
+    };
+
+    Ok(MixPacket::new(first_hop_address, packet, packet_type))
 }
 
 /// Helper function used to determine if given message represents a loop cover message.

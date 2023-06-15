@@ -48,17 +48,21 @@ impl PacketRouter {
         // data he takes the SURB-ACK and first hop address.
         // currently SURB-ACKs are attached in EVERY packet, even cover, so this is always true
         let ack_overhead = PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
+        let outfox_ack_overhead =
+            PacketSize::OutfoxAckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
 
         for received_packet in unwrapped_packets {
             if received_packet.len() == PacketSize::AckPacket.plaintext_size()
-                || received_packet.len() == PacketSize::OutfoxAckPacket.plaintext_size()
+            // we don't know the real size of the payload, it could be anything <= 48 bytes
+                || received_packet.len() <= PacketSize::OutfoxAckPacket.plaintext_size()
             {
                 received_acks.push(received_packet);
             } else if received_packet.len()
                 == PacketSize::RegularPacket.plaintext_size() - ack_overhead
                 || received_packet.len()
-                    == PacketSize::OutfoxRegularPacket.plaintext_size() - ack_overhead
-                || received_packet.len() == PacketSize::OutfoxRegularPacket.size() - 6
+                    == PacketSize::OutfoxRegularPacket.plaintext_size() - outfox_ack_overhead
+                || received_packet.len()
+                    == PacketSize::OutfoxRegularPacket.size() - outfox_ack_overhead
             {
                 trace!("routing regular packet");
                 received_messages.push(received_packet);

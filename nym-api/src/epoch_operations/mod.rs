@@ -12,7 +12,7 @@
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.
 
-use crate::ephemera::reward::{EpochOperations, RewardManager, V2};
+use crate::ephemera::reward::{EpochOperations, RewardManager};
 use crate::node_status_api::ONE_DAY;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::nyxd::Client;
@@ -33,7 +33,7 @@ mod rewarding;
 mod transition_beginning;
 
 pub struct RewardedSetUpdater {
-    ephemera_reward_manager: RewardManager<V2>,
+    ephemera_reward_manager: RewardManager,
     nyxd_client: Client,
     nym_contract_cache: NymContractCache,
     storage: NymApiStorage,
@@ -47,7 +47,7 @@ impl RewardedSetUpdater {
     }
 
     pub(crate) fn new(
-        ephemera_reward_manager: RewardManager<V2>,
+        ephemera_reward_manager: RewardManager,
         nyxd_client: Client,
         nym_contract_cache: NymContractCache,
         storage: NymApiStorage,
@@ -275,7 +275,7 @@ impl RewardedSetUpdater {
     }
 
     pub(crate) fn start(
-        ephemera_reward_manager: RewardManager<V2>,
+        ephemera_reward_manager: RewardManager,
         nyxd_client: Client,
         nym_contract_cache: &NymContractCache,
         storage: &NymApiStorage,

@@ -9,8 +9,8 @@ use ephemera::{Ephemera, EphemeraStarterInit};
 
 use super::application::application::RewardsEphemeraApplication;
 use super::epoch::Epoch;
-use super::reward::new::aggregator::RewardsAggregator;
-use super::reward::{EphemeraAccess, RewardManager, V2};
+use super::reward::aggregator::RewardsAggregator;
+use super::reward::{EphemeraAccess, RewardManager};
 use super::Args;
 
 pub(crate) mod application;
@@ -22,7 +22,7 @@ impl NymApi {
         args: Args,
         ephemera_config: Configuration,
         nyxd_client: nyxd::Client,
-    ) -> anyhow::Result<RewardManager<V2>> {
+    ) -> anyhow::Result<RewardManager> {
         info!(
             "Starting nym api with ephemera {} ...",
             args.ephemera_config
@@ -74,9 +74,9 @@ impl NymApi {
         key_pair: Keypair,
         nyxd_client: nyxd::Client,
         ephemera_api: CommandExecutor,
-    ) -> RewardManager<V2> {
+    ) -> RewardManager {
         let epoch = Epoch::request_epoch(args.smart_contract_url.clone()).await;
-        let rewards: RewardManager<V2> = RewardManager::new(
+        let rewards = RewardManager::new(
             nyxd_client,
             args.clone(),
             EphemeraAccess::new(ephemera_api, key_pair).into(),

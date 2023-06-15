@@ -20,7 +20,7 @@ export const MonitoringSettings = () => {
       <Stack justifyContent="space-between" height="100%">
         <Box>
           <Typography fontWeight="bold" variant="body2" mb={2}>
-            Errors reporting and performance monitoring
+            Error reporting and performance monitoring
           </Typography>
           <FormControl fullWidth>
             <FormControlLabel

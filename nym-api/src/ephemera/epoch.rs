@@ -3,7 +3,7 @@ use log::info;
 use nym_mixnet_contract_common::Interval as RewardsInterval;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use tokio::time::{Instant, Interval};
+use tokio::time::Interval;
 
 //It synchronizes rewarding across simulated Nym-APIs and the "Smart Contract".
 //Maintained by the "Smart Contract"
@@ -70,10 +70,6 @@ impl Epoch {
         let since_start = (Utc::now().timestamp() - self.start_time.timestamp()) as u64;
         let nr = since_start / self.interval.period().as_secs();
         nr + self.epoch_start_id
-    }
-
-    pub async fn wait_epoch_end(&mut self) -> Instant {
-        self.interval.tick().await
     }
 
     pub async fn request_epoch(contract_url: String) -> Epoch {

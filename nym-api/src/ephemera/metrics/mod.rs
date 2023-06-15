@@ -8,21 +8,18 @@ use tokio::sync::Mutex;
 use tokio::time::Interval;
 
 use super::metrics::types::MixnodeResult;
-use super::storage::db::{MetricsStorageType, Storage};
+use super::storage::db::Storage;
 use super::NR_OF_MIX_NODES;
 
 pub mod types;
 
 pub struct MetricsCollector {
-    pub storage: Arc<Mutex<Storage<MetricsStorageType>>>,
+    pub storage: Arc<Mutex<Storage>>,
     pub interval: Interval,
 }
 
 impl MetricsCollector {
-    pub fn new(
-        storage: Arc<Mutex<Storage<MetricsStorageType>>>,
-        metrics_interval: i64,
-    ) -> MetricsCollector {
+    pub fn new(storage: Arc<Mutex<Storage>>, metrics_interval: i64) -> MetricsCollector {
         let interval =
             tokio::time::interval(std::time::Duration::from_secs(metrics_interval as u64));
         info!("Metrics collector interval: {:?}", metrics_interval);

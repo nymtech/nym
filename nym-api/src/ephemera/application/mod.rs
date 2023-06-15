@@ -1,28 +1,22 @@
 use std::sync::Arc;
-use std::time::Duration;
 
-use futures::future;
-use futures::future::Either;
 use log::info;
-use tokio::sync::broadcast::Sender;
 
-use tokio::sync::oneshot::Receiver;
 use tokio::sync::{broadcast, Mutex};
-use tokio::task::JoinHandle;
 
 use crate::support::nyxd;
 use ephemera::configuration::Configuration;
 use ephemera::crypto::{EphemeraKeypair, Keypair};
 use ephemera::ephemera_api::CommandExecutor;
 use ephemera::membership::HttpMembersProvider;
-use ephemera::{Ephemera, EphemeraStarterInit, ShutdownHandle};
+use ephemera::{Ephemera, EphemeraStarterInit};
 use metrics::MetricsCollector;
 
 use super::application::application::RewardsEphemeraApplication;
 use super::epoch::Epoch;
 use super::reward::new::aggregator::RewardsAggregator;
 use super::reward::{EphemeraAccess, RewardManager, V2};
-use super::storage::db::{MetricsStorageType, Storage};
+use super::storage::db::Storage;
 use super::{metrics, Args};
 
 pub(crate) mod application;
@@ -46,7 +40,7 @@ impl NymApi {
 
         //EPHEMERA
         let ephemera = Self::init_ephemera(&args, ephemera_config).await?;
-        let mut ephemera_handle = ephemera.handle();
+        let ephemera_handle = ephemera.handle();
 
         //METRICS
         let metrics = Self::create_metrics_collector(&args, &storage);
@@ -93,17 +87,14 @@ impl NymApi {
         Ok(ephemera)
     }
 
-    fn create_metrics_collector(
-        args: &Args,
-        storage: &Arc<Mutex<Storage<MetricsStorageType>>>,
-    ) -> MetricsCollector {
+    fn create_metrics_collector(args: &Args, storage: &Arc<Mutex<Storage>>) -> MetricsCollector {
         MetricsCollector::new(storage.clone(), args.metrics_collector_interval_seconds)
     }
 
     async fn create_rewards_manager(
         args: Args,
         key_pair: Keypair,
-        storage: Arc<Mutex<Storage<MetricsStorageType>>>,
+        storage: Arc<Mutex<Storage>>,
         nyxd_client: nyxd::Client,
         ephemera_api: CommandExecutor,
     ) -> RewardManager<V2> {
@@ -119,34 +110,7 @@ impl NymApi {
         rewards
     }
 
-    async fn shutdown_nym_api(
-        shutdown: Receiver<()>,
-        ephemera_shutdown: &mut ShutdownHandle,
-        shutdown_signal_tx: Sender<()>,
-        handles: Vec<JoinHandle<()>>,
-    ) -> anyhow::Result<()> {
-        let service_fut = future::select_all(handles);
-
-        match future::select(shutdown, service_fut).await {
-            Either::Left((_s, ser)) => {
-                info!("Shutting down nym api ...");
-                shutdown_signal_tx.send(()).unwrap();
-                ephemera_shutdown.shutdown().unwrap();
-                let timeout = tokio::time::sleep(Duration::from_secs(2));
-                future::select(Box::pin(timeout), ser).await;
-            }
-            Either::Right(((_r, _, ser), _)) => {
-                info!("Service failure, shutting down nym api ...");
-                shutdown_signal_tx.send(()).unwrap();
-                ephemera_shutdown.shutdown().unwrap();
-                let timeout = tokio::time::sleep(Duration::from_secs(2));
-                future::select(Box::pin(timeout), future::join_all(ser)).await;
-            }
-        }
-        Ok(())
-    }
-
-    fn open_nym_api_storage(_args: &Args) -> Arc<Mutex<Storage<MetricsStorageType>>> {
+    fn open_nym_api_storage(_args: &Args) -> Arc<Mutex<Storage>> {
         Arc::new(Mutex::new(Storage::init()))
     }
 

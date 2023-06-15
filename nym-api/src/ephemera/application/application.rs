@@ -7,8 +7,8 @@ use ephemera::{
 };
 use log::{debug, error, info};
 
-use crate::ephemera::contract::MixnodeToReward;
 use crate::ephemera::peers::NymApiEphemeraPeerInfo;
+use crate::ephemera::reward::MixnodeToReward;
 
 pub(crate) struct RewardsEphemeraApplicationConfig {
     /// Percentage of messages relative to total number of peers

@@ -2,25 +2,32 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use log::{debug, error, info, trace};
-use tokio::{sync::broadcast::Receiver, sync::Mutex};
+use log::{debug, info, trace};
+use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 use crate::epoch_operations::MixnodeWithPerformance;
 use ephemera::{
     crypto::Keypair,
     ephemera_api::{self, ApiBlock, ApiEphemeraMessage, ApiError, CommandExecutor},
 };
+use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::MixId;
 
-use super::contract::MixnodeToReward;
 use super::epoch::Epoch;
 use super::reward::new::aggregator::RewardsAggregator;
-use super::storage::db::{MetricsStorageType, Storage};
+use super::storage::db::Storage;
 use super::{Args, NR_OF_MIX_NODES};
 use crate::support::nyxd;
 
 pub(crate) mod new;
 mod old;
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub struct MixnodeToReward {
+    pub mix_id: MixId,
+    pub performance: Performance,
+}
 
 pub(crate) struct V1;
 
@@ -43,7 +50,7 @@ pub(crate) trait EpochOperations {
 }
 
 pub(crate) struct RewardManager<V> {
-    pub storage: Arc<Mutex<Storage<MetricsStorageType>>>,
+    pub storage: Arc<Mutex<Storage>>,
     pub nyxd_client: nyxd::Client,
     pub epoch: Epoch,
     pub args: Args,
@@ -57,7 +64,7 @@ where
     Self: EpochOperations,
 {
     pub(crate) fn new(
-        storage: Arc<Mutex<Storage<MetricsStorageType>>>,
+        storage: Arc<Mutex<Storage>>,
         nyxd_client: nyxd::Client,
         args: Args,
         ephemera_access: Option<EphemeraAccess>,
@@ -77,25 +84,6 @@ where
             ephemera_access,
             aggregator,
         }
-    }
-
-    pub(crate) async fn start(mut self, mut receiver: Receiver<()>) {
-        loop {
-            tokio::select! {
-                _ = receiver.recv() => {
-                    info!("Shutting down reward manager");
-                    break;
-                }
-                _ =  self.epoch.wait_epoch_end() => {
-                    info!("Rewarding epoch {} ...", self.epoch.current_epoch_numer());
-                    if let Err(err) = self.perform_epoch_operations().await {
-                        error!("Reward calculator failed: {}", err);
-                        break;
-                    }
-                }
-            }
-        }
-        info!("Reward manager stopped");
     }
 
     pub(crate) async fn calculate_rewards_for_previous_epoch(
@@ -120,22 +108,6 @@ where
         }
 
         Ok(uptimes)
-    }
-
-    pub(crate) async fn submit_rewards_to_contract(
-        &self,
-        rewards: Vec<MixnodeWithPerformance>,
-    ) -> anyhow::Result<()> {
-        info!("Submitting rewards to contract");
-        let ret = self.nyxd_client.send_rewarding_messages(&rewards).await;
-
-        if ret.is_err() {
-            return Err(anyhow::anyhow!(
-                "Failed to submit rewards to contract because of {:?}",
-                ret
-            ));
-        }
-        Ok(())
     }
 
     pub(crate) async fn get_last_block(&self) -> Result<ApiBlock, ApiError> {

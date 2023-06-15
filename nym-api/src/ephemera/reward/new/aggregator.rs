@@ -1,9 +1,9 @@
+use crate::ephemera::reward::MixnodeToReward;
 use cosmwasm_std::Decimal;
 use log::{info, trace};
 use nym_mixnet_contract_common::reward_params::Performance;
 use std::collections::HashMap;
 
-use crate::ephemera::contract::MixnodeToReward;
 use crate::epoch_operations::MixnodeWithPerformance;
 
 pub(crate) struct RewardsAggregator;

@@ -8,7 +8,6 @@ use nym_mixnet_contract_common::MixId;
 use serde_derive::{Deserialize, Serialize};
 
 pub mod application;
-pub mod contract;
 pub mod epoch;
 pub mod metrics;
 pub mod peers;
@@ -16,7 +15,6 @@ pub mod reward;
 pub mod storage;
 
 pub const NR_OF_MIX_NODES: MixId = 5;
-pub const HTTP_NYM_API_HEADER: &str = "X-NYM-API-ID";
 
 #[derive(Parser, Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Args {

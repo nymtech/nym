@@ -30,7 +30,7 @@ const printAndDisplayTestResult = (result: NodeTestResult) => {
   postMessage({
     kind: 'DisplayTesterResults',
     args: {
-      data: {
+      result: {
         score: result.score(),
         sentPackets: result.sent_packets,
         receivedPackets: result.received_packets,

@@ -19,6 +19,7 @@ import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
 import { makeNavItems } from './node-settings.constant';
 import { ApyPlayground } from './apy-playground';
+import { NodeTestPage } from './node-test';
 
 export const NodeSettings = () => {
   const theme = useTheme();
@@ -124,6 +125,7 @@ export const NodeSettings = () => {
       >
         <Divider />
         {value === 'General' && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
+        {value === 'Test' && <NodeTestPage />}
         {value === 'Unbond' && bondedNode && (
           <NodeUnbondPage bondedNode={bondedNode} onConfirm={handleUnbond} onError={handleError} />
         )}

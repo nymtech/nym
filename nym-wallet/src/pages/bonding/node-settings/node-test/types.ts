@@ -21,7 +21,7 @@ type WorkerLoaded = {
 type DisplayTesterResults = {
   kind: 'DisplayTesterResults';
   args: {
-    data: NodeTestResult;
+    result: NodeTestResult;
   };
 };
 

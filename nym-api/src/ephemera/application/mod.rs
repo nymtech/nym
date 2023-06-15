@@ -6,6 +6,7 @@ use ephemera::crypto::{EphemeraKeypair, Keypair};
 use ephemera::ephemera_api::CommandExecutor;
 use ephemera::membership::HttpMembersProvider;
 use ephemera::{Ephemera, EphemeraStarterInit};
+use nym_task::TaskManager;
 
 use super::application::application::RewardsEphemeraApplication;
 use super::epoch::Epoch;
@@ -22,6 +23,7 @@ impl NymApi {
         args: Args,
         ephemera_config: Configuration,
         nyxd_client: nyxd::Client,
+        shutdown: &TaskManager,
     ) -> anyhow::Result<RewardManager> {
         info!(
             "Starting nym api with ephemera {} ...",
@@ -41,8 +43,8 @@ impl NymApi {
                 .await;
 
         //STARTING
-        info!("Starting Nym-Api services");
-        let _ephemera_task = tokio::spawn(ephemera.run());
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(ephemera.run(shutdown_listener));
 
         Ok(rewards)
     }

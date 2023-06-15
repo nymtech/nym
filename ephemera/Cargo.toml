@@ -8,6 +8,9 @@ name = "ephemera"
 path = "bin/main.rs"
 
 [dependencies]
+## internal
+nym-task = { path = "../common/task" }
+
 actix-web = "4"
 anyhow = { version = "1.0.66", features = ["backtrace"] }
 array-bytes = "6.0.0"

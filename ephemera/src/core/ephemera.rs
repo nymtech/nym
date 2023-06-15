@@ -4,6 +4,7 @@ use anyhow::anyhow;
 use futures_util::future::BoxFuture;
 use futures_util::StreamExt;
 use log::{debug, error, info, trace};
+use nym_task::TaskClient;
 use thiserror::Error;
 use tokio::sync::Mutex;
 
@@ -107,7 +108,7 @@ impl<A: Application> Ephemera<A> {
     /// 6. Publish(gossip) messages to network
     /// 7. Publish blocks to network
     /// 8. Broadcast messages to websocket clients
-    pub async fn run(mut self) {
+    pub async fn run(mut self, mut shutdown: TaskClient) {
         info!("Starting ephemera services");
         for service in self.services.drain(..) {
             let handle = tokio::spawn(service);
@@ -116,8 +117,15 @@ impl<A: Application> Ephemera<A> {
 
         info!("Starting ephemera main loop");
 
-        loop {
+        while !shutdown.is_shutdown() {
             tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    trace!("UpdateHandler: Received shutdown");
+                    self.shutdown_manager.stop().await;
+                    break;
+                }
+
                 // GENERATING NEW BLOCKS
                 Some((new_block, certificate)) = self.block_manager.next() => {
                     if let Err(err) = self.process_new_local_block(new_block, certificate).await{
@@ -150,13 +158,6 @@ impl<A: Application> Ephemera<A> {
                             //TODO: handle shutdown
                         }
                     }
-                }
-
-                //PROCESSING SHUTDOWN REQUEST
-                _ = self.shutdown_manager.external_shutdown.recv() => {
-                    info!("Shutting down ephemera");
-                    self.shutdown_manager.stop().await;
-                    break;
                 }
             }
         }

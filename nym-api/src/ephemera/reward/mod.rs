@@ -14,7 +14,6 @@ use nym_mixnet_contract_common::MixId;
 use super::epoch::Epoch;
 use super::reward::aggregator::RewardsAggregator;
 use super::Args;
-use crate::support::nyxd;
 
 pub(crate) mod aggregator;
 
@@ -120,8 +119,6 @@ pub(crate) trait EpochOperations {
 }
 
 pub(crate) struct RewardManager {
-    pub nyxd_client: nyxd::Client,
-
     pub epoch: Epoch,
     pub args: Args,
     pub ephemera_access: Option<EphemeraAccess>,
@@ -133,7 +130,6 @@ where
     Self: EpochOperations,
 {
     pub(crate) fn new(
-        nyxd_client: nyxd::Client,
         args: Args,
         ephemera_access: Option<EphemeraAccess>,
         aggregator: Option<RewardsAggregator>,
@@ -144,7 +140,6 @@ where
             epoch.current_epoch_numer()
         );
         Self {
-            nyxd_client,
             epoch,
             args,
             ephemera_access,

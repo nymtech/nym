@@ -13,7 +13,7 @@ import {
   NodeSettingsPage,
   BuyPage,
   Settings,
-  NodeTester,
+  NodeTestPage,
 } from '../pages';
 
 export const AppRoutes = () => (
@@ -31,7 +31,7 @@ export const AppRoutes = () => (
       <Route path="/docs" element={<InternalDocs />} />
       <Route path="/admin" element={<Admin />} />
       <Route path="/buy" element={<BuyPage />} />
-      <Route path="/test" element={<NodeTester />} />
+      <Route path="/test" element={<NodeTestPage />} />
     </Routes>
   </ApplicationLayout>
 );

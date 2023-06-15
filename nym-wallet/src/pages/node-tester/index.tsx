@@ -1,9 +1,9 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
-import { AppContext, useBondingContext } from 'src/context';
+import { AppContext, BondingContext, BondingContextProvider, useBondingContext } from 'src/context';
 import { NodeTestEvent } from './types';
 
-export const NodeTester = () => {
+const NodeTester = () => {
   const [nodeTestWorker, setNodeTestWorker] = useState<Worker>();
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
@@ -75,3 +75,9 @@ export const NodeTester = () => {
     </Stack>
   );
 };
+
+export const NodeTestPage = () => (
+  <BondingContextProvider>
+    <NodeTester />
+  </BondingContextProvider>
+);

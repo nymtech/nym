@@ -177,20 +177,29 @@ impl TaskManager {
             drop(notify_rx);
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let interrupt_future = tokio::signal::ctrl_c();
+
         // in wasm we'll never get our shutdown anyway...
         #[cfg(target_arch = "wasm32")]
-        futures::future::pending::<()>().await;
+        let interrupt_future = futures::future::pending::<()>();
 
         #[cfg(not(target_arch = "wasm32"))]
+        let wait_future = tokio::time::sleep(Duration::from_secs(self.shutdown_timer_secs));
+
+        // TODO: we should be using a `Delay` here for wasm
+        #[cfg(target_arch = "wasm32")]
+        let wait_future = futures::future::pending::<()>();
+
         tokio::select! {
             _ = self.notify_tx.closed() => {
                 log::info!("All registered tasks succesfully shutdown");
             },
-            _ = tokio::signal::ctrl_c() => {
+            _ = interrupt_future => {
                 log::info!("Forcing shutdown");
             }
-            _ = tokio::time::sleep(Duration::from_secs(self.shutdown_timer_secs)) => {
-                log::info!("Timout reached, forcing shutdown");
+            _ = wait_future => {
+                log::info!("Timeout reached, forcing shutdown");
             },
         }
     }

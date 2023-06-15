@@ -88,7 +88,7 @@ mod tests {
     }
 
     #[test]
-    fn test_packet_params() {
+    fn test_packet_params_short() {
         let (node1_pk, node1_pub) = sphinx_packet::crypto::keygen();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([0u8; NODE_ADDRESS_LENGTH]),
@@ -118,7 +118,7 @@ mod tests {
 
         let route = [node1, node2.clone(), node3.clone(), gateway.clone()];
 
-        let payload = randombytes(21);
+        let payload = vec![0, 0, 1, 1, 1, 0, 0];
 
         let packet =
             OutfoxPacket::build(&payload, &route, &destination, Some(payload.len())).unwrap();
@@ -140,6 +140,62 @@ mod tests {
         let destination_address = packet.decode_next_layer(&gateway_pk).unwrap();
         assert_eq!(destination_address, destination.address.as_bytes());
 
-        assert_eq!(payload, packet.recover_plaintext());
+        assert_eq!(payload, packet.recover_plaintext().unwrap());
+    }
+
+    #[test]
+    fn test_packet_params_long() {
+        let (node1_pk, node1_pub) = sphinx_packet::crypto::keygen();
+        let node1 = Node::new(
+            NodeAddressBytes::from_bytes([0u8; NODE_ADDRESS_LENGTH]),
+            node1_pub,
+        );
+        let (node2_pk, node2_pub) = sphinx_packet::crypto::keygen();
+        let node2 = Node::new(
+            NodeAddressBytes::from_bytes([1u8; NODE_ADDRESS_LENGTH]),
+            node2_pub,
+        );
+        let (node3_pk, node3_pub) = sphinx_packet::crypto::keygen();
+        let node3 = Node::new(
+            NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
+            node3_pub,
+        );
+
+        let (gateway_pk, gateway_pub) = sphinx_packet::crypto::keygen();
+        let gateway = Node::new(
+            NodeAddressBytes::from_bytes([3u8; NODE_ADDRESS_LENGTH]),
+            gateway_pub,
+        );
+
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([9u8; NODE_ADDRESS_LENGTH]),
+            [0u8; 16],
+        );
+
+        let route = [node1, node2.clone(), node3.clone(), gateway.clone()];
+
+        let payload = randombytes(2048);
+
+        let packet =
+            OutfoxPacket::build(&payload, &route, &destination, Some(payload.len())).unwrap();
+        let packet_bytes = packet.to_bytes().unwrap();
+        println!(
+            "packet bytes length, {}, declared {}",
+            packet_bytes.len(),
+            packet.len()
+        );
+
+        let mut packet = OutfoxPacket::try_from(packet_bytes.as_slice()).unwrap();
+
+        let next_address = packet.decode_next_layer(&node1_pk).unwrap();
+        assert_eq!(next_address, node2.address.as_bytes());
+        let next_address = packet.decode_next_layer(&node2_pk).unwrap();
+        assert_eq!(next_address, node3.address.as_bytes());
+        let next_address = packet.decode_next_layer(&node3_pk).unwrap();
+        assert_eq!(next_address, gateway.address.as_bytes());
+        let destination_address = packet.decode_next_layer(&gateway_pk).unwrap();
+        assert_eq!(destination_address, destination.address.as_bytes());
+
+        assert_eq!(payload, packet.recover_plaintext().unwrap());
     }
 }

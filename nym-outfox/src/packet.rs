@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    constants::{DEFAULT_HOPS, MIN_PACKET_SIZE, MIX_PARAMS_LEN},
+    constants::{DEFAULT_HOPS, MAGIC_SLICE, MIN_PACKET_SIZE, MIX_PARAMS_LEN},
     error::OutfoxError,
     format::{MixCreationParameters, MixStageParameters},
 };
@@ -60,16 +60,19 @@ impl TryFrom<&[u8]> for OutfoxPacket {
 }
 
 impl OutfoxPacket {
-    pub fn recover_plaintext(&self) -> Vec<u8> {
+    pub fn recover_plaintext(&self) -> Result<Vec<u8>, OutfoxError> {
         let plaintext = self.payload()[self.payload_range()].to_vec();
-        if plaintext.starts_with(&[0]) {
-            let mut plaintext = VecDeque::from_iter(plaintext);
-            while let Some(0) = plaintext.front() {
-                plaintext.pop_front();
-            }
-            return plaintext.make_contiguous().to_vec();
+        let mut plaintext = VecDeque::from_iter(plaintext);
+        while let Some(0) = plaintext.front() {
+            plaintext.pop_front();
         }
-        plaintext
+        let mut plaintext = plaintext.make_contiguous().to_vec();
+        let payload = plaintext.split_off(MAGIC_SLICE.len());
+        if plaintext != MAGIC_SLICE {
+            Err(OutfoxError::InvalidMagicBytes(plaintext))
+        } else {
+            Ok(payload)
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -100,11 +103,12 @@ impl OutfoxPacket {
             MIN_PACKET_SIZE
         } else {
             packet_size
-        };
+        } + MAGIC_SLICE.len();
         let mix_params = MixCreationParameters::new(packet_size as u16);
 
-        let padding = mix_params.total_packet_length() - payload.as_ref().len();
+        let padding = mix_params.total_packet_length() - payload.as_ref().len() - MAGIC_SLICE.len();
         let mut buffer = vec![0; padding];
+        buffer.extend_from_slice(MAGIC_SLICE);
         buffer.extend_from_slice(payload.as_ref());
 
         // Last node in the route is a gateway, it will decrypt last, and get the final destination address

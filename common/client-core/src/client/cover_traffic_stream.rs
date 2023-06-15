@@ -10,7 +10,7 @@ use log::*;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::cover::generate_loop_cover_packet;
-use nym_sphinx::params::PacketSize;
+use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::utils::sample_poisson_duration;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
@@ -63,6 +63,8 @@ where
 
     /// Optional secondary predefined packet size used for the loop cover messages.
     secondary_packet_size: Option<PacketSize>,
+
+    packet_type: PacketType,
 }
 
 impl<R> Stream for LoopCoverTrafficStream<R>
@@ -135,6 +137,7 @@ impl LoopCoverTrafficStream<OsRng> {
             topology_access,
             primary_packet_size: traffic_config.primary_packet_size,
             secondary_packet_size: traffic_config.secondary_packet_size,
+            packet_type: traffic_config.packet_type,
         }
     }
 
@@ -194,7 +197,7 @@ impl LoopCoverTrafficStream<OsRng> {
             self.average_ack_delay,
             self.cover_traffic.loop_cover_traffic_average_delay,
             cover_traffic_packet_size,
-            nym_sphinx::params::PacketType::Mix,
+            self.packet_type,
         )
         .expect("Somehow failed to generate a loop cover message with a valid topology");
 

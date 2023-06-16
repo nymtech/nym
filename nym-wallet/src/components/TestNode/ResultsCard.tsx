@@ -22,7 +22,7 @@ export const ResultsCardDetail = ({
   </Stack>
 );
 
-export const ResultsCard: React.FC<{ label: string; detail: string; isOk: boolean; children: React.ReactNode }> = ({
+export const ResultsCard: React.FC<{ label: string; detail: string; isOk?: boolean; children: React.ReactNode }> = ({
   label,
   detail,
   isOk,

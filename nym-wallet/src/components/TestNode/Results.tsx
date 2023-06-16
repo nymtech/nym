@@ -5,15 +5,18 @@ import { format } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
 import { Packets } from './Packets';
 import { NodeScore } from './NodeScore';
+import { TestStatus } from 'src/pages/bonding/node-settings/node-test/types';
 
 export const Results = ({
   packetsSent = 0,
   packetsReceived = 0,
   score = 0,
+  status,
 }: {
   packetsSent?: number;
   packetsReceived?: number;
   score?: number;
+  status: TestStatus;
 }) => {
   const ref = useRef(null);
   const handleSaveToPdf = useReactToPrint({ documentTitle: 'Test results', content: () => ref.current });
@@ -37,7 +40,7 @@ export const Results = ({
         </Grid>
         <Grid item container direction="column" md={7}>
           <Stack spacing={2}>
-            <Packets sent={packetsSent} received={packetsReceived} score={score} />
+            <Packets sent={packetsSent} received={packetsReceived} score={score} status={status} />
           </Stack>
         </Grid>
       </Grid>

@@ -16,7 +16,7 @@ export const NodeScore = ({ score }: { score: number }) => {
   const performance = getPerformanceDescription(score);
 
   return (
-    <ResultsCard label="Node score" detail={performance} isOk={performance === 'Reliable node'}>
+    <ResultsCard label="Node score" detail={''}>
       <Box
         sx={{
           display: 'flex',

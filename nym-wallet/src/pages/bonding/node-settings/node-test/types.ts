@@ -33,4 +33,6 @@ type TestPacket = {
   };
 };
 
+export type TestStatus = 'Stopped' | 'Running' | 'Complete';
+
 export type NodeTestEvent = Error | DisplayTesterResults | TestPacket | WorkerLoaded;

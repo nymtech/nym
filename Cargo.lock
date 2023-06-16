@@ -4631,6 +4631,7 @@ dependencies = [
  "nym-service-provider-directory-common",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
+ "openssl",
  "prost 0.10.4",
  "reqwest",
  "serde",

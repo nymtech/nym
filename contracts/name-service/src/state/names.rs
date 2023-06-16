@@ -181,7 +181,7 @@ mod tests {
         error::NameServiceError,
         test_helpers::{
             fixture::{name_fixture, name_fixture_full},
-            helpers::instantiate_test_contract,
+            transactions::instantiate_test_contract,
         },
     };
 

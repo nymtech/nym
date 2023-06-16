@@ -22,7 +22,7 @@ mod tests {
     use crate::test_helpers::{
         assert::assert_names,
         fixture::name_fixture_name,
-        helpers::{delete_name_id, instantiate_test_contract, register_name},
+        transactions::{delete_name_id, instantiate_test_contract, register_name},
     };
 
     #[test]

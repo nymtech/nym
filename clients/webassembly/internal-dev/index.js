@@ -42,6 +42,13 @@ class WebWorkerClient {
                         const resultText = `Test score: ${score}. Sent ${sentPackets} packets. Received ${receivedPackets} packets and ${receivedAcks} acks back. We also got ${duplicatePackets} duplicate packets and ${duplicateAcks} duplicate acks.`
                         displayReceivedRawString(resultText)
                         break;
+
+                    case 'SSLClient':
+                        displaySSLClient(ev.data.args.data)
+                        break
+                    // case 'SSLServer':
+                    //     displaySSLServer(ev.data.args.data)
+                    //     break
                 }
             }
         };
@@ -74,6 +81,27 @@ class WebWorkerClient {
             },
         });
     }
+
+    startHandshake = () => {
+        this.worker.postMessage({
+            kind: 'StartHandshake',
+            args: {  }
+        })
+    }
+
+    requestClientPayload = () => {
+        this.worker.postMessage({
+            kind: 'ClientPayload',
+            args: {  }
+        })
+    }
+
+    sendServerPayload = (data) => {
+        this.worker.postMessage({
+            kind: 'ServerPayload',
+            args: { data }
+        })
+    }
 }
 
 let client = null;
@@ -90,6 +118,29 @@ async function main() {
     magicButton.onclick = function () {
         sendMagicPayload();
     }
+
+    const startButton = document.querySelector('#start-handshake');
+    startButton.onclick = function () {
+        client.startHandshake();
+    }
+
+    const clientDataButton = document.querySelector('#client-data-button');
+    clientDataButton.onclick = function () {
+        client.requestClientPayload()
+    }
+
+    const serverDataButton = document.querySelector('#server-data-button');
+    let dataElement = document.getElementById('server_data');
+    dataElement.value = ""
+
+    serverDataButton.onclick = function () {
+        displaySSLServer(dataElement.value)
+        client.sendServerPayload(dataElement.value)
+        dataElement.value = ""
+    }
+
+
+
 }
 
 /**
@@ -168,6 +219,27 @@ function displayReceivedRawString(raw) {
  */
 function displaySenderAddress(address) {
     document.getElementById('sender').value = address;
+}
+
+function displaySSLClient(data) {
+    let sendDiv = document.createElement('div');
+    let paragraph = document.createElement('p');
+    paragraph.setAttribute('style', 'color: blue');
+    let paragraphContent = document.createTextNode('CLIENT DATA >>> ' + data);
+    paragraph.appendChild(paragraphContent);
+
+    sendDiv.appendChild(paragraph);
+    document.getElementById('ssl-output').appendChild(sendDiv);
+}
+
+function displaySSLServer(data) {
+    let receivedDiv = document.createElement('div');
+    let paragraph = document.createElement('p');
+    paragraph.setAttribute('style', 'color: green');
+    let paragraphContent = document.createTextNode('SERVER DATA >>> ' + data);
+    paragraph.appendChild(paragraphContent);
+    receivedDiv.appendChild(paragraph);
+    document.getElementById('ssl-output').appendChild(receivedDiv);
 }
 
 main();

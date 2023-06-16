@@ -7,6 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+bs58 = "0.4.0"
 cosmwasm-std = { workspace = true }
 cw-controllers = { workspace = true }
 cw-storage-plus = { workspace = true }

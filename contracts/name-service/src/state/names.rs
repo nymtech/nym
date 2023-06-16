@@ -28,9 +28,9 @@ impl<'a> IndexList<RegisteredName> for NameIndex<'a> {
 
 fn names<'a>() -> IndexedMap<'a, NameId, RegisteredName, NameIndex<'a>> {
     let indexes = NameIndex {
-        name: UniqueIndex::new(|d| d.name.to_string(), NAMES_NAME_IDX_NAMESPACE),
+        name: UniqueIndex::new(|d| d.name.name.to_string(), NAMES_NAME_IDX_NAMESPACE),
         address: MultiIndex::new(
-            |d| d.address.to_string(),
+            |d| d.name.address.to_string(),
             NAMES_PK_NAMESPACE,
             NAMES_ADDRESS_IDX_NAMESPACE,
         ),
@@ -43,19 +43,29 @@ fn names<'a>() -> IndexedMap<'a, NameId, RegisteredName, NameIndex<'a>> {
     IndexedMap::new(NAMES_PK_NAMESPACE, indexes)
 }
 
-pub fn save(store: &mut dyn Storage, new_name: &RegisteredName) -> Result<NameId> {
-    let name_id = super::next_name_id_counter(store)?;
+pub fn save(store: &mut dyn Storage, new_name: &RegisteredName) -> Result<()> {
+    let name_id = new_name.id;
     names().save(store, name_id, new_name)?;
-    Ok(name_id)
+    Ok(())
 }
 
 #[cfg(test)]
-pub fn save_all(state: &mut dyn Storage, names: &[RegisteredName]) -> Result<Vec<NameId>> {
-    let mut ids = vec![];
+pub fn save_all(state: &mut dyn Storage, names: &[RegisteredName]) -> Result<()> {
     for name in names {
-        ids.push(save(state, name)?);
+        save(state, name)?;
     }
-    Ok(ids)
+    Ok(())
+}
+
+pub fn remove_id(store: &mut dyn Storage, name_id: NameId) -> Result<()> {
+    Ok(names().remove(store, name_id)?)
+}
+
+#[cfg(test)]
+pub fn remove_name(store: &mut dyn Storage, name: NymName) -> Result<NameId> {
+    let registered_name = load_name(store, &name)?;
+    remove_id(store, registered_name.id)?;
+    Ok(registered_name.id)
 }
 
 pub fn has_name_id(store: &dyn Storage, name_id: NameId) -> bool {
@@ -67,21 +77,21 @@ pub fn has_name(store: &dyn Storage, name: &NymName) -> bool {
 }
 
 // Get the (key, name) entry for a given name
-pub fn load_name_entry(store: &dyn Storage, name: &NymName) -> Result<(NameId, RegisteredName)> {
-    names()
-        .idx
-        .name
-        .range(store, None, None, Order::Ascending)
-        .find(|entry| {
-            if let Ok(entry) = entry {
-                &entry.1.name == name
-            } else {
-                false
-            }
-        })
-        .ok_or(NameServiceError::NameNotFound { name: name.clone() })?
-        .map_err(NameServiceError::from)
-}
+//pub fn load_name_entry(store: &dyn Storage, name: &NymName) -> Result<(NameId, RegisteredName)> {
+//    names()
+//        .idx
+//        .name
+//        .range(store, None, None, Order::Ascending)
+//        .find(|entry| {
+//            if let Ok(entry) = entry {
+//                &entry.1.name == name
+//            } else {
+//                false
+//            }
+//        })
+//        .ok_or(NameServiceError::NameNotFound { name: name.clone() })?
+//        .map_err(NameServiceError::from)
+//}
 
 pub fn load_id(store: &dyn Storage, name_id: NameId) -> Result<RegisteredName> {
     names().load(store, name_id).map_err(|err| match err {
@@ -99,45 +109,33 @@ pub fn load_name(store: &dyn Storage, name: &NymName) -> Result<RegisteredName> 
         .ok_or(NameServiceError::NameNotFound { name: name.clone() })
 }
 
-pub fn load_address(
-    store: &dyn Storage,
-    address: &Address,
-) -> Result<Vec<(NameId, RegisteredName)>> {
+pub fn load_address(store: &dyn Storage, address: &Address) -> Result<Vec<RegisteredName>> {
     names()
         .idx
         .address
         .prefix(address.to_string())
         .range(store, None, None, Order::Ascending)
         .take(MAX_NUMBER_OF_NAMES_FOR_ADDRESS as usize)
+        .map(|res| res.map(|(_, name)| name))
         .collect::<StdResult<Vec<_>>>()
         .map_err(NameServiceError::from)
 }
 
-pub fn load_owner(store: &dyn Storage, owner: Addr) -> Result<Vec<(NameId, RegisteredName)>> {
+pub fn load_owner(store: &dyn Storage, owner: Addr) -> Result<Vec<RegisteredName>> {
     names()
         .idx
         .owner
         .prefix(owner)
         .range(store, None, None, Order::Ascending)
         .take(MAX_NUMBER_OF_NAMES_PER_OWNER as usize)
+        .map(|res| res.map(|(_, name)| name))
         .collect::<StdResult<Vec<_>>>()
         .map_err(NameServiceError::from)
 }
 
-pub fn remove_id(store: &mut dyn Storage, name_id: NameId) -> Result<()> {
-    Ok(names().remove(store, name_id)?)
-}
-
-#[cfg(test)]
-pub fn remove_name(store: &mut dyn Storage, name: NymName) -> Result<NameId> {
-    let name_info = load_name_entry(store, &name)?;
-    remove_id(store, name_info.0)?;
-    Ok(name_info.0)
-}
-
 #[derive(Debug, PartialEq)]
 pub struct PagedLoad {
-    pub names: Vec<(NameId, RegisteredName)>,
+    pub names: Vec<RegisteredName>,
     pub limit: usize,
     pub start_next_after: Option<NameId>,
 }
@@ -156,9 +154,10 @@ pub fn load_all_paged(
     let names = names()
         .range(store, start, None, Order::Ascending)
         .take(limit)
+        .map(|res| res.map(|(_, name)| name))
         .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = names.last().map(|name| name.0);
+    let start_next_after = names.last().map(|name| name.id);
 
     Ok(PagedLoad {
         names,

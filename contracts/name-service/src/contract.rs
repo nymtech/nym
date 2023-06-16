@@ -72,7 +72,10 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, NameServiceError> {
     match msg {
-        ExecuteMsg::Register { name, address } => execute::register(deps, env, info, name, address),
+        ExecuteMsg::Register {
+            name,
+            owner_signature,
+        } => execute::register(deps, env, info, name, owner_signature),
         ExecuteMsg::DeleteId { name_id } => execute::delete_id(deps, info, name_id),
         ExecuteMsg::DeleteName { name } => execute::delete_name(deps, info, name),
         ExecuteMsg::UpdateDepositRequired { deposit_required } => {

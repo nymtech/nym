@@ -38,7 +38,8 @@ const {
     MixFetchClient,
     current_network_topology,
     make_key,
-    make_key2
+    make_key2,
+    call_go_foomp
 } = wasm_bindgen;
 
 let client = null;
@@ -430,6 +431,142 @@ async function testMixFetch() {
     // await client.fetch_with_str('https://nymtech.net/.wellknown/wallet/validators.json');
 }
 
+async function testMixFetchSSL() {
+    const debug = default_debug();
+    debug.disable_main_poisson_packet_distribution = true;
+    debug.disable_loop_cover_traffic_stream = true;
+
+    const preferredGateway = "336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9";
+    const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
+    const mix_fetch_network_requester_address= "FbFmrWX1xkd3MUv1LinQ4emXrtP8krvGEngXPECDpN3c.BZJ9zVb19q8JDWRYSvcwQMSivBWt8FJPdK7dY2A3Aqx1@6Lnxj9vD2YMtSmfe8zp5RBtj1uZLYQAFRxY9q7ANwrZz";
+
+    const config = new MixFetchConfig('my-awesome-mix-fetch-client-with-go', mix_fetch_network_requester_address, validator, undefined, debug);
+
+    const onMessageHandler = (message) => {
+        console.log(message);
+        self.postMessage({
+            kind: 'ReceiveMessage',
+            args: {
+                message,
+            },
+        });
+    };
+
+    console.log('Instantiating Mix Fetch client...');
+    let mix_fetch = await new MixFetchClient(config, preferredGateway)
+    console.log('Mix Fetch client running!');
+
+    const selfAddress = mix_fetch.self_address();
+
+    // set the global (I guess we don't have to anymore?)
+    client = mix_fetch;
+
+    console.log(`Client address is ${selfAddress}`);
+    self.postMessage({
+        kind: 'Ready',
+        args: {
+            selfAddress,
+        },
+    });
+
+    // const fetchToMixnetRequest = new FetchToMixnetRequest();
+    // console.log(fetchToMixnetRequest.fetch_with_str('https://nymtech.net/index.html'));
+    // console.log(fetchToMixnetRequest.fetch_with_request({
+    //     url: 'https://nymtech.net/.wellknown/wallet/validators.json',
+    //     method: 'GET'
+    // }));
+    // console.log(fetchToMixnetRequest.fetch_with_request({
+    //     url: 'http://localhost:3000',
+    //     method: 'POST',
+    //     body: Uint8Array.from([0, 1, 2, 3, 4])
+    // }));
+    // console.log(fetchToMixnetRequest.fetch_with_str_and_init('http://localhost:3000', {
+    //     method: 'POST',
+    //     body: Uint8Array.from([1, 1, 1, 1, 1]),
+    //     headers: {'Content-Type': 'application/json'}
+    // }));
+    // console.log(fetchToMixnetRequest.fetch_with_request_and_init({
+    //     url: 'https://nymtech.net/.wellknown/wallet/validators.json',
+    //     method: 'GET'
+    // }, {body: Uint8Array.from([1, 1, 1, 1, 1]), headers: {'Content-Type': 'application/json'}}));
+
+    // Set callback to handle messages passed to the worker.
+    self.onmessage = async event => {
+        console.log(event)
+        if (event.data && event.data.kind) {
+            switch (event.data.kind) {
+                case 'MagicPayload': {
+                    // ignore the field naming : ) I'm just abusing that a bit...
+                    const {mixnodeIdentity} = event.data.args;
+                    const url = mixnodeIdentity;
+
+                    console.log('using mixFetch...');
+                    let res = await client.fetch_with_str(url);
+                    let text = await res.text()
+                    console.log('mixFetch done');
+                    console.log("HEADERS:     ", ...res.headers)
+                    console.log("STATUS:      ", res.status)
+                    console.log("STATUS TEXT: ", res.statusText)
+                    console.log("OK:          ", res.ok)
+                    console.log("TYPE:        ", res.type)
+                    console.log("URL:         ", res.url)
+                    console.log("TEXT:\n",text)
+
+                    self.postMessage({
+                        kind: 'DisplayString',
+                        args: {
+                            rawString: text,
+                        },
+                    });
+                }
+            }
+        }
+    };
+
+    // console.log('using mixFetch...');
+    // await client.fetch_with_str('https://nymtech.net/.wellknown/wallet/validators.json');
+}
+
+async function basicSSL() {
+
+    self.onmessage = async event => {
+        if (event.data && event.data.kind) {
+            switch (event.data.kind) {
+                case 'StartHandshake': {
+                    console.log("start")
+                    let clientHello = goWasmStartSSLHandshake();
+                    self.postMessage({
+                        kind: 'SSLClient',
+                        args: { data: clientHello },
+                    });
+
+                    break
+                }
+
+                case 'ClientPayload': {
+                    let clientData = goWasmTryReadClientData();
+                    self.postMessage({
+                        kind: 'SSLClient',
+                        args: { data: clientData },
+                    });
+
+                    break
+                }
+                case 'ServerPayload': {
+                    const data = event.data.args.data
+                    console.log("INJECTING", data)
+
+
+                    goWasmInjectServerData(data)
+
+                    break
+
+                }
+            }
+        }
+    };
+}
+
 async function loadGoWasm() {
     const resp = await fetch(GO_WASM_URL);
     const bytes = await resp.arrayBuffer();
@@ -455,6 +592,8 @@ async function loadGoWasm() {
 }
 
 async function main() {
+    console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN START");
+
     // load rust WASM package
     await wasm_bindgen(RUST_WASM_URL);
     console.log('Loaded RUST WASM');
@@ -467,8 +606,14 @@ async function main() {
     // sets up better stack traces in case of in-rust panics
     set_panic_hook();
 
-    let foomp = goFoomp();
-    console.log("logging results from go in JS: ", foomp)
+    await basicSSL()
+
+
+    // let foomp = goFoomp();
+    // console.log("logging results from go in JS: ", foomp)
+    //
+    // console.log("attempting to call go from rust via js!");
+    // call_go_foomp()
 
     // test mixFetch
     // await testMixFetch();
@@ -481,6 +626,8 @@ async function main() {
 
     // 'Normal' client setup (to send 'normal' messages)
     // await normalNymClientUsage()
+
+    console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END")
 }
 
 // Let's get started!

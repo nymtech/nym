@@ -50,7 +50,7 @@ export const NodeTestPage = () => {
           mixnodeIdentity: bondedNode?.identityKey,
           network,
         },
-      });
+      } as NodeTestEvent);
     }
   };
 

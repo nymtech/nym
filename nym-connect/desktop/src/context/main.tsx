@@ -9,9 +9,11 @@ import { getItemFromStorage, setItemInStorage } from 'src/utils';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider } from '../types/directory';
+import initSentry from '../sentry';
 
 const FORAGE_GATEWAY_KEY = 'nym-connect-user-gateway';
 const FORAGE_SP_KEY = 'nym-connect-user-sp';
+const FORAGE_MONITORING_ENABLED = 'nym-connect-monitoring-enabled';
 
 type ModeType = 'light' | 'dark';
 
@@ -30,6 +32,7 @@ export type TClientContext = {
   serviceProviders?: ServiceProvider[];
   setMode: (mode: ModeType) => void;
   clearError: () => void;
+  monitoringEnabled: boolean;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
@@ -39,6 +42,7 @@ export type TClientContext = {
   startDisconnecting: () => Promise<void>;
   setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;
   setUserDefinedSPAddress: React.Dispatch<React.SetStateAction<UserDefinedSPAddress>>;
+  setMonitoring: (value: boolean) => Promise<void>;
 };
 
 export const ClientContext = createContext({} as TClientContext);
@@ -62,11 +66,24 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     isActive: false,
     address: undefined,
   });
+  const [monitoringEnabled, setMonitoringEnabled] = useState(false);
 
   const getAppVersion = async () => {
     const version = await getVersion();
     return version;
   };
+
+  useEffect(() => {
+    const initSentryClient = async () => {
+      const monitoring = await getItemFromStorage({ key: FORAGE_MONITORING_ENABLED });
+      setMonitoringEnabled(Boolean(monitoring));
+      if (monitoring === true) {
+        await initSentry();
+      }
+    };
+
+    initSentryClient();
+  }, []);
 
   useEffect(() => {
     setItemInStorage({ key: FORAGE_GATEWAY_KEY, value: userDefinedGateway });
@@ -85,8 +102,12 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     setAppVersion(AppVersion);
     setServiceProviders(services as ServiceProvider[]);
 
-    if (storedUserDefinedGateway) setUserDefinedGateway(storedUserDefinedGateway);
-    if (storedUserDefinedSP) setUserDefinedSPAddress(storedUserDefinedSP);
+    if (storedUserDefinedGateway) {
+      setUserDefinedGateway(storedUserDefinedGateway);
+    }
+    if (storedUserDefinedSP) {
+      setUserDefinedSPAddress(storedUserDefinedSP);
+    }
   };
 
   useEvents({
@@ -162,6 +183,11 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const clearError = () => setError(undefined);
 
+  const setMonitoring = async (value: boolean) => {
+    setMonitoringEnabled(value);
+    await setItemInStorage({ key: FORAGE_MONITORING_ENABLED, value });
+  };
+
   const contextValue = useMemo(
     () => ({
       mode,
@@ -177,6 +203,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       selectedProvider,
       serviceProviders,
       connectedSince,
+      monitoringEnabled,
       setConnectedSince,
       setSerivceProvider,
       startConnecting,
@@ -187,6 +214,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       userDefinedGateway,
       setUserDefinedGateway,
       setUserDefinedSPAddress,
+      setMonitoring,
     }),
     [
       mode,
@@ -202,6 +230,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       selectedProvider,
       userDefinedGateway,
       userDefinedSPAddress,
+      monitoringEnabled,
     ],
   );
 

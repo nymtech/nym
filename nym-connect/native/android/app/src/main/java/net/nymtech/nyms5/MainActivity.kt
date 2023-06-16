@@ -114,6 +114,11 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        viewModel.checkStateSync()
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

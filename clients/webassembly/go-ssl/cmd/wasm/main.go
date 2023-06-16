@@ -24,13 +24,20 @@ func init() {
 }
 
 func main() {
+	println("go wasm main start")
 	//js.Global().Set("wasmFoomp", js.FuncOf(foomp))
 	js.Global().Set("wasmClientHello", js.FuncOf(makeClientHello))
 	js.Global().Set("wasmClientHelloUtls", js.FuncOf(makeClientHelloUtls))
 	js.Global().Set("wasmInsertServerHello", js.FuncOf(insertServerHello))
 	js.Global().Set("wasmPrintConnection", js.FuncOf(printConnection))
+	js.Global().Set("goFoomp", js.FuncOf(printFoomp))
 	<-done
 	println("go wasm is done.")
+}
+
+func printFoomp(this js.Value, args []js.Value) interface{} {
+	println("go foomp")
+	return "foomp indeed"
 }
 
 /*

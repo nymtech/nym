@@ -1028,6 +1028,9 @@ globby@^12.0.2:
     merge2 "^1.4.1"
     slash "^4.0.0"
 
+"go-ssl-helper@file:../go-ssl/pkg":
+  version "0.0.0"
+
 graceful-fs@^4.1.2, graceful-fs@^4.2.4, graceful-fs@^4.2.6, graceful-fs@^4.2.9:
   version "4.2.11"
   resolved "https://registry.yarnpkg.com/graceful-fs/-/graceful-fs-4.2.11.tgz#4183e4e8bf08bb6e05bbb2f7d2e0c8f712ca40e3"

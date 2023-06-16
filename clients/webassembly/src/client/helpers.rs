@@ -41,15 +41,6 @@ pub(crate) trait InputSender {
     fn send_message(&self, message: InputMessage) -> Promise;
 
     fn send_messages(&self, messages: Vec<InputMessage>) -> Promise;
-
-    fn send_mix_fetch_message(
-        &self,
-        recipient: Recipient,
-        connection_id: u64,
-        local_closed: bool,
-        ordered_message_index: u64,
-        req: HttpCodecRequest<Vec<u8>>,
-    ) -> Promise;
 }
 
 impl InputSender for Arc<ClientInput> {
@@ -76,39 +67,6 @@ impl InputSender for Arc<ClientInput> {
                 }
             }
             Ok(JsValue::null())
-        })
-    }
-
-    fn send_mix_fetch_message(
-        &self,
-        recipient: Recipient,
-        connection_id: u64,
-        local_closed: bool,
-        ordered_message_index: u64,
-        req: HttpCodecRequest<Vec<u8>>,
-    ) -> Promise {
-        let this = Arc::clone(self);
-        future_to_promise(async move {
-            match http_request_to_mixnet_request_to_vec_u8(
-                connection_id,
-                local_closed,
-                ordered_message_index,
-                req,
-            ) {
-                Ok(request) => {
-                    let lane = TransmissionLane::General;
-                    let message = InputMessage::new_regular(recipient, request, lane, None);
-                    match this.input_sender.send(message).await {
-                        Ok(_) => Ok(JsValue::null()),
-                        Err(_) => {
-                            let js_error =
-                                js_sys::Error::new("InputMessageReceiver has stopped receiving!");
-                            Err(JsValue::from(js_error))
-                        }
-                    }
-                }
-                Err(js_err) => Err(JsValue::from(js_err)),
-            }
         })
     }
 }

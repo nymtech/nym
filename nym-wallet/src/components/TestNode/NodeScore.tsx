@@ -1,22 +1,33 @@
 import React from 'react';
-import { Box, CircularProgress, Stack, Typography } from '@mui/material';
+import { Box, CircularProgress, CircularProgressProps, Stack, Typography } from '@mui/material';
 import { ResultsCard } from './ResultsCard';
 
-const getPerformanceDescription = (score: number) => {
-  if (score >= 90) return 'Reliable node';
+const getPerformanceDescriptionAndColor = (score: number) => {
+  const res: { description: string; color: CircularProgressProps['color'] } = { description: '', color: 'warning' };
 
-  if (score >= 75 && score < 90) return 'Average node';
+  if (score >= 90) {
+    res.description = 'Reliable node';
+    res.color = 'success';
+  }
 
-  if (score > 0 && score < 75) return 'Unreliable node';
+  if (score >= 75 && score < 90) {
+    res.description = 'Average node';
+    res.color = 'warning';
+  }
 
-  return '';
+  if (score > 0 && score < 75) {
+    res.description = 'Unreliable node';
+    res.color = 'error';
+  }
+
+  return res;
 };
 
 export const NodeScore = ({ score }: { score: number }) => {
-  const performance = getPerformanceDescription(score);
+  const { color } = getPerformanceDescriptionAndColor(score);
 
   return (
-    <ResultsCard label="Node score" detail={''}>
+    <ResultsCard label="Node score" detail="">
       <Box
         sx={{
           display: 'flex',
@@ -34,11 +45,11 @@ export const NodeScore = ({ score }: { score: number }) => {
           value={score}
           size={250}
           sx={{ position: 'absolute', top: 0, left: 0 }}
-          color={performance === 'Unreliable node' ? 'error' : performance === 'Reliable node' ? 'success' : 'warning'}
+          color={color}
         />
         <Stack alignItems="center" gap={1}>
           <Typography fontWeight="bold" variant="h4">
-            {score}%
+            {Math.round(score)}%
           </Typography>
           <Typography>Performance Score</Typography>
         </Stack>

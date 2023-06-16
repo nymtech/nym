@@ -1,11 +1,11 @@
 import React, { useRef } from 'react';
 import { Download } from '@mui/icons-material';
-import { Stack, Box, Typography, Button, Grid, CircularProgress } from '@mui/material';
+import { Stack, Box, Typography, Button, Grid } from '@mui/material';
 import { format } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
+import { TestStatus } from 'src/pages/bonding/node-settings/node-test/types';
 import { Packets } from './Packets';
 import { NodeScore } from './NodeScore';
-import { TestStatus } from 'src/pages/bonding/node-settings/node-test/types';
 
 export const Results = ({
   packetsSent = 0,

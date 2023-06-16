@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/* eslint-disable no-restricted-globals */
 import { NymNodeTester, set_panic_hook, current_network_topology, NodeTestResult } from 'nym-client-wasm';
 import { Network } from 'src/types';
 import { NodeTestEvent } from './types';
@@ -62,7 +63,7 @@ async function testNode() {
 
         try {
           console.log(`Testing mixnode identity: ${mixnodeIdentity}, on network: ${network}.`);
-          let result = await nodeTester.test_node(mixnodeIdentity);
+          const result = await nodeTester.test_node(mixnodeIdentity);
 
           printAndDisplayTestResult(result);
 
@@ -79,8 +80,13 @@ async function testNode() {
             args: { message: errorMessage },
           });
         }
+        break;
       }
+      default:
+        return undefined;
     }
+
+    return undefined;
   };
 }
 

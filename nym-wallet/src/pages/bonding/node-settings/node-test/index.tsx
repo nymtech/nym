@@ -1,10 +1,10 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { AppContext, useBondingContext } from 'src/context';
-import { NodeTestEvent, NodeTestResult, TestStatus } from './types';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { Results } from 'src/components/TestNode/Results';
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
+import { NodeTestEvent, NodeTestResult, TestStatus } from './types';
 
 export const NodeTestPage = () => {
   const [nodeTestWorker, setNodeTestWorker] = useState<Worker>();
@@ -13,7 +13,7 @@ export const NodeTestPage = () => {
   const [results, setResults] = useState<NodeTestResult>();
 
   const testStateRef = useRef<TestStatus>('Stopped');
-  let timerRef = useRef<NodeJS.Timeout>();
+  const timerRef = useRef<NodeJS.Timeout>();
 
   const { network } = useContext(AppContext);
   const { bondedNode } = useBondingContext();
@@ -38,20 +38,18 @@ export const NodeTestPage = () => {
     }, 15000);
   };
 
-  const handleWorkerMessages = (worker: Worker) => {
-    worker.onmessage = (ev: MessageEvent<NodeTestEvent>) => {
-      const eventKind = ev.data.kind;
+  const handleWorkerMessages = (ev: MessageEvent<NodeTestEvent>) => {
+    const eventKind = ev.data.kind;
 
-      if (eventKind === 'Error') {
-        setError(ev.data.args.message);
-        testStateRef.current = 'Stopped';
-      }
-      if (eventKind === 'DisplayTesterResults') {
-        setResults(ev.data.args.result);
-        testStateRef.current = 'Complete';
-      }
-      setIsLoading(false);
-    };
+    if (eventKind === 'Error') {
+      setError(ev.data.args.message);
+      testStateRef.current = 'Stopped';
+    }
+    if (eventKind === 'DisplayTesterResults') {
+      setResults(ev.data.args.result);
+      testStateRef.current = 'Complete';
+    }
+    setIsLoading(false);
   };
 
   const handleTestNode = async () => {
@@ -84,13 +82,15 @@ export const NodeTestPage = () => {
 
   useEffect(() => {
     if (nodeTestWorker) {
-      handleWorkerMessages(nodeTestWorker);
+      nodeTestWorker.addEventListener('message', (e) => handleWorkerMessages(e));
     }
+
+    return () => nodeTestWorker?.removeEventListener('message', handleWorkerMessages);
   }, [nodeTestWorker]);
 
   return (
     <Box p={4}>
-      {isLoading && <LoadingModal text={`Testing mixnode, please wait..`} />}
+      {isLoading && <LoadingModal text="Testing mixnode, please wait.." />}
       {error && <ErrorModal open onClose={() => setError(undefined)} title="Node test failed" message={error} />}
       <Results
         packetsSent={results?.sentPackets}

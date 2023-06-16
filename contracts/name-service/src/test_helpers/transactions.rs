@@ -6,10 +6,11 @@ use cosmwasm_std::{
 use nym_name_service_common::{
     events::{NameEventType, NAME_ID},
     msg::{ExecuteMsg, InstantiateMsg},
-    NameId, NymName, RegisteredName,
+    NameDetails, NameId, NymName,
 };
+use rand_chacha::rand_core::{CryptoRng, RngCore};
 
-use super::helpers::get_attribute;
+use super::helpers::{get_attribute, nyms};
 
 pub fn instantiate_test_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier> {
     let mut deps = mock_dependencies();
@@ -23,14 +24,38 @@ pub fn instantiate_test_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuer
     deps
 }
 
-pub fn register_name(deps: DepsMut<'_>, name: &RegisteredName) -> NameId {
-    let msg: ExecuteMsg = name.clone().into();
-    let info = mock_info(name.owner.as_str(), &coins(100, "unym"));
+pub fn register_name<R>(
+    deps: DepsMut<'_>,
+    rng: &mut R,
+    name: &str,
+    nym_address: &str,
+    owner: &str,
+) -> (NameId, NameDetails)
+where
+    R: RngCore + CryptoRng,
+{
+    let deposit = nyms(100);
+    let (name, owner_signature) = super::fixture::new_name_details_with_sign(
+        deps.branch(),
+        rng,
+        name,
+        nym_address,
+        owner,
+        deposit.clone(),
+    );
+
+    // Register
+    let msg = ExecuteMsg::Register {
+        name: name.clone(),
+        owner_signature,
+    };
+    let info = mock_info(owner, &[deposit]);
     let res = crate::execute(deps, mock_env(), info, msg).unwrap();
+
     let name_id: NameId = get_attribute(&res, &NameEventType::Register.to_string(), NAME_ID)
         .parse()
         .unwrap();
-    name_id
+    (name_id, name)
 }
 
 pub fn delete_name_id(deps: DepsMut<'_>, name_id: NameId, owner: &str) {

@@ -114,7 +114,7 @@ mod tests {
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Coin,
     };
-    use nym_name_service_common::{msg::ExecuteMsg, NameEntry, NameId};
+    use nym_name_service_common::{msg::ExecuteMsg, NameId};
 
     const DENOM: &str = "unym";
 

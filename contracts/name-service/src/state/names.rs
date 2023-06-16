@@ -196,27 +196,27 @@ mod tests {
     #[rstest::fixture]
     fn uniq_names() -> Vec<RegisteredName> {
         vec![
-            name_fixture_full("one", "address_one", "owner_one"),
-            name_fixture_full("two", "address_two", "owner_two"),
-            name_fixture_full("three", "address_three", "owner_three"),
+            name_fixture_full(1, "one", "address_one", "owner_one"),
+            name_fixture_full(2, "two", "address_two", "owner_two"),
+            name_fixture_full(3, "three", "address_three", "owner_three"),
         ]
     }
 
     #[rstest::fixture]
     fn overlapping_addresses() -> Vec<RegisteredName> {
         vec![
-            name_fixture_full("one", "address_one", "owner_one"),
-            name_fixture_full("two", "address_two", "owner_two"),
-            name_fixture_full("three", "address_two", "owner_three"),
+            name_fixture_full(1, "one", "address_one", "owner_one"),
+            name_fixture_full(2, "two", "address_two", "owner_two"),
+            name_fixture_full(3, "three", "address_two", "owner_three"),
         ]
     }
 
     #[rstest::fixture]
     fn overlapping_owners() -> Vec<RegisteredName> {
         vec![
-            name_fixture_full("one", "address_one", "owner_one"),
-            name_fixture_full("two", "address_two", "owner_two"),
-            name_fixture_full("three", "address_three", "owner_two"),
+            name_fixture_full(1, "one", "address_one", "owner_one"),
+            name_fixture_full(2, "two", "address_two", "owner_two"),
+            name_fixture_full(3, "three", "address_three", "owner_two"),
         ]
     }
 
@@ -225,9 +225,9 @@ mod tests {
         let loaded = load_all_paged(store, None, None).unwrap();
         for (id, name) in &names {
             assert!(!has_name_id(store, *id));
-            assert!(!has_name(store, &name.name));
-            assert!(!loaded.names.iter().any(|(i, _)| i == id));
-            assert!(!loaded.names.iter().any(|(_, n)| n == name));
+            assert!(!has_name(store, &name.name.name));
+            assert!(!loaded.names.iter().any(|l_name| &l_name.id == id));
+            assert!(!loaded.names.iter().any(|l_name| &l_name.name == name));
         }
     }
 
@@ -266,52 +266,37 @@ mod tests {
 
     #[rstest]
     fn single_basic_save_works(mut deps: TestDeps) {
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
     }
 
     #[rstest]
     fn save_same_name_twice_fails(mut deps: TestDeps) {
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert!(matches!(
-            save(deps.as_mut().storage, &name_fixture()).unwrap_err(),
+            save(deps.as_mut().storage, &name_fixture(1)).unwrap_err(),
             NameServiceError::Std(StdError::GenericErr { .. })
         ));
     }
 
     #[rstest]
     fn has_name_works(mut deps: TestDeps) {
-        assert!(!has_name(&deps.storage, &name_fixture().name));
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
-        assert!(has_name(&deps.storage, &name_fixture().name));
+        assert!(!has_name(&deps.storage, &name_fixture(1).name.name));
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
+        assert!(has_name(&deps.storage, &name_fixture(1).name.name));
     }
 
     #[rstest]
     fn has_name_id_works(mut deps: TestDeps) {
         assert!(!has_name_id(&deps.storage, 1));
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert!(has_name_id(&deps.storage, 1));
     }
 
     #[rstest]
     fn has_name_id_with_incorrect_id_fails(mut deps: TestDeps) {
         assert!(!has_name_id(&deps.storage, 2));
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert!(!has_name_id(&deps.storage, 2));
-    }
-
-    #[rstest]
-    fn load_name_entry_works(mut deps: TestDeps) {
-        assert_eq!(
-            load_name_entry(deps.as_ref().storage, &name_fixture().name).unwrap_err(),
-            NameServiceError::NameNotFound {
-                name: name_fixture().name
-            }
-        );
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
-        assert_eq!(
-            load_name_entry(deps.as_ref().storage, &name_fixture().name).unwrap(),
-            (1, name_fixture())
-        );
     }
 
     #[rstest]
@@ -320,48 +305,48 @@ mod tests {
             load_id(deps.as_ref().storage, 1).unwrap_err(),
             NameServiceError::NotFound { name_id: 1 }
         );
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
-        assert_eq!(load_id(deps.as_ref().storage, 1).unwrap(), name_fixture(),);
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
+        assert_eq!(load_id(deps.as_ref().storage, 1).unwrap(), name_fixture(1),);
     }
 
     #[rstest]
     fn load_name_works(mut deps: TestDeps) {
         assert_eq!(
-            load_name(deps.as_ref().storage, &name_fixture().name).unwrap_err(),
+            load_name(deps.as_ref().storage, &name_fixture(1).name.name).unwrap_err(),
             NameServiceError::NameNotFound {
-                name: name_fixture().name
+                name: name_fixture(1).name.name,
             }
         );
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert_eq!(
-            load_name(deps.as_ref().storage, &name_fixture().name).unwrap(),
-            name_fixture(),
+            load_name(deps.as_ref().storage, &name_fixture(1).name.name).unwrap(),
+            name_fixture(1),
         );
     }
 
     #[rstest]
     fn load_address_works(mut deps: TestDeps) {
         assert_eq!(
-            load_address(deps.as_ref().storage, &name_fixture().address).unwrap(),
+            load_address(deps.as_ref().storage, &name_fixture(1).name.address).unwrap(),
             vec![],
         );
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert_eq!(
-            load_address(deps.as_ref().storage, &name_fixture().address).unwrap(),
-            vec![(1, name_fixture())],
+            load_address(deps.as_ref().storage, &name_fixture(1).name.address).unwrap(),
+            vec![name_fixture(1)],
         );
     }
 
     #[rstest]
     fn load_owner_works(mut deps: TestDeps) {
         assert_eq!(
-            load_owner(deps.as_ref().storage, name_fixture().owner).unwrap(),
+            load_owner(deps.as_ref().storage, name_fixture(1).owner).unwrap(),
             vec![],
         );
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert_eq!(
-            load_owner(deps.as_ref().storage, name_fixture().owner).unwrap(),
-            vec![(1, name_fixture())],
+            load_owner(deps.as_ref().storage, name_fixture(1).owner).unwrap(),
+            vec![name_fixture(1)],
         );
     }
 
@@ -379,7 +364,7 @@ mod tests {
         assert_eq!(
             load_all_paged(&deps.storage, None, None).unwrap(),
             PagedLoad {
-                names: vec![(1, uniq_names[0].clone())],
+                names: vec![uniq_names[0].clone()],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(1),
             }
@@ -388,22 +373,22 @@ mod tests {
 
     #[rstest]
     fn remove_id_works(mut deps: TestDeps) {
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert!(has_name_id(&deps.storage, 1));
-        assert!(has_name(&deps.storage, &name_fixture().name));
+        assert!(has_name(&deps.storage, &name_fixture(1).name.name));
         remove_id(deps.as_mut().storage, 1).unwrap();
         assert!(!has_name_id(&deps.storage, 1));
-        assert!(!has_name(&deps.storage, &name_fixture().name));
+        assert!(!has_name(&deps.storage, &name_fixture(1).name.name));
     }
 
     #[rstest]
     fn remove_name_works(mut deps: TestDeps) {
-        save(deps.as_mut().storage, &name_fixture()).unwrap();
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert!(has_name_id(&deps.storage, 1));
-        assert!(has_name(&deps.storage, &name_fixture().name));
-        remove_name(deps.as_mut().storage, name_fixture().name).unwrap();
+        assert!(has_name(&deps.storage, &name_fixture(1).name.name));
+        remove_name(deps.as_mut().storage, name_fixture(1).name.name).unwrap();
         assert!(!has_name_id(&deps.storage, 1));
-        assert!(!has_name(&deps.storage, &name_fixture().name));
+        assert!(!has_name(&deps.storage, &name_fixture(1).name.name));
     }
 
     #[rstest]

@@ -3,13 +3,13 @@
 use cosmwasm_std::Addr;
 use nym_name_service_common::{
     response::{ConfigResponse, PagedNamesListResponse},
-    Address, NameEntry, NymName, RegisteredName,
+    Address, NymName, RegisteredName,
 };
 
 use crate::{
     constants::NAME_DEFAULT_RETRIEVAL_LIMIT,
     error::NameServiceError,
-    test_helpers::{fixture::name_entry, helpers::nyms, test_setup::TestSetup},
+    test_helpers::{helpers::nyms, test_setup::TestSetup},
 };
 
 #[test]

@@ -1419,6 +1419,7 @@ dependencies = [
  "cw-utils",
  "cw2",
  "nym-contracts-common",
+ "nym-crypto",
  "nym-name-service-common",
  "rand 0.8.5",
  "rand_chacha 0.2.2",

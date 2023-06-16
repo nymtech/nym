@@ -96,12 +96,20 @@ pub struct Config {
     pub rewarding: Rewarding,
 
     pub coconut_signer: CoconutSigner,
+
+    pub ephemera: Ephemera,
 }
 
 impl NymConfigTemplate for Config {
     fn template() -> &'static str {
         CONFIG_TEMPLATE
     }
+}
+
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct Ephemera {
+    args: crate::ephemera::Args,
 }
 
 impl Config {
@@ -115,6 +123,7 @@ impl Config {
             circulating_supply_cacher: Default::default(),
             rewarding: Default::default(),
             coconut_signer: CoconutSigner::new_default(base_data_dir),
+            ephemera: Default::default(),
         }
     }
 
@@ -209,6 +218,14 @@ impl Config {
 
     pub fn get_mnemonic(&self) -> bip39::Mnemonic {
         self.base.mnemonic.clone()
+    }
+
+    pub fn get_ephemera_args(&self) -> &crate::ephemera::Args {
+        &self.ephemera.args
+    }
+
+    pub fn get_ephemera_config_path(&self) -> String {
+        self.ephemera.args.ephemera_config.clone()
     }
 }
 

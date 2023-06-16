@@ -156,6 +156,7 @@ impl From<ConfigV1_1_21> for Config {
                     dkg_contract_polling_rate: value.coconut_signer.dkg_contract_polling_rate,
                 },
             },
+            ephemera: Default::default(),
         }
     }
 }

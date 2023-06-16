@@ -1,11 +1,11 @@
+use anyhow::anyhow;
 use std::str::FromStr;
 use std::sync::Arc;
 
 use clap::Parser;
-use futures_util::future::Either;
-use log::{info, trace};
+use log::trace;
+use nym_task::TaskManager;
 use reqwest::Url;
-use tokio::signal::unix::{signal, SignalKind};
 
 use crate::ephemera_api::ApplicationResult;
 use crate::utilities::codec::{Codec, EphemeraCodec};
@@ -61,39 +61,16 @@ impl RunExternalNodeCmd {
             .with_members_provider(members_provider)?
             .build();
 
-        let mut ephemera_shutdown = ephemera.ephemera_handle.shutdown.clone();
-        let mut ephemera_shutdown_internal = ephemera_shutdown.clone();
+        let shutdown = TaskManager::new(10);
 
-        let ephemera_handle = tokio::spawn(ephemera.run());
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(ephemera.run(shutdown_listener));
 
-        let shutdown = async {
-            let mut stream_int = signal(SignalKind::interrupt()).unwrap();
-            let mut stream_term = signal(SignalKind::terminate()).unwrap();
-            tokio::select! {
-                _ = stream_int.recv() => {
-                    ephemera_shutdown.shutdown().expect("Failed to shutdown");
-                }
-                _ = stream_term.recv() => {
-                    ephemera_shutdown.shutdown().expect("Failed to shutdown");
-                }
-            }
-        };
-
-        match futures::future::select(Box::pin(shutdown), ephemera_handle).await {
-            Either::Left((_, ephemera_exited)) => {
-                info!("Shutdown signal received, shutting down");
-                ephemera_exited.await.unwrap();
-                info!("Shutdown complete");
-            }
-            Either::Right((_, _)) => {
-                info!("Ephemera failed, trying graceful shutdown...");
-                ephemera_shutdown_internal
-                    .shutdown()
-                    .expect("Failed to shutdown");
-                info!("Shutdown complete");
-            }
+        if let Err(err) = shutdown.catch_interrupt().await {
+            Err(anyhow!("Shutdown error {:?}", err))
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 
     #[allow(dead_code)]

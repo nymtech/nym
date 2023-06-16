@@ -1,16 +1,27 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ephemera::reward::MixnodeToReward;
 use crate::epoch_operations::RewardedSetUpdater;
 use cosmwasm_std::{Decimal, Fraction};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{ExecuteMsg, Interval, MixId};
+use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) struct MixnodeWithPerformance {
     pub(crate) mix_id: MixId,
 
     pub(crate) performance: Performance,
+}
+
+impl From<MixnodeToReward> for MixnodeWithPerformance {
+    fn from(value: MixnodeToReward) -> Self {
+        Self {
+            mix_id: value.mix_id,
+            performance: value.performance,
+        }
+    }
 }
 
 impl From<MixnodeWithPerformance> for ExecuteMsg {

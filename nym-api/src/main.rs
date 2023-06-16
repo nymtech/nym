@@ -11,6 +11,7 @@ use crate::support::cli::CliArgs;
 use crate::support::config::Config;
 use crate::support::storage;
 use crate::support::storage::NymApiStorage;
+use ::ephemera::configuration::Configuration as EphemeraConfiguration;
 use ::nym_config::defaults::setup_env;
 use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
@@ -28,6 +29,7 @@ use support::{http, nyxd};
 
 mod circulating_supply_api;
 mod coconut;
+mod ephemera;
 mod epoch_operations;
 mod network_monitor;
 pub(crate) mod node_status_api;
@@ -119,6 +121,16 @@ async fn start_nym_api_tasks(
         .await?;
     }
 
+    let ephemera_config =
+        EphemeraConfiguration::try_load(config.get_ephemera_config_path()).unwrap();
+    let ephemera_reward_manager = ephemera::application::NymApi::run(
+        config.get_ephemera_args().clone(),
+        ephemera_config,
+        nyxd_client.clone(),
+        &shutdown,
+    )
+    .await?;
+
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring if it's enabled
     if config.network_monitor.enabled {
@@ -139,7 +151,13 @@ async fn start_nym_api_tasks(
         // start 'rewarding' if its enabled
         if config.rewarding.enabled {
             epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-            RewardedSetUpdater::start(nyxd_client, nym_contract_cache_state, storage, &shutdown);
+            RewardedSetUpdater::start(
+                ephemera_reward_manager,
+                nyxd_client,
+                nym_contract_cache_state,
+                storage,
+                &shutdown,
+            );
         }
     }
 

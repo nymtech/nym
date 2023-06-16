@@ -1,13 +1,11 @@
 use log::info;
 
-use tokio::sync::mpsc::error::SendError;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
 pub(crate) struct ShutdownManager {
     pub(crate) shutdown_tx: broadcast::Sender<()>,
     pub(crate) _shutdown_rcv: broadcast::Receiver<()>,
-    pub(crate) external_shutdown: mpsc::UnboundedReceiver<()>,
     handles: Vec<JoinHandle<anyhow::Result<()>>>,
 }
 
@@ -17,7 +15,6 @@ pub(crate) struct Shutdown {
 
 #[derive(Clone)]
 pub struct Handle {
-    pub(crate) external_shutdown: mpsc::UnboundedSender<()>,
     pub(crate) shutdown_started: bool,
 }
 
@@ -30,24 +27,20 @@ impl Handle {
     ///
     /// # Panics
     /// This will panic if shutdown signal can't be sent.
-    pub fn shutdown(&mut self) -> Result<(), SendError<()>> {
+    pub fn shutdown(&mut self) {
         self.shutdown_started = true;
-        self.external_shutdown.send(())
     }
 }
 
 impl ShutdownManager {
     pub(crate) fn init() -> (ShutdownManager, Handle) {
         let (shutdown_tx, shutdown_rcv) = broadcast::channel(1);
-        let (external_tx, external_rcv) = mpsc::unbounded_channel();
         let shutdown_handle = Handle {
-            external_shutdown: external_tx,
             shutdown_started: false,
         };
         let manager = Self {
             shutdown_tx,
             _shutdown_rcv: shutdown_rcv,
-            external_shutdown: external_rcv,
             handles: vec![],
         };
         (manager, shutdown_handle)

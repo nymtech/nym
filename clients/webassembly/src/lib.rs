@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use wasm_bindgen::prelude::*;
+use wasm_utils::console_log;
 
 #[cfg(target_arch = "wasm32")]
 mod client;
@@ -38,4 +39,9 @@ pub fn set_panic_hook() {
     // https://github.com/rustwasm/console_error_panic_hook#readme
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
+}
+
+#[wasm_bindgen(start)]
+pub fn main() {
+    console_log!("rust module loaded")
 }

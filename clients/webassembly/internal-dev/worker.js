@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+const RUST_WASM_URL = "nym_client_wasm_bg.wasm"
+const GO_WASM_URL = "main.wasm"
+
 importScripts('nym_client_wasm.js');
+importScripts('wasm_exec.js');
 
 console.log('Initializing worker');
 
@@ -39,6 +43,8 @@ const {
 
 let client = null;
 let tester = null;
+const go = new Go(); // Defined in wasm_exec.js
+var goWasm;
 
 function dummyTopology() {
     const l1Mixnode = new WasmMixNode(
@@ -424,16 +430,48 @@ async function testMixFetch() {
     // await client.fetch_with_str('https://nymtech.net/.wellknown/wallet/validators.json');
 }
 
+async function loadGoWasm() {
+    const resp = await fetch(GO_WASM_URL);
+    const bytes = await resp.arrayBuffer();
+    const wasmObj = await WebAssembly.instantiate(bytes, go.importObject)
+    goWasm = wasmObj.instance
+    go.run(goWasm)
+
+    // if ('instantiateStreaming' in WebAssembly) {
+    //     WebAssembly.instantiateStreaming(fetch(GO_WASM_URL), go.importObject).then(function (obj) {
+    //         goWasm = obj.instance;
+    //         go.run(goWasm);
+    //     })
+    // } else {
+    //     fetch(GO_WASM_URL).then(resp =>
+    //         resp.arrayBuffer()
+    //     ).then(bytes =>
+    //         WebAssembly.instantiate(bytes, go.importObject).then(function (obj) {
+    //             goWasm = obj.instance;
+    //             go.run(goWasm);
+    //         })
+    //     )
+    // }
+}
+
 async function main() {
-    // load WASM package
-    await wasm_bindgen('nym_client_wasm_bg.wasm');
-    console.log('Loaded WASM');
+    // load rust WASM package
+    await wasm_bindgen(RUST_WASM_URL);
+    console.log('Loaded RUST WASM');
+
+    // load go WASM package
+    await loadGoWasm();
+    console.log("Loaded GO WASM");
+
 
     // sets up better stack traces in case of in-rust panics
     set_panic_hook();
 
+    let foomp = goFoomp();
+    console.log("logging results from go in JS: ", foomp)
+
     // test mixFetch
-    await testMixFetch();
+    // await testMixFetch();
 
     // run test on simplified and dedicated tester:
     // await testWithTester()

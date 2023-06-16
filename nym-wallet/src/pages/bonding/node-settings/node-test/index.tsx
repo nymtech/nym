@@ -4,6 +4,7 @@ import { AppContext, useBondingContext } from 'src/context';
 import { NodeTestEvent, NodeTestResult } from './types';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { Results } from 'src/components/TestNode/Results';
+import { ErrorModal } from 'src/components/Modals/ErrorModal';
 
 export const NodeTestPage = () => {
   const [nodeTestWorker, setNodeTestWorker] = useState<Worker>();
@@ -46,7 +47,7 @@ export const NodeTestPage = () => {
       nodeTestWorker.postMessage({
         kind: 'TestPacket',
         args: {
-          mixnodeIdentity: '6moK5uYAVSsUUrAGdFnzyaGaHYGG6PxN6qpEAjrUSRCE',
+          mixnodeIdentity: bondedNode?.identityKey,
           network,
         },
       });
@@ -72,7 +73,7 @@ export const NodeTestPage = () => {
   return (
     <Box p={4}>
       {isLoading && <LoadingModal text={`Testing mixnode, please wait..`} />}
-
+      {error && <ErrorModal open onClose={() => setError(undefined)} title="Node test failed" message={error} />}
       <Typography>{error}</Typography>
       <Results packetsSent={results?.sentPackets} packetsReceived={results?.receivedPackets} score={results?.score} />
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>

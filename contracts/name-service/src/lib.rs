@@ -16,8 +16,8 @@ mod state;
 
 pub mod constants;
 
-// #[cfg(test)]
-// mod integration_tests;
+#[cfg(test)]
+mod integration_tests;
 #[cfg(test)]
 mod test_helpers;
 

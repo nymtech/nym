@@ -10,12 +10,9 @@ use nym_name_service_common::{
 use rand_chacha::ChaCha20Rng;
 use serde::de::DeserializeOwned;
 
-use crate::test_helpers::helpers::get_app_attribute;
+use crate::test_helpers::helpers::{get_app_attribute, test_rng};
 
-use super::{
-    helpers::test_rng,
-    test_name::{SignedTestName, TestName},
-};
+use super::test_name::{SignedTestName, TestName};
 
 const DENOM: &str = "unym";
 const ADDRESSES: &[&str] = &[
@@ -158,6 +155,19 @@ impl TestSetup {
             "register"
         );
         resp
+    }
+
+    // Convenience function for creating a new signed name, and regsitering it
+    pub fn sign_and_register(
+        &mut self,
+        name: &NymName,
+        address: &Address,
+        owner: &Addr,
+        deposit: &Coin,
+    ) -> SignedTestName {
+        let signed_name = self.new_signed_name(name, address, owner, deposit);
+        self.register(&signed_name, owner);
+        signed_name
     }
 
     pub fn try_delete(&mut self, name_id: NameId, owner: Addr) -> anyhow::Result<AppResponse> {

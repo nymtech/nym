@@ -39,6 +39,7 @@ pub fn name_fixture(id: NameId) -> RegisteredName {
     )
 }
 
+#[allow(unused)]
 pub fn name_fixture_with_name(id: NameId, name: &str, address: &str) -> RegisteredName {
     new_name(
         id,

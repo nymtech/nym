@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    coin, coins,
+    coin,
     testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier},
     DepsMut, MemoryStorage, OwnedDeps,
 };

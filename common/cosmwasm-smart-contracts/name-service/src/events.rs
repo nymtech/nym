@@ -1,6 +1,6 @@
 use cosmwasm_std::{Coin, Event};
 
-use crate::{NameId, RegisteredName};
+use crate::RegisteredName;
 
 pub enum NameEventType {
     Register,

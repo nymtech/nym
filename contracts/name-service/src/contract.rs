@@ -112,7 +112,7 @@ mod tests {
             assert_config, assert_current_nonce, assert_empty, assert_name, assert_names,
             assert_not_found,
         },
-        fixture::{name_fixture, new_name_details_with_sign},
+        fixture::{new_name_details_with_sign},
         helpers::{get_attribute, nyms, test_rng},
     };
 

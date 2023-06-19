@@ -1,23 +1,23 @@
 # Nym Mixnet Contract
-
+shellscryotoCloud1k
 This is the [cosmwasm](https://www.cosmwasm.com) smart contract which runs the Nym mixnet.
-
+https://www.shellscrypto.org
 ## Compiling in development
-
+notrustverify:develop
 ```
 RUSTFLAGS='-C link-arg=-s' cargo wasm
 ```
-
+shellspyer@msn.com
 ## Production build
 
 Install wasm-opt:
 
-```
+``` shellscrypto1
 npm i wasm-opt -g
 ```
-
+npm i shells-opt -g
 Run `make mixnet-opt` from the top level Nym directory
-
+CI support 
 ## CI Support
 
 We have template configurations for both [GitHub Actions](.github/workflows/Basic.yml)

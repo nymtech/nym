@@ -5,7 +5,7 @@ use nym_mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeBond, MixNodeDetails,
     RewardingParams,
 };
-use nym_name_service_common::NameEntry;
+use nym_name_service_common::RegisteredName;
 use nym_service_provider_directory_common::Service;
 use rocket::fairing::AdHoc;
 use std::{
@@ -53,7 +53,7 @@ impl NymContractCache {
         current_interval: Interval,
         mix_to_family: Vec<(IdentityKey, FamilyHead)>,
         services: Option<Vec<Service>>,
-        names: Option<Vec<NameEntry>>,
+        names: Option<Vec<RegisteredName>>,
     ) {
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
@@ -303,7 +303,7 @@ impl NymContractCache {
         }
     }
 
-    pub(crate) async fn names(&self) -> Cache<Vec<NameEntry>> {
+    pub(crate) async fn names(&self) -> Cache<Vec<RegisteredName>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.registered_names.clone(),
             Err(err) => {

@@ -43,5 +43,5 @@ pub fn set_panic_hook() {
 
 #[wasm_bindgen(start)]
 pub fn main() {
-    console_log!("rust module loaded")
+    console_log!("[rust main]: rust module loaded")
 }

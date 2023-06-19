@@ -12,6 +12,9 @@ use crate::{
     test_helpers::{helpers::nyms, test_setup::TestSetup},
 };
 
+mod test_name;
+mod test_setup;
+
 #[test]
 fn instantiate_contract() {
     TestSetup::new();

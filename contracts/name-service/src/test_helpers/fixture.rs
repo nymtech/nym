@@ -53,8 +53,8 @@ pub fn name_fixture_full(id: NameId, name: &str, address: &str, owner: &str) -> 
     new_name(
         id,
         &NymName::new(name).unwrap(),
-        &Address::new("client_id.client_key@gateway_id"),
-        &Addr::unchecked("steve"),
+        &Address::new(address),
+        &Addr::unchecked(owner),
         "identity",
     )
 }

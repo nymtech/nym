@@ -220,40 +220,31 @@ mod tests {
         ]
     }
 
-    fn assert_not_registered(store: &dyn Storage, names: Vec<RegisteredName>, ids: Vec<NameId>) {
-        let names: Vec<(NameId, RegisteredName)> = zip(ids, names).collect();
+    fn assert_not_registered(store: &dyn Storage, names: Vec<RegisteredName>) {
         let loaded = load_all_paged(store, None, None).unwrap();
-        for (id, name) in &names {
-            assert!(!has_name_id(store, *id));
+        for name in &names {
+            assert!(!has_name_id(store, name.id));
             assert!(!has_name(store, &name.name.name));
-            assert!(!loaded.names.iter().any(|l_name| &l_name.id == id));
-            assert!(!loaded.names.iter().any(|l_name| &l_name.name == name));
+            assert!(!loaded.names.iter().any(|l_name| l_name.id == name.id));
+            assert!(!loaded.names.iter().any(|l_name| l_name == name));
         }
     }
 
-    fn assert_registered(store: &dyn Storage, names: Vec<RegisteredName>, ids: Vec<NameId>) {
-        assert!(names.len() == ids.len());
-        let names: Vec<(NameId, RegisteredName)> = zip(ids, names).collect();
+    fn assert_registered(store: &dyn Storage, names: Vec<RegisteredName>) {
         let loaded = load_all_paged(store, None, None).unwrap();
-        for (id, name) in &names {
-            assert!(has_name_id(store, *id));
-            assert!(has_name(store, &name.name));
-            assert!(loaded.names.iter().filter(|(i, _)| i == id).count() == 1);
-            assert!(loaded.names.iter().filter(|(_, n)| n == name).count() == 1);
+        for name in &names {
+            assert!(has_name_id(store, name.id));
+            assert!(has_name(store, &name.name.name));
+            assert!(loaded.names.iter().filter(|n| n == &name).count() == 1);
         }
     }
 
-    fn assert_only_these_registered(
-        store: &dyn Storage,
-        names: Vec<RegisteredName>,
-        ids: Vec<NameId>,
-    ) {
-        let last_id = *ids.last().unwrap();
-        let names: Vec<(NameId, RegisteredName)> = zip(ids, names).collect();
-        for (id, name) in &names {
-            assert!(has_name_id(store, *id));
-            assert!(has_name(store, &name.name));
+    fn assert_only_these_registered(store: &dyn Storage, names: Vec<RegisteredName>) {
+        for name in &names {
+            assert!(has_name_id(store, name.id));
+            assert!(has_name(store, &name.name.name));
         }
+        let last_id = names.last().unwrap().id;
         assert_eq!(
             load_all_paged(store, None, None).unwrap(),
             PagedLoad {
@@ -273,10 +264,31 @@ mod tests {
     fn save_same_name_twice_fails(mut deps: TestDeps) {
         save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert!(matches!(
-            save(deps.as_mut().storage, &name_fixture(1)).unwrap_err(),
+            save(deps.as_mut().storage, &name_fixture(2)).unwrap_err(),
             NameServiceError::Std(StdError::GenericErr { .. })
         ));
     }
+
+    #[rstest]
+    fn remove_id_works(mut deps: TestDeps) {
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
+        assert!(has_name_id(&deps.storage, 1));
+        assert!(has_name(&deps.storage, &name_fixture(1).name.name));
+        remove_id(deps.as_mut().storage, 1).unwrap();
+        assert!(!has_name_id(&deps.storage, 1));
+        assert!(!has_name(&deps.storage, &name_fixture(1).name.name));
+    }
+
+    #[rstest]
+    fn remove_name_works(mut deps: TestDeps) {
+        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
+        assert!(has_name_id(&deps.storage, 1));
+        assert!(has_name(&deps.storage, &name_fixture(1).name.name));
+        remove_name(deps.as_mut().storage, name_fixture(1).name.name).unwrap();
+        assert!(!has_name_id(&deps.storage, 1));
+        assert!(!has_name(&deps.storage, &name_fixture(1).name.name));
+    }
+
 
     #[rstest]
     fn has_name_works(mut deps: TestDeps) {
@@ -372,52 +384,11 @@ mod tests {
     }
 
     #[rstest]
-    fn remove_id_works(mut deps: TestDeps) {
-        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
-        assert!(has_name_id(&deps.storage, 1));
-        assert!(has_name(&deps.storage, &name_fixture(1).name.name));
-        remove_id(deps.as_mut().storage, 1).unwrap();
-        assert!(!has_name_id(&deps.storage, 1));
-        assert!(!has_name(&deps.storage, &name_fixture(1).name.name));
-    }
-
-    #[rstest]
-    fn remove_name_works(mut deps: TestDeps) {
-        save(deps.as_mut().storage, &name_fixture(1)).unwrap();
-        assert!(has_name_id(&deps.storage, 1));
-        assert!(has_name(&deps.storage, &name_fixture(1).name.name));
-        remove_name(deps.as_mut().storage, name_fixture(1).name.name).unwrap();
-        assert!(!has_name_id(&deps.storage, 1));
-        assert!(!has_name(&deps.storage, &name_fixture(1).name.name));
-    }
-
-    #[rstest]
     fn save_set_of_unique_names_works(mut deps: TestDeps, uniq_names: Vec<RegisteredName>) {
-        let num = uniq_names.len() as NameId;
-        let ids = (1..=num).collect::<Vec<NameId>>();
-        assert_not_registered(&deps.storage, uniq_names.clone(), ids.clone());
-        let saved_ids = save_all(deps.as_mut().storage, &uniq_names).unwrap();
-        assert_eq!(saved_ids, ids);
-        assert_registered(&deps.storage, uniq_names.clone(), ids.clone());
-        assert_only_these_registered(&deps.storage, uniq_names, ids);
-    }
-
-    #[rstest]
-    fn save_set_of_unique_names_generates_ids(mut deps: TestDeps, uniq_names: Vec<RegisteredName>) {
-        let num = uniq_names.len() as NameId;
-        let ids = save_all(deps.as_mut().storage, &uniq_names).unwrap();
-        assert_eq!(ids, (1..=num).collect::<Vec<NameId>>());
-    }
-
-    #[rstest]
-    fn load_name_entry_for_unique_set_works(mut deps: TestDeps, uniq_names: Vec<RegisteredName>) {
+        assert_not_registered(&deps.storage, uniq_names.clone());
         save_all(deps.as_mut().storage, &uniq_names).unwrap();
-        for (id, name) in uniq_names.iter().enumerate() {
-            assert_eq!(
-                load_name_entry(deps.as_ref().storage, &name.name).unwrap(),
-                (id as NameId + 1, name.clone()),
-            );
-        }
+        assert_registered(&deps.storage, uniq_names.clone());
+        assert_only_these_registered(&deps.storage, uniq_names);
     }
 
     #[rstest]
@@ -425,7 +396,7 @@ mod tests {
         save_all(deps.as_mut().storage, &uniq_names).unwrap();
         for name in uniq_names {
             assert_eq!(
-                load_name(deps.as_ref().storage, &name.name).unwrap(),
+                load_name(deps.as_ref().storage, &name.name.name).unwrap(),
                 name.clone(),
             );
         }
@@ -436,17 +407,14 @@ mod tests {
         mut deps: TestDeps,
         uniq_names: Vec<RegisteredName>,
     ) {
-        let ids = save_all(deps.as_mut().storage, &uniq_names).unwrap();
-        remove_id(deps.as_mut().storage, ids[1]).unwrap();
+        save_all(deps.as_mut().storage, &uniq_names).unwrap();
+        remove_id(deps.as_mut().storage, 2).unwrap();
         assert_eq!(
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    (1, name_fixture_full("one", "address_one", "owner_one")),
-                    (
-                        3,
-                        name_fixture_full("three", "address_three", "owner_three")
-                    ),
+                    name_fixture_full(1, "one", "address_one", "owner_one"),
+                    name_fixture_full(3, "three", "address_three", "owner_three"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -460,16 +428,13 @@ mod tests {
         uniq_names: Vec<RegisteredName>,
     ) {
         save_all(deps.as_mut().storage, &uniq_names).unwrap();
-        remove_name(deps.as_mut().storage, uniq_names[1].name.clone()).unwrap();
+        remove_name(deps.as_mut().storage, uniq_names[1].name.name.clone()).unwrap();
         assert_eq!(
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    (1, name_fixture_full("one", "address_one", "owner_one")),
-                    (
-                        3,
-                        name_fixture_full("three", "address_three", "owner_three")
-                    ),
+                    name_fixture_full(1, "one", "address_one", "owner_one"),
+                    name_fixture_full(3, "three", "address_three", "owner_three"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -482,9 +447,9 @@ mod tests {
         mut deps: TestDeps,
         overlapping_addresses: Vec<RegisteredName>,
     ) {
-        let ids = save_all(deps.as_mut().storage, &overlapping_addresses).unwrap();
-        assert_registered(&deps.storage, overlapping_addresses.clone(), ids.clone());
-        assert_only_these_registered(&deps.storage, overlapping_addresses, ids);
+        save_all(deps.as_mut().storage, &overlapping_addresses).unwrap();
+        assert_registered(&deps.storage, overlapping_addresses.clone());
+        assert_only_these_registered(&deps.storage, overlapping_addresses);
     }
 
     #[rstest]
@@ -497,9 +462,9 @@ mod tests {
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    (1, name_fixture_full("one", "address_one", "owner_one")),
-                    (2, name_fixture_full("two", "address_two", "owner_two")),
-                    (3, name_fixture_full("three", "address_two", "owner_three")),
+                    name_fixture_full(1, "one", "address_one", "owner_one"),
+                    name_fixture_full(2, "two", "address_two", "owner_two"),
+                    name_fixture_full(3, "three", "address_two", "owner_three"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -508,8 +473,8 @@ mod tests {
         assert_eq!(
             load_address(deps.as_ref().storage, &Address::new("address_two")).unwrap(),
             vec![
-                (2, name_fixture_full("two", "address_two", "owner_two")),
-                (3, name_fixture_full("three", "address_two", "owner_three")),
+                name_fixture_full(2, "two", "address_two", "owner_two"),
+                name_fixture_full(3, "three", "address_two", "owner_three"),
             ]
         );
     }
@@ -519,14 +484,14 @@ mod tests {
         mut deps: TestDeps,
         overlapping_addresses: Vec<RegisteredName>,
     ) {
-        let ids = save_all(deps.as_mut().storage, &overlapping_addresses).unwrap();
-        remove_id(deps.as_mut().storage, ids[1]).unwrap();
+        save_all(deps.as_mut().storage, &overlapping_addresses).unwrap();
+        remove_id(deps.as_mut().storage, 2).unwrap();
         assert_eq!(
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    (1, name_fixture_full("one", "address_one", "owner_one")),
-                    (3, name_fixture_full("three", "address_two", "owner_three")),
+                    name_fixture_full(1, "one", "address_one", "owner_one"),
+                    name_fixture_full(3, "three", "address_two", "owner_three"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -540,13 +505,17 @@ mod tests {
         overlapping_addresses: Vec<RegisteredName>,
     ) {
         save_all(deps.as_mut().storage, &overlapping_addresses).unwrap();
-        remove_name(deps.as_mut().storage, overlapping_addresses[1].name.clone()).unwrap();
+        remove_name(
+            deps.as_mut().storage,
+            overlapping_addresses[1].name.name.clone(),
+        )
+        .unwrap();
         assert_eq!(
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    (1, name_fixture_full("one", "address_one", "owner_one")),
-                    (3, name_fixture_full("three", "address_two", "owner_three")),
+                    name_fixture_full(1, "one", "address_one", "owner_one"),
+                    name_fixture_full(3, "three", "address_two", "owner_three"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -559,9 +528,9 @@ mod tests {
         mut deps: TestDeps,
         overlapping_owners: Vec<RegisteredName>,
     ) {
-        let ids = save_all(deps.as_mut().storage, &overlapping_owners).unwrap();
-        assert_registered(&deps.storage, overlapping_owners.clone(), ids.clone());
-        assert_only_these_registered(&deps.storage, overlapping_owners, ids);
+        save_all(deps.as_mut().storage, &overlapping_owners).unwrap();
+        assert_registered(&deps.storage, overlapping_owners.clone());
+        assert_only_these_registered(&deps.storage, overlapping_owners);
     }
 
     #[rstest]
@@ -574,9 +543,9 @@ mod tests {
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    (1, name_fixture_full("one", "address_one", "owner_one")),
-                    (2, name_fixture_full("two", "address_two", "owner_two")),
-                    (3, name_fixture_full("three", "address_three", "owner_two")),
+                    name_fixture_full(1, "one", "address_one", "owner_one"),
+                    name_fixture_full(2, "two", "address_two", "owner_two"),
+                    name_fixture_full(3, "three", "address_three", "owner_two"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -585,8 +554,8 @@ mod tests {
         assert_eq!(
             load_owner(deps.as_ref().storage, Addr::unchecked("owner_two")).unwrap(),
             vec![
-                (2, name_fixture_full("two", "address_two", "owner_two")),
-                (3, name_fixture_full("three", "address_three", "owner_two")),
+                name_fixture_full(2, "two", "address_two", "owner_two"),
+                name_fixture_full(3, "three", "address_three", "owner_two"),
             ]
         );
     }
@@ -596,16 +565,16 @@ mod tests {
         mut deps: TestDeps,
         overlapping_owners: Vec<RegisteredName>,
     ) {
-        let ids = save_all(deps.as_mut().storage, &overlapping_owners).unwrap();
-        assert_registered(&deps.storage, overlapping_owners.clone(), ids.clone());
-        assert_only_these_registered(&deps.storage, overlapping_owners, ids);
+        save_all(deps.as_mut().storage, &overlapping_owners).unwrap();
+        assert_registered(&deps.storage, overlapping_owners.clone());
+        assert_only_these_registered(&deps.storage, overlapping_owners);
         remove_id(deps.as_mut().storage, 2).unwrap();
         assert_eq!(
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    (1, name_fixture_full("one", "address_one", "owner_one")),
-                    (3, name_fixture_full("three", "address_three", "owner_two")),
+                    name_fixture_full(1, "one", "address_one", "owner_one"),
+                    name_fixture_full(3, "three", "address_three", "owner_two"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -618,16 +587,20 @@ mod tests {
         mut deps: TestDeps,
         overlapping_owners: Vec<RegisteredName>,
     ) {
-        let ids = save_all(deps.as_mut().storage, &overlapping_owners).unwrap();
-        assert_registered(&deps.storage, overlapping_owners.clone(), ids.clone());
-        assert_only_these_registered(&deps.storage, overlapping_owners.clone(), ids);
-        remove_name(deps.as_mut().storage, overlapping_owners[1].name.clone()).unwrap();
+        save_all(deps.as_mut().storage, &overlapping_owners).unwrap();
+        assert_registered(&deps.storage, overlapping_owners.clone());
+        assert_only_these_registered(&deps.storage, overlapping_owners.clone());
+        remove_name(
+            deps.as_mut().storage,
+            overlapping_owners[1].name.name.clone(),
+        )
+        .unwrap();
         assert_eq!(
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    (1, name_fixture_full("one", "address_one", "owner_one")),
-                    (3, name_fixture_full("three", "address_three", "owner_two")),
+                    name_fixture_full(1, "one", "address_one", "owner_one"),
+                    name_fixture_full(3, "three", "address_three", "owner_two"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -642,8 +615,8 @@ mod tests {
             load_all_paged(&deps.storage, Some(2), None).unwrap(),
             PagedLoad {
                 names: vec![
-                    (1, name_fixture_full("one", "address_one", "owner_one")),
-                    (2, name_fixture_full("two", "address_two", "owner_two")),
+                    name_fixture_full(1, "one", "address_one", "owner_one"),
+                    name_fixture_full(2, "two", "address_two", "owner_two"),
                 ],
                 limit: 2,
                 start_next_after: Some(2),
@@ -652,10 +625,12 @@ mod tests {
         assert_eq!(
             load_all_paged(&deps.storage, Some(1), Some(2)).unwrap(),
             PagedLoad {
-                names: vec![(
+                names: vec![name_fixture_full(
                     3,
-                    name_fixture_full("three", "address_three", "owner_three")
-                ),],
+                    "three",
+                    "address_three",
+                    "owner_three"
+                )],
                 limit: 1,
                 start_next_after: Some(3),
             }
@@ -663,10 +638,12 @@ mod tests {
         assert_eq!(
             load_all_paged(&deps.storage, Some(2), Some(2)).unwrap(),
             PagedLoad {
-                names: vec![(
+                names: vec![name_fixture_full(
                     3,
-                    name_fixture_full("three", "address_three", "owner_three")
-                ),],
+                    "three",
+                    "address_three",
+                    "owner_three"
+                )],
                 limit: 2,
                 start_next_after: Some(3),
             }

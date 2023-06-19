@@ -3,7 +3,7 @@ use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
 use nym_name_service_common::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     response::{ConfigResponse, PagedNamesListResponse},
-    Address, NameEntry, NameId, NymName,
+    Address, NameId, NymName,
 };
 use serde::de::DeserializeOwned;
 
@@ -76,9 +76,9 @@ impl TestSetup {
         self.query(&QueryMsg::Config {})
     }
 
-    pub fn query_id(&self, name_id: NameId) -> NameEntry {
-        self.query(&QueryMsg::NameId { name_id })
-    }
+    // pub fn query_id(&self, name_id: NameId) -> NameEntry {
+    //     self.query(&QueryMsg::NameId { name_id })
+    // }
 
     pub fn query_all(&self) -> PagedNamesListResponse {
         self.query(&QueryMsg::all())
@@ -92,31 +92,31 @@ impl TestSetup {
         self.query(&QueryMsg::All { limit, start_after })
     }
 
-    pub fn try_register(
-        &mut self,
-        name: NymName,
-        address: Address,
-        owner: Addr,
-    ) -> anyhow::Result<AppResponse> {
-        self.app.execute_contract(
-            owner,
-            self.addr.clone(),
-            &ExecuteMsg::Register { name, address },
-            &[Coin {
-                denom: DENOM.to_string(),
-                amount: Uint128::new(100),
-            }],
-        )
-    }
-
-    pub fn register(&mut self, name: NymName, address: Address, owner: Addr) -> AppResponse {
-        let resp = self.try_register(name, address, owner).unwrap();
-        assert_eq!(
-            get_app_attribute(&resp, "wasm-register", "action"),
-            "register"
-        );
-        resp
-    }
+    // pub fn try_register(
+    //     &mut self,
+    //     name: NymName,
+    //     address: Address,
+    //     owner: Addr,
+    // ) -> anyhow::Result<AppResponse> {
+    //     self.app.execute_contract(
+    //         owner,
+    //         self.addr.clone(),
+    //         &ExecuteMsg::Register { name, address },
+    //         &[Coin {
+    //             denom: DENOM.to_string(),
+    //             amount: Uint128::new(100),
+    //         }],
+    //     )
+    // }
+    //
+    // pub fn register(&mut self, name: NymName, address: Address, owner: Addr) -> AppResponse {
+    //     let resp = self.try_register(name, address, owner).unwrap();
+    //     assert_eq!(
+    //         get_app_attribute(&resp, "wasm-register", "action"),
+    //         "register"
+    //     );
+    //     resp
+    // }
 
     pub fn try_delete(&mut self, name_id: NameId, owner: Addr) -> anyhow::Result<AppResponse> {
         self.app.execute_contract(

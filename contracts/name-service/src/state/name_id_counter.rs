@@ -17,7 +17,7 @@ pub(crate) fn next_name_id_counter(store: &mut dyn Storage) -> Result<NameId> {
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::Addr;
-    use nym_name_service_common::RegisteredName;
+    use nym_name_service_common::{NameDetails, NymName, RegisteredName};
 
     use crate::test_helpers::{
         assert::assert_names,
@@ -36,27 +36,33 @@ mod tests {
         assert_eq!(id1, 1);
         assert_eq!(id2, 2);
         assert_eq!(id3, 3);
+        assert_eq!(name1.name.as_str(), "foo");
+        assert_eq!(name1.address.as_str(), "addr1");
+        assert_eq!(name2.name.as_str(), "bar");
+        assert_eq!(name2.address.as_str(), "addr2");
+        assert_eq!(name3.name.as_str(), "baz");
+        assert_eq!(name3.address.as_str(), "addr3");
         assert_names(
             deps.as_ref(),
             &[
                 RegisteredName {
                     id: 1,
                     name: name1,
-                    owner: Addr::unchecked("addr1"),
+                    owner: Addr::unchecked("steve"),
                     block_height: 12345,
                     deposit: nyms(100),
                 },
                 RegisteredName {
                     id: 2,
                     name: name2,
-                    owner: Addr::unchecked("addr2"),
+                    owner: Addr::unchecked("steve"),
                     block_height: 12345,
                     deposit: nyms(100),
                 },
                 RegisteredName {
                     id: 3,
                     name: name3,
-                    owner: Addr::unchecked("addr3"),
+                    owner: Addr::unchecked("steve"),
                     block_height: 12345,
                     deposit: nyms(100),
                 },
@@ -67,6 +73,7 @@ mod tests {
     #[test]
     fn deleted_name_id_is_not_reused() {
         let mut deps = instantiate_test_contract();
+        let mut rng = test_rng();
 
         // Register two names
         let (_, name1) = register_name(deps.as_mut(), &mut rng, "one", "sdfjkhsdfhr", "steve");
@@ -79,7 +86,7 @@ mod tests {
             &[RegisteredName {
                 id: 1,
                 name: name1,
-                owner: Addr::unchecked("sdfjkhsdfhr"),
+                owner: Addr::unchecked("steve"),
                 block_height: 12345,
                 deposit: nyms(100),
             }],
@@ -88,6 +95,6 @@ mod tests {
         // Create a third entry. The index should not reuse the previous entry that we just
         // deleted.
         let (id3, _) = register_name(deps.as_mut(), &mut rng, "three", "ufd", "steve");
-        assert_eq(id3, 3);
+        assert_eq!(id3, 3);
     }
 }

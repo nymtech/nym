@@ -25,7 +25,7 @@ pub fn instantiate_test_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuer
 }
 
 pub fn register_name<R>(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     rng: &mut R,
     name: &str,
     nym_address: &str,

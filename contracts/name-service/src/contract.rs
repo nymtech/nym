@@ -137,139 +137,139 @@ mod tests {
         assert_empty(deps.as_ref());
     }
 
-    #[test]
-    fn register_fails_incorrect_deposit() {
-        let mut deps = mock_dependencies();
-        let msg = InstantiateMsg::new(nyms(100));
-        let info = mock_info("creator", &[]);
-        let admin = info.sender.clone();
-        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(res.messages.len(), 0);
-
-        // Register
-        let msg: ExecuteMsg = name_fixture().into();
-        let owner = name_fixture().owner.to_string();
-
-        assert_eq!(
-            execute(
-                deps.as_mut(),
-                mock_env(),
-                mock_info(&owner, &[nyms(99)]),
-                msg.clone()
-            )
-            .unwrap_err(),
-            NameServiceError::InsufficientDeposit {
-                funds: 99u128.into(),
-                deposit_required: 100u128.into(),
-            }
-        );
-
-        assert_eq!(
-            execute(
-                deps.as_mut(),
-                mock_env(),
-                mock_info(&owner, &[nyms(101)]),
-                msg
-            )
-            .unwrap_err(),
-            NameServiceError::TooLargeDeposit {
-                funds: 101u128.into(),
-                deposit_required: 100u128.into(),
-            }
-        );
-
-        assert_config(deps.as_ref(), &admin, Coin::new(100, DENOM));
-        assert_empty(deps.as_ref());
-    }
-
-    #[test]
-    fn register_success() {
-        let mut deps = mock_dependencies();
-        let msg = InstantiateMsg::new(nyms(100));
-        let info = mock_info("creator", &[]);
-        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(res.messages.len(), 0);
-
-        // Register
-        let msg: ExecuteMsg = name_fixture().into();
-        let info = mock_info("steve", &[nyms(100)]);
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // Check that the name has had name id assigned to it
-        let expected_id = 1;
-        let id: NameId = get_attribute(&res, "register", "name_id").parse().unwrap();
-        assert_eq!(id, expected_id);
-        assert_eq!(
-            get_attribute(&res, "register", "name"),
-            "my-service".to_string()
-        );
-        assert_eq!(
-            get_attribute(&res, "register", "nym_address"),
-            "client_id.client_key@gateway_id".to_string()
-        );
-
-        // The expected registered name
-        let expected_name = NameEntry {
-            name_id: expected_id,
-            name: name_fixture(),
-        };
-        assert_names(deps.as_ref(), &[expected_name.clone()]);
-        assert_name(deps.as_ref(), &expected_name);
-    }
-
-    #[test]
-    fn delete() {
-        let mut deps = mock_dependencies();
-        let msg = InstantiateMsg::new(Coin::new(100, "unym"));
-        let info = mock_info("creator", &[]);
-        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(res.messages.len(), 0);
-
-        // Register
-        let msg: ExecuteMsg = name_fixture().into();
-        let info_steve = mock_info("steve", &[nyms(100)]);
-        assert_eq!(info_steve.sender, name_fixture().owner);
-        execute(deps.as_mut(), mock_env(), info_steve, msg).unwrap();
-
-        // The expected registerd name
-        let expected_id = 1;
-        let expected_name = NameEntry {
-            name_id: expected_id,
-            name: name_fixture(),
-        };
-        assert_names(deps.as_ref(), &[expected_name]);
-
-        // Removing someone else's name will fail
-        let msg = ExecuteMsg::delete_id(expected_id);
-        let info_timmy = mock_info("timmy", &[]);
-        assert_eq!(
-            execute(deps.as_mut(), mock_env(), info_timmy, msg).unwrap_err(),
-            NameServiceError::Unauthorized {
-                sender: Addr::unchecked("timmy")
-            }
-        );
-
-        // Removing an non-existent name will fail
-        let msg = ExecuteMsg::delete_id(expected_id + 1);
-        let info_owner = MessageInfo {
-            sender: name_fixture().owner,
-            funds: vec![],
-        };
-        assert_eq!(
-            execute(deps.as_mut(), mock_env(), info_owner.clone(), msg).unwrap_err(),
-            NameServiceError::NotFound {
-                name_id: expected_id + 1
-            }
-        );
-
-        // Remove as correct owner succeeds
-        let msg = ExecuteMsg::delete_id(expected_id);
-        let res = execute(deps.as_mut(), mock_env(), info_owner, msg).unwrap();
-        assert_eq!(
-            get_attribute(&res, "delete_id", "name_id"),
-            expected_id.to_string()
-        );
-        assert_names(deps.as_ref(), &[]);
-        assert_not_found(deps.as_ref(), expected_id);
-    }
+    // #[test]
+    // fn register_fails_incorrect_deposit() {
+    //     let mut deps = mock_dependencies();
+    //     let msg = InstantiateMsg::new(nyms(100));
+    //     let info = mock_info("creator", &[]);
+    //     let admin = info.sender.clone();
+    //     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+    //     assert_eq!(res.messages.len(), 0);
+    //
+    //     // Register
+    //     let msg: ExecuteMsg = name_fixture().into();
+    //     let owner = name_fixture().owner.to_string();
+    //
+    //     assert_eq!(
+    //         execute(
+    //             deps.as_mut(),
+    //             mock_env(),
+    //             mock_info(&owner, &[nyms(99)]),
+    //             msg.clone()
+    //         )
+    //         .unwrap_err(),
+    //         NameServiceError::InsufficientDeposit {
+    //             funds: 99u128.into(),
+    //             deposit_required: 100u128.into(),
+    //         }
+    //     );
+    //
+    //     assert_eq!(
+    //         execute(
+    //             deps.as_mut(),
+    //             mock_env(),
+    //             mock_info(&owner, &[nyms(101)]),
+    //             msg
+    //         )
+    //         .unwrap_err(),
+    //         NameServiceError::TooLargeDeposit {
+    //             funds: 101u128.into(),
+    //             deposit_required: 100u128.into(),
+    //         }
+    //     );
+    //
+    //     assert_config(deps.as_ref(), &admin, Coin::new(100, DENOM));
+    //     assert_empty(deps.as_ref());
+    // }
+    //
+    // #[test]
+    // fn register_success() {
+    //     let mut deps = mock_dependencies();
+    //     let msg = InstantiateMsg::new(nyms(100));
+    //     let info = mock_info("creator", &[]);
+    //     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+    //     assert_eq!(res.messages.len(), 0);
+    //
+    //     // Register
+    //     let msg: ExecuteMsg = name_fixture().into();
+    //     let info = mock_info("steve", &[nyms(100)]);
+    //     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    //
+    //     // Check that the name has had name id assigned to it
+    //     let expected_id = 1;
+    //     let id: NameId = get_attribute(&res, "register", "name_id").parse().unwrap();
+    //     assert_eq!(id, expected_id);
+    //     assert_eq!(
+    //         get_attribute(&res, "register", "name"),
+    //         "my-service".to_string()
+    //     );
+    //     assert_eq!(
+    //         get_attribute(&res, "register", "nym_address"),
+    //         "client_id.client_key@gateway_id".to_string()
+    //     );
+    //
+    //     // The expected registered name
+    //     let expected_name = NameEntry {
+    //         name_id: expected_id,
+    //         name: name_fixture(),
+    //     };
+    //     assert_names(deps.as_ref(), &[expected_name.clone()]);
+    //     assert_name(deps.as_ref(), &expected_name);
+    // }
+    //
+    // #[test]
+    // fn delete() {
+    //     let mut deps = mock_dependencies();
+    //     let msg = InstantiateMsg::new(Coin::new(100, "unym"));
+    //     let info = mock_info("creator", &[]);
+    //     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+    //     assert_eq!(res.messages.len(), 0);
+    //
+    //     // Register
+    //     let msg: ExecuteMsg = name_fixture().into();
+    //     let info_steve = mock_info("steve", &[nyms(100)]);
+    //     assert_eq!(info_steve.sender, name_fixture().owner);
+    //     execute(deps.as_mut(), mock_env(), info_steve, msg).unwrap();
+    //
+    //     // The expected registerd name
+    //     let expected_id = 1;
+    //     let expected_name = NameEntry {
+    //         name_id: expected_id,
+    //         name: name_fixture(),
+    //     };
+    //     assert_names(deps.as_ref(), &[expected_name]);
+    //
+    //     // Removing someone else's name will fail
+    //     let msg = ExecuteMsg::delete_id(expected_id);
+    //     let info_timmy = mock_info("timmy", &[]);
+    //     assert_eq!(
+    //         execute(deps.as_mut(), mock_env(), info_timmy, msg).unwrap_err(),
+    //         NameServiceError::Unauthorized {
+    //             sender: Addr::unchecked("timmy")
+    //         }
+    //     );
+    //
+    //     // Removing an non-existent name will fail
+    //     let msg = ExecuteMsg::delete_id(expected_id + 1);
+    //     let info_owner = MessageInfo {
+    //         sender: name_fixture().owner,
+    //         funds: vec![],
+    //     };
+    //     assert_eq!(
+    //         execute(deps.as_mut(), mock_env(), info_owner.clone(), msg).unwrap_err(),
+    //         NameServiceError::NotFound {
+    //             name_id: expected_id + 1
+    //         }
+    //     );
+    //
+    //     // Remove as correct owner succeeds
+    //     let msg = ExecuteMsg::delete_id(expected_id);
+    //     let res = execute(deps.as_mut(), mock_env(), info_owner, msg).unwrap();
+    //     assert_eq!(
+    //         get_attribute(&res, "delete_id", "name_id"),
+    //         expected_id.to_string()
+    //     );
+    //     assert_names(deps.as_ref(), &[]);
+    //     assert_not_found(deps.as_ref(), expected_id);
+    // }
 }

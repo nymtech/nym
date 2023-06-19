@@ -1,12 +1,20 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use clap::Parser;
 use std::io;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::select;
 use tokio::time::sleep;
+
+#[derive(Parser)]
+struct Args {
+    // ipv4 nymtech.net address
+    #[clap(long, default_value = "185.19.28.43:443")]
+    target: String,
+}
 
 fn decode_hex(raw: &str) -> Vec<u8> {
     hex::decode(raw).unwrap()
@@ -48,9 +56,11 @@ async fn read_from_conn(conn: &mut TcpStream) -> Vec<u8> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("connecting");
-    // ipv4 nymtech.net address
-    let mut conn = TcpStream::connect("185.19.28.43:443").await?;
+    let args = Args::parse();
+    let target = args.target;
+
+    println!("connecting to {target}");
+    let mut conn = TcpStream::connect(target).await?;
     println!("connected");
 
     println!("[ClientHello] >>> ");

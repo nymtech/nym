@@ -7010,6 +7010,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ssl-inject"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.2.7",
+ "hex",
+ "tokio",
+]
+
+[[package]]
 name = "stable-pattern"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

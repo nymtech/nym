@@ -39,7 +39,6 @@ const {
     current_network_topology,
     make_key,
     make_key2,
-    call_go_foomp
 } = wasm_bindgen;
 
 let client = null;
@@ -534,11 +533,14 @@ async function basicSSL() {
             switch (event.data.kind) {
                 case 'StartHandshake': {
                     console.log("start")
-                    let clientHello = goWasmStartSSLHandshake();
-                    self.postMessage({
-                        kind: 'SSLClient',
-                        args: { data: clientHello },
-                    });
+                    // let clientHello = goWasmStartSSLHandshake(event.data.args.sni);
+                    // let clientHello = goWasmStartSSLHandshake(event.data.args.sni);
+                    goWasmStartSSLHandshake(event.data.args.sni);
+
+                    // self.postMessage({
+                    //     kind: 'SSLClient',
+                    //     args: { data: clientHello },
+                    // });
 
                     break
                 }

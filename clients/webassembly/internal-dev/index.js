@@ -82,10 +82,10 @@ class WebWorkerClient {
         });
     }
 
-    startHandshake = () => {
+    startHandshake = (sni) => {
         this.worker.postMessage({
             kind: 'StartHandshake',
-            args: {  }
+            args: { sni }
         })
     }
 
@@ -121,7 +121,10 @@ async function main() {
 
     const startButton = document.querySelector('#start-handshake');
     startButton.onclick = function () {
-        client.startHandshake();
+        let sniElement = document.getElementById('sni');
+
+        client.startHandshake(sniElement.value);
+        sniElement.value = ""
     }
 
     const clientDataButton = document.querySelector('#client-data-button');
@@ -129,10 +132,10 @@ async function main() {
         client.requestClientPayload()
     }
 
-    const serverDataButton = document.querySelector('#server-data-button');
     let dataElement = document.getElementById('server_data');
     dataElement.value = ""
 
+    const serverDataButton = document.querySelector('#server-data-button');
     serverDataButton.onclick = function () {
         displaySSLServer(dataElement.value)
         client.sendServerPayload(dataElement.value)

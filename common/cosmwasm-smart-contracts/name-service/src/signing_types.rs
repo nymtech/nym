@@ -6,8 +6,7 @@ use serde::Serialize;
 
 use crate::NameDetails;
 
-pub type SignableNameRegisterMsg =
-    SignableMessage<ContractMessageContent<NameRegister>>;
+pub type SignableNameRegisterMsg = SignableMessage<ContractMessageContent<NameRegister>>;
 
 #[derive(Serialize)]
 pub struct NameRegister {

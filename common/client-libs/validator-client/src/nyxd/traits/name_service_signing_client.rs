@@ -3,9 +3,7 @@
 
 use async_trait::async_trait;
 use nym_contracts_common::signing::MessageSignature;
-use nym_name_service_common::{
-    msg::ExecuteMsg as NameExecuteMsg, NameDetails, NameId, NymName,
-};
+use nym_name_service_common::{msg::ExecuteMsg as NameExecuteMsg, NameDetails, NameId, NymName};
 
 use crate::nyxd::{
     coin::Coin, cosmwasm_client::types::ExecuteResult, error::NyxdError, Fee, NyxdClient,

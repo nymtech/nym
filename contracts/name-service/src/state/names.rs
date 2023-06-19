@@ -8,7 +8,7 @@ use crate::{
         NAMES_ADDRESS_IDX_NAMESPACE, NAMES_NAME_IDX_NAMESPACE, NAMES_OWNER_IDX_NAMESPACE,
         NAMES_PK_NAMESPACE, NAME_DEFAULT_RETRIEVAL_LIMIT, NAME_MAX_RETRIEVAL_LIMIT,
     },
-    error::{NameServiceError, Result},
+    NameServiceError, Result,
 };
 
 struct NameIndex<'a> {
@@ -168,8 +168,6 @@ pub fn load_all_paged(
 
 #[cfg(test)]
 mod tests {
-    use std::iter::zip;
-
     use cosmwasm_std::{
         testing::{MockApi, MockQuerier},
         MemoryStorage, OwnedDeps,
@@ -177,11 +175,11 @@ mod tests {
     use rstest::rstest;
 
     use crate::{
-        error::NameServiceError,
         test_helpers::{
             fixture::{name_fixture, name_fixture_full},
             transactions::instantiate_test_contract,
         },
+        NameServiceError,
     };
 
     use super::*;
@@ -288,7 +286,6 @@ mod tests {
         assert!(!has_name_id(&deps.storage, 1));
         assert!(!has_name(&deps.storage, &name_fixture(1).name.name));
     }
-
 
     #[rstest]
     fn has_name_works(mut deps: TestDeps) {

@@ -1,8 +1,9 @@
 use cosmwasm_std::{Addr, StdError};
 use cw_controllers::AdminError;
 use nym_contracts_common::signing::verifier::ApiVerifierError;
-use nym_name_service_common::{Address, NameId, NymName};
 use thiserror::Error;
+
+use crate::{Address, NameId, NymName};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum NameServiceError {
@@ -70,4 +71,4 @@ pub enum NameServiceError {
     NameAlreadyRegistered { name: NymName },
 }
 
-pub(crate) type Result<T, E = NameServiceError> = std::result::Result<T, E>;
+pub type Result<T, E = NameServiceError> = std::result::Result<T, E>;

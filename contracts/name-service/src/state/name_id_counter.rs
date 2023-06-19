@@ -2,7 +2,7 @@ use cosmwasm_std::Storage;
 use cw_storage_plus::Item;
 use nym_name_service_common::NameId;
 
-use crate::{constants::NAME_ID_COUNTER_KEY, error::Result};
+use crate::{constants::NAME_ID_COUNTER_KEY, Result};
 
 const NAME_ID_COUNTER: Item<NameId> = Item::new(NAME_ID_COUNTER_KEY);
 
@@ -17,7 +17,7 @@ pub(crate) fn next_name_id_counter(store: &mut dyn Storage) -> Result<NameId> {
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::Addr;
-    use nym_name_service_common::{NameDetails, NymName, RegisteredName};
+    use nym_name_service_common::RegisteredName;
 
     use crate::test_helpers::{
         assert::assert_names,

@@ -1,7 +1,6 @@
 use crate::{
     constants::{MAX_NUMBER_OF_NAMES_FOR_ADDRESS, MAX_NUMBER_OF_NAMES_PER_OWNER},
-    error::{NameServiceError, Result},
-    state,
+    state, NameServiceError, Result,
 };
 use cosmwasm_std::{Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Response, Uint128};
 use nym_contracts_common::{

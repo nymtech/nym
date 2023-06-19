@@ -1,6 +1,6 @@
 use crate::{
-    error::{NameServiceError, Result},
     state::{self, Config},
+    NameServiceError, Result,
 };
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
 use nym_name_service_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};

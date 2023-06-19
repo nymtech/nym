@@ -6,8 +6,8 @@ use nym_name_service_common::{
 };
 
 use crate::{
-    error::Result,
     state::{self, names::PagedLoad},
+    Result,
 };
 
 pub fn query_id(deps: Deps, name_id: NameId) -> Result<RegisteredName> {

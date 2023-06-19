@@ -6,7 +6,7 @@ use nym_name_service_common::{
     NameId, RegisteredName,
 };
 
-use crate::{constants::NAME_DEFAULT_RETRIEVAL_LIMIT, error::NameServiceError};
+use crate::{constants::NAME_DEFAULT_RETRIEVAL_LIMIT, NameServiceError};
 
 pub fn assert_config(deps: Deps, admin: &Addr, deposit_required: Coin) {
     crate::state::assert_admin(deps, admin).unwrap();

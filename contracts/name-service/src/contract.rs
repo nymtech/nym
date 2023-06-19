@@ -93,6 +93,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary> {
         QueryMsg::All { limit, start_after } => {
             to_binary(&query::query_all_paged(deps, limit, start_after)?)
         }
+        QueryMsg::SigningNonce { address } => {
+            to_binary(&query::query_current_signing_nonce(deps, address)?)
+        }
         QueryMsg::Config {} => to_binary(&query::query_config(deps)?),
         QueryMsg::GetContractVersion {} => to_binary(&query::query_contract_version()),
         QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),

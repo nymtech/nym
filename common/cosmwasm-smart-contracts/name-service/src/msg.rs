@@ -82,6 +82,9 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<NameId>,
     },
+    SigningNonce {
+        address: String,
+    },
     Config {},
     GetContractVersion {},
     #[serde(rename = "get_cw2_contract_version")]

@@ -1,5 +1,5 @@
 use cosmwasm_std::Deps;
-use nym_contracts_common::ContractBuildInformation;
+use nym_contracts_common::{signing::Nonce, ContractBuildInformation};
 use nym_name_service_common::{
     response::{ConfigResponse, NamesListResponse, PagedNamesListResponse},
     Address, NameId, NymName, RegisteredName,
@@ -40,6 +40,11 @@ pub fn query_all_paged(
         start_next_after,
     } = state::names::load_all_paged(deps.storage, limit, start_after)?;
     Ok(PagedNamesListResponse::new(names, limit, start_next_after))
+}
+
+pub fn query_current_signing_nonce(deps: Deps<'_>, address: String) -> Result<Nonce> {
+    let address = deps.api.addr_validate(&address)?;
+    state::get_signing_nonce(deps.storage, address)
 }
 
 pub fn query_config(deps: Deps) -> Result<ConfigResponse> {

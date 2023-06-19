@@ -3,15 +3,6 @@ use cosmwasm_std::Coin;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Like [`NameEntry`] but since it's a response type the name is an option depending on if
-/// the name exists or not.
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
-pub struct NameEntryResponse {
-    pub name_id: NameId,
-    pub name: Option<RegisteredName>,
-}
-
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct NamesListResponse {

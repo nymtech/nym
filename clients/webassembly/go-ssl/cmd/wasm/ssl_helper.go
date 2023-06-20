@@ -9,14 +9,6 @@ import (
 	"fmt"
 )
 
-var currentSSLHelper *SSLHelper
-
-type SSLHelper struct {
-	//tlsConn *tls.UConn
-	tlsConn            *tls.Conn
-	connectionInjector ConnectionInjector
-}
-
 func tlsConfig(sni string) tls.Config {
 	return tls.Config{
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
@@ -31,29 +23,25 @@ func tlsConfig(sni string) tls.Config {
 			fmt.Printf("%+v\n", cs)
 			return nil
 		},
-		ServerName: sni,
+		//ServerName: sni,
 	}
 }
 
-func setupFakeTlsConn(sni string) SSLHelper {
+func setupFakeTlsConn(sni string) {
 	conn, inj := NewFakeConnection()
 	tlsConfig := tlsConfig(sni)
 
 	//tlsConn := tls.UClient(fakeConnection, &tlsConfig, tls.HelloGolang)
 	tlsConn := tls.Client(conn, &tlsConfig)
-	helper := SSLHelper{
-		tlsConn:            tlsConn,
-		connectionInjector: inj,
-	}
-
-	return helper
+	managedConnection := NewTlsManagedConnection(tlsConn, inj)
+	currentConnection = &managedConnection
 }
 
 func performSSLHandshake() {
-	if currentSSLHelper == nil {
-		panic("no connection established")
+	if !ensureManagedTls() {
+		panic("no TLS connection established")
 	}
-	err := currentSSLHelper.tlsConn.Handshake()
+	err := currentConnection.tlsConn.Handshake()
 	if err != nil {
 		panic(err)
 	}
@@ -61,14 +49,13 @@ func performSSLHandshake() {
 }
 
 func startSSLHandshake(target string) error {
-	if currentSSLHelper != nil {
+	if currentConnection != nil {
 		Error("only a single SSL connection can be established at a time (for now)")
 		return fmt.Errorf("duplicate SSL handshake")
 	}
 
 	// TODO: sni vs actual endpoint
-	sslHelper := setupFakeTlsConn(target)
-	currentSSLHelper = &sslHelper
+	setupFakeTlsConn(target)
 
 	// TODO: or maybe do outside goroutine?
 	go func() {

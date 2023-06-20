@@ -5,11 +5,55 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/hex"
 	"io"
 	"net"
+	"syscall/js"
 	"time"
 )
+
+var currentConnection *ManagedConnection
+
+func ensureManagedTls() bool {
+	if currentConnection == nil {
+		return false
+	}
+	return currentConnection.tlsConn != nil
+}
+
+func ensureManagedPlain() bool {
+	if currentConnection == nil {
+		return false
+	}
+	return currentConnection.plainConn != nil
+}
+
+type ManagedConnection struct {
+	// ughhh... Go doesn't have proper enums...
+
+	// TODO: this might be the wrong design. maybe there should only be something like *tlsHandshakeInProgressConn
+	tlsConn   *tls.Conn
+	plainConn net.Conn
+
+	connectionInjector ConnectionInjector
+}
+
+func NewTlsManagedConnection(conn *tls.Conn, injector ConnectionInjector) ManagedConnection {
+	return ManagedConnection{
+		tlsConn:            conn,
+		plainConn:          nil,
+		connectionInjector: injector,
+	}
+}
+
+func NewPlainManagedConnection(conn net.Conn, injector ConnectionInjector) ManagedConnection {
+	return ManagedConnection{
+		tlsConn:            nil,
+		plainConn:          conn,
+		connectionInjector: injector,
+	}
+}
 
 // ConnectionInjector controls data that goes over corresponding FakeConnection
 type ConnectionInjector struct {
@@ -43,6 +87,12 @@ func NewFakeConnection() (FakeConnection, ConnectionInjector) {
 	return conn, inj
 }
 
+func setupFakePlainConn() {
+	conn, inj := NewFakeConnection()
+	managedConnection := NewPlainManagedConnection(conn, inj)
+	currentConnection = &managedConnection
+}
+
 func (conn *FakeConnection) readAndBuffer(in []byte, out []byte) (int, error) {
 	buf := bytes.NewReader(in)
 	n, err := buf.Read(out)
@@ -55,7 +105,7 @@ func (conn *FakeConnection) readAndBuffer(in []byte, out []byte) (int, error) {
 	}
 
 	encoded := hex.EncodeToString(out[:n])
-	Debug("READING INJECTED >>> %v\n", encoded)
+	Debug("READING INJECTED >>> %s\n", encoded)
 	return n, err
 }
 
@@ -79,7 +129,9 @@ func (conn FakeConnection) Read(p []byte) (int, error) {
 
 func (conn FakeConnection) Write(p []byte) (int, error) {
 	encoded := hex.EncodeToString(p)
-	Debug("WRITING TO 'REMOTE' >>> %v\n", encoded)
+	Debug("WRITING TO 'REMOTE' >>> %s\n", encoded)
+
+	js.Global().Call("onClientData", encoded)
 
 	conn.createdClientData <- p
 	return len(p), nil

@@ -63,23 +63,34 @@ async fn main() -> anyhow::Result<()> {
     let mut conn = TcpStream::connect(target).await?;
     println!("connected");
 
-    println!("[ClientHello] >>> ");
-    let client_hello = read_line()?;
-    let raw = decode_hex(client_hello.trim());
-    conn.write_all(&raw).await?;
+    loop {
+        println!("[Client] >>> ");
+        let client_hello = read_line()?;
+        let raw = decode_hex(client_hello.trim());
+        conn.write_all(&raw).await?;
 
-    let data = read_from_conn(&mut conn).await;
-    let encoded = encode_hex(&data);
-    println!("[ServerHello] >>>\n{encoded}");
+        let data = read_from_conn(&mut conn).await;
+        let encoded = encode_hex(&data);
+        println!("[Server] >>>\n{encoded}");
+    }
 
-    println!("[ClientKeyExchange] >>> ");
-    let client_response = read_line()?;
-    let raw = decode_hex(client_response.trim());
-    conn.write_all(&raw).await?;
+    // println!("[ClientHello] >>> ");
+    // let client_hello = read_line()?;
+    // let raw = decode_hex(client_hello.trim());
+    // conn.write_all(&raw).await?;
+    //
+    // let data = read_from_conn(&mut conn).await;
+    // let encoded = encode_hex(&data);
+    // println!("[ServerHello] >>>\n{encoded}");
+    //
+    // println!("[ClientKeyExchange] >>> ");
+    // let client_response = read_line()?;
+    // let raw = decode_hex(client_response.trim());
+    // conn.write_all(&raw).await?;
+    //
+    // let data = read_from_conn(&mut conn).await;
+    // let encoded = encode_hex(&data);
+    // println!("[ServerFinished] >>>\n{encoded}");
 
-    let data = read_from_conn(&mut conn).await;
-    let encoded = encode_hex(&data);
-    println!("[ServerFinished] >>>\n{encoded}");
-
-    Ok(())
+    // Ok(())
 }

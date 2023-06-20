@@ -43,7 +43,7 @@ class WebWorkerClient {
                         displayReceivedRawString(resultText)
                         break;
 
-                    case 'SSLClient':
+                    case 'ClientData':
                         displaySSLClient(ev.data.args.data)
                         break
                     // case 'SSLServer':

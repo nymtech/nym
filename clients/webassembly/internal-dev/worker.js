@@ -535,10 +535,11 @@ async function basicSSL() {
                     console.log("start")
                     // let clientHello = goWasmStartSSLHandshake(event.data.args.sni);
                     // let clientHello = goWasmStartSSLHandshake(event.data.args.sni);
-                    goWasmStartSSLHandshake(event.data.args.sni);
+                    goWasmHTTPTest(event.data.args.sni);
+                    // startSSLHandshakeJS(event.data.args.sni);
 
                     // self.postMessage({
-                    //     kind: 'SSLClient',
+                    //     kind: 'ClientData',
                     //     args: { data: clientHello },
                     // });
 
@@ -547,10 +548,12 @@ async function basicSSL() {
 
                 case 'ClientPayload': {
                     let clientData = goWasmTryReadClientData();
-                    self.postMessage({
-                        kind: 'SSLClient',
-                        args: { data: clientData },
-                    });
+                    if (clientData) {
+                        self.postMessage({
+                            kind: 'ClientData',
+                            args: { data: clientData },
+                        });
+                    }
 
                     break
                 }
@@ -569,6 +572,9 @@ async function basicSSL() {
     };
 }
 
+
+
+// TODO: look into https://www.aaron-powell.com/posts/2019-02-08-golang-wasm-5-compiling-with-webpack/
 async function loadGoWasm() {
     const resp = await fetch(GO_WASM_URL);
     const bytes = await resp.arrayBuffer();
@@ -593,6 +599,10 @@ async function loadGoWasm() {
     // }
 }
 
+function jsFoomper() {
+    console.log("now we're in JS!")
+}
+
 async function main() {
     console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN START");
 
@@ -607,6 +617,8 @@ async function main() {
 
     // sets up better stack traces in case of in-rust panics
     set_panic_hook();
+
+    // foomp(() => jsFoomper())
 
     await basicSSL()
 
@@ -630,6 +642,13 @@ async function main() {
     // await normalNymClientUsage()
 
     console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END")
+
+    self.onClientData = (data) => {
+        self.postMessage({
+            kind: 'ClientData',
+            args: { data: data },
+        });
+    }
 }
 
 // Let's get started!

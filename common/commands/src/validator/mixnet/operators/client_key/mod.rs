@@ -1,13 +1,9 @@
-use std::path::{Path, PathBuf};
-
 use clap::{Args, Parser, Subcommand};
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd::error::NyxdError;
-
-const PRIVATE_IDENTITY_KEY_FILE_NAME: &str = "private_identity.pem";
-const PUBLIC_IDENTITY_KEY_FILE_NAME: &str = "public_identity.pem";
+use std::path::PathBuf;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -24,9 +20,9 @@ pub enum MixnetOperatorsClientKeyCommands {
 
 #[derive(Debug, Parser)]
 pub struct SignArgs {
-    /// Path to keys
+    /// Path to private identity key (example: private_identity_key.pem)
     #[clap(long)]
-    identity_key_dir: PathBuf,
+    private_key: PathBuf,
 
     /// Base58 encoded message to sign
     #[clap(long)]
@@ -37,24 +33,12 @@ pub struct SignArgs {
 }
 
 pub async fn sign(args: SignArgs) -> Result<(), NyxdError> {
-    let identity_keypair = load_identity_keys(&args.identity_key_dir);
-    print_signed_msg(
-        identity_keypair.private_key(),
-        &args.base58_msg,
-        args.output,
-    );
+    eprintln!(">>> loading: {}", args.private_key.display());
+    let private_identity_key: identity::PrivateKey =
+        nym_pemstore::load_key(args.private_key).expect("failed to load key");
+
+    print_signed_msg(&private_identity_key, &args.base58_msg, args.output);
     Ok(())
-}
-
-fn load_identity_keys(key_dir: &Path) -> identity::KeyPair {
-    let private_identity_key_file = key_dir.join(PRIVATE_IDENTITY_KEY_FILE_NAME);
-    eprintln!(">>> loading: {}", private_identity_key_file.display());
-    let public_identity_key_file = key_dir.join(PUBLIC_IDENTITY_KEY_FILE_NAME);
-    eprintln!(">>> loading: {}", public_identity_key_file.display());
-
-    let keypair_path =
-        nym_pemstore::KeyPairPath::new(private_identity_key_file, public_identity_key_file);
-    nym_pemstore::load_keypair(&keypair_path).expect("failed to load identity keys")
 }
 
 fn print_signed_msg(private_key: &identity::PrivateKey, raw_msg: &str, output: OutputFormat) {

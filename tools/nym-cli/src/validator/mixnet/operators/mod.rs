@@ -27,4 +27,3 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::mixnet::operators::MixnetOperatorsCommands::ClientKey(client_key) => client_key::execute(global_args, client_key, network_details).await,
     }
 }
-

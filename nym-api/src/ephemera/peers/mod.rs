@@ -8,6 +8,8 @@ use ephemera::crypto::{EphemeraKeypair, EphemeraPublicKey, Keypair, PublicKey};
 
 pub(crate) type PeerId = String;
 
+pub mod members;
+
 #[derive(Debug, Clone)]
 pub struct NymPeer {
     pub name: String,

@@ -16,7 +16,6 @@ use crate::{
     crypto::EphemeraKeypair,
     crypto::Keypair,
     ephemera_api::{ApiBlock, ApiEphemeraMessage, Application, Dummy, RawApiEphemeraMessage},
-    membership::HttpMembersProvider,
     network::members::ConfigMembersProvider,
     EphemeraStarterInit,
 };
@@ -95,11 +94,6 @@ impl RunExternalNodeCmd {
             Err(err) => anyhow::bail!("Error loading peers file: {err:?}"),
         };
         Ok(peers_conf)
-    }
-
-    #[allow(dead_code)]
-    fn http_members_provider(url: String) -> HttpMembersProvider {
-        HttpMembersProvider::new(url)
     }
 }
 

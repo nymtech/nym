@@ -8,6 +8,7 @@ use ephemera::{
 use log::{debug, error, info};
 
 use crate::ephemera::epoch::Epoch;
+use crate::ephemera::peers::members::MembersProvider;
 use crate::ephemera::peers::NymApiEphemeraPeerInfo;
 use crate::ephemera::reward::aggregator::RewardsAggregator;
 use crate::ephemera::reward::MixnodeToReward;
@@ -16,7 +17,6 @@ use crate::ephemera::Args;
 use crate::support::nyxd;
 use ephemera::crypto::{EphemeraKeypair, Keypair};
 use ephemera::ephemera_api::CommandExecutor;
-use ephemera::membership::HttpMembersProvider;
 use ephemera::{Ephemera, EphemeraStarterInit};
 use nym_task::TaskManager;
 
@@ -38,7 +38,7 @@ impl NymApi {
         let key_pair = Self::read_nym_api_keypair(&ephemera_config)?;
 
         //EPHEMERA
-        let ephemera = Self::init_ephemera(&args, ephemera_config, nyxd_client).await?;
+        let ephemera = Self::init_ephemera(ephemera_config, nyxd_client).await?;
         let ephemera_handle = ephemera.handle();
 
         //REWARDS
@@ -53,9 +53,8 @@ impl NymApi {
     }
 
     pub(crate) async fn init_ephemera(
-        args: &Args,
         ephemera_config: Configuration,
-        _nyxd_client: nyxd::Client,
+        nyxd_client: nyxd::Client,
     ) -> anyhow::Result<Ephemera<RewardsEphemeraApplication>> {
         info!("Initializing ephemera ...");
 
@@ -64,8 +63,7 @@ impl NymApi {
             RewardsEphemeraApplication::init(ephemera_config.clone())?;
 
         //Members provider for Ephemera
-        let url = format!("http://{}/contract/peer_info", args.smart_contract_url);
-        let members_provider = HttpMembersProvider::new(url);
+        let members_provider = MembersProvider::new(nyxd_client);
 
         //EPHEMERA
         let ephemera_builder = EphemeraStarterInit::new(ephemera_config)?;

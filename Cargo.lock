@@ -5068,6 +5068,7 @@ dependencies = [
  "dirs 4.0.0",
  "ephemera",
  "futures",
+ "futures-util",
  "getset",
  "humantime-serde",
  "lazy_static",

@@ -3,12 +3,10 @@ use std::future::Future;
 use std::io::Write;
 use std::path::PathBuf;
 use std::pin::Pin;
-use std::task::Poll::Pending;
 use std::task::{Context, Poll};
 
-use futures_util::future::BoxFuture;
 use futures_util::{future, FutureExt};
-use log::{debug, error};
+use log::error;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -63,9 +61,6 @@ pub enum ProviderError {
     #[error("MembersProvider: {0}")]
     MembersProvider(#[from] anyhow::Error),
 }
-
-/// Future type which allows user to implement their own peers membership source mechanism.
-pub type ProviderFut = BoxFuture<'static, Result<Vec<PeerInfo>>>;
 
 pub type Result<T> = std::result::Result<T, ProviderError>;
 
@@ -284,86 +279,5 @@ impl TryFrom<JsonPeerInfo> for PeerInfo {
             address: json_peer_info.address,
             pub_key,
         })
-    }
-}
-
-///[`ProviderFut`] that reads peers from a http endpoint.
-///
-/// The endpoint must return a json array of [`JsonPeerInfo`].
-/// # Configuration example
-/// ```json
-/// [
-///  {
-///     "name": "node1",
-///     "address": "/ip4/",
-///     "public_key": "4XTTMEghav9LZThm6opUaHrdGEEYUkrfkakVg4VAetetBZDWJ"
-///   },
-///  {
-///     "name": "node2",
-///     "address": "/ip4/",
-///     "public_key": "4XTTMFQt2tgNRmwRgEAaGQe2NXygsK6Vr3pkuBfYezhDfoVty"
-///   }
-/// ]
-/// ```
-pub struct HttpMembersProvider {
-    /// The url of the http endpoint.
-    members_url: String,
-    fut: Option<ProviderFut>,
-}
-
-impl HttpMembersProvider {
-    #[must_use]
-    pub fn new(members_url: String) -> Self {
-        Self {
-            members_url,
-            fut: None,
-        }
-    }
-
-    async fn request_peers(members_url: String) -> Result<Vec<PeerInfo>> {
-        debug!("Requesting peers from: {:?}", members_url);
-        let json_peers: Vec<JsonPeerInfo> = reqwest::get(members_url)
-            .await
-            .map_err(|err| anyhow::anyhow!("Failed to get peers: {err}"))?
-            .json()
-            .await
-            .map_err(|err| anyhow::anyhow!("Failed to parse peers: {err}"))?;
-
-        let peers = json_peers
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<anyhow::Result<Vec<PeerInfo>>>()?;
-
-        Ok(peers)
-    }
-}
-
-impl Future for HttpMembersProvider {
-    type Output = Result<Vec<PeerInfo>>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self.fut.take() {
-            None => {
-                self.fut = Some(Box::pin(HttpMembersProvider::request_peers(
-                    self.members_url.clone(),
-                )));
-            }
-            Some(mut fut) => {
-                let peers = match fut.poll_unpin(cx) {
-                    Poll::Ready(Ok(peers)) => peers,
-                    Poll::Ready(Err(err)) => {
-                        error!("Failed to get peers: {err}");
-                        return Poll::Ready(Err(err));
-                    }
-                    Pending => {
-                        self.fut = Some(fut);
-                        return Pending;
-                    }
-                };
-
-                return Poll::Ready(Ok(peers));
-            }
-        }
-        Pending
     }
 }

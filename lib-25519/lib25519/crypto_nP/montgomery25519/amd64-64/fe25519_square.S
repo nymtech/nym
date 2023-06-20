@@ -1,0 +1,1 @@
+../../../crypto_pow/inv25519/amd64-64/fe25519_square.S

@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+
+o,p,host,trim = sys.argv[1:5]
+
+impls = []
+
+for line in sys.stdin:
+  line = line.strip().split('/')
+  if line[0] != o: continue
+  if line[1] != p: continue
+  impls += [line[2:]]
+
+print('operation %s' % o)
+print('primitive %s' % p)
+
+icarch = {}
+iccompiler = {}
+
+for i,c in impls:
+  with open('compilerarch/%s' % c) as f:
+    icarch[i,c] = f.read().strip()
+  with open('compilerversion/%s' % c) as f:
+    iccompiler[i,c] = f.read().strip()
+
+def archkey(a):
+  if a == 'default': return 1,a # put default last
+  return -a.count('+'),a
+
+allimpls = sorted(set(i for i,c in impls))
+allarches = sorted(set(icarch[i,c] for i,c in impls),key=archkey)
+
+prioritydata = []
+
+for i in allimpls:
+  priorityfn = 'priority/%s-%s-%s' % (o,p,i)
+  if not os.path.exists(priorityfn): continue
+
+  with open(priorityfn) as f:
+    for line in f:
+      line = line.split()
+      if len(line) < 7: continue
+      prio,score,priohost,cpuid,version,machine = line[:6]
+      c = ' '.join(line[6:])
+      prio = float(prio)
+      prioritydata += [(i,prio,score,priohost,cpuid,machine,c)]
+
+def asupportsic(a,i,c):
+  a = a.split('+')[1:]
+  ica = icarch[i,c]
+  ica = ica.split('+')[1:]
+  return all(icapart in a for icapart in ica)
+
+def cpuidsupports(cpuid,a):
+  a = a.split('+')
+  cpuid = [int('0x'+cpuid[8*j:8*j+8],16) for j in range(32)]
+  mmx = cpuid[18] & (1<<23)
+  sse = cpuid[18] & (1<<25)
+  sse2 = cpuid[18] & (1<<26)
+  sse3 = cpuid[17] & (1<<0)
+  ssse3 = cpuid[17] & (1<<9)
+  sse41 = cpuid[17] & (1<<19)
+  sse42 = cpuid[17] & (1<<20)
+  osxsave = cpuid[17] & (1<<27)
+  avx = cpuid[17] & (1<<28)
+  bmi1 = cpuid[20] & (1<<3)
+  avx2 = cpuid[20] & (1<<5)
+  bmi2 = cpuid[20] & (1<<8)
+  avx512f = cpuid[20] & (1<<16)
+  adx = cpuid[20] & (1<<19)
+  avx512ifma = cpuid[20] & (1<<21)
+  avx512vl = cpuid[20] & (1<<31)
+  xmmsaved = cpuid[27] & (1<<1)
+  ymmsaved = cpuid[27] & (1<<2)
+  for apart in a[1:]:
+    if apart not in ('adx','avx','bmi2','avx2','avx512f','avx512vl','avx512ifma'):
+      raise ValueError('cpuidsupports does not understand %s' % apart)
+    if apart == 'avx512f':
+      if not avx512f: return False
+    if apart == 'avx512vl':
+      if not avx512vl: return False
+    if apart == 'avx512ifma':
+      if not avx512ifma: return False
+    if apart == 'bmi2':
+      if not bmi1: return False
+      if not bmi2: return False
+    if apart == 'adx':
+      if not adx: return False
+    if apart == 'avx2':
+      if not avx2: return False
+    if apart in ('avx','avx2'):
+      if not avx: return False
+      if not mmx: return False
+      if not sse: return False
+      if not sse2: return False
+      if not sse3: return False
+      if not ssse3: return False
+      if not sse41: return False
+      if not sse42: return False
+      if not osxsave: return False
+      if not xmmsaved: return False
+      if not ymmsaved: return False
+  return True
+
+def selectic(a,aexclude):
+  if len(aexclude) > 0:
+    print('note: considering other machines supporting %s' % a)
+  else:
+    print('note: considering machines supporting %s' % a)
+
+  # requirement: icarch[i,c] is a subset of a
+  compatibleimpls = [(i,c) for i,c in impls if asupportsic(a,i,c)]
+  assert len(compatibleimpls) > 0
+
+  # desideratum: good performance based on prioritydata
+
+  directmatches = any(
+    priohost == host
+    and cpuidsupports(cpuid,a)
+    and all(not cpuidsupports(cpuid,b) for b in aexclude)
+    for i,prio,score,priohost,cpuid,machine,c in prioritydata
+    )
+
+  if not directmatches:
+    print('note: no direct matches, so extrapolating from all machines')
+
+  totalprio = {(i,c):0 for i,c in compatibleimpls}
+  totalweight = {(i,c):0 for i,c in compatibleimpls}
+
+  for prioi,prio,score,priohost,cpuid,machine,prioc in prioritydata:
+    if directmatches:
+      if priohost != host: continue
+      if any(cpuidsupports(cpuid,b) for b in aexclude): continue
+      if not cpuidsupports(cpuid,a): continue
+
+    for i,c in compatibleimpls:
+      if i != prioi: continue
+
+      # XXX: use more serious machine learning here
+      weight = 1.0
+      if priohost == host: weight *= 10
+      if cpuidsupports(cpuid,a): weight *= 10
+      if all(not cpuidsupports(cpuid,b) for b in aexclude): weight *= 10
+      weight *= 1+len(os.path.commonprefix([iccompiler[i,c],prioc]))
+      if iccompiler[i,c] == prioc: weight *= 10
+
+      # print('note: weight %s from %s %s %s %s for %s %s' % (weight,prio,machine,prioi,prioc,i,c))
+
+      totalprio[i,c] += prio*weight
+      totalweight[i,c] += weight
+
+  # note that implementations without priority data are excluded from ranking
+  ranking = [(totalprio[i,c]/totalweight[i,c],i,c) for i,c in compatibleimpls if totalweight[i,c] > 0]
+  ranking.sort()
+
+  for prio,i,c in ranking:
+    print('note: priority %s for %s %s' % (prio,i,c))
+
+  if len(ranking) == 0:
+    return compatibleimpls[0]
+  return ranking[0][1:]
+
+usedimpls = set()
+handledarches = set()
+for a in allarches:
+  i,c = selectic(a,handledarches)
+  usedimpls.add((i,c))
+  print('selected %s %s %s' % (a,i,c))
+  handledarches.add(a)
+
+for i,c in impls:
+  if (i,c) in usedimpls or trim == 'False':
+    print('impl %s %s' % (i,c))

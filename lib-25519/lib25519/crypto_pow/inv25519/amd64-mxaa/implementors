@@ -1,0 +1,4 @@
+mladder.S: Kaushik Nath
+fe25519_mul.S: Kaushik Nath
+fe25519_nsquare.S: Kaushik Nath
+other code: see amd64-64

@@ -1,0 +1,1217 @@
+#!/usr/bin/env python3
+
+import random
+
+p = 2**255-19
+two255 = 2**255
+
+def inv(x):
+  return pow(x,p-2,p)
+
+def littleendian(x,bytes):
+  return [255&(x>>(8*i)) for i in range(bytes)]
+
+def bit(x,i):
+  return 1&(x>>i)
+
+def cswap(x,y,bit):
+  assert bit in (0,1)
+  if bit == 1: return y,x
+  return x,y
+
+montbase = 9
+
+def montgomery(x1,n): # copied from gfverif
+  A = 486662
+  x2,z2,x3,z3 = 1,0,x1,1
+  for i in reversed(range(255)):
+    ni = bit(n,i)
+    x2,x3 = cswap(x2,x3,ni)
+    z2,z3 = cswap(z2,z3,ni)
+    x3,z3 = 4*(x2*x3-z2*z3)**2,4*x1*(x2*z3-z2*x3)**2
+    x2,z2 = (x2**2-z2**2)**2,4*x2*z2*(x2**2+A*x2*z2+z2**2)
+    x3,z3 = x3%p,z3%p
+    x2,z2 = x2%p,z2%p
+    x2,x3 = cswap(x2,x3,ni)
+    z2,z3 = cswap(z2,z3,ni)
+  return (x2*pow(z2,p-2,p))%p
+
+d = (-121665*inv(121666))%p
+sqrtm1 = pow(2,(p-1)//4,p)
+
+def isoncurve(P):
+  x,y = P
+  return (y*y-x*x-1-d*x*x*y*y) % p == 0
+
+def decompress(y):
+  y %= p
+  xsq = (y*y-1)*inv(d*y*y+1)
+  x = pow(xsq,(p+3)//8,p)
+  if (x*x-xsq)%p: x *= sqrtm1
+  assert (x*x-xsq)%p == 0
+  x %= p
+  if x&1: x = p-x
+  P = x,y
+  assert isoncurve(P)
+  return P
+
+edbase = decompress(4*inv(5))
+assert edbase[0]%2 == 0
+point10 = decompress(10)
+point26 = decompress(26)
+
+def edwards(P1,P2):
+  assert isoncurve(P1)
+  assert isoncurve(P2)
+  x1,y1 = P1
+  x2,y2 = P2
+  x3 = (x1*y2+y1*x2) * inv(1+d*x1*x2*y1*y2)
+  y3 = (y1*y2+x1*x2) * inv(1-d*x1*x2*y1*y2)
+  P3 = x3%p,y3%p
+  assert isoncurve(P3)
+  return P3
+
+def scalarmult(P,n):
+  assert n >= 0
+  assert isoncurve(P)
+  if n == 0: return 0,1
+  if n == 1: return P
+  P2 = edwards(P,P)
+  Q = scalarmult(P2,n//2)
+  if n & 1: Q = edwards(P,Q)
+  assert isoncurve(Q)
+  return Q
+
+# ----- the mathematical primitives
+
+def pow_inv25519(x):
+  assert x >= 0
+  assert x < 2**256
+  y = inv(x % two255)
+  assert y >= 0
+  assert y < p
+  return {'q':littleendian(y,32),'p':littleendian(x,32)}
+
+def nP_montgomery25519(n,P):
+  assert n >= 0
+  assert n < 2**256
+  assert P >= 0
+  assert P < 2**256
+  m = n % two255
+  m |= 2**254
+  m &= ~7
+  assert m >= 2**254
+  assert m <= 2**254 + 8*(2**251-1)
+  assert m%8 == 0
+  mP = montgomery(P % two255,m)
+  assert mP >= 0
+  assert mP < p
+  return {'q':littleendian(mP,32),'n':littleendian(n,32),'p':littleendian(P,32)}
+
+def nG_merged25519(n):
+  assert n >= 0
+  assert n < 2**256
+  if n&two255:
+    nG = montgomery(montbase,n-two255)
+    assert nG >= 0
+    assert nG < p
+  else:
+    x,y = scalarmult(edbase,n)
+    nG = y
+    assert nG >= 0
+    assert nG < p
+    if x&1: nG |= two255
+  return {'q':littleendian(nG,32),'n':littleendian(n,32)}
+
+def nG_montgomery25519(n):
+  result = nP_montgomery25519(n,montbase)
+  assert result['p'] == [9]+[0]*31
+  return {'q':result['q'],'n':result['n']}
+
+primeorder = 2**252+27742317777372353535851937790883648493
+
+def mGnP_ed25519(m,n,P):
+  assert m >= 0
+  assert m < 2**256
+  assert n >= 0
+  assert n < 2**512
+  assert P >= 0
+  assert P < 2**256
+
+  mrep = littleendian(m,32)
+  nrep = littleendian(n,64)
+  Prep = littleendian(P,32)
+
+  ok = 1
+  if m >= primeorder: ok = 0
+  m %= primeorder
+  n %= primeorder
+
+  parity = P>>255
+  y = P & ~two255
+  try:
+    # assertion failures here are for invalid P
+    assert y < p
+    x,y = decompress(y)
+    if parity: x = (-x)%p
+    assert x&1 == parity
+  except AssertionError:
+    ok = 0
+    x,y = point26
+    x = (-x)%p # negative of point26
+
+  assert x >= 0
+  assert x < p
+  assert y >= 0
+  assert y < p
+
+  # now want mG-n(x,y)
+  x = (-x)%p
+
+  # now want mG+n(x,y)
+  Qx,Qy = edwards(scalarmult(edbase,m),scalarmult((x,y),n))
+
+  assert Qx >= 0
+  assert Qx < p
+  assert Qy >= 0
+  assert Qy < p
+  if Qx&1: Qy += two255
+  Qrep = littleendian(Qy,32)+[ok]
+  return {'Q':Qrep,'m':mrep,'n':nrep,'P':Prep}
+
+# ----- precomputed test vectors
+
+precomputed = {}
+
+# the list of small-order montgomery x-coordinates from the curve25519 page:
+corners = [
+  0,
+  1,
+  325606250916557431795983626356110631294008115727848805560023387167927233504,
+  39382357235489614581723060781553021112529911719440698176882885853963445705823,
+  2**255 - 19 - 1,
+  2**255 - 19,
+  2**255 - 19 + 1,
+  2**255 - 19 + 325606250916557431795983626356110631294008115727848805560023387167927233504,
+  2**255 - 19 + 39382357235489614581723060781553021112529911719440698176882885853963445705823,
+  2*(2**255 - 19) - 1,
+  2*(2**255 - 19),
+  2*(2**255 - 19) + 1,
+]
+# and some edwards y-coordinates of order 8:
+corners += [
+  2707385501144840649318225287225658788936804267575313519463743609750303402022,
+  55188659117513257062467267217118295137698188065244968500265048394206261417927,
+  2**255 - 19 + 2707385501144840649318225287225658788936804267575313519463743609750303402022,
+  2**255 - 19 + 55188659117513257062467267217118295137698188065244968500265048394206261417927,
+]
+# and all small numbers mod 2**255-19 and mod 2**255:
+corners += list(range(32))
+corners += list(range(2**255-32,2**255+32))
+corners += list(range(2**256-64,2**256))
+
+random.seed('pow_inv25519')
+T = corners + [random.randrange(2**256) for loop in range(128)]
+precomputed['pow','inv25519'] = [pow_inv25519(x) for x in sorted(set(T))]
+
+random.seed('nP_montgomery25519')
+T = corners + [random.randrange(2**256) for loop in range(128)]
+results = [nP_montgomery25519(random.randrange(2**256),P) for P in sorted(set(T))]
+for nmult in range(8):
+  for n in range(nmult*primeorder-2,nmult*primeorder+3):
+    if n < 0: continue
+    results += [nP_montgomery25519(n,16)]
+    results += [nP_montgomery25519(n|two255,16)]
+precomputed['nP','montgomery25519'] = results
+
+random.seed('nG_merged25519')
+results = [nG_merged25519(random.randrange(2**256)) for loop in range(128)]
+for nmult in range(8):
+  for n in range(nmult*primeorder-2,nmult*primeorder+3):
+    if n < 0: continue
+    results += [nG_merged25519(n)]
+    results += [nG_merged25519(n|two255)]
+precomputed['nG','merged25519'] = results
+
+random.seed('nG_montgomery25519')
+results = [nG_montgomery25519(random.randrange(2**256)) for loop in range(128)]
+for nmult in range(8):
+  for n in range(nmult*primeorder-2,nmult*primeorder+3):
+    if n < 0: continue
+    results += [nG_montgomery25519(n)]
+    results += [nG_montgomery25519(n|two255)]
+precomputed['nG','montgomery25519'] = results
+
+random.seed('mGnP_ed25519')
+results = []
+T = corners + [random.randrange(2**256) for loop in range(128)]
+for P in sorted(set(T)):
+  m = random.randrange(2**256)
+  n = random.randrange(2**512)
+  results += [mGnP_ed25519(m,n,P)]
+for mmult in range(16):
+  for m in range(mmult*primeorder-2,mmult*primeorder+3):
+    if m < 0: continue
+    n = random.randrange(2**512)
+    results += [mGnP_ed25519(m,n,point10[1])]
+for nmult in range(16):
+  for n in range(nmult*primeorder-2,nmult*primeorder+3):
+    if n < 0: continue
+    m = random.randrange(2**256)
+    results += [mGnP_ed25519(m,n,point10[1])]
+results += [mGnP_ed25519(0,0,point10[1])]
+precomputed['mGnP','ed25519'] = results
+
+# -----
+
+Z = r'''/* WARNING: auto-generated (by autogen-test); do not edit */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
+#include <time.h>
+#include <assert.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <sys/resource.h>
+#include "crypto_uint8.h"
+#include "crypto_uint32.h"
+#include "crypto_uint64.h"
+#include "lib25519.h" /* -l25519 */
+#include "randombytes.h"
+
+static const char *targeto = 0;
+static const char *targetp = 0;
+static const char *targeti = 0;
+
+static int ok = 1;
+
+#define fail ((ok = 0),printf)
+
+/* ----- kernelrandombytes */
+
+static int kernelrandombytes_fd = -1;
+
+static void kernelrandombytes_setup(void)
+{
+  kernelrandombytes_fd = open("/dev/urandom",O_RDONLY);
+  if (kernelrandombytes_fd == -1) {
+    fprintf(stderr,"lib25519-test: fatal: unable to open /dev/urandom: %s",strerror(errno));
+    exit(111);
+  }
+}
+
+static void kernelrandombytes(unsigned char *x,long long xlen)
+{
+  int i;
+
+  while (xlen > 0) {
+    if (xlen < 1048576) i = xlen; else i = 1048576;
+
+    i = read(kernelrandombytes_fd,x,i);
+    if (i < 1) {
+      sleep(1);
+      continue;
+    }
+
+    x += i;
+    xlen -= i;
+  }
+}
+
+/* ----- rng and hash, from supercop/try-anything.c */
+
+typedef crypto_uint8 u8;
+typedef crypto_uint32 u32;
+typedef crypto_uint64 u64;
+
+#define FOR(i,n) for (i = 0;i < n;++i)
+
+static u32 L32(u32 x,int c) { return (x << c) | ((x&0xffffffff) >> (32 - c)); }
+
+static u32 ld32(const u8 *x)
+{
+  u32 u = x[3];
+  u = (u<<8)|x[2];
+  u = (u<<8)|x[1];
+  return (u<<8)|x[0];
+}
+
+static void st32(u8 *x,u32 u)
+{
+  int i;
+  FOR(i,4) { x[i] = u; u >>= 8; }
+}
+
+static const u8 sigma[17] = "expand 32-byte k";
+
+static void core_salsa(u8 *out,const u8 *in,const u8 *k)
+{
+  u32 w[16],x[16],y[16],t[4];
+  int i,j,m;
+
+  FOR(i,4) {
+    x[5*i] = ld32(sigma+4*i);
+    x[1+i] = ld32(k+4*i);
+    x[6+i] = ld32(in+4*i);
+    x[11+i] = ld32(k+16+4*i);
+  }
+
+  FOR(i,16) y[i] = x[i];
+
+  FOR(i,20) {
+    FOR(j,4) {
+      FOR(m,4) t[m] = x[(5*j+4*m)%16];
+      t[1] ^= L32(t[0]+t[3], 7);
+      t[2] ^= L32(t[1]+t[0], 9);
+      t[3] ^= L32(t[2]+t[1],13);
+      t[0] ^= L32(t[3]+t[2],18);
+      FOR(m,4) w[4*j+(j+m)%4] = t[m];
+    }
+    FOR(m,16) x[m] = w[m];
+  }
+
+  FOR(i,16) st32(out + 4 * i,x[i] + y[i]);
+}
+
+static void salsa20(u8 *c,u64 b,const u8 *n,const u8 *k)
+{
+  u8 z[16],x[64];
+  u32 u,i;
+  if (!b) return;
+  FOR(i,16) z[i] = 0;
+  FOR(i,8) z[i] = n[i];
+  while (b >= 64) {
+    core_salsa(x,z,k);
+    FOR(i,64) c[i] = x[i];
+    u = 1;
+    for (i = 8;i < 16;++i) {
+      u += (u32) z[i];
+      z[i] = u;
+      u >>= 8;
+    }
+    b -= 64;
+    c += 64;
+  }
+  if (b) {
+    core_salsa(x,z,k);
+    FOR(i,b) c[i] = x[i];
+  }
+}
+
+static void increment(u8 *n)
+{
+  if (!++n[0])
+    if (!++n[1])
+      if (!++n[2])
+        if (!++n[3])
+          if (!++n[4])
+            if (!++n[5])
+              if (!++n[6])
+                if (!++n[7])
+                  ;
+}
+
+static unsigned char testvector_n[8];
+
+static void testvector_clear(void)
+{
+  memset(testvector_n,0,sizeof testvector_n);
+}
+
+static void testvector(unsigned char *x,unsigned long long xlen)
+{
+  const static unsigned char testvector_k[33] = "generate inputs for test vectors";
+  salsa20(x,xlen,testvector_n,testvector_k);
+  increment(testvector_n);
+}
+
+static unsigned long long myrandom(void)
+{
+  unsigned char x[8];
+  unsigned long long result;
+  testvector(x,8);
+  result = x[7];
+  result = (result<<8)|x[6];
+  result = (result<<8)|x[5];
+  result = (result<<8)|x[4];
+  result = (result<<8)|x[3];
+  result = (result<<8)|x[2];
+  result = (result<<8)|x[1];
+  result = (result<<8)|x[0];
+  return result;
+}
+
+static unsigned char canary_n[8];
+
+static void canary(unsigned char *x,unsigned long long xlen)
+{
+  const static unsigned char canary_k[33] = "generate pad to catch overwrites";
+  salsa20(x,xlen,canary_n,canary_k);
+  increment(canary_n);
+}
+
+static void double_canary(unsigned char *x2,unsigned char *x,unsigned long long xlen)
+{
+  canary(x - 16,16);
+  canary(x + xlen,16);
+  memcpy(x2 - 16,x - 16,16);
+  memcpy(x2 + xlen,x + xlen,16);
+}
+
+static void input_prepare(unsigned char *x2,unsigned char *x,unsigned long long xlen)
+{
+  testvector(x,xlen);
+  canary(x - 16,16);
+  canary(x + xlen,16);
+  memcpy(x2 - 16,x - 16,xlen + 32);
+}
+
+static void input_compare(const unsigned char *x2,const unsigned char *x,unsigned long long xlen,const char *fun)
+{
+  if (memcmp(x2 - 16,x - 16,xlen + 32)) {
+    fail("failure: %s overwrites input\n",fun);
+  }
+}
+
+static void output_prepare(unsigned char *x2,unsigned char *x,unsigned long long xlen)
+{
+  canary(x - 16,xlen + 32);
+  memcpy(x2 - 16,x - 16,xlen + 32);
+}
+
+static void output_compare(const unsigned char *x2,const unsigned char *x,unsigned long long xlen,const char *fun)
+{
+  if (memcmp(x2 - 16,x - 16,16)) {
+    fail("failure: %s writes before output\n",fun);
+  }
+  if (memcmp(x2 + xlen,x + xlen,16)) {
+    fail("failure: %s writes after output\n",fun);
+  }
+}
+
+/* ----- knownrandombytes */
+
+static const int knownrandombytes_is_only_for_testing_not_for_cryptographic_use = 1;
+#define knownrandombytes randombytes
+
+#define QUARTERROUND(a,b,c,d) \
+  a += b; d = L32(d^a,16); \
+  c += d; b = L32(b^c,12); \
+  a += b; d = L32(d^a, 8); \
+  c += d; b = L32(b^c, 7);
+
+static void core_chacha(u8 *out,const u8 *in,const u8 *k)
+{
+  u32 x[16],y[16];
+  int i,j;
+  FOR(i,4) {
+    x[i] = ld32(sigma+4*i);
+    x[12+i] = ld32(in+4*i);
+  }
+  FOR(i,8) x[4+i] = ld32(k+4*i);
+  FOR(i,16) y[i] = x[i];
+  FOR(i,10) {
+    FOR(j,4) { QUARTERROUND(x[j],x[j+4],x[j+8],x[j+12]) }
+    FOR(j,4) { QUARTERROUND(x[j],x[((j+1)&3)+4],x[((j+2)&3)+8],x[((j+3)&3)+12]) }
+  }
+  FOR(i,16) st32(out+4*i,x[i]+y[i]);
+}
+
+static void chacha20(u8 *c,u64 b,const u8 *n,const u8 *k)
+{
+  u8 z[16],x[64];
+  u32 u,i;
+  if (!b) return;
+  FOR(i,16) z[i] = 0;
+  FOR(i,8) z[i+8] = n[i];
+  while (b >= 64) {
+    core_chacha(x,z,k);
+    FOR(i,64) c[i] = x[i];
+    u = 1;
+    FOR(i,8) {
+      u += (u32) z[i];
+      z[i] = u;
+      u >>= 8;
+    }
+    b -= 64;
+    c += 64;
+  }
+  if (b) {
+    core_chacha(x,z,k);
+    FOR(i,b) c[i] = x[i];
+  }
+}
+
+#define crypto_rng_OUTPUTBYTES 736
+
+static int crypto_rng(
+        unsigned char *r, /* random output */
+        unsigned char *n, /* new key */
+  const unsigned char *g  /* old key */
+)
+{
+  static const unsigned char nonce[8] = {0};
+  unsigned char x[32+crypto_rng_OUTPUTBYTES];
+  chacha20(x,sizeof x,nonce,g);
+  memcpy(n,x,32);
+  memcpy(r,x+32,crypto_rng_OUTPUTBYTES);
+  return 0;
+}
+
+static unsigned char knownrandombytes_g[32];
+static unsigned char knownrandombytes_r[crypto_rng_OUTPUTBYTES];
+static unsigned long long knownrandombytes_pos = crypto_rng_OUTPUTBYTES;
+
+static void knownrandombytes_clear(void)
+{
+  memset(knownrandombytes_g,0,sizeof knownrandombytes_g);
+  memset(knownrandombytes_r,0,sizeof knownrandombytes_r);
+  knownrandombytes_pos = crypto_rng_OUTPUTBYTES;
+}
+
+void knownrandombytes(unsigned char *x,long long xlen)
+{
+  assert(knownrandombytes_is_only_for_testing_not_for_cryptographic_use);
+
+  while (xlen > 0) {
+    if (knownrandombytes_pos == crypto_rng_OUTPUTBYTES) {
+      crypto_rng(knownrandombytes_r,knownrandombytes_g,knownrandombytes_g);
+      knownrandombytes_pos = 0;
+    }
+    *x++ = knownrandombytes_r[knownrandombytes_pos]; xlen -= 1;
+    knownrandombytes_r[knownrandombytes_pos++] = 0;
+  }
+}
+
+/* ----- checksums */
+
+static unsigned char checksum_state[64];
+static char checksum_hex[65];
+
+static void checksum_expected(const char *expected)
+{
+  long long i;
+  for (i = 0;i < 32;++i) {
+    checksum_hex[2 * i] = "0123456789abcdef"[15 & (checksum_state[i] >> 4)];
+    checksum_hex[2 * i + 1] = "0123456789abcdef"[15 & checksum_state[i]];
+  }
+  checksum_hex[2 * i] = 0;
+
+  if (strcmp(checksum_hex,expected))
+    fail("failure: checksum mismatch: %s expected %s\n",checksum_hex,expected);
+}
+
+static void checksum_clear(void)
+{
+  memset(checksum_state,0,sizeof checksum_state);
+  knownrandombytes_clear();
+  testvector_clear();
+  /* not necessary to clear canary */
+}
+
+static void checksum(const unsigned char *x,unsigned long long xlen)
+{
+  u8 block[16];
+  int i;
+  while (xlen >= 16) {
+    core_salsa(checksum_state,x,checksum_state);
+    x += 16;
+    xlen -= 16;
+  }
+  FOR(i,16) block[i] = 0;
+  FOR(i,xlen) block[i] = x[i];
+  block[xlen] = 1;
+  checksum_state[0] ^= 1;
+  core_salsa(checksum_state,block,checksum_state);
+}
+
+#include "limits.inc"
+
+static unsigned char *alignedcalloc(unsigned long long len)
+{
+  unsigned char *x = (unsigned char *) calloc(1,len + 256);
+  long long i;
+  if (!x) abort();
+  /* will never deallocate so shifting is ok */
+  for (i = 0;i < len + 256;++i) x[i] = random();
+  x += 64;
+  x += 63 & (-(unsigned long) x);
+  for (i = 0;i < len;++i) x[i] = 0;
+  return x;
+}
+
+/* ----- catching SIGILL, SIGBUS, SIGSEGV, etc. */
+
+static void forked(void (*test)(long long),long long impl)
+{
+  fflush(stdout);
+  pid_t child = fork();
+  int childstatus = -1;
+  if (child == -1) {
+    fprintf(stderr,"fatal: fork failed: %s",strerror(errno));
+    exit(111);
+  }
+  if (child == 0) {
+    ok = 1;
+    limits();
+    test(impl);
+    if (!ok) exit(100);
+    exit(0);
+  }
+  if (waitpid(child,&childstatus,0) != child) {
+    fprintf(stderr,"fatal: wait failed: %s",strerror(errno));
+    exit(111);
+  }
+  if (childstatus)
+    fail("failure: process failed, status %d\n",childstatus);
+  fflush(stdout);
+}
+
+/* ----- verify, derived from supercop/crypto_verify/try.c */
+
+static int (*crypto_verify)(const unsigned char *,const unsigned char *);
+#define crypto_verify_BYTES lib25519_verify_BYTES
+
+static unsigned char *test_verify_x;
+static unsigned char *test_verify_y;
+
+static void test_verify_check(void)
+{
+  unsigned char *x = test_verify_x;
+  unsigned char *y = test_verify_y;
+  int r = crypto_verify(x,y);
+
+  if (r == 0) {
+    if (memcmp(x,y,crypto_verify_BYTES))
+      fail("failure: different strings pass verify\n");
+  } else if (r == -1) {
+    if (!memcmp(x,y,crypto_verify_BYTES))
+      fail("failure: equal strings fail verify\n");
+  } else {
+    fail("failure: weird return value\n");
+  }
+}
+
+void test_verify_impl(long long impl)
+{
+  unsigned char *x = test_verify_x;
+  unsigned char *y = test_verify_y;
+
+  if (targeti && strcmp(targeti,lib25519_dispatch_verify_implementation(impl))) return;
+  if (impl >= 0) {
+    crypto_verify = lib25519_dispatch_verify(impl);
+    printf("verify %lld implementation %s compiler %s\n",impl,lib25519_dispatch_verify_implementation(impl),lib25519_dispatch_verify_compiler(impl));
+  } else {
+    crypto_verify = lib25519_verify;
+    printf("verify selected implementation %s compiler %s\n",lib25519_verify_implementation(),lib25519_verify_compiler());
+  }
+
+  kernelrandombytes(x,crypto_verify_BYTES);
+  kernelrandombytes(y,crypto_verify_BYTES);
+  test_verify_check();
+  memcpy(y,x,crypto_verify_BYTES);
+  test_verify_check();
+  y[myrandom() % crypto_verify_BYTES] = myrandom();
+  test_verify_check();
+  y[myrandom() % crypto_verify_BYTES] = myrandom();
+  test_verify_check();
+  y[myrandom() % crypto_verify_BYTES] = myrandom();
+  test_verify_check();
+}
+
+static void test_verify(void)
+{
+  if (targeto && strcmp(targeto,"verify")) return;
+  if (targetp && strcmp(targetp,"32")) return;
+
+  test_verify_x = alignedcalloc(crypto_verify_BYTES);
+  test_verify_y = alignedcalloc(crypto_verify_BYTES);
+
+  for (long long offset = 0;offset < 2;++offset) {
+    printf("verify offset %lld\n",offset);
+    for (long long impl = -1;impl < lib25519_numimpl_verify();++impl)
+      forked(test_verify_impl,impl);
+    ++test_verify_x;
+    ++test_verify_y;
+  }
+}
+'''
+
+checksums = {}
+operations = []
+primitives = {}
+sizes = {}
+exports = {}
+prototypes = {}
+
+with open('api') as f:
+  for line in f:
+    line = line.strip()
+    if line.startswith('crypto_'):
+      line = line.split()
+      x = line[0].split('/')
+      assert len(x) == 2
+      o = x[0].split('_')[1]
+      if o not in operations: operations += [o]
+      p = x[1]
+      if o not in primitives: primitives[o] = []
+      primitives[o] += [p]
+      if len(line) > 1:
+        checksums[o,p] = line[1],line[2]
+      continue
+    if line.startswith('#define '):
+      x = line.split(' ')
+      x = x[1].split('_')
+      assert len(x) == 4
+      assert x[0] == 'crypto'
+      o = x[1]
+      p = x[2]
+      if (o,p) not in sizes: sizes[o,p] = ''
+      sizes[o,p] += line+'\n'
+      continue
+    if line.endswith(');'):
+      fun,args = line[:-2].split('(')
+      rettype,fun = fun.split()
+      fun = fun.split('_')
+      o = fun[1]
+      assert fun[0] == 'crypto'
+      if o not in exports: exports[o] = []
+      exports[o] += ['_'.join(fun[1:])]
+      if o not in prototypes: prototypes[o] = []
+      prototypes[o] += [(rettype,fun,args)]
+
+todo = (
+  ('hashblocks',(
+    ('h','crypto_hashblocks_STATEBYTES','crypto_hashblocks_STATEBYTES'),
+    ('m',None,'4096'),
+  ),(
+    ('loops','4096','32768'),
+    ('maxtest','128','4096'),
+  ),(
+    ('',(),('h',),('m','mlen')),
+  )),
+  ('hash',(
+    ('h','crypto_hash_BYTES','crypto_hash_BYTES'),
+    ('m',None,'4096'),
+  ),(
+    ('loops','64','512'),
+    ('maxtest','128','4096'),
+  ),(
+    ('',('h',),(),('m','mlen')),
+  )),
+  ('pow',(
+    ('q','crypto_pow_BYTES','crypto_pow_BYTES'),
+    ('p','crypto_pow_BYTES','crypto_pow_BYTES'),
+  ),(
+    ('loops','64','512'),
+  ),(
+    ('',('q',),(),('p',)),
+  )),
+  ('nP',(
+    ('q','crypto_nP_POINTBYTES','crypto_nP_POINTBYTES'),
+    ('n','crypto_nP_SCALARBYTES','crypto_nP_SCALARBYTES'),
+    ('p','crypto_nP_POINTBYTES','crypto_nP_POINTBYTES'),
+  ),(
+    ('loops','64','512'),
+  ),(
+    ('',('q',),(),('n','p')),
+  )),
+  ('nG',(
+    ('q','crypto_nG_POINTBYTES','crypto_nG_POINTBYTES'),
+    ('n','crypto_nG_SCALARBYTES','crypto_nG_SCALARBYTES'),
+  ),(
+    ('loops','64','512'),
+  ),(
+    ('',('q',),(),('n',)),
+  )),
+  ('mGnP',(
+    ('Q','crypto_mGnP_OUTPUTBYTES','crypto_mGnP_OUTPUTBYTES'),
+    ('m','crypto_mGnP_MBYTES','crypto_mGnP_MBYTES'),
+    ('n','crypto_mGnP_NBYTES','crypto_mGnP_NBYTES'),
+    ('P','crypto_mGnP_PBYTES','crypto_mGnP_PBYTES'),
+  ),(
+    ('loops','128','1024'),
+  ),(
+    ('',('Q',),(),('m','n','P')),
+  )),
+  ('dh',(
+    ('a','crypto_dh_SECRETKEYBYTES','crypto_dh_BYTES+crypto_dh_PUBLICKEYBYTES+crypto_dh_SECRETKEYBYTES'),
+    ('b','crypto_dh_SECRETKEYBYTES','crypto_dh_BYTES+crypto_dh_PUBLICKEYBYTES+crypto_dh_SECRETKEYBYTES'),
+    ('c','crypto_dh_PUBLICKEYBYTES','crypto_dh_BYTES+crypto_dh_PUBLICKEYBYTES+crypto_dh_SECRETKEYBYTES'),
+    ('d','crypto_dh_PUBLICKEYBYTES','crypto_dh_BYTES+crypto_dh_PUBLICKEYBYTES+crypto_dh_SECRETKEYBYTES'),
+    ('e','crypto_dh_BYTES','crypto_dh_BYTES+crypto_dh_PUBLICKEYBYTES+crypto_dh_SECRETKEYBYTES'),
+    ('f','crypto_dh_BYTES','crypto_dh_BYTES+crypto_dh_PUBLICKEYBYTES+crypto_dh_SECRETKEYBYTES'),
+  ),(
+    ('loops','64','512'),
+  ),(
+    ('_keypair',('c','a'),(),()),
+    ('_keypair',('d','b'),(),()),
+    ('',('e',),(),('d','a')),
+    ('',('f',),(),('c','b')),
+  )),
+  ('sign',(
+    ('p','crypto_sign_PUBLICKEYBYTES','4096+crypto_sign_BYTES+crypto_sign_PUBLICKEYBYTES+crypto_sign_SECRETKEYBYTES'),
+    ('s','crypto_sign_SECRETKEYBYTES','4096+crypto_sign_BYTES+crypto_sign_PUBLICKEYBYTES+crypto_sign_SECRETKEYBYTES'),
+    ('m',None,'4096+crypto_sign_BYTES+crypto_sign_PUBLICKEYBYTES+crypto_sign_SECRETKEYBYTES'),
+    ('c',None,'4096+crypto_sign_BYTES+crypto_sign_PUBLICKEYBYTES+crypto_sign_SECRETKEYBYTES'),
+    ('t',None,'4096+crypto_sign_BYTES+crypto_sign_PUBLICKEYBYTES+crypto_sign_SECRETKEYBYTES'),
+  ),(
+    ('loops','8','64'),
+    ('maxtest','128','4096'),
+  ),(
+    ('_keypair',('p','s'),(),()),
+    ('',('c','&clen'),(),('m','mlen','s')),
+    ('_open',('t','&tlen'),(),('c','clen','p')),
+  )),
+)
+
+for t in todo:
+  o,vars,howmuch,tests = t
+
+  Z += '\n'
+  Z += '/* ----- %s, derived from supercop/crypto_%s/try.c */\n' % (o,o)
+
+  for p in primitives[o]:
+    Z += 'static const char *%s_%s_checksums[] = {\n' % (o,p)
+    Z += '  "%s",\n' % checksums[o,p][0]
+    Z += '  "%s",\n' % checksums[o,p][1]
+    Z += '} ;\n'
+    Z += '\n'
+
+    for rettype,fun,args in prototypes[o]:
+      Z += 'static %s (*%s)(%s);\n' % (rettype,'_'.join(fun),args)
+
+    for line in sizes[o,p].splitlines():
+      psize = line.split()[1]
+      size1 = psize.replace('crypto_%s_%s_'%(o,p),'crypto_%s_'%o)
+      size2 = psize.replace('crypto_','lib25519_')
+      Z += '#define %s %s\n' % (size1,size2)
+    Z += '\n'
+
+    for v,initsize,allocsize in vars:
+      Z += 'static unsigned char *test_%s_%s_%s;\n' % (o,p,v)
+    for v,initsize,allocsize in vars:
+      Z += 'static unsigned char *test_%s_%s_%s2;\n' % (o,p,v)
+    Z += '\n'
+
+    if (o,p) in precomputed:
+      Z += '#define precomputed_%s_%s_NUM %d\n' % (o,p,len(precomputed[o,p]))
+      Z += '\n'
+      for v,initsize,allocsize in vars:
+        Z += 'static const unsigned char precomputed_%s_%s_%s[precomputed_%s_%s_NUM][%s] = {\n' % (o,p,v,o,p,allocsize)
+        for precomp in precomputed[o,p]:
+          Z += '  {%s},\n' % ','.join(str(c) for c in precomp[v])
+        Z += '} ;\n'
+        Z += '\n'
+
+    Z += 'static void test_%s_%s_impl(long long impl)\n' % (o,p)
+    Z += '{\n'
+    for v,initsize,allocsize in vars:
+      Z += '  unsigned char *%s = test_%s_%s_%s;\n' % (v,o,p,v)
+    for v,initsize,allocsize in vars:
+      Z += '  unsigned char *%s2 = test_%s_%s_%s2;\n' % (v,o,p,v)
+    for v,initsize,allocsize in vars:
+      if initsize is None:
+        Z += '  long long %slen;\n' % v
+      else:
+        Z += '  long long %slen = %s;\n' % (v,initsize)
+    Z += '\n'
+
+    Z += '  if (targeti && strcmp(targeti,lib25519_dispatch_%s_%s_implementation(impl))) return;\n' % (o,p)
+
+    Z += '  if (impl >= 0) {\n'
+    for rettype,fun,args in prototypes[o]:
+      f2 = ['lib25519','dispatch',o,p]+fun[2:]
+      Z += '    %s = %s(impl);\n' % ('_'.join(fun),'_'.join(f2))
+    Z += '    printf("%s_%s %%lld implementation %%s compiler %%s\\n",impl,lib25519_dispatch_%s_%s_implementation(impl),lib25519_dispatch_%s_%s_compiler(impl));\n' % (o,p,o,p,o,p)
+    Z += '  } else {\n'
+    for rettype,fun,args in prototypes[o]:
+      f2 = ['lib25519',o,p]+fun[2:]
+      Z += '    %s = %s;\n' % ('_'.join(fun),'_'.join(f2))
+    Z += '    printf("%s_%s selected implementation %%s compiler %%s\\n",lib25519_%s_%s_implementation(),lib25519_%s_%s_compiler());\n' % (o,p,o,p,o,p)
+    Z += '  }\n'
+
+    Z += '  for (long long checksumbig = 0;checksumbig < 2;++checksumbig) {\n'
+
+    maxtestdefined = False
+    for v,small,big in howmuch:
+      Z += '    long long %s = checksumbig ? %s : %s;\n' % (v,big,small)
+      if v == 'maxtest': maxtestdefined = True
+    Z += '\n'
+    Z += '    checksum_clear();\n'
+    Z += '\n'
+    Z += '    for (long long loop = 0;loop < loops;++loop) {\n'
+
+    wantresult = False
+    for f,output,inout,input in tests:
+      cof = 'crypto_'+o+f
+      for rettype,fun,args in prototypes[o]:
+        if cof == '_'.join(fun):
+          if rettype != 'void':
+            wantresult = True
+    if wantresult:
+      Z += '      int result;\n'
+
+    if maxtestdefined:
+      Z += '      mlen = myrandom() % (maxtest + 1);\n'
+    Z += '\n'
+
+    initialized = set()
+    for f,output,inout,input in tests:
+      cof = 'crypto_'+o+f
+
+      cofrettype = None
+      for rettype,fun,args in prototypes[o]:
+        if cof == '_'.join(fun):
+          cofrettype = rettype
+
+      expected = '0'
+      unexpected = 'nonzero'
+      if cof == 'crypto_hashblocks':
+        expected = 'mlen % crypto_hashblocks_BLOCKBYTES'
+        unexpected = 'unexpected value'
+
+      if cof == 'crypto_sign':
+        Z += '      clen = mlen + %s_BYTES;\n' % cof
+      if cof == 'crypto_sign_open':
+        Z += '      tlen = clen;\n'
+
+      for v in output:
+        if len(v) == 1:
+          Z += '      output_prepare(%s2,%s,%slen);\n' % (v,v,v)
+          # v now has CDE where C is canary, D is canary, E is canary
+          # v2 now has same CDE
+          # D is at start of v with specified length
+          # C is 16 bytes before beginning
+          # E is 16 bytes past end
+      for v in input+inout:
+        if len(v) == 1:
+          if v in initialized:
+            Z += '      memcpy(%s2,%s,%slen);\n' % (v,v,v)
+            Z += '      double_canary(%s2,%s,%slen);\n' % (v,v,v)
+          else:
+            Z += '      input_prepare(%s2,%s,%slen);\n' % (v,v,v)
+            # v now has CTE where C is canary, T is test data, E is canary
+            # v2 has same CTE
+            initialized.add(v)
+
+      args = ','.join(output+inout+input)
+      if cofrettype == 'void':
+        Z += '      %s(%s);\n' % (cof,args)
+      else:
+        Z += '      result = %s(%s);\n' % (cof,args)
+        Z += '      if (result != %s) fail("failure: %s returns %s\\n");\n' % (expected,cof,unexpected)
+    
+      if cof == 'crypto_sign':
+        extrabytes = cof+'_BYTES'
+        Z += '      if (clen < mlen) fail("failure: %s returns smaller output than input\\n");\n' % cof
+        Z += '      if (clen > mlen + %s) fail("failure: %s returns more than %s extra bytes\\n");\n' % (extrabytes,cof,extrabytes)
+      if cof == 'crypto_sign_open':
+        Z += '      if (tlen != mlen) fail("failure: %s does not match mlen\\n");\n' % cof
+        Z += '      if (memcmp(t,m,mlen) != 0) fail("failure: %s does not match m\\n");\n' % cof
+    
+      for v in output+inout:
+        if len(v) == 1:
+          Z += '      checksum(%s,%slen);\n' % (v,v)
+          # output v,v2 now has COE,CDE where O is output; checksum O
+          initialized.add(v)
+      for v in output+inout:
+        if len(v) == 1:
+          if cof == 'crypto_sign_open' and v == 't':
+            Z += '      output_compare(%s2,%s,%slen,"%s");\n' % (v,v,'c',cof)
+          else:
+            Z += '      output_compare(%s2,%s,%slen,"%s");\n' % (v,v,v,cof)
+            # output_compare checks COE,CDE for equal C, equal E
+      for v in input:
+        if len(v) == 1:
+          Z += '      input_compare(%s2,%s,%slen,"%s");\n' % (v,v,v,cof)
+          # input_compare checks CTE,CTE for equal C, equal T, equal E
+    
+      deterministic = True
+      if inout+input == (): deterministic = False
+      if cof == 'crypto_sign': deterministic = False
+    
+      if deterministic:
+        Z += '\n'
+        for v in output+inout+input:
+          if len(v) == 1:
+            Z += '      double_canary(%s2,%s,%slen);\n' % (v,v,v)
+            # old output v,v2: COE,CDE; new v,v2: FOG,FDG where F,G are new canaries
+            # old inout v,v2: COE,CTE; new v,v2: FOG,FTG
+            # old input v,v2: CTE,CTE; new v,v2: FTG,FTG
+    
+        args = ','.join([v if v[-3:] == 'len' else v+'2' for v in output+inout+input])
+        if cofrettype == 'void':
+          Z += '      %s(%s);\n' % (cof,args)
+        else:
+          Z += '      result = %s(%s);\n' % (cof,args)
+          Z += '      if (result != %s) fail("failure: %s returns %s\\n");\n' % (expected,cof,unexpected)
+    
+        for w in output + inout:
+          if len(w) == 1:
+            # w,w2: COE,COE; goal now is to compare O
+            Z += '      if (memcmp(%s2,%s,%slen) != 0) fail("failure: %s is nondeterministic\\n");\n' % (w,w,w,cof)
+    
+      overlap = deterministic
+      if inout != (): overlap = False
+    
+      if overlap:
+        for y in output:
+          if len(y) == 1:
+            Z += '\n'
+            for v in output:
+              if len(v) == 1:
+                Z += '      double_canary(%s2,%s,%slen);\n' % (v,v,v)
+            for v in input:
+              if len(v) == 1:
+                Z += '      double_canary(%s2,%s,%slen);\n' % (v,v,v)
+            for x in input:
+              if len(x) == 1:
+                # try writing to x2 instead of y, while reading x2
+                args = ','.join([x+'2' if v==y else v for v in output] + [x+'2' if v==x else v for v in input])
+    
+                if cofrettype == 'void':
+                  Z += '      %s(%s);\n' % (cof,args)
+                else:
+                  Z += '      result = %s(%s);\n' % (cof,args)
+                  Z += '      if (result != %s) fail("failure: %s with %s=%s overlap returns %s\\n");\n' % (expected,cof,x,y,unexpected)
+    
+                Z += '      if (memcmp(%s2,%s,%slen) != 0) fail("failure: %s does not handle %s=%s overlap\\n");\n' % (x,y,y,cof,x,y)
+                Z += '      memcpy(%s2,%s,%slen);\n' % (x,x,x)
+    
+      if cof == 'crypto_sign_open':
+        Z += '\n'
+        for tweaks in range(3):
+          Z += '      c[myrandom() % clen] += 1 + (myrandom() % 255);\n'
+          Z += '      if (%s(t,&tlen,c,clen,p) == 0)\n' % cof
+          Z += '        if ((tlen != mlen) || (memcmp(t,m,mlen) != 0))\n'
+          Z += '          fail("failure: %s allows trivial forgeries\\n");\n' % cof
+    
+      if cof == 'crypto_dh' and output == ('f',):
+        Z += '\n'
+        Z += '      if (memcmp(f,e,elen) != 0) fail("failure: %s not associative\\n");\n' % cof
+
+    Z += '    }\n'
+    Z += '    checksum_expected(%s_%s_checksums[checksumbig]);\n' % (o,p)
+    Z += '  }\n'
+
+    # ----- test vectors computed by python
+
+    for f,output,inout,input in tests:
+      cof = 'crypto_'+o+f
+      if (o,p) in precomputed:
+        Z += '  for (long long precomp = 0;precomp < precomputed_%s_%s_NUM;++precomp) {\n' % (o,p)
+        for v,initsize,allocsize in vars:
+          if v in output:
+            Z += '    output_prepare(%s2,%s,%s);\n' % (v,v,allocsize)
+          if v in input+inout:
+            Z += '    input_prepare(%s2,%s,%s);\n' % (v,v,allocsize)
+            Z += '    memcpy(%s,precomputed_%s_%s_%s[precomp],%s);\n' % (v,o,p,v,allocsize)
+            Z += '    memcpy(%s2,precomputed_%s_%s_%s[precomp],%s);\n' % (v,o,p,v,allocsize)
+
+        args = ','.join(output+inout+input)
+        Z += '    %s(%s);\n' % (cof,args)
+
+        for v,initsize,allocsize in vars:
+          if v in output+inout:
+            Z += '    if (memcmp(%s,precomputed_%s_%s_%s[precomp],%s)) {\n' % (v,o,p,v,allocsize)
+            Z += '      fail("failure: %s fails precomputed test vectors\\n");\n' % cof
+            Z += '      printf("expected %s: ");\n' % v
+            Z += '      for (long long pos = 0;pos < %s;++pos) printf("%%02x",precomputed_%s_%s_%s[precomp][pos]);\n' % (allocsize,o,p,v)
+            Z += '      printf("\\n");\n'
+            Z += '      printf("received %s: ");\n' % v
+            Z += '      for (long long pos = 0;pos < %s;++pos) printf("%%02x",%s[pos]);\n' % (allocsize,v)
+            Z += '      printf("\\n");\n'
+            Z += '    }\n'
+
+        for v,initsize,allocsize in vars:
+          if v in output+inout:
+            Z += '    output_compare(%s2,%s,%s,"%s");\n' % (v,v,allocsize,cof)
+          if v in input:
+            Z += '    input_compare(%s2,%s,%s,"%s");\n' % (v,v,allocsize,cof)
+
+        Z += '  }\n'
+
+    Z += '}\n'
+    Z += '\n'
+
+    Z += 'static void test_%s_%s(void)\n' % (o,p)
+    Z += '{\n'
+    Z += '  if (targeto && strcmp(targeto,"%s")) return;\n' % o
+    Z += '  if (targetp && strcmp(targetp,"%s")) return;\n' % p
+
+    for v,initsize,allocsize in vars:
+      Z += '  test_%s_%s_%s = alignedcalloc(%s);\n' % (o,p,v,allocsize)
+    for v,initsize,allocsize in vars:
+      Z += '  test_%s_%s_%s2 = alignedcalloc(%s);\n' % (o,p,v,allocsize)
+    Z += '\n'
+
+    Z += '  for (long long offset = 0;offset < 2;++offset) {\n'
+    Z += '    printf("%s_%s offset %%lld\\n",offset);\n' % (o,p)
+    Z += '    for (long long impl = -1;impl < lib25519_numimpl_%s_%s();++impl)\n' % (o,p)
+    Z += '      forked(test_%s_%s_impl,impl);\n' % (o,p)
+    for v,initsize,allocsize in vars:
+      Z += '    ++test_%s_%s_%s;\n' % (o,p,v)
+    for v,initsize,allocsize in vars:
+      Z += '    ++test_%s_%s_%s2;\n' % (o,p,v)
+
+    Z += '  }\n'
+
+    Z += '}\n'
+
+    for line in sizes[o,p].splitlines():
+      psize = line.split()[1]
+      size1 = psize.replace('crypto_%s_%s_'%(o,p),'crypto_%s_'%o)
+      Z += '#undef %s\n' % size1
+    Z += '\n'
+
+
+Z += r'''/* ----- top level */
+
+#include "print_cpuid.inc"
+
+int main(int argc,char **argv)
+{
+  setvbuf(stdout,0,_IOLBF,0);
+  kernelrandombytes_setup();
+  printf("lib25519 version %s\n",lib25519_version);
+  printf("lib25519 arch %s\n",lib25519_arch);
+  print_cpuid();
+
+  if (*argv) ++argv;
+  if (*argv) {
+    targeto = *argv++;
+    if (*argv) {
+      targetp = *argv++;
+      if (*argv) {
+        targeti = *argv++;
+      }
+    }
+  }
+
+'''
+
+Z += '  test_verify();\n'
+for t in todo:
+  o,vars,howmuch,tests = t
+  for p in primitives[o]:
+    Z += '  test_%s_%s();\n' % (o,p)
+
+Z += r'''
+  if (!ok) {
+    printf("some tests failed\n");
+    return 100;
+  }
+  printf("all tests succeeded\n");
+  return 0;
+}
+'''
+
+with open('command/lib25519-test.c','w') as f:
+  f.write(Z)

@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import shutil
+import tempfile
+
+os.umask(0o22)
+
+prefix = sys.argv[1]
+libdir = '%s/lib'%prefix
+includedir = '%s/include'%prefix
+bindir = '%s/bin'%prefix
+
+os.makedirs(libdir,exist_ok=True)
+os.makedirs(includedir,exist_ok=True)
+os.makedirs(bindir,exist_ok=True)
+
+os.umask(0o77)
+
+with tempfile.TemporaryDirectory(dir=libdir) as t:
+  for fn in sorted(os.listdir('package/lib')):
+    shutil.copy2('package/lib/%s' % fn,'%s/%s' % (t,fn),follow_symlinks=False)
+    os.rename('%s/%s' % (t,fn),'%s/%s' % (libdir,fn))
+
+with tempfile.TemporaryDirectory(dir=includedir) as t:
+  for fn in sorted(os.listdir('package/include')):
+    shutil.copy2('package/include/%s' % fn,'%s/%s' % (t,fn),follow_symlinks=False)
+    os.rename('%s/%s' % (t,fn),'%s/%s' % (includedir,fn))
+
+with tempfile.TemporaryDirectory(dir=bindir) as t:
+  for fn in sorted(os.listdir('package/bin')):
+    shutil.copy2('package/bin/%s' % fn,'%s/%s' % (t,fn),follow_symlinks=False)
+    os.rename('%s/%s' % (t,fn),'%s/%s' % (bindir,fn))

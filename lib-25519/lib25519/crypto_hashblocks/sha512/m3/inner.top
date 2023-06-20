@@ -1,0 +1,20 @@
+typedef unsigned long long uint64;
+
+#define SHR(x,c) ((x) >> (c))
+#define ROTR(x,c) (((x) >> (c)) | ((x) << (64 - (c))))
+#define sigma0(x) (ROTR(x, 1) ^ ROTR(x, 8) ^ SHR(x,7))
+#define sigma1(x) (ROTR(x,19) ^ ROTR(x,61) ^ SHR(x,6))
+#
+#define flip(x) ROTR(x,32)
+
+#define Ch(x,y,z) (z ^ (x & (y ^ z)))
+#define Maj(x,y,z) ((x & (y ^ z)) ^ (y & z))
+#define Sigma0(x) (ROTR(x,28) ^ ROTR(x,34) ^ ROTR(x,39))
+#define Sigma1(x) (ROTR(x,14) ^ ROTR(x,18) ^ ROTR(x,41))
+
+#define reverse(x) __builtin_bswap64(x)
+#define load64(x) *(uint64 *) (x)
+#define store64(x,y) *(uint64 *) (x) = y
+#define eq(x,y) (x == y)
+#define ge(x,y) (x >= y)
+

@@ -1,0 +1,1 @@
+../../../crypto_sign/ed25519/amd64/sc25519_from32bytes.c

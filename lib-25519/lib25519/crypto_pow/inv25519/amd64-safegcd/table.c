@@ -1,0 +1,35 @@
+#include <string.h>
+#include <stdint.h>
+#include "crypto_pow.h"
+
+static const __attribute__((aligned(32)))
+int64_t table[72] = {
+  19LL, 19LL, 19LL, 19LL,
+  0LL, 19LL, 0LL, 19LL,
+  -1LL, 32767LL, -1LL, 32767LL,
+  678152731LL, 678152731LL, 678152731LL, 678152731LL,
+  0x3FFFFFFFLL, 0x3FFFFFFFLL, 0x3FFFFFFFLL, 0x3FFFFFFFLL,
+  0x200000000LL, 0x200000000LL, 0x200000000LL, 0x200000000LL,
+  0x1000000000000LL, 0x1000000000000LL, 0x1000000000000LL, 0x1000000000000LL,
+  0x8000000000000000LL, 0x8000000000000000LL, 0x8000000000000000LL, 0x8000000000000000LL,
+  0X7FFFFFFE00000000LL, 0X7FFFFFFE00000000LL, 0X7FFFFFFE00000000LL, 0X7FFFFFFE00000000LL,
+  -19LL,0,0,0x3ffffff8LL,
+  0LL,0LL,0LL,0x3fffffffLL,
+  0LL,0LL,0LL,0x3fffffffLL,
+  0LL,0LL,0LL,0x3fffffffLL,
+  0LL,0LL,0LL,0x3fffffffLL,
+  0LL,0LL,0LL,0x3fffffffLL,
+  0LL,0LL,0LL,0x250d7fffLL,
+  0LL,0LL,0LL,0x035e50d7LL,
+  32768LL,0LL,0LL,0x000035e5LL
+} ;
+
+extern void CRYPTO_SHARED_NAMESPACE(asm)(const unsigned char *,unsigned char *,const int64_t *);
+
+void crypto_pow(unsigned char *out,const unsigned char *in)
+{
+  unsigned char x[32];
+  memcpy(x,in,32);
+  x[31] &= 127;
+  CRYPTO_SHARED_NAMESPACE(asm)(x,out,table);
+}

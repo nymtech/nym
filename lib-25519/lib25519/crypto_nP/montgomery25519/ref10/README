@@ -1,0 +1,4 @@
+Upstream: supercop/crypto_scalarmult/curve25519/ref10
+
+Changes from upstream: Tweaked API to provide crypto_dh instead of
+crypto_scalarmult.

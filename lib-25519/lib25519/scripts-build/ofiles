@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import shutil
+
+shutil.rmtree('ofiles',ignore_errors=True)
+os.makedirs('ofiles',exist_ok=True)
+
+done = set()
+
+i = 0
+
+def doit(d):
+  global i
+  if d in done: return
+  done.add(d)
+  for fn in os.listdir(d):
+    if fn.endswith('.o'):
+      shutil.copy2('%s/%s' % (d,fn),'ofiles/%d-%s-%s' % (i,d.replace('/','_').replace('-','_'),fn))
+      i += 1
+  if os.path.exists(d+'/dependencies'):
+    with open(d+'/dependencies') as f:
+      for line in f:
+        doit(line.strip())
+
+for d in sys.stdin:
+  d = d.strip()
+  doit(d)

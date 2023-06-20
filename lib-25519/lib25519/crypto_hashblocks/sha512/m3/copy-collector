@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+
+import sys
+
+buffer = [] # vmov operations not yet printed
+
+def buffer_printandclear():
+  global buffer
+  if len(buffer) == 0: return
+  print('# copy-collector output starts')
+  while len(buffer) > 0:
+    if len(buffer) >= 2:
+      x = buffer[0]
+      y = buffer[1]
+      if len(x) == 2 and len(y) == 2 and x[0] == 'vmov' and y[0] == 'vmov':
+        x = x[1].split(',')
+        y = y[1].split(',')
+        if x[0][0] == 's' and y[0][0] == 's':
+          s0 = int(x[0][1:])
+          s1 = int(y[0][1:])
+          if s0//2==s1//2:
+            if s1 == s0+1:
+              print('vmov d%d,%s,%s' % (s0//2,x[1],y[1]))
+              buffer = buffer[2:]
+              continue
+            if s0 == s1+1:
+              print('vmov d%d,%s,%s' % (s0//2,y[1],x[1]))
+              buffer = buffer[2:]
+              continue
+        if x[1][0] == 's' and y[1][0] == 's':
+          s0 = int(x[1][1:])
+          s1 = int(y[1][1:])
+          if s0//2==s1//2:
+            if s1 == s0+1:
+              print('vmov %s,%s,d%d' % (x[0],y[0],s0//2))
+              buffer = buffer[2:]
+              continue
+            if s0 == s1+1:
+              print('vmov %s,%s,d%d' % (y[0],x[0],s0//2))
+              buffer = buffer[2:]
+              continue
+      if len(x) == 2 and len(y) == 2 and x[0] == 'str' and y[0] == 'str':
+        x = x[1].split(',')
+        y = y[1].split(',')
+        # strd is not safe for unaligned addresses
+        # but stack is guaranteed to be aligned
+        if x[1] == '[sp' and y[1] == '[sp':
+          sp0 = int(x[2][1:-1])
+          sp1 = int(y[2][1:-1])
+          if x[2] == '#%d]'%sp0 and y[2] == '#%d]'%sp1:
+            if sp1 == sp0+4:
+              print('strd %s,%s,[sp,#%d]' % (x[0],y[0],sp0))
+              buffer = buffer[2:]
+              continue
+    
+    firstloads = 0
+    while firstloads < len(buffer) and buffer[firstloads][0] == 'ldr':
+      firstloads += 1
+    if firstloads >= 2:
+      x = [buffer[i][1].split(',') for i in range(firstloads)]
+      if all(xi[1] == '[sp' for xi in x):
+        stackpos = int(x[0][2][1:-1])
+        if all(x[i][2] == '#%d]'%(stackpos+4*i) for i in range(firstloads)):
+          if firstloads == 2:
+            print('ldrd %s,[sp,#%d]' % (','.join(xi[0] for xi in x),stackpos))
+            buffer = buffer[firstloads:]
+            continue
+          if firstloads >= 2 and stackpos == 0:
+            print('ldm sp,{%s}' % (','.join(xi[0] for xi in x),stackpos))
+            buffer = buffer[firstloads:]
+            continue
+      for i in range(firstloads):
+        print(' '.join(buffer[i]))
+      buffer = buffer[firstloads:]
+      continue
+    print(' '.join(buffer[0]))
+    buffer = buffer[1:]
+  print('# copy-collector output ends')
+
+for line in sys.stdin:
+  line = line.strip()
+  x = line.split()
+  if len(x) == 0:
+    print(line)
+  elif x[0] == '#':
+    print(line)
+  elif len(x) == 2 and x[0] in ['vmov','str','ldr']:
+    print('# copy-collector input: '+line)
+    buffer += [x]
+  else:
+    buffer_printandclear()
+    print(line)
+
+buffer_printandclear()

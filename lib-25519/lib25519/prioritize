@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+
+tune = {
+  'verify_32':('32',1),
+  'hashblocks_sha512':('8090',1),
+  'hash_sha512':('8090',1),
+  'pow_inv25519':('32',1),
+  'nP_montgomery25519':('32',1),
+  'nG_merged25519':('32',1),
+  'nG_montgomery25519':('32',1),
+  'mGnP_ed25519':('33',1),
+  'dh_x25519_keypair':('32',1),
+  'dh_x25519':('32',3),
+  'sign_ed25519_keypair':('32',1),
+  'sign_ed25519':('59',10),
+  'sign_ed25519_open':('59',1),
+}
+
+impls = set()
+data = {}
+
+def handle(benchmark):
+  with open('benchmarks/%s' % benchmark) as f:
+    for line in f:
+      line = line.split()
+      if line[:2] == ['lib25519','version']:
+        version = line[2]
+        continue
+      if line[:2] == ['lib25519','arch']:
+        arch = line[2]
+        continue
+      if line[:1] == ['cpuid']:
+        cpuid = ''.join(line[1:])
+      if line[:3] == ['cpucycles','selected','0']:
+        cpucyclesoverhead = int(line[3])
+      if line[:3] == ['randombytes','selected','26']:
+        randombytesoverhead = int(line[3])
+      if len(line) >= 5:
+        shortfun = line[0]
+        if line[1].isnumeric() and line[2] == 'implementation' and line[4] == 'compiler':
+          implnum = line[1]
+          implop = line[0]
+          i = line[3]
+          c = ' '.join(line[5:])
+        if line[1].isnumeric() and shortfun in tune and line[2] == tune[shortfun][0] and line[3].isnumeric():
+          o = shortfun.split('_')[0]
+          p = shortfun.split('_')[1]
+          assert implop == '%s_%s' % (o,p)
+          assert implnum == line[1]
+          cycles = int(line[3])
+          cycles -= cpucyclesoverhead
+          if shortfun.endswith('_keypair'): cycles -= randombytesoverhead
+          if cycles < 1: cycles = 1
+          key = benchmark,version,arch,cpuid,o,p,i,c
+          if key not in data: data[key] = []
+          data[key] += [(shortfun,cycles)]
+
+for benchmark in sorted(os.listdir('benchmarks')):
+  handle(benchmark)
+
+impldata = {}
+bestscore = {}
+
+for key in sorted(data):
+  benchmark,version,arch,cpuid,o,p,i,c = key
+  assert sorted(shortfun for shortfun,cycles in data[key]) == sorted(shortfun for shortfun in tune if shortfun.split('_')[:2] == [o,p])
+  score = sum(cycles*tune[shortfun][1] for shortfun,cycles in data[key])
+
+  if (o,p,i) not in impldata: impldata[o,p,i] = []
+  impldata[o,p,i] += [(benchmark,version,arch,cpuid,c,score)]
+
+  if (benchmark,o,p) not in bestscore: bestscore[benchmark,o,p] = score
+  bestscore[benchmark,o,p] = min(score,bestscore[benchmark,o,p])
+
+os.makedirs('priority',exist_ok=True)
+for o,p,i in impldata:
+  with open('priority/%s-%s-%s' % (o,p,i),'w') as f:
+    for benchmark,version,arch,cpuid,c,score in impldata[o,p,i]:
+      if bestscore[benchmark,o,p] <= 0: continue
+      f.write('%.6f %s %s %s %s %s %s\n' % (score/bestscore[benchmark,o,p],score,arch,cpuid,version,benchmark,c))

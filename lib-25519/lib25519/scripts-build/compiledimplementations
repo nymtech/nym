@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+
+def ok(d):
+  for fn in os.listdir(d):
+    if fn.endswith('.o.compilefailed'):
+      return False
+  if os.path.exists(d+'/dependencies'):
+    with open(d+'/dependencies') as f:
+      for line in f:
+        if not ok(line.strip()):
+          return False
+  return True
+
+for line in sys.stdin:
+  d = line.strip()
+  if ok(d):
+    print(d)

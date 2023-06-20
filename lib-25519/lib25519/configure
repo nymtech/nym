@@ -1,0 +1,1159 @@
+#!/usr/bin/env python3
+
+import os
+import shutil
+import sys
+import platform
+import subprocess
+import tempfile
+import hashlib
+import re
+
+def sha512(s):
+  h = hashlib.sha512()
+  h.update(s)
+  return h.digest()
+
+prefix = '/usr/local'
+clean = True
+trim = True
+
+host = platform.machine()
+host = ''.join(c for c in host if c in '_0123456789abcdefghijklmnopqrstuvwxyz')
+
+def dirlinksym(dir,source,target):
+  with tempfile.TemporaryDirectory(dir=dir) as t:
+    os.symlink(target,'%s/symlink' % t)
+    os.rename('%s/symlink' % t,'%s/%s' % (dir,source))
+
+makefile = ''
+librandombytes = 'randombytes_kernel'
+libcpucycles = 'cpucycles'
+linktype = 'so'
+
+for arg in sys.argv[1:]:
+  if arg.startswith('--prefix='):
+    prefix = arg[9:]
+    continue
+  if arg.startswith('--host='):
+    host = arg[8:]
+    host = host.split('-')[0]
+    continue
+  if arg == '--clean':
+    clean = True
+    continue
+  if arg == '--noclean':
+    clean = False
+    continue
+  if arg == '--trim':
+    trim = True
+    continue
+  if arg == '--notrim':
+    trim = False
+    continue
+  if arg == '--staticbinaries':
+    linktype = 'a' # binaries usable by themselves
+    continue
+  if arg == '--nostaticbinaries':
+    linktype = 'so' # save disk space
+    continue
+  raise ValueError('unrecognized argument %s' % arg)
+
+if host == 'x86_64': host = 'amd64'
+if host == 'i686': host = 'x86'
+if host == 'armv7': host = 'arm'
+
+echoargs = './configure'
+echoargs += ' --prefix=%s' % prefix
+echoargs += ' --host=%s' % host
+if clean: echoargs += ' --clean'
+if not clean: echoargs += ' --noclean'
+if trim: echoargs += ' --trim'
+if not trim: echoargs += ' --notrim'
+if linktype == 'a': echoargs += ' --staticbinaries'
+if linktype == 'so': echoargs += ' --nostaticbinaries'
+print(echoargs)
+
+if prefix[0] != '/':
+  raise ValueError('prefix %s is not an absolute path' % prefix)
+
+rpath = None
+# XXX: rpath = '%s/lib' % prefix
+
+if clean:
+  shutil.rmtree('build/%s' % host,ignore_errors=True)
+
+os.makedirs('build/%s' % host,exist_ok=True)
+os.makedirs('build/%s/package/bin' % host,exist_ok=True)
+os.makedirs('build/%s/package/lib' % host,exist_ok=True)
+os.makedirs('build/%s/package/include' % host,exist_ok=True)
+
+def copytree(src,dst,acceptfn=None):
+  # starting with python 3.8 can use shutil.copytree
+  # with dirs_exist_ok=True
+  # but want to support older versions of python too
+
+  os.makedirs(dst,exist_ok=True)
+  for fn in sorted(os.listdir(src)):
+    srcfn = '%s/%s' % (src,fn)
+    if os.path.isdir(srcfn):
+      dstfn = '%s/%s' % (dst,fn)
+      copytree(srcfn,dstfn)
+    else:
+      if acceptfn is not None:
+        if not acceptfn(fn): continue
+      dstfn = '%s/%s' % (dst,fn)
+      shutil.copy2(srcfn,dstfn)
+  shutil.copystat(src,dst)
+
+def acceptfn_shared(fn):
+  if fn.startswith('shared-'): return True
+  if fn.endswith('.S'): return True
+  if fn.endswith('.h'): return True
+  if fn.endswith('.data'): return True
+  return False
+
+def acceptfn_nonshared(fn):
+  if fn.startswith('shared-'):
+    if fn.endswith('.c'): return False
+    return True
+  if not fn.endswith('.S'): return True
+  return False
+
+shutil.copy2('api','build/%s/api' % host)
+copytree('scripts-build','build/%s/scripts' % host)
+copytree('cpuid','build/%s/cpuid' % host)
+copytree('priority','build/%s/priority' % host)
+
+os.makedirs('build/%s/include-build' % host,exist_ok=True)
+shutil.copy2('randombytes/randombytes.h','build/%s/include-build/randombytes.h' % host)
+shutil.copy2('cpucycles/cpucycles.h','build/%s/include-build/cpucycles.h' % host)
+
+for bits in 8,16,32,64:
+  with open('build/%s/include-build/crypto_int%d.h' % (host,bits),'w') as f:
+    f.write('#include <inttypes.h>\n')
+    f.write('#define crypto_int%d int%d_t' % (bits,bits))
+  with open('build/%s/include-build/crypto_uint%d.h' % (host,bits),'w') as f:
+    f.write('#include <inttypes.h>\n')
+    f.write('#define crypto_uint%d uint%d_t' % (bits,bits))
+
+def impl2symbol(i):
+  return i.replace('-','').replace('_','')
+
+# ----- compilers
+
+def compilerversion(c):
+  try:
+    p = subprocess.Popen(c.split()+['--version'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
+    out,err = p.communicate()
+    assert not err
+    assert not p.returncode
+    return out
+  except:
+    pass
+
+compilerversionline = {}
+compilers = {}
+for arch in sorted(os.listdir('compilers')):
+  if arch.endswith('.c'): continue
+  if arch == 'default' or arch == host or arch.startswith('%s+' % host):
+    with open('compilers/%s' % arch) as f:
+      for c in f.readlines():
+        c = c.strip()
+        cv = compilerversion(c)
+        if cv == None:
+          print('skipping %s compiler %s' % (arch,c))
+          continue
+        if arch not in compilers: compilers[arch] = []
+        compilers[arch] += [c]
+        cv = (c+'\n'+cv).strip().replace('\n','; ')
+        compilerversionline[arch,c] = cv
+        print('using %s compiler %s' % (arch,cv))
+
+firstcompiler = compilers['default'][0]
+
+compilerabbrev = {}
+i = 0
+for arch in sorted(compilers):
+  for compiler in compilers[arch]:
+    compilerabbrev[arch,compiler] = 'C%d'%i
+    i += 1
+    print('abbreviating %s = %s %s' % (compilerabbrev[arch,compiler],arch,compiler))
+
+os.makedirs('build/%s/compilerarch' % host,exist_ok=True)
+for arch,compiler in compilerabbrev:
+  with open('build/%s/compilerarch/%s' % (host,compilerabbrev[arch,compiler]),'w') as f:
+    f.write('%s\n' % arch)
+
+os.makedirs('build/%s/compilerversion' % host,exist_ok=True)
+for arch,compiler in compilerabbrev:
+  with open('build/%s/compilerversion/%s' % (host,compilerabbrev[arch,compiler]),'w') as f:
+    f.write('%s\n' % compilerversionline[arch,compiler])
+
+with open('build/%s/scripts/compiledefault' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('\n')
+  f.write('dir="$1"; shift\n')
+  f.write('base="$1"; shift\n')
+  f.write('ext="$1"; shift\n')
+  f.write('\n')
+  f.write('cd "$dir" && \\\n')
+  f.write('%s \\\n' % firstcompiler)
+  f.write('  -fvisibility=hidden \\\n')
+  f.write('  "$@" \\\n')
+  f.write('  -c "$base.$ext"\n')
+os.chmod('build/%s/scripts/compiledefault' % host,0o755)
+
+with open('build/%s/scripts/compile' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('opic="$1"; shift\n')
+  f.write('base="$1"; shift\n')
+  f.write('ext="$1"; shift\n')
+  f.write('\n')
+  f.write('cd "$opic" || exit 1\n')
+  f.write('compiler=`cat compiler`\n')
+  f.write('opi=`dirname $opic`\n')
+  f.write('op=`dirname $opi`\n')
+  f.write('o=`dirname $op`\n')
+  f.write('p=`basename $op`\n')
+  f.write('iunder=`basename $opi | tr -d _-`\n')
+  f.write('c=`basename $opic`\n')
+  f.write('namespace=lib25519_${o}_${p}_${iunder}_${c}\n')
+  f.write('shared_namespace=lib25519_${o}_${p}_${iunder}_shared\n')
+  f.write('\n')
+  f.write('if $compiler \\\n')
+  f.write('  -I ../../../../include-build \\\n')
+  f.write('  -fvisibility=hidden \\\n')
+  f.write('  -D"CRYPTO_NAMESPACE(name)=${namespace}_##name" \\\n')
+  f.write('  -D"_CRYPTO_NAMESPACE(name)=_${namespace}_##name" \\\n')
+  f.write('  -D"CRYPTO_SHARED_NAMESPACE(name)=${shared_namespace}_##name" \\\n')
+  f.write('  -D"_CRYPTO_SHARED_NAMESPACE(name)=_${shared_namespace}_##name" \\\n')
+  f.write('  -c "$base.$ext" \\\n')
+  f.write('  > "$base.o.compileoutput" 2>&1 \n')
+  f.write('then\n')
+  f.write('  cat "$base.o.compileoutput"\n')
+  f.write('else\n')
+  f.write('  case "$?" in\n')
+  f.write('    111)\n')
+  f.write('      # maybe someday compilers can be convinced\n')
+  f.write('      # to use exit code 111 for temporary failures\n')
+  f.write('      exit 111\n')
+  f.write('      ;;\n')
+  f.write('    *)\n')
+  f.write('      : > "$base.o"\n')
+  f.write('      touch "$base.o.compilefailed"\n')
+  f.write('  esac\n')
+  f.write('fi\n')
+os.chmod('build/%s/scripts/compile' % host,0o755)
+
+# ----- run-time checks for whether host actually supports compiler
+
+copytree('compilers','build/%s/compilers' % host)
+
+for arch in sorted(compilers):
+  if arch == 'default': continue
+  assert os.path.exists('compilers/%s.c'%arch)
+
+  arch_csymbol = ''.join(x if x in '0123456789abcdefghijklmnopqrstuvwxyz' else '_' for x in arch)
+
+  M = '\n'
+  M += 'compilers/%s.o: compilers/%s.c\n' % (arch,arch)
+  M += '\tscripts/compiledefault compilers %s c -Dsupports=lib25519_supports_%s\n' % (arch,arch_csymbol)
+  makefile = M + makefile
+
+M = '\n'
+M += 'compilers-all: %s\n' % ' '.join('compilers/%s.o'%arch for arch in sorted(compilers) if arch != 'default')
+M += '\ttouch compilers-all\n'
+makefile = M + makefile
+
+# ----- crypto
+
+operations = []
+primitives = {}
+sizes = {}
+exports = {}
+prototypes = {}
+
+with open('api') as f:
+  for line in f:
+    line = line.strip()
+    if line.startswith('crypto_'):
+      x = line.split()
+      x = x[0].split('/')
+      assert len(x) == 2
+      o = x[0].split('_')[1]
+      if o not in operations: operations += [o]
+      p = x[1]
+      if o not in primitives: primitives[o] = []
+      primitives[o] += [p]
+      continue
+    if line.startswith('#define '):
+      x = line.split(' ')
+      x = x[1].split('_')
+      assert len(x) == 4
+      assert x[0] == 'crypto'
+      o = x[1]
+      p = x[2]
+      if (o,p) not in sizes: sizes[o,p] = ''
+      sizes[o,p] += line+'\n'
+      continue
+    if line.endswith(');'):
+      fun,args = line[:-2].split('(')
+      rettype,fun = fun.split()
+      fun = fun.split('_')
+      o = fun[1]
+      assert fun[0] == 'crypto'
+      if o not in exports: exports[o] = []
+      exports[o] += ['_'.join(fun[1:])]
+      if o not in prototypes: prototypes[o] = []
+      prototypes[o] += [(rettype,fun,args)]
+
+with open('hdoc') as f:
+  hfile = f.read()
+
+hfile += """
+#ifndef lib25519_h
+#define lib25519_h
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+"""
+
+with open('version') as f:
+  version = f.readlines()[0].strip()
+
+def cstring(x):
+  return '"%s"' % x.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n')
+
+hfile += '\n'
+hfile += '#define lib25519_version %s\n' % cstring(version)
+hfile += '#define lib25519_arch %s\n' % cstring(host)
+hfile += '\n'
+hfile += 'extern void lib25519_cpuid(unsigned int *,long long);\n'
+
+for o in operations:
+  for ppos,p in enumerate(primitives[o]):
+    if len(sizes[o,p]) > 0:
+      S = re.sub(' crypto_',' lib25519_',sizes[o,p])
+      if ppos == 0:
+        hfile += '\n'
+        hfile += re.sub('lib25519_%s_%s_'%(o,p),'lib25519_%s_'%o,S)
+      hfile += '\n'
+      hfile += S
+
+    for rettype,fun,args in prototypes[o]:
+      shortfun = '_'.join(fun[1:])
+      pshortfun = '_'.join([o,p]+fun[2:])
+      if ppos == 0:
+        hfile += '\n'
+        hfile += '#define lib25519_%s lib25519_%s\n' % (shortfun,pshortfun)
+        hfile += '#define lib25519_dispatch_%s lib25519_dispatch_%s\n' % (shortfun,pshortfun)
+      hfile += '\n'
+      hfile += 'extern %s lib25519_%s(%s);\n' % (rettype,pshortfun,args)
+      hfile += 'extern %s (*lib25519_dispatch_%s(long long))(%s);\n' % (rettype,pshortfun,args)
+
+    if ppos == 0:
+      hfile += '\n'
+      hfile += '#define lib25519_%s_implementation lib25519_%s_%s_implementation\n' % (o,o,p)
+      hfile += '#define lib25519_%s_compiler lib25519_%s_%s_compiler\n' % (o,o,p)
+      hfile += '#define lib25519_dispatch_%s_implementation lib25519_dispatch_%s_%s_implementation\n' % (o,o,p)
+      hfile += '#define lib25519_dispatch_%s_compiler lib25519_dispatch_%s_%s_compiler\n' % (o,o,p)
+      hfile += '#define lib25519_numimpl_%s lib25519_numimpl_%s_%s\n' % (o,o,p)
+    hfile += '\n'
+    hfile += 'extern const char *lib25519_%s_%s_implementation(void);\n' % (o,p)
+    hfile += 'extern const char *lib25519_%s_%s_compiler(void);\n' % (o,p)
+    hfile += 'extern const char *lib25519_dispatch_%s_%s_implementation(long long);\n' % (o,p)
+    hfile += 'extern const char *lib25519_dispatch_%s_%s_compiler(long long);\n' % (o,p)
+    hfile += 'extern long long lib25519_numimpl_%s_%s(void);\n' % (o,p)
+
+hfile += """
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+"""
+
+with open('build/%s/package/include/lib25519.h' % host,'w') as f:
+  f.write(hfile)
+os.chmod('build/%s/package/include/lib25519.h' % host,0o644)
+
+for o in operations:
+  for p in primitives[o]:
+    cryptoh = ''
+    cryptoh += '#ifndef crypto_%s_%s_h\n' % (o,p)
+    cryptoh += '#define crypto_%s_%s_h\n' % (o,p)
+    cryptoh += '\n'
+    for rettype,fun,args in prototypes[o]:
+      pshortfun = '_'.join([o,p]+fun[2:])
+      cryptoh += '#define crypto_%s lib25519_%s\n' % (pshortfun,pshortfun)
+    cryptoh += '\n'
+    cryptoh += sizes[o,p]
+    cryptoh += '\n'
+    for rettype,fun,args in prototypes[o]:
+      pshortfun = '_'.join([o,p]+fun[2:])
+      cryptoh += 'extern %s crypto_%s(%s);\n' % (rettype,pshortfun,args)
+    cryptoh += '\n'
+    cryptoh += '#endif\n'
+  
+    with open('build/%s/include-build/crypto_%s_%s.h' % (host,o,p),'w') as f:
+      f.write(cryptoh)
+
+doth = {}
+for o in operations:
+  for p in primitives[o]:
+    result = ''
+    result += '#ifndef crypto_%s_h\n' % o
+    result += '#define crypto_%s_h\n' % o
+    result += '\n'
+    for m in exports[o]:
+      result += '#define crypto_%s CRYPTO_NAMESPACE(%s)\n' % (m,m)
+    result += '\n'
+    result += sizes[o,p]
+    result += re.sub('crypto_%s_%s_'%(o,p),'crypto_%s_'%o,sizes[o,p])
+    result += '\n'
+    for rettype,fun,args in prototypes[o]:
+      result += 'extern %s %s(%s) __attribute__((visibility("default")));\n' % (rettype,'_'.join(fun),args)
+    result += '\n'
+    result += '#endif\n'
+    doth[o,p] = result
+
+impls = {}
+for o in operations:
+  for p in primitives[o]:
+    impls[o,p] = []
+    for i in sorted(os.listdir('crypto_%s/%s' % (o,p))):
+      impldir = 'crypto_%s/%s/%s' % (o,p,i)
+      if not os.path.isdir(impldir): continue
+      if os.stat(impldir).st_mode & 0o1000 == 0o1000:
+        print('skipping sticky %s' % impldir)
+        continue
+  
+      implarch = None
+      if os.path.exists('%s/architectures' % impldir):
+        with open('%s/architectures' % impldir) as f:
+          for line in f:
+            line = line.strip().split()
+            if len(line) == 0: continue
+            if line[0] != host: continue
+            implarch = line
+      else:
+        implarch = [host]
+  
+      if implarch == None: continue
+      assert implarch[0] == host
+
+      impls[o,p] += [(i,impldir,implarch)]
+
+undisciplined = set()
+file_hash = {}
+inclusions = {}
+namespace_defines = {}
+namespace_uses = {}
+namespace_definedin = {}
+
+def file_process(dir,fn,substitutes={}):
+  if (dir,fn) in file_hash: return
+
+  if fn in substitutes:
+    x = substitutes[fn]
+  else:
+    with open(dir+'/'+fn) as f:
+      x = f.read()
+
+  file_hash[dir,fn] = sha512(x.encode('utf8'))
+  inclusions[dir,fn] = []
+  namespace_defines[dir,fn] = []
+  namespace_uses[dir,fn] = []
+
+  for line in x.splitlines():
+    line = line.split()
+
+    if line[:3] == ['//','linker','define']:
+      for x in line[3:]:
+        namespace_defines[dir,fn] += [x]
+        if (dir,x) in namespace_definedin:
+          undisciplined.add(dir)
+        namespace_definedin[dir,x] = fn
+
+    if line[:3] == ['//','linker','use']:
+      for x in line[3:]:
+        namespace_uses[dir,fn] += [x]
+
+    if line[:1] != ['#include']: continue
+    if len(line) < 2: continue
+    subfn = line[1]
+    if not subfn.startswith('"'): continue
+    if not subfn.endswith('"'): continue
+    subfn = subfn[1:-1]
+    if subfn == 'randombytes.h': continue
+    if subfn.startswith('crypto_') and subfn not in substitutes: continue
+    inclusions[dir,fn] += [subfn]
+    file_process(dir,subfn,substitutes)
+
+checksum_cache = {}
+checksum_inprogress = set()
+def checksum(dir,fn):
+  if dir in undisciplined:
+    return os.urandom(32)
+  if (dir,fn) not in checksum_cache:
+    if (dir,fn) in checksum_inprogress:
+      undisciplined.add(dir)
+      return os.urandom(32)
+    checksum_inprogress.add((dir,fn))
+    result = file_hash[dir,fn]
+    for subfn in inclusions[dir,fn]:
+      result += checksum(dir,subfn)
+    for symbol in namespace_uses[dir,fn]:
+      if (dir,symbol) in namespace_definedin:
+        result += checksum(dir,namespace_definedin[dir,symbol])
+    result = sha512(result)
+    checksum_cache[dir,fn] = result
+    checksum_inprogress.remove((dir,fn))
+  return checksum_cache[dir,fn]
+
+checksum_context = {}
+
+for o in operations:
+  for p in primitives[o]:
+    for i,impldir,implarch in impls[o,p]:
+      for fn in sorted(os.listdir(impldir)):
+        if fn.endswith('.c') or fn.endswith('.S'):
+          file_process(impldir,fn,substitutes={'crypto_%s.h'%o:doth[o,p]})
+      for fn in sorted(os.listdir(impldir)):
+        if fn.endswith('.c') or fn.endswith('.S'):
+          c = checksum(impldir,fn)
+          if c not in checksum_context:
+            checksum_context[c] = []
+          checksum_context[c] += [(o,p,i,impldir,implarch,fn)]
+        
+def copywithinclusions(targetdir,dir,fn,substitutes={}):
+  if fn in substitutes:
+    with open(targetdir+'/'+fn,'w') as f:
+      f.write(substitutes[fn])
+    shutil.copystat(dir,targetdir+'/'+fn)
+  else:
+    shutil.copy2(dir+'/'+fn,targetdir+'/'+fn)
+  for subfn in inclusions[dir,fn]:
+    copywithinclusions(targetdir,dir,subfn,substitutes)
+
+unified_files = {}
+# crypto_o/p/i/fn will be unified across multiple (o,p,i,fn)
+#   if fn in unified_files[o,p,i]
+
+for o in operations:
+  for p in primitives[o]:
+    for i,impldir,implarch in impls[o,p]:
+      unified_files[o,p,i] = set()
+      unified_symbols = set()
+      for fn in sorted(os.listdir(impldir)):
+        if not(fn.endswith('.S') or fn.endswith('.c')): continue
+        if len(namespace_defines[impldir,fn]) == 0: continue
+        c = checksum(impldir,fn)
+        if c not in checksum_context: continue
+        if len(checksum_context[c]) == 1: continue
+        unified_files[o,p,i].add(fn)
+        for symbol in namespace_defines[impldir,fn]:
+          unified_symbols.add(symbol)
+
+      progress = True
+      while progress:
+        progress = False
+        for fn in sorted(unified_files[o,p,i]):
+          if any(symbol not in unified_symbols for symbol in namespace_uses[impldir,fn]):
+            progress = True
+            unified_files[o,p,i].remove(fn)
+            for symbol in namespace_defines[impldir,fn]:
+              unified_symbols.remove(symbol)
+
+unified_built = set()
+checksum_unified = {}
+
+unified_counter = {}
+
+def unified_dir(o,p,i,fn):
+  allowedchars = '0123456789'
+  allowedchars += 'abcdefghijklmnopqrstuvwxyz'
+  allowedchars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  base = ''.join(c for c in fn if c in allowedchars)
+  if len(base) == 0: base = 'x'
+
+  if base not in unified_counter:
+    unified_counter[base] = 0
+  unified_counter[base] += 1
+  return 'unified/%s/%d' % (base,unified_counter[base])
+
+for o in operations:
+  for p in primitives[o]:
+    for i,impldir,implarch in impls[o,p]:
+      if impldir in undisciplined:
+        print('warning: undisciplined %s' % impldir)
+        unified_files[o,p,i] = []
+  
+      for fn in unified_files[o,p,i]:
+        if acceptfn_shared(fn):
+          c = checksum(impldir,fn)
+          if c not in checksum_unified:
+            checksum_unified[c] = unified_dir(o,p,i,fn)
+        else:
+          for arch in compilers:
+            if any(implarchreq not in arch.split('+')[1:] for implarchreq in implarch[1:]):
+              continue
+            for compiler in compilers[arch]:
+              c = checksum(impldir,fn)
+              if (c,compiler) not in checksum_unified:
+                checksum_unified[c,compiler] = unified_dir(o,p,i,fn)
+
+ofiles = []
+opicdirs = []
+builddirs = []
+
+opicdir2dependencies = {}
+
+for o in operations:
+  for p in primitives[o]:
+    for i,impldir,implarch in impls[o,p]:
+      builtshared = False
+      needshared = False
+      shareddeps = []
+
+      for arch in compilers:
+        if any(implarchreq not in arch.split('+')[1:] for implarchreq in implarch[1:]):
+          continue
+  
+        for compiler in compilers[arch]:
+          if not builtshared:
+            shareddeps += ['%s/%s/%s/shared' % (o,p,i)]
+    
+            builddirs += ['%s/%s/%s/shared' % (o,p,i)]
+            shared_builddir = 'build/%s/%s/%s/%s/shared' % (host,o,p,i)
+            os.makedirs(shared_builddir,exist_ok=True)
+            copytree(impldir,shared_builddir,acceptfn_shared)
+    
+            nonunified_shared_compiler = compiler
+            for fn2 in sorted(unified_files[o,p,i]):
+              if not acceptfn_shared(fn2): continue
+              for symbol in namespace_defines[impldir,fn2]:
+                c2 = checksum(impldir,fn2)
+                nonunified_shared_compiler += ' -Dlib25519_%s_%s_%s_%s_%s=lib25519_%s_%s_%s' % (
+                  o,p,impl2symbol(i),'shared',symbol,
+                  checksum_unified[c2].replace('/','_'),'shared',symbol
+                )
+            with open('%s/compiler' % shared_builddir,'w') as f:
+              f.write(nonunified_shared_compiler)
+
+            for fn in sorted(os.listdir(impldir)):
+              if not acceptfn_shared(fn): continue
+              if fn.endswith('.S') or fn.endswith('.c'):
+                needshared = True
+
+                base = fn[:-2]
+                ext = fn[-1:]
+
+                if fn in unified_files[o,p,i]:
+                  if not acceptfn_shared(fn): continue
+                  c = checksum(impldir,fn)
+                  shareddeps += ['%s/shared' % checksum_unified[c]]
+                  if checksum_unified[c] not in unified_built:
+                    builddirs += ['%s/shared' % checksum_unified[c]]
+                    unifieddir = 'build/%s/%s/shared' % (host,checksum_unified[c])
+                    os.makedirs(unifieddir,exist_ok=True)
+                    copywithinclusions(unifieddir,impldir,fn,substitutes={'crypto_%s.h'%o:doth[o,p]})
+                    unified_shared_compiler = compiler
+                    for fn2 in sorted(unified_files[o,p,i]):
+                      if not acceptfn_shared(fn2): continue
+                      for symbol in namespace_defines[impldir,fn2]:
+                        c2 = checksum(impldir,fn2)
+                        unified_shared_compiler += ' -Dlib25519_%s_%s_%s=lib25519_%s_%s_%s' % (
+                          checksum_unified[c].replace('/','_'),'shared',symbol,
+                          checksum_unified[c2].replace('/','_'),'shared',symbol
+                        )
+                    with open('%s/compiler' % unifieddir,'w') as f:
+                      f.write(unified_shared_compiler)
+                    makefile += '\n'
+                    ofiles += ['%s/shared/%s.o' % (checksum_unified[c],base)]
+                    makefile += '%s/shared/%s.o: %s/shared/%s\n' % (checksum_unified[c],base,checksum_unified[c],fn)
+                    makefile += '\tscripts/compile %s/shared %s %s\n' % (checksum_unified[c],base,ext)
+                    unified_built.add(checksum_unified[c])
+                else:
+                  makefile += '\n'
+                  ofiles += ['%s/%s/%s/shared/%s.o' % (o,p,i,base)]
+                  makefile += '%s/%s/%s/shared/%s.o: %s/%s/%s/shared/%s\n' % (o,p,i,base,o,p,i,fn)
+                  makefile += '\tscripts/compile %s/%s/%s/shared %s %s\n' % (o,p,i,base,ext)
+
+            builtshared = True
+
+          dependencies = list(shareddeps) if needshared else []
+
+          compilerdir = compilerabbrev[arch,compiler]
+  
+          opicdir = '%s/%s/%s/%s' % (o,p,i,compilerdir)
+          opicdirs += [opicdir]
+          builddirs += [opicdir]
+          builddir = 'build/%s/%s/%s/%s/%s' % (host,o,p,i,compilerdir)
+          os.makedirs(builddir,exist_ok=True)
+          copytree(impldir,builddir,acceptfn_nonshared)
+  
+          nonunified_nonshared_compiler = compiler
+          for fn in sorted(unified_files[o,p,i]):
+            for symbol in namespace_defines[impldir,fn]:
+              c = checksum(impldir,fn)
+              if acceptfn_shared(fn):
+                nonunified_nonshared_compiler += ' -Dlib25519_%s_%s_%s_%s_%s=lib25519_%s_%s_%s' % (
+                  o,p,impl2symbol(i),'shared',symbol,
+                  checksum_unified[c].replace('/','_'),'shared',symbol
+                )
+              else:
+                nonunified_nonshared_compiler += ' -Dlib25519_%s_%s_%s_%s_%s=lib25519_%s_%s_%s' % (
+                  o,p,impl2symbol(i),compilerdir,symbol,
+                  checksum_unified[c,compiler].replace('/','_'),compilerdir,symbol
+                )
+
+          with open('%s/crypto_%s.h' % (builddir,o),'w') as f:
+            f.write(doth[o,p])
+          with open('%s/compiler' % builddir,'w') as f:
+            f.write(nonunified_nonshared_compiler)
+  
+          for fn in sorted(os.listdir(impldir)):
+            if not acceptfn_nonshared(fn): continue
+            if fn.endswith('.c'):
+              base = fn[:-2]
+              ext = fn[-1:]
+
+              if fn in unified_files[o,p,i]:
+                if not acceptfn_nonshared(fn): continue
+                c = checksum(impldir,fn)
+                dependencies += ['%s/%s' % (checksum_unified[c,compiler],compilerdir)]
+                if checksum_unified[c,compiler] not in unified_built:
+                  unifieddir = 'build/%s/%s/%s' % (host,checksum_unified[c,compiler],compilerdir)
+                  builddirs += ['%s/%s' % (checksum_unified[c,compiler],compilerdir)]
+                  os.makedirs(unifieddir,exist_ok=True)
+                  copywithinclusions(unifieddir,impldir,fn,substitutes={'crypto_%s.h'%o:doth[o,p]})
+                  unified_nonshared_compiler = compiler
+                  for fn2 in sorted(unified_files[o,p,i]):
+                    for symbol in namespace_defines[impldir,fn2]:
+                      c2 = checksum(impldir,fn2)
+                      if acceptfn_shared(fn2):
+                        unified_nonshared_compiler += ' -Dlib25519_%s_%s_%s=lib25519_%s_%s_%s' % (
+                          checksum_unified[c,compiler].replace('/','_'),'shared',symbol,
+                          checksum_unified[c2].replace('/','_'),'shared',symbol
+                        )
+                      else:
+                        unified_nonshared_compiler += ' -Dlib25519_%s_%s_%s=lib25519_%s_%s_%s' % (
+                          checksum_unified[c,compiler].replace('/','_'),compilerdir,symbol,
+                          checksum_unified[c2,compiler].replace('/','_'),compilerdir,symbol
+                        )
+                  with open('%s/compiler' % unifieddir,'w') as f:
+                    f.write(unified_nonshared_compiler)
+                  makefile += '\n'
+                  ofiles += ['%s/%s/%s.o' % (checksum_unified[c,compiler],compilerdir,base)]
+                  makefile += '%s/%s/%s.o: %s/%s/%s\n' % (checksum_unified[c,compiler],compilerdir,base,checksum_unified[c,compiler],compilerdir,fn)
+                  makefile += '\tscripts/compile %s/%s %s %s\n' % (checksum_unified[c,compiler],compilerdir,base,ext)
+                  unified_built.add(checksum_unified[c,compiler])
+              else:
+                makefile += '\n'
+                ofiles += ['%s/%s/%s/%s/%s.o' % (o,p,i,compilerdir,base)]
+                makefile += '%s/%s/%s/%s/%s.o: %s/%s/%s/%s/%s\n' % (o,p,i,compilerdir,base,o,p,i,compilerdir,fn)
+                makefile += '\tscripts/compile %s/%s/%s/%s %s %s\n' % (o,p,i,compilerdir,base,ext)
+
+          opicdir2dependencies[opicdir] = dependencies
+          if len(dependencies) > 0:
+            with open(builddir+'/dependencies','w') as f:
+              f.write('\n'.join(dependencies))
+
+# ----- dispatch
+
+with open('build/%s/opicdirs'%host,'w') as f:
+  for opicdir in opicdirs:
+    f.write(opicdir+'\n')
+
+M = 'compiledimplementations: opicdirs scripts/compiledimplementations \\\n'
+for opicdir in opicdirs:
+  M += '%s/allcompiled %s/warnings \\\n' % (opicdir,opicdir)
+M += '\n'
+M += '\tscripts/compiledimplementations < opicdirs > compiledimplementations\n'
+M += '\n'
+
+for opicdir in opicdirs:
+  if len(opicdir2dependencies[opicdir]) > 0:
+    dependencies_compiled = ' '.join(builddir+'/allcompiled' for builddir in opicdir2dependencies[opicdir])
+    M += '%s/allcompiled: %s\n' % (opicdir,dependencies_compiled)
+    M += '\n'
+
+for builddir in builddirs:
+  builddir_ofiles = ' '.join(ofile for ofile in ofiles if ofile.startswith(builddir+'/'))
+  M += '%s/allcompiled: %s\n' % (builddir,builddir_ofiles)
+  M += '\ttouch %s/allcompiled\n' % builddir
+  M += '\n'
+
+for opicdir in opicdirs:
+  M += '%s/warnings: %s/warnings-namespace %s/warnings-insns\n' % (opicdir,opicdir,opicdir)
+  M += '\tcat %s/warnings-namespace %s/warnings-insns > %s/warnings\n' % (opicdir,opicdir,opicdir)
+  M += '\n'
+
+for opicdir in opicdirs:
+  M += '%s/warnings-insns: %s/allcompiled scripts/checkinsns\n' % (opicdir,opicdir)
+  M += '\tscripts/checkinsns %s %s\n' % (host,opicdir)
+  M += '\n'
+
+for opicdir in opicdirs:
+  M += '%s/warnings-namespace: %s/allcompiled scripts/checknamespace\n' % (opicdir,opicdir)
+  M += '\tscripts/checknamespace lib25519 %s\n' % (opicdir)
+  M += '\n'
+
+makefile = M + makefile
+
+selectedlist = ' '.join('selected/%s_%s' % (o,p) for o in operations for p in primitives[o])
+M = 'usedimplementations: scripts/usedimplementations %s\n' % selectedlist
+M += '\tscripts/usedimplementations %s > usedimplementations\n' % selectedlist
+M += '\n'
+makefile = M + makefile
+
+os.makedirs('build/%s/selected' % host,exist_ok=True)
+M = ''
+for o in operations:
+  for p in primitives[o]:
+    M += 'selected/%s_%s: scripts/selected compiledimplementations\n' % (o,p)
+    M += '\tscripts/selected %s %s %s %s < compiledimplementations > selected/%s_%s\n' % (o,p,host,trim,o,p)
+    M += '\n'
+makefile = M + makefile
+
+for goal in 'auto','manual':
+  os.makedirs('build/%s/dispatch-%s' % (host,goal),exist_ok=True)
+
+  M = ''
+  for o in operations:
+    for p in primitives[o]:
+      M += 'dispatch-%s/%s_%s.c: scripts/dispatch selected/%s_%s\n' % (goal,o,p,o,p)
+      M += '\tscripts/dispatch %s %s %s %s < selected/%s_%s > dispatch-%s/%s_%s.c\n' % (goal,o,p,host,o,p,goal,o,p)
+      M += '\n'
+  makefile = M + makefile
+
+  M = ''
+  for o in operations:
+    for p in primitives[o]:
+      M += 'dispatch-%s/%s_%s.o: dispatch-%s/%s_%s.c\n' % (goal,o,p,goal,o,p)
+      M += '\tscripts/compiledefault dispatch-%s %s_%s c\n' % (goal,o,p)
+      M += '\n'
+  makefile = M + makefile
+
+  M = 'dispatch-%s-all: \\\n' % goal
+  for o in operations:
+    for p in primitives[o]:
+      M += 'dispatch-%s/%s_%s.o \\\n' % (goal,o,p)
+  M += '\n'
+  M += '\ttouch dispatch-%s-all\n' % goal
+  M += '\n'
+  makefile = M + makefile
+
+# ----- lib25519
+
+M = 'odirs: usedimplementations\n'
+M += '\t( cat usedimplementations; echo dispatch-auto; echo dispatch-manual; echo compilers; echo cpuid ) > odirs\n'
+M += '\n'
+makefile = M + makefile
+
+M = 'ofiles: scripts/ofiles odirs usedimplementations dispatch-auto-all dispatch-manual-all compilers-all cpuid-all\n'
+M += '\tscripts/ofiles < odirs\n'
+M += '\n'
+makefile = M + makefile
+
+with open('build/%s/scripts/staticlib' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('\n')
+  f.write('rm -f package/lib/lib25519.a\n')
+  f.write('ar cr package/lib/lib25519.a ofiles/*.o\n')
+  f.write('ranlib package/lib/lib25519.a || :\n')
+  f.write('chmod 644 package/lib/lib25519.a\n')
+os.chmod('build/%s/scripts/staticlib' % host,0o755)
+
+M = 'package/lib/lib25519.a: scripts/staticlib ofiles\n'
+M += '\tscripts/staticlib\n'
+M += '\n'
+makefile = M + makefile
+
+with open('build/%s/scripts/sharedlib' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('\n')
+  f.write('%s -shared \\\n' % firstcompiler)
+  if rpath:
+    f.write('  -Wl,-rpath=%s \\\n' % rpath)
+  f.write('  -Wl,-soname,lib25519.so.1 \\\n')
+  f.write('  -o package/lib/lib25519.so.1 \\\n')
+  f.write('  ofiles/*.o\n')
+  f.write('chmod 644 package/lib/lib25519.so.1\n')
+os.chmod('build/%s/scripts/sharedlib' % host,0o755)
+
+M = 'package/lib/lib25519.so.1: scripts/sharedlib ofiles\n'
+M += '\tscripts/sharedlib\n'
+M += '\n'
+makefile = M + makefile
+
+M = 'package/lib/lib25519.so: package/lib/lib25519.so.1\n'
+M += '\trm -f package/lib/lib25519.so\n'
+M += '\tln -s lib25519.so.1 package/lib/lib25519.so\n'
+M += '\n'
+makefile = M + makefile
+
+# ----- librandombytes
+
+copytree('randombytes','build/%s/randombytes' % host)
+
+for r in 'devurandom',:
+  M = 'randombytes/%s.o: randombytes/%s.c\n' % (r,r)
+  M += '\tscripts/compiledefault randombytes %s c -I ../include-build\n' % r
+  M += '\n'
+makefile = M + makefile
+
+with open('build/%s/randombytes/staticlib' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('\n')
+  f.write('rm -f package/lib/lib%s.a\n' % librandombytes)
+  f.write('ar cr package/lib/lib%s.a randombytes/*.o\n' % librandombytes)
+  f.write('ranlib package/lib/lib%s.a || :\n' % librandombytes)
+  f.write('chmod 644 package/lib/lib%s.a\n' % librandombytes)
+os.chmod('build/%s/randombytes/staticlib' % host,0o755)
+
+M = 'package/lib/lib%s.a: randombytes/staticlib randombytes/devurandom.o\n' % librandombytes
+M += '\trandombytes/staticlib\n'
+M += '\n'
+makefile = M + makefile
+
+with open('build/%s/randombytes/sharedlib' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('\n')
+  f.write('%s -shared \\\n' % firstcompiler)
+  if rpath:
+    f.write('  -Wl,-rpath=%s \\\n' % rpath)
+  f.write('  -Wl,-soname,lib%s.so.1 \\\n' % librandombytes)
+  f.write('  -o package/lib/lib%s.so.1 \\\n' % librandombytes)
+  f.write('  randombytes/devurandom.o\n')
+  f.write('chmod 644 package/lib/lib%s.so.1\n' % librandombytes)
+os.chmod('build/%s/randombytes/sharedlib' % host,0o755)
+
+M = 'package/lib/lib%s.so.1: randombytes/sharedlib randombytes/devurandom.o\n' % librandombytes
+M += '\trandombytes/sharedlib\n'
+M += '\n'
+makefile = M + makefile
+
+M = 'package/lib/lib%s.so: package/lib/lib%s.so.1\n' % (librandombytes,librandombytes)
+M += '\trm -f package/lib/lib%s.so\n' % librandombytes
+M += '\tln -s lib%s.so.1 package/lib/lib%s.so\n' % (librandombytes,librandombytes)
+M += '\n'
+makefile = M + makefile
+
+# ----- cpuid
+
+cpuid = host
+if not os.path.exists('cpuid/%s.c' % host):
+  cpuid = 'default'
+
+M = '\n'
+M += 'cpuid-all: cpuid/%s.o\n' % cpuid
+M += '\ttouch cpuid-all\n'
+M += '\n'
+M += 'cpuid/%s.o: cpuid/%s.c\n' % (cpuid,cpuid)
+M += '\tscripts/compiledefault cpuid %s c\n' % cpuid
+makefile += M
+
+# ----- libcpucycles
+
+os.makedirs('build/%s/cpucycles' % host,exist_ok=True)
+
+with open('build/%s/cpucycles/compile-ticks' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('arch="$1"; shift\n')
+  f.write('x="$1"; shift\n')
+  f.write('for source in try-"$arch"-"$x".c try-default-zero.c\n')
+  f.write('do\n')
+  f.write('  cp "$source" "$arch"-"$x".c\n')
+  f.write('  %s \\\n' % firstcompiler)
+  f.write('    -I ../include-build \\\n')
+  f.write('    -fvisibility=hidden \\\n')
+  f.write('    -Dticks=cpucycles_ticks_"$arch"_"$x" \\\n')
+  f.write('    -Dticks_setup=cpucycles_ticks_"$arch"_"$x"_setup \\\n')
+  f.write('    -c "$arch"-"$x".c\n')
+  f.write('  case $? in\n')
+  f.write('    0) break ;;\n')
+  f.write('    111) exit 111 ;;\n')
+  f.write('  esac\n')
+  f.write('done\n')
+os.chmod('build/%s/cpucycles/compile-ticks' % host,0o755)
+
+cpucyclesoptions = []
+cpucyclesofiles = []
+
+with open('cpucycles/options') as f:
+  for line in f:
+    line = line.strip()
+    if line == '': continue
+    if line[0] == '#': continue
+    base = line.split()[0]
+    if not os.path.exists('cpucycles/%s.c' % base): continue
+    cpucycles = base.split('-')
+    if len(cpucycles) != 2: continue
+    if cpucycles[0] not in (host,'default'): continue
+    cpucyclesoptions += [cpucycles]
+
+cpucyclesoptions += [['default','zero']] # must be last
+
+for cpucycles in cpucyclesoptions:
+  base = '-'.join(cpucycles)
+  cpucyclesofiles += ['cpucycles/%s.o' % base]
+  shutil.copy2('cpucycles/%s.c' % base,'build/%s/cpucycles/try-%s.c' % (host,base))
+  M = 'cpucycles/%s.o: cpucycles/try-%s.c cpucycles/try-default-zero.c\n' % (base,base)
+  M += '\tcd cpucycles && ./compile-ticks %s %s\n' % (cpucycles[0],cpucycles[1])
+  M += '\n'
+  makefile = M + makefile
+
+for fn in sorted(os.listdir('cpucycles')):
+  if not fn.endswith('.c'): continue
+  if '-' in fn: continue
+  base = fn[:-2]
+  cpucyclesofiles += ['cpucycles/%s.o' % base]
+  shutil.copy2('cpucycles/%s' % fn,'build/%s/cpucycles/%s' % (host,fn))
+  M = 'cpucycles/%s.o: cpucycles/%s.c\n' % (base,base)
+  M += '\tscripts/compiledefault cpucycles %s c -I ../include-build\n' % base
+  M += '\n'
+  makefile = M + makefile
+
+with open('build/%s/cpucycles/options.inc' % host,'w') as f:
+  f.write('#define NUMOPTIONS %d\n' % len(cpucyclesoptions))
+  f.write('#define DEFAULTOPTION (NUMOPTIONS-1)\n')
+  f.write('\n')
+  for cpucycles in cpucyclesoptions:
+    f.write('extern long long cpucycles_ticks_%s_%s_setup(void);\n' % (cpucycles[0],cpucycles[1]))
+    f.write('extern long long cpucycles_ticks_%s_%s(void);\n' % (cpucycles[0],cpucycles[1]))
+  f.write('\n')
+  f.write('struct {\n')
+  f.write('  const char *implementation;\n')
+  f.write('  long long (*ticks_setup)(void);\n')
+  f.write('  long long (*ticks)(void);\n')
+  f.write('} options[NUMOPTIONS] = {\n')
+  for cpucycles in cpucyclesoptions:
+    f.write('{ "%s-%s", cpucycles_ticks_%s_%s_setup, cpucycles_ticks_%s_%s },\n' % (cpucycles[0],cpucycles[1],cpucycles[0],cpucycles[1],cpucycles[0],cpucycles[1]))
+  f.write('} ;\n')
+
+with open('build/%s/cpucycles/staticlib' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('\n')
+  f.write('rm -f package/lib/lib%s.a\n' % libcpucycles)
+  f.write('ar cr package/lib/lib%s.a "$@"\n' % libcpucycles)
+  f.write('ranlib package/lib/lib%s.a || :\n' % libcpucycles)
+  f.write('chmod 644 package/lib/lib%s.a\n' % libcpucycles)
+os.chmod('build/%s/cpucycles/staticlib' % host,0o755)
+
+M = 'package/lib/lib%s.a: cpucycles/staticlib %s\n' % (libcpucycles,' '.join(cpucyclesofiles))
+M += '\tcpucycles/staticlib %s\n' % ' '.join(cpucyclesofiles)
+M += '\n'
+makefile = M + makefile
+
+with open('build/%s/cpucycles/sharedlib' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('\n')
+  f.write('%s -shared \\\n' % firstcompiler)
+  if rpath:
+    f.write('  -Wl,-rpath=%s \\\n' % rpath)
+  f.write('  -Wl,-soname,lib%s.so.1 \\\n' % libcpucycles)
+  f.write('  -o package/lib/lib%s.so.1 \\\n' % libcpucycles)
+  f.write('  "$@"\n')
+  f.write('chmod 644 package/lib/lib%s.so.1\n' % libcpucycles)
+os.chmod('build/%s/cpucycles/sharedlib' % host,0o755)
+
+M = 'package/lib/lib%s.so.1: cpucycles/sharedlib %s\n' % (libcpucycles,' '.join(cpucyclesofiles))
+M += '\tcpucycles/sharedlib %s\n' % ' '.join(cpucyclesofiles)
+M += '\n'
+makefile = M + makefile
+
+M = 'package/lib/lib%s.so: package/lib/lib%s.so.1\n' % (libcpucycles,libcpucycles)
+M += '\trm -f package/lib/lib%s.so\n' % libcpucycles
+M += '\tln -s lib%s.so.1 package/lib/lib%s.so\n' % (libcpucycles,libcpucycles)
+M += '\n'
+makefile = M + makefile
+
+# ----- command
+
+copytree('command','build/%s/command'%host)
+dirlinksym('build/%s/command'%host,'bin','../package/bin')
+dirlinksym('build/%s/command'%host,'lib','../package/lib')
+dirlinksym('build/%s/command'%host,'include-build','../include-build')
+dirlinksym('build/%s/command'%host,'include','../package/include')
+
+with open('build/%s/command/link' % host,'w') as f:
+  f.write('#!/bin/sh\n')
+  f.write('target="$1"; shift\n')
+  f.write('%s \\\n' % firstcompiler)
+  f.write('  -fvisibility=hidden \\\n')
+  f.write('  -o "$target" "$@"\n')
+os.chmod('build/%s/command/link' % host,0o755)
+
+commands = []
+
+for fn in sorted(os.listdir('command')):
+  if not fn.endswith('.c'): continue
+
+  libs = set()
+  with open('command/%s' % fn) as f:
+    for line in f:
+      line = line.strip().split()
+      if len(line) < 1: continue
+      if line[0] != '#include': continue
+      if '-lcpucycles' in line: libs.add('libcpucycles')
+      if '-l25519' in line: libs.add('lib25519')
+      if '-lrandombytes_kernel' in line: libs.add('librandombytes_kernel')
+
+  libs = sorted(libs)
+  # XXX: with more libs, might need non-default sort order for linking
+
+  base = fn[:-2]
+  M = 'command/%s.o: command/%s.c\n' % (base,base)
+  M += '\tscripts/compiledefault command %s c -I include -I include-build\n' % base
+  M += '\n'
+  makefile = M + makefile
+  M = 'package/bin/%s: command/%s.o%s\n' % (base,base,''.join(' package/lib/%s.%s' % (x,linktype) for x in libs))
+  M += '\tcd command && ./link bin/%s %s.o%s\n' % (base,base,''.join(' lib/%s.%s' % (x,linktype) for x in libs))
+  M += '\n'
+  makefile = M + makefile
+  commands += ['package/bin/%s' % base]
+
+M = 'commands: %s\n' % ' '.join(commands)
+M += '\n'
+makefile = M + makefile
+
+# ----- make install
+
+M = 'install: scripts/install default\n'
+M += '\tscripts/install %s\n' % prefix
+M += '\n'
+makefile = M + makefile
+
+# ----- make default
+
+M = 'default: package/lib/lib25519.a package/lib/lib25519.so package/lib/lib25519.so.1 \\\n'
+M += 'package/lib/lib%s.a package/lib/lib%s.so package/lib/lib%s.so.1 \\\n' % (librandombytes,librandombytes,librandombytes)
+M += 'package/lib/lib%s.a package/lib/lib%s.so package/lib/lib%s.so.1 \\\n' % (libcpucycles,libcpucycles,libcpucycles)
+M += 'commands\n'
+M += '\n'
+makefile = M + makefile
+
+with open('build/%s/Makefile' % host,'w') as f:
+  f.write(makefile)
+
+# ----- build/0, build/Makefile
+
+dirlinksym('build','0',host)
+
+with tempfile.TemporaryDirectory(dir='build') as t:
+  os.symlink(host,'%s/0' % t)
+  os.rename('%s/0' % t,'build/0')
+
+with open('build/Makefile','w') as f:
+  f.write('default:\n')
+  f.write('\tcd %s && $(MAKE)\n' % host)
+  f.write('\n')
+  f.write('install:\n')
+  f.write('\tcd %s && $(MAKE) install\n' % host)
+  f.write('\n')
+  f.write('clean:\n')
+  f.write('\trm -r %s\n' % host)

@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+
+import sys
+
+for fn in sys.argv[1:]:
+  with open(fn) as f:
+    for line in f:
+      line = line.split()
+      if line[0] == 'operation': o = line[1]
+      if line[0] == 'primitive': p = line[1]
+      if line[0] == 'impl':
+        i,c = line[1:]
+        print('%s/%s/%s/%s' % (o,p,i,c))

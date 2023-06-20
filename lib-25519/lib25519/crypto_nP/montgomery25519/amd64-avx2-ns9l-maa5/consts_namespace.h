@@ -1,0 +1,27 @@
+#ifndef CONSTS_NAMESPACE_H
+#define CONSTS_NAMESPACE_H
+
+#define hh1_p1 CRYPTO_SHARED_NAMESPACE(hh1_p1)
+#define hh1_p2 CRYPTO_SHARED_NAMESPACE(hh1_p2)
+#define hh1_p3 CRYPTO_SHARED_NAMESPACE(hh1_p3)
+#define h2h_p1 CRYPTO_SHARED_NAMESPACE(h2h_p1)
+#define h2h_p2 CRYPTO_SHARED_NAMESPACE(h2h_p2)
+#define h2h_p3 CRYPTO_SHARED_NAMESPACE(h2h_p3)
+#define hh1_xor1 CRYPTO_SHARED_NAMESPACE(hh1_xor1)
+#define h2h_xor1 CRYPTO_SHARED_NAMESPACE(h2h_xor1)
+#define hh1_xor2 CRYPTO_SHARED_NAMESPACE(hh1_xor2)
+#define h2h_xor2 CRYPTO_SHARED_NAMESPACE(h2h_xor2)
+#define swap_c CRYPTO_SHARED_NAMESPACE(swap_c)
+#define swap_mask CRYPTO_SHARED_NAMESPACE(swap_mask)
+#define h2h_mask CRYPTO_SHARED_NAMESPACE(h2h_mask)
+#define vec19 CRYPTO_SHARED_NAMESPACE(vec19)
+#define vec1216 CRYPTO_SHARED_NAMESPACE(vec1216)
+#define vecmask23 CRYPTO_SHARED_NAMESPACE(vecmask23)
+#define vecmask29 CRYPTO_SHARED_NAMESPACE(vecmask29)
+#define vecmask29d CRYPTO_SHARED_NAMESPACE(vecmask29d)
+#define vecmask32 CRYPTO_SHARED_NAMESPACE(vecmask32)
+#define a24 CRYPTO_SHARED_NAMESPACE(a24)
+#define mask51 CRYPTO_SHARED_NAMESPACE(mask51)
+
+#endif //ifndef CONSTS_NAMESPACE_H
+

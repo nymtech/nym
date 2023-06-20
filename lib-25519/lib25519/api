@@ -1,0 +1,51 @@
+crypto_verify/32
+#define crypto_verify_32_BYTES 32
+int crypto_verify(const unsigned char *,const unsigned char *);
+
+crypto_hashblocks/sha512 f0bc623a9033f9f648336540e11e85be21aeb60905c7d8808d10ea20b39d58d1 f1a2c46c9ce7fa4cd22f180907d77b6f7189badef4b9a1b5284d6fb9db859b76
+#define crypto_hashblocks_sha512_STATEBYTES 64
+#define crypto_hashblocks_sha512_BLOCKBYTES 128
+int crypto_hashblocks(unsigned char *,const unsigned char *,long long);
+
+crypto_hash/sha512 8220572f58bd4730be165c9739d8d4b0fd2e0229dbe01e25b4aed23f00f23b70 c1e322b7cbfc941260c5508967ba05bce22eeee94d425e708b7c3301ea1d5e2e
+#define crypto_hash_sha512_BYTES 64
+void crypto_hash(unsigned char *,const unsigned char *,long long);
+
+crypto_pow/inv25519 ad2062946e82718da820226504991a85c5fe56bdbff959c1313f837ee13b37be 59b3045a01e1fca2a86a0280aee8b985c5e040afdc0d3e85ed87eb97a46a4dd6 
+#define crypto_pow_inv25519_BYTES 32
+void crypto_pow(unsigned char *,const unsigned char *);
+
+crypto_nP/montgomery25519 b861d66109b42359e5994ed57ae566827c345b65a9d0671700320b82888397ec 740924011f3448f65299f61b087f74a6eb9651a4203dfbf621d2bec54e149405
+#define crypto_nP_montgomery25519_SCALARBYTES 32
+#define crypto_nP_montgomery25519_POINTBYTES 32
+void crypto_nP(unsigned char *,const unsigned char *,const unsigned char *);
+
+crypto_nG/merged25519 a4e761839798a07817484e97605bd63215b4938934ed9ce01935bbced48155bc 0a01c09fc8a8c7e8c18f841b2e1b2da9c156868737d194d223b03531cf2db731 
+#define crypto_nG_merged25519_SCALARBYTES 32
+#define crypto_nG_merged25519_POINTBYTES 32
+crypto_nG/montgomery25519 5c8a5d8b32e3d26b33071779ce9191095d7bd4ab3bb6a40b68976e41a98cfc3b 2becc8cd065820fcf82e53a03c5b5235582480fc11d072f2bd15153aebd4e057
+#define crypto_nG_montgomery25519_SCALARBYTES 32
+#define crypto_nG_montgomery25519_POINTBYTES 32
+void crypto_nG(unsigned char *,const unsigned char *);
+
+crypto_mGnP/ed25519 dc80be44fb0d482c5ae430779e76fe612c53fcd9e5847254bf27ab34e90745f4 9e1a3b7015c8fdb12763fd88494f5bfe9e2565ead4d3407d5ecf7ff6ca24c1d0
+#define crypto_mGnP_ed25519_MBYTES 32
+#define crypto_mGnP_ed25519_NBYTES 64
+#define crypto_mGnP_ed25519_PBYTES 32
+#define crypto_mGnP_ed25519_OUTPUTBYTES 33
+void crypto_mGnP(unsigned char *,const unsigned char *,const unsigned char *,const unsigned char *);
+
+crypto_dh/x25519 2c8a73ec86d5d4c4bc838f49cfd78c87b60b534ae6fff59ce3bea0c32cdc1450 b09016b3a1371786b46a183085133338159e623c5eb9cbc5eaa4f8b62d6c5aea
+#define crypto_dh_x25519_SECRETKEYBYTES 32
+#define crypto_dh_x25519_PUBLICKEYBYTES 32
+#define crypto_dh_x25519_BYTES 32
+void crypto_dh_keypair(unsigned char *,unsigned char *);
+void crypto_dh(unsigned char *,const unsigned char *,const unsigned char *);
+
+crypto_sign/ed25519 ce11fd7c1eac4dd0bc5eec49b26ad1e91aef696fae50ce377dbd806dc394da01 2ed857f17c917a8185e6c296303a11772ae45683a5e7cb5b095489bad65fffde
+#define crypto_sign_ed25519_SECRETKEYBYTES 64
+#define crypto_sign_ed25519_PUBLICKEYBYTES 32
+#define crypto_sign_ed25519_BYTES 64
+void crypto_sign_keypair(unsigned char *,unsigned char *);
+void crypto_sign(unsigned char *,long long *,const unsigned char *,long long,const unsigned char *);
+int crypto_sign_open(unsigned char *,long long *,const unsigned char *,long long,const unsigned char *);

@@ -1,0 +1,2 @@
+gcc -Wall -fPIC -fwrapv -O2 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx -mbmi -mbmi2 -mavx2 -madx -mavx512f -mavx512vl -mtune=skylake
+clang -Wall -fPIC -fwrapv -Qunused-arguments -O2 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx -mbmi -mbmi2 -mavx2 -madx -mavx512f -mavx512vl -mtune=skylake

@@ -1,0 +1,53 @@
+Prerequisites: python3; gcc and/or clang.
+
+For sysadmins, to install in /usr/local/{include,lib,bin}:
+
+    ./configure && make -j8 install
+
+For users, to install in $HOME/{include,lib,bin}:
+
+    ./configure --prefix=$HOME && make -j8 install
+
+For distributors creating a package: Run
+
+    ./configure --prefix=/usr && make -j8
+
+and then follow your usual packaging procedures for the .h files in
+build/0/package/include, the libraries in build/0/package/lib, and the
+test programs in build/0/package/bin.
+
+The long-term plan is to split off some components of lib25519 into
+their own packages, and distributors may already wish to package these
+components accordingly:
+
+   * -lcpucycles will be its own package.
+
+   * -lrandombytes_kernel will be its own package.
+
+   * -lrandombytes will be an indirection layer providing randombytes.h
+     and supporting an ecosystem of randombytes() implementations (via,
+     e.g., Debian's /etc/alternatives), such as -lrandombytes_kernel,
+     -lrandombytes_per_process_rng, etc.
+
+   * -l25519 will be the main lib25519 package, using -lrandombytes and
+     -lcpucycles.
+
+lib25519-test already uses -l25519 without -lrandombytes: it substitutes
+its own knownrandombytes() to generate test vectors.
+
+More options: You can run
+
+    ./configure --host=amd64
+
+to override ./configure's guess of the architecture that it should
+compile for. The architecture controls which implementations to try
+(see crypto_*/*/*/architectures) and which compilers to try (see
+compilers/*).
+
+Inside the build directory, 0 is symlinked to amd64 for --host=amd64.
+Running "make clean" removes build/amd64. Re-running ./configure
+automatically starts with "make clean".
+
+A subsequent ./configure --host=arm will create build/arm and symlink
+0 -> arm, without touching an existing build/amd64. However,
+cross-compilers aren't yet selected automatically.

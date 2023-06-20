@@ -1,0 +1,93 @@
+:name:int32:input_0:input_1:input_2:input_3:i4:i5:i6:
+ptr r:var/r=int32:
+int32 r:var/r=int32:
+:name:int64:u0:u1:u2:u3:u4:u5:u6:u7:u8:u9:u10:u11:u12:u13:u14:u15:u16:
+int64 r:var/r=int64:
+:name:stack64:m0:m1:m2:m3:m4:m5:m6:m7:m8:m9:m10:m11:m12:m13:m14:m15:m16:m17:m18:
+stack64 r:var/r=stack64:
+:name:stack32:o0:o1:o2:o3:o4:o5:o6:
+stack32 r:var/r=stack32:
+stackptr r:var/r=stack32:
+:name:spill64:d0:d1:d2:d3:d4:d5:d6:d7:d8:d9:d10:d11:d12:d13:d14:d15:d16:
+spill64 r:var/r=spill64:
+
+:flag:=:
+:flag:unsigned>=:
+
+pushenter f:enter/f:>input_0=int32#1:>input_1=int32#2:>input_2=int32#3:>input_3=int32#4:asm/rpushenter #f:
+
+popreturn r:<r=int32#1:nofallthrough:asm/rpopreturn input_0:leave:
+
+f#:#f:label/f:asm/#f!colon:
+goto f:#f:nofallthrough:jump/f:asm/goto #f:
+goto f if =:#f:jump/f:<?=:asm/goto #f if =:
+goto f if unsigned>=:#f:jump/f:<?unsigned>=:asm/goto #f if !unsigned!lt;:
+
+r = s:>r=int32:<s=int32:asm/>r = <s:
+r = n:>r=int32:#n:asm/>r = #n:
+r = n simple:>r=int32:#n:asm/>r = #n simple:
+r += n:<r=int32:inplace>r=int32:#n:asm/<r += #n:
+r = s - n:>r=int32:<s=int32:#n:asm/>r = <s - #n:
+
+r = s:>r=int32:<s=stack32:asm/>r = <s:
+r = s:>r=stack32:<s=int32:asm/>r = <s:
+
+r -= n:<r=int32:inplace>r=int32:#n:asm/<r -= #n:
+r - n:<r=int32:inplace>r=int32:#n:>?=:asm/=? <r - #n:
+r -= n:<r=int32:inplace>r=int32:#n:>?=:>?unsigned>=:asm/=? unsigned!lt;? <r -= #n:
+
+r = s:>r=int64:<s=int64:asm/lo>r = lo<s:asm/hi>r = hi<s:
+r = s:>r=int64:<s=stack64:asm/lo>r = lo<s:asm/hi>r = hi<s:
+r = s:>r=stack64:<s=int64:asm/lo>r = lo<s:asm/hi>r = hi<s:
+r = s:>r=int64:<s=spill64:asm/lo>r = lo<s:asm/hi>r = hi<s:
+r = s:>r=spill64:<s=int64:asm/lo>r = lo<s:asm/hi>r = hi<s:
+
+assign 0 to r:<r=spill64#1:
+assign 1 to r:<r=spill64#2:
+assign 2 to r:<r=spill64#3:
+assign 3 to r:<r=spill64#4:
+assign 4 to r:<r=spill64#5:
+assign 5 to r:<r=spill64#6:
+assign 6 to r:<r=spill64#7:
+assign 7 to r:<r=spill64#8:
+assign 8 to r:<r=spill64#9:
+assign 9 to r:<r=spill64#10:
+assign 10 to r:<r=spill64#11:
+assign 11 to r:<r=spill64#12:
+assign 12 to r:<r=spill64#13:
+assign 13 to r:<r=spill64#14:
+assign 14 to r:<r=spill64#15:
+assign 15 to r:<r=spill64#16:
+
+r = flip mem64[s]:>r=int64:<s=int32:asm/hi>r = mem32[<s]:asm/lo>r = mem32[<s+4]:
+r = flip mem64[s]; s += 8:>r=int64:<s=int32:asm/hi>r = mem32[<s]; <s += 4:asm/lo>r = mem32[<s]; <s += 4:
+r = flip mem64[s+n]:>r=int64:<s=int32:#n:asm/hi>r = mem32[<s+#n]:asm/lo>r = mem32[<s+ADD4(#n)]:
+
+mem64[s] = flip r:<r=int64:<s=int32:asm/mem32[<s] = hi<r:asm/mem32[<s+4] = lo<r:
+mem64[s+n] = flip r:<r=int64:<s=int32:#n:asm/mem32[<s+#n] = hi<r:asm/mem32[<s+ADD4(#n)] = lo<r:
+
+r = reverse flip s:>r=int64:<s=int64:asm/lo>r = lo<s[3]lo<s[2]lo<s[1]lo<s[0]:asm/hi>r = hi<s[3]hi<s[2]hi<s[1]hi<s[0]:
+
+r += s:inplace>r=int64:<r=int64:<s=int64:asm/carry? lo<r += lo<s:asm/hi<r += hi<s + carry:
+r += s:inplace>r=int64:<r=int64:<s=stack64:asm/lotmp = lo<s:asm/hitmp = hi<s:asm/carry? lo<r += lotmp:asm/hi<r += hitmp + carry:
+
+Sigma1_setup:asm/two23 = 0x800000 simple:
+Sigma0_setup:asm/two25 = 0x2000000 simple:
+
+r += w + mem64[c] + Sigma1(x) + Ch(x,y,z); c += 8:inplace>r=int64:<r=int64:<w=int64:<x=int64:<y=int64:<z=int64:<c=int32:asm/carry?  lo<r += lo<w:asm/hi<r += hi<w + carry:asm/lotmp = mem32[<c]; <c += 4:asm/hitmp = mem32[<c]; <c += 4:asm/carry? lo<r += lotmp:asm/hi<r += hitmp + carry:asm/hitmp lotmp = lo<x * two23:asm/lotmp hitmp += hi<x * two23:asm/lotmp ^= (lo<x unsigned!gt;!gt; 18):asm/lotmp ^= (hi<x !lt;!lt; 14):asm/lotmp ^= (lo<x unsigned!gt;!gt; 14):asm/lotmp ^= (hi<x !lt;!lt; 18):asm/hitmp ^= (hi<x unsigned!gt;!gt; 18):asm/hitmp ^= (lo<x !lt;!lt; 14):asm/hitmp ^= (hi<x unsigned!gt;!gt; 14):asm/hitmp ^= (lo<x !lt;!lt; 18):asm/carry? lo<r += lotmp:asm/hi<r += hitmp + carry:asm/lotmp = lo<x & lo<y:asm/lotmp2 = lo<z & ~lo<x:asm/lotmp ^= lotmp2:asm/carry? lo<r += lotmp:asm/hitmp = hi<x & hi<y:asm/hitmp2 = hi<z & ~hi<x:asm/hitmp ^= hitmp2:asm/hi<r += hitmp + carry:
+
+r += Sigma0(x) + Maj(x,y,z):inplace>r=int64:<r=int64:<x=int64:<y=int64:<z=int64:asm/hitmp lotmp = lo<x * two25:asm/lotmp hitmp += hi<x * two25:asm/lotmp ^= (hi<x unsigned!gt;!gt; 2):asm/lotmp ^= (lo<x !lt;!lt; 30):asm/lotmp ^= (lo<x unsigned!gt;!gt; 28):asm/lotmp ^= (hi<x !lt;!lt; 4):asm/hitmp ^= (lo<x unsigned!gt;!gt; 2):asm/hitmp ^= (hi<x !lt;!lt; 30):asm/hitmp ^= (hi<x unsigned!gt;!gt; 28):asm/hitmp ^= (lo<x !lt;!lt; 4):asm/carry? lo<r += lotmp:asm/hi<r += hitmp + carry:asm/lotmp = lo<y ^ lo<z:asm/lotmp &= lo<x:asm/lotmp2 = lo<y & lo<z:asm/lotmp ^= lotmp2:asm/carry? lo<r += lotmp:asm/hitmp = hi<y ^ hi<z:asm/hitmp &= hi<x:asm/hitmp2 = hi<y & hi<z:asm/hitmp ^= hitmp2:asm/hi<r += hitmp + carry:
+
+sigma0_setup:asm/two13 = 0x2000 simple:
+sigma1_setup:asm/two24 = 0x1000000 simple:
+
+r += sigma0(x):inplace>r=int64:<r=int64:<x=int64:asm/hitmp lotmp = hi<x * two24:asm/lotmp hitmp += lo<x * two24:asm/carry? lotmp ^= (lo<x unsigned!gt;!gt; 1):asm/hitmp ^= (carry,hi<x unsigned!gt;!gt; 1):asm/lotmp ^= (hi<x !lt;!lt; 31):asm/lotmp ^= (lo<x unsigned!gt;!gt;7):asm/lotmp ^= (hi<x !lt;!lt; 25):asm/hitmp ^= (hi<x unsigned!gt;!gt;7):asm/carry? lo<r += lotmp:asm/hi<r += hitmp + carry:
+
+r += sigma1(x):inplace>r=int64:<r=int64:<x=int64:asm/hitmp lotmp = hi<x * two13:asm/lotmp hitmp += lo<x * two13:asm/lotmp ^= (lo<x unsigned!gt;!gt; 6):asm/lotmp ^= (hi<x !lt;!lt; 26):asm/lotmp ^= (hi<x unsigned!gt;!gt; 29):asm/lotmp ^= (lo<x !lt;!lt; 3):asm/hitmp ^= (hi<x unsigned!gt;!gt; 6):asm/hitmp ^= (lo<x unsigned!gt;!gt; 29):asm/hitmp ^= (hi<x !lt;!lt; 3):asm/carry? lo<r += lotmp:asm/hi<r += hitmp + carry:
+
+:
+
+int32 input_0
+int32 input_1
+int32 input_2
+int32 input_3

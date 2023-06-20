@@ -1,0 +1,4 @@
+amd64-pmc
+amd64-tsc
+default-monotonic
+default-gettimeofday

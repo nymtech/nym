@@ -1,0 +1,12 @@
+inner.q: SHA-512 source code in a new 64-bit SHA-512 DSL
+
+converting SHA-512 DSL -> 32-bit qhasm-arm language:
+* inner32.desc: qhasm machine-description file
+* inner32.top: preamble for output
+* inner32.q.do: script creating output
+* inner32.q: output (do not edit directly!)
+
+converting 32-bit qhasm-arm -> traditional ARM assembly:
+* copy-collector: try to bring copies together (reduce ldr overheads; save code size)
+* align: try to 4-byte align 4-byte instructions (reduce ldr overheads)
+* inner32.s: output (do not edit directly!)

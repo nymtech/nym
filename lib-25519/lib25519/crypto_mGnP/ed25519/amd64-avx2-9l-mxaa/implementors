@@ -1,0 +1,5 @@
+ge25519_double_scalarmult_precompute.S: Kaushik Nath
+ge25519_double_scalarmult_process.S: Kaushik Nath
+fe25519_mul.S,fe25519_nsquare.S: Kaushik Nath
+mGnP.c: Daniel J. Bernstein
+other code: see amd64-64-24k

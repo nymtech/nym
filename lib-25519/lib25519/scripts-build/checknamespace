@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import subprocess
+
+topnamespace = sys.argv[1]
+
+def warn(w):
+  sys.stderr.write('warning: %s\n' % w)
+  fwarn.write('%s\n' % w)
+
+done = set()
+
+def doit(d):
+  if d in done: return
+  done.add(d)
+
+  if os.path.exists(d+'/dependencies'):
+    with open(d+'/dependencies') as f:
+      for line in f:
+        doit(line.strip())
+
+  objs = [d+'/'+fn for fn in os.listdir(d) if fn.endswith('.o')]
+  if len(objs) == 0: return
+  if len(objs) == 1: obj = objs[0]
+
+  namespace = topnamespace
+
+  dsplit = d.split('/')
+  if len(dsplit) >= 4:
+    for dpart in dsplit:
+      namespace += '_'+dpart.replace('-','').replace('_','')
+
+  obj2R = {}
+  obj2T = {}
+  obj2U = {}
+
+  try:
+    p = subprocess.Popen(['nm','-ApP']+objs,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
+    out,err = p.communicate()
+  except Exception as e:
+    warn('nm failure: %s' % e)
+    return
+  if err:
+    warn('nm error: %s' % err)
+    return
+  if p.returncode:
+    warn('nm failure: %s' % p.returncode)
+    return
+
+  for line in out.splitlines():
+    line = line.split()
+    if len(line) < 3: continue
+    if not line[0].endswith(':'): continue
+    if line[2].startswith('b'): continue
+    if line[2].startswith('d'): continue
+    if line[2].startswith('r'): continue
+    if line[2].startswith('t'): continue
+
+    obj = line[0][:-1]
+    if obj not in obj2U:
+      obj2U[obj] = []
+      obj2R[obj] = []
+      obj2T[obj] = []
+
+    symbol = line[1]
+    if symbol.startswith('__odr_asan.'): symbol = symbol[11:]
+    if symbol.startswith('__x86.get_pc_thunk.'): continue
+
+    ssplit = symbol.split('_')
+    if len(ssplit) >= 6 and ssplit[0] in ('lib25519','_lib25519'):
+      ssplit = '_'.join(ssplit[5:])
+      if line[2].startswith('U'): obj2U[obj] += [ssplit]
+      if line[2].startswith('R'): obj2R[obj] += [ssplit]
+      if line[2].startswith('T'): obj2T[obj] += [ssplit]
+
+    if line[2].startswith('U'): continue
+
+    if symbol == namespace: continue
+    if symbol == '_'+namespace: continue
+    if symbol.startswith(namespace+'_'): continue
+    if symbol.startswith('_'+namespace+'_'): continue
+
+    warn('%s: symbol %s outside namespace' % (obj,symbol))
+
+  for fn in os.listdir(d):
+    if fn.endswith('.c') or fn.endswith('.S'):
+      obj = d+'/'+fn[:-2]+'.o'
+      if obj not in obj2U: continue
+
+      fnD = []
+      fnU = []
+
+      with open(d+'/'+fn) as f:
+        for line in f:
+          line = line.split()
+          if line[:3] == ['//','linker','define']:
+            for x in line[3:]:
+              fnD += [x]
+          if line[:3] == ['//','linker','use']:
+            for x in line[3:]:
+              fnU += [x]
+
+      if len(fnD) == 0 and len(fnU) == 0: continue
+      fnD = set(fnD)
+      fnU = set(fnU)
+      objD = set(obj2T[obj]).union(set(obj2R[obj]))
+      objU = set(obj2U[obj])
+
+      for s in sorted(fnD):
+        if s not in objD:
+          warn('%s: linker define %s in %s but not in object file' % (d,s,fn))
+      for s in sorted(fnU):
+        if s not in objU:
+          warn('%s: linker use %s in %s but not in object file' % (d,s,fn))
+
+      for s in sorted(objD):
+        if s not in fnD:
+          warn('%s: linker define %s not in %s but in object file' % (d,s,fn))
+      for s in sorted(objU):
+        if s not in fnU:
+          warn('%s: linker use %s not in %s but in object file' % (d,s,fn))
+
+for d in sys.argv[2:]:
+  d = d.strip()
+  with open('%s/warnings-namespace'%d,'w') as fwarn:
+    doit(d)

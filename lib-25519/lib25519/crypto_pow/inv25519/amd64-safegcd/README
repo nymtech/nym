@@ -1,0 +1,6 @@
+This software has _not_ been verified!
+
+Prerequisites: AVX2 (Intel Haswell and newer; AMD Excavator and newer).
+
+Optimization target: Skylake. Also works well on Broadwell, Kaby Lake,
+Coffee Lake, etc. Somewhat worse on Haswell because of the slower CMOVs.

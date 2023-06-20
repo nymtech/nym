@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import re
+
+def cstring(x):
+  return '"%s"' % x.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n')
+
+def sanitize(x):
+  x = x.replace('-','').replace('_','')
+  return ''.join(c if c in '0123456789abcdefghijklmnopqrstuvwxyz' else '_' for c in x)
+
+exports = {}
+prototypes = {}
+
+with open('api') as f:
+  for line in f:
+    line = line.strip()
+    if line.startswith('crypto_'):
+      continue
+    if line.startswith('#define '):
+      continue
+    if line.endswith(');'):
+      fun,args = line[:-2].split('(')
+      rettype,fun = fun.split()
+      fun = fun.split('_')
+      o = fun[1]
+      assert fun[0] == 'crypto'
+      if o not in exports: exports[o] = []
+      exports[o] += ['_'.join(fun[1:])]
+      if o not in prototypes: prototypes[o] = []
+      prototypes[o] += [(rettype,fun,args)]
+
+goal = sys.argv[1]
+assert goal in ('auto','manual')
+o = sys.argv[2]
+p = sys.argv[3]
+host = sys.argv[4]
+
+impls = []
+selected = []
+usedimpls = set()
+allarches = []
+
+for line in sys.stdin:
+  line = line.split()
+  if line[0] == 'impl':
+    impls += [line[1:]]
+  if line[0] == 'selected':
+    a,i,c = line[1:]
+    allarches += [a]
+    selected += [(a,i,c)]
+    usedimpls.add((i,c))
+    
+icarch = {}
+iccompiler = {}
+
+for i,c in impls:
+  with open('compilerarch/%s' % c) as f:
+    icarch[i,c] = f.read().strip()
+  with open('compilerversion/%s' % c) as f:
+    iccompiler[i,c] = f.read().strip()
+
+if goal == 'manual':
+  allarches = [a for a in allarches if any(a == icarch[i,c] for i,c in impls)]
+
+if goal == 'auto':
+  print('extern const char *lib25519_%s_%s_implementation(void) __attribute__((visibility("default")));' % (o,p))
+  print('extern const char *lib25519_%s_%s_compiler(void) __attribute__((visibility("default")));' % (o,p))
+else:
+  print('extern const char *lib25519_%s_%s_implementation(void);' % (o,p))
+  print('extern const char *lib25519_%s_%s_compiler(void);' % (o,p))
+  print('extern const char *lib25519_dispatch_%s_%s_implementation(long long) __attribute__((visibility("default")));' % (o,p))
+  print('extern const char *lib25519_dispatch_%s_%s_compiler(long long) __attribute__((visibility("default")));' % (o,p))
+  print('extern long long lib25519_numimpl_%s_%s(void) __attribute__((visibility("default")));' % (o,p))
+
+for a in allarches:
+  if a == 'default': continue
+  a_csymbol = sanitize(a)
+  print('extern int lib25519_supports_%s(void);' % a_csymbol)
+if len(allarches) > 1: print('')
+
+def printfun_auto(which,fun=None):
+  if which == 'resolver':
+    shortfun = '_'.join(fun[1:])
+    pshortfun = '_'.join([o,p]+fun[2:])
+    print('void *lib25519_auto_%s(void)' % (pshortfun))
+  elif which == 'implementation':
+    print('const char *lib25519_%s_%s_implementation(void)' % (o,p))
+  elif which == 'compiler':
+    print('const char *lib25519_%s_%s_compiler(void)' % (o,p))
+  else:
+    raise ValueError('unknown printfun %s' % which)
+  print('{')
+  for a,i,c in selected:
+    cond = ''
+    if a != 'default':
+      cond = 'if (lib25519_supports_%s()) ' % sanitize(a)
+    if which == 'resolver':
+      print('  %sreturn lib25519_%s_%s_%s_%s_%s;' % (cond,o,p,sanitize(i),c,shortfun))
+    if which == 'implementation':
+      print('  %sreturn %s;' % (cond,cstring(i)))
+    if which == 'compiler':
+      print('  %sreturn %s;' % (cond,cstring(iccompiler[i,c])))
+    if a == 'default': break
+  print('}')
+
+  if which == 'resolver':
+    print('')
+    print('%s lib25519_%s(%s) __attribute__((visibility("default"))) __attribute__((ifunc("lib25519_auto_%s")));' % (rettype,pshortfun,args,pshortfun))
+
+for rettype,fun,args in prototypes[o]:
+  shortfun = '_'.join(fun[1:])
+  pshortfun = '_'.join([o,p]+fun[2:])
+  if goal == 'auto':
+    print('extern %s lib25519_%s(%s) __attribute__((visibility("default")));' % (rettype,pshortfun,args))
+  else:
+    print('extern %s lib25519_%s(%s);' % (rettype,pshortfun,args))
+    print('extern %s (*lib25519_dispatch_%s(long long))(%s) __attribute__((visibility("default")));' % (rettype,pshortfun,args))
+  print('')
+  for i,c in impls:
+    if goal == 'auto':
+      if (i,c) not in usedimpls:
+        continue
+    print('extern %s lib25519_%s_%s_%s_%s_%s(%s) __attribute__((visibility("default")));' % (rettype,o,p,sanitize(i),c,shortfun,args))
+  print('')
+  if goal == 'auto':
+    printfun_auto('resolver',fun)
+  if goal == 'manual':
+    namedparams = args.split(',')
+    for i in range(len(namedparams)):
+      if namedparams[i][-1] != '*':
+        namedparams[i] += ' '
+      namedparams[i] += 'arg%d'%i
+    namedparams = ','.join(namedparams)
+    print('%s (*lib25519_dispatch_%s(long long impl))(%s)' % (rettype,pshortfun,args))
+    print('{')
+    for a in allarches:
+      if a == 'default': continue
+      a_csymbol = sanitize(a)
+      print('  int supports_%s = lib25519_supports_%s();' % (a_csymbol,a_csymbol))
+    print('  if (impl >= 0) {')
+    for i,c in impls:
+      a = icarch[i,c]
+      a_csymbol = sanitize(a)
+      if a == 'default':
+        print('    if (!impl--) return lib25519_%s_%s_%s_%s_%s;' % (o,p,sanitize(i),c,shortfun))
+      else:
+        print('    if (supports_%s) if (!impl--) return lib25519_%s_%s_%s_%s_%s;' % (a_csymbol,o,p,sanitize(i),c,shortfun))
+    print('  }')
+    print('  return lib25519_%s;' % (pshortfun))
+    print('}')
+  print('')
+
+if goal == 'auto':
+  printfun_auto('implementation')
+  print('')
+  printfun_auto('compiler')
+else:
+  print('const char *lib25519_dispatch_%s_%s_implementation(long long impl)' % (o,p))
+  print('{')
+  for a in allarches:
+    if a == 'default': continue
+    a_csymbol = sanitize(a)
+    print('  int supports_%s = lib25519_supports_%s();' % (a_csymbol,a_csymbol))
+  print('  if (impl >= 0) {')
+  for i,c in impls:
+    a = icarch[i,c]
+    a_csymbol = sanitize(a)
+    if a == 'default':
+      print('    if (!impl--) return %s;' % (cstring(i)))
+    else:
+      print('    if (supports_%s) if (!impl--) return %s;' % (a_csymbol,cstring(i)))
+  print('  }')
+  print('  return lib25519_%s_%s_implementation();' % (o,p))
+  print('}')
+  print('')
+
+  print('const char *lib25519_dispatch_%s_%s_compiler(long long impl)' % (o,p))
+  print('{')
+  for a in allarches:
+    if a == 'default': continue
+    a_csymbol = sanitize(a)
+    print('  int supports_%s = lib25519_supports_%s();' % (a_csymbol,a_csymbol))
+  print('  if (impl >= 0) {')
+  for i,c in impls:
+    a = icarch[i,c]
+    a_csymbol = sanitize(a)
+    if a == 'default':
+      print('    if (!impl--) return %s;' % (cstring(iccompiler[i,c])))
+    else:
+      print('    if (supports_%s) if (!impl--) return %s;' % (a_csymbol,cstring(iccompiler[i,c])))
+  print('  }')
+  print('  return lib25519_%s_%s_compiler();' % (o,p))
+  print('}')
+  print('')
+
+  print('long long lib25519_numimpl_%s_%s(void)' % (o,p))
+  print('{')
+  numimpla = sum(1 for (i,c) in impls if icarch[i,c] == 'default')
+  numimpl = ['%d' % numimpla]
+  for a in allarches:
+    if a == 'default': continue
+    a_csymbol = sanitize(a)
+    print('  long long supports_%s = lib25519_supports_%s();' % (a_csymbol,a_csymbol))
+    numimpla = sum(1 for (i,c) in impls if icarch[i,c] == a)
+    numimpl += ['supports_%s*%d' % (a_csymbol,numimpla)]
+  print('  return %s;' % '+'.join(numimpl))
+  print('}')

@@ -1,0 +1,76 @@
+#!/bin/sh
+
+cat > align-tmp.s
+
+arm-none-eabi-gcc -mthumb -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -Os -ffunction-sections -fdata-sections -c align-tmp.s
+arm-none-eabi-objdump -D align-tmp.o \
+| python -c '
+import sys
+program = []
+addr = 0
+with open("align-tmp.s") as f:
+  for dumpline in sys.stdin:
+    if dumpline[0] == " ":
+      while True:
+        fline = f.readline()
+        if not fline: break
+        fline = fline.strip()
+        if len(fline.split()) == 0 or fline[0] == "#" or fline[0] == "." or fline.find(":") >= 0:
+          program += [[-1,fline]]
+        else:
+          x = dumpline.strip().split("\t")
+          addr = int(x[0].split(":")[0],16)
+          dumpop = x[2]
+          if dumpop.endswith(".w"): dumpop = dumpop[:-2]
+          fop = fline.split()[0]
+          if fop.endswith(".w"): fop = fop[:-2]
+          if fop == "push": fop = "stmdb"
+          if fop == "pop": fop = "ldmia"
+          assert dumpop == fop or (dumpop == "movs" and fop == "ldr") or (dumpop == "lsrs" and fop == "movs") or (dumpop == "bcs" and fop == "bhs") or (dumpop == "mov" and fop == "ldr")
+          program += [[addr,fline]]
+          break
+
+for i in range(1,len(program)):
+  if program[i][0] < 0: continue
+  for j in reversed(range(i)):
+    if program[j][0] != -1:
+      program[j][0] = program[i][0]-program[j][0]
+      break
+
+while True:
+  addr = 0
+  happy = True
+  addresses = []
+  for i in range(len(program)):
+    addresses += [addr]
+    size = program[i][0]
+    if size < 0: continue
+    wantalign = False
+    if program[i][1].startswith("ldr "): wantalign = True
+    if program[i][1].startswith("str "): wantalign = True
+    if program[i][1].startswith("ldrd "): wantalign = True
+    if program[i][1].startswith("strd "): wantalign = True
+    if program[i][1].startswith("ldm "): wantalign = True
+    if program[i][1].startswith("stm "): wantalign = True
+    if program[i][1].startswith("push "): wantalign = True
+    if program[i][1].startswith("pop "): wantalign = True
+    if program[i][1].startswith("vpush "): wantalign = True
+    if program[i][1].startswith("vpop "): wantalign = True
+    if wantalign and size == 4 and addr%4:
+      happy = False
+      for j in reversed(range(i)):
+        if program[j][0] == 2 and addresses[j]%4 == 0:
+          x = program[j][1].split()
+          x[0] += ".w"
+          program[j] = [4," ".join(x)]
+          break
+      break
+    addr += size
+  if happy: break
+    
+for size,line in program:
+  print(line)
+'
+
+rm align-tmp.s
+rm align-tmp.o

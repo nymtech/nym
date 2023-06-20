@@ -1,0 +1,17 @@
+track history more precisely in documentation for individual source files
+consider symlinks from files in build tree to source tree (via a build/source symlink so build can link elsewhere)
+allow shared-* for API functions (requires tweaking dispatch)
+speedups for more architectures
+speedups for more microarchitectures
+consider faster PRF for the keyed hash giving the nonce
+merge subroutines in source to the extent possible
+scan for and remove any unused functions and files
+restructure for more merging at object-code level
+sort object files (for, e.g., improved cache utilization)
+optionally allow post-installation patching of current cpu as an exceptional cpuid
+  (based on benchmarks and, with more CPU time, full functionality tests)
+dispatch: eliminate, e.g., avx2 if avx is higher priority
+speed up dispatch cpuid tests (lazy evaluation, merging cpuid calls)
+randombytes: support getrandom, getentropy
+verify constbranch, constindex
+full functional verification

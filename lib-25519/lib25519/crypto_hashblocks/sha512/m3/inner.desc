@@ -1,0 +1,101 @@
+:name:ptr:p0:p1:p2:p3:p4:p5:
+ptr r:var/r=ptr:
+:name:int32:i0:i1:i2:i3:i4:i5:i6:i7:i8:i9:
+int32 r:var/r=int32:
+:name:int64:u0:u1:u2:u3:u4:u5:u6:u7:u8:u9:u10:u11:u12:u13:u14:u15:u16:
+int64 r:var/r=int64:
+:name:stack64:m0:m1:m2:m3:m4:m5:m6:m7:m8:m9:m10:m11:m12:m13:m14:m15:m16:m17:m18:
+stack64 r:var/r=stack64:
+:name:stackptr:n0:n1:n2:
+stackptr r:var/r=stackptr:
+:name:stack32:o0:o1:o2:
+stack32 r:var/r=stack32:
+:name:spill64:d0:d1:d2:d3:d4:d5:d6:d7:d8:d9:d10:d11:d12:d13:d14:d15:d16:
+spill64 r:var/r=spill64:
+
+:flag:=:
+:flag:unsigned>=:
+
+pushenter f:enter/f:>input_0=ptr#1:>input_1=ptr#2:>input_2=int32#3:>input_3=ptr#4:asm/int #f(unsigned char *p0,unsigned char *p1,unsigned int i2,unsigned char *p3):asm/{:asm/int equal;:asm/int unsignedge;:asm/unsigned char *p2;:asm/unsigned int i0,i1,i3,i4,i5,i6,i7,i8,i9;:asm/uint64 u0,u1,u2,u3,u4,u5,u6,u7;:asm/uint64 m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16,m17,m18;:asm/unsigned char *n0,*n1,*n2;:asm/unsigned int o0,o1,o2;:asm/uint64 d0,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16;:
+
+popreturn r:<r=int32#1:nofallthrough:asm/return i0;:asm/}:leave:
+
+f#:#f:label/f:asm/label_#f!colon:
+goto f:#f:nofallthrough:jump/f:asm/goto label_#f;:
+goto f if =:#f:jump/f:<?=:asm/if (equal) goto label_#f;:
+goto f if unsigned>=:#f:jump/f:<?unsigned>=:asm/if (unsignedge) goto label_#f;:
+
+r = s:>r=ptr:<s=ptr:asm/>r = <s;:
+r += n:<r=ptr:inplace>r=ptr:#n:asm/<r += #n;:
+r -= n:<r=ptr:inplace>r=ptr:#n:asm/<r -= #n;:
+
+r = s:>r=ptr:<s=stackptr:asm/>r = <s;:
+r = s:>r=stackptr:<s=ptr:asm/>r = <s;:
+
+r = s:>r=int32:<s=int32:asm/>r = <s;:
+r = n:>r=int32:#n:asm/>r = #n;:
+r = n simple:>r=int32:#n:asm/>r = #n;:
+r += n:<r=int32:inplace>r=int32:#n:asm/<r += #n;:
+r = s - n:>r=int32:<s=int32:#n:asm/>r = <s - #n;:
+
+r = s:>r=int32:<s=stack32:asm/>r = <s;:
+r = s:>r=stack32:<s=int32:asm/>r = <s;:
+
+r -= n:<r=int32:inplace>r=int32:#n:asm/<r -= #n;:
+r - n:<r=int32:inplace>r=int32:#n:>?=:asm/equal = eq(<r,#n);:
+r -= n:<r=int32:inplace>r=int32:#n:>?=:>?unsigned>=:asm/equal = eq(<r,#n); unsignedge = ge(<r,#n); <r -= #n;:
+
+r = s:>r=int64:<s=int64:asm/>r = <s;:
+r = s:>r=int64:<s=stack64:asm/>r = <s;:
+r = s:>r=stack64:<s=int64:asm/>r = <s;:
+r = s:>r=int64:<s=spill64:asm/>r = <s;:
+r = s:>r=spill64:<s=int64:asm/>r = <s;:
+
+assign 0 to r:<r=spill64#1:
+assign 1 to r:<r=spill64#2:
+assign 2 to r:<r=spill64#3:
+assign 3 to r:<r=spill64#4:
+assign 4 to r:<r=spill64#5:
+assign 5 to r:<r=spill64#6:
+assign 6 to r:<r=spill64#7:
+assign 7 to r:<r=spill64#8:
+assign 8 to r:<r=spill64#9:
+assign 9 to r:<r=spill64#10:
+assign 10 to r:<r=spill64#11:
+assign 11 to r:<r=spill64#12:
+assign 12 to r:<r=spill64#13:
+assign 13 to r:<r=spill64#14:
+assign 14 to r:<r=spill64#15:
+assign 15 to r:<r=spill64#16:
+
+r = mem64[s]:>r=int64:<s=ptr:asm/>r = load64(<s);:
+r = mem64[s]; s += 8:>r=int64:<s=ptr:inplace>s=int32:asm/>r = load64(<s); <s += 8;:
+r = mem64[s+n]:>r=int64:<s=ptr:#n:asm/>r = load64(<s+#n);:
+
+r = flip mem64[s]:>r=int64:<s=ptr:asm/>r = flip(load64(<s));:
+r = flip mem64[s]; s += 8:>r=int64:<s=ptr:inplace>s=int32:asm/>r = flip(load64(<s)); <s += 8;:
+r = flip mem64[s+n]:>r=int64:<s=ptr:#n:asm/>r = flip(load64(<s+#n));:
+
+mem64[s] = r:<r=int64:<s=ptr:asm/store64(<s,<r);:
+mem64[s+n] = r:<r=int64:<s=ptr:#n:asm/store64(<s+#n,<r);:
+mem64[s] = flip r:<r=int64:<s=ptr:asm/store64(<s,flip(<r));:
+mem64[s+n] = flip r:<r=int64:<s=ptr:#n:asm/store64(<s+#n,flip(<r));:
+
+r = reverse s:>r=int64:<s=int64:asm/>r = reverse(<s);:
+r = reverse flip s:>r=int64:<s=int64:asm/>r = reverse(flip(<s));:
+r += s:inplace>r=int64:<r=int64:<s=int64:asm/<r += <s;:
+r += s:inplace>r=int64:<r=int64:<s=stack64:asm/<r += <s;:
+
+r += w + mem64[c] + Sigma1(x) + Ch(x,y,z); c += n:inplace>r=int64:<r=int64:<w=int64:#n:<x=int64:<y=int64:<z=int64:<c=ptr:asm/<r += <w + load64(<c) + Sigma1(<x) + Ch(<x,<y,<z);:asm/<c += #n;:
+
+r += Sigma0(x) + Maj(x,y,z):inplace>r=int64:<r=int64:<x=int64:<y=int64:<z=int64:asm/<r += Sigma0(<x) + Maj(<x,<y,<z);:
+
+r += sigma0(x):inplace>r=int64:<r=int64:<x=int64:asm/<r += sigma0(<x);:
+r += sigma1(x):inplace>r=int64:<r=int64:<x=int64:asm/<r += sigma1(<x);:
+
+:
+
+ptr input_0
+ptr input_1
+int32 input_2
+ptr input_3

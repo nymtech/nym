@@ -5523,6 +5523,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ephemera-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "nym-contracts-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "nym-execute"
 version = "0.1.0"
 dependencies = [

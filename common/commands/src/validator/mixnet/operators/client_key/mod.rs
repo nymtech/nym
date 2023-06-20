@@ -7,13 +7,13 @@ use std::path::PathBuf;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
-pub struct MixnetOperatorsClientKey {
+pub struct MixnetOperatorsIdentityKey {
     #[clap(subcommand)]
-    pub command: MixnetOperatorsClientKeyCommands,
+    pub command: MixnetOperatorsIdentityKeyCommands,
 }
 
 #[derive(Debug, Subcommand)]
-pub enum MixnetOperatorsClientKeyCommands {
+pub enum MixnetOperatorsIdentityKeyCommands {
     /// Register a name alias for a nym address
     Sign(SignArgs),
 }

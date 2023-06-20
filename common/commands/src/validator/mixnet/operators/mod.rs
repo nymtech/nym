@@ -28,5 +28,5 @@ pub enum MixnetOperatorsCommands {
     /// Manage your registered name
     Name(name::MixnetOperatorsName),
     /// Sign messages using your private identity key
-    ClientKey(client_key::MixnetOperatorsClientKey),
+    IdentityKey(client_key::MixnetOperatorsIdentityKey),
 }

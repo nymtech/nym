@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { AppContext, useBondingContext } from 'src/context';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { Results } from 'src/components/TestNode/Results';
@@ -97,12 +97,8 @@ export const NodeTestPage = () => {
         packetsReceived={results?.receivedPackets}
         score={results?.score}
         status={testStateRef.current}
+        onStartTest={handleTestNode}
       />
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button variant="contained" disableElevation onClick={handleTestNode} disabled={isLoading}>
-          Start test
-        </Button>
-      </Box>
     </Box>
   );
 };

@@ -97,7 +97,7 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
 
   return (
     <Grid container spacing={4} direction="row" justifyContent="space-between" alignItems="flex-end">
-      <Grid item xs={12} sm={8} md={7} lg={5}>
+      <Grid item xs={12} sm={8} md={7} lg={6}>
         <NymCard
           borderless
           title={

@@ -6,15 +6,13 @@ export const ResultsCardDetail = ({
   label,
   detail,
   DescriptionIcon,
-  boldLabel,
 }: {
-  label: string;
+  label: string | React.ReactNode;
   detail: string;
   DescriptionIcon?: React.ReactNode;
-  boldLabel?: boolean;
 }) => (
   <Stack direction="row" justifyContent="space-between">
-    <Typography fontWeight={boldLabel ? 'bold' : 'regular'}>{label}</Typography>
+    {label}
     <Box display="flex" gap={1} alignItems="center">
       <Typography>{detail}</Typography>
       {DescriptionIcon}
@@ -22,18 +20,17 @@ export const ResultsCardDetail = ({
   </Stack>
 );
 
-export const ResultsCard: React.FC<{ label: string; detail: string; isOk?: boolean; children: React.ReactNode }> = ({
-  label,
-  detail,
-  isOk,
-  children,
-}) => (
-  <Card variant="outlined" sx={{ p: 3 }}>
+export const ResultsCard: React.FC<{
+  label: string | React.ReactNode;
+  detail: string;
+  showTick?: boolean;
+  children: React.ReactNode;
+}> = ({ label, detail, showTick, children }) => (
+  <Card variant="outlined" sx={{ p: 3, height: '100%' }}>
     <ResultsCardDetail
       label={label}
       detail={detail}
-      boldLabel
-      DescriptionIcon={isOk && <CheckCircleOutline sx={{ color: 'success.light' }} />}
+      DescriptionIcon={showTick && <CheckCircleOutline sx={{ color: 'success.light' }} />}
     />
     {children}
   </Card>

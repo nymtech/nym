@@ -27,7 +27,7 @@ export const NodeScore = ({ score }: { score: number }) => {
   const { color } = getPerformanceDescriptionAndColor(score);
 
   return (
-    <ResultsCard label="Node score" detail="">
+    <ResultsCard label={<Typography fontWeight="bold">Node score</Typography>} detail="">
       <Box
         sx={{
           display: 'flex',
@@ -40,6 +40,12 @@ export const NodeScore = ({ score }: { score: number }) => {
           mt: 4,
         }}
       >
+        <CircularProgress
+          variant="determinate"
+          value={100}
+          size={250}
+          sx={{ position: 'absolute', top: 0, left: 0, color: 'grey.200' }}
+        />
         <CircularProgress
           variant="determinate"
           value={score}

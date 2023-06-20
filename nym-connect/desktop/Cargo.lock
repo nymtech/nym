@@ -54,7 +54,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fcb51a0695d8f838b1ee009b3fbf66bda078cd64590202a864a8f3e8c4315c47"
 dependencies = [
- "getrandom 0.2.8",
+ "getrandom 0.2.10",
  "once_cell",
  "version_check",
 ]
@@ -783,7 +783,7 @@ dependencies = [
  "cosmos-sdk-proto",
  "ecdsa",
  "eyre",
- "getrandom 0.2.8",
+ "getrandom 0.2.10",
  "k256",
  "prost",
  "prost-types",
@@ -1894,9 +1894,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.2.8"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
+checksum = "be4136b2a15dd319360be1c07d9933517ccf0be8f16bf62a3bee4f0d618df427"
 dependencies = [
  "cfg-if",
  "js-sys",
@@ -2773,9 +2773,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.140"
+version = "0.2.146"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99227334921fae1a979cf0bfdfcc6b3e5ce376ef57e16fb6fb3ea2ed6095f80c"
+checksum = "f92be4933c13fd498862a9e02a3055f8a8d9c039ce33db97306fd5a6caa7f29b"
 
 [[package]]
 name = "libdbus-sys"
@@ -3286,7 +3286,7 @@ dependencies = [
  "bs58",
  "digest 0.9.0",
  "ff 0.11.1",
- "getrandom 0.2.8",
+ "getrandom 0.2.10",
  "group 0.11.0",
  "itertools",
  "nym-dkg",
@@ -3472,7 +3472,7 @@ name = "nym-gateway-client"
 version = "0.1.0"
 dependencies = [
  "futures",
- "getrandom 0.2.8",
+ "getrandom 0.2.10",
  "log",
  "nym-bandwidth-controller",
  "nym-coconut-interface",
@@ -3608,7 +3608,7 @@ dependencies = [
  "chacha20",
  "chacha20poly1305",
  "curve25519-dalek",
- "getrandom 0.2.8",
+ "getrandom 0.2.10",
  "log",
  "rand 0.7.3",
  "rayon",
@@ -4669,7 +4669,7 @@ version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
- "getrandom 0.2.8",
+ "getrandom 0.2.10",
 ]
 
 [[package]]
@@ -4743,7 +4743,7 @@ version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b033d837a7cf162d7993aded9304e30a83213c648b6e389db233191f891e5c2b"
 dependencies = [
- "getrandom 0.2.8",
+ "getrandom 0.2.10",
  "redox_syscall",
  "thiserror",
 ]
@@ -6202,7 +6202,7 @@ dependencies = [
  "bytes",
  "flex-error",
  "futures",
- "getrandom 0.2.8",
+ "getrandom 0.2.10",
  "http",
  "hyper",
  "hyper-proxy",
@@ -6724,7 +6724,7 @@ version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1674845326ee10d37ca60470760d4288a6f80f304007d92e5c53bab78c9cfd79"
 dependencies = [
- "getrandom 0.2.8",
+ "getrandom 0.2.10",
 ]
 
 [[package]]
@@ -6912,7 +6912,7 @@ name = "wasm-utils"
 version = "0.1.0"
 dependencies = [
  "futures",
- "getrandom 0.2.8",
+ "getrandom 0.2.10",
  "js-sys",
  "tungstenite",
  "wasm-bindgen",

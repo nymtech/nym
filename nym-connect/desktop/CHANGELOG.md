@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v1.1.14] (2023-06-20)
+
+- NymConnect - add sentry.io reporting ([#3421])
+
+[#3421]: https://github.com/nymtech/nym/issues/3421
+
 ## [v1.1.12] (2023-03-07)
 
 - NymConnect - Update display for selected Service Provider ([#3116])

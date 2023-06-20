@@ -251,12 +251,12 @@ mod tests {
             "my-name",
             "my-address",
             owner,
-            deposit.clone(),
+            deposit,
         );
 
         // Register
         let msg = ExecuteMsg::Register {
-            name: name.clone(),
+            name,
             owner_signature,
         };
         assert_eq!(

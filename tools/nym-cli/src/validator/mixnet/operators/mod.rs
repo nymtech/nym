@@ -4,6 +4,7 @@
 use nym_cli_commands::context::ClientArgs;
 use nym_network_defaults::NymNetworkDetails;
 
+pub(crate) mod client_key;
 pub(crate) mod gateways;
 pub(crate) mod mixnodes;
 pub(crate) mod name;
@@ -23,5 +24,7 @@ pub(crate) async fn execute(
         ) => mixnodes::execute(global_args, mixnode, network_details).await,
         nym_cli_commands::validator::mixnet::operators::MixnetOperatorsCommands::ServiceProvider(service) => services::execute(global_args, service, network_details).await,
         nym_cli_commands::validator::mixnet::operators::MixnetOperatorsCommands::Name(name) => name::execute(global_args, name, network_details).await,
+        nym_cli_commands::validator::mixnet::operators::MixnetOperatorsCommands::ClientKey(client_key) => client_key::execute(global_args, client_key, network_details).await,
     }
 }
+

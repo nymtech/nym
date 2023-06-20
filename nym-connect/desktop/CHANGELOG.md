@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [v1.1.14] (2023-06-20)
+## [v1.1.13] (2023-06-20)
 
 - NymConnect - add sentry.io reporting ([#3421])
 

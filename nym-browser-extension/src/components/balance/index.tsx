@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { Stack, Typography } from '@mui/material';
 import { useAppContext } from 'src/context';
-import Big from 'big.js';
 
 export const Balance = () => {
   const { balance, fiatBalance, currency, getBalance } = useAppContext();

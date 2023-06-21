@@ -60,6 +60,12 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setClient(clientFromMnemonic);
   };
 
+  const getFiatBalance = async (bal: number) => {
+    const tokenPrice = await getTokenPrice('nym', currency);
+    const fiatBal = tokenPrice.nym.gbp * bal;
+    return fiatBal;
+  };
+
   const getBalance = async () => {
     const bal = await client?.getBalance(client.address);
     if (bal) {
@@ -68,12 +74,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       setFiatBalance(fiat);
       setBalance(nym.toString());
     }
-  };
-
-  const getFiatBalance = async (balance: number) => {
-    const tokenPrice = await getTokenPrice('nym', currency);
-    const fiatBalance = tokenPrice.nym.gbp * balance;
-    return fiatBalance;
   };
 
   useEffect(() => {

@@ -25,10 +25,10 @@ mod tasks;
 mod window;
 
 fn main() {
-    if std::env::var("NYM_CONNECT_ENABLE_MEDIUM_SPEED").is_ok() {
+    if std::env::var("NYM_CONNECT_ENABLE_MEDIUM").is_ok() {
         std::env::set_var("NYM_CONNECT_DISABLE_COVER", "1");
         std::env::set_var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS", "1");
-        std::env::set_var("NYM_CLIENT_DISABLE_PER_HOP_DELAYS", "1");
+        std::env::set_var("NYM_CONNECT_DISABLE_PER_HOP_DELAYS", "1");
     }
     setup_env(None);
     println!("Starting up...");

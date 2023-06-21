@@ -120,15 +120,11 @@ where
 
     let route =
         topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, full_address.gateway())?;
-    let mut delays = delays::generate_from_average_duration(route.len(), average_packet_delay);
-    // HACK: if the env variable is set, we just set all delays to 0
-    if std::env::var("NYM_CLIENT_DISABLE_PER_HOP_DELAYS").is_ok() {
-        // if the env variable is set, we just set all delays to 0
-        // (which is equivalent to not having any delays at all)
-        for delay in delays.iter_mut() {
-            *delay = nym_sphinx_types::Delay::new_from_millis(0);
-        }
-    }
+    let delays = if average_packet_delay.is_zero() {
+        vec![nym_sphinx_types::Delay::new_from_millis(0); route.len()]
+    } else {
+        delays::generate_from_average_duration(route.len(), average_packet_delay)
+    };
     let destination = full_address.as_sphinx_destination();
 
     let first_hop_address =

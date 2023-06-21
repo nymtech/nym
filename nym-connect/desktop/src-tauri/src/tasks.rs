@@ -7,6 +7,7 @@ use nym_socks5_client_core::Socks5ControlMessageSender;
 use nym_sphinx::params::PacketSize;
 use nym_task::manager::TaskStatus;
 use std::sync::Arc;
+use std::time::Duration;
 use tap::TapFallible;
 use tokio::sync::RwLock;
 
@@ -54,15 +55,19 @@ pub async fn start_nym_socks5_client(
         .expect("failed to load gateway details")
         .into();
 
+    // Disable both the loop cover traffic that runs in the background as well as the Poisson
+    // process that injects cover traffic into the traffic stream.
     if std::env::var("NYM_CONNECT_DISABLE_COVER").is_ok() {
-        // Disablong cover traffic disabled both the loop cover traffic that runs in the background as
-        // well as the Poisson process that injects cover traffic into the traffic stream.
-        // config.core.with_base(BaseClientConfig::with_disabled_cover_traffic, true);
         config.core.base.set_no_cover_traffic();
     }
 
     if std::env::var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS").is_ok() {
         config.core.base.debug.traffic.secondary_packet_size = Some(PacketSize::ExtendedPacket16);
+    }
+
+    if std::env::var("NYM_CONNECT_DISABLE_PER_HOP_DELAY").is_ok() {
+        config.core.base.debug.traffic.average_packet_delay = Duration::ZERO;
+        config.core.base.debug.acknowledgements.average_ack_delay = Duration::ZERO;
     }
 
     log::info!("Starting socks5 client");

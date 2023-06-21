@@ -232,17 +232,11 @@ pub trait FragmentPreparer {
         let destination = packet_recipient.as_sphinx_destination();
 
         // including set of delays
-        let mut delays =
-            delays::generate_from_average_duration(route.len(), self.average_packet_delay());
-
-        // HACK: if the env variable is set, we just set all delays to 0
-        if std::env::var("NYM_CLIENT_DISABLE_PER_HOP_DELAYS").is_ok() {
-            // if the env variable is set, we just set all delays to 0
-            // (which is equivalent to not having any delays at all)
-            for delay in delays.iter_mut() {
-                *delay = Delay::new_from_millis(0);
-            }
-        }
+        let delays = if self.average_packet_delay().is_zero() {
+            vec![nym_sphinx_types::Delay::new_from_millis(0); route.len()]
+        } else {
+            delays::generate_from_average_duration(route.len(), self.average_packet_delay())
+        };
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.

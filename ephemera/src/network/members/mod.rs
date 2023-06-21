@@ -242,8 +242,8 @@ impl TryFrom<JsonPeerInfo> for PeerInfo {
     fn try_from(json_peer_info: JsonPeerInfo) -> std::result::Result<Self, Self::Error> {
         let pub_key = json_peer_info.public_key.parse::<PublicKey>()?;
         Ok(PeerInfo {
-            name: json_peer_info.name,
-            address: json_peer_info.address,
+            name: json_peer_info.cosmos_address,
+            address: json_peer_info.ip_address,
             pub_key,
         })
     }

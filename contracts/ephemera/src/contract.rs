@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
+use crate::peers::queries::query_peers_paged;
 use crate::peers::transactions::try_register_peer;
 use crate::state::{State, STATE};
-use cosmwasm_std::{entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
+use cosmwasm_std::{
+    entry_point, to_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+};
 use cw4::Cw4Contract;
 use nym_ephemera_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
@@ -49,8 +52,14 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn query(_deps: Deps<'_>, _env: Env, _msg: QueryMsg) -> Result<QueryResponse, ContractError> {
-    Ok(Default::default())
+pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+    let response = match msg {
+        QueryMsg::GetPeers { limit, start_after } => {
+            to_binary(&query_peers_paged(deps, start_after, limit)?)?
+        }
+    };
+
+    Ok(response)
 }
 
 #[entry_point]

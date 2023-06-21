@@ -6,11 +6,13 @@ extern crate core;
 use clap::Parser;
 use serde_derive::{Deserialize, Serialize};
 
-pub mod application;
-pub mod epoch;
-pub mod metrics;
-pub mod peers;
-pub mod reward;
+pub(crate) mod application;
+pub(crate) mod client;
+pub(crate) mod epoch;
+pub(crate) mod error;
+pub(crate) mod metrics;
+pub(crate) mod peers;
+pub(crate) mod reward;
 
 #[derive(Parser, Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Args {

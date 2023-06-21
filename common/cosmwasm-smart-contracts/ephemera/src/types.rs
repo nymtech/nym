@@ -15,19 +15,6 @@ pub struct JsonPeerInfo {
     /// 2. `/ip4/<IP>/tcp/<PORT>` - this is the format used by libp2p multiaddr
     pub ip_address: String,
     ///Serialized public key.
-    ///
-    /// # Converting to string and back example
-    ///```
-    /// use ephemera::crypto::{EphemeraKeypair, EphemeraPublicKey, Keypair, PublicKey};
-    ///
-    /// let public_key = Keypair::generate(None).public_key();
-    ///
-    /// let public_key_str = public_key.to_string();
-    ///
-    /// let public_key_parsed = public_key_str.parse::<PublicKey>().unwrap();
-    ///
-    /// assert_eq!(public_key, public_key_parsed);
-    /// ```
     pub public_key: String,
 }
 

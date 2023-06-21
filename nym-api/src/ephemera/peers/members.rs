@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ephemera::client::Client;
 use crate::support::nyxd;
 use ephemera::membership::{PeerInfo, ProviderError};
 use futures_util::future::BoxFuture;
@@ -46,8 +47,15 @@ impl MembersProvider {
         }
     }
 
-    async fn request_peers(_nyxd_client: nyxd::Client) -> Result<Vec<PeerInfo>, ProviderError> {
-        Ok(vec![])
+    async fn request_peers(nyxd_client: nyxd::Client) -> Result<Vec<PeerInfo>, ProviderError> {
+        let peers = nyxd_client
+            .get_ephemera_peers()
+            .await
+            .map_err(|e| ProviderError::GetPeers(e.to_string()))?
+            .into_iter()
+            .filter_map(|peer| PeerInfo::try_from(peer).ok())
+            .collect();
+        Ok(peers)
     }
 }
 

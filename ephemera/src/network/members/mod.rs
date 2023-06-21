@@ -18,8 +18,8 @@ use crate::peer::PeerId;
 /// Information about an Ephemera peer.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PeerInfo {
-    /// The name of the peer. Can be arbitrary.
-    pub name: String,
+    /// The cosmos address of the peer, used in interacting with the chain.
+    pub cosmos_address: String,
     /// The address of the peer.
     /// Expected formats:
     /// 1. `<IP>:<PORT>`
@@ -34,8 +34,8 @@ impl Display for PeerInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "name {}, address {}, public key {}",
-            self.name, self.address, self.pub_key
+            "cosmos address {}, address {}, public key {}",
+            self.cosmos_address, self.address, self.pub_key
         )
     }
 }
@@ -47,7 +47,7 @@ impl TryFrom<PeerInfo> for Peer {
         let address: Address = value.address.parse()?;
         let public_key = value.pub_key;
         Ok(Self {
-            name: value.name,
+            cosmos_address: value.cosmos_address,
             address,
             public_key: public_key.clone(),
             peer_id: PeerId::from_public_key(&public_key),
@@ -61,6 +61,8 @@ pub enum ProviderError {
     ResourceUnavailable(String),
     #[error("MembersProvider: {0}")]
     MembersProvider(#[from] anyhow::Error),
+    #[error("Could not get peers - {0}")]
+    GetPeers(String),
 }
 
 pub type Result<T> = std::result::Result<T, ProviderError>;
@@ -90,8 +92,8 @@ pub enum ConfigMembersProviderError {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct PeerSetting {
-    /// The name of the peer. Can be arbitrary.
-    pub name: String,
+    /// The cosmos address of the peer, used in interacting with the chain.
+    pub cosmos_address: String,
     /// The address of the peer.
     /// Expected formats:
     /// 1. `<IP>:<PORT>`
@@ -120,7 +122,7 @@ impl TryFrom<PeerSetting> for PeerInfo {
     fn try_from(setting: PeerSetting) -> std::result::Result<Self, Self::Error> {
         let pub_key = setting.public_key.parse::<PublicKey>()?;
         Ok(PeerInfo {
-            name: setting.name,
+            cosmos_address: setting.cosmos_address,
             address: setting.address,
             pub_key,
         })
@@ -242,7 +244,7 @@ impl TryFrom<JsonPeerInfo> for PeerInfo {
     fn try_from(json_peer_info: JsonPeerInfo) -> std::result::Result<Self, Self::Error> {
         let pub_key = json_peer_info.public_key.parse::<PublicKey>()?;
         Ok(PeerInfo {
-            name: json_peer_info.cosmos_address,
+            cosmos_address: json_peer_info.cosmos_address.to_string(),
             address: json_peer_info.ip_address,
             pub_key,
         })

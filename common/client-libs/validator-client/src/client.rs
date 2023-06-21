@@ -17,7 +17,7 @@ pub use nym_mixnet_contract_common::{
 use url::Url;
 
 #[cfg(feature = "nyxd-client")]
-use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient};
+use crate::nyxd::traits::{DkgQueryClient, EphemeraQueryClient, MixnetQueryClient};
 #[cfg(feature = "nyxd-client")]
 use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient, SigningNyxdClient};
 #[cfg(feature = "nyxd-client")]
@@ -28,6 +28,8 @@ use nym_api_requests::models::MixNodeBondAnnotated;
 use nym_coconut_dkg_common::{types::EpochId, verification_key::ContractVKShare};
 #[cfg(feature = "nyxd-client")]
 use nym_coconut_interface::Base58;
+#[cfg(feature = "nyxd-client")]
+use nym_ephemera_common::types::JsonPeerInfo;
 #[cfg(feature = "nyxd-client")]
 use nym_mixnet_contract_common::{
     families::{Family, FamilyHead},
@@ -568,6 +570,26 @@ impl<C> Client<C> {
         }
 
         Ok(events)
+    }
+
+    pub async fn get_all_ephemera_peers(&self) -> Result<Vec<JsonPeerInfo>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut peers = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self.get_peers_paged(start_after.take(), None).await?;
+            peers.append(&mut paged_response.peers);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res.to_string())
+            } else {
+                break;
+            }
+        }
+
+        Ok(peers)
     }
 }
 

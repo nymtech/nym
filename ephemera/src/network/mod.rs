@@ -107,8 +107,8 @@ pub(crate) struct Peer {
     pub public_key: PublicKey,
     /// The peer's address.
     pub address: Address,
-    /// The peer's name. It can be arbitrary and is just for logging/display purposes.
-    pub name: String,
+    /// The cosmos address of the peer, used in interacting with the chain.
+    pub cosmos_address: String,
 }
 
 #[derive(Error, Debug)]

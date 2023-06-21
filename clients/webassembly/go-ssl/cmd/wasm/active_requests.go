@@ -101,8 +101,7 @@ func buildHttpClient(connectionId ConnectionId) *http.Client {
 					return nil, err
 				}
 
-				performSSLHandshake()
-				return currentConnection.tlsConn, nil
+				return conn.tlsConn, nil
 			},
 
 			//TLSClientConfig: &tlsConfig,

@@ -39,7 +39,7 @@ pub async fn start_nym_socks5_client(
     GatewayEndpointConfig,
 )> {
     log::info!("Loading config from file: {id}");
-    let config = Config::read_from_default_path(id)
+    let mut config = Config::read_from_default_path(id)
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
 
     let storage =
@@ -52,6 +52,13 @@ pub async fn start_nym_socks5_client(
         .await
         .expect("failed to load gateway details")
         .into();
+
+    if std::env::var("NYM_CONNECT_DISABLE_COVER").is_ok() {
+        // Disablong cover traffic disabled both the loop cover traffic that runs in the background as
+        // well as the Poisson process that injects cover traffic into the traffic stream.
+        // config.core.with_base(BaseClientConfig::with_disabled_cover_traffic, true);
+        config.core.base.set_no_cover_traffic();
+    }
 
     log::info!("Starting socks5 client");
 

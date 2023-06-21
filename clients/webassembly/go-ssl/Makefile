@@ -5,4 +5,4 @@ endif
 
 build:
 	#tinygo build -o internal-static/main.wasm -target wasm cmd/wasm/main.go # && cp "$(GOROOT)/misc/wasm/wasm_exec.js" ./internal-static
-	GOOS=js GOARCH=wasm go build -o pkg/main.wasm cmd/wasm/main.go cmd/wasm/logger.go cmd/wasm/fake_connection.go cmd/wasm/ssl_helper.go && cp "$(GOROOT)/misc/wasm/wasm_exec.js" ./pkg
+	GOOS=js GOARCH=wasm go build -o pkg/main.wasm cmd/wasm/helpers.go cmd/wasm/active_requests.go cmd/wasm/main.go cmd/wasm/logger.go cmd/wasm/fake_connection.go cmd/wasm/ssl_helper.go && cp "$(GOROOT)/misc/wasm/wasm_exec.js" ./pkg

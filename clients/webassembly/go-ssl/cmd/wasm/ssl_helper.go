@@ -6,10 +6,10 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 )
 
-func tlsConfig(sni string) tls.Config {
+// func tlsConfig(sni string) tls.Config {
+func tlsConfig() tls.Config {
 	return tls.Config{
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			Error("TODO: implement VerifyPeerCertificate")
@@ -18,23 +18,22 @@ func tlsConfig(sni string) tls.Config {
 		// Set InsecureSkipVerify to skip the default validation we are
 		// replacing. This will not disable VerifyConnection.
 		InsecureSkipVerify: true,
-		VerifyConnection: func(cs tls.ConnectionState) error {
-			Error("TODO: implement VerifyConnection")
-			fmt.Printf("%+v\n", cs)
-			return nil
-		},
+		//VerifyConnection: func(cs tls.ConnectionState) error {
+		//	Error("TODO: implement VerifyConnection")
+		//	fmt.Printf("%+v\n", cs)
+		//	return nil
+		//},
 		//ServerName: sni,
 	}
 }
 
-func setupFakeTlsConn(sni string) {
-	conn, inj := NewFakeConnection()
-	tlsConfig := tlsConfig(sni)
+func setupFakeTlsConn(connectionId ConnectionId) ManagedConnection {
+	conn, inj := NewFakeConnection(connectionId)
+	tlsConfig := tlsConfig()
 
 	//tlsConn := tls.UClient(fakeConnection, &tlsConfig, tls.HelloGolang)
 	tlsConn := tls.Client(conn, &tlsConfig)
-	managedConnection := NewTlsManagedConnection(tlsConn, inj)
-	currentConnection = &managedConnection
+	return NewTlsManagedConnection(tlsConn, inj)
 }
 
 func performSSLHandshake() {
@@ -48,20 +47,20 @@ func performSSLHandshake() {
 	Info("finished SSL handshake")
 }
 
-func startSSLHandshake(target string) error {
-	if currentConnection != nil {
-		Error("only a single SSL connection can be established at a time (for now)")
-		return fmt.Errorf("duplicate SSL handshake")
-	}
-
-	// TODO: sni vs actual endpoint
-	setupFakeTlsConn(target)
-
-	// TODO: or maybe do outside goroutine?
-	go func() {
-		Info("starting SSL handshake for %v\n", target)
-		performSSLHandshake()
-	}()
-
-	return nil
-}
+//func startSSLHandshake() error {
+//	if currentConnection != nil {
+//		Error("only a single SSL connection can be established at a time (for now)")
+//		return fmt.Errorf("duplicate SSL handshake")
+//	}
+//
+//	// TODO: sni vs actual endpoint
+//	setupFakeTlsConn()
+//
+//	// TODO: or maybe do outside goroutine?
+//	go func() {
+//		Info("starting SSL handshake for %v\n")
+//		performSSLHandshake()
+//	}()
+//
+//	return nil
+//}

@@ -7,8 +7,11 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"net"
+	"strconv"
+	"sync/atomic"
 	"syscall/js"
 	"time"
 )
@@ -58,39 +61,48 @@ func NewPlainManagedConnection(conn net.Conn, injector ConnectionInjector) Manag
 // ConnectionInjector controls data that goes over corresponding FakeConnection
 type ConnectionInjector struct {
 	injectedServerData chan []byte
-	createdClientData  chan []byte
+	closedRemote       *atomic.Bool
+	//createdClientData  chan []byte
 }
 
 // FakeConnection is a type implementing net.Conn interface that allows us
 // to inspect and control bytes that would normally go onto the wire
 type FakeConnection struct {
 	injectedServerData chan []byte
-	createdClientData  chan []byte
-	incompleteReads    chan []byte
+	//createdClientData  chan []byte
+	closedRemote *atomic.Bool
+
+	connectionId ConnectionId
+
+	incompleteReads chan []byte
 }
 
-func NewFakeConnection() (FakeConnection, ConnectionInjector) {
+func NewFakeConnection(connectionId ConnectionId) (FakeConnection, ConnectionInjector) {
 	injectedServerData := make(chan []byte, 10)
-	createdClientData := make(chan []byte, 10)
+	//createdClientData := make(chan []byte, 10)
+
+	closedRemote := &atomic.Bool{}
 
 	conn := FakeConnection{
 		injectedServerData: injectedServerData,
-		createdClientData:  createdClientData,
-		incompleteReads:    make(chan []byte, 1),
+		connectionId:       connectionId,
+		closedRemote:       closedRemote,
+		//createdClientData:  createdClientData,
+		incompleteReads: make(chan []byte, 1),
 	}
 
 	inj := ConnectionInjector{
 		injectedServerData: injectedServerData,
-		createdClientData:  createdClientData,
+		closedRemote:       closedRemote,
+		//createdClientData:  createdClientData,
 	}
 
 	return conn, inj
 }
 
-func setupFakePlainConn() {
-	conn, inj := NewFakeConnection()
-	managedConnection := NewPlainManagedConnection(conn, inj)
-	currentConnection = &managedConnection
+func setupFakePlainConn(connectionId ConnectionId) ManagedConnection {
+	conn, inj := NewFakeConnection(connectionId)
+	return NewPlainManagedConnection(conn, inj)
 }
 
 func (conn *FakeConnection) readAndBuffer(in []byte, out []byte) (int, error) {
@@ -110,20 +122,35 @@ func (conn *FakeConnection) readAndBuffer(in []byte, out []byte) (int, error) {
 }
 
 func (conn FakeConnection) Read(p []byte) (int, error) {
+	fmt.Printf("remote status: %v\n", conn.closedRemote.Load())
 	select {
 	// see if we have any leftover data from the previous read
 	case incomplete := <-conn.incompleteReads:
 		Debug("reading previously incomplete data")
 		return conn.readAndBuffer(incomplete, p)
 	default:
-		// we're waiting for some data to get injected from the outside world
-		Debug("waiting for data to read...")
+		select {
+		// if we have any data: do read it
+		case injectedData := <-conn.injectedServerData:
+			return conn.readAndBuffer(injectedData, p)
+		default:
+			// otherwise see if the socket is closed
+			if conn.closedRemote.Load() {
+				println("remote is closed")
+				return 0, io.EOF
+			} else {
+				Debug("waiting for data to read...")
+				// wait for the data
 
-		data := <-conn.injectedServerData
-		if len(data) == 0 {
-			return 0, io.ErrClosedPipe
+				// TODO: what if we received information about closed socket here?
+				data := <-conn.injectedServerData
+				if len(data) == 0 {
+					println("read zero - are we done?")
+					return 0, io.EOF
+				}
+				return conn.readAndBuffer(data, p)
+			}
 		}
-		return conn.readAndBuffer(data, p)
 	}
 }
 
@@ -131,9 +158,22 @@ func (conn FakeConnection) Write(p []byte) (int, error) {
 	encoded := hex.EncodeToString(p)
 	Debug("WRITING TO 'REMOTE' >>> %s\n", encoded)
 
-	js.Global().Call("onClientData", encoded)
+	// "data" is a byte slice, so we need to convert it to a JS Uint8Array object
+	arrayConstructor := js.Global().Get("Uint8Array")
+	dataJS := arrayConstructor.New(len(p))
+	js.CopyBytesToJS(dataJS, p)
 
-	conn.createdClientData <- p
+	connId := strconv.FormatUint(conn.connectionId, 10)
+
+	// this returns a promise...
+	// TODO: DEAL with the promise...
+	println("called rust code that returns a promise")
+	js.Global().Call("send_client_data", connId, dataJS)
+	println("but we're kinda ignoring it")
+
+	//	js.Global().Call("onClientData", encoded)
+
+	//conn.createdClientData <- p
 	return len(p), nil
 }
 func (conn FakeConnection) Close() error {

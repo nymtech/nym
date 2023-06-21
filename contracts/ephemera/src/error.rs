@@ -12,4 +12,7 @@ pub enum ContractError {
 
     #[error("Group contract invalid address '{addr}'")]
     InvalidGroup { addr: String },
+
+    #[error("This sender is already registered")]
+    AlreadyRegistered,
 }

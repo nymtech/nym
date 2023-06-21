@@ -32,6 +32,7 @@ libp2p = { version = "0.51.3", default-features = false, features = ["dns", "gos
 libp2p-identity = "0.1.0"
 log = "0.4.14"
 lru = "0.10.0"
+nym-ephemera-common = { path = "../common/cosmwasm-smart-contracts/ephemera" }
 pretty_env_logger = "0.4"
 refinery = { version = "0.8.7", features = ["rusqlite"], optional = true }
 reqwest = { version = "0.11.6", features = ["json"] }

@@ -7,6 +7,7 @@ use std::task::{Context, Poll};
 
 use futures_util::{future, FutureExt};
 use log::error;
+use nym_ephemera_common::types::JsonPeerInfo;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -232,40 +233,6 @@ impl ConfigPeers {
         file.write_all(config.as_bytes())?;
 
         Ok(())
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct JsonPeerInfo {
-    /// The name of the peer. Can be arbitrary.
-    pub name: String,
-    /// The address of the peer. See [PeerInfo] for more details.
-    pub address: String,
-    ///Serialized public key.
-    ///
-    /// # Converting to string and back example
-    ///```
-    /// use ephemera::crypto::{EphemeraKeypair, EphemeraPublicKey, Keypair, PublicKey};
-    ///
-    /// let public_key = Keypair::generate(None).public_key();
-    ///
-    /// let public_key_str = public_key.to_string();
-    ///
-    /// let public_key_parsed = public_key_str.parse::<PublicKey>().unwrap();
-    ///
-    /// assert_eq!(public_key, public_key_parsed);
-    /// ```
-    pub public_key: String,
-}
-
-impl JsonPeerInfo {
-    #[must_use]
-    pub fn new(name: String, address: String, pub_key: String) -> Self {
-        Self {
-            name,
-            address,
-            public_key: pub_key,
-        }
     }
 }
 

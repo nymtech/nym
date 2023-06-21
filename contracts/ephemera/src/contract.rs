@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
+use crate::peers::transactions::try_register_peer;
 use crate::state::{State, STATE};
 use cosmwasm_std::{entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
 use cw4::Cw4Contract;
@@ -37,12 +38,14 @@ pub fn instantiate(
 /// Handle an incoming message
 #[entry_point]
 pub fn execute(
-    _deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    match msg {}
+    match msg {
+        ExecuteMsg::RegisterPeer { peer_info } => try_register_peer(deps, info, peer_info),
+    }
 }
 
 #[entry_point]

@@ -3,4 +3,5 @@
 
 pub mod contract;
 pub mod error;
+mod peers;
 mod state;

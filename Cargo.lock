@@ -2568,6 +2568,7 @@ dependencies = [
  "libp2p-identity",
  "log",
  "lru",
+ "nym-ephemera-common",
  "nym-task",
  "pretty_env_logger",
  "rand 0.8.5",

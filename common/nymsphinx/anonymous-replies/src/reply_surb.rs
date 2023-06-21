@@ -96,7 +96,15 @@ impl ReplySurb {
     {
         let route =
             topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, recipient.gateway())?;
-        let delays = delays::generate_from_average_duration(route.len(), average_delay);
+        let mut delays = delays::generate_from_average_duration(route.len(), average_delay);
+        // HACK: if the env variable is set, we just set all delays to 0
+        if std::env::var("NYM_CLIENT_DISABLE_PER_HOP_DELAYS").is_ok() {
+            // if the env variable is set, we just set all delays to 0
+            // (which is equivalent to not having any delays at all)
+            for delay in delays.iter_mut() {
+                *delay = nym_sphinx_types::Delay::new_from_millis(0);
+            }
+        }
         let destination = recipient.as_sphinx_destination();
 
         let surb_material = SURBMaterial::new(route, delays, destination);

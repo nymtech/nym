@@ -4,6 +4,7 @@ use nym_client_core::client::base_client::storage::{MixnetClientStorage, OnDiskP
 use nym_client_core::{config::GatewayEndpointConfig, error::ClientCoreStatusMessage};
 use nym_socks5_client_core::NymClient as Socks5NymClient;
 use nym_socks5_client_core::Socks5ControlMessageSender;
+use nym_sphinx::params::PacketSize;
 use nym_task::manager::TaskStatus;
 use std::sync::Arc;
 use tap::TapFallible;
@@ -58,6 +59,10 @@ pub async fn start_nym_socks5_client(
         // well as the Poisson process that injects cover traffic into the traffic stream.
         // config.core.with_base(BaseClientConfig::with_disabled_cover_traffic, true);
         config.core.base.set_no_cover_traffic();
+    }
+
+    if std::env::var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS").is_ok() {
+        config.core.base.debug.traffic.secondary_packet_size = Some(PacketSize::ExtendedPacket16);
     }
 
     log::info!("Starting socks5 client");

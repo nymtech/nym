@@ -4,10 +4,11 @@
 use crate::error::WasmClientError;
 use crate::helpers::{setup_gateway_from_api, setup_reply_surb_storage_backend};
 use crate::mix_fetch::config::MixFetchConfig;
+use crate::mix_fetch::error::MixFetchError;
 use crate::mix_fetch::mix_http_requests::RequestInitWithTypescriptType;
 use crate::mix_fetch::request_adapter::WebSysRequestAdapter;
-use crate::mix_fetch::request_correlator::ActiveRequests;
-use crate::mix_fetch::{Fetcher, RequestResolver};
+use crate::mix_fetch::request_correlator::{ActiveRequests, RequestId};
+use crate::mix_fetch::{Fetcher, RequestResolver, Resource};
 use crate::storage::traits::FullWasmClientStorage;
 use crate::storage::ClientStorage;
 use js_sys::Promise;
@@ -17,10 +18,13 @@ use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCred
 use nym_http_requests::error::MixHttpRequestError;
 use nym_task::TaskManager;
 use nym_validator_client::client::IdentityKey;
+use std::cell::OnceCell;
+use std::rc::Rc;
+use std::sync::{Arc, OnceLock};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::{console_log, simple_js_error, PromisableResult};
-use web_sys::Request;
+use wasm_utils::{console_error, console_log, simple_js_error, PromisableResult};
+use web_sys::{Request, RequestInit};
 
 #[wasm_bindgen]
 pub struct MixFetchClient {
@@ -117,7 +121,7 @@ impl MixFetchClientBuilder {
 
 #[wasm_bindgen]
 impl MixFetchClient {
-    async fn _new(
+    pub(crate) async fn new_async(
         config: MixFetchConfig,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
@@ -135,7 +139,7 @@ impl MixFetchClient {
         storage_passphrase: Option<String>,
     ) -> Promise {
         future_to_promise(async move {
-            Self::_new(config, preferred_gateway, storage_passphrase)
+            Self::new_async(config, preferred_gateway, storage_passphrase)
                 .await
                 .into_promise_result()
         })
@@ -143,6 +147,33 @@ impl MixFetchClient {
 
     pub fn self_address(&self) -> String {
         self.self_address.clone()
+    }
+
+    pub(crate) async fn fetch_async(
+        &self,
+        resource: Resource,
+        opts: Option<RequestInit>,
+    ) -> Result<web_sys::Response, MixFetchError> {
+        // TODO: this can be simplified now
+        self.fetcher.fetch_async_new(resource, opts).await
+    }
+
+    pub(crate) async fn send_fetch_data(
+        &self,
+        request_id: RequestId,
+        data: Vec<u8>,
+    ) -> Result<(), MixFetchError> {
+        let seq = self
+            .fetcher
+            .requests
+            .get_sending_sequence(request_id)
+            .await
+            .ok_or(MixFetchError::AbortedRequest { request_id })?;
+
+        // TODO: local closed
+        self.fetcher
+            .send_request_data_new(request_id, false, seq, data)
+            .await
     }
 
     pub fn fetch_with_request(&self, input: &Request) -> Promise {

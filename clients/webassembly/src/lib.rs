@@ -1,8 +1,10 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use js_sys::Promise;
 use wasm_bindgen::prelude::*;
-use wasm_utils::console_log;
+use wasm_bindgen_futures::{future_to_promise, JsFuture};
+use wasm_utils::{console_log, console_warn};
 
 #[cfg(target_arch = "wasm32")]
 mod client;

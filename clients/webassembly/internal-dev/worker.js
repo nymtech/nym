@@ -39,6 +39,12 @@ const {
     current_network_topology,
     make_key,
     make_key2,
+    trigger_callback,
+    deal_with_go_promise,
+    send_client_data,
+    start_go_mix_fetch,
+    setupMixFetch,
+    mixFetch,
 } = wasm_bindgen;
 
 let client = null;
@@ -338,39 +344,24 @@ async function testMixFetch() {
     debug.disable_loop_cover_traffic_stream = true;
     debug.use_extended_packet_size = false;
 
-    const preferredGateway = "336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9";
-    const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
-    const mix_fetch_network_requester_address= "FbFmrWX1xkd3MUv1LinQ4emXrtP8krvGEngXPECDpN3c.BZJ9zVb19q8JDWRYSvcwQMSivBWt8FJPdK7dY2A3Aqx1@6Lnxj9vD2YMtSmfe8zp5RBtj1uZLYQAFRxY9q7ANwrZz";
+    // const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    const validator = 'https://qa-nym-api.qa.nymte.ch/api';
+    const mix_fetch_network_requester_address= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
 
     const config = new MixFetchConfig('my-awesome-mix-fetch-client', mix_fetch_network_requester_address, validator, undefined, debug);
 
-    const onMessageHandler = (message) => {
-        console.log(message);
-        self.postMessage({
-            kind: 'ReceiveMessage',
-            args: {
-                message,
-            },
-        });
-    };
-
-    console.log('Instantiating Mix Fetch client...');
-
-    let mix_fetch = await new MixFetchClient(config, preferredGateway)
+    console.log('Instantiating Mix Fetch...');
+    await setupMixFetch(config)
     console.log('Mix Fetch client running!');
 
-    const selfAddress = mix_fetch.self_address();
-
-    // set the global (I guess we don't have to anymore?)
-    client = mix_fetch;
-
-    console.log(`Client address is ${selfAddress}`);
     self.postMessage({
         kind: 'Ready',
         args: {
-            selfAddress,
+            selfAddress: "this is mix fetch, there's no address",
         },
     });
+
+
 
     // const fetchToMixnetRequest = new FetchToMixnetRequest();
     // console.log(fetchToMixnetRequest.fetch_with_str('https://nymtech.net/index.html'));
@@ -404,7 +395,8 @@ async function testMixFetch() {
                     const url = mixnodeIdentity;
 
                     console.log('using mixFetch...');
-                    let res = await client.fetch_with_str(url);
+
+                    let res = await mixFetch(url)
                     let text = await res.text()
                     console.log('mixFetch done');
                     console.log("HEADERS:     ", ...res.headers)
@@ -618,19 +610,15 @@ async function main() {
     // sets up better stack traces in case of in-rust panics
     set_panic_hook();
 
-    // foomp(() => jsFoomper())
+    // TODO: ask Mark how to avoid this
+    self.send_client_data = send_client_data
 
-    await basicSSL()
 
+    // await basicSSL()
 
-    // let foomp = goFoomp();
-    // console.log("logging results from go in JS: ", foomp)
-    //
-    // console.log("attempting to call go from rust via js!");
-    // call_go_foomp()
 
     // test mixFetch
-    // await testMixFetch();
+    await testMixFetch();
 
     // run test on simplified and dedicated tester:
     // await testWithTester()

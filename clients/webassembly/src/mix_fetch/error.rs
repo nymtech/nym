@@ -13,6 +13,21 @@ use wasm_utils::simple_js_error;
 
 #[derive(Debug, Error)]
 pub enum MixFetchError {
+    #[error("mix fetch hasn't been initialised")]
+    Uninitialised,
+
+    #[error("mix fetch has already been initialised before")]
+    AlreadyInitialised,
+
+    #[error("provided mix fetch url wasn't a string")]
+    NotStringMixFetchUrl,
+
+    #[error("request {request_id} has been aborted")]
+    AbortedRequest { request_id: RequestId },
+
+    #[error("provided mix fetch url was malformed: {0}")]
+    MalformedMixFetchUrl(#[from] url::ParseError),
+
     #[error("the provided request was invalid: {source}")]
     InvalidRequest {
         #[from]

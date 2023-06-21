@@ -127,10 +127,10 @@ async function main() {
         sniElement.value = ""
     }
 
-    const clientDataButton = document.querySelector('#client-data-button');
-    clientDataButton.onclick = function () {
-        client.requestClientPayload()
-    }
+    // const clientDataButton = document.querySelector('#client-data-button');
+    // clientDataButton.onclick = function () {
+    //     client.requestClientPayload()
+    // }
 
     let dataElement = document.getElementById('server_data');
     dataElement.value = ""

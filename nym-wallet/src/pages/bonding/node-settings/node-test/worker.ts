@@ -44,8 +44,7 @@ const printAndDisplayTestResult = (result: NodeTestResult) => {
 };
 
 const buildTester = async (network: Network) => {
-  const validator =
-    network === 'QA' ? 'https://qwerty-validator-api.qa.nymte.ch/api' : 'https://validator.nymtech.net/api/';
+  const validator = network === 'QA' ? 'https://qa-nym-api.qa.nymte.ch/api' : 'https://validator.nymtech.net/api/';
   const topology = await current_network_topology(validator);
   const nodeTester = await new NymNodeTester(topology, network);
 

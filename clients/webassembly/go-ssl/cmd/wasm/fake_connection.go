@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -16,96 +15,48 @@ import (
 	"time"
 )
 
-var currentConnection *ManagedConnection
-
-func ensureManagedTls() bool {
-	if currentConnection == nil {
-		return false
-	}
-	return currentConnection.tlsConn != nil
-}
-
-func ensureManagedPlain() bool {
-	if currentConnection == nil {
-		return false
-	}
-	return currentConnection.plainConn != nil
-}
-
-type ManagedConnection struct {
-	// ughhh... Go doesn't have proper enums...
-
-	// TODO: this might be the wrong design. maybe there should only be something like *tlsHandshakeInProgressConn
-	tlsConn   *tls.Conn
-	plainConn net.Conn
-
-	connectionInjector ConnectionInjector
-}
-
-func NewTlsManagedConnection(conn *tls.Conn, injector ConnectionInjector) ManagedConnection {
-	return ManagedConnection{
-		tlsConn:            conn,
-		plainConn:          nil,
-		connectionInjector: injector,
-	}
-}
-
-func NewPlainManagedConnection(conn net.Conn, injector ConnectionInjector) ManagedConnection {
-	return ManagedConnection{
-		tlsConn:            nil,
-		plainConn:          conn,
-		connectionInjector: injector,
-	}
-}
-
 // ConnectionInjector controls data that goes over corresponding FakeConnection
 type ConnectionInjector struct {
 	injectedServerData chan []byte
 	closedRemote       *atomic.Bool
-	//createdClientData  chan []byte
 }
 
 // FakeConnection is a type implementing net.Conn interface that allows us
 // to inspect and control bytes that would normally go onto the wire
 type FakeConnection struct {
-	injectedServerData chan []byte
-	//createdClientData  chan []byte
-	closedRemote *atomic.Bool
-
-	connectionId ConnectionId
+	requestId RequestId
+	injector  *ConnectionInjector
 
 	incompleteReads chan []byte
 }
 
-func NewFakeConnection(connectionId ConnectionId) (FakeConnection, ConnectionInjector) {
-	injectedServerData := make(chan []byte, 10)
-	//createdClientData := make(chan []byte, 10)
-
-	closedRemote := &atomic.Bool{}
-
-	conn := FakeConnection{
-		injectedServerData: injectedServerData,
-		connectionId:       connectionId,
-		closedRemote:       closedRemote,
-		//createdClientData:  createdClientData,
-		incompleteReads: make(chan []byte, 1),
+// NewFakeConnection creates a new FakeConnection that implements net.Conn interface alongside
+// handlers for injecting data into it
+func NewFakeConnection(requestId RequestId) (FakeConnection, ConnectionInjector) {
+	inj := ConnectionInjector{
+		injectedServerData: make(chan []byte, 10),
+		closedRemote:       &atomic.Bool{},
 	}
 
-	inj := ConnectionInjector{
-		injectedServerData: injectedServerData,
-		closedRemote:       closedRemote,
-		//createdClientData:  createdClientData,
+	conn := FakeConnection{
+		injector:        &inj,
+		requestId:       requestId,
+		incompleteReads: make(chan []byte, 1),
 	}
 
 	return conn, inj
 }
 
-func setupFakePlainConn(connectionId ConnectionId) ManagedConnection {
+// NewFakeTlsConn wraps a FakeConnection with all the TLS magic
+// note: this returns a tls.Conn in the pre-handshake state
+func NewFakeTlsConn(connectionId RequestId) (*tls.Conn, ConnectionInjector) {
 	conn, inj := NewFakeConnection(connectionId)
-	return NewPlainManagedConnection(conn, inj)
+	tlsConfig := tlsConfig()
+	tlsConn := tls.Client(conn, &tlsConfig)
+	return tlsConn, inj
 }
 
-func (conn *FakeConnection) readAndBuffer(in []byte, out []byte) (int, error) {
+func (conn FakeConnection) readAndBuffer(in []byte, out []byte) (int, error) {
 	buf := bytes.NewReader(in)
 	n, err := buf.Read(out)
 
@@ -122,7 +73,6 @@ func (conn *FakeConnection) readAndBuffer(in []byte, out []byte) (int, error) {
 }
 
 func (conn FakeConnection) Read(p []byte) (int, error) {
-	fmt.Printf("remote status: %v\n", conn.closedRemote.Load())
 	select {
 	// see if we have any leftover data from the previous read
 	case incomplete := <-conn.incompleteReads:
@@ -131,21 +81,18 @@ func (conn FakeConnection) Read(p []byte) (int, error) {
 	default:
 		select {
 		// if we have any data: do read it
-		case injectedData := <-conn.injectedServerData:
+		case injectedData := <-conn.injector.injectedServerData:
 			return conn.readAndBuffer(injectedData, p)
 		default:
 			// otherwise see if the socket is closed
-			if conn.closedRemote.Load() {
-				println("remote is closed")
+			if conn.injector.closedRemote.Load() {
 				return 0, io.EOF
 			} else {
 				Debug("waiting for data to read...")
 				// wait for the data
-
 				// TODO: what if we received information about closed socket here?
-				data := <-conn.injectedServerData
+				data := <-conn.injector.injectedServerData
 				if len(data) == 0 {
-					println("read zero - are we done?")
 					return 0, io.EOF
 				}
 				return conn.readAndBuffer(data, p)
@@ -158,22 +105,16 @@ func (conn FakeConnection) Write(p []byte) (int, error) {
 	encoded := hex.EncodeToString(p)
 	Debug("WRITING TO 'REMOTE' >>> %s\n", encoded)
 
-	// "data" is a byte slice, so we need to convert it to a JS Uint8Array object
-	arrayConstructor := js.Global().Get("Uint8Array")
-	dataJS := arrayConstructor.New(len(p))
-	js.CopyBytesToJS(dataJS, p)
+	requestId := strconv.FormatUint(conn.requestId, 10)
+	jsBytes := intoJsBytes(p)
 
-	connId := strconv.FormatUint(conn.connectionId, 10)
+	sendPromise := js.Global().Call("send_client_data", requestId, jsBytes)
+	_, err := await(sendPromise)
+	if err != nil {
+		Error("failed to resolve sendPromise")
+		return 0, nil
+	}
 
-	// this returns a promise...
-	// TODO: DEAL with the promise...
-	println("called rust code that returns a promise")
-	js.Global().Call("send_client_data", connId, dataJS)
-	println("but we're kinda ignoring it")
-
-	//	js.Global().Call("onClientData", encoded)
-
-	//conn.createdClientData <- p
 	return len(p), nil
 }
 func (conn FakeConnection) Close() error {

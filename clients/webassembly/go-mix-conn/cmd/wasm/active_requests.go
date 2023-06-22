@@ -10,7 +10,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"sync"
 	"syscall/js"
 )
@@ -126,32 +125,114 @@ func _injectServerData(requestId RequestId, data []byte) any {
 	return nil
 }
 
-func performRequest(requestId RequestId, rawEndpoint string) (*http.Response, error) {
-	// we just want to parse the url to make sure its valid
-	_, err := url.Parse(rawEndpoint)
+func checkUnsupportedAttributes(request *js.Value) {
+	cache := request.Get("cache")
+	fmt.Printf("%+v", cache)
+}
+
+func parseHeaders(headers js.Value) (http.Header, error) {
+	goHeaders := make(http.Header)
+
+	if headers.Type() != js.TypeObject {
+		return nil, errors.New("the request headers is not an object")
+	}
+	headersIter := headers.Call("entries")
+
+	for {
+		next := headersIter.Call("next")
+		done := next.Get("done").Bool()
+		if done {
+			return goHeaders, nil
+		}
+		keyValue := next.Get("value")
+		if keyValue.Length() != 2 {
+			return nil, errors.New("one of the headers has invalid length")
+		}
+		key := keyValue.Call("at", 0)
+		if key.Type() != js.TypeString {
+			return nil, errors.New("one of the header keys is not a string")
+		}
+
+		value := keyValue.Call("at", 1)
+		if value.Type() != js.TypeString {
+			return nil, errors.New("one of the header values is not a string")
+		}
+
+		goHeaders.Set(key.String(), value.String())
+	}
+
+}
+
+// a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
+// https://developer.mozilla.org/en-US/docs/Web/API/fetch
+/*
+	request attributes and their implementation status:
+	[✅] - supported
+	[❌] - unsupported
+	[⚠️] - not applicable / will not support
+
+	[❌] body
+	[❌] bodyUsed
+	[⚠️] cache
+	[❌] credentials
+	[❌] destination
+	[✅] headers
+	[❌] integrity
+	[✅] method
+	[❌] mode
+	[❌] redirect
+	[❌] referrer
+	[❌] referrerPolicy
+	[❌] signal
+	[✅] url
+*/
+func parseRequest(request js.Value) (*http.Request, error) {
+	// https://github.com/mozilla/gecko-dev/blob/d307d4d9f06dab6d16e963a4318e5e8ff4899141/dom/fetch/Fetch.cpp#L501
+	// https://github.com/mozilla/gecko-dev/blob/d307d4d9f06dab6d16e963a4318e5e8ff4899141/dom/fetch/Request.cpp#L270
+
+	method, err := getStringProperty(&request, "method")
 	if err != nil {
 		return nil, err
 	}
 
-	// build the request
-	Info("Building request for %s", rawEndpoint)
-	// TODO: deal with other http methods later
-	req, err := http.NewRequest(http.MethodGet, rawEndpoint, nil)
+	requestUrl, err := getStringProperty(&request, "url")
 	if err != nil {
 		return nil, err
 	}
+
+	jsHeaders := request.Get("headers")
+	headers, err := parseHeaders(jsHeaders)
+	if err != nil {
+		return nil, err
+	}
+
+	bodyUsed := request.Get("bodyUsed").Bool()
+	if bodyUsed {
+		panic("unimplemented")
+	}
+
+	req, err := http.NewRequest(method, requestUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header = headers
+
+	Debug("constructed request: %+v", req)
+
+	return req, nil
+}
+
+func performRequest(requestId RequestId, req *http.Request) (*http.Response, error) {
 	reqClient := buildHttpClient(requestId)
 
 	Info("Starting the request...")
 	return reqClient.Do(req)
 }
 
-func _mixFetch(requestId RequestId, endpoint string) (any, error) {
+func _mixFetch(requestId RequestId, request *http.Request) (any, error) {
 	Info("_mixFetch: start")
 
-	fmt.Printf("GO: got %d and %s\n", requestId, endpoint)
-
-	resp, err := performRequest(requestId, endpoint)
+	resp, err := performRequest(requestId, request)
 	if err != nil {
 		return nil, err
 	}
@@ -173,6 +254,7 @@ func _mixFetch(requestId RequestId, endpoint string) (any, error) {
 	jsBytes := intoJsBytes(data)
 
 	// Create a Response object and pass the data
+	// inspired by https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
 	responseConstructor := js.Global().Get("Response")
 	response := responseConstructor.New(jsBytes)
 
@@ -366,4 +448,4 @@ impl BodyFromJsValue {
     }
 }
 
- */
+*/

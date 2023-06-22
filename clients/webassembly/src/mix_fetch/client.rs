@@ -28,7 +28,6 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
 use wasm_timer::Delay;
 use wasm_utils::{console_error, console_log, PromisableResult};
-use web_sys::RequestInit;
 
 #[wasm_bindgen]
 pub struct MixFetchClient {
@@ -208,21 +207,10 @@ impl MixFetchClient {
 
     pub(crate) async fn fetch_async(
         &self,
-        resource: Resource,
-        opts: Option<RequestInit>,
+        request: web_sys::Request,
     ) -> Result<web_sys::Response, JsValue> {
-        if let Some(opts) = opts {
-            console_error!("attempted to mix fetch with extra request options: {opts:?}");
-            unimplemented!()
-        }
-
-        let url = match resource {
-            Resource::Url(url) => url,
-            Resource::Request(request) => {
-                console_error!("attempted to mix fetch with request object: {request:?}");
-                unimplemented!()
-            }
-        };
+        let url = web_sys::Request::url(&request);
+        let url: url::Url = url.parse().map_err(MixFetchError::MalformedMixFetchUrl)?;
 
         // required for the 'connect' request
         let origin = url.origin();
@@ -235,7 +223,7 @@ impl MixFetchClient {
         let request_id = self.requests.start_new(err_sender).await;
         self.send_socks_connect(request_id, target).await?;
 
-        let go_fut: JsFuture = goWasmMixFetch(request_id.to_string(), url.to_string()).into();
+        let go_fut: JsFuture = goWasmMixFetch(request_id.to_string(), request).into();
 
         let timeout = Delay::new(self.mix_fetch_config.request_timeout);
 

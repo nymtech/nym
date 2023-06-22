@@ -79,10 +79,14 @@ func mixFetch(_ js.Value, args []js.Value) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if args[1].Type() != js.TypeString {
-		return nil, errors.New("the received raw request endpoint was not a string")
+	if args[1].Type() != js.TypeObject {
+		return nil, errors.New("the received raw request was not an object")
 	}
-	endpoint := args[1].String()
 
-	return _mixFetch(requestId, endpoint)
+	request, err := parseRequest( args[1])
+	if err != nil {
+		return nil, err
+	}
+
+	return _mixFetch(requestId, request)
 }

@@ -31,7 +31,7 @@ pub fn send_client_data(stringified_request_id: String, data: Vec<u8>) -> Promis
 
 #[wasm_bindgen]
 extern "C" {
-    pub(crate) fn goWasmMixFetch(raw_connection_id: String, endpoint: String) -> Promise;
+    pub(crate) fn goWasmMixFetch(raw_connection_id: String, request: web_sys::Request) -> Promise;
 
     pub(crate) fn goWasmInjectServerData(raw_connection_id: String, data: Vec<u8>);
 

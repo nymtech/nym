@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_fetch::request_correlator::RequestId;
+use crate::mix_fetch::RequestId;
 use js_sys::Promise;
 use nym_http_requests::error::MixHttpRequestError;
 use nym_ordered_buffer::OrderedMessageError;

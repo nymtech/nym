@@ -8,10 +8,9 @@ use nym_client_core::client::base_client::ClientOutput;
 use nym_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReconstructedMessagesReceiver,
 };
-use nym_service_providers_common::interface::Serializable;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
-use wasm_utils::{console_error, console_log};
+use wasm_utils::console_error;
 
 pub(crate) struct ResponsePusher {
     reconstructed_receiver: ReconstructedMessagesReceiver,

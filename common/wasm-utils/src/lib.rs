@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use js_sys::Promise;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 
@@ -17,6 +18,18 @@ pub mod storage;
 #[macro_export]
 macro_rules! console_log {
     ($($t:tt)*) => ($crate::log(&format_args!($($t)*).to_string()))
+}
+
+// will cause messages to be written as if console.debug("...") was called
+#[macro_export]
+macro_rules! console_debug {
+    ($($t:tt)*) => ($crate::debug(&format_args!($($t)*).to_string()))
+}
+
+// will cause messages to be written as if console.info("...") was called
+#[macro_export]
+macro_rules! console_info {
+    ($($t:tt)*) => ($crate::info(&format_args!($($t)*).to_string()))
 }
 
 // will cause messages to be written as if console.warn("...") was called
@@ -37,6 +50,12 @@ extern "C" {
     pub fn log(s: &str);
 
     #[wasm_bindgen(js_namespace = console)]
+    pub fn debug(s: &str);
+
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn info(s: &str);
+
+    #[wasm_bindgen(js_namespace = console)]
     pub fn warn(s: &str);
 
     #[wasm_bindgen(js_namespace = console)]
@@ -53,6 +72,12 @@ pub async fn sleep(ms: i32) -> Result<(), JsValue> {
     let js_fut = wasm_bindgen_futures::JsFuture::from(promise);
     js_fut.await?;
     Ok(())
+}
+
+/// A helper that constructs a `Promise` containing a wrapper JS error.
+pub fn simple_rejected_promise<S: AsRef<str>>(err_message: S) -> Promise {
+    let err = simple_js_error(err_message);
+    Promise::reject(&err)
 }
 
 /// A helper that construct a `JsValue` containing an error with the provided message.

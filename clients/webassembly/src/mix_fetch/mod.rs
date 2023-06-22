@@ -84,7 +84,7 @@ impl TryFrom<JsValue> for Resource {
 async fn mix_fetch_async(
     resource: JsValue,
     opts: Option<web_sys::RequestInit>,
-) -> Result<web_sys::Response, MixFetchError> {
+) -> Result<web_sys::Response, JsValue> {
     let resource = Resource::try_from(resource)?;
     console_log!("mix fetch with {resource:?} and {opts:?}");
 

@@ -210,7 +210,7 @@ impl MixFetchClient {
         &self,
         resource: Resource,
         opts: Option<RequestInit>,
-    ) -> Result<web_sys::Response, MixFetchError> {
+    ) -> Result<web_sys::Response, JsValue> {
         if let Some(opts) = opts {
             console_error!("attempted to mix fetch with extra request options: {opts:?}");
             unimplemented!()
@@ -245,11 +245,13 @@ impl MixFetchClient {
                 match go_res {
                     Ok(res) => {
                         console_log!("received response to our fetch request: {res:?}");
+                        self.requests.finish(request_id).await;
                         Ok(res.into())
                     },
                     Err(err) => {
                         console_error!("go request failure: {err:?}");
-                        todo!()
+                        self.requests.finish(request_id).await;
+                        Err(err)
                     }
                 }
             }
@@ -258,7 +260,7 @@ impl MixFetchClient {
                 self.requests.abort(request_id).await;
                 Err(MixFetchError::Timeout {
                     id: request_id, timeout: self.mix_fetch_config.request_timeout
-                })
+                }.into())
             }
             err = err_receiver => {
                 match err {
@@ -267,7 +269,7 @@ impl MixFetchClient {
                     }
                     Ok(err) => {
                         console_error!("our request has failed: {err}");
-                        Err(err)
+                        Err(err.into())
                     }
                 }
             }

@@ -109,3 +109,11 @@ func intoJsBytes(raw []byte) js.Value {
 	js.CopyBytesToJS(jsBytes, raw)
 	return jsBytes
 }
+
+func getStringProperty(obj *js.Value, name string) (string, error) {
+	val := obj.Get(name)
+	if val.Type() != js.TypeString {
+		return "", errors.New(fmt.Sprintf("the property %s is not a string", name))
+	}
+	return val.String(), nil
+}

@@ -36,6 +36,6 @@
   },
   "dependencies": {
     "@nymproject/nym-client-wasm": "file:../pkg",
-    "go-ssl-helper": "file:../go-ssl/pkg"
+    "go-mix-conn": "file:../go-mix-conn/pkg"
   }
 }

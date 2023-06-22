@@ -1,4 +1,4 @@
-module go-ssl-helper
+module go-mix-conn
 
 go 1.20
 

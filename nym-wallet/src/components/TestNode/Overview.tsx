@@ -14,7 +14,7 @@ export const Overview = ({ onStartTest }: { onStartTest: () => void }) => (
     <Stack justifyContent="space-between" sx={{ py: 3, height: '100%' }}>
       <Box>
         <Typography sx={{ color: 'grey.600', pb: 1 }}>
-          When you click on "Test my node" button the Nym Wallet creates a path to the Mixnet which uses a gateway and 3
+          When you click the Test my node button the Nym Wallet creates a path to the Mixnet which uses a gateway and 3
           nodes. One of the 3 nodes in the path is your node.
         </Typography>
         <Typography sx={{ color: 'grey.600', pb: 1 }}>20 test packets are then sent throught the mixnet.</Typography>

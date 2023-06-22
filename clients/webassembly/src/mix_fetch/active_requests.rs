@@ -70,6 +70,14 @@ impl ActiveRequests {
         todo!("clear Go memory here")
     }
 
+    pub async fn finish(&self, id: RequestId) {
+        let mut guard = self.inner.lock().await;
+        let old = guard.remove(&id);
+        if old.is_none() {
+            console_error!("attempted to finish request {id}, but it seems to have never existed?")
+        }
+    }
+
     pub async fn try_send_data_to_go(&self, data: SocketData) {
         let id = data.header.connection_id;
         let mut guard = self.inner.lock().await;

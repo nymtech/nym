@@ -3220,7 +3220,7 @@ dependencies = [
 
 [[package]]
 name = "nym-bin-common"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "atty",
  "clap",
@@ -3235,7 +3235,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-core"
-version = "1.1.14"
+version = "1.1.15"
 dependencies = [
  "async-trait",
  "base64 0.21.2",
@@ -3365,6 +3365,7 @@ dependencies = [
  "nym-credential-storage",
  "nym-crypto",
  "nym-socks5-client-core",
+ "nym-sphinx",
  "nym-task",
  "pretty_env_logger",
  "rand 0.8.5",
@@ -3906,6 +3907,7 @@ dependencies = [
  "nym-service-provider-directory-common",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
+ "openssl",
  "prost",
  "reqwest",
  "serde",
@@ -4046,6 +4048,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
+name = "openssl-src"
+version = "111.26.0+1.1.1u"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efc62c9f12b22b8f5208c23a7200a442b2e5999f8bdf80233852122b5a4f6f37"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4054,6 +4065,7 @@ dependencies = [
  "autocfg",
  "cc",
  "libc",
+ "openssl-src",
  "pkg-config",
  "vcpkg",
 ]

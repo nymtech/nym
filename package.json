@@ -11,7 +11,7 @@
     "explorer",
     "types",
     "clients/validator",
-    "clients/webassembly/*"
+    "clients/webassembly/**"
   ],
   "scripts": {
     "clean": "lerna run clean",

@@ -16,6 +16,7 @@
 import { NymNodeTester, set_panic_hook, current_network_topology, NodeTestResult } from 'nym-client-wasm';
 import { Network } from 'src/types';
 import { NodeTestEvent } from './types';
+import { MAINNET_VALIDATOR_URL, QA_VALIDATOR_URL } from 'src/constants';
 
 console.log('Initializing worker');
 
@@ -44,7 +45,7 @@ const printAndDisplayTestResult = (result: NodeTestResult) => {
 };
 
 const buildTester = async (network: Network) => {
-  const validator = network === 'QA' ? 'https://qa-nym-api.qa.nymte.ch/api' : 'https://validator.nymtech.net/api/';
+  const validator = network === 'QA' ? QA_VALIDATOR_URL : MAINNET_VALIDATOR_URL;
   const topology = await current_network_topology(validator);
   const nodeTester = await new NymNodeTester(topology, network);
 

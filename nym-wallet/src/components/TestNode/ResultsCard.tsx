@@ -16,11 +16,15 @@ export const ResultsCardDetail = ({
   </Stack>
 );
 
-export const ResultsCard: React.FC<{
+export const ResultsCard = ({
+  label,
+  detail,
+  children,
+}: {
   label: string | React.ReactNode;
   detail: string;
   children: React.ReactNode;
-}> = ({ label, detail, children }) => (
+}) => (
   <Card variant="outlined" sx={{ p: 3, height: '100%' }}>
     <ResultsCardDetail label={label} detail={detail} />
     {children}

@@ -26,7 +26,7 @@ module.exports = {
                     to: '[name][ext]',
                 },
                 {
-                    from: '../go-ssl/pkg/*.(js|wasm)',
+                    from: '../go-mix-conn/pkg/*.(js|wasm)',
                     to: '[name][ext]',
                 },
             ],

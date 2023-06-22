@@ -282,7 +282,7 @@ impl Client {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Traffic {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.

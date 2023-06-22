@@ -160,7 +160,11 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         config.core.base.client.nym_api_urls = nym_config_common::parse_urls(&raw_validators);
     }
 
-    let gateway_setup = GatewaySetup::new_fresh(Some(chosen_gateway_id), None);
+    let gateway_setup = if register_gateway {
+        GatewaySetup::new_fresh(Some(chosen_gateway_id), None)
+    } else {
+        GatewaySetup::MustLoad
+    };
 
     // Setup gateway by either registering a new one, or reusing exiting keys
     let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());

@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::WasmClientError;
-use crate::mix_fetch::mix_http_requests::http_request_to_mixnet_request_to_vec_u8;
 use crate::tester::helpers::WasmTestMessageExt;
 use crate::tester::{NodeTestMessage, DEFAULT_TEST_PACKETS};
 use crate::topology::WasmNymTopology;
-use httpcodec::Request as HttpCodecRequest;
 use js_sys::Promise;
 use nym_client_core::client::base_client::{ClientInput, ClientState};
 use nym_client_core::client::inbound_messages::InputMessage;
-use nym_sphinx::addressing::clients::Recipient;
-use nym_task::connections::TransmissionLane;
 use nym_topology::{MixLayer, NymTopology};
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;

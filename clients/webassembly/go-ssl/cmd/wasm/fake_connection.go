@@ -119,6 +119,9 @@ func (conn FakeConnection) Write(p []byte) (int, error) {
 }
 func (conn FakeConnection) Close() error {
 	Warn("TODO: implement close FakeConnection")
+
+	// TODO: call rust to send socks5 packet with close connection data
+
 	return nil
 }
 func (conn FakeConnection) LocalAddr() net.Addr {
@@ -142,7 +145,7 @@ func (conn FakeConnection) SetReadDeadline(t time.Time) error {
 	return nil
 }
 func (conn FakeConnection) SetWriteDeadline(t time.Time) error {
-	Info("Setting wrtite deadline to %v\n", t)
+	Info("Setting write deadline to %v\n", t)
 
 	Warn("TODO: implement SetWriteDeadline FakeConnection")
 	return nil

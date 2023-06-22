@@ -14,11 +14,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -34,6 +44,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
 import net.nymtech.nyms5.ui.theme.NymTheme
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
@@ -42,8 +54,17 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 
 class MainActivity : ComponentActivity() {
     private val tag = "MainActivity"
@@ -81,18 +102,16 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                Log.d(tag, "____uiState collect")
-                viewModel.uiState.collect {
-                    setContent {
-                        NymTheme {
-                            // A surface container using the 'background' color from the theme
-                            Surface(
-                                modifier = Modifier.fillMaxSize(),
-                                color = MaterialTheme.colorScheme.background
-                            ) {
+                Log.d(tag, "____UI recompose")
+                applicationContext.dataStore.data.map { preferences ->
+                    preferences[monitoringKey] ?: false
+                }.collect { monitoring ->
+                    viewModel.uiState.collect {
+                        setContent {
+                            NymTheme {
                                 val loading = it.loading
 
-                                S5ClientSwitch(it.connected, loading, {
+                                HomeScreen(it, monitoring, applicationContext.dataStore) {
                                     if (!loading) {
                                         when {
                                             it -> {
@@ -106,7 +125,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     }
-                                })
+                                }
                             }
                         }
                     }
@@ -118,6 +137,85 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         viewModel.checkStateSync()
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen(
+    proxyState: MainViewModel.ProxyState,
+    monitoring: Boolean,
+    dataStore: DataStore<Preferences>,
+    onSwitch: (value: Boolean) -> Unit,
+) {
+    val navController = rememberNavController()
+    var expanded by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Scaffold(topBar = {
+        CenterAlignedTopAppBar(
+            title = {
+                Text(stringResource(R.string.app_name))
+            },
+            navigationIcon = {
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+
+                if (currentRoute === "proxy") {
+                    IconButton(onClick = { expanded = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.Menu,
+                            contentDescription = "Main menu"
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        DropdownMenuItem(onClick = {
+                            navController.navigate("monitoring") {
+                                popUpTo("proxy")
+                            }
+                            expanded = false
+                        }, text = {
+                            Text("Error reporting")
+                        })
+                    }
+                } else {
+                    IconButton(onClick = {
+                        navController.navigate("proxy") {
+                            popUpTo("proxy")
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = "Back home"
+                        )
+                    }
+                }
+            },
+        )
+    }) { contentPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = "proxy",
+            modifier = Modifier.padding(contentPadding)
+        ) {
+            composable("proxy") {
+                S5ClientSwitch(
+                    connected = proxyState.connected,
+                    loading = proxyState.loading,
+                    onSwitch = onSwitch
+                )
+            }
+            composable("monitoring") {
+                Monitoring(initialValue = monitoring) {
+                    scope.launch(Dispatchers.IO) {
+                        dataStore.edit { settings -> settings[monitoringKey] = it }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -203,6 +301,46 @@ fun S5ClientSwitch(
     }
 }
 
+@Composable
+fun Monitoring(
+    modifier: Modifier = Modifier,
+    initialValue: Boolean,
+    onSwitch: (value: Boolean) -> Unit,
+) {
+    var monitoring by remember { mutableStateOf(initialValue) }
+
+    Column(
+        modifier = modifier
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Enable error reporting")
+            Spacer(modifier = modifier.width(16.dp))
+            Switch(checked = monitoring, onCheckedChange = {
+                monitoring = it
+                onSwitch(it)
+            })
+        }
+        Spacer(modifier = modifier.height(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(R.drawable.warning_24),
+                contentDescription = "copy to clipboard",
+                tint = Color.Yellow
+            )
+            Spacer(modifier = modifier.width(16.dp))
+            Text(stringResource(R.string.monitoring_desc_3), color = Color.Yellow)
+        }
+        Spacer(modifier = modifier.height(18.dp))
+        Text(stringResource(R.string.monitoring_desc_1))
+        Spacer(modifier = modifier.height(18.dp))
+        Text(stringResource(R.string.monitoring_desc_2))
+    }
+}
+
 @Preview
 @Composable
 fun PreviewSocks5Client() {
@@ -222,6 +360,21 @@ fun PreviewSocks5Client() {
                 connected = it
                 loading = false
             })
+        }
+    }
+}
+
+@Preview
+@Composable
+fun PreviewMonitoring() {
+    NymTheme {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Monitoring(initialValue = false) {
+                Log.d("Monitoring", "switch $it")
+            }
         }
     }
 }

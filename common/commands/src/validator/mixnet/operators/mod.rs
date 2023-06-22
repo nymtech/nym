@@ -4,6 +4,7 @@
 use clap::{Args, Subcommand};
 
 pub mod gateway;
+pub mod identity_key;
 pub mod mixnode;
 pub mod name;
 pub mod service;
@@ -26,4 +27,6 @@ pub enum MixnetOperatorsCommands {
     ServiceProvider(service::MixnetOperatorsService),
     /// Manage your registered name
     Name(name::MixnetOperatorsName),
+    /// Sign messages using your private identity key
+    IdentityKey(identity_key::MixnetOperatorsIdentityKey),
 }

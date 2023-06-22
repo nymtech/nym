@@ -73,6 +73,7 @@ pub struct NymNodeTester {
 #[wasm_bindgen]
 pub struct NymNodeTesterBuilder {
     gateway: Option<IdentityKey>,
+    id: Option<String>,
 
     base_topology: NymTopology,
 
@@ -94,9 +95,11 @@ impl NymNodeTesterBuilder {
     #[wasm_bindgen(constructor)]
     pub fn new(
         base_topology: WasmNymTopology,
+        id: Option<String>,
         gateway: Option<IdentityKey>,
     ) -> NymNodeTesterBuilder {
         NymNodeTesterBuilder {
+            id,
             gateway,
             base_topology: base_topology.into(),
             bandwidth_controller: None,
@@ -105,15 +108,20 @@ impl NymNodeTesterBuilder {
 
     async fn _new_with_api(
         api_url: String,
+        id: Option<String>,
         gateway: Option<IdentityKey>,
     ) -> Result<Self, WasmClientError> {
         let topology = current_network_topology_async(api_url).await?;
-        Ok(NymNodeTesterBuilder::new(topology, gateway))
+        Ok(NymNodeTesterBuilder::new(topology, id, gateway))
     }
 
-    pub fn new_with_api(gateway: Option<IdentityKey>, api_url: String) -> Promise {
+    pub fn new_with_api(
+        api_url: String,
+        id: Option<String>,
+        gateway: Option<IdentityKey>,
+    ) -> Promise {
         future_to_promise(async move {
-            Self::_new_with_api(api_url, gateway)
+            Self::_new_with_api(api_url, id, gateway)
                 .await
                 .into_promise_result()
         })
@@ -133,7 +141,13 @@ impl NymNodeTesterBuilder {
     async fn _setup_client(mut self) -> Result<NymNodeTester, WasmClientError> {
         let task_manager = TaskManager::default();
 
-        let client_store = ClientStorage::new_async(NODE_TESTER_ID, None).await?;
+        let storage_id = if let Some(client_id) = &self.id {
+            format!("{NODE_TESTER_ID}-{client_id}")
+        } else {
+            NODE_TESTER_ID.to_owned()
+        };
+
+        let client_store = ClientStorage::new_async(&storage_id, None).await?;
 
         let init_details = self.gateway_info(&client_store).await?;
         let gateway_endpoint = init_details.gateway_details;
@@ -234,24 +248,33 @@ async fn test_mixnode(
 impl NymNodeTester {
     #[wasm_bindgen(constructor)]
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(topology: WasmNymTopology, gateway: Option<IdentityKey>) -> Promise {
+    pub fn new(
+        topology: WasmNymTopology,
+        id: Option<String>,
+        gateway: Option<IdentityKey>,
+    ) -> Promise {
         console_log!("constructing node tester!");
-        NymNodeTesterBuilder::new(topology, gateway).setup_client()
+        NymNodeTesterBuilder::new(topology, id, gateway).setup_client()
     }
 
     async fn _new_with_api(
         api_url: String,
+        id: Option<String>,
         gateway: Option<IdentityKey>,
     ) -> Result<Self, WasmClientError> {
-        NymNodeTesterBuilder::_new_with_api(api_url, gateway)
+        NymNodeTesterBuilder::_new_with_api(api_url, id, gateway)
             .await?
             ._setup_client()
             .await
     }
 
-    pub fn new_with_api(api_url: String, gateway: Option<IdentityKey>) -> Promise {
+    pub fn new_with_api(
+        api_url: String,
+        id: Option<String>,
+        gateway: Option<IdentityKey>,
+    ) -> Promise {
         future_to_promise(async move {
-            Self::_new_with_api(api_url, gateway)
+            Self::_new_with_api(api_url, id, gateway)
                 .await
                 .into_promise_result()
         })

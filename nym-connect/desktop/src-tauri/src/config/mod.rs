@@ -73,7 +73,11 @@ pub fn socks5_config_id_appended_with(gateway_id: &str) -> String {
 impl Config {
     pub fn new<S: AsRef<str>>(id: S, provider_mix_address: S) -> Self {
         Config {
-            core: Socks5CoreConfig::new(id.as_ref(), provider_mix_address.as_ref()),
+            core: Socks5CoreConfig::new(
+                id.as_ref(),
+                env!("CARGO_PKG_VERSION"),
+                provider_mix_address.as_ref(),
+            ),
             storage_paths: NymConnectPaths::new_default(default_data_directory(id.as_ref())),
         }
     }
@@ -156,7 +160,11 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         config.core.base.client.nym_api_urls = nym_config_common::parse_urls(&raw_validators);
     }
 
-    let gateway_setup = GatewaySetup::new_fresh(Some(chosen_gateway_id), None);
+    let gateway_setup = if register_gateway {
+        GatewaySetup::new_fresh(Some(chosen_gateway_id), None)
+    } else {
+        GatewaySetup::MustLoad
+    };
 
     // Setup gateway by either registering a new one, or reusing exiting keys
     let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());

@@ -116,11 +116,11 @@ async function testWithTester() {
     // B) first get topology directly from nym-api
     // const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
     // const topology = await current_network_topology(validator)
-    // const nodeTester = await new NymNodeTester(topology, preferredGateway);
+    // const nodeTester = await new NymNodeTester(topology, undefined, preferredGateway);
     //
     // C) use nym-api in the constructor (note: it does no filtering for 'good' nodes on other layers)
     // const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
-    // const nodeTester = await NymNodeTester.new_with_api(validator, preferredGateway)
+    // const nodeTester = await NymNodeTester.new_with_api(validator, undefined, preferredGateway)
 
     // D, E, F) you also don't have to specify the gateway. if you don't, a random one (from your topology) will be used
     // const topology = dummyTopology()
@@ -365,16 +365,16 @@ async function main() {
     set_panic_hook();
 
     // show reconnection capabilities
-    await testerReconnection()
+    // await testerReconnection()
 
     // run test on simplified and dedicated tester:
-    // await testWithTester()
+    await testWithTester()
 
     // hook-up the whole client for testing
     // await testWithNymClient()
 
     // 'Normal' client setup (to send 'normal' messages)
-    await normalNymClientUsage()
+    // await normalNymClientUsage()
 }
 
 // Let's get started!

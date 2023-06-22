@@ -24,6 +24,7 @@
     "prebuild": "yarn build:dependencies",
     "build": "yarn build:only-this",
     "build:only-this": "scripts/build-prod.sh",
+    "prebuild:dev": "yarn build:dependencies",
     "build:dev": "yarn build:dev:only-this",
     "build:dev:only-this": "scripts/build.sh"
   },

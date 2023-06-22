@@ -67,7 +67,11 @@ impl Config {
         S: AsRef<str>,
     {
         Config {
-            core: CoreConfig::new(id.as_ref(), provider_mix_address.as_ref()),
+            core: CoreConfig::new(
+                id.as_ref(),
+                env!("CARGO_PKG_VERSION"),
+                provider_mix_address.as_ref(),
+            ),
             storage_paths: storage_root.map(|storage_root| {
                 MobileSocksClientPaths::new_default(data_directory_from_root(
                     storage_root,

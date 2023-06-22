@@ -81,16 +81,16 @@ jobs:
           mkdir apk
           mv nym-connect/native/android/app/build/outputs/apk/arch64/debug/app-arch64-debug.apk \
             apk/nyms5-arch64-debug.apk
-          mv nym-connect/native/android/app/build/outputs/apk/arch64/release/app-arch64-release-unsigned.apk \
-            apk/nyms5-arch64-release.apk
+          # mv nym-connect/native/android/app/build/outputs/apk/arch64/release/app-arch64-release-unsigned.apk \
+          #   apk/nyms5-arch64-release.apk
 
       - name: Upload APKs
         uses: actions/upload-artifact@v3
         with:
           name: nyms5-apk-arch64
+          # apk/nyms5-arch64-release.apk
           path: |
             apk/nyms5-arch64-debug.apk
-            apk/nyms5-arch64-release.apk
 
   gh-release:
     name: Publish APK (GH release)
@@ -107,7 +107,6 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
+          # apk/nyms5-arch64-release.apk
           files: |
             apk/nyms5-arch64-debug.apk
-            apk/nyms5-arch64-release.apk
-

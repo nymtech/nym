@@ -224,10 +224,10 @@ func parseJSRequest(request js.Value) (*http.Request, error) {
 	[❌] - unsupported
 	[⚠️] - not applicable / will not support
 
-	[❌] body
-	[❌] bodyUsed
+	[✅] body
+	[✅] bodyUsed
 	[✅] headers
-	[❌] ok
+	[✅] ok 			- seems to be handled automagically (presumably via `status`)
 	[❌] redirected
 	[✅] status
 	[✅] statusText

@@ -405,6 +405,8 @@ async function testMixFetch() {
                     console.log("OK:          ", res.ok)
                     console.log("TYPE:        ", res.type)
                     console.log("URL:         ", res.url)
+                    console.log("BODYUSED:    ", res.bodyUsed)
+                    console.log("REDIRECTED:  ", res.redirected)
                     console.log("TEXT:\n",text)
 
                     self.postMessage({

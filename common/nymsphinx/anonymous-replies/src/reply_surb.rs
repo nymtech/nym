@@ -7,7 +7,7 @@ use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
-use nym_sphinx_types::{delays, NymPacket, SURBMaterial, SphinxError, SURB};
+use nym_sphinx_types::{NymPacket, SURBMaterial, SphinxError, SURB};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use serde::de::{Error as SerdeError, Visitor};
@@ -96,11 +96,7 @@ impl ReplySurb {
     {
         let route =
             topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, recipient.gateway())?;
-        let delays = if average_delay.is_zero() {
-            vec![nym_sphinx_types::Delay::new_from_millis(0); route.len()]
-        } else {
-            delays::generate_from_average_duration(route.len(), average_delay)
-        };
+        let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 
         let surb_material = SURBMaterial::new(route, delays, destination);

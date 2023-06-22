@@ -15,7 +15,8 @@ nym-crypto = { path = "../../crypto" }
 nym-sphinx-acknowledgements = { path = "../acknowledgements" }
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-chunking = { path = "../chunking" }
-nym-sphinx-params = { path = "../params" }
 nym-sphinx-forwarding = { path = "../forwarding" }
+nym-sphinx-params = { path = "../params" }
+nym-sphinx-routing = { path = "../routing" }
 nym-sphinx-types = { path = "../types" }
 nym-topology = { path = "../../topology" }

@@ -14,7 +14,7 @@ use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
-use nym_sphinx_types::{delays, Delay, NymPacket};
+use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
@@ -232,11 +232,8 @@ pub trait FragmentPreparer {
         let destination = packet_recipient.as_sphinx_destination();
 
         // including set of delays
-        let delays = if self.average_packet_delay().is_zero() {
-            vec![nym_sphinx_types::Delay::new_from_millis(0); route.len()]
-        } else {
-            delays::generate_from_average_duration(route.len(), self.average_packet_delay())
-        };
+        let delays =
+            nym_sphinx_routing::generate_hop_delays(self.average_packet_delay(), route.len());
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.

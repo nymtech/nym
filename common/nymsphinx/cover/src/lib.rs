@@ -13,7 +13,7 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketType, DEFAULT_NUM_MIX_HOPS,
 };
-use nym_sphinx_types::{delays, NymPacket};
+use nym_sphinx_types::NymPacket;
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
@@ -120,11 +120,7 @@ where
 
     let route =
         topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, full_address.gateway())?;
-    let delays = if average_packet_delay.is_zero() {
-        vec![nym_sphinx_types::Delay::new_from_millis(0); route.len()]
-    } else {
-        delays::generate_from_average_duration(route.len(), average_packet_delay)
-    };
+    let delays = nym_sphinx_routing::generate_hop_delays(average_packet_delay, route.len());
     let destination = full_address.as_sphinx_destination();
 
     let first_hop_address =

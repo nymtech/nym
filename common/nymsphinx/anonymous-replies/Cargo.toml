@@ -16,6 +16,7 @@ thiserror = "1"
 nym-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }
+nym-sphinx-routing = { path = "../routing" }
 nym-sphinx-types = { path = "../types" }
 nym-topology = { path = "../../topology" }
 

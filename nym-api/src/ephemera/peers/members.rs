@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ephemera::client::Client;
+use crate::ephemera::peers::NymPeer;
 use crate::support::nyxd;
+use cosmwasm_std::Addr;
 use ephemera::membership::{PeerInfo, ProviderError};
 use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
+use nym_ephemera_common::types::JsonPeerInfo;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll::Pending;
@@ -45,6 +48,21 @@ impl MembersProvider {
             nyxd_client,
             fut: None,
         }
+    }
+
+    pub(crate) async fn register_peer(
+        &self,
+        peer_info: NymPeer,
+    ) -> crate::ephemera::error::Result<()> {
+        let json_peer_info = JsonPeerInfo::new(
+            Addr::unchecked(peer_info.cosmos_address),
+            peer_info.ip_address,
+            peer_info.public_key.to_string(),
+        );
+        self.nyxd_client
+            .register_ephemera_peer(json_peer_info)
+            .await?;
+        Ok(())
     }
 
     async fn request_peers(nyxd_client: nyxd::Client) -> Result<Vec<PeerInfo>, ProviderError> {

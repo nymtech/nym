@@ -12,22 +12,22 @@ pub mod members;
 
 #[derive(Debug, Clone)]
 pub struct NymPeer {
-    pub name: String,
-    pub address: String,
+    pub cosmos_address: String,
+    pub ip_address: String,
     pub public_key: PublicKey,
     pub peer_id: PeerId,
 }
 
 impl NymPeer {
     pub(crate) fn new(
-        name: String,
-        address: String,
+        cosmos_address: String,
+        ip_address: String,
         public_key: PublicKey,
         peer_id: PeerId,
     ) -> Self {
         Self {
-            name,
-            address,
+            cosmos_address,
+            ip_address,
             public_key,
             peer_id,
         }
@@ -36,13 +36,13 @@ impl NymPeer {
 
 // Information about other Nym-Apis.
 pub(crate) struct NymApiEphemeraPeerInfo {
-    pub(crate) _local_peer: NymPeer,
+    pub(crate) local_peer: NymPeer,
     pub(crate) peers: HashMap<PeerId, NymPeer>,
 }
 
 impl NymApiEphemeraPeerInfo {
-    fn new(_local_peer: NymPeer, peers: HashMap<PeerId, NymPeer>) -> Self {
-        Self { _local_peer, peers }
+    fn new(local_peer: NymPeer, peers: HashMap<PeerId, NymPeer>) -> Self {
+        Self { local_peer, peers }
     }
 
     pub(crate) fn get_peers_count(&self) -> usize {

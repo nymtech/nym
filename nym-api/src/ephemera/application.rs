@@ -65,6 +65,9 @@ impl NymApi {
         //Members provider for Ephemera
         let members_provider = MembersProvider::new(nyxd_client);
 
+        let local_peer = rewards_ephemera_application.peer_info.local_peer.clone();
+        members_provider.register_peer(local_peer).await?;
+
         //EPHEMERA
         let ephemera_builder = EphemeraStarterInit::new(ephemera_config)?;
         let ephemera_builder = ephemera_builder.with_application(rewards_ephemera_application);

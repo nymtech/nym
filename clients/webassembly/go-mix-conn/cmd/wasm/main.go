@@ -83,7 +83,7 @@ func mixFetch(_ js.Value, args []js.Value) (any, error) {
 		return nil, errors.New("the received raw request was not an object")
 	}
 
-	request, err := parseRequest( args[1])
+	request, err := parseJSRequest(args[1])
 	if err != nil {
 		return nil, err
 	}

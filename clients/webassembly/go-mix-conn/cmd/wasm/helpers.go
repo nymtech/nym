@@ -6,6 +6,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strconv"
 	"syscall/js"
 )
@@ -116,4 +118,154 @@ func getStringProperty(obj *js.Value, name string) (string, error) {
 		return "", errors.New(fmt.Sprintf("the property %s is not a string", name))
 	}
 	return val.String(), nil
+}
+
+func checkUnsupportedAttributes(request *js.Value) {
+	cache := request.Get("cache")
+	fmt.Printf("%+v", cache)
+}
+
+func parseHeaders(headers js.Value) (http.Header, error) {
+	goHeaders := http.Header{}
+
+	if headers.Type() != js.TypeObject {
+		return nil, errors.New("the request headers is not an object")
+	}
+	headersIter := headers.Call("entries")
+
+	for {
+		next := headersIter.Call("next")
+		done := next.Get("done").Bool()
+		if done {
+			return goHeaders, nil
+		}
+		keyValue := next.Get("value")
+		if keyValue.Length() != 2 {
+			return nil, errors.New("one of the headers has invalid length")
+		}
+		key := keyValue.Index(0)
+		if key.Type() != js.TypeString {
+			return nil, errors.New("one of the header keys is not a string")
+		}
+
+		value := keyValue.Index(1)
+		if value.Type() != js.TypeString {
+			return nil, errors.New("one of the header values is not a string")
+		}
+		ck := http.CanonicalHeaderKey(key.String())
+		goHeaders[ck] = append(goHeaders[ck], value.String())
+	}
+}
+
+// a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
+// https://developer.mozilla.org/en-US/docs/Web/API/request
+/*
+	request attributes and their implementation status:
+	[✅] - supported
+	[❌] - unsupported
+	[⚠️] - not applicable / will not support
+
+	[❌] body
+	[❌] bodyUsed
+	[⚠️] cache
+	[❌] credentials
+	[❌] destination
+	[✅] headers
+	[❌] integrity
+	[✅] method
+	[❌] mode
+	[❌] redirect
+	[❌] referrer
+	[❌] referrerPolicy
+	[❌] signal
+	[✅] url
+*/
+func parseJSRequest(request js.Value) (*http.Request, error) {
+	// https://github.com/mozilla/gecko-dev/blob/d307d4d9f06dab6d16e963a4318e5e8ff4899141/dom/fetch/Fetch.cpp#L501
+	// https://github.com/mozilla/gecko-dev/blob/d307d4d9f06dab6d16e963a4318e5e8ff4899141/dom/fetch/Request.cpp#L270
+
+	method, err := getStringProperty(&request, "method")
+	if err != nil {
+		return nil, err
+	}
+
+	requestUrl, err := getStringProperty(&request, "url")
+	if err != nil {
+		return nil, err
+	}
+
+	jsHeaders := request.Get("headers")
+	headers, err := parseHeaders(jsHeaders)
+	if err != nil {
+		return nil, err
+	}
+
+	bodyUsed := request.Get("bodyUsed").Bool()
+	if bodyUsed {
+		panic("unimplemented")
+	}
+
+	req, err := http.NewRequest(method, requestUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header = headers
+
+	Debug("constructed request: %+v", req)
+
+	return req, nil
+}
+
+// a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
+// https://developer.mozilla.org/en-US/docs/Web/API/response
+/*
+	request attributes and their implementation status:
+	[✅] - supported
+	[❌] - unsupported
+	[⚠️] - not applicable / will not support
+
+	[❌] body
+	[❌] bodyUsed
+	[✅] headers
+	[❌] ok
+	[❌] redirected
+	[✅] status
+	[✅] statusText
+	[❌] type
+	[❌] url
+*/
+func intoJSResponse(resp *http.Response) (js.Value, error) {
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			Error("failed to close the response body: %s", err)
+		}
+	}(resp.Body)
+
+	// Read the response body
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return js.Null(), err
+	}
+
+	jsBytes := intoJsBytes(data)
+
+	// Create a Response object and pass the data
+	// inspired by https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
+	headers := js.Global().Get("Headers").New()
+	for key, values := range resp.Header {
+		for _, value := range values {
+			headers.Call("append", key, value)
+		}
+	}
+
+	responseOptions := js.Global().Get("Object").New()
+	responseOptions.Set("status", resp.StatusCode)
+	responseOptions.Set("statusText", http.StatusText(resp.StatusCode))
+	responseOptions.Set("headers", headers)
+
+	responseConstructor := js.Global().Get("Response")
+	response := responseConstructor.New(jsBytes, responseOptions)
+
+	return response, nil
 }

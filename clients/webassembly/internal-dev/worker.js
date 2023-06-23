@@ -396,28 +396,9 @@ async function testMixFetch() {
 
                     console.log('using mixFetch...');
 
-                    const data = {
-                        "foomp": "aaaa",
-                        "other_field": 42,
-                        "inner map": {
-                            "1":1,
-                            "2":2,
-                        }
-                    };
-
-                    const res = await mixFetch("http://localhost:8000", {
-                        method: "POST",
-                        mode: "no-cors",
-                        headers: {
-                            // "Content-Type": "text/plain",
-                            "Content-Type": "application/json",                            // 'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: JSON.stringify(data), // body data type must match "Content-Type" header
-                        // body: "AAA", // body data type must match "Content-Type" header
-                    })
+                    const res = await mixFetch(url)
 
                     console.log(res)
-                    // let res = await mixFetch(url)
                     let text = await res.text()
                     console.log('mixFetch done');
                     console.log("HEADERS:     ", ...res.headers)
@@ -428,7 +409,7 @@ async function testMixFetch() {
                     console.log("URL:         ", res.url)
                     console.log("BODYUSED:    ", res.bodyUsed)
                     console.log("REDIRECTED:  ", res.redirected)
-                    console.log("TEXT:\n",text)
+                    console.log("TEXT:        ",text)
 
                     self.postMessage({
                         kind: 'DisplayString',

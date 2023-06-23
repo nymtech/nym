@@ -72,6 +72,11 @@ func buildHttpClient(requestId RequestId) *http.Client {
 	}
 
 	return &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			Error("unsupported redirection")
+			return http.ErrUseLastResponse
+		},
+
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				Info("entered DialContext")

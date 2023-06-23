@@ -75,7 +75,6 @@ impl RequestWriter {
     pub(crate) fn start(mut self) {
         spawn_local(async move {
             while let Some(reconstructed) = self.reconstructed_receiver.next().await {
-                console_log!("reconstructed something!");
                 for reconstructed_msg in reconstructed {
                     self.handle_reconstructed(reconstructed_msg).await
                 }

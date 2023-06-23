@@ -19,7 +19,6 @@ var activeRequests *ActiveRequests
 
 func init() {
 	println("[go init]: go module init")
-	SetupLogging()
 
 	done = make(chan struct{})
 	activeRequests = &ActiveRequests{

@@ -5,44 +5,40 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
+	"runtime"
+	"syscall/js"
 )
 
-var (
-	ErrorLogger   *log.Logger
-	WarningLogger *log.Logger
-	InfoLogger    *log.Logger
-	DebugLogger   *log.Logger
-)
+func makeLogMessage(severity string, format string, a ...any) string {
+	_, file, line, ok := runtime.Caller(3)
+	// we should really be using a mutex here...
+	if !ok {
+		file = "???"
+		line = 0
+	}
 
-func SetupLogging() {
-	ErrorLogger = log.New(os.Stderr, "ERROR: ", log.Ltime|log.Llongfile)
-	WarningLogger = log.New(os.Stderr, "WARN: ", log.Ltime|log.Llongfile)
-	InfoLogger = log.New(os.Stderr, "INFO: ", log.Ltime|log.Llongfile)
-	DebugLogger = log.New(os.Stderr, "DEBUG: ", log.Ltime|log.Llongfile)
+	prefix := fmt.Sprintf("[go] %s: %s:%d: ", severity, file, line)
+	suffix := fmt.Sprintf(format, a...)
+	return prefix + suffix
 }
 
 func Error(format string, a ...any) {
-	if ErrorLogger != nil {
-		_ = ErrorLogger.Output(3, fmt.Sprintf(format, a))
-	}
+	msg := makeLogMessage("ERROR", format, a...)
+	js.Global().Get("console").Call("error", msg)
 }
 
 func Warn(format string, a ...any) {
-	if WarningLogger != nil {
-		_ = WarningLogger.Output(3, fmt.Sprintf(format, a))
-	}
+	msg := makeLogMessage("WARN", format, a...)
+	js.Global().Get("console").Call("warn", msg)
+
 }
 
 func Info(format string, a ...any) {
-	if InfoLogger != nil {
-		_ = InfoLogger.Output(3, fmt.Sprintf(format, a))
-	}
+	msg := makeLogMessage("INFO", format, a...)
+	js.Global().Get("console").Call("info", msg)
 }
 
 func Debug(format string, a ...any) {
-	if DebugLogger != nil {
-		_ = DebugLogger.Output(3, fmt.Sprintf(format, a))
-	}
+	msg := makeLogMessage("DEBUG", format, a...)
+	js.Global().Get("console").Call("debug", msg)
 }

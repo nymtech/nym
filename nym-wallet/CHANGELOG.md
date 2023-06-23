@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [v1.2.5] (2023-06-06)
+
+- Wallet - Test my node feature. If a user has a node bonded, they can go to the node settings page and check whether their node is handling traffic well.
+
 ## [v1.2.4] (2023-06-06)
 
 - Wallet - Bonding page does not load the node info automatically unless you navigate back and forth from it! ([#3478])

@@ -38,12 +38,13 @@ impl NymApi {
         let key_pair = Self::read_nym_api_keypair(&ephemera_config)?;
 
         //EPHEMERA
-        let ephemera = Self::init_ephemera(ephemera_config, nyxd_client).await?;
+        let ephemera = Self::init_ephemera(ephemera_config, nyxd_client.clone()).await?;
         let ephemera_handle = ephemera.handle();
 
         //REWARDS
         let rewards =
-            Self::create_rewards_manager(args, key_pair, ephemera_handle.api.clone()).await;
+            Self::create_rewards_manager(args, nyxd_client, key_pair, ephemera_handle.api.clone())
+                .await?;
 
         //STARTING
         let shutdown_listener = shutdown.subscribe();
@@ -78,16 +79,17 @@ impl NymApi {
 
     async fn create_rewards_manager(
         args: Args,
+        nyxd_client: nyxd::Client,
         key_pair: Keypair,
         ephemera_api: CommandExecutor,
-    ) -> RewardManager {
-        let epoch = Epoch::request_epoch(args.smart_contract_url.clone()).await;
-        RewardManager::new(
+    ) -> anyhow::Result<RewardManager> {
+        let epoch = Epoch::request_epoch(nyxd_client).await?;
+        Ok(RewardManager::new(
             args.clone(),
             EphemeraAccess::new(ephemera_api, key_pair).into(),
             Some(RewardsAggregator),
             epoch,
-        )
+        ))
     }
 
     fn read_nym_api_keypair(ephemera_config: &Configuration) -> anyhow::Result<Keypair> {

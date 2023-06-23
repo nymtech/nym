@@ -1,3 +1,4 @@
+use crate::support::nyxd;
 use chrono::{DateTime, NaiveDateTime, Timelike, Utc};
 use log::info;
 use nym_mixnet_contract_common::Interval as RewardsInterval;
@@ -62,20 +63,9 @@ impl Epoch {
         nr + self.epoch_start_id
     }
 
-    pub async fn request_epoch(contract_url: String) -> Epoch {
-        info!("Getting epoch info from smart contract");
-        let url = format!("http://{contract_url}/contract/epoch");
-        let info = reqwest::Client::new()
-            .get(&url)
-            .send()
-            .await
-            .unwrap()
-            .json::<EpochInfo>()
-            .await
-            .unwrap();
-        let epoch = Epoch::new(info);
-        info!("Epoch: {}", epoch);
-        epoch
+    pub(crate) async fn request_epoch(nyxd_client: nyxd::Client) -> anyhow::Result<Epoch> {
+        let interval = nyxd_client.get_current_interval().await?.interval;
+        Ok(Epoch::from(interval))
     }
 }
 

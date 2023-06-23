@@ -396,7 +396,28 @@ async function testMixFetch() {
 
                     console.log('using mixFetch...');
 
-                    let res = await mixFetch(url)
+                    const data = {
+                        "foomp": "aaaa",
+                        "other_field": 42,
+                        "inner map": {
+                            "1":1,
+                            "2":2,
+                        }
+                    };
+
+                    const res = await mixFetch("http://localhost:8000", {
+                        method: "POST",
+                        mode: "no-cors",
+                        headers: {
+                            // "Content-Type": "text/plain",
+                            "Content-Type": "application/json",                            // 'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: JSON.stringify(data), // body data type must match "Content-Type" header
+                        // body: "AAA", // body data type must match "Content-Type" header
+                    })
+
+                    console.log(res)
+                    // let res = await mixFetch(url)
                     let text = await res.text()
                     console.log('mixFetch done');
                     console.log("HEADERS:     ", ...res.headers)
@@ -423,149 +444,6 @@ async function testMixFetch() {
     // console.log('using mixFetch...');
     // await client.fetch_with_str('https://nymtech.net/.wellknown/wallet/validators.json');
 }
-
-async function testMixFetchSSL() {
-    const debug = default_debug();
-    debug.disable_main_poisson_packet_distribution = true;
-    debug.disable_loop_cover_traffic_stream = true;
-
-    const preferredGateway = "336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9";
-    const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
-    const mix_fetch_network_requester_address= "FbFmrWX1xkd3MUv1LinQ4emXrtP8krvGEngXPECDpN3c.BZJ9zVb19q8JDWRYSvcwQMSivBWt8FJPdK7dY2A3Aqx1@6Lnxj9vD2YMtSmfe8zp5RBtj1uZLYQAFRxY9q7ANwrZz";
-
-    const config = new MixFetchConfig('my-awesome-mix-fetch-client-with-go', mix_fetch_network_requester_address, validator, undefined, debug);
-
-    const onMessageHandler = (message) => {
-        console.log(message);
-        self.postMessage({
-            kind: 'ReceiveMessage',
-            args: {
-                message,
-            },
-        });
-    };
-
-    console.log('Instantiating Mix Fetch client...');
-    let mix_fetch = await new MixFetchClient(config, preferredGateway)
-    console.log('Mix Fetch client running!');
-
-    const selfAddress = mix_fetch.self_address();
-
-    // set the global (I guess we don't have to anymore?)
-    client = mix_fetch;
-
-    console.log(`Client address is ${selfAddress}`);
-    self.postMessage({
-        kind: 'Ready',
-        args: {
-            selfAddress,
-        },
-    });
-
-    // const fetchToMixnetRequest = new FetchToMixnetRequest();
-    // console.log(fetchToMixnetRequest.fetch_with_str('https://nymtech.net/index.html'));
-    // console.log(fetchToMixnetRequest.fetch_with_request({
-    //     url: 'https://nymtech.net/.wellknown/wallet/validators.json',
-    //     method: 'GET'
-    // }));
-    // console.log(fetchToMixnetRequest.fetch_with_request({
-    //     url: 'http://localhost:3000',
-    //     method: 'POST',
-    //     body: Uint8Array.from([0, 1, 2, 3, 4])
-    // }));
-    // console.log(fetchToMixnetRequest.fetch_with_str_and_init('http://localhost:3000', {
-    //     method: 'POST',
-    //     body: Uint8Array.from([1, 1, 1, 1, 1]),
-    //     headers: {'Content-Type': 'application/json'}
-    // }));
-    // console.log(fetchToMixnetRequest.fetch_with_request_and_init({
-    //     url: 'https://nymtech.net/.wellknown/wallet/validators.json',
-    //     method: 'GET'
-    // }, {body: Uint8Array.from([1, 1, 1, 1, 1]), headers: {'Content-Type': 'application/json'}}));
-
-    // Set callback to handle messages passed to the worker.
-    self.onmessage = async event => {
-        console.log(event)
-        if (event.data && event.data.kind) {
-            switch (event.data.kind) {
-                case 'MagicPayload': {
-                    // ignore the field naming : ) I'm just abusing that a bit...
-                    const {mixnodeIdentity} = event.data.args;
-                    const url = mixnodeIdentity;
-
-                    console.log('using mixFetch...');
-                    let res = await client.fetch_with_str(url);
-                    let text = await res.text()
-                    console.log('mixFetch done');
-                    console.log("HEADERS:     ", ...res.headers)
-                    console.log("STATUS:      ", res.status)
-                    console.log("STATUS TEXT: ", res.statusText)
-                    console.log("OK:          ", res.ok)
-                    console.log("TYPE:        ", res.type)
-                    console.log("URL:         ", res.url)
-                    console.log("TEXT:\n",text)
-
-                    self.postMessage({
-                        kind: 'DisplayString',
-                        args: {
-                            rawString: text,
-                        },
-                    });
-                }
-            }
-        }
-    };
-
-    // console.log('using mixFetch...');
-    // await client.fetch_with_str('https://nymtech.net/.wellknown/wallet/validators.json');
-}
-
-async function basicSSL() {
-
-    self.onmessage = async event => {
-        if (event.data && event.data.kind) {
-            switch (event.data.kind) {
-                case 'StartHandshake': {
-                    console.log("start")
-                    // let clientHello = goWasmStartSSLHandshake(event.data.args.sni);
-                    // let clientHello = goWasmStartSSLHandshake(event.data.args.sni);
-                    goWasmHTTPTest(event.data.args.sni);
-                    // startSSLHandshakeJS(event.data.args.sni);
-
-                    // self.postMessage({
-                    //     kind: 'ClientData',
-                    //     args: { data: clientHello },
-                    // });
-
-                    break
-                }
-
-                case 'ClientPayload': {
-                    let clientData = goWasmTryReadClientData();
-                    if (clientData) {
-                        self.postMessage({
-                            kind: 'ClientData',
-                            args: { data: clientData },
-                        });
-                    }
-
-                    break
-                }
-                case 'ServerPayload': {
-                    const data = event.data.args.data
-                    console.log("INJECTING", data)
-
-
-                    goWasmInjectServerData(data)
-
-                    break
-
-                }
-            }
-        }
-    };
-}
-
 
 
 // TODO: look into https://www.aaron-powell.com/posts/2019-02-08-golang-wasm-5-compiling-with-webpack/
@@ -615,6 +493,27 @@ async function main() {
     // TODO: ask Mark how to avoid this
     self.send_client_data = send_client_data
 
+    // const data = {
+    //     "foomp": "aaaa",
+    //     "other_field": 42,
+    //     "inner map": {
+    //         "1":1,
+    //         "2":2,
+    //     }
+    // };
+    //
+    // const response = await fetch("http://localhost:8000", {
+    //     method: "POST",
+    //     mode: "no-cors",
+    //     headers: {
+    //         "Content-Type": "text/plain",
+    //         // 'Content-Type': 'application/x-www-form-urlencoded',
+    //     },
+    //     body: JSON.stringify(data), // body data type must match "Content-Type" header
+    // })
+    //
+    // console.log(response)
+    // console.log(await response.text())
 
     // await basicSSL()
 

@@ -46,7 +46,7 @@
     "react-hook-form": "^7.14.2",
     "react-markdown": "^8.0.4",
     "react-router-dom": "^6.7.0",
-    "semver": "^6.3.0",
+    "semver": "^7.5.2",
     "yup": "^0.32.9"
   },
   "devDependencies": {

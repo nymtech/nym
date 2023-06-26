@@ -68,13 +68,12 @@ jobs:
         working-directory: nym-connect/native/android
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.NYMS5_ANDROID_SENTRY_AUTH_TOKEN }}
         # build for arm64 and x86_64
         run: |
+          echo "auth.token=$SENTRY_AUTH_TOKEN" | tee -a sentry.properties
           ./gradlew :app:assembleArch64Debug
-          # TODO the release variant build fails because of sentry
-          # build.gradle needs additional configuration
-          # see https://docs.sentry.io/platforms/android/gradle/?original_referrer=https%3A%2F%2Fduckduckgo.com%2F
-          # ./gradlew :app:assembleArch64Release
+          ./gradlew :app:assembleArch64Release
 
       - name: Prepare APKs
         run: |

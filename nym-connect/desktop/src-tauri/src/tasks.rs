@@ -53,7 +53,10 @@ pub async fn start_nym_socks5_client(
 
     if std::env::var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS").is_ok() {
         log::warn!("Enabling mixed size packets");
-        config.core.base.set_secondary_packet_size(Some(PacketSize::ExtendedPacket16));
+        config
+            .core
+            .base
+            .set_secondary_packet_size(Some(PacketSize::ExtendedPacket16));
     }
 
     if std::env::var("NYM_CONNECT_DISABLE_PER_HOP_DELAYS").is_ok() {

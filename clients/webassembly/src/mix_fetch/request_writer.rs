@@ -12,7 +12,7 @@ use nym_service_providers_common::interface::ResponseContent;
 use nym_socks5_requests::{Socks5ProviderResponse, Socks5ResponseContent};
 use nym_sphinx::receiver::ReconstructedMessage;
 use wasm_bindgen_futures::spawn_local;
-use wasm_utils::{console_error, console_log};
+use wasm_utils::console_error;
 
 pub(crate) struct RequestWriter {
     reconstructed_receiver: ReconstructedMessagesReceiver,

@@ -8,22 +8,19 @@ import (
 	"crypto/tls"
 	"io"
 	"net"
-	"sync/atomic"
 	"time"
 )
 
 // InjectedData is, well, the injected server data that came from the mixnet into this connection
 type InjectedData struct {
 	serverData   <-chan []byte
-	remoteClosed *atomic.Bool
-	redirected   *atomic.Bool
+	remoteClosed <-chan bool
 }
 
 // ConnectionInjector controls data that goes over corresponding FakeConnection
 type ConnectionInjector struct {
 	serverData   chan<- []byte
-	remoteClosed *atomic.Bool
-	redirected   *atomic.Bool
+	remoteClosed chan<- bool
 }
 
 // FakeConnection is a type implementing net.Conn interface that allows us
@@ -40,20 +37,17 @@ type FakeConnection struct {
 // handlers for injecting data into it
 func NewFakeConnection(requestId RequestId, remoteAddress string) (FakeConnection, ConnectionInjector) {
 	serverData := make(chan []byte, 10)
-	remoteClosed := &atomic.Bool{}
-	redirected := &atomic.Bool{}
+	remoteClosed := make(chan bool, 1)
 
 	inj := ConnectionInjector{
 		serverData:   serverData,
 		remoteClosed: remoteClosed,
-		redirected:   redirected,
 	}
 
 	conn := FakeConnection{
 		data: &InjectedData{
 			serverData:   serverData,
 			remoteClosed: remoteClosed,
-			redirected:   redirected,
 		},
 		requestId:     requestId,
 		remoteAddress: remoteAddress,
@@ -89,46 +83,36 @@ func (conn FakeConnection) readAndBuffer(in []byte, out []byte) (int, error) {
 
 // TODO: so many EOF edge cases here...
 func (conn FakeConnection) Read(p []byte) (int, error) {
-	if conn.data.redirected.Load() {
-		Error("attempted to read more data from the socket after we got redirected!")
-		return 0, io.ErrClosedPipe
-	}
-
+	// TODO: is there really no better way for priority chan reads?
 	select {
 	// see if we have any leftover data from the previous read
 	case incomplete := <-conn.pendingReads:
 		Debug("reading previously incomplete data")
 		return conn.readAndBuffer(incomplete, p)
 	default:
+		// reason for this extra select:
+		// if we have BOTH server data and closing information - you HAVE TO use up the data first
 		select {
 		// if we have any data: do read it
 		case injectedData := <-conn.data.serverData:
 			Info("server data")
 			return conn.readAndBuffer(injectedData, p)
 		default:
-			// otherwise see if the socket is closed
-			if conn.data.remoteClosed.Load() {
-				return 0, io.EOF
-			} else {
-				Debug("waiting for data to read...")
-				// wait for the data
-				// TODO: what if we received information about closed socket here?
-				data := <-conn.data.serverData
+			// we wait for either some data or the closing info
+			select {
+			case data := <-conn.data.serverData:
 				if len(data) == 0 {
 					return 0, io.EOF
 				}
 				return conn.readAndBuffer(data, p)
 			}
+		case <-conn.data.remoteClosed:
+			return 0, io.EOF
 		}
 	}
 }
 
 func (conn FakeConnection) Write(p []byte) (int, error) {
-	if conn.data.redirected.Load() {
-		Error("attempted to write more data to the socket after we got redirected!")
-		return 0, io.ErrClosedPipe
-	}
-
 	Debug("WRITING %d bytes TO 'REMOTE' >>> \n", len(p))
 
 	err := rsSendClientData(conn.requestId, p)
@@ -137,32 +121,15 @@ func (conn FakeConnection) Write(p []byte) (int, error) {
 	} else {
 		return len(p), nil
 	}
-
-	//requestId := strconv.FormatUint(conn.requestId, 10)
-	//jsBytes := intoJsBytes(p)
-	//
-	//sendPromise := js.Global().Call("send_client_data", requestId, jsBytes)
-	//_, err := await(sendPromise)
-	//if err != nil {
-	//	Error("failed to resolve sendPromise")
-	//	return 0, nil
-	//}
-	//
-	//return len(p), nil
 }
 
 func (conn FakeConnection) Close() error {
-	Warn("TODO: implement close FakeConnection")
+	Debug("closing FakeConnection")
 	activeRequests.remove(conn.requestId)
 
-	if !conn.data.remoteClosed.Load() {
-		// TODO: call rust to send socks5 packet with close connection data
-		Error("unimplemented: send socks5 closing packet")
-		// TODO: should we actually send socks5 packet here? what if we have redirections?
-		// we should only send close packet when we have our response
-	}
-
-	return nil
+	// TODO: if we already received information about remote being closed,
+	// do we have to send a socks5 closing packet?
+	return rsFinishMixnetConnection(conn.requestId)
 }
 
 func (conn FakeConnection) LocalAddr() net.Addr {

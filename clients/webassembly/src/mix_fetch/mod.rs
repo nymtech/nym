@@ -10,7 +10,6 @@ use std::sync::OnceLock;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::{console_log, PromisableResult};
 
 mod active_requests;
 mod client;
@@ -52,72 +51,4 @@ pub fn setup_mix_fetch(
             Ok(JsValue::undefined())
         })
     }
-}
-
-// https://developer.mozilla.org/en-US/docs/Web/API/fetch#syntax
-#[wasm_bindgen(js_name = mixFetch)]
-pub fn mix_fetch(resource: JsValue, options: Option<web_sys::RequestInit>) -> Promise {
-    future_to_promise(async move {
-        mix_fetch_async(resource, options)
-            .await
-            .into_promise_result()
-    })
-}
-
-#[derive(Debug)]
-pub enum Resource {
-    Url(url::Url),
-    Request(web_sys::Request),
-}
-
-impl Resource {
-    fn to_request(
-        &self,
-        options: Option<web_sys::RequestInit>,
-    ) -> Result<web_sys::Request, JsValue> {
-        match self {
-            Resource::Url(url) => {
-                if let Some(options) = options {
-                    web_sys::Request::new_with_str_and_init(url.as_str(), &options)
-                } else {
-                    web_sys::Request::new_with_str(url.as_str())
-                }
-            }
-            Resource::Request(request) => {
-                if let Some(options) = options {
-                    web_sys::Request::new_with_request_and_init(request, &options)
-                } else {
-                    web_sys::Request::new_with_request(request)
-                }
-            }
-        }
-    }
-}
-
-impl TryFrom<JsValue> for Resource {
-    type Error = MixFetchError;
-
-    fn try_from(value: JsValue) -> Result<Self, Self::Error> {
-        if value.is_string() {
-            let string = value
-                .as_string()
-                .ok_or(MixFetchError::NotStringMixFetchUrl)?;
-            Ok(Resource::Url(string.parse()?))
-        } else {
-            Ok(Resource::Request(web_sys::Request::from(value)))
-        }
-    }
-}
-
-async fn mix_fetch_async(
-    resource: JsValue,
-    options: Option<web_sys::RequestInit>,
-) -> Result<web_sys::Response, JsValue> {
-    let resource = Resource::try_from(resource)?;
-    console_log!("mix fetch with {resource:?} and {options:?}");
-
-    let request = resource.to_request(options)?;
-    let mix_fetch_client = mix_fetch_client()?;
-    mix_fetch_client.fetch_async2(request).await
-    // mix_fetch_client.fetch_async(request).await
 }

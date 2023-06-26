@@ -65,16 +65,25 @@ pub fn mix_fetch_initialised() -> bool {
 // this is not expected to be called but a normal user under any circumstances
 // (perhaps it should be moved somewhere outside the global object then?
 #[wasm_bindgen]
-pub fn finish_mixnet_connection(raw_connection_id: String) -> Promise {
-    todo!()
+pub fn finish_mixnet_connection(stringified_request_id: String) -> Promise {
+    let request_id = match stringified_request_id.parse() {
+        Ok(id) => id,
+        Err(err) => {
+            return simple_rejected_promise(format!("failed to parse received request: {err}"))
+        }
+    };
+
+    future_to_promise(async move {
+        // this error should be impossible in normal use
+        // (unless, of course, user is messing around, but then it's their fault for this panic)
+        let mix_fetch = mix_fetch_client().expect("mix fetch hasn't been setup");
+        mix_fetch.disconnect_from_mixnet(request_id).await?;
+        Ok(JsValue::undefined())
+    })
 }
 
 #[wasm_bindgen]
 extern "C" {
-    pub(crate) fn goWasmMixFetch(raw_connection_id: String, request: web_sys::Request) -> Promise;
-
-    pub(crate) fn goWasmMixFetch2(request: web_sys::Request) -> Promise;
-
     pub(crate) fn goWasmInjectServerData(raw_connection_id: String, data: Vec<u8>);
 
     pub(crate) fn goWasmCloseRemoteSocket(raw_connection_id: String);

@@ -40,8 +40,7 @@ const {
     start_new_mixnet_connection,
     setupMixFetch,
     mix_fetch_initialised,
-    mixFetch,
-} = wasm_bindgen;
+    finish_mixnet_connection} = wasm_bindgen;
 
 let client = null;
 let tester = null;
@@ -393,7 +392,7 @@ async function testMixFetch() {
 
                     // const res = await fetch(url, {mode: "no-cors"})
                     // const res = await mixFetch(url)
-                    const res = await goWasmMixFetch3(url)
+                    const res = await mixFetch(url)
 
                     console.log(res)
                     let text = await res.text()
@@ -472,6 +471,7 @@ async function main() {
     self.send_client_data = send_client_data
     self.start_new_mixnet_connection = start_new_mixnet_connection
     self.mix_fetch_initialised = mix_fetch_initialised
+    self.finish_mixnet_connection = finish_mixnet_connection
 
     // const data = {
     //     "foomp": "aaaa",

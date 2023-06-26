@@ -19,6 +19,10 @@ var done chan struct{}
 var activeRequests *ActiveRequests
 var requestTimeout time.Duration = time.Second * 5
 
+const (
+	goRustBridgeName = "__go_rs_bridge__"
+)
+
 func init() {
 	println("[go init]: go module init")
 
@@ -33,14 +37,13 @@ func init() {
 func main() {
 	println("[go main]: go module loaded")
 
+	// user facing methods
+	js.Global().Set("mixFetch", asyncFunc(mixFetch))
+	js.Global().Set("setMixFetchRequestTimeout", js.FuncOf(changeRequestTimeout))
+
+	// rust facing methods
 	js.Global().Set("goWasmInjectServerData", js.FuncOf(injectServerData))
 	js.Global().Set("goWasmCloseRemoteSocket", js.FuncOf(closeRemoteSocket))
-	js.Global().Set("goWasmMixFetch", asyncFunc(mixFetch))
-	js.Global().Set("goWasmMixFetch2", asyncFunc(mixFetch2))
-
-	js.Global().Set("goWasmMixFetch3", asyncFunc(mixFetch3))
-
-	js.Global().Set("goWasmSetRequestTimeout", js.FuncOf(changeRequestTimeout))
 	<-done
 
 	println("[go main]: go module finished")
@@ -75,45 +78,14 @@ func closeRemoteSocket(_ js.Value, args []js.Value) any {
 }
 
 func changeRequestTimeout(_ js.Value, args []js.Value) any {
+	if len(args) != 1 {
+		return errors.New(fmt.Sprintf("received invalid number of arguments. Got %d but expected 1", len(args)))
+	}
+
 	return errors.New("unimplemented")
 }
 
-// TODO: change signature of that to allow the proper js.Request with RequestInit, etc.
 func mixFetch(_ js.Value, args []js.Value) (any, error) {
-	if len(args) != 2 {
-		return nil, errors.New(fmt.Sprintf("received invalid number of arguments. Got %d but expected 2", len(args)))
-	}
-
-	requestId, err := parseRequestId(args[0])
-	if err != nil {
-		return nil, err
-	}
-	if args[1].Type() != js.TypeObject {
-		return nil, errors.New("the received raw request was not an object")
-	}
-
-	request, err := parseJSRequest(args[1])
-	if err != nil {
-		return nil, err
-	}
-
-	return _mixFetch(requestId, request)
-}
-
-func mixFetch2(_ js.Value, args []js.Value) (any, error) {
-	if len(args) != 1 {
-		return nil, errors.New(fmt.Sprintf("received invalid number of arguments. Got %d but expected 1", len(args)))
-	}
-
-	request, err := parseJSRequest(args[0])
-	if err != nil {
-		return nil, err
-	}
-
-	return _mixFetch2(request)
-}
-
-func mixFetch3(_ js.Value, args []js.Value) (any, error) {
 	if !rsIsInitialised() {
 		return nil, errors.New("mix fetch hasn't been initialised")
 	}
@@ -122,12 +94,15 @@ func mixFetch3(_ js.Value, args []js.Value) (any, error) {
 		return nil, errors.New("no arguments passed for `mixfetch`")
 	}
 
+	requestConstructor := js.Global().Get("Request")
+
 	jsRequest := js.Null()
+	// that's bit weird. can't use the spread operator
 	if len(args) == 1 {
-		jsRequest = js.Global().Get("Request").New(args[0])
+		jsRequest = requestConstructor.New(args[0])
 	}
 	if len(args) == 2 {
-		jsRequest = js.Global().Get("Request").New(args[0], args[1])
+		jsRequest = requestConstructor.New(args[0], args[1])
 	}
 
 	goRequest, err := parseJSRequest(jsRequest)
@@ -135,5 +110,5 @@ func mixFetch3(_ js.Value, args []js.Value) (any, error) {
 		return nil, err
 	}
 
-	return _mixFetch3(goRequest)
+	return _mixFetch(goRequest)
 }

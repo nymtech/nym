@@ -24,7 +24,7 @@ export const BalanceWarning = ({ balance, fee }: { balance: string; fee: string 
   return (
     <Alert color="warning" icon={<Warning />}>
       <AlertTitle>Warning: Fees are greater than your balance</AlertTitle>
-      The fess are greater than your current balance which cause this transaction to fail.
+      The fess are greater than your current balance which could cause this transaction to fail.
       <Box sx={{ mt: 0.5 }}>Do you want to continue?</Box>
     </Alert>
   );

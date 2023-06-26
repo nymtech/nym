@@ -1,5 +1,5 @@
-import { Box, SxProps } from '@mui/material';
 import React, { useContext, useEffect } from 'react';
+import { Box, SxProps } from '@mui/material';
 import { FeeDetails } from '@nymproject/types';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateUndelegateFromMixnode, simulateVestingUndelegateFromMixnode } from 'src/requests';

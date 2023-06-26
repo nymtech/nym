@@ -5,15 +5,14 @@ package main
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 )
 
 func tlsConfig() tls.Config {
 	return tls.Config{
-		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			Error("TODO: implement VerifyPeerCertificate")
-			return nil
-		},
+		//VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		//	Error("TODO: implement VerifyPeerCertificate")
+		//	return nil
+		//},
 		// Set InsecureSkipVerify to skip the default validation we are
 		// replacing. This will not disable VerifyConnection.
 		InsecureSkipVerify: true,

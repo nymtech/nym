@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// it's not a bridge per se, but it makes it easier to keep track of what rust endpoints we're calling
+// it's not a bridge per se, but it makes it easier to keep track of what rust endpoints we're calling from go
 
 package main
 
@@ -52,4 +52,17 @@ func rsStartNewMixnetRequest(addr string) (RequestId, error) {
 
 func rsIsInitialised() bool {
 	return js.Global().Call("mix_fetch_initialised").Bool()
+}
+
+func rsFinishMixnetConnection(requestId RequestId) error {
+	Debug("calling rust finish_mixnet_connection")
+
+	rawRequestId := strconv.FormatUint(requestId, 10)
+
+	finishPromise := js.Global().Call("finish_mixnet_connection", rawRequestId)
+	_, err := await(finishPromise)
+	if err != nil {
+		panic("todo: extract error message")
+	}
+	return nil
 }

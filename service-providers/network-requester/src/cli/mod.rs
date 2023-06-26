@@ -19,6 +19,7 @@ use nym_client_core::client::base_client::storage::gateway_details::{
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;
+use nym_sphinx::params::PacketSize;
 
 mod init;
 mod run;
@@ -70,16 +71,32 @@ pub(crate) struct OverrideConfig {
     nym_apis: Option<Vec<url::Url>>,
     fastmode: bool,
     no_cover: bool,
+    medium_toggle: bool,
     nyxd_urls: Option<Vec<url::Url>>,
     enabled_credentials_mode: Option<bool>,
 }
 
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
+    let disable_cover_traffic_with_keepalive = args.medium_toggle;
+    let secondary_packet_size = args.medium_toggle.then_some(PacketSize::ExtendedPacket16);
+    let no_per_hop_delays = args.medium_toggle;
+
     config
         .with_base(
             BaseClientConfig::with_high_default_traffic_volume,
             args.fastmode,
         )
+        .with_base(
+            // NOTE: This interacts with disabling cover traffic fully, so we want to this to be set before
+            BaseClientConfig::with_disabled_cover_traffic_with_keepalive,
+            disable_cover_traffic_with_keepalive,
+        )
+        .with_base(
+            BaseClientConfig::with_secondary_packet_size,
+            secondary_packet_size,
+        )
+        .with_base(BaseClientConfig::with_no_per_hop_delays, no_per_hop_delays)
+        // NOTE: see comment above about the order of the other disble cover traffic config
         .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
         .with_optional_base_custom_env(
             BaseClientConfig::with_custom_nym_apis,

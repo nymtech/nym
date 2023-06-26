@@ -78,7 +78,7 @@ pub(crate) struct OverrideConfig {
 
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
     let disable_cover_traffic_with_keepalive = args.medium_toggle;
-    let secondary_packet_size = args.medium_toggle.then(|| PacketSize::ExtendedPacket16);
+    let secondary_packet_size = args.medium_toggle.then_some(PacketSize::ExtendedPacket16);
     let no_per_hop_delays = args.medium_toggle;
 
     config

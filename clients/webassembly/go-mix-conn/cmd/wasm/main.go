@@ -11,11 +11,13 @@ import (
 	_ "net/http"
 	"sync"
 	"syscall/js"
+	"time"
 )
 
 // ALL THE GLOBALS SHOULD GO HERE
 var done chan struct{}
 var activeRequests *ActiveRequests
+var requestTimeout time.Duration = time.Second * 5
 
 func init() {
 	println("[go init]: go module init")
@@ -36,6 +38,9 @@ func main() {
 	js.Global().Set("goWasmMixFetch", asyncFunc(mixFetch))
 	js.Global().Set("goWasmMixFetch2", asyncFunc(mixFetch2))
 
+	js.Global().Set("goWasmMixFetch3", asyncFunc(mixFetch3))
+
+	js.Global().Set("goWasmSetRequestTimeout", js.FuncOf(changeRequestTimeout))
 	<-done
 
 	println("[go main]: go module finished")
@@ -67,6 +72,10 @@ func closeRemoteSocket(_ js.Value, args []js.Value) any {
 	}
 
 	return _closeRemoteSocket(requestId)
+}
+
+func changeRequestTimeout(_ js.Value, args []js.Value) any {
+	return errors.New("unimplemented")
 }
 
 // TODO: change signature of that to allow the proper js.Request with RequestInit, etc.
@@ -102,4 +111,29 @@ func mixFetch2(_ js.Value, args []js.Value) (any, error) {
 	}
 
 	return _mixFetch2(request)
+}
+
+func mixFetch3(_ js.Value, args []js.Value) (any, error) {
+	if !rsIsInitialised() {
+		return nil, errors.New("mix fetch hasn't been initialised")
+	}
+
+	if len(args) == 0 {
+		return nil, errors.New("no arguments passed for `mixfetch`")
+	}
+
+	jsRequest := js.Null()
+	if len(args) == 1 {
+		jsRequest = js.Global().Get("Request").New(args[0])
+	}
+	if len(args) == 2 {
+		jsRequest = js.Global().Get("Request").New(args[0], args[1])
+	}
+
+	goRequest, err := parseJSRequest(jsRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return _mixFetch3(goRequest)
 }

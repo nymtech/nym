@@ -54,6 +54,9 @@ impl ActiveRequests {
                 break candidate;
             }
         };
+
+        console_log!("starting new request {request_id}");
+
         // it's impossible to insert a duplicate entry here since we're holding the lock for the map
         // and we've generated an id that must have been unique
         guard.insert(request_id, req);
@@ -102,6 +105,12 @@ impl ActiveRequests {
     }
 
     pub async fn try_send_data_to_go(&self, data: SocketData) {
+        console_log!(
+            "sending {} bytes to {}",
+            data.header.connection_id,
+            data.data.len()
+        );
+
         let id = data.header.connection_id;
         let mut guard = self.inner.lock().await;
         let Some(req) = guard.get_mut(&id) else {

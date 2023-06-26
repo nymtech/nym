@@ -33,7 +33,7 @@ type ParsedRequest struct {
 	redirect Redirect
 }
 
-// asyncFunc converts a Go-JS function into a Promise
+// AsyncFunc converts a Go-JS function into a Promise
 func asyncFunc(innerFunc jsFn) js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
 		handler := js.FuncOf(func(_ js.Value, promFn []js.Value) any {
@@ -220,7 +220,7 @@ func parseRedirect(request *js.Value) (string, error) {
 	return "", errors.New(fmt.Sprintf("%s is not a valid redirect", redirectString))
 }
 
-// a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
+// ParseJSRequest is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
 // https://developer.mozilla.org/en-US/docs/Web/API/request
 /*
 	request attributes and their implementation status:
@@ -287,7 +287,7 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 	}, nil
 }
 
-// a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
+// IntoJSResponse is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
 // https://developer.mozilla.org/en-US/docs/Web/API/response
 /*
 	request attributes and their implementation status:

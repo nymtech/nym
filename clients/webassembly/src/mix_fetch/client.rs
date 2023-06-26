@@ -313,9 +313,6 @@ impl MixFetchClient {
         &self,
         target: String,
     ) -> Result<RequestId, MixFetchError> {
-        // console_log!("raw url: {url:?}");
-        // let target = socks5_target(&url)?;
-
         let request_id = self.requests.start_new2().await;
         self.send_socks_connect(request_id, target).await?;
 

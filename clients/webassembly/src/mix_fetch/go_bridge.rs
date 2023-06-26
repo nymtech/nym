@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_fetch::mix_fetch_client;
+use crate::mix_fetch::{mix_fetch_client, MIX_FETCH};
 use js_sys::Promise;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
@@ -51,6 +51,11 @@ pub fn start_new_mixnet_connection(target: String) -> Promise {
             .map(|request_id| request_id.to_string())
             .into_promise_result()
     })
+}
+
+#[wasm_bindgen]
+pub fn mix_fetch_initialised() -> bool {
+    MIX_FETCH.get().is_some()
 }
 
 /// Called by go runtime whenever it's done with a connection

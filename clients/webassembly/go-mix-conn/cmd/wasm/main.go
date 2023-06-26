@@ -20,8 +20,18 @@ var activeRequests *ActiveRequests
 var requestTimeout time.Duration = time.Second * 5
 
 const (
+	// methods exposed by go to rust
 	goRustBridgeName = "__go_rs_bridge__"
+
+	// methods exposed by rust to go
+	rustGoBridgeName = "__rs_go_bridge__"
 )
+
+func createGoBridgeObject() js.Value {
+	js.Global().Set(goRustBridgeName, js.Global().Get("Object").New())
+	goBridgeRoot := js.Global().Get(goRustBridgeName)
+	return goBridgeRoot
+}
 
 func init() {
 	println("[go init]: go module init")
@@ -37,13 +47,15 @@ func init() {
 func main() {
 	println("[go main]: go module loaded")
 
+	goBridgeRoot := createGoBridgeObject()
+
 	// user facing methods
 	js.Global().Set("mixFetch", asyncFunc(mixFetch))
 	js.Global().Set("setMixFetchRequestTimeout", js.FuncOf(changeRequestTimeout))
 
-	// rust facing methods
-	js.Global().Set("goWasmInjectServerData", js.FuncOf(injectServerData))
-	js.Global().Set("goWasmCloseRemoteSocket", js.FuncOf(closeRemoteSocket))
+	// rust facing methods (don't expose them to the root)
+	goBridgeRoot.Set("goWasmInjectServerData", js.FuncOf(injectServerData))
+	goBridgeRoot.Set("goWasmCloseRemoteSocket", js.FuncOf(closeRemoteSocket))
 	<-done
 
 	println("[go main]: go module finished")

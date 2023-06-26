@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"sync"
 	"syscall/js"
+	"time"
 )
 
 type RequestId = uint64
@@ -297,6 +298,79 @@ func buildHttpClient2(redirect Redirect) *http.Client {
 	}
 }
 
+func buildHttpClient3(redirect Redirect) *http.Client {
+	//if _, exists := activeRequests.inner[requestId]; exists {
+	//	panic("duplicate connection detected")
+	//}
+
+	return &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			Debug("attempting to perform redirection to %s with our policy set to '%s'", req.URL.String(), redirect)
+			redirectionChain := ""
+			for i := 0; i < len(via); i++ {
+				redirectionChain += fmt.Sprintf("%s -> ", via[i].URL.String())
+			}
+			redirectionChain += fmt.Sprintf("[%s]", req.URL.String())
+			Debug("redirection chain: %s", redirectionChain)
+
+			switch redirect {
+			case REQUEST_REDIRECT_MANUAL:
+				Error("unimplemented '%s' redirect", redirect)
+				return http.ErrUseLastResponse
+			case REQUEST_REDIRECT_ERROR:
+				return errors.New("encountered redirect")
+			case REQUEST_REDIRECT_FOLLOW:
+				Debug("will perform redirection")
+				return nil
+			}
+
+			// if this was rust that had proper enums and match statements,
+			// we could have guaranteed that at compile time...
+			panic("unreachable")
+		},
+
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				Info("dialing plain connection to %s", addr)
+
+				requestId, err := rsStartNewMixnetRequest(addr)
+				if err != nil {
+					return nil, err
+				}
+
+				conn, inj := NewFakeConnection(requestId, addr)
+				activeRequests.insert(requestId, inj)
+
+				return conn, nil
+			},
+
+			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				Info("dialing TLS connection to %s", addr)
+
+				requestId, err := rsStartNewMixnetRequest(addr)
+				if err != nil {
+					return nil, err
+				}
+
+				conn, inj := NewFakeTlsConn(requestId, addr)
+				activeRequests.insert(requestId, inj)
+
+				if err := conn.Handshake(); err != nil {
+					return nil, err
+				}
+
+				return conn, nil
+			},
+
+			//TLSClientConfig: &tlsConfig,
+			DisableKeepAlives:   true,
+			MaxIdleConns:        1,
+			MaxIdleConnsPerHost: 1,
+			MaxConnsPerHost:     1,
+		},
+	}
+}
+
 func _closeRemoteSocket(requestId RequestId) any {
 	activeRequests.closeRemoteSocket(requestId)
 	return nil
@@ -317,6 +391,14 @@ func performRequest(requestId RequestId, req *ParsedRequest) (*http.Response, er
 
 func performRequest2(req *ParsedRequest) (*http.Response, error) {
 	reqClient := buildHttpClient2(req.redirect)
+
+	Info("Starting the request...")
+	Debug("%s: %v", req.redirect, *req.request)
+	return reqClient.Do(req.request)
+}
+
+func performRequest3(req *ParsedRequest) (*http.Response, error) {
+	reqClient := buildHttpClient3(req.redirect)
 
 	Info("Starting the request...")
 	Debug("%s: %v", req.redirect, *req.request)
@@ -345,6 +427,35 @@ func _mixFetch2(request *ParsedRequest) (any, error) {
 	Info("finished performing the request")
 	Debug("response: %v", *resp)
 	return intoJSResponse(resp)
+}
+
+func _mixFetch3(request *ParsedRequest) (any, error) {
+	Info("_mixFetch: start")
+
+	resCh := make(chan *http.Response)
+	errCh := make(chan error)
+	go func(resCh chan *http.Response, errCh chan error) {
+		resp, err := performRequest3(request)
+		if err != nil {
+			errCh <- err
+		} else {
+			resCh <- resp
+		}
+	}(resCh, errCh)
+
+	select {
+	case res := <-resCh:
+		Info("finished performing the request")
+		Debug("response: %v", *res)
+		return intoJSResponse(res)
+	case err := <-errCh:
+		Warn("request failure: %v", err)
+		return nil, err
+	case <-time.After(requestTimeout):
+		// TODO: cancel stuff here.... somehow...
+		Warn("request has timed out")
+		return nil, errors.New("request timeout")
+	}
 }
 
 // TODO: recreate something similar in Go:

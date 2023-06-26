@@ -64,11 +64,6 @@ pub fn mix_fetch(resource: JsValue, options: Option<web_sys::RequestInit>) -> Pr
     })
 }
 
-#[wasm_bindgen(js_name = isInitialised)]
-pub fn mix_fetch_initialised() -> bool {
-    MIX_FETCH.get().is_some()
-}
-
 #[derive(Debug)]
 pub enum Resource {
     Url(url::Url),

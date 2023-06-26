@@ -8,9 +8,7 @@ import (
 	"crypto/tls"
 	"io"
 	"net"
-	"strconv"
 	"sync/atomic"
-	"syscall/js"
 	"time"
 )
 
@@ -133,17 +131,24 @@ func (conn FakeConnection) Write(p []byte) (int, error) {
 
 	Debug("WRITING %d bytes TO 'REMOTE' >>> \n", len(p))
 
-	requestId := strconv.FormatUint(conn.requestId, 10)
-	jsBytes := intoJsBytes(p)
-
-	sendPromise := js.Global().Call("send_client_data", requestId, jsBytes)
-	_, err := await(sendPromise)
+	err := rsSendClientData(conn.requestId, p)
 	if err != nil {
-		Error("failed to resolve sendPromise")
-		return 0, nil
+		return 0, err
+	} else {
+		return len(p), nil
 	}
 
-	return len(p), nil
+	//requestId := strconv.FormatUint(conn.requestId, 10)
+	//jsBytes := intoJsBytes(p)
+	//
+	//sendPromise := js.Global().Call("send_client_data", requestId, jsBytes)
+	//_, err := await(sendPromise)
+	//if err != nil {
+	//	Error("failed to resolve sendPromise")
+	//	return 0, nil
+	//}
+	//
+	//return len(p), nil
 }
 
 func (conn FakeConnection) Close() error {

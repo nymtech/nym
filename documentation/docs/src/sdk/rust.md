@@ -50,7 +50,7 @@ As seen in the example above, the `mixnet::MixnetClientBuilder::new()` function 
 If you're integrating mixnet functionality into an existing app and want to integrate saving client configs and keys into your existing storage logic, you can manually perform the actions taken automatically above (`examples/manually_handle_keys_and_config.rs`)
 
 ```rust,noplayground
-{{#include ../../../../sdk/rust/nym-sdk/examples/manually_handle_keys_and_config.rs}}
+{{#include ../../../../sdk/rust/nym-sdk/examples/manually_handle_storage.rs}}
 ```
 
 ### Anonymous replies with SURBs

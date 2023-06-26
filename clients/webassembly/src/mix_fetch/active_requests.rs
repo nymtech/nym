@@ -9,8 +9,12 @@ use nym_ordered_buffer::OrderedMessageBuffer;
 use nym_socks5_requests::SocketData;
 use rand::{thread_rng, RngCore};
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use tokio::sync::Mutex;
+use wasm_bindgen::JsValue;
 use wasm_utils::{console_error, console_log};
 
 type RequestErrorSender = oneshot::Sender<MixFetchError>;
@@ -23,8 +27,26 @@ pub struct ActiveRequests {
 
 impl ActiveRequests {
     pub async fn start_new(&self, request_error_sender: RequestErrorSender) -> RequestId {
+        todo!()
+        // let mut guard = self.inner.lock().await;
+        // let req = ActiveRequest::new(request_error_sender);
+        // let mut rng = thread_rng();
+        // let request_id = loop {
+        //     let candidate = rng.next_u64();
+        //     if !guard.contains_key(&candidate) {
+        //         break candidate;
+        //     }
+        // };
+        // // it's impossible to insert a duplicate entry here since we're holding the lock for the map
+        // // and we've generated an id that must have been unique
+        // guard.insert(request_id, req);
+        //
+        // request_id
+    }
+
+    pub async fn start_new2(&self) -> RequestId {
         let mut guard = self.inner.lock().await;
-        let req = ActiveRequest::new(request_error_sender);
+        let req = ActiveRequest::new();
         let mut rng = thread_rng();
         let request_id = loop {
             let candidate = rng.next_u64();
@@ -50,13 +72,14 @@ impl ActiveRequests {
     }
 
     pub async fn reject(&self, id: RequestId, err: MixFetchError) {
-        let mut guard = self.inner.lock().await;
-        let Some(req) = guard.remove(&id) else {
-            console_error!("attempted to reject request {id}, however it no longer exists. Has it been aborted?");
-            return;
-        };
-        req.reject(err);
-        todo!("clear Go memory here")
+        todo!()
+        // let mut guard = self.inner.lock().await;
+        // let Some(req) = guard.remove(&id) else {
+        //     console_error!("attempted to reject request {id}, however it no longer exists. Has it been aborted?");
+        //     return;
+        // };
+        // req.reject(err);
+        // todo!("clear Go memory here")
     }
 
     pub async fn abort(&self, id: RequestId) {
@@ -90,8 +113,10 @@ impl ActiveRequests {
         if let Err(err) = req.insert_data(data) {
             // this unwrap cannot possibly fail as we're holding an exclusive lock for the data
             // and we have just borrowed the content
-            return guard.remove(&id).unwrap().reject(err);
-            todo!("clear Go memory here")
+
+            todo!()
+            // return guard.remove(&id).unwrap().reject(err);
+            // todo!("clear Go memory here")
         }
 
         // TODO: clean this one up
@@ -114,7 +139,7 @@ impl ActiveRequests {
 
 struct ActiveRequest {
     // endpoint: String,
-    request_error_sender: RequestErrorSender,
+    // request_error_sender: RequestErrorSender,
     received_data: OrderedMessageBuffer,
     finished_at: Option<u64>,
 
@@ -122,20 +147,21 @@ struct ActiveRequest {
 }
 
 impl ActiveRequest {
-    fn new(request_error_sender: RequestErrorSender) -> Self {
+    // fn new(request_error_sender: RequestErrorSender) -> Self {
+    fn new() -> Self {
         ActiveRequest {
-            request_error_sender,
+            // request_error_sender,
             received_data: Default::default(),
             finished_at: None,
             sending_seq: 0,
         }
     }
 
-    fn reject(self, err: MixFetchError) {
-        if self.request_error_sender.send(err).is_err() {
-            console_error!("failed to reject the request")
-        }
-    }
+    // fn reject(self, err: MixFetchError) {
+    //     if self.request_error_sender.send(err).is_err() {
+    //         console_error!("failed to reject the request")
+    //     }
+    // }
 
     fn next_sending_seq(&mut self) -> u64 {
         let next = self.sending_seq;
@@ -157,5 +183,17 @@ impl ActiveRequest {
 
         self.received_data.write(data.header.seq, data.data)?;
         Ok(())
+    }
+}
+
+struct MixFetchRequest {
+    //
+}
+
+impl Future for MixFetchRequest {
+    type Output = Result<web_sys::Request, MixFetchError>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        todo!()
     }
 }

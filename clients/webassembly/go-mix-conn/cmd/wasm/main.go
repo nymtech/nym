@@ -34,6 +34,7 @@ func main() {
 	js.Global().Set("goWasmInjectServerData", js.FuncOf(injectServerData))
 	js.Global().Set("goWasmCloseRemoteSocket", js.FuncOf(closeRemoteSocket))
 	js.Global().Set("goWasmMixFetch", asyncFunc(mixFetch))
+	js.Global().Set("goWasmMixFetch2", asyncFunc(mixFetch2))
 
 	<-done
 
@@ -88,4 +89,17 @@ func mixFetch(_ js.Value, args []js.Value) (any, error) {
 	}
 
 	return _mixFetch(requestId, request)
+}
+
+func mixFetch2(_ js.Value, args []js.Value) (any, error) {
+	if len(args) != 1 {
+		return nil, errors.New(fmt.Sprintf("received invalid number of arguments. Got %d but expected 1", len(args)))
+	}
+
+	request, err := parseJSRequest(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return _mixFetch2(request)
 }

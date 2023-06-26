@@ -22,6 +22,9 @@ pub enum MixFetchError {
     #[error("provided mix fetch url wasn't a string")]
     NotStringMixFetchUrl,
 
+    #[error("the opaque URL origin is unsupported")]
+    UnsupportedOrigin,
+
     #[error("request {request_id} has been aborted")]
     AbortedRequest { request_id: RequestId },
 

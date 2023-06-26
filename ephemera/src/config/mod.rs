@@ -1,13 +1,14 @@
 //! Configuration for Ephemeris node. It contains mandatory settings for a node to start.
 //!
-//! Default location for the configuration file is `~/.ephemera/ephemera.toml`.
-//! Or relative to a node specific directory `~/.ephemera/<node_name>/ephemera.toml`.
+//! Default location for the configuration file is `~/.nym/ephemera/ephemera.toml`.
+//! Or relative to a node specific directory `~/.nym/ephemera/<node_name>/ephemera.toml`.
 
 use std::io::Write;
 use std::path::PathBuf;
 
 use config::ConfigError;
 use log::{error, info};
+use nym_config::{DEFAULT_NYM_APIS_DIR, NYM_DIR};
 use serde_derive::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -162,7 +163,7 @@ impl From<ConfigError> for Error {
     }
 }
 
-const EPHEMERA_DIR_NAME: &str = ".ephemera";
+const EPHEMERA_DIR_NAME: &str = "ephemera";
 const EPHEMERA_CONFIG_FILE: &str = "ephemera.toml";
 
 type Result<T> = std::result::Result<T, Error>;
@@ -194,8 +195,8 @@ impl Configuration {
     }
 
     /// Tries to read Ephemera node configuration from default
-    /// default Ephemera configuration directory(`~.ephemera`). Full path resolves
-    /// as `~/.ephemera/<node_name>/<file>`.
+    /// default Ephemera configuration directory(`~.nym/ephemera`). Full path resolves
+    /// as `~/.nym/ephemera/<node_name>/<file>`.
     ///
     /// # Arguments
     /// * `node_name` - Name of the node.
@@ -203,21 +204,21 @@ impl Configuration {
     ///
     /// # Errors
     /// Returns an error if the configuration file does not exist or is invalid.
-    pub fn try_load_node_from_home_dir(node_name: &str, file: &str) -> Result<Configuration> {
-        let file_path = Self::ephemera_node_dir(node_name)?.join(file);
+    pub fn try_load_node_from_home_dir(file: &str) -> Result<Configuration> {
+        let file_path = Self::ephemera_node_dir(None)?.join(file);
         Configuration::try_load(file_path)
     }
 
-    /// Tries to read Ephemera node configuration from default Ephemera configuration directory(`~.ephemera`).
-    /// Full path resolves as `~/.ephemera/<node_name>/ephemera.toml`.
+    /// Tries to read Ephemera node configuration from default Ephemera configuration directory(`~.nym/ephemera`).
+    /// Full path resolves as `~/.nym/ephemera/<node_name>/ephemera.toml`.
     ///
     /// # Arguments
     /// * `node_name` - Name of the node.
     ///
     /// # Errors
     /// Returns an error if the configuration file does not exist or is invalid.
-    pub fn try_load_from_home_dir(node_name: &str) -> Result<Configuration> {
-        let file_path = Configuration::ephemera_config_file_home(node_name)?;
+    pub fn try_load_from_home_dir() -> Result<Configuration> {
+        let file_path = Configuration::ephemera_config_file_home(None)?;
         let config = config::Config::builder()
             .add_source(config::File::from(file_path))
             .build()
@@ -227,23 +228,23 @@ impl Configuration {
     }
 
     /// Tries to write(create) Ephemera node configuration file (`ephemera.toml`) relative to default
-    /// Ephemera configuration directory(`~.ephemera`). Full path resolves as `~/.ephemera/<node_name>/ephemera.toml`.
+    /// Ephemera configuration directory(`~.nym/ephemera`). Full path resolves as `~/.nym/ephemera/<node_name>/ephemera.toml`.
     ///
     /// # Arguments
-    /// * `node_name` - Name of the node.
+    /// * `id` - Id of the node.
     ///
     /// # Errors
     /// Returns an error if the configuration file already exists.
     ///
     /// # Panics
     /// Panics if the configuration file cannot be written.
-    pub fn try_write_home_dir(&self, node_name: &str) -> Result<()> {
-        let conf_path = Configuration::ephemera_node_dir(node_name)?;
+    pub fn try_write_home_dir(&self, id: Option<&str>) -> Result<()> {
+        let conf_path = Configuration::ephemera_node_dir(id)?;
         if !conf_path.exists() {
             std::fs::create_dir_all(conf_path)?;
         }
 
-        let file_path = Configuration::ephemera_config_file_home(node_name)?;
+        let file_path = Configuration::ephemera_config_file_home(id)?;
         if file_path.exists() {
             return Err(Error::Exists(file_path.to_str().unwrap().to_string()));
         }
@@ -253,7 +254,7 @@ impl Configuration {
     }
 
     /// Tries to write(update) Ephemera node configuration file (`ephemera.toml`) relative to default
-    /// Ephemera configuration directory(`~.ephemera`). Full path resolves as `~/.ephemera/<node_name>/ephemera.toml`.
+    /// Ephemera configuration directory(`~.nym/ephemera`). Full path resolves as `~/.nym/ephemera/<node_name>/ephemera.toml`.
     /// If the file does not exist, update will be refused.
     ///
     /// # Arguments
@@ -264,8 +265,8 @@ impl Configuration {
     ///
     /// # Panics
     /// Panics if the configuration file cannot be written.
-    pub fn try_update_home_dir(&self, node_name: &str) -> Result<()> {
-        let file_path = Configuration::ephemera_config_file_home(node_name)?;
+    pub fn try_update_home_dir(&self) -> Result<()> {
+        let file_path = Configuration::ephemera_config_file_home(None)?;
         if !file_path.exists() {
             error!(
                 "Configuration file does not exist {}",
@@ -277,30 +278,36 @@ impl Configuration {
         Ok(())
     }
 
-    /// Returns node configuration file path relative to default Ephemera configuration directory(`~.ephemera`).
-    /// Full path resolves as `~/.ephemera/<node_name>/ephemera.toml`.
+    /// Returns node configuration file path relative to default Ephemera configuration directory(`~.nym/ephemera`).
+    /// Full path resolves as `~/.nym/ephemera/<id>/ephemera.toml`.
     ///
     /// # Arguments
-    /// * `node_name` - Name of the node.
+    /// * `id` - Id of the node.
     ///
     /// # Errors
     /// Returns an error if the configuration file path cannot be resolved.
-    pub fn ephemera_config_file_home(node_name: &str) -> Result<PathBuf> {
-        Ok(Self::ephemera_node_dir(node_name)?.join(EPHEMERA_CONFIG_FILE))
+    pub fn ephemera_config_file_home(id: Option<&str>) -> Result<PathBuf> {
+        Ok(Self::ephemera_node_dir(id)?.join(EPHEMERA_CONFIG_FILE))
     }
 
-    /// Returns default Ephemera configuration directory(`~.ephemera`).
+    /// Returns default Ephemera configuration directory(`~.nym/ephemera`).
     ///
     /// # Errors
     /// Returns an error if the configuration directory cannot be resolved.
-    pub fn ephemera_root_dir() -> Result<PathBuf> {
+    pub fn ephemera_root_dir(id: Option<&str>) -> Result<PathBuf> {
+        let id = id.unwrap_or_default();
         dirs::home_dir()
-            .map(|home| home.join(EPHEMERA_DIR_NAME))
+            .map(|home| {
+                home.join(NYM_DIR)
+                    .join(DEFAULT_NYM_APIS_DIR)
+                    .join(id)
+                    .join(EPHEMERA_DIR_NAME)
+            })
             .ok_or(Error::Other("Could not find home directory".to_string()))
     }
 
-    pub(crate) fn ephemera_node_dir(node_name: &str) -> Result<PathBuf> {
-        Ok(Self::ephemera_root_dir()?.join(node_name))
+    pub(crate) fn ephemera_node_dir(id: Option<&str>) -> Result<PathBuf> {
+        Ok(Self::ephemera_root_dir(id)?)
     }
 
     fn write(&self, file_path: &PathBuf) -> Result<()> {

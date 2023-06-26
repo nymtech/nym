@@ -74,7 +74,7 @@ impl RunExternalNodeCmd {
 
     #[allow(dead_code)]
     fn config_members_provider() -> anyhow::Result<ConfigMembersProvider> {
-        let peers_conf_path = Configuration::ephemera_root_dir()
+        let peers_conf_path = Configuration::ephemera_root_dir(None)
             .unwrap()
             .join(PEERS_CONFIG_FILE);
 

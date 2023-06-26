@@ -130,4 +130,54 @@ decryption_key_path = '{{ coconut_signer.storage_paths.decryption_key_path }}'
 # Path to the dkg dealer public key with proof
 public_key_with_proof_path = '{{ coconut_signer.storage_paths.public_key_with_proof_path }}'
 
+[ephemera]
+
+[ephemera.args]
+
+# Path to the Ephemera configuration file
+ephemera_config = '{{ ephemera.args.ephemera_config }}'
+
+# Interval, in seconds, for polling the Ephemera blocks
+block_polling_interval_seconds = '{{ ephemera.args.block_polling_interval_seconds }}'
+
+# Maximum number of attempts for polling the Ephemera blocks
+block_polling_max_attempts = '{{ ephemera.args.block_polling_max_attempts }}'
+
+[ephemera.args.cmd]
+
+# The IP address to listen on
+ip = '{{ ephemera.args.cmd.ip }}'
+
+# The port which Ephemera uses for peer to peer communication
+protocol_port = '{{ ephemera.args.cmd.protocol_port }}'
+
+# The port which Ephemera listens on for websocket subscriptions
+websocket_port = '{{ ephemera.args.cmd.websocket_port }}'
+
+# The port which Ephemera listens on for http api
+http_api_port = '{{ ephemera.args.cmd.http_api_port }}'
+
+# Either this node produces blocks or not
+block_producer = '{{ ephemera.args.cmd.block_producer }}'
+
+# At which interval to produce blocks
+block_creation_interval_sec = '{{ ephemera.args.cmd.block_creation_interval_sec }}'
+
+# When next block is created before previous one is finished, should we repeat it with the same messages
+repeat_last_block_messages = '{{ ephemera.args.cmd.repeat_last_block_messages }}'
+
+# The interval at which Ephemera requests the list of members
+members_provider_delay_sec = '{{ ephemera.args.cmd.members_provider_delay_sec }}'
+
+[ephemera.args.cmd.membership_kind]
+
+# Requires the threshold of peers returned by membership provider to be online
+threshold = '{{ ephemera.args.cmd.membership_kind.threshold }}'
+
+# Requires that all peers returned by membership provider peers to be online
+all = '{{ ephemera.args.cmd.membership_kind.all }}'
+
+# Membership is just all online peers from the set returned by membership provider
+any = '{{ ephemera.args.cmd.membership_kind.any }}'
+
 "#;

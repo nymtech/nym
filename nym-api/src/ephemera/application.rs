@@ -29,10 +29,6 @@ impl NymApi {
         nyxd_client: nyxd::Client,
         shutdown: &TaskManager,
     ) -> anyhow::Result<RewardManager> {
-        info!(
-            "Starting nym api with ephemera {} ...",
-            args.ephemera_config
-        );
         //KEYPAIR - Ephemera keypair or Validator keypair
         //Can be a file, keystore etc
         let key_pair = Self::read_nym_api_keypair(&ephemera_config)?;

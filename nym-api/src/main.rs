@@ -121,8 +121,18 @@ async fn start_nym_api_tasks(
         .await?;
     }
 
-    let ephemera_config =
-        EphemeraConfiguration::try_load(config.get_ephemera_config_path()).unwrap();
+    let ephemera_config = match EphemeraConfiguration::try_load(config.get_ephemera_config_path()) {
+        Ok(c) => c,
+        Err(_) => {
+            config
+                .get_ephemera_args()
+                .cmd
+                .clone()
+                .execute(Some(&config.get_id()));
+            EphemeraConfiguration::try_load(config.get_ephemera_config_path())
+                .expect("Config file should be created now")
+        }
+    };
     let ephemera_reward_manager = ephemera::application::NymApi::run(
         config.get_ephemera_args().clone(),
         ephemera_config,

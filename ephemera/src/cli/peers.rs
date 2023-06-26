@@ -18,7 +18,7 @@ impl CreateLocalPeersConfiguration {
         let peers = Self::from_ephemera_dev_cluster_conf().unwrap();
         let config_peers = ConfigPeers::new(peers);
 
-        let peers_conf_path = Configuration::ephemera_root_dir()
+        let peers_conf_path = Configuration::ephemera_root_dir(None)
             .unwrap()
             .join(PEERS_CONFIG_FILE);
 
@@ -28,7 +28,7 @@ impl CreateLocalPeersConfiguration {
     //LOCAL DEV CLUSTER ONLY
     //Get peers from dev Ephemera cluster config files
     pub(crate) fn from_ephemera_dev_cluster_conf() -> anyhow::Result<Vec<PeerSetting>> {
-        let ephemera_root_dir = Configuration::ephemera_root_dir().unwrap();
+        let ephemera_root_dir = Configuration::ephemera_root_dir(None).unwrap();
 
         let mut peers = vec![];
 
@@ -40,10 +40,9 @@ impl CreateLocalPeersConfiguration {
 
                 println!("Reading peer info config from node {cosmos_address}",);
 
-                let conf =
-                    Configuration::try_load_from_home_dir(cosmos_address).unwrap_or_else(|_| {
-                        panic!("Error loading configuration for node {cosmos_address}")
-                    });
+                let conf = Configuration::try_load_from_home_dir().unwrap_or_else(|_| {
+                    panic!("Error loading configuration for node {cosmos_address}")
+                });
 
                 let node_info = conf.node;
 

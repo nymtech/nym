@@ -48,7 +48,8 @@ pub async fn start_nym_socks5_client(
     // process that injects cover traffic into the traffic stream.
     if std::env::var("NYM_CONNECT_DISABLE_COVER").is_ok() {
         log::warn!("Disabling cover traffic");
-        config.core.base.set_no_cover_traffic();
+        config.core.base.debug.traffic.disable_main_poisson_packet_distribution = true;
+        config.core.base.debug.cover_traffic.loop_cover_traffic_average_delay = Duration::from_secs(5);
     }
 
     if std::env::var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS").is_ok() {

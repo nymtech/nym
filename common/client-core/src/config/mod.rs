@@ -143,11 +143,8 @@ impl Config {
     }
 
     pub fn set_no_cover_traffic(&mut self) {
+        self.debug.cover_traffic.disable_loop_cover_traffic_stream = true;
         self.debug.traffic.disable_main_poisson_packet_distribution = true;
-
-        // We don't fully disable the background loop cover traffic, instead limit it to something
-        // very infrequent as a way to make sure we keep the connection alive.
-        self.debug.cover_traffic.loop_cover_traffic_average_delay = Duration::from_secs(5);
     }
 
     pub fn set_custom_version(&mut self, version: &str) {

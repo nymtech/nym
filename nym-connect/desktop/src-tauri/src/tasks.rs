@@ -7,7 +7,6 @@ use nym_socks5_client_core::Socks5ControlMessageSender;
 use nym_sphinx::params::PacketSize;
 use nym_task::manager::TaskStatus;
 use std::sync::Arc;
-use std::time::Duration;
 use tap::TapFallible;
 use tokio::sync::RwLock;
 

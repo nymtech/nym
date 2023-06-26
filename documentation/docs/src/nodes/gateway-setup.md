@@ -7,7 +7,6 @@
 <!-- cmdrun ../../../../target/release/nym-gateway --version | grep "Build Version" | cut -b 21-26  -->
 ```
 
-
 ## Preliminary steps
 There are a couple of steps that need completing before starting to set up your gateway:
 
@@ -23,7 +22,6 @@ If you don't already have one, please create a Nym address using the wallet, and
 `NYM` can be purchased via Bity from the wallet itself with BTC or fiat, and is currently present on several exchanges.
 
 > Remember that you can **only** use native Cosmos `NYM` tokens to bond your gateway. You **cannot** use ERC20 representations of `NYM` to run a node.
-
 
 #### Sandbox testnet
 Make sure to download a wallet and create an account as outlined above. Then head to our [token faucet](https://faucet.nymtech.net/) and get some tokens to use to bond it.
@@ -75,12 +73,12 @@ To check available configuration options use:
 The following command returns a gateway on your current IP with the `id` of `supergateway`:
 
 ```
-./nym-gateway init --id supergateway --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq
+./nym-gateway init --id supergateway --host $(curl ifconfig.me)
 ```
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id supergateway --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id supergateway --host $(curl ifconfig.me) -->
 ```
 ~~~
 

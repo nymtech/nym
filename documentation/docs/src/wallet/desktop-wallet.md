@@ -5,23 +5,23 @@ The Nym Desktop Wallet lets you interact with your Nym node and to delegate stak
 
 You can download it for Mac, Windows, or Linux.
 
-[![download nym wallet](../images/download-wallet.png)](https://github.com/nymtech/nym/releases/tag/nym-wallet-{{platform_release_version}})
+[![download nym wallet](../images/download-wallet.png)](https://github.com/nymtech/nym/releases/tag/nym-wallet-{{wallet_release_version}})
 
 ### Bypassing security warnings
 
-On Windows you will see a security warning pop up when you attempt to run the wallet. We are in the process of getting app store keys from Microsoft so that this doesn't happen. See the section below for details on steps to bypass these. 
+On Windows you will see a security warning pop up when you attempt to run the wallet. We are in the process of getting app store keys from Microsoft so that this doesn't happen. See the section below for details on steps to bypass these.
 
-#### Linux 
+#### Linux
 
-You will need to `chmod +x` the AppImage in the terminal (or give it execute permission in your file browser) before it will run. 
+You will need to `chmod +x` the AppImage in the terminal (or give it execute permission in your file browser) before it will run.
 
-#### Windows 
+#### Windows
 
 _You will still encounter warnings when opening the wallet on Windows. This is because - although the wallet is approved by Microsoft - it has less than 10 thousand downloads at the current time. Once the wallet has passed this threshold, this warning will disappear._
 
-Follow the steps below to bypass the warnings. 
+Follow the steps below to bypass the warnings.
 
-* Select more-info after clicking the msi installer app: 
+* Select more-info after clicking the msi installer app:
 
 ![Windows Warning](../images/wallet-warnings/windows_warningv1-0-2.png)
 
@@ -29,7 +29,7 @@ Follow the steps below to bypass the warnings.
 
 ![Windows Warning](../images/wallet-warnings/windows_warning2.png)
 
-* Follow the installer instructions: 
+* Follow the installer instructions:
 
 ![Windows Warning](../images/wallet-warnings/windows_warning3.png)
 
@@ -39,7 +39,7 @@ Follow the steps below to bypass the warnings.
 
 ### For developers
 
-If you would like to the compile the wallet yourself, follow the instructions below. 
+If you would like to the compile the wallet yourself, follow the instructions below.
 
 > Please note that the wallet has currently only been built on the operating systems for which there are binaries as listed above. If you find an issue or any additional prerequisties, please create an issue or PR against `develop` on [Github](https://github.com/nymtech/docs).
 
@@ -85,22 +85,22 @@ sudo apt install pkg-config build-essential libssl-dev curl jq
 
 ### Removing signing errors when building in development mode
 
-If you're wanting to build the wallet yourself, you will need to make a few modifications to the file located at `nym-wallet/src-tauri/tauri.conf.json` before doing so. These relate to the wallet being accepted by Mac and Windows app stores, and so aren't relevant to you when building and running the wallet yourself. 
+If you're wanting to build the wallet yourself, you will need to make a few modifications to the file located at `nym-wallet/src-tauri/tauri.conf.json` before doing so. These relate to the wallet being accepted by Mac and Windows app stores, and so aren't relevant to you when building and running the wallet yourself.
 
-On **all** operating systems: 
+On **all** operating systems:
 * set the value of line 49 to `false`
-* remove lines 50 to 54 
+* remove lines 50 to 54
 
-As well as these modifications for MacOS and Windows users: 
-* MacOS users must also remove line 39 
-* Windows users must remove lines 42 to 46 
+As well as these modifications for MacOS and Windows users:
+* MacOS users must also remove line 39
+* Windows users must remove lines 42 to 46
 
 ### Installation
 Once you have made these modifications to `tauri.conf.json`, inside of the `nym-wallet` folder, run:
 
 ```
 yarn install
-``` 
+```
 
 ### Running in Development Mode
 
@@ -112,7 +112,7 @@ You can run the wallet without having to install it in development mode by runni
 yarn dev
 ```
 
-This will then start the Wallet GUI and produce a binary in `nym-wallet/target/debug/` named `nym-wallet`. 
+This will then start the Wallet GUI and produce a binary in `nym-wallet/target/debug/` named `nym-wallet`.
 
 ### Running in Production Mode
 
@@ -165,25 +165,21 @@ To import or create a new account, first you need to create a password for your 
 6. Come back to this page to import or create new accounts
 
 ### Importing or creating account(s) when you have signed in with mnemonic but a password already exists on your machine
-To import or create a new account, you need to log in with your existing password or create a new password. 
+To import or create a new account, you need to log in with your existing password or create a new password.
 
 > Creating a new password will overwrite any old one stored on your machine. Make sure you have saved any mnemonics associated with the password before creating a new one.
 
 1. Log out
-2. Click on “Forgot password” 
+2. Click on “Forgot password”
 3. On the next screen select “Create new password”
 4. Follow the instructions and create a new password
 5. Sign in using your new password
 
 ### CLI tool for wallet encrypted file (password) recovery:
-The mnemonics that are stored in the local password protected file can also be decrypted and recovered through a simple CLI tool, `nym-wallet-recovery-cli`. 
+The mnemonics that are stored in the local password protected file can also be decrypted and recovered through a simple CLI tool, `nym-wallet-recovery-cli`.
 
 ```
 nym-wallet-recovery –file saved-wallet.json –password foo
 ```
 
 The saved wallet file can be found in `$XDG_DATA_HOME` or `$HOME/.local/share` on Linux, `$HOME/Library/Application Support` on Mac, and `C:\Users\username\AppData\Local` on Windows.
-
-
-
-

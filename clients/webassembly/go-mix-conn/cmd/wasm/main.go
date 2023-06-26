@@ -23,7 +23,7 @@ func init() {
 	done = make(chan struct{})
 	activeRequests = &ActiveRequests{
 		Mutex: sync.Mutex{},
-		inner: make(map[RequestId]*ConnectionInjector),
+		inner: make(map[RequestId]*ActiveRequest),
 	}
 	println("[go init]: go module init finished")
 }

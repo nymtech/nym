@@ -10,7 +10,7 @@ import (
 )
 
 func makeLogMessage(severity string, format string, a ...any) string {
-	_, file, line, ok := runtime.Caller(3)
+	_, file, line, ok := runtime.Caller(2)
 	// we should really be using a mutex here...
 	if !ok {
 		file = "???"
@@ -40,5 +40,7 @@ func Info(format string, a ...any) {
 
 func Debug(format string, a ...any) {
 	msg := makeLogMessage("DEBUG", format, a...)
-	js.Global().Get("console").Call("debug", msg)
+	// too lazy to configure my console : )
+	//js.Global().Get("console").Call("debug", msg)
+	js.Global().Get("console").Call("log", msg)
 }

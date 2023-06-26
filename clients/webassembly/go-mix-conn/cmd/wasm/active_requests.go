@@ -6,8 +6,10 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"sync"
 )
 
@@ -15,7 +17,7 @@ type RequestId = uint64
 
 type ActiveRequests struct {
 	sync.Mutex
-	inner map[RequestId]*ConnectionInjector
+	inner map[RequestId]*ActiveRequest
 }
 
 func (ar *ActiveRequests) exists(id RequestId) bool {
@@ -26,11 +28,42 @@ func (ar *ActiveRequests) exists(id RequestId) bool {
 	return exists
 }
 
-func (ar *ActiveRequests) insert(id RequestId, conn *ConnectionInjector) {
-	Debug("inserting request %d", id)
+func (ar *ActiveRequests) insert(id RequestId, inj ConnectionInjector, target *url.URL) {
+	Debug("inserting request %d for %s", id, target.String())
 	ar.Lock()
 	defer ar.Unlock()
-	ar.inner[id] = conn
+	_, exists := ar.inner[id]
+	if exists {
+		panic("attempted to overwrite active connection")
+	}
+	ar.inner[id] = &ActiveRequest{injector: inj}
+
+	//
+	//if !exists {
+	//	ar.inner[id] = &ActiveRequest{
+	//		target:           target,
+	//		expectedRedirect: nil,
+	//		injector:         inj,
+	//	}
+	//} else {
+	//	if existing.expectedRedirect == nil {
+	//		panic("attempted to overwrite active connection: no redirect set")
+	//	} else if existing.expectedRedirect.String() != target.String() {
+	//		// TODO: is the string comparison really the way to do it?
+	//		println(existing.expectedRedirect.String())
+	//		println(target.String())
+	//		panic("attempted to overwrite active connection: mismatched redirect")
+	//	} else {
+	//		existing.injector.redirected.Store(true)
+	//		go func() {
+	//			// TODO: timeout to make sure the connection got closed and cleaned up
+	//		}()
+	//
+	//		existing.target = target
+	//		existing.expectedRedirect = nil
+	//		existing.injector = inj
+	//	}
+	//}
 }
 
 func (ar *ActiveRequests) remove(id RequestId) {
@@ -52,8 +85,19 @@ func (ar *ActiveRequests) injectData(id RequestId, data []byte) {
 	if !exists {
 		panic("attempted to write to connection that doesn't exist")
 	}
-	ar.inner[id].injectedServerData <- data
+	ar.inner[id].injector.serverData <- data
 }
+
+//func (ar *ActiveRequests) setRedirect(id RequestId, redirect *url.URL) {
+//	Debug("setting redirect for %d to %s", id, redirect.String())
+//	ar.Lock()
+//	defer ar.Unlock()
+//	_, exists := ar.inner[id]
+//	if !exists {
+//		panic("attempted to set redirect on a connection that doesn't exist")
+//	}
+//	ar.inner[id].expectedRedirect = redirect
+//}
 
 func (ar *ActiveRequests) closeRemoteSocket(id RequestId) {
 	Debug("closing remote socket for %d", id)
@@ -63,43 +107,74 @@ func (ar *ActiveRequests) closeRemoteSocket(id RequestId) {
 	if !exists {
 		panic("attempted to close remote socket of a connection that doesn't exist")
 	}
-	ar.inner[id].closedRemote.Store(true)
+	ar.inner[id].injector.remoteClosed.Store(true)
 }
 
-func buildHttpClient(requestId RequestId) *http.Client {
+type ActiveRequest struct {
+	injector ConnectionInjector
+}
+
+func buildHttpClient(requestId RequestId, redirect Redirect) *http.Client {
 	if _, exists := activeRequests.inner[requestId]; exists {
 		panic("duplicate connection detected")
 	}
 
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			Error("unsupported redirection")
-			return http.ErrUseLastResponse
+			Debug("attempting to perform redirection to %s with our policy set to '%s'", req.URL.String(), redirect)
+			redirectionChain := ""
+			for i := 0; i < len(via); i++ {
+				redirectionChain += fmt.Sprintf("%s -> ", via[i].URL.String())
+			}
+			redirectionChain += fmt.Sprintf("[%s]", req.URL.String())
+			Debug("redirection chain: %s", redirectionChain)
+
+			if redirect == REQUEST_REDIRECT_MANUAL {
+				Error("unimplemented '%s' redirect", redirect)
+				return http.ErrUseLastResponse
+			}
+			// TODO: is this actually the correct use of the `error` redirect?
+			if redirect == REQUEST_REDIRECT_ERROR {
+				return errors.New("encountered redirect")
+			}
+			if redirect == REQUEST_REDIRECT_FOLLOW {
+				Debug("will perform redirection")
+				// TODO: either here or in actual `Dial` we need to call rust to start the socks5 all over again
+				// but this will call `goWasmMixFetch`... do we want that?
+				return nil
+			}
+			// if this was rust that had proper enums and match statements,
+			// we could have guaranteed that at compile time...
+			panic("unreachable")
 		},
 
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				Info("entered DialContext")
+				Info("dialing plain connection to %s", addr)
 
-				if activeRequests.exists(requestId) {
-					return nil, errors.New("duplicate plain connection detected")
+				conn, inj := NewFakeConnection(requestId, addr)
+
+				// if this doesn't work here, everything will blow up anyway
+				parsedAddr, err := url.Parse(addr)
+				if err != nil {
+					return nil, err
 				}
-
-				conn, inj := NewFakeConnection(requestId)
-				activeRequests.insert(requestId, &inj)
+				activeRequests.insert(requestId, inj, parsedAddr)
 
 				return conn, nil
 			},
 
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				Info("entered DialTLSContext")
+				Info("dialing TLS connection to %s", addr)
 
-				if activeRequests.exists(requestId) {
-					return nil, errors.New("duplicate SSL connection detected")
+				conn, inj := NewFakeTlsConn(requestId, addr)
+
+				// if this doesn't work here, everything will blow up anyway
+				parsedAddr, err := url.Parse(addr)
+				if err != nil {
+					return nil, err
 				}
-
-				conn, inj := NewFakeTlsConn(requestId)
-				activeRequests.insert(requestId, &inj)
+				activeRequests.insert(requestId, inj, parsedAddr)
 
 				if err := conn.Handshake(); err != nil {
 					return nil, err
@@ -127,15 +202,15 @@ func _injectServerData(requestId RequestId, data []byte) any {
 	return nil
 }
 
-func performRequest(requestId RequestId, req *http.Request) (*http.Response, error) {
-	reqClient := buildHttpClient(requestId)
+func performRequest(requestId RequestId, req *ParsedRequest) (*http.Response, error) {
+	reqClient := buildHttpClient(requestId, req.redirect)
 
 	Info("Starting the request...")
-	Debug("%v", *req)
-	return reqClient.Do(req)
+	Debug("%s: %v", req.redirect, *req.request)
+	return reqClient.Do(req.request)
 }
 
-func _mixFetch(requestId RequestId, request *http.Request) (any, error) {
+func _mixFetch(requestId RequestId, request *ParsedRequest) (any, error) {
 	Info("_mixFetch: start")
 
 	resp, err := performRequest(requestId, request)

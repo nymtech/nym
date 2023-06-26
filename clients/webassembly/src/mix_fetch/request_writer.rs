@@ -63,8 +63,6 @@ impl RequestWriter {
                         console_error!("received a provider query response even though we didn't send any queries! - {query:#?}")
                     }
                     Socks5ResponseContent::NetworkData { content } => {
-                        console_log!("received raw: content: {content:?}");
-
                         self.requests.try_send_data_to_go(content).await;
                     }
                 },

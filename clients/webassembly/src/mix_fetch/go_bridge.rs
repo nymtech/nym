@@ -82,11 +82,15 @@ pub fn finish_mixnet_connection(stringified_request_id: String) -> Promise {
     })
 }
 
+// note the namespace (defined in wasm/main.go)
 #[wasm_bindgen]
 extern "C" {
+    #[wasm_bindgen(js_namespace = __go_rs_bridge__)]
     pub(crate) fn goWasmInjectServerData(raw_connection_id: String, data: Vec<u8>);
 
+    #[wasm_bindgen(js_namespace = __go_rs_bridge__)]
     pub(crate) fn goWasmCloseRemoteSocket(raw_connection_id: String);
 
+    #[wasm_bindgen(js_namespace = __go_rs_bridge__)]
     pub(crate) fn goWasmAbortConnection(raw_connection_id: String);
 }

@@ -468,10 +468,13 @@ async function main() {
     set_panic_hook();
 
     // TODO: ask Mark how to avoid this
-    self.send_client_data = send_client_data
-    self.start_new_mixnet_connection = start_new_mixnet_connection
-    self.mix_fetch_initialised = mix_fetch_initialised
-    self.finish_mixnet_connection = finish_mixnet_connection
+    // (note: reason for intermediate `__rs_go_bridge__` object is to decrease global scope bloat
+    // and to discourage users from trying to call those methods directly)
+    self.__rs_go_bridge__ = {}
+    self.__rs_go_bridge__.send_client_data = send_client_data
+    self.__rs_go_bridge__.start_new_mixnet_connection = start_new_mixnet_connection
+    self.__rs_go_bridge__.mix_fetch_initialised = mix_fetch_initialised
+    self.__rs_go_bridge__.finish_mixnet_connection = finish_mixnet_connection
 
     // const data = {
     //     "foomp": "aaaa",

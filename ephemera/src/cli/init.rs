@@ -96,7 +96,7 @@ impl Default for Cmd {
             block_creation_interval_sec: 30,
             repeat_last_block_messages: false,
             members_provider_delay_sec: 60 * 60,
-            membership_kind: Default::default(),
+            membership_kind: MembershipKind::default(),
         }
     }
 }

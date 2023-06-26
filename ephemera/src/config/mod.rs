@@ -307,7 +307,7 @@ impl Configuration {
     }
 
     pub(crate) fn ephemera_node_dir(id: Option<&str>) -> Result<PathBuf> {
-        Ok(Self::ephemera_root_dir(id)?)
+        Self::ephemera_root_dir(id)
     }
 
     fn write(&self, file_path: &PathBuf) -> Result<()> {

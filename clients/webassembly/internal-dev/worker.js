@@ -32,17 +32,12 @@ const {
     set_panic_hook,
     Config,
     GatewayEndpointConfig,
-    FetchToMixnetRequest,
     ClientStorage,
     MixFetchConfig,
     MixFetchClient,
     current_network_topology,
-    make_key,
-    make_key2,
-    trigger_callback,
-    deal_with_go_promise,
     send_client_data,
-    start_go_mix_fetch,
+    start_new_mixnet_connection,
     setupMixFetch,
     mixFetch,
 } = wasm_bindgen;
@@ -473,6 +468,7 @@ async function main() {
 
     // TODO: ask Mark how to avoid this
     self.send_client_data = send_client_data
+    self.start_new_mixnet_connection = start_new_mixnet_connection
 
     // const data = {
     //     "foomp": "aaaa",

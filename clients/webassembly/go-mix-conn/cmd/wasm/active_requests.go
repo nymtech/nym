@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"sync"
+	"syscall/js"
 )
 
 type RequestId = uint64
@@ -28,8 +28,7 @@ func (ar *ActiveRequests) exists(id RequestId) bool {
 	return exists
 }
 
-func (ar *ActiveRequests) insert(id RequestId, inj ConnectionInjector, target *url.URL) {
-	Debug("inserting request %d for %s", id, target.String())
+func (ar *ActiveRequests) insert(id RequestId, inj ConnectionInjector) {
 	ar.Lock()
 	defer ar.Unlock()
 	_, exists := ar.inner[id]
@@ -115,9 +114,119 @@ type ActiveRequest struct {
 }
 
 func buildHttpClient(requestId RequestId, redirect Redirect) *http.Client {
-	if _, exists := activeRequests.inner[requestId]; exists {
-		panic("duplicate connection detected")
+	return nil
+	//if _, exists := activeRequests.inner[requestId]; exists {
+	//	panic("duplicate connection detected")
+	//}
+	//
+	//return &http.Client{
+	//	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	//		Debug("attempting to perform redirection to %s with our policy set to '%s'", req.URL.String(), redirect)
+	//		redirectionChain := ""
+	//		for i := 0; i < len(via); i++ {
+	//			redirectionChain += fmt.Sprintf("%s -> ", via[i].URL.String())
+	//		}
+	//		redirectionChain += fmt.Sprintf("[%s]", req.URL.String())
+	//		Debug("redirection chain: %s", redirectionChain)
+	//
+	//		if redirect == REQUEST_REDIRECT_MANUAL {
+	//			Error("unimplemented '%s' redirect", redirect)
+	//			return http.ErrUseLastResponse
+	//		}
+	//		// TODO: is this actually the correct use of the `error` redirect?
+	//		if redirect == REQUEST_REDIRECT_ERROR {
+	//			return errors.New("encountered redirect")
+	//		}
+	//		if redirect == REQUEST_REDIRECT_FOLLOW {
+	//			Debug("will perform redirection")
+	//			// TODO: either here or in actual `Dial` we need to call rust to start the socks5 all over again
+	//			// but this will call `goWasmMixFetch`... do we want that?
+	//			return nil
+	//		}
+	//		// if this was rust that had proper enums and match statements,
+	//		// we could have guaranteed that at compile time...
+	//		panic("unreachable")
+	//	},
+	//
+	//	Transport: &http.Transport{
+	//		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+	//			Info("dialing plain connection to %s", addr)
+	//
+	//			conn, inj := NewFakeConnection(requestId, addr)
+	//
+	//			// if this doesn't work here, everything will blow up anyway
+	//			parsedAddr, err := url.Parse(addr)
+	//			if err != nil {
+	//				return nil, err
+	//			}
+	//			activeRequests.insert(requestId, inj, parsedAddr)
+	//
+	//			return conn, nil
+	//		},
+	//
+	//		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+	//			Info("dialing TLS connection to %s", addr)
+	//
+	//			conn, inj := NewFakeTlsConn(requestId, addr)
+	//
+	//			// if this doesn't work here, everything will blow up anyway
+	//			parsedAddr, err := url.Parse(addr)
+	//			if err != nil {
+	//				return nil, err
+	//			}
+	//			activeRequests.insert(requestId, inj, parsedAddr)
+	//
+	//			if err := conn.Handshake(); err != nil {
+	//				return nil, err
+	//			}
+	//
+	//			return conn, nil
+	//		},
+	//
+	//		//TLSClientConfig: &tlsConfig,
+	//		DisableKeepAlives:   true,
+	//		MaxIdleConns:        1,
+	//		MaxIdleConnsPerHost: 1,
+	//		MaxConnsPerHost:     1,
+	//	},
+	//}
+}
+
+func startMixnetConnection(address string) (RequestId, error) {
+	Debug("attempting to start mixnet connection for %s", address)
+
+	requestPromise := js.Global().Call("start_new_mixnet_connection", address)
+	Debug("promise: %v", requestPromise)
+	rawRequestId, errRes := await(requestPromise)
+	Debug("results: %v and %v", rawRequestId, errRes)
+
+	if errRes != nil {
+		Debug("error: %v", errRes)
+		panic("todo err")
+		//return nil, err
 	}
+
+	if len(rawRequestId) != 1 {
+		panic("todo len")
+	}
+
+	requestId, err := parseRequestId(rawRequestId[0])
+	if err != nil {
+		return 0, err
+	}
+	if activeRequests.exists(requestId) {
+		panic("todo duplicate")
+		//panic("duplicate connection detected")
+	}
+
+	return requestId, nil
+
+}
+
+func buildHttpClient2(redirect Redirect) *http.Client {
+	//if _, exists := activeRequests.inner[requestId]; exists {
+	//	panic("duplicate connection detected")
+	//}
 
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -139,8 +248,6 @@ func buildHttpClient(requestId RequestId, redirect Redirect) *http.Client {
 			}
 			if redirect == REQUEST_REDIRECT_FOLLOW {
 				Debug("will perform redirection")
-				// TODO: either here or in actual `Dial` we need to call rust to start the socks5 all over again
-				// but this will call `goWasmMixFetch`... do we want that?
 				return nil
 			}
 			// if this was rust that had proper enums and match statements,
@@ -152,14 +259,13 @@ func buildHttpClient(requestId RequestId, redirect Redirect) *http.Client {
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				Info("dialing plain connection to %s", addr)
 
-				conn, inj := NewFakeConnection(requestId, addr)
-
-				// if this doesn't work here, everything will blow up anyway
-				parsedAddr, err := url.Parse(addr)
+				requestId, err := startMixnetConnection(addr)
 				if err != nil {
 					return nil, err
 				}
-				activeRequests.insert(requestId, inj, parsedAddr)
+
+				conn, inj := NewFakeConnection(requestId, addr)
+				activeRequests.insert(requestId, inj)
 
 				return conn, nil
 			},
@@ -167,14 +273,13 @@ func buildHttpClient(requestId RequestId, redirect Redirect) *http.Client {
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				Info("dialing TLS connection to %s", addr)
 
-				conn, inj := NewFakeTlsConn(requestId, addr)
-
-				// if this doesn't work here, everything will blow up anyway
-				parsedAddr, err := url.Parse(addr)
+				requestId, err := startMixnetConnection(addr)
 				if err != nil {
 					return nil, err
 				}
-				activeRequests.insert(requestId, inj, parsedAddr)
+
+				conn, inj := NewFakeTlsConn(requestId, addr)
+				activeRequests.insert(requestId, inj)
 
 				if err := conn.Handshake(); err != nil {
 					return nil, err
@@ -210,10 +315,30 @@ func performRequest(requestId RequestId, req *ParsedRequest) (*http.Response, er
 	return reqClient.Do(req.request)
 }
 
+func performRequest2(req *ParsedRequest) (*http.Response, error) {
+	reqClient := buildHttpClient2(req.redirect)
+
+	Info("Starting the request...")
+	Debug("%s: %v", req.redirect, *req.request)
+	return reqClient.Do(req.request)
+}
+
 func _mixFetch(requestId RequestId, request *ParsedRequest) (any, error) {
 	Info("_mixFetch: start")
 
 	resp, err := performRequest(requestId, request)
+	if err != nil {
+		return nil, err
+	}
+	Info("finished performing the request")
+	Debug("response: %v", *resp)
+	return intoJSResponse(resp)
+}
+
+func _mixFetch2(request *ParsedRequest) (any, error) {
+	Info("_mixFetch: start")
+
+	resp, err := performRequest2(request)
 	if err != nil {
 		return nil, err
 	}

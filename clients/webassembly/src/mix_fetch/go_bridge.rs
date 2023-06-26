@@ -6,11 +6,14 @@ use js_sys::Promise;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::simple_rejected_promise;
+use wasm_utils::{simple_rejected_promise, PromisableResult};
 
-// called by go runtime whenever local connection produces any data that has to be sent to the remote
+/// Called by go runtime whenever local connection produces any data that has to be sent to the remote.
+//
 // TODO: currently this requires weird workaround to put it on the global object inside JS...
 // need some help from @MS to fix that up.
+// this is not expected to be called but a normal user under any circumstances
+// (perhaps it should be moved somewhere outside the global object then?
 #[wasm_bindgen]
 pub fn send_client_data(stringified_request_id: String, data: Vec<u8>) -> Promise {
     let request_id = match stringified_request_id.parse() {
@@ -29,11 +32,47 @@ pub fn send_client_data(stringified_request_id: String, data: Vec<u8>) -> Promis
     })
 }
 
+/// Called by go runtime whenever it establishes new connection
+/// (whether the initial one or on any redirection attempt).
+//
+// TODO: currently this requires weird workaround to put it on the global object inside JS...
+// need some help from @MS to fix that up.
+// this is not expected to be called but a normal user under any circumstances
+// (perhaps it should be moved somewhere outside the global object then?
+#[wasm_bindgen]
+pub fn start_new_mixnet_connection(target: String) -> Promise {
+    future_to_promise(async move {
+        // this error should be impossible in normal use
+        // (unless, of course, user is messing around, but then it's their fault for this panic)
+        let mix_fetch = mix_fetch_client().expect("mix fetch hasn't been setup");
+        mix_fetch
+            .connect_to_mixnet(target)
+            .await
+            .map(|request_id| request_id.to_string())
+            .into_promise_result()
+    })
+}
+
+/// Called by go runtime whenever it's done with a connection
+//
+// TODO: currently this requires weird workaround to put it on the global object inside JS...
+// need some help from @MS to fix that up.
+// this is not expected to be called but a normal user under any circumstances
+// (perhaps it should be moved somewhere outside the global object then?
+#[wasm_bindgen]
+pub fn finish_mixnet_connection(raw_connection_id: String) -> Promise {
+    todo!()
+}
+
 #[wasm_bindgen]
 extern "C" {
     pub(crate) fn goWasmMixFetch(raw_connection_id: String, request: web_sys::Request) -> Promise;
 
+    pub(crate) fn goWasmMixFetch2(request: web_sys::Request) -> Promise;
+
     pub(crate) fn goWasmInjectServerData(raw_connection_id: String, data: Vec<u8>);
 
     pub(crate) fn goWasmCloseRemoteSocket(raw_connection_id: String);
+
+    pub(crate) fn goWasmAbortConnection(raw_connection_id: String);
 }

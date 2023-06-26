@@ -7,6 +7,7 @@ use crate::mix_fetch::active_requests::ActiveRequests;
 use crate::mix_fetch::config::MixFetchConfig;
 use crate::mix_fetch::error::MixFetchError;
 use crate::mix_fetch::go_bridge::goWasmMixFetch;
+use crate::mix_fetch::go_bridge::goWasmMixFetch2;
 use crate::mix_fetch::request_writer::RequestWriter;
 use crate::mix_fetch::socks_helpers::{socks5_connect_request, socks5_data_request};
 use crate::mix_fetch::{config, RequestId, Resource};
@@ -23,11 +24,27 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
 use nym_validator_client::client::IdentityKey;
-use url::Origin;
+use url::{Origin, Url};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
 use wasm_timer::Delay;
 use wasm_utils::{console_error, console_log, PromisableResult};
+
+fn socks5_target(raw_url: &str) -> Result<String, MixFetchError> {
+    let url: Url = raw_url
+        .parse()
+        .map_err(MixFetchError::MalformedMixFetchUrl)?;
+
+    let origin = url.origin();
+
+    // TODO: there must be a better way for that...
+    match origin {
+        Origin::Opaque(_) => Err(MixFetchError::UnsupportedOrigin),
+
+        // TODO: make a match on the scheme to reject requests we can't handle, like `ftp` or `file`
+        Origin::Tuple(ref _scheme, ref host, port) => Ok(format!("{}:{}", host, port)),
+    }
+}
 
 #[wasm_bindgen]
 pub struct MixFetchClient {
@@ -205,25 +222,11 @@ impl MixFetchClient {
         Ok(())
     }
 
-    pub(crate) async fn fetch_async(
+    pub(crate) async fn fetch_async2(
         &self,
         request: web_sys::Request,
     ) -> Result<web_sys::Response, JsValue> {
-        let url = web_sys::Request::url(&request);
-        let url: url::Url = url.parse().map_err(MixFetchError::MalformedMixFetchUrl)?;
-
-        // required for the 'connect' request
-        let origin = url.origin();
-        let target = match origin {
-            Origin::Opaque(_) => unimplemented!(),
-            Origin::Tuple(ref _scheme, ref host, port) => format!("{}:{}", host, port),
-        };
-
-        let (err_sender, err_receiver) = oneshot::channel();
-        let request_id = self.requests.start_new(err_sender).await;
-        self.send_socks_connect(request_id, target).await?;
-
-        let go_fut: JsFuture = goWasmMixFetch(request_id.to_string(), request).into();
+        let go_fut: JsFuture = goWasmMixFetch2(request).into();
 
         let timeout = Delay::new(self.mix_fetch_config.request_timeout);
 
@@ -233,35 +236,90 @@ impl MixFetchClient {
                 match go_res {
                     Ok(res) => {
                         console_log!("received response to our fetch request: {res:?}");
-                        self.requests.finish(request_id).await;
                         Ok(res.into())
                     },
                     Err(err) => {
                         console_error!("go request failure: {err:?}");
-                        self.requests.finish(request_id).await;
                         Err(err)
                     }
                 }
             }
             _ = timeout => {
                 console_error!("timed out while waiting for response");
-                self.requests.abort(request_id).await;
-                Err(MixFetchError::Timeout {
-                    id: request_id, timeout: self.mix_fetch_config.request_timeout
-                }.into())
-            }
-            err = err_receiver => {
-                match err {
-                    Err(_cancelled) => {
-                        todo!("our error sender was dropped - deal with it")
-                    }
-                    Ok(err) => {
-                        console_error!("our request has failed: {err}");
-                        Err(err.into())
-                    }
-                }
+                todo!("timeout")
+                // goWasmAbortConnection(request_id.to_string());
+                //
+                // Err(MixFetchError::Timeout {
+                //     id: request_id, timeout: self.mix_fetch_config.request_timeout
+                // }.into())
             }
         }
+    }
+
+    pub(crate) async fn fetch_async(
+        &self,
+        request: web_sys::Request,
+    ) -> Result<web_sys::Response, JsValue> {
+        todo!()
+        // let url = web_sys::Request::url(&request);
+        // let target = socks5_target(&url)?;
+        //
+        // let (err_sender, err_receiver) = oneshot::channel();
+        // let request_id = self.requests.start_new(err_sender).await;
+        // self.send_socks_connect(request_id, target).await?;
+        //
+        // let go_fut: JsFuture = goWasmMixFetch(request_id.to_string(), request).into();
+        //
+        // let timeout = Delay::new(self.mix_fetch_config.request_timeout);
+        //
+        // tokio::select! {
+        //     biased;
+        //     go_res = go_fut => {
+        //         match go_res {
+        //             Ok(res) => {
+        //                 console_log!("received response to our fetch request: {res:?}");
+        //                 self.requests.finish(request_id).await;
+        //                 Ok(res.into())
+        //             },
+        //             Err(err) => {
+        //                 console_error!("go request failure: {err:?}");
+        //                 self.requests.finish(request_id).await;
+        //                 Err(err)
+        //             }
+        //         }
+        //     }
+        //     _ = timeout => {
+        //         console_error!("timed out while waiting for response");
+        //         self.requests.abort(request_id).await;
+        //         Err(MixFetchError::Timeout {
+        //             id: request_id, timeout: self.mix_fetch_config.request_timeout
+        //         }.into())
+        //     }
+        //     err = err_receiver => {
+        //         match err {
+        //             Err(_cancelled) => {
+        //                 todo!("our error sender was dropped - deal with it")
+        //             }
+        //             Ok(err) => {
+        //                 console_error!("our request has failed: {err}");
+        //                 Err(err.into())
+        //             }
+        //         }
+        //     }
+        // }
+    }
+
+    pub(crate) async fn connect_to_mixnet(
+        &self,
+        target: String,
+    ) -> Result<RequestId, MixFetchError> {
+        // console_log!("raw url: {url:?}");
+        // let target = socks5_target(&url)?;
+
+        let request_id = self.requests.start_new2().await;
+        self.send_socks_connect(request_id, target).await?;
+
+        Ok(request_id)
     }
 
     pub(crate) async fn forward_request_content(

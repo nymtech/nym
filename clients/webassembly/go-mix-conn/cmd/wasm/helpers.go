@@ -20,6 +20,19 @@ var (
 	jsPromise = js.Global().Get("Promise")
 )
 
+type Redirect = string
+
+const (
+	REQUEST_REDIRECT_ERROR  = "error"
+	REQUEST_REDIRECT_MANUAL = "manual"
+	REQUEST_REDIRECT_FOLLOW = "follow"
+)
+
+type ParsedRequest struct {
+	request  *http.Request
+	redirect Redirect
+}
+
 // asyncFunc converts a Go-JS function into a Promise
 func asyncFunc(innerFunc jsFn) js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -181,6 +194,32 @@ func parseBody(request *js.Value) (io.Reader, error) {
 	return bytes.NewReader(bodyBytes), nil
 }
 
+func parseRedirect(request *js.Value) (string, error) {
+	redirect := request.Get("redirect")
+	if redirect.IsUndefined() || redirect.IsNull() {
+		// if redirect is not specified, the default behaviour is 'follow'
+		// Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
+		return REQUEST_REDIRECT_FOLLOW, nil
+	}
+
+	if redirect.Type() != js.TypeString {
+		return "", errors.New("the redirect field is not a string")
+	}
+
+	redirectString := redirect.String()
+	if redirectString == REQUEST_REDIRECT_FOLLOW {
+		return REQUEST_REDIRECT_FOLLOW, nil
+	}
+	if redirectString == REQUEST_REDIRECT_MANUAL {
+		return REQUEST_REDIRECT_MANUAL, nil
+	}
+	if redirectString == REQUEST_REDIRECT_ERROR {
+		return REQUEST_REDIRECT_ERROR, nil
+	}
+
+	return "", errors.New(fmt.Sprintf("%s is not a valid redirect", redirectString))
+}
+
 // a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
 // https://developer.mozilla.org/en-US/docs/Web/API/request
 /*
@@ -199,13 +238,13 @@ func parseBody(request *js.Value) (io.Reader, error) {
 	[❌] integrity
 	[✅] method
 	[❌] mode
-	[❌] redirect
+	[⚠️] redirect		- "manual" is not implemented
 	[❌] referrer
 	[❌] referrerPolicy
 	[❌] signal
 	[✅] url
 */
-func parseJSRequest(request js.Value) (*http.Request, error) {
+func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 	// https://github.com/mozilla/gecko-dev/blob/d307d4d9f06dab6d16e963a4318e5e8ff4899141/dom/fetch/Fetch.cpp#L501
 	// https://github.com/mozilla/gecko-dev/blob/d307d4d9f06dab6d16e963a4318e5e8ff4899141/dom/fetch/Request.cpp#L270
 
@@ -229,6 +268,10 @@ func parseJSRequest(request js.Value) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+	redirect, err := parseRedirect(&request)
+	if err != nil {
+		return nil, err
+	}
 
 	req, err := http.NewRequest(method, requestUrl, body)
 	if err != nil {
@@ -238,7 +281,10 @@ func parseJSRequest(request js.Value) (*http.Request, error) {
 
 	Debug("constructed request: %+v", req)
 
-	return req, nil
+	return &ParsedRequest{
+		request:  req,
+		redirect: redirect,
+	}, nil
 }
 
 // a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
@@ -269,6 +315,7 @@ func intoJSResponse(resp *http.Response) (js.Value, error) {
 	}(resp.Body)
 
 	// Read the response body
+	// TODO: construct streamReader / arrayReader for better compat
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return js.Null(), err

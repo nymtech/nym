@@ -386,7 +386,6 @@ async function testMixFetch() {
 
     // Set callback to handle messages passed to the worker.
     self.onmessage = async event => {
-        console.log(event)
         if (event.data && event.data.kind) {
             switch (event.data.kind) {
                 case 'MagicPayload': {
@@ -396,6 +395,7 @@ async function testMixFetch() {
 
                     console.log('using mixFetch...');
 
+                    // const res = await fetch(url, {mode: "no-cors"})
                     const res = await mixFetch(url)
 
                     console.log(res)

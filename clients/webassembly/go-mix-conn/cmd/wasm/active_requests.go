@@ -87,8 +87,28 @@ type ActiveRequest struct {
 	injector ConnectionInjector
 }
 
+func inRedirectionLoop(req *http.Request, via []*http.Request) bool {
+	target := req.URL.String()
+
+	for i := 0; i < len(via); i++ {
+		if target == via[i].URL.String() {
+			return true
+		}
+	}
+	return false
+}
+
 func checkRedirect(redirect string, req *http.Request, via []*http.Request) error {
 	Debug("attempting to perform redirection to %s with our policy set to '%s'", req.URL.String(), redirect)
+
+	if len(via) > maxRedirections {
+		return errors.New(fmt.Sprintf("Maximum (%d) redirects followed", maxRedirections))
+	}
+
+	if inRedirectionLoop(req, via) {
+		return errors.New("stuck in redirection loop")
+	}
+
 	redirectionChain := ""
 	for i := 0; i < len(via); i++ {
 		redirectionChain += fmt.Sprintf("%s -> ", via[i].URL.String())

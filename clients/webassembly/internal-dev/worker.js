@@ -314,8 +314,8 @@ async function testMixFetch() {
 
     // const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
     const validator = 'https://qa-nym-api.qa.nymte.ch/api';
-    // const mix_fetch_network_requester_address= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    const mix_fetch_network_requester_address= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    const mix_fetch_network_requester_address= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    // const mix_fetch_network_requester_address= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
 
     const config = new MixFetchConfig('my-awesome-mix-fetch-client', mix_fetch_network_requester_address, validator, undefined, debug);
 
@@ -374,27 +374,27 @@ async function testMixFetch() {
 
 // TODO: look into https://www.aaron-powell.com/posts/2019-02-08-golang-wasm-5-compiling-with-webpack/
 async function loadGoWasm() {
-    const resp = await fetch(GO_WASM_URL);
-    const bytes = await resp.arrayBuffer();
-    const wasmObj = await WebAssembly.instantiate(bytes, go.importObject)
-    goWasm = wasmObj.instance
-    go.run(goWasm)
+    // const resp = await fetch(GO_WASM_URL);
+    // const bytes = await resp.arrayBuffer();
+    // const wasmObj = await WebAssembly.instantiate(bytes, go.importObject)
+    // goWasm = wasmObj.instance
+    // go.run(goWasm)
 
-    // if ('instantiateStreaming' in WebAssembly) {
-    //     WebAssembly.instantiateStreaming(fetch(GO_WASM_URL), go.importObject).then(function (obj) {
-    //         goWasm = obj.instance;
-    //         go.run(goWasm);
-    //     })
-    // } else {
-    //     fetch(GO_WASM_URL).then(resp =>
-    //         resp.arrayBuffer()
-    //     ).then(bytes =>
-    //         WebAssembly.instantiate(bytes, go.importObject).then(function (obj) {
-    //             goWasm = obj.instance;
-    //             go.run(goWasm);
-    //         })
-    //     )
-    // }
+    if ('instantiateStreaming' in WebAssembly) {
+        WebAssembly.instantiateStreaming(fetch(GO_WASM_URL), go.importObject).then(function (obj) {
+            goWasm = obj.instance;
+            go.run(goWasm);
+        })
+    } else {
+        fetch(GO_WASM_URL).then(resp =>
+            resp.arrayBuffer()
+        ).then(bytes =>
+            WebAssembly.instantiate(bytes, go.importObject).then(function (obj) {
+                goWasm = obj.instance;
+                go.run(goWasm);
+            })
+        )
+    }
 }
 
 function setupRsGoBridge() {

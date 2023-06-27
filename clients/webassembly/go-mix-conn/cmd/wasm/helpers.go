@@ -15,6 +15,7 @@ type jsFn func(this js.Value, args []js.Value) (any, error)
 var (
 	jsErr     = js.Global().Get("Error")
 	jsPromise = js.Global().Get("Promise")
+	origin    = js.Global().Get("origin").String()
 )
 
 // AsyncFunc converts a Go-JS function into a Promise

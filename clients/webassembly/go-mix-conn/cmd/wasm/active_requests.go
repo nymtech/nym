@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -98,7 +99,7 @@ func inRedirectionLoop(req *http.Request, via []*http.Request) bool {
 	return false
 }
 
-func checkRedirect(redirect string, req *http.Request, via []*http.Request) error {
+func checkRedirect(redirect Redirect, req *http.Request, via []*http.Request) error {
 	Debug("attempting to perform redirection to %s with our policy set to '%s'", req.URL.String(), redirect)
 
 	if len(via) > maxRedirections {
@@ -125,15 +126,56 @@ func checkRedirect(redirect string, req *http.Request, via []*http.Request) erro
 	case REQUEST_REDIRECT_FOLLOW:
 		Debug("will perform redirection")
 		return nil
+	default:
+		// if this was rust that had proper enums and match statements,
+		// we could have guaranteed that at compile time...
+		panic("unreachable")
 	}
-
-	// if this was rust that had proper enums and match statements,
-	// we could have guaranteed that at compile time...
-	panic("unreachable")
 }
 
-func dialContext(_ctx context.Context, _network, addr string) (net.Conn, error) {
+func checkMode(mode Mode, addr string) error {
+	originUrl, originErr := url.Parse(origin)
+	if originErr != nil {
+		return errors.New(fmt.Sprintf("could not obtain origin: %s", originErr))
+	}
+	remoteUrl, remoteErr := url.Parse(addr)
+	if remoteErr != nil {
+		return remoteErr
+	}
+
+	switch mode {
+	case MODE_CORS:
+		Warn("unimplemented %s mode", MODE_CORS)
+	case MODE_SAME_ORIGIN:
+		// Roughly speaking, two URIs are part of the same origin (i.e., represent the same principal)
+		// if they have the same scheme, host, and port.
+		// Reference: https://www.rfc-editor.org/rfc/rfc6454.html#section-3.2
+		if originUrl.Scheme != remoteUrl.Scheme || originUrl.Host != remoteUrl.Host || originUrl.Port() != remoteUrl.Port() {
+			return errors.New(fmt.Sprintf("Access to mixFetch at '%s' from origin '%s' has been blocked by CORS policy.", addr, origin))
+		}
+
+	case MODE_NO_CORS:
+		Warn("unimplemented %s mode", MODE_NO_CORS)
+
+	// those should have been rejected at parsing time
+	case MODE_NAVIGATE, MODE_WEBSOCKET:
+		panic("impossible request mode")
+
+	default:
+		// if this was rust that had proper enums and match statements,
+		// we could have guaranteed that at compile time...
+		panic("unreachable")
+	}
+
+	return nil
+}
+
+func dialContext(_ctx context.Context, opts RequestOptions, _network, addr string) (net.Conn, error) {
 	Info("dialing plain connection to %s", addr)
+
+	if err := checkMode(opts.mode, addr); err != nil {
+		return nil, err
+	}
 
 	requestId, err := rsStartNewMixnetRequest(addr)
 	if err != nil {
@@ -146,8 +188,12 @@ func dialContext(_ctx context.Context, _network, addr string) (net.Conn, error) 
 	return conn, nil
 }
 
-func dialTLSContext(_ctx context.Context, _network, addr string) (net.Conn, error) {
+func dialTLSContext(_ctx context.Context, opts RequestOptions, _network, addr string) (net.Conn, error) {
 	Info("dialing TLS connection to %s", addr)
+
+	if err := checkMode(opts.mode, addr); err != nil {
+		return nil, err
+	}
 
 	requestId, err := rsStartNewMixnetRequest(addr)
 	if err != nil {
@@ -164,18 +210,18 @@ func dialTLSContext(_ctx context.Context, _network, addr string) (net.Conn, erro
 	return conn, nil
 }
 
-func buildHttpClient(redirect Redirect) *http.Client {
+func buildHttpClient(opts RequestOptions) *http.Client {
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return checkRedirect(redirect, req, via)
+			return checkRedirect(opts.redirect, req, via)
 		},
 
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return dialContext(ctx, network, addr)
+				return dialContext(ctx, opts, network, addr)
 			},
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return dialTLSContext(ctx, network, addr)
+				return dialTLSContext(ctx, opts, network, addr)
 			},
 
 			//TLSClientConfig: &tlsConfig,
@@ -209,10 +255,10 @@ func _changeRequestTimeout(timeout time.Duration) any {
 }
 
 func performRequest(req *ParsedRequest) (*http.Response, error) {
-	reqClient := buildHttpClient(req.redirect)
+	reqClient := buildHttpClient(req.options)
 
 	Info("Starting the request...")
-	Debug("%s: %v", req.redirect, *req.request)
+	Debug("%v: %v", req.options, *req.request)
 	return reqClient.Do(req.request)
 }
 

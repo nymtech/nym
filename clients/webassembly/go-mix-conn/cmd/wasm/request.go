@@ -33,7 +33,11 @@ const (
 )
 
 type ParsedRequest struct {
-	request         *http.Request
+	request *http.Request
+	options RequestOptions
+}
+
+type RequestOptions struct {
 	redirect        Redirect
 	mode            Mode
 	credentialsMode CredentialsMode
@@ -56,7 +60,7 @@ type ParsedRequest struct {
 	[⚠️] headers		- not all headers are properly respected
 	[❌] integrity
 	[✅] method
-	[❌] mode
+	[⚠️] mode			- only "same-origin" is naively (and not fully) implemented
 	[⚠️] redirect		- "manual" is not implemented
 	[❌] referrer
 	[❌] referrerPolicy
@@ -113,10 +117,12 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 	Debug("constructed request: %+v", req)
 
 	return &ParsedRequest{
-		request:         req,
-		redirect:        redirect,
-		mode:            mode,
-		credentialsMode: credentialsMode,
+		request: req,
+		options: RequestOptions{
+			redirect:        redirect,
+			mode:            mode,
+			credentialsMode: credentialsMode,
+		},
 	}, nil
 }
 
@@ -231,7 +237,7 @@ func parseMode(request *js.Value) (Mode, error) {
 	case MODE_NO_CORS:
 		return MODE_NO_CORS, nil
 	case MODE_NAVIGATE:
-		return MODE_NAVIGATE, nil
+		return "", errors.New(fmt.Sprintf("%s mode is not supported", MODE_NAVIGATE))
 	case MODE_WEBSOCKET:
 		return "", errors.New(fmt.Sprintf("%s mode is not supported", MODE_WEBSOCKET))
 	}

@@ -15,12 +15,14 @@ import (
 type InjectedData struct {
 	serverData   <-chan []byte
 	remoteClosed <-chan bool
+	remoteError  <-chan error
 }
 
 // ConnectionInjector controls data that goes over corresponding FakeConnection
 type ConnectionInjector struct {
 	serverData   chan<- []byte
 	remoteClosed chan<- bool
+	remoteError  chan<- error
 }
 
 // FakeConnection is a type implementing net.Conn interface that allows us
@@ -38,16 +40,19 @@ type FakeConnection struct {
 func NewFakeConnection(requestId RequestId, remoteAddress string) (FakeConnection, ConnectionInjector) {
 	serverData := make(chan []byte, 10)
 	remoteClosed := make(chan bool, 1)
+	remoteError := make(chan error, 1)
 
 	inj := ConnectionInjector{
 		serverData:   serverData,
 		remoteClosed: remoteClosed,
+		remoteError:  remoteError,
 	}
 
 	conn := FakeConnection{
 		data: &InjectedData{
 			serverData:   serverData,
 			remoteClosed: remoteClosed,
+			remoteError:  remoteError,
 		},
 		requestId:     requestId,
 		remoteAddress: remoteAddress,
@@ -102,16 +107,18 @@ func (conn FakeConnection) Read(p []byte) (int, error) {
 			Info("server data")
 			return conn.readAndBuffer(injectedData, p)
 		default:
-			// we wait for either some data or the closing info
+			// we wait for either some data, closing info or an error
 			select {
 			case data := <-conn.data.serverData:
 				if len(data) == 0 {
 					return 0, io.EOF
 				}
 				return conn.readAndBuffer(data, p)
+			case <-conn.data.remoteClosed:
+				return 0, io.EOF
+			case err := <-conn.data.remoteError:
+				return 0, err
 			}
-		case <-conn.data.remoteClosed:
-			return 0, io.EOF
 		}
 	}
 }

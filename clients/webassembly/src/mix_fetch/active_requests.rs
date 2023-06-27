@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mix_fetch::error::MixFetchError;
-use crate::mix_fetch::go_bridge::{goWasmCloseRemoteSocket, goWasmInjectServerData};
+use crate::mix_fetch::go_bridge::{
+    goWasmCloseRemoteSocket, goWasmInjectConnError, goWasmInjectServerData,
+};
 use crate::mix_fetch::RequestId;
 use nym_ordered_buffer::OrderedMessageBuffer;
 use nym_socks5_requests::SocketData;
@@ -58,8 +60,13 @@ impl ActiveRequests {
     }
 
     pub async fn reject(&self, id: RequestId, err: MixFetchError) {
-        console_error!("request {id} failed with the following remote error: {err}")
-        // TODO: propagate that to go
+        let mut guard = self.inner.lock().await;
+        let old = guard.remove(&id);
+        if old.is_none() {
+            console_error!("attempted to reject request {id}, but it seems to have never existed?")
+        }
+
+        goWasmInjectConnError(id.to_string(), err.to_string())
     }
 
     pub async fn try_send_data_to_go(&self, data: SocketData) {

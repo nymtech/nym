@@ -72,6 +72,17 @@ func (ar *ActiveRequests) closeRemoteSocket(id RequestId) {
 	ar.inner[id].injector.remoteClosed <- true
 }
 
+func (ar *ActiveRequests) sendError(id RequestId, err error) {
+	Debug("injecting error for %d: %s", id, err)
+	ar.Lock()
+	defer ar.Unlock()
+	_, exists := ar.inner[id]
+	if !exists {
+		panic("attempted to inject error data to connection that doesn't exist")
+	}
+	ar.inner[id].injector.remoteError <- err
+}
+
 type ActiveRequest struct {
 	injector ConnectionInjector
 }
@@ -163,6 +174,11 @@ func _closeRemoteSocket(requestId RequestId) any {
 
 func _injectServerData(requestId RequestId, data []byte) any {
 	activeRequests.injectData(requestId, data)
+	return nil
+}
+
+func _injectConnError(requestId RequestId, err error) any {
+	activeRequests.sendError(requestId, err)
 	return nil
 }
 

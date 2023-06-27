@@ -56,6 +56,7 @@ func main() {
 	// rust facing methods (don't expose them to the root)
 	goBridgeRoot.Set("goWasmInjectServerData", js.FuncOf(injectServerData))
 	goBridgeRoot.Set("goWasmCloseRemoteSocket", js.FuncOf(closeRemoteSocket))
+	goBridgeRoot.Set("goWasmInjectConnError", js.FuncOf(injectConnError))
 	<-done
 
 	println("[go main]: go module finished")
@@ -75,6 +76,26 @@ func injectServerData(_ js.Value, args []js.Value) any {
 	}
 
 	return _injectServerData(requestId, data)
+}
+
+func injectConnError(_ js.Value, args []js.Value) any {
+	if len(args) != 2 {
+		return errors.New(fmt.Sprintf("received invalid number of arguments. Got %d but expected 2", len(args)))
+	}
+
+	requestId, err := parseRequestId(args[0])
+	if err != nil {
+		return err
+	}
+
+	if args[1].Type() != js.TypeString {
+		return errors.New("provided error message is not a string")
+	}
+	errMsg := args[1].String()
+	remoteErr := errors.New(errMsg)
+
+	activeRequests.sendError(requestId, remoteErr)
+	return nil
 }
 
 func closeRemoteSocket(_ js.Value, args []js.Value) any {

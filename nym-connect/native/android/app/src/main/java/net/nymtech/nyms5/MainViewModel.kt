@@ -27,7 +27,7 @@ class MainViewModel(
     private val workManager: WorkManager,
     private val nymProxy: NymProxy
 ) : ViewModel() {
-    private val tag = "viewModel"
+    private val tag = "MainViewModel"
 
     private val workRequest: OneTimeWorkRequest =
         OneTimeWorkRequestBuilder<ProxyWorker>()

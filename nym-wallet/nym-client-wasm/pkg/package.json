@@ -1,0 +1,34 @@
+{
+  "name": "@nymproject/nym-client-wasm",
+  "collaborators": [
+    "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
+    "Jedrzej Stuczynski <andrew@nymtech.net>"
+  ],
+  "description": "A webassembly client which can be used to interact with the the Nym privacy platform. Wasm is used for Sphinx packet generation.",
+  "version": "1.1.1",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nymtech/nym"
+  },
+  "files": [
+    "nym_client_wasm_bg.wasm",
+    "nym_client_wasm.js",
+    "nym_client_wasm_bg.js",
+    "nym_client_wasm.d.ts"
+  ],
+  "module": "nym_client_wasm.js",
+  "types": "nym_client_wasm.d.ts",
+  "sideEffects": [
+    "./nym_client_wasm.js",
+    "./snippets/*"
+  ],
+  "keywords": [
+    "nym",
+    "sphinx",
+    "wasm",
+    "webassembly",
+    "privacy",
+    "client"
+  ]
+}

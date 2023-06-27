@@ -5,5 +5,4 @@ members = [
     "src-tauri",
     "nym-wallet-recovery-cli",
     "nym-wallet-types",
-    "nym-client-wasm",
 ]

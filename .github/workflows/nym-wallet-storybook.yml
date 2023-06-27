@@ -3,7 +3,7 @@ name: Nym Wallet Storybook
 on:
   push:
     paths:
-      - 'nym-wallet/**''
+      - 'nym-wallet/**'
 
 jobs:
   build:
@@ -23,11 +23,6 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
-    - name: Install wasm-pack
-      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-    - name: Build WASM
-      run: yarn build:wasm
-      working-directory: nym/nym-wallet
     - name: Build dependencies
       run: yarn && yarn build
     - name: Build storybook

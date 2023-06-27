@@ -14,7 +14,6 @@
     "dev": "run-p tauri:dev webpack:dev",
     "prebuild": "yarn --cwd .. build",
     "build": "run-s webpack:prod tauri:build",
-    "build:wasm": "cd nym-client-wasm && wasm-pack build --scope nymproject",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "prestorybook": "yarn --cwd .. build",

@@ -46,7 +46,7 @@ jobs:
         run: | 
           git clone https://github.com/tommyv1987/nyxd
           cd nyxd
-          git checkout release/v0.30.2
+          git checkout release/v0.31.1
 
       - name: Run nyxd
         run: |

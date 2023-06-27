@@ -1,4 +1,4 @@
-import { WasmGateway, WasmMixNode, WasmNymTopology } from 'nym-client-wasm';
+import { WasmGateway, WasmMixNode, WasmNymTopology } from '@nymproject/nym-client-wasm';
 
 export const createDummyTopology = () => {
   const l1Mixnode = new WasmMixNode(

@@ -13,10 +13,10 @@
 // limitations under the License.
 
 /* eslint-disable no-restricted-globals */
-import { NymNodeTester, set_panic_hook, current_network_topology, NodeTestResult } from 'nym-client-wasm';
+import { NymNodeTester, set_panic_hook, current_network_topology, NodeTestResult } from '@nymproject/nym-client-wasm';
 import { Network } from 'src/types';
-import { NodeTestEvent } from './types';
 import { MAINNET_VALIDATOR_URL, QA_VALIDATOR_URL } from 'src/constants';
+import { NodeTestEvent } from './types';
 
 console.log('Initializing worker');
 

@@ -202,6 +202,12 @@ func _injectConnError(requestId RequestId, err error) any {
 	return nil
 }
 
+func _changeRequestTimeout(timeout time.Duration) any {
+	Debug("changing request timeout to %v", timeout)
+	requestTimeout = timeout
+	return nil
+}
+
 func performRequest(req *ParsedRequest) (*http.Response, error) {
 	reqClient := buildHttpClient(req.redirect)
 

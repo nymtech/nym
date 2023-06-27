@@ -1,18 +1,30 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::WasmClientError;
 use crate::mix_fetch::RequestId;
+use crate::storage::errors::ClientStorageError;
 use js_sys::Promise;
+use nym_client_core::error::ClientCoreError;
 use nym_http_requests::error::MixHttpRequestError;
 use nym_ordered_buffer::OrderedMessageError;
 use nym_socks5_requests::ConnectionError;
-use std::time::Duration;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
 use wasm_utils::simple_js_error;
 
 #[derive(Debug, Error)]
 pub enum MixFetchError {
+    // TODO: this shouldn't be here. whatever is shared between the two should be moved to separate enum
+    #[error(transparent)]
+    WasmClientError(#[from] WasmClientError),
+
+    #[error("experienced an issue with internal client components: {source}")]
+    BaseClientError {
+        #[from]
+        source: ClientCoreError,
+    },
+
     #[error("mix fetch hasn't been initialised")]
     Uninitialised,
 
@@ -37,6 +49,10 @@ pub enum MixFetchError {
         source: MixHttpRequestError,
     },
 
+    // the maximum value is u32::MAX which equals to over 49days, which is MORE than enough
+    #[error("attempted to set request timeout to {timeout_ms}ms")]
+    InvalidTimeoutValue { timeout_ms: u128 },
+
     #[error("network requester has rejected our request: {network_requester_message}")]
     ConnectionError { network_requester_message: String },
 
@@ -53,8 +69,11 @@ pub enum MixFetchError {
         other: u64,
     },
 
-    #[error("request {id} timed out after {timeout:?}")]
-    Timeout { id: RequestId, timeout: Duration },
+    #[error(transparent)]
+    StorageError {
+        #[from]
+        source: ClientStorageError,
+    },
 }
 
 impl MixFetchError {

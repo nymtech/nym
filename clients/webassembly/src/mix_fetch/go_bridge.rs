@@ -93,4 +93,7 @@ extern "C" {
 
     #[wasm_bindgen(js_namespace = __go_rs_bridge__)]
     pub(crate) fn goWasmInjectConnError(raw_connection_id: String, error_msg: String);
+
+    #[wasm_bindgen(js_namespace = __go_rs_bridge__)]
+    pub(crate) fn goWasmSetMixFetchRequestTimeout(timeout_ms: u32);
 }

@@ -1,11 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::WasmClientError;
 use crate::helpers::{setup_gateway_from_api, setup_reply_surb_storage_backend};
 use crate::mix_fetch::active_requests::ActiveRequests;
 use crate::mix_fetch::config::MixFetchConfig;
 use crate::mix_fetch::error::MixFetchError;
+use crate::mix_fetch::go_bridge::goWasmSetMixFetchRequestTimeout;
 use crate::mix_fetch::request_writer::RequestWriter;
 use crate::mix_fetch::socks_helpers::{socks5_connect_request, socks5_data_request};
 use crate::mix_fetch::{config, RequestId};
@@ -79,8 +79,14 @@ impl MixFetchClientBuilder {
     }
 
     // TODO: combine with normal wasm client
-    async fn start_client_async(mut self) -> Result<MixFetchClient, WasmClientError> {
+    async fn start_client_async(mut self) -> Result<MixFetchClient, MixFetchError> {
         console_log!("Starting the mix fetch client");
+
+        let timeout_ms = self.config.mix_fetch.request_timeout.as_millis();
+        if timeout_ms > u32::MAX as u128 {
+            return Err(MixFetchError::InvalidTimeoutValue { timeout_ms });
+        }
+        goWasmSetMixFetchRequestTimeout(timeout_ms as u32);
 
         let nym_api_endpoints = self.config.base.client.nym_api_urls.clone();
 
@@ -125,7 +131,7 @@ impl MixFetchClient {
         config: MixFetchConfig,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
-    ) -> Result<MixFetchClient, WasmClientError> {
+    ) -> Result<MixFetchClient, MixFetchError> {
         MixFetchClientBuilder::new(config, preferred_gateway, storage_passphrase)
             .start_client_async()
             .await

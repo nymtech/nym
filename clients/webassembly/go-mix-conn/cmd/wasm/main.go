@@ -52,9 +52,9 @@ func main() {
 
 	// user facing methods
 	js.Global().Set("mixFetch", asyncFunc(mixFetch))
-	js.Global().Set("setMixFetchRequestTimeout", js.FuncOf(changeRequestTimeout))
 
 	// rust facing methods (don't expose them to the root)
+	goBridgeRoot.Set("goWasmSetMixFetchRequestTimeout", js.FuncOf(changeRequestTimeout))
 	goBridgeRoot.Set("goWasmInjectServerData", js.FuncOf(injectServerData))
 	goBridgeRoot.Set("goWasmCloseRemoteSocket", js.FuncOf(closeRemoteSocket))
 	goBridgeRoot.Set("goWasmInjectConnError", js.FuncOf(injectConnError))
@@ -115,7 +115,13 @@ func changeRequestTimeout(_ js.Value, args []js.Value) any {
 		return errors.New(fmt.Sprintf("received invalid number of arguments. Got %d but expected 1", len(args)))
 	}
 
-	return errors.New("unimplemented")
+	if args[0].Type() != js.TypeNumber {
+		return errors.New("the provided timeout is not a number")
+	}
+	timeoutMs := args[0].Int()
+	timeout := time.Millisecond * time.Duration(timeoutMs)
+
+	return _changeRequestTimeout(timeout)
 }
 
 func mixFetch(_ js.Value, args []js.Value) (any, error) {

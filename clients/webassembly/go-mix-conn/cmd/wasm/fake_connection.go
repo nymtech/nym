@@ -60,8 +60,12 @@ func NewFakeConnection(requestId RequestId, remoteAddress string) (FakeConnectio
 // NewFakeTlsConn wraps a FakeConnection with all the TLS magic
 // note: this returns a tls.Conn in the pre-handshake state
 func NewFakeTlsConn(connectionId RequestId, remoteAddress string) (*tls.Conn, ConnectionInjector) {
+	host, _, err := net.SplitHostPort(remoteAddress)
+	if err != nil {
+		panic("todo")
+	}
 	conn, inj := NewFakeConnection(connectionId, remoteAddress)
-	tlsConfig := tlsConfig()
+	tlsConfig := tlsConfig(host)
 	tlsConn := tls.Client(conn, &tlsConfig)
 	return tlsConn, inj
 }

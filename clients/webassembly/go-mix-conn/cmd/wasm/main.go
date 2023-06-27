@@ -95,8 +95,7 @@ func injectConnError(_ js.Value, args []js.Value) any {
 	errMsg := args[1].String()
 	remoteErr := errors.New(errMsg)
 
-	activeRequests.sendError(requestId, remoteErr)
-	return nil
+	return _injectConnError(requestId, remoteErr)
 }
 
 func closeRemoteSocket(_ js.Value, args []js.Value) any {

@@ -7,11 +7,15 @@ use wasm_utils::console_log;
 #[cfg(target_arch = "wasm32")]
 mod client;
 #[cfg(target_arch = "wasm32")]
+mod config;
+#[cfg(target_arch = "wasm32")]
 pub mod encoded_payload_helper;
 #[cfg(target_arch = "wasm32")]
 pub mod error;
 #[cfg(target_arch = "wasm32")]
 pub mod gateway_selector;
+#[cfg(target_arch = "wasm32")]
+mod helpers;
 #[cfg(all(target_arch = "wasm32", feature = "mix-fetch"))]
 pub mod mix_fetch;
 #[cfg(target_arch = "wasm32")]
@@ -23,10 +27,6 @@ pub mod topology;
 #[cfg(target_arch = "wasm32")]
 pub mod validation;
 
-#[cfg(target_arch = "wasm32")]
-mod helpers;
-
-mod config;
 mod constants;
 
 #[wasm_bindgen]

@@ -159,6 +159,7 @@ impl Config {
         self
     }
 
+    #[allow(unused)]
     pub fn with_custom_version<S: Into<String>>(mut self, version: S) -> Self {
         self.gateway.version = version.into();
         self

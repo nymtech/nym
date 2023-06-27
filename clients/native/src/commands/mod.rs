@@ -24,7 +24,6 @@ use std::net::IpAddr;
 
 pub(crate) mod init;
 pub(crate) mod run;
-pub(crate) mod upgrade;
 
 lazy_static! {
     pub static ref PRETTY_BUILD_INFORMATION: String =
@@ -51,10 +50,9 @@ pub(crate) struct Cli {
 pub(crate) enum Commands {
     /// Initialise a Nym client. Do this first!
     Init(init::Init),
+
     /// Run the Nym client with provided configuration client optionally overriding set parameters
     Run(run::Run),
-    /// Try to upgrade the client
-    Upgrade(upgrade::Upgrade),
 
     /// Generate shell completions
     Completions(ArgShell),
@@ -81,7 +79,6 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
     match &args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(m).await?,
-        Commands::Upgrade(m) => upgrade::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
     }

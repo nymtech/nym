@@ -43,6 +43,10 @@ type RequestOptions struct {
 	credentialsMode CredentialsMode
 }
 
+func (opts RequestOptions) String() string {
+	return fmt.Sprintf("{ redirect: %s, mode: %s, credentials: %s }", opts.redirect, opts.mode, opts.credentialsMode)
+}
+
 // ParseJSRequest is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
 // https://developer.mozilla.org/en-US/docs/Web/API/request
 /*
@@ -114,15 +118,18 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 	}
 	req.Header = headers
 
+	options := RequestOptions{
+		redirect:        redirect,
+		mode:            mode,
+		credentialsMode: credentialsMode,
+	}
+
 	Debug("constructed request: %+v", req)
+	Debug("using options: %s", options)
 
 	return &ParsedRequest{
 		request: req,
-		options: RequestOptions{
-			redirect:        redirect,
-			mode:            mode,
-			credentialsMode: credentialsMode,
-		},
+		options: options,
 	}, nil
 }
 

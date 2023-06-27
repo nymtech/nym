@@ -13,16 +13,30 @@ import (
 )
 
 type Redirect = string
+type Mode = string
+type CredentialsMode = string
 
 const (
 	REQUEST_REDIRECT_ERROR  = "error"
 	REQUEST_REDIRECT_MANUAL = "manual"
 	REQUEST_REDIRECT_FOLLOW = "follow"
+
+	MODE_CORS        = "cors"
+	MODE_SAME_ORIGIN = "same-origin"
+	MODE_NO_CORS     = "no-cors"
+	MODE_NAVIGATE    = "navigate"
+	MODE_WEBSOCKET   = "websocket"
+
+	CREDENTIALS_MODE_OMIT        = "omit"
+	CREDENTIALS_MODE_SAME_ORIGIN = "same-origin"
+	CREDENTIALS_MODE_INCLUDE     = "include"
 )
 
 type ParsedRequest struct {
-	request  *http.Request
-	redirect Redirect
+	request         *http.Request
+	redirect        Redirect
+	mode            Mode
+	credentialsMode CredentialsMode
 }
 
 // ParseJSRequest is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
@@ -78,6 +92,16 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 		return nil, err
 	}
 
+	mode, err := parseMode(&request)
+	if err != nil {
+		return nil, err
+	}
+
+	credentialsMode, err := parseCredentialsMode(&request)
+	if err != nil {
+		return nil, err
+	}
+
 	checkUnsupportedAttributes(&request)
 
 	req, err := http.NewRequest(method, requestUrl, body)
@@ -89,8 +113,10 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 	Debug("constructed request: %+v", req)
 
 	return &ParsedRequest{
-		request:  req,
-		redirect: redirect,
+		request:         req,
+		redirect:        redirect,
+		mode:            mode,
+		credentialsMode: credentialsMode,
 	}, nil
 }
 
@@ -162,8 +188,8 @@ func parseBody(request *js.Value) (io.Reader, error) {
 func parseRedirect(request *js.Value) (string, error) {
 	redirect := request.Get("redirect")
 	if redirect.IsUndefined() || redirect.IsNull() {
-		// if redirect is not specified, the default behaviour is 'follow'
-		// Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
+		// "A request has an associated redirect mode, which is "follow", "error", or "manual". Unless stated otherwise, it is "follow"."
+		// Reference: https://fetch.spec.whatwg.org/#concept-request
 		return REQUEST_REDIRECT_FOLLOW, nil
 	}
 
@@ -172,15 +198,68 @@ func parseRedirect(request *js.Value) (string, error) {
 	}
 
 	redirectString := redirect.String()
-	if redirectString == REQUEST_REDIRECT_FOLLOW {
-		return REQUEST_REDIRECT_FOLLOW, nil
-	}
-	if redirectString == REQUEST_REDIRECT_MANUAL {
+	switch redirect.String() {
+	case REQUEST_REDIRECT_MANUAL:
 		return REQUEST_REDIRECT_MANUAL, nil
-	}
-	if redirectString == REQUEST_REDIRECT_ERROR {
+	case REQUEST_REDIRECT_ERROR:
 		return REQUEST_REDIRECT_ERROR, nil
+	case REQUEST_REDIRECT_FOLLOW:
+		return REQUEST_REDIRECT_FOLLOW, nil
 	}
 
 	return "", errors.New(fmt.Sprintf("%s is not a valid redirect", redirectString))
+}
+
+func parseMode(request *js.Value) (Mode, error) {
+	mode := request.Get("mode")
+	if mode.IsUndefined() || mode.IsNull() {
+		// "Even though the default request mode is "no-cors", standards are highly discouraged from using it for new features. It is rather unsafe."
+		// Reference: https://fetch.spec.whatwg.org/#concept-request-mode
+		return MODE_NO_CORS, nil
+	}
+
+	if mode.Type() != js.TypeString {
+		return "", errors.New("the mode field is not a string")
+	}
+
+	modeString := mode.String()
+	switch modeString {
+	case MODE_CORS:
+		return MODE_CORS, nil
+	case MODE_SAME_ORIGIN:
+		return MODE_SAME_ORIGIN, nil
+	case MODE_NO_CORS:
+		return MODE_NO_CORS, nil
+	case MODE_NAVIGATE:
+		return MODE_NAVIGATE, nil
+	case MODE_WEBSOCKET:
+		return "", errors.New(fmt.Sprintf("%s mode is not supported", MODE_WEBSOCKET))
+	}
+
+	return "", errors.New(fmt.Sprintf("%s is not a valid mode", modeString))
+}
+
+func parseCredentialsMode(request *js.Value) (CredentialsMode, error) {
+	credentialsMode := request.Get("credentials")
+	if credentialsMode.IsUndefined() || credentialsMode.IsNull() {
+		// A request has an associated credentials mode, which is "omit", "same-origin", or "include". Unless stated otherwise, it is "same-origin".
+		// Reference: https://fetch.spec.whatwg.org/#concept-request-mode
+		return CREDENTIALS_MODE_SAME_ORIGIN, nil
+	}
+
+	if credentialsMode.Type() != js.TypeString {
+		return "", errors.New("the credentials field is not a string")
+	}
+
+	credentialsModeString := credentialsMode.String()
+	switch credentialsModeString {
+	case CREDENTIALS_MODE_OMIT:
+		return CREDENTIALS_MODE_OMIT, nil
+	case CREDENTIALS_MODE_INCLUDE:
+		return CREDENTIALS_MODE_INCLUDE, nil
+	case CREDENTIALS_MODE_SAME_ORIGIN:
+		return CREDENTIALS_MODE_SAME_ORIGIN, nil
+	}
+
+	return "", errors.New(fmt.Sprintf("%s is not a valid credentials mode", credentialsModeString))
 }

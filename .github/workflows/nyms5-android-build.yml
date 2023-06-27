@@ -68,8 +68,10 @@ jobs:
         working-directory: nym-connect/native/android
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.NYMS5_ANDROID_SENTRY_AUTH_TOKEN }}
         # build for arm64 and x86_64
         run: |
+          echo "auth.token=$SENTRY_AUTH_TOKEN" | tee -a sentry.properties
           ./gradlew :app:assembleArch64Debug
           ./gradlew :app:assembleArch64Release
 
@@ -107,4 +109,3 @@ jobs:
           files: |
             apk/nyms5-arch64-debug.apk
             apk/nyms5-arch64-release.apk
-

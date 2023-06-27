@@ -11,4 +11,8 @@
     <string name="sp_url">https://harbourmaster.nymtech.net/v1/services?size=100</string>
     <string name="default_sp">DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh</string>
     <string name="connected_text">Connected to the mixnet</string>
+    <string name="monitoring_desc_1">Help Nym developers to fix errors, crashes and improve the application by enabling this option. If errors occur or if the app crashes, it will automatically send a report. Also it tracks various performance metrics. We use sentry.io service to handle this.</string>
+    <string name="monitoring_desc_2">Note: A report can include your external IP, this can be useful to catch issues related to IP location.
+              All recorded data is used by Nym developers and for app development purposes only.</string>
+    <string name="monitoring_desc_3">You must restart the application for the change to take effect.</string>
 </resources>

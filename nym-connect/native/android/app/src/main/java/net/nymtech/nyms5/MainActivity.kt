@@ -50,6 +50,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -249,7 +250,7 @@ fun S5ClientSwitch(
             Spacer(modifier = modifier.width(14.dp))
             Switch(checked = connected, enabled = !loading, onCheckedChange = {
                 onSwitch(!connected)
-            })
+            }, modifier = Modifier.testTag("switch_connect"))
         }
         if (connected && !loading) {
             Column(modifier = modifier.padding(16.dp)) {
@@ -332,12 +333,10 @@ fun Monitoring(
                 tint = Color.Yellow
             )
             Spacer(modifier = modifier.width(16.dp))
-            Text(stringResource(R.string.monitoring_desc_3), color = Color.Yellow)
+            Text(stringResource(R.string.monitoring_desc_2), color = Color.Yellow)
         }
         Spacer(modifier = modifier.height(18.dp))
         Text(stringResource(R.string.monitoring_desc_1))
-        Spacer(modifier = modifier.height(18.dp))
-        Text(stringResource(R.string.monitoring_desc_2))
     }
 }
 

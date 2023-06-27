@@ -1,6 +1,7 @@
 package net.nymtech.nyms5
 
 import android.util.Log
+import io.sentry.Sentry
 
 const val nymNativeLib = "nym_socks5_listener"
 
@@ -27,6 +28,7 @@ class NymProxy {
             startClient(serviceProvider, onStartCbObj, onStopCbObj)
         } catch (e: Throwable) {
             Log.e(tag, "$nymNativeLib:startClient internal error: $e")
+            Sentry.captureException(e)
         }
     }
 
@@ -36,6 +38,7 @@ class NymProxy {
             stopClient()
         } catch (e: Throwable) {
             Log.e(tag, "$nymNativeLib:stopClient internal error: $e")
+            Sentry.captureException(e)
         }
     }
 
@@ -50,6 +53,7 @@ class NymProxy {
             }
         } catch (e: Throwable) {
             Log.e(tag, "$nymNativeLib:getClientState internal error: $e")
+            Sentry.captureException(e)
         }
         return State.UNINITIALIZED
     }

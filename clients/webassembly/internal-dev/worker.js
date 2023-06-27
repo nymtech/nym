@@ -374,26 +374,17 @@ async function testMixFetch() {
 
 // TODO: look into https://www.aaron-powell.com/posts/2019-02-08-golang-wasm-5-compiling-with-webpack/
 async function loadGoWasm() {
-    // const resp = await fetch(GO_WASM_URL);
-    // const bytes = await resp.arrayBuffer();
-    // const wasmObj = await WebAssembly.instantiate(bytes, go.importObject)
-    // goWasm = wasmObj.instance
-    // go.run(goWasm)
+    const resp = await fetch(GO_WASM_URL);
 
     if ('instantiateStreaming' in WebAssembly) {
-        WebAssembly.instantiateStreaming(fetch(GO_WASM_URL), go.importObject).then(function (obj) {
-            goWasm = obj.instance;
-            go.run(goWasm);
-        })
+        const wasmObj = await WebAssembly.instantiateStreaming(resp, go.importObject)
+        goWasm = wasmObj.instance
+        go.run(goWasm)
     } else {
-        fetch(GO_WASM_URL).then(resp =>
-            resp.arrayBuffer()
-        ).then(bytes =>
-            WebAssembly.instantiate(bytes, go.importObject).then(function (obj) {
-                goWasm = obj.instance;
-                go.run(goWasm);
-            })
-        )
+        const bytes  = await resp.arrayBuffer()
+        const wasmObj = await WebAssembly.instantiate(bytes, go.importObject)
+        goWasm = wasmObj.instance
+        go.run(goWasm)
     }
 }
 

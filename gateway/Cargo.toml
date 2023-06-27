@@ -34,15 +34,34 @@ pretty_env_logger = "0.4"
 rand = "0.7"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { version = "0.5", features = [ "runtime-tokio-rustls", "sqlite", "macros", "migrate", ] }
+sqlx = { version = "0.5", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 thiserror = "1"
-tokio = { version = "1.24.1", features = [ "rt-multi-thread", "net", "signal", "fs", ] }
+tokio = { version = "1.24.1", features = [
+    "rt-multi-thread",
+    "net",
+    "signal",
+    "fs",
+] }
 tokio-stream = { version = "0.1.11", features = ["fs"] }
 tokio-tungstenite = "0.14"
 tokio-util = { version = "0.7.4", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
 zeroize = { workspace = true }
+
+# wireguard
+# Forked it to be able to bump x25519-dalek to rc.3
+boringtun = { git = "https://github.com/durch/boringtun.git" }
+base64 = "0.21"
+x25519-dalek = { version = "=2.0.0-rc.3", features = [
+    "reusable_secrets",
+    "static_secrets",
+] }
 
 # internal
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
@@ -60,7 +79,9 @@ nym-sphinx = { path = "../common/nymsphinx" }
 nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
-nym-validator-client = { path = "../common/client-libs/validator-client", features = [ "nyxd-client" ] }
+nym-validator-client = { path = "../common/client-libs/validator-client", features = [
+    "nyxd-client",
+] }
 
 [build-dependencies]
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }

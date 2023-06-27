@@ -10,6 +10,7 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
+use crate::node::wireguard::wireguard;
 use log::*;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -28,6 +29,7 @@ pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 pub(crate) mod storage;
+pub (crate) mod wireguard;
 
 /// Wire up and create Gateway instance
 pub(crate) async fn create_gateway(config: Config) -> Gateway<PersistentStorage> {
@@ -296,6 +298,8 @@ impl<St> Gateway<St> {
             shutdown.subscribe(),
             Arc::new(coconut_verifier),
         );
+
+        tokio::spawn(wireguard());
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

@@ -297,31 +297,6 @@ async function messWithStorage() {
 
                     console.log("making store2 ENC")
                     let _storage2 = await new ClientStorage(id2, "my-secret-password");
-                    //
-                    //
-                    //
-                    //     console.log("attempting to use store1 WITH PASSWORD")
-                    //     let _storage1_alt = await new ClientStorage(id1, "password");
-                    //
-                    //
-                    //
-                    //     console.log("attempting to use store2 WITHOUT PASSWORD")
-                    //     let _storage2_alt = await ClientStorage.new_unencrypted(id2);
-                    //
-                    //
-                    //
-                    //     console.log("attempting to use store2 with WRONG PASSWORD")
-                    //     let _storage2_bad = await new ClientStorage(id2, "bad-password")
-
-
-                    //
-                    // console.log("read1: ", await storage1.read());
-                    // console.log("read2: ", await storage2.read());
-                    //
-                    // console.log("store1: ", await storage1.store("FOOMP"));
-                    //
-                    // console.log("read1: ", await storage1.read());
-                    // console.log("read2: ", await storage2.read());
                 }
             }
         }
@@ -330,8 +305,6 @@ async function messWithStorage() {
 
 
 async function testMixFetch() {
-    // self.postMessage({kind: 'DisableMagicTestButton'});
-
     // only really useful if you want to adjust some settings like traffic rate
     // (if not needed you can just pass a null)
     const debug = default_debug();
@@ -357,28 +330,6 @@ async function testMixFetch() {
     });
 
 
-
-    // const fetchToMixnetRequest = new FetchToMixnetRequest();
-    // console.log(fetchToMixnetRequest.fetch_with_str('https://nymtech.net/index.html'));
-    // console.log(fetchToMixnetRequest.fetch_with_request({
-    //     url: 'https://nymtech.net/.wellknown/wallet/validators.json',
-    //     method: 'GET'
-    // }));
-    // console.log(fetchToMixnetRequest.fetch_with_request({
-    //     url: 'http://localhost:3000',
-    //     method: 'POST',
-    //     body: Uint8Array.from([0, 1, 2, 3, 4])
-    // }));
-    // console.log(fetchToMixnetRequest.fetch_with_str_and_init('http://localhost:3000', {
-    //     method: 'POST',
-    //     body: Uint8Array.from([1, 1, 1, 1, 1]),
-    //     headers: {'Content-Type': 'application/json'}
-    // }));
-    // console.log(fetchToMixnetRequest.fetch_with_request_and_init({
-    //     url: 'https://nymtech.net/.wellknown/wallet/validators.json',
-    //     method: 'GET'
-    // }, {body: Uint8Array.from([1, 1, 1, 1, 1]), headers: {'Content-Type': 'application/json'}}));
-
     // Set callback to handle messages passed to the worker.
     self.onmessage = async event => {
         if (event.data && event.data.kind) {
@@ -389,9 +340,6 @@ async function testMixFetch() {
                     const url = mixnodeIdentity;
 
                     console.log('using mixFetch...');
-
-                    // const res = await fetch(url, {mode: "no-cors"})
-                    // const res = await mixFetch(url)
                     const res = await mixFetch(url)
 
                     console.log(res)
@@ -417,9 +365,6 @@ async function testMixFetch() {
             }
         }
     };
-
-    // console.log('using mixFetch...');
-    // await client.fetch_with_str('https://nymtech.net/.wellknown/wallet/validators.json');
 }
 
 
@@ -448,8 +393,15 @@ async function loadGoWasm() {
     // }
 }
 
-function jsFoomper() {
-    console.log("now we're in JS!")
+function setupRsGoBridge() {
+    // TODO: ask Mark how to avoid this
+    // (note: reason for intermediate `__rs_go_bridge__` object is to decrease global scope bloat
+    // and to discourage users from trying to call those methods directly)
+    self.__rs_go_bridge__ = {}
+    self.__rs_go_bridge__.send_client_data = send_client_data
+    self.__rs_go_bridge__.start_new_mixnet_connection = start_new_mixnet_connection
+    self.__rs_go_bridge__.mix_fetch_initialised = mix_fetch_initialised
+    self.__rs_go_bridge__.finish_mixnet_connection = finish_mixnet_connection
 }
 
 async function main() {
@@ -463,42 +415,10 @@ async function main() {
     await loadGoWasm();
     console.log("Loaded GO WASM");
 
-
     // sets up better stack traces in case of in-rust panics
     set_panic_hook();
 
-    // TODO: ask Mark how to avoid this
-    // (note: reason for intermediate `__rs_go_bridge__` object is to decrease global scope bloat
-    // and to discourage users from trying to call those methods directly)
-    self.__rs_go_bridge__ = {}
-    self.__rs_go_bridge__.send_client_data = send_client_data
-    self.__rs_go_bridge__.start_new_mixnet_connection = start_new_mixnet_connection
-    self.__rs_go_bridge__.mix_fetch_initialised = mix_fetch_initialised
-    self.__rs_go_bridge__.finish_mixnet_connection = finish_mixnet_connection
-
-    // const data = {
-    //     "foomp": "aaaa",
-    //     "other_field": 42,
-    //     "inner map": {
-    //         "1":1,
-    //         "2":2,
-    //     }
-    // };
-    //
-    // const response = await fetch("http://localhost:8000", {
-    //     method: "POST",
-    //     mode: "no-cors",
-    //     headers: {
-    //         "Content-Type": "text/plain",
-    //         // 'Content-Type': 'application/x-www-form-urlencoded',
-    //     },
-    //     body: JSON.stringify(data), // body data type must match "Content-Type" header
-    // })
-    //
-    // console.log(response)
-    // console.log(await response.text())
-
-    // await basicSSL()
+    setupRsGoBridge();
 
     // test mixFetch
     await testMixFetch();
@@ -513,13 +433,6 @@ async function main() {
     // await normalNymClientUsage()
 
     console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END")
-
-    self.onClientData = (data) => {
-        self.postMessage({
-            kind: 'ClientData',
-            args: { data: data },
-        });
-    }
 }
 
 // Let's get started!

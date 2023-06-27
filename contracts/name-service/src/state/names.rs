@@ -76,23 +76,6 @@ pub fn has_name(store: &dyn Storage, name: &NymName) -> bool {
     load_name(store, name).is_ok()
 }
 
-// Get the (key, name) entry for a given name
-//pub fn load_name_entry(store: &dyn Storage, name: &NymName) -> Result<(NameId, RegisteredName)> {
-//    names()
-//        .idx
-//        .name
-//        .range(store, None, None, Order::Ascending)
-//        .find(|entry| {
-//            if let Ok(entry) = entry {
-//                &entry.1.name == name
-//            } else {
-//                false
-//            }
-//        })
-//        .ok_or(NameServiceError::NameNotFound { name: name.clone() })?
-//        .map_err(NameServiceError::from)
-//}
-
 pub fn load_id(store: &dyn Storage, name_id: NameId) -> Result<RegisteredName> {
     names().load(store, name_id).map_err(|err| match err {
         StdError::NotFound { .. } => NameServiceError::NotFound { name_id },

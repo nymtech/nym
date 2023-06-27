@@ -61,7 +61,6 @@ The validator binary can be compiled by running the following commands:
 ```
 git clone https://github.com/nymtech/nyxd.git
 cd nyxd
-git checkout release/<nyxd_version>
 
 # Mainnet
 make build
@@ -78,17 +77,43 @@ At this point, you will have a copy of the `nyxd` binary in your `build/` direct
 
 You should see help text print out.
 
-### Linking `nyxd` to `libwasmvm.so`
+The `nyxd` binary and the `libwasmvm.so` shared object library binary have been compiled. `libwasmvm.so` is the wasm virtual machine which is needed to execute smart contracts.
 
-`libwasmvm.so` is the wasm virtual machine which is needed to execute smart contracts in `v0.26.1`. This file is renamed in `libwasmvm.x86_64.so` in `v0.31.1`.
+```admonish caution title=""
+If you have compiled these files locally and need to upload both of them to the server on which the validator will run, **or** downloaded a pre-compiled binary from Github, you need to locate and link these files in slightly different ways, outlined below. If you have instead compiled them on the server skip to the step outlining setting `LD_LIBRARY PATH` below.
+```
 
-If you downloaded your `nyxd` binary from Github, you will have seen this file when un-`tar`-ing the `.tar.gz` file from the releases page.
+To locate these files on your system **if you downloaded a pre-compiled binary from Github** run:
 
-If you are seeing an error concerning this file when trying to run `nyxd`, then you need to move the `libwasmvm.so` file to correct location.
+```
+WASMVM_SO=$(ldd path/to/nyxd/binary | grep libwasmvm.so | awk '{ print $3 }')
+ls ${WASMVM_SO}
+```
 
-Simply `cp` or `mv` that file to `/lib/x86_64-linux-gnu/` and re-run `nyxd`.
+e.g. if you downloaded your `nyxd` binary to `/root` then you would replace `ldd path/to/nyxd/binary` with `ldd nyxd` in the above command.
 
-### Adding `nyxd` to your `$PATH`
+
+To locate these files on your system **if you uploaded your validator after compiling it on a local machine** run:
+
+```
+WASMVM_SO=$(ldd build/nyxd | grep libwasmvm.so | awk '{ print $3 }')
+ls ${WASMVM_SO}
+```
+
+The above commands will output something like:
+
+```
+'/home/username/go/pkg/mod/github.com/!cosm!wasm/wasmvm@v0.13.0/api/libwasmvm.so'
+```
+
+When you upload your `nyxd` binary, you'll need to tell it where `libwasmvm.so` is when you start your validator, or it will not run. If you have compiled them on your server then this is not necessary, as the compiled `nyxd` already has access to `libwasmvm.so`.
+
+Upload both `nyxd` and `libwasmvm.so` to your validator machine. If `nyxd` can't find `libwasmvm.so` you will see an error like the following:
+
+```
+./nyxd: error while loading shared libraries: libwasmvm.so: cannot open shared object file: No such file or directory
+```
+
 You'll need to set `LD_LIBRARY_PATH` in your user's `~/.bashrc` file, and add that to our path. Replace `/home/youruser/path/to/nym/binaries` in the command below to the locations of `nyxd` and `libwasmvm.so` and run it. If you have compiled these on the server, they will be in the `build/` folder:
 
 ```
@@ -590,12 +615,6 @@ nyxd tx slashing unjail
   --gas-adjustment=1.4
   --fees=7000unyxt
 ```
-
-### Upgrading your validator
-
-Upgrading from `v0.26.0` -> `v0.31.1` doesn't require many modifications, simply grab a binary from the [`nyxd` releases page](https://github.com/nymtech/nyxd/releases) and once the chain has halted at the decided upon haltheight, stop your `nyxd` process, replace your binaries, and restart your process.
-
-You can also use something like [Cosmovisor](https://github.com/cosmos/cosmos-sdk/tree/main/tools/cosmovisor) - grab the relevant information from the current upgrade proposal [here](https://nym.explorers.guru/proposal/8).
 
 #### Common reasons for your validator being jailed
 

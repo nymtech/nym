@@ -65,6 +65,7 @@ impl From<Init> for OverrideConfig {
             nym_apis: init_config.nym_apis,
             fastmode: false,
             no_cover: false,
+            medium_toggle: false,
 
             nyxd_urls: init_config.nyxd_urls,
             enabled_credentials_mode: init_config.enabled_credentials_mode,

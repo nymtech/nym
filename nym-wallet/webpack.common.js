@@ -29,5 +29,8 @@ module.exports = mergeWithRules({
       filename: '[name].bundle.js',
       publicPath: '/',
     },
+    experiments: {
+      asyncWebAssembly: true,
+    },
   },
 );

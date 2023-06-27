@@ -17,8 +17,9 @@ import { isMixnode } from 'src/types';
 import { getIntervalAsDate } from 'src/utils';
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
-import { makeNavItems } from './node-settings.constant';
+import { NavItems, makeNavItems } from './node-settings.constant';
 import { ApyPlayground } from './apy-playground';
+import { NodeTestPage } from './node-test';
 
 export const NodeSettings = () => {
   const theme = useTheme();
@@ -28,14 +29,18 @@ export const NodeSettings = () => {
   const location = useLocation();
 
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps | undefined>();
-  const [value, setValue] = React.useState('General');
-  const handleChange = (event: React.SyntheticEvent, tab: string) => {
-    setValue(tab);
+  const [value, setValue] = React.useState<NavItems>('General');
+
+  const handleChange = (_: React.SyntheticEvent, tab: string) => {
+    setValue(tab as NavItems);
   };
 
   useEffect(() => {
     if (location.state === 'unbond') {
       setValue('Unbond');
+    }
+    if (location.state === 'test-node') {
+      setValue('Test my node');
     }
   }, [location]);
 
@@ -97,7 +102,7 @@ export const NodeSettings = () => {
                   '& button': {
                     p: 0,
                     mr: 4,
-                    minWidth: 'none',
+
                     fontSize: 16,
                   },
                   '& button:hover': {
@@ -124,6 +129,7 @@ export const NodeSettings = () => {
       >
         <Divider />
         {value === 'General' && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
+        {value === 'Test my node' && <NodeTestPage />}
         {value === 'Unbond' && bondedNode && (
           <NodeUnbondPage bondedNode={bondedNode} onConfirm={handleUnbond} onError={handleError} />
         )}

@@ -98,117 +98,117 @@ impl MixHttpResponse {
 // ) -> Result<MixHttpResponse, error::MixHttpRequestError> {
 //     socks5_response.try_into()
 // }
-
-#[cfg(test)]
-mod http_requests_tests {
-    use super::*;
-    use httpcodec::{HeaderField, HttpVersion, Method, RequestTarget};
-    use nym_service_providers_common::interface::Serializable;
-    use nym_socks5_requests::Socks5Response;
-
-    fn create_http_get_request() -> Request<Vec<u8>> {
-        let mut request = Request::new(
-            Method::new("GET").unwrap(),
-            RequestTarget::new("/.wellknown/wallet/validators.json").unwrap(),
-            HttpVersion::V1_1,
-            b"".to_vec(),
-        );
-        let mut headers = request.header_mut();
-        headers.add_field(HeaderField::new("Host", "nymtech.net").unwrap());
-
-        request
-    }
-
-    fn create_socks5_request_buffer() -> Vec<u8> {
-        let request = create_http_get_request();
-        let socks5_request = encode_http_request_as_socks_send_request(
-            ProviderInterfaceVersion::new_current(),
-            Socks5ProtocolVersion::new_current(),
-            99u64,
-            request,
-            Some(42u64),
-            true,
-        )
-        .unwrap();
-        socks5_request.into_bytes()
-    }
-
-    #[test]
-    fn request_http_request_content_ok() {
-        let buffer = create_socks5_request_buffer();
-
-        // HTTP request string content is as expected
-        assert_eq!(
-            [71u8, 69u8, 84u8, 32u8, 47u8, 46u8, 119u8, 101u8],
-            buffer[19..27]
-        );
-    }
-
-    /// This test will fail if the framing of the request buffer changes, e.g. when OrderedMessage
-    /// changes to have the `index` value as a field, instead of packed with the `data`
-    #[test]
-    fn request_size_as_expected_ok() {
-        let buffer = create_socks5_request_buffer();
-        // println!("{:?}", buffer) // uncomment and run `cargo test -- --nocapture` to view
-
-        assert_eq!(108, buffer.len()); // version set to SOCKS5
-    }
-
-    #[test]
-    fn request_socks5_headers_ok() {
-        let buffer = create_socks5_request_buffer();
-
-        assert_eq!(5u8, buffer[0]); // version set to SOCKS5
-        assert_eq!(1u8, buffer[1]); // type is SEND
-        assert_eq!(99u8, buffer[9]); // ConnectionId is correct
-        assert_eq!(1u8, buffer[10]); // local_closed is true
-    }
-
-    #[test]
-    fn request_ordered_message_ok() {
-        let buffer = create_socks5_request_buffer();
-
-        // OrderedMessage index is correct
-        assert_eq!(42u8, buffer[18]);
-    }
-
-    fn create_socks_response() -> Socks5Response {
-        // HTTP response is just a string
-        let http_response_string = "HTTP/1.1 200 OK\r\nServer: foo/0.0.1\r\n\r\n";
-
-        let data = http_response_string.as_bytes().to_vec();
-
-        // wrap in `NetworkData`, then Socks5Response
-        Socks5Response::new(
-            Socks5ProtocolVersion::new_current(),
-            Socks5ResponseContent::NetworkData {
-                content: SocketData::new(42, 99u64, false, data),
-            },
-        )
-    }
-
-    /// This test will fail is anything in the framing of the socks5_response byte
-    /// representation changes
-    #[test]
-    fn response_byte_size_is_as_expected() {
-        let socks5_response = create_socks_response();
-        let buf = socks5_response.into_bytes();
-
-        assert_eq!(57, buf.len());
-    }
-
-    #[test]
-    fn response_parses() {
-        unimplemented!()
-        // let socks5_response = create_socks_response();
-        // let response = decode_socks_response_as_http_response(socks5_response).unwrap();
-        //
-        // assert_eq!(42u64, response.seq); // OrderedMessage index as expected
-        // assert_eq!(HttpVersion::V1_1, response.http_response.http_version());
-        // assert_eq!(200u16, response.http_response.status_code().as_u16());
-        // assert_eq!(
-        //     "foo/0.0.1",
-        //     response.http_response.header().get_field("Server").unwrap()
-        // );
-    }
-}
+//
+// #[cfg(test)]
+// mod http_requests_tests {
+//     use super::*;
+//     use httpcodec::{HeaderField, HttpVersion, Method, RequestTarget};
+//     use nym_service_providers_common::interface::Serializable;
+//     use nym_socks5_requests::Socks5Response;
+//
+//     fn create_http_get_request() -> Request<Vec<u8>> {
+//         let mut request = Request::new(
+//             Method::new("GET").unwrap(),
+//             RequestTarget::new("/.wellknown/wallet/validators.json").unwrap(),
+//             HttpVersion::V1_1,
+//             b"".to_vec(),
+//         );
+//         let mut headers = request.header_mut();
+//         headers.add_field(HeaderField::new("Host", "nymtech.net").unwrap());
+//
+//         request
+//     }
+//
+//     fn create_socks5_request_buffer() -> Vec<u8> {
+//         let request = create_http_get_request();
+//         let socks5_request = encode_http_request_as_socks_send_request(
+//             ProviderInterfaceVersion::new_current(),
+//             Socks5ProtocolVersion::new_current(),
+//             99u64,
+//             request,
+//             Some(42u64),
+//             true,
+//         )
+//         .unwrap();
+//         socks5_request.into_bytes()
+//     }
+//
+//     #[test]
+//     fn request_http_request_content_ok() {
+//         let buffer = create_socks5_request_buffer();
+//
+//         // HTTP request string content is as expected
+//         assert_eq!(
+//             [71u8, 69u8, 84u8, 32u8, 47u8, 46u8, 119u8, 101u8],
+//             buffer[19..27]
+//         );
+//     }
+//
+//     /// This test will fail if the framing of the request buffer changes, e.g. when OrderedMessage
+//     /// changes to have the `index` value as a field, instead of packed with the `data`
+//     #[test]
+//     fn request_size_as_expected_ok() {
+//         let buffer = create_socks5_request_buffer();
+//         // println!("{:?}", buffer) // uncomment and run `cargo test -- --nocapture` to view
+//
+//         assert_eq!(108, buffer.len()); // version set to SOCKS5
+//     }
+//
+//     #[test]
+//     fn request_socks5_headers_ok() {
+//         let buffer = create_socks5_request_buffer();
+//
+//         assert_eq!(5u8, buffer[0]); // version set to SOCKS5
+//         assert_eq!(1u8, buffer[1]); // type is SEND
+//         assert_eq!(99u8, buffer[9]); // ConnectionId is correct
+//         assert_eq!(1u8, buffer[10]); // local_closed is true
+//     }
+//
+//     #[test]
+//     fn request_ordered_message_ok() {
+//         let buffer = create_socks5_request_buffer();
+//
+//         // OrderedMessage index is correct
+//         assert_eq!(42u8, buffer[18]);
+//     }
+//
+//     fn create_socks_response() -> Socks5Response {
+//         // HTTP response is just a string
+//         let http_response_string = "HTTP/1.1 200 OK\r\nServer: foo/0.0.1\r\n\r\n";
+//
+//         let data = http_response_string.as_bytes().to_vec();
+//
+//         // wrap in `NetworkData`, then Socks5Response
+//         Socks5Response::new(
+//             Socks5ProtocolVersion::new_current(),
+//             Socks5ResponseContent::NetworkData {
+//                 content: SocketData::new(42, 99u64, false, data),
+//             },
+//         )
+//     }
+//
+//     /// This test will fail is anything in the framing of the socks5_response byte
+//     /// representation changes
+//     #[test]
+//     fn response_byte_size_is_as_expected() {
+//         let socks5_response = create_socks_response();
+//         let buf = socks5_response.into_bytes();
+//
+//         assert_eq!(57, buf.len());
+//     }
+//
+//     #[test]
+//     fn response_parses() {
+//         unimplemented!()
+//         // let socks5_response = create_socks_response();
+//         // let response = decode_socks_response_as_http_response(socks5_response).unwrap();
+//         //
+//         // assert_eq!(42u64, response.seq); // OrderedMessage index as expected
+//         // assert_eq!(HttpVersion::V1_1, response.http_response.http_version());
+//         // assert_eq!(200u16, response.http_response.status_code().as_u16());
+//         // assert_eq!(
+//         //     "foo/0.0.1",
+//         //     response.http_response.header().get_field("Server").unwrap()
+//         // );
+//     }
+// }

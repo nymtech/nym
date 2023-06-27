@@ -147,6 +147,9 @@ func checkMode(mode Mode, addr string) error {
 	case MODE_CORS:
 		Warn("unimplemented %s mode", MODE_CORS)
 	case MODE_SAME_ORIGIN:
+		// "Used to ensure requests are made to same-origin URLs. Fetch will return a network error if the request is not made to a same-origin URL."
+		// Reference: https://fetch.spec.whatwg.org/#concept-request-mode
+		//
 		// Roughly speaking, two URIs are part of the same origin (i.e., represent the same principal)
 		// if they have the same scheme, host, and port.
 		// Reference: https://www.rfc-editor.org/rfc/rfc6454.html#section-3.2

@@ -92,5 +92,5 @@ extern "C" {
     pub(crate) fn goWasmCloseRemoteSocket(raw_connection_id: String);
 
     #[wasm_bindgen(js_namespace = __go_rs_bridge__)]
-    pub(crate) fn goWasmAbortConnection(raw_connection_id: String);
+    pub(crate) fn goWasmInjectConnError(raw_connection_id: String, error_msg: String);
 }

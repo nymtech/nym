@@ -314,7 +314,8 @@ async function testMixFetch() {
 
     // const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
     const validator = 'https://qa-nym-api.qa.nymte.ch/api';
-    const mix_fetch_network_requester_address= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    // const mix_fetch_network_requester_address= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    const mix_fetch_network_requester_address= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
 
     const config = new MixFetchConfig('my-awesome-mix-fetch-client', mix_fetch_network_requester_address, validator, undefined, debug);
 
@@ -340,27 +341,30 @@ async function testMixFetch() {
                     const url = mixnodeIdentity;
 
                     console.log('using mixFetch...');
-                    const res = await mixFetch(url)
+                    try {
+                        const res = await mixFetch(url)
+                        console.log(res)
+                        let text = await res.text()
+                        console.log('mixFetch done');
+                        console.log("HEADERS:     ", ...res.headers)
+                        console.log("STATUS:      ", res.status)
+                        console.log("STATUS TEXT: ", res.statusText)
+                        console.log("OK:          ", res.ok)
+                        console.log("TYPE:        ", res.type)
+                        console.log("URL:         ", res.url)
+                        console.log("BODYUSED:    ", res.bodyUsed)
+                        console.log("REDIRECTED:  ", res.redirected)
+                        console.log("TEXT:        ",text)
 
-                    console.log(res)
-                    let text = await res.text()
-                    console.log('mixFetch done');
-                    console.log("HEADERS:     ", ...res.headers)
-                    console.log("STATUS:      ", res.status)
-                    console.log("STATUS TEXT: ", res.statusText)
-                    console.log("OK:          ", res.ok)
-                    console.log("TYPE:        ", res.type)
-                    console.log("URL:         ", res.url)
-                    console.log("BODYUSED:    ", res.bodyUsed)
-                    console.log("REDIRECTED:  ", res.redirected)
-                    console.log("TEXT:        ",text)
-
-                    self.postMessage({
-                        kind: 'DisplayString',
-                        args: {
-                            rawString: text,
-                        },
-                    });
+                        self.postMessage({
+                            kind: 'DisplayString',
+                            args: {
+                                rawString: text,
+                            },
+                        });
+                    } catch(e) {
+                        console.error("mix fetch request failure: ", e)
+                    }
                 }
             }
         }

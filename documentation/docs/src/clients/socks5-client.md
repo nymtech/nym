@@ -8,6 +8,7 @@
 ```
 
 ## What is this client for?
+
 Many existing applications are able to use either the SOCKS4, SOCKS4A, or SOCKS5 proxy protocols. If you want to send such an application's traffic through the mixnet, you can use the `nym-socks5-client` to bounce network traffic through the Nym network, like this:
 
 ```
@@ -65,6 +66,7 @@ The `nym-socks5-client` allows you to do the following from your local machine:
 The `nym-network-requester` then reassembles the original TCP stream using the packets' sequence numbers, and make the intended request. It will then chop up the response into Sphinx packets and send them back through the mixnet to your  `nym-socks5-client`. The application will then receive its data, without even noticing that it wasn't talking to a "normal" SOCKS5 proxy!
 
 ## Client setup
+
 ### Viewing command help
 
 You can check that your binaries are properly compiled with:
@@ -86,6 +88,7 @@ You can check the necessary parameters for the available commands by running:
 ```
 
 ### Initialising a new client instance
+
 Before you can use the client, you need to initalise a new instance of it, which can be done with the following command:
 
 ```
@@ -105,6 +108,7 @@ The `--provider` field needs to be filled with the Nym address of a Network Requ
 Since the nodes on this list are the infrastructure for [Nymconnect](https://nymtech.net/developers/quickstart/nymconnect-gui.html) they will support all apps on the [default whitelist](../nodes/network-requester-setup.md#network-requester-whitelist): Keybase, Telegram, Electrum, Blockstream Green, and Helios.
 
 #### Choosing a Gateway
+
 By default - as in the example above - your client will choose a random gateway to connect to.
 
 However, there are several options for choosing a gateway, if you do not want one that is randomly assigned to your client:
@@ -117,6 +121,7 @@ However, there are several options for choosing a gateway, if you do not want on
 > Note this doesn't mean that your client will pick the closest gateway to you, but it will be far more likely to connect to gateway with a 20ms ping rather than 200ms
 
 ### Configuring your client
+
 When you initalise a client instance, a configuration directory will be generated and stored in `$HOME_DIR/.nym/socks5-clients/<client-name>/`.
 
 ```
@@ -140,13 +145,12 @@ The `config.toml` file contains client configuration options, while the two `pem
 The generated files contain the client name, public/private keypairs, and gateway address. The name `<client_id>` in the example above is just a local identifier so that you can name your clients.
 
 #### Configuring your client for Docker
+
 By default, the native client listens to host `127.0.0.1`. However this can be an issue if you wish to run a client in a Dockerized environment, where it can be convenenient to listen on a different host such as `0.0.0.0`.
 
 You can set this via the `--host` flag during either the `init` or `run` commands.
 
 Alternatively, a custom host can be set in the `config.toml` file under the `socket` section. If you do this, remember to restart your client process.
-
-
 
 ### Running the socks5 client
 
@@ -154,6 +158,38 @@ You can run the initalised client by doing this:
 
 ```
 ./nym-socks5-client run --id docs-example
+```
+
+## Automating your socks5 client with systemd
+
+Stop the running process with `CTRL-C`, and create a service file for the socks5 client as we did with our client instance previously at `/etc/systemd/system/nym-socks5-client.service`:
+
+```ini
+[Unit]
+Description=Nym Socks5 Client ({{platform_release_version}})
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=nym # replace this with whatever user you wish
+LimitNOFILE=65536
+ExecStart=/home/nym/nym-socks5-client run --id <your_id>
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Now enable and start your socks5 client:
+
+```
+systemctl enable nym-socks5-client.service
+systemctl start nym-socks5-client.service
+
+# you can always check your socks5 client has succesfully started with:
+systemctl status nym-socks5-client.service
 ```
 
 ## Using your Socks5 Client

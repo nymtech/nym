@@ -1,6 +1,6 @@
 [package]
 name = "nym-mixnet-contract-common"
-version = "0.7.0"
+version = "0.6.0"
 description = "Common library for the Nym mixnet contract"
 rust-version = "1.62"
 edition = { workspace = true }

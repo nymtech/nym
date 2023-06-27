@@ -2,9 +2,11 @@
 
 ## [Unreleased]
 
-## [v1.2.5] (2023-06-06)
+## [v1.2.5] (2023-06-27)
 
-- Wallet - Test my node feature. If a user has a node bonded, they can go to the node settings page and check whether their node is handling traffic well.
+- Wallet - add "Test my node" in the Node Settings and show its results ([#2314])
+
+[#2314]: https://github.com/nymtech/nym/issues/2314
 
 ## [v1.2.4] (2023-06-06)
 

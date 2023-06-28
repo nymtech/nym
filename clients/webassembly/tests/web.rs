@@ -26,7 +26,7 @@ Host: https://nymtech.net
 Content-Length: 0
 
 "#
-    .replace("\n", "\r\n");
+    .replace('\n', "\r\n");
     assert_eq!(expected, res);
 }
 
@@ -54,7 +54,7 @@ Content-Type: application/json
 Content-Length: 0
 
 "#
-    .replace("\n", "\r\n");
+    .replace('\n', "\r\n");
     assert_eq!(expected, res);
 }
 
@@ -94,7 +94,7 @@ Content-Type: application/json
 Content-Length: 22
 
 { "foo": 1, "bar": 2 }"#
-        .replace("\n", "\r\n");
+        .replace('\n', "\r\n");
     assert_eq!(expected, res);
 }
 
@@ -138,7 +138,7 @@ Content-Length: 6
 {}"#,
         "\u{1}\u{2}\u{3}\u{4}\u{5}\u{6}"
     )
-    .replace("\n", "\r\n");
+    .replace('\n', "\r\n");
     assert_eq!(expected, res);
 }
 
@@ -183,6 +183,6 @@ Content-Type: application/x-www-form-urlencoded
 Content-Length: 65
 
 field1=value1&field2=this+is+a+value+with+%F0%9F%91%8C+data+in+it"#
-        .replace("\n", "\r\n");
+        .replace('\n', "\r\n");
     assert_eq!(expected, res);
 }

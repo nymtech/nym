@@ -33,7 +33,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sysinfo = "0.27.7"
 tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal"] }
-tokio-util = { version = "0.7.3", features = ["codec"] }
+tokio-util = { version = "0.7.3", features = ["codec", "net"] }
 toml = "0.5.8"
 url = { version = "2.2", features = ["serde"] }
 cfg-if = "1.0.0"

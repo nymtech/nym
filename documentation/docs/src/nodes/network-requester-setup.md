@@ -193,10 +193,10 @@ sudo ufw enable
 sudo ufw status
 ```
 
-Finally open your requester's p2p port, as well as ports for ssh and incoming traffic connections:
+Finally open your requester's ssh port to incoming administration connections:
 
 ```
-sudo ufw allow 22,9000/tcp
+sudo ufw allow 22/tcp
 # check the status of the firewall
 sudo ufw status
 ```
@@ -249,7 +249,3 @@ This command should return the following:
 ### Requester port reference
 
 All network-requester-specific port configuration can be found in `$HOME/.nym/service-providers/network-requester/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and requester processes.
-
-| Default port | Use                       |
-|--------------|---------------------------|
-| 9000         | Listen for Client traffic |

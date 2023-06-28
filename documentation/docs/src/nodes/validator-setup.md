@@ -593,9 +593,18 @@ nyxd tx slashing unjail
 
 ### Upgrading your validator
 
-Upgrading from `v0.26.0` -> `v0.31.1` doesn't require many modifications, simply grab a binary from the [`nyxd` releases page](https://github.com/nymtech/nyxd/releases) and once the chain has halted at the decided upon haltheight, stop your `nyxd` process, replace your binaries, and restart your process.
+Upgrading from `v0.26.0` -> `v0.31.1` process is fairly simple. Grab the v0.31.1 release tarball from the [`nyxd` releases page](https://github.com/nymtech/nyxd/releases), and untar it. Inside are two files:
+
+- the new validator (`nyxd`) v0.31.1
+- the new wasmvm (it depends on your platform, but most common filename is `libwasmvm.x86_64.so`)
+
+Before the upgrade height, copy `libwasmvm.x86_64.so` to the default LD_LIBRARY_PATH on your system (on Ubuntu 20.04 this is `/lib/x86_64-linux-gnu/`):
+
+Then just swap in your new `nyxd` binary and restart once the halt height is reached.
 
 You can also use something like [Cosmovisor](https://github.com/cosmos/cosmos-sdk/tree/main/tools/cosmovisor) - grab the relevant information from the current upgrade proposal [here](https://nym.explorers.guru/proposal/8).
+
+Note: Cosmovisor will swap the `nyxd` binary, but you'll need to already have the `libwasmvm.x86_64.so` in place. Luckily, the name of the wasmvm in v0.26.1 was `libwasmvm.so`, and the new name is `libwasmvm.x86_64.so`, so you can have it already sitting there without disrupting service.
 
 #### Common reasons for your validator being jailed
 

@@ -9,6 +9,17 @@ import (
 	"syscall/js"
 )
 
+type ResponseType = string
+
+const (
+	RESPONSE_TYPE_BASIC           = "basic"
+	RESPONSE_TYPE_CORS            = "cors"
+	RESPONSE_TYPE_DEFAULT         = "default"
+	RESPONSE_TYPE_ERROR           = "error"
+	RESPONSE_TYPE_OPAQUE          = "opaque"
+	RESPONSE_TYPE_OPAQUE_REDIRECT = "opaqueredirect"
+)
+
 // IntoJSResponse is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
 // https://developer.mozilla.org/en-US/docs/Web/API/response
 /*
@@ -64,3 +75,43 @@ func intoJSResponse(resp *http.Response) (js.Value, error) {
 
 	return response, nil
 }
+
+func checkCorsHeaders(headers *http.Header) {
+	// in "no-cors"
+	// you can: var simpleMethods = ["GET", "HEAD", "POST"];
+	// you can't var otherMethods = ["DELETE", "OPTIONS", "PUT"];
+	// https://fetch.spec.whatwg.org/#cors-safelisted-request-header
+
+	//// Indicates whether the response can be shared, via returning the literal value of the `Origin` request header (which can be `null`) or `*` in a response.
+	//allowOrigin := headers.Get("Access-Control-Allow-Origin")
+	//
+	//// Indicates whether the response can be shared when request’s credentials mode is "include".
+	//allowCredentials := headers.Get("Access-Control-Allow-Credentials")
+	//
+	//// Indicates which methods are supported by the response’s URL for the purposes of the CORS protocol.
+	//allowMethods := headers.Get("Access-Control-Allow-Methods")
+	//
+	//// Indicates which headers are supported by the response’s URL for the purposes of the CORS protocol.
+	//allowHeaders := headers.Get("Access-Control-Allow-Headers")
+	//
+	//// Indicates the number of seconds (5 by default) the information provided by the `Access-Control-Allow-Methods` and `Access-Control-Allow-Headers` headers can be cached.
+	//maxAge := headers.Get("Access-Control-Max-Age")
+	//if maxAge != "" {
+	//	Warn("\"Access-Control-Max-Age\" header is present on the remote, however its handling is currently unimplemented!")
+	//}
+	//
+	//// Indicates which headers can be exposed as part of the response by listing their names.
+	//exposeHeaders := headers.Get("Access-Control-Expose-Headers")
+	//if exposeHeaders != "" {
+	//	Warn("\"Access-Control-Expose-Headers\" header is present on the remote, however its handling is currently unimplemented!")
+	//}
+}
+
+//func checkResponseTainting(reqOpts RequestOptions) ResponseTainting {
+//	// Unless stated otherwise, it is "basic".
+//	// Reference: https://fetch.spec.whatwg.org/#concept-request-response-tainting
+//	responseTainting := REQUEST_RESPONSE_TAINTING_BASIC
+//	if reqOpts.mode == MODE_NAVIGATE || reqOpts.mode == MODE_WEBSOCKET {
+//		responseTainting = REQUEST_RESPONSE_TAINTING_BASIC
+//	}
+//}

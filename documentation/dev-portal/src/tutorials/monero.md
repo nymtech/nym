@@ -29,7 +29,7 @@ Then go to your Monero wallet (gui or otherwise) and change the settings to run 
 
 * Settings -> Interface -> Socks5 proxy -> Add values: IP address `localhost`, Port `1080`
 
-![*In case the service provider isn't in the list, insert it manually*](https://youtu.be/oshnk1bg_f0)
+<iframe width="1280" height="1811" src="https://www.youtube.com/embed/oSHnk1BG_f0" title="Demo: Connect Your Monero Wallet to the Nym Mixnet via NymConnect" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 **CLI**
 

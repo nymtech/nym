@@ -201,8 +201,6 @@ sudo ufw allow 22/tcp
 sudo ufw status
 ```
 
-For more information about your requester's port configuration, check the [requester port reference table](./network-requester-setup.md#requester-port-reference) below.
-
 ## Using your network requester
 
 The next thing to do is use your requester, share its address with friends (or whoever you want to help privacy-enhance their app traffic). Is this safe to do? If it was an open proxy, this would be unsafe, because any Nym user could make network requests to any system on the internet.

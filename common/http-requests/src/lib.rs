@@ -56,7 +56,7 @@ Host: nymtech.net
 Content-Length: 0
 
 "
-        .replace("\n", "\r\n");
+        .replace('\n', "\r\n");
 
         assert_eq!(expected, body_as_string);
     }

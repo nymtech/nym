@@ -20,7 +20,6 @@ mod init;
 mod node_details;
 mod run;
 mod sign;
-mod upgrade;
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -35,9 +34,6 @@ pub(crate) enum Commands {
 
     /// Sign text to prove ownership of this mixnode
     Sign(sign::Sign),
-
-    /// Try to upgrade the mixnode
-    Upgrade(upgrade::Upgrade),
 
     /// Show details of this mixnode
     NodeDetails(node_details::NodeDetails),
@@ -67,7 +63,6 @@ pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
         Commands::Init(m) => init::execute(&m),
         Commands::Run(m) => run::execute(&m).await?,
         Commands::Sign(m) => sign::execute(&m)?,
-        Commands::Upgrade(m) => upgrade::execute(&m)?,
         Commands::NodeDetails(m) => node_details::execute(&m)?,
         Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),

@@ -55,7 +55,7 @@ export const UndelegateModal: FCWithChildren<{
         <ModalListItem label=" Tokens will be transferred to account you are logged in with now" value="" divider />
         {userBalance.balance?.amount.amount && fee?.amount?.amount && (
           <Box sx={{ my: 2 }}>
-            <BalanceWarning balance={userBalance.balance?.amount.amount} fee={fee?.amount?.amount} />
+            <BalanceWarning fee={fee?.amount?.amount} />
           </Box>
         )}
       </Box>

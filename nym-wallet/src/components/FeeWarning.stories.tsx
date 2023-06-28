@@ -16,12 +16,5 @@ const Template: ComponentStory<typeof BalanceWarning> = (args) => (
 
 export const WithWarning = Template.bind({});
 WithWarning.args = {
-  balance: '100',
   fee: '200',
-};
-
-export const NoWarning = Template.bind({});
-NoWarning.args = {
-  balance: '100',
-  fee: '100',
 };

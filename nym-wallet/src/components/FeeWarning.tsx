@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Warning } from '@mui/icons-material';
 import { FeeDetails } from '@nymproject/types';
 import { Alert, AlertTitle, Box } from '@mui/material';
 import { isBalanceEnough } from 'src/utils';
+import { AppContext } from 'src/context';
 
 export const FeeWarning = ({ fee, amount }: { fee: FeeDetails; amount: number }) => {
   if (fee.amount && +fee.amount.amount > amount) {
@@ -16,15 +17,18 @@ export const FeeWarning = ({ fee, amount }: { fee: FeeDetails; amount: number })
   return null;
 };
 
-export const BalanceWarning = ({ balance, fee }: { balance: string; fee: string }) => {
-  const hasEnoughBalanace = isBalanceEnough(balance, fee);
+export const BalanceWarning = ({ tx, fee }: { fee: string; tx?: string }) => {
+  const { userBalance } = useContext(AppContext);
 
-  if (!balance || !fee || hasEnoughBalanace) return null;
+  const hasEnoughBalanace = isBalanceEnough(fee, tx, userBalance.balance?.amount.amount);
+
+  if (hasEnoughBalanace) return null;
 
   return (
     <Alert color="warning" icon={<Warning />}>
-      <AlertTitle>Warning: Fees are greater than your balance</AlertTitle>
-      The fess are greater than your current balance which could cause this transaction to fail.
+      <AlertTitle>Warning: Transaction amount is greater than your balance</AlertTitle>
+      The transaction amount (inc fees) is greater than your current balance, which could cause this transaction to
+      fail.
       <Box sx={{ mt: 0.5 }}>Do you want to continue?</Box>
     </Alert>
   );

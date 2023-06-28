@@ -210,16 +210,21 @@ export const unymToNym = (unym: string | Big, dp = 4) => {
 /**
  *
  * Checks if the user's balance is enough to pay the fee
- * @param balance - The user's balance to check
- * @param fee - The fee to check
+ * @param balance - The user's current balance
+ * @param fee - The fee for the tx
+ * @param tx - The amount of the tx
  * @returns boolean
  *
  */
 
-export const isBalanceEnough = (balance: string, fee: string) => {
-  if (!fee || !userBalance) return false;
-  if (!balance) return false;
-  return Number(balance) >= Number(fee);
+export const isBalanceEnough = (fee: string, tx: string = '0', balance: string = '0') => {
+  console.log('balance', balance, fee, tx);
+  try {
+    return Big(balance).gte(Big(fee).plus(Big(tx)));
+  } catch (e) {
+    console.log(e);
+    return false;
+  }
 };
 
 export const getIntervalAsDate = async () => {

@@ -84,7 +84,7 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
         >
           {fee.amount?.amount && userBalance?.balance?.amount.amount && (
             <Box sx={{ mb: 2 }}>
-              <BalanceWarning balance={userBalance.balance?.amount.amount} fee={fee.amount.amount} />
+              <BalanceWarning fee={fee.amount.amount} />
             </Box>
           )}
         </ConfirmTx>

@@ -107,7 +107,7 @@ export const UpdateBondAmountModal = ({
         <ModalListItem label="Change bond details" value={`${currentBond.amount} ${currentBond.denom}`} divider />
         {userBalance.balance?.amount.amount && fee?.amount?.amount && (
           <Box sx={{ my: 2 }}>
-            <BalanceWarning balance={userBalance.balance?.amount.amount} fee={fee?.amount?.amount} />
+            <BalanceWarning fee={fee?.amount?.amount} tx={newBond?.amount} />
           </Box>
         )}
       </ConfirmTx>

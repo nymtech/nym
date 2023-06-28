@@ -67,7 +67,7 @@ export const SendDetailsModal = ({
       </Stack>
       {userBalance.balance?.amount.amount && fee?.amount?.amount && (
         <Box sx={{ my: 2 }}>
-          <BalanceWarning balance={userBalance.balance?.amount.amount} fee={fee?.amount?.amount} />
+          <BalanceWarning fee={fee?.amount?.amount} tx={amount?.amount} />
         </Box>
       )}
     </SimpleModal>

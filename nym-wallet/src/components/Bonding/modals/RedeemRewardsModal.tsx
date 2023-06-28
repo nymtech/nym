@@ -56,7 +56,7 @@ export const RedeemRewardsModal = ({
       <ModalListItem label="Rewards will be transferred to the account you are logged in with" value="" />
       {userBalance.balance?.amount.amount && fee?.amount?.amount && (
         <Box sx={{ my: 2 }}>
-          <BalanceWarning balance={userBalance.balance?.amount.amount} fee={fee?.amount?.amount} />
+          <BalanceWarning fee={fee?.amount?.amount} />
         </Box>
       )}
     </SimpleModal>

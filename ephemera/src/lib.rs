@@ -61,8 +61,7 @@ pub mod peer {
 /// Ephemera membership. How to find other nodes in the cluster.
 pub mod membership {
     pub use super::network::members::{
-        ConfigMembersProvider, DummyMembersProvider, HttpMembersProvider, JsonPeerInfo, PeerInfo,
-        PeerSetting, Result,
+        ConfigMembersProvider, DummyMembersProvider, PeerInfo, PeerSetting, ProviderError, Result,
     };
 }
 

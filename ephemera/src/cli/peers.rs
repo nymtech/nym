@@ -18,7 +18,7 @@ impl CreateLocalPeersConfiguration {
         let peers = Self::from_ephemera_dev_cluster_conf().unwrap();
         let config_peers = ConfigPeers::new(peers);
 
-        let peers_conf_path = Configuration::ephemera_root_dir()
+        let peers_conf_path = Configuration::ephemera_root_dir(None)
             .unwrap()
             .join(PEERS_CONFIG_FILE);
 
@@ -28,7 +28,7 @@ impl CreateLocalPeersConfiguration {
     //LOCAL DEV CLUSTER ONLY
     //Get peers from dev Ephemera cluster config files
     pub(crate) fn from_ephemera_dev_cluster_conf() -> anyhow::Result<Vec<PeerSetting>> {
-        let ephemera_root_dir = Configuration::ephemera_root_dir().unwrap();
+        let ephemera_root_dir = Configuration::ephemera_root_dir(None).unwrap();
 
         let mut peers = vec![];
 
@@ -36,16 +36,13 @@ impl CreateLocalPeersConfiguration {
         for entry in home_dir {
             let path = entry?.path();
             if path.is_dir() {
-                let node_name = path.file_name().unwrap().to_str().unwrap();
+                let cosmos_address = path.file_name().unwrap().to_str().unwrap();
 
-                if !node_name.starts_with("node") {
-                    continue;
-                }
+                println!("Reading peer info config from node {cosmos_address}",);
 
-                println!("Reading peer info config from node {node_name}",);
-
-                let conf = Configuration::try_load_from_home_dir(node_name)
-                    .unwrap_or_else(|_| panic!("Error loading configuration for node {node_name}"));
+                let conf = Configuration::try_load_from_home_dir().unwrap_or_else(|_| {
+                    panic!("Error loading configuration for node {cosmos_address}")
+                });
 
                 let node_info = conf.node;
 
@@ -53,13 +50,13 @@ impl CreateLocalPeersConfiguration {
                 let keypair = Keypair::from_bytes(&keypair).unwrap();
 
                 let peer = PeerSetting {
-                    name: node_name.to_string(),
+                    cosmos_address: cosmos_address.to_string(),
                     address: format!("/ip4/{}/tcp/{}", node_info.ip, conf.libp2p.port),
                     public_key: keypair.public_key().to_base58(),
                 };
                 peers.push(peer);
 
-                println!("Loaded config for node {node_name}",);
+                println!("Loaded config for node {cosmos_address}",);
             }
         }
 

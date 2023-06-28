@@ -67,6 +67,7 @@ pub struct Config {
     pub(crate) group_contract_address: Option<AccountId>,
     pub(crate) multisig_contract_address: Option<AccountId>,
     pub(crate) coconut_dkg_contract_address: Option<AccountId>,
+    pub(crate) ephemera_contract_address: Option<AccountId>,
     pub(crate) service_provider_contract_address: Option<AccountId>,
     pub(crate) name_service_contract_address: Option<AccountId>,
     // TODO: add this in later commits
@@ -131,6 +132,10 @@ impl Config {
             )?,
             coconut_dkg_contract_address: Self::parse_optional_account(
                 details.contracts.coconut_dkg_contract_address.as_ref(),
+                prefix,
+            )?,
+            ephemera_contract_address: Self::parse_optional_account(
+                details.contracts.ephemera_contract_address.as_ref(),
                 prefix,
             )?,
             service_provider_contract_address: Self::parse_optional_account(
@@ -263,6 +268,10 @@ impl<C> NyxdClient<C> {
         self.config.service_provider_contract_address = Some(address);
     }
 
+    pub fn set_ephemera_contract_address(&mut self, address: AccountId) {
+        self.config.ephemera_contract_address = Some(address);
+    }
+
     // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
     // note: what unwrap is doing here is just moving a failure that would have normally
     // occurred in `connect` when attempting to parse an empty address,
@@ -319,6 +328,14 @@ impl<C> NyxdClient<C> {
     // so it's not introducing new source of failure (just moves it)
     pub fn coconut_dkg_contract_address(&self) -> &AccountId {
         self.config.coconut_dkg_contract_address.as_ref().unwrap()
+    }
+
+    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
+    // note: what unwrap is doing here is just moving a failure that would have normally
+    // occurred in `connect` when attempting to parse an empty address,
+    // so it's not introducing new source of failure (just moves it)
+    pub fn ephemera_contract_address(&self) -> &AccountId {
+        self.config.ephemera_contract_address.as_ref().unwrap()
     }
 
     // The service provider directory contract is optional, so we return an Option not a Result

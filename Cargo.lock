@@ -2568,6 +2568,8 @@ dependencies = [
  "libp2p-identity",
  "log",
  "lru",
+ "nym-config",
+ "nym-ephemera-common",
  "nym-task",
  "pretty_env_logger",
  "rand 0.8.5",
@@ -5068,6 +5070,7 @@ dependencies = [
  "dirs 4.0.0",
  "ephemera",
  "futures",
+ "futures-util",
  "getset",
  "humantime-serde",
  "lazy_static",
@@ -5085,6 +5088,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-dkg",
+ "nym-ephemera-common",
  "nym-gateway-client",
  "nym-inclusion-probability",
  "nym-mixnet-contract-common",
@@ -5521,6 +5525,17 @@ dependencies = [
  "sha2 0.9.9",
  "thiserror",
  "zeroize",
+]
+
+[[package]]
+name = "nym-ephemera-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "nym-contracts-common",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -6366,6 +6381,7 @@ dependencies = [
  "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
+ "nym-ephemera-common",
  "nym-group-contract-common",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",

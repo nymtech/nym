@@ -31,7 +31,7 @@ impl Cli {
     pub async fn execute(self) -> anyhow::Result<()> {
         match self.subcommand {
             Subcommand::InitConfig(init) => {
-                init.execute();
+                init.execute(None);
             }
             Subcommand::InitLocalPeersConfig(add_local_peers) => {
                 add_local_peers.execute();

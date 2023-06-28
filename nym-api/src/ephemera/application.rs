@@ -8,6 +8,7 @@ use ephemera::{
 use log::{debug, error, info};
 
 use crate::ephemera::epoch::Epoch;
+use crate::ephemera::peers::members::MembersProvider;
 use crate::ephemera::peers::NymApiEphemeraPeerInfo;
 use crate::ephemera::reward::aggregator::RewardsAggregator;
 use crate::ephemera::reward::MixnodeToReward;
@@ -16,7 +17,6 @@ use crate::ephemera::Args;
 use crate::support::nyxd;
 use ephemera::crypto::{EphemeraKeypair, Keypair};
 use ephemera::ephemera_api::CommandExecutor;
-use ephemera::membership::HttpMembersProvider;
 use ephemera::{Ephemera, EphemeraStarterInit};
 use nym_task::TaskManager;
 
@@ -29,21 +29,18 @@ impl NymApi {
         nyxd_client: nyxd::Client,
         shutdown: &TaskManager,
     ) -> anyhow::Result<RewardManager> {
-        info!(
-            "Starting nym api with ephemera {} ...",
-            args.ephemera_config
-        );
         //KEYPAIR - Ephemera keypair or Validator keypair
         //Can be a file, keystore etc
         let key_pair = Self::read_nym_api_keypair(&ephemera_config)?;
 
         //EPHEMERA
-        let ephemera = Self::init_ephemera(&args, ephemera_config, nyxd_client).await?;
+        let ephemera = Self::init_ephemera(ephemera_config, nyxd_client.clone()).await?;
         let ephemera_handle = ephemera.handle();
 
         //REWARDS
         let rewards =
-            Self::create_rewards_manager(args, key_pair, ephemera_handle.api.clone()).await;
+            Self::create_rewards_manager(args, nyxd_client, key_pair, ephemera_handle.api.clone())
+                .await?;
 
         //STARTING
         let shutdown_listener = shutdown.subscribe();
@@ -53,19 +50,20 @@ impl NymApi {
     }
 
     pub(crate) async fn init_ephemera(
-        args: &Args,
         ephemera_config: Configuration,
-        _nyxd_client: nyxd::Client,
+        nyxd_client: nyxd::Client,
     ) -> anyhow::Result<Ephemera<RewardsEphemeraApplication>> {
         info!("Initializing ephemera ...");
 
         //Application for Ephemera
         let rewards_ephemera_application =
-            RewardsEphemeraApplication::init(ephemera_config.clone())?;
+            RewardsEphemeraApplication::init(ephemera_config.clone(), nyxd_client.clone()).await?;
 
         //Members provider for Ephemera
-        let url = format!("http://{}/contract/peer_info", args.smart_contract_url);
-        let members_provider = HttpMembersProvider::new(url);
+        let members_provider = MembersProvider::new(nyxd_client);
+
+        let local_peer = rewards_ephemera_application.peer_info.local_peer.clone();
+        members_provider.register_peer(local_peer).await?;
 
         //EPHEMERA
         let ephemera_builder = EphemeraStarterInit::new(ephemera_config)?;
@@ -77,16 +75,17 @@ impl NymApi {
 
     async fn create_rewards_manager(
         args: Args,
+        nyxd_client: nyxd::Client,
         key_pair: Keypair,
         ephemera_api: CommandExecutor,
-    ) -> RewardManager {
-        let epoch = Epoch::request_epoch(args.smart_contract_url.clone()).await;
-        RewardManager::new(
+    ) -> anyhow::Result<RewardManager> {
+        let epoch = Epoch::request_epoch(nyxd_client).await?;
+        Ok(RewardManager::new(
             args.clone(),
             EphemeraAccess::new(ephemera_api, key_pair).into(),
             Some(RewardsAggregator),
             epoch,
-        )
+        ))
     }
 
     fn read_nym_api_keypair(ephemera_config: &Configuration) -> anyhow::Result<Keypair> {
@@ -107,15 +106,22 @@ pub(crate) struct RewardsEphemeraApplication {
 }
 
 impl RewardsEphemeraApplication {
-    pub(crate) fn init(ephemera_config: Configuration) -> anyhow::Result<Self> {
-        let peer_info =
-            match NymApiEphemeraPeerInfo::from_ephemera_dev_cluster_conf(&ephemera_config) {
-                Ok(info) => info,
-                Err(err) => {
-                    error!("Failed to load peers info: {}", err);
-                    return Err(err);
-                }
-            };
+    pub(crate) async fn init(
+        ephemera_config: Configuration,
+        nyxd_client: nyxd::Client,
+    ) -> anyhow::Result<Self> {
+        let peer_info = match NymApiEphemeraPeerInfo::from_ephemera_dev_cluster_conf(
+            &ephemera_config,
+            nyxd_client,
+        )
+        .await
+        {
+            Ok(info) => info,
+            Err(err) => {
+                error!("Failed to load peers info: {}", err);
+                return Err(err);
+            }
+        };
         let app_config = RewardsEphemeraApplicationConfig {
             peers_rewards_threshold: peer_info.get_peers_count() as u64,
         };

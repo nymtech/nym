@@ -1413,6 +1413,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ephemera"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-controllers",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw4",
+ "cw4-group",
+ "lazy_static",
+ "nym-ephemera-common",
+ "nym-group-contract-common",
+ "rusty-fork",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "nym-ephemera-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "nym-contracts-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "nym-group-contract-common"
 version = "0.1.0"
 dependencies = [

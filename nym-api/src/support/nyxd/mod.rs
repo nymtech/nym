@@ -18,6 +18,8 @@ use nym_coconut_dkg_common::{
 };
 use nym_config::defaults::{ChainDetails, NymNetworkDetails, DEFAULT_NYM_API_PORT};
 use nym_contracts_common::dealings::ContractSafeBytes;
+use nym_ephemera_common::msg::QueryMsg as EphemeraQueryMsg;
+use nym_ephemera_common::types::JsonPeerInfo;
 use nym_mixnet_contract_common::families::{Family, FamilyHead};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
@@ -29,7 +31,8 @@ use nym_name_service_common::msg::QueryMsg as NameServiceQueryMsg;
 use nym_service_provider_directory_common::msg::QueryMsg as SpQueryMsg;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::traits::{
-    MixnetQueryClient, MixnetSigningClient, SpDirectoryQueryClient,
+    EphemeraQueryClient, EphemeraSigningClient, MixnetQueryClient, MixnetSigningClient,
+    SpDirectoryQueryClient,
 };
 use nym_validator_client::nyxd::{
     cosmwasm_client::types::ExecuteResult,
@@ -493,12 +496,50 @@ impl crate::coconut::client::Client for Client {
 }
 
 #[async_trait]
+impl crate::ephemera::client::Client for Client {
+    async fn get_ephemera_peers(&self) -> crate::ephemera::error::Result<Vec<JsonPeerInfo>> {
+        Ok(self.0.read().await.get_all_ephemera_peers().await?)
+    }
+
+    async fn register_ephemera_peer(
+        &self,
+        peer_info: JsonPeerInfo,
+    ) -> crate::ephemera::error::Result<ExecuteResult> {
+        Ok(self
+            .0
+            .write()
+            .await
+            .nyxd
+            .register_as_peer(peer_info, None)
+            .await?)
+    }
+}
+
+#[async_trait]
 impl DkgQueryClient for Client {
     async fn query_dkg_contract<T>(&self, query: DkgQueryMsg) -> std::result::Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,
     {
         self.0.read().await.nyxd.query_dkg_contract(query).await
+    }
+}
+
+#[async_trait]
+impl EphemeraQueryClient for Client {
+    async fn query_ephemera_contract<T>(
+        &self,
+        query: EphemeraQueryMsg,
+    ) -> std::result::Result<T, NyxdError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        self.0
+            .read()
+            .await
+            .nyxd
+            .query_ephemera_contract(query)
+            .await
     }
 }
 

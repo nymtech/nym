@@ -223,7 +223,11 @@ where
                 for peer_info in peers {
                     match <PeerInfo as TryInto<Peer>>::try_into(peer_info) {
                         Ok(peer) => {
-                            debug!("Received peer: {:?}, {:?}", peer.peer_id.inner(), peer.name);
+                            debug!(
+                                "Received peer: {:?}, {:?}",
+                                peer.peer_id.inner(),
+                                peer.cosmos_address
+                            );
                             new_peers.insert(*peer.peer_id.inner(), peer);
                         }
                         Err(err) => {

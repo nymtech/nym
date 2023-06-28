@@ -3,12 +3,11 @@ use std::future::Future;
 use std::io::Write;
 use std::path::PathBuf;
 use std::pin::Pin;
-use std::task::Poll::Pending;
 use std::task::{Context, Poll};
 
-use futures_util::future::BoxFuture;
 use futures_util::{future, FutureExt};
-use log::{debug, error};
+use log::error;
+use nym_ephemera_common::types::JsonPeerInfo;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -19,8 +18,8 @@ use crate::peer::PeerId;
 /// Information about an Ephemera peer.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PeerInfo {
-    /// The name of the peer. Can be arbitrary.
-    pub name: String,
+    /// The cosmos address of the peer, used in interacting with the chain.
+    pub cosmos_address: String,
     /// The address of the peer.
     /// Expected formats:
     /// 1. `<IP>:<PORT>`
@@ -35,8 +34,8 @@ impl Display for PeerInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "name {}, address {}, public key {}",
-            self.name, self.address, self.pub_key
+            "cosmos address {}, address {}, public key {}",
+            self.cosmos_address, self.address, self.pub_key
         )
     }
 }
@@ -48,7 +47,7 @@ impl TryFrom<PeerInfo> for Peer {
         let address: Address = value.address.parse()?;
         let public_key = value.pub_key;
         Ok(Self {
-            name: value.name,
+            cosmos_address: value.cosmos_address,
             address,
             public_key: public_key.clone(),
             peer_id: PeerId::from_public_key(&public_key),
@@ -62,10 +61,9 @@ pub enum ProviderError {
     ResourceUnavailable(String),
     #[error("MembersProvider: {0}")]
     MembersProvider(#[from] anyhow::Error),
+    #[error("Could not get peers - {0}")]
+    GetPeers(String),
 }
-
-/// Future type which allows user to implement their own peers membership source mechanism.
-pub type ProviderFut = BoxFuture<'static, Result<Vec<PeerInfo>>>;
 
 pub type Result<T> = std::result::Result<T, ProviderError>;
 
@@ -94,8 +92,8 @@ pub enum ConfigMembersProviderError {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct PeerSetting {
-    /// The name of the peer. Can be arbitrary.
-    pub name: String,
+    /// The cosmos address of the peer, used in interacting with the chain.
+    pub cosmos_address: String,
     /// The address of the peer.
     /// Expected formats:
     /// 1. `<IP>:<PORT>`
@@ -124,7 +122,7 @@ impl TryFrom<PeerSetting> for PeerInfo {
     fn try_from(setting: PeerSetting) -> std::result::Result<Self, Self::Error> {
         let pub_key = setting.public_key.parse::<PublicKey>()?;
         Ok(PeerInfo {
-            name: setting.name,
+            cosmos_address: setting.cosmos_address,
             address: setting.address,
             pub_key,
         })
@@ -240,130 +238,15 @@ impl ConfigPeers {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct JsonPeerInfo {
-    /// The name of the peer. Can be arbitrary.
-    pub name: String,
-    /// The address of the peer. See [PeerInfo] for more details.
-    pub address: String,
-    ///Serialized public key.
-    ///
-    /// # Converting to string and back example
-    ///```
-    /// use ephemera::crypto::{EphemeraKeypair, EphemeraPublicKey, Keypair, PublicKey};
-    ///
-    /// let public_key = Keypair::generate(None).public_key();
-    ///
-    /// let public_key_str = public_key.to_string();
-    ///
-    /// let public_key_parsed = public_key_str.parse::<PublicKey>().unwrap();
-    ///
-    /// assert_eq!(public_key, public_key_parsed);
-    /// ```
-    pub public_key: String,
-}
-
-impl JsonPeerInfo {
-    #[must_use]
-    pub fn new(name: String, address: String, pub_key: String) -> Self {
-        Self {
-            name,
-            address,
-            public_key: pub_key,
-        }
-    }
-}
-
 impl TryFrom<JsonPeerInfo> for PeerInfo {
     type Error = anyhow::Error;
 
     fn try_from(json_peer_info: JsonPeerInfo) -> std::result::Result<Self, Self::Error> {
         let pub_key = json_peer_info.public_key.parse::<PublicKey>()?;
         Ok(PeerInfo {
-            name: json_peer_info.name,
-            address: json_peer_info.address,
+            cosmos_address: json_peer_info.cosmos_address.to_string(),
+            address: json_peer_info.ip_address,
             pub_key,
         })
-    }
-}
-
-///[`ProviderFut`] that reads peers from a http endpoint.
-///
-/// The endpoint must return a json array of [`JsonPeerInfo`].
-/// # Configuration example
-/// ```json
-/// [
-///  {
-///     "name": "node1",
-///     "address": "/ip4/",
-///     "public_key": "4XTTMEghav9LZThm6opUaHrdGEEYUkrfkakVg4VAetetBZDWJ"
-///   },
-///  {
-///     "name": "node2",
-///     "address": "/ip4/",
-///     "public_key": "4XTTMFQt2tgNRmwRgEAaGQe2NXygsK6Vr3pkuBfYezhDfoVty"
-///   }
-/// ]
-/// ```
-pub struct HttpMembersProvider {
-    /// The url of the http endpoint.
-    members_url: String,
-    fut: Option<ProviderFut>,
-}
-
-impl HttpMembersProvider {
-    #[must_use]
-    pub fn new(members_url: String) -> Self {
-        Self {
-            members_url,
-            fut: None,
-        }
-    }
-
-    async fn request_peers(members_url: String) -> Result<Vec<PeerInfo>> {
-        debug!("Requesting peers from: {:?}", members_url);
-        let json_peers: Vec<JsonPeerInfo> = reqwest::get(members_url)
-            .await
-            .map_err(|err| anyhow::anyhow!("Failed to get peers: {err}"))?
-            .json()
-            .await
-            .map_err(|err| anyhow::anyhow!("Failed to parse peers: {err}"))?;
-
-        let peers = json_peers
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<anyhow::Result<Vec<PeerInfo>>>()?;
-
-        Ok(peers)
-    }
-}
-
-impl Future for HttpMembersProvider {
-    type Output = Result<Vec<PeerInfo>>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self.fut.take() {
-            None => {
-                self.fut = Some(Box::pin(HttpMembersProvider::request_peers(
-                    self.members_url.clone(),
-                )));
-            }
-            Some(mut fut) => {
-                let peers = match fut.poll_unpin(cx) {
-                    Poll::Ready(Ok(peers)) => peers,
-                    Poll::Ready(Err(err)) => {
-                        error!("Failed to get peers: {err}");
-                        return Poll::Ready(Err(err));
-                    }
-                    Pending => {
-                        self.fut = Some(fut);
-                        return Pending;
-                    }
-                };
-
-                return Poll::Ready(Ok(peers));
-            }
-        }
-        Pending
     }
 }

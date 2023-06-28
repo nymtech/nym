@@ -5,6 +5,8 @@
 
 mod coconut_bandwidth_query_client;
 mod dkg_query_client;
+mod ephemera_query_client;
+mod ephemera_signing_client;
 mod group_query_client;
 mod mixnet_query_client;
 mod multisig_query_client;
@@ -24,6 +26,7 @@ mod name_service_signing_client;
 
 pub use coconut_bandwidth_query_client::CoconutBandwidthQueryClient;
 pub use dkg_query_client::DkgQueryClient;
+pub use ephemera_query_client::EphemeraQueryClient;
 pub use group_query_client::GroupQueryClient;
 pub use mixnet_query_client::MixnetQueryClient;
 pub use multisig_query_client::MultisigQueryClient;
@@ -33,6 +36,7 @@ pub use vesting_query_client::VestingQueryClient;
 
 pub use coconut_bandwidth_signing_client::CoconutBandwidthSigningClient;
 pub use dkg_signing_client::DkgSigningClient;
+pub use ephemera_signing_client::EphemeraSigningClient;
 pub use mixnet_signing_client::MixnetSigningClient;
 pub use multisig_signing_client::MultisigSigningClient;
 pub use name_service_signing_client::NameServiceSigningClient;

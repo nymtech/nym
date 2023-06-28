@@ -17,6 +17,7 @@ pub mod helpers;
 pub mod legacy_helpers;
 
 pub const NYM_DIR: &str = ".nym";
+pub const DEFAULT_NYM_APIS_DIR: &str = "nym-api";
 pub const DEFAULT_CONFIG_DIR: &str = "config";
 pub const DEFAULT_DATA_DIR: &str = "data";
 pub const DEFAULT_CONFIG_FILENAME: &str = "config.toml";

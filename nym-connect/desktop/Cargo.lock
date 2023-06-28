@@ -3547,6 +3547,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ephemera-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-utils",
+ "nym-contracts-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "nym-gateway-client"
 version = "0.1.0"
 dependencies = [
@@ -3984,6 +3995,7 @@ dependencies = [
  "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
+ "nym-ephemera-common",
  "nym-group-contract-common",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",

@@ -134,10 +134,7 @@ func checkRedirect(redirect Redirect, req *http.Request, via []*http.Request) er
 }
 
 func checkMode(mode Mode, addr string) error {
-	originUrl, originErr := url.Parse(origin)
-	if originErr != nil {
-		return errors.New(fmt.Sprintf("could not obtain origin: %s", originErr))
-	}
+	originUrl := originUrl()
 	remoteUrl, remoteErr := url.Parse(addr)
 	if remoteErr != nil {
 		return remoteErr
@@ -154,7 +151,7 @@ func checkMode(mode Mode, addr string) error {
 		// if they have the same scheme, host, and port.
 		// Reference: https://www.rfc-editor.org/rfc/rfc6454.html#section-3.2
 		if originUrl.Scheme != remoteUrl.Scheme || originUrl.Host != remoteUrl.Host || originUrl.Port() != remoteUrl.Port() {
-			return errors.New(fmt.Sprintf("Access to mixFetch at '%s' from origin '%s' has been blocked by CORS policy.", addr, origin))
+			return errors.New(fmt.Sprintf("MixFetch API cannot load %s. Request mode is \"%s\" but the URL's origin is not same as the request origin %s.", addr, MODE_SAME_ORIGIN, origin))
 		}
 
 	case MODE_NO_CORS:
@@ -257,12 +254,80 @@ func _changeRequestTimeout(timeout time.Duration) any {
 	return nil
 }
 
+// Reference: https://fetch.spec.whatwg.org/#cors-check
+func doCorsCheck(reqOpts RequestOptions, resp *http.Response) error {
+	// 4.9.1
+	originHeader := resp.Header.Get(headerAllowOrigin)
+	// 4.9.2
+	if originHeader == "" {
+		return errors.New(fmt.Sprintf("\"%s\" header not present on remote", headerAllowOrigin))
+	}
+
+	if reqOpts.credentialsMode != CREDENTIALS_MODE_INCLUDE && originHeader == wildcard {
+		// 4.9.3
+		return nil
+	}
+
+	// 4.9.4
+	// TODO: presumably this needs to better account for the wildcard?
+	if origin != originHeader {
+		return errors.New(fmt.Sprintf("\"%s\" does not match the origin \"%s\" on \"%s\" remote header", origin, originHeader, headerAllowOrigin))
+	}
+
+	// 4.9.5
+	if reqOpts.credentialsMode != CREDENTIALS_MODE_INCLUDE {
+		return nil
+	}
+
+	// 4.9.6
+	credentials := resp.Header.Get(headerAllowCredentials)
+	// 4.9.7
+	if credentials == "true" {
+		return nil
+	}
+
+	// 4.9.8
+	return errors.New("failed cors check")
+}
+
 func performRequest(req *ParsedRequest) (*http.Response, error) {
 	reqClient := buildHttpClient(req.options)
 
+	if req.options.referrerPolicy == "" {
+		// 4.1.8
+		// Reference: https://fetch.spec.whatwg.org/#main-fetch
+		// TODO: implement
+		Warn("unimplemented: could not obtain referrer policy from the policy container")
+	}
+
+	if req.options.referrer != REFERRER_NO_REFERRER {
+		// 4.1.9
+		// Reference: https://fetch.spec.whatwg.org/#main-fetch
+		// TODO: implement
+		Warn("unimplemented: could not determine request's referrer")
+	}
+
 	Info("Starting the request...")
 	Debug("%v: %v", req.options, *req.request)
-	return reqClient.Do(req.request)
+	resp, err := reqClient.Do(req.request)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: check if response is a filtered response
+
+	responseTainting := "TODO"
+	// 4.1.14.1
+	if responseTainting == RESPONSE_TAINTING_CORS {
+		//
+	}
+
+	err = doCorsCheck(req.options, resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, err
 }
 
 func _mixFetch(request *ParsedRequest) (any, error) {

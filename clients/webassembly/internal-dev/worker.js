@@ -402,32 +402,37 @@ function setupRsGoBridge() {
 async function main() {
     console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN START");
 
-    // load rust WASM package
-    await wasm_bindgen(RUST_WASM_URL);
-    console.log('Loaded RUST WASM');
+    const res = await fetch("http://localhost:8000", { mode: "no-cors"})
+    console.log(res)
 
-    // load go WASM package
-    await loadGoWasm();
-    console.log("Loaded GO WASM");
+    console.log(self)
 
-    // sets up better stack traces in case of in-rust panics
-    set_panic_hook();
-
-    setupRsGoBridge();
-
-    // test mixFetch
-    await testMixFetch();
-
-    // run test on simplified and dedicated tester:
-    // await testWithTester()
-
-    // hook-up the whole client for testing
-    // await testWithNymClient()
-
-    // 'Normal' client setup (to send 'normal' messages)
-    // await normalNymClientUsage()
-
-    console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END")
+    // // load rust WASM package
+    // await wasm_bindgen(RUST_WASM_URL);
+    // console.log('Loaded RUST WASM');
+    //
+    // // load go WASM package
+    // await loadGoWasm();
+    // console.log("Loaded GO WASM");
+    //
+    // // sets up better stack traces in case of in-rust panics
+    // set_panic_hook();
+    //
+    // setupRsGoBridge();
+    //
+    // // test mixFetch
+    // await testMixFetch();
+    //
+    // // run test on simplified and dedicated tester:
+    // // await testWithTester()
+    //
+    // // hook-up the whole client for testing
+    // // await testWithNymClient()
+    //
+    // // 'Normal' client setup (to send 'normal' messages)
+    // // await normalNymClientUsage()
+    //
+    // console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END")
 }
 
 // Let's get started!

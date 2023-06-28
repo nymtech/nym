@@ -6,7 +6,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/net/http/httpguts"
+	"net/url"
 	"strconv"
+	"strings"
 	"syscall/js"
 )
 
@@ -17,6 +20,14 @@ var (
 	jsPromise = js.Global().Get("Promise")
 	origin    = js.Global().Get("location").Get("origin").String()
 )
+
+func originUrl() *url.URL {
+	originUrl, originErr := url.Parse(origin)
+	if originErr != nil {
+		panic(fmt.Sprintf("could not obtain origin: %s", originErr))
+	}
+	return originUrl
+}
 
 // AsyncFunc converts a Go-JS function into a Promise
 func asyncFunc(innerFunc jsFn) js.Func {
@@ -117,4 +128,28 @@ func getStringProperty(obj *js.Value, name string) (string, error) {
 		return "", errors.New(fmt.Sprintf("the property %s is not a string", name))
 	}
 	return val.String(), nil
+}
+
+func isToken(raw string) bool {
+	if len(raw) == 0 {
+		return false
+	}
+	for _, b := range []byte(raw) {
+		if !httpguts.IsTokenRune(rune(b)) {
+			return false
+		}
+	}
+	return true
+}
+
+func byteLowercase(s string) string {
+	return strings.Map(byteLowercaseOne, s)
+}
+
+func byteLowercaseOne(asciiRune rune) rune {
+	const toLower = 'a' - 'A'
+	if 'A' <= asciiRune && asciiRune <= 'Z' {
+		return asciiRune + toLower
+	}
+	return asciiRune
 }

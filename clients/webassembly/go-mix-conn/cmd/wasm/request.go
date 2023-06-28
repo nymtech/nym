@@ -9,17 +9,25 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"syscall/js"
 )
 
 type Redirect = string
 type Mode = string
 type CredentialsMode = string
+type ResponseTainting = string
+type ReferrerPolicy = string
+type Referrer = string
 
 const (
 	REQUEST_REDIRECT_ERROR  = "error"
 	REQUEST_REDIRECT_MANUAL = "manual"
 	REQUEST_REDIRECT_FOLLOW = "follow"
+
+	RESPONSE_TAINTING_BASIC  = "basic"
+	RESPONSE_TAINTING_CORS   = "cors"
+	RESPONSE_TAINTING_OPAQUE = "opaque"
 
 	MODE_CORS        = "cors"
 	MODE_SAME_ORIGIN = "same-origin"
@@ -30,6 +38,18 @@ const (
 	CREDENTIALS_MODE_OMIT        = "omit"
 	CREDENTIALS_MODE_SAME_ORIGIN = "same-origin"
 	CREDENTIALS_MODE_INCLUDE     = "include"
+
+	REFERRER_POLICY_NO_REFERRER                     = "no-referrer"
+	REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE      = "no-referrer-when-downgrade"
+	REFERRER_POLICY_ORIGIN                          = "origin"
+	REFERRER_POLICY_ORIGIN_WHEN_CROSS_ORIGIN        = "origin-when-cross-origin"
+	REFERRER_POLICY_SAME_ORIGIN                     = "same-origin"
+	REFERRER_POLICY_STRICT_ORIGIN                   = "strict-origin"
+	REFERRER_POLICY_STRICT_ORIGIN_WHEN_CROSS_ORIGIN = "strict-origin-when-cross-origin"
+	REFERRER_POLICY_UNSAFE_URL                      = "unsafe-url"
+
+	REFERRER_NO_REFERRER = "no-referrer"
+	REFERRER_CLIENT      = "client"
 )
 
 type ParsedRequest struct {
@@ -41,6 +61,9 @@ type RequestOptions struct {
 	redirect        Redirect
 	mode            Mode
 	credentialsMode CredentialsMode
+	referrerPolicy  ReferrerPolicy
+	referrer        Referrer
+	//responseTainting ResponseTainting
 }
 
 func (opts RequestOptions) String() string {
@@ -49,6 +72,8 @@ func (opts RequestOptions) String() string {
 
 // ParseJSRequest is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
 // https://developer.mozilla.org/en-US/docs/Web/API/request
+//
+// Preflight requests: status unknown
 /*
 	request attributes and their implementation status:
 	[✅] - supported
@@ -85,12 +110,6 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 		return nil, err
 	}
 
-	jsHeaders := request.Get("headers")
-	headers, err := parseHeaders(jsHeaders)
-	if err != nil {
-		return nil, err
-	}
-
 	body, err := parseBody(&request)
 	if err != nil {
 		return nil, err
@@ -110,6 +129,30 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 		return nil, err
 	}
 
+	referrer, err := parseReferrer(&request)
+	if err != nil {
+		return nil, err
+	}
+
+	referrerPolicy, err := parseRefererPolicy(&request)
+	if err != nil {
+		return nil, err
+	}
+
+	options := RequestOptions{
+		redirect:        redirect,
+		mode:            mode,
+		credentialsMode: credentialsMode,
+		referrer:        referrer,
+		referrerPolicy:  referrerPolicy,
+	}
+
+	jsHeaders := request.Get("headers")
+	headers, err := parseHeaders(jsHeaders, options, method)
+	if err != nil {
+		return nil, err
+	}
+
 	checkUnsupportedAttributes(&request)
 
 	req, err := http.NewRequest(method, requestUrl, body)
@@ -118,12 +161,6 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 	}
 	req.Header = headers
 
-	options := RequestOptions{
-		redirect:        redirect,
-		mode:            mode,
-		credentialsMode: credentialsMode,
-	}
-
 	Debug("constructed request: %+v", req)
 	Debug("using options: %s", options)
 
@@ -131,6 +168,10 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 		request: req,
 		options: options,
 	}, nil
+}
+
+func applyCorsMode() {
+
 }
 
 func checkUnsupportedAttributes(request *js.Value) {
@@ -143,7 +184,7 @@ func checkUnsupportedAttributes(request *js.Value) {
 	// TODO: implement more of them
 }
 
-func parseHeaders(headers js.Value) (http.Header, error) {
+func parseHeaders(headers js.Value, reqOpts RequestOptions, method string) (http.Header, error) {
 	goHeaders := http.Header{}
 
 	if headers.Type() != js.TypeObject {
@@ -155,7 +196,7 @@ func parseHeaders(headers js.Value) (http.Header, error) {
 		next := headersIter.Call("next")
 		done := next.Get("done").Bool()
 		if done {
-			return goHeaders, nil
+			break
 		}
 		keyValue := next.Get("value")
 		if keyValue.Length() != 2 {
@@ -173,6 +214,33 @@ func parseHeaders(headers js.Value) (http.Header, error) {
 		ck := http.CanonicalHeaderKey(key.String())
 		goHeaders[ck] = append(goHeaders[ck], value.String())
 	}
+
+	// add additional headers
+
+	// 3.1.1
+	serializedOrigin := &origin
+	// Reference: https://fetch.spec.whatwg.org/#origin-header
+	// TODO: 3.1.2: check response tainting
+	// 3.1.3
+	if method != "GET" && method != "HEAD" {
+		// 3.1.3.1
+		if reqOpts.mode != MODE_CORS {
+			switch reqOpts.referrerPolicy {
+			case REFERRER_NO_REFERRER:
+				serializedOrigin = nil
+			case REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE, REFERRER_POLICY_STRICT_ORIGIN, REFERRER_POLICY_STRICT_ORIGIN_WHEN_CROSS_ORIGIN:
+				panic("unimplemented referrer policy")
+			case REFERRER_POLICY_SAME_ORIGIN:
+				panic("unimplemented referrer policy")
+			}
+		}
+		// 3.1.3.2
+		if serializedOrigin != nil {
+			goHeaders.Set(headerOrigin, *serializedOrigin)
+		}
+	}
+
+	return goHeaders, nil
 }
 
 func parseBody(request *js.Value) (io.Reader, error) {
@@ -275,4 +343,68 @@ func parseCredentialsMode(request *js.Value) (CredentialsMode, error) {
 	}
 
 	return "", errors.New(fmt.Sprintf("%s is not a valid credentials mode", credentialsModeString))
+}
+
+func parseReferrer(request *js.Value) (Referrer, error) {
+	referrer := request.Get("referrer")
+	if referrer.IsUndefined() || referrer.IsNull() {
+		// A request has an associated referrer, which is "no-referrer", "client", or a URL. Unless stated otherwise it is "client".
+		// Reference: https://fetch.spec.whatwg.org/#concept-request-referrer
+		return REFERRER_CLIENT, nil
+	}
+
+	if referrer.Type() != js.TypeString {
+		return "", errors.New("the referrer field is not a string")
+	}
+
+	referrerString := referrer.String()
+	if referrerString == REFERRER_NO_REFERRER {
+		return REFERRER_NO_REFERRER, nil
+	}
+
+	if referrerString == REFERRER_CLIENT {
+		return REFERRER_CLIENT, nil
+	}
+
+	_, err := url.Parse(referrerString)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("\"%s\" is not a valid URL referrer: \"%s\"", referrerString, err))
+	}
+	return referrerString, nil
+}
+
+func parseRefererPolicy(request *js.Value) (ReferrerPolicy, error) {
+	referrerPolicy := request.Get("referrerPolicy")
+	if referrerPolicy.IsUndefined() || referrerPolicy.IsNull() {
+		// A request has an associated referrer policy, which is a referrer policy. Unless stated otherwise it is the empty string
+		// Reference: https://fetch.spec.whatwg.org/#concept-request-referrer-policy
+		return "", nil
+	}
+
+	if referrerPolicy.Type() != js.TypeString {
+		return "", errors.New("the referrerPolicy field is not a string")
+	}
+
+	referrerPolicyString := referrerPolicy.String()
+	switch referrerPolicyString {
+	case REFERRER_POLICY_NO_REFERRER:
+		return REFERRER_POLICY_NO_REFERRER, nil
+	case REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE:
+		return REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE, nil
+	case REFERRER_POLICY_ORIGIN:
+		return REFERRER_POLICY_ORIGIN, nil
+	case REFERRER_POLICY_ORIGIN_WHEN_CROSS_ORIGIN:
+		return REFERRER_POLICY_ORIGIN_WHEN_CROSS_ORIGIN, nil
+	case REFERRER_POLICY_SAME_ORIGIN:
+		return REFERRER_POLICY_SAME_ORIGIN, nil
+	case REFERRER_POLICY_STRICT_ORIGIN:
+		return REFERRER_POLICY_STRICT_ORIGIN, nil
+	case REFERRER_POLICY_STRICT_ORIGIN_WHEN_CROSS_ORIGIN:
+		return REFERRER_POLICY_STRICT_ORIGIN_WHEN_CROSS_ORIGIN, nil
+	case REFERRER_POLICY_UNSAFE_URL:
+		return REFERRER_POLICY_UNSAFE_URL, nil
+	}
+
+	return "", errors.New(fmt.Sprintf("%s is not a valid referrer policy", referrerPolicyString))
+
 }

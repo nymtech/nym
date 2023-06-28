@@ -35,7 +35,6 @@
     - [Building Your Service Provider](tutorials/simple-service-provider/service-provider.md)
     - [Sending a Message Through the Mixnet](tutorials/simple-service-provider/sending-message.md)
 - [IPFS Service Provider (coming soon)](tutorials/ipfs-service-provider.md)
-- [Monero X NymConnect](tutorials/monero.md)
 
 # Community Resources
 

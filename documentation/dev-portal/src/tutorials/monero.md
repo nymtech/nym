@@ -29,7 +29,7 @@ Then go to your Monero wallet (gui or otherwise) and change the settings to run 
 
 * Settings -> Interface -> Socks5 proxy -> Add values: IP address `localhost`, Port `1080`
 
-![*In case the service provider isn't in the list, insert it manually*](https://youtu.be/oSHnk1BG_f0)
+![*In case the service provider isn't in the list, insert it manually*](https://youtu.be/oshnk1bg_f0)
 
 **CLI**
 

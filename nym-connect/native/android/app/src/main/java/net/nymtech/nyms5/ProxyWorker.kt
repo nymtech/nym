@@ -17,6 +17,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import fuel.Fuel
 import fuel.get
+import io.sentry.Sentry
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -100,6 +101,7 @@ class ProxyWorker(
                 tag,
                 "failed to make the work run in the context of a foreground service"
             )
+            Sentry.captureException(e)
         }
 
         return try {
@@ -127,6 +129,7 @@ class ProxyWorker(
                     tag,
                     "an error occurred while fetching the service providers list: $e"
                 )
+                Sentry.captureException(e)
                 Log.w(tag, "using a default service provider $defaultSp")
             }
 
@@ -139,6 +142,7 @@ class ProxyWorker(
             Result.success()
         } catch (e: Throwable) {
             Log.e(tag, "error: ${e.message}")
+            Sentry.captureException(e)
             Result.failure()
         }
     }

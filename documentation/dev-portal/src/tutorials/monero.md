@@ -2,7 +2,7 @@
 
 *New Nym mixnet integration launched for Monero desktop to secure the right to financial privacy and censorship-resistance*
 
-![](./images/monero_tutorial/monero.png)
+![](../images/monero_tutorial/monero.png)
 
 Financial privacy is an important component of digital currencies and the use of Nym will provide users with the highest level of privacy at the infrastructure level. All users of digital currencies should be afforded equal rights to protection from financial surveillance.
 
@@ -10,7 +10,7 @@ A team made up of Monero community members have successfully set up a service pr
 
 ## How can I use Monero over the Nym mixnet?
 
-The mainnet service provider to Monero over the Nym mixnet is now ready for use via [NymConnect](https://nymtech.net/download-nymconnect/).  
+The mainnet service provider to Monero over the Nym mixnet is now ready for use via [NymConnect](https://nymtech.net/download-nymconnect/).
 
 * Donwload and open the latest version of [NymConnect](https://nymtech.net/download-nymconnect/).
 * Click on the top left options and go to Settings
@@ -23,9 +23,9 @@ i1TiuoNp4jp9weffCW7tPnkb4hRTPydRjX8iXFVaYDG.88Z1hruuvbzWpdCE2xYnTbPNrr49j4s7mmUQ
 
 * Go to the main NymConnect interface and connect to the mixnet
 
-Then go to your Monero wallet (gui or otherwise) and change the settings to run over socks5 proxy:  
+Then go to your Monero wallet (gui or otherwise) and change the settings to run over socks5 proxy:
 
-**Monero desktop:** 
+**Monero desktop:**
 
 * Settings -> Interface -> Socks5 proxy -> Add values: IP address `localhost`, Port `1080`
 

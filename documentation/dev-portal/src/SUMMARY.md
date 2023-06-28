@@ -35,6 +35,7 @@
     - [Building Your Service Provider](tutorials/simple-service-provider/service-provider.md)
     - [Sending a Message Through the Mixnet](tutorials/simple-service-provider/sending-message.md)
 - [IPFS Service Provider (coming soon)](tutorials/ipfs-service-provider.md)
+- [Monero X NymConnect](tutorials/monero.md)
 
 # Community Resources
 
@@ -43,10 +44,10 @@
 - [Community Guides](community-resources/community-guides.md)
 - [Change Service Grantee Information](info-request.md)
 - [Rewards FAQ](community-resources/rewards-faq.md)
---- 
+---
 
 # Misc.
 - [Glossary](glossary.md)
 - [Code of Conduct](coc.md)
 - [Licensing](licensing.md)
---- 
+---

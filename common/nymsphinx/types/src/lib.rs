@@ -1,11 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(not(feature = "wasm-contract"))]
 pub use nym_outfox::{
     constants::MIN_PACKET_SIZE, constants::MIX_PARAMS_LEN, constants::OUTFOX_PACKET_OVERHEAD,
     error::OutfoxError,
 };
 // re-exporting types and constants available in sphinx
+#[cfg(not(feature = "wasm-contract"))]
 use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
 pub use sphinx_packet::{
     constants::{
@@ -30,6 +32,7 @@ pub enum NymPacketError {
     Sphinx(#[from] sphinx_packet::Error),
 
     #[error("Outfox error: {0}")]
+    #[cfg(not(feature = "wasm-contract"))]
     Outfox(#[from] nym_outfox::error::OutfoxError),
 
     #[error("{0}")]
@@ -39,11 +42,13 @@ pub enum NymPacketError {
 #[allow(clippy::large_enum_variant)]
 pub enum NymPacket {
     Sphinx(SphinxPacket),
+    #[cfg(not(feature = "wasm-contract"))]
     Outfox(OutfoxPacket),
 }
 
 pub enum NymProcessedPacket {
     Sphinx(ProcessedPacket),
+    #[cfg(not(feature = "wasm-contract"))]
     Outfox(OutfoxProcessedPacket),
 }
 

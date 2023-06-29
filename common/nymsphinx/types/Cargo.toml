@@ -9,5 +9,9 @@ repository = { workspace = true }
 
 [dependencies]
 sphinx-packet = { version = "0.1.0" }
-nym-outfox = { path = "../../../nym-outfox" }
+nym-outfox = { path = "../../../nym-outfox", optional = true }
 thiserror = "1"
+
+[features]
+default = ["nym-outfox"]
+wasm-contract = []

@@ -144,7 +144,7 @@ jobs:
         with:
           url: ${{ env.strapi_download_url }}
           method: 'POST'
-          # bearerToken: ${{ secrets.STRAPI_AUTH_TOKEN }} TODO
+          bearerToken: ${{ secrets.STRAPI_API_TOKEN_RELEASES }}
           customHeaders: '{"Content-Type": "application/json"}'
           data: |
             {
@@ -189,7 +189,7 @@ jobs:
         with:
           url: ${{ env.strapi_updater_url }}
           method: 'POST'
-          # bearerToken: ${{ secrets.STRAPI_AUTH_TOKEN }} TODO
+          bearerToken: ${{ secrets.STRAPI_API_TOKEN_RELEASES }}
           customHeaders: '{"Content-Type": "application/json"}'
           data: |
             {

@@ -57,6 +57,8 @@ on:
         type: string
   workflow_dispatch:
     inputs:
+      # ⚠ since inputs are limited to 10 max for workflow_dispatch
+      # `archive_url` and `sig_url` properties were omitted
       version:
         required: true
         description: Release version (semver)
@@ -128,7 +130,8 @@ jobs:
         run: |
           output=$(curl -LsSf ${{ inputs.sig_url }})
           echo "sig=$output" >> "$GITHUB_OUTPUT"
-      - name: Push download data
+      - id: strapi-request
+        name: Strapi request
         uses: fjogeleit/http-request-action@v1
         with:
           url: ${{ env.strapi_download_url }}
@@ -151,6 +154,9 @@ jobs:
                 "sig": "${{ steps.get_sig.outputs.sig }}"
               }
             }
+      - name: Strapi Response
+        run: |
+          echo ${{ steps.strapi-request.outputs.response }}
 
   push-update-data:
     name: Push update data to Strapi
@@ -165,7 +171,8 @@ jobs:
         run: |
           output=$(curl -LsSf ${{ inputs.sig_url }})
           echo "sig=$output" >> "$GITHUB_OUTPUT"
-      - name: Push update data
+      - id: strapi-request
+        name: Strapi request
         uses: fjogeleit/http-request-action@v1
         with:
           url: ${{ env.strapi_updater_url }}
@@ -187,3 +194,6 @@ jobs:
                 "sig": "${{ steps.get_sig.outputs.sig }}"
               }
             }
+      - name: Strapi Response
+        run: |
+          echo ${{ steps.strapi-request.outputs.response }}

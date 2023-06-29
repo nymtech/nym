@@ -18,7 +18,9 @@ import (
 var done chan struct{}
 var activeRequests *ActiveRequests
 var requestTimeout time.Duration = time.Second * 5
-var maxRedirections int = 10
+
+// 4.4.7
+var maxRedirections int = 20
 
 const (
 	// methods exposed by go to rust

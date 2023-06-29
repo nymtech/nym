@@ -4,6 +4,7 @@
 package main
 
 import (
+	"net/http"
 	"strings"
 )
 
@@ -171,4 +172,38 @@ func isCorsSafelistedRequestHeader(name string, value string) bool {
 
 	// 3
 	return true
+}
+
+// Reference: https://fetch.spec.whatwg.org/#cors-unsafe-request-header-names
+func corsUnsafeRequestHeaderNames(headers http.Header) []string {
+	var unsafeNames []string
+	var potentiallyUnsafeNames []string
+	safelistValueSize := 0
+
+	// 4
+	for name, value := range headers {
+		// TODO: is that actually correct?
+		wasUnsafe := false
+		for _, v := range value {
+			// 4.1
+			if !isCorsSafelistedRequestHeader(name, v) {
+				unsafeNames = append(unsafeNames, name)
+				wasUnsafe = true
+				break
+			}
+		}
+		if !wasUnsafe {
+			potentiallyUnsafeNames = append(potentiallyUnsafeNames, name)
+			safelistValueSize += len(value)
+		}
+	}
+
+	// 5
+	if safelistValueSize > 1024 {
+		for _, name := range potentiallyUnsafeNames {
+			unsafeNames = append(unsafeNames, name)
+		}
+	}
+
+	return sortedByteLowercase(unsafeNames)
 }

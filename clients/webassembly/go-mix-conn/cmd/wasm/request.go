@@ -54,20 +54,30 @@ const (
 
 type ParsedRequest struct {
 	request *http.Request
-	options RequestOptions
+	options *RequestOptions
 }
 
 type RequestOptions struct {
-	redirect        Redirect
-	mode            Mode
-	credentialsMode CredentialsMode
-	referrerPolicy  ReferrerPolicy
-	referrer        Referrer
-	//responseTainting ResponseTainting
+	redirect         Redirect
+	mode             Mode
+	credentialsMode  CredentialsMode
+	referrerPolicy   ReferrerPolicy
+	referrer         Referrer
+	responseTainting ResponseTainting
+	method           string
 }
 
 func (opts RequestOptions) String() string {
-	return fmt.Sprintf("{ redirect: %s, mode: %s, credentials: %s }", opts.redirect, opts.mode, opts.credentialsMode)
+	return fmt.Sprintf(
+		"{ redirect: %s, mode: %s, credentials: %s, referrerPolicy: %s, referrer: %s, responseTainting: %s, method: %s }",
+		opts.redirect,
+		opts.mode,
+		opts.credentialsMode,
+		opts.referrerPolicy,
+		opts.referrer,
+		opts.responseTainting,
+		opts.method,
+	)
 }
 
 // ParseJSRequest is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
@@ -139,12 +149,19 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 		return nil, err
 	}
 
+	// A request has an associated response tainting, which is "basic", "cors", or "opaque".
+	// Unless stated otherwise, it is "basic".
+	// Reference: https://fetch.spec.whatwg.org/#concept-request-response-tainting
+	responseTainting := RESPONSE_TAINTING_BASIC
+
 	options := RequestOptions{
-		redirect:        redirect,
-		mode:            mode,
-		credentialsMode: credentialsMode,
-		referrer:        referrer,
-		referrerPolicy:  referrerPolicy,
+		redirect:         redirect,
+		mode:             mode,
+		credentialsMode:  credentialsMode,
+		referrer:         referrer,
+		referrerPolicy:   referrerPolicy,
+		responseTainting: responseTainting,
+		method:           method,
 	}
 
 	jsHeaders := request.Get("headers")
@@ -166,12 +183,8 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 
 	return &ParsedRequest{
 		request: req,
-		options: options,
+		options: &options,
 	}, nil
-}
-
-func applyCorsMode() {
-
 }
 
 func checkUnsupportedAttributes(request *js.Value) {
@@ -387,6 +400,8 @@ func parseRefererPolicy(request *js.Value) (ReferrerPolicy, error) {
 
 	referrerPolicyString := referrerPolicy.String()
 	switch referrerPolicyString {
+	case "":
+		return "", nil
 	case REFERRER_POLICY_NO_REFERRER:
 		return REFERRER_POLICY_NO_REFERRER, nil
 	case REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE:
@@ -407,4 +422,13 @@ func parseRefererPolicy(request *js.Value) (ReferrerPolicy, error) {
 
 	return "", errors.New(fmt.Sprintf("%s is not a valid referrer policy", referrerPolicyString))
 
+}
+
+// Reference: https://fetch.spec.whatwg.org/#cors-safelisted-method
+func isCorsSafelistedMethod(method string) bool {
+	if method == "GET" || method == "HEAD" || method == "POST" {
+		return true
+	} else {
+		return false
+	}
 }

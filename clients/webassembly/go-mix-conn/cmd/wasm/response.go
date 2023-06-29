@@ -6,6 +6,7 @@ package main
 import (
 	"io"
 	"net/http"
+	"net/url"
 	"syscall/js"
 )
 
@@ -19,6 +20,165 @@ const (
 	RESPONSE_TYPE_OPAQUE          = "opaque"
 	RESPONSE_TYPE_OPAQUE_REDIRECT = "opaqueredirect"
 )
+
+type InternalResponse struct {
+	inner                 *http.Response
+	responseTainting      ResponseTainting
+	responseType          ResponseType
+	corsExposedHeaderName []string
+	urlList               []*url.URL
+}
+
+func NewInternalResponse(inner *http.Response, reqOpts *RequestOptions) InternalResponse {
+	return InternalResponse{
+		inner:            inner,
+		responseTainting: reqOpts.responseTainting,
+	}
+}
+
+// Reference: https://fetch.spec.whatwg.org/#null-body-status
+func (IR *InternalResponse) isNullBodyStatus() bool {
+	return IR.inner.StatusCode == 101 || IR.inner.StatusCode == 103 || IR.inner.StatusCode == 204 || IR.inner.StatusCode == 205 || IR.inner.StatusCode == 304
+}
+
+func (IR *InternalResponse) allHeaderNames() []string {
+	keys := make([]string, 0, len(IR.inner.Header))
+
+	for k, _ := range IR.inner.Header {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (IR *InternalResponse) JSBody() (js.Value, error) {
+	if IR.inner.Body == nil {
+		return js.Undefined(), nil
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			Error("failed to close the response body: %s", err)
+		}
+	}(IR.inner.Body)
+
+	// Read the response body
+	// TODO: construct streamReader / arrayReader for better compat
+	data, err := io.ReadAll(IR.inner.Body)
+	if err != nil {
+		return js.Undefined(), err
+	}
+
+	return intoJsBytes(data), nil
+}
+
+func (IR *InternalResponse) exposeHeadersNames() []string {
+	allowed := IR.inner.Header.Values(headerExposeHeaders)
+
+	allowedSet := NewSet(allowed...)
+	var filtered []string
+	for key, _ := range IR.inner.Header {
+		if allowedSet.Contains(key) {
+			filtered = append(filtered, key)
+		}
+	}
+
+	return filtered
+}
+
+// Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-cors
+func (IR *InternalResponse) mutIntoBasicResponse() {
+	IR.responseType = RESPONSE_TYPE_BASIC
+
+	newHeaders := http.Header{}
+	for key, values := range IR.inner.Header {
+		for _, value := range values {
+			if !forbiddenResponseHeaderNames.Contains(byteLowercase(key)) {
+				ck := http.CanonicalHeaderKey(key)
+				newHeaders[ck] = append(newHeaders[ck], value)
+			}
+		}
+	}
+	IR.inner.Header = newHeaders
+}
+
+// Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-cors
+func (IR *InternalResponse) mutIntoCORSResponse() {
+	IR.responseType = RESPONSE_TYPE_CORS
+
+	// TODO: figure out the proper usage of corsExposedHeaderName
+
+	// https://github.com/mozilla/gecko-dev/blob/fabab5d10815c9d7210933379f0357b1cbc9aaaf/dom/fetch/InternalHeaders.cpp#L564
+	newHeaders := http.Header{}
+	//for _, name := range IR.corsExposedHeaderName {
+	//	if safelistedResponseHeaderNames.Contains(byteLowercase(name)) {
+	//		ck := http.CanonicalHeaderKey(name)
+	//		newHeaders[ck] = IR.inner.Header.Values(ck)
+	//	}
+	//}
+
+	for key, values := range IR.inner.Header {
+		for _, value := range values {
+			if safelistedResponseHeaderNames.Contains(byteLowercase(key)) {
+				ck := http.CanonicalHeaderKey(key)
+				newHeaders[ck] = append(newHeaders[ck], value)
+			}
+		}
+	}
+
+	IR.inner.Header = newHeaders
+}
+
+// Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-opaque
+func (IR *InternalResponse) mutIntoOpaqueResponse() {
+	IR.responseType = RESPONSE_TYPE_OPAQUE
+
+	// TODO: set URL list to « »
+	IR.inner.StatusCode = 0
+	IR.inner.Status = ""
+	IR.inner.Header = http.Header{}
+	IR.inner.Body = nil
+}
+
+// Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-cors
+func (IR *InternalResponse) mutIntoOpaqueRedirectResponse() {
+	IR.responseType = RESPONSE_TYPE_OPAQUE_REDIRECT
+
+	IR.inner.StatusCode = 0
+	IR.inner.Status = ""
+	IR.inner.Header = http.Header{}
+	IR.inner.Body = nil
+}
+
+func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
+	jsBody, err := IR.JSBody()
+	if err != nil {
+		return js.Undefined(), err
+	}
+
+	// Create a Response object and pass the data
+	// inspired by https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
+	headers := js.Global().Get("Headers").New()
+	for key, values := range IR.inner.Header {
+		for _, value := range values {
+			headers.Call("append", key, value)
+		}
+	}
+
+	responseOptions := js.Global().Get("Object").New()
+	responseOptions.Set("status", IR.inner.StatusCode)
+	responseOptions.Set("statusText", http.StatusText(IR.inner.StatusCode))
+	responseOptions.Set("headers", headers)
+
+	responseConstructor := js.Global().Get("Response")
+	response := responseConstructor.New(jsBody, responseOptions)
+	if IR.responseType != "" {
+		// TODO: ideally we'd overwrite the `type` field, but it's readonly : (
+		response.Set("actualType", IR.responseType)
+	}
+
+	return response, nil
+}
 
 // IntoJSResponse is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
 // https://developer.mozilla.org/en-US/docs/Web/API/response
@@ -36,44 +196,62 @@ const (
 	[❌] redirected
 	[✅] status
 	[✅] statusText
-	[❌] type
+	[❗/⚠️] type		- can't overwrite the "type" field. the proper value is set in a `actualType` instead.
 	[❌] url
 */
-func intoJSResponse(resp *http.Response) (js.Value, error) {
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			Error("failed to close the response body: %s", err)
-		}
-	}(resp.Body)
+func intoJSResponse(resp *http.Response, opts *RequestOptions) (js.Value, error) {
+	// TODO: check if response is a filtered response
+	isFilteredResponse := false
 
-	// Read the response body
-	// TODO: construct streamReader / arrayReader for better compat
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return js.Null(), err
+	internalResponse := NewInternalResponse(resp, opts)
+
+	// 4.1.14
+	if !isFilteredResponse {
+		// 4.1.14.1
+		if opts.responseTainting == RESPONSE_TAINTING_CORS {
+			//  4.1.14.1.1
+			headerNames := internalResponse.exposeHeadersNames()
+			if opts.credentialsMode != CREDENTIALS_MODE_INCLUDE && contains(headerNames, wildcard) {
+				//  4.1.14.1.2
+				internalResponse.corsExposedHeaderName = unique(internalResponse.allHeaderNames())
+			} else if len(headerNames) > 0 {
+				//  4.1.14.1.3
+				internalResponse.corsExposedHeaderName = headerNames
+			}
+		}
+		switch opts.responseTainting {
+		case RESPONSE_TAINTING_BASIC:
+			internalResponse.mutIntoBasicResponse()
+		case RESPONSE_TAINTING_CORS:
+			internalResponse.mutIntoCORSResponse()
+		case RESPONSE_TAINTING_OPAQUE:
+			internalResponse.mutIntoOpaqueResponse()
+		default:
+			panic("unreachable")
+		}
 	}
 
-	jsBytes := intoJsBytes(data)
+	if len(internalResponse.urlList) == 0 {
+		internalResponse.urlList = []*url.URL{internalResponse.inner.Request.URL}
+	}
+	// TODO: 4.1.17 - redirect-tainted origin
+	// TODO: 4.1.18 - timing allow flag
 
-	// Create a Response object and pass the data
-	// inspired by https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
-	headers := js.Global().Get("Headers").New()
-	for key, values := range resp.Header {
-		for _, value := range values {
-			headers.Call("append", key, value)
-		}
+	// TODO: 4.1.19 - mixed content check
+	// TODO: 4.1.19 - Content Security Policy check
+	// TODO: 4.1.19 - MIME type check
+	// TODO: 4.1.19 - nosniff check
+
+	// TODO: 4.1.20
+	//rangeRequestedFlag := false
+	//if internalResponse.responseType == RESPONSE_TYPE_OPAQUE && internalResponse.inner.Status == 206
+
+	// 4.1.21
+	if (opts.method == "HEAD" || opts.method == "CONNECT") || internalResponse.isNullBodyStatus() {
+		internalResponse.inner.Body = nil
 	}
 
-	responseOptions := js.Global().Get("Object").New()
-	responseOptions.Set("status", resp.StatusCode)
-	responseOptions.Set("statusText", http.StatusText(resp.StatusCode))
-	responseOptions.Set("headers", headers)
-
-	responseConstructor := js.Global().Get("Response")
-	response := responseConstructor.New(jsBytes, responseOptions)
-
-	return response, nil
+	return internalResponse.intoJsResponse()
 }
 
 func checkCorsHeaders(headers *http.Header) {

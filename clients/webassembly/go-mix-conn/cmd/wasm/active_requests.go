@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"sync"
 	"time"
 )
@@ -99,8 +98,8 @@ func inRedirectionLoop(req *http.Request, via []*http.Request) bool {
 	return false
 }
 
-func checkRedirect(redirect Redirect, req *http.Request, via []*http.Request) error {
-	Debug("attempting to perform redirection to %s with our policy set to '%s'", req.URL.String(), redirect)
+func checkRedirect(opts *RequestOptions, req *http.Request, via []*http.Request) error {
+	Debug("attempting to perform redirection to %s with our policy set to '%s'", req.URL.String(), opts.redirect)
 
 	if len(via) > maxRedirections {
 		return errors.New(fmt.Sprintf("Maximum (%d) redirects followed", maxRedirections))
@@ -117,12 +116,18 @@ func checkRedirect(redirect Redirect, req *http.Request, via []*http.Request) er
 	redirectionChain += fmt.Sprintf("[%s]", req.URL.String())
 	Debug("redirection chain: %s", redirectionChain)
 
-	switch redirect {
-	case REQUEST_REDIRECT_MANUAL:
-		Error("unimplemented '%s' redirect", redirect)
-		return http.ErrUseLastResponse
+	// Reference: https://fetch.spec.whatwg.org/#http-fetch
+	// 4.3.6.2
+	switch opts.redirect {
 	case REQUEST_REDIRECT_ERROR:
 		return errors.New("encountered redirect")
+	case REQUEST_REDIRECT_MANUAL:
+		if opts.mode == MODE_NAVIGATE {
+			return errors.New("unimplemented 'navigate' + 'manual' redirection")
+		}
+		Error("unimplemented '%s' redirect", opts.redirect)
+		// TODO: somehow set response to opaque-redirect filtered response
+		return http.ErrUseLastResponse
 	case REQUEST_REDIRECT_FOLLOW:
 		Debug("will perform redirection")
 		return nil
@@ -133,49 +138,75 @@ func checkRedirect(redirect Redirect, req *http.Request, via []*http.Request) er
 	}
 }
 
-func checkMode(mode Mode, addr string) error {
-	originUrl := originUrl()
-	remoteUrl, remoteErr := url.Parse(addr)
-	if remoteErr != nil {
-		return remoteErr
-	}
+// 4.1.12
+// Reference: https://fetch.spec.whatwg.org/#main-fetch
+func mainFetchChecks(req *ParsedRequest) error {
+	// no preloading
 
-	switch mode {
-	case MODE_CORS:
-		Warn("unimplemented %s mode", MODE_CORS)
-	case MODE_SAME_ORIGIN:
-		// "Used to ensure requests are made to same-origin URLs. Fetch will return a network error if the request is not made to a same-origin URL."
-		// Reference: https://fetch.spec.whatwg.org/#concept-request-mode
-		//
-		// Roughly speaking, two URIs are part of the same origin (i.e., represent the same principal)
-		// if they have the same scheme, host, and port.
-		// Reference: https://www.rfc-editor.org/rfc/rfc6454.html#section-3.2
-		if originUrl.Scheme != remoteUrl.Scheme || originUrl.Host != remoteUrl.Host || originUrl.Port() != remoteUrl.Port() {
-			return errors.New(fmt.Sprintf("MixFetch API cannot load %s. Request mode is \"%s\" but the URL's origin is not same as the request origin %s.", addr, MODE_SAME_ORIGIN, origin))
+	if (isSameOrigin(req.request.URL) && req.options.responseTainting == RESPONSE_TAINTING_BASIC) ||
+		req.request.URL.Scheme == "data" || (req.options.mode == MODE_NAVIGATE || req.options.mode == MODE_WEBSOCKET) {
+		Debug("setting response tainting to basic")
+		req.options.responseTainting = RESPONSE_TAINTING_BASIC
+		// TODO: scheme fetch here
+		return nil
+	}
+	if req.options.mode == MODE_SAME_ORIGIN {
+		return errors.New(fmt.Sprintf("MixFetch API cannot load %s. Request mode is \"%s\" but the URL's origin is not same as the request origin %s.", req.request.URL.String(), MODE_SAME_ORIGIN, origin))
+	}
+	if req.options.mode == MODE_NO_CORS {
+		if req.options.redirect != REQUEST_REDIRECT_FOLLOW {
+			return errors.New(fmt.Sprintf("MixFetch API could not perform request with mode \"%s\" and redirect \"%s\"", req.options.mode, req.options.redirect))
 		}
-
-	case MODE_NO_CORS:
-		Warn("unimplemented %s mode", MODE_NO_CORS)
-
-	// those should have been rejected at parsing time
-	case MODE_NAVIGATE, MODE_WEBSOCKET:
-		panic("impossible request mode")
-
-	default:
-		// if this was rust that had proper enums and match statements,
-		// we could have guaranteed that at compile time...
-		panic("unreachable")
+		Debug("setting response tainting to opaque")
+		req.options.responseTainting = RESPONSE_TAINTING_OPAQUE
+		// TODO: scheme fetch here
+		return nil
+	}
+	if req.request.URL.Scheme != "http" && req.request.URL.Scheme != "https" {
+		return errors.New(fmt.Sprintf("The requested url scheme (\"%s\" is not http(s)", req.request.URL.Scheme))
 	}
 
+	// TODO: CORS-preflight flag
+	// TODO: unsafe-request flag
+	// (by default they're unset)
+	corsPreflightFlag := false
+	unsafeRequestFlag := false
+
+	if corsPreflightFlag || (unsafeRequestFlag && (isCorsSafelistedMethod(req.request.Method) || len(corsUnsafeRequestHeaderNames(req.request.Header)) > 0)) {
+		req.options.responseTainting = RESPONSE_TAINTING_CORS
+		panic("unimplemented \"corsWithPreflightResponse\"")
+	}
+
+	req.options.responseTainting = RESPONSE_TAINTING_CORS
+	Debug("setting response tainting to cors")
+	// TODO: HTTP fetch here
 	return nil
 }
 
-func dialContext(_ctx context.Context, opts RequestOptions, _network, addr string) (net.Conn, error) {
+func schemeFetch(req *ParsedRequest) error {
+	switch req.request.URL.Scheme {
+	case "about":
+		return errors.New("unsupported 'about' scheme")
+	case "blob":
+		return errors.New("unsupported 'blob' scheme")
+	case "data":
+		return errors.New("unsupported 'data' scheme")
+	case "file":
+		return errors.New("unsupported 'file' scheme")
+	case "http", "https":
+		// TODO: HTTP fetch here
+		return nil
+	default:
+		return errors.New("unknown url scheme")
+	}
+}
+
+func dialContext(_ctx context.Context, opts *RequestOptions, _network, addr string) (net.Conn, error) {
 	Info("dialing plain connection to %s", addr)
 
-	if err := checkMode(opts.mode, addr); err != nil {
-		return nil, err
-	}
+	//if err := checkMode(opts.mode, addr); err != nil {
+	//	return nil, err
+	//}
 
 	requestId, err := rsStartNewMixnetRequest(addr)
 	if err != nil {
@@ -188,12 +219,12 @@ func dialContext(_ctx context.Context, opts RequestOptions, _network, addr strin
 	return conn, nil
 }
 
-func dialTLSContext(_ctx context.Context, opts RequestOptions, _network, addr string) (net.Conn, error) {
+func dialTLSContext(_ctx context.Context, opts *RequestOptions, _network, addr string) (net.Conn, error) {
 	Info("dialing TLS connection to %s", addr)
 
-	if err := checkMode(opts.mode, addr); err != nil {
-		return nil, err
-	}
+	//if err := checkMode(opts.mode, addr); err != nil {
+	//	return nil, err
+	//}
 
 	requestId, err := rsStartNewMixnetRequest(addr)
 	if err != nil {
@@ -210,10 +241,10 @@ func dialTLSContext(_ctx context.Context, opts RequestOptions, _network, addr st
 	return conn, nil
 }
 
-func buildHttpClient(opts RequestOptions) *http.Client {
+func buildHttpClient(opts *RequestOptions) *http.Client {
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return checkRedirect(opts.redirect, req, via)
+			return checkRedirect(opts, req, via)
 		},
 
 		Transport: &http.Transport{
@@ -255,7 +286,7 @@ func _changeRequestTimeout(timeout time.Duration) any {
 }
 
 // Reference: https://fetch.spec.whatwg.org/#cors-check
-func doCorsCheck(reqOpts RequestOptions, resp *http.Response) error {
+func doCorsCheck(reqOpts *RequestOptions, resp *http.Response) error {
 	// 4.9.1
 	originHeader := resp.Header.Get(headerAllowOrigin)
 	// 4.9.2
@@ -291,6 +322,11 @@ func doCorsCheck(reqOpts RequestOptions, resp *http.Response) error {
 }
 
 func performRequest(req *ParsedRequest) (*http.Response, error) {
+	err := mainFetchChecks(req)
+	if err != nil {
+		return nil, err
+	}
+
 	reqClient := buildHttpClient(req.options)
 
 	if req.options.referrerPolicy == "" {
@@ -307,25 +343,25 @@ func performRequest(req *ParsedRequest) (*http.Response, error) {
 		Warn("unimplemented: could not determine request's referrer")
 	}
 
+	// TODO: this is such a nasty assumption, but assume we're doing a 4.3 HTTP fetch here
+
 	Info("Starting the request...")
 	Debug("%v: %v", req.options, *req.request)
+	// TODO: CORS preflight...
+
 	resp, err := reqClient.Do(req.request)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: check if response is a filtered response
-
-	responseTainting := "TODO"
-	// 4.1.14.1
-	if responseTainting == RESPONSE_TAINTING_CORS {
-		//
+	// 4.3.4.4
+	if req.options.responseTainting == RESPONSE_TAINTING_CORS {
+		err = doCorsCheck(req.options, resp)
+		if err != nil {
+			return nil, err
+		}
 	}
-
-	err = doCorsCheck(req.options, resp)
-	if err != nil {
-		return nil, err
-	}
+	// TODO: policy checks, etc...
 
 	return resp, err
 }
@@ -348,7 +384,7 @@ func _mixFetch(request *ParsedRequest) (any, error) {
 	case res := <-resCh:
 		Info("finished performing the request")
 		Debug("response: %v", *res)
-		return intoJSResponse(res)
+		return intoJSResponse(res, request.options)
 	case err := <-errCh:
 		Warn("request failure: %v", err)
 		return nil, err

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"golang.org/x/net/http/httpguts"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall/js"
@@ -152,4 +153,45 @@ func byteLowercaseOne(asciiRune rune) rune {
 		return asciiRune + toLower
 	}
 	return asciiRune
+}
+
+func isSameOrigin(remoteUrl *url.URL) bool {
+	originUrl := originUrl()
+
+	// Roughly speaking, two URIs are part of the same origin (i.e., represent the same principal)
+	// if they have the same scheme, host, and port.
+	// Reference: https://www.rfc-editor.org/rfc/rfc6454.html#section-3.2
+	if originUrl.Scheme != remoteUrl.Scheme || originUrl.Host != remoteUrl.Host || originUrl.Port() != remoteUrl.Port() {
+		return false
+	}
+	return true
+}
+
+func sortedByteLowercase(s []string) []string {
+	lowercase := make([]string, len(s))
+	for i := 0; i < len(s); i++ {
+		lowercase[i] = byteLowercase(s[i])
+	}
+	sort.Strings(lowercase)
+	return lowercase
+}
+
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
+}
+
+func unique(s []string) []string {
+	uniqueSet := NewSet(s...)
+
+	uniqueSlice := make([]string, len(uniqueSet))
+	for v := range uniqueSet {
+		uniqueSlice = append(uniqueSlice, v)
+	}
+	return uniqueSlice
 }

@@ -7,11 +7,11 @@ use log::*;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_forwarding::packet::MixPacket;
-use nym_sphinx_framing::packet::FramedNymPacket;
-use nym_sphinx_params::{PacketSize, PacketType};
+use nym_sphinx_framing::packet::FramedSphinxPacket;
+use nym_sphinx_params::{PacketMode, PacketSize};
 use nym_sphinx_types::{
-    Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, NymPacket, NymProcessedPacket,
-    PrivateKey, ProcessedPacket,
+    Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, Payload, PrivateKey,
+    ProcessedPacket, SphinxPacket,
 };
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -53,14 +53,14 @@ impl SphinxPacketProcessor {
         feature = "cpucycles",
         instrument(skip(self, packet), fields(cpucycles))
     )]
-    fn perform_initial_packet_processing(
+    fn perform_initial_sphinx_packet_processing(
         &self,
-        packet: NymPacket,
-    ) -> Result<NymProcessedPacket, MixProcessingError> {
+        packet: SphinxPacket,
+    ) -> Result<ProcessedPacket, MixProcessingError> {
         measure!({
             packet.process(&self.sphinx_key).map_err(|err| {
-                debug!("Failed to unwrap NymPacket packet: {err}");
-                MixProcessingError::NymPacketProcessingError(err)
+                debug!("Failed to unwrap Sphinx packet: {err}");
+                MixProcessingError::SphinxProcessingError(err)
             })
         })
     }
@@ -72,12 +72,17 @@ impl SphinxPacketProcessor {
     )]
     fn perform_initial_unwrapping(
         &self,
-        received: FramedNymPacket,
-    ) -> Result<NymProcessedPacket, MixProcessingError> {
+        received: FramedSphinxPacket,
+    ) -> Result<ProcessedPacket, MixProcessingError> {
         measure!({
-            let packet = received.into_inner();
+            let packet_mode = received.packet_mode();
+            let sphinx_packet = received.into_inner();
 
-            self.perform_initial_packet_processing(packet)
+            if packet_mode.is_old_vpn() {
+                return Err(MixProcessingError::ReceivedOldTypeVpnPacket);
+            }
+
+            self.perform_initial_sphinx_packet_processing(sphinx_packet)
         })
     }
 
@@ -85,14 +90,14 @@ impl SphinxPacketProcessor {
     /// and packs all the data in a way that can be easily sent to the next hop.
     fn process_forward_hop(
         &self,
-        packet: NymPacket,
+        packet: SphinxPacket,
         forward_address: NodeAddressBytes,
         delay: SphinxDelay,
-        packet_type: PacketType,
+        packet_mode: PacketMode,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         let next_hop_address = NymNodeRoutingAddress::try_from(forward_address)?;
 
-        let mix_packet = MixPacket::new(next_hop_address, packet, packet_type);
+        let mix_packet = MixPacket::new(next_hop_address, packet, packet_mode);
         Ok(MixProcessingResult::ForwardHop(mix_packet, Some(delay)))
     }
 
@@ -101,17 +106,14 @@ impl SphinxPacketProcessor {
     fn split_hop_data_into_ack_and_message(
         &self,
         mut extracted_data: Vec<u8>,
-        packet_type: PacketType,
     ) -> Result<(Vec<u8>, Vec<u8>), MixProcessingError> {
-        let ack_len = SurbAck::len(Some(packet_type));
-
         // in theory it's impossible for this to fail since it managed to go into correct `match`
         // branch at the caller
-        if extracted_data.len() < ack_len {
+        if extracted_data.len() < SurbAck::len() {
             return Err(MixProcessingError::NoSurbAckInFinalHop);
         }
 
-        let message = extracted_data.split_off(ack_len);
+        let message = extracted_data.split_off(SurbAck::len());
         let ack_data = extracted_data;
         Ok((ack_data, message))
     }
@@ -122,30 +124,21 @@ impl SphinxPacketProcessor {
         &self,
         data: Vec<u8>,
         packet_size: PacketSize,
-        packet_type: PacketType,
+        packet_mode: PacketMode,
     ) -> Result<(Option<MixPacket>, Vec<u8>), MixProcessingError> {
         match packet_size {
-            PacketSize::AckPacket | PacketSize::OutfoxAckPacket => {
+            PacketSize::AckPacket => {
                 trace!("received an ack packet!");
                 Ok((None, data))
             }
             PacketSize::RegularPacket
             | PacketSize::ExtendedPacket8
             | PacketSize::ExtendedPacket16
-            | PacketSize::ExtendedPacket32
-            | PacketSize::OutfoxRegularPacket => {
+            | PacketSize::ExtendedPacket32 => {
                 trace!("received a normal packet!");
-                let (ack_data, message) =
-                    self.split_hop_data_into_ack_and_message(data, packet_type)?;
-                let (ack_first_hop, ack_packet) =
-                    match SurbAck::try_recover_first_hop_packet(&ack_data, packet_type) {
-                        Ok((first_hop, packet)) => (first_hop, packet),
-                        Err(err) => {
-                            debug!("Failed to recover first hop from ack data: {err}");
-                            return Err(err.into());
-                        }
-                    };
-                let forward_ack = MixPacket::new(ack_first_hop, ack_packet, packet_type);
+                let (ack_data, message) = self.split_hop_data_into_ack_and_message(data)?;
+                let (ack_first_hop, ack_packet) = SurbAck::try_recover_first_hop_packet(&ack_data)?;
+                let forward_ack = MixPacket::new(ack_first_hop, ack_packet, packet_mode);
                 Ok((Some(forward_ack), message))
             }
         }
@@ -157,12 +150,14 @@ impl SphinxPacketProcessor {
     fn process_final_hop(
         &self,
         destination: DestinationAddressBytes,
-        payload: Vec<u8>,
+        payload: Payload,
         packet_size: PacketSize,
-        packet_type: PacketType,
+        packet_mode: PacketMode,
     ) -> Result<MixProcessingResult, MixProcessingError> {
+        let packet_message = payload.recover_plaintext()?;
+
         let (forward_ack, message) =
-            self.split_into_ack_and_message(payload, packet_size, packet_type)?;
+            self.split_into_ack_and_message(packet_message, packet_size, packet_mode)?;
 
         Ok(MixProcessingResult::FinalHop(ProcessedFinalHop {
             destination,
@@ -175,48 +170,18 @@ impl SphinxPacketProcessor {
     /// or a final hop.
     fn perform_final_processing(
         &self,
-        packet: NymProcessedPacket,
+        packet: ProcessedPacket,
         packet_size: PacketSize,
-        packet_type: PacketType,
+        packet_mode: PacketMode,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         match packet {
-            NymProcessedPacket::Sphinx(packet) => {
-                match packet {
-                    ProcessedPacket::ForwardHop(packet, address, delay) => self
-                        .process_forward_hop(
-                            NymPacket::Sphinx(*packet),
-                            address,
-                            delay,
-                            packet_type,
-                        ),
-                    // right now there's no use for the surb_id included in the header - probably it should get removed from the
-                    // sphinx all together?
-                    ProcessedPacket::FinalHop(destination, _, payload) => self.process_final_hop(
-                        destination,
-                        payload.recover_plaintext()?,
-                        packet_size,
-                        packet_type,
-                    ),
-                }
+            ProcessedPacket::ForwardHop(packet, address, delay) => {
+                self.process_forward_hop(*packet, address, delay, packet_mode)
             }
-            NymProcessedPacket::Outfox(packet) => {
-                let next_address = *packet.next_address();
-                let packet = packet.into_packet();
-                if packet.is_final_hop() {
-                    self.process_final_hop(
-                        DestinationAddressBytes::from_bytes(next_address),
-                        packet.recover_plaintext().to_vec(),
-                        packet_size,
-                        packet_type,
-                    )
-                } else {
-                    let mix_packet = MixPacket::new(
-                        NymNodeRoutingAddress::try_from_bytes(&next_address)?,
-                        NymPacket::Outfox(packet),
-                        PacketType::Outfox,
-                    );
-                    Ok(MixProcessingResult::ForwardHop(mix_packet, None))
-                }
+            // right now there's no use for the surb_id included in the header - probably it should get removed from the
+            // sphinx all together?
+            ProcessedPacket::FinalHop(destination, _, payload) => {
+                self.process_final_hop(destination, payload, packet_size, packet_mode)
             }
         }
     }
@@ -227,19 +192,19 @@ impl SphinxPacketProcessor {
     )]
     pub fn process_received(
         &self,
-        received: FramedNymPacket,
+        received: FramedSphinxPacket,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         // explicit packet size will help to correctly parse final hop
         measure!({
             let packet_size = received.packet_size();
-            let packet_type = received.packet_type();
+            let packet_mode = received.packet_mode();
 
             // unwrap the sphinx packet and if possible and appropriate, cache keys
             let processed_packet = self.perform_initial_unwrapping(received)?;
 
             // for forward packets, extract next hop and set delay (but do NOT delay here)
             // for final packets, extract SURBAck
-            self.perform_final_processing(processed_packet, packet_size, packet_type)
+            self.perform_final_processing(processed_packet, packet_size, packet_mode)
         })
     }
 }
@@ -261,71 +226,31 @@ mod tests {
 
         let short_data = vec![42u8];
         assert!(processor
-            .split_hop_data_into_ack_and_message(short_data, PacketType::Mix)
+            .split_hop_data_into_ack_and_message(short_data)
             .is_err());
 
-        let sufficient_data = vec![42u8; SurbAck::len(Some(PacketType::Mix))];
+        let sufficient_data = vec![42u8; SurbAck::len()];
         let (ack, data) = processor
-            .split_hop_data_into_ack_and_message(sufficient_data.clone(), PacketType::Mix)
+            .split_hop_data_into_ack_and_message(sufficient_data.clone())
             .unwrap();
         assert_eq!(sufficient_data, ack);
         assert!(data.is_empty());
 
-        let long_data = vec![42u8; SurbAck::len(Some(PacketType::Mix)) * 5];
+        let long_data = vec![42u8; SurbAck::len() * 5];
         let (ack, data) = processor
-            .split_hop_data_into_ack_and_message(long_data, PacketType::Mix)
+            .split_hop_data_into_ack_and_message(long_data)
             .unwrap();
-        assert_eq!(ack.len(), SurbAck::len(Some(PacketType::Mix)));
-        assert_eq!(data.len(), SurbAck::len(Some(PacketType::Mix)) * 4)
-    }
-
-    #[tokio::test]
-    async fn splitting_hop_data_works_for_sufficiently_long_payload_outfox() {
-        let processor = fixture();
-
-        let short_data = vec![42u8];
-        assert!(processor
-            .split_hop_data_into_ack_and_message(short_data, PacketType::Outfox)
-            .is_err());
-
-        let sufficient_data = vec![42u8; SurbAck::len(Some(PacketType::Outfox))];
-        let (ack, data) = processor
-            .split_hop_data_into_ack_and_message(sufficient_data.clone(), PacketType::Outfox)
-            .unwrap();
-        assert_eq!(sufficient_data, ack);
-        assert!(data.is_empty());
-
-        let long_data = vec![42u8; SurbAck::len(Some(PacketType::Outfox)) * 5];
-        let (ack, data) = processor
-            .split_hop_data_into_ack_and_message(long_data, PacketType::Outfox)
-            .unwrap();
-        assert_eq!(ack.len(), SurbAck::len(Some(PacketType::Outfox)));
-        assert_eq!(data.len(), SurbAck::len(Some(PacketType::Outfox)) * 4)
+        assert_eq!(ack.len(), SurbAck::len());
+        assert_eq!(data.len(), SurbAck::len() * 4)
     }
 
     #[tokio::test]
     async fn splitting_into_ack_and_message_returns_whole_data_for_ack() {
         let processor = fixture();
 
-        let data = vec![42u8; SurbAck::len(Some(PacketType::Mix)) + 10];
+        let data = vec![42u8; SurbAck::len() + 10];
         let (ack, message) = processor
-            .split_into_ack_and_message(data.clone(), PacketSize::AckPacket, PacketType::Mix)
-            .unwrap();
-        assert!(ack.is_none());
-        assert_eq!(data, message)
-    }
-
-    #[tokio::test]
-    async fn splitting_into_ack_and_message_returns_whole_data_for_ack_outfox() {
-        let processor = fixture();
-
-        let data = vec![42u8; SurbAck::len(Some(PacketType::Outfox)) + 10];
-        let (ack, message) = processor
-            .split_into_ack_and_message(
-                data.clone(),
-                PacketSize::OutfoxAckPacket,
-                PacketType::Outfox,
-            )
+            .split_into_ack_and_message(data.clone(), PacketSize::AckPacket, Default::default())
             .unwrap();
         assert!(ack.is_none());
         assert_eq!(data, message)

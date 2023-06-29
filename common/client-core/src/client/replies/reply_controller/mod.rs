@@ -512,11 +512,7 @@ where
             let to_send = min(remaining, 100);
             if let Err(err) = self
                 .message_handler
-                .try_send_additional_reply_surbs(
-                    recipient,
-                    to_send,
-                    nym_sphinx::params::PacketType::Mix,
-                )
+                .try_send_additional_reply_surbs(recipient, to_send)
                 .await
             {
                 warn!("failed to send additional surbs to {recipient} - {err}");

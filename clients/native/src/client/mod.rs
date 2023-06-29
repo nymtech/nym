@@ -20,7 +20,6 @@ use nym_client_core::client::received_buffer::{
 use nym_client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::QueryNyxdClient;
@@ -64,7 +63,6 @@ impl SocketClient {
         client_state: ClientState,
         self_address: &Recipient,
         shutdown: nym_task::TaskClient,
-        packet_type: PacketType,
     ) {
         info!("Starting websocket listener...");
 
@@ -90,7 +88,6 @@ impl SocketClient {
             self_address,
             shared_lane_queue_lengths,
             reply_controller_sender,
-            Some(packet_type),
         );
 
         websocket::Listener::new(config.get_listening_ip(), config.get_listening_port())
@@ -140,8 +137,7 @@ impl SocketClient {
         }
 
         let base_builder = self.create_base_client_builder().await?;
-        let packet_type = self.config.get_base().get_packet_type();
-        let mut started_client = base_builder.start_base(packet_type).await?;
+        let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
@@ -154,7 +150,6 @@ impl SocketClient {
             client_state,
             &self_address,
             started_client.task_manager.subscribe(),
-            packet_type,
         );
 
         info!("Client startup finished!");
@@ -169,8 +164,7 @@ impl SocketClient {
         }
 
         let base_builder = self.create_base_client_builder().await?;
-        let packet_type = self.config.get_base().get_packet_type();
-        let mut started_client = base_builder.start_base(packet_type).await?;
+        let mut started_client = base_builder.start_base().await?;
         let address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
@@ -192,7 +186,6 @@ impl SocketClient {
             reconstructed_receiver,
             address,
             shutdown_notifier: started_client.task_manager,
-            packet_type,
         })
     }
 }
@@ -206,7 +199,6 @@ pub struct DirectClient {
 
     // we need to keep reference to this guy otherwise things will start dropping
     shutdown_notifier: TaskManager,
-    packet_type: PacketType,
 }
 
 impl DirectClient {
@@ -227,7 +219,7 @@ impl DirectClient {
     /// well enough in local tests)
     pub async fn send_regular_message(&mut self, recipient: Recipient, message: Vec<u8>) {
         let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_regular(recipient, message, lane, Some(self.packet_type));
+        let input_msg = InputMessage::new_regular(recipient, message, lane);
 
         self.client_input
             .input_sender
@@ -246,13 +238,7 @@ impl DirectClient {
         reply_surbs: u32,
     ) {
         let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_anonymous(
-            recipient,
-            message,
-            reply_surbs,
-            lane,
-            Some(self.packet_type),
-        );
+        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
 
         self.client_input
             .input_sender
@@ -266,8 +252,7 @@ impl DirectClient {
     /// well enough in local tests)
     pub async fn send_reply(&mut self, recipient_tag: AnonymousSenderTag, message: Vec<u8>) {
         let lane = TransmissionLane::General;
-        let input_msg =
-            InputMessage::new_reply(recipient_tag, message, lane, Some(self.packet_type));
+        let input_msg = InputMessage::new_reply(recipient_tag, message, lane);
 
         self.client_input
             .input_sender

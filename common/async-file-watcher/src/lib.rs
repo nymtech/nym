@@ -130,7 +130,7 @@ impl AsyncFileWatcher {
                 Ok(event) => {
                     let now = Instant::now();
                     if self.should_propagate(&event, now) {
-                        self.last_received.insert(event.kind, now);
+                        self.last_received.insert(event.kind.clone(), now);
                         if let Err(_err) = self.event_sender.unbounded_send(event) {
                             log::error!("the file watcher receiver has been dropped!");
                         }

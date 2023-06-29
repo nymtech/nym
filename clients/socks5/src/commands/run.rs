@@ -68,9 +68,6 @@ pub(crate) struct Run {
     /// with bandwidth credential requirement.
     #[clap(long, hide = true)]
     enabled_credentials_mode: Option<bool>,
-
-    #[clap(long, hide = true, action)]
-    outfox: bool,
 }
 
 impl From<Run> for OverrideConfig {
@@ -83,7 +80,6 @@ impl From<Run> for OverrideConfig {
             no_cover: run_config.no_cover,
             nyxd_urls: run_config.nyxd_urls,
             enabled_credentials_mode: run_config.enabled_credentials_mode,
-            outfox: run_config.outfox,
         }
     }
 }

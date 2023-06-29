@@ -91,7 +91,6 @@ impl From<Init> for OverrideConfig {
             no_cover: init_config.no_cover,
             nyxd_urls: init_config.nyxd_urls,
             enabled_credentials_mode: init_config.enabled_credentials_mode,
-            outfox: false,
         }
     }
 }

@@ -21,7 +21,6 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_sphinx::acknowledgements::AckKey;
-use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskManager;
 use std::sync::Arc;
@@ -130,7 +129,6 @@ impl<'a> NetworkMonitorBuilder<'a> {
             received_processor,
             summary_producer,
             self.node_status_storage,
-            PacketType::Mix,
         );
 
         NetworkMonitorRunnables {

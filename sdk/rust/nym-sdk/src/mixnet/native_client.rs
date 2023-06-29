@@ -3,8 +3,7 @@ use nym_client_core::client::{
     inbound_messages::InputMessage,
     received_buffer::ReconstructedMessagesReceiver,
 };
-use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
+use nym_sphinx::{addressing::clients::Recipient, receiver::ReconstructedMessage};
 use nym_task::{
     connections::{ConnectionCommandSender, LaneQueueLengths, TransmissionLane},
     TaskManager,
@@ -39,7 +38,6 @@ pub struct MixnetClient {
 
     /// The task manager that controlls all the spawned tasks that the clients uses to do it's job.
     pub(crate) task_manager: TaskManager,
-    pub(crate) packet_type: Option<PacketType>,
 }
 
 impl MixnetClient {
@@ -153,11 +151,9 @@ impl MixnetClient {
         let lane = TransmissionLane::General;
         let input_msg = match surbs {
             IncludedSurbs::Amount(surbs) => {
-                InputMessage::new_anonymous(address, message, surbs, lane, self.packet_type)
+                InputMessage::new_anonymous(address, message, surbs, lane)
             }
-            IncludedSurbs::ExposeSelfAddress => {
-                InputMessage::new_regular(address, message, lane, self.packet_type)
-            }
+            IncludedSurbs::ExposeSelfAddress => InputMessage::new_regular(address, message, lane),
         };
         self.send(input_msg).await
     }

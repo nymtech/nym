@@ -1,9 +1,10 @@
-use crate::constants::MIN_MESSAGE_LEN;
-use crate::constants::MIX_PARAMS_LEN;
+use std::array::TryFromSliceError;
+
+use crate::lion::MIN_MESSAGE_LEN;
 use chacha20::cipher::InvalidLength;
 use thiserror::Error;
 
-#[derive(Debug, Error, Clone)]
+#[derive(Debug, Error)]
 pub enum OutfoxError {
     #[error("Lengths mismatch, expected: {expected}, got: {got}")]
     LenMismatch { expected: usize, got: usize },
@@ -19,10 +20,8 @@ pub enum OutfoxError {
     #[error("Message length must be greater then {MIN_MESSAGE_LEN} bytes")]
     InvalidMessageLength,
     #[error("{source}")]
-    TryFromSlice {
+    TryFromSluce {
         #[from]
-        source: std::array::TryFromSliceError,
+        source: TryFromSliceError,
     },
-    #[error("Header length must be {MIX_PARAMS_LEN}, got {0}")]
-    InvalidHeaderLength(usize),
 }

@@ -3,7 +3,7 @@
 
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
-use nym_sphinx_acknowledgements::surb_ack::{SurbAck, SurbAckRecoveryError};
+use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
@@ -11,9 +11,10 @@ use nym_sphinx_chunking::fragment::COVER_FRAG_ID;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{
-    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketType, DEFAULT_NUM_MIX_HOPS,
+    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketMode, DEFAULT_NUM_MIX_HOPS,
 };
-use nym_sphinx_types::{delays, NymPacket};
+use nym_sphinx_types::builder::SphinxPacketBuilder;
+use nym_sphinx_types::{delays, Error as SphinxError};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
@@ -27,11 +28,8 @@ pub enum CoverMessageError {
     #[error("Could not construct cover message due to invalid topology - {0}")]
     InvalidTopologyError(#[from] NymTopologyError),
 
-    #[error("SurbAck: {0}")]
-    SurbAck(#[from] SurbAckRecoveryError),
-
-    #[error("NymPacket: {0}")]
-    NymPacket(#[from] nym_sphinx_types::NymPacketError),
+    #[error("Could not construct a valid sphinx packet - {0}")]
+    SphinxError(#[from] SphinxError),
 }
 
 pub fn generate_loop_cover_surb_ack<R>(
@@ -40,7 +38,6 @@ pub fn generate_loop_cover_surb_ack<R>(
     ack_key: &AckKey,
     full_address: &Recipient,
     average_ack_delay: time::Duration,
-    packet_type: PacketType,
 ) -> Result<SurbAck, CoverMessageError>
 where
     R: RngCore + CryptoRng,
@@ -52,11 +49,9 @@ where
         COVER_FRAG_ID.to_bytes(),
         average_ack_delay,
         topology,
-        packet_type,
     )?)
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn generate_loop_cover_packet<R>(
     rng: &mut R,
     topology: &NymTopology,
@@ -65,21 +60,14 @@ pub fn generate_loop_cover_packet<R>(
     average_ack_delay: time::Duration,
     average_packet_delay: time::Duration,
     packet_size: PacketSize,
-    packet_type: PacketType,
 ) -> Result<MixPacket, CoverMessageError>
 where
     R: RngCore + CryptoRng,
 {
     // we don't care about total ack delay - we will not be retransmitting it anyway
-    let (_, ack_bytes) = generate_loop_cover_surb_ack(
-        rng,
-        topology,
-        ack_key,
-        full_address,
-        average_ack_delay,
-        packet_type,
-    )?
-    .prepare_for_sending()?;
+    let (_, ack_bytes) =
+        generate_loop_cover_surb_ack(rng, topology, ack_key, full_address, average_ack_delay)?
+            .prepare_for_sending();
 
     // cover message can't be distinguishable from a normal traffic so we have to go through
     // all the effort of key generation, encryption, etc. Note here we are generating shared key
@@ -123,18 +111,15 @@ where
     let destination = full_address.as_sphinx_destination();
 
     // once merged, that's an easy rng injection point for sphinx packets : )
-    let packet = NymPacket::sphinx_build(
-        packet_size.payload_size(),
-        packet_payload,
-        &route,
-        &destination,
-        &delays,
-    )?;
+    let packet = SphinxPacketBuilder::new()
+        .with_payload_size(packet_size.payload_size())
+        .build_packet(packet_payload, &route, &destination, &delays)
+        .unwrap();
 
     let first_hop_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
-    Ok(MixPacket::new(first_hop_address, packet, PacketType::Mix))
+    Ok(MixPacket::new(first_hop_address, packet, PacketMode::Mix))
 }
 
 /// Helper function used to determine if given message represents a loop cover message.

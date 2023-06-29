@@ -50,15 +50,10 @@ impl PacketRouter {
         let ack_overhead = PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
 
         for received_packet in unwrapped_packets {
-            if received_packet.len() == PacketSize::AckPacket.plaintext_size()
-                || received_packet.len() == PacketSize::OutfoxAckPacket.plaintext_size()
-            {
+            if received_packet.len() == PacketSize::AckPacket.plaintext_size() {
                 received_acks.push(received_packet);
             } else if received_packet.len()
                 == PacketSize::RegularPacket.plaintext_size() - ack_overhead
-                || received_packet.len()
-                    == PacketSize::OutfoxRegularPacket.plaintext_size() - ack_overhead
-                || received_packet.len() == PacketSize::OutfoxRegularPacket.size() - 6
             {
                 trace!("routing regular packet");
                 received_messages.push(received_packet);

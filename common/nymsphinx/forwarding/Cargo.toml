@@ -12,4 +12,3 @@ nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }
 nym-sphinx-types = { path = "../types" }
 nym-outfox = { path = "../../../nym-outfox" }
-thiserror = "1"

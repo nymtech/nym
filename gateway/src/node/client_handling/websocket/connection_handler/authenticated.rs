@@ -283,7 +283,7 @@ where
         &self,
         mix_packet: MixPacket,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        let consumed_bandwidth = mix_packet.packet().len() as i64;
+        let consumed_bandwidth = mix_packet.sphinx_packet().len() as i64;
 
         let available_bandwidth = self.get_available_bandwidth().await?;
 
@@ -309,10 +309,7 @@ where
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(bin_msg, &self.client.shared_keys) {
-            Err(e) => {
-                error!("{e}");
-                RequestHandlingError::InvalidBinaryRequest(e).into_error_message()
-            }
+            Err(e) => RequestHandlingError::InvalidBinaryRequest(e).into_error_message(),
             Ok(request) => match request {
                 // currently only a single type exists
                 BinaryRequest::ForwardSphinx(mix_packet) => self

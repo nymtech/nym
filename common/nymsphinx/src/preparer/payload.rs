@@ -6,7 +6,7 @@ use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_crypto::symmetric::stream_cipher::CipherKey;
-use nym_sphinx_acknowledgements::surb_ack::{SurbAck, SurbAckRecoveryError};
+use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_anonymous_replies::SurbEncryptionKey;
 use nym_sphinx_chunking::fragment::Fragment;
 use nym_sphinx_params::{
@@ -14,25 +14,25 @@ use nym_sphinx_params::{
 };
 use rand::{CryptoRng, RngCore};
 
-pub struct NymPayloadBuilder {
+pub struct NymsphinxPayloadBuilder {
     fragment: Fragment,
     surb_ack: SurbAck,
 }
 
-impl NymPayloadBuilder {
+impl NymsphinxPayloadBuilder {
     pub fn new(fragment: Fragment, surb_ack: SurbAck) -> Self {
-        NymPayloadBuilder { fragment, surb_ack }
+        NymsphinxPayloadBuilder { fragment, surb_ack }
     }
 
     fn build<C>(
         self,
         packet_encryption_key: &CipherKey<C>,
         variant_data: impl IntoIterator<Item = u8>,
-    ) -> Result<NymPayload, SurbAckRecoveryError>
+    ) -> NymsphinxPayload
     where
         C: StreamCipher + KeyIvInit,
     {
-        let (_, surb_ack_bytes) = self.surb_ack.prepare_for_sending()?;
+        let (_, surb_ack_bytes) = self.surb_ack.prepare_for_sending();
 
         let mut fragment_data = self.fragment.into_bytes();
         stream_cipher::encrypt_in_place::<C>(
@@ -46,20 +46,16 @@ impl NymPayloadBuilder {
         // where variant-specific data is as follows:
         // for replies it would be the digest of the encryption key used
         // for 'regular' messages it would be the public component used in DH later used in the KDF
-
-        Ok(NymPayload(
+        NymsphinxPayload(
             surb_ack_bytes
                 .into_iter()
                 .chain(variant_data.into_iter())
                 .chain(fragment_data.into_iter())
                 .collect(),
-        ))
+        )
     }
 
-    pub fn build_reply(
-        self,
-        packet_encryption_key: &SurbEncryptionKey,
-    ) -> Result<NymPayload, SurbAckRecoveryError> {
+    pub fn build_reply(self, packet_encryption_key: &SurbEncryptionKey) -> NymsphinxPayload {
         let key_digest = packet_encryption_key.compute_digest();
         self.build::<ReplySurbEncryptionAlgorithm>(
             packet_encryption_key.inner(),
@@ -71,7 +67,7 @@ impl NymPayloadBuilder {
         self,
         rng: &mut R,
         recipient_encryption_key: &encryption::PublicKey,
-    ) -> Result<NymPayload, SurbAckRecoveryError>
+    ) -> NymsphinxPayload
     where
         R: RngCore + CryptoRng,
     {
@@ -92,9 +88,9 @@ impl NymPayloadBuilder {
 // the actual byte data that will be put into the sphinx packet paylaod.
 // no more transformations are going to happen to it
 // TODO: use that fact for some better compile time assertions
-pub struct NymPayload(Vec<u8>);
+pub struct NymsphinxPayload(Vec<u8>);
 
-impl AsRef<[u8]> for NymPayload {
+impl AsRef<[u8]> for NymsphinxPayload {
     fn as_ref(&self) -> &[u8] {
         &self.0
     }

@@ -1,57 +1,47 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::codec::NymCodecError;
+use crate::codec::SphinxCodecError;
 use bytes::{BufMut, BytesMut};
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::packet_version::PacketVersion;
-use nym_sphinx_params::PacketType;
-use nym_sphinx_types::NymPacket;
+use nym_sphinx_params::PacketMode;
+use nym_sphinx_types::SphinxPacket;
 use std::convert::TryFrom;
 
-#[derive(Debug)]
-pub struct FramedNymPacket {
+pub struct FramedSphinxPacket {
     /// Contains any metadata helping receiver to handle the underlying packet.
     pub(crate) header: Header,
 
     /// The actual SphinxPacket being sent.
-    pub(crate) packet: NymPacket,
+    pub(crate) packet: SphinxPacket,
 }
 
-impl FramedNymPacket {
-    pub fn new(packet: NymPacket, packet_type: PacketType, use_legacy_version: bool) -> Self {
+impl FramedSphinxPacket {
+    pub fn new(packet: SphinxPacket, packet_mode: PacketMode, use_legacy_version: bool) -> Self {
         // If this fails somebody is using the library in a super incorrect way, because they
         // already managed to somehow create a sphinx packet
         let packet_size = PacketSize::get_type(packet.len()).unwrap();
 
-        let use_legacy = if packet_type == PacketType::Outfox {
-            false
-        } else {
-            use_legacy_version
-        };
-
-        let header = Header {
-            packet_version: PacketVersion::new(use_legacy),
-            packet_size,
-            packet_type,
-        };
-
-        FramedNymPacket { header, packet }
-    }
-
-    pub fn header(&self) -> Header {
-        self.header
+        FramedSphinxPacket {
+            header: Header {
+                packet_version: PacketVersion::new(use_legacy_version),
+                packet_size,
+                packet_mode,
+            },
+            packet,
+        }
     }
 
     pub fn packet_size(&self) -> PacketSize {
         self.header.packet_size
     }
 
-    pub fn packet_type(&self) -> PacketType {
-        self.header.packet_type
+    pub fn packet_mode(&self) -> PacketMode {
+        self.header.packet_mode
     }
 
-    pub fn into_inner(self) -> NymPacket {
+    pub fn into_inner(self) -> SphinxPacket {
         self.packet
     }
 }
@@ -74,22 +64,14 @@ pub struct Header {
     ///
     /// TODO: ask @AP whether this can be sent like this - could it introduce some anonymity issues?
     /// (note: this will be behind some encryption, either something implemented by us or some SSL action)
-    // Note: currently packet_type is deprecated but is still left as a concept behind to not break
+    // Note: currently packet_mode is deprecated but is still left as a concept behind to not break
     // compatibility with existing network
-    pub(crate) packet_type: PacketType,
+    pub(crate) packet_mode: PacketMode,
 }
 
 impl Header {
     pub(crate) const LEGACY_SIZE: usize = 2;
     pub(crate) const VERSIONED_SIZE: usize = 3;
-
-    pub fn outfox() -> Header {
-        Header {
-            packet_version: PacketVersion::default(),
-            packet_size: PacketSize::OutfoxRegularPacket,
-            packet_type: PacketType::Outfox,
-        }
-    }
 
     pub(crate) fn size(&self) -> usize {
         if self.packet_version.is_legacy() {
@@ -108,12 +90,12 @@ impl Header {
         }
 
         dst.put_u8(self.packet_size as u8);
-        dst.put_u8(self.packet_type as u8);
+        dst.put_u8(self.packet_mode as u8);
         // reserve bytes for the actual packet
         dst.reserve(self.packet_size.size());
     }
 
-    pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, NymCodecError> {
+    pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, SphinxCodecError> {
         if src.len() < Self::LEGACY_SIZE {
             // can't do anything if we don't have enough bytes - but reserve enough for the next call
             src.reserve(Self::LEGACY_SIZE);
@@ -125,7 +107,7 @@ impl Header {
             Ok(Some(Header {
                 packet_version,
                 packet_size: PacketSize::try_from(src[0])?,
-                packet_type: PacketType::try_from(src[1])?,
+                packet_mode: PacketMode::try_from(src[1])?,
             }))
         } else if src.len() < Self::VERSIONED_SIZE {
             // we're missing that 1 byte to read the full header...
@@ -135,7 +117,7 @@ impl Header {
             Ok(Some(Header {
                 packet_version,
                 packet_size: PacketSize::try_from(src[1])?,
-                packet_type: PacketType::try_from(src[2])?,
+                packet_mode: PacketMode::try_from(src[2])?,
             }))
         }
     }
@@ -166,7 +148,7 @@ mod header_encoding {
             [
                 PacketVersion::new_versioned(123).as_u8().unwrap(),
                 unknown_packet_size,
-                PacketType::default() as u8,
+                PacketMode::default() as u8,
             ]
             .as_ref(),
         );
@@ -174,12 +156,12 @@ mod header_encoding {
     }
 
     #[test]
-    fn decoding_will_fail_for_unknown_packet_type() {
-        let unknown_packet_type: u8 = 255;
+    fn decoding_will_fail_for_unknown_packet_mode() {
+        let unknown_packet_mode: u8 = 255;
         // make sure this is still 'unknown' for if we make changes in the future
-        assert!(PacketType::try_from(unknown_packet_type).is_err());
+        assert!(PacketMode::try_from(unknown_packet_mode).is_err());
 
-        let mut bytes = BytesMut::from([PacketSize::default() as u8, unknown_packet_type].as_ref());
+        let mut bytes = BytesMut::from([PacketSize::default() as u8, unknown_packet_mode].as_ref());
         assert!(Header::decode(&mut bytes).is_err())
     }
 
@@ -209,7 +191,7 @@ mod header_encoding {
             let header = Header {
                 packet_version: PacketVersion::Legacy,
                 packet_size,
-                ..Default::default()
+                packet_mode: Default::default(),
             };
             let mut bytes = BytesMut::new();
             header.encode(&mut bytes);
@@ -230,7 +212,7 @@ mod header_encoding {
             let header = Header {
                 packet_version: PacketVersion::Versioned(123),
                 packet_size,
-                ..Default::default()
+                packet_mode: Default::default(),
             };
             let mut bytes = BytesMut::new();
             header.encode(&mut bytes);

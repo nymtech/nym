@@ -5,7 +5,6 @@ use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
 use crate::registration::handshake::SharedKeys;
 use crate::{GatewayMacSize, PROTOCOL_VERSION};
-use log::error;
 use nym_coconut_interface::Credential;
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::hmac::recompute_keyed_hmac_and_verify_tag;
@@ -291,13 +290,7 @@ impl BinaryRequest {
     pub fn into_encrypted_tagged_bytes(self, shared_key: &SharedKeys) -> Vec<u8> {
         match self {
             BinaryRequest::ForwardSphinx(mix_packet) => {
-                let forwarding_data = match mix_packet.into_bytes() {
-                    Ok(mix_packet) => mix_packet,
-                    Err(e) => {
-                        error!("Could not convert packet to bytes: {e}");
-                        return vec![];
-                    }
-                };
+                let forwarding_data = mix_packet.into_bytes();
 
                 // TODO: it could be theoretically slightly more efficient if the data wasn't taken
                 // by reference because then it makes a copy for encryption rather than do it in place

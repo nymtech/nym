@@ -1,11 +1,9 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{PacketType, FRAG_ID_LEN};
+use crate::FRAG_ID_LEN;
 use nym_sphinx_types::header::HEADER_SIZE;
-use nym_sphinx_types::{
-    MIN_PACKET_SIZE, MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD, PAYLOAD_OVERHEAD_SIZE,
-};
+use nym_sphinx_types::PAYLOAD_OVERHEAD_SIZE;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
@@ -14,24 +12,20 @@ use std::str::FromStr;
 use thiserror::Error;
 
 // each sphinx packet contains mandatory header and payload padding + markers
-const SPHINX_PACKET_OVERHEAD: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE;
+const PACKET_OVERHEAD: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE;
 
 // it's up to the smart people to figure those values out : )
-
+const REGULAR_PACKET_SIZE: usize = 2 * 1024 + PACKET_OVERHEAD;
 // TODO: even though we have 16B IV, is having just 5B (FRAG_ID_LEN) of the ID possibly insecure?
 
 // TODO: I'm not entirely sure if we can easily extract `<AckEncryptionAlgorithm as NewStreamCipher>::NonceSize`
 // into a const usize before relevant stuff is stabilised in rust...
 const ACK_IV_SIZE: usize = 16;
 
-const ACK_PACKET_SIZE: usize = ACK_IV_SIZE + FRAG_ID_LEN + SPHINX_PACKET_OVERHEAD;
-const REGULAR_PACKET_SIZE: usize = 2 * 1024 + SPHINX_PACKET_OVERHEAD;
-const EXTENDED_PACKET_SIZE_8: usize = 8 * 1024 + SPHINX_PACKET_OVERHEAD;
-const EXTENDED_PACKET_SIZE_16: usize = 16 * 1024 + SPHINX_PACKET_OVERHEAD;
-const EXTENDED_PACKET_SIZE_32: usize = 32 * 1024 + SPHINX_PACKET_OVERHEAD;
-
-const OUTFOX_ACK_PACKET_SIZE: usize = MIN_PACKET_SIZE + OUTFOX_PACKET_OVERHEAD;
-const OUTFOX_REGULAR_PACKET_SIZE: usize = 2 * 1024 + OUTFOX_PACKET_OVERHEAD;
+const ACK_PACKET_SIZE: usize = ACK_IV_SIZE + FRAG_ID_LEN + PACKET_OVERHEAD;
+const EXTENDED_PACKET_SIZE_8: usize = 8 * 1024 + PACKET_OVERHEAD;
+const EXTENDED_PACKET_SIZE_16: usize = 16 * 1024 + PACKET_OVERHEAD;
+const EXTENDED_PACKET_SIZE_32: usize = 32 * 1024 + PACKET_OVERHEAD;
 
 #[derive(Debug, Error)]
 pub enum InvalidPacketSize {
@@ -68,13 +62,6 @@ pub enum PacketSize {
     // for example for streaming fast and furious in compressed XviD quality
     #[serde(rename = "extended16")]
     ExtendedPacket16 = 5,
-
-    #[serde(rename = "outfox_regular")]
-    OutfoxRegularPacket = 6,
-
-    // for sending SURB-ACKs
-    #[serde(rename = "outfox_ack")]
-    OutfoxAckPacket = 7,
 }
 
 impl PartialOrd for PacketSize {
@@ -101,8 +88,6 @@ impl FromStr for PacketSize {
             "extended8" => Ok(Self::ExtendedPacket8),
             "extended16" => Ok(Self::ExtendedPacket16),
             "extended32" => Ok(Self::ExtendedPacket32),
-            "outfox_regular" => Ok(Self::OutfoxRegularPacket),
-            "outfox_ack" => Ok(Self::OutfoxAckPacket),
             s => Err(InvalidPacketSize::UnknownExtendedPacketVariant {
                 received: s.to_string(),
             }),
@@ -118,8 +103,6 @@ impl Display for PacketSize {
             PacketSize::ExtendedPacket32 => write!(f, "extended32"),
             PacketSize::ExtendedPacket8 => write!(f, "extended8"),
             PacketSize::ExtendedPacket16 => write!(f, "extended16"),
-            PacketSize::OutfoxRegularPacket => write!(f, "outfox_regular"),
-            PacketSize::OutfoxAckPacket => write!(f, "outfox_ack"),
         }
     }
 }
@@ -144,8 +127,6 @@ impl TryFrom<u8> for PacketSize {
             _ if value == (PacketSize::ExtendedPacket8 as u8) => Ok(Self::ExtendedPacket8),
             _ if value == (PacketSize::ExtendedPacket16 as u8) => Ok(Self::ExtendedPacket16),
             _ if value == (PacketSize::ExtendedPacket32 as u8) => Ok(Self::ExtendedPacket32),
-            _ if value == (PacketSize::OutfoxRegularPacket as u8) => Ok(Self::OutfoxRegularPacket),
-            _ if value == (PacketSize::OutfoxAckPacket as u8) => Ok(Self::OutfoxAckPacket),
             v => Err(InvalidPacketSize::UnknownPacketTag { received: v }),
         }
     }
@@ -159,41 +140,15 @@ impl PacketSize {
             PacketSize::ExtendedPacket8 => EXTENDED_PACKET_SIZE_8,
             PacketSize::ExtendedPacket16 => EXTENDED_PACKET_SIZE_16,
             PacketSize::ExtendedPacket32 => EXTENDED_PACKET_SIZE_32,
-            PacketSize::OutfoxRegularPacket => OUTFOX_REGULAR_PACKET_SIZE,
-            PacketSize::OutfoxAckPacket => OUTFOX_ACK_PACKET_SIZE,
-        }
-    }
-
-    pub const fn header_size(&self) -> usize {
-        match self {
-            PacketSize::RegularPacket
-            | PacketSize::AckPacket
-            | PacketSize::ExtendedPacket8
-            | PacketSize::ExtendedPacket16
-            | PacketSize::ExtendedPacket32 => HEADER_SIZE,
-            PacketSize::OutfoxRegularPacket | PacketSize::OutfoxAckPacket => MIX_PARAMS_LEN,
-        }
-    }
-
-    pub const fn payload_overhead(&self) -> usize {
-        match self {
-            PacketSize::RegularPacket
-            | PacketSize::AckPacket
-            | PacketSize::ExtendedPacket8
-            | PacketSize::ExtendedPacket16
-            | PacketSize::ExtendedPacket32 => PAYLOAD_OVERHEAD_SIZE,
-            PacketSize::OutfoxRegularPacket | PacketSize::OutfoxAckPacket => {
-                OUTFOX_PACKET_OVERHEAD - MIX_PARAMS_LEN // Mix params are calculated into the total overhead so we take them out here
-            }
         }
     }
 
     pub const fn plaintext_size(self) -> usize {
-        self.size() - self.header_size() - self.payload_overhead()
+        self.size() - HEADER_SIZE - PAYLOAD_OVERHEAD_SIZE
     }
 
     pub const fn payload_size(self) -> usize {
-        self.size() - self.header_size()
+        self.size() - HEADER_SIZE
     }
 
     pub fn get_type(size: usize) -> Result<Self, InvalidPacketSize> {
@@ -207,12 +162,6 @@ impl PacketSize {
             Ok(PacketSize::ExtendedPacket16)
         } else if PacketSize::ExtendedPacket32.size() == size {
             Ok(PacketSize::ExtendedPacket32)
-        } else if PacketSize::OutfoxRegularPacket.size() == size
-            || PacketSize::OutfoxRegularPacket.size() == size + 6
-        {
-            Ok(PacketSize::OutfoxRegularPacket)
-        } else if PacketSize::OutfoxAckPacket.size() == size {
-            Ok(PacketSize::OutfoxAckPacket)
         } else {
             Err(InvalidPacketSize::UnknownPacketSize { received: size })
         }
@@ -220,10 +169,7 @@ impl PacketSize {
 
     pub fn is_extended_size(&self) -> bool {
         match self {
-            PacketSize::RegularPacket
-            | PacketSize::AckPacket
-            | PacketSize::OutfoxAckPacket
-            | PacketSize::OutfoxRegularPacket => false,
+            PacketSize::RegularPacket | PacketSize::AckPacket => false,
             PacketSize::ExtendedPacket8
             | PacketSize::ExtendedPacket16
             | PacketSize::ExtendedPacket32 => true,
@@ -238,16 +184,8 @@ impl PacketSize {
         }
     }
 
-    pub fn get_type_from_plaintext(
-        plaintext_size: usize,
-        packet_type: PacketType,
-    ) -> Result<Self, InvalidPacketSize> {
-        let overhead = match packet_type {
-            PacketType::Mix => SPHINX_PACKET_OVERHEAD,
-            PacketType::Vpn => SPHINX_PACKET_OVERHEAD,
-            PacketType::Outfox => OUTFOX_PACKET_OVERHEAD,
-        };
-        let packet_size = plaintext_size + overhead;
+    pub fn get_type_from_plaintext(plaintext_size: usize) -> Result<Self, InvalidPacketSize> {
+        let packet_size = plaintext_size + PACKET_OVERHEAD;
         Self::get_type(packet_size)
     }
 }

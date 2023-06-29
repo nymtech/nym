@@ -1,13 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::array::TryFromSliceError;
-
 use crate::MixLayer;
-use nym_sphinx_types::NymPacketError;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum NymTopologyError {
     #[error("The provided network topology is empty - there are no mixnodes and no gateways on it - the network request(s) probably failed")]
     EmptyNetworkTopology,
@@ -36,16 +33,4 @@ pub enum NymTopologyError {
         total_nodes: usize,
         layer_distribution: Vec<(MixLayer, usize)>,
     },
-    // We can't import SurbAckRecoveryError due to cyclic dependency, this is a bit dirty
-    #[error("Could not build payload")]
-    PayloadBuilder,
-
-    #[error("Outfox: {0}")]
-    Outfox(#[from] nym_sphinx_types::OutfoxError),
-
-    #[error("{0}")]
-    FromSlice(#[from] TryFromSliceError),
-
-    #[error("{0}")]
-    PacketError(#[from] NymPacketError),
 }

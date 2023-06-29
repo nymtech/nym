@@ -1,11 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Deserialize, Serialize};
-
 use crate::{PacketSize, CURRENT_PACKET_VERSION_NUMBER};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PacketVersion {
     // this will allow updated mixnodes to still understand packets from before the update
     Legacy,

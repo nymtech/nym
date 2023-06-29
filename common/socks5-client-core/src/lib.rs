@@ -5,7 +5,7 @@ use crate::config::{Config, Socks5};
 use crate::error::Socks5ClientCoreError;
 use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
-    server::NymSocksServer,
+    server::SphinxSocksServer,
 };
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -19,7 +19,6 @@ use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
 use nym_client_core::config::DebugConfig;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::params::PacketType;
 use nym_task::{TaskClient, TaskManager};
 use std::error::Error;
 
@@ -65,7 +64,6 @@ where
         NymClient { config, storage }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn start_socks5_listener(
         socks5_config: &Socks5,
         debug_config: DebugConfig,
@@ -74,7 +72,6 @@ where
         client_status: ClientState,
         self_address: Recipient,
         shutdown: TaskClient,
-        packet_type: PacketType,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
@@ -100,7 +97,7 @@ where
             .unwrap_or(debug_config.traffic.primary_packet_size);
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
-        let mut sphinx_socks = NymSocksServer::new(
+        let mut sphinx_socks = SphinxSocksServer::new(
             socks5_config.get_listening_port(),
             authenticator,
             socks5_config.get_provider_mix_address(),
@@ -115,7 +112,6 @@ where
                 socks5_config.get_per_request_surbs(),
             ),
             shutdown.clone(),
-            packet_type,
         );
         nym_task::spawn_with_report_error(
             async move {
@@ -207,17 +203,11 @@ where
             reply_storage_backend,
         );
 
-        let packet_type = self.config.get_base().get_packet_type();
-        let mut started_client = base_builder.start_base(packet_type).await?;
+        let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
-
-        info!(
-            "Running with {:?} packets",
-            self.config.get_base().get_packet_type()
-        );
 
         Self::start_socks5_listener(
             self.config.get_socks5(),
@@ -227,7 +217,6 @@ where
             client_state,
             self_address,
             started_client.task_manager.subscribe(),
-            self.config.get_base().get_packet_type(),
         );
 
         info!("Client startup finished!");

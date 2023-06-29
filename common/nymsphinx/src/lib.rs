@@ -21,4 +21,4 @@ pub use nym_sphinx_types::*;
 pub use nym_sphinx_framing as framing;
 
 // TEMP UNTIL FURTHER REFACTORING
-pub use preparer::payload::NymsphinxPayloadBuilder;
+pub use preparer::payload::NymPayloadBuilder;

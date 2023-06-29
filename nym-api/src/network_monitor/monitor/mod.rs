@@ -10,6 +10,7 @@ use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
 use crate::support::config::Config;
 use log::{debug, error, info};
+use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
@@ -44,6 +45,8 @@ pub(super) struct Monitor<R: MessageReceiver + Send + 'static> {
     /// The minimum number of test routes that need to be constructed (and working) in order for
     /// a monitor test run to be valid.
     minimum_test_routes: usize,
+
+    packet_type: PacketType,
 }
 
 impl<R: MessageReceiver + Send> Monitor<R> {
@@ -54,6 +57,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
         received_processor: ReceivedProcessor<R>,
         summary_producer: SummaryProducer,
         node_status_storage: NymApiStorage,
+        packet_type: PacketType,
     ) -> Self {
         Monitor {
             test_nonce: 1,
@@ -68,6 +72,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             route_test_packets: config.get_route_test_packets(),
             test_routes: config.get_test_routes(),
             minimum_test_routes: config.get_minimum_test_routes(),
+            packet_type,
         }
     }
 
@@ -125,8 +130,11 @@ impl<R: MessageReceiver + Send> Monitor<R> {
         for route in routes {
             let mut packet_preparer = self.packet_preparer.clone();
             let route = route.clone();
-            let gateway_packets = packet_preparer
-                .prepare_test_route_viability_packets(&route, self.route_test_packets);
+            let gateway_packets = packet_preparer.prepare_test_route_viability_packets(
+                &route,
+                self.route_test_packets,
+                self.packet_type,
+            );
             packets.push(gateway_packets);
         }
 
@@ -233,7 +241,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
         info!("Generating test mix packets for all the network nodes...");
         let prepared_packets = self
             .packet_preparer
-            .prepare_test_packets(self.test_nonce, routes)
+            .prepare_test_packets(self.test_nonce, routes, self.packet_type)
             .await;
 
         let total_sent = prepared_packets

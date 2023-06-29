@@ -9,6 +9,7 @@ use crate::{
 use clap::Args;
 use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
+use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_config::NymConfig;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::{config::Config, NymClient};
@@ -67,6 +68,9 @@ pub(crate) struct Run {
     /// with bandwidth credential requirement.
     #[clap(long, hide = true)]
     enabled_credentials_mode: Option<bool>,
+
+    #[clap(long, hide = true, action)]
+    outfox: bool,
 }
 
 impl From<Run> for OverrideConfig {
@@ -79,6 +83,7 @@ impl From<Run> for OverrideConfig {
             no_cover: run_config.no_cover,
             nyxd_urls: run_config.nyxd_urls,
             enabled_credentials_mode: run_config.enabled_credentials_mode,
+            outfox: run_config.outfox,
         }
     }
 }
@@ -138,5 +143,6 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error 
         return Err(Box::new(Socks5ClientError::FailedLocalVersionCheck));
     }
 
-    NymClient::new(config).run_forever().await
+    let storage = OnDiskPersistent::from_config(config.get_base()).await?;
+    NymClient::new(config, storage).run_forever().await
 }

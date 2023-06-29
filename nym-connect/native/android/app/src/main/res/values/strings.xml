@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Nyms5</string>
+    <string name="service_desc">Nym socks5 process</string>
+    <string name="notification_channel_name">Nym proxy</string>
+    <string name="notification_channel_id">21</string>
+    <string name="notification_title">Nym proxy</string>
+    <string name="stop_proxy">Stop</string>
+    <string name="proxy_host">http://localhost:1080</string>
+    <string name="sp_url">https://harbourmaster.nymtech.net/v1/services?size=100</string>
+    <string name="default_sp">DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh</string>
+    <string name="connected_text">Connected to the mixnet</string>
+</resources>

@@ -26,7 +26,7 @@ pub(crate) struct ValidatorCacheData {
     pub(crate) mix_to_family: Cache<Vec<(IdentityKey, FamilyHead)>>,
 
     pub(crate) service_providers: Cache<Vec<ServiceInfo>>,
-    pub(crate) names: Cache<Vec<NameEntry>>,
+    pub(crate) registered_names: Cache<Vec<NameEntry>>,
 }
 
 impl ValidatorCacheData {
@@ -42,7 +42,7 @@ impl ValidatorCacheData {
             current_reward_params: Cache::default(),
             mix_to_family: Cache::default(),
             service_providers: Cache::default(),
-            names: Cache::default(),
+            registered_names: Cache::default(),
         }
     }
 }

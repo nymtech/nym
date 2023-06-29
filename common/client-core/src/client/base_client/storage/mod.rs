@@ -12,10 +12,15 @@ use nym_credential_storage::ephemeral_storage::{
 };
 use nym_credential_storage::storage::Storage as CredentialStorage;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
+use crate::client::base_client::non_wasm_helpers;
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use crate::client::key_manager::persistence::OnDiskKeys;
-
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
+use crate::config::{persistence::key_pathfinder::ClientKeyPathfinder, Config};
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
+use crate::error::ClientCoreError;
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
@@ -88,6 +93,26 @@ impl OnDiskPersistent {
             reply_store,
             credential_store,
         }
+    }
+
+    pub async fn from_config<T>(config: &Config<T>) -> Result<Self, ClientCoreError> {
+        let pathfinder = ClientKeyPathfinder::new_from_config(config);
+        let key_store = OnDiskKeys::new(pathfinder);
+
+        let reply_store = non_wasm_helpers::setup_fs_reply_surb_backend(
+            config.get_reply_surb_database_path(),
+            &config.get_debug_config().reply_surbs,
+        )
+        .await?;
+
+        let credential_store =
+            nym_credential_storage::initialise_persistent_storage(config.get_database_path()).await;
+
+        Ok(OnDiskPersistent {
+            key_store,
+            reply_store,
+            credential_store,
+        })
     }
 }
 

@@ -4,10 +4,10 @@
 use nym_config::defaults::NymNetworkDetails;
 use nym_config::{NymConfig, OptionalSet, CRED_DB_FILE_NAME};
 use nym_crypto::asymmetric::identity;
-use nym_sphinx::params::PacketSize;
+use nym_sphinx::params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
 
@@ -17,6 +17,15 @@ use wasm_bindgen::prelude::*;
 
 pub mod old_config_v1_1_13;
 pub mod persistence;
+
+pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
+pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
+pub const DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME: &str = "private_encryption.pem";
+pub const DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME: &str = "public_encryption.pem";
+pub const DEFAULT_GATEWAY_KEYS_FILENAME: &str = "gateway_shared.pem";
+pub const DEFAULT_ACK_KEY_FILENAME: &str = "ack_key.pem";
+pub const DEFAULT_REPLY_STORE_FILENAME: &str = "persistent_reply_store.sqlite";
+pub const DEFAULT_CREDENTIAL_STORE_FILENAME: &str = CRED_DB_FILE_NAME;
 
 pub const MISSING_VALUE: &str = "MISSING VALUE";
 
@@ -106,6 +115,37 @@ impl<T> Config<T> {
     {
         self.client.id = id.into();
         self.set_empty_fields_to_defaults();
+        self
+    }
+
+    #[must_use]
+    #[doc(hidden)]
+    // TODO: this totally contradicts our trait... we REALLY have to refactor it...
+    pub fn reset_data_directory<P: AsRef<Path>>(mut self, dir: P) -> Self {
+        self.client.private_identity_key_file =
+            dir.as_ref().join(DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME);
+        self.client.public_identity_key_file =
+            dir.as_ref().join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME);
+        self.client.private_encryption_key_file =
+            dir.as_ref().join(DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME);
+        self.client.public_encryption_key_file =
+            dir.as_ref().join(DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME);
+        self.client.gateway_shared_key_file = dir.as_ref().join(DEFAULT_GATEWAY_KEYS_FILENAME);
+        self.client.ack_key_file = dir.as_ref().join(DEFAULT_ACK_KEY_FILENAME);
+        self.client.reply_surb_database_path = dir.as_ref().join(DEFAULT_REPLY_STORE_FILENAME);
+        self.client.database_path = dir.as_ref().join(DEFAULT_CREDENTIAL_STORE_FILENAME);
+
+        self
+    }
+
+    #[must_use]
+    #[doc(hidden)]
+    // TODO: this totally contradicts our trait... we REALLY have to refactor it...
+    pub fn reset_nym_root_directory<P: AsRef<Path>>(mut self, dir: P) -> Self
+    where
+        T: NymConfig,
+    {
+        self.client.nym_root_directory = dir.as_ref().to_owned();
         self
     }
 
@@ -216,6 +256,11 @@ impl<T> Config<T> {
         if enabled {
             self.set_high_default_traffic_volume();
         }
+        self
+    }
+
+    pub fn with_packet_type(mut self, packet_type: PacketType) -> Self {
+        self.client.packet_type = Some(packet_type);
         self
     }
 
@@ -406,6 +451,10 @@ impl<T> Config<T> {
     pub fn get_maximum_reply_key_age(&self) -> Duration {
         self.debug.reply_surbs.maximum_reply_key_age
     }
+
+    pub fn get_packet_type(&self) -> PacketType {
+        self.client.packet_type.unwrap_or(PacketType::Mix)
+    }
 }
 
 impl<T: NymConfig> Default for Config<T> {
@@ -528,6 +577,8 @@ pub struct Client<T> {
 
     #[serde(skip)]
     pub super_struct: PhantomData<T>,
+
+    pub packet_type: Option<PacketType>,
 }
 
 impl<T: NymConfig> Default for Client<T> {
@@ -566,6 +617,7 @@ impl<T: NymConfig> Default for Client<T> {
             reply_surb_database_path: Default::default(),
             nym_root_directory: T::default_root_directory(),
             super_struct: Default::default(),
+            packet_type: Default::default(),
         }
     }
 }
@@ -637,6 +689,8 @@ pub struct Traffic {
     /// Note that its use decreases overall anonymity.
     /// Do not set it it unless you understand the consequences of that change.
     pub secondary_packet_size: Option<PacketSize>,
+
+    pub packet_type: Option<PacketType>,
 }
 
 impl Traffic {
@@ -660,6 +714,7 @@ impl Default for Traffic {
             disable_main_poisson_packet_distribution: false,
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: None,
+            packet_type: None,
         }
     }
 }

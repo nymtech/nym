@@ -6,7 +6,7 @@ use nym_crypto::asymmetric::encryption;
 use nym_mixnode_common::packet_processor::error::MixProcessingError;
 pub use nym_mixnode_common::packet_processor::processor::MixProcessingResult;
 use nym_mixnode_common::packet_processor::processor::SphinxPacketProcessor;
-use nym_sphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::framing::packet::FramedNymPacket;
 
 // PacketProcessor contains all data required to correctly unwrap and forward sphinx packets
 #[derive(Clone)]
@@ -31,7 +31,7 @@ impl PacketProcessor {
 
     pub(crate) fn process_received(
         &self,
-        received: FramedSphinxPacket,
+        received: FramedNymPacket,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         self.node_stats_update_sender.report_received();
         self.inner_processor.process_received(received)

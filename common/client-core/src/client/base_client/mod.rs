@@ -37,17 +37,19 @@ use nym_gateway_client::{
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
+use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
-use rand::thread_rng;
+use rand::rngs::OsRng;
 use std::sync::Arc;
 use tap::TapFallible;
 use url::Url;
 
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
+
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
@@ -163,7 +165,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     reply_storage_backend: S::ReplyStore,
     key_store: S::KeyStore,
 
-    custom_topology_provider: Option<Box<dyn TopologyProvider>>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
     managed_keys: ManagedKeys,
 }
@@ -216,7 +218,10 @@ where
         }
     }
 
-    pub fn with_topology_provider(mut self, provider: Box<dyn TopologyProvider>) -> Self {
+    pub fn with_topology_provider(
+        mut self,
+        provider: Box<dyn TopologyProvider + Send + Sync>,
+    ) -> Self {
         self.custom_topology_provider = Some(provider);
         self
     }
@@ -271,6 +276,7 @@ where
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
         shutdown: TaskClient,
+        packet_type: PacketType,
     ) {
         info!("Starting real traffic stream...");
 
@@ -286,7 +292,7 @@ where
             lane_queue_lengths,
             client_connection_rx,
         )
-        .start_with_shutdown(shutdown);
+        .start_with_shutdown(shutdown, packet_type);
     }
 
     // buffer controlling all messages fetched from provider
@@ -367,9 +373,9 @@ where
     }
 
     fn setup_topology_provider(
-        custom_provider: Option<Box<dyn TopologyProvider>>,
+        custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         nym_api_urls: Vec<Url>,
-    ) -> Box<dyn TopologyProvider> {
+    ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| {
             Box::new(NymApiTopologyProvider::new(
@@ -382,7 +388,7 @@ where
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
     async fn start_topology_refresher(
-        topology_provider: Box<dyn TopologyProvider>,
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
         topology_config: config::Topology,
         topology_accessor: TopologyAccessor,
         mut shutdown: TaskClient,
@@ -422,7 +428,7 @@ where
         Ok(())
     }
 
-    // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
+    // controller for sending packets to mixnet (either real traffic or cover traffic)
     // TODO: if we want to send control messages to gateway_client, this CAN'T take the ownership
     // over it. Perhaps GatewayClient needs to be thread-shareable or have some channel for
     // requests?
@@ -469,11 +475,14 @@ where
 
     async fn initial_key_setup(&mut self) {
         assert!(!self.managed_keys.is_valid());
-        let mut rng = thread_rng();
+        let mut rng = OsRng;
         self.managed_keys = ManagedKeys::load_or_generate(&mut rng, &self.key_store).await;
     }
 
-    pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
+    pub async fn start_base(
+        mut self,
+        packet_type: PacketType,
+    ) -> Result<BaseClient, ClientCoreError>
     where
         <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         S::ReplyStore: Send + Sync,
@@ -544,11 +553,11 @@ where
             task_manager.subscribe(),
         );
 
-        // The sphinx_message_sender is the transmitter for any component generating sphinx packets
+        // The message_sender is the transmitter for any component generating sphinx packets
         // that are to be sent to the mixnet. They are used by cover traffic stream and real
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
-        let sphinx_message_sender =
+        let message_sender =
             Self::start_mix_traffic_controller(gateway_client, task_manager.subscribe());
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
@@ -570,13 +579,14 @@ where
             shared_topology_accessor.clone(),
             ack_receiver,
             input_receiver,
-            sphinx_message_sender.clone(),
+            message_sender.clone(),
             reply_storage,
             reply_controller_sender.clone(),
             reply_controller_receiver,
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
             task_manager.subscribe(),
+            packet_type,
         );
 
         if !self
@@ -589,7 +599,7 @@ where
                 self.managed_keys.ack_key(),
                 self_address,
                 shared_topology_accessor.clone(),
-                sphinx_message_sender,
+                message_sender,
                 task_manager.subscribe(),
             );
         }

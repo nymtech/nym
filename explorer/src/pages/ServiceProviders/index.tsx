@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Card, FormControl, Grid, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
+import React from 'react';
+import { Button, Card, FormControl, Grid, ListItem, Menu, SelectChangeEvent, Typography } from '@mui/material';
 import { TableToolbar } from '../../components/TableToolbar';
 import { Title } from '../../components/Title';
 import { UniversalDataGrid } from '../../components/Universal-DataGrid';
@@ -15,17 +15,34 @@ const columns = [
 ];
 
 const SupportedApps = () => {
-  const [selected, setSelected] = useState<string>('');
-  const handleChange = (e: SelectChangeEvent) => setSelected(e.target.value);
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+  const anchorRef = React.useRef<HTMLButtonElement>(null);
+
   return (
     <FormControl size="small">
-      <Select value={selected} onChange={handleChange} displayEmpty sx={{ mr: 2 }}>
-        <MenuItem value="">Supported Apps</MenuItem>
-        <MenuItem>Keybase</MenuItem>
-        <MenuItem>Telegram</MenuItem>
-        <MenuItem>Electrum</MenuItem>
-        <MenuItem>Blockstream Green</MenuItem>
-      </Select>
+      <Button
+        ref={anchorRef}
+        onClick={handleClick}
+        size="large"
+        variant="outlined"
+        color="inherit"
+        sx={{ mr: 2, textTransform: 'capitalize' }}
+      >
+        Supported Apps
+      </Button>
+      <Menu id="basic-menu" anchorEl={anchorEl} open={open} onClose={handleClose}>
+        <ListItem>Keybase</ListItem>
+        <ListItem>Telegram</ListItem>
+        <ListItem>Electrum</ListItem>
+        <ListItem>Blockstream Green</ListItem>
+      </Menu>
     </FormControl>
   );
 };

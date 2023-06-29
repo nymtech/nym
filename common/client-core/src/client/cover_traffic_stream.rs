@@ -45,7 +45,7 @@ where
     #[cfg(target_arch = "wasm32")]
     next_delay: Pin<Box<wasm_timer::Delay>>,
 
-    /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
+    /// Channel used for sending prepared nym packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
     mix_tx: BatchMixMessageSender,
 
@@ -194,6 +194,7 @@ impl LoopCoverTrafficStream<OsRng> {
             self.average_ack_delay,
             self.cover_traffic.loop_cover_traffic_average_delay,
             cover_traffic_packet_size,
+            nym_sphinx::params::PacketType::Mix,
         )
         .expect("Somehow failed to generate a loop cover message with a valid topology");
 

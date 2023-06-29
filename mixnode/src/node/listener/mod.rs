@@ -56,7 +56,8 @@ impl Listener {
                             // but we already handle multiple concurrent connections so if anything, making
                             // that change would only slow things down
                             debug!("Handling packet from {remote:?}");
-                            connection_handler.handle_received_packet(framed_sphinx_packet);
+                            let connection_handler_clone = connection_handler.clone();
+                            tokio::spawn(async move {connection_handler_clone.handle_received_packet(framed_sphinx_packet).await });
                         }
                         Some(Err(err)) => {
                             error!(

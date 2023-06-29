@@ -54,7 +54,7 @@ impl ConnectionHandler {
         feature = "cpucycles",
         instrument(skip(self, framed_sphinx_packet), fields(cpucycles))
     )]
-    pub(crate) fn handle_received_packet(&self, framed_sphinx_packet: FramedNymPacket) {
+    pub(crate) async fn handle_received_packet(&self, framed_sphinx_packet: FramedNymPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
         // packet processor for vpn packets,

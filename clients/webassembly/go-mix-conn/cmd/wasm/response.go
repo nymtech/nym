@@ -178,6 +178,13 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 	}
 
 	return response, nil
+
+	//optsObj := js.Global().Get("Object").New()
+	//optsObj.Set("type", IR.responseType)
+	//mixResponseConstructor := js.Global().Get("MixResponse")
+	//mixResponse := mixResponseConstructor.New(response, optsObj)
+	//
+	//return mixResponse, nil
 }
 
 // IntoJSResponse is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91

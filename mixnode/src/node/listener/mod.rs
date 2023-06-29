@@ -60,9 +60,8 @@ impl Listener {
                         }
                         Some(Err(err)) => {
                             error!(
-                                "The socket connection got corrupted with error: {err}. Closing the socket",
+                                "The socket connection got corrupted with error: {err}",
                             );
-                            return;
                         }
                         None => break, // stream got closed by remote
                     }

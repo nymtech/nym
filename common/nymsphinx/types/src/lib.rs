@@ -1,11 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(not(feature = "sphinx-only"))]
 pub use nym_outfox::{
     constants::MIN_PACKET_SIZE, constants::MIX_PARAMS_LEN, constants::OUTFOX_PACKET_OVERHEAD,
     error::OutfoxError,
 };
 // re-exporting types and constants available in sphinx
+#[cfg(not(feature = "sphinx-only"))]
 use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
 pub use sphinx_packet::{
     constants::{
@@ -30,6 +32,7 @@ pub enum NymPacketError {
     Sphinx(#[from] sphinx_packet::Error),
 
     #[error("Outfox error: {0}")]
+    #[cfg(not(feature = "sphinx-only"))]
     Outfox(#[from] nym_outfox::error::OutfoxError),
 
     #[error("{0}")]
@@ -39,11 +42,13 @@ pub enum NymPacketError {
 #[allow(clippy::large_enum_variant)]
 pub enum NymPacket {
     Sphinx(SphinxPacket),
+    #[cfg(not(feature = "sphinx-only"))]
     Outfox(OutfoxPacket),
 }
 
 pub enum NymProcessedPacket {
     Sphinx(ProcessedPacket),
+    #[cfg(not(feature = "sphinx-only"))]
     Outfox(OutfoxProcessedPacket),
 }
 
@@ -54,6 +59,7 @@ impl fmt::Debug for NymPacket {
                 .debug_struct("NymPacket::Sphinx")
                 .field("len", &packet.len())
                 .finish(),
+            #[cfg(not(feature = "sphinx-only"))]
             NymPacket::Outfox(packet) => f
                 .debug_struct("NymPacket::Outfox")
                 .field("len", &packet.len())
@@ -80,6 +86,7 @@ impl NymPacket {
         Ok(NymPacket::Sphinx(SphinxPacket::from_bytes(bytes)?))
     }
 
+    #[cfg(not(feature = "sphinx-only"))]
     pub fn outfox_build<M: AsRef<[u8]>>(
         payload: M,
         route: &[Node],
@@ -94,6 +101,7 @@ impl NymPacket {
         )?))
     }
 
+    #[cfg(not(feature = "sphinx-only"))]
     pub fn outfox_from_bytes(bytes: &[u8]) -> Result<NymPacket, NymPacketError> {
         Ok(NymPacket::Outfox(OutfoxPacket::try_from(bytes)?))
     }
@@ -101,6 +109,7 @@ impl NymPacket {
     pub fn len(&self) -> usize {
         match self {
             NymPacket::Sphinx(packet) => packet.len(),
+            #[cfg(not(feature = "sphinx-only"))]
             NymPacket::Outfox(packet) => packet.len(),
         }
     }
@@ -112,6 +121,7 @@ impl NymPacket {
     pub fn to_bytes(&self) -> Result<Vec<u8>, NymPacketError> {
         match self {
             NymPacket::Sphinx(packet) => Ok(packet.to_bytes()),
+            #[cfg(not(feature = "sphinx-only"))]
             NymPacket::Outfox(packet) => Ok(packet.to_bytes()?),
         }
     }
@@ -124,6 +134,7 @@ impl NymPacket {
             NymPacket::Sphinx(packet) => {
                 Ok(NymProcessedPacket::Sphinx(packet.process(node_secret_key)?))
             }
+            #[cfg(not(feature = "sphinx-only"))]
             NymPacket::Outfox(mut packet) => {
                 let next_address = packet.decode_next_layer(node_secret_key)?;
                 Ok(NymProcessedPacket::Outfox(OutfoxProcessedPacket::new(

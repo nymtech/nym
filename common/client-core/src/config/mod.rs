@@ -137,14 +137,46 @@ impl Config {
         self
     }
 
+    pub fn set_no_cover_traffic(&mut self) {
+        self.debug.cover_traffic.disable_loop_cover_traffic_stream = true;
+        self.debug.traffic.disable_main_poisson_packet_distribution = true;
+    }
+
+    pub fn with_disabled_cover_traffic_with_keepalive(mut self, disabled: bool) -> Self {
+        if disabled {
+            self.set_no_cover_traffic_with_keepalive()
+        }
+        self
+    }
+    pub fn set_no_cover_traffic_with_keepalive(&mut self) {
+        self.debug.traffic.disable_main_poisson_packet_distribution = true;
+        self.debug.cover_traffic.loop_cover_traffic_average_delay = Duration::from_secs(5);
+    }
+
     pub fn with_disabled_topology_refresh(mut self, disable_topology_refresh: bool) -> Self {
         self.debug.topology.disable_refreshing = disable_topology_refresh;
         self
     }
 
-    pub fn set_no_cover_traffic(&mut self) {
-        self.debug.cover_traffic.disable_loop_cover_traffic_stream = true;
-        self.debug.traffic.disable_main_poisson_packet_distribution = true;
+    pub fn with_no_per_hop_delays(mut self, no_per_hop_delays: bool) -> Self {
+        if no_per_hop_delays {
+            self.set_no_per_hop_delays()
+        }
+        self
+    }
+
+    pub fn set_no_per_hop_delays(&mut self) {
+        self.debug.traffic.average_packet_delay = Duration::ZERO;
+        self.debug.acknowledgements.average_ack_delay = Duration::ZERO;
+    }
+
+    pub fn with_secondary_packet_size(mut self, secondary_packet_size: Option<PacketSize>) -> Self {
+        self.set_secondary_packet_size(secondary_packet_size);
+        self
+    }
+
+    pub fn set_secondary_packet_size(&mut self, secondary_packet_size: Option<PacketSize>) {
+        self.debug.traffic.secondary_packet_size = secondary_packet_size;
     }
 
     pub fn set_custom_version(&mut self, version: &str) {
@@ -282,7 +314,7 @@ impl Client {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Traffic {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.

@@ -7,7 +7,6 @@ use nym_socks5_client_core::Socks5ControlMessageSender;
 use nym_sphinx::params::PacketSize;
 use nym_task::manager::TaskStatus;
 use std::sync::Arc;
-use std::time::Duration;
 use tap::TapFallible;
 use tokio::sync::RwLock;
 
@@ -31,6 +30,28 @@ pub enum Socks5ExitStatusMessage {
     Failed(Box<dyn std::error::Error + Send>),
 }
 
+fn override_config_from_env(config: &mut Config) {
+    // Disable both the loop cover traffic that runs in the background as well as the Poisson
+    // process that injects cover traffic into the traffic stream.
+    if std::env::var("NYM_CONNECT_DISABLE_COVER").is_ok() {
+        log::warn!("Disabling cover traffic");
+        config.core.base.set_no_cover_traffic_with_keepalive();
+    }
+
+    if std::env::var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS").is_ok() {
+        log::warn!("Enabling mixed size packets");
+        config
+            .core
+            .base
+            .set_secondary_packet_size(Some(PacketSize::ExtendedPacket16));
+    }
+
+    if std::env::var("NYM_CONNECT_DISABLE_PER_HOP_DELAYS").is_ok() {
+        log::warn!("Disabling per-hop delay");
+        config.core.base.set_no_per_hop_delays();
+    }
+}
+
 /// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
 pub async fn start_nym_socks5_client(
     id: &str,
@@ -44,6 +65,10 @@ pub async fn start_nym_socks5_client(
     let mut config = Config::read_from_default_path(id)
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
 
+    override_config_from_env(&mut config);
+
+    log::trace!("Configuration used: {:#?}", config);
+
     let storage =
         OnDiskPersistent::from_paths(config.storage_paths.common_paths, &config.core.base.debug)
             .await?;
@@ -54,21 +79,6 @@ pub async fn start_nym_socks5_client(
         .await
         .expect("failed to load gateway details")
         .into();
-
-    // Disable both the loop cover traffic that runs in the background as well as the Poisson
-    // process that injects cover traffic into the traffic stream.
-    if std::env::var("NYM_CONNECT_DISABLE_COVER").is_ok() {
-        config.core.base.set_no_cover_traffic();
-    }
-
-    if std::env::var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS").is_ok() {
-        config.core.base.debug.traffic.secondary_packet_size = Some(PacketSize::ExtendedPacket16);
-    }
-
-    if std::env::var("NYM_CONNECT_DISABLE_PER_HOP_DELAY").is_ok() {
-        config.core.base.debug.traffic.average_packet_delay = Duration::ZERO;
-        config.core.base.debug.acknowledgements.average_ack_delay = Duration::ZERO;
-    }
 
     log::info!("Starting socks5 client");
 

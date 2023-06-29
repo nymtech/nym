@@ -45,6 +45,11 @@ pub(crate) struct Run {
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
     #[clap(long, hide = true)]
     no_cover: bool,
+
+    /// Enable medium mixnet traffic, for experiments only.
+    /// This includes things like disabling cover traffic, no per hop delays, etc.
+    #[clap(long, hide = true)]
+    medium_toggle: bool,
 }
 
 impl From<Run> for OverrideConfig {
@@ -53,6 +58,7 @@ impl From<Run> for OverrideConfig {
             nym_apis: None,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
+            medium_toggle: run_config.medium_toggle,
             nyxd_urls: None,
             enabled_credentials_mode: run_config.enabled_credentials_mode,
         }

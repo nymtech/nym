@@ -3,3 +3,6 @@ clippy:
 
 test:
 	wasm-pack test --node
+
+wasm-build:
+	wasm-pack build

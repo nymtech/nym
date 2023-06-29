@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v1.2.5] (2023-06-27)
+
+- Wallet - add "Test my node" in the Node Settings and show its results ([#2314])
+
+[#2314]: https://github.com/nymtech/nym/issues/2314
+
 ## [v1.2.4] (2023-06-06)
 
 - Wallet - Bonding page does not load the node info automatically unless you navigate back and forth from it! ([#3478])

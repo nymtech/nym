@@ -25,11 +25,11 @@ export const AppRoutes = () => {
         <Route index element={<Menu />} />
         <Route path="apps" element={<CompatibleApps />} />
         <Route path="guide" element={<HelpGuide />} />
+        <Route path="monitoring" element={<MonitoringSettings />} />
         <Route path="settings">
           <Route index element={<SettingsMenu />} />
           <Route path="gateway" element={<GatewaySettings />} />
           <Route path="service-provider" element={<ServiceProviderSettings />} />
-          <Route path="monitoring" element={<MonitoringSettings />} />
         </Route>
       </Route>
     </RoutesContainer>

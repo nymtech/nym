@@ -1,5 +1,6 @@
 import React from 'react';
-import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps } from '@mui/material';
+import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { TBondedMixnode } from 'src/context';
 import { Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
 import { SelectionChance } from '@nymproject/types';
@@ -49,6 +50,7 @@ const StatRow = ({
 export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
   const { activeSetProbability, routingScore } = mixnode;
   const theme = useTheme();
+  const navigate = useNavigate();
 
   // clamp routing score to [0-100]
   const score = Math.min(Math.max(routingScore, 0), 100);
@@ -72,6 +74,10 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
     }
   };
 
+  const handleGoToTestNode = () => {
+    navigate('/bonding/node-settings', { state: 'test-node' });
+  };
+
   const renderLegend = () => (
     <Stack
       alignItems="center"
@@ -91,13 +97,18 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
 
   return (
     <Grid container spacing={4} direction="row" justifyContent="space-between" alignItems="flex-end">
-      <Grid item xs={12} sm={8} md={7} lg={5}>
+      <Grid item xs={12} sm={8} md={7} lg={6}>
         <NymCard
           borderless
           title={
             <Typography variant="h5" fontWeight={600}>
               Node stats
             </Typography>
+          }
+          Action={
+            <Button size="small" variant="contained" disableElevation onClick={handleGoToTestNode}>
+              Test node
+            </Button>
           }
         >
           <Stack justifyContent="center" alignItems="center" mb={2}>

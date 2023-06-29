@@ -6,11 +6,7 @@ env:
 
 on:
   workflow_call:
-    inputs: &wf-inputs
-      release_tag:
-        required: true
-        description: Release tag
-        type: string
+    inputs:
       release_id:
         required: true
         description: Release ID
@@ -61,7 +57,46 @@ on:
         type: string
   workflow_dispatch:
     inputs:
-      <<: *wf-inputs
+      version:
+        required: true
+        description: Release version (semver)
+        type: string
+        default: '1.0.0'
+      release_id:
+        required: true
+        description: Release ID
+        type: string
+        default: '1234'
+      release_date:
+        required: true
+        description: Release date
+        type: string
+        default: '2023-06-26T10:09:16Z'
+      download_base_url:
+        required: true
+        description: Download base URL
+        type: string
+        default: 'https://github.com/nymtech/nym/releases/download/nym-wallet-v1.0.0'
+      changelog_url:
+        required: true
+        description: Changelog URL
+        type: string
+        default: 'https://github.com/nymtech/nym/blob/nym-wallet-v1.0.0/nym-wallet/CHANGELOG.md'
+      filename:
+        required: true
+        description: Binary file name
+        type: string
+        default: 'nym-wallet_1.0.0_amd64.AppImage'
+      file_hash:
+        required: true
+        description: Binary hash (sha256)
+        type: string
+        default: 'xxx'
+      name:
+        required: true
+        description: Name
+        type: string
+        default: 'Wallet'
       category:
         required: true
         description: Category

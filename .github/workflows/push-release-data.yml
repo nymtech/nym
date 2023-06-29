@@ -84,7 +84,7 @@ on:
 jobs:
   push-download-data:
     name: Push download data to Strapi
-    runs-on: ${{ matrix.platform }}
+    runs-on: custom-runner-linux
 
     steps:
       - id: get_sig
@@ -119,7 +119,7 @@ jobs:
 
   push-update-data:
     name: Push update data to Strapi
-    runs-on: ${{ matrix.platform }}
+    runs-on: custom-runner-linux
     # only push update data for tauri apps (desktop wallet and NC)
     if: ${{ inputs.category == 'wallet' || inputs.category == 'connect' }}
 

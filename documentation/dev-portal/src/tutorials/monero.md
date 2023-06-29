@@ -12,7 +12,7 @@ A team made up of Monero community members have successfully set up a service pr
 
 The mainnet service provider to Monero over the Nym mixnet is now ready for use via [NymConnect](https://nymtech.net/download-nymconnect/).
 
-* Donwload and open the latest version of [NymConnect](https://nymtech.net/download-nymconnect/).
+* Download and open the latest version of [NymConnect](https://nymtech.net/download-nymconnect/).
 * Click on the top left options and go to Settings
 * Go to “Select service provider” and turn it on
 * For Mainnet, search for this provider or insert it manually:

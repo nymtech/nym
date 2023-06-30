@@ -7,6 +7,7 @@ import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { PrintResults } from 'src/components/TestNode/PrintResults';
 import { Download } from '@mui/icons-material';
 import { format } from 'date-fns';
+import { createNodeTesterClient } from '@nymproject/sdk';
 import { NodeTestEvent, NodeTestResult, TestStatus } from './types';
 
 export const NodeTestPage = () => {
@@ -93,6 +94,8 @@ export const NodeTestPage = () => {
 
     return () => nodeTestWorker?.removeEventListener('message', handleWorkerMessages);
   }, [nodeTestWorker]);
+
+  console.log(createNodeTesterClient);
 
   return (
     <Box p={4}>

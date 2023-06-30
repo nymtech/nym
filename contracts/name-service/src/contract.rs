@@ -155,7 +155,7 @@ mod tests {
         let deposit = nyms(99);
         let owner = "steve";
         let (name, owner_signature) =
-            new_name_details_with_sign(deps.as_mut(), &mut rng, "foo", "address", owner, deposit);
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "foo", "add.re@ss", owner, deposit);
         let msg = ExecuteMsg::Register {
             name,
             owner_signature,
@@ -200,7 +200,7 @@ mod tests {
         let deposit = nyms(101);
         let owner = "steve";
         let (name, owner_signature) =
-            new_name_details_with_sign(deps.as_mut(), &mut rng, "foo", "address", owner, deposit);
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "foo", "add.re@ss", owner, deposit);
         let msg = ExecuteMsg::Register {
             name,
             owner_signature,
@@ -249,7 +249,7 @@ mod tests {
             deps.as_mut(),
             &mut rng,
             "my-name",
-            "my-address",
+            "my.add@ress",
             owner,
             deposit,
         );
@@ -294,7 +294,7 @@ mod tests {
             deps.as_mut(),
             &mut rng,
             "my-name",
-            "my-address",
+            "my.add@ress",
             owner,
             deposit.clone(),
         );
@@ -317,7 +317,7 @@ mod tests {
         );
         assert_eq!(
             get_attribute(&res, "register", "nym_address"),
-            "my-address".to_string()
+            "my.add@ress".to_string()
         );
 
         // Check that the nonce has been incremented, but only for the owner
@@ -352,7 +352,7 @@ mod tests {
             deps.as_mut(),
             &mut rng,
             "my-name",
-            "my-address",
+            "my.add@ress",
             steve,
             deposit.clone(),
         );

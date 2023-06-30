@@ -19,7 +19,7 @@ fn setup() -> TestSetup {
 fn delete_name(mut setup: TestSetup) {
     setup.sign_and_register(
         &NymName::new("my_name").unwrap(),
-        &Address::new("address"),
+        &Address::new("add.res@s").unwrap(),
         &Addr::unchecked("owner"),
         &nyms(100),
     );
@@ -39,7 +39,7 @@ fn only_owner_can_delete_name(mut setup: TestSetup) {
     assert_eq!(setup.contract_balance(), nyms(0));
     setup.sign_and_register(
         &NymName::new("name").unwrap(),
-        &Address::new("nymAddress"),
+        &Address::new("nym.Add@ress").unwrap(),
         &Addr::unchecked("owner"),
         &nyms(100),
     );
@@ -63,7 +63,7 @@ fn only_owner_can_delete_name(mut setup: TestSetup) {
 fn cant_delete_name_that_does_not_exist(mut setup: TestSetup) {
     setup.sign_and_register(
         &NymName::new("foo").unwrap(),
-        &Address::new("nymAddress"),
+        &Address::new("nym.Add@ress").unwrap(),
         &Addr::unchecked("owner"),
         &nyms(100),
     );
@@ -94,8 +94,8 @@ fn cant_delete_name_that_does_not_exist(mut setup: TestSetup) {
 fn register_multiple_names_and_deleting_by_name(mut setup: TestSetup) {
     let owner1 = Addr::unchecked("wealthy_owner_1");
     let owner2 = Addr::unchecked("wealthy_owner_2");
-    let address1 = Address::new("address1");
-    let address2 = Address::new("address2");
+    let address1 = Address::new("add.re@ss1").unwrap();
+    let address2 = Address::new("add.re@ss2").unwrap();
     let name1 = NymName::new("name1").unwrap();
     let name2 = NymName::new("name2").unwrap();
     let name3 = NymName::new("name3").unwrap();

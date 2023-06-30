@@ -26,8 +26,8 @@ fn check_paging() {
     let mut setup = TestSetup::new();
     let owner1 = Addr::unchecked("wealthy_owner_1");
     let owner2 = Addr::unchecked("wealthy_owner_2");
-    let address1 = Address::new("nymAddress1");
-    let address2 = Address::new("nymAddress2");
+    let address1 = Address::new("nym.address1@foo").unwrap();
+    let address2 = Address::new("nym.address2@foo").unwrap();
     let name1 = NymName::new("name1").unwrap();
     let name2 = NymName::new("name2").unwrap();
     let name3 = NymName::new("name3").unwrap();

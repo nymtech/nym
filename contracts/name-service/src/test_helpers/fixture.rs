@@ -33,7 +33,7 @@ pub fn name_fixture(id: NameId) -> RegisteredName {
     new_name(
         id,
         &NymName::new("my-service").unwrap(),
-        &Address::new("client_id.client_key@gateway_id"),
+        &Address::new("client_id.client_key@gateway_id").unwrap(),
         &Addr::unchecked("steve"),
         "identity",
     )
@@ -44,7 +44,7 @@ pub fn name_fixture_with_name(id: NameId, name: &str, address: &str) -> Register
     new_name(
         id,
         &NymName::new(name).unwrap(),
-        &Address::new(address),
+        &Address::new(address).unwrap(),
         &Addr::unchecked("steve"),
         "identity",
     )
@@ -54,7 +54,7 @@ pub fn name_fixture_full(id: NameId, name: &str, address: &str, owner: &str) -> 
     new_name(
         id,
         &NymName::new(name).unwrap(),
-        &Address::new(address),
+        &Address::new(address).unwrap(),
         &Addr::unchecked(owner),
         "identity",
     )
@@ -73,7 +73,7 @@ where
     (
         NameDetails {
             name: NymName::new(name).unwrap(),
-            address: Address::new(nym_address),
+            address: Address::new(nym_address).unwrap(),
             identity_key: keypair.public_key().to_base58_string(),
         },
         keypair,

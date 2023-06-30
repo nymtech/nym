@@ -6,6 +6,8 @@ use cosmwasm_std::{Addr, Coin};
 use nym_contracts_common::IdentityKey;
 use std::fmt::{Display, Formatter};
 
+use crate::error::{NameServiceError, Result};
+
 /// The directory of names are indexed by [`NameId`].
 pub type NameId = u32;
 
@@ -58,8 +60,10 @@ pub enum Address {
 
 impl Address {
     /// Create a new nym address.
-    pub fn new(address: &str) -> Self {
-        Self::NymAddress(address.to_string())
+    pub fn new(address: &str) -> Result<Self> {
+        string_is_valid_nym_address(address)
+            .then(|| Self::NymAddress(address.to_string()))
+            .ok_or_else(|| NameServiceError::InvalidNymAddress(address.to_string()))
     }
 
     pub fn as_str(&self) -> &str {
@@ -80,6 +84,30 @@ impl Display for Address {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
     }
+}
+
+// A valid nym address is of the form client_id.client_enc@gateway_id
+fn string_is_valid_nym_address(address: &str) -> bool {
+    let parts: Vec<&str> = address.split('@').collect();
+    if parts.len() != 2 {
+        return false;
+    }
+
+    let client_part = parts[0];
+    let gateway_part = parts[1];
+
+    // The client part consists of two parts separated by a dot
+    let client_parts: Vec<&str> = client_part.split('.').collect();
+    if client_parts.len() != 2 {
+        return false;
+    }
+
+    // Check that the gateway part does not contain any dots
+    if gateway_part.contains('.') {
+        return false;
+    }
+
+    true
 }
 
 /// Name stored and pointing a to a nym-address

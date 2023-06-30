@@ -7,12 +7,12 @@ let nodeTester: NodeTester | null = null;
  *
  * @param {string} message
  */
-function displayOutput(message: string) {
+function displayOutput(message: string, color?: string) {
   const timestamp = new Date().toISOString().substr(11, 12);
 
   const sendDiv = document.createElement('div');
   const paragraph = document.createElement('p');
-  paragraph.setAttribute('style', 'color: blue');
+  paragraph.setAttribute('style', `color: ${color || 'blue'}`);
   const paragraphContent = document.createTextNode(`${timestamp} >>> ${message}`);
   paragraph.appendChild(paragraphContent);
 
@@ -56,24 +56,15 @@ async function main() {
 
       if (nodeTester && mixnodeId) {
         displayOutput('Starting test...');
-        const response = await nodeTester.tester.startTest(mixnodeId);
-        displayOutput('Done!');
-        if (response) {
-          const { score, sentPackets, receivedPackets, receivedAcks, duplicatePackets, duplicateAcks } = response;
-          displayOutput(
-            JSON.stringify(
-              {
-                score,
-                sentPackets,
-                receivedPackets,
-                receivedAcks,
-                duplicatePackets,
-                duplicateAcks,
-              },
-              null,
-              2,
-            ),
-          );
+        try {
+          const response = await nodeTester.tester.startTest(mixnodeId);
+          displayOutput('Done!');
+          if (response) {
+            displayOutput(JSON.stringify(response, null, 2), 'green');
+          }
+        } catch (e: any) {
+          console.error('Error', e);
+          displayOutput(`ERROR: ${e.message}`, 'red');
         }
       }
     };

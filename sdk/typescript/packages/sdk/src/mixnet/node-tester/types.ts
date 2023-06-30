@@ -1,17 +1,13 @@
 export interface INodeTesterWorkerAsync {
-  startTest: (mixnodeId: string) => Promise<NodeTestResult | undefined>;
+  startTest: (mixnodeIdentityKey: string) => Promise<NodeTestResultResponse | undefined>;
 }
 
 export interface INodeTesterWorkerDisposableAsync {
   terminate: () => Promise<void>;
 }
 
-export interface INodeTesterWorker {
-  startTest: (mixnodeId: string) => Promise<NodeTestResult | undefined>;
-}
-
 export interface NodeTester extends INodeTesterWorkerDisposableAsync {
-  tester: INodeTesterWorker;
+  tester: INodeTesterWorkerAsync;
 }
 
 export enum NodeTesterEventKinds {
@@ -28,13 +24,8 @@ export interface NodeTesterLoadedEvent {
 
 export type Network = 'QA' | 'SANDBOX' | 'MAINNET';
 
-export type NodeTestResult = {
+export type NodeTestResultResponse = {
   score: number;
-  sentPackets: number;
-  receivedPackets: number;
-  receivedAcks: number;
-  duplicatePackets: number;
-  duplicateAcks: number;
 };
 
 export type Error = {
@@ -49,7 +40,7 @@ export type WorkerLoaded = {
 export type DisplayTesterResults = {
   kind: 'DisplayTesterResults';
   args: {
-    result: NodeTestResult;
+    result: NodeTestResultResponse;
   };
 };
 

@@ -1,6 +1,6 @@
 import InlineWasmWebWorker from 'web-worker:./worker';
 import * as Comlink from 'comlink';
-import { INodeTesterWorker, NodeTester, NodeTesterEventKinds } from './types';
+import { INodeTesterWorkerAsync, NodeTester, NodeTesterEventKinds } from './types';
 
 /**
  * Client for the Nym node tester.
@@ -9,7 +9,7 @@ export const createNodeTesterClient = async (): Promise<NodeTester> => {
   const worker = await createWorker();
 
   // let comlink handle interop with the web worker
-  const tester = Comlink.wrap<INodeTesterWorker>(worker);
+  const tester = Comlink.wrap<INodeTesterWorkerAsync>(worker);
 
   // expose the method to terminate the worker
   const terminate = async () => {

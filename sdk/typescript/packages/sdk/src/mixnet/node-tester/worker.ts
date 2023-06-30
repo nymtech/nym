@@ -25,7 +25,7 @@ import wasmBytes from '@nymproject/nym-client-wasm/nym_client_wasm_bg.wasm';
 
 /* eslint-disable no-restricted-globals */
 import init, { NymNodeTester, current_network_topology, NodeTestResult } from '@nymproject/nym-client-wasm';
-import type { Network, NodeTestEvent, WorkerLoaded, NodeTesterLoadedEvent } from './types';
+import type { INodeTesterWorkerAsync, NodeTesterLoadedEvent } from './types';
 import { MAINNET_VALIDATOR_URL, QA_VALIDATOR_URL } from './constants';
 import { NodeTesterEventKinds } from './types';
 
@@ -49,10 +49,24 @@ async function main() {
 
   const nodeTester = await buildTester(MAINNET_VALIDATOR_URL);
 
-  const webWorker = {
-    startTest(mixnodeId: string) {
-      const result: unknown = nodeTester.test_node(mixnodeId);
-      return result as NodeTestResult;
+  const webWorker: INodeTesterWorkerAsync = {
+    async startTest(mixnodeIdentityKey: string) {
+      console.log(`Testing mixnode with identity key = ${mixnodeIdentityKey}`);
+      // TODO: fix typing in Rust code
+      const result = (await nodeTester.test_node(mixnodeIdentityKey)) as NodeTestResult | undefined;
+
+      // return early if there was an error
+      if (!result) {
+        return result;
+      }
+
+      // log the result in the worker so that the packet stats are visible somewhere and extract the score
+      result.log_details();
+
+      // construct the response to avoid any weird proxy effects
+      return {
+        score: result.score(),
+      };
     },
   };
 

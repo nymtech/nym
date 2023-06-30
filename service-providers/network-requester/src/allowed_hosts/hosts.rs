@@ -128,10 +128,29 @@ impl HostsStore {
         log::trace!("Loading from storefile: {}", filename.as_ref().display());
         let file = File::open(filename)?;
         let reader = BufReader::new(&file);
-        Ok(reader
+        let hosts = reader
             .lines()
-            .map(|line| Host::from(line.expect("failed to read input file line!")))
-            .collect())
+            .filter_map(|line| {
+                let line = line.expect("failed to read input file line!");
+                trim_comment(&line)
+            })
+            .map(Host::from)
+            .collect();
+        dbg!(&hosts);
+        Ok(hosts)
+    }
+}
+
+fn trim_comment(line: &str) -> Option<String> {
+    if let Some(content) = line.split('#').next() {
+        let trim_content = content.trim().to_string();
+        if trim_content.is_empty() {
+            None
+        } else {
+            Some(trim_content)
+        }
+    } else {
+        None
     }
 }
 
@@ -144,5 +163,43 @@ mod constructor_tests {
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         let store = HostsStore::new(temp_file);
         assert_eq!(store.data.domains.len(), 0);
+    }
+
+    #[test]
+    fn trim_comments() {
+        let entries = vec![
+            "# keybase",
+            "keybaseapi.com",
+            "",
+            "gist.githubusercontent.com",
+            " ",
+            "# healthcheck # foo",
+            "nymtech.net",
+            "# blockstream green wallet",
+            "blockstream.info",
+            "greenaddress.it",
+            "91.108.56.0/22",
+            "2001:b28:f23d::/48",
+            "2001:67c:4e8::/48",
+            "# nym matrix server",
+            "# monero desktop - mainnet",
+        ];
+        let filtered_entries: Vec<_> = entries
+            .iter()
+            .filter_map(|line| trim_comment(line))
+            .collect();
+        assert_eq!(
+            filtered_entries,
+            vec![
+                "keybaseapi.com",
+                "gist.githubusercontent.com",
+                "nymtech.net",
+                "blockstream.info",
+                "greenaddress.it",
+                "91.108.56.0/22",
+                "2001:b28:f23d::/48",
+                "2001:67c:4e8::/48",
+            ]
+        );
     }
 }

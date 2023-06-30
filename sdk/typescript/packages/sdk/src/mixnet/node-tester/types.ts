@@ -1,4 +1,7 @@
 export interface INodeTesterWorkerAsync {
+  init: (validatorUrl: string, nodeTesterId?: string) => Promise<void>;
+  reconnectToGateway: () => Promise<void>;
+  disconnectFromGateway: () => Promise<void>;
   startTest: (mixnodeIdentityKey: string) => Promise<NodeTestResultResponse | undefined>;
 }
 
@@ -26,6 +29,11 @@ export type Network = 'QA' | 'SANDBOX' | 'MAINNET';
 
 export type NodeTestResultResponse = {
   score: number;
+  sentPackets: number;
+  receivedPackets: number;
+  receivedAcks: number;
+  duplicatePackets: number;
+  duplicateAcks: number;
 };
 
 export type Error = {

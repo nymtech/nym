@@ -26,7 +26,6 @@ import wasmBytes from '@nymproject/nym-client-wasm/nym_client_wasm_bg.wasm';
 /* eslint-disable no-restricted-globals */
 import init, { NymNodeTester, current_network_topology, NodeTestResult } from '@nymproject/nym-client-wasm';
 import type { INodeTesterWorkerAsync, NodeTesterLoadedEvent } from './types';
-import { MAINNET_VALIDATOR_URL, QA_VALIDATOR_URL } from './constants';
 import { NodeTesterEventKinds } from './types';
 
 /**
@@ -38,19 +37,37 @@ const postMessageWithType = <E>(event: E) => self.postMessage(event);
 
 console.log('[Nym WASM client] Starting Nym WASM web worker...');
 
-const buildTester = async (validatorUrl: string): Promise<NymNodeTester> => {
+const buildTester = async (validatorUrl: string, nodeTesterId?: string): Promise<NymNodeTester> => {
   const topology = await current_network_topology(validatorUrl);
-  return new NymNodeTester(topology, validatorUrl);
+  return new NymNodeTester(topology, nodeTesterId);
 };
 
 async function main() {
   const importResult = await init(wasmBytes());
   importResult.set_panic_hook();
 
-  const nodeTester = await buildTester(MAINNET_VALIDATOR_URL);
+  let nodeTester: NymNodeTester | null = null;
 
   const webWorker: INodeTesterWorkerAsync = {
+    async init(validatorUrl: string, nodeTesterId?: string) {
+      nodeTester = await buildTester(validatorUrl, nodeTesterId);
+    },
+    async reconnectToGateway() {
+      if (!nodeTester) {
+        throw Error('Please run init first');
+      }
+      await nodeTester.reconnect_to_gateway();
+    },
+    async disconnectFromGateway() {
+      if (!nodeTester) {
+        throw Error('Please run init first');
+      }
+      await nodeTester.disconnect_from_gateway();
+    },
     async startTest(mixnodeIdentityKey: string) {
+      if (!nodeTester) {
+        throw Error('Please run init first');
+      }
       console.log(`Testing mixnode with identity key = ${mixnodeIdentityKey}`);
       // TODO: fix typing in Rust code
       const result = (await nodeTester.test_node(mixnodeIdentityKey)) as NodeTestResult | undefined;
@@ -63,9 +80,17 @@ async function main() {
       // log the result in the worker so that the packet stats are visible somewhere and extract the score
       result.log_details();
 
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const { duplicate_acks, duplicate_packets, received_acks, received_packets, sent_packets } = result;
+
       // construct the response to avoid any weird proxy effects
       return {
         score: result.score(),
+        sentPackets: sent_packets,
+        receivedPackets: received_packets,
+        receivedAcks: received_acks,
+        duplicatePackets: duplicate_packets,
+        duplicateAcks: duplicate_acks,
       };
     },
   };

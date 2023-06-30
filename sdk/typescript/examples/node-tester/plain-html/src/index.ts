@@ -35,10 +35,48 @@ async function main() {
   }
 
   const nymApiUrl = 'https://validator.nymtech.net/api';
+  const nodeTesterId = new Date().toISOString(); // make a new tester id for each session
+  await nodeTester.tester.init(nymApiUrl, nodeTesterId);
+
+  const mixnodes = await (await fetch(`${nymApiUrl}/v1/mixnodes/active`)).json();
+
+  const exampleMixnodeIdentityKey = mixnodes[0].bond_information.mix_node.identity_key;
 
   const sendButton: HTMLButtonElement = document.querySelector('#send-button') as HTMLButtonElement;
+  const reconnectButton: HTMLButtonElement = document.querySelector('#reconnect-button') as HTMLButtonElement;
+  const disconnectButton: HTMLButtonElement = document.querySelector('#disconnect-button') as HTMLButtonElement;
+  const terminateButton: HTMLButtonElement = document.querySelector('#terminate-button') as HTMLButtonElement;
 
   const mixnodeIdInput = document.getElementById('mixnodeId') as HTMLFormElement;
+
+  mixnodeIdInput.value = exampleMixnodeIdentityKey;
+
+  reconnectButton.onclick = async function () {
+    try {
+      await nodeTester?.tester.reconnectToGateway();
+    } catch (e: any) {
+      console.error('Error', e);
+      displayOutput(`ERROR: ${e.message}`, 'red');
+    }
+  };
+
+  disconnectButton.onclick = async function () {
+    try {
+      await nodeTester?.tester.disconnectFromGateway();
+    } catch (e: any) {
+      console.error('Error', e);
+      displayOutput(`ERROR: ${e.message}`, 'red');
+    }
+  };
+
+  terminateButton.onclick = async function () {
+    try {
+      await nodeTester?.terminate();
+    } catch (e: any) {
+      console.error('Error', e);
+      displayOutput(`ERROR: ${e.message}`, 'red');
+    }
+  };
 
   if (sendButton) {
     sendButton.onclick = async function () {

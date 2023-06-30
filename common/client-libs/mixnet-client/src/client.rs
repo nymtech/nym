@@ -198,6 +198,7 @@ impl SendWithoutResponse for Client {
                         ))
                     }
                 } else {
+                    debug!("Sending packet to {:?}", address);
                     Ok(())
                 }
             }

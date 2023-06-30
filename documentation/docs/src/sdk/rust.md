@@ -47,7 +47,7 @@ The example above involves ephemeral keys - if we want to create and then mainta
 As seen in the example above, the `mixnet::MixnetClientBuilder::new()` function handles checking for keys in a storage location, loading them if present, or creating them and storing them if not, making client key management very simple.
 
 ### Manually handling storage
-If you're integrating mixnet functionality into an existing app and want to integrate saving client configs and keys into your existing storage logic, you can manually perform the actions taken automatically above (`examples/manually_handle_keys_and_config.rs`)
+If you're integrating mixnet functionality into an existing app and want to integrate saving client configs and keys into your existing storage logic, you can manually perform the actions taken automatically above (`examples/manually_handle_storage.rs`)
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/examples/manually_handle_storage.rs}}
@@ -56,11 +56,7 @@ If you're integrating mixnet functionality into an existing app and want to inte
 ### Anonymous replies with SURBs
 Both functions used to send messages through the mixnet (`send_str` and `send_bytes`) send a pre-determined number of SURBs along with their messages by default.
 
-The number of SURBs is set [here](https://github.com/nymtech/nym/blob/release/{{platform_release_version}}/sdk/rust/nym-sdk/src/mixnet/client.rs#L35):
-
-```rust,noplayground
-{{#include ../../../../sdk/rust/nym-sdk/src/mixnet/client.rs:30}}
-```
+The number of SURBs is set [here](https://github.com/nymtech/nym/blob/release/{{platform_release_version}}/sdk/rust/nym-sdk/src/mixnet/client.rs#L36).
 
 You can read more about how SURBs function under the hood [here](../architecture/traffic-flow.md#private-replies-using-surbs).
 

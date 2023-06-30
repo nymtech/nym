@@ -27,17 +27,22 @@ jobs:
         run: sudo apt-get update && sudo apt-get -y install build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools git
         continue-on-error: true
       
-      - name: Update env variables to include go
-        run: | 
-          sudo rm -rf /usr/local/go
-          curl https://dl.google.com/go/go1.20.4.linux-amd64.tar.gz | sudo tar -C/usr/local -zxvf -
-          cat <<'EOF' >>$HOME/.profile
-          export GOROOT=/usr/local/go
-          export GOPATH=$HOME/go
-          export GO111MODULE=on
-          export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
-          EOF
-          source $HOME/.profile
+#       - name: Update env variables to include go
+#         run: | 
+#           sudo rm -rf /usr/local/go
+#           curl https://dl.google.com/go/go1.20.4.linux-amd64.tar.gz | sudo tar -C/usr/local -zxvf -
+#           cat <<'EOF' >>$HOME/.profile
+#           export GOROOT=/usr/local/go
+#           export GOPATH=$HOME/go
+#           export GO111MODULE=on
+#           export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
+#           EOF
+#           source $HOME/.profile
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.20.4"
 
       - name: Verify Go is installed
         run: go version

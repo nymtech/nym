@@ -116,9 +116,15 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     }
   }, []);
 
+  const afterDisconnection = useCallback(async () => {
+    setGatewayPerformance('Good');
+    setConnectedSince(undefined);
+  }, []);
+
   const startDisconnecting = useCallback(async () => {
     try {
       await invoke('start_disconnecting');
+      afterDisconnection();
     } catch (e) {
       console.log(e);
     }

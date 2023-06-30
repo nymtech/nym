@@ -150,6 +150,11 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     }
   }, []);
 
+  const afterDisconnection = useCallback(async () => {
+    setGatewayPerformance('Good');
+    setConnectedSince(undefined);
+  }, []);
+
   const startDisconnecting = useCallback(async () => {
     try {
       await invoke('start_disconnecting');
@@ -158,11 +163,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       console.log(e);
       Sentry.captureException(e);
     }
-  }, []);
-
-  const afterDisconnection = useCallback(async () => {
-    setGatewayPerformance('Good');
-    setConnectedSince(undefined);
   }, []);
 
   const shouldUseUserGateway = !!userDefinedGateway.gateway && userDefinedGateway.isActive;

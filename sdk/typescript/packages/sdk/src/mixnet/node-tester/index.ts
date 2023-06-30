@@ -1,23 +1,22 @@
 import InlineWasmWebWorker from 'web-worker:./worker';
 import * as Comlink from 'comlink';
-import { EventTypes, IWorker, IWorkerAsync } from './types';
+import { INodeTesterWorker, NodeTester, NodeTesterEventKinds } from './types';
 
 /**
  * Client for the Nym node tester.
  */
-
-/**
- * Create a client to send and receive test packets through a constructed mixnet.
- *
- */
-
-export const createNodeTesterClient = async (): Promise<IWorkerAsync> => {
+export const createNodeTesterClient = async (): Promise<NodeTester> => {
   const worker = await createWorker();
 
   // let comlink handle interop with the web worker
-  const client = Comlink.wrap<IWorker>(worker);
+  const tester = Comlink.wrap<INodeTesterWorker>(worker);
 
-  return client;
+  // expose the method to terminate the worker
+  const terminate = async () => {
+    worker.terminate();
+  };
+
+  return { tester, terminate };
 };
 
 /**
@@ -39,7 +38,7 @@ const createWorker = async () =>
       'message',
       (msg) => {
         worker.removeEventListener('error', reject);
-        if (msg.data?.kind === EventTypes.Loaded) {
+        if (msg.data?.kind === NodeTesterEventKinds.Loaded) {
           resolve(worker);
         } else {
           reject(msg);

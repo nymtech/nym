@@ -168,43 +168,40 @@ init(wasmBytes())
       if (config.gatewayListener) gatewayEndpoint.gateway_listener = config.gatewayListener;
 
       // create the client, passing handlers for events
-      wrapper.init(
-        new Config(config.clientId, config.nymApiUrl, gatewayEndpoint, config.debug || default_debug()),
-        async (message) => {
-          // fire an event with the raw message
-          postMessageWithType<RawMessageReceivedEvent>({
-            kind: EventKinds.RawMessageReceived,
-            args: { payload: message },
-          });
+      wrapper.init(new Config(config.clientId, config.nymApiUrl, config.debug || default_debug()), async (message) => {
+        // fire an event with the raw message
+        postMessageWithType<RawMessageReceivedEvent>({
+          kind: EventKinds.RawMessageReceived,
+          args: { payload: message },
+        });
 
-          try {
-            // try to decode the payload to extract the mime-type, headers and payload body
-            const decodedPayload = decode_payload(message);
-            const { payload, headers } = decodedPayload;
-            const mimeType = decodedPayload.mimeType as MimeTypes;
+        try {
+          // try to decode the payload to extract the mime-type, headers and payload body
+          const decodedPayload = decode_payload(message);
+          const { payload, headers } = decodedPayload;
+          const mimeType = decodedPayload.mimeType as MimeTypes;
 
-            if (wrapper.getTextMimeTypes().includes(mimeType)) {
-              const stringMessage = parse_utf8_string(payload);
+          if (wrapper.getTextMimeTypes().includes(mimeType)) {
+            const stringMessage = parse_utf8_string(payload);
 
-              // the payload is a string type (in the options at creation time, string mime-types are set, or fall back
-              // to defaults, such as `text/plain`, `application/json`, etc)
-              postMessageWithType<StringMessageReceivedEvent>({
-                kind: EventKinds.StringMessageReceived,
-                args: { mimeType, payload: stringMessage, payloadRaw: payload, headers },
-              });
-              return;
-            }
-
-            // the payload is a binary type
-            postMessageWithType<BinaryMessageReceivedEvent>({
-              kind: EventKinds.BinaryMessageReceived,
-              args: { mimeType, payload, headers },
+            // the payload is a string type (in the options at creation time, string mime-types are set, or fall back
+            // to defaults, such as `text/plain`, `application/json`, etc)
+            postMessageWithType<StringMessageReceivedEvent>({
+              kind: EventKinds.StringMessageReceived,
+              args: { mimeType, payload: stringMessage, payloadRaw: payload, headers },
             });
-          } catch (e) {
-            console.error('Failed to parse binary message', e);
+            return;
           }
-        },
-      );
+
+          // the payload is a binary type
+          postMessageWithType<BinaryMessageReceivedEvent>({
+            kind: EventKinds.BinaryMessageReceived,
+            args: { mimeType, payload, headers },
+          });
+        } catch (e) {
+          console.error('Failed to parse binary message', e);
+        }
+      });
 
       // start the client sending traffic
       await wrapper.start();

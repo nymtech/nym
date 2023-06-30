@@ -1,19 +1,34 @@
-export interface IWorkerAsync {
+export interface INodeTesterWorkerAsync {
   startTest: (mixnodeId: string) => Promise<NodeTestResult | undefined>;
 }
 
-export interface IWorker {
-  startTest: (mixnodeId: string) => NodeTestResult | undefined;
+export interface INodeTesterWorkerDisposableAsync {
+  terminate: () => Promise<void>;
 }
 
-export enum EventTypes {
+export interface INodeTesterWorker {
+  startTest: (mixnodeId: string) => Promise<NodeTestResult | undefined>;
+}
+
+export interface NodeTester extends INodeTesterWorkerDisposableAsync {
+  tester: INodeTesterWorker;
+}
+
+export enum NodeTesterEventKinds {
   Loaded = 'Loaded',
   Connected = 'Connected',
 }
 
-type Network = 'QA' | 'SANDBOX' | 'MAINNET';
+export interface NodeTesterLoadedEvent {
+  kind: NodeTesterEventKinds.Loaded;
+  args: {
+    loaded: true;
+  };
+}
 
-type NodeTestResult = {
+export type Network = 'QA' | 'SANDBOX' | 'MAINNET';
+
+export type NodeTestResult = {
   score: number;
   sentPackets: number;
   receivedPackets: number;
@@ -22,23 +37,23 @@ type NodeTestResult = {
   duplicateAcks: number;
 };
 
-type Error = {
+export type Error = {
   kind: 'Error';
   args: { message: string };
 };
 
-type WorkerLoaded = {
+export type WorkerLoaded = {
   kind: 'WorkerLoaded';
 };
 
-type DisplayTesterResults = {
+export type DisplayTesterResults = {
   kind: 'DisplayTesterResults';
   args: {
     result: NodeTestResult;
   };
 };
 
-type TestPacket = {
+export type TestPacket = {
   kind: 'TestPacket';
   args: {
     mixnodeIdentity: string;
@@ -46,8 +61,6 @@ type TestPacket = {
   };
 };
 
-type TestStatus = 'Stopped' | 'Running' | 'Complete';
+export type TestStatus = 'Stopped' | 'Running' | 'Complete';
 
-type NodeTestEvent = Error | DisplayTesterResults | TestPacket | WorkerLoaded;
-
-export { Network, NodeTestResult, Error, WorkerLoaded, DisplayTesterResults, TestPacket, TestStatus, NodeTestEvent };
+export type NodeTestEvent = Error | DisplayTesterResults | TestPacket | WorkerLoaded;

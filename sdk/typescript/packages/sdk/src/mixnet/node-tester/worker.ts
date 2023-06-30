@@ -24,57 +24,43 @@ import * as Comlink from 'comlink';
 import wasmBytes from '@nymproject/nym-client-wasm/nym_client_wasm_bg.wasm';
 
 /* eslint-disable no-restricted-globals */
-import init, {
-  NymNodeTester,,
-  current_network_topology,
-  NodeTestResult,
-} from '@nymproject/nym-client-wasm';
-import { Network, NodeTestEvent } from './types';
+import init, { NymNodeTester, current_network_topology, NodeTestResult } from '@nymproject/nym-client-wasm';
+import type { Network, NodeTestEvent, WorkerLoaded, NodeTesterLoadedEvent } from './types';
 import { MAINNET_VALIDATOR_URL, QA_VALIDATOR_URL } from './constants';
+import { NodeTesterEventKinds } from './types';
+
+/**
+ * Helper method to send typed messages.
+ * @param event   The strongly typed message to send back to the calling thread.
+ */
+// eslint-disable-next-line no-restricted-globals
+const postMessageWithType = <E>(event: E) => self.postMessage(event);
 
 console.log('[Nym WASM client] Starting Nym WASM web worker...');
 
-class ClientWrapper {
-  client?: NymNodeTester;
+const buildTester = async (validatorUrl: string): Promise<NymNodeTester> => {
+  const topology = await current_network_topology(validatorUrl);
+  return new NymNodeTester(topology, validatorUrl);
+};
 
-  constructor(validatorUrl: string) {
-    this.buildTester(validatorUrl)
-      .then(() => {
-        console.log('Built tester');
-      })
-      .catch((err: any) => {
-        console.error(err);
-      });
-  }
-
-  buildTester = async (validatorUrl: string) => {
-    const topology = await current_network_topology(validatorUrl);
-    const nodeTester = await new NymNodeTester(topology, validatorUrl);
-
-    this.client = nodeTester;
-  };
-
-  start = (mixnodeId: string) => {
-    if (!this.client) {
-      console.error('Client has not been initialised');
-      return undefined;
-    }
-
-    const result: unknown = this.client.test_node(mixnodeId);
-    return result as NodeTestResult;
-  };
-}
-
-init(wasmBytes()).then((importResult: any) => {
+async function main() {
+  const importResult = await init(wasmBytes());
   importResult.set_panic_hook();
-  const wrapper = new ClientWrapper(MAINNET_VALIDATOR_URL);
-  // implement the public logic of this web worker (message exchange between the worker and caller is done by https://www.npmjs.com/package/comlink)
+
+  const nodeTester = await buildTester(MAINNET_VALIDATOR_URL);
+
   const webWorker = {
     startTest(mixnodeId: string) {
-      return wrapper.start(mixnodeId);
+      const result: unknown = nodeTester.test_node(mixnodeId);
+      return result as NodeTestResult;
     },
   };
 
   // start comlink listening for messages and handle them above
   Comlink.expose(webWorker);
-});
+
+  // notify any listeners that the web worker has loaded and is ready for testing
+  postMessageWithType<NodeTesterLoadedEvent>({ kind: NodeTesterEventKinds.Loaded, args: { loaded: true } });
+}
+
+main();

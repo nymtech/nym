@@ -36,18 +36,17 @@ export const NodeTestPage = () => {
   };
 
   const handleTestNode = async () => {
-    setError(undefined);
-    setResults(undefined);
-    setIsLoading(true);
-    setTestDate(format(new Date(), 'dd/MM/yyyy HH:mm'));
-
     if (nodeTestClient && bondedNode) {
+      setResults(undefined);
+      setTestDate(format(new Date(), 'dd/MM/yyyy HH:mm'));
+      setIsLoading(true);
+      setError(undefined);
       testStateRef.current = 'Running';
       handleTestTimeout();
       try {
         const result = await nodeTestClient.tester.startTest(bondedNode.identityKey);
-        await nodeTestClient.tester.disconnectFromGateway();
         setResults(result);
+        testStateRef.current = 'Complete';
       } catch (e) {
         setError('Node test failed, please try again');
         testStateRef.current = 'Stopped';
@@ -59,11 +58,16 @@ export const NodeTestPage = () => {
   };
 
   const loadNodeTestClient = useCallback(async () => {
-    const nodeTesterId = new Date().toISOString(); // make a new tester id for each session
-    const validator = network === 'MAINNET' ? MAINNET_VALIDATOR_URL : QA_VALIDATOR_URL;
-    const client = await createNodeTesterClient();
-    await client.tester.init(validator, nodeTesterId);
-    setNodeTestClient(client);
+    try {
+      const nodeTesterId = new Date().toISOString(); // make a new tester id for each session
+      const validator = network === 'MAINNET' ? MAINNET_VALIDATOR_URL : QA_VALIDATOR_URL;
+      const client = await createNodeTesterClient();
+      await client.tester.init(validator, nodeTesterId);
+      setNodeTestClient(client);
+    } catch (e) {
+      console.log(e);
+      setError('Failed to load node tester client, please try again');
+    }
   }, []);
 
   useEffect(() => {
@@ -72,6 +76,7 @@ export const NodeTestPage = () => {
     return () => {
       clearTimeout(timerRef.current);
       if (nodeTestClient) {
+        nodeTestClient.tester.disconnectFromGateway();
         nodeTestClient.terminate();
       }
     };

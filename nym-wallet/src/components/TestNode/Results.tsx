@@ -1,7 +1,6 @@
 import React from 'react';
+import { TestStatus } from '@nymproject/sdk';
 import { Grid } from '@mui/material';
-
-import { TestStatus } from 'src/pages/bonding/node-settings/node-test/types';
 import { Packets } from './Packets';
 import { NodeScore } from './NodeScore';
 import { Overview } from './Overview';

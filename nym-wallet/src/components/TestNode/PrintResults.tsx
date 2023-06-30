@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, Dialog, Divider } from '@mui/material';
 import { NymLogo } from '@nymproject/react/logo/NymLogo';
-import { ResultsCardDetail } from './ResultsCard';
 import { sleep } from 'src/utils/sleep';
+import { ResultsCardDetail } from './ResultsCard';
 
 export const PrintResults = ({
   packetsSent,
@@ -30,7 +30,7 @@ export const PrintResults = ({
     asyncPrint();
     window.addEventListener('afterprint', OnPrintRequestComplete);
 
-    () => window.removeEventListener('afterprint', OnPrintRequestComplete);
+    return () => window.removeEventListener('afterprint', OnPrintRequestComplete);
   }, []);
 
   return (

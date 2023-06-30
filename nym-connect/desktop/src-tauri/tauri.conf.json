@@ -1,6 +1,6 @@
 {
   "package": {
-    "productName": "NymConnect",
+    "productName": "nym-connect",
     "version": "1.1.14"
   },
   "build": {

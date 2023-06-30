@@ -3,7 +3,7 @@ import { Divider, Typography } from '@mui/material';
 import { Box } from '@mui/system';
 
 const appsSchema = {
-  messagingApps: ['Telegram', 'Matrix', 'Keybase'],
+  messagingApps: ['Matrix', 'Telegram', 'Keybase'],
   wallets: ['Monero', 'Blockstream', 'Electrum'],
 };
 

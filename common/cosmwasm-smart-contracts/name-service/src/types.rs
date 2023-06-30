@@ -53,22 +53,54 @@ pub struct NameDetails {
 /// NOTE: entirely unvalidated.
 #[cw_serde]
 pub enum Address {
-    NymAddress(String),
+    NymAddress(NymAddressInner),
     // Possible extension:
     //Gateway(String)
+}
+
+struct NymAddressInner {
+    client_id: String,
+    client_enc: String,
+    gateway_id: String,
+}
+
+// ADDRESS . ENCRYPTION @ GATEWAY_ID
+impl std::fmt::Display for NymAddressInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}@{}", self.client_id, self.client_enc, self.gateway_id)
+    }
 }
 
 impl Address {
     /// Create a new nym address.
     pub fn new(address: &str) -> Result<Self> {
-        string_is_valid_nym_address(address)
-            .then(|| Self::NymAddress(address.to_string()))
+        parse_nym_address(address)
+            .then(|parsed_address| Self::NymAddress(parsed_address))
             .ok_or_else(|| NameServiceError::InvalidNymAddress(address.to_string()))
     }
 
+    pub fn client_id(&self) -> &str {
+        match self {
+            Address::NymAddress(address) => address.client_id,
+        }
+    }
+
+    pub fn client_enc(&self) -> &str {
+        match self {
+            Address::NymAddress(address) => address.client_enc,
+        }
+    }
+
+    pub fn gateway_id(&self) -> &str {
+        match self {
+            Address::NymAddress(address) => address.gateway_id,
+        }
+    }
+
+    // WIP(JON): rename
     pub fn as_str(&self) -> &str {
         match self {
-            Address::NymAddress(address) => address,
+            Address::NymAddress(address) => address.display().as_ref(),
         }
     }
 
@@ -82,15 +114,17 @@ impl Address {
 
 impl Display for Address {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
+        match self {
+            Address::NymAddress(address) => write!(f, "{}", address),
+        }
     }
 }
 
 // A valid nym address is of the form client_id.client_enc@gateway_id
-fn string_is_valid_nym_address(address: &str) -> bool {
+fn parse_nym_address(address: &str) -> Option<NymAddressInner> {
     let parts: Vec<&str> = address.split('@').collect();
     if parts.len() != 2 {
-        return false;
+        return None;
     }
 
     let client_part = parts[0];
@@ -99,15 +133,19 @@ fn string_is_valid_nym_address(address: &str) -> bool {
     // The client part consists of two parts separated by a dot
     let client_parts: Vec<&str> = client_part.split('.').collect();
     if client_parts.len() != 2 {
-        return false;
+        return None;
     }
 
     // Check that the gateway part does not contain any dots
     if gateway_part.contains('.') {
-        return false;
+        return None;
     }
 
-    true
+    Some(NymAddressInner {
+        client_id: client_parts[0].to_string(),
+        client_enc: client_parts[1].to_string(),
+        gateway_id: gateway_part.to_string(),
+    })
 }
 
 /// Name stored and pointing a to a nym-address

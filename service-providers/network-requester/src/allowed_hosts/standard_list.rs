@@ -4,6 +4,7 @@
 use crate::allowed_hosts::group::HostsGroup;
 use crate::allowed_hosts::host::Host;
 use nym_task::TaskClient;
+use regex::Regex;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{RwLock, RwLockReadGuard};
@@ -11,11 +12,20 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 const STANDARD_LIST_URL: &str =
     "https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt";
 
+fn remove_comments(text: String) -> String {
+    if let Ok(regex) = Regex::new(r"#.*\n") {
+        regex.replace_all(&text, "").into_owned()
+    } else {
+        log::warn!("Failed to strip comments from standard allowed list");
+        text
+    }
+}
+
 /// Fetch the standard allowed list from nymtech.net
 pub(crate) async fn fetch() -> Vec<Host> {
     log::info!("Refreshing standard allowed hosts");
-    get_standard_allowed_list()
-        .await
+    let text = get_standard_allowed_list().await;
+    remove_comments(text)
         .split_whitespace()
         .map(Into::into)
         .collect()

@@ -222,6 +222,13 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 		proxied["status"] = IR.inner.StatusCode
 	}
 
+	if len(IR.urlList) > 0 {
+		// "The value of the url property will be the final URL obtained after any redirects."
+		// source: https://developer.mozilla.org/en-US/docs/Web/API/Response/url
+		last := IR.urlList[len(IR.urlList)-1]
+		proxied["url"] = last.String()
+	}
+
 	responseConstructor := js.Global().Get("Response")
 	response := responseConstructor.New(jsBody, responseOptions)
 

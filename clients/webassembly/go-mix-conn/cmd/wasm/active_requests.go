@@ -155,7 +155,7 @@ func mainFetchChecks(req *ParsedRequest) error {
 	}
 	if req.options.mode == MODE_NO_CORS {
 		if req.options.redirect != REQUEST_REDIRECT_FOLLOW {
-			return errors.New(fmt.Sprintf("MixFetch API could not perform request with mode \"%s\" and redirect \"%s\"", req.options.mode, req.options.redirect))
+			return errors.New(fmt.Sprintf("MixFetch API cannot load %s. Request mode is \"%s\", but the redirect mode is not \"%s\".", req.request.URL.String(), req.options.mode, REQUEST_REDIRECT_FOLLOW))
 		}
 		Debug("setting response tainting to opaque")
 		req.options.responseTainting = RESPONSE_TAINTING_OPAQUE

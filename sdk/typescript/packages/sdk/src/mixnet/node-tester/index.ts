@@ -6,6 +6,7 @@ import { INodeTesterWorkerAsync, NodeTester, NodeTesterEventKinds } from './type
  * Client for the Nym node tester.
  */
 export const createNodeTesterClient = async (): Promise<NodeTester> => {
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   const worker = await createWorker();
 
   // let comlink handle interop with the web worker

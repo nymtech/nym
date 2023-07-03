@@ -27,7 +27,7 @@ module.exports = {
     'plugin:jest/recommended',
     'plugin:jest/style',
   ],
-  ignorePatterns: ['dist/**/*', 'dist', 'node_modules', '**/wasm/worker.js'],
+  ignorePatterns: ['dist/**/*', 'dist', 'node_modules', '**/worker.js'],
   rules: {
     'jest/prefer-strict-equal': 'error',
     'jest/prefer-to-have-length': 'warn',

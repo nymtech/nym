@@ -1,19 +1,20 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Box, Button } from '@mui/material';
+import { Download } from '@mui/icons-material';
+import { NodeTestResultResponse, NodeTester, TestStatus, createNodeTesterClient } from '@nymproject/sdk';
+import { format } from 'date-fns';
 import { AppContext, useBondingContext } from 'src/context';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { Results } from 'src/components/TestNode/Results';
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { PrintResults } from 'src/components/TestNode/PrintResults';
-import { Download } from '@mui/icons-material';
-import { format } from 'date-fns';
-import { NodeTestEvent, NodeTestResult, TestStatus } from './types';
+import { MAINNET_VALIDATOR_URL, QA_VALIDATOR_URL } from 'src/constants';
 
 export const NodeTestPage = () => {
-  const [nodeTestWorker, setNodeTestWorker] = useState<Worker>();
+  const [nodeTestClient, setNodeTestClient] = useState<NodeTester>();
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState<NodeTestResult>();
+  const [results, setResults] = useState<NodeTestResultResponse>();
   const [printResults, setPrintResults] = useState(false);
   const [testDate, setTestDate] = useState<string>();
 
@@ -22,15 +23,6 @@ export const NodeTestPage = () => {
 
   const { network } = useContext(AppContext);
   const { bondedNode } = useBondingContext();
-
-  const loadWorker = () => {
-    try {
-      const worker: Worker = new Worker(new URL('./worker.ts', import.meta.url));
-      setNodeTestWorker(worker);
-    } catch (e) {
-      setError('Error loading worker');
-    }
-  };
 
   const handleTestTimeout = () => {
     clearTimeout(timerRef.current);
@@ -43,56 +35,52 @@ export const NodeTestPage = () => {
     }, 15000);
   };
 
-  const handleWorkerMessages = (ev: MessageEvent<NodeTestEvent>) => {
-    const eventKind = ev.data.kind;
-
-    if (eventKind === 'Error') {
-      setError(ev.data.args.message);
-      testStateRef.current = 'Stopped';
-    }
-    if (eventKind === 'DisplayTesterResults') {
-      setResults(ev.data.args.result);
-      testStateRef.current = 'Complete';
-    }
-    setIsLoading(false);
-  };
-
   const handleTestNode = async () => {
-    setError(undefined);
-    setResults(undefined);
-    setIsLoading(true);
-    setTestDate(format(new Date(), 'dd/MM/yyyy HH:mm'));
-
-    if (nodeTestWorker) {
+    if (nodeTestClient && bondedNode) {
+      setResults(undefined);
+      setTestDate(format(new Date(), 'dd/MM/yyyy HH:mm'));
+      setIsLoading(true);
+      setError(undefined);
       testStateRef.current = 'Running';
-      nodeTestWorker.postMessage({
-        kind: 'TestPacket',
-        args: {
-          mixnodeIdentity: bondedNode?.identityKey,
-          network,
-        },
-      } as NodeTestEvent);
       handleTestTimeout();
+      try {
+        const result = await nodeTestClient.tester.startTest(bondedNode.identityKey);
+        setResults(result);
+        testStateRef.current = 'Complete';
+      } catch (e) {
+        setError('Node test failed, please try again');
+        testStateRef.current = 'Stopped';
+        console.log(e);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  useEffect(() => {
-    loadWorker();
-
-    return () => {
-      if (nodeTestWorker) {
-        nodeTestWorker.terminate();
-      }
-    };
+  const loadNodeTestClient = useCallback(async () => {
+    try {
+      const nodeTesterId = new Date().toISOString(); // make a new tester id for each session
+      const validator = network === 'MAINNET' ? MAINNET_VALIDATOR_URL : QA_VALIDATOR_URL;
+      const client = await createNodeTesterClient();
+      await client.tester.init(validator, nodeTesterId);
+      setNodeTestClient(client);
+    } catch (e) {
+      console.log(e);
+      setError('Failed to load node tester client, please try again');
+    }
   }, []);
 
   useEffect(() => {
-    if (nodeTestWorker) {
-      nodeTestWorker.addEventListener('message', (e) => handleWorkerMessages(e));
-    }
+    loadNodeTestClient();
 
-    return () => nodeTestWorker?.removeEventListener('message', handleWorkerMessages);
-  }, [nodeTestWorker]);
+    return () => {
+      clearTimeout(timerRef.current);
+      if (nodeTestClient) {
+        nodeTestClient.tester.disconnectFromGateway();
+        nodeTestClient.terminate();
+      }
+    };
+  }, [loadNodeTestClient]);
 
   return (
     <Box p={4}>

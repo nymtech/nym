@@ -10,14 +10,14 @@
     "nym-connect/**",
     "explorer",
     "types",
-    "clients/validator",
-    "clients/webassembly/**"
+    "clients/validator"
   ],
   "scripts": {
     "clean": "lerna run clean",
     "build": "run-s build:types build:packages",
     "build:types": "lerna run --scope @nymproject/types build --stream",
-    "build:packages": "run-s build:packages:theme build:packages:react",
+    "build:packages": "run-s build:packages:theme build:packages:react build:packages:sdk",
+    "build:packages:sdk": "lerna run --scope @nymproject/sdk build:lint",
     "build:packages:theme": "lerna run --scope @nymproject/mui-theme build",
     "build:packages:react": "lerna run --scope @nymproject/react build",
     "build:react-example": "lerna run --scope @nymproject/react-webpack-with-theme-example build --stream",
@@ -28,7 +28,9 @@
     "lint:fix": "lerna run lint:fix --stream",
     "tsc": "lerna run tsc --stream",
     "types:lint:fix": "lerna run lint:fix --scope @nymproject/types --scope @nymproject/nym-wallet-app",
-    "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run"
+    "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run",
+    "preinstall": "yarn install:copy-placeholders",
+    "install:copy-placeholders": "cp scripts/build/yarn/wasm-placeholder/package.json sdk/typescript/packages/nym-client-wasm"
   },
   "devDependencies": {
     "lerna": "^6.6.2",

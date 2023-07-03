@@ -9,12 +9,26 @@ use clap::{CommandFactory, Parser, Subcommand, Args};
 // use cosmrs::tx::Msg;
 // use cosmrs::{tx, AccountId, Coin, Denom};
 // use bip39; 
+use nym_validator_client::nyxd::AccountId;
 mod commands; 
 
 #[derive(Debug, Parser)]
 #[clap(name = "nym cosmos tx signer ")]
 #[clap(about = "binary with which users can perform offline signing and transmission of signed tx to broadcaster via the mixnet ")]
 struct Cli {
+    // TODO make this import from file & remove from functions 
+    // #[clap(long, global = true)]
+    // #[clap(
+    //     help = "Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC."
+    // )]
+    // mnemonic: Option<bip39::Mnemonic>,
+
+    #[clap(short, long, global = true)]
+    #[clap(
+        help = "Overrides configuration as a file of environment variables."
+    )]
+    config_env_file: Option<std::path::PathBuf>,
+
     #[clap(subcommand)]
     command: Option<Commands>,
 }
@@ -29,10 +43,10 @@ enum Commands {
 
 #[derive(Debug, Clone, Args)]
 struct OfflineSignTx {
-    /// mnemonic of signing + sending account (you!)
-    mnemonic: String, // TODO input validation.. look @ file loading first 
+    /// mnemonic of signing + sending account (you!) - this will be removed and replaced with file 
+    mnemonic: bip39::Mnemonic, 
     /// recipient nyx chain address
-    to: String // TODO switch to proper cosmos address type  
+    to: AccountId 
 }
 
 #[derive(Debug, Args)]
@@ -48,7 +62,7 @@ async fn main() {
 
     match &cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx { mnemonic, to } )) => {
-            let tx_bytes = commands::commands::offline_sign(mnemonic, to).await;         
+            let tx_bytes = commands::commands::offline_sign(mnemonic.clone(), to.clone()).await;         
             
             // TODO save as global var to pass to sendtx() 
             println!("{:?}", tx_bytes.iter().collect::<Vec<_>>()); 
@@ -57,6 +71,6 @@ async fn main() {
         Some(Commands::SendTx(sp_address)) => {
             todo!(); 
         }       
-        None => {}
+        None => {println!("no command specified - nothing to do")}
     }
 }

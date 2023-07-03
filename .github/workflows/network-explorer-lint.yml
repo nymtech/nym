@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
       - name: Setup yarn
         run: npm install -g yarn
       - name: Run ESLint

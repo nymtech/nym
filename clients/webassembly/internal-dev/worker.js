@@ -354,10 +354,11 @@ async function testMixFetch() {
                     // ignore the field naming : ) I'm just abusing that a bit...
                     const {mixnodeIdentity} = event.data.args;
                     const url = mixnodeIdentity;
+                    const args = { mode: "no-cors" }
 
                     try {
                         console.log('using mixFetch...');
-                        const mixFetchRes = await mixFetch(url)
+                        const mixFetchRes = await mixFetch(url, args)
                         console.log(">>> MIX FETCH")
                         await logFetchResult(mixFetchRes)
                     } catch(e) {
@@ -366,7 +367,7 @@ async function testMixFetch() {
 
                     try {
                         console.log('using normal Fetch...');
-                        const fetchRes = await fetch(url)
+                        const fetchRes = await fetch(url, args)
                         console.log(">>> NORMAL FETCH")
                         await logFetchResult(fetchRes)
                     } catch(e) {

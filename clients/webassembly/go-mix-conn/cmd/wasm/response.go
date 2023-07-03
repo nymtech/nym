@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -208,15 +209,24 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 	responseOptions.Set("statusText", http.StatusText(IR.inner.StatusCode))
 	responseOptions.Set("headers", headers)
 
-	responseConstructor := js.Global().Get("Response")
-	response := responseConstructor.New(jsBody, responseOptions)
-
 	proxied := make(map[string]any)
 
 	if IR.responseType != "" {
-		// TODO: ideally we'd overwrite the `type` field, but it's readonly : (
-		response.Set("_type", IR.responseType)
 		proxied["type"] = IR.responseType
+	}
+
+	// can't call the constructor properly if the value is outside the "legal" range (i.e. [200, 599])
+	// (even though the fetch spec requires something different...)
+	if IR.inner.StatusCode == 0 {
+		responseOptions.Set("status", 418)
+		proxied["status"] = IR.inner.StatusCode
+	}
+
+	responseConstructor := js.Global().Get("Response")
+	response := responseConstructor.New(jsBody, responseOptions)
+
+	for k, v := range proxied {
+		response.Set(fmt.Sprintf("_%s", k), v)
 	}
 
 	proxyConstructor := js.Global().Get("Proxy")

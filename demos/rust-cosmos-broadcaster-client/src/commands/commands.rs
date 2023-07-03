@@ -9,18 +9,15 @@ use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
 use bip39; 
 
-pub async fn offline_sign(mnemonic: &String, to: &String) -> Vec<u8> {
+pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> Vec<u8> {
 
-    // TODO load most of this from config file. in V2 take chain-id and tx-type as well   
+    // TODO take coin amount from function args, + load most of network vars from config file. in V2 take chain-id and tx-type as well - for V1 see nym-cli and how it loads from get_network_details() in main.rsL88
     let prefix = "n";
     let denom: Denom = "unym".parse().unwrap();
-    let signer_mnemonic: bip39::Mnemonic = mnemonic.parse().unwrap();
-    // let signer_mnemonic: bip39::Mnemonic = "<SOME MNEMONIC>".parse().unwrap();
     let validator = "https://qwerty-validator.qa.nymte.ch";
-    let to_address: AccountId = to.parse().unwrap();
-    // let to_address: AccountId = "n19kdst4srf76xgwe55jg32mpcpcyf6aqgp6qrdk".parse().unwrap();
 
-    let signer = DirectSecp256k1HdWallet::from_mnemonic(prefix, signer_mnemonic);
+    
+    let signer = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
     let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
 
     // local 'client' ONLY signing messages
@@ -43,7 +40,7 @@ pub async fn offline_sign(mnemonic: &String, to: &String) -> Vec<u8> {
 
             let send_msg = MsgSend {
                 from_address: signer_address.clone(),
-                to_address: to_address.clone(),
+                to_address: to.clone(),
                 amount,
             }
             .to_any()

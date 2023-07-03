@@ -12,7 +12,7 @@ nym-validator-client = { path = "../../common/client-libs/validator-client", fea
 nym-network-defaults = { path = "../../common/network-defaults" }
 async-trait = { workspace = true, optional = true }
 bip39 = { workspace = true, features = ["rand"], optional = true }
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"], optional = true }
+cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"] }
 
 [dev-dependencies]
 bip39 = { workspace = true }

@@ -3,11 +3,11 @@ use nym_validator_client::nyxd::CosmWasmClient;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 use nym_validator_client::signing::tx_signer::TxSigner;
 use nym_validator_client::signing::SignerData;
-/* use cosmrs::bank::MsgSend;
+use cosmrs::bank::MsgSend;
 use cosmrs::rpc::{self, HttpClient};
 use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
-*/
+
 
 #[derive(Debug, Parser)]
 #[clap(name = "cosmos tx broadcaster ")]

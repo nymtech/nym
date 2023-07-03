@@ -6,10 +6,15 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import { AccountBalanceWalletRounded, ArrowDownwardRounded } from '@mui/icons-material';
+import { AccountBalanceWalletRounded, AccountCircleRounded, ArrowDownwardRounded } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 
 const menuSchema = [
+  {
+    title: 'Accounts',
+    Icon: <AccountCircleRounded />,
+    path: '/user/accounts',
+  },
   {
     title: 'Balance',
     Icon: <AccountBalanceWalletRounded />,

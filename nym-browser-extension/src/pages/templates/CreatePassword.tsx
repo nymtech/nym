@@ -17,7 +17,7 @@ type TCreatePassword = {
   setPassword: (password: string) => void;
 };
 
-export const CreatePassword = ({
+export const CreatePasswordTemplate = ({
   canProceed,
   onNext,
   password,

@@ -12,7 +12,7 @@ const layoutStyle = {
   gridRowGap: '0px',
 };
 
-export const PageLayout = ({ children }: { children: React.ReactNode }) => {
+export const PageLayout = ({ children, onBack }: { children: React.ReactNode; onBack?: () => void }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const location = useLocation();
@@ -30,7 +30,7 @@ export const PageLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <Box sx={layoutStyle}>
-      <AppBar Action={<Action />} />
+      <AppBar Action={<Action onBack={onBack} />} />
       <MenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
       <Box sx={{ p: 2 }}>{children}</Box>
     </Box>

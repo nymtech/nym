@@ -1,7 +1,6 @@
+import React from 'react';
 import { Typography } from '@mui/material';
 import { Box } from '@mui/system';
-import React from 'react';
-import { Button } from 'src/components';
 import { TopLogoLayout } from 'src/layouts';
 
 const steps = [
@@ -13,15 +12,7 @@ const steps = [
 ];
 
 export const ForgotPassword = () => (
-  <TopLogoLayout
-    title="Forgot password"
-    description="Follow instructions below"
-    Actions={
-      <Button fullWidth variant="contained" size="large">
-        Logout
-      </Button>
-    }
-  >
+  <TopLogoLayout title="Forgot password" description="Follow instructions below" Actions={<div />}>
     <Box sx={{ px: 2 }}>
       {steps.map((step, index) => (
         <Typography sx={{ color: 'grey.700', my: 3 }} key={step} variant="body2">

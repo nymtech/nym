@@ -1,3 +1,4 @@
+export * from './accounts';
 export * from './auth';
 export * from './balance';
 export * from './home';

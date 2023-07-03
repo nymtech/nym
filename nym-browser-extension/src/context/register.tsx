@@ -6,36 +6,63 @@ const RegisterContext = React.createContext({} as TRegisterContext);
 type TRegisterContext = {
   userPassword: string;
   userMnemonic: string;
+  accountName: string;
+  checkAccountName: () => Promise<boolean>;
   setUserPassword: (password: string) => void;
   setUserMnemonic: (mnemonic: string) => void;
-  createNewAccount: (mnemonic: string) => Promise<void>;
-  importExistingAccount: (password: string) => Promise<void>;
+  setAccountName: (name: string) => void;
+  createAccount: (args: { mnemonic: string; password: string; accName: string }) => Promise<void>;
+  importAccount: () => Promise<string[]>;
+  resetState: () => void;
 };
 
 export const RegisterContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [userPassword, setUserPassword] = useState('');
   const [userMnemonic, setUserMnemonic] = useState('');
+  const [accountName, setAccountName] = useState('');
 
-  const createAccount = async (mnemonic: string, password: string) => {
-    const storage = await new ExtensionStorage(password);
-    await storage.store_mnemonic('Default account', mnemonic);
-    localStorage.setItem('nym-browser-extension', 'true');
+  const resetState = () => {
+    setUserMnemonic('');
+    setUserPassword('');
+    setAccountName('');
   };
 
-  const createNewAccount = async (mnemonic: string) => createAccount(mnemonic, userPassword);
+  const createAccount = async ({
+    mnemonic,
+    password,
+    accName,
+  }: {
+    mnemonic: string;
+    password: string;
+    accName: string;
+  }) => {
+    const storage = await new ExtensionStorage(password);
+    await storage.store_mnemonic(accName, mnemonic);
+  };
 
-  const importExistingAccount = async (password: string) => createAccount(userMnemonic, password);
+  const importAccount = async () => {
+    const storage = await new ExtensionStorage(userPassword);
+    await storage.store_mnemonic(accountName, userMnemonic);
+    const accounts = await storage.get_all_mnemonic_keys();
+    return accounts;
+  };
+
+  const checkAccountName = async () => true;
 
   const value = useMemo(
     () => ({
       userPassword,
       setUserPassword,
       userMnemonic,
+      accountName,
+      setAccountName,
       setUserMnemonic,
-      createNewAccount,
-      importExistingAccount,
+      createAccount,
+      checkAccountName,
+      importAccount,
+      resetState,
     }),
-    [userPassword, userMnemonic],
+    [userPassword, userMnemonic, accountName],
   );
 
   return <RegisterContext.Provider value={value}>{children}</RegisterContext.Provider>;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useCreatePassword } from 'src/hooks/useCreatePassword';
-import { CreatePassword } from 'src/components/register/CreatePassword';
 import { useRegisterContext } from 'src/context/register';
+import { CreatePasswordTemplate } from 'src/pages/templates/CreatePassword';
 
 export const CreatePasswordOnNewAccount = ({ onNext }: { onNext: () => void }) => {
   const passwordState = useCreatePassword();
@@ -12,5 +12,5 @@ export const CreatePasswordOnNewAccount = ({ onNext }: { onNext: () => void }) =
     onNext();
   };
 
-  return <CreatePassword {...passwordState} onNext={handleCreateAccount} />;
+  return <CreatePasswordTemplate {...passwordState} onNext={handleCreateAccount} />;
 };

@@ -26,14 +26,20 @@ jobs:
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}
       release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].published_at }}
-      version: ${{ steps.release-info.outputs.version }}
-      client_hash: ${{ steps.release-hashes.outputs.client_hash }}
-      mixnode_hash: ${{ steps.release-hashes.outputs.mixnode_hash }}
-      gateway_hash: ${{ steps.release-hashes.outputs.gateway_hash }}
-      socks5_hash: ${{ steps.release-hashes.outputs.socks5_hash }}
-      netreq_hash: ${{ steps.release-hashes.outputs.netreq_hash }}
-      cli_hash: ${{ steps.release-hashes.outputs.cli_hash }}
-      netstat_hash: ${{ steps.release-hashes.outputs.netstat_hash }}
+      client_hash: ${{ steps.binary-hashes.outputs.client_hash }}
+      mixnode_hash: ${{ steps.binary-hashes.outputs.mixnode_hash }}
+      gateway_hash: ${{ steps.binary-hashes.outputs.gateway_hash }}
+      socks5_hash: ${{ steps.binary-hashes.outputs.socks5_hash }}
+      netreq_hash: ${{ steps.binary-hashes.outputs.netreq_hash }}
+      cli_hash: ${{ steps.binary-hashes.outputs.cli_hash }}
+      netstat_hash: ${{ steps.binary-hashes.outputs.netstat_hash }}
+      client_version: ${{ steps.binary-versions.outputs.client_version }}
+      mixnode_version: ${{ steps.binary-versions.outputs.mixnode_version }}
+      gateway_version: ${{ steps.binary-versions.outputs.gateway_version }}
+      socks5_version: ${{ steps.binary-versions.outputs.socks5_version }}
+      netreq_version: ${{ steps.binary-versions.outputs.netreq_version }}
+      cli_version: ${{ steps.binary-versions.outputs.cli_version }}
+      netstat_version: ${{ steps.binary-versions.outputs.netstat_version }}
 
     steps:
       - uses: actions/checkout@v3
@@ -96,16 +102,27 @@ jobs:
           semver="${${{ github.ref_name }}##nym-binaries-}" && semver="${semver##v}"
           echo "version=$semver" >> "$GITHUB_OUTPUT"
 
-      - id: release-hashes
-        name: Generate file hashes
+      - id: binary-hashes
+        name: Generate binary hashes
         run: |
           echo "client_hash=${{ hashFiles('target/release/nym-client') }}" >> "$GITHUB_OUTPUT"
           echo "mixnode_hash=${{ hashFiles('target/release/nym-mixnode') }}" >> "$GITHUB_OUTPUT"
           echo "gateway_hash=${{ hashFiles('target/release/nym-gateway') }}" >> "$GITHUB_OUTPUT"
-          echo "socks5_hash=${{ hashFiles('target/release/nym-socks5') }}" >> "$GITHUB_OUTPUT"
+          echo "socks5_hash=${{ hashFiles('target/release/nym-socks5-client') }}" >> "$GITHUB_OUTPUT"
           echo "netreq_hash=${{ hashFiles('target/release/nym-network-requester') }}" >> "$GITHUB_OUTPUT"
           echo "cli_hash=${{ hashFiles('target/release/nym-cli') }}" >> "$GITHUB_OUTPUT"
           echo "netstat_hash=${{ hashFiles('target/release/nym-network-statistics') }}" >> "$GITHUB_OUTPUT"
+
+      - id: binary-versions
+        name: Get binary versions
+        run: |
+          v=$(rg '^version = "(.*)"' -or '$1' clients/native/Cargo.toml) && echo "client_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' mixnode/Cargo.toml) && echo "mixnode_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' gateway/Cargo.toml) && echo "gateway_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' clients/socks5/Cargo.toml) && echo "socks5_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' service-providers/network-requester/Cargo.toml) && echo "netreq_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' tools/nym-cli/Cargo.toml) && echo "cli_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' service-providers/network-statistics/Cargo.toml) && echo "netstat_version=$v" >> "$GITHUB_OUTPUT"
 
   push-release-data-client:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
@@ -117,7 +134,7 @@ jobs:
       release_date: ${{ needs.publish-nym.outputs.release_date }}
       download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
       changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
-      version: ${{ needs.publish-nym.outputs.version }}
+      version: ${{ needs.publish-nym.outputs.client_version }}
       filename: nym-client
       file_hash: ${{ needs.publish-nym.outputs.client_hash }}
       name: Client
@@ -134,7 +151,7 @@ jobs:
       release_date: ${{ needs.publish-nym.outputs.release_date }}
       download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
       changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
-      version: ${{ needs.publish-nym.outputs.version }}
+      version: ${{ needs.publish-nym.outputs.mixnode_version }}
       filename: nym-mixnode
       file_hash: ${{ needs.publish-nym.outputs.mixnode_hash }}
       name: Mixnode
@@ -151,7 +168,7 @@ jobs:
       release_date: ${{ needs.publish-nym.outputs.release_date }}
       download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
       changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
-      version: ${{ needs.publish-nym.outputs.version }}
+      version: ${{ needs.publish-nym.outputs.gateway_version }}
       filename: nym-gateway
       file_hash: ${{ needs.publish-nym.outputs.gateway_hash }}
       name: Gateway
@@ -168,7 +185,7 @@ jobs:
       release_date: ${{ needs.publish-nym.outputs.release_date }}
       download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
       changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
-      version: ${{ needs.publish-nym.outputs.version }}
+      version: ${{ needs.publish-nym.outputs.socks5_version }}
       filename: nym-socks5-client
       file_hash: ${{ needs.publish-nym.outputs.socks5_hash }}
       name: Socks5 Client
@@ -185,7 +202,7 @@ jobs:
       release_date: ${{ needs.publish-nym.outputs.release_date }}
       download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
       changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
-      version: ${{ needs.publish-nym.outputs.version }}
+      version: ${{ needs.publish-nym.outputs.netreq_version }}
       filename: nym-network-requester
       file_hash: ${{ needs.publish-nym.outputs.netreq_hash }}
       name: Network Requester
@@ -202,7 +219,7 @@ jobs:
       release_date: ${{ needs.publish-nym.outputs.release_date }}
       download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
       changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
-      version: ${{ needs.publish-nym.outputs.version }}
+      version: ${{ needs.publish-nym.outputs.cli_version }}
       filename: nym-cli
       file_hash: ${{ needs.publish-nym.outputs.cli_hash }}
       name: Cli
@@ -219,7 +236,7 @@ jobs:
       release_date: ${{ needs.publish-nym.outputs.release_date }}
       download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
       changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
-      version: ${{ needs.publish-nym.outputs.version }}
+      version: ${{ needs.publish-nym.outputs.netstat_version }}
       filename: nym-network-statistics
       file_hash: ${{ needs.publish-nym.outputs.netstat_hash }}
       name: Network Statistics

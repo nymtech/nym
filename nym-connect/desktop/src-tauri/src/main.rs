@@ -25,7 +25,8 @@ mod tasks;
 mod window;
 
 fn main() {
-    if std::env::var("NYM_CONNECT_ENABLE_MEDIUM").is_ok() {
+    if cfg!(medium_enabled) || std::env::var("NYM_CONNECT_ENABLE_MEDIUM").is_ok() {
+        println!("speedy mode enabled");
         std::env::set_var("NYM_CONNECT_DISABLE_COVER", "1");
         std::env::set_var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS", "1");
         std::env::set_var("NYM_CONNECT_DISABLE_PER_HOP_DELAYS", "1");

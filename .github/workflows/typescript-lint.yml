@@ -38,6 +38,13 @@ jobs:
         node-version: 18
     - name: Setup yarn
       run: npm install -g yarn
+    - name: Install Rust stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      working-directory: clients/webassembly
     - name: Install
       run: yarn
     - name: Build packages

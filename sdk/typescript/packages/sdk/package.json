@@ -26,7 +26,8 @@
     "build:only-this": "scripts/build-prod.sh",
     "prebuild:dev": "yarn build:dependencies",
     "build:dev": "yarn build:dev:only-this",
-    "build:dev:only-this": "scripts/build.sh"
+    "build:dev:only-this": "scripts/build.sh",
+    "build:lint": "yarn build:dependencies:nym-client-wasm build:dev:only-this"
   },
   "dependencies": {
     "@npmcli/node-gyp": "^3.0.0",

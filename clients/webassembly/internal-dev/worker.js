@@ -306,7 +306,6 @@ async function messWithStorage() {
 async function logFetchResult(res) {
     console.log(res)
     let text = await res.text()
-    console.log('mixFetch done');
     console.log("HEADERS:     ", ...res.headers)
     console.log("STATUS:      ", res.status)
     console.log("STATUS TEXT: ", res.statusText)

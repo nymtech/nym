@@ -19,6 +19,9 @@ type jsFn func(this js.Value, args []js.Value) (any, error)
 var (
 	jsErr     = js.Global().Get("Error")
 	jsPromise = js.Global().Get("Promise")
+	jsReflect = js.Global().Get("Reflect")
+	jsObject  = js.Global().Get("Object")
+	jsConsole = js.Global().Get("console")
 	origin    = js.Global().Get("location").Get("origin").String()
 )
 
@@ -194,4 +197,12 @@ func unique(s []string) []string {
 		uniqueSlice = append(uniqueSlice, v)
 	}
 	return uniqueSlice
+}
+
+func intoAnySlice(v []js.Value) []any {
+	s := make([]any, len(v))
+	for i, x := range v {
+		s[i] = x
+	}
+	return s
 }

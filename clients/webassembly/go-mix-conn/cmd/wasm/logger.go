@@ -6,7 +6,6 @@ package main
 import (
 	"fmt"
 	"runtime"
-	"syscall/js"
 )
 
 func makeLogMessage(severity string, format string, a ...any) string {
@@ -24,23 +23,23 @@ func makeLogMessage(severity string, format string, a ...any) string {
 
 func Error(format string, a ...any) {
 	msg := makeLogMessage("ERROR", format, a...)
-	js.Global().Get("console").Call("error", msg)
+	jsConsole.Call("error", msg)
 }
 
 func Warn(format string, a ...any) {
 	msg := makeLogMessage("WARN", format, a...)
-	js.Global().Get("console").Call("warn", msg)
+	jsConsole.Call("warn", msg)
 
 }
 
 func Info(format string, a ...any) {
 	msg := makeLogMessage("INFO", format, a...)
-	js.Global().Get("console").Call("info", msg)
+	jsConsole.Call("info", msg)
 }
 
 func Debug(format string, a ...any) {
 	msg := makeLogMessage("DEBUG", format, a...)
 	// too lazy to configure my console : )
-	//js.Global().Get("console").Call("debug", msg)
-	js.Global().Get("console").Call("log", msg)
+	//jsConsole.Call("debug", msg)
+	jsConsole.Call("log", msg)
 }

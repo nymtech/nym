@@ -16,7 +16,7 @@ jobs:
       - uses: rlespinasse/github-slug-action@v3.x
       - uses: actions/setup-node@v3
         with:
-          node-version: "16"
+          node-version: 18
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:

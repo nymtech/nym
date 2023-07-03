@@ -43,6 +43,8 @@ async function initSentry() {
   getVersion().then((version) => {
     Sentry.setTag('app_version', version);
   });
+
+  Sentry.setUser({ id: 'nym', ip_address: undefined });
 }
 
 export default initSentry;

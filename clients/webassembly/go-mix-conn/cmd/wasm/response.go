@@ -174,7 +174,7 @@ func proxyHandlerGet(proxied map[string]any) js.Func {
 		// we're only proxing "normal" props, not function calls
 		proxy, ok := proxied[prop]
 		if ok {
-			Debug("using proxy value for field \"%s\" (changing \"%s\" -> \"%s\")", prop, value, proxy)
+			Debug("using proxy value for field \"%s\" (changing \"%v\" -> \"%v\")", prop, value, proxy)
 
 			return proxy
 		}

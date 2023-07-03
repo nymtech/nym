@@ -138,15 +138,22 @@ func mixFetch(_ js.Value, args []js.Value) (any, error) {
 	requestConstructor := js.Global().Get("Request")
 
 	jsRequest := js.Null()
+	unsafeCors := false
 	// that's bit weird. can't use the spread operator
 	if len(args) == 1 {
 		jsRequest = requestConstructor.New(args[0])
 	}
 	if len(args) == 2 {
+		// check for 'MODE_UNSAFE_IGNORE_CORS'
+		if args[1].Get("mode").String() == MODE_UNSAFE_IGNORE_CORS {
+			unsafeCors = true
+			// we need to delete that prop as technically it holds an invalid value to construct `Request`
+			args[1].Delete("mode")
+		}
 		jsRequest = requestConstructor.New(args[0], args[1])
 	}
 
-	goRequest, err := parseJSRequest(jsRequest)
+	goRequest, err := parseJSRequest(jsRequest, unsafeCors)
 	if err != nil {
 		return nil, err
 	}

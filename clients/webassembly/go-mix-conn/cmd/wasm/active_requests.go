@@ -141,6 +141,15 @@ func checkRedirect(opts *RequestOptions, req *http.Request, via []*http.Request)
 // 4.1.12
 // Reference: https://fetch.spec.whatwg.org/#main-fetch
 func mainFetchChecks(req *ParsedRequest) error {
+	// >>> START: NOT INCLUDED IN FETCH SPEC
+	Warn("mode: %s", req.options.mode)
+	if req.options.mode == MODE_UNSAFE_IGNORE_CORS {
+		// ignore all checks - everything should be accepted
+		req.options.responseTainting = RESPONSE_TAINTING_UNSAFE_IGNORE_CORS
+		return nil
+	}
+	// >>> END: NOT INCLUDED IN FETCH SPEC
+
 	// no preloading
 
 	if (isSameOrigin(req.request.URL) && req.options.responseTainting == RESPONSE_TAINTING_BASIC) ||
@@ -204,10 +213,6 @@ func schemeFetch(req *ParsedRequest) error {
 func dialContext(_ctx context.Context, opts *RequestOptions, _network, addr string) (net.Conn, error) {
 	Info("dialing plain connection to %s", addr)
 
-	//if err := checkMode(opts.mode, addr); err != nil {
-	//	return nil, err
-	//}
-
 	requestId, err := rsStartNewMixnetRequest(addr)
 	if err != nil {
 		return nil, err
@@ -221,10 +226,6 @@ func dialContext(_ctx context.Context, opts *RequestOptions, _network, addr stri
 
 func dialTLSContext(_ctx context.Context, opts *RequestOptions, _network, addr string) (net.Conn, error) {
 	Info("dialing TLS connection to %s", addr)
-
-	//if err := checkMode(opts.mode, addr); err != nil {
-	//	return nil, err
-	//}
 
 	requestId, err := rsStartNewMixnetRequest(addr)
 	if err != nil {

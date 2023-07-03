@@ -25,15 +25,17 @@ const (
 	REQUEST_REDIRECT_MANUAL = "manual"
 	REQUEST_REDIRECT_FOLLOW = "follow"
 
-	RESPONSE_TAINTING_BASIC  = "basic"
-	RESPONSE_TAINTING_CORS   = "cors"
-	RESPONSE_TAINTING_OPAQUE = "opaque"
+	RESPONSE_TAINTING_BASIC              = "basic"
+	RESPONSE_TAINTING_CORS               = "cors"
+	RESPONSE_TAINTING_OPAQUE             = "opaque"
+	RESPONSE_TAINTING_UNSAFE_IGNORE_CORS = "ignore-cors"
 
-	MODE_CORS        = "cors"
-	MODE_SAME_ORIGIN = "same-origin"
-	MODE_NO_CORS     = "no-cors"
-	MODE_NAVIGATE    = "navigate"
-	MODE_WEBSOCKET   = "websocket"
+	MODE_CORS               = "cors"
+	MODE_SAME_ORIGIN        = "same-origin"
+	MODE_NO_CORS            = "no-cors"
+	MODE_NAVIGATE           = "navigate"
+	MODE_WEBSOCKET          = "websocket"
+	MODE_UNSAFE_IGNORE_CORS = "unsafe-ignore-cors"
 
 	CREDENTIALS_MODE_OMIT        = "omit"
 	CREDENTIALS_MODE_SAME_ORIGIN = "same-origin"
@@ -99,14 +101,14 @@ func (opts RequestOptions) String() string {
 	[⚠️] headers		- not all headers are properly respected
 	[❌] integrity
 	[✅] method
-	[⚠️] mode			- only "same-origin" is naively (and not fully) implemented
+	[✅] mode
 	[⚠️] redirect		- "manual" is not implemented
 	[❌] referrer
 	[❌] referrerPolicy
 	[❌] signal
 	[✅] url
 */
-func parseJSRequest(request js.Value) (*ParsedRequest, error) {
+func parseJSRequest(request js.Value, unsafeCors bool) (*ParsedRequest, error) {
 	// https://github.com/mozilla/gecko-dev/blob/d307d4d9f06dab6d16e963a4318e5e8ff4899141/dom/fetch/Fetch.cpp#L501
 	// https://github.com/mozilla/gecko-dev/blob/d307d4d9f06dab6d16e963a4318e5e8ff4899141/dom/fetch/Request.cpp#L270
 
@@ -129,7 +131,7 @@ func parseJSRequest(request js.Value) (*ParsedRequest, error) {
 		return nil, err
 	}
 
-	mode, err := parseMode(&request)
+	mode, err := parseMode(&request, unsafeCors)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +306,11 @@ func parseRedirect(request *js.Value) (string, error) {
 	return "", errors.New(fmt.Sprintf("%s is not a valid redirect", redirectString))
 }
 
-func parseMode(request *js.Value) (Mode, error) {
+func parseMode(request *js.Value, unsafeCors bool) (Mode, error) {
+	if unsafeCors {
+		return MODE_UNSAFE_IGNORE_CORS, nil
+	}
+
 	mode := request.Get("mode")
 	if mode.IsUndefined() || mode.IsNull() {
 		// "Even though the default request mode is "no-cors", standards are highly discouraged from using it for new features. It is rather unsafe."
@@ -324,6 +330,8 @@ func parseMode(request *js.Value) (Mode, error) {
 		return MODE_SAME_ORIGIN, nil
 	case MODE_NO_CORS:
 		return MODE_NO_CORS, nil
+	case MODE_UNSAFE_IGNORE_CORS:
+		return MODE_UNSAFE_IGNORE_CORS, nil
 	case MODE_NAVIGATE:
 		return "", errors.New(fmt.Sprintf("%s mode is not supported", MODE_NAVIGATE))
 	case MODE_WEBSOCKET:

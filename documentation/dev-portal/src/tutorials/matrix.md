@@ -28,7 +28,7 @@ Make sure your `Shortcut` isn't already taken by something else in the menu.
 
 An example can look like this.
 
-![](pic/element_nym_keybind.png)
+![](../images/element_nym_keybind.png)
 
 Alternatively you can add a keybinding via the CLI, using whatever config files you edit for your given desktop environment / window manager.
 

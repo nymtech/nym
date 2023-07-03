@@ -9,7 +9,6 @@ use clap::{CommandFactory, Parser, Subcommand, Args};
 // use cosmrs::tx::Msg;
 // use cosmrs::{tx, AccountId, Coin, Denom};
 // use bip39; 
-
 mod commands; 
 
 #[derive(Debug, Parser)]
@@ -31,9 +30,9 @@ enum Commands {
 #[derive(Debug, Clone, Args)]
 struct OfflineSignTx {
     /// mnemonic of signing + sending account (you!)
-    mnemonic: String, 
+    mnemonic: String, // TODO input validation.. look @ file loading first 
     /// recipient nyx chain address
-    to: String 
+    to: String // TODO switch to proper cosmos address type  
 }
 
 #[derive(Debug, Args)]
@@ -49,9 +48,10 @@ async fn main() {
 
     match &cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx { mnemonic, to } )) => {
-            let tx_bytes = commands::commands::offline_sign(mnemonic, to);         
-            // TODO parse future  
-            // println!("{}", parsed.iter().format(", ")); 
+            let tx_bytes = commands::commands::offline_sign(mnemonic, to).await;         
+            
+            // TODO save as global var to pass to sendtx() 
+            println!("{:?}", tx_bytes.iter().collect::<Vec<_>>()); 
             println!("signed"); 
         }
         Some(Commands::SendTx(sp_address)) => {

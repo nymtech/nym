@@ -14,6 +14,11 @@
 - [SOCKS Proxy (CLI)](quickstart/socks-proxy.md)
 - [NymConnect Beta (GUI)](quickstart/nymconnect-gui.md)
 
+# User Manuals
+
+- [NymConnect Monero](tutorials/monero.md)
+- [NymConnect Matrix](tutorials/matrix.md)
+
 # Integrations
 
 - [Integration Options](integrations/integration-options.md)

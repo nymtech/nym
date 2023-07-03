@@ -14,12 +14,13 @@ import (
 type ResponseType = string
 
 const (
-	RESPONSE_TYPE_BASIC           = "basic"
-	RESPONSE_TYPE_CORS            = "cors"
-	RESPONSE_TYPE_DEFAULT         = "default"
-	RESPONSE_TYPE_ERROR           = "error"
-	RESPONSE_TYPE_OPAQUE          = "opaque"
-	RESPONSE_TYPE_OPAQUE_REDIRECT = "opaqueredirect"
+	RESPONSE_TYPE_BASIC              = "basic"
+	RESPONSE_TYPE_CORS               = "cors"
+	RESPONSE_TYPE_DEFAULT            = "default"
+	RESPONSE_TYPE_ERROR              = "error"
+	RESPONSE_TYPE_OPAQUE             = "opaque"
+	RESPONSE_TYPE_OPAQUE_REDIRECT    = "opaqueredirect"
+	RESPONSE_TYPE_UNSAFE_IGNORE_CORS = "unsafe-ignore-cors"
 )
 
 type InternalResponse struct {
@@ -151,6 +152,11 @@ func (IR *InternalResponse) mutIntoOpaqueRedirectResponse() {
 	IR.inner.Body = nil
 }
 
+// OUTSIDE FETCH SPEC
+func (IR *InternalResponse) mutIntoUnsafeIgnoreCorsResponse() {
+	IR.responseType = RESPONSE_TYPE_UNSAFE_IGNORE_CORS
+}
+
 func proxyHandlerGet(proxied map[string]any) js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
 		// Look at redirecting method's this:
@@ -259,7 +265,7 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 	[✅] status
 	[✅] statusText
 	[✅] type		    - has to be proxied
-	[❌] url
+	[⚠️] url			- not sure if every case is covered
 */
 func intoJSResponse(resp *http.Response, opts *RequestOptions) (js.Value, error) {
 	// TODO: check if response is a filtered response
@@ -288,6 +294,8 @@ func intoJSResponse(resp *http.Response, opts *RequestOptions) (js.Value, error)
 			internalResponse.mutIntoCORSResponse()
 		case RESPONSE_TAINTING_OPAQUE:
 			internalResponse.mutIntoOpaqueResponse()
+		case RESPONSE_TAINTING_UNSAFE_IGNORE_CORS:
+			internalResponse.mutIntoUnsafeIgnoreCorsResponse()
 		default:
 			panic("unreachable")
 		}

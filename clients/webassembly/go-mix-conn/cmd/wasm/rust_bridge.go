@@ -10,9 +10,9 @@ import (
 	"syscall/js"
 )
 
-func rsBridgeObject() js.Value {
-	return js.Global().Get(rustGoBridgeName)
-}
+var (
+	rsBridge = js.Global().Get(rustGoBridgeName)
+)
 
 func rsSendClientData(requestId RequestId, data []byte) error {
 	Debug("calling rust send_client_data")
@@ -20,7 +20,7 @@ func rsSendClientData(requestId RequestId, data []byte) error {
 	rawRequestId := strconv.FormatUint(requestId, 10)
 	jsBytes := intoJsBytes(data)
 
-	sendPromise := rsBridgeObject().Call("send_client_data", rawRequestId, jsBytes)
+	sendPromise := rsBridge.Call("send_client_data", rawRequestId, jsBytes)
 	_, err := await(sendPromise)
 	if err != nil {
 		panic("todo: extract error message")
@@ -31,7 +31,7 @@ func rsSendClientData(requestId RequestId, data []byte) error {
 func rsStartNewMixnetRequest(addr string) (RequestId, error) {
 	Debug("calling rust start_new_mixnet_connection")
 
-	requestPromise := rsBridgeObject().Call("start_new_mixnet_connection", addr)
+	requestPromise := rsBridge.Call("start_new_mixnet_connection", addr)
 	rawRequestId, errRes := await(requestPromise)
 	if errRes != nil {
 		panic("todo: extract error message")
@@ -55,7 +55,7 @@ func rsStartNewMixnetRequest(addr string) (RequestId, error) {
 }
 
 func rsIsInitialised() bool {
-	return rsBridgeObject().Call("mix_fetch_initialised").Bool()
+	return rsBridge.Call("mix_fetch_initialised").Bool()
 }
 
 func rsFinishMixnetConnection(requestId RequestId) error {
@@ -63,7 +63,7 @@ func rsFinishMixnetConnection(requestId RequestId) error {
 
 	rawRequestId := strconv.FormatUint(requestId, 10)
 
-	finishPromise := rsBridgeObject().Call("finish_mixnet_connection", rawRequestId)
+	finishPromise := rsBridge.Call("finish_mixnet_connection", rawRequestId)
 	_, err := await(finishPromise)
 	if err != nil {
 		panic("todo: extract error message")

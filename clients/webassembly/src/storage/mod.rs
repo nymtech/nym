@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::Config;
-use crate::storage::errors::ClientStorageError;
+use crate::storage::error::ClientStorageError;
 use js_sys::Promise;
 use nym_client_core::client::base_client::storage::gateway_details::PersistedGatewayDetails;
 use nym_crypto::asymmetric::{encryption, identity};

@@ -73,6 +73,7 @@ members = [
     "common/topology",
     "common/types",
     "common/wasm-utils",
+    "demos/rust-cosmos-broadcaster-client",
     "explorer-api",
     "gateway",
     "gateway/gateway-requests",

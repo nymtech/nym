@@ -81,14 +81,14 @@ jobs:
 
   push-release-data:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-connect-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
-    uses: nymtech/nym/.github/workflows/push-release-data.yml@develop
+    uses: ./.github/workflows/push-release-data.yml
     needs: publish-tauri
     with:
       release_tag: ${{ github.ref_name }}
       release_id: ${{ needs.publish-tauri.outputs.release_id }}
       release_date: ${{ needs.publish-tauri.outputs.release_date }}
       download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
-      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/nym-connect/CHANGELOG.md
+      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/nym-connect/desktop/CHANGELOG.md
       archive_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}/nym-connect_${{ needs.publish-tauri.outputs.version }}_amd64.AppImage.tar.gz
       sig_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}/nym-connect_${{ needs.publish-tauri.outputs.version }}_amd64.AppImage.tar.gz.sig
       version: ${{ needs.publish-tauri.outputs.version }}

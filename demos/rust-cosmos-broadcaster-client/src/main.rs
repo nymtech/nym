@@ -30,8 +30,12 @@ enum Commands {
 
 #[derive(Debug, Clone, Args)]
 struct OfflineSignTx {
-    /// some random info for testing 
-    string: String,
+    // / some random info for testing 
+    // string: String,
+    /// mnemonic 
+    mnemonic: String, 
+    /// recipient nym address
+    to: String 
 }
 
 #[derive(Debug, Args)]
@@ -46,11 +50,11 @@ async fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
-        Some(Commands::OfflineSignTx(string)) => {
-            let tx_bytes = commands::commands::offline_sign();         
+        Some(Commands::OfflineSignTx(OfflineSignTx { mnemonic, to } )) => {
+            let tx_bytes = commands::commands::offline_sign(mnemonic, to);         
             // TODO parse future  
             // println!("{}", parsed.iter().format(", ")); 
-            println!("end {:?}", string); 
+            println!("signed"); 
         }
         Some(Commands::SendTx(sp_address)) => {
             todo!(); 

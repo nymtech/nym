@@ -48,9 +48,9 @@ assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 # https://gitlab.com/tglman/mdbook-variables/
 [preprocessor.variables.variables]
 minimum_rust_version = "1.66"
-
-# old variables - this is still needed for links.. TODO change to develop?
-platform_release_version = "v1.1.21"
+# vars for links: TODO think on how to streamline updating
+platform_release_version = "v1.1.22"
+wallet_release_version = "v1.2.5"
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"
@@ -87,7 +87,7 @@ copy-fonts = true
 no-section-label = false
 additional-css = ["theme/pagetoc.css", "././mdbook-admonish.css", "last-changed.css"]
 additional-js  = ["theme/pagetoc.js"]
-git-repository-url = "https://github.com/nymtech/docs"
+git-repository-url = "https://github.com/nymtech/nym"
 git-repository-icon = "fa-github"
 # edit-url-template = "https://github.com/rust-lang/mdBook/edit/master/guide/{path}"
 # site-url = "/docs/"

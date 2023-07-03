@@ -1,2 +1,2 @@
-internal-static/wasm_exec.js
-internal-static/main.wasm
+build/wasm_exec.js
+build/main.wasm

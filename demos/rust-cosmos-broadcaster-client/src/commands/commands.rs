@@ -9,14 +9,16 @@ use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
 use bip39; 
 
-pub async fn offline_sign() -> Vec<u8> {
+pub async fn offline_sign(mnemonic: &String, to: &String) -> Vec<u8> {
 
-    // TODO load most of this from config file, take address and mnemonic from function args, take address and mnemonic from function args. in V2 take chain-id and tx-type as well   
+    // TODO load most of this from config file. in V2 take chain-id and tx-type as well   
     let prefix = "n";
     let denom: Denom = "unym".parse().unwrap();
-    let signer_mnemonic: bip39::Mnemonic = "<SOME MNEMONIC>".parse().unwrap();
+    let signer_mnemonic: bip39::Mnemonic = mnemonic.parse().unwrap();
+    // let signer_mnemonic: bip39::Mnemonic = "<SOME MNEMONIC>".parse().unwrap();
     let validator = "https://qwerty-validator.qa.nymte.ch";
-    let to_address: AccountId = "n19kdst4srf76xgwe55jg32mpcpcyf6aqgp6qrdk".parse().unwrap();
+    let to_address: AccountId = to.parse().unwrap();
+    // let to_address: AccountId = "n19kdst4srf76xgwe55jg32mpcpcyf6aqgp6qrdk".parse().unwrap();
 
     let signer = DirectSecp256k1HdWallet::from_mnemonic(prefix, signer_mnemonic);
     let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();

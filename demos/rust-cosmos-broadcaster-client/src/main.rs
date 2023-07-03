@@ -30,11 +30,9 @@ enum Commands {
 
 #[derive(Debug, Clone, Args)]
 struct OfflineSignTx {
-    // / some random info for testing 
-    // string: String,
-    /// mnemonic 
+    /// mnemonic of signing + sending account (you!)
     mnemonic: String, 
-    /// recipient nym address
+    /// recipient nyx chain address
     to: String 
 }
 

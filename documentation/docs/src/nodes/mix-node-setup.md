@@ -84,15 +84,15 @@ To check available configuration options for initializing your node use:
 ```
 ~~~
 
-Initalise your mixnode with the following command, replacing the value of `--id` with the moniker you wish to give your mixnode. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
+Initalise your mixnode with the following command, replacing the value of `--id` with the moniker you wish to give your mixnode, and the `--wallet-address` with the Nym address you created earlier. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
 
 ```
-./nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me)
+./nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq
 ```
 
 ~~~admonish example collapsible=true title="Console output"
 ```
- <!-- cmdrun ../../../../target/release/nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) -->
+ <!-- cmdrun ../../../../target/release/nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq -->
 ```
 ~~~
 
@@ -106,7 +106,7 @@ During the `init` process you will have the option to change the `http_api`, `ve
 From `v1.1.3`, if you unbond your mixnode that means you are leaving the mixnet and you will lose all your delegations (permanently). You can join again with the same identity key, however, you will start with **no delegations**.
 ```
 
-#### Bond via the Desktop wallet
+#### Bond via the Desktop wallet (recommended)
 
 You can bond your mix node via the Desktop wallet.
 
@@ -149,7 +149,7 @@ You can bond your mix node via the Desktop wallet.
 
 > You are asked to `sign` a transaction on bonding so that the mixnet smart contract is able to map your nym address to your node. This allows us to create a nonce for each account and defend against replay attacks.
 
-#### Bond via the CLI
+#### Bond via the CLI (power users)
 If you want to bond your mix node via the CLI, then check out the [relevant section in the Nym CLI](../tools/nym-cli.md#bond-a-mix-node) docs.
 
 ### Running your mix node

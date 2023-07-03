@@ -20,12 +20,14 @@ use tracing::instrument;
 
 type ForwardAck = MixPacket;
 
+#[derive(Debug)]
 pub struct ProcessedFinalHop {
     pub destination: DestinationAddressBytes,
     pub forward_ack: Option<ForwardAck>,
     pub message: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub enum MixProcessingResult {
     /// Contains unwrapped data that should first get delayed before being sent to next hop.
     ForwardHop(MixPacket, Option<SphinxDelay>),
@@ -141,7 +143,7 @@ impl SphinxPacketProcessor {
                     match SurbAck::try_recover_first_hop_packet(&ack_data, packet_type) {
                         Ok((first_hop, packet)) => (first_hop, packet),
                         Err(err) => {
-                            debug!("Failed to recover first hop from ack data: {err}");
+                            info!("Failed to recover first hop from ack data: {err}");
                             return Err(err.into());
                         }
                     };
@@ -205,7 +207,7 @@ impl SphinxPacketProcessor {
                 if packet.is_final_hop() {
                     self.process_final_hop(
                         DestinationAddressBytes::from_bytes(next_address),
-                        packet.recover_plaintext().to_vec(),
+                        packet.recover_plaintext()?.to_vec(),
                         packet_size,
                         packet_type,
                     )
@@ -239,7 +241,14 @@ impl SphinxPacketProcessor {
 
             // for forward packets, extract next hop and set delay (but do NOT delay here)
             // for final packets, extract SURBAck
-            self.perform_final_processing(processed_packet, packet_size, packet_type)
+            let final_processing_result =
+                self.perform_final_processing(processed_packet, packet_size, packet_type);
+
+            if final_processing_result.is_err() {
+                error!("{:?}", final_processing_result)
+            }
+
+            final_processing_result
         })
     }
 }

@@ -9,7 +9,7 @@ use nym_sphinx_addressing::nodes::{
 };
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, DEFAULT_NUM_MIX_HOPS};
-use nym_sphinx_types::delays::{self, Delay};
+use nym_sphinx_types::delays::Delay;
 use nym_sphinx_types::{NymPacket, NymPacketError, MIN_PACKET_SIZE};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
@@ -51,7 +51,7 @@ impl SurbAck {
     {
         let route =
             topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, recipient.gateway())?;
-        let delays = delays::generate_from_average_duration(route.len(), average_delay);
+        let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);

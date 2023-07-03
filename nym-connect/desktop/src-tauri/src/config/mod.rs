@@ -3,12 +3,13 @@
 
 use crate::config::persistence::NymConnectPaths;
 use crate::config::template::CONFIG_TEMPLATE;
+use crate::config::upgrade::try_upgrade_config;
 use crate::error::{BackendError, Result};
 use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::init::GatewaySetup;
-use nym_config_common::{
+use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
@@ -19,8 +20,12 @@ use std::path::{Path, PathBuf};
 use std::{fs, io};
 use tap::TapFallible;
 
+mod old_config_v1_1_13;
+mod old_config_v1_1_20;
+mod old_config_v1_1_20_2;
 mod persistence;
 mod template;
+mod upgrade;
 
 static SOCKS5_CONFIG_ID: &str = "nym-connect";
 
@@ -138,6 +143,9 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
     let already_init = if default_config_filepath(&id).exists() {
+        // in case we're using old config, try to upgrade it
+        // (if we're using the current version, it's a no-op)
+        try_upgrade_config(&id)?;
         eprintln!("SOCKS5 client \"{id}\" was already initialised before");
         true
     } else {
@@ -156,11 +164,15 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     log::trace!("Creating config for id: {id}");
     let mut config = Config::new(&id, &provider_address);
 
-    if let Ok(raw_validators) = std::env::var(nym_config_common::defaults::var_names::NYM_API) {
-        config.core.base.client.nym_api_urls = nym_config_common::parse_urls(&raw_validators);
+    if let Ok(raw_validators) = std::env::var(nym_config::defaults::var_names::NYM_API) {
+        config.core.base.client.nym_api_urls = nym_config::parse_urls(&raw_validators);
     }
 
-    let gateway_setup = GatewaySetup::new_fresh(Some(chosen_gateway_id), None);
+    let gateway_setup = if register_gateway {
+        GatewaySetup::new_fresh(Some(chosen_gateway_id), None)
+    } else {
+        GatewaySetup::MustLoad
+    };
 
     // Setup gateway by either registering a new one, or reusing exiting keys
     let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());

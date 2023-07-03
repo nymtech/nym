@@ -2240,7 +2240,7 @@ dependencies = [
 
 [[package]]
 name = "nym-bin-common"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "atty",
  "clap",
@@ -2255,7 +2255,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-core"
-version = "1.1.14"
+version = "1.1.15"
 dependencies = [
  "async-trait",
  "base64 0.21.2",
@@ -2300,7 +2300,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2697,6 +2697,7 @@ dependencies = [
  "nym-pemstore",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
+ "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
  "rand 0.7.3",
@@ -2723,6 +2724,7 @@ dependencies = [
  "nym-crypto",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
+ "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
  "rand 0.7.3",
@@ -2753,6 +2755,7 @@ dependencies = [
  "nym-sphinx-chunking",
  "nym-sphinx-forwarding",
  "nym-sphinx-params",
+ "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
  "rand 0.7.3",
@@ -2884,6 +2887,7 @@ dependencies = [
  "nym-service-provider-directory-common",
  "nym-vesting-contract",
  "nym-vesting-contract-common",
+ "openssl",
  "prost",
  "reqwest",
  "serde",
@@ -2975,6 +2979,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
+name = "openssl-src"
+version = "111.26.0+1.1.1u"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efc62c9f12b22b8f5208c23a7200a442b2e5999f8bdf80233852122b5a4f6f37"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.87"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2982,6 +2995,7 @@ checksum = "8e17f59264b2809d77ae94f0e1ebabc434773f370d6ca667bd223ea10e06cc7e"
 dependencies = [
  "cc",
  "libc",
+ "openssl-src",
  "pkg-config",
  "vcpkg",
 ]

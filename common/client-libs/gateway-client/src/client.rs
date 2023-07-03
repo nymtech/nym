@@ -724,7 +724,7 @@ impl<C, St> GatewayClient<C, St> {
         Ok(())
     }
 
-    async fn try_reconnect(&mut self) -> Result<(), GatewayClientError> {
+    pub async fn try_reconnect(&mut self) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             self.establish_connection().await?;
         }
@@ -735,6 +735,12 @@ impl<C, St> GatewayClient<C, St> {
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;
 
+        Ok(())
+    }
+
+    pub async fn disconnect(&mut self) -> Result<(), GatewayClientError> {
+        self.recover_socket_connection().await?;
+        self.connection = SocketState::NotConnected;
         Ok(())
     }
 

@@ -4,9 +4,32 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [1.1.23] (2023-06-27)
+
+- nym-cli: add client identity key signing support ([#3576])
+- Don't fully turn off background task when cover traffic is disabled ([#3596])
+
+[#3576]: https://github.com/nymtech/nym/issues/3576
+[#3596]: https://github.com/nymtech/nym/pull/3596
+
+## [v1.1.22] (2023-06-20)
+
+- CLI tool for querying network-requesters ([#3539])
+- Statically link OpenSSL ([#3510])
+- NymConnect - add sentry.io reporting ([#3421])
+- init command does not change version number in config.toml ([#3336])
+- [Bug] Config version does not correspond to binary version ([#3434])
+
+[#3539]: https://github.com/nymtech/nym/issues/3539
+[#3510]: https://github.com/nymtech/nym/issues/3510
+[#3421]: https://github.com/nymtech/nym/issues/3421
+[#3336]: https://github.com/nymtech/nym/issues/3336
+[#3434]: https://github.com/nymtech/nym/issues/3434
+
 ## [v1.1.21] (2023-06-13)
 
-- mixFetch: Change socks5 `SendRequest` to include OrderedMessage index as a field rather than making it serialized inside the `data` field ([#3534])
+- mixFetch: Change socks5 `SendRequest` to include OrderedMessage index as a field rather than making it serialized inside the `data` field
+ ([#3534])
 - Explorer - add more data columns to the Service Provider section: ([#3474])
 - network-requester: support report if they run an open proxy using `ControlRequest` API ([#3461])
 - Refactor client configs (London discussion) ([#3444])

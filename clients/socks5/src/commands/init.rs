@@ -94,6 +94,7 @@ impl From<Init> for OverrideConfig {
             use_anonymous_replies: init_config.use_reply_surbs,
             fastmode: init_config.fastmode,
             no_cover: init_config.no_cover,
+            medium_toggle: false,
             nyxd_urls: init_config.nyxd_urls,
             enabled_credentials_mode: init_config.enabled_credentials_mode,
             outfox: false,

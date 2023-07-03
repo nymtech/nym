@@ -60,6 +60,11 @@ pub(crate) struct Run {
     #[clap(long, hide = true)]
     no_cover: bool,
 
+    /// Enable medium mixnet traffic, for experiments only.
+    /// This includes things like disabling cover traffic, no per hop delays, etc.
+    #[clap(long, hide = true)]
+    medium_toggle: bool,
+
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
     #[clap(long, hide = true)]
@@ -77,6 +82,7 @@ impl From<Run> for OverrideConfig {
             use_anonymous_replies: run_config.use_anonymous_replies,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
+            medium_toggle: run_config.medium_toggle,
             nyxd_urls: run_config.nyxd_urls,
             enabled_credentials_mode: run_config.enabled_credentials_mode,
             outfox: run_config.outfox,

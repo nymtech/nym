@@ -27,7 +27,7 @@ class MainViewModel(
     private val workManager: WorkManager,
     private val nymProxy: NymProxy
 ) : ViewModel() {
-    private val tag = "viewModel"
+    private val tag = "MainViewModel"
 
     private val workRequest: OneTimeWorkRequest =
         OneTimeWorkRequestBuilder<ProxyWorker>()
@@ -56,8 +56,7 @@ class MainViewModel(
                     // this viewModel instance is cleared
                     // use GlobalScope instead
                     GlobalScope.launch(Dispatchers.IO) {
-                        // if the proxy process is still running ie. connected
-                        // kill it
+                        // if the proxy process is still running ie. connected kill it
                         if (nymProxy.getState() == NymProxy.Companion.State.CONNECTED) {
                             Log.d(tag, "stopping proxy")
                             nymProxy.stop()
@@ -129,6 +128,29 @@ class MainViewModel(
             // close connection
             delay(2000)
             setDisconnected()
+        }
+    }
+
+    fun checkStateSync() {
+        Log.d(tag, "check state sync")
+        viewModelScope.launch(Dispatchers.IO) {
+            val proxyState = nymProxy.getState()
+            val workInfo = workManager.getWorkInfoById(ProxyWorker.workId).get()
+            Log.d(tag, "proxy state $proxyState, work state ${workInfo?.state}")
+            if (proxyState == NymProxy.Companion.State.CONNECTED &&
+                workInfo?.state != WorkInfo.State.RUNNING
+            ) {
+                Log.w(tag, "⚠ state desync")
+                Log.i(tag, "stopping proxy")
+                cancelProxyWork()
+            }
+            if (proxyState == NymProxy.Companion.State.DISCONNECTED &&
+                workInfo?.state == WorkInfo.State.RUNNING
+            ) {
+                Log.w(tag, "⚠ state desync")
+                Log.i(tag, "stopping worker")
+                workManager.cancelAllWorkByTag(ProxyWorker.workTag)
+            }
         }
     }
 }

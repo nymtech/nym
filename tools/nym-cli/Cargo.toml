@@ -1,6 +1,6 @@
 [package]
 name = "nym-cli"
-version = "1.1.21"
+version = "1.1.23"
 authors.workspace = true
 edition = "2021"
 

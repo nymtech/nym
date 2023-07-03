@@ -49,8 +49,8 @@ assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 [preprocessor.variables.variables]
 # code prerequisites versions
 minimum_rust_version = "1.66"
-# for links: TODO think on how to streamline.. shell script?
-platform_release_version = "v1.1.23"
+# TODO remove this in place of develop in next release
+platform_release_version = "v1.1.21"
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"

@@ -31,7 +31,7 @@ const (
 )
 
 func createGoBridgeObject() js.Value {
-	js.Global().Set(goRustBridgeName, js.Global().Get("Object").New())
+	js.Global().Set(goRustBridgeName, jsObject.New())
 	goBridgeRoot := js.Global().Get(goRustBridgeName)
 	return goBridgeRoot
 }

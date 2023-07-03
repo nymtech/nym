@@ -150,6 +150,44 @@ func (IR *InternalResponse) mutIntoOpaqueRedirectResponse() {
 	IR.inner.Body = nil
 }
 
+func proxyHandlerGet(proxied map[string]any) js.Func {
+	return js.FuncOf(func(_ js.Value, args []js.Value) any {
+		// Look at redirecting method's this:
+		// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#no_private_property_forwarding
+		target := args[0]
+		prop := args[1].String()
+		receiver := args[2]
+
+		value := target.Get(prop)
+		if value.Type() == js.TypeFunction {
+			Debug("%s is a function", prop)
+			return js.FuncOf(func(this js.Value, args []js.Value) any {
+				if this.Equal(receiver) {
+					return jsReflect.Call("apply", value, target, intoAnySlice(args))
+				} else {
+					return jsReflect.Call("apply", value, this, intoAnySlice(args))
+				}
+			})
+		}
+
+		// we're only proxing "normal" props, not function calls
+		proxy, ok := proxied[prop]
+		if ok {
+			Debug("using proxy value for field \"%s\" (changing \"%s\" -> \"%s\")", prop, value, proxy)
+
+			return proxy
+		}
+
+		return value
+	})
+}
+
+func responseProxyHandler(proxied map[string]any) js.Value {
+	handler := jsObject.New()
+	handler.Set("get", proxyHandlerGet(proxied))
+	return handler
+}
+
 func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 	jsBody, err := IR.JSBody()
 	if err != nil {
@@ -165,26 +203,26 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 		}
 	}
 
-	responseOptions := js.Global().Get("Object").New()
+	responseOptions := jsObject.New()
 	responseOptions.Set("status", IR.inner.StatusCode)
 	responseOptions.Set("statusText", http.StatusText(IR.inner.StatusCode))
 	responseOptions.Set("headers", headers)
 
 	responseConstructor := js.Global().Get("Response")
 	response := responseConstructor.New(jsBody, responseOptions)
+
+	proxied := make(map[string]any)
+
 	if IR.responseType != "" {
 		// TODO: ideally we'd overwrite the `type` field, but it's readonly : (
-		response.Set("actualType", IR.responseType)
+		response.Set("_type", IR.responseType)
+		proxied["type"] = IR.responseType
 	}
 
-	return response, nil
+	proxyConstructor := js.Global().Get("Proxy")
+	proxy := proxyConstructor.New(response, responseProxyHandler(proxied))
 
-	//optsObj := js.Global().Get("Object").New()
-	//optsObj.Set("type", IR.responseType)
-	//mixResponseConstructor := js.Global().Get("MixResponse")
-	//mixResponse := mixResponseConstructor.New(response, optsObj)
-	//
-	//return mixResponse, nil
+	return proxy, nil
 }
 
 // IntoJSResponse is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
@@ -203,7 +241,7 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 	[❌] redirected
 	[✅] status
 	[✅] statusText
-	[❗/⚠️] type		- can't overwrite the "type" field. the proper value is set in a `actualType` instead.
+	[✅] type		    - has to be proxied
 	[❌] url
 */
 func intoJSResponse(resp *http.Response, opts *RequestOptions) (js.Value, error) {
@@ -260,43 +298,3 @@ func intoJSResponse(resp *http.Response, opts *RequestOptions) (js.Value, error)
 
 	return internalResponse.intoJsResponse()
 }
-
-func checkCorsHeaders(headers *http.Header) {
-	// in "no-cors"
-	// you can: var simpleMethods = ["GET", "HEAD", "POST"];
-	// you can't var otherMethods = ["DELETE", "OPTIONS", "PUT"];
-	// https://fetch.spec.whatwg.org/#cors-safelisted-request-header
-
-	//// Indicates whether the response can be shared, via returning the literal value of the `Origin` request header (which can be `null`) or `*` in a response.
-	//allowOrigin := headers.Get("Access-Control-Allow-Origin")
-	//
-	//// Indicates whether the response can be shared when request’s credentials mode is "include".
-	//allowCredentials := headers.Get("Access-Control-Allow-Credentials")
-	//
-	//// Indicates which methods are supported by the response’s URL for the purposes of the CORS protocol.
-	//allowMethods := headers.Get("Access-Control-Allow-Methods")
-	//
-	//// Indicates which headers are supported by the response’s URL for the purposes of the CORS protocol.
-	//allowHeaders := headers.Get("Access-Control-Allow-Headers")
-	//
-	//// Indicates the number of seconds (5 by default) the information provided by the `Access-Control-Allow-Methods` and `Access-Control-Allow-Headers` headers can be cached.
-	//maxAge := headers.Get("Access-Control-Max-Age")
-	//if maxAge != "" {
-	//	Warn("\"Access-Control-Max-Age\" header is present on the remote, however its handling is currently unimplemented!")
-	//}
-	//
-	//// Indicates which headers can be exposed as part of the response by listing their names.
-	//exposeHeaders := headers.Get("Access-Control-Expose-Headers")
-	//if exposeHeaders != "" {
-	//	Warn("\"Access-Control-Expose-Headers\" header is present on the remote, however its handling is currently unimplemented!")
-	//}
-}
-
-//func checkResponseTainting(reqOpts RequestOptions) ResponseTainting {
-//	// Unless stated otherwise, it is "basic".
-//	// Reference: https://fetch.spec.whatwg.org/#concept-request-response-tainting
-//	responseTainting := REQUEST_RESPONSE_TAINTING_BASIC
-//	if reqOpts.mode == MODE_NAVIGATE || reqOpts.mode == MODE_WEBSOCKET {
-//		responseTainting = REQUEST_RESPONSE_TAINTING_BASIC
-//	}
-//}

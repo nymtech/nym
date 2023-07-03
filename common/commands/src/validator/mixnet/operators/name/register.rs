@@ -35,7 +35,7 @@ pub async fn register(args: Args, client: SigningClient) -> Result<(), NyxdError
     );
 
     let name = NymName::new(&args.name).expect("invalid name");
-    let address = Address::new(&args.nym_address);
+    let address = Address::new(&args.nym_address)?;
     let name = NameDetails {
         name,
         address,

@@ -37,11 +37,11 @@ mod tests {
         assert_eq!(id2, 2);
         assert_eq!(id3, 3);
         assert_eq!(name1.name.as_str(), "foo");
-        assert_eq!(name1.address.as_str(), "addr.1@a");
+        assert_eq!(name1.address.to_string(), "addr.1@a");
         assert_eq!(name2.name.as_str(), "bar");
-        assert_eq!(name2.address.as_str(), "addr.2@b");
+        assert_eq!(name2.address.to_string(), "addr.2@b");
         assert_eq!(name3.name.as_str(), "baz");
-        assert_eq!(name3.address.as_str(), "addr.3@c");
+        assert_eq!(name3.address.to_string(), "addr.3@c");
         assert_names(
             deps.as_ref(),
             &[

@@ -58,7 +58,8 @@ pub enum Address {
     //Gateway(String)
 }
 
-struct NymAddressInner {
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
+pub struct NymAddressInner {
     client_id: String,
     client_enc: String,
     gateway_id: String,
@@ -67,7 +68,11 @@ struct NymAddressInner {
 // ADDRESS . ENCRYPTION @ GATEWAY_ID
 impl std::fmt::Display for NymAddressInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}.{}@{}", self.client_id, self.client_enc, self.gateway_id)
+        write!(
+            f,
+            "{}.{}@{}",
+            self.client_id, self.client_enc, self.gateway_id
+        )
     }
 }
 
@@ -75,32 +80,25 @@ impl Address {
     /// Create a new nym address.
     pub fn new(address: &str) -> Result<Self> {
         parse_nym_address(address)
-            .then(|parsed_address| Self::NymAddress(parsed_address))
+            .map(Self::NymAddress)
             .ok_or_else(|| NameServiceError::InvalidNymAddress(address.to_string()))
     }
 
     pub fn client_id(&self) -> &str {
         match self {
-            Address::NymAddress(address) => address.client_id,
+            Address::NymAddress(address) => &address.client_id,
         }
     }
 
     pub fn client_enc(&self) -> &str {
         match self {
-            Address::NymAddress(address) => address.client_enc,
+            Address::NymAddress(address) => &address.client_enc,
         }
     }
 
     pub fn gateway_id(&self) -> &str {
         match self {
-            Address::NymAddress(address) => address.gateway_id,
-        }
-    }
-
-    // WIP(JON): rename
-    pub fn as_str(&self) -> &str {
-        match self {
-            Address::NymAddress(address) => address.display().as_ref(),
+            Address::NymAddress(address) => &address.gateway_id,
         }
     }
 

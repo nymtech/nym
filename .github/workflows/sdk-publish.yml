@@ -6,6 +6,8 @@ jobs:
   publish:
     runs-on: [custom-runner-linux]
     steps:
+      - uses: actions/checkout@v2
+
       - name: Install Node
         uses: actions/setup-node@v3
         with:

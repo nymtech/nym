@@ -7,6 +7,10 @@ env:
 on:
   workflow_call:
     inputs:
+      release_tag:
+        required: true
+        description: Release tag
+        type: string
       release_id:
         required: true
         description: Release ID
@@ -58,7 +62,7 @@ on:
   workflow_dispatch:
     inputs:
       # ⚠ since inputs are limited to 10 max for workflow_dispatch
-      # `archive_url` and `sig_url` properties were omitted
+      # some properties were omitted
       version:
         required: true
         description: Release version (semver)
@@ -124,6 +128,10 @@ jobs:
     runs-on: custom-runner-linux
 
     steps:
+      - name: Release info
+        run: |
+          echo "version: ${{ inputs.version }}"
+          echo "tag: ${{ inputs.release_tag }}"
       - id: get_sig
         name: Get sig
         if: ${{ inputs.sig_url != null }}
@@ -136,7 +144,7 @@ jobs:
         with:
           url: ${{ env.strapi_download_url }}
           method: 'POST'
-          # bearerToken: ${{ secrets.STRAPI_AUTH_TOKEN }} TODO
+          bearerToken: ${{ secrets.STRAPI_API_TOKEN_RELEASES }}
           customHeaders: '{"Content-Type": "application/json"}'
           data: |
             {
@@ -165,6 +173,10 @@ jobs:
     if: ${{ inputs.category == 'wallet' || inputs.category == 'connect' }}
 
     steps:
+      - name: Release info
+        run: |
+          echo "version: ${{ inputs.version }}"
+          echo "tag: ${{ inputs.release_tag }}"
       - id: get_sig
         name: Get sig
         if: ${{ inputs.sig_url != null }}
@@ -177,7 +189,7 @@ jobs:
         with:
           url: ${{ env.strapi_updater_url }}
           method: 'POST'
-          # bearerToken: ${{ secrets.STRAPI_AUTH_TOKEN }} TODO
+          bearerToken: ${{ secrets.STRAPI_API_TOKEN_RELEASES }}
           customHeaders: '{"Content-Type": "application/json"}'
           data: |
             {

@@ -6,7 +6,6 @@ use crate::mix_fetch::RequestId;
 use crate::storage::errors::ClientStorageError;
 use js_sys::Promise;
 use nym_client_core::error::ClientCoreError;
-use nym_http_requests::error::MixHttpRequestError;
 use nym_ordered_buffer::OrderedMessageError;
 use nym_socks5_requests::ConnectionError;
 use thiserror::Error;
@@ -42,12 +41,6 @@ pub enum MixFetchError {
 
     #[error("provided mix fetch url was malformed: {0}")]
     MalformedMixFetchUrl(#[from] url::ParseError),
-
-    #[error("the provided request was invalid: {source}")]
-    InvalidRequest {
-        #[from]
-        source: MixHttpRequestError,
-    },
 
     // the maximum value is u32::MAX which equals to over 49days, which is MORE than enough
     #[error("attempted to set request timeout to {timeout_ms}ms")]

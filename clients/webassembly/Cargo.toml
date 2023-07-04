@@ -61,16 +61,9 @@ console_error_panic_hook = { version = "0.1", optional = true }
 wee_alloc = { version = "0.4", optional = true }
 
 # TODO: verify those dependencies (mix-fetch)
-nym-socks5-requests = { path = "../../common/socks5/requests" }
-nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
-nym-service-providers-common = { path = "../../service-providers/common" }
-nym-http-requests = { path = "../../common/http-requests" }
-bytecodec = "0.4.15"
-httpcodec = "0.2.3"
-bytes = "1"
-http = "0.2.9"
-web-sys = { version = "0.3", features = ["FormData"] }
-form_urlencoded = "1.1.0"
+nym-socks5-requests = { path = "../../common/socks5/requests", optional = true }
+nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer", optional = true }
+nym-service-providers-common = { path = "../../service-providers/common", optional = true }
 
 
 [dev-dependencies]
@@ -83,8 +76,7 @@ wasm-opt = false
 lto = true
 opt-level = 'z'
 
-# TODO:
 [features]
 default = ["console_error_panic_hook", "mix-fetch"]
 node-tester = []
-mix-fetch = ["web-sys/Response", "web-sys/ResponseInit", "web-sys/Request", "web-sys/RequestInit"]
+mix-fetch = ["nym-socks5-requests", "nym-ordered-buffer", "nym-service-providers-common"]

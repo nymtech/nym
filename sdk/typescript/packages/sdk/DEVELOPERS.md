@@ -55,3 +55,6 @@ Publish the CJS package:
 Publish the ESM package:
 - `cd ../esm`
 - `npm publish --access=public` will publish your changed package to NPM
+
+4. bump the minor version and add `-rc0` to avoid local packages from using the workspace SDK, e.g. (`1.1.10` -> `1.1.11-rc0`)
+5. commit the updated `package.json` to git

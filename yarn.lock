@@ -2838,6 +2838,11 @@
     "@cosmjs/stargate" "^0.25.5"
     axios "^0.21.1"
 
+"@nymproject/sdk@^1.1.8":
+  version "1.1.8"
+  resolved "https://registry.yarnpkg.com/@nymproject/sdk/-/sdk-1.1.8.tgz#384ee824971dee413755b14634c3d60fb22eff9a"
+  integrity sha512-nAyem2wqTfc6l9e6Y7JR2V1teDfwjxMHpRjxg90FMkUWl/JP7Ww752gDsSq3nvObLt+cvxjWMHy1mswvwQfZyQ==
+
 "@octokit/auth-token@^3.0.0":
   version "3.0.4"
   resolved "https://registry.yarnpkg.com/@octokit/auth-token/-/auth-token-3.0.4.tgz#70e941ba742bdd2b49bdb7393e821dea8520a3db"

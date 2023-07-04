@@ -4,12 +4,16 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-## [1.1.23] (2023-06-27)
+## [v1.1.23] (2023-07-04)
 
 - nym-cli: add client identity key signing support ([#3576])
+- Feature/node tester package ([#3634])
+- Add medium toggle to socks5 client ([#3615])
 - Don't fully turn off background task when cover traffic is disabled ([#3596])
 
 [#3576]: https://github.com/nymtech/nym/issues/3576
+[#3634]: https://github.com/nymtech/nym/pull/3634
+[#3615]: https://github.com/nymtech/nym/pull/3615
 [#3596]: https://github.com/nymtech/nym/pull/3596
 
 ## [v1.1.22] (2023-06-20)

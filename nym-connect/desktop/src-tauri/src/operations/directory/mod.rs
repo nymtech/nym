@@ -4,6 +4,7 @@ use crate::error::Result;
 use crate::models::{
     DirectoryService, DirectoryServiceProvider, HarbourMasterService, PagedResult,
 };
+use crate::state::is_medium_enabled;
 use nym_api_requests::models::GatewayBondAnnotated;
 use nym_contracts_common::types::Percent;
 
@@ -20,10 +21,10 @@ static GATEWAYS_DETAILED_URL: &str =
     "https://validator.nymtech.net/api/v1/status/gateways/detailed";
 
 fn get_services_url() -> &'static str {
-    std::env::var("NYM_CONNECT_ENABLE_MEDIUM")
-        .is_ok()
-        .then(|| SERVICE_PROVIDER_WELLKNOWN_URL_MEDIUM)
-        .unwrap_or(SERVICE_PROVIDER_WELLKNOWN_URL)
+    if is_medium_enabled() {
+        return SERVICE_PROVIDER_WELLKNOWN_URL_MEDIUM;
+    }
+    SERVICE_PROVIDER_WELLKNOWN_URL
 }
 
 #[tauri::command]
@@ -33,7 +34,7 @@ pub async fn get_services() -> Result<Vec<DirectoryServiceProvider>> {
     log::trace!("Received: {:#?}", all_services);
 
     // Early return if we're running with medium toggle enabled
-    if std::env::var("NYM_CONNECT_ENABLE_MEDIUM").is_ok() {
+    if is_medium_enabled() {
         return Ok(all_services.into_iter().flat_map(|sp| sp.items).collect());
     }
 

@@ -10,7 +10,7 @@ use tauri::Manager;
 use tokio::sync::RwLock;
 
 use crate::menu::{create_tray_menu, tray_menu_event_handler};
-use crate::state::State;
+use crate::state::{is_medium_enabled, State};
 use crate::window::window_toggle;
 
 mod config;
@@ -25,7 +25,7 @@ mod tasks;
 mod window;
 
 fn main() {
-    if cfg!(medium_enabled) || std::env::var("NYM_CONNECT_ENABLE_MEDIUM").is_ok() {
+    if is_medium_enabled() {
         println!("speedy mode enabled");
         std::env::set_var("NYM_CONNECT_DISABLE_COVER", "1");
         std::env::set_var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS", "1");

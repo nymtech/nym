@@ -29,10 +29,14 @@
     "types:lint:fix": "lerna run lint:fix --scope @nymproject/types --scope @nymproject/nym-wallet-app",
     "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run",
     "preinstall": "yarn install:copy-placeholders",
-    "install:copy-placeholders": "cp scripts/build/yarn/wasm-placeholder/package.json sdk/typescript/packages/nym-client-wasm"
+    "setup:dependencies": "yarn install:copy-placeholders",
+    "install:copy-placeholders": "copyfiles -V -s -f scripts/build/yarn/wasm-placeholder/package.json sdk/typescript/packages/nym-client-wasm"
   },
   "devDependencies": {
     "lerna": "^6.6.2",
     "npm-run-all": "^4.1.5"
+  },
+  "dependencies": {
+    "copyfiles": "^2.4.1"
   }
 }

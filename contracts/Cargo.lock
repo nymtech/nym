@@ -1411,6 +1411,7 @@ name = "nym-name-service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bs58",
  "cosmwasm-std",
  "cw-controllers",
  "cw-multi-test",
@@ -1418,8 +1419,10 @@ dependencies = [
  "cw-utils",
  "cw2",
  "nym-contracts-common",
+ "nym-crypto",
  "nym-name-service-common",
  "rand 0.8.5",
+ "rand_chacha 0.2.2",
  "rstest",
  "semver",
  "serde",
@@ -1432,8 +1435,12 @@ name = "nym-name-service-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "cw-controllers",
+ "cw-utils",
+ "nym-contracts-common",
  "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

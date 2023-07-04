@@ -14,3 +14,5 @@ pub const NAMES_PK_NAMESPACE: &str = "nanames";
 pub const NAMES_OWNER_IDX_NAMESPACE: &str = "naowner";
 pub const NAMES_ADDRESS_IDX_NAMESPACE: &str = "naaddress";
 pub const NAMES_NAME_IDX_NAMESPACE: &str = "naname";
+
+pub const SIGNING_NONCES_NAMESPACE: &str = "nasn";

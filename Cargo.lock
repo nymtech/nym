@@ -4041,8 +4041,12 @@ name = "nym-name-service-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "cw-controllers",
+ "cw-utils",
+ "nym-contracts-common",
  "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

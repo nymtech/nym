@@ -2,7 +2,7 @@ use cosmwasm_std::Storage;
 use cw_storage_plus::Item;
 use nym_name_service_common::NameId;
 
-use crate::{constants::NAME_ID_COUNTER_KEY, error::Result};
+use crate::{constants::NAME_ID_COUNTER_KEY, Result};
 
 const NAME_ID_COUNTER: Item<NameId> = Item::new(NAME_ID_COUNTER_KEY);
 
@@ -16,33 +16,56 @@ pub(crate) fn next_name_id_counter(store: &mut dyn Storage) -> Result<NameId> {
 
 #[cfg(test)]
 mod tests {
-
-    use nym_name_service_common::NameEntry;
+    use cosmwasm_std::Addr;
+    use nym_name_service_common::RegisteredName;
 
     use crate::test_helpers::{
         assert::assert_names,
-        fixture::name_fixture_name,
-        helpers::{delete_name_id, instantiate_test_contract, register_name},
+        helpers::{nyms, test_rng},
+        transactions::{delete_name_id, instantiate_test_contract, register_name},
     };
 
     #[test]
     fn get_next_name_id() {
         let mut deps = instantiate_test_contract();
+        let mut rng = test_rng();
 
-        assert_eq!(register_name(deps.as_mut(), &name_fixture_name("foo")), 1);
-        assert_names(
-            deps.as_ref(),
-            &[NameEntry::new(1, name_fixture_name("foo"))],
-        );
-
-        assert_eq!(register_name(deps.as_mut(), &name_fixture_name("bar")), 2);
-        assert_eq!(register_name(deps.as_mut(), &name_fixture_name("baz")), 3);
+        let (id1, name1) = register_name(deps.as_mut(), &mut rng, "foo", "addr1", "steve");
+        let (id2, name2) = register_name(deps.as_mut(), &mut rng, "bar", "addr2", "steve");
+        let (id3, name3) = register_name(deps.as_mut(), &mut rng, "baz", "addr3", "steve");
+        assert_eq!(id1, 1);
+        assert_eq!(id2, 2);
+        assert_eq!(id3, 3);
+        assert_eq!(name1.name.as_str(), "foo");
+        assert_eq!(name1.address.as_str(), "addr1");
+        assert_eq!(name2.name.as_str(), "bar");
+        assert_eq!(name2.address.as_str(), "addr2");
+        assert_eq!(name3.name.as_str(), "baz");
+        assert_eq!(name3.address.as_str(), "addr3");
         assert_names(
             deps.as_ref(),
             &[
-                NameEntry::new(1, name_fixture_name("foo")),
-                NameEntry::new(2, name_fixture_name("bar")),
-                NameEntry::new(3, name_fixture_name("baz")),
+                RegisteredName {
+                    id: 1,
+                    name: name1,
+                    owner: Addr::unchecked("steve"),
+                    block_height: 12345,
+                    deposit: nyms(100),
+                },
+                RegisteredName {
+                    id: 2,
+                    name: name2,
+                    owner: Addr::unchecked("steve"),
+                    block_height: 12345,
+                    deposit: nyms(100),
+                },
+                RegisteredName {
+                    id: 3,
+                    name: name3,
+                    owner: Addr::unchecked("steve"),
+                    block_height: 12345,
+                    deposit: nyms(100),
+                },
             ],
         );
     }
@@ -50,34 +73,28 @@ mod tests {
     #[test]
     fn deleted_name_id_is_not_reused() {
         let mut deps = instantiate_test_contract();
+        let mut rng = test_rng();
 
         // Register two names
-        assert_eq!(register_name(deps.as_mut(), &name_fixture_name("one")), 1);
-        assert_eq!(register_name(deps.as_mut(), &name_fixture_name("two")), 2);
-        assert_names(
-            deps.as_ref(),
-            &[
-                NameEntry::new(1, name_fixture_name("one")),
-                NameEntry::new(2, name_fixture_name("two")),
-            ],
-        );
+        let (_, name1) = register_name(deps.as_mut(), &mut rng, "one", "sdfjkhsdfhr", "steve");
+        register_name(deps.as_mut(), &mut rng, "two", "suereljer", "steve");
 
         // Delete the last entry
         delete_name_id(deps.as_mut(), 2, "steve");
         assert_names(
             deps.as_ref(),
-            &[NameEntry::new(1, name_fixture_name("one"))],
+            &[RegisteredName {
+                id: 1,
+                name: name1,
+                owner: Addr::unchecked("steve"),
+                block_height: 12345,
+                deposit: nyms(100),
+            }],
         );
 
         // Create a third entry. The index should not reuse the previous entry that we just
         // deleted.
-        assert_eq!(register_name(deps.as_mut(), &name_fixture_name("two")), 3);
-        assert_names(
-            deps.as_ref(),
-            &[
-                NameEntry::new(1, name_fixture_name("one")),
-                NameEntry::new(3, name_fixture_name("two")),
-            ],
-        );
+        let (id3, _) = register_name(deps.as_mut(), &mut rng, "three", "ufd", "steve");
+        assert_eq!(id3, 3);
     }
 }

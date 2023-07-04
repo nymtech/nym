@@ -26,7 +26,7 @@ mod window;
 
 fn main() {
     if is_medium_enabled() {
-        println!("speedy mode enabled");
+        println!("medium mode enabled");
         std::env::set_var("NYM_CONNECT_DISABLE_COVER", "1");
         std::env::set_var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS", "1");
         std::env::set_var("NYM_CONNECT_DISABLE_PER_HOP_DELAYS", "1");
@@ -57,6 +57,7 @@ fn main() {
             crate::operations::connection::status::get_connection_status,
             crate::operations::connection::status::get_gateway_connection_status,
             crate::operations::connection::status::start_connection_health_check_task,
+            crate::operations::connection::status::is_medium_mode_enabled,
             crate::operations::directory::get_services,
             crate::operations::directory::get_gateways_detailed,
             crate::operations::export::export_keys,

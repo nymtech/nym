@@ -43,6 +43,7 @@ export type TClientContext = {
   setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;
   setUserDefinedSPAddress: React.Dispatch<React.SetStateAction<UserDefinedSPAddress>>;
   setMonitoring: (value: boolean) => Promise<void>;
+  mediumModeEnabled: boolean;
 };
 
 export const ClientContext = createContext({} as TClientContext);
@@ -67,6 +68,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     address: undefined,
   });
   const [monitoringEnabled, setMonitoringEnabled] = useState(false);
+  const [mediumModeEnabled, setMediumModeEnabled] = useState(false);
 
   const getAppVersion = async () => {
     const version = await getVersion();
@@ -83,6 +85,15 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     };
 
     initSentryClient();
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      const isEnabled = await invoke<boolean>('is_medium_mode_enabled');
+      setMediumModeEnabled(isEnabled);
+    };
+
+    init();
   }, []);
 
   useEffect(() => {
@@ -215,6 +226,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       setUserDefinedGateway,
       setUserDefinedSPAddress,
       setMonitoring,
+      mediumModeEnabled,
     }),
     [
       mode,
@@ -231,6 +243,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       userDefinedGateway,
       userDefinedSPAddress,
       monitoringEnabled,
+      mediumModeEnabled,
     ],
   );
 

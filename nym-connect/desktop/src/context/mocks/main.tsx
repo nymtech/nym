@@ -12,6 +12,7 @@ const mockValues: TClientContext = {
   userDefinedGateway: { isActive: false, gateway: '' },
   userDefinedSPAddress: { isActive: false, address: '' },
   monitoringEnabled: false,
+  mediumModeEnabled: false,
   setShowInfoModal: () => {},
   setMode: () => {},
   clearError: () => {},

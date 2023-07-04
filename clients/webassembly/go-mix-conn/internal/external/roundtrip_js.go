@@ -5,7 +5,7 @@
 
 //go:build js && wasm
 
-package main
+package external
 
 import (
 	"errors"
@@ -15,17 +15,23 @@ import (
 
 var errClosed = errors.New("net/http: reader is closed")
 
-// streamReader implements an io.ReadCloser wrapper for ReadableStream.
+// StreamReader implements an io.ReadCloser wrapper for ReadableStream.
 // See https://fetch.spec.whatwg.org/#readablestream for more information.
 // SOURCE: https://github.com/golang/go/blob/release-branch.go1.20/src/net/http/roundtrip_js.go
-type streamReader struct {
+type StreamReader struct {
 	pending []byte
 	stream  js.Value
 	err     error // sticky read error
 }
 
+func NewStreamReader(stream js.Value) *StreamReader {
+	return &StreamReader{
+		stream: stream,
+	}
+}
+
 // SOURCE: https://github.com/golang/go/blob/release-branch.go1.20/src/net/http/roundtrip_js.go
-func (r *streamReader) Read(p []byte) (n int, err error) {
+func (r *StreamReader) Read(p []byte) (n int, err error) {
 	if r.err != nil {
 		return 0, r.err
 	}
@@ -71,7 +77,7 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
 }
 
 // SOURCE: https://github.com/golang/go/blob/release-branch.go1.20/src/net/http/roundtrip_js.go
-func (r *streamReader) Close() error {
+func (r *StreamReader) Close() error {
 	// This ignores any error returned from cancel method. So far, I did not encounter any concrete
 	// situation where reporting the error is meaningful. Most users ignore error from resp.Body.Close().
 	// If there's a need to report error here, it can be implemented and tested when that need comes up.
@@ -82,18 +88,24 @@ func (r *streamReader) Close() error {
 	return nil
 }
 
-// arrayReader implements an io.ReadCloser wrapper for ArrayBuffer.
+// ArrayReader implements an io.ReadCloser wrapper for ArrayBuffer.
 // https://developer.mozilla.org/en-US/docs/Web/API/Body/arrayBuffer.
 // SOURCE: https://github.com/golang/go/blob/release-branch.go1.20/src/net/http/roundtrip_js.go
-type arrayReader struct {
+type ArrayReader struct {
 	arrayPromise js.Value
 	pending      []byte
 	read         bool
 	err          error // sticky read error
 }
 
+func NewArrayReader(arrayPromise js.Value) *ArrayReader {
+	return &ArrayReader{
+		arrayPromise: arrayPromise,
+	}
+}
+
 // SOURCE: https://github.com/golang/go/blob/release-branch.go1.20/src/net/http/roundtrip_js.go
-func (r *arrayReader) Read(p []byte) (n int, err error) {
+func (r *ArrayReader) Read(p []byte) (n int, err error) {
 	if r.err != nil {
 		return 0, r.err
 	}
@@ -138,34 +150,9 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 }
 
 // SOURCE: https://github.com/golang/go/blob/release-branch.go1.20/src/net/http/roundtrip_js.go
-func (r *arrayReader) Close() error {
+func (r *ArrayReader) Close() error {
 	if r.err == nil {
 		r.err = errClosed
 	}
 	return nil
-}
-
-// SOURCE: https://github.com/jub0bs/fcors/blob/main/internal/util/set.go
-
-// A Set represents a mathematical set whose elements have type E.
-type Set[E comparable] map[E]struct{}
-
-// NewSet returns a Set that contains all of es (and no other elements).
-func NewSet[E comparable](es ...E) Set[E] {
-	set := make(Set[E], len(es))
-	for _, e := range es {
-		set.Add(e)
-	}
-	return set
-}
-
-// Add adds e to s.
-func (s Set[E]) Add(e E) {
-	s[e] = struct{}{}
-}
-
-// Contains returns true if e is an element of s, and false otherwise.
-func (s Set[E]) Contains(e E) bool {
-	_, found := s[e]
-	return found
 }

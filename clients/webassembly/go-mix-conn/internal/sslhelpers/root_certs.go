@@ -1,6 +1,9 @@
-package main
+package sslhelpers
 
-import "crypto/x509"
+import (
+	"crypto/x509"
+	"go-mix-conn/internal/log"
+)
 
 // source: https://curl.se/ca/cacert-2023-05-30.pem
 // sha256 when downloaded: 5fadcae90aa4ae041150f8e2d26c37d980522cdb49f923fc1e1b5eb8d74e71ad  cacert.pem
@@ -3223,7 +3226,7 @@ func rootCerts() *x509.CertPool {
 	for i := 0; i < len(raw); i++ {
 		ok := roots.AppendCertsFromPEM(raw[i])
 		if !ok {
-			Error("%s", string(raw[i]))
+			log.Error("%s", string(raw[i]))
 			panic("failed to parse root certificate")
 		}
 	}

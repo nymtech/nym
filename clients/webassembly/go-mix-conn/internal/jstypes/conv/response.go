@@ -1,40 +1,33 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package conv
 
 import (
 	"fmt"
+	"go-mix-conn/internal/external"
+	"go-mix-conn/internal/helpers"
+	"go-mix-conn/internal/jstypes"
+	"go-mix-conn/internal/log"
+	"go-mix-conn/internal/types"
 	"io"
 	"net/http"
 	"net/url"
 	"syscall/js"
 )
 
-type ResponseType = string
-
-const (
-	RESPONSE_TYPE_BASIC              = "basic"
-	RESPONSE_TYPE_CORS               = "cors"
-	RESPONSE_TYPE_DEFAULT            = "default"
-	RESPONSE_TYPE_ERROR              = "error"
-	RESPONSE_TYPE_OPAQUE             = "opaque"
-	RESPONSE_TYPE_OPAQUE_REDIRECT    = "opaqueredirect"
-	RESPONSE_TYPE_UNSAFE_IGNORE_CORS = "unsafe-ignore-cors"
-)
-
 type InternalResponse struct {
 	inner                 *http.Response
-	responseTainting      ResponseTainting
-	responseType          ResponseType
+	responseTainting      jstypes.ResponseTainting
+	responseType          jstypes.ResponseType
 	corsExposedHeaderName []string
 	urlList               []*url.URL
 }
 
-func NewInternalResponse(inner *http.Response, reqOpts *RequestOptions) InternalResponse {
+func NewInternalResponse(inner *http.Response, reqOpts *types.RequestOptions) InternalResponse {
 	return InternalResponse{
 		inner:            inner,
-		responseTainting: reqOpts.responseTainting,
+		responseTainting: reqOpts.ResponseTainting,
 	}
 }
 
@@ -60,7 +53,7 @@ func (IR *InternalResponse) JSBody() (js.Value, error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			Error("failed to close the response body: %s", err)
+			log.Error("failed to close the response body: %s", err)
 		}
 	}(IR.inner.Body)
 
@@ -71,13 +64,13 @@ func (IR *InternalResponse) JSBody() (js.Value, error) {
 		return js.Undefined(), err
 	}
 
-	return intoJsBytes(data), nil
+	return helpers.IntoJsBytes(data), nil
 }
 
 func (IR *InternalResponse) exposeHeadersNames() []string {
-	allowed := IR.inner.Header.Values(headerExposeHeaders)
+	allowed := IR.inner.Header.Values(jstypes.HeaderExposeHeaders)
 
-	allowedSet := NewSet(allowed...)
+	allowedSet := external.NewSet(allowed...)
 	var filtered []string
 	for key, _ := range IR.inner.Header {
 		if allowedSet.Contains(key) {
@@ -90,12 +83,12 @@ func (IR *InternalResponse) exposeHeadersNames() []string {
 
 // Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-cors
 func (IR *InternalResponse) mutIntoBasicResponse() {
-	IR.responseType = RESPONSE_TYPE_BASIC
+	IR.responseType = jstypes.RESPONSE_TYPE_BASIC
 
 	newHeaders := http.Header{}
 	for key, values := range IR.inner.Header {
 		for _, value := range values {
-			if !forbiddenResponseHeaderNames.Contains(byteLowercase(key)) {
+			if !jstypes.ForbiddenResponseHeaderNames.Contains(helpers.ByteLowercase(key)) {
 				ck := http.CanonicalHeaderKey(key)
 				newHeaders[ck] = append(newHeaders[ck], value)
 			}
@@ -106,7 +99,7 @@ func (IR *InternalResponse) mutIntoBasicResponse() {
 
 // Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-cors
 func (IR *InternalResponse) mutIntoCORSResponse() {
-	IR.responseType = RESPONSE_TYPE_CORS
+	IR.responseType = jstypes.RESPONSE_TYPE_CORS
 
 	// TODO: figure out the proper usage of corsExposedHeaderName
 
@@ -121,7 +114,7 @@ func (IR *InternalResponse) mutIntoCORSResponse() {
 
 	for key, values := range IR.inner.Header {
 		for _, value := range values {
-			if safelistedResponseHeaderNames.Contains(byteLowercase(key)) {
+			if jstypes.SafelistedResponseHeaderNames.Contains(helpers.ByteLowercase(key)) {
 				ck := http.CanonicalHeaderKey(key)
 				newHeaders[ck] = append(newHeaders[ck], value)
 			}
@@ -133,7 +126,7 @@ func (IR *InternalResponse) mutIntoCORSResponse() {
 
 // Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-opaque
 func (IR *InternalResponse) mutIntoOpaqueResponse() {
-	IR.responseType = RESPONSE_TYPE_OPAQUE
+	IR.responseType = jstypes.RESPONSE_TYPE_OPAQUE
 
 	// TODO: set URL list to « »
 	IR.inner.StatusCode = 0
@@ -144,7 +137,7 @@ func (IR *InternalResponse) mutIntoOpaqueResponse() {
 
 // Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-cors
 func (IR *InternalResponse) mutIntoOpaqueRedirectResponse() {
-	IR.responseType = RESPONSE_TYPE_OPAQUE_REDIRECT
+	IR.responseType = jstypes.RESPONSE_TYPE_OPAQUE_REDIRECT
 
 	IR.inner.StatusCode = 0
 	IR.inner.Status = ""
@@ -154,12 +147,12 @@ func (IR *InternalResponse) mutIntoOpaqueRedirectResponse() {
 
 // OUTSIDE FETCH SPEC
 func (IR *InternalResponse) mutIntoUnsafeIgnoreCorsResponse() {
-	IR.responseType = RESPONSE_TYPE_UNSAFE_IGNORE_CORS
+	IR.responseType = jstypes.RESPONSE_TYPE_UNSAFE_IGNORE_CORS
 }
 
 func proxyHandlerGet(proxied map[string]any) js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
-		// Look at redirecting method's this:
+		// Look at redirecting Method's this:
 		// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#no_private_property_forwarding
 		target := args[0]
 		prop := args[1].String()
@@ -167,12 +160,12 @@ func proxyHandlerGet(proxied map[string]any) js.Func {
 
 		value := target.Get(prop)
 		if value.Type() == js.TypeFunction {
-			Debug("%s is a function", prop)
+			log.Debug("%s is a function", prop)
 			return js.FuncOf(func(this js.Value, args []js.Value) any {
 				if this.Equal(receiver) {
-					return jsReflect.Call("apply", value, target, intoAnySlice(args))
+					return jstypes.Reflect.Call("apply", value, target, helpers.IntoAnySlice(args))
 				} else {
-					return jsReflect.Call("apply", value, this, intoAnySlice(args))
+					return jstypes.Reflect.Call("apply", value, this, helpers.IntoAnySlice(args))
 				}
 			})
 		}
@@ -180,7 +173,7 @@ func proxyHandlerGet(proxied map[string]any) js.Func {
 		// we're only proxing "normal" props, not function calls
 		proxy, ok := proxied[prop]
 		if ok {
-			Debug("using proxy value for field \"%s\" (changing \"%v\" -> \"%v\")", prop, value, proxy)
+			log.Debug("using proxy value for field \"%s\" (changing \"%v\" -> \"%v\")", prop, value, proxy)
 
 			return proxy
 		}
@@ -190,7 +183,7 @@ func proxyHandlerGet(proxied map[string]any) js.Func {
 }
 
 func responseProxyHandler(proxied map[string]any) js.Value {
-	handler := jsObject.New()
+	handler := jstypes.Object.New()
 	handler.Set("get", proxyHandlerGet(proxied))
 	return handler
 }
@@ -210,7 +203,7 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 		}
 	}
 
-	responseOptions := jsObject.New()
+	responseOptions := jstypes.Object.New()
 	responseOptions.Set("status", IR.inner.StatusCode)
 	responseOptions.Set("statusText", http.StatusText(IR.inner.StatusCode))
 	responseOptions.Set("headers", headers)
@@ -251,7 +244,7 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 // IntoJSResponse is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
 // https://developer.mozilla.org/en-US/docs/Web/API/response
 /*
-	request attributes and their implementation status:
+	Request attributes and their implementation status:
 	[✅] - supported
 	[⚠️] - partially supported (some features might be missing)
 	[❌] - unsupported
@@ -267,7 +260,7 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 	[✅] type		    - has to be proxied
 	[⚠️] url			- not sure if every case is covered
 */
-func intoJSResponse(resp *http.Response, opts *RequestOptions) (js.Value, error) {
+func IntoJSResponse(resp *http.Response, opts *types.RequestOptions) (js.Value, error) {
 	// TODO: check if response is a filtered response
 	isFilteredResponse := false
 
@@ -276,25 +269,25 @@ func intoJSResponse(resp *http.Response, opts *RequestOptions) (js.Value, error)
 	// 4.1.14
 	if !isFilteredResponse {
 		// 4.1.14.1
-		if opts.responseTainting == RESPONSE_TAINTING_CORS {
+		if opts.ResponseTainting == jstypes.RESPONSE_TAINTING_CORS {
 			//  4.1.14.1.1
 			headerNames := internalResponse.exposeHeadersNames()
-			if opts.credentialsMode != CREDENTIALS_MODE_INCLUDE && contains(headerNames, wildcard) {
+			if opts.CredentialsMode != jstypes.CREDENTIALS_MODE_INCLUDE && helpers.Contains(headerNames, jstypes.Wildcard) {
 				//  4.1.14.1.2
-				internalResponse.corsExposedHeaderName = unique(internalResponse.allHeaderNames())
+				internalResponse.corsExposedHeaderName = helpers.Unique(internalResponse.allHeaderNames())
 			} else if len(headerNames) > 0 {
 				//  4.1.14.1.3
 				internalResponse.corsExposedHeaderName = headerNames
 			}
 		}
-		switch opts.responseTainting {
-		case RESPONSE_TAINTING_BASIC:
+		switch opts.ResponseTainting {
+		case jstypes.RESPONSE_TAINTING_BASIC:
 			internalResponse.mutIntoBasicResponse()
-		case RESPONSE_TAINTING_CORS:
+		case jstypes.RESPONSE_TAINTING_CORS:
 			internalResponse.mutIntoCORSResponse()
-		case RESPONSE_TAINTING_OPAQUE:
+		case jstypes.RESPONSE_TAINTING_OPAQUE:
 			internalResponse.mutIntoOpaqueResponse()
-		case RESPONSE_TAINTING_UNSAFE_IGNORE_CORS:
+		case jstypes.RESPONSE_TAINTING_UNSAFE_IGNORE_CORS:
 			internalResponse.mutIntoUnsafeIgnoreCorsResponse()
 		default:
 			panic("unreachable")
@@ -304,7 +297,7 @@ func intoJSResponse(resp *http.Response, opts *RequestOptions) (js.Value, error)
 	if len(internalResponse.urlList) == 0 {
 		internalResponse.urlList = []*url.URL{internalResponse.inner.Request.URL}
 	}
-	// TODO: 4.1.17 - redirect-tainted origin
+	// TODO: 4.1.17 - Redirect-tainted origin
 	// TODO: 4.1.18 - timing allow flag
 
 	// TODO: 4.1.19 - mixed content check
@@ -314,10 +307,10 @@ func intoJSResponse(resp *http.Response, opts *RequestOptions) (js.Value, error)
 
 	// TODO: 4.1.20
 	//rangeRequestedFlag := false
-	//if internalResponse.responseType == RESPONSE_TYPE_OPAQUE && internalResponse.inner.Status == 206
+	//if internalResponse.responseType == types.RESPONSE_TYPE_OPAQUE && internalResponse.inner.Status == 206
 
 	// 4.1.21
-	if (opts.method == "HEAD" || opts.method == "CONNECT") || internalResponse.isNullBodyStatus() {
+	if (opts.Method == "HEAD" || opts.Method == "CONNECT") || internalResponse.isNullBodyStatus() {
 		internalResponse.inner.Body = nil
 	}
 

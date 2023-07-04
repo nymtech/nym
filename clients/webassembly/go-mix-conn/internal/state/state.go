@@ -11,7 +11,6 @@ import (
 )
 
 // ALL THE GLOBALS SHOULD GO HERE
-var Done chan struct{}
 var ActiveRequests *CurrentActiveRequests
 var RequestTimeout time.Duration = time.Second * 5
 
@@ -19,7 +18,6 @@ var RequestTimeout time.Duration = time.Second * 5
 var MaxRedirections int = 20
 
 func InitialiseGlobalState() {
-	Done = make(chan struct{})
 	ActiveRequests = &CurrentActiveRequests{
 		Mutex: sync.Mutex{},
 		Inner: make(map[types.RequestId]*ActiveRequest),
@@ -80,7 +78,7 @@ func (ar *CurrentActiveRequests) CloseRemoteSocket(id types.RequestId) {
 		log.Warn("attempted to close remote socket of a connection that doesn't exist")
 		return
 	}
-	ar.Inner[id].injector.RemoteClosed <- true
+	close(ar.Inner[id].injector.RemoteDone)
 }
 
 func (ar *CurrentActiveRequests) SendError(id types.RequestId, err error) {

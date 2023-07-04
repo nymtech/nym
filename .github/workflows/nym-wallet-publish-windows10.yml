@@ -56,11 +56,9 @@ jobs:
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
       - name: Install app dependencies
-        shell: bash
         run: yarn --network-timeout 100000
 
       - name: Build and sign it
-        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ENABLE_CODE_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE }}

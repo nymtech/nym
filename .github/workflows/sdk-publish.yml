@@ -1,0 +1,32 @@
+name: Publish SDK to NPM
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: sdk/typescript/packages/sdk
+
+jobs:
+  publish:
+    runs-on: [custom-runner-linux]
+    steps:
+      - name: Install Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Setup yarn
+        run: npm install -g yarn
+
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build and publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+        run: scripts/publish.sh

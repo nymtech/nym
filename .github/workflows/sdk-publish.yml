@@ -28,4 +28,4 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
         working-directory: ./sdk/typescript/packages/sdk
-        run: cd sdk/typescript/packages/sdk && scripts/publish.sh
+        run: scripts/publish.sh

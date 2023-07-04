@@ -27,8 +27,7 @@
     "prebuild:dev": "yarn build:dependencies",
     "build:dev": "yarn build:dev:only-this",
     "build:dev:only-this": "scripts/build.sh",
-    "build:local": "run-s build:dependencies:nym-client-wasm build:dev:only-this",
-    "preinstall": "yarn build:local"
+    "build:local": "run-s build:dependencies:nym-client-wasm build:dev:only-this"
   },
   "dependencies": {
     "@npmcli/node-gyp": "^3.0.0",

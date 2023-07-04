@@ -28,18 +28,16 @@ pub fn register_name<R>(
     mut deps: DepsMut<'_>,
     rng: &mut R,
     name: &str,
-    nym_address: &str,
     owner: &str,
 ) -> (NameId, NameDetails)
 where
     R: RngCore + CryptoRng,
 {
     let deposit = nyms(100);
-    let (name, owner_signature) = super::fixture::new_name_details_with_sign(
+    let (name, owner_signature) = super::fixture::new_name_details_with_sign2(
         deps.branch(),
         rng,
         name,
-        nym_address,
         owner,
         deposit.clone(),
     );

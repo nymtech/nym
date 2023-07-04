@@ -30,18 +30,15 @@ mod tests {
         let mut deps = instantiate_test_contract();
         let mut rng = test_rng();
 
-        let (id1, name1) = register_name(deps.as_mut(), &mut rng, "foo", "addr.1@a", "steve");
-        let (id2, name2) = register_name(deps.as_mut(), &mut rng, "bar", "addr.2@b", "steve");
-        let (id3, name3) = register_name(deps.as_mut(), &mut rng, "baz", "addr.3@c", "steve");
+        let (id1, name1) = register_name(deps.as_mut(), &mut rng, "foo", "steve");
+        let (id2, name2) = register_name(deps.as_mut(), &mut rng, "bar", "steve");
+        let (id3, name3) = register_name(deps.as_mut(), &mut rng, "baz", "steve");
         assert_eq!(id1, 1);
         assert_eq!(id2, 2);
         assert_eq!(id3, 3);
         assert_eq!(name1.name.as_str(), "foo");
-        assert_eq!(name1.address.to_string(), "addr.1@a");
         assert_eq!(name2.name.as_str(), "bar");
-        assert_eq!(name2.address.to_string(), "addr.2@b");
         assert_eq!(name3.name.as_str(), "baz");
-        assert_eq!(name3.address.to_string(), "addr.3@c");
         assert_names(
             deps.as_ref(),
             &[
@@ -76,8 +73,8 @@ mod tests {
         let mut rng = test_rng();
 
         // Register two names
-        let (_, name1) = register_name(deps.as_mut(), &mut rng, "one", "foo.bar@baz", "steve");
-        register_name(deps.as_mut(), &mut rng, "two", "he.llo@me", "steve");
+        let (_, name1) = register_name(deps.as_mut(), &mut rng, "one", "steve");
+        register_name(deps.as_mut(), &mut rng, "two", "steve");
 
         // Delete the last entry
         delete_name_id(deps.as_mut(), 2, "steve");
@@ -94,7 +91,7 @@ mod tests {
 
         // Create a third entry. The index should not reuse the previous entry that we just
         // deleted.
-        let (id3, _) = register_name(deps.as_mut(), &mut rng, "three", "a.b@c", "steve");
+        let (id3, _) = register_name(deps.as_mut(), &mut rng, "three", "steve");
         assert_eq!(id3, 3);
     }
 }

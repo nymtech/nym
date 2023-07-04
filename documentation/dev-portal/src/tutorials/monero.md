@@ -40,4 +40,3 @@ Then go to your Monero wallet (gui or otherwise) and change the settings to run 
 Follow the instructions and the Monero mainnet will be connected through to the Nym mixnet.
 
 For those who want to try it out in testnet, a stagenet service provider is also available: [https://nymtech.net/.wellknown/connect/service-providers.json](https://nymtech.net/.wellknown/connect/service-providers.json)
-

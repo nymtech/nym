@@ -10,6 +10,7 @@ import (
 	"go-mix-conn/internal/helpers"
 	"go-mix-conn/internal/jstypes"
 	"go-mix-conn/internal/jstypes/conv"
+	"go-mix-conn/internal/log"
 	"go-mix-conn/internal/mixfetch"
 	"syscall/js"
 	"time"
@@ -31,12 +32,25 @@ func InitialiseGoBridge() {
 
 	// user facing methods
 	js.Global().Set("mixFetch", jstypes.AsyncFunc(mixFetch))
+	js.Global().Set("goWasmSetLogging", js.FuncOf(setLoggingLevel))
 
 	// rust facing methods (don't expose them to the root)
 	goBridgeRoot.Set("goWasmSetMixFetchRequestTimeout", js.FuncOf(changeRequestTimeout))
 	goBridgeRoot.Set("goWasmInjectServerData", js.FuncOf(injectServerData))
 	goBridgeRoot.Set("goWasmCloseRemoteSocket", js.FuncOf(closeRemoteSocket))
 	goBridgeRoot.Set("goWasmInjectConnError", js.FuncOf(injectConnError))
+}
+
+func setLoggingLevel(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return errors.New("no arguments passed for `setLoggingLevel`")
+	}
+
+	if args[0].Type() != js.TypeString {
+		return errors.New("the provided logging level is not a string")
+	}
+	log.SetLoggingLevel(args[0].String())
+	return nil
 }
 
 func mixFetch(_ js.Value, args []js.Value) (any, error) {

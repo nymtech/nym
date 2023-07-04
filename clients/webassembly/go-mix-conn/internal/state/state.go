@@ -30,7 +30,7 @@ type CurrentActiveRequests struct {
 }
 
 func (ar *CurrentActiveRequests) Exists(id types.RequestId) bool {
-	log.Debug("checking if request %d exists", id)
+	log.Trace("checking if request %d exists", id)
 	ar.Lock()
 	defer ar.Unlock()
 	_, exists := ar.Inner[id]
@@ -38,6 +38,7 @@ func (ar *CurrentActiveRequests) Exists(id types.RequestId) bool {
 }
 
 func (ar *CurrentActiveRequests) Insert(id types.RequestId, inj ConnectionInjector) {
+	log.Trace("inserting request %d", id)
 	ar.Lock()
 	defer ar.Unlock()
 	_, exists := ar.Inner[id]
@@ -48,7 +49,7 @@ func (ar *CurrentActiveRequests) Insert(id types.RequestId, inj ConnectionInject
 }
 
 func (ar *CurrentActiveRequests) Remove(id types.RequestId) {
-	log.Debug("removing request %d", id)
+	log.Trace("removing request %d", id)
 	ar.Lock()
 	defer ar.Unlock()
 	_, exists := ar.Inner[id]
@@ -59,7 +60,7 @@ func (ar *CurrentActiveRequests) Remove(id types.RequestId) {
 }
 
 func (ar *CurrentActiveRequests) InjectData(id types.RequestId, data []byte) {
-	log.Debug("injecting data for %d", id)
+	log.Trace("injecting data for %d", id)
 	ar.Lock()
 	defer ar.Unlock()
 	_, exists := ar.Inner[id]
@@ -70,7 +71,7 @@ func (ar *CurrentActiveRequests) InjectData(id types.RequestId, data []byte) {
 }
 
 func (ar *CurrentActiveRequests) CloseRemoteSocket(id types.RequestId) {
-	log.Debug("closing remote socket for %d", id)
+	log.Trace("closing remote socket for %d", id)
 	ar.Lock()
 	defer ar.Unlock()
 	_, exists := ar.Inner[id]
@@ -82,7 +83,7 @@ func (ar *CurrentActiveRequests) CloseRemoteSocket(id types.RequestId) {
 }
 
 func (ar *CurrentActiveRequests) SendError(id types.RequestId, err error) {
-	log.Debug("injecting error for %d: %s", id, err)
+	log.Trace("injecting error for %d: %s", id, err)
 	ar.Lock()
 	defer ar.Unlock()
 	_, exists := ar.Inner[id]

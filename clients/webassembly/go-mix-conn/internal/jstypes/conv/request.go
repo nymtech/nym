@@ -231,7 +231,7 @@ func parseRedirect(request *js.Value) (string, error) {
 	}
 
 	if redirect.Type() != js.TypeString {
-		return "", errors.New("the Redirect field is not a string")
+		return "", errors.New("the redirect field is not a string")
 	}
 
 	redirectString := redirect.String()
@@ -260,7 +260,7 @@ func parseMode(request *js.Value, unsafeCors bool) (jstypes.Mode, error) {
 	}
 
 	if mode.Type() != js.TypeString {
-		return "", errors.New("the Mode field is not a string")
+		return "", errors.New("the mode field is not a string")
 	}
 
 	modeString := mode.String()
@@ -316,7 +316,7 @@ func parseReferrer(request *js.Value) (jstypes.Referrer, error) {
 	}
 
 	if referrer.Type() != js.TypeString {
-		return "", errors.New("the Referrer field is not a string")
+		return "", errors.New("the referrer field is not a string")
 	}
 
 	referrerString := referrer.String()
@@ -344,7 +344,7 @@ func parseRefererPolicy(request *js.Value) (jstypes.ReferrerPolicy, error) {
 	}
 
 	if referrerPolicy.Type() != js.TypeString {
-		return "", errors.New("the ReferrerPolicy field is not a string")
+		return "", errors.New("the referrerPolicy field is not a string")
 	}
 
 	referrerPolicyString := referrerPolicy.String()

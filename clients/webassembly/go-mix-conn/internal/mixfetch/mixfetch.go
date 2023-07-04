@@ -198,6 +198,7 @@ func buildHttpClient(opts *types.RequestOptions) *http.Client {
 			MaxIdleConnsPerHost: 1,
 			MaxConnsPerHost:     1,
 		},
+		Timeout: state.RequestTimeout,
 	}
 }
 
@@ -323,11 +324,8 @@ func MixFetch(request *conv.ParsedRequest) (any, error) {
 		log.Trace("response: %v", *res)
 		return conv.IntoJSResponse(res, request.Options)
 	case err := <-errCh:
+		// TODO: cancel stuff here.... somehow...
 		log.Warn("request failure: %v", err)
 		return nil, err
-	case <-time.After(state.RequestTimeout):
-		// TODO: cancel stuff here.... somehow...
-		log.Warn("request has timed out")
-		return nil, errors.New("request timeout")
 	}
 }

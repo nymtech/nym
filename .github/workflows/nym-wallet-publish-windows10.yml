@@ -49,8 +49,7 @@ jobs:
         with:
           toolchain: stable
       - name: Install wasm-pack
-        shell: bash
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        run: cargo install wasm-pack
           
       - name: Create env file
         uses: timheuer/base64-to-file@v1.1

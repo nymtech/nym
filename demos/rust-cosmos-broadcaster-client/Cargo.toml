@@ -8,6 +8,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
+nym-cli-commands = { path = "../../common/commands" }
 nym-validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }
 nym-network-defaults = { path = "../../common/network-defaults" }
 async-trait = { workspace = true, optional = true }

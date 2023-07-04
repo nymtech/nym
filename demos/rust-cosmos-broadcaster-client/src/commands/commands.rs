@@ -11,12 +11,11 @@ use bip39;
 
 pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> Vec<u8> {
 
-    // TODO take coin amount from function args, + load most of network vars from config file. in V2 take chain-id and tx-type as well - for V1 see nym-cli and how it loads from get_network_details() in main.rsL88
+    // TODO take coin amount from function args, + load network vars from config file. 
     let prefix = "n";
     let denom: Denom = "unym".parse().unwrap();
     let validator = "https://qwerty-validator.qa.nymte.ch";
 
-    
     let signer = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
     let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
 
@@ -38,32 +37,31 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> Vec<u8> {
         amount: 12345u32.into(),
     }];
 
-            let send_msg = MsgSend {
-                from_address: signer_address.clone(),
-                to_address: to.clone(),
-                amount,
-            }
-            .to_any()
-            .unwrap();
+    let send_msg = MsgSend {
+        from_address: signer_address.clone(),
+        to_address: to.clone(),
+        amount,
+    }
+    .to_any()
+    .unwrap();
 
-            let memo = "example memo";
-            let fee = tx::Fee::from_amount_and_gas(
-                Coin {
-                    denom,
-                    amount: 2500u32.into(),
-                },
-                100000,
-            );
+    let memo = "example memo";
+    let fee = tx::Fee::from_amount_and_gas(
+        Coin {
+            denom,
+            amount: 2500u32.into(),
+        },
+        100000,
+    );
 
-            let tx_raw = tx_signer
-                .sign_direct(&signer_address, vec![send_msg], fee, memo, signer_data)
-                .unwrap();
+    let tx_raw = tx_signer
+        .sign_direct(&signer_address, vec![send_msg], fee, memo, signer_data)
+        .unwrap();
 
-            // TODO return this from function 
-            let tx_bytes = tx_raw.to_bytes().unwrap();
+    // TODO return this from function 
+    let tx_bytes = tx_raw.to_bytes().unwrap();
 
-            tx_bytes
-
+    tx_bytes
 
 }
 

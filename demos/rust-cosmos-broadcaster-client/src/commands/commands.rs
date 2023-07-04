@@ -27,16 +27,16 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> Vec<u8> {
     // (only broadcasts + queries for sequence numbers)
     let broadcaster = HttpClient::new(validator).unwrap();
 
-                // get signer information
-            let sequence_response = broadcaster.get_sequence(&signer_address).await.unwrap();
-            let chain_id = broadcaster.get_chain_id().await.unwrap();
-            let signer_data = SignerData::new_from_sequence_response(sequence_response, chain_id);
+    // get signer information
+    let sequence_response = broadcaster.get_sequence(&signer_address).await.unwrap();
+    let chain_id = broadcaster.get_chain_id().await.unwrap();
+    let signer_data = SignerData::new_from_sequence_response(sequence_response, chain_id);
 
-            // create (and sign) the send message
-            let amount = vec![Coin {
-                denom: denom.clone(),
-                amount: 12345u32.into(),
-            }];
+    // create (and sign) the send message
+    let amount = vec![Coin {
+        denom: denom.clone(),
+        amount: 12345u32.into(),
+    }];
 
             let send_msg = MsgSend {
                 from_address: signer_address.clone(),

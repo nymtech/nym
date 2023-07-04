@@ -73,7 +73,6 @@ func checkRedirect(opts *types.RequestOptions, req *http.Request, via []*http.Re
 // Reference: https://fetch.spec.whatwg.org/#main-fetch
 func mainFetchChecks(req *conv.ParsedRequest) error {
 	// >>> START: NOT INCLUDED IN FETCH SPEC
-	log.Warn("mode: %s", req.Options.Mode)
 	if req.Options.Mode == jstypes.MODE_UNSAFE_IGNORE_CORS {
 		// ignore all checks - everything should be accepted
 		req.Options.ResponseTainting = jstypes.RESPONSE_TAINTING_UNSAFE_IGNORE_CORS

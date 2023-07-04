@@ -195,7 +195,7 @@ func (conn *FakeConnection) Read(p []byte) (int, error) {
 	select {
 	// see if we have any leftover data from the previous read
 	case incomplete := <-conn.pendingReads:
-		log.Debug("reading previously incomplete data")
+		log.Trace("reading previously incomplete data")
 		return conn.readAndBuffer(incomplete, p)
 	default:
 		// reason for this extra select:
@@ -203,7 +203,7 @@ func (conn *FakeConnection) Read(p []byte) (int, error) {
 		select {
 		// if we have any data: do read it
 		case injectedData := <-conn.data.ServerData:
-			log.Info("server data")
+			log.Trace("server data")
 			return conn.readAndBuffer(injectedData, p)
 		default:
 			// we wait for either some data, closing info, an error or timeout
@@ -269,7 +269,7 @@ func (conn *FakeConnection) RemoteAddr() net.Addr {
 }
 
 func (conn *FakeConnection) SetDeadline(t time.Time) error {
-	log.Info("Setting deadline to %v\n", t)
+	log.Trace("Setting deadline to %v\n", t)
 
 	if isClosedChan(conn.localDone) || isClosedChan(conn.data.RemoteDone) {
 		return io.ErrClosedPipe
@@ -282,7 +282,7 @@ func (conn *FakeConnection) SetDeadline(t time.Time) error {
 }
 
 func (conn *FakeConnection) SetReadDeadline(t time.Time) error {
-	log.Info("Setting read deadline to %v\n", t)
+	log.Trace("Setting read deadline to %v\n", t)
 
 	if isClosedChan(conn.localDone) || isClosedChan(conn.data.RemoteDone) {
 		return io.ErrClosedPipe
@@ -294,7 +294,7 @@ func (conn *FakeConnection) SetReadDeadline(t time.Time) error {
 }
 
 func (conn *FakeConnection) SetWriteDeadline(t time.Time) error {
-	log.Info("Setting write deadline to %v\n", t)
+	log.Trace("Setting write deadline to %v\n", t)
 
 	if isClosedChan(conn.localDone) || isClosedChan(conn.data.RemoteDone) {
 		return io.ErrClosedPipe

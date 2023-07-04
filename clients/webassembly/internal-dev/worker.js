@@ -366,14 +366,14 @@ async function testMixFetch() {
                         console.error("mix fetch request failure: ", e)
                     }
 
-                    try {
-                        console.log('using normal Fetch...');
-                        const fetchRes = await fetch(url, args)
-                        console.log(">>> NORMAL FETCH")
-                        await logFetchResult(fetchRes)
-                    } catch(e) {
-                        console.error("fetch request failure: ", e)
-                    }
+                    // try {
+                    //     console.log('using normal Fetch...');
+                    //     const fetchRes = await fetch(url, args)
+                    //     console.log(">>> NORMAL FETCH")
+                    //     await logFetchResult(fetchRes)
+                    // } catch(e) {
+                    //     console.error("fetch request failure: ", e)
+                    // }
                 }
             }
         }
@@ -428,6 +428,8 @@ async function main() {
     set_panic_hook();
 
     setupRsGoBridge();
+
+    goWasmSetLogging("trace")
 
     // test mixFetch
     await testMixFetch();

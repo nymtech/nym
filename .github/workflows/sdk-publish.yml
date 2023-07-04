@@ -1,0 +1,19 @@
+name: Publish SDK to NPM
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: sdk/typescript/packages/sdk
+
+jobs:
+  publish:
+    runs-on: [custom-runner-linux]
+    steps:  
+      - name: Install Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Setup yarn
+        run: npm install -g yarn

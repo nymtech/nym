@@ -10,10 +10,18 @@ ifndef $(TINYGOROOT)
 endif
 
 build-go:
-	#tinygo build -o internal-static/main.wasm -target wasm cmd/wasm/main.go # && cp "$(GOROOT)/misc/wasm/wasm_exec.js" ./internal-static
 	GOOS=js GOARCH=wasm go build -o build/main.wasm ./cmd/wasm && cp "$(GOROOT)/misc/wasm/wasm_exec.js" ./build
+
+build-go-opt:
+# use the -s and -w linker flags to strip the debugging information
+	GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o build/main.wasm ./cmd/wasm && cp "$(GOROOT)/misc/wasm/wasm_exec.js" ./build
+# run wasm-opt to gain few more kb
+	wasm-opt --enable-bulk-memory -Oz build/main.wasm -o build/main.wasm
+# finally compress it (... or not?)
 
 build-tinygo:
 # the default stack size of 16kib is insufficient
-	tinygo build -o build/main.wasm -stack-size "32kb" --no-debug ./cmd/wasm && cp "$(TINYGOROOT)/targets/wasm_exec.js" ./build
+# note: it seems to leak memory : (
+# ref: https://github.com/tinygo-org/tinygo/issues/1140
+	tinygo build -o build/main.wasm -stack-size "32kb" ./cmd/wasm && cp "$(TINYGOROOT)/targets/wasm_exec.js" ./build
 

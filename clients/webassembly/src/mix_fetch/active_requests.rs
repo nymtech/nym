@@ -73,7 +73,11 @@ impl ActiveRequests {
         let id = data.header.connection_id;
         let mut guard = self.inner.lock().await;
         let Some(req) = guard.get_mut(&id) else {
-            console_error!("attempted to resolve request {id}, however it no longer exists. Has it been aborted?");
+            // if there's no data and the socket is closed, we're all good because our local must have already closed
+            if !data.data.is_empty() || !data.header.local_socket_closed {
+                console_error!("attempted to send data for request {id}, however it no longer exists. Has it been aborted?");
+            }
+
             // TODO: if it doesn't exist here, make sure to clear Go's memory too
             return;
         };
@@ -94,7 +98,6 @@ impl ActiveRequests {
             }
             // TODO: that's very crappy way of doing it.
             if Some(contiguous_data.last_sequence) == req.finished_at {
-                console_log!("telling go that the remote socket is closed");
                 goWasmCloseRemoteSocket(id.to_string());
             }
         }

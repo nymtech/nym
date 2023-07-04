@@ -141,7 +141,7 @@ func schemeFetch(req *conv.ParsedRequest) error {
 }
 
 func dialContext(_ctx context.Context, opts *types.RequestOptions, _network, addr string) (net.Conn, error) {
-	log.Info("dialing plain connection to %s", addr)
+	log.Debug("dialing plain connection to %s", addr)
 
 	requestId, err := rust_bridge.RsStartNewMixnetRequest(addr)
 	if err != nil {
@@ -158,7 +158,7 @@ func dialContext(_ctx context.Context, opts *types.RequestOptions, _network, add
 }
 
 func dialTLSContext(_ctx context.Context, opts *types.RequestOptions, _network, addr string) (net.Conn, error) {
-	log.Info("dialing TLS connection to %s", addr)
+	log.Debug("dialing TLS connection to %s", addr)
 
 	requestId, err := rust_bridge.RsStartNewMixnetRequest(addr)
 	if err != nil {
@@ -319,8 +319,8 @@ func MixFetch(request *conv.ParsedRequest) (any, error) {
 
 	select {
 	case res := <-resCh:
-		log.Info("finished performing the request")
-		log.Debug("response: %v", *res)
+		log.Debug("finished performing the request")
+		log.Trace("response: %v", *res)
 		return conv.IntoJSResponse(res, request.Options)
 	case err := <-errCh:
 		log.Warn("request failure: %v", err)

@@ -26,6 +26,13 @@ pub struct RegisteredName {
     pub deposit: Coin,
 }
 
+impl RegisteredName {
+    // Shortcut for getting the actual name
+    pub fn entry(&self) -> &NymName {
+        &self.name.name
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
 pub struct NameDetails {
     /// The name pointing to the nym address

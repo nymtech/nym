@@ -205,7 +205,7 @@ mod tests {
         let loaded = load_all_paged(store, None, None).unwrap();
         for name in &names {
             assert!(!has_name_id(store, name.id));
-            assert!(!has_name(store, &name.name.name));
+            assert!(!has_name(store, name.entry()));
             assert!(!loaded.names.iter().any(|l_name| l_name.id == name.id));
             assert!(!loaded.names.iter().any(|l_name| l_name == name));
         }
@@ -215,7 +215,7 @@ mod tests {
         let loaded = load_all_paged(store, None, None).unwrap();
         for name in &names {
             assert!(has_name_id(store, name.id));
-            assert!(has_name(store, &name.name.name));
+            assert!(has_name(store, name.entry()));
             assert!(loaded.names.iter().filter(|n| n == &name).count() == 1);
         }
     }
@@ -223,7 +223,7 @@ mod tests {
     fn assert_only_these_registered(store: &dyn Storage, names: Vec<RegisteredName>) {
         for name in &names {
             assert!(has_name_id(store, name.id));
-            assert!(has_name(store, &name.name.name));
+            assert!(has_name(store, name.entry()));
         }
         let last_id = names.last().unwrap().id;
         assert_eq!(
@@ -254,27 +254,27 @@ mod tests {
     fn remove_id_works(mut deps: TestDeps) {
         save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert!(has_name_id(&deps.storage, 1));
-        assert!(has_name(&deps.storage, &name_fixture(1).name.name));
+        assert!(has_name(&deps.storage, name_fixture(1).entry()));
         remove_id(deps.as_mut().storage, 1).unwrap();
         assert!(!has_name_id(&deps.storage, 1));
-        assert!(!has_name(&deps.storage, &name_fixture(1).name.name));
+        assert!(!has_name(&deps.storage, name_fixture(1).entry()));
     }
 
     #[rstest]
     fn remove_name_works(mut deps: TestDeps) {
         save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert!(has_name_id(&deps.storage, 1));
-        assert!(has_name(&deps.storage, &name_fixture(1).name.name));
+        assert!(has_name(&deps.storage, name_fixture(1).entry()));
         remove_name(deps.as_mut().storage, name_fixture(1).name.name).unwrap();
         assert!(!has_name_id(&deps.storage, 1));
-        assert!(!has_name(&deps.storage, &name_fixture(1).name.name));
+        assert!(!has_name(&deps.storage, name_fixture(1).entry()));
     }
 
     #[rstest]
     fn has_name_works(mut deps: TestDeps) {
-        assert!(!has_name(&deps.storage, &name_fixture(1).name.name));
+        assert!(!has_name(&deps.storage, name_fixture(1).entry()));
         save(deps.as_mut().storage, &name_fixture(1)).unwrap();
-        assert!(has_name(&deps.storage, &name_fixture(1).name.name));
+        assert!(has_name(&deps.storage, name_fixture(1).entry()));
     }
 
     #[rstest]
@@ -304,14 +304,14 @@ mod tests {
     #[rstest]
     fn load_name_works(mut deps: TestDeps) {
         assert_eq!(
-            load_name(deps.as_ref().storage, &name_fixture(1).name.name).unwrap_err(),
+            load_name(deps.as_ref().storage, name_fixture(1).entry()).unwrap_err(),
             NameServiceError::NameNotFound {
                 name: name_fixture(1).name.name,
             }
         );
         save(deps.as_mut().storage, &name_fixture(1)).unwrap();
         assert_eq!(
-            load_name(deps.as_ref().storage, &name_fixture(1).name.name).unwrap(),
+            load_name(deps.as_ref().storage, name_fixture(1).entry()).unwrap(),
             name_fixture(1),
         );
     }
@@ -376,7 +376,7 @@ mod tests {
         save_all(deps.as_mut().storage, &uniq_names).unwrap();
         for name in uniq_names {
             assert_eq!(
-                load_name(deps.as_ref().storage, &name.name.name).unwrap(),
+                load_name(deps.as_ref().storage, name.entry()).unwrap(),
                 name.clone(),
             );
         }
@@ -408,7 +408,7 @@ mod tests {
         uniq_names: Vec<RegisteredName>,
     ) {
         save_all(deps.as_mut().storage, &uniq_names).unwrap();
-        remove_name(deps.as_mut().storage, uniq_names[1].name.name.clone()).unwrap();
+        remove_name(deps.as_mut().storage, uniq_names[1].entry().clone()).unwrap();
         assert_eq!(
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
@@ -570,11 +570,7 @@ mod tests {
         save_all(deps.as_mut().storage, &overlapping_owners).unwrap();
         assert_registered(&deps.storage, overlapping_owners.clone());
         assert_only_these_registered(&deps.storage, overlapping_owners.clone());
-        remove_name(
-            deps.as_mut().storage,
-            overlapping_owners[1].name.name.clone(),
-        )
-        .unwrap();
+        remove_name(deps.as_mut().storage, overlapping_owners[1].entry().clone()).unwrap();
         assert_eq!(
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {

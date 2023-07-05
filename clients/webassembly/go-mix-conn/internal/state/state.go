@@ -46,6 +46,10 @@ func (ar *CurrentActiveRequests) Exists(id types.RequestId) bool {
 	return exists
 }
 
+func (ar *CurrentActiveRequests) ExistsCanonical(canonicalAddr string) bool {
+	return ar.GetId(canonicalAddr) != 0
+}
+
 func (ar *CurrentActiveRequests) Insert(id types.RequestId, canonicalAddr string, inj ConnectionInjector) {
 	log.Trace("inserting request %d for %s", id, canonicalAddr)
 	ar.Lock()

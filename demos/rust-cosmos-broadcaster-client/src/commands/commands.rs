@@ -1,17 +1,15 @@
-use cosmrs::bip32::secp256k1::elliptic_curve::generic_array::sequence;
 use nym_sphinx_addressing::clients::Recipient;
 use nym_validator_client::nyxd::CosmWasmClient;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 use nym_validator_client::signing::tx_signer::TxSigner;
 use nym_validator_client::signing::SignerData;
 use cosmrs::bank::MsgSend;
-use cosmrs::rpc::{self, HttpClient};
+use cosmrs::rpc::{HttpClient};
 use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
 use bip39; 
 use bs58; 
 use nym_sdk::mixnet;
-// use nymsphinx::addressing::Recipient;
 
 pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> String {
 
@@ -84,10 +82,14 @@ pub async fn send_tx(base58_tx: String, sp_address: Recipient) -> Option<Vec<mix
 
     // send message w sdk to broadcaster who will do: 
     /* 
+        // decode the base58 tx to vec<u8>
+
         // broadcast the tx
         let res = rpc::Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
         .await
         .unwrap();
+
+        // send res back via SURBs 
      */
     client.send_str(sp_address, &base58_tx).await; // send as base58 encoded and it can be decoded by the SP 
     println!("\nWaiting for reply\n");

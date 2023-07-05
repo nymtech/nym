@@ -1,16 +1,8 @@
-use std::str::FromStr;
-
-use clap::{CommandFactory, Parser, Subcommand, Args};
-use cosmrs::bip32::PublicKey;
+use clap::{ Parser, Subcommand, Args};
 use nym_sdk::mixnet::Recipient;
 use nym_validator_client::nyxd::AccountId;
-// use nym_cli_commands::context::{get_network_details, ClientArgs};
-use nym_crypto::asymmetric::identity;
 mod commands; 
 use nym_bin_common::logging::setup_logging;
-use nym_sphinx_addressing;
-
-// use common::nymsphinx::addressing;
 
 #[derive(Debug, Parser)]
 #[clap(name = "nym cosmos tx signer ")]
@@ -24,7 +16,7 @@ struct Cli {
     // mnemonic: Option<bip39::Mnemonic>,
 
     // TODO add SP address
-    
+
     #[clap(subcommand)]
     command: Option<Commands>,
 }

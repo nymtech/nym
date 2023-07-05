@@ -5,8 +5,8 @@
 #![allow(clippy::drop_non_drop)]
 
 use crate::config::base_wasm::{new_base_client, DebugWasm};
-use crate::error::WasmClientError;
 use crate::helpers::parse_recipient;
+use crate::mix_fetch::error::MixFetchError;
 use nym_client_core::config::Config as BaseClientConfig;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
@@ -25,25 +25,41 @@ pub struct MixFetchConfig {
 }
 
 #[wasm_bindgen]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MixFetchConfigOpts {
+    #[serde(rename = "nymApi")]
+    nym_api: Option<String>,
+    nyxd: Option<String>,
+    debug: Option<DebugWasm>,
+}
+
+#[wasm_bindgen]
 impl MixFetchConfig {
     #[wasm_bindgen(constructor)]
     pub fn new(
         id: String,
         network_requester_address: String,
-        nym_api: Option<String>,
-        nyxd: Option<String>,
-        debug: Option<DebugWasm>,
-    ) -> Result<MixFetchConfig, WasmClientError> {
-        Ok(MixFetchConfig {
-            base: new_base_client(
-                id,
-                env!("CARGO_PKG_VERSION").to_string(),
-                nym_api,
-                nyxd,
-                debug,
-            )?,
-            mix_fetch: MixFetch::new(network_requester_address)?,
-        })
+        opts: JsValue,
+    ) -> Result<MixFetchConfig, MixFetchError> {
+        let version = env!("CARGO_PKG_VERSION").to_string();
+        if opts.is_null() || opts.is_undefined() {
+            Ok(MixFetchConfig {
+                base: BaseClientConfig::new(id, version),
+                mix_fetch: MixFetch::new(network_requester_address)?,
+            })
+        } else {
+            let opts: MixFetchConfigOpts = serde_wasm_bindgen::from_value(opts)?;
+            Ok(MixFetchConfig {
+                base: new_base_client(
+                    id,
+                    env!("CARGO_PKG_VERSION").to_string(),
+                    opts.nym_api,
+                    opts.nyxd,
+                    opts.debug,
+                )?,
+                mix_fetch: MixFetch::new(network_requester_address)?,
+            })
+        }
     }
 }
 
@@ -65,7 +81,7 @@ pub struct MixFetch {
 }
 
 impl MixFetch {
-    pub(crate) fn new(network_requester_address: String) -> Result<MixFetch, WasmClientError> {
+    pub(crate) fn new(network_requester_address: String) -> Result<MixFetch, MixFetchError> {
         Ok(MixFetch {
             network_requester_address: parse_recipient(&network_requester_address)?,
             request_timeout: DEFAULT_MIX_FETCH_TIMEOUT,

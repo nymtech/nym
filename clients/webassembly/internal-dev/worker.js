@@ -330,7 +330,7 @@ async function testMixFetch() {
     const mix_fetch_network_requester_address= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
     // const mix_fetch_network_requester_address= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
 
-    const config = new MixFetchConfig('my-awesome-mix-fetch-client', mix_fetch_network_requester_address, validator, undefined, debug);
+    const config = new MixFetchConfig('my-awesome-mix-fetch-client', mix_fetch_network_requester_address, { nymApi: validator, debug: debug} );
 
     console.log('Instantiating Mix Fetch...');
     await setupMixFetch(config)

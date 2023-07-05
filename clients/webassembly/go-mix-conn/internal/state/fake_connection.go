@@ -57,7 +57,7 @@ type connDeadline struct {
 	cancel chan struct{} // Must be non-nil
 }
 
-func makePipeDeadline() connDeadline {
+func makeConnDeadline() connDeadline {
 	return connDeadline{cancel: make(chan struct{})}
 }
 
@@ -146,8 +146,8 @@ func NewFakeConnection(requestId types.RequestId, remoteAddress string) (*FakeCo
 		remoteAddress: remoteAddress,
 		pendingReads:  make(chan []byte, 1),
 		localDone:     localDone,
-		readDeadline:  makePipeDeadline(),
-		writeDeadline: makePipeDeadline(),
+		readDeadline:  makeConnDeadline(),
+		writeDeadline: makeConnDeadline(),
 	}
 
 	return conn, inj

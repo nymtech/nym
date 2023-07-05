@@ -1,9 +1,16 @@
+use std::str::FromStr;
+
 use clap::{CommandFactory, Parser, Subcommand, Args};
+use cosmrs::bip32::PublicKey;
+use nym_sdk::mixnet::Recipient;
 use nym_validator_client::nyxd::AccountId;
 // use nym_cli_commands::context::{get_network_details, ClientArgs};
-// use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::identity;
 mod commands; 
 use nym_bin_common::logging::setup_logging;
+use nym_sphinx_addressing;
+
+// use common::nymsphinx::addressing;
 
 #[derive(Debug, Parser)]
 #[clap(name = "nym cosmos tx signer ")]
@@ -16,13 +23,8 @@ struct Cli {
     // )]
     // mnemonic: Option<bip39::Mnemonic>,
 
-    // TODO add for diff network 
-    // #[clap(short, long, global = true)]
-    // #[clap(
-    //     help = "Overrides configuration as a file of environment variables."
-    // )]
-    // config_env_file: Option<std::path::PathBuf>,
-
+    // TODO add SP address
+    
     #[clap(subcommand)]
     command: Option<Commands>,
 }
@@ -48,21 +50,23 @@ struct SendTx {
     /// the base58 encoded signed payload created in OfflineSign()  
     base58_payload: String, 
     /// the nym address of the broadcaster service provider 
-    sp_address: String 
+    sp_address: Recipient 
 }
 
 #[tokio::main]
 async fn main() {
     setup_logging();
     let cli = Cli::parse();
-    let sp_address = "4roCqqdh1mG76gYT2das1wNBER3e5AzxC5dsA4zoWoLh.2iRzCRhzVMod7Ar5MnGt3X3zJGR7c4NxvK8cXCnxMYe3@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW"; 
 
+    // TODO take from args 
+    let sp_address = Recipient::try_from_base58_string("6e5KeP3Ks6iA3832K2MvCvQJb9zF3HMHwY8XjLhwAGGt.ZCH8YTky6GkApmra3EGbfgQk2VwdPaRH8R1wUfAnv3Q@BNjYZPxzcJwczXHHgBxCAyVJKxN6LPteDRrKapxWmexv").unwrap(); 
+    
     match &cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx { mnemonic, to } )) => {
             let base58_tx_bytes = commands::commands::offline_sign(mnemonic.clone(), to.clone()).await; 
 
-            println!("signed tx payload: \n\n{}\n\n", &base58_tx_bytes); 
-            println!("do you wish to send the signed tx? y/n"); 
+            println!("base58 encoded signed tx payload: \n\n{}\n\n", &base58_tx_bytes); 
+            println!("do you wish to send the tx? y/n"); 
 
             let mut input = String::new();
             let stdin = std::io::stdin();
@@ -70,7 +74,7 @@ async fn main() {
 
             if input.chars().next().unwrap() == 'y' { // TODO add proper parsing for getting y/n
                 println!("\nsending tx thru the mixnet to broadcaster service"); 
-                let tx_hash = commands::commands::send_tx(base58_tx_bytes, sp_address.to_string()).await;
+                let tx_hash = commands::commands::send_tx(base58_tx_bytes, sp_address).await;
                 println!("the response from the broadcaster: {:#?}", tx_hash); 
             } else if input.chars().next().unwrap() == 'n' {
                 println!("\nok, you can send the signed tx at a later date by passing the base58 string above as the argument for send-tx")
@@ -79,7 +83,8 @@ async fn main() {
             }
         }
         Some(Commands::SendTx(SendTx { base58_payload, sp_address} )) => {
-            todo!(); 
+            let tx_hash = commands::commands::send_tx(base58_payload.clone(), sp_address.clone()).await;
+            println!("the response from the broadcaster: {:#?}", tx_hash);
         }       
         None => {println!("no command specified - nothing to do")}
     }

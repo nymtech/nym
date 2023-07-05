@@ -76,11 +76,6 @@ func (ar *CurrentActiveRequests) Remove(id types.RequestId) {
 		panic("attempted to remove active connection canonicalAddr that doesn't exist")
 	}
 
-	// TODO: do we have to explicitly close the channels?
-	close(req.injector.RemoteDone)
-	close(req.injector.ServerData)
-	close(req.injector.RemoteError)
-
 	delete(ar.Requests, id)
 	delete(ar.AddressMapping, req.canonicalAddr)
 }

@@ -46,7 +46,9 @@ struct OfflineSignTx {
 #[derive(Debug, Args)]
 struct SendTx {
     /// the base58 encoded signed payload created in OfflineSign()  
-    base58_payload: String 
+    base58_payload: String, 
+    /// the nym address of the broadcaster service provider 
+    sp_address: String 
 }
 
 #[tokio::main]
@@ -68,15 +70,15 @@ async fn main() {
 
             if input.chars().next().unwrap() == 'y' { // TODO add proper parsing for getting y/n
                 println!("\nsending tx thru the mixnet to broadcaster service"); 
-                let tx_hash = commands::commands::send_tx(sp_address.to_string()).await;
+                let tx_hash = commands::commands::send_tx(base58_tx_bytes, sp_address.to_string()).await;
                 println!("the response from the broadcaster: {:#?}", tx_hash); 
             } else if input.chars().next().unwrap() == 'n' {
                 println!("\nok, you can send the signed tx at a later date by passing the base58 string above as the argument for send-tx")
-            } else { //TODO make a loop & return to the question if input is not y/n 
+            } else { //TODO make a loop & return to the question if input is not y/n? 
                 println!("\nunrecognised user input");
             }
         }
-        Some(Commands::SendTx(SendTx { base58_payload } )) => {
+        Some(Commands::SendTx(SendTx { base58_payload, sp_address} )) => {
             todo!(); 
         }       
         None => {println!("no command specified - nothing to do")}

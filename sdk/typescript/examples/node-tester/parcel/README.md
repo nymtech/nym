@@ -1,4 +1,4 @@
-# Nym Node Tester - HTML
+# Nym Node Tester - Parcel bundler
 
 This is an example of using the Nym Mixnet node tester.
 

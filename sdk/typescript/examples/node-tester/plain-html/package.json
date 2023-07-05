@@ -3,6 +3,9 @@
   "description": "An example project that uses WASM node tester and plain HTML",
   "version": "1.0.0",
   "license": "Apache-2.0",
+  "dependencies": {
+    "@nymproject/sdk": "1"
+  },
   "devDependencies": {
     "@babel/core": "^7.15.0",
     "@babel/plugin-transform-async-to-generator": "^7.14.5",

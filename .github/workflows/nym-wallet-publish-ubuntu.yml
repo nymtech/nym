@@ -1,5 +1,6 @@
 name: Publish Nym Wallet (Ubuntu)
 on:
+  workflow_dispatch:
   release:
     types: [created]
 
@@ -25,7 +26,7 @@ jobs:
           sudo apt-get install -y webkit2gtk-4.0
         continue-on-error: true
 
-      - name: Node v16
+      - name: Node
         uses: actions/setup-node@v3
         with:
           node-version: 18
@@ -34,10 +35,15 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
+      - name: Install project dependencies
+        shell: bash
+        run: cd .. && yarn --network-timeout 100000
+
       - name: Install app dependencies
         run: yarn
       - name: Create env file
-        uses: timheuer/base64-to-file@v1.1
+        uses: timheuer/base64-to-file@v1.2
         with:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
@@ -47,8 +53,17 @@ jobs:
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nym-wallet_1.0.0_amd64.AppImage.tar.gz
+          path: nym-wallet/target/release/bundle/appimage/nym-wallet*.AppImage.tar.gz
+          retention-days: 30
+
       - name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release'
         with:
           files: |
             nym-wallet/target/release/bundle/appimage/*.AppImage

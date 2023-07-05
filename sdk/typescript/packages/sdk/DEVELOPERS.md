@@ -34,6 +34,16 @@ The output bundle will be created in the `dist` directory.
 
 If you're a Nym platform developer who's made changes to the Rust (or JS) files and wants to re-publish the package to NPM, here's how you do it:
 
+Make sure you have logged into the NPM registry (`npm login`).
+
+### Scripted
+
+1. bump version numbers as necessary for SemVer
+2. make sure you're in the SDK directory (`cd sdk/typescript/packages/sdk`)
+3. run `scripts/publish.sh`
+
+### Manually
+
 1. bump version numbers as necessary for SemVer
 2. `yarn build` builds the release directory in the root of the repo in `dist/sdk`
 3. `cd ../../../../dist/sdk`
@@ -45,3 +55,6 @@ Publish the CJS package:
 Publish the ESM package:
 - `cd ../esm`
 - `npm publish --access=public` will publish your changed package to NPM
+
+4. bump the minor version and add `-rc0` to avoid local packages from using the workspace SDK, e.g. (`1.1.10` -> `1.1.11-rc0`)
+5. commit the updated `package.json` to git

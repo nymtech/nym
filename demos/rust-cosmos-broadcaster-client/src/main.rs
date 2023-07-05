@@ -34,7 +34,7 @@ enum Commands {
 
 #[derive(Debug, Clone, Args)]
 struct OfflineSignTx {
-    /// mnemonic of signing + sending account (you!) - this will be removed and replaced with file 
+    /// mnemonic of signing + sending account (you!) - TODO this will be removed and replaced with file 
     mnemonic: bip39::Mnemonic, 
     /// recipient nyx chain address
     to: AccountId 
@@ -56,9 +56,9 @@ async fn main() {
     match &cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx { mnemonic, to } )) => {
             tx_bytes = commands::commands::offline_sign(mnemonic.clone(), to.clone()).await;         
-            
-            println!("{:?}", tx_bytes.iter().collect::<Vec<_>>()); 
+            println!("{:?}", &tx_bytes.iter().collect::<Vec<_>>()); 
             println!("signed"); 
+            // TODO write to disk for use in next function? 
         }
         Some(Commands::SendTx(sp_address)) => {
             todo!(); 

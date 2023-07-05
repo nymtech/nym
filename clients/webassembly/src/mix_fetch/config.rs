@@ -14,6 +14,16 @@ use std::time::Duration;
 use wasm_bindgen::prelude::*;
 
 const DEFAULT_MIX_FETCH_TIMEOUT: Duration = Duration::from_secs(5);
+const DEFAULT_MIX_FETCH_ID: &str = "_default-nym-mix-fetch";
+const MIX_FETCH_CLIENT_ID_PREFIX: &str = "mix-fetch";
+
+fn make_mix_fetch_id(id: Option<String>) -> String {
+    if let Some(provided) = id {
+        format!("{MIX_FETCH_CLIENT_ID_PREFIX}-{provided}")
+    } else {
+        DEFAULT_MIX_FETCH_ID.to_string()
+    }
+}
 
 #[wasm_bindgen]
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -27,6 +37,8 @@ pub struct MixFetchConfig {
 #[wasm_bindgen]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MixFetchConfigOpts {
+    id: Option<String>,
+
     #[serde(rename = "nymApi")]
     nym_api: Option<String>,
     nyxd: Option<String>,
@@ -37,26 +49,36 @@ pub struct MixFetchConfigOpts {
 impl MixFetchConfig {
     #[wasm_bindgen(constructor)]
     pub fn new(
-        id: String,
         network_requester_address: String,
         opts: JsValue,
     ) -> Result<MixFetchConfig, MixFetchError> {
-        let version = env!("CARGO_PKG_VERSION").to_string();
-        if opts.is_null() || opts.is_undefined() {
-            Ok(MixFetchConfig {
-                base: BaseClientConfig::new(id, version),
-                mix_fetch: MixFetch::new(network_requester_address)?,
-            })
+        let opts = if opts.is_null() || opts.is_undefined() {
+            None
         } else {
-            let opts: MixFetchConfigOpts = serde_wasm_bindgen::from_value(opts)?;
+            Some(serde_wasm_bindgen::from_value(opts)?)
+        };
+        MixFetchConfig::_new(network_requester_address, opts)
+    }
+
+    pub(crate) fn _new(
+        network_requester_address: String,
+        opts: Option<MixFetchConfigOpts>,
+    ) -> Result<MixFetchConfig, MixFetchError> {
+        let version = env!("CARGO_PKG_VERSION").to_string();
+        if let Some(opts) = opts {
             Ok(MixFetchConfig {
                 base: new_base_client(
-                    id,
-                    env!("CARGO_PKG_VERSION").to_string(),
+                    make_mix_fetch_id(opts.id),
+                    version,
                     opts.nym_api,
                     opts.nyxd,
                     opts.debug,
                 )?,
+                mix_fetch: MixFetch::new(network_requester_address)?,
+            })
+        } else {
+            Ok(MixFetchConfig {
+                base: BaseClientConfig::new(make_mix_fetch_id(None), version),
                 mix_fetch: MixFetch::new(network_requester_address)?,
             })
         }

@@ -40,6 +40,7 @@ const {
     send_client_data,
     start_new_mixnet_connection,
     setupMixFetch,
+    setupMixFetchSimple,
     mix_fetch_initialised,
     finish_mixnet_connection} = wasm_bindgen;
 
@@ -330,10 +331,15 @@ async function testMixFetch() {
     const mix_fetch_network_requester_address= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
     // const mix_fetch_network_requester_address= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
 
-    const config = new MixFetchConfig('my-awesome-mix-fetch-client', mix_fetch_network_requester_address, { nymApi: validator, debug: debug} );
+    const config = new MixFetchConfig(mix_fetch_network_requester_address, { id: 'my-awesome-mix-fetch-client', nymApi: validator, debug: debug} );
 
     console.log('Instantiating Mix Fetch...');
+    // await setupMixFetch(config, {storagePassphrase: "foomp"})
     await setupMixFetch(config)
+
+    // this one will use all the defaults (apart from the SP - but maybe we could grab the list from somewhere?)
+    // await setupMixFetchSimple(mix_fetch_network_requester_address)
+
     console.log('Mix Fetch client running!');
 
     self.postMessage({
@@ -409,11 +415,6 @@ function setupRsGoBridge() {
 async function main() {
     console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN START");
 
-    // const res = await fetch("http://localhost:8000", { mode: "no-cors"})
-    // console.log(res)
-    //
-    // console.log(self)
-
     // load rust WASM package
     await wasm_bindgen(RUST_WASM_URL);
     console.log('Loaded RUST WASM');
@@ -441,7 +442,7 @@ async function main() {
     // // 'Normal' client setup (to send 'normal' messages)
     // // await normalNymClientUsage()
     //
-    // console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END")
+    console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END")
 }
 
 // Let's get started!

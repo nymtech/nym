@@ -24,7 +24,7 @@ pub enum MixFetchError {
         source: ClientCoreError,
     },
 
-    #[error("failed to parse config options: {source}")]
+    #[error("failed to parse mix fetch config options: {source}")]
     MalformedConfigOptions {
         #[from]
         source: serde_wasm_bindgen::Error,

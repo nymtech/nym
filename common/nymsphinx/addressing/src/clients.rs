@@ -39,7 +39,7 @@ pub enum RecipientFormattingError {
 }
 
 // TODO: this should a different home... somewhere, but where?
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Recipient {
     client_identity: ClientIdentity,
     client_encryption_key: ClientEncryptionKey,
@@ -223,6 +223,13 @@ impl std::fmt::Display for Recipient {
             self.client_encryption_key.to_base58_string(),
             self.gateway.to_base58_string()
         )
+    }
+}
+
+impl std::fmt::Debug for Recipient {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // use the Display implementation
+        <Self as std::fmt::Display>::fmt(self, f)
     }
 }
 

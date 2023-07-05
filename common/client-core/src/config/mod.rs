@@ -66,7 +66,11 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new<S: Into<String>>(id: S, version: S) -> Self {
+    pub fn new<S1, S2>(id: S1, version: S2) -> Self
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+    {
         Config {
             client: Client::new_default(id, version),
             debug: Default::default(),
@@ -275,7 +279,11 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new_default<S: Into<String>>(id: S, version: S) -> Self {
+    pub fn new_default<S1, S2>(id: S1, version: S2) -> Self
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+    {
         let network = NymNetworkDetails::new_mainnet();
         let nyxd_urls = network
             .endpoints

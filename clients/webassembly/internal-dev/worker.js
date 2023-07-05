@@ -27,6 +27,7 @@ const {
     WasmMixNode,
     WasmNymTopology,
     default_debug,
+    no_cover_debug,
     NymClientBuilder,
     NymClient,
     set_panic_hook,
@@ -320,10 +321,7 @@ async function logFetchResult(res) {
 async function testMixFetch() {
     // only really useful if you want to adjust some settings like traffic rate
     // (if not needed you can just pass a null)
-    const debug = default_debug();
-    debug.disable_main_poisson_packet_distribution = true;
-    debug.disable_loop_cover_traffic_stream = true;
-    debug.use_extended_packet_size = false;
+    const debug = no_cover_debug()
 
     // const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
     const validator = 'https://qa-nym-api.qa.nymte.ch/api';

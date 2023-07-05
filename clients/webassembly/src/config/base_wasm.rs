@@ -58,6 +58,16 @@ pub fn default_debug() -> DebugWasm {
     ConfigDebug::default().into()
 }
 
+/// A client configuration in which no cover traffic will be sent,
+/// in either the main distribution or the secondary traffic stream.
+#[wasm_bindgen]
+pub fn no_cover_debug() -> DebugWasm {
+    let mut cfg = ConfigDebug::default();
+    cfg.traffic.disable_main_poisson_packet_distribution = true;
+    cfg.cover_traffic.disable_loop_cover_traffic_stream = true;
+    cfg.into()
+}
+
 // just a helper structure to more easily pass through the JS boundary
 #[wasm_bindgen]
 #[derive(Debug, Copy, Clone)]

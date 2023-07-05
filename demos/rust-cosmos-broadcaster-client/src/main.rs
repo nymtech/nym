@@ -1,11 +1,13 @@
 use clap::{CommandFactory, Parser, Subcommand, Args};
 use nym_validator_client::nyxd::AccountId;
 // use nym_cli_commands::context::{get_network_details, ClientArgs};
+// use nym_crypto::asymmetric::identity;
 mod commands; 
+use nym_bin_common::logging::setup_logging;
 
 #[derive(Debug, Parser)]
 #[clap(name = "nym cosmos tx signer ")]
-#[clap(about = "binary with which users can perform offline signing and transmission of signed tx to broadcaster via the mixnet ")]
+#[clap(about = "demo binary with which users can perform offline signing and transmission of signed tx to broadcaster via the mixnet ")]
 struct Cli {
     // TODO make this import from file & remove from cli args  
     // #[clap(long, global = true)]
@@ -14,11 +16,12 @@ struct Cli {
     // )]
     // mnemonic: Option<bip39::Mnemonic>,
 
-    #[clap(short, long, global = true)]
-    #[clap(
-        help = "Overrides configuration as a file of environment variables."
-    )]
-    config_env_file: Option<std::path::PathBuf>,
+    // TODO add for diff network 
+    // #[clap(short, long, global = true)]
+    // #[clap(
+    //     help = "Overrides configuration as a file of environment variables."
+    // )]
+    // config_env_file: Option<std::path::PathBuf>,
 
     #[clap(subcommand)]
     command: Option<Commands>,
@@ -42,29 +45,41 @@ struct OfflineSignTx {
 
 #[derive(Debug, Args)]
 struct SendTx {
-    /// the address of the nym service to send yr signed tx 
-    sp_address: String // TODO replace with mixnet address type  
+    /// the base58 encoded signed payload created in OfflineSign()  
+    base58_payload: String 
 }
 
 #[tokio::main]
 async fn main() {
-
-    let tx_bytes: Vec<u8>;
-    
+    setup_logging();
     let cli = Cli::parse();
+    let sp_address = "4roCqqdh1mG76gYT2das1wNBER3e5AzxC5dsA4zoWoLh.2iRzCRhzVMod7Ar5MnGt3X3zJGR7c4NxvK8cXCnxMYe3@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW"; 
 
     match &cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx { mnemonic, to } )) => {
-            tx_bytes = commands::commands::offline_sign(mnemonic.clone(), to.clone()).await;         
-            println!("{:?}", &tx_bytes.iter().collect::<Vec<_>>()); 
-            println!("signed"); 
-            // TODO write to disk for use in next function? 
+            let base58_tx_bytes = commands::commands::offline_sign(mnemonic.clone(), to.clone()).await; 
+
+            println!("signed tx payload: \n\n{}\n\n", &base58_tx_bytes); 
+            println!("do you wish to send the signed tx? y/n"); 
+
+            let mut input = String::new();
+            let stdin = std::io::stdin();
+            let n = stdin.read_line(&mut input).unwrap();
+
+            if input.chars().next().unwrap() == 'y' { // TODO add proper parsing for getting y/n
+                println!("\nsending tx thru the mixnet to broadcaster service"); 
+                let tx_hash = commands::commands::send_tx(sp_address.to_string()).await;
+                println!("the response from the broadcaster: {:#?}", tx_hash); 
+            } else if input.chars().next().unwrap() == 'n' {
+                println!("\nok, you can send the signed tx at a later date by passing the base58 string above as the argument for send-tx")
+            } else { //TODO make a loop & return to the question if input is not y/n 
+                println!("\nunrecognised user input");
+            }
         }
-        Some(Commands::SendTx(sp_address)) => {
+        Some(Commands::SendTx(SendTx { base58_payload } )) => {
             todo!(); 
         }       
         None => {println!("no command specified - nothing to do")}
     }
-
-    println!(" ~(0.o)~ ")
+    println!(" end ~(0.o)~ ")
 }

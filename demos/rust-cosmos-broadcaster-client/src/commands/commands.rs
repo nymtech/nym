@@ -8,8 +8,10 @@ use cosmrs::rpc::{self, HttpClient};
 use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
 use bip39; 
+use bs58; 
+use nym_sdk::mixnet;
 
-pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> Vec<u8> {
+pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> String {
 
     // TODO take coin amount from function args, + load network vars from config file. 
     let prefix = "n";
@@ -58,11 +60,44 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> Vec<u8> {
         .sign_direct(&signer_address, vec![send_msg], fee, memo, signer_data)
         .unwrap();
 
-    // TODO return this from function 
     let tx_bytes = tx_raw.to_bytes().unwrap();
-
-    tx_bytes
+    let base58_tx_bytes = bs58::encode(tx_bytes).into_string();
+    base58_tx_bytes
 
 }
 
+pub async fn send_tx(base58_tx: String) -> Option<Vec<mixnet::ReconstructedMessage>> /*String*/ {
+    // 1. decode base58 -> vec<u8> 
+    println!("this is where we decode the base58 string"); 
 
+    // 2. get nym client address 
+    let client = mixnet::MixnetClientBuilder::new_ephemeral()
+        .build()
+        .await
+        .unwrap();
+
+    let mut client = client.connect_to_mixnet().await.unwrap();
+    
+    let our_address = client.nym_address();
+    println!("Our client nym address is: {our_address}");
+    
+    // client.send_str(*our_address, "hello there").await;
+
+    // 3. send message w sdk to broadcaster who will do: 
+    /* 
+        // broadcast the tx
+        let res = rpc::Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
+        .await
+        .unwrap();
+     */
+    // client.send_str(sp_address, signedtx); 
+    // println!("Waiting for message");
+    let res = client.wait_for_messages().await; 
+
+    // disconnect client 
+    // return the res to return to main thread 
+    client.disconnect().await;
+    // String::from("your tx hash")
+    res 
+
+}

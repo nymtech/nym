@@ -77,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nym-connect_1.0.0_x64.dmg
-          path: nym-connect/desktop/target/release/bundle/dmg/nym-connect_1.0.0_x64.dmg
+          path: nym-connect/desktop/target/release/bundle/dmg/nym-connect_1*_x64.dmg
           retention-days: 30
 
       - name: Clean up keychain

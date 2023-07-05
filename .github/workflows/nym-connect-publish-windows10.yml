@@ -78,7 +78,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nym-connect_1.0.0_x64_en-US.msi
-          path: nym-connect/desktop/target/release/bundle/msi/nym-connect_1.0.0_x64_en-US.msi
+          path: nym-connect/desktop/target/release/bundle/msi/nym-connect_1*_x64_en-US.msi
           retention-days: 30
 
       - name: Upload to release based on tag name

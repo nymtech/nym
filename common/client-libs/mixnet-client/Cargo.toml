@@ -11,6 +11,8 @@ futures = "0.3"
 log = { workspace = true }
 tokio = { version = "1.24.1", features = ["time", "net", "rt"] }
 tokio-util = { version = "0.7.4", features = ["codec"] }
+quinn = "0.10.1"
+bytes = "*"
 
 # internal
 nym-sphinx = { path = "../../nymsphinx" }

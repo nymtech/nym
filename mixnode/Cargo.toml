@@ -37,6 +37,10 @@ tokio-util = { version = "0.7.3", features = ["codec", "net"] }
 toml = "0.5.8"
 url = { version = "2.2", features = ["serde"] }
 cfg-if = "1.0.0"
+quinn = "0.10.1"
+rustls = {version = "0.21.1", features = ["dangerous_configuration", "quic"]}
+rcgen = "*"
+bytes = "*"
 
 ## tracing
 tracing = { version = "0.1.37", optional = true }

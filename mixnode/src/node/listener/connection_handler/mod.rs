@@ -6,16 +6,19 @@ use crate::node::listener::connection_handler::packet_processing::{
 };
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
+use bytes::BytesMut;
 use futures::StreamExt;
 use nym_mixnode_common::measure;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
+use nym_sphinx::params::PacketSize;
 use nym_sphinx::Delay as SphinxDelay;
+use quinn::Connection;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
-use tokio_util::codec::Framed;
+use tokio_util::codec::{Decoder, Framed};
 #[cfg(feature = "cpucycles")]
 use tracing::{error, info, instrument};
 
@@ -54,7 +57,7 @@ impl ConnectionHandler {
         feature = "cpucycles",
         instrument(skip(self, framed_sphinx_packet), fields(cpucycles))
     )]
-    pub(crate) async fn handle_received_packet(&self, framed_sphinx_packet: FramedNymPacket) {
+    async fn handle_received_packet(&self, framed_sphinx_packet: FramedNymPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
         // packet processor for vpn packets,
@@ -78,50 +81,46 @@ impl ConnectionHandler {
         })
     }
 
-    // pub(crate) async fn handle_connection(
-    //     self,
-    //     conn: TcpStream,
-    //     remote: SocketAddr,
-    //     mut shutdown: TaskClient,
-    // ) {
-    //     debug!("Starting connection handler for {:?}", remote);
-    //     //shutdown.mark_as_success();
-    //     //let mut framed_conn = Framed::new(conn, NymCodec);
-    //     while !shutdown.is_shutdown() {
-    //         tokio::select! {
-    //             biased;
-    //             _ = shutdown.recv() => {
-    //                 log::trace!("ConnectionHandler: received shutdown");
-    //             }
-    //             framed_sphinx_packet = framed_conn.next() => {
-    //                 match framed_sphinx_packet {
-    //                     Some(Ok(framed_sphinx_packet)) => {
-    //                         // TODO: benchmark spawning tokio task with full processing vs just processing it
-    //                         // synchronously (without delaying inside of course,
-    //                         // delay is moved to a global DelayQueue)
-    //                         // under higher load in single and multi-threaded situation.
+    pub(crate) async fn handle_connection(self, conn: Connection, mut shutdown: TaskClient) {
+        debug!("Starting connection handler");
+        shutdown.mark_as_success();
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("ConnectionHandler: received shutdown");
+                }
+                recv = conn.accept_uni() => {
+                    let read_data = recv.expect("Failed to unwrap stream").read_to_end(PacketSize::ExtendedPacket32.size()).await
+                    .expect("Failed to read");
+                    match NymCodec.decode(&mut BytesMut::from(read_data.as_slice())) {
+                        Ok(Some(framed_sphinx_packet)) => {
+                            // TODO: benchmark spawning tokio task with full processing vs just processing it
+                            // synchronously (without delaying inside of course,
+                            // delay is moved to a global DelayQueue)
+                            // under higher load in single and multi-threaded situation.
 
-    //                         // in theory we could process multiple sphinx packet from the same connection in parallel,
-    //                         // but we already handle multiple concurrent connections so if anything, making
-    //                         // that change would only slow things down
-    //                         self.handle_received_packet(framed_sphinx_packet);
-    //                     }
-    //                     Some(Err(err)) => {
-    //                         error!(
-    //                             "{remote:?} - The socket connection got corrupted with error: {err}. Closing the socket",
-    //                         );
-    //                         return;
-    //                     }
-    //                     None => break, // stream got closed by remote
-    //                 }
-    //             },
-    //         }
-    //     }
+                            // in theory we could process multiple sphinx packet from the same connection in parallel,
+                            // but we already handle multiple concurrent connections so if anything, making
+                            // that change would only slow things down
+                            self.handle_received_packet(framed_sphinx_packet).await;
+                        }
+                        Ok(None) => {
+                            error!(
+                                "No Nym packet",
+                            );
+                            break;
+                        }
+                        Err(err) => {
+                            error!("Failed to read Nym Packet {err:?}");
+                            break;
+                         } // stream got closed by remote
+                    }
+                },
+            }
+        }
 
-    //     info!(
-    //         "Closing connection from {:?}",
-    //         framed_conn.into_inner().peer_addr()
-    //     );
-    //     log::trace!("ConnectionHandler: Exiting");
-    // }
+        info!("Closing connection");
+        log::trace!("ConnectionHandler: Exiting");
+    }
 }

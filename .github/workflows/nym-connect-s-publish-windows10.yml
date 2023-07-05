@@ -68,7 +68,7 @@ jobs:
       - name: Prepare for build
         env:
           RELEASE_TAG: ${{ github.ref_name || inputs.release_tag }}
-        run: ./script/pre_medium_build.sh
+        run: ./scripts/pre_medium_build.sh
 
       - name: Build and sign it
         env:

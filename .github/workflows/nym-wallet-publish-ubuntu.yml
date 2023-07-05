@@ -35,6 +35,10 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install project dependencies
+        shell: bash
+        run: cd .. && yarn --network-timeout 100000
+
       - name: Install app dependencies
         run: yarn
       - name: Create env file

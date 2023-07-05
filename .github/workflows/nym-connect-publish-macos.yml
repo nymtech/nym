@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Node v16
+      - name: Node
         uses: actions/setup-node@v3
         with:
           node-version: 18
@@ -58,10 +58,14 @@ jobs:
           security list-keychain -d user -s $KEYCHAIN_PATH
 
       - name: Create env file
-        uses: timheuer/base64-to-file@v1.1
+        uses: timheuer/base64-to-file@v1.2
         with:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
+
+      - name: Install project dependencies
+        shell: bash
+        run: cd .. && yarn --network-timeout 100000
 
       - name: Install app dependencies and build it
         env:
@@ -80,7 +84,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nym-connect_1.0.0_x64.dmg
-          path: nym-connect/desktop/target/release/bundle/dmg/nym-connect_1.0.0_x64.dmg
+          path: nym-connect/desktop/target/release/bundle/dmg/nym-connect_1*_x64.dmg
           retention-days: 30
 
       - name: Clean up keychain

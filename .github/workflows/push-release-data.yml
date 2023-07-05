@@ -132,6 +132,7 @@ jobs:
         run: |
           echo "version: ${{ inputs.version }}"
           echo "tag: ${{ inputs.release_tag }}"
+
       - id: get_sig
         name: Get sig
         if: ${{ inputs.sig_url != null }}

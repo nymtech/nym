@@ -33,7 +33,7 @@ jobs:
           sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
         continue-on-error: true
 
-      - name: Node v16
+      - name: Node
         uses: actions/setup-node@v3
         with:
           node-version: 18
@@ -42,10 +42,16 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
+      - name: Install project dependencies
+        shell: bash
+        run: cd .. && yarn --network-timeout 100000
+
       - name: Install app dependencies
         run: yarn
+
       - name: Create env file
-        uses: timheuer/base64-to-file@v1.1
+        uses: timheuer/base64-to-file@v1.2
         with:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
@@ -60,7 +66,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nym-connect.AppImage.tar.gz
-          path: nym-connect/desktop/target/release/bundle/appimage/nym-connect_1.0.0_amd64.AppImage
+          path: nym-connect/desktop/target/release/bundle/appimage/nym-connect_1*_amd64.AppImage
           retention-days: 30
 
       - id: create-release

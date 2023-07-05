@@ -46,7 +46,7 @@ jobs:
           Remove-Item -path certificate -include tempCert.txt
           Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
 
-      - name: Node v16
+      - name: Node
         uses: actions/setup-node@v3
         with:
           node-version: 18
@@ -57,15 +57,21 @@ jobs:
           toolchain: stable
 
       - name: Create env file
-        uses: timheuer/base64-to-file@v1.1
+        uses: timheuer/base64-to-file@v1.2
         with:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
+      - name: Install project dependencies
+        shell: bash
+        run: cd .. && yarn --network-timeout 100000
+
       - name: Install app dependencies
+        shell: bash
         run: yarn --network-timeout 100000
 
       - name: Build and sign it
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ENABLE_CODE_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE }}
@@ -79,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nym-connect_1.0.0_x64_en-US.msi
-          path: nym-connect/desktop/target/release/bundle/msi/nym-connect_1.0.0_x64_en-US.msi
+          path: nym-connect/desktop/target/release/bundle/msi/nym-connect_1*_x64_en-US.msi
           retention-days: 30
 
       - id: create-release

@@ -2,16 +2,18 @@
 
 ## [Unreleased]
 
-## [v1.1.14] (2023-06-27)
+## [v1.1.14] (2023-07-04)
 
 - Nym connect fails to start when encountering an old config version ([#3588])
 - NC desktop - apps section adjustments + add monero integration ([#2977])
+- nym-connect: use different service provider directory when medium toggle enabled ([#3617])
 - Fix medium toggle in nym-connect ([#3590])
 - [bugfix] NC: load old gateway configuration if we're not registering ([#3586])
 - nym-connect: medium speed setting ([#3585])
 
 [#3588]: https://github.com/nymtech/nym/issues/3588
 [#2977]: https://github.com/nymtech/nym/issues/2977
+[#3617]: https://github.com/nymtech/nym/pull/3617
 [#3590]: https://github.com/nymtech/nym/pull/3590
 [#3586]: https://github.com/nymtech/nym/pull/3586
 [#3585]: https://github.com/nymtech/nym/pull/3585

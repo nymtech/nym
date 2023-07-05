@@ -327,6 +327,12 @@ func onErrCleanup(url *url.URL) {
 func MixFetch(request *conv.ParsedRequest) (any, error) {
 	log.Info("_mixFetch: start")
 
+	canonical := canonicalAddr(request.Request.URL)
+	if state.ActiveRequests.ExistsCanonical(canonical) {
+		// TODO: how to deal with it to allow for concurrent requests to say `https://foo.com/index.html` and `https://foo.com/index.js`?
+		return nil, errors.New(fmt.Sprintf("there is already an active request for %s", canonical))
+	}
+
 	resCh := make(chan *http.Response)
 	errCh := make(chan error)
 	go func(resCh chan *http.Response, errCh chan error) {

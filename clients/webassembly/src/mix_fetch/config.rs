@@ -35,7 +35,13 @@ impl MixFetchConfig {
         debug: Option<DebugWasm>,
     ) -> Result<MixFetchConfig, WasmClientError> {
         Ok(MixFetchConfig {
-            base: new_base_client(id, nym_api, nyxd, debug)?,
+            base: new_base_client(
+                id,
+                env!("CARGO_PKG_VERSION").to_string(),
+                nym_api,
+                nyxd,
+                debug,
+            )?,
             mix_fetch: MixFetch::new(network_requester_address)?,
         })
     }

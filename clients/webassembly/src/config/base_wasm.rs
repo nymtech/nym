@@ -15,6 +15,7 @@ use nym_client_core::config::{
 };
 use nym_config::helpers::OptionalSet;
 use nym_sphinx::params::{PacketSize, PacketType};
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
 
@@ -70,7 +71,7 @@ pub fn no_cover_debug() -> DebugWasm {
 
 // just a helper structure to more easily pass through the JS boundary
 #[wasm_bindgen]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct DebugWasm {
     /// Defines all configuration options related to traffic streams.
     pub traffic: TrafficWasm,
@@ -118,7 +119,7 @@ impl From<ConfigDebug> for DebugWasm {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct TrafficWasm {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
@@ -184,7 +185,7 @@ impl From<ConfigTraffic> for TrafficWasm {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct CoverTrafficWasm {
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
@@ -224,7 +225,7 @@ impl From<ConfigCoverTraffic> for CoverTrafficWasm {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct GatewayConnectionWasm {
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
@@ -251,7 +252,7 @@ impl From<ConfigGatewayConnection> for GatewayConnectionWasm {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct AcknowledgementsWasm {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
@@ -291,7 +292,7 @@ impl From<ConfigAcknowledgements> for AcknowledgementsWasm {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct TopologyWasm {
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
@@ -331,7 +332,7 @@ impl From<ConfigTopology> for TopologyWasm {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct ReplySurbsWasm {
     /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
     /// It can only allow to go below that value if its to request additional reply surbs.

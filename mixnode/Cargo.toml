@@ -38,7 +38,7 @@ toml = "0.5.8"
 url = { version = "2.2", features = ["serde"] }
 cfg-if = "1.0.0"
 quinn = "0.10.1"
-rustls = {version = "0.21.1", features = ["dangerous_configuration", "quic"]}
+rustls = {version = "0.21.1", features = ["quic"]}
 rcgen = "*"
 bytes = "*"
 

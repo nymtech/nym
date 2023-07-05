@@ -3929,6 +3929,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "quinn",
+ "rustls 0.21.2",
  "tokio",
  "tokio-util",
 ]

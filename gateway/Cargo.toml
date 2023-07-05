@@ -44,7 +44,7 @@ tokio-util = { version = "0.7.4", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
 zeroize = { workspace = true }
 quinn = "0.10.1"
-rustls = {version = "0.21.1", features = ["dangerous_configuration", "quic"]}
+rustls = {version = "0.21.1", features = ["quic"]}
 rcgen = "*"
 bytes = "*"
 

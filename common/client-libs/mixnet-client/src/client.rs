@@ -10,7 +10,7 @@ use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::NymPacket;
-use quinn::{Connection, Endpoint};
+use quinn::{ClientConfig, Connection, Endpoint};
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
@@ -73,7 +73,8 @@ impl Client {
     }
 
     async fn send_to_connection(address: SocketAddr, packet: FramedNymPacket) {
-        let endpoint = Endpoint::client("0.0.0.0:0".parse::<SocketAddr>().unwrap()).unwrap();
+        let mut endpoint = Endpoint::client("0.0.0.0:0".parse::<SocketAddr>().unwrap()).unwrap();
+        endpoint.set_default_client_config(configure_client());
         let connection = endpoint.connect(address, "mixnode").unwrap().await.unwrap();
 
         let mut pkt_bytes = BytesMut::new();
@@ -192,4 +193,36 @@ mod tests {
             client.config.maximum_reconnection_backoff
         );
     }
+}
+
+// Implementation of `ServerCertVerifier` that verifies everything as trustworthy.
+struct SkipServerVerification;
+
+impl SkipServerVerification {
+    fn new() -> Arc<Self> {
+        Arc::new(Self)
+    }
+}
+
+impl rustls::client::ServerCertVerifier for SkipServerVerification {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::Certificate,
+        _intermediates: &[rustls::Certificate],
+        _server_name: &rustls::ServerName,
+        _scts: &mut dyn Iterator<Item = &[u8]>,
+        _ocsp_response: &[u8],
+        _now: std::time::SystemTime,
+    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::ServerCertVerified::assertion())
+    }
+}
+
+fn configure_client() -> ClientConfig {
+    let crypto = rustls::ClientConfig::builder()
+        .with_safe_defaults()
+        .with_custom_certificate_verifier(SkipServerVerification::new())
+        .with_no_client_auth();
+
+    ClientConfig::new(Arc::new(crypto))
 }

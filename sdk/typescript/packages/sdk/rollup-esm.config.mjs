@@ -11,7 +11,7 @@ export default {
     format: 'es',
   },
   plugins: [
-    webWorkerLoader({ targetPlatform: 'browser', inline: true }),
+    webWorkerLoader({ targetPlatform: 'browser', inline: false }),
     resolve({ extensions }),
     typescript({
       exclude: ['mixnet/wasm/worker.ts', 'mixnet/node-tester/worker.ts'],

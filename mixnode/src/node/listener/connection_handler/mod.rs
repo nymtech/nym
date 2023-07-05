@@ -13,7 +13,7 @@ use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::Delay as SphinxDelay;
-use quinn::RecvStream;
+use quinn::Connection;
 use tokio::time::Instant;
 use tokio_util::codec::Decoder;
 
@@ -79,7 +79,7 @@ impl ConnectionHandler {
         })
     }
 
-    pub(crate) async fn handle_connection(self, mut stream: RecvStream, mut shutdown: TaskClient) {
+    pub(crate) async fn handle_connection(self, conn: Connection, mut shutdown: TaskClient) {
         debug!("Starting connection handler");
         shutdown.mark_as_success();
         while !shutdown.is_shutdown() {
@@ -88,29 +88,32 @@ impl ConnectionHandler {
                 _ = shutdown.recv() => {
                     log::trace!("ConnectionHandler: received shutdown");
                 }
-                read_data = stream.read_to_end(PacketSize::ExtendedPacket32.size()) => {
-                    match NymCodec.decode(&mut BytesMut::from(read_data.unwrap().as_slice())) {
-                        Ok(Some(framed_sphinx_packet)) => {
-                            // TODO: benchmark spawning tokio task with full processing vs just processing it
-                            // synchronously (without delaying inside of course,
-                            // delay is moved to a global DelayQueue)
-                            // under higher load in single and multi-threaded situation.
 
-                            // in theory we could process multiple sphinx packet from the same connection in parallel,
-                            // but we already handle multiple concurrent connections so if anything, making
-                            // that change would only slow things down
-                            self.handle_received_packet(framed_sphinx_packet).await;
-                        }
-                        Ok(None) => {
-                            error!(
-                                "No Nym packet",
-                            );
-                            break;
-                        }
+                recv = conn.accept_uni() => {
+                    let mut recv_stream = match recv {
+                        Ok(recv_stream) => recv_stream,
                         Err(err) => {
-                            error!("Failed to read Nym Packet {err:?}");
+                            error!("Error accepting uni stream - {err:?}");
                             break;
-                         } // stream got closed by remote
+                        }
+                    };
+
+                    if let Ok(read_data) = recv_stream.read_to_end(PacketSize::ExtendedPacket32.size()).await {
+                        match NymCodec.decode(&mut BytesMut::from(read_data.as_slice())) {
+                            Ok(Some(framed_sphinx_packet)) => {
+                                self.handle_received_packet(framed_sphinx_packet).await;
+                            }
+                            Ok(None) => {
+                                error!(
+                                    "No Nym packet",
+                                );
+                                break;
+                            }
+                            Err(err) => {
+                                error!("Failed to read Nym Packet {err:?}");
+                                break;
+                            } // stream got closed by remote
+                        }
                     }
                 },
             }

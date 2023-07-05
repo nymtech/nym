@@ -127,7 +127,13 @@ impl Client {
             }
         };
         loop {
-            let pkt = receiver.next().await.unwrap();
+            let pkt = match receiver.next().await {
+                Some(pkt) => pkt,
+                None => {
+                    info!("No more packet to send");
+                    return;
+                }
+            };
             let mut pkt_bytes = BytesMut::new();
             match NymCodec.encode(pkt, &mut pkt_bytes) {
                 Ok(()) => {

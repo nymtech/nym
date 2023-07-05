@@ -47,16 +47,8 @@ impl Listener {
                             // but we already handle multiple concurrent connections so if anything, making
                             // that change would only slow things down
                             debug!("Handling connection from {:?}", conn.remote_address());
-                            match conn.accept_uni().await {
-                                Ok(recv_stream) => {
-                                    let handler = connection_handler.clone();
-                                    tokio::spawn(handler.handle_connection(recv_stream, self.shutdown.clone()));
-                                },
-                                Err(err) => {
-                                    error!("Error on connection from {:?} - {err:?}", conn.remote_address());
-                                }
-
-                            }
+                            let handler = connection_handler.clone();
+                            tokio::spawn(handler.handle_connection(conn, self.shutdown.clone()));
                         }
                         // Some(Err(err)) => {
                         //     error!(

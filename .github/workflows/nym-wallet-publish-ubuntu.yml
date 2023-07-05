@@ -25,7 +25,7 @@ jobs:
           sudo apt-get install -y webkit2gtk-4.0
         continue-on-error: true
 
-      - name: Node v16
+      - name: Node
         uses: actions/setup-node@v3
         with:
           node-version: 18
@@ -38,7 +38,7 @@ jobs:
       - name: Install app dependencies
         run: yarn
       - name: Create env file
-        uses: timheuer/base64-to-file@v1.1
+        uses: timheuer/base64-to-file@v1.2
         with:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}

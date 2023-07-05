@@ -6,7 +6,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { useEvents } from 'src/hooks/events';
 import { UserDefinedGateway, UserDefinedSPAddress } from 'src/types/service-provider';
 import { getItemFromStorage, setItemInStorage } from 'src/utils';
-import { ConnectionStatusKind, GatewayPerformance } from '../types';
+import { ConnectionStatusKind, GatewayPerformance, SpeedMode } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider } from '../types/directory';
 import initSentry from '../sentry';
@@ -43,7 +43,7 @@ export type TClientContext = {
   setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;
   setUserDefinedSPAddress: React.Dispatch<React.SetStateAction<UserDefinedSPAddress>>;
   setMonitoring: (value: boolean) => Promise<void>;
-  mediumModeEnabled: boolean;
+  speedMode: SpeedMode;
 };
 
 export const ClientContext = createContext({} as TClientContext);
@@ -68,7 +68,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     address: undefined,
   });
   const [monitoringEnabled, setMonitoringEnabled] = useState(false);
-  const [mediumModeEnabled, setMediumModeEnabled] = useState(false);
+  const [speedMode, setspeedMode] = useState<SpeedMode>('slow');
 
   const getAppVersion = async () => {
     const version = await getVersion();
@@ -88,12 +88,14 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const init = async () => {
+    const initSpeedMode = async () => {
       const isEnabled = await invoke<boolean>('is_medium_mode_enabled');
-      setMediumModeEnabled(isEnabled);
+      if (isEnabled) {
+        setspeedMode('medium');
+      }
     };
 
-    init();
+    initSpeedMode();
   }, []);
 
   useEffect(() => {
@@ -226,7 +228,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       setUserDefinedGateway,
       setUserDefinedSPAddress,
       setMonitoring,
-      mediumModeEnabled,
+      speedMode,
     }),
     [
       mode,
@@ -243,7 +245,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       userDefinedGateway,
       userDefinedSPAddress,
       monitoringEnabled,
-      mediumModeEnabled,
+      speedMode,
     ],
   );
 

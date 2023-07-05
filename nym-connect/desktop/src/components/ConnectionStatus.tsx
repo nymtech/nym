@@ -16,7 +16,7 @@ const ConnectionStatusContent: FCWithChildren<{
   serviceProvider?: ServiceProvider;
   gatewayError: boolean;
 }> = ({ status, serviceProvider, gatewayError }) => {
-  const { mediumModeEnabled } = useClientContext();
+  const { speedMode } = useClientContext();
 
   if (gatewayError) {
     return (
@@ -49,7 +49,7 @@ const ConnectionStatusContent: FCWithChildren<{
               </Typography>
             </Box>
           </Tooltip>
-          {mediumModeEnabled && (
+          {speedMode === 'medium' && (
             <Stack alignItems="center" color="warning.main">
               <Typography variant="caption" color="grey.400">
                 Speedy mode activated

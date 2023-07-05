@@ -10,17 +10,16 @@ use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::NymPacket;
-use quinn::{ClientConfig, Connection, Endpoint};
+use quinn::{ClientConfig, Endpoint};
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::net::{TcpStream, UdpSocket};
+
 use tokio::time::sleep;
-use tokio_util::codec::{Encoder, Framed};
-use tokio_util::udp::UdpFramed;
+use tokio_util::codec::Encoder;
 
 pub struct Config {
     initial_reconnection_backoff: Duration,

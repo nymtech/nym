@@ -7,7 +7,6 @@ use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use bytes::BytesMut;
-use futures::StreamExt;
 use log::*;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
@@ -19,9 +18,7 @@ use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use quinn::Connection;
 use std::collections::HashMap;
-use std::net::SocketAddr;
-use tokio::net::TcpStream;
-use tokio_util::codec::{Decoder, Framed};
+use tokio_util::codec::Decoder;
 
 pub(crate) struct ConnectionHandler<St: Storage> {
     packet_processor: PacketProcessor,

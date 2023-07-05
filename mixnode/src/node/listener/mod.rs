@@ -2,14 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::listener::connection_handler::ConnectionHandler;
-use futures::StreamExt;
-use nym_sphinx::framing::codec::NymCodec;
 use quinn::{Endpoint, ServerConfig};
 use rcgen::generate_simple_self_signed;
 use rustls::{Certificate, PrivateKey};
 use std::net::SocketAddr;
-use std::process;
-use tokio::net::UdpSocket;
 use tokio::task::JoinHandle;
 #[cfg(feature = "cpucycles")]
 use tracing::error;
@@ -50,9 +46,17 @@ impl Listener {
                             // in theory we could process multiple sphinx packet from the same connection in parallel,
                             // but we already handle multiple concurrent connections so if anything, making
                             // that change would only slow things down
-                            //debug!("Handling packet from {remote:?}");
-                            let handler = connection_handler.clone();
-                            tokio::spawn(handler.handle_connection(conn, self.shutdown.clone()));
+                            debug!("Handling connection from {:?}", conn.remote_address());
+                            match conn.accept_uni().await {
+                                Ok(recv_stream) => {
+                                    let handler = connection_handler.clone();
+                                    tokio::spawn(handler.handle_connection(recv_stream, self.shutdown.clone()));
+                                },
+                                Err(err) => {
+                                    error!("Error on connection from {:?} - {err:?}", conn.remote_address());
+                                }
+
+                            }
                         }
                         // Some(Err(err)) => {
                         //     error!(

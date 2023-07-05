@@ -7,18 +7,16 @@ use crate::node::listener::connection_handler::packet_processing::{
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use bytes::BytesMut;
-use futures::StreamExt;
 use nym_mixnode_common::measure;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::Delay as SphinxDelay;
-use quinn::Connection;
-use std::net::SocketAddr;
-use tokio::net::TcpStream;
+use quinn::RecvStream;
 use tokio::time::Instant;
-use tokio_util::codec::{Decoder, Framed};
+use tokio_util::codec::Decoder;
+
 #[cfg(feature = "cpucycles")]
 use tracing::{error, info, instrument};
 
@@ -81,7 +79,7 @@ impl ConnectionHandler {
         })
     }
 
-    pub(crate) async fn handle_connection(self, conn: Connection, mut shutdown: TaskClient) {
+    pub(crate) async fn handle_connection(self, mut stream: RecvStream, mut shutdown: TaskClient) {
         debug!("Starting connection handler");
         shutdown.mark_as_success();
         while !shutdown.is_shutdown() {
@@ -90,10 +88,8 @@ impl ConnectionHandler {
                 _ = shutdown.recv() => {
                     log::trace!("ConnectionHandler: received shutdown");
                 }
-                recv = conn.accept_uni() => {
-                    let read_data = recv.expect("Failed to unwrap stream").read_to_end(PacketSize::ExtendedPacket32.size()).await
-                    .expect("Failed to read");
-                    match NymCodec.decode(&mut BytesMut::from(read_data.as_slice())) {
+                read_data = stream.read_to_end(PacketSize::ExtendedPacket32.size()) => {
+                    match NymCodec.decode(&mut BytesMut::from(read_data.unwrap().as_slice())) {
                         Ok(Some(framed_sphinx_packet)) => {
                             // TODO: benchmark spawning tokio task with full processing vs just processing it
                             // synchronously (without delaying inside of course,

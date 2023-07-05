@@ -9,7 +9,9 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
 nym-bin-common = { path = "../../common/bin-common"}
+nym-sphinx-addressing = { path = "../../common/nymsphinx/addressing" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
+nym-crypto = { path = "../../common/crypto" }
 nym-cli-commands = { path = "../../common/commands" }
 nym-validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }
 nym-network-defaults = { path = "../../common/network-defaults" }

@@ -1,4 +1,5 @@
 use cosmrs::bip32::secp256k1::elliptic_curve::generic_array::sequence;
+use nym_sphinx_addressing::clients::Recipient;
 use nym_validator_client::nyxd::CosmWasmClient;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 use nym_validator_client::signing::tx_signer::TxSigner;
@@ -10,6 +11,7 @@ use cosmrs::{tx, AccountId, Coin, Denom};
 use bip39; 
 use bs58; 
 use nym_sdk::mixnet;
+// use nymsphinx::addressing::Recipient;
 
 pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> String {
 
@@ -66,36 +68,34 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> String {
 
 }
 
-pub async fn send_tx(base58_tx: String, sp_address: String) -> Option<Vec<mixnet::ReconstructedMessage>> /*String*/ {
-    // 1. decode base58 -> vec<u8> 
-    println!("this is where we decode the base58 string"); 
-
-    // 2. get nym client address 
-    let client = mixnet::MixnetClientBuilder::new_ephemeral()
+pub async fn send_tx(base58_tx: String, sp_address: Recipient) -> Option<Vec<mixnet::ReconstructedMessage>> /*String*/ {
+    // TODO move to its own function and pass created client as arg 
+    let config_dir = std::path::PathBuf::from("/tmp/mixnet-client");
+    let storage_paths = mixnet::StoragePaths::new_from_dir(&config_dir).unwrap();
+    let client = mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)
+        .await
+        .unwrap()
         .build()
         .await
         .unwrap();
-
     let mut client = client.connect_to_mixnet().await.unwrap();
-    
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // 3. send message w sdk to broadcaster who will do: 
+    // send message w sdk to broadcaster who will do: 
     /* 
         // broadcast the tx
         let res = rpc::Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
         .await
         .unwrap();
      */
-    // client.send_str(sp_address, signedtx); 
-    // println!("Waiting for message");
+    client.send_str(sp_address, &base58_tx).await; // send as base58 encoded and it can be decoded by the SP 
+    println!("\nWaiting for reply\n");
     let res = client.wait_for_messages().await; 
 
     // disconnect client 
     // return the res to return to main thread 
     client.disconnect().await;
-    // String::from("your tx hash")
     res 
 
 }

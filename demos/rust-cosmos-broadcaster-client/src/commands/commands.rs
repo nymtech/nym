@@ -66,7 +66,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> String {
 
 }
 
-pub async fn send_tx(base58_tx: String) -> Option<Vec<mixnet::ReconstructedMessage>> /*String*/ {
+pub async fn send_tx(base58_tx: String, sp_address: String) -> Option<Vec<mixnet::ReconstructedMessage>> /*String*/ {
     // 1. decode base58 -> vec<u8> 
     println!("this is where we decode the base58 string"); 
 
@@ -80,8 +80,6 @@ pub async fn send_tx(base58_tx: String) -> Option<Vec<mixnet::ReconstructedMessa
     
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
-    
-    // client.send_str(*our_address, "hello there").await;
 
     // 3. send message w sdk to broadcaster who will do: 
     /* 

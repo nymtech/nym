@@ -23,5 +23,6 @@ build-tinygo:
 # the default stack size of 16kib is insufficient
 # note: it seems to leak memory : (
 # ref: https://github.com/tinygo-org/tinygo/issues/1140
+# HOWEVER. it could be severely reduced via: https://github.com/tinygo-org/tinygo/issues/1140#issuecomment-718145455
 	tinygo build -o build/main.wasm -stack-size "32kb" ./cmd/wasm && cp "$(TINYGOROOT)/targets/wasm_exec.js" ./build
 

@@ -15,6 +15,7 @@ import (
 	"go-mix-conn/internal/types"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -152,7 +153,7 @@ func dialContext(_ctx context.Context, opts *types.RequestOptions, _network, add
 	}
 
 	conn, inj := state.NewFakeConnection(requestId, addr)
-	state.ActiveRequests.Insert(requestId, inj)
+	state.ActiveRequests.Insert(requestId, addr, inj)
 
 	return conn, nil
 }
@@ -169,7 +170,7 @@ func dialTLSContext(_ctx context.Context, opts *types.RequestOptions, _network, 
 	}
 
 	conn, inj := state.NewFakeTlsConn(requestId, addr)
-	state.ActiveRequests.Insert(requestId, inj)
+	state.ActiveRequests.Insert(requestId, addr, inj)
 
 	if err := conn.Handshake(); err != nil {
 		return nil, err
@@ -304,6 +305,25 @@ func performRequest(req *conv.ParsedRequest) (*http.Response, error) {
 	return resp, err
 }
 
+func onErrCleanup(url *url.URL) {
+	// TODO: cancel stuff here.... somehow...
+
+	canonicalAddr := canonicalAddr(url)
+	id := state.ActiveRequests.GetId(canonicalAddr)
+	// TODO: can we guarantee that rust is not holding any references to that id (that we don't know on this side)?
+	if id == 0 {
+		// if id doesn't exist it [probably] means the error was thrown before the request was properly created
+		log.Debug("there doesn't seem to exist a request associated with addr %s", canonicalAddr)
+		return
+	}
+	state.ActiveRequests.Remove(id)
+	err := rust_bridge.RsFinishMixnetConnection(id)
+	if err != nil {
+		// TODO: can we do anything else in here?
+		log.Error("failed to properly abort the request: %s", err)
+	}
+}
+
 func MixFetch(request *conv.ParsedRequest) (any, error) {
 	log.Info("_mixFetch: start")
 
@@ -324,8 +344,8 @@ func MixFetch(request *conv.ParsedRequest) (any, error) {
 		log.Trace("response: %v", *res)
 		return conv.IntoJSResponse(res, request.Options)
 	case err := <-errCh:
-		// TODO: cancel stuff here.... somehow...
-		log.Warn("request failure: %v", err)
+		log.Warn("request failure: %s", err)
+		onErrCleanup(request.Request.URL)
 		return nil, err
 	}
 }

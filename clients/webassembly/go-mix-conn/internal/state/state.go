@@ -19,80 +19,107 @@ var MaxRedirections int = 20
 
 func InitialiseGlobalState() {
 	ActiveRequests = &CurrentActiveRequests{
-		Mutex: sync.Mutex{},
-		Inner: make(map[types.RequestId]*ActiveRequest),
+		Mutex:          sync.Mutex{},
+		Requests:       make(map[types.RequestId]*ActiveRequest),
+		AddressMapping: make(map[string]types.RequestId),
 	}
 }
 
 type CurrentActiveRequests struct {
 	sync.Mutex
-	Inner map[types.RequestId]*ActiveRequest
+	Requests       map[types.RequestId]*ActiveRequest
+	AddressMapping map[string]types.RequestId
+}
+
+func (ar *CurrentActiveRequests) GetId(canonicalAddr string) types.RequestId {
+	log.Trace("getting id associated with request for %s", canonicalAddr)
+	ar.Lock()
+	defer ar.Unlock()
+	return ar.AddressMapping[canonicalAddr]
 }
 
 func (ar *CurrentActiveRequests) Exists(id types.RequestId) bool {
 	log.Trace("checking if request %d exists", id)
 	ar.Lock()
 	defer ar.Unlock()
-	_, exists := ar.Inner[id]
+	_, exists := ar.Requests[id]
 	return exists
 }
 
-func (ar *CurrentActiveRequests) Insert(id types.RequestId, inj ConnectionInjector) {
-	log.Trace("inserting request %d", id)
+func (ar *CurrentActiveRequests) Insert(id types.RequestId, canonicalAddr string, inj ConnectionInjector) {
+	log.Trace("inserting request %d for %s", id, canonicalAddr)
 	ar.Lock()
 	defer ar.Unlock()
-	_, exists := ar.Inner[id]
+	_, exists := ar.Requests[id]
 	if exists {
-		panic("attempted to overwrite active connection")
+		panic("attempted to overwrite active connection id")
 	}
-	ar.Inner[id] = &ActiveRequest{injector: inj}
+	_, exists = ar.AddressMapping[canonicalAddr]
+	if exists {
+		panic("attempted to overwrite active connection canonicalAddr")
+	}
+
+	ar.Requests[id] = &ActiveRequest{injector: inj, canonicalAddr: canonicalAddr}
+	ar.AddressMapping[canonicalAddr] = id
 }
 
 func (ar *CurrentActiveRequests) Remove(id types.RequestId) {
 	log.Trace("removing request %d", id)
 	ar.Lock()
 	defer ar.Unlock()
-	_, exists := ar.Inner[id]
+	req, exists := ar.Requests[id]
 	if !exists {
-		panic("attempted to remove active connection that doesn't exist")
+		panic("attempted to remove active connection id that doesn't exist")
 	}
-	delete(ar.Inner, id)
+	_, exists = ar.AddressMapping[req.canonicalAddr]
+	if !exists {
+		panic("attempted to remove active connection canonicalAddr that doesn't exist")
+	}
+
+	// TODO: do we have to explicitly close the channels?
+	close(req.injector.RemoteDone)
+	close(req.injector.ServerData)
+	close(req.injector.RemoteError)
+
+	delete(ar.Requests, id)
+	delete(ar.AddressMapping, req.canonicalAddr)
 }
 
 func (ar *CurrentActiveRequests) InjectData(id types.RequestId, data []byte) {
 	log.Trace("injecting data for %d", id)
 	ar.Lock()
 	defer ar.Unlock()
-	_, exists := ar.Inner[id]
+	_, exists := ar.Requests[id]
 	if !exists {
 		panic("attempted to write to connection that doesn't exist")
 	}
-	ar.Inner[id].injector.ServerData <- data
+	ar.Requests[id].injector.ServerData <- data
 }
 
 func (ar *CurrentActiveRequests) CloseRemoteSocket(id types.RequestId) {
 	log.Trace("closing remote socket for %d", id)
 	ar.Lock()
 	defer ar.Unlock()
-	_, exists := ar.Inner[id]
+	_, exists := ar.Requests[id]
 	if !exists {
 		log.Warn("attempted to close remote socket of a connection that doesn't exist")
 		return
 	}
-	close(ar.Inner[id].injector.RemoteDone)
+	close(ar.Requests[id].injector.RemoteDone)
 }
 
 func (ar *CurrentActiveRequests) SendError(id types.RequestId, err error) {
 	log.Trace("injecting error for %d: %s", id, err)
 	ar.Lock()
 	defer ar.Unlock()
-	_, exists := ar.Inner[id]
+	_, exists := ar.Requests[id]
 	if !exists {
 		panic("attempted to inject error data to connection that doesn't exist")
 	}
-	ar.Inner[id].injector.RemoteError <- err
+	ar.Requests[id].injector.RemoteError <- err
 }
 
 type ActiveRequest struct {
-	injector ConnectionInjector
+	injector      ConnectionInjector
+	canonicalAddr string
 }

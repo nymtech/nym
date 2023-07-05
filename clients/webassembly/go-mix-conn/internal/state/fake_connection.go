@@ -49,8 +49,8 @@ type FakeConnection struct {
 	pendingReads chan []byte
 }
 
-// source: net/pipe.go
 // connDeadline is an abstraction for handling timeouts.
+// source: https://github.com/golang/go/blob/release-branch.go1.20/src/net/pipe.go#L15
 type connDeadline struct {
 	mu     sync.Mutex // Guards timer and cancel
 	timer  *time.Timer
@@ -67,6 +67,7 @@ func makePipeDeadline() connDeadline {
 // t value in the future.
 //
 // A zero value for t prevents timeout.
+// source: https://github.com/golang/go/blob/release-branch.go1.20/src/net/pipe.go#L31
 func (d *connDeadline) set(t time.Time) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -176,7 +177,7 @@ func (conn *FakeConnection) readAndBuffer(in []byte, out []byte) (int, error) {
 		conn.pendingReads <- leftover
 	}
 
-	log.Debug("READING INJECTED %d bytes <<< \n", n)
+	log.Debug("READING INJECTED %d bytes <<<", n)
 	return n, err
 }
 

@@ -5,6 +5,7 @@ package conv
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"go-mix-conn/internal/external"
@@ -29,6 +30,7 @@ const (
 	fieldRequestReferrerPolicy = "referrerPolicy"
 	fieldRequestHeaders        = "headers"
 	fieldRequestCache          = "cache"
+	fieldRequestSignal         = "signal"
 )
 
 type ParsedRequest struct {
@@ -59,7 +61,7 @@ type ParsedRequest struct {
 	[⚠️] Redirect		- "manual" is not implemented
 	[❌] Referrer
 	[❌] ReferrerPolicy
-	[❌] signal
+	[✅] signal
 	[✅] url
 */
 func ParseJSRequest(request js.Value, unsafeCors bool) (*ParsedRequest, error) {
@@ -105,6 +107,11 @@ func ParseJSRequest(request js.Value, unsafeCors bool) (*ParsedRequest, error) {
 		return nil, err
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := dealWithSignal(&request, cancel); err != nil {
+		return nil, err
+	}
+
 	// A Request has an associated response tainting, which is "basic", "cors", or "opaque".
 	// Unless stated otherwise, it is "basic".
 	// Reference: https://fetch.spec.whatwg.org/#concept-request-response-tainting
@@ -128,7 +135,7 @@ func ParseJSRequest(request js.Value, unsafeCors bool) (*ParsedRequest, error) {
 
 	checkUnsupportedAttributes(&request)
 
-	req, err := http.NewRequest(method, requestUrl, body)
+	req, err := http.NewRequestWithContext(ctx, method, requestUrl, body)
 	if err != nil {
 		return nil, err
 	}
@@ -384,4 +391,23 @@ func parseRefererPolicy(request *js.Value) (jstypes.ReferrerPolicy, error) {
 
 	return "", errors.New(fmt.Sprintf("%s is not a valid Referrer policy", referrerPolicyString))
 
+}
+
+func dealWithSignal(request *js.Value, cancel context.CancelFunc) error {
+	abortSignal := request.Get(fieldRequestSignal)
+	if abortSignal.IsUndefined() || abortSignal.IsNull() {
+		log.Debug("no abort signal passed")
+		return nil
+	}
+	if abortSignal.Type() != js.TypeObject {
+		return errors.New("passed abort signal is not a valid object")
+	}
+
+	abortSignal.Call("addEventListener", "abort", js.FuncOf(func(this js.Value, args []js.Value) any {
+		log.Debug("abort signal called")
+		cancel()
+		return nil
+	}))
+
+	return nil
 }

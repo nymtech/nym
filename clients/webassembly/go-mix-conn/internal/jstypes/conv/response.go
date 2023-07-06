@@ -281,7 +281,7 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 	[✅] bodyUsed
 	[✅] headers
 	[✅] ok 			- seems to be handled automagically (presumably via `status`)
-	[✅] redirected
+	[✅] redirected		- has to be proxied
 	[✅] status
 	[✅] statusText
 	[✅] type		    - has to be proxied
@@ -291,7 +291,7 @@ func IntoJSResponse(resp *ResponseWrapper, opts *types.RequestOptions) (js.Value
 	// TODO: check if response is a filtered response
 	isFilteredResponse := false
 
-	// reslt of 4.3.6.2.2
+	// result of 4.3.6.2.2
 	internalResponse := NewInternalResponse(resp.inner, opts, resp.ctx)
 	if resp.ctx.OverwrittenResponseType == jstypes.ResponseTypeOpaqueRedirect {
 		isFilteredResponse = true

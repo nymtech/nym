@@ -72,7 +72,7 @@ func mixFetch(_ js.Value, args []js.Value) (any, error) {
 	}
 	if len(args) == 2 {
 		// check for 'MODE_UNSAFE_IGNORE_CORS'
-		if args[1].Get("mode").String() == jstypes.MODE_UNSAFE_IGNORE_CORS {
+		if args[1].Get("mode").String() == jstypes.ModeUnsafeIgnoreCors {
 			unsafeCors = true
 			// we need to delete that prop as technically it holds an invalid value to construct `Request`
 			args[1].Delete("mode")

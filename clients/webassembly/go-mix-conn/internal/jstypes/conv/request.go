@@ -95,7 +95,7 @@ func ParseJSRequest(request js.Value, unsafeCors bool) (*ParsedRequest, error) {
 	// A Request has an associated response tainting, which is "basic", "cors", or "opaque".
 	// Unless stated otherwise, it is "basic".
 	// Reference: https://fetch.spec.whatwg.org/#concept-request-response-tainting
-	responseTainting := jstypes.RESPONSE_TAINTING_BASIC
+	responseTainting := jstypes.ResponseTaintingBasic
 
 	options := types.RequestOptions{
 		Redirect:         redirect,
@@ -180,13 +180,13 @@ func parseHeaders(headers js.Value, reqOpts types.RequestOptions, method string)
 	// 3.1.3
 	if method != "GET" && method != "HEAD" {
 		// 3.1.3.1
-		if reqOpts.Mode != jstypes.MODE_CORS {
+		if reqOpts.Mode != jstypes.ModeCors {
 			switch reqOpts.ReferrerPolicy {
-			case jstypes.REFERRER_NO_REFERRER:
+			case jstypes.ReferrerNoReferrer:
 				serializedOrigin = nil
-			case jstypes.REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE, jstypes.REFERRER_POLICY_STRICT_ORIGIN, jstypes.REFERRER_POLICY_STRICT_ORIGIN_WHEN_CROSS_ORIGIN:
+			case jstypes.ReferrerPolicyNoReferrerWhenDowngrade, jstypes.ReferrerPolicyStrictOrigin, jstypes.ReferrerPolicyStrictOriginWhenCrossOrigin:
 				panic("unimplemented Referrer policy")
-			case jstypes.REFERRER_POLICY_SAME_ORIGIN:
+			case jstypes.ReferrerPolicySameOrigin:
 				panic("unimplemented Referrer policy")
 			}
 		}
@@ -227,7 +227,7 @@ func parseRedirect(request *js.Value) (string, error) {
 	if redirect.IsUndefined() || redirect.IsNull() {
 		// "A Request has an associated Redirect Mode, which is "follow", "error", or "manual". Unless stated otherwise, it is "follow"."
 		// Reference: https://fetch.spec.whatwg.org/#concept-request
-		return jstypes.REQUEST_REDIRECT_FOLLOW, nil
+		return jstypes.RequestRedirectFollow, nil
 	}
 
 	if redirect.Type() != js.TypeString {
@@ -236,12 +236,12 @@ func parseRedirect(request *js.Value) (string, error) {
 
 	redirectString := redirect.String()
 	switch redirect.String() {
-	case jstypes.REQUEST_REDIRECT_MANUAL:
-		return jstypes.REQUEST_REDIRECT_MANUAL, nil
-	case jstypes.REQUEST_REDIRECT_ERROR:
-		return jstypes.REQUEST_REDIRECT_ERROR, nil
-	case jstypes.REQUEST_REDIRECT_FOLLOW:
-		return jstypes.REQUEST_REDIRECT_FOLLOW, nil
+	case jstypes.RequestRedirectManual:
+		return jstypes.RequestRedirectManual, nil
+	case jstypes.RequestRedirectError:
+		return jstypes.RequestRedirectError, nil
+	case jstypes.RequestRedirectFollow:
+		return jstypes.RequestRedirectFollow, nil
 	}
 
 	return "", errors.New(fmt.Sprintf("%s is not a valid Redirect", redirectString))
@@ -249,14 +249,14 @@ func parseRedirect(request *js.Value) (string, error) {
 
 func parseMode(request *js.Value, unsafeCors bool) (jstypes.Mode, error) {
 	if unsafeCors {
-		return jstypes.MODE_UNSAFE_IGNORE_CORS, nil
+		return jstypes.ModeUnsafeIgnoreCors, nil
 	}
 
 	mode := request.Get("mode")
 	if mode.IsUndefined() || mode.IsNull() {
 		// "Even though the default Request Mode is "no-cors", standards are highly discouraged from using it for new features. It is rather unsafe."
 		// Reference: https://fetch.spec.whatwg.org/#concept-request-mode
-		return jstypes.MODE_NO_CORS, nil
+		return jstypes.ModeNoCors, nil
 	}
 
 	if mode.Type() != js.TypeString {
@@ -265,18 +265,18 @@ func parseMode(request *js.Value, unsafeCors bool) (jstypes.Mode, error) {
 
 	modeString := mode.String()
 	switch modeString {
-	case jstypes.MODE_CORS:
-		return jstypes.MODE_CORS, nil
-	case jstypes.MODE_SAME_ORIGIN:
-		return jstypes.MODE_SAME_ORIGIN, nil
-	case jstypes.MODE_NO_CORS:
-		return jstypes.MODE_NO_CORS, nil
-	case jstypes.MODE_UNSAFE_IGNORE_CORS:
-		return jstypes.MODE_UNSAFE_IGNORE_CORS, nil
-	case jstypes.MODE_NAVIGATE:
-		return "", errors.New(fmt.Sprintf("%s Mode is not supported", jstypes.MODE_NAVIGATE))
-	case jstypes.MODE_WEBSOCKET:
-		return "", errors.New(fmt.Sprintf("%s Mode is not supported", jstypes.MODE_WEBSOCKET))
+	case jstypes.ModeCors:
+		return jstypes.ModeCors, nil
+	case jstypes.ModeSameOrigin:
+		return jstypes.ModeSameOrigin, nil
+	case jstypes.ModeNoCors:
+		return jstypes.ModeNoCors, nil
+	case jstypes.ModeUnsafeIgnoreCors:
+		return jstypes.ModeUnsafeIgnoreCors, nil
+	case jstypes.ModeNavigate:
+		return "", errors.New(fmt.Sprintf("%s Mode is not supported", jstypes.ModeNavigate))
+	case jstypes.ModeWebsocket:
+		return "", errors.New(fmt.Sprintf("%s Mode is not supported", jstypes.ModeWebsocket))
 	}
 
 	return "", errors.New(fmt.Sprintf("%s is not a valid Mode", modeString))
@@ -287,7 +287,7 @@ func parseCredentialsMode(request *js.Value) (jstypes.CredentialsMode, error) {
 	if credentialsMode.IsUndefined() || credentialsMode.IsNull() {
 		// A Request has an associated credentials Mode, which is "omit", "same-origin", or "include". Unless stated otherwise, it is "same-origin".
 		// Reference: https://fetch.spec.whatwg.org/#concept-request-mode
-		return jstypes.CREDENTIALS_MODE_SAME_ORIGIN, nil
+		return jstypes.CredentialsModeSameOrigin, nil
 	}
 
 	if credentialsMode.Type() != js.TypeString {
@@ -296,12 +296,12 @@ func parseCredentialsMode(request *js.Value) (jstypes.CredentialsMode, error) {
 
 	credentialsModeString := credentialsMode.String()
 	switch credentialsModeString {
-	case jstypes.CREDENTIALS_MODE_OMIT:
-		return jstypes.CREDENTIALS_MODE_OMIT, nil
-	case jstypes.CREDENTIALS_MODE_INCLUDE:
-		return jstypes.CREDENTIALS_MODE_INCLUDE, nil
-	case jstypes.CREDENTIALS_MODE_SAME_ORIGIN:
-		return jstypes.CREDENTIALS_MODE_SAME_ORIGIN, nil
+	case jstypes.CredentialsModeOmit:
+		return jstypes.CredentialsModeOmit, nil
+	case jstypes.CredentialsModeInclude:
+		return jstypes.CredentialsModeInclude, nil
+	case jstypes.CredentialsModeSameOrigin:
+		return jstypes.CredentialsModeSameOrigin, nil
 	}
 
 	return "", errors.New(fmt.Sprintf("%s is not a valid credentials Mode", credentialsModeString))
@@ -312,7 +312,7 @@ func parseReferrer(request *js.Value) (jstypes.Referrer, error) {
 	if referrer.IsUndefined() || referrer.IsNull() {
 		// A Request has an associated Referrer, which is "no-Referrer", "client", or a URL. Unless stated otherwise it is "client".
 		// Reference: https://fetch.spec.whatwg.org/#concept-request-referrer
-		return jstypes.REFERRER_CLIENT, nil
+		return jstypes.ReferrerClient, nil
 	}
 
 	if referrer.Type() != js.TypeString {
@@ -320,12 +320,12 @@ func parseReferrer(request *js.Value) (jstypes.Referrer, error) {
 	}
 
 	referrerString := referrer.String()
-	if referrerString == jstypes.REFERRER_NO_REFERRER {
-		return jstypes.REFERRER_NO_REFERRER, nil
+	if referrerString == jstypes.ReferrerNoReferrer {
+		return jstypes.ReferrerNoReferrer, nil
 	}
 
-	if referrerString == jstypes.REFERRER_CLIENT {
-		return jstypes.REFERRER_CLIENT, nil
+	if referrerString == jstypes.ReferrerClient {
+		return jstypes.ReferrerClient, nil
 	}
 
 	_, err := url.Parse(referrerString)
@@ -351,22 +351,22 @@ func parseRefererPolicy(request *js.Value) (jstypes.ReferrerPolicy, error) {
 	switch referrerPolicyString {
 	case "":
 		return "", nil
-	case jstypes.REFERRER_POLICY_NO_REFERRER:
-		return jstypes.REFERRER_POLICY_NO_REFERRER, nil
-	case jstypes.REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE:
-		return jstypes.REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE, nil
-	case jstypes.REFERRER_POLICY_ORIGIN:
-		return jstypes.REFERRER_POLICY_ORIGIN, nil
-	case jstypes.REFERRER_POLICY_ORIGIN_WHEN_CROSS_ORIGIN:
-		return jstypes.REFERRER_POLICY_ORIGIN_WHEN_CROSS_ORIGIN, nil
-	case jstypes.REFERRER_POLICY_SAME_ORIGIN:
-		return jstypes.REFERRER_POLICY_SAME_ORIGIN, nil
-	case jstypes.REFERRER_POLICY_STRICT_ORIGIN:
-		return jstypes.REFERRER_POLICY_STRICT_ORIGIN, nil
-	case jstypes.REFERRER_POLICY_STRICT_ORIGIN_WHEN_CROSS_ORIGIN:
-		return jstypes.REFERRER_POLICY_STRICT_ORIGIN_WHEN_CROSS_ORIGIN, nil
-	case jstypes.REFERRER_POLICY_UNSAFE_URL:
-		return jstypes.REFERRER_POLICY_UNSAFE_URL, nil
+	case jstypes.ReferrerPolicyNoReferrer:
+		return jstypes.ReferrerPolicyNoReferrer, nil
+	case jstypes.ReferrerPolicyNoReferrerWhenDowngrade:
+		return jstypes.ReferrerPolicyNoReferrerWhenDowngrade, nil
+	case jstypes.ReferrerPolicyOrigin:
+		return jstypes.ReferrerPolicyOrigin, nil
+	case jstypes.ReferrerPolicyOriginWhenCrossOrigin:
+		return jstypes.ReferrerPolicyOriginWhenCrossOrigin, nil
+	case jstypes.ReferrerPolicySameOrigin:
+		return jstypes.ReferrerPolicySameOrigin, nil
+	case jstypes.ReferrerPolicyStrictOrigin:
+		return jstypes.ReferrerPolicyStrictOrigin, nil
+	case jstypes.ReferrerPolicyStrictOriginWhenCrossOrigin:
+		return jstypes.ReferrerPolicyStrictOriginWhenCrossOrigin, nil
+	case jstypes.ReferrerPolicyUnsafeUrl:
+		return jstypes.ReferrerPolicyUnsafeUrl, nil
 	}
 
 	return "", errors.New(fmt.Sprintf("%s is not a valid Referrer policy", referrerPolicyString))

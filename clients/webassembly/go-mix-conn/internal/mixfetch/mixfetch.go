@@ -51,16 +51,16 @@ func checkRedirect(opts *types.RequestOptions, req *http.Request, via []*http.Re
 	// Reference: https://fetch.spec.whatwg.org/#http-fetch
 	// 4.3.6.2
 	switch opts.Redirect {
-	case jstypes.REQUEST_REDIRECT_ERROR:
+	case jstypes.RequestRedirectError:
 		return errors.New("encountered redirect")
-	case jstypes.REQUEST_REDIRECT_MANUAL:
-		if opts.Mode == jstypes.MODE_NAVIGATE {
+	case jstypes.RequestRedirectManual:
+		if opts.Mode == jstypes.ModeNavigate {
 			return errors.New("unimplemented 'navigate' + 'manual' redirection")
 		}
 		log.Error("unimplemented '%s' redirect", opts.Redirect)
 		// TODO: somehow set response to opaque-redirect filtered response
 		return http.ErrUseLastResponse
-	case jstypes.REQUEST_REDIRECT_FOLLOW:
+	case jstypes.RequestRedirectFollow:
 		log.Debug("will perform redirection")
 		return nil
 	default:
@@ -74,31 +74,31 @@ func checkRedirect(opts *types.RequestOptions, req *http.Request, via []*http.Re
 // Reference: https://fetch.spec.whatwg.org/#main-fetch
 func mainFetchChecks(req *conv.ParsedRequest) error {
 	// >>> START: NOT INCLUDED IN FETCH SPEC
-	if req.Options.Mode == jstypes.MODE_UNSAFE_IGNORE_CORS {
+	if req.Options.Mode == jstypes.ModeUnsafeIgnoreCors {
 		// ignore all checks - everything should be accepted
-		req.Options.ResponseTainting = jstypes.RESPONSE_TAINTING_UNSAFE_IGNORE_CORS
+		req.Options.ResponseTainting = jstypes.ResponseTaintingUnsafeIgnoreCors
 		return nil
 	}
 	// >>> END: NOT INCLUDED IN FETCH SPEC
 
 	// no preloading
 
-	if (jstypes.IsSameOrigin(req.Request.URL) && req.Options.ResponseTainting == jstypes.RESPONSE_TAINTING_BASIC) ||
-		req.Request.URL.Scheme == "data" || (req.Options.Mode == jstypes.MODE_NAVIGATE || req.Options.Mode == jstypes.MODE_WEBSOCKET) {
+	if (jstypes.IsSameOrigin(req.Request.URL) && req.Options.ResponseTainting == jstypes.ResponseTaintingBasic) ||
+		req.Request.URL.Scheme == "data" || (req.Options.Mode == jstypes.ModeNavigate || req.Options.Mode == jstypes.ModeWebsocket) {
 		log.Debug("setting response tainting to basic")
-		req.Options.ResponseTainting = jstypes.RESPONSE_TAINTING_BASIC
+		req.Options.ResponseTainting = jstypes.ResponseTaintingBasic
 		// TODO: scheme fetch here
 		return nil
 	}
-	if req.Options.Mode == jstypes.MODE_SAME_ORIGIN {
-		return errors.New(fmt.Sprintf("MixFetch API cannot load %s. Request mode is \"%s\" but the URL's origin is not same as the request origin %s.", req.Request.URL.String(), jstypes.MODE_SAME_ORIGIN, jstypes.Origin))
+	if req.Options.Mode == jstypes.ModeSameOrigin {
+		return errors.New(fmt.Sprintf("MixFetch API cannot load %s. Request mode is \"%s\" but the URL's origin is not same as the request origin %s.", req.Request.URL.String(), jstypes.ModeSameOrigin, jstypes.Origin))
 	}
-	if req.Options.Mode == jstypes.MODE_NO_CORS {
-		if req.Options.Redirect != jstypes.REQUEST_REDIRECT_FOLLOW {
-			return errors.New(fmt.Sprintf("MixFetch API cannot load %s. Request mode is \"%s\", but the redirect mode is not \"%s\".", req.Request.URL.String(), req.Options.Mode, jstypes.REQUEST_REDIRECT_FOLLOW))
+	if req.Options.Mode == jstypes.ModeNoCors {
+		if req.Options.Redirect != jstypes.RequestRedirectFollow {
+			return errors.New(fmt.Sprintf("MixFetch API cannot load %s. Request mode is \"%s\", but the redirect mode is not \"%s\".", req.Request.URL.String(), req.Options.Mode, jstypes.RequestRedirectFollow))
 		}
 		log.Debug("setting response tainting to opaque")
-		req.Options.ResponseTainting = jstypes.RESPONSE_TAINTING_OPAQUE
+		req.Options.ResponseTainting = jstypes.ResponseTaintingOpaque
 		// TODO: scheme fetch here
 		return nil
 	}
@@ -113,11 +113,11 @@ func mainFetchChecks(req *conv.ParsedRequest) error {
 	unsafeRequestFlag := false
 
 	if corsPreflightFlag || (unsafeRequestFlag && (jstypes.IsCorsSafelistedMethod(req.Request.Method) || len(jstypes.CorsUnsafeRequestHeaderNames(req.Request.Header)) > 0)) {
-		req.Options.ResponseTainting = jstypes.RESPONSE_TAINTING_CORS
+		req.Options.ResponseTainting = jstypes.ResponseTaintingCors
 		panic("unimplemented \"corsWithPreflightResponse\"")
 	}
 
-	req.Options.ResponseTainting = jstypes.RESPONSE_TAINTING_CORS
+	req.Options.ResponseTainting = jstypes.ResponseTaintingCors
 	log.Debug("setting response tainting to cors")
 	// TODO: HTTP fetch here
 	return nil
@@ -233,7 +233,7 @@ func doCorsCheck(reqOpts *types.RequestOptions, resp *http.Response) error {
 		return errors.New(fmt.Sprintf("\"%s\" header not present on remote", jstypes.HeaderAllowOrigin))
 	}
 
-	if reqOpts.CredentialsMode != jstypes.CREDENTIALS_MODE_INCLUDE && originHeader == jstypes.Wildcard {
+	if reqOpts.CredentialsMode != jstypes.CredentialsModeInclude && originHeader == jstypes.Wildcard {
 		// 4.9.3
 		return nil
 	}
@@ -245,7 +245,7 @@ func doCorsCheck(reqOpts *types.RequestOptions, resp *http.Response) error {
 	}
 
 	// 4.9.5
-	if reqOpts.CredentialsMode != jstypes.CREDENTIALS_MODE_INCLUDE {
+	if reqOpts.CredentialsMode != jstypes.CredentialsModeInclude {
 		return nil
 	}
 
@@ -275,7 +275,7 @@ func performRequest(req *conv.ParsedRequest) (*http.Response, error) {
 		log.Warn("unimplemented: could not obtain referrer policy from the policy container")
 	}
 
-	if req.Options.Referrer != jstypes.REFERRER_NO_REFERRER {
+	if req.Options.Referrer != jstypes.ReferrerNoReferrer {
 		// 4.1.9
 		// Reference: https://fetch.spec.whatwg.org/#main-fetch
 		// TODO: implement
@@ -294,7 +294,7 @@ func performRequest(req *conv.ParsedRequest) (*http.Response, error) {
 	}
 
 	// 4.3.4.4
-	if req.Options.ResponseTainting == jstypes.RESPONSE_TAINTING_CORS {
+	if req.Options.ResponseTainting == jstypes.ResponseTaintingCors {
 		err = doCorsCheck(req.Options, resp)
 		if err != nil {
 			return nil, err

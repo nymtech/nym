@@ -18,6 +18,19 @@ import (
 	"syscall/js"
 )
 
+const (
+	fieldRequestMethod         = "method"
+	fieldRequestUrl            = "url"
+	fieldRequestBody           = "body"
+	fieldRequestRedirect       = "redirect"
+	fieldRequestMode           = "mode"
+	fieldRequestCredentials    = "credentials"
+	fieldRequestReferrer       = "referrer"
+	fieldRequestReferrerPolicy = "referrerPolicy"
+	fieldRequestHeaders        = "headers"
+	fieldRequestCache          = "cache"
+)
+
 type ParsedRequest struct {
 	Request *http.Request
 	Options *types.RequestOptions
@@ -53,12 +66,12 @@ func ParseJSRequest(request js.Value, unsafeCors bool) (*ParsedRequest, error) {
 	// https://github.com/mozilla/gecko-dev/blob/d307d4d9f06dab6d16e963a4318e5e8ff4899141/dom/fetch/Fetch.cpp#L501
 	// https://github.com/mozilla/gecko-dev/blob/d307d4d9f06dab6d16e963a4318e5e8ff4899141/dom/fetch/Request.cpp#L270
 
-	method, err := helpers.GetStringProperty(&request, "method")
+	method, err := helpers.GetStringProperty(&request, fieldRequestMethod)
 	if err != nil {
 		return nil, err
 	}
 
-	requestUrl, err := helpers.GetStringProperty(&request, "url")
+	requestUrl, err := helpers.GetStringProperty(&request, fieldRequestUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +120,7 @@ func ParseJSRequest(request js.Value, unsafeCors bool) (*ParsedRequest, error) {
 		Method:           method,
 	}
 
-	jsHeaders := request.Get("headers")
+	jsHeaders := request.Get(fieldRequestHeaders)
 	headers, err := parseHeaders(jsHeaders, options, method)
 	if err != nil {
 		return nil, err
@@ -131,10 +144,10 @@ func ParseJSRequest(request js.Value, unsafeCors bool) (*ParsedRequest, error) {
 }
 
 func checkUnsupportedAttributes(request *js.Value) {
-	cache := request.Get("cache")
+	cache := request.Get(fieldRequestCache)
 
 	if !cache.IsUndefined() {
-		log.Warn("'cache' attribute is set on the Request - this is not supported by mixFetch")
+		log.Warn("\"%s\"' attribute is set on the Request - this is not supported by mixFetch", fieldRequestCache)
 	}
 
 	// TODO: implement more of them
@@ -200,7 +213,7 @@ func parseHeaders(headers js.Value, reqOpts types.RequestOptions, method string)
 }
 
 func parseBody(request *js.Value) (io.Reader, error) {
-	jsBody := request.Get("body")
+	jsBody := request.Get(fieldRequestBody)
 	var bodyReader io.Reader
 	if !jsBody.IsUndefined() && !jsBody.IsNull() {
 		log.Debug("stream body - getReader")
@@ -223,7 +236,7 @@ func parseBody(request *js.Value) (io.Reader, error) {
 }
 
 func parseRedirect(request *js.Value) (string, error) {
-	redirect := request.Get("redirect")
+	redirect := request.Get(fieldRequestRedirect)
 	if redirect.IsUndefined() || redirect.IsNull() {
 		// "A Request has an associated Redirect Mode, which is "follow", "error", or "manual". Unless stated otherwise, it is "follow"."
 		// Reference: https://fetch.spec.whatwg.org/#concept-request
@@ -252,7 +265,7 @@ func parseMode(request *js.Value, unsafeCors bool) (jstypes.Mode, error) {
 		return jstypes.ModeUnsafeIgnoreCors, nil
 	}
 
-	mode := request.Get("mode")
+	mode := request.Get(fieldRequestMode)
 	if mode.IsUndefined() || mode.IsNull() {
 		// "Even though the default Request Mode is "no-cors", standards are highly discouraged from using it for new features. It is rather unsafe."
 		// Reference: https://fetch.spec.whatwg.org/#concept-request-mode
@@ -283,7 +296,7 @@ func parseMode(request *js.Value, unsafeCors bool) (jstypes.Mode, error) {
 }
 
 func parseCredentialsMode(request *js.Value) (jstypes.CredentialsMode, error) {
-	credentialsMode := request.Get("credentials")
+	credentialsMode := request.Get(fieldRequestCredentials)
 	if credentialsMode.IsUndefined() || credentialsMode.IsNull() {
 		// A Request has an associated credentials Mode, which is "omit", "same-origin", or "include". Unless stated otherwise, it is "same-origin".
 		// Reference: https://fetch.spec.whatwg.org/#concept-request-mode
@@ -308,7 +321,7 @@ func parseCredentialsMode(request *js.Value) (jstypes.CredentialsMode, error) {
 }
 
 func parseReferrer(request *js.Value) (jstypes.Referrer, error) {
-	referrer := request.Get("referrer")
+	referrer := request.Get(fieldRequestReferrer)
 	if referrer.IsUndefined() || referrer.IsNull() {
 		// A Request has an associated Referrer, which is "no-Referrer", "client", or a URL. Unless stated otherwise it is "client".
 		// Reference: https://fetch.spec.whatwg.org/#concept-request-referrer
@@ -336,7 +349,7 @@ func parseReferrer(request *js.Value) (jstypes.Referrer, error) {
 }
 
 func parseRefererPolicy(request *js.Value) (jstypes.ReferrerPolicy, error) {
-	referrerPolicy := request.Get("referrerPolicy")
+	referrerPolicy := request.Get(fieldRequestReferrerPolicy)
 	if referrerPolicy.IsUndefined() || referrerPolicy.IsNull() {
 		// A Request has an associated Referrer policy, which is a Referrer policy. Unless stated otherwise it is the empty string
 		// Reference: https://fetch.spec.whatwg.org/#concept-request-referrer-policy

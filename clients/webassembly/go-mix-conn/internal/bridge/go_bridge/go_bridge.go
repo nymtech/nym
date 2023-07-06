@@ -62,7 +62,7 @@ func mixFetch(_ js.Value, args []js.Value) (any, error) {
 		return nil, errors.New("no arguments passed for `mixfetch`")
 	}
 
-	requestConstructor := js.Global().Get("Request")
+	requestConstructor := jstypes.Request
 
 	jsRequest := js.Null()
 	unsafeCors := false

@@ -10,11 +10,15 @@ import (
 )
 
 var (
-	Error   = js.Global().Get("Error")
-	Promise = js.Global().Get("Promise")
-	Reflect = js.Global().Get("Reflect")
-	Object  = js.Global().Get("Object")
-	Origin  = js.Global().Get("location").Get("origin").String()
+	Error    = js.Global().Get("Error")
+	Promise  = js.Global().Get("Promise")
+	Reflect  = js.Global().Get("Reflect")
+	Object   = js.Global().Get("Object")
+	Origin   = js.Global().Get("location").Get("origin").String()
+	Response = js.Global().Get("Response")
+	Request  = js.Global().Get("Request")
+	Proxy    = js.Global().Get("Proxy")
+	Headers  = js.Global().Get("Headers")
 )
 
 func OriginUrl() *url.URL {

@@ -59,7 +59,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     client.send_str(sp_address, &serde_json::to_string(&message).unwrap()).await;
     let res = client.wait_for_messages().await; 
     for i in res.unwrap().iter() {
-        println!("{:#?}", i); 
+        println!("{:#?}", i.message); 
     }
     // parse json of res to get signer_data and chain_id, store in SeqResData struct 
 

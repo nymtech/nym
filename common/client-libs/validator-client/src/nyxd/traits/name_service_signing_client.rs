@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use nym_name_service_common::{msg::ExecuteMsg as NameExecuteMsg, Address, NameId, NymName};
+use nym_contracts_common::signing::MessageSignature;
+use nym_name_service_common::{msg::ExecuteMsg as NameExecuteMsg, NameDetails, NameId, NymName};
 
 use crate::nyxd::{
     coin::Coin, cosmwasm_client::types::ExecuteResult, error::NyxdError, Fee, NyxdClient,
@@ -20,14 +21,17 @@ pub trait NameServiceSigningClient {
 
     async fn register_name(
         &self,
-        name: NymName,
-        address: Address,
+        name: NameDetails,
+        owner_signature: MessageSignature,
         deposit: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_name_service_contract(
             fee,
-            NameExecuteMsg::Register { name, address },
+            NameExecuteMsg::Register {
+                name,
+                owner_signature,
+            },
             vec![deposit],
         )
         .await

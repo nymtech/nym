@@ -35,9 +35,14 @@ pub async fn create_family_join_permit_sign_payload(args: Args, client: QueryCli
     info!("Create family join permit sign payload");
 
     // get the address of our mixnode to recover the family head information
-    let Some(mixnode) = client.get_owned_mixnode(&args.address).await.unwrap().mixnode_details else {
+    let Some(mixnode) = client
+        .get_owned_mixnode(&args.address)
+        .await
+        .unwrap()
+        .mixnode_details
+    else {
         eprintln!("{} does not seem to even own a mixnode!", args.address);
-        return
+        return;
     };
 
     // make sure this mixnode is actually a family head

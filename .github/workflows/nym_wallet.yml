@@ -34,10 +34,10 @@ jobs:
           profile: minimal
           toolchain: stable
 
-      - name: Node v16
+      - name: Node
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
 
       - name: Install yarn for building application
         run: yarn install

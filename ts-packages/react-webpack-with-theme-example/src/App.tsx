@@ -20,6 +20,7 @@ export const Content: FCWithChildren = () => {
   const isMounted = useIsMounted();
 
   if (isMounted()) {
+    // eslint-disable-next-line no-console
     console.log('Content is mounted');
   }
 

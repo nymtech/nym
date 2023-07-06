@@ -1,5 +1,6 @@
-use crate::{Address, NameId, NymName};
+use crate::{Address, NameDetails, NameId, NymName};
 use cosmwasm_std::Coin;
+use nym_contracts_common::signing::MessageSignature;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -22,7 +23,10 @@ pub struct MigrateMsg {}
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     /// Announcing a name pointing to a nym-address
-    Register { name: NymName, address: Address },
+    Register {
+        name: NameDetails,
+        owner_signature: MessageSignature,
+    },
     /// Delete a name entry by id
     DeleteId { name_id: NameId },
     /// Delete a name entry by name
@@ -38,8 +42,11 @@ impl ExecuteMsg {
 
     pub fn default_memo(&self) -> String {
         match self {
-            ExecuteMsg::Register { name, address } => {
-                format!("registering {address} as name: {name}")
+            ExecuteMsg::Register {
+                name,
+                owner_signature: _,
+            } => {
+                format!("registering {} as name: {}", name.address, name.name)
             }
             ExecuteMsg::DeleteId { name_id } => {
                 format!("deleting name with id {name_id}")
@@ -74,6 +81,9 @@ pub enum QueryMsg {
     All {
         limit: Option<u32>,
         start_after: Option<NameId>,
+    },
+    SigningNonce {
+        address: String,
     },
     Config {},
     GetContractVersion {},

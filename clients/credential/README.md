@@ -15,9 +15,9 @@ The credential binary is still experimental software. The infrastructure for usi
 
 From the project's root directory, run:
 ```
-cargo build -p credential
+cargo build -p nym-credential-client
 ```
-which generates the `credential` binary in `target/debug/credential`.
+which generates the `nym-credential-client` binary in `target/debug/nym-credential-client`.
 
 
 ### Running
@@ -25,7 +25,7 @@ which generates the `credential` binary in `target/debug/credential`.
 For example, you can get a credential worth 3 nym (3000000 unym) in a socks5 client that was already initialized like so:
 
 ```
-./target/debug/credential --config-env-file envs/sandbox.env --client-home-directory  ~/.nym/socks5-clients/cred_client  --nyxd-url  https://sandbox-validator1.nymtech.net --mnemonic $MNEMONIC  --recovery-dir /tmp/recovery --amount 3000000
+./target/debug/nym-credential-client --config-env-file envs/sandbox.env --client-home-directory  ~/.nym/socks5-clients/cred_client  --nyxd-url  https://sandbox-validator1.nymtech.net --mnemonic $MNEMONIC  --recovery-dir /tmp/recovery --amount 3000000
 ```
 
 More information regarding how to run the binary can be found by running it with the `--help` argument.

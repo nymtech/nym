@@ -3,16 +3,15 @@
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
 
-use crate::error::Result;
+pub use nym_name_service_common::error::{NameServiceError, Result};
+
 use nym_name_service_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response};
-use error::NameServiceError;
 
 mod contract;
-mod error;
 mod state;
 
 pub mod constants;

@@ -421,7 +421,9 @@ impl NRServiceProvider {
         sender_tag: Option<AnonymousSenderTag>,
         connect_req: Box<ConnectRequest>,
     ) {
-        let Some(return_address) = reply::MixnetAddress::new(connect_req.return_address, sender_tag) else {
+        let Some(return_address) =
+            reply::MixnetAddress::new(connect_req.return_address, sender_tag)
+        else {
             log::warn!(
                 "attempted to start connection with no way of returning data back to the sender"
             );

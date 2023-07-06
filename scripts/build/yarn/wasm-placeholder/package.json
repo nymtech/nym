@@ -1,0 +1,5 @@
+{
+  "name": "@nymproject/nym-client-wasm",
+  "version": "1.0.0",
+  "sideEffects": false
+}

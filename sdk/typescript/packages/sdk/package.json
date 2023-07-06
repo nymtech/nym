@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk",
-  "version": "1.1.7",
+  "version": "1.1.9-rc0",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "type": "module",
@@ -26,10 +26,12 @@
     "build:only-this": "scripts/build-prod.sh",
     "prebuild:dev": "yarn build:dependencies",
     "build:dev": "yarn build:dev:only-this",
-    "build:dev:only-this": "scripts/build.sh"
+    "build:dev:only-this": "scripts/build.sh",
+    "build:local": "run-s build:dependencies:nym-client-wasm build:dev:only-this"
   },
   "dependencies": {
     "@npmcli/node-gyp": "^3.0.0",
+    "@nymproject/nym-client-wasm": "1",
     "comlink": "^4.3.1",
     "lerna": "^6.6.2",
     "node-gyp": "^9.3.1"

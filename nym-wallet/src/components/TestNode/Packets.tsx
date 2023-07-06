@@ -1,6 +1,6 @@
 import React from 'react';
+import { TestStatus } from '@nymproject/sdk';
 import { Divider, Typography } from '@mui/material';
-import { TestStatus } from 'src/pages/bonding/node-settings/node-test/types';
 import { ResultsCard, ResultsCardDetail } from './ResultsCard';
 
 export const Packets = ({

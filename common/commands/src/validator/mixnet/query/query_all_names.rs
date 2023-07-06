@@ -34,8 +34,8 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
                 table.set_header(vec!["Name Id", "Owner", "Nym Address", "Name"]);
                 for name_entry in res.names {
                     table.add_row(vec![
-                        name_entry.name_id.to_string(),
-                        name_entry.name.owner.to_string(),
+                        name_entry.id.to_string(),
+                        name_entry.owner.to_string(),
                         name_entry.name.address.to_string(),
                         name_entry.name.name.to_string(),
                     ]);

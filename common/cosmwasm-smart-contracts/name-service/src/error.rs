@@ -1,7 +1,9 @@
 use cosmwasm_std::{Addr, StdError};
 use cw_controllers::AdminError;
-use nym_name_service_common::{Address, NameId, NymName};
+use nym_contracts_common::signing::verifier::ApiVerifierError;
 use thiserror::Error;
+
+use crate::{Address, NameId, NymName};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum NameServiceError {
@@ -47,6 +49,21 @@ pub enum NameServiceError {
         error_message: String,
     },
 
+    #[error("Failed to recover ed25519 public key from its base58 representation - {0}")]
+    MalformedEd25519IdentityKey(String),
+
+    #[error("Failed to recover ed25519 signature from its base58 representation - {0}")]
+    MalformedEd25519Signature(String),
+
+    #[error("Provided ed25519 signature did not verify correctly")]
+    InvalidEd25519Signature,
+
+    #[error("failed to verify message signature: {source}")]
+    SignatureVerificationFailure {
+        #[from]
+        source: ApiVerifierError,
+    },
+
     #[error("duplicate entries detected for name: {name}")]
     DuplicateNames { name: NymName },
 
@@ -54,4 +71,4 @@ pub enum NameServiceError {
     NameAlreadyRegistered { name: NymName },
 }
 
-pub(crate) type Result<T, E = NameServiceError> = std::result::Result<T, E>;
+pub type Result<T, E = NameServiceError> = std::result::Result<T, E>;

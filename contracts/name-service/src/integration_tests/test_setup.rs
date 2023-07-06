@@ -1,13 +1,18 @@
 use cosmwasm_std::{coins, Addr, Coin, Uint128};
 use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
+use nym_contracts_common::signing::Nonce;
 use nym_name_service_common::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     response::{ConfigResponse, PagedNamesListResponse},
-    Address, NameEntry, NameId, NymName,
+    signing_types::{construct_name_register_sign_payload, SignableNameRegisterMsg},
+    Address, NameDetails, NameId, NymName, RegisteredName,
 };
+use rand_chacha::ChaCha20Rng;
 use serde::de::DeserializeOwned;
 
-use crate::test_helpers::helpers::get_app_attribute;
+use crate::test_helpers::helpers::{get_app_attribute, test_rng};
+
+use super::test_name::{SignedTestName, TestName};
 
 const DENOM: &str = "unym";
 const ADDRESSES: &[&str] = &[
@@ -19,6 +24,7 @@ const WEALTHY_ADDRESSES: &[&str] = &["wealthy_owner_1", "wealthy_owner_2"];
 pub struct TestSetup {
     app: App,
     addr: Addr,
+    rng: ChaCha20Rng,
 }
 
 impl Default for TestSetup {
@@ -44,7 +50,8 @@ impl TestSetup {
         let code = ContractWrapper::new(crate::execute, crate::instantiate, crate::query);
         let code_id = app.store_code(Box::new(code));
         let addr = Self::instantiate(&mut app, code_id);
-        TestSetup { app, addr }
+        let rng = test_rng();
+        TestSetup { app, addr, rng }
     }
 
     fn instantiate(app: &mut App, code_id: u64) -> Addr {
@@ -76,7 +83,7 @@ impl TestSetup {
         self.query(&QueryMsg::Config {})
     }
 
-    pub fn query_id(&self, name_id: NameId) -> NameEntry {
+    pub fn query_id(&self, name_id: NameId) -> RegisteredName {
         self.query(&QueryMsg::NameId { name_id })
     }
 
@@ -92,16 +99,48 @@ impl TestSetup {
         self.query(&QueryMsg::All { limit, start_after })
     }
 
+    pub fn query_signing_nonce(&self, address: String) -> Nonce {
+        self.query(&QueryMsg::SigningNonce { address })
+    }
+
+    pub fn new_name(&mut self, name: &NymName, address: &Address) -> TestName {
+        TestName::new(&mut self.rng, name.clone(), address.clone())
+    }
+
+    pub fn payload_to_sign(
+        &mut self,
+        owner: &Addr,
+        deposit: &Coin,
+        name: &NameDetails,
+    ) -> SignableNameRegisterMsg {
+        let nonce = self.query_signing_nonce(owner.to_string());
+        construct_name_register_sign_payload(nonce, owner.clone(), deposit.clone(), name.clone())
+    }
+
+    pub fn new_signed_name(
+        &mut self,
+        name: &NymName,
+        address: &Address,
+        owner: &Addr,
+        deposit: &Coin,
+    ) -> SignedTestName {
+        let name = self.new_name(name, address);
+        let payload = self.payload_to_sign(owner, deposit, name.details());
+        name.sign(payload)
+    }
+
     pub fn try_register(
         &mut self,
-        name: NymName,
-        address: Address,
-        owner: Addr,
+        name: &SignedTestName,
+        owner: &Addr,
     ) -> anyhow::Result<AppResponse> {
         self.app.execute_contract(
-            owner,
+            owner.clone(),
             self.addr.clone(),
-            &ExecuteMsg::Register { name, address },
+            &ExecuteMsg::Register {
+                name: name.name.clone(),
+                owner_signature: name.owner_signature.clone(),
+            },
             &[Coin {
                 denom: DENOM.to_string(),
                 amount: Uint128::new(100),
@@ -109,13 +148,26 @@ impl TestSetup {
         )
     }
 
-    pub fn register(&mut self, name: NymName, address: Address, owner: Addr) -> AppResponse {
-        let resp = self.try_register(name, address, owner).unwrap();
+    pub fn register(&mut self, name: &SignedTestName, owner: &Addr) -> AppResponse {
+        let resp = self.try_register(name, owner).unwrap();
         assert_eq!(
             get_app_attribute(&resp, "wasm-register", "action"),
             "register"
         );
         resp
+    }
+
+    // Convenience function for creating a new signed name, and regsitering it
+    pub fn sign_and_register(
+        &mut self,
+        name: &NymName,
+        address: &Address,
+        owner: &Addr,
+        deposit: &Coin,
+    ) -> SignedTestName {
+        let signed_name = self.new_signed_name(name, address, owner, deposit);
+        self.register(&signed_name, owner);
+        signed_name
     }
 
     pub fn try_delete(&mut self, name_id: NameId, owner: Addr) -> anyhow::Result<AppResponse> {

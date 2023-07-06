@@ -1,18 +1,17 @@
 use cosmwasm_std::Deps;
-use nym_contracts_common::ContractBuildInformation;
+use nym_contracts_common::{signing::Nonce, ContractBuildInformation};
 use nym_name_service_common::{
     response::{ConfigResponse, NamesListResponse, PagedNamesListResponse},
-    Address, NameEntry, NameId, NymName,
+    Address, NameId, NymName, RegisteredName,
 };
 
 use crate::{
-    error::Result,
     state::{self, names::PagedLoad},
+    Result,
 };
 
-pub fn query_id(deps: Deps, name_id: NameId) -> Result<NameEntry> {
-    let name = state::names::load_id(deps.storage, name_id)?;
-    Ok(NameEntry { name_id, name })
+pub fn query_id(deps: Deps, name_id: NameId) -> Result<RegisteredName> {
+    state::names::load_id(deps.storage, name_id)
 }
 
 pub fn query_owner(deps: Deps, owner: String) -> Result<NamesListResponse> {
@@ -26,9 +25,8 @@ pub fn query_address(deps: Deps, address: Address) -> Result<NamesListResponse> 
     Ok(NamesListResponse::new(names))
 }
 
-pub fn query_name(deps: Deps, name: NymName) -> Result<NameEntry> {
-    state::names::load_name_entry(deps.storage, &name)
-        .map(|(name_id, name)| NameEntry::new(name_id, name))
+pub fn query_name(deps: Deps, name: NymName) -> Result<RegisteredName> {
+    state::names::load_name(deps.storage, &name)
 }
 
 pub fn query_all_paged(
@@ -42,6 +40,11 @@ pub fn query_all_paged(
         start_next_after,
     } = state::names::load_all_paged(deps.storage, limit, start_after)?;
     Ok(PagedNamesListResponse::new(names, limit, start_next_after))
+}
+
+pub fn query_current_signing_nonce(deps: Deps<'_>, address: String) -> Result<Nonce> {
+    let address = deps.api.addr_validate(&address)?;
+    state::get_signing_nonce(deps.storage, address)
 }
 
 pub fn query_config(deps: Deps) -> Result<ConfigResponse> {

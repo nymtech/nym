@@ -1,15 +1,19 @@
 use crate::{
     constants::{MAX_NUMBER_OF_NAMES_FOR_ADDRESS, MAX_NUMBER_OF_NAMES_PER_OWNER},
-    error::{NameServiceError, Result},
-    state,
+    state, NameServiceError, Result,
 };
 use cosmwasm_std::{Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Response, Uint128};
+use nym_contracts_common::{
+    signing::{MessageSignature, Verifier},
+    IdentityKey,
+};
 use nym_name_service_common::{
     events::{
         new_delete_id_event, new_delete_name_event, new_register_event,
         new_update_deposit_required_event,
     },
-    Address, NameId, NymName, RegisteredName,
+    signing_types::construct_name_register_sign_payload,
+    Address, NameDetails, NameId, NymName, RegisteredName,
 };
 
 use super::query;
@@ -86,17 +90,54 @@ fn return_deposit(name_to_delete: &RegisteredName) -> BankMsg {
     }
 }
 
+fn verify_register_signature(
+    deps: Deps<'_>,
+    sender: Addr,
+    deposit: Coin,
+    name: NameDetails,
+    signature: MessageSignature,
+) -> Result<()> {
+    // recover the public key
+    let public_key = decode_ed25519_identity_key(&name.identity_key)?;
+
+    // reconstruct the payload
+    let nonce = state::get_signing_nonce(deps.storage, sender.clone())?;
+
+    let msg = construct_name_register_sign_payload(nonce, sender, deposit, name);
+
+    if deps.api.verify_message(msg, signature, &public_key)? {
+        Ok(())
+    } else {
+        Err(NameServiceError::InvalidEd25519Signature)
+    }
+}
+
+fn decode_ed25519_identity_key(encoded: &IdentityKey) -> Result<[u8; 32]> {
+    let mut public_key = [0u8; 32];
+    let used = bs58::decode(encoded)
+        .into(&mut public_key)
+        .map_err(|err| NameServiceError::MalformedEd25519IdentityKey(err.to_string()))?;
+
+    if used != 32 {
+        return Err(NameServiceError::MalformedEd25519IdentityKey(
+            "Too few bytes provided for the public key".into(),
+        ));
+    }
+
+    Ok(public_key)
+}
+
 /// Register a new name. It will be assigned a new name id.
 pub fn register(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    name: NymName,
-    address: Address,
+    name: NameDetails,
+    owner_signature: MessageSignature,
 ) -> Result<Response> {
-    ensure_name_not_exists(deps.as_ref(), &name)?;
+    ensure_name_not_exists(deps.as_ref(), &name.name)?;
     ensure_max_names_per_owner(deps.as_ref(), info.sender.clone())?;
-    ensure_max_names_per_address(deps.as_ref(), address.clone())?;
+    ensure_max_names_per_address(deps.as_ref(), name.address.clone())?;
 
     let deposit_required = state::deposit_required(deps.storage)?;
     let denom = deposit_required.denom.clone();
@@ -104,16 +145,29 @@ pub fn register(
         .map_err(|err| NameServiceError::DepositRequired { source: err })?;
     ensure_correct_deposit(will_deposit, deposit_required.amount)?;
 
+    let deposit = Coin::new(will_deposit.u128(), denom);
+
+    verify_register_signature(
+        deps.as_ref(),
+        info.sender.clone(),
+        deposit.clone(),
+        name.clone(),
+        owner_signature,
+    )?;
+
+    state::increment_signing_nonce(deps.storage, info.sender.clone())?;
+
+    let id = state::next_name_id_counter(deps.storage)?;
     let new_name = RegisteredName {
-        address,
+        id,
         name,
         owner: info.sender,
         block_height: env.block.height,
-        deposit: Coin::new(will_deposit.u128(), denom),
+        deposit,
     };
-    let name_id = state::names::save(deps.storage, &new_name)?;
+    state::names::save(deps.storage, &new_name)?;
 
-    Ok(Response::new().add_event(new_register_event(name_id, new_name)))
+    Ok(Response::new().add_event(new_register_event(new_name)))
 }
 
 /// Delete an exsisting name.
@@ -127,23 +181,20 @@ pub fn delete_id(deps: DepsMut, info: MessageInfo, name_id: NameId) -> Result<Re
 
     Ok(Response::new()
         .add_message(return_deposit_msg)
-        .add_event(new_delete_id_event(name_id, name_to_delete)))
+        .add_event(new_delete_id_event(name_to_delete)))
 }
 
 /// Delete an existing name by name.
 pub(crate) fn delete_name(deps: DepsMut, info: MessageInfo, name: NymName) -> Result<Response> {
     let name_to_delete = query::query_name(deps.as_ref(), name)?;
-    ensure_sender_authorized(info, &name_to_delete.name)?;
+    ensure_sender_authorized(info, &name_to_delete)?;
 
-    state::names::remove_id(deps.storage, name_to_delete.name_id)?;
-    let return_deposit_msg = return_deposit(&name_to_delete.name);
+    state::names::remove_id(deps.storage, name_to_delete.id)?;
+    let return_deposit_msg = return_deposit(&name_to_delete);
 
     Ok(Response::new()
         .add_message(return_deposit_msg)
-        .add_event(new_delete_name_event(
-            name_to_delete.name_id,
-            name_to_delete.name,
-        )))
+        .add_event(new_delete_name_event(name_to_delete)))
 }
 
 /// Update the deposit required to register new names

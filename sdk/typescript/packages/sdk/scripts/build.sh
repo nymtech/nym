@@ -7,7 +7,7 @@ set -o pipefail
 rm -rf dist || true
 
 #-------------------------------------------------------
-# WEB WORKER
+# WEB WORKER (WASM client)
 #-------------------------------------------------------
 # The web worker needs to be bundled because the WASM bundle needs to be loaded synchronously and all dependencies
 # must be included in the worker script (because it is not loaded as an ES Module)
@@ -18,6 +18,19 @@ rollup -c rollup-worker.config.mjs
 # move it next to the Typescript `mixnet/wasm/index.ts` so it can be inlined by rollup
 rm -f src/mixnet/wasm/worker.js
 mv dist/worker.js src/mixnet/wasm/worker.js
+
+#-------------------------------------------------------
+# WEB WORKER (Node tester)
+#-------------------------------------------------------
+# The web worker needs to be bundled because the WASM bundle needs to be loaded synchronously and all dependencies
+# must be included in the worker script (because it is not loaded as an ES Module)
+
+# build the worker
+rollup -c rollup-node-tester-worker.config.mjs
+
+# move it next to the Typescript `mixnet/node-tester/index.ts` so it can be inlined by rollup
+rm -f src/mixnet/node-tester/worker.js
+mv dist/worker.js src/mixnet/node-tester/worker.js
 
 #-------------------------------------------------------
 # ESM

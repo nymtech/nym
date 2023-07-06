@@ -16,7 +16,7 @@ jobs:
     - uses: rlespinasse/github-slug-action@v3.x
     - uses: actions/setup-node@v3
       with:
-        node-version: 16
+        node-version: 18
     - name: Setup yarn
       run: npm install -g yarn
     - name: Install Rust stable
@@ -24,11 +24,7 @@ jobs:
       with:
         toolchain: stable
     - name: Install wasm-pack
-      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      working-directory: clients/webassembly
-    - name: Build WASM
-      run: wasm-pack build
-      working-directory: clients/webassembly
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh      
     - name: Build dependencies
       run: yarn && yarn build
     - name: Build storybook

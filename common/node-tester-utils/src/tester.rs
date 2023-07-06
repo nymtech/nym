@@ -154,7 +154,7 @@ where
         T: Serialize + Clone,
     {
         let Some(node) = self.base_topology.find_mix(mix_id) else {
-            return Err(NetworkTestingError::NonExistentMixnode {mix_id})
+            return Err(NetworkTestingError::NonExistentMixnode { mix_id });
         };
 
         self.mixnode_test_packets(&node.clone(), msg_ext, test_packets, custom_recipient)
@@ -170,8 +170,13 @@ where
     where
         T: Serialize + Clone,
     {
-        let Some(node) = self.base_topology.find_mix_by_identity(&encoded_mix_identity) else {
-            return Err(NetworkTestingError::NonExistentMixnodeIdentity { mix_identity: encoded_mix_identity })
+        let Some(node) = self
+            .base_topology
+            .find_mix_by_identity(&encoded_mix_identity)
+        else {
+            return Err(NetworkTestingError::NonExistentMixnodeIdentity {
+                mix_identity: encoded_mix_identity,
+            });
         };
 
         self.mixnode_test_packets(&node.clone(), msg_ext, test_packets, custom_recipient)
@@ -212,7 +217,9 @@ where
         T: Serialize + Clone,
     {
         let Some(node) = self.base_topology.find_gateway(&encoded_gateway_identity) else {
-            return Err(NetworkTestingError::NonExistentGateway { gateway_identity: encoded_gateway_identity })
+            return Err(NetworkTestingError::NonExistentGateway {
+                gateway_identity: encoded_gateway_identity,
+            });
         };
 
         self.gateway_test_packets(&node.clone(), msg_ext, test_packets, custom_recipient)

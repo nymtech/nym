@@ -1,24 +1,48 @@
 use std::fmt::{Display, Formatter};
 
 use cosmwasm_std::{Addr, Coin};
+use nym_contracts_common::IdentityKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// The directory of services are indexed by [`ServiceId`].
+/// The directory of names are indexed by [`NameId`].
 pub type NameId = u32;
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
 pub struct RegisteredName {
+    /// Unique id assigned to the registerd name.
+    pub id: NameId,
+
+    /// The registerd name details.
+    pub name: NameDetails,
+
+    /// name owner.
+    pub owner: Addr,
+
+    /// Block height at which the name was added.
+    pub block_height: u64,
+
+    /// The deposit used to announce the name.
+    pub deposit: Coin,
+}
+
+impl RegisteredName {
+    // Shortcut for getting the actual name
+    pub fn entry(&self) -> &NymName {
+        &self.name.name
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
+pub struct NameDetails {
     /// The name pointing to the nym address
     pub name: NymName,
-    /// The address of the service.
+
+    /// The address of the name alias.
     pub address: Address,
-    /// Service owner.
-    pub owner: Addr,
-    /// Block height at which the service was added.
-    pub block_height: u64,
-    /// The deposit used to announce the service.
-    pub deposit: Coin,
+
+    /// The identity key of the registered name.
+    pub identity_key: IdentityKey,
 }
 
 /// String representation of a nym address, which is of the form
@@ -68,6 +92,7 @@ pub enum NymNameError {
     InvalidName,
 }
 
+/// Defines what names are allowed
 fn is_valid_name_char(c: char) -> bool {
     // Normal lowercase letters
     (c.is_alphabetic() && c.is_lowercase())
@@ -95,20 +120,6 @@ impl NymName {
 impl Display for NymName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
-    }
-}
-
-/// [`RegisterdName`] together with the assigned [`NameId`].
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct NameEntry {
-    pub name_id: NameId,
-    pub name: RegisteredName,
-}
-
-impl NameEntry {
-    pub fn new(name_id: NameId, name: RegisteredName) -> Self {
-        Self { name_id, name }
     }
 }
 

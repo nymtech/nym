@@ -13,7 +13,7 @@ The platform is composed of multiple Rust crates. Top-level executable binary cr
 * nym-gateway - acts sort of like a mailbox for mixnet messages, which removes the need for direct delivery to potentially offline or firewalled devices.
 * nym-network-monitor - sends packets through the full system to check that they are working as expected, and stores node uptime histories as the basis of a rewards system ("mixmining" or "proof-of-mixing").
 * nym-explorer - a (projected) block explorer and (existing) mixnet viewer.
-* nym-wallet - a desktop wallet implemented using the [Tauri](https://tauri.studio/en/docs/about/intro) framework. 
+* nym-wallet - a desktop wallet implemented using the [Tauri](https://tauri.studio/en/docs/about/intro) framework.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/nymtech/nym/build.yml?branch=develop&style=for-the-badge&logo=github-actions)](https://github.com/nymtech/nym/actions?query=branch%3Adevelop)
@@ -21,7 +21,7 @@ The platform is composed of multiple Rust crates. Top-level executable binary cr
 
 ### Building
 
-Platform build instructions are available on [our docs site](https://nymtech.net/docs/binaries/build-nym.html).
+Platform build instructions are available on [our docs site](https://nymtech.net/docs/binaries/pre-built-binaries.html).
 Wallet build instructions are also available on [our docs site](https://nymtech.net/docs/wallet/desktop-wallet.html).
 
 ### Developing
@@ -32,9 +32,9 @@ For Typescript components, please see [ts-packages](./ts-packages).
 
 ### Developer chat
 
-> We used to use Keybase for developer chats, but we have since migrated to Matrix and Discord. We no longer check the old **nymtech.friends** Keybase team. 
+> We used to use Keybase for developer chats, but we have since migrated to Matrix and Discord. We no longer check the old **nymtech.friends** Keybase team.
 
-You can chat to us in two places: 
+You can chat to us in two places:
 * The #dev channel on [Matrix](https://matrix.to/#/#dev:nymtech.chat)
 * The various developer channels on [Discord](https://discord.gg/nym)
 
@@ -84,4 +84,3 @@ where `s'` is stake `s` scaled over total token circulating supply.
 ### Licensing and copyright information
 
 This program is available as open source under the terms of the Apache 2.0 license. However, some elements are being licensed under CC0-1.0 and MIT. For accurate information, please check individual files.
-

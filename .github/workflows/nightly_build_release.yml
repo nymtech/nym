@@ -167,7 +167,7 @@ jobs:
         uses: actions/setup-node@v3
         if: env.WORKFLOW_CONCLUSION == 'failure'
         with:
-          node-version: 16
+          node-version: 18
       - name: Matrix - Node Install
         if: env.WORKFLOW_CONCLUSION == 'failure'
         run: npm install

@@ -16,7 +16,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tokio::time::sleep;
 use tokio_util::codec::Encoder;
@@ -66,6 +66,7 @@ pub struct Client {
 struct ConnectionSender {
     channel: mpsc::Sender<FramedNymPacket>,
     current_reconnection_attempt: Arc<AtomicU32>,
+    last_used: Instant,
 }
 
 impl ConnectionSender {
@@ -73,6 +74,7 @@ impl ConnectionSender {
         ConnectionSender {
             channel,
             current_reconnection_attempt: Arc::new(AtomicU32::new(0)),
+            last_used: Instant::now(),
         }
     }
 }
@@ -141,8 +143,7 @@ impl Client {
                         Ok(send_stream) => send_stream,
                         Err(err) => {
                             error!("Failed to open uni stream, dropping packet - {err:?}");
-                            return; //TODO this can timeout, if we haven't sent a packet in a while. We need to recreate the connection
-                                    //TODO fix this
+                            return; //We shouldn't get a time out here, it should be handled higher
                         }
                     };
 
@@ -233,36 +234,54 @@ impl SendWithoutResponse for Client {
             FramedNymPacket::new(packet, packet_type, self.config.use_legacy_version);
 
         if let Some(sender) = self.conn_new.get_mut(&address) {
-            if let Err(err) = sender.channel.try_send(framed_packet) {
-                if err.is_full() {
-                    debug!("Connection to {} seems to not be able to handle all the traffic - dropping the current packet", address);
-                    // it's not a 'big' error, but we did not manage to send the packet
-                    // if the queue is full, we can't really do anything but to drop the packet
-                    Err(io::Error::new(
-                        io::ErrorKind::WouldBlock,
-                        "connection queue is full",
-                    ))
-                } else if err.is_disconnected() {
-                    debug!(
-                        "Connection to {} seems to be dead. attempting to re-establish it...",
-                        address
-                    );
-                    // it's not a 'big' error, but we did not manage to send the packet, but queue
-                    // it up to send it as soon as the connection is re-established
-                    self.make_connection(address, err.into_inner());
-                    Err(io::Error::new(
-                        io::ErrorKind::ConnectionAborted,
-                        "reconnection attempt is in progress",
-                    ))
-                } else {
-                    // this can't really happen, but let's safe-guard against it in case something changes in futures library
-                    Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        "unknown connection buffer error",
-                    ))
+            if sender.last_used.elapsed().as_millis() > 9_000 {
+                // default timeout is 10sec, let's take some margin for the operation to run.
+                //connection is near timeout, let's just recreate one
+                if let Some(outdated_sender) = self.conn_new.remove(&address) {
+                    drop(outdated_sender);
                 }
+                debug!(
+                    "connection near or past timemout. Reconnecting to {}",
+                    address
+                );
+                self.make_connection(address, framed_packet);
+                Err(io::Error::new(
+                    io::ErrorKind::NotConnected,
+                    "re-connection is in progress",
+                ))
             } else {
-                Ok(())
+                sender.last_used = Instant::now();
+                if let Err(err) = sender.channel.try_send(framed_packet) {
+                    if err.is_full() {
+                        debug!("Connection to {} seems to not be able to handle all the traffic - dropping the current packet", address);
+                        // it's not a 'big' error, but we did not manage to send the packet
+                        // if the queue is full, we can't really do anything but to drop the packet
+                        Err(io::Error::new(
+                            io::ErrorKind::WouldBlock,
+                            "connection queue is full",
+                        ))
+                    } else if err.is_disconnected() {
+                        debug!(
+                            "Connection to {} seems to be dead. attempting to re-establish it...",
+                            address
+                        );
+                        // it's not a 'big' error, but we did not manage to send the packet, but queue
+                        // it up to send it as soon as the connection is re-established
+                        self.make_connection(address, err.into_inner());
+                        Err(io::Error::new(
+                            io::ErrorKind::ConnectionAborted,
+                            "reconnection attempt is in progress",
+                        ))
+                    } else {
+                        // this can't really happen, but let's safe-guard against it in case something changes in futures library
+                        Err(io::Error::new(
+                            io::ErrorKind::Other,
+                            "unknown connection buffer error",
+                        ))
+                    }
+                } else {
+                    Ok(())
+                }
             }
         } else {
             // there was never a connection to begin with

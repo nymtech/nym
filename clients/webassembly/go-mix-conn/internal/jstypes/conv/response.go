@@ -271,7 +271,7 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 // IntoJSResponse is a reverse of https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
 // https://developer.mozilla.org/en-US/docs/Web/API/response
 /*
-	Request attributes and their implementation status:
+	Response attributes and their implementation status:
 	[✅] - supported
 	[⚠️] - partially supported (some features might be missing)
 	[❌] - unsupported
@@ -282,7 +282,7 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 	[✅] headers
 	[✅] ok 			- seems to be handled automagically (presumably via `status`)
 	[✅] redirected		- has to be proxied
-	[✅] status
+	[✅] status			- has to be proxied when status == 0
 	[✅] statusText
 	[✅] type		    - has to be proxied
 	[⚠️] url			- not sure if every case is covered

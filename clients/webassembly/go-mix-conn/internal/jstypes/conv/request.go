@@ -56,11 +56,11 @@ type ParsedRequest struct {
 	[❌] destination
 	[⚠️] headers		- not all headers are properly respected
 	[❌] integrity
-	[✅] Method
-	[✅] Mode
-	[⚠️] Redirect		- "manual" is not implemented
-	[❌] Referrer
-	[❌] ReferrerPolicy
+	[✅] method
+	[✅] mode
+	[✅️] redirect
+	[❌] referrer
+	[❌] referrerPolicy
 	[✅] signal
 	[✅] url
 */

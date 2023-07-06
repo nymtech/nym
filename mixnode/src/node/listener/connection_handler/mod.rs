@@ -94,7 +94,7 @@ impl ConnectionHandler {
                         Ok(recv_stream) => recv_stream,
                         Err(err) => {
                             error!("Error accepting uni stream - {err:?}");
-                            continue;
+                            break;
                         }
                     };
 

@@ -188,7 +188,7 @@ impl<St: Storage> ConnectionHandler<St> {
                         Ok(recv_stream) => recv_stream,
                         Err(err) => {
                             warn!("Error accepting uni stream - {err:?}");
-                            continue;
+                            break;
                         }
                     };
                     if let Ok(read_data) = recv_stream.read_to_end(PacketSize::ExtendedPacket32.size()).await {

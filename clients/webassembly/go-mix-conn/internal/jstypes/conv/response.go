@@ -83,7 +83,7 @@ func (IR *InternalResponse) exposeHeadersNames() []string {
 
 // Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-cors
 func (IR *InternalResponse) mutIntoBasicResponse() {
-	IR.responseType = jstypes.RESPONSE_TYPE_BASIC
+	IR.responseType = jstypes.ResponseTypeBasic
 
 	newHeaders := http.Header{}
 	for key, values := range IR.inner.Header {
@@ -99,7 +99,7 @@ func (IR *InternalResponse) mutIntoBasicResponse() {
 
 // Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-cors
 func (IR *InternalResponse) mutIntoCORSResponse() {
-	IR.responseType = jstypes.RESPONSE_TYPE_CORS
+	IR.responseType = jstypes.ResponseTypeCors
 
 	// TODO: figure out the proper usage of corsExposedHeaderName
 
@@ -126,7 +126,7 @@ func (IR *InternalResponse) mutIntoCORSResponse() {
 
 // Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-opaque
 func (IR *InternalResponse) mutIntoOpaqueResponse() {
-	IR.responseType = jstypes.RESPONSE_TYPE_OPAQUE
+	IR.responseType = jstypes.ResponseTypeOpaque
 
 	// TODO: set URL list to « »
 	IR.inner.StatusCode = 0
@@ -137,7 +137,7 @@ func (IR *InternalResponse) mutIntoOpaqueResponse() {
 
 // Reference: https://fetch.spec.whatwg.org/#concept-filtered-response-cors
 func (IR *InternalResponse) mutIntoOpaqueRedirectResponse() {
-	IR.responseType = jstypes.RESPONSE_TYPE_OPAQUE_REDIRECT
+	IR.responseType = jstypes.ResponseTypeOpaqueRedirect
 
 	IR.inner.StatusCode = 0
 	IR.inner.Status = ""
@@ -147,7 +147,7 @@ func (IR *InternalResponse) mutIntoOpaqueRedirectResponse() {
 
 // OUTSIDE FETCH SPEC
 func (IR *InternalResponse) mutIntoUnsafeIgnoreCorsResponse() {
-	IR.responseType = jstypes.RESPONSE_TYPE_UNSAFE_IGNORE_CORS
+	IR.responseType = jstypes.ResponseTypeUnsafeIgnoreCors
 }
 
 func proxyHandlerGet(proxied map[string]any) js.Func {
@@ -269,10 +269,10 @@ func IntoJSResponse(resp *http.Response, opts *types.RequestOptions) (js.Value, 
 	// 4.1.14
 	if !isFilteredResponse {
 		// 4.1.14.1
-		if opts.ResponseTainting == jstypes.RESPONSE_TAINTING_CORS {
+		if opts.ResponseTainting == jstypes.ResponseTaintingCors {
 			//  4.1.14.1.1
 			headerNames := internalResponse.exposeHeadersNames()
-			if opts.CredentialsMode != jstypes.CREDENTIALS_MODE_INCLUDE && helpers.Contains(headerNames, jstypes.Wildcard) {
+			if opts.CredentialsMode != jstypes.CredentialsModeInclude && helpers.Contains(headerNames, jstypes.Wildcard) {
 				//  4.1.14.1.2
 				internalResponse.corsExposedHeaderName = helpers.Unique(internalResponse.allHeaderNames())
 			} else if len(headerNames) > 0 {
@@ -281,13 +281,13 @@ func IntoJSResponse(resp *http.Response, opts *types.RequestOptions) (js.Value, 
 			}
 		}
 		switch opts.ResponseTainting {
-		case jstypes.RESPONSE_TAINTING_BASIC:
+		case jstypes.ResponseTaintingBasic:
 			internalResponse.mutIntoBasicResponse()
-		case jstypes.RESPONSE_TAINTING_CORS:
+		case jstypes.ResponseTaintingCors:
 			internalResponse.mutIntoCORSResponse()
-		case jstypes.RESPONSE_TAINTING_OPAQUE:
+		case jstypes.ResponseTaintingOpaque:
 			internalResponse.mutIntoOpaqueResponse()
-		case jstypes.RESPONSE_TAINTING_UNSAFE_IGNORE_CORS:
+		case jstypes.ResponseTaintingUnsafeIgnoreCors:
 			internalResponse.mutIntoUnsafeIgnoreCorsResponse()
 		default:
 			panic("unreachable")

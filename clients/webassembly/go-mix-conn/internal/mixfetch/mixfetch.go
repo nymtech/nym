@@ -57,7 +57,6 @@ func checkRedirect(ctx *types.RequestContext, opts *types.RequestOptions, req *h
 		if opts.Mode == jstypes.ModeNavigate {
 			return errors.New("unimplemented 'navigate' + 'manual' redirection")
 		}
-		log.Error("unimplemented '%s' redirect", opts.Redirect)
 		ctx.OverwrittenResponseType = jstypes.ResponseTypeOpaqueRedirect
 		return http.ErrUseLastResponse
 	case jstypes.RequestRedirectFollow:
@@ -181,10 +180,10 @@ func dialTLSContext(_ctx context.Context, opts *types.RequestOptions, _network, 
 	return conn, nil
 }
 
-func buildHttpClient(ctx *types.RequestContext, opts *types.RequestOptions) *http.Client {
+func buildHttpClient(reqCtx *types.RequestContext, opts *types.RequestOptions) *http.Client {
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return checkRedirect(ctx, opts, req, via)
+			return checkRedirect(reqCtx, opts, req, via)
 		},
 
 		Transport: &http.Transport{
@@ -268,9 +267,9 @@ func performRequest(req *conv.ParsedRequest) (*conv.ResponseWrapper, error) {
 		return nil, err
 	}
 
-	ctx := &types.RequestContext{}
+	reqCtx := &types.RequestContext{}
 
-	reqClient := buildHttpClient(ctx, req.Options)
+	reqClient := buildHttpClient(reqCtx, req.Options)
 
 	if req.Options.ReferrerPolicy == "" {
 		// 4.1.8
@@ -306,7 +305,7 @@ func performRequest(req *conv.ParsedRequest) (*conv.ResponseWrapper, error) {
 	}
 	// TODO: policy checks, etc...
 
-	wrapper := conv.NewResponseWrapper(resp, ctx)
+	wrapper := conv.NewResponseWrapper(resp, reqCtx)
 
 	return &wrapper, err
 }
@@ -353,7 +352,7 @@ func MixFetch(request *conv.ParsedRequest) (any, error) {
 	select {
 	case res := <-resCh:
 		log.Debug("finished performing the request")
-		log.Trace("response: %v", *res)
+		log.Trace("response: %+v", *res)
 		return conv.IntoJSResponse(res, request.Options)
 	case err := <-errCh:
 		log.Warn("request failure: %s", err)

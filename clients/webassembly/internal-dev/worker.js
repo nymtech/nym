@@ -358,8 +358,18 @@ async function testMixFetch() {
                     // ignore the field naming : ) I'm just abusing that a bit...
                     const {mixnodeIdentity} = event.data.args;
                     const url = mixnodeIdentity;
-                    const args = { mode: "cors", redirect: "manual" }
+
+                    const controller = new AbortController();
+                    const signal = controller.signal;
+
+                    const args = { mode: "cors", redirect: "manual", signal }
                     // const args = { mode: "unsafe-ignore-cors" }
+
+                    setTimeout(() => {
+                        console.warn("timeout")
+                        controller.abort()
+                    }, 1000)
+
 
                     try {
                         console.log('using mixFetch...');
@@ -370,14 +380,14 @@ async function testMixFetch() {
                         console.error("mix fetch request failure: ", e)
                     }
 
-                    try {
-                        console.log('using normal Fetch...');
-                        const fetchRes = await fetch(url, args)
-                        console.log(">>> NORMAL FETCH")
-                        await logFetchResult(fetchRes)
-                    } catch(e) {
-                        console.error("fetch request failure: ", e)
-                    }
+                    // try {
+                    //     console.log('using normal Fetch...');
+                    //     const fetchRes = await fetch(url, args)
+                    //     console.log(">>> NORMAL FETCH")
+                    //     await logFetchResult(fetchRes)
+                    // } catch(e) {
+                    //     console.error("fetch request failure: ", e)
+                    // }
                 }
             }
         }

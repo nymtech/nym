@@ -180,7 +180,7 @@ impl<T> TransmissionBuffer<T> {
 
         while items.len() < n {
             let Some(next) = self.pop_next_message_at_random(rng) else {
-               break
+                break;
             };
             items.push(next)
         }

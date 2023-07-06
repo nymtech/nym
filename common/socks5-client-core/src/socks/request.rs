@@ -107,7 +107,7 @@ impl SocksRequest {
         // ATYP
         let Some(addr_type) = AddrType::from(packet[3] as usize) else {
             error!("No Addr");
-            return Err(ResponseCodeV5::AddrTypeNotSupported.into())
+            return Err(ResponseCodeV5::AddrTypeNotSupported.into());
         };
 
         // DST.ADDR

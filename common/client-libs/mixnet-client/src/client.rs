@@ -132,7 +132,7 @@ impl Client {
             let pkt = match receiver.next().await {
                 Some(pkt) => pkt,
                 None => {
-                    info!("No more packet to send");
+                    debug!("No more packet to send to {}", address);
                     return;
                 }
             };
@@ -237,9 +237,8 @@ impl SendWithoutResponse for Client {
             if sender.last_used.elapsed().as_millis() > 9_000 {
                 // default timeout is 10sec, let's take some margin for the operation to run.
                 //connection is near timeout, let's just recreate one
-                if let Some(outdated_sender) = self.conn_new.remove(&address) {
-                    drop(outdated_sender);
-                }
+                sender.channel.close_channel();
+                self.conn_new.remove(&address);
                 debug!(
                     "connection near or past timemout. Reconnecting to {}",
                     address

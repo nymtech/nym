@@ -1,8 +1,9 @@
 use clap::{ Parser, Subcommand, Args};
-use nym_sdk::mixnet::Recipient;
+use nym_sdk::mixnet::{Recipient, MixnetClient};
 use nym_validator_client::nyxd::AccountId;
 mod commands; 
 use nym_bin_common::logging::setup_logging;
+// use nym_sdk::mixnet;
 
 #[derive(Debug, Parser)]
 #[clap(name = "nym cosmos tx signer ")]
@@ -35,6 +36,8 @@ struct OfflineSignTx {
     mnemonic: bip39::Mnemonic, 
     /// recipient nyx chain address
     to: AccountId 
+    // / nym client connection 
+    // nym_client: MixnetClient
 }
 
 #[derive(Debug, Args)]
@@ -49,7 +52,7 @@ struct SendTx {
 async fn main() {
     setup_logging();
     let cli = Cli::parse();
-
+    // TODO look @ arg env setup from NR main.rs 
     // TODO take from args 
     let sp_address = Recipient::try_from_base58_string("6e5KeP3Ks6iA3832K2MvCvQJb9zF3HMHwY8XjLhwAGGt.ZCH8YTky6GkApmra3EGbfgQk2VwdPaRH8R1wUfAnv3Q@BNjYZPxzcJwczXHHgBxCAyVJKxN6LPteDRrKapxWmexv").unwrap(); 
     

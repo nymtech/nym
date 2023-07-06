@@ -27,10 +27,16 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> String {
     // possibly remote client that doesn't do ANY signing
     // (only broadcasts + queries for sequence numbers)
     let broadcaster = HttpClient::new(validator).unwrap();
-
+ 
+/////////////// to go on server side: need client from main passed as arg to send w sdk!!  
+    // get sequence information and chain ID from the service 
+    // add sdk, send req for sequence 
     // get signer information
     let sequence_response = broadcaster.get_sequence(&signer_address).await.unwrap();
     let chain_id = broadcaster.get_chain_id().await.unwrap();
+///////////////
+ 
+    // use the response to create SignerData instance 
     let signer_data = SignerData::new_from_sequence_response(sequence_response, chain_id);
 
     // create (and sign) the send message
@@ -66,17 +72,10 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId) -> String {
 
 }
 
-pub async fn send_tx(base58_tx: String, sp_address: Recipient) -> Option<Vec<mixnet::ReconstructedMessage>> /*String*/ {
-    // TODO move to its own function and pass created client as arg 
-    let config_dir = std::path::PathBuf::from("/tmp/mixnet-client");
-    let storage_paths = mixnet::StoragePaths::new_from_dir(&config_dir).unwrap();
-    let client = mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)
-        .await
-        .unwrap()
-        .build()
-        .await
-        .unwrap();
-    let mut client = client.connect_to_mixnet().await.unwrap();
+pub async fn send_tx(base58_tx: String, sp_address: Recipient) -> Option<Vec<mixnet::ReconstructedMessage>> {
+
+    // TODO pass created client as arg frm main instead 
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 

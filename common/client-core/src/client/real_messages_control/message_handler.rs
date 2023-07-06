@@ -224,7 +224,7 @@ where
         // if secondary packet was never set, then it's obvious we have to use the primary packet
         let Some(secondary_packet) = self.config.secondary_packet_size else {
             trace!("only primary packet size is available");
-            return self.config.primary_packet_size
+            return self.config.primary_packet_size;
         };
 
         let primary_count =

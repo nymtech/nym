@@ -153,7 +153,7 @@ impl LoopCoverTrafficStream<OsRng> {
 
     fn loop_cover_message_size(&mut self) -> PacketSize {
         let Some(secondary_packet_size) = self.secondary_packet_size else {
-            return self.primary_packet_size
+            return self.primary_packet_size;
         };
 
         let use_primary = self

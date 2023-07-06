@@ -117,10 +117,11 @@ impl Handler {
         let Ok(base_length) = self
             .lane_queue_lengths
             .lock()
-            .map(|guard| guard.get(&conn_lane).unwrap_or_default()) else {
+            .map(|guard| guard.get(&conn_lane).unwrap_or_default())
+        else {
             // I'd argue we should panic here as this error it not recoverable
             error!("The lane queue length lock is poisoned!!");
-            return None
+            return None;
         };
 
         // get the number of pending replies waiting for reply surbs
@@ -174,7 +175,7 @@ impl Handler {
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
         let TransmissionLane::ConnectionId(connection_id) = lane else {
-          return None
+            return None;
         };
 
         self.get_lane_queue_length(connection_id).await
@@ -206,7 +207,7 @@ impl Handler {
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
         let TransmissionLane::ConnectionId(connection_id) = lane else {
-          return None
+            return None;
         };
 
         self.get_lane_queue_length(connection_id).await
@@ -233,7 +234,7 @@ impl Handler {
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
         let TransmissionLane::ConnectionId(connection_id) = lane else {
-          return None
+            return None;
         };
 
         self.get_lane_queue_length(connection_id).await

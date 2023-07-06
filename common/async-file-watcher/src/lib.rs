@@ -101,7 +101,7 @@ impl AsyncFileWatcher {
         }
 
         let Some(filters) = &self.filters else {
-            return true
+            return true;
         };
 
         for filter in filters {

@@ -26,6 +26,9 @@ mod old_config_v1_1_20_2;
 mod persistence;
 mod template;
 mod upgrade;
+mod user_data;
+
+pub use user_data::UserData;
 
 static SOCKS5_CONFIG_ID: &str = "nym-connect";
 

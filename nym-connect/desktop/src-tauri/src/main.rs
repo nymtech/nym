@@ -9,6 +9,7 @@ use nym_config::defaults::setup_env;
 use tauri::Manager;
 use tokio::sync::RwLock;
 
+use crate::config::UserData;
 use crate::menu::{create_tray_menu, tray_menu_event_handler};
 use crate::state::{is_medium_enabled, State};
 use crate::window::window_toggle;
@@ -23,6 +24,9 @@ mod operations;
 mod state;
 mod tasks;
 mod window;
+
+const SENTRY_DSN: &str =
+    "https://68a2c55113ed47aaa30b9899039b0799@o967446.ingest.sentry.io/4505483113594880";
 
 fn main() {
     if is_medium_enabled() {
@@ -40,13 +44,44 @@ fn main() {
         log::warn!("Failed to fix PATH: {error}");
     }
 
+    let user_data = UserData::read().unwrap_or_else(|e| {
+        println!("{}", e);
+        println!("Fallback to default");
+        UserData::default()
+    });
+
+    if let Some(v) = user_data.monitoring {
+        if v {
+            println!("monitoring and error reporting enabled");
+            let _guard = sentry::init((
+                SENTRY_DSN,
+                sentry::ClientOptions {
+                    release: sentry::release_name!(),
+                    sample_rate: 1.0, // TODO lower this in prod
+                    traces_sample_rate: 1.0,
+                    ..Default::default() // TODO add data scrubbing
+                                         // see https://docs.sentry.io/platforms/rust/data-management/sensitive-data/
+                },
+            ));
+
+            sentry::configure_scope(|scope| {
+                scope.set_user(Some(sentry::User {
+                    id: Some("nym".into()),
+                    ..Default::default()
+                }));
+            });
+        }
+    }
+
     let context = tauri::generate_context!();
     tauri::Builder::default()
-        .manage(Arc::new(RwLock::new(State::new())))
+        .manage(Arc::new(RwLock::new(State::new(user_data))))
         .invoke_handler(tauri::generate_handler![
             crate::operations::config::get_config_file_location,
             crate::operations::config::get_config_id,
             crate::operations::common::get_env,
+            crate::operations::common::get_user_data,
+            crate::operations::common::set_monitoring,
             crate::operations::connection::connect::get_gateway,
             crate::operations::connection::connect::get_service_provider,
             crate::operations::connection::connect::set_gateway,

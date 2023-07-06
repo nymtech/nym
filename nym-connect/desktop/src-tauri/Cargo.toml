@@ -43,7 +43,9 @@ time = { version = "0.3.17", features = ["local-offset"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
 url = "2.2"
 yaml-rust = "0.4"
-
+toml = "0.7"
+sentry = { version = "0.31.5", features = [ "anyhow" ] }
+sentry-log = "0.31.5"
 
 nym-client-core = { path = "../../../common/client-core" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }

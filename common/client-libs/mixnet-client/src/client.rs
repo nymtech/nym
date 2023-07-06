@@ -140,7 +140,7 @@ impl Client {
                     let mut send = match conn.open_uni().await {
                         Ok(send_stream) => send_stream,
                         Err(err) => {
-                            error!("Failed to open uni stream, dropping packet - ");
+                            error!("Failed to open uni stream, dropping packet - {err:?}");
                             return; //TODO this can timeout, if we haven't sent a packet in a while. We need to recreate the connection
                                     //TODO fix this
                         }

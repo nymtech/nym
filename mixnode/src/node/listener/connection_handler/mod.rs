@@ -13,7 +13,7 @@ use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::Delay as SphinxDelay;
-use quinn::Connection;
+use quinn::{Connection, ConnectionError};
 use tokio::time::Instant;
 use tokio_util::codec::Decoder;
 
@@ -93,9 +93,18 @@ impl ConnectionHandler {
                     let mut recv_stream = match recv {
                         Ok(recv_stream) => recv_stream,
                         Err(err) => {
-                            error!("Error accepting uni stream - {err:?}");
-                            break;
+                            match err {
+                                ConnectionError::TimedOut => {
+                                    //normal timeout, we just need to drop the connection
+                                    break;
+                                },
+                                _ => {
+                                    error!("Error accepting uni stream - {err:?}");
+                                    break;
+                                },
+                            }
                         }
+
                     };
 
                     if let Ok(read_data) = recv_stream.read_to_end(PacketSize::ExtendedPacket32.size()).await {
@@ -119,7 +128,7 @@ impl ConnectionHandler {
             }
         }
 
-        info!("Closing connection");
+        info!("Closing connection from {:?}", conn.remote_address());
         log::trace!("ConnectionHandler: Exiting");
     }
 }

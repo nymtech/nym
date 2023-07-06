@@ -16,7 +16,7 @@ use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
-use quinn::Connection;
+use quinn::{Connection, ConnectionError};
 use std::collections::HashMap;
 use tokio_util::codec::Decoder;
 
@@ -187,9 +187,18 @@ impl<St: Storage> ConnectionHandler<St> {
                     let mut recv_stream = match recv {
                         Ok(recv_stream) => recv_stream,
                         Err(err) => {
-                            warn!("Error accepting uni stream - {err:?}");
-                            break;
+                            match err {
+                                ConnectionError::TimedOut => {
+                                    //normal timeout, we just need to drop the connection
+                                    break;
+                                },
+                                _ => {
+                                    error!("Error accepting uni stream - {err:?}");
+                                    break;
+                                },
+                            }
                         }
+
                     };
                     if let Ok(read_data) = recv_stream.read_to_end(PacketSize::ExtendedPacket32.size()).await {
 
@@ -213,6 +222,6 @@ impl<St: Storage> ConnectionHandler<St> {
             }
         }
 
-        info!("Closing connection from");
+        info!("Closing connection from {:?}", conn.remote_address());
     }
 }

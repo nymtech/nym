@@ -16,6 +16,15 @@ import (
 	"syscall/js"
 )
 
+const (
+	fieldResponseStatus     = "status"
+	fieldResponseStatusText = "statusText"
+	fieldResponseRedirected = "redirected"
+	fieldResponseType       = "type"
+	fieldResponseHeaders    = "headers"
+	fieldResponseUrl        = "url"
+)
+
 type ResponseWrapper struct {
 	inner *http.Response
 	ctx   *types.RequestContext
@@ -210,7 +219,7 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 
 	// Create a Response object and pass the data
 	// inspired by https://github.com/golang/go/blob/release-branch.go1.21/src/net/http/roundtrip_js.go#L91
-	headers := js.Global().Get("Headers").New()
+	headers := jstypes.Headers.New()
 	for key, values := range IR.inner.Header {
 		for _, value := range values {
 			headers.Call("append", key, value)
@@ -218,42 +227,42 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 	}
 
 	responseOptions := jstypes.Object.New()
-	responseOptions.Set("status", IR.inner.StatusCode)
-	responseOptions.Set("statusText", http.StatusText(IR.inner.StatusCode))
-	responseOptions.Set("headers", headers)
+	responseOptions.Set(fieldResponseStatus, IR.inner.StatusCode)
+	responseOptions.Set(fieldResponseStatusText, http.StatusText(IR.inner.StatusCode))
+	responseOptions.Set(fieldResponseHeaders, headers)
 
 	proxied := make(map[string]any)
 
 	if IR.responseType != "" {
-		proxied["type"] = IR.responseType
+		proxied[fieldResponseType] = IR.responseType
 	}
 
 	// can't call the constructor properly if the value is outside the "legal" range (i.e. [200, 599])
 	// (even though the fetch spec requires something different...)
 	if IR.inner.StatusCode == 0 {
-		responseOptions.Set("status", 418)
-		proxied["status"] = IR.inner.StatusCode
+		responseOptions.Set(fieldResponseStatus, 418)
+		proxied[fieldResponseStatus] = IR.inner.StatusCode
 	}
 
 	if len(IR.urlList) > 0 {
 		// "The value of the url property will be the final URL obtained after any redirects."
 		// source: https://developer.mozilla.org/en-US/docs/Web/API/Response/url
 		last := IR.urlList[len(IR.urlList)-1]
-		proxied["url"] = last.String()
+		proxied[fieldResponseUrl] = last.String()
 	}
 
 	if IR.wasRedirected {
-		proxied["redirected"] = IR.wasRedirected
+		proxied[fieldResponseRedirected] = IR.wasRedirected
 	}
 
-	responseConstructor := js.Global().Get("Response")
+	responseConstructor := jstypes.Response
 	response := responseConstructor.New(jsBody, responseOptions)
 
 	for k, v := range proxied {
 		response.Set(fmt.Sprintf("_%s", k), v)
 	}
 
-	proxyConstructor := js.Global().Get("Proxy")
+	proxyConstructor := jstypes.Proxy
 	proxy := proxyConstructor.New(response, responseProxyHandler(proxied))
 
 	return proxy, nil

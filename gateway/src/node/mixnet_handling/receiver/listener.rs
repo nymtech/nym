@@ -45,6 +45,7 @@ impl Listener {
                             // in theory we could process multiple sphinx packet from the same connection in parallel,
                             // but we already handle multiple concurrent connections so if anything, making
                             // that change would only slow things down
+                            debug!("Handling connection from {:?}", conn.remote_address());
                             let handler = connection_handler.clone();
                             tokio::spawn(handler.handle_connection(conn, self.shutdown.clone()));
                         }

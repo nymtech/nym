@@ -94,7 +94,7 @@ impl ConnectionHandler {
                         Ok(recv_stream) => recv_stream,
                         Err(err) => {
                             error!("Error accepting uni stream - {err:?}");
-                            break;
+                            continue;
                         }
                     };
 
@@ -102,17 +102,17 @@ impl ConnectionHandler {
                         match NymCodec.decode(&mut BytesMut::from(read_data.as_slice())) {
                             Ok(Some(framed_sphinx_packet)) => {
                                 self.handle_received_packet(framed_sphinx_packet).await;
-                            }
+                            },
                             Ok(None) => {
                                 error!(
                                     "No Nym packet",
                                 );
                                 break;
-                            }
+                            },
                             Err(err) => {
                                 error!("Failed to read Nym Packet {err:?}");
                                 break;
-                            } // stream got closed by remote
+                            }, // stream got closed by remote
                         }
                     }
                 },

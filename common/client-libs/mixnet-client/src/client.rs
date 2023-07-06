@@ -137,11 +137,24 @@ impl Client {
             let mut pkt_bytes = BytesMut::new();
             match NymCodec.encode(pkt, &mut pkt_bytes) {
                 Ok(()) => {
-                    let mut send = conn.open_uni().await.unwrap();
-                    send.write_all(pkt_bytes.as_ref()).await.unwrap();
+                    let mut send = match conn.open_uni().await {
+                        Ok(send_stream) => send_stream,
+                        Err(err) => {
+                            error!("Failed to open uni stream, dropping packet - ");
+                            return; //TODO this can timeout, if we haven't sent a packet in a while. We need to recreate the connection
+                                    //TODO fix this
+                        }
+                    };
+
+                    if let Err(err) = send.write_all(pkt_bytes.as_ref()).await {
+                        warn!("Failed to send packet - {err:?}");
+                    }
+                    if let Err(err) = send.finish().await {
+                        warn!("Failed to signal end of stream - {err:?}");
+                    }
                 }
                 Err(err) => {
-                    error!("Failed to serialize packet : {err:?}");
+                    error!("Failed to serialize packet - {err:?}");
                 }
             }
         }

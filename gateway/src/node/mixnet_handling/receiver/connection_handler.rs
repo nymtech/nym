@@ -184,30 +184,30 @@ impl<St: Storage> ConnectionHandler<St> {
                     log::trace!("ConnectionHandler: received shutdown");
                 }
                 recv = conn.accept_uni() => {
-                    let read_data = recv.expect("Failed to unwrap stream").read_to_end(PacketSize::ExtendedPacket32.size()).await
-                    .expect("Failed to read");
-                    match NymCodec.decode(&mut BytesMut::from(read_data.as_slice())) {
-                        Ok(Some(framed_sphinx_packet)) => {
-                            // TODO: benchmark spawning tokio task with full processing vs just processing it
-                            // synchronously (without delaying inside of course,
-                            // delay is moved to a global DelayQueue)
-                            // under higher load in single and multi-threaded situation.
-
-                            // in theory we could process multiple sphinx packet from the same connection in parallel,
-                            // but we already handle multiple concurrent connections so if anything, making
-                            // that change would only slow things down
-                            self.handle_received_packet(framed_sphinx_packet).await;
-                        }
-                        Ok(None) => {
-                            error!(
-                                "No Nym packet",
-                            );
-                            break;
-                        }
+                    let mut recv_stream = match recv {
+                        Ok(recv_stream) => recv_stream,
                         Err(err) => {
-                            error!("Failed to read Nym Packet {err:?}");
-                            break;
-                         } // stream got closed by remote
+                            warn!("Error accepting uni stream - {err:?}");
+                            continue;
+                        }
+                    };
+                    if let Ok(read_data) = recv_stream.read_to_end(PacketSize::ExtendedPacket32.size()).await {
+
+                        match NymCodec.decode(&mut BytesMut::from(read_data.as_slice())) {
+                            Ok(Some(framed_sphinx_packet)) => {
+                                    self.handle_received_packet(framed_sphinx_packet).await;
+                            },
+                            Ok(None) => {
+                                error!(
+                                    "No Nym packet",
+                                );
+                                break;
+                            },
+                            Err(err) => {
+                                error!("Failed to read Nym Packet {err:?}");
+                                break;
+                            },
+                        }
                     }
                 },
             }

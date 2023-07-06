@@ -89,8 +89,6 @@ async fn setup_mix_fetch_async(
     config: MixFetchConfig,
     opts: Option<MixFetchOpts>,
 ) -> Result<(), MixFetchError> {
-    console_log!("config: \n{config:#?}\n\nopts:\n{opts:#?}");
-
     let client = if let Some(opts) = opts {
         let preferred_gateway = opts.preferred_gateway;
         let storage_passphrase = opts.storage_passphrase;

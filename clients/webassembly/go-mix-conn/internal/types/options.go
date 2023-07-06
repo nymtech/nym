@@ -32,5 +32,6 @@ func (opts RequestOptions) String() string {
 }
 
 type RequestContext struct {
-	WasRedirected bool
+	WasRedirected           bool
+	OverwrittenResponseType jstypes.ResponseType
 }

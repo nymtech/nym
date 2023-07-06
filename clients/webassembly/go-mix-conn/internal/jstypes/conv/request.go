@@ -223,7 +223,7 @@ func parseBody(request *js.Value) (io.Reader, error) {
 }
 
 func parseRedirect(request *js.Value) (string, error) {
-	redirect := request.Get("Redirect")
+	redirect := request.Get("redirect")
 	if redirect.IsUndefined() || redirect.IsNull() {
 		// "A Request has an associated Redirect Mode, which is "follow", "error", or "manual". Unless stated otherwise, it is "follow"."
 		// Reference: https://fetch.spec.whatwg.org/#concept-request

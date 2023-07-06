@@ -30,3 +30,7 @@ func (opts RequestOptions) String() string {
 		opts.Method,
 	)
 }
+
+type RequestContext struct {
+	WasRedirected bool
+}

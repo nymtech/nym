@@ -16,18 +16,32 @@ import (
 	"syscall/js"
 )
 
+type ResponseWrapper struct {
+	inner *http.Response
+	ctx   *types.RequestContext
+}
+
+func NewResponseWrapper(inner *http.Response, ctx *types.RequestContext) ResponseWrapper {
+	return ResponseWrapper{
+		inner: inner,
+		ctx:   ctx,
+	}
+}
+
 type InternalResponse struct {
 	inner                 *http.Response
 	responseTainting      jstypes.ResponseTainting
 	responseType          jstypes.ResponseType
 	corsExposedHeaderName []string
 	urlList               []*url.URL
+	wasRedirected         bool
 }
 
-func NewInternalResponse(inner *http.Response, reqOpts *types.RequestOptions) InternalResponse {
+func NewInternalResponse(inner *http.Response, reqOpts *types.RequestOptions, wasRedirected bool) InternalResponse {
 	return InternalResponse{
 		inner:            inner,
 		responseTainting: reqOpts.ResponseTainting,
+		wasRedirected:    wasRedirected,
 	}
 }
 
@@ -228,6 +242,10 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 		proxied["url"] = last.String()
 	}
 
+	if IR.wasRedirected {
+		proxied["redirected"] = IR.wasRedirected
+	}
+
 	responseConstructor := js.Global().Get("Response")
 	response := responseConstructor.New(jsBody, responseOptions)
 
@@ -254,17 +272,17 @@ func (IR *InternalResponse) intoJsResponse() (js.Value, error) {
 	[✅] bodyUsed
 	[✅] headers
 	[✅] ok 			- seems to be handled automagically (presumably via `status`)
-	[❌] redirected
+	[✅] redirected
 	[✅] status
 	[✅] statusText
 	[✅] type		    - has to be proxied
 	[⚠️] url			- not sure if every case is covered
 */
-func IntoJSResponse(resp *http.Response, opts *types.RequestOptions) (js.Value, error) {
+func IntoJSResponse(resp *ResponseWrapper, opts *types.RequestOptions) (js.Value, error) {
 	// TODO: check if response is a filtered response
 	isFilteredResponse := false
 
-	internalResponse := NewInternalResponse(resp, opts)
+	internalResponse := NewInternalResponse(resp.inner, opts, resp.ctx.WasRedirected)
 
 	// 4.1.14
 	if !isFilteredResponse {

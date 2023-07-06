@@ -30,7 +30,7 @@ func inRedirectionLoop(req *http.Request, via []*http.Request) bool {
 	return false
 }
 
-func checkRedirect(opts *types.RequestOptions, req *http.Request, via []*http.Request) error {
+func checkRedirect(ctx *types.RequestContext, opts *types.RequestOptions, req *http.Request, via []*http.Request) error {
 	log.Debug("attempting to perform redirection to %s with our policy set to '%s'", req.URL.String(), opts.Redirect)
 
 	if len(via) > state.MaxRedirections {
@@ -62,6 +62,8 @@ func checkRedirect(opts *types.RequestOptions, req *http.Request, via []*http.Re
 		return http.ErrUseLastResponse
 	case jstypes.RequestRedirectFollow:
 		log.Debug("will perform redirection")
+		// this feels so nasty...
+		ctx.WasRedirected = true
 		return nil
 	default:
 		// if this was rust that had proper enums and match statements,
@@ -179,10 +181,10 @@ func dialTLSContext(_ctx context.Context, opts *types.RequestOptions, _network, 
 	return conn, nil
 }
 
-func buildHttpClient(opts *types.RequestOptions) *http.Client {
+func buildHttpClient(ctx *types.RequestContext, opts *types.RequestOptions) *http.Client {
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return checkRedirect(opts, req, via)
+			return checkRedirect(ctx, opts, req, via)
 		},
 
 		Transport: &http.Transport{
@@ -260,13 +262,15 @@ func doCorsCheck(reqOpts *types.RequestOptions, resp *http.Response) error {
 	return errors.New("failed cors check")
 }
 
-func performRequest(req *conv.ParsedRequest) (*http.Response, error) {
+func performRequest(req *conv.ParsedRequest) (*conv.ResponseWrapper, error) {
 	err := mainFetchChecks(req)
 	if err != nil {
 		return nil, err
 	}
 
-	reqClient := buildHttpClient(req.Options)
+	ctx := &types.RequestContext{}
+
+	reqClient := buildHttpClient(ctx, req.Options)
 
 	if req.Options.ReferrerPolicy == "" {
 		// 4.1.8
@@ -302,7 +306,9 @@ func performRequest(req *conv.ParsedRequest) (*http.Response, error) {
 	}
 	// TODO: policy checks, etc...
 
-	return resp, err
+	wrapper := conv.NewResponseWrapper(resp, ctx)
+
+	return &wrapper, err
 }
 
 func onErrCleanup(url *url.URL) {
@@ -333,9 +339,9 @@ func MixFetch(request *conv.ParsedRequest) (any, error) {
 		return nil, errors.New(fmt.Sprintf("there is already an active request for %s", canonical))
 	}
 
-	resCh := make(chan *http.Response)
+	resCh := make(chan *conv.ResponseWrapper)
 	errCh := make(chan error)
-	go func(resCh chan *http.Response, errCh chan error) {
+	go func(resCh chan *conv.ResponseWrapper, errCh chan error) {
 		resp, err := performRequest(request)
 		if err != nil {
 			errCh <- err

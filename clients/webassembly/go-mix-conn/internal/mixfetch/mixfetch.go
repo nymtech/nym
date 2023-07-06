@@ -58,7 +58,7 @@ func checkRedirect(ctx *types.RequestContext, opts *types.RequestOptions, req *h
 			return errors.New("unimplemented 'navigate' + 'manual' redirection")
 		}
 		log.Error("unimplemented '%s' redirect", opts.Redirect)
-		// TODO: somehow set response to opaque-redirect filtered response
+		ctx.OverwrittenResponseType = jstypes.ResponseTypeOpaqueRedirect
 		return http.ErrUseLastResponse
 	case jstypes.RequestRedirectFollow:
 		log.Debug("will perform redirection")

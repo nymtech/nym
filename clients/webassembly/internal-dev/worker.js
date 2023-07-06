@@ -358,7 +358,7 @@ async function testMixFetch() {
                     // ignore the field naming : ) I'm just abusing that a bit...
                     const {mixnodeIdentity} = event.data.args;
                     const url = mixnodeIdentity;
-                    const args = { mode: "cors" }
+                    const args = { mode: "cors", redirect: "manual" }
                     // const args = { mode: "unsafe-ignore-cors" }
 
                     try {

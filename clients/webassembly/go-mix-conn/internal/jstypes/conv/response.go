@@ -46,11 +46,11 @@ type InternalResponse struct {
 	wasRedirected         bool
 }
 
-func NewInternalResponse(inner *http.Response, reqOpts *types.RequestOptions, wasRedirected bool) InternalResponse {
+func NewInternalResponse(inner *http.Response, reqOpts *types.RequestOptions, reqCtx *types.RequestContext) InternalResponse {
 	return InternalResponse{
 		inner:            inner,
 		responseTainting: reqOpts.ResponseTainting,
-		wasRedirected:    wasRedirected,
+		wasRedirected:    reqCtx.WasRedirected,
 	}
 }
 
@@ -291,7 +291,12 @@ func IntoJSResponse(resp *ResponseWrapper, opts *types.RequestOptions) (js.Value
 	// TODO: check if response is a filtered response
 	isFilteredResponse := false
 
-	internalResponse := NewInternalResponse(resp.inner, opts, resp.ctx.WasRedirected)
+	// reslt of 4.3.6.2.2
+	internalResponse := NewInternalResponse(resp.inner, opts, resp.ctx)
+	if resp.ctx.OverwrittenResponseType == jstypes.ResponseTypeOpaqueRedirect {
+		isFilteredResponse = true
+		internalResponse.mutIntoOpaqueRedirectResponse()
+	}
 
 	// 4.1.14
 	if !isFilteredResponse {

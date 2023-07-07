@@ -2,7 +2,7 @@
 name = "cw3-flex-multisig"
 version = "0.13.1"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
-edition = "2018"
+edition = "2021"
 description = "Implementing cw3 with multiple voting patterns and dynamic groups"
 license = "Apache-2.0"
 repository = "https://github.com/CosmWasm/cw-plus"

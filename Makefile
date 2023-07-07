@@ -9,9 +9,13 @@ no-clippy: build cargo-test wasm fmt
 
 happy: fmt clippy-happy test
 
+build: build-wasm-clients
+
 # Building release binaries is a little manual as we can't just build --release
 # on all workspaces.
 build-release: build-release-main wasm
+
+clippy: clippy-wasm-clients
 
 # Deprecated
 # For backwards compatibility
@@ -42,6 +46,9 @@ test-$(1):
 
 test-expensive-$(1):
 	cargo test --manifest-path $(2)/Cargo.toml --workspace -- --ignored
+
+build-standalone-$(1):
+	cargo build --manifest-path $(2)/Cargo.toml $(3)
 
 build-$(1):
 	cargo build --manifest-path $(2)/Cargo.toml --workspace $(3)
@@ -74,7 +81,7 @@ endef
 
 $(eval $(call add_cargo_workspace,main,.))
 $(eval $(call add_cargo_workspace,contracts,contracts,--target wasm32-unknown-unknown))
-$(eval $(call add_cargo_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
+#$(eval $(call add_cargo_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
 $(eval $(call add_cargo_workspace,wallet,nym-wallet,))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
 ifdef NYM_MOBILE
@@ -90,6 +97,13 @@ build-explorer-api:
 
 build-nym-cli:
 	cargo build -p nym-cli --release
+
+build-wasm-clients:
+	cargo build -p nym-client-wasm --target wasm32-unknown-unknown
+	# TODO: add mix-fetch, browser extension and node tester
+
+clippy-wasm-clients:
+	cargo clippy -p nym-client-wasm --target wasm32-unknown-unknown
 
 # -----------------------------------------------------------------------------
 # Build contracts ready for deploy

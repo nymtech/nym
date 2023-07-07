@@ -2,7 +2,7 @@
 name = "cw4-group"
 version = "0.13.4"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
-edition = "2018"
+edition = "2021"
 description = "Simple cw4 implementation of group membership controlled by admin "
 license = "Apache-2.0"
 repository = "https://github.com/CosmWasm/cw-plus"

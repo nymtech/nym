@@ -4,6 +4,7 @@
 use crate::console_log;
 use crate::storage::cipher_export::StoredExportedStoreCipher;
 use crate::storage::error::StorageError;
+use futures::TryFutureExt;
 use indexed_db_futures::IdbDatabase;
 use nym_store_cipher::{
     Aes256Gcm, Algorithm, EncryptedData, KdfInfo, KeySizeUser, Params, StoreCipher, Unsigned,
@@ -87,6 +88,23 @@ impl WasmStorage {
         })
     }
 
+    pub async fn exists(db_name: &str) -> Result<bool, StorageError> {
+        let db_req: OpenDbRequest = IdbDatabase::open(db_name)?;
+        let db: IdbDatabase = db_req.into_future().await?;
+
+        // if the db was already created before, at the very least cipher info store should exist,
+        // thus the iterator should return at least one value
+        let some_stores_exist = db.object_store_names().next().is_some();
+
+        // that's super annoying - we have to do cleanup because opening db creates it
+        // (if it didn't exist before)
+        if !some_stores_exist {
+            db.delete()?.into_future().await?
+        }
+
+        Ok(some_stores_exist)
+    }
+
     pub fn serialize_value<T: Serialize>(&self, value: &T) -> Result<JsValue, StorageError> {
         if let Some(cipher) = &self.store_cipher {
             let encrypted = cipher.encrypt_json_value(value)?;
@@ -134,6 +152,35 @@ impl WasmStorage {
             .store_value_raw(store, key, &self.serialize_value(&value)?)
             .await
     }
+
+    pub async fn remove_value<K>(&self, store: &str, key: K) -> Result<(), StorageError>
+    where
+        K: wasm_bindgen::JsCast,
+    {
+        self.inner.remove_value_raw(store, key).await
+    }
+
+    pub async fn has_value<K>(&self, store: &str, key: K) -> Result<bool, StorageError>
+    where
+        K: wasm_bindgen::JsCast,
+    {
+        match self.key_count(store, key).await? {
+            n if n == 0 => Ok(false),
+            n if n == 1 => Ok(true),
+            n => Err(StorageError::DuplicateKey { count: n }),
+        }
+    }
+
+    pub async fn key_count<K>(&self, store: &str, key: K) -> Result<u32, StorageError>
+    where
+        K: wasm_bindgen::JsCast,
+    {
+        self.inner.get_key_count(store, key).await
+    }
+
+    pub async fn get_all_keys(&self, store: &str) -> Result<js_sys::Array, StorageError> {
+        self.inner.get_all_keys(store).await
+    }
 }
 
 struct IdbWrapper(IdbDatabase);
@@ -164,6 +211,42 @@ impl IdbWrapper {
             .transaction_on_one_with_mode(store, IdbTransactionMode::Readwrite)?
             .object_store(store)?
             .put_key_val_owned(key, value)?
+            .into_future()
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn remove_value_raw<K>(&self, store: &str, key: K) -> Result<(), StorageError>
+    where
+        K: wasm_bindgen::JsCast,
+    {
+        self.0
+            .transaction_on_one_with_mode(store, IdbTransactionMode::Readwrite)?
+            .object_store(store)?
+            .delete_owned(key)?
+            .into_future()
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn get_key_count<K>(&self, store: &str, key: K) -> Result<u32, StorageError>
+    where
+        K: wasm_bindgen::JsCast,
+    {
+        self.0
+            .transaction_on_one_with_mode(store, IdbTransactionMode::Readwrite)?
+            .object_store(store)?
+            .count_with_key_owned(key)?
+            .into_future()
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn get_all_keys(&self, store: &str) -> Result<js_sys::Array, StorageError> {
+        self.0
+            .transaction_on_one_with_mode(store, IdbTransactionMode::Readonly)?
+            .object_store(store)?
+            .get_all_keys()?
             .into_future()
             .await
             .map_err(Into::into)

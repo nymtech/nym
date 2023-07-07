@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/nym-validator-client",
+    "outDir": "dist",
     "module": "ES2020",
     "target": "es2021",
     "allowJs": false,

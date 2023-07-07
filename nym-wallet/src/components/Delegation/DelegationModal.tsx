@@ -1,7 +1,6 @@
 import React from 'react';
 import { Typography, SxProps, Stack } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
-import { Console } from 'src/utils/console';
 import { LoadingModal } from '../Modals/LoadingModal';
 import { ConfirmationModal } from '../Modals/ConfirmationModal';
 import { ErrorModal } from '../Modals/ErrorModal';
@@ -54,8 +53,6 @@ export const DelegationModal: FCWithChildren<
       </ErrorModal>
     );
   }
-
-  transactions?.map((transaction) => Console.log('action', action, 'status', status, 'key', transaction.hash));
 
   return (
     <ConfirmationModal

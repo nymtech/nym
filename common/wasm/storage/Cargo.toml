@@ -1,0 +1,19 @@
+[package]
+name = "wasm-storage"
+version = "0.1.0"
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3"
+js-sys = { workspace = true }
+wasm-bindgen = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde-wasm-bindgen = { workspace = true }
+indexed_db_futures = { version = " 0.3.0"}
+thiserror = { workspace = true }
+
+nym-store-cipher = { path = "../../store-cipher", features = ["json"] }
+wasm-utils = { path = "../utils", default-features = false }

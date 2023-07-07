@@ -73,7 +73,9 @@ members = [
     "common/task",
     "common/topology",
     "common/types",
-    "common/wasm-utils",
+    "common/wasm/client-core",
+    "common/wasm/storage",
+    "common/wasm/utils",
     "explorer-api",
     "gateway",
     "gateway/gateway-requests",
@@ -148,3 +150,11 @@ thiserror = "1.0.38"
 tokio = "1.24.1"
 url = "2.2"
 zeroize = "1.6.0"
+
+# wasm-related dependencies
+# TODO: see if we can update version numbers
+js-sys = "^0.3.51"
+serde-wasm-bindgen = "0.5.0"
+wasm-bindgen = "=0.2.83"
+wasm-bindgen-futures = "0.4.37"
+web-sys = "0.3.63"

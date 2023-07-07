@@ -2540,6 +2540,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
+ "wasm-storage",
  "wasm-timer",
  "wasm-utils",
  "zeroize",
@@ -5269,6 +5270,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasm-storage"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "indexed_db_futures",
+ "js-sys",
+ "nym-store-cipher",
+ "serde",
+ "serde-wasm-bindgen",
+ "thiserror",
+ "wasm-bindgen",
+ "wasm-utils",
+]
+
+[[package]]
 name = "wasm-timer"
 version = "0.2.5"
 source = "git+https://github.com/mmsinclair/wasm-timer?rev=b9d1a54ad514c2f230a026afe0dde341e98cd7b6#b9d1a54ad514c2f230a026afe0dde341e98cd7b6"
@@ -5288,12 +5304,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "getrandom 0.2.10",
- "indexed_db_futures",
  "js-sys",
- "nym-store-cipher",
- "serde",
- "serde-wasm-bindgen",
- "thiserror",
  "tungstenite",
  "wasm-bindgen",
  "wasm-bindgen-futures",

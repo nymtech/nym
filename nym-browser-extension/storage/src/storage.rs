@@ -6,7 +6,7 @@ use js_sys::Promise;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::storage::{IdbVersionChangeEvent, WasmStorage};
+use wasm_storage::{IdbVersionChangeEvent, WasmStorage};
 use wasm_utils::{check_promise_result, PromisableResult, PromisableResultError};
 use zeroize::Zeroizing;
 

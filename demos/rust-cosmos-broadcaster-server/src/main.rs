@@ -3,6 +3,7 @@ use nym_validator_client::nyxd::AccountId;
 use nym_bin_common::logging::setup_logging;
 use std::path::PathBuf;
 mod commands; 
+use serde::{Deserialize, Serialize};
 
 #[tokio::main]
 async fn main() {
@@ -22,9 +23,12 @@ async fn main() {
 
     println!("Waiting for message");
     if let Some(received) = client.wait_for_messages().await {
-        // parse traffic based on... something ... and match {} to functions in commands 
+         
         for r in received {
-            println!("Received: {}", String::from_utf8_lossy(&r.message));
+            let to_parse  = String::from_utf8_lossy(&r.message); 
+            println!("Received: {}", &to_parse);
+            let parsed = serde_json::from_str(&to_parse).unwrap();
+
             /*
             deserialise json 
             check fn struct match 

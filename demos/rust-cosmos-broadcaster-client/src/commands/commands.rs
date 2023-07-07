@@ -19,7 +19,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize)]
 struct SequenceRequestData<'a> {
     validator: &'a str, 
-    signer_address: AccountId
+    signer_address: AccountId, 
+    request_type: String
 }
 
 struct SequenceResponseData {
@@ -53,7 +54,8 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
  
     let message = SequenceRequestData{
         validator, 
-        signer_address
+        signer_address,
+        request_type: String::from("sequence_request")
     }; 
     // send req to client 
     client.send_str(sp_address, &serde_json::to_string(&message).unwrap()).await;
@@ -102,21 +104,9 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
 */
 }
 
-pub async fn send_tx(base58_tx: String, sp_address: Recipient, client: &MixnetClient) -> Option<Vec<mixnet::ReconstructedMessage>> {
-    // send message w sdk to broadcaster who will do: 
-    /* 
-        // decode the base58 tx to vec<u8>
-
-        // broadcast the tx
-        let res = rpc::Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
-        .await
-        .unwrap();
-
-        // send res back via SURBs 
-     */
-    // client.send_str(sp_address, &base58_tx).await; // send as base58 encoded and it can be decoded by the SP 
-    // println!("\nWaiting for reply\n");
-    // let res = client.wait_for_messages().await; 
-    // res 
-    todo!()
+pub async fn send_tx(base58_tx: String, sp_address: Recipient, client: &mut MixnetClient) -> Option<Vec<mixnet::ReconstructedMessage>> {
+    client.send_str(sp_address, &base58_tx).await; 
+    println!("\nWaiting for reply\n");
+    let res = client.wait_for_messages().await; 
+    res 
 }

@@ -11,7 +11,7 @@ use std::sync::OnceLock;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::{console_log, PromisableResultError};
+use wasm_utils::PromisableResultError;
 
 mod active_requests;
 mod client;

@@ -229,7 +229,7 @@ impl SendWithoutResponse for Client {
         packet: NymPacket,
         packet_type: PacketType,
     ) -> io::Result<()> {
-        debug!("Sending packet to {:?}", address);
+        trace!("Sending packet to {:?}", address);
         let framed_packet =
             FramedNymPacket::new(packet, packet_type, self.config.use_legacy_version);
 

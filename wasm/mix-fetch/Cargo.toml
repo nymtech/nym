@@ -1,0 +1,39 @@
+[package]
+name = "nym-mix-fetch"
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
+version = "0.1.0"
+edition = "2021"
+keywords = ["nym", "fetch", "wasm", "webassembly", "privacy"]
+license = "Apache-2.0"
+repository = "https://github.com/nymtech/nym"
+rust-version = "1.56"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+futures = { workspace = true }
+js-sys = { workspace = true }
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+serde = { workspace = true, features = ["derive"] }
+serde-wasm-bindgen = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+url = { workspace = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+thiserror =  { workspace = true }
+
+nym-socks5-requests = { path = "../../common/socks5/requests" }
+nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
+nym-service-providers-common = { path = "../../service-providers/common" }
+wasm-client-core = { path = "../../common/wasm/client-core" }
+wasm-utils = { path = "../../common/wasm/utils" }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[profile.release]
+lto = true
+opt-level = 'z'

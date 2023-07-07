@@ -2213,6 +2213,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "gloo-utils"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "037fcb07216cb3a30f7292bd0176b050b7b9a052ba830ef7d5d65f6dc64ba58e"
+dependencies = [
+ "js-sys",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "group"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3639,43 +3652,17 @@ dependencies = [
 name = "nym-client-wasm"
 version = "1.1.1"
 dependencies = [
- "anyhow",
- "async-trait",
- "bs58",
- "console_error_panic_hook",
  "futures",
  "js-sys",
- "nym-bandwidth-controller",
- "nym-client-core",
- "nym-coconut-interface",
- "nym-config",
- "nym-credential-storage",
- "nym-credentials",
- "nym-crypto",
- "nym-gateway-client",
  "nym-node-tester-utils",
- "nym-ordered-buffer",
- "nym-service-providers-common",
- "nym-socks5-requests",
- "nym-sphinx",
- "nym-sphinx-acknowledgements",
- "nym-task",
- "nym-topology",
- "nym-validator-client",
+ "nym-node-tester-wasm",
  "rand 0.7.3",
  "serde",
- "serde-wasm-bindgen",
- "serde_json",
  "thiserror",
- "tokio",
- "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-bindgen-test",
- "wasm-storage",
- "wasm-timer",
+ "wasm-client-core",
  "wasm-utils",
- "zeroize",
 ]
 
 [[package]]
@@ -3926,6 +3913,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "getrandom 0.2.10",
+ "gloo-utils",
  "log",
  "nym-bandwidth-controller",
  "nym-coconut-interface",
@@ -4003,6 +3991,27 @@ dependencies = [
  "log",
  "rand 0.8.5",
  "thiserror",
+]
+
+[[package]]
+name = "nym-mix-fetch"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "js-sys",
+ "nym-ordered-buffer",
+ "nym-service-providers-common",
+ "nym-socks5-requests",
+ "rand 0.7.3",
+ "serde",
+ "serde-wasm-bindgen",
+ "thiserror",
+ "tokio",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-client-core",
+ "wasm-utils",
 ]
 
 [[package]]
@@ -4230,6 +4239,24 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "wasm-utils",
+]
+
+[[package]]
+name = "nym-node-tester-wasm"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "js-sys",
+ "nym-node-tester-utils",
+ "rand 0.7.3",
+ "serde",
+ "thiserror",
+ "tokio",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-client-core",
+ "wasm-timer",
  "wasm-utils",
 ]
 
@@ -4797,6 +4824,15 @@ dependencies = [
  "serde_json",
  "strum 0.23.0",
  "ts-rs",
+]
+
+[[package]]
+name = "nym-wasm-sdk"
+version = "0.1.0"
+dependencies = [
+ "nym-client-wasm",
+ "nym-mix-fetch",
+ "nym-node-tester-wasm",
 ]
 
 [[package]]
@@ -8028,37 +8064,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca6ad05a4870b2bf5fe995117d3728437bd27d7cd5f06f13c17443ef369775a1"
 
 [[package]]
-name = "wasm-bindgen-test"
-version = "0.3.37"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e6e302a7ea94f83a6d09e78e7dc7d9ca7b186bc2829c24a22d0753efd680671"
-dependencies = [
- "console_error_panic_hook",
- "js-sys",
- "scoped-tls",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-test-macro",
-]
-
-[[package]]
-name = "wasm-bindgen-test-macro"
-version = "0.3.37"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecb993dd8c836930ed130e020e77d9b2e65dd0fbab1b67c790b0f5d80b11a575"
-dependencies = [
- "proc-macro2",
- "quote",
-]
-
-[[package]]
 name = "wasm-client-core"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "console_error_panic_hook",
+ "js-sys",
+ "nym-bandwidth-controller",
+ "nym-client-core",
+ "nym-config",
+ "nym-credential-storage",
+ "nym-crypto",
+ "nym-gateway-client",
+ "nym-sphinx",
+ "nym-sphinx-acknowledgements",
+ "nym-task",
+ "nym-topology",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "serde",
+ "serde-wasm-bindgen",
+ "thiserror",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-storage",
+ "wasm-utils",
+ "zeroize",
+]
 
 [[package]]
 name = "wasm-storage"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "futures",
  "indexed_db_futures",
  "js-sys",
@@ -8090,6 +8129,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "getrandom 0.2.10",
+ "gloo-utils",
  "js-sys",
  "tungstenite 0.13.0",
  "wasm-bindgen",

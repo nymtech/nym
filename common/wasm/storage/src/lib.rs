@@ -18,6 +18,7 @@ pub use indexed_db_futures::prelude::*;
 
 mod cipher_export;
 pub mod error;
+pub mod traits;
 
 pub const CIPHER_INFO_STORE: &str = "_cipher_store";
 pub const CIPHER_STORE_EXPORT: &str = "cipher_store_export_info";

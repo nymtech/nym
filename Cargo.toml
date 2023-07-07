@@ -21,7 +21,6 @@ members = [
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
-    "clients/webassembly",
     "common/async-file-watcher",
     "common/bandwidth-controller",
     "common/bin-common",
@@ -93,7 +92,11 @@ members = [
     "tools/internal/ssl-inject",
     "tools/nym-cli",
     "tools/nym-nr-query",
-    "tools/ts-rs-cli"
+    "tools/ts-rs-cli",
+    "wasm/client",
+    "wasm/full-nym-wasm",
+    "wasm/mix-fetch",
+    "wasm/node-tester",
 ]
 
 default-members = [
@@ -150,6 +153,7 @@ url = "2.2"
 zeroize = "1.6.0"
 
 # wasm-related dependencies
+gloo-utils = "0.1.6"
 js-sys = "0.3.63"
 serde-wasm-bindgen = "0.5.0"
 wasm-bindgen = "0.2.86"

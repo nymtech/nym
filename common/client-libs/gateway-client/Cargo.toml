@@ -36,7 +36,7 @@ default-features = false
 
 # non-wasm-only dependencies
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "1.24.1"
+workspace = true
 features = ["macros", "rt", "net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
@@ -48,14 +48,17 @@ version = "0.14"
 
 # wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
-version = "0.2"
+workspace = true
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
-version = "0.4"
+workspace = true
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
 path = "../../wasm/utils"
 features = ["websocket"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.gloo-utils]
+workspace = true
 
 # only import it in wasm. Prefer proper tokio timer in non-wasm
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-timer]
@@ -68,7 +71,7 @@ rev = "b9d1a54ad514c2f230a026afe0dde341e98cd7b6"
 # containing javascript (such as a web browser or node.js).
 # refer to https://docs.rs/getrandom/0.2.2/getrandom/#webassembly-support for more information
 [target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
-version = "0.2"
+workspace = true
 features = ["js"]
 
 [dev-dependencies]

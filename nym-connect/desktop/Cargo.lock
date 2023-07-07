@@ -2255,6 +2255,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "gloo-utils"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "037fcb07216cb3a30f7292bd0176b050b7b9a052ba830ef7d5d65f6dc64ba58e"
+dependencies = [
+ "js-sys",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "gobject-sys"
 version = "0.15.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3747,6 +3760,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "getrandom 0.2.10",
+ "gloo-utils",
  "log",
  "nym-bandwidth-controller",
  "nym-coconut-interface",
@@ -7322,6 +7336,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "getrandom 0.2.10",
+ "gloo-utils",
  "js-sys",
  "tungstenite",
  "wasm-bindgen",

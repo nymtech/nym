@@ -26,8 +26,6 @@ pub mod storage;
 pub mod tester;
 #[cfg(target_arch = "wasm32")]
 pub mod topology;
-#[cfg(target_arch = "wasm32")]
-pub mod validation;
 
 #[wasm_bindgen]
 pub fn set_panic_hook() {

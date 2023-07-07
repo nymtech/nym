@@ -6,19 +6,18 @@ use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
-use bytes::BytesMut;
+use futures::StreamExt;
 use log::*;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
-use nym_sphinx::params::PacketSize;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use quinn::{Connection, ConnectionError};
 use std::collections::HashMap;
-use tokio_util::codec::Decoder;
+use tokio_util::codec::FramedRead;
 
 pub(crate) struct ConnectionHandler<St: Storage> {
     packet_processor: PacketProcessor,
@@ -175,7 +174,10 @@ impl<St: Storage> ConnectionHandler<St> {
     }
 
     pub(crate) async fn handle_connection(mut self, conn: Connection, mut shutdown: TaskClient) {
-        debug!("Starting connection handler");
+        debug!(
+            "Starting connection handler for {:?}",
+            conn.remote_address()
+        );
         shutdown.mark_as_success();
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -184,7 +186,7 @@ impl<St: Storage> ConnectionHandler<St> {
                     log::trace!("ConnectionHandler: received shutdown");
                 }
                 recv = conn.accept_uni() => {
-                    let mut recv_stream = match recv {
+                    let recv_stream = match recv {
                         Ok(recv_stream) => recv_stream,
                         Err(err) => {
                             match err {
@@ -200,25 +202,26 @@ impl<St: Storage> ConnectionHandler<St> {
                         }
 
                     };
-                    if let Ok(read_data) = recv_stream.read_to_end(PacketSize::ExtendedPacket32.size()).await {
+                    let mut framed_stream = FramedRead::new(recv_stream, NymCodec);
+                    match framed_stream.next().await {
+                        Some(Ok(framed_sphinx_packet)) => {
+                            // TODO: benchmark spawning tokio task with full processing vs just processing it
+                            // synchronously under higher load in single and multi-threaded situation.
 
-                        match NymCodec.decode(&mut BytesMut::from(read_data.as_slice())) {
-                            Ok(Some(framed_sphinx_packet)) => {
-                                    self.handle_received_packet(framed_sphinx_packet).await;
-                            },
-                            Ok(None) => {
-                                error!(
-                                    "No Nym packet",
-                                );
-                                break;
-                            },
-                            Err(err) => {
-                                error!("Failed to read Nym Packet {err:?}");
-                                break;
-                            },
+                            // in theory we could process multiple sphinx packet from the same connection in parallel,
+                            // but we already handle multiple concurrent connections so if anything, making
+                            // that change would only slow things down
+                            self.handle_received_packet(framed_sphinx_packet).await;
                         }
+                        Some(Err(err)) => {
+                            error!(
+                                "The socket connection got corrupted with error: {err}. Closing the socket",
+                            );
+                            return;
+                        }
+                        None => break, // stream got closed by remote
                     }
-                },
+                }
             }
         }
 

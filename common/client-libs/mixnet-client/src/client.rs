@@ -1,9 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bytes::BytesMut;
 use futures::channel::mpsc;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
@@ -19,7 +18,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use tokio::time::sleep;
-use tokio_util::codec::Encoder;
+use tokio_util::codec::FramedWrite;
 
 pub struct Config {
     initial_reconnection_backoff: Duration,
@@ -136,27 +135,16 @@ impl Client {
                     return;
                 }
             };
-            let mut pkt_bytes = BytesMut::new();
-            match NymCodec.encode(pkt, &mut pkt_bytes) {
-                Ok(()) => {
-                    let mut send = match conn.open_uni().await {
-                        Ok(send_stream) => send_stream,
-                        Err(err) => {
-                            error!("Failed to open uni stream, dropping packet - {err:?}");
-                            return; //We shouldn't get a time out here, it should be handled higher
-                        }
-                    };
-
-                    if let Err(err) = send.write_all(pkt_bytes.as_ref()).await {
-                        warn!("Failed to send packet - {err:?}");
-                    }
-                    if let Err(err) = send.finish().await {
-                        warn!("Failed to signal end of stream - {err:?}");
-                    }
-                }
+            let send = match conn.open_uni().await {
+                Ok(send_stream) => send_stream,
                 Err(err) => {
-                    error!("Failed to serialize packet - {err:?}");
+                    error!("Failed to open uni stream, dropping packet - {err:?}");
+                    return; //We shouldn't get a time out here, it should be handled higher
                 }
+            };
+            let mut framed_stream = FramedWrite::new(send, NymCodec);
+            if let Err(err) = framed_stream.send(pkt).await {
+                warn!("Failed to forward packets to {} - {err}", address);
             }
         }
     }

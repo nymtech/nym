@@ -12,6 +12,7 @@ js-sys = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 getrandom = { workspace = true, features=["js"], optional = true }
+gloo-utils = { workspace = true }
 
 # we don't want entire tokio-tungstenite, tungstenite itself is just fine - we just want message and error enums
 [dependencies.tungstenite]

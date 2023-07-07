@@ -1,8 +1,45 @@
 [package]
 name = "wasm-client-core"
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/nymtech/nym"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = { workspace = true }
+js-sys = { workspace = true }
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+serde = { workspace = true, features = ["derive"] }
+serde-wasm-bindgen = { workspace = true }
+thiserror =  { workspace = true }
+url = { workspace = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+zeroize = { workspace = true }
+
+nym-bandwidth-controller = { path = "../../bandwidth-controller" }
+nym-client-core = { path = "../../client-core", default-features = false, features = ["wasm"] }
+nym-config = { path = "../../config" }
+nym-credential-storage = { path = "../../credential-storage" }
+nym-crypto = { path = "../../crypto", features = ["asymmetric", "serde"] }
+nym-gateway-client = { path = "../../client-libs/gateway-client", default-features = false, features = ["wasm"] }
+nym-sphinx = { path = "../../nymsphinx" }
+nym-sphinx-acknowledgements = { path = "../../nymsphinx/acknowledgements", features = ["serde"]}
+nym-task = { path = "../../task" }
+nym-topology = { path = "../../topology" }
+nym-validator-client = { path = "../../client-libs/validator-client", default-features = false }
+wasm-utils = { path = "../utils" }
+wasm-storage = { path = "../storage" }
+
+
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1", optional = true }
+
+[features]
+default = ["console_error_panic_hook"]

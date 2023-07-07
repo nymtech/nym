@@ -1,0 +1,17 @@
+[package]
+name = "nym-wasm-sdk"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nym-client-wasm = { path = "../client", optional = true }
+nym-node-tester-wasm = { path = "../node-tester", optional = true }
+nym-mix-fetch = { path = "../mix-fetch", optional = true }
+
+[features]
+default = ["client", "node-tester"]
+client = ["nym-client-wasm"]
+node-tester = ["nym-node-tester-wasm"]
+mix-fetch = ["nym-mix-fetch"]

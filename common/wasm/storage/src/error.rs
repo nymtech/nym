@@ -5,7 +5,7 @@ use indexed_db_futures::web_sys::DomException;
 use serde_wasm_bindgen::Error;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
-use wasm_utils::simple_js_error;
+use wasm_utils::error::simple_js_error;
 
 #[derive(Debug, Error)]
 pub enum StorageError {

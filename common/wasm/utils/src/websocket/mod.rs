@@ -4,6 +4,7 @@
 use crate::websocket::state::State;
 use crate::{console_error, console_log};
 use futures::{Sink, Stream};
+use gloo_utils::errors::JsError;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::io;
@@ -83,9 +84,17 @@ pub struct JSWebsocket {
     _on_message: Closure<dyn FnMut(MessageEvent)>,
 }
 
+fn must_into_js_error(js_value: JsValue) -> JsError {
+    match JsError::try_from(js_value) {
+        Ok(error) => error,
+        Err(_) => unreachable!("JsValue passed is not an Error type -- this is a bug"),
+    }
+}
+
 impl JSWebsocket {
-    pub fn new(url: &str) -> Result<Self, JsValue> {
-        let ws = WebSocket::new(url)?;
+    pub fn new(url: &str) -> Result<Self, JsError> {
+        // the error returned when creating a websocket MUST BE a JsError
+        let ws = WebSocket::new(url).map_err(must_into_js_error)?;
         // we don't want to ever have to deal with blobs
         ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
 

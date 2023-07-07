@@ -25,6 +25,9 @@ pub mod random_route_provider;
 #[cfg(feature = "provider-trait")]
 pub mod provider_trait;
 
+#[cfg(feature = "provider-trait")]
+pub use provider_trait::{HardcodedTopologyProvider, TopologyProvider};
+
 pub use error::NymTopologyError;
 
 #[derive(Debug, Clone)]

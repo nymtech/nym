@@ -9,6 +9,8 @@ mod client;
 #[cfg(target_arch = "wasm32")]
 mod config;
 #[cfg(target_arch = "wasm32")]
+mod constants;
+#[cfg(target_arch = "wasm32")]
 pub mod encoded_payload_helper;
 #[cfg(target_arch = "wasm32")]
 pub mod error;
@@ -26,8 +28,6 @@ pub mod tester;
 pub mod topology;
 #[cfg(target_arch = "wasm32")]
 pub mod validation;
-
-mod constants;
 
 #[wasm_bindgen]
 pub fn set_panic_hook() {

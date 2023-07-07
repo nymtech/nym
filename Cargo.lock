@@ -7975,6 +7975,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c38c045535d93ec4f0b4defec448e4291638ee608530863b1e2ba115d4fff7f"
 
 [[package]]
+name = "wasm-client-core"
+version = "0.1.0"
+
+[[package]]
+name = "wasm-storage"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "indexed_db_futures",
+ "js-sys",
+ "nym-store-cipher",
+ "serde",
+ "serde-wasm-bindgen",
+ "thiserror",
+ "wasm-bindgen",
+ "wasm-utils",
+]
+
+[[package]]
 name = "wasm-timer"
 version = "0.2.5"
 source = "git+https://github.com/mmsinclair/wasm-timer?rev=b9d1a54ad514c2f230a026afe0dde341e98cd7b6#b9d1a54ad514c2f230a026afe0dde341e98cd7b6"
@@ -7994,12 +8013,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "getrandom 0.2.10",
- "indexed_db_futures",
  "js-sys",
- "nym-store-cipher",
- "serde",
- "serde-wasm-bindgen",
- "thiserror",
  "tungstenite 0.13.0",
  "wasm-bindgen",
  "wasm-bindgen-futures",

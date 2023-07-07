@@ -78,7 +78,7 @@ version = "0.2.4"
 features = ["futures"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
-path = "../wasm-utils"
+path = "../wasm/utils"
 features = ["websocket"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.time]

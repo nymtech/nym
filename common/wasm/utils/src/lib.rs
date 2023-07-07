@@ -11,9 +11,6 @@ pub mod websocket;
 #[cfg(feature = "crypto")]
 pub mod crypto;
 
-#[cfg(feature = "storage")]
-pub mod storage;
-
 // will cause messages to be written as if console.log("...") was called
 #[macro_export]
 macro_rules! console_log {

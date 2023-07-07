@@ -3,8 +3,8 @@
 
 use thiserror::Error;
 use wasm_bindgen::JsValue;
+use wasm_storage::error::StorageError;
 use wasm_utils::simple_js_error;
-use wasm_utils::storage::error::StorageError;
 
 #[derive(Debug, Error)]
 pub enum ExtensionStorageError {

@@ -1,10 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::console_log;
-use crate::storage::cipher_export::StoredExportedStoreCipher;
-use crate::storage::error::StorageError;
-use futures::TryFutureExt;
+use crate::cipher_export::StoredExportedStoreCipher;
+use crate::error::StorageError;
 use indexed_db_futures::IdbDatabase;
 use nym_store_cipher::{
     Aes256Gcm, Algorithm, EncryptedData, KdfInfo, KeySizeUser, Params, StoreCipher, Unsigned,
@@ -12,7 +10,9 @@ use nym_store_cipher::{
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::future::IntoFuture;
 use wasm_bindgen::JsValue;
+use wasm_utils::console_log;
 
 pub use indexed_db_futures::prelude::*;
 

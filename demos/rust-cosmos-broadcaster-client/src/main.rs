@@ -49,35 +49,27 @@ struct SendTx {
 
 #[tokio::main]
 async fn main() {
-    // setup_logging();
+    setup_logging();
     let cli = Cli::parse();
     // TODO look @ arg env setup from NR main.rs
     // TODO take from args
-    let sp_address = Recipient::try_from_base58_string("2f7rmjCSKt6YxNBVfKSzQmvbgr4wZRprP8wMgBCyD4Xi.3rv7jSLYZXjFjDiVfiS24UVmMHmH6uZnGbxuDxjMELPu@CfWcDJq8QBz6cVAPCYSaLbaJEhVTmHEmyYgQ6C5GdDW9").unwrap();
-
-    // let mut client = MixnetClient::connect_new().await.unwrap(); // this was always seeing an existing connection... 
-    // Specify some config options
+    let sp_address = Recipient::try_from_base58_string("6RkSh3QZCBQaSsMjZFSdRgRYkgKkKErQTtZtCyffsaSu.5xLdj5scMH116KazYDBUPRs16oE3BZhEAko8rjynTCJ6@E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM").unwrap();
+    
     let config_dir = PathBuf::from("/tmp/cosmos-broadcaster-mixnet-client");
     let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
-
-    // Create the client with a storage backend, and enable it by giving it some paths. If keys
-    // exists at these paths, they will be loaded, otherwise they will be generated.
     let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
         .await
         .unwrap()
         .build()
         .await
         .unwrap();
-
-    // Now we connect to the mixnet, using keys now stored in the paths provided.
     let mut client = client.connect_to_mixnet().await.unwrap();
-
-    // Be able to get our client address
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
     match &cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx { mnemonic, nyx_token_receipient} )) => {
+            println!("sending offline sign info"); 
             let base58_tx_bytes = commands::commands::offline_sign(mnemonic.clone(), nyx_token_receipient.clone(), &mut client, sp_address.clone()).await;
 
             println!("base58 encoded signed tx payload: \n\n{}\n\n", &base58_tx_bytes);
@@ -89,7 +81,7 @@ async fn main() {
 
             if input.chars().next().unwrap() == 'y' { // TODO add proper parsing for getting y/n
                 println!("\nsending tx thru the mixnet to broadcaster service");
-                let tx_hash = commands::commands::send_tx(base58_tx_bytes, sp_address, &client).await;
+                let tx_hash = commands::commands::send_tx(base58_tx_bytes, sp_address, &mut client).await;
                 println!("the response from the broadcaster: {:#?}", tx_hash);
             } else if input.chars().next().unwrap() == 'n' {
                 println!("\nok, you can send the signed tx at a later date by passing the base58 string above as the argument for send-tx")
@@ -98,7 +90,7 @@ async fn main() {
             }
         }
         Some(Commands::SendTx(SendTx { base58_payload, sp_address} )) => {
-            let tx_hash = commands::commands::send_tx(base58_payload.clone(), sp_address.clone(), &client).await;
+            let tx_hash = commands::commands::send_tx(base58_payload.clone(), sp_address.clone(), &mut client).await;
             println!("the response from the broadcaster: {:#?}", tx_hash);
         }
         None => {println!("no command specified - nothing to do")}

@@ -2,7 +2,7 @@ use nym_cli_commands::validator::mixnet::Mixnet;
 use nym_crypto::generic_array::sequence;
 use nym_sphinx_addressing::clients::Recipient;
 use nym_validator_client::nyxd::CosmWasmClient;
-use nym_validator_client::nyxd::cosmwasm_client::types::SequenceResponse;
+// use nym_validator_client::nyxd::cosmwasm_client::types::SequenceResponse;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 use nym_validator_client::signing::tx_signer::TxSigner;
 use nym_validator_client::signing::SignerData;
@@ -17,15 +17,25 @@ use serde::{Deserialize, Serialize};
 // use serde_json::Result; 
 
 #[derive(Deserialize, Serialize)]
-struct SequenceRequestData<'a> {
-    validator: &'a str, 
+struct SequenceRequest {
+    validator: String, 
     signer_address: AccountId, 
-    request_type: String
+    // request_type: String
+}
+#[derive(Deserialize, Serialize)]
+struct SequenceResponse {
+    sequence_response: u8, 
+    chain_id: Id
 }
 
-struct SequenceResponseData {
-    sequence_response: SequenceResponse, 
-    chain_id: Id
+enum RequestTypes {
+    Sequence(SequenceRequest), 
+    // Broadcast(BroadcastRequest)
+}
+
+enum ResponseTypes {
+    Sequence(SequenceResponse), 
+    // Broadcast(BroadcastResponse)
 }
 
 pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut MixnetClient , sp_address: Recipient) -> String {
@@ -33,7 +43,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     // TODO take coin amount from function args, + load network vars from config file. 
     let prefix = "n";
     let denom: Denom = "unym".parse().unwrap();
-    let validator = "https://qwerty-validator.qa.nymte.ch";
+    let validator = String::from("https://qwerty-validator.qa.nymte.ch");
 
     let signer = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
     let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
@@ -52,10 +62,10 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     // let chain_id = broadcaster.get_chain_id().await.unwrap();
 /////////////// 
  
-    let message = SequenceRequestData{
+    let message = SequenceRequest{
         validator, 
         signer_address,
-        request_type: String::from("sequence_request")
+        // request_type: String::from("sequence_request")
     }; 
     // send req to client 
     client.send_str(sp_address, &serde_json::to_string(&message).unwrap()).await;
@@ -64,7 +74,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
         println!("{:#?}", i.message); 
     }
     // parse json of res to get signer_data and chain_id, store in SeqResData struct 
-
+ 
     todo!()
 
 /* 

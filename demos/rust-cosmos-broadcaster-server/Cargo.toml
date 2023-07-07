@@ -10,6 +10,7 @@ edition = "2021"
 clap = { version = "4.0", features = ["derive"] }
 nym-bin-common = { path = "../../common/bin-common"}
 nym-sphinx-addressing = { path = "../../common/nymsphinx/addressing" }
+nym-sphinx-anonymous-replies = { path = "../../common/nymsphinx/anonymous-replies" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-crypto = { path = "../../common/crypto" }
 nym-cli-commands = { path = "../../common/commands" }

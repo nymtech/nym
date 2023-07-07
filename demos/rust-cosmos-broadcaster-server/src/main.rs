@@ -4,6 +4,31 @@ use nym_bin_common::logging::setup_logging;
 use std::path::PathBuf;
 mod commands; 
 use serde::{Deserialize, Serialize};
+use cosmrs::rpc::{Id};
+use nym_sphinx_anonymous_replies::{self, requests::RepliableMessage}; 
+
+
+#[derive(Debug, Deserialize, Serialize)]
+struct SequenceRequest {
+    validator: String, 
+    signer_address: AccountId, 
+    // request_type: String
+}
+#[derive(Deserialize, Serialize)]
+struct SequenceResponse {
+    sequence_response: u8, 
+    chain_id: Id
+}
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+enum RequestTypes {
+    Sequence(SequenceRequest), 
+    // Broadcast(BroadcastRequest)
+}
+enum ResponseTypes {
+    Sequence(SequenceResponse), 
+    // Broadcast(BroadcastResponse)
+}
 
 #[tokio::main]
 async fn main() {
@@ -21,13 +46,26 @@ async fn main() {
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    println!("Waiting for message");
+    println!("\nWaiting for message");
     if let Some(received) = client.wait_for_messages().await {
          
-        for r in received {
-            let to_parse  = String::from_utf8_lossy(&r.message); 
-            println!("Received: {}", &to_parse);
-            let parsed = serde_json::from_str(&to_parse).unwrap();
+        for r in &received {
+            let s = String::from_utf8(r.message.clone()); 
+            if s.is_ok() {
+                let p = s.unwrap(); 
+                let request: RequestTypes = serde_json::from_str(&p).unwrap(); 
+                println!("incoming request: {:#?}", &request);
+                match request {
+                    RequestTypes::Sequence(SequenceRequest) => {
+                        println!("matched!")
+                        // TODO pass to commands::fn 
+                    }, 
+                    // RequestTypes::Broadcast(BroadcastRequest) // TODO 
+                    _ => {
+                        println!(" (x_x) ")
+                    }
+                } 
+            } 
 
             /*
             deserialise json 

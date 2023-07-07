@@ -3,7 +3,7 @@
 
 use crate::error::WasmClientError;
 use crate::mix_fetch::RequestId;
-use crate::storage::errors::ClientStorageError;
+use crate::storage::error::ClientStorageError;
 use js_sys::Promise;
 use nym_client_core::error::ClientCoreError;
 use nym_ordered_buffer::OrderedMessageError;

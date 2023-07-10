@@ -89,6 +89,16 @@ impl WasmStorage {
         })
     }
 
+    pub async fn delete(self) -> Result<(), StorageError> {
+        self.inner.0.delete()?.into_future().await?;
+        Ok(())
+    }
+
+    pub async fn remove(db_name: &str) -> Result<(), StorageError> {
+        IdbDatabase::delete_by_name(db_name)?.into_future().await?;
+        Ok(())
+    }
+
     pub async fn exists(db_name: &str) -> Result<bool, StorageError> {
         let db_req: OpenDbRequest = IdbDatabase::open(db_name)?;
         let db: IdbDatabase = db_req.into_future().await?;

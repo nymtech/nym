@@ -1,6 +1,6 @@
-use cosmrs::rpc::{HttpClient, Id};
+// use cosmrs::rpc::{HttpClient, Id};
 use serde::{Deserialize, Serialize}; 
-use cosmrs::{tx, AccountId, Coin, Denom};
+use cosmrs::{tx, AccountId, Coin, Denom, tendermint};
 use nym_validator_client::nyxd::cosmwasm_client::types::SequenceResponse;
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -11,8 +11,9 @@ pub struct SequenceRequest {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SequenceRequestResponse {
-    pub sequence: u8, // fix this - should be cosmwasmclient::SequenceResponse  
-    pub chain_id: Id
+    pub account_number: u64,
+    pub sequence: u64, 
+    pub chain_id: tendermint::chain::Id
 }
 
 #[derive(Deserialize, Serialize, Debug)]

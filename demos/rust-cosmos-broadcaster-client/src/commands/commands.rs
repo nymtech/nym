@@ -1,3 +1,4 @@
+use std::time::Duration;
 use nym_cli_commands::validator::mixnet::Mixnet;
 use nym_crypto::generic_array::sequence;
 use nym_sphinx_addressing::clients::Recipient;
@@ -5,15 +6,18 @@ use nym_validator_client::nyxd::CosmWasmClient;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 use nym_validator_client::signing::tx_signer::TxSigner;
 use nym_validator_client::signing::SignerData;
+use nym_validator_client::nyxd::cosmwasm_client::types;
 use cosmrs::bank::MsgSend;
 use cosmrs::rpc::{HttpClient, Id};
 use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
 use bip39; 
 use bs58; 
-use nym_sdk::mixnet::{self, MixnetClient};
+use nym_sdk::mixnet::{self, MixnetClient, ReconstructedMessage};
 use serde::{Deserialize, Serialize};
 use crate::commands::reqres::SequenceRequest;
+
+use super::reqres::SequenceRequestResponse;
 
 pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut MixnetClient , sp_address: Recipient) -> String {
 
@@ -31,17 +35,23 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     let message = SequenceRequest{
         validator, 
         signer_address,
-        // request_type: String::from("sequence_request")
     }; 
+
     // send req to client 
     client.send_str(sp_address, &serde_json::to_string(&message).unwrap()).await;
+
     let res = client.wait_for_messages().await; 
-    for i in res.unwrap().iter() {
-        println!("{:#?}", i.message); 
-    }
-    // parse json of res to get signer_data and chain_id, store in SeqResData struct 
- 
-    todo!()
+    // parse json of res to get signer_data and chain_id, store in SeqResData struct to create and sign tx 
+
+    for r in res.unwrap().iter() {
+        let message = String::from_utf8(r.message.clone());
+        let p = message.unwrap();
+        let sequence: SequenceRequestResponse = serde_json::from_str(&p).unwrap();
+    }; 
+
+    let placeholder = String::from("placeholder reponse when working on offline_sign()"); 
+    placeholder
+
 
 /* 
     // use the response to create SignerData instance 

@@ -1,6 +1,6 @@
 use cosmrs::rpc::{Id};
 use serde::{Deserialize, Serialize}; 
-use cosmrs::{AccountId};
+use cosmrs::{tx, AccountId, Coin, Denom, tendermint};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SequenceRequest {
@@ -9,11 +9,15 @@ pub struct SequenceRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct SequenceResponse {
-    pub sequence_response: u8, 
-    pub chain_id: Id
+// pub struct SequenceResponse {
+//     pub sequence_response: u8, 
+//     pub chain_id: Id
+// }
+pub struct SequenceRequestResponse {
+    pub account_number: u64,
+    pub sequence: u64, 
+    pub chain_id: tendermint::chain::Id
 }
-
 #[derive(Deserialize, Serialize, Debug)]
 pub struct BroadcastRequest {
     pub base58_tx_bytes: String
@@ -34,7 +38,7 @@ pub enum RequestTypes {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum ResponseTypes {
-    Sequence(SequenceResponse), 
+    Sequence(SequenceRequestResponse), 
     Broadcast(BroadcastResponse)
 }
 

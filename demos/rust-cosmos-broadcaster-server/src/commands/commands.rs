@@ -8,7 +8,7 @@ use nym_validator_client::nyxd::CosmWasmClient;
 // use cosmrs::bank::MsgSend;
 use cosmrs::rpc::{HttpClient, Id, Client};
 // use cosmrs::tx::Msg;
-use cosmrs::{tx, AccountId, Coin, Denom};
+use cosmrs::{tx, AccountId, Coin, Denom, tendermint};
 // use bip39; 
 use bs58; 
 use nym_sdk::mixnet::{self, MixnetClient};
@@ -23,11 +23,9 @@ pub async fn get_sequence(validator: String, signer_address: AccountId) -> Seque
     let broadcaster = HttpClient::new(validator.as_str()).unwrap();
 
     // get signer information
-    // TODO look @ how you can return SequenceResponse type from cosmwasm 
     let sequence = broadcaster.get_sequence(&signer_address).await.unwrap();
-    let chain_id = broadcaster.get_chain_id().await.unwrap();
-    // todo!()
-    let res = SequenceRequestResponse { sequence: 9, chain_id: cosmrs::rpc::Id::Str(String::from("chain_id_placeholder")) };
+    let chain_id: tendermint::chain::Id = broadcaster.get_chain_id().await.unwrap();
+    let res = SequenceRequestResponse { account_number: sequence.account_number, sequence: sequence.sequence, chain_id };
     res  
 }
 

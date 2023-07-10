@@ -52,8 +52,7 @@ async fn main() {
     let cli = Cli::parse();
     // TODO look @ arg env setup from NR main.rs
     // TODO take from args
-    let sp_address = Recipient::try_from_base58_string("58t3wcC14TYvhbq8ATpoQmf9jtJ44pYYU1oj9KKYokQu.BAR7nDgfJxSpatuXB97gqa1rvhfeTvHgVmPkJrvU8pz6@DfNMqQRy6pPkU8Z5rBsxRwzDUzAMXHPFwMhjF16ScZqn").unwrap();
-    
+    let sp_address = Recipient::try_from_base58_string("HfbesQm2pRYCN4BAdYXhkqXBbV1Pp929mtKsESVeWXh8.8AgoUPUQbXNBCPaqAaWd3vnxhc9484qwfgrrQwBngQk2@Ck8zpXTSXMtS9YZ7k7a5BiaoLZfffWuqGWLndujh4Lw4").unwrap();
     let config_dir = PathBuf::from("/tmp/cosmos-broadcaster-mixnet-client-2");
     let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
     let client = MixnetClientBuilder::new_with_default_storage(storage_paths)

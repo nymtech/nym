@@ -1,11 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(feature = "client")]
+#[cfg(all(target_arch = "wasm32", feature = "client"))]
 pub use nym_client_wasm as client;
 
-#[cfg(feature = "node-tester")]
+#[cfg(all(target_arch = "wasm32", feature = "node-tester"))]
 pub use nym_node_tester_wasm as node_tester;
 
-#[cfg(feature = "mix-fetch")]
+#[cfg(all(target_arch = "wasm32", feature = "mix-fetch"))]
 pub use nym_mix_fetch as mix_fetch;

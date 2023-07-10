@@ -8,16 +8,16 @@
   },
   "permissions": [],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' blob:; object-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' 'wasm-unsafe-eval' blob:;"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval';"
   },
   "background": {
-    "page": "background.html"
+    "scripts": ["background.js"]
   },
   "action": {
     "default_icon": {
-     "32" : "icon.png"
+      "32": "icon.png"
     },
-    "default_title": "Quicknote",
+    "default_title": "Nym Firefox Extension Example",
     "default_popup": "popup.html"
   }
 }

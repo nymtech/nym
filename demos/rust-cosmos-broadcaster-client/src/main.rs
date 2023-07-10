@@ -1,7 +1,6 @@
 use std::path::PathBuf;
-
 use clap::{ Parser, Subcommand, Args};
-use nym_sdk::mixnet::{Recipient, MixnetClient, MixnetClientBuilder, StoragePaths};
+use nym_sdk::mixnet::{Recipient, MixnetClientBuilder, StoragePaths};
 use nym_validator_client::nyxd::AccountId;
 use nym_bin_common::logging::setup_logging;
 mod commands;
@@ -53,9 +52,9 @@ async fn main() {
     let cli = Cli::parse();
     // TODO look @ arg env setup from NR main.rs
     // TODO take from args
-    let sp_address = Recipient::try_from_base58_string("6RkSh3QZCBQaSsMjZFSdRgRYkgKkKErQTtZtCyffsaSu.5xLdj5scMH116KazYDBUPRs16oE3BZhEAko8rjynTCJ6@E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM").unwrap();
+    let sp_address = Recipient::try_from_base58_string("58t3wcC14TYvhbq8ATpoQmf9jtJ44pYYU1oj9KKYokQu.BAR7nDgfJxSpatuXB97gqa1rvhfeTvHgVmPkJrvU8pz6@DfNMqQRy6pPkU8Z5rBsxRwzDUzAMXHPFwMhjF16ScZqn").unwrap();
     
-    let config_dir = PathBuf::from("/tmp/cosmos-broadcaster-mixnet-client");
+    let config_dir = PathBuf::from("/tmp/cosmos-broadcaster-mixnet-client-2");
     let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
     let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
         .await

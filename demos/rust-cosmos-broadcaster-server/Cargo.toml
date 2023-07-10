@@ -24,3 +24,4 @@ ts-rs = "6.1.2"
 bs58 = "0.5.0"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+cosmwasm-std = { workspace = true, optional = true }

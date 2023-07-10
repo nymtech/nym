@@ -1,21 +1,54 @@
-/* 
-code for sequence and chain 
-    // possibly remote client that doesn't do ANY signing
-    // (only broadcasts + queries for sequence numbers)
-    let broadcaster = HttpClient::new(validator).unwrap();
+// use nym_cli_commands::validator::mixnet::Mixnet;
+// use nym_crypto::generic_array::sequence;
+// use nym_sphinx_addressing::clients::Recipient;
+use nym_validator_client::nyxd::CosmWasmClient;
+// use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
+// use nym_validator_client::signing::tx_signer::TxSigner;
+// use nym_validator_client::signing::SignerData;
+// use cosmrs::bank::MsgSend;
+use cosmrs::rpc::{HttpClient, Id, Client};
+// use cosmrs::tx::Msg;
+use cosmrs::{tx, AccountId, Coin, Denom};
+// use bip39; 
+use bs58; 
+use nym_sdk::mixnet::{self, MixnetClient};
+use serde::{Deserialize, Serialize};
+use crate::commands::reqres::{SequenceRequest, SequenceRequestResponse};
+
+pub async fn get_sequence(validator: String, signer_address: AccountId) -> SequenceRequestResponse {
+
+    /*
+      TODO create broadcaster in different fn and build on setup - pass to both fns as arg 
+     */
+    let broadcaster = HttpClient::new(validator.as_str()).unwrap();
 
     // get signer information
-    let sequence_response = broadcaster.get_sequence(&signer_address).await.unwrap();
+    // TODO look @ how you can return SequenceResponse type from cosmwasm 
+    let sequence = broadcaster.get_sequence(&signer_address).await.unwrap();
     let chain_id = broadcaster.get_chain_id().await.unwrap();
-    -> pass back chain_id and sequence_response to client side 
+    // todo!()
+    let res = SequenceRequestResponse { sequence: 9, chain_id: cosmrs::rpc::Id::Str(String::from("chain_id_placeholder")) };
+    res  
+}
 
-code for broadcast 
+pub async fn broadcast(base58_tx_bytes: String) -> String {
+    todo!();
+
+    /*
+      TODO create broadcaster in different fn and build on setup - pass to both fns as arg 
+     */
+
     // decode the base58 tx to vec<u8>
+    // let tx_bytes = bs58::decode(base58_tx_bytes);  
 
-    // broadcast the tx
-    let res = rpc::Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
-    .await
-    .unwrap();
+    // // create instance of Transaction struct w tx_bytes - tx_to_broadcast 
 
-    // send res back via SURBs 
- */
+    // // broadcast the tx
+    // let res = Client::broadcast_tx_commit(&broadcaster, tx_to_broadcast)
+    // .await
+    // .unwrap();
+
+    // let placeholder = String::from("palceholder"); 
+    // placeholder 
+
+}

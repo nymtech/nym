@@ -5,17 +5,17 @@ test: clippy-all cargo-test contracts-wasm sdk-wasm-test fmt
 
 test-all: test cargo-test-expensive
 
-no-clippy: build cargo-test contracts-wasm fmt
+no-clippy: build cargo-test contracts-wasm fmt fmt-browser-extension-storage
 
 happy: fmt clippy-happy test
 
-build: sdk-wasm-build
+build: sdk-wasm-build build-browser-extension-storage
 
 # Building release binaries is a little manual as we can't just build --release
 # on all workspaces.
 build-release: build-release-main contracts-wasm
 
-clippy: sdk-wasm-lint
+clippy: sdk-wasm-lint clippy-browser-extension-storage
 
 # Deprecated
 # For backwards compatibility
@@ -97,6 +97,15 @@ build-explorer-api:
 
 build-nym-cli:
 	cargo build -p nym-cli --release
+
+build-browser-extension-storage:
+	cargo build -p extension-storage --target wasm32-unknown-unknown
+
+fmt-browser-extension-storage:
+	cargo fmt -p extension-storage -- --check
+
+clippy-browser-extension-storage:
+	cargo clippy -p extension-storage --target wasm32-unknown-unknown -- -Dwarnings
 
 sdk-wasm: sdk-wasm-build sdk-wasm-test sdk-wasm-lint
 

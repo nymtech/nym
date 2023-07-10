@@ -7,7 +7,8 @@ use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_storage::{IdbVersionChangeEvent, WasmStorage};
-use wasm_utils::{check_promise_result, PromisableResult, PromisableResultError};
+use wasm_utils::check_promise_result;
+use wasm_utils::error::{PromisableResult, PromisableResultError};
 use zeroize::Zeroizing;
 
 const STORAGE_NAME: &str = "nym-wallet-extension";
@@ -25,6 +26,7 @@ pub struct ExtensionStorage {
     inner: Arc<WasmStorage>,
 }
 
+#[allow(clippy::type_complexity)]
 fn db_migration() -> Box<dyn Fn(&IdbVersionChangeEvent) -> Result<(), JsValue>> {
     Box::new(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
         // Even if the web-sys bindings expose the version as a f64, the IndexedDB API

@@ -27,6 +27,7 @@ const {
     no_cover_debug,
     NymNodeTester,
     set_panic_hook,
+    currentNetworkTopology,
 } = wasm_bindgen;
 
 let client = null;
@@ -102,24 +103,23 @@ function printAndDisplayTestResult(result) {
 
 async function testWithTester() {
     const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    const nymApi = 'https://qa-nym-api.qa.nymte.ch/api';
 
     // A) construct with hardcoded topology
-    const topology = dummyTopology()
-    const nodeTester = await new NymNodeTester(topology, undefined, preferredGateway);
+    // const topology = dummyTopology()
+
+    // optional arguments: id, gateway
+    // mandatory (one of) arguments: topology, nymApi
+    // const nodeTester = await new NymNodeTester({ id: "foomp", topology: topology });
 
     // B) first get topology directly from nym-api
-    // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
-    // const topology = await current_network_topology(validator)
-    // const nodeTester = await new NymNodeTester(topology, undefined, preferredGateway);
-    //
+    // const topology = await currentNetworkTopology(nymApi)
+    // const nodeTester = await new NymNodeTester({topology});
+
     // C) use nym-api in the constructor (note: it does no filtering for 'good' nodes on other layers)
     // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
-    // const nodeTester = await NymNodeTester.new_with_api(validator, undefined, preferredGateway)
-
-    // D, E, F) you also don't have to specify the gateway. if you don't, a random one (from your topology) will be used
-    // const topology = dummyTopology()
-    // const nodeTester = await new NymNodeTester(topology);
-
+    const nodeTester = await new NymNodeTester({nymApi});
+    
     self.onmessage = async event => {
         if (event.data && event.data.kind) {
             switch (event.data.kind) {

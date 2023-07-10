@@ -5,6 +5,7 @@ use js_sys::Promise;
 use nym_node_tester_utils::error::NetworkTestingError;
 use thiserror::Error;
 use wasm_client_core::error::WasmCoreError;
+use wasm_client_core::topology::WasmTopologyError;
 use wasm_client_core::{ClientCoreError, GatewayClientError};
 use wasm_utils::wasm_error;
 
@@ -15,10 +16,27 @@ pub enum NodeTesterError {
     )]
     TestInProgress,
 
+    #[error(
+        "both nymApi address and explicit topology were specified - please use only one of them"
+    )]
+    DuplicateTopologySource,
+
+    #[error("neither nymApi address or explicit topology were specified")]
+    NoTopologySource,
+
+    #[error("could not parse provided tester arguments: {err}")]
+    MalformedNodeTesterArguments { err: String },
+
     #[error(transparent)]
     CoreError {
         #[from]
         source: WasmCoreError,
+    },
+
+    #[error("provided topology was malformed: {source}")]
+    InvalidTopology {
+        #[from]
+        source: WasmTopologyError,
     },
 
     #[error("failed to test the node: {source}")]

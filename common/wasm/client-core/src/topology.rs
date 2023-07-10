@@ -10,8 +10,7 @@ use nym_validator_client::client::{IdentityKeyRef, MixId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
-use wasm_bindgen::prelude::wasm_bindgen;
-use wasm_bindgen::JsValue;
+use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 use wasm_utils::console_log;
 use wasm_utils::error::simple_js_error;
 
@@ -39,22 +38,20 @@ impl From<WasmTopologyError> for JsValue {
     }
 }
 
+// serde helper, not intended to be used directly
 #[wasm_bindgen]
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WasmNymTopology {
-    inner: NymTopology,
+    mixnodes: BTreeMap<MixLayer, Vec<WasmMixNode>>,
+    gateways: Vec<WasmGateway>,
 }
 
 #[wasm_bindgen]
 impl WasmNymTopology {
+    // blame javascript on that nasty constructor...
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        // expected: BTreeMap<MixLayer, Vec<WasmMixNode>>,
-        // HashMap<MixLayer, Vec<WasmMixNode>> will also work because it has the same json representation
-        mixnodes: JsValue,
-        // expected: Vec<WasmGateway>
-        gateways: JsValue,
-    ) -> Result<WasmNymTopology, WasmTopologyError> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(mixnodes: JsValue, gateways: JsValue) -> Result<JsValue, WasmTopologyError> {
         let mixnodes: BTreeMap<MixLayer, Vec<WasmMixNode>> =
             serde_wasm_bindgen::from_value(mixnodes).map_err(|source| {
                 WasmTopologyError::MalformedMixnodeMap {
@@ -68,32 +65,16 @@ impl WasmNymTopology {
                     msg: source.to_string(),
                 }
             })?;
+        let topology = WasmNymTopology { mixnodes, gateways };
 
-        let mut converted_mixes = BTreeMap::new();
-
-        for (layer, nodes) in mixnodes {
-            let layer_nodes = nodes
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<_, _>>()?;
-
-            converted_mixes.insert(layer, layer_nodes);
-        }
-
-        let gateways = gateways
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<Result<_, _>>()?;
-
-        Ok(WasmNymTopology {
-            inner: NymTopology::new(converted_mixes, gateways),
-        })
+        // the unwrap is fine as we've just constructed the proper structs
+        Ok(serde_wasm_bindgen::to_value(&topology).unwrap())
     }
 
     pub fn print(&self) {
-        if !self.inner.mixes().is_empty() {
+        if !self.mixnodes.is_empty() {
             console_log!("mixnodes:");
-            for (layer, nodes) in self.inner.mixes() {
+            for (layer, nodes) in &self.mixnodes {
                 console_log!("\tlayer {layer}:");
                 for node in nodes {
                     console_log!("\t\t{} - {}", node.mix_id, node.identity_key)
@@ -103,14 +84,39 @@ impl WasmNymTopology {
             console_log!("NO MIXNODES")
         }
 
-        if !self.inner.gateways().is_empty() {
+        if !self.gateways.is_empty() {
             console_log!("gateways:");
-            for gateway in self.inner.gateways() {
+            for gateway in &self.gateways {
                 console_log!("\t{}", gateway.identity_key)
             }
         } else {
             console_log!("NO GATEWAYS")
         }
+    }
+}
+
+impl TryFrom<WasmNymTopology> for NymTopology {
+    type Error = WasmTopologyError;
+
+    fn try_from(value: WasmNymTopology) -> Result<Self, Self::Error> {
+        let mut converted_mixes = BTreeMap::new();
+
+        for (layer, nodes) in value.mixnodes {
+            let layer_nodes = nodes
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?;
+
+            converted_mixes.insert(layer, layer_nodes);
+        }
+
+        let gateways = value
+            .gateways
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<_, _>>()?;
+
+        Ok(NymTopology::new(converted_mixes, gateways))
     }
 }
 
@@ -120,22 +126,20 @@ impl WasmNymTopology {
     }
 
     pub fn ensure_contains_gateway_id(&self, gateway_id: IdentityKeyRef) -> bool {
-        self.inner
-            .gateways()
-            .iter()
-            .any(|g| g.identity_key.to_base58_string() == gateway_id)
-    }
-}
-
-impl From<WasmNymTopology> for NymTopology {
-    fn from(value: WasmNymTopology) -> Self {
-        value.inner
+        self.gateways.iter().any(|g| g.identity_key == gateway_id)
     }
 }
 
 impl From<NymTopology> for WasmNymTopology {
     fn from(value: NymTopology) -> Self {
-        WasmNymTopology { inner: value }
+        WasmNymTopology {
+            mixnodes: value
+                .mixes()
+                .into_iter()
+                .map(|(&l, nodes)| (l, nodes.into_iter().map(Into::into).collect()))
+                .collect(),
+            gateways: value.gateways().into_iter().map(Into::into).collect(),
+        }
     }
 }
 
@@ -210,6 +214,21 @@ impl TryFrom<WasmMixNode> for mix::Node {
     }
 }
 
+impl<'a> From<&'a mix::Node> for WasmMixNode {
+    fn from(value: &'a mix::Node) -> Self {
+        WasmMixNode {
+            mix_id: value.mix_id,
+            owner: value.owner.clone(),
+            host: value.host.to_string(),
+            mix_port: value.mix_host.port(),
+            identity_key: value.identity_key.to_base58_string(),
+            sphinx_key: value.sphinx_key.to_base58_string(),
+            layer: value.layer.into(),
+            version: value.version.clone(),
+        }
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WasmGateway {
@@ -272,5 +291,19 @@ impl TryFrom<WasmGateway> for gateway::Node {
                 .map_err(GatewayConversionError::from)?,
             version: value.version,
         })
+    }
+}
+
+impl<'a> From<&'a gateway::Node> for WasmGateway {
+    fn from(value: &'a gateway::Node) -> Self {
+        WasmGateway {
+            owner: value.owner.clone(),
+            host: value.host.to_string(),
+            mix_port: value.mix_host.port(),
+            clients_port: value.clients_port,
+            identity_key: value.identity_key.to_base58_string(),
+            sphinx_key: value.sphinx_key.to_base58_string(),
+            version: value.version.clone(),
+        }
     }
 }

@@ -73,8 +73,8 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@nymproject/nym-client-wasm@file:../pkg":
-  version "1.1.1"
+"@nymproject/nym_node_tester_wasm@file:../pkg":
+  version "0.1.0"
 
 "@types/body-parser@*":
   version "1.19.2"

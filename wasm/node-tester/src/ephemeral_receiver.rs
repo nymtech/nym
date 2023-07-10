@@ -57,7 +57,7 @@ impl<'a> EphemeralTestReceiver<'a> {
         let Some(received_packet) = packet else {
             // can't do anything more...
             console_error!("packet receiver has stopped processing results!");
-            return true
+            return true;
         };
         match received_packet {
             Received::Message(msg) => {

@@ -83,7 +83,7 @@ jobs:
         run: cargo install --version 0.112.0 wasm-opt
 
       - name: Build release contracts
-        run: make wasm
+        run: make contracts-wasm
 
       - name: Prepare build output
         shell: bash

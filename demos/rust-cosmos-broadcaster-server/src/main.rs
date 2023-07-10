@@ -4,37 +4,16 @@ use nym_bin_common::logging::setup_logging;
 use std::path::PathBuf;
 mod commands; 
 use serde::{Deserialize, Serialize};
-use cosmrs::rpc::{Id};
-use nym_sphinx_anonymous_replies::{self, requests::RepliableMessage}; 
-
-
-#[derive(Debug, Deserialize, Serialize)]
-struct SequenceRequest {
-    validator: String, 
-    signer_address: AccountId, 
-    // request_type: String
-}
-#[derive(Deserialize, Serialize)]
-struct SequenceResponse {
-    sequence_response: u8, 
-    chain_id: Id
-}
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-enum RequestTypes {
-    Sequence(SequenceRequest), 
-    // Broadcast(BroadcastRequest)
-}
-enum ResponseTypes {
-    Sequence(SequenceResponse), 
-    // Broadcast(BroadcastResponse)
-}
+use cosmrs::{rpc::{Id}};
+use nym_sphinx_anonymous_replies::{self, requests::RepliableMessage};
+use crate::commands::reqres;
+// pull in  ::reply::{MixnetAddress, MixnetMessage} 
 
 #[tokio::main]
 async fn main() {
     setup_logging();
-
-    let config_dir = PathBuf::from("/tmp/cosmos-broadcaster-mixnet-server");
+    // TODO put client creation in own fn 
+    let config_dir = PathBuf::from("/tmp/cosmos-broadcaster-mixnet-server-2");
     let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
     let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
         .await
@@ -44,61 +23,52 @@ async fn main() {
         .unwrap();
     let mut client = client.connect_to_mixnet().await.unwrap();
     let our_address = client.nym_address();
-    println!("Our client nym address is: {our_address}");
+    println!("\nOur client nym address is: {our_address}");
 
+    /*
+       TODO 
+       * make process just wait for another message instead of end after single match() 
+       * add threads!  
+     */
     println!("\nWaiting for message");
     if let Some(received) = client.wait_for_messages().await {
-         
         for r in &received {
             let s = String::from_utf8(r.message.clone()); 
             if s.is_ok() {
                 let p = s.unwrap(); 
-                let request: RequestTypes = serde_json::from_str(&p).unwrap(); 
+                let request: reqres::RequestTypes = serde_json::from_str(&p).unwrap(); 
                 println!("incoming request: {:#?}", &request);
                 match request {
-                    RequestTypes::Sequence(SequenceRequest) => {
-                        println!("matched!")
-                        // TODO pass to commands::fn 
-                    }, 
-                    // RequestTypes::Broadcast(BroadcastRequest) // TODO 
-                    _ => {
-                        println!(" (x_x) ")
-                    }
+                    reqres::RequestTypes::Sequence(request) => {
+                        println!("\nincoming sequence request details:\nvalidator: {},\nsigner address: {}\n", request.validator, request.signer_address); 
+                        let sequence: reqres::SequenceRequestResponse = commands::commands::get_sequence(request.validator, request.signer_address).await;
+                        print!("debug print -------- {:#?}", sequence); 
+                        
+                        // send back to sender via SURBS... 
+                        // TODO how to properly parse to AnonymousSenderTag? 
+                        // TODO make a rust sdk example of replying via SURBs
+                        println!("debug print SENDER TAG --------- {:#?}", r.sender_tag);
+
+                        if Some(r.sender_tag).is_some() {
+                            // TODO construct reply 
+                            let return_recipient = MixnetAddress::from(r.sender_tag); 
+                            // send back thru mixnet
+                            client.send_str(return_recipient, &serde_json::to_string(&sequence).unwrap()).await; 
+                        } else {
+                        //     // TODO replace with actual error type to return 
+                            println!("no surbs cannot reply an0n") 
+                        }
+                    },
+                    reqres::RequestTypes::Broadcast(BroadcastRequest) => {
+                        todo!()
+                    }  
                 } 
             } 
-
-            /*
-            deserialise json 
-            check fn struct match 
-            match{} and pass to function 
-            */
         }
     }
 
-    // TODO V2 - multithreading! 
     client.disconnect().await;
 }
 
 
 
-/* 
-code for sequence and chain 
-    // possibly remote client that doesn't do ANY signing
-    // (only broadcasts + queries for sequence numbers)
-    let broadcaster = HttpClient::new(validator).unwrap();
-
-    // get signer information
-    let sequence_response = broadcaster.get_sequence(&signer_address).await.unwrap();
-    let chain_id = broadcaster.get_chain_id().await.unwrap();
-    -> pass back chain_id and sequence_response to client side 
-
-code for broadcast 
-    // decode the base58 tx to vec<u8>
-
-    // broadcast the tx
-    let res = rpc::Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
-    .await
-    .unwrap();
-
-    // send res back via SURBs 
- */

@@ -18,6 +18,7 @@ futures = { workspace = true }
 js-sys = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] }
+serde-wasm-bindgen = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
@@ -28,3 +29,10 @@ wasm-timer = { git = "https://github.com/mmsinclair/wasm-timer", rev = "b9d1a54a
 nym-node-tester-utils = { path = "../../common/node-tester-utils" }
 wasm-client-core = { path = "../../common/wasm/client-core" }
 wasm-utils = { path = "../../common/wasm/utils" }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[profile.release]
+lto = true
+opt-level = 'z'

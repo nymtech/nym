@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::Config;
+use crate::config::ClientConfig;
 use crate::error::WasmClientError;
 use crate::helpers::{InputSender, WasmTopologyExt};
 use crate::response_pusher::ResponsePusher;
@@ -56,7 +56,7 @@ pub struct NymClient {
 
 #[wasm_bindgen]
 pub struct NymClientBuilder {
-    config: Config,
+    config: ClientConfig,
     custom_topology: Option<NymTopology>,
     preferred_gateway: Option<IdentityKey>,
 
@@ -68,7 +68,7 @@ pub struct NymClientBuilder {
 impl NymClientBuilder {
     #[wasm_bindgen(constructor)]
     pub fn new(
-        config: Config,
+        config: ClientConfig,
         on_message: js_sys::Function,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
@@ -99,7 +99,7 @@ impl NymClientBuilder {
             }
         }
 
-        let full_config = Config::new_tester_config(NODE_TESTER_CLIENT_ID);
+        let full_config = ClientConfig::new_tester_config(NODE_TESTER_CLIENT_ID);
 
         NymClientBuilder {
             config: full_config,
@@ -122,7 +122,10 @@ impl NymClientBuilder {
         }
     }
 
-    fn initialise_storage(config: &Config, base_storage: ClientStorage) -> FullWasmClientStorage {
+    fn initialise_storage(
+        config: &ClientConfig,
+        base_storage: ClientStorage,
+    ) -> FullWasmClientStorage {
         FullWasmClientStorage::new(&config.base, base_storage)
     }
 
@@ -181,7 +184,7 @@ impl NymClientBuilder {
 #[wasm_bindgen]
 impl NymClient {
     async fn _new(
-        config: Config,
+        config: ClientConfig,
         on_message: js_sys::Function,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
@@ -194,7 +197,7 @@ impl NymClient {
     #[wasm_bindgen(constructor)]
     #[allow(clippy::new_ret_no_self)]
     pub fn new(
-        config: Config,
+        config: ClientConfig,
         on_message: js_sys::Function,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,

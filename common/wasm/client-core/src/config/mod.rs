@@ -148,7 +148,7 @@ impl From<TrafficWasm> for ConfigTraffic {
     fn from(traffic: TrafficWasm) -> Self {
         let use_extended_packet_size = traffic
             .use_extended_packet_size
-            .then(|| PacketSize::ExtendedPacket32);
+            .then_some(PacketSize::ExtendedPacket32);
 
         let packet_type = if traffic.use_outfox {
             PacketType::Outfox

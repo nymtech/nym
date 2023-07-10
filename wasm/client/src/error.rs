@@ -18,6 +18,12 @@ pub enum WasmClientError {
         source: WasmCoreError,
     },
 
+    #[error("failed to parse mix config options: {source}")]
+    MalformedConfigOptions {
+        #[from]
+        source: serde_wasm_bindgen::Error,
+    },
+
     #[cfg(feature = "node-tester")]
     #[error("failed to test the node: {source}")]
     NodeTestingFailure {

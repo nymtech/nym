@@ -19,10 +19,10 @@ They should be implemented soon. You can build your applications, but don't rely
 See the [SDK directory](../../sdk/typescript/examples) for examples on how to use it and the NPM packages available.
 
 ## Developing
-
+[Cargo.toml](Cargo.toml)
 This is a Rust crate which is set up to automatically cross-compile the contents of `src` to WebAssembly (aka wasm). It's published from the main [Nym platform monorepo](https://github.com/nymtech/nym) in the `clients/webassembly` directory.
 
-First, make sure you've got all the [Rust wasm toolchain](https://rustwasm.github.io/docs/book/) installed. Cross-compilation sounds scary, but the Rust crew have enabled a remarkably simple setup.
+First, make sure you've got all the [Rust wasm to[Cargo.toml](Cargo.toml)olchain](https://rustwasm.github.io/docs/book/) installed. Cross-compilation sounds scary, but the Rust crew have enabled a remarkably simple setup.
 
 Furthermore, [wasm-bindgen documentation](https://rustwasm.github.io/docs/wasm-bindgen/) provides excellent tips to solving common problems.
 

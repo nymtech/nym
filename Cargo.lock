@@ -1805,6 +1805,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "extension-storage"
+version = "0.1.0"
+dependencies = [
+ "bip39",
+ "console_error_panic_hook",
+ "js-sys",
+ "serde-wasm-bindgen",
+ "thiserror",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-storage",
+ "wasm-utils",
+ "zeroize",
+]
+
+[[package]]
 name = "extension-traits"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

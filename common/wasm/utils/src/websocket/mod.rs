@@ -47,6 +47,7 @@ fn try_from_tungstenite_message(msg: WsMessage) -> Result<gloo_net::websocket::M
 // LEAD TO RUNTIME MEMORY CORRUPTION!!
 // ************************************
 //
+// note: https://github.com/rustwasm/gloo/issues/109
 unsafe impl Send for JSWebsocket {}
 
 #[allow(clippy::upper_case_acronyms)]

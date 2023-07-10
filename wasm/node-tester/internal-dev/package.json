@@ -35,7 +35,6 @@
     "webpack-dev-server": "^4.7.4"
   },
   "dependencies": {
-    "@nymproject/nym-client-wasm": "file:../pkg",
-    "go-mix-conn": "file:../go-mix-conn/build"
+    "@nymproject/nym_node_tester_wasm": "file:../pkg"
   }
 }

@@ -1,21 +1,21 @@
 # Default target
 all: test
 
-test: clippy-all cargo-test wasm fmt
+test: clippy-all cargo-test contracts-wasm sdk-wasm-test fmt
 
 test-all: test cargo-test-expensive
 
-no-clippy: build cargo-test wasm fmt
+no-clippy: build cargo-test contracts-wasm fmt
 
 happy: fmt clippy-happy test
 
-build: build-wasm-clients
+build: sdk-wasm-build
 
 # Building release binaries is a little manual as we can't just build --release
 # on all workspaces.
-build-release: build-release-main wasm
+build-release: build-release-main contracts-wasm
 
-clippy: clippy-wasm-clients
+clippy: sdk-wasm-lint
 
 # Deprecated
 # For backwards compatibility
@@ -98,12 +98,48 @@ build-explorer-api:
 build-nym-cli:
 	cargo build -p nym-cli --release
 
-build-wasm-clients:
-	cargo build -p nym-client-wasm --target wasm32-unknown-unknown
-	# TODO: add mix-fetch, browser extension and node tester
+sdk-wasm: sdk-wasm-build sdk-wasm-test sdk-wasm-lint
 
-clippy-wasm-clients:
-	cargo clippy -p nym-client-wasm --target wasm32-unknown-unknown
+sdk-wasm-build:
+	# client
+	cargo build -p nym-client-wasm --target wasm32-unknown-unknown
+
+	# node-tester
+	cargo build -p nym-node-tester-wasm --target wasm32-unknown-unknown
+
+	# mix-fetch
+	$(MAKE) -C wasm/mix-fetch build
+
+	# full
+	cargo build -p nym-wasm-sdk --target wasm32-unknown-unknown
+
+sdk-wasm-test:
+#	# client
+#	cargo test -p nym-client-wasm --target wasm32-unknown-unknown
+#
+#	# node-tester
+#	cargo test -p nym-node-tester-wasm --target wasm32-unknown-unknown
+#
+#	# mix-fetch
+#	#cargo test -p nym-wasm-sdk --target wasm32-unknown-unknown
+#
+#	# full
+#	cargo test -p nym-wasm-sdk --target wasm32-unknown-unknown
+
+
+sdk-wasm-lint:
+	# client
+	cargo clippy -p nym-client-wasm --target wasm32-unknown-unknown -- -Dwarnings
+
+	# node-tester
+	cargo clippy -p nym-node-tester-wasm --target wasm32-unknown-unknown -- -Dwarnings
+
+	# mix-fetch
+	$(MAKE) -C wasm/mix-fetch check-fmt
+
+	# full
+	cargo clippy -p nym-wasm-sdk --target wasm32-unknown-unknown -- -Dwarnings
+
 
 # -----------------------------------------------------------------------------
 # Build contracts ready for deploy
@@ -115,12 +151,12 @@ MIXNET_CONTRACT=$(CONTRACTS_OUT_DIR)/mixnet_contract.wasm
 SERVICE_PROVIDER_DIRECTORY_CONTRACT=$(CONTRACTS_OUT_DIR)/nym_service_provider_directory.wasm
 NAME_SERVICE_CONTRACT=$(CONTRACTS_OUT_DIR)/nym_name_service.wasm
 
-wasm: wasm-build wasm-opt
+contracts-wasm: contracts-wasm-build contracts-wasm-opt
 
-wasm-build:
+contracts-wasm-build:
 	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
 
-wasm-opt:
+contracts-wasm-opt:
 	wasm-opt --disable-sign-ext -Os $(VESTING_CONTRACT) -o $(VESTING_CONTRACT)
 	wasm-opt --disable-sign-ext -Os $(MIXNET_CONTRACT) -o $(MIXNET_CONTRACT)
 	wasm-opt --disable-sign-ext -Os $(SERVICE_PROVIDER_DIRECTORY_CONTRACT) -o $(SERVICE_PROVIDER_DIRECTORY_CONTRACT)
@@ -131,7 +167,7 @@ wasm-opt:
 # -----------------------------------------------------------------------------
 
 # NOTE: this seems deprecated an not needed anymore?
-mixnet-opt: wasm
+mixnet-opt: contracts-wasm
 	cd contracts/mixnet && make opt
 
 generate-typescript:

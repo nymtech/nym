@@ -25,10 +25,6 @@ module.exports = {
                     from: '../pkg/*.(js|wasm)',
                     to: '[name][ext]',
                 },
-                {
-                    from: '../go-mix-conn/build/*.(js|wasm)',
-                    to: '[name][ext]',
-                },
             ],
         }),
 

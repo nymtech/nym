@@ -13,16 +13,13 @@
 // limitations under the License.
 
 const RUST_WASM_URL = "nym_client_wasm_bg.wasm"
-const GO_WASM_URL = "main.wasm"
 
 importScripts('nym_client_wasm.js');
-importScripts('wasm_exec.js');
 
 console.log('Initializing worker');
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
 const {
-    NymNodeTester,
     WasmGateway,
     WasmMixNode,
     WasmNymTopology,
@@ -31,64 +28,54 @@ const {
     NymClientBuilder,
     NymClient,
     set_panic_hook,
-    Config,
+    ClientConfig,
     GatewayEndpointConfig,
     ClientStorage,
-    MixFetchConfig,
-    MixFetchClient,
     current_network_topology,
-    send_client_data,
-    start_new_mixnet_connection,
-    setupMixFetch,
-    setupMixFetchSimple,
-    mix_fetch_initialised,
-    finish_mixnet_connection} = wasm_bindgen;
+} = wasm_bindgen;
 
 let client = null;
-let tester = null;
-const go = new Go(); // Defined in wasm_exec.js
-var goWasm;
 
 function dummyTopology() {
     const l1Mixnode = new WasmMixNode(
         1,
-        'n1fzv4jc7fanl9s0qj02ge2ezk3kts545kjtek47',
-        '178.79.143.65',
+        'n1lftjhnl35cjsfd533zhgrwrspx6qmumd8vjgp9',
+        '80.85.86.75',
         1789,
-        '4Yr4qmEHd9sgsuQ83191FR2hD88RfsbMmB4tzhhZWriz',
-        '8ndjk5oZ6HxUZNScLJJ7hk39XtUqGexdKgW7hSX6kpWG',
+        '91mNjhJSBkJ9Lb6f1iuYMDQPLiX3kAv6paSUCWjGRwQz',
+        'DmfN1mL1T95nPXvLK44AQKCpW1pStHNQCi6Fgpz5dxDV',
         1,
-        '1.10.0',
+        '1.1.20',
     );
     const l2Mixnode = new WasmMixNode(
         2,
-        'n1z93z44vf8ssvdhujjvxcj4rd5e3lz0l60wdk70',
-        '109.74.197.180',
+        'n18ztkyh20gwzrel0e5m4sahd358fq9p4skwa7d3',
+        '139.162.199.75',
         1789,
-        '7sVjiMrPYZrDWRujku9QLxgE8noT7NTgBAqizCsu7AoK',
-        'GepXwRnKZDd8x2nBWAajGGBVvF3mrpVMQBkgfrGuqRCN',
+        'BkLhuKQNyPS19sHZ3HHKCTKwK7hCU6XiFLndyZZHiB7s',
+        '7KGC97tJRhJZKhDqFcsp4Vu715VVxizuD7BktnzuSmZC',
         2,
-        '1.10.0',
+        '1.1.20',
     );
     const l3Mixnode = new WasmMixNode(
         3,
-        'n1ptg680vnmef2cd8l0s9uyc4f0hgf3x8sed6w77',
-        '176.58.101.80',
+        'n1njq8h4nndp7ngays5el2rdp22hq67lwqcaq3ph',
+        '139.162.244.139',
         1789,
-        'FoM5Mx9Pxk1g3zEqkS3APgtBeTtTo3M8k7Yu4bV6kK1R',
-        'DeYjrDC2AcQRVFshiKnbUo6bRvPyZ33QGYR2DLeFJ9qD',
+        'EPja9Kv8JtPHsFbzPdBQierMu5GmQy5roE5njyD6dmND',
+        'HWpsZChDrtEH8XNscW3qJMRzdCfUD8N8DmMcKqFv7tcf',
         3,
-        '1.10.0',
+        '1.1.20',
     );
 
     const gateway = new WasmGateway(
-        'n16evnn8glr0sham3matj8rg2s24m6x56ayk87ts',
-        '85.159.212.96',
+        'n13n48znq3v2fu4nwx95vfcyf68zfsad7py2jz4m',
+        '85.159.211.99',
         1789,
         9000,
-        '336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9',
-        'BtYjoWihiuFihGKQypmpSspbhmWDPxzqeTVSd8ciCpWL',
-        '1.10.1',
+        '6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM',
+        '2V9uwPG2YPogX1BR5WXQGFrYzrAnUpnD3aSFyeZepdTp',
+        '1.1.19',
     );
 
     const mixnodes = new Map();
@@ -119,19 +106,19 @@ function printAndDisplayTestResult(result) {
 }
 
 async function testWithTester() {
-    const preferredGateway = "336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9";
+    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
 
     // A) construct with hardcoded topology
     const topology = dummyTopology()
     const nodeTester = await new NymNodeTester(topology, preferredGateway);
 
     // B) first get topology directly from nym-api
-    // const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
+    // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
     // const topology = await current_network_topology(validator)
     // const nodeTester = await new NymNodeTester(topology, preferredGateway);
     //
     // C) use nym-api in the constructor (note: it does no filtering for 'good' nodes on other layers)
-    // const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
+    // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
     // const nodeTester = await NymNodeTester.new_with_api(validator, preferredGateway)
 
     // D, E, F) you also don't have to specify the gateway. if you don't, a random one (from your topology) will be used
@@ -154,7 +141,7 @@ async function testWithTester() {
 }
 
 async function testWithNymClient() {
-    const preferredGateway = "336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9";
+    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
     const topology = dummyTopology()
 
     let received = 0
@@ -234,10 +221,10 @@ async function normalNymClientUsage() {
 
     debug.topology_refresh_rate_ms = BigInt(60000)
 
-    const preferredGateway = "336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9";
-    const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
+    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    const validator = 'https://qa-nym-api.qa.nymte.ch/api';
 
-    const config = new Config('my-awesome-wasm-client', validator, debug);
+    const config = new ClientConfig('my-awesome-wasm-client', { nymApi: validator, debug });
 
     const onMessageHandler = (message) => {
         console.log(message);
@@ -305,123 +292,6 @@ async function messWithStorage() {
     };
 }
 
-async function logFetchResult(res) {
-    console.log(res)
-    let text = await res.text()
-    console.log("HEADERS:     ", ...res.headers)
-    console.log("STATUS:      ", res.status)
-    console.log("STATUS TEXT: ", res.statusText)
-    console.log("OK:          ", res.ok)
-    console.log("TYPE:        ", res.type)
-    console.log("URL:         ", res.url)
-    console.log("BODYUSED:    ", res.bodyUsed)
-    console.log("REDIRECTED:  ", res.redirected)
-    console.log("TEXT:        ",text)
-}
-
-async function testMixFetch() {
-    // only really useful if you want to adjust some settings like traffic rate
-    // (if not needed you can just pass a null)
-    const debug = no_cover_debug()
-
-    // const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    const validator = 'https://qa-nym-api.qa.nymte.ch/api';
-
-    // local
-    const mix_fetch_network_requester_address= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    // const mix_fetch_network_requester_address= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-
-    const config = new MixFetchConfig(mix_fetch_network_requester_address, { id: 'my-awesome-mix-fetch-client', nymApi: validator, debug: debug} );
-
-    console.log('Instantiating Mix Fetch...');
-    // await setupMixFetch(config, {storagePassphrase: "foomp"})
-    await setupMixFetch(config)
-
-    // this one will use all the defaults (apart from the SP - but maybe we could grab the list from somewhere?)
-    // await setupMixFetchSimple(mix_fetch_network_requester_address)
-
-    console.log('Mix Fetch client running!');
-
-    self.postMessage({
-        kind: 'Ready',
-        args: {
-            selfAddress: "this is mix fetch, there's no address",
-        },
-    });
-
-
-    // Set callback to handle messages passed to the worker.
-    self.onmessage = async event => {
-        if (event.data && event.data.kind) {
-            switch (event.data.kind) {
-                case 'MagicPayload': {
-                    // ignore the field naming : ) I'm just abusing that a bit...
-                    const {mixnodeIdentity} = event.data.args;
-                    const url = mixnodeIdentity;
-
-                    const controller = new AbortController();
-                    const signal = controller.signal;
-
-                    const args = { mode: "cors", redirect: "manual", signal }
-                    // const args = { mode: "unsafe-ignore-cors" }
-
-                    setTimeout(() => {
-                        console.warn("timeout")
-                        controller.abort()
-                    }, 1000)
-
-
-                    try {
-                        console.log('using mixFetch...');
-                        const mixFetchRes = await mixFetch(url, args)
-                        console.log(">>> MIX FETCH")
-                        await logFetchResult(mixFetchRes)
-                    } catch(e) {
-                        console.error("mix fetch request failure: ", e)
-                    }
-
-                    // try {
-                    //     console.log('using normal Fetch...');
-                    //     const fetchRes = await fetch(url, args)
-                    //     console.log(">>> NORMAL FETCH")
-                    //     await logFetchResult(fetchRes)
-                    // } catch(e) {
-                    //     console.error("fetch request failure: ", e)
-                    // }
-                }
-            }
-        }
-    };
-}
-
-
-// TODO: look into https://www.aaron-powell.com/posts/2019-02-08-golang-wasm-5-compiling-with-webpack/
-async function loadGoWasm() {
-    const resp = await fetch(GO_WASM_URL);
-
-    if ('instantiateStreaming' in WebAssembly) {
-        const wasmObj = await WebAssembly.instantiateStreaming(resp, go.importObject)
-        goWasm = wasmObj.instance
-        go.run(goWasm)
-    } else {
-        const bytes  = await resp.arrayBuffer()
-        const wasmObj = await WebAssembly.instantiate(bytes, go.importObject)
-        goWasm = wasmObj.instance
-        go.run(goWasm)
-    }
-}
-
-function setupRsGoBridge() {
-    // TODO: ask Mark how to avoid this
-    // (note: reason for intermediate `__rs_go_bridge__` object is to decrease global scope bloat
-    // and to discourage users from trying to call those methods directly)
-    self.__rs_go_bridge__ = {}
-    self.__rs_go_bridge__.send_client_data = send_client_data
-    self.__rs_go_bridge__.start_new_mixnet_connection = start_new_mixnet_connection
-    self.__rs_go_bridge__.mix_fetch_initialised = mix_fetch_initialised
-    self.__rs_go_bridge__.finish_mixnet_connection = finish_mixnet_connection
-}
-
 async function main() {
     console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN START");
 
@@ -429,28 +299,14 @@ async function main() {
     await wasm_bindgen(RUST_WASM_URL);
     console.log('Loaded RUST WASM');
 
-    // load go WASM package
-    await loadGoWasm();
-    console.log("Loaded GO WASM");
-
     // sets up better stack traces in case of in-rust panics
     set_panic_hook();
-
-    setupRsGoBridge();
-
-    goWasmSetLogging("trace")
-
-    // test mixFetch
-    await testMixFetch();
     //
-    // // run test on simplified and dedicated tester:
-    // // await testWithTester()
+    // hook-up the whole client for testing (not recommended)
+    await testWithNymClient()
     //
-    // // hook-up the whole client for testing
-    // // await testWithNymClient()
-    //
-    // // 'Normal' client setup (to send 'normal' messages)
-    // // await normalNymClientUsage()
+    // 'Normal' client setup (to send 'normal' messages)
+    // await normalNymClientUsage()
     //
     console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END")
 }

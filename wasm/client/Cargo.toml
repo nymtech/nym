@@ -17,6 +17,7 @@ futures = { workspace = true }
 js-sys = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] }
+serde-wasm-bindgen = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 thiserror =  { workspace = true }
@@ -27,5 +28,16 @@ wasm-utils = { path = "../../common/wasm/utils" }
 nym-node-tester-utils = { path = "../../common/node-tester-utils", optional = true }
 nym-node-tester-wasm = { path = "../node-tester", optional = true}
 
+[dev-dependencies]
+wasm-bindgen-test = "0.3.36"
+
 [features]
+default = ["node-tester"]
 node-tester = ["nym-node-tester-wasm", "nym-node-tester-utils"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[profile.release]
+lto = true
+opt-level = 'z'

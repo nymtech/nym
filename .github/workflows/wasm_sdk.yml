@@ -43,4 +43,4 @@ jobs:
         run: make sdk-wasm-test
 
       - name: "Lint"
-        run: make-sdk-wasm-lint
+        run: make sdk-wasm-lint

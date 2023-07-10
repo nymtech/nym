@@ -11,6 +11,7 @@ use nym_task::{
 };
 
 use futures::StreamExt;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_topology::NymTopology;
 
 use crate::mixnet::client::{IncludedSurbs, MixnetClientBuilder};
@@ -127,8 +128,7 @@ impl MixnetClient {
     /// }
     /// ```
     pub async fn send_str(&self, address: Recipient, message: &str) {
-        let message_bytes = message.to_string().into_bytes();
-        self.send_bytes(address, message_bytes, IncludedSurbs::default())
+        self.send_bytes(address, message, IncludedSurbs::default())
             .await;
     }
 
@@ -149,16 +149,73 @@ impl MixnetClient {
     ///     client.send_bytes(recipient, "hi".to_owned().into_bytes(), surbs).await;
     /// }
     /// ```
-    pub async fn send_bytes(&self, address: Recipient, message: Vec<u8>, surbs: IncludedSurbs) {
+    pub async fn send_bytes<M: AsRef<[u8]>>(
+        &self,
+        address: Recipient,
+        message: M,
+        surbs: IncludedSurbs,
+    ) {
         let lane = TransmissionLane::General;
         let input_msg = match surbs {
-            IncludedSurbs::Amount(surbs) => {
-                InputMessage::new_anonymous(address, message, surbs, lane, self.packet_type)
-            }
-            IncludedSurbs::ExposeSelfAddress => {
-                InputMessage::new_regular(address, message, lane, self.packet_type)
-            }
+            IncludedSurbs::Amount(surbs) => InputMessage::new_anonymous(
+                address,
+                message.as_ref().to_vec(),
+                surbs,
+                lane,
+                self.packet_type,
+            ),
+            IncludedSurbs::ExposeSelfAddress => InputMessage::new_regular(
+                address,
+                message.as_ref().to_vec(),
+                lane,
+                self.packet_type,
+            ),
         };
+        self.send(input_msg).await
+    }
+
+    /// Sends stringy reply data to the supplied anonymous recipient.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use nym_sdk::mixnet;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    ///     // note: the tag is something you would have received from a remote client sending you surbs!
+    ///     let tag = mixnet::AnonymousSenderTag::try_from_base58_string("foobar").unwrap();
+    ///     client.send_str_reply(tag, "hi").await;
+    /// }
+    /// ```
+    pub async fn send_str_reply(&self, recipient_tag: AnonymousSenderTag, message: &str) {
+        self.send_reply(recipient_tag, message).await;
+    }
+
+    /// Sends binary reply data to the supplied anonymous recipient.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use nym_sdk::mixnet;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    ///     // note: the tag is something you would have received from a remote client sending you surbs!
+    ///     let tag = mixnet::AnonymousSenderTag::try_from_base58_string("foobar").unwrap();
+    ///     client.send_reply(tag, b"hi").await;
+    /// }
+    /// ```
+    pub async fn send_reply<M: AsRef<[u8]>>(&self, recipient_tag: AnonymousSenderTag, message: M) {
+        let lane = TransmissionLane::General;
+        let input_msg = InputMessage::new_reply(
+            recipient_tag,
+            message.as_ref().to_vec(),
+            lane,
+            self.packet_type,
+        );
         self.send(input_msg).await
     }
 

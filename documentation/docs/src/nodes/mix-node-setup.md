@@ -191,8 +191,6 @@ Follow these steps to upgrade your mix node binary and update its config file:
 * re-run `init` with the same values as you used initially. **This will just update the config file, it will not overwrite existing keys**.
 * restart your mix node process with the new binary.
 
-> Do **not** use the `upgrade` command: there is a known error with the command that will be fixed in a subsequent release.
-
 #### Step 2: updating your node information in the smart contract
 Follow these steps to update the information about your mix node which is publically avaliable from the [Nym API](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [mixnet explorer](https://explorer.nymtech.net).
 

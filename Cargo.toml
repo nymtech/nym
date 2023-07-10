@@ -74,6 +74,7 @@ members = [
     "common/types",
     "common/wasm-utils",
     "demos/rust-cosmos-broadcaster-client",
+    "demos/rust-cosmos-broadcaster-server", 
     "explorer-api",
     "gateway",
     "gateway/gateway-requests",

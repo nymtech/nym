@@ -1,0 +1,98 @@
+name: Publish Nym Connect - desktop (Windows 10)
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        required: true
+        description: Release tag (nym-connect-s-v*)
+        type: string
+        default: 'nym-connect-s-v1.0.0'
+  push:
+    tags:
+      - nym-connect-s-v*
+
+defaults:
+  run:
+    working-directory: nym-connect/desktop
+
+jobs:
+  publish-tauri:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-connect-s-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows10]
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Clean up first
+        continue-on-error: true
+        working-directory: .
+        run: |
+          cd ..
+          del /s /q /A:H nym
+          rmdir /s /q nym
+
+      - uses: actions/checkout@v3
+
+      - name: Import signing certificate
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          New-Item -ItemType directory -Path certificate
+          Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
+          certutil -decode certificate/tempCert.txt certificate/certificate.pfx
+          Remove-Item -path certificate -include tempCert.txt
+          Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
+
+      - name: Node v16
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Create env file
+        uses: timheuer/base64-to-file@v1.1
+        with:
+          fileName: '.env'
+          encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
+
+      - name: Install app dependencies
+        run: yarn --network-timeout 100000
+
+      - name: Prepare for build
+        env:
+          RELEASE_TAG: ${{ github.ref_name || inputs.release_tag }}
+        run: ./scripts/pre_medium_build.sh
+
+      - name: Build and sign it
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENABLE_CODE_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          NYM_CONNECT_ENABLE_MEDIUM: 1
+        run: yarn build
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nym-connect-s_1.0.0_x64_en-US.msi
+          path: nym-connect/desktop/target/release/bundle/msi/nym-connect-s_1.0.0_x64_en-US.msi
+          retention-days: 30
+
+      - id: create-release
+        name: Upload to release based on tag name
+        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release'
+        with:
+          files: |
+            nym-connect/desktop/target/release/bundle/msi/*.msi
+            nym-connect/desktop/target/release/bundle/msi/*.msi.zip*

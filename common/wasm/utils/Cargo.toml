@@ -13,6 +13,7 @@ wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 getrandom = { workspace = true, features=["js"], optional = true }
 gloo-utils = { workspace = true }
+gloo-net = { version = "0.2.6", features = ["websocket"], optional = true }
 
 # we don't want entire tokio-tungstenite, tungstenite itself is just fine - we just want message and error enums
 [dependencies.tungstenite]
@@ -30,15 +31,7 @@ sleep = ["web-sys", "web-sys/Window"]
 websocket = [
     "getrandom",
     "tungstenite",
-    "web-sys",
-    "web-sys/BinaryType",
-    "web-sys/Blob",
-    "web-sys/CloseEvent",
-    "web-sys/ErrorEvent",
-    "web-sys/FileReader",
-    "web-sys/MessageEvent",
-    "web-sys/ProgressEvent",
-    "web-sys/WebSocket",
+    "gloo-net"
 ]
 crypto = [
     "web-sys",

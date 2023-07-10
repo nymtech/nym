@@ -21,7 +21,7 @@ pub enum GatewayClientError {
 
     #[cfg(target_arch = "wasm32")]
     #[error("There was a network error")]
-    NetworkErrorWasm(JsError),
+    NetworkErrorWasm(#[from] JsError),
 
     #[error("Invalid URL - {0}")]
     InvalidURL(String),

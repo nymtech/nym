@@ -75,11 +75,13 @@ pub async fn current_network_topology_async(
     Ok(NymTopology::from_detailed(mixnodes, gateways).into())
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = "currentNetworkTopology")]
 pub fn current_network_topology(nym_api_url: String) -> Promise {
+    // blame js for that serde conversion
     future_to_promise(async move {
         current_network_topology_async(nym_api_url)
             .await
+            .map(|topology| serde_wasm_bindgen::to_value(&topology).unwrap())
             .into_promise_result()
     })
 }

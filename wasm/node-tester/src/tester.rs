@@ -11,6 +11,7 @@ use nym_node_tester_utils::receiver::SimpleMessageReceiver;
 use nym_node_tester_utils::{NodeTester, PacketSize, PreparedFragment};
 use nym_task::TaskManager;
 use rand::rngs::OsRng;
+use serde::Deserialize;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex as SyncMutex};
@@ -28,8 +29,8 @@ use wasm_client_core::{
     nym_task, GatewayClient, IdentityKey, InitialisationDetails, ManagedKeys, NodeIdentity,
     NymTopology, Recipient,
 };
+use wasm_utils::check_promise_result;
 use wasm_utils::error::PromisableResult;
-use wasm_utils::{check_promise_result, console_log};
 
 pub const NODE_TESTER_ID: &str = "_nym-node-tester";
 
@@ -82,39 +83,66 @@ fn address(keys: &ManagedKeys, gateway_identity: NodeIdentity) -> Recipient {
 }
 
 #[wasm_bindgen]
+#[derive(Debug, Clone, Deserialize)]
+pub struct NymNodeTesterOpts {
+    id: Option<String>,
+
+    #[serde(rename = "nymApi")]
+    nym_api: Option<String>,
+
+    topology: Option<WasmNymTopology>,
+
+    gateway: Option<IdentityKey>,
+}
+
+impl TryFrom<JsValue> for NymNodeTesterOpts {
+    type Error = NodeTesterError;
+
+    fn try_from(args: JsValue) -> Result<Self, Self::Error> {
+        if args.is_null() || args.is_undefined() {
+            return Err(NodeTesterError::NoTopologySource);
+        }
+
+        serde_wasm_bindgen::from_value(args).map_err(|err| {
+            NodeTesterError::MalformedNodeTesterArguments {
+                err: err.to_string(),
+            }
+        })
+    }
+}
+
+#[wasm_bindgen]
 impl NymNodeTesterBuilder {
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        base_topology: WasmNymTopology,
-        id: Option<String>,
-        gateway: Option<IdentityKey>,
-    ) -> NymNodeTesterBuilder {
-        NymNodeTesterBuilder {
-            id,
-            gateway,
-            base_topology: base_topology.into(),
-            bandwidth_controller: None,
+    pub fn new(args: JsValue) -> Promise {
+        let args: NymNodeTesterOpts = match args.try_into() {
+            Ok(args) => args,
+            Err(err) => return err.into_rejected_promise(),
+        };
+
+        future_to_promise(async move { Self::new_async(args).await.into_promise_result() })
+    }
+
+    async fn new_async(args: NymNodeTesterOpts) -> Result<NymNodeTesterBuilder, NodeTesterError> {
+        if args.nym_api.is_some() && args.topology.is_some() {
+            return Err(NodeTesterError::DuplicateTopologySource);
         }
-    }
+        if args.nym_api.is_none() && args.topology.is_none() {
+            return Err(NodeTesterError::NoTopologySource);
+        }
 
-    async fn _new_with_api(
-        api_url: String,
-        id: Option<String>,
-        gateway: Option<IdentityKey>,
-    ) -> Result<Self, NodeTesterError> {
-        let topology = current_network_topology_async(api_url).await?;
-        Ok(NymNodeTesterBuilder::new(topology, id, gateway))
-    }
+        let topology = if let Some(topology) = args.topology {
+            topology
+        } else {
+            // the unwrap here is fine as we just ensured one of the branches would be true
+            current_network_topology_async(args.nym_api.unwrap()).await?
+        };
 
-    pub fn new_with_api(
-        api_url: String,
-        id: Option<String>,
-        gateway: Option<IdentityKey>,
-    ) -> Promise {
-        future_to_promise(async move {
-            Self::_new_with_api(api_url, id, gateway)
-                .await
-                .into_promise_result()
+        Ok(NymNodeTesterBuilder {
+            gateway: args.gateway,
+            id: args.id,
+            base_topology: topology.try_into()?,
+            bandwidth_controller: None,
         })
     }
 
@@ -242,36 +270,20 @@ async fn test_mixnode(
 impl NymNodeTester {
     #[wasm_bindgen(constructor)]
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(
-        topology: WasmNymTopology,
-        id: Option<String>,
-        gateway: Option<IdentityKey>,
-    ) -> Promise {
-        console_log!("constructing node tester!");
-        NymNodeTesterBuilder::new(topology, id, gateway).setup_client()
+    pub fn new(args: JsValue) -> Promise {
+        let args: NymNodeTesterOpts = match args.try_into() {
+            Ok(args) => args,
+            Err(err) => return err.into_rejected_promise(),
+        };
+
+        future_to_promise(async move { Self::new_async(args).await.into_promise_result() })
     }
 
-    async fn _new_with_api(
-        api_url: String,
-        id: Option<String>,
-        gateway: Option<IdentityKey>,
-    ) -> Result<Self, NodeTesterError> {
-        NymNodeTesterBuilder::_new_with_api(api_url, id, gateway)
+    async fn new_async(args: NymNodeTesterOpts) -> Result<Self, NodeTesterError> {
+        NymNodeTesterBuilder::new_async(args)
             .await?
             ._setup_client()
             .await
-    }
-
-    pub fn new_with_api(
-        api_url: String,
-        id: Option<String>,
-        gateway: Option<IdentityKey>,
-    ) -> Promise {
-        future_to_promise(async move {
-            Self::_new_with_api(api_url, id, gateway)
-                .await
-                .into_promise_result()
-        })
     }
 
     pub fn disconnect_from_gateway(&self) -> Promise {

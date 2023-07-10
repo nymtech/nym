@@ -23,6 +23,7 @@ export const WithCopy = Template.bind({});
 WithCopy.args = {
   address: 'n222gnd9k6rytn6tz7pf8d2d4dawl7e9cr26111',
   withCopy: true,
+  smallIcons: true,
 };
 
 export const WithLabel = Template.bind({});
@@ -45,4 +46,11 @@ export const EmptyWithLabelAndCopy = Template.bind({});
 EmptyWithLabelAndCopy.args = {
   withLabel: true,
   withCopy: true,
+};
+
+export const WithSmallIcons = Template.bind({});
+WithSmallIcons.args = {
+  address: 'n222gnd9k6rytn6tz7pf8d2d4dawl7e9cr26111',
+  withCopy: true,
+  smallIcons: true,
 };

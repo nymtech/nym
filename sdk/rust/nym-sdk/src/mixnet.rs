@@ -67,6 +67,7 @@ pub use nym_sphinx::{
         clients::{ClientIdentity, Recipient},
         nodes::NodeIdentity,
     },
+    anonymous_replies::requests::AnonymousSenderTag,
     receiver::ReconstructedMessage,
 };
 pub use nym_topology::{provider_trait::TopologyProvider, NymTopology};

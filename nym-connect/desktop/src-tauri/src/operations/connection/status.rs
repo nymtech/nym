@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::models::{ConnectionStatusKind, ConnectivityTestResult, GatewayConnectionStatusKind};
-use crate::state::State;
+use crate::state::{is_medium_enabled, State};
 
 #[tauri::command]
 pub async fn get_connection_status(
@@ -41,4 +41,9 @@ pub fn start_connection_health_check_task(
     window: tauri::Window<tauri::Wry>,
 ) {
     tasks::start_connection_check(state.inner().clone(), window);
+}
+
+#[tauri::command]
+pub async fn is_medium_mode_enabled(_state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<bool> {
+    Ok(is_medium_enabled())
 }

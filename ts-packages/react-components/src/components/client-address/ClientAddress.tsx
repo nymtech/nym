@@ -1,8 +1,6 @@
-import React, { FC, useContext } from 'react';
+import React from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
-import { AppContext } from '../context/main';
-import { CopyToClipboard } from './CopyToClipboard';
-import { splice } from '../utils';
+import { CopyToClipboard } from '../clipboard/CopyToClipboard';
 
 const AddressTooltip: FCWithChildren<{ visible?: boolean; address?: string }> = ({ visible, address, children }) => {
   if (!visible || !address) {
@@ -19,17 +17,20 @@ const AddressTooltip: FCWithChildren<{ visible?: boolean; address?: string }> = 
 };
 
 type ClientAddressProps = {
+  address: string;
   withLabel?: boolean;
   withCopy?: boolean;
+  smallIcons?: boolean;
   showEntireAddress?: boolean;
 };
 
-export const ClientAddressDisplay: FC<ClientAddressProps & { address?: string }> = ({
+export const ClientAddressDisplay = ({
   withLabel,
   withCopy,
+  smallIcons,
   showEntireAddress,
   address,
-}) => (
+}: ClientAddressProps & { address?: string }) => (
   <Box>
     {withLabel && (
       <>
@@ -40,15 +41,12 @@ export const ClientAddressDisplay: FC<ClientAddressProps & { address?: string }>
     )}
 
     <AddressTooltip address={address} visible={!showEntireAddress}>
-      <Typography variant="body2" component="span" sx={{ color: 'text.primary', fontWeight: 400 }}>
-        {showEntireAddress ? address || '' : splice(6, address)}
+      <Typography variant="body2" component="span" sx={{ color: 'text.primary', fontWeight: 400, mr: 0.5 }}>
+        {showEntireAddress ? address || '' : `${(address || '').slice(0, 6)}...${address.slice(-6)}`}
       </Typography>
     </AddressTooltip>
-    {withCopy && <CopyToClipboard text={address} iconButton />}
+    {withCopy && <CopyToClipboard smallIcons={smallIcons} value={address} />}
   </Box>
 );
 
-export const ClientAddress: FC<ClientAddressProps> = ({ ...props }) => {
-  const { clientDetails } = useContext(AppContext);
-  return <ClientAddressDisplay {...props} address={clientDetails?.client_address} />;
-};
+export const ClientAddress = ({ ...props }: ClientAddressProps) => <ClientAddressDisplay {...props} />;

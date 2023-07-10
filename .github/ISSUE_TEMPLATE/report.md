@@ -2,7 +2,7 @@
 name: Report
 about: To help identify and reproduce issues
 title: "[Issue]"
-labels: bug, bug-needs-triage, qa
+labels: bug, bug-needs-triage, qa, needs-triage
 assignees: tommyv1987
 
 ---

@@ -11,8 +11,9 @@ import {
   Typography,
 } from '@mui/material';
 import { AccountsContext } from 'src/context';
-import { Mnemonic, PasswordInput } from 'src/components';
+import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { StyledBackButton } from 'src/components/StyledBackButton';
+import { Mnemonic } from 'src/components/Mnemonic';
 
 export const MnemonicModal = () => {
   const [password, setPassword] = useState('');

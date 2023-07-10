@@ -1,10 +1,11 @@
 import React from 'react';
-import { Box, CircularProgress, Tooltip, Typography } from '@mui/material';
+import { Box, CircularProgress, Stack, Tooltip, Typography } from '@mui/material';
 import { DateTime } from 'luxon';
 import { ErrorOutline, InfoOutlined } from '@mui/icons-material';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ServiceProvider } from '../types/directory';
 import { GatwayWarningInfo, ServiceProviderInfo } from './TooltipInfo';
+import { useClientContext } from '../context/main';
 
 const FONT_SIZE = '14px';
 const FONT_WEIGHT = '600';
@@ -15,6 +16,8 @@ const ConnectionStatusContent: FCWithChildren<{
   serviceProvider?: ServiceProvider;
   gatewayError: boolean;
 }> = ({ status, serviceProvider, gatewayError }) => {
+  const { speedMode } = useClientContext();
+
   if (gatewayError) {
     return (
       <Tooltip title={serviceProvider ? <GatwayWarningInfo /> : undefined}>
@@ -37,14 +40,23 @@ const ConnectionStatusContent: FCWithChildren<{
   switch (status) {
     case 'connected':
       return (
-        <Tooltip title={serviceProvider ? <ServiceProviderInfo serviceProvider={serviceProvider} /> : undefined}>
-          <Box display="flex" alignItems="center" gap={0.5} justifyContent="center" sx={{ cursor: 'pointer' }}>
-            <InfoOutlined sx={{ fontSize: 14 }} />
-            <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize={FONT_SIZE} textAlign="center">
-              Connected to Nym Mixnet
-            </Typography>
-          </Box>
-        </Tooltip>
+        <>
+          <Tooltip title={serviceProvider ? <ServiceProviderInfo serviceProvider={serviceProvider} /> : undefined}>
+            <Box display="flex" alignItems="center" gap={0.5} justifyContent="center" sx={{ cursor: 'pointer' }}>
+              <InfoOutlined sx={{ fontSize: 14 }} />
+              <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize={FONT_SIZE} textAlign="center">
+                Connected to Nym Mixnet
+              </Typography>
+            </Box>
+          </Tooltip>
+          {speedMode === 'medium' && (
+            <Stack alignItems="center" color="warning.main">
+              <Typography variant="caption" color="grey.400">
+                Speedy mode activated
+              </Typography>
+            </Stack>
+          )}
+        </>
       );
     case 'disconnected':
       return (

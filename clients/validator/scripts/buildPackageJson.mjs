@@ -17,4 +17,4 @@ const packageJson = {
   types,
 };
 
-fs.writeFileSync('./dist/nym-validator-client/package.json', JSON.stringify(packageJson, null, 2));
+fs.writeFileSync('./dist/package.json', JSON.stringify(packageJson, null, 2));

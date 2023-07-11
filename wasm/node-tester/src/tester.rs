@@ -114,6 +114,7 @@ impl TryFrom<JsValue> for NymNodeTesterOpts {
 #[wasm_bindgen]
 impl NymNodeTesterBuilder {
     #[wasm_bindgen(constructor)]
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(args: JsValue) -> Promise {
         let args: NymNodeTesterOpts = match args.try_into() {
             Ok(args) => args,

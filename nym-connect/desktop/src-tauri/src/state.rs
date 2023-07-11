@@ -272,7 +272,3 @@ impl State {
         self.set_state(ConnectionStatusKind::Disconnected, window);
     }
 }
-
-pub fn is_medium_enabled() -> bool {
-    cfg!(medium_enabled) || std::env::var("NYM_CONNECT_ENABLE_MEDIUM").is_ok()
-}

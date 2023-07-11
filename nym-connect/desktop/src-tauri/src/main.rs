@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 
 use crate::config::UserData;
 use crate::menu::{create_tray_menu, tray_menu_event_handler};
-use crate::state::{is_medium_enabled, State};
+use crate::state::State;
 use crate::window::window_toggle;
 
 mod config;
@@ -24,9 +24,6 @@ mod operations;
 mod state;
 mod tasks;
 mod window;
-
-const SENTRY_DSN: &str =
-    "https://68a2c55113ed47aaa30b9899039b0799@o967446.ingest.sentry.io/4505483113594880";
 
 fn main() {
     setup_env(None);
@@ -44,29 +41,6 @@ fn main() {
         UserData::default()
     });
 
-    if let Some(v) = user_data.monitoring {
-        if v {
-            println!("monitoring and error reporting enabled");
-            let _guard = sentry::init((
-                SENTRY_DSN,
-                sentry::ClientOptions {
-                    release: sentry::release_name!(),
-                    sample_rate: 1.0, // TODO lower this in prod
-                    traces_sample_rate: 1.0,
-                    ..Default::default() // TODO add data scrubbing
-                                         // see https://docs.sentry.io/platforms/rust/data-management/sensitive-data/
-                },
-            ));
-
-            sentry::configure_scope(|scope| {
-                scope.set_user(Some(sentry::User {
-                    id: Some("nym".into()),
-                    ..Default::default()
-                }));
-            });
-        }
-    }
-
     let context = tauri::generate_context!();
     tauri::Builder::default()
         .manage(Arc::new(RwLock::new(State::new(user_data))))
@@ -76,6 +50,7 @@ fn main() {
             crate::operations::common::get_env,
             crate::operations::common::get_user_data,
             crate::operations::common::set_monitoring,
+            crate::operations::common::set_speed_mode,
             crate::operations::connection::connect::get_gateway,
             crate::operations::connection::connect::get_service_provider,
             crate::operations::connection::connect::set_gateway,
@@ -86,7 +61,6 @@ fn main() {
             crate::operations::connection::status::get_connection_status,
             crate::operations::connection::status::get_gateway_connection_status,
             crate::operations::connection::status::start_connection_health_check_task,
-            crate::operations::connection::status::is_medium_mode_enabled,
             crate::operations::directory::get_services,
             crate::operations::directory::get_gateways_detailed,
             crate::operations::export::export_keys,

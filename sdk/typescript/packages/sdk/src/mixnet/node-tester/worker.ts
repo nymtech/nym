@@ -21,10 +21,10 @@ import * as Comlink from 'comlink';
 //
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-import wasmBytes from '@nymproject/nym-client-wasm/nym_client_wasm_bg.wasm';
+import wasmBytes from '@nymproject/nym-client-wasm/nym_node_tester_bg.wasm';
 
 /* eslint-disable no-restricted-globals */
-import init, { NymNodeTester, current_network_topology, NodeTestResult } from '@nymproject/nym-client-wasm';
+import init, { NymNodeTester, NodeTestResult } from '@nymproject/nym-node-tester-wasm';
 import type { INodeTesterWorkerAsync, NodeTesterLoadedEvent } from './types';
 import { NodeTesterEventKinds } from './types';
 
@@ -38,8 +38,7 @@ const postMessageWithType = <E>(event: E) => self.postMessage(event);
 console.log('[Nym WASM client] Starting Nym WASM web worker...');
 
 const buildTester = async (validatorUrl: string, nodeTesterId?: string): Promise<NymNodeTester> => {
-  const topology = await current_network_topology(validatorUrl);
-  return new NymNodeTester(topology, nodeTesterId);
+  return new NymNodeTester({nymApi: validatorUrl, id: nodeTesterId });
 };
 
 async function main() {

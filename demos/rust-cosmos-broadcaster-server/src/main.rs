@@ -32,6 +32,7 @@ async fn main() {
        * add threads!  
      */
     println!("\nWaiting for message");
+    // TODO rewrite this to parse any empty SURB data and then parse the actual incoming message 
     let received = client.wait_for_messages().await;
     for r in received.unwrap().iter() {
             let s = String::from_utf8(r.message.clone()); 
@@ -48,20 +49,19 @@ async fn main() {
                         if Some(r.sender_tag).is_some() {
                             // println!("debug print ---- sending reply "); 
                             let return_recipient: AnonymousSenderTag = r.sender_tag.unwrap(); 
-                            println!("return recipient surb bucket: {}", &return_recipient); 
-
+                            println!("return recipient surb bucket: {}", &return_recipient);
                             // todo actually return sequence serialised as json  
-                            client.send_str_reply(return_recipient, "quicktest an0n reply").await; 
-                            println!("sent reply - sleeping for 20"); 
-                            tokio::time::sleep(Duration::from_secs(20)).await; 
+                            client.send_str_reply(return_recipient, &serde_json::to_string(&sequence).unwrap()).await; 
+                            println!("sent reply - sleeping for 5"); 
+                            tokio::time::sleep(Duration::from_secs(5)).await; 
                             println!("stopped sleep"); 
                         } else {
                         //     // TODO replace with actual error type to return 
                             println!("no surbs cannot reply an0n") 
                         }
                     },
-                    reqres::RequestTypes::Broadcast(BroadcastRequest) => {
-                        todo!()
+                    reqres::RequestTypes::Broadcast(request) => {
+                        println!("\nincoming sequence request details: {}\n", request.base58_tx_bytes);
                     }  
                 } 
             } 

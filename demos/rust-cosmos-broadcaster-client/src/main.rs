@@ -63,7 +63,7 @@ async fn main() {
         .unwrap();
     let mut client = client.connect_to_mixnet().await.unwrap();
     let our_address = client.nym_address();
-    println!("Our client nym address is: {our_address}");
+    println!("\nOur client nym address is: {our_address}");
 
     match &cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx { mnemonic, nyx_token_receipient} )) => {

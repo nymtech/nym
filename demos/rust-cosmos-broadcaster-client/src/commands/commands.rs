@@ -15,7 +15,8 @@ use bip39;
 use bs58; 
 use nym_sdk::mixnet::{self, MixnetClient, ReconstructedMessage};
 use serde::{Deserialize, Serialize};
-use crate::commands::reqres::{SequenceRequest, RequestTypes, SequenceRequestResponse};
+use crate::commands::reqres::{SequenceRequest, RequestTypes, ResponseTypes, SequenceRequestResponse, self};
+
 
 // use super::reqres::SequenceRequestResponse;
 
@@ -33,7 +34,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     let denom: Denom = "unym".parse().unwrap();
     let validator = String::from("https://qwerty-validator.qa.nymte.ch");
 
-    let signer = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
+    let signer = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.clone());
     let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
 
     // local 'client' ONLY signing messages
@@ -55,59 +56,73 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     while let Some(new_message) = client.wait_for_messages().await {
        if new_message.is_empty() {
         continue;
-       } message = new_message;
+       } println!("got a response"); 
+        message = new_message;
        break  
     }
 
-    let mut parsed = String::new(); 
     // convert from vec<u8> -> JSON String 
+    let mut parsed = String::new(); 
     for r in message.iter() {
         parsed = String::from_utf8(r.message.clone()).unwrap();
         break
     };  
+    // println!("\n parsed reply message::::::::::::::::: {:#?}", parsed); 
+    let sp_response: ResponseTypes = serde_json::from_str(&parsed).unwrap(); 
+    // println!("\n parsed reply message::::::::::::::::: {:#?}", sp_response);    
 
-    // TODO parse to proper response type 
-    println!("\n parsed reply message::::::::::::::::: {:#?}", parsed); 
+    let res = match sp_response {
+        reqres::ResponseTypes::Sequence(request) => {
+            println!("got a response to the chain sequence request. using this to sign our tx offline"); 
 
-    let placeholder = String::from("placeholder reponse when working on offline_sign()"); 
-    placeholder
+            // use the response to create SignerData instance 
+            let sequence_response = types::SequenceResponse {
+                account_number: request.account_number, 
+                sequence: request.sequence
+            }; 
+            let signer_data = SignerData::new_from_sequence_response( sequence_response, request.chain_id);
 
+            // create (and sign) the send message
+            let amount = vec![Coin {
+                denom: denom.clone(),
+                amount: 12345u32.into(),
+            }];
 
-/* 
-    // use the response to create SignerData instance 
-    let signer_data = SignerData::new_from_sequence_response(sequence_response, chain_id);
+            // TODO there must be a better way of doing this instead of re-generating the signer address from the mnemonic twice 
+            let signer = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.clone());
+            let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
+            
+            let send_msg = MsgSend {
+                from_address: signer_address.clone(),
+                to_address: to.clone(),
+                amount,
+            }
+            .to_any()
+            .unwrap();
 
-    // create (and sign) the send message
-    let amount = vec![Coin {
-        denom: denom.clone(),
-        amount: 12345u32.into(),
-    }];
+            let memo = "example memo";
+            let fee = tx::Fee::from_amount_and_gas(
+                Coin {
+                    denom,
+                    amount: 2500u32.into(),
+                },
+                100000,
+            );
 
-    let send_msg = MsgSend {
-        from_address: signer_address.clone(),
-        to_address: to.clone(),
-        amount,
-    }
-    .to_any()
-    .unwrap();
+            let tx_raw = tx_signer
+                .sign_direct(&signer_address, vec![send_msg], fee, memo, signer_data)
+                .unwrap();
 
-    let memo = "example memo";
-    let fee = tx::Fee::from_amount_and_gas(
-        Coin {
-            denom,
-            amount: 2500u32.into(),
-        },
-        100000,
-    );
+            let tx_bytes = tx_raw.to_bytes().unwrap();
+            let base58_tx_bytes = bs58::encode(tx_bytes).into_string();
+            base58_tx_bytes
+        }, 
+        // TODO make this a proper error 
+        _ => { println!("weird response"); String::from("placeholder error") }
+    };
 
-    let tx_raw = tx_signer
-        .sign_direct(&signer_address, vec![send_msg], fee, memo, signer_data)
-        .unwrap();
+    res 
 
-    let tx_bytes = tx_raw.to_bytes().unwrap();
-    let base58_tx_bytes = bs58::encode(tx_bytes).into_string();
-    base58_tx_bytes
-*/
 }
 
 pub async fn send_tx(base58_tx: String, sp_address: Recipient, client: &mut MixnetClient) -> Option<Vec<mixnet::ReconstructedMessage>> {

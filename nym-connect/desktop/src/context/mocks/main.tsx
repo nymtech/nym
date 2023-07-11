@@ -11,8 +11,7 @@ const mockValues: TClientContext = {
   showInfoModal: false,
   userDefinedGateway: { isActive: false, gateway: '' },
   userDefinedSPAddress: { isActive: false, address: '' },
-  monitoringEnabled: false,
-  speedMode: 'slow',
+  userData: { monitoring: false, privacy_mode: 'High' },
   setShowInfoModal: () => {},
   setMode: () => {},
   clearError: () => {},
@@ -25,6 +24,7 @@ const mockValues: TClientContext = {
   setUserDefinedGateway: () => {},
   setUserDefinedSPAddress: () => {},
   setMonitoring: async () => {},
+  setPrivacyMode: async () => {},
 };
 
 export const MockProvider: FCWithChildren<{

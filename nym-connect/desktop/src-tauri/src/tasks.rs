@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tap::TapFallible;
 use tokio::sync::RwLock;
 
-use crate::config::{Config, SpeedMode};
+use crate::config::{Config, PrivacyMode};
 use crate::{
     error::Result,
     events::{self, emit_event, emit_status_event},
@@ -30,11 +30,11 @@ pub enum Socks5ExitStatusMessage {
     Failed(Box<dyn std::error::Error + Send>),
 }
 
-fn override_config_from_env(config: &mut Config, speed_mode: &SpeedMode) {
+fn override_config_from_env(config: &mut Config, privacy_mode: &PrivacyMode) {
     // Disable both the loop cover traffic that runs in the background as well as the Poisson
     // process that injects cover traffic into the traffic stream.
-    if let SpeedMode::Medium = speed_mode {
-        log::info!("Running in Medium mode");
+    if let PrivacyMode::Medium = privacy_mode {
+        log::info!("Running in Medium privacy mode");
         log::warn!("Disabling cover traffic");
         config.core.base.set_no_cover_traffic_with_keepalive();
 
@@ -52,7 +52,7 @@ fn override_config_from_env(config: &mut Config, speed_mode: &SpeedMode) {
 /// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
 pub async fn start_nym_socks5_client(
     id: &str,
-    speed_mode: &SpeedMode,
+    privacy_mode: &PrivacyMode,
 ) -> Result<(
     Socks5ControlMessageSender,
     nym_task::StatusReceiver,
@@ -63,7 +63,7 @@ pub async fn start_nym_socks5_client(
     let mut config = Config::read_from_default_path(id)
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
 
-    override_config_from_env(&mut config, speed_mode);
+    override_config_from_env(&mut config, privacy_mode);
 
     log::trace!("Configuration used: {:#?}", config);
 

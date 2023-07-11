@@ -8,7 +8,7 @@ use tauri::Manager;
 use tokio::time::Instant;
 
 use crate::config::Config;
-use crate::config::SpeedMode;
+use crate::config::PrivacyMode;
 use crate::config::UserData;
 use crate::{
     config::{self, socks5_config_id_appended_with},
@@ -112,8 +112,8 @@ impl State {
         })
     }
 
-    pub fn set_speed_mode(&mut self, speed_mode: SpeedMode) -> Result<()> {
-        self.user_data.speed_mode = Some(speed_mode);
+    pub fn set_privacy_mode(&mut self, privacy_mode: PrivacyMode) -> Result<()> {
+        self.user_data.privacy_mode = Some(privacy_mode);
         self.user_data.write().map_err(|e| {
             error!("Failed to write user data to disk {e}");
             BackendError::UserDataWriteError
@@ -227,9 +227,9 @@ impl State {
         &mut self,
     ) -> Result<(nym_task::StatusReceiver, ExitStatusReceiver)> {
         let id = self.get_config_id()?;
-        let speed_mode = self.user_data.speed_mode.unwrap_or_default();
+        let privacy_mode = self.user_data.privacy_mode.unwrap_or_default();
         let (control_tx, msg_rx, exit_status_rx, used_gateway) =
-            tasks::start_nym_socks5_client(&id, &speed_mode).await?;
+            tasks::start_nym_socks5_client(&id, &privacy_mode).await?;
         self.socks5_client_sender = Some(control_tx);
         self.gateway = Some(used_gateway.gateway_id);
         Ok((msg_rx, exit_status_rx))

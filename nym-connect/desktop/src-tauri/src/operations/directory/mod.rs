@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use crate::config::SpeedMode;
+use crate::config::PrivacyMode;
 use crate::error::Result;
 use crate::models::{
     DirectoryService, DirectoryServiceProvider, HarbourMasterService, PagedResult,
@@ -30,13 +30,13 @@ pub async fn get_services(
     log::trace!("Fetching services");
 
     let guard = state.read().await;
-    let speed_mode = guard.get_user_data().speed_mode.unwrap_or_default();
+    let privacy_mode = guard.get_user_data().privacy_mode.unwrap_or_default();
 
-    let all_services = fetch_services(&speed_mode).await?;
+    let all_services = fetch_services(&privacy_mode).await?;
     log::trace!("Received: {:#?}", all_services);
 
     // Early return if we're running with medium toggle enabled
-    if let SpeedMode::Medium = speed_mode {
+    if let PrivacyMode::Medium = privacy_mode {
         return Ok(all_services.into_iter().flat_map(|sp| sp.items).collect());
     }
 
@@ -102,9 +102,9 @@ fn filter_out_poor_gateways(
         .collect()
 }
 
-async fn fetch_services(speed_mode: &SpeedMode) -> Result<Vec<DirectoryService>> {
-    let services_url = match speed_mode {
-        SpeedMode::Medium => SERVICE_PROVIDER_WELLKNOWN_URL_MEDIUM,
+async fn fetch_services(privacy_mode: &PrivacyMode) -> Result<Vec<DirectoryService>> {
+    let services_url = match privacy_mode {
+        PrivacyMode::Medium => SERVICE_PROVIDER_WELLKNOWN_URL_MEDIUM,
         _ => SERVICE_PROVIDER_WELLKNOWN_URL,
     };
 

@@ -6,7 +6,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { useEvents } from 'src/hooks/events';
 import { UserDefinedGateway, UserDefinedSPAddress } from 'src/types/service-provider';
 import { getItemFromStorage, setItemInStorage } from 'src/utils';
-import { ConnectionStatusKind, GatewayPerformance, SpeedMode, UserData } from '../types';
+import { ConnectionStatusKind, GatewayPerformance, PrivacyMode, UserData } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider } from '../types/directory';
 import initSentry from '../sentry';
@@ -19,6 +19,7 @@ type ModeType = 'light' | 'dark';
 export type TClientContext = {
   mode: ModeType;
   appVersion?: string;
+  userData?: UserData;
   connectionStatus: ConnectionStatusKind;
   connectionStats?: ConnectionStatsItem[];
   connectedSince?: DateTime;
@@ -31,7 +32,6 @@ export type TClientContext = {
   serviceProviders?: ServiceProvider[];
   setMode: (mode: ModeType) => void;
   clearError: () => void;
-  monitoringEnabled: boolean;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
@@ -42,7 +42,7 @@ export type TClientContext = {
   setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;
   setUserDefinedSPAddress: React.Dispatch<React.SetStateAction<UserDefinedSPAddress>>;
   setMonitoring: (value: boolean) => Promise<void>;
-  speedMode: SpeedMode;
+  setPrivacyMode: (value: PrivacyMode) => Promise<void>;
 };
 
 export const ClientContext = createContext({} as TClientContext);
@@ -66,35 +66,31 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     isActive: false,
     address: undefined,
   });
-  const [monitoringEnabled, setMonitoringEnabled] = useState(false);
-  const [speedMode, setspeedMode] = useState<SpeedMode>('slow');
+  const [userData, setUserData] = useState<UserData>();
 
   const getAppVersion = async () => {
     const version = await getVersion();
     return version;
   };
 
+  const getUserData = async () => {
+    const data = await invoke<UserData>('get_user_data');
+    console.warn(data);
+    if (!data.privacy_mode) {
+      data.privacy_mode = 'High';
+    }
+    setUserData(data);
+  };
+
   useEffect(() => {
     const initSentryClient = async () => {
-      const userData = await invoke<UserData>('get_user_data');
-      setMonitoringEnabled(userData.monitoring || false);
-      if (userData.monitoring) {
+      await getUserData();
+      if (userData?.monitoring) {
         await initSentry();
       }
     };
 
     initSentryClient();
-  }, []);
-
-  useEffect(() => {
-    const initSpeedMode = async () => {
-      const isEnabled = await invoke<boolean>('is_medium_mode_enabled');
-      if (isEnabled) {
-        setspeedMode('medium');
-      }
-    };
-
-    initSpeedMode();
   }, []);
 
   useEffect(() => {
@@ -196,9 +192,16 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const clearError = () => setError(undefined);
 
   const setMonitoring = async (value: boolean) => {
-    setMonitoringEnabled(value);
     await invoke('set_monitoring', { enabled: value });
+    await getUserData();
   };
+
+  const setPrivacyMode = async (value: PrivacyMode) => {
+    await invoke('set_privacy_mode', { privacyMode: value });
+    await getUserData();
+  };
+
+  console.log(userData);
 
   const contextValue = useMemo(
     () => ({
@@ -215,7 +218,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       selectedProvider,
       serviceProviders,
       connectedSince,
-      monitoringEnabled,
+      userData,
       setConnectedSince,
       setSerivceProvider,
       startConnecting,
@@ -227,7 +230,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       setUserDefinedGateway,
       setUserDefinedSPAddress,
       setMonitoring,
-      speedMode,
+      setPrivacyMode,
     }),
     [
       mode,
@@ -243,8 +246,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       selectedProvider,
       userDefinedGateway,
       userDefinedSPAddress,
-      monitoringEnabled,
-      speedMode,
+      userData,
     ],
   );
 

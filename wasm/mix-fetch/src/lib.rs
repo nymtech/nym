@@ -27,3 +27,12 @@ mod socks_helpers;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use fetch::{mix_fetch_client, RequestId, MIX_FETCH};
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(start)]
+pub fn main() {
+    wasm_utils::console_log!("[rust main]: rust module loaded")
+}

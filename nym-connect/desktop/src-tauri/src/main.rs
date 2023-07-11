@@ -25,6 +25,9 @@ mod state;
 mod tasks;
 mod window;
 
+const SENTRY_DSN: &str =
+    "https://68a2c55113ed47aaa30b9899039b0799@o967446.ingest.sentry.io/4505483113594880";
+
 fn main() {
     setup_env(None);
     println!("Starting up...");
@@ -32,7 +35,40 @@ fn main() {
     // As per breaking change description here
     // https://github.com/tauri-apps/tauri/blob/feac1d193c6d618e49916ad0707201f43d5cdd36/tooling/bundler/CHANGELOG.md
     if let Err(error) = fix_path_env::fix() {
-        log::warn!("Failed to fix PATH: {error}");
+        println!("Failed to fix PATH: {error}");
+    }
+
+    let user_data = UserData::read().unwrap_or_else(|e| {
+        println!("{}", e);
+        println!("Fallback to default, user confg data will not be persisted");
+        UserData::default()
+    });
+
+    let user_data_monitoring = user_data.monitoring.unwrap_or(false);
+
+    let _guard = sentry::init((
+        SENTRY_DSN,
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            sample_rate: 1.0, // TODO lower this in prod
+            traces_sample_rate: 1.0,
+            ..Default::default() // TODO add data scrubbing
+                                 // see https://docs.sentry.io/platforms/rust/data-management/sensitive-data/
+        },
+    ));
+
+    sentry::configure_scope(|scope| {
+        scope.set_user(Some(sentry::User {
+            id: Some("nym".into()),
+            ..Default::default()
+        }));
+    });
+
+    if user_data_monitoring {
+        println!("Sentry reporting and user data monitoring is enabled");
+    } else {
+        println!("Monitoring is disabled, dropping sentry guard");
+        drop(_guard)
     }
 
     let user_data = UserData::read().unwrap_or_else(|e| {

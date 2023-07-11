@@ -4,6 +4,7 @@
 use js_sys::Promise;
 use thiserror::Error;
 use wasm_client_core::error::WasmCoreError;
+use wasm_client_core::topology::WasmTopologyError;
 use wasm_client_core::ClientCoreError;
 use wasm_utils::wasm_error;
 
@@ -22,6 +23,12 @@ pub enum WasmClientError {
     MalformedConfigOptions {
         #[from]
         source: serde_wasm_bindgen::Error,
+    },
+
+    #[error("provided topology was malformed: {source}")]
+    InvalidTopology {
+        #[from]
+        source: WasmTopologyError,
     },
 
     #[cfg(feature = "node-tester")]

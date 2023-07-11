@@ -135,10 +135,10 @@ impl From<NymTopology> for WasmNymTopology {
         WasmNymTopology {
             mixnodes: value
                 .mixes()
-                .into_iter()
-                .map(|(&l, nodes)| (l, nodes.into_iter().map(Into::into).collect()))
+                .iter()
+                .map(|(&l, nodes)| (l, nodes.iter().map(Into::into).collect()))
                 .collect(),
-            gateways: value.gateways().into_iter().map(Into::into).collect(),
+            gateways: value.gateways().iter().map(Into::into).collect(),
         }
     }
 }

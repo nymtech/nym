@@ -21,7 +21,7 @@ import * as Comlink from 'comlink';
 //
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-import wasmBytes from '@nymproject/nym-client-wasm/nym_node_tester_bg.wasm';
+import wasmBytes from '@nymproject/nym-client-wasm/nym_node_tester_wasm_bg.wasm';
 
 /* eslint-disable no-restricted-globals */
 import init, { NymNodeTester, NodeTestResult } from '@nymproject/nym-node-tester-wasm';

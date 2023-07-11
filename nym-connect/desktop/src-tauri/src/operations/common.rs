@@ -1,3 +1,4 @@
+use crate::config::SpeedMode;
 use crate::error::Result;
 use crate::{config::UserData, state::State};
 use std::env;
@@ -25,4 +26,13 @@ pub async fn set_monitoring(
 ) -> Result<()> {
     let mut guard = state.write().await;
     guard.set_monitoring(enabled)
+}
+
+#[tauri::command]
+pub async fn set_speed_mode(
+    speed_mode: SpeedMode,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<()> {
+    let mut guard = state.write().await;
+    guard.set_speed_mode(speed_mode)
 }

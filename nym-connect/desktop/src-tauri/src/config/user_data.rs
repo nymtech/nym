@@ -7,9 +7,17 @@ use tauri::api::path::data_dir;
 const DATA_DIR: &str = "nym-connect";
 const DATA_FILE: &str = "user-data.toml";
 
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
+pub enum SpeedMode {
+    #[default]
+    Slow,
+    Medium,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct UserData {
     pub monitoring: Option<bool>,
+    pub speed_mode: Option<SpeedMode>,
 }
 
 impl UserData {
@@ -18,10 +26,8 @@ impl UserData {
 
         data_path.push(DATA_DIR);
         data_path.push(DATA_FILE);
-        let content = fs::read(&data_path).context(format!(
-            "Failed to read user data {}",
-            data_path.display()
-        ))?;
+        let content = fs::read(&data_path)
+            .context(format!("Failed to read user data {}", data_path.display()))?;
 
         toml::from_str::<UserData>(str::from_utf8(&content)?).map_err(|e| {
             error!("{}", e);

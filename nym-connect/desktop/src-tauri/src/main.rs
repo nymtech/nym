@@ -29,12 +29,6 @@ const SENTRY_DSN: &str =
     "https://68a2c55113ed47aaa30b9899039b0799@o967446.ingest.sentry.io/4505483113594880";
 
 fn main() {
-    if is_medium_enabled() {
-        println!("medium mode enabled");
-        std::env::set_var("NYM_CONNECT_DISABLE_COVER", "1");
-        std::env::set_var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS", "1");
-        std::env::set_var("NYM_CONNECT_DISABLE_PER_HOP_DELAYS", "1");
-    }
     setup_env(None);
     println!("Starting up...");
 

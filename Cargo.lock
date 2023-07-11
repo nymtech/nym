@@ -5955,6 +5955,7 @@ dependencies = [
 name = "rust-cosmos-broadcaster-client"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "bip39",
  "bs58 0.5.0",
@@ -5977,6 +5978,7 @@ dependencies = [
 name = "rust-cosmos-broadcaster-server"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "bip39",
  "bs58 0.5.0",

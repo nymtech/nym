@@ -48,7 +48,7 @@ struct SendTx {
 
 #[tokio::main]
 async fn main() {
-    setup_logging();
+    // setup_logging();
     let cli = Cli::parse();
     // TODO look @ arg env setup from NR main.rs
     // TODO take from args

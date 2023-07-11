@@ -15,9 +15,16 @@ use bip39;
 use bs58; 
 use nym_sdk::mixnet::{self, MixnetClient, ReconstructedMessage};
 use serde::{Deserialize, Serialize};
-use crate::commands::reqres::SequenceRequest;
+use crate::commands::reqres::{SequenceRequest, RequestTypes, SequenceRequestResponse};
 
-use super::reqres::SequenceRequestResponse;
+// use super::reqres::SequenceRequestResponse;
+
+// type SomeError = anyhow::Error;
+
+// fn parse_msg(reconstructed: ReconstructedMessage) -> Result<RequestTypes, SomeError> {
+//     let response = serde_json::from_slice(&reconstructed.message)?;
+//     Ok(response)
+// }
 
 pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut MixnetClient , sp_address: Recipient) -> String {
 
@@ -40,14 +47,27 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     // send req to client 
     client.send_str(sp_address, &serde_json::to_string(&message).unwrap()).await;
 
-    let res = client.wait_for_messages().await; 
-    // parse json of res to get signer_data and chain_id, store in SeqResData struct to create and sign tx 
+    // handle incoming message - we presume its a reply from the SP 
+    // check incoming is empty - SURB requests also send data ( empty vec ) along 
+    let mut message: Vec<ReconstructedMessage> = Vec::new(); 
 
-    for r in res.unwrap().iter() {
-        let message = String::from_utf8(r.message.clone());
-        let p = message.unwrap();
-        let sequence: SequenceRequestResponse = serde_json::from_str(&p).unwrap();
-    }; 
+    // get the actual message - discard the empty vec sent along with the SURB request  
+    while let Some(new_message) = client.wait_for_messages().await {
+       if new_message.is_empty() {
+        continue;
+       } message = new_message;
+       break  
+    }
+
+    let mut parsed = String::new(); 
+    // convert from vec<u8> -> JSON String 
+    for r in message.iter() {
+        parsed = String::from_utf8(r.message.clone()).unwrap();
+        break
+    };  
+
+    // TODO parse to proper response type 
+    println!("\n parsed reply message::::::::::::::::: {:#?}", parsed); 
 
     let placeholder = String::from("placeholder reponse when working on offline_sign()"); 
     placeholder

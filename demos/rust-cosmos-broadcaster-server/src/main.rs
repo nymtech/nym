@@ -10,10 +10,9 @@ use crate::commands::reqres;
 // pull in  ::reply::{MixnetAddress, MixnetMessage} 
 use nym_validator_client::nyxd::cosmwasm_client::types; 
 
-
 #[tokio::main]
 async fn main() {
-    // setup_logging();
+    setup_logging();
     // TODO put client creation in own fn 
     let config_dir = PathBuf::from("/tmp/cosmos-broadcaster-mixnet-server-2");
     let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
@@ -44,19 +43,18 @@ async fn main() {
                     reqres::RequestTypes::Sequence(request) => {
                         println!("\nincoming sequence request details:\nvalidator: {},\nsigner address: {}\n", request.validator, request.signer_address); 
                         let sequence: reqres::SequenceRequestResponse = commands::commands::get_sequence(request.validator, request.signer_address).await;
-                        print!("debug print -------- {:#?}", sequence); 
-                        println!("debug print SENDER TAG --------- {:#?}", r.sender_tag);
+                        // print!("debug print -------- {:#?}", sequence); 
+                        // println!("debug print SENDER TAG --------- {:#?}", r.sender_tag);
                         if Some(r.sender_tag).is_some() {
-                            println!("debug print ---- sending reply "); 
+                            // println!("debug print ---- sending reply "); 
                             let return_recipient: AnonymousSenderTag = r.sender_tag.unwrap(); 
-                            println!("{}", &return_recipient); 
+                            println!("return recipient surb bucket: {}", &return_recipient); 
 
                             // todo actually return sequence serialised as json  
                             client.send_str_reply(return_recipient, "quicktest an0n reply").await; 
                             println!("sent reply - sleeping for 20"); 
                             tokio::time::sleep(Duration::from_secs(20)).await; 
                             println!("stopped sleep"); 
-                            
                         } else {
                         //     // TODO replace with actual error type to return 
                             println!("no surbs cannot reply an0n") 

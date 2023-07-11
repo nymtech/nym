@@ -10,8 +10,8 @@ use wasm_client_core::client::inbound_messages::InputMessage;
 use wasm_client_core::error::WasmCoreError;
 use wasm_client_core::topology::WasmNymTopology;
 use wasm_client_core::{MixLayer, NymTopology};
-use wasm_utils::console_log;
 use wasm_utils::error::simple_js_error;
+use wasm_utils::{check_promise_result, console_log};
 
 #[cfg(feature = "node-tester")]
 use nym_node_tester_wasm::types::{NodeTestMessage, WasmTestMessageExt};
@@ -100,9 +100,10 @@ pub(crate) trait WasmTopologyTestExt {
 
 impl WasmTopologyExt for Arc<ClientState> {
     fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise {
+        let nym_topology: NymTopology = check_promise_result!(topology.try_into());
+
         let this = Arc::clone(self);
         future_to_promise(async move {
-            let nym_topology: NymTopology = topology.into();
             console_log!("changing topology to {nym_topology:?}");
             this.topology_accessor
                 .manually_change_topology(nym_topology)

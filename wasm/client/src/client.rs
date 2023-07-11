@@ -92,7 +92,7 @@ impl NymClientBuilder {
         topology: WasmNymTopology,
         on_message: js_sys::Function,
         gateway: Option<IdentityKey>,
-    ) -> Self {
+    ) -> Result<NymClientBuilder, WasmClientError> {
         if let Some(gateway_id) = &gateway {
             if !topology.ensure_contains_gateway_id(gateway_id) {
                 panic!("the specified topology does not contain the gateway used by the client")
@@ -101,13 +101,13 @@ impl NymClientBuilder {
 
         let full_config = ClientConfig::new_tester_config(NODE_TESTER_CLIENT_ID);
 
-        NymClientBuilder {
+        Ok(NymClientBuilder {
             config: full_config,
-            custom_topology: Some(topology.into()),
+            custom_topology: Some(topology.try_into()?),
             on_message,
             storage_passphrase: None,
             preferred_gateway: gateway,
-        }
+        })
     }
 
     fn start_reconstructed_pusher(client_output: ClientOutput, on_message: js_sys::Function) {

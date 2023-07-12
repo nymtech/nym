@@ -1,6 +1,5 @@
-use cosmrs::rpc::{Id};
 use serde::{Deserialize, Serialize}; 
-use cosmrs::{tx, AccountId, Coin, Denom, tendermint};
+use cosmrs::{AccountId, tendermint};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SequenceRequest {

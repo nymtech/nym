@@ -1,7 +1,5 @@
-// use cosmrs::rpc::{HttpClient, Id};
 use serde::{Deserialize, Serialize}; 
-use cosmrs::{tx, AccountId, Coin, Denom, tendermint};
-use nym_validator_client::nyxd::cosmwasm_client::types::SequenceResponse;
+use cosmrs::{AccountId, tendermint};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SequenceRequest {

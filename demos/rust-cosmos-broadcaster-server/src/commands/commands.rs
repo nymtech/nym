@@ -1,20 +1,8 @@
-// use nym_cli_commands::validator::mixnet::Mixnet;
-// use nym_crypto::generic_array::sequence;
-// use nym_sphinx_addressing::clients::Recipient;
 use nym_validator_client::nyxd::CosmWasmClient;
-// use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
-// use nym_validator_client::signing::tx_signer::TxSigner;
-// use nym_validator_client::signing::SignerData;
-// use cosmrs::bank::MsgSend;
-use cosmrs::rpc::{HttpClient, Id, Client, Response};
-
-// use cosmrs::tx::Msg;
-use cosmrs::{tx, AccountId, Coin, Denom, tendermint};
-// use bip39; 
+use cosmrs::rpc::{HttpClient, Client};
+use cosmrs::{AccountId, tendermint};
 use bs58; 
-use nym_sdk::mixnet::{self, MixnetClient};
-use serde::{Deserialize, Serialize};
-use crate::commands::reqres::{SequenceRequest, SequenceRequestResponse, BroadcastRequest, BroadcastResponse};
+use crate::commands::reqres::{SequenceRequestResponse, BroadcastResponse};
 
 pub async fn get_sequence(validator: String, signer_address: AccountId) -> SequenceRequestResponse {
 

@@ -75,17 +75,17 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const getUserData = async () => {
     const data = await invoke<UserData>('get_user_data');
-    console.warn(data);
     if (!data.privacy_level) {
       data.privacy_level = 'High';
     }
     setUserData(data);
+    return data;
   };
 
   useEffect(() => {
     const initSentryClient = async () => {
-      await getUserData();
-      if (userData?.monitoring) {
+      const data = await getUserData();
+      if (data.monitoring) {
         await initSentry();
       }
     };
@@ -193,11 +193,13 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const setMonitoring = async (value: boolean) => {
     await invoke('set_monitoring', { enabled: value });
+    // refresh user data
     await getUserData();
   };
 
   const setPrivacyLevel = async (value: PrivacyLevel) => {
     await invoke('set_privacy_level', { privacyLevel: value });
+    // refresh user data
     await getUserData();
   };
 

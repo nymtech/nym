@@ -57,7 +57,7 @@ We love seeing our developer community create applications using Nym. If you wou
 
 <!--NymDashboard *start-->
 
-## <img src='../images/profile_picture/nym_dashboard__pp.svg' style="float: right; width: 75px; height: 75px;">Nym Dashboard
+## <img src='../images/profile_picture/nym_dashboard_pp.svg' style="float: right; width: 75px; height: 75px;">Nym Dashboard
 
 > Developed by No Trust Verify, this dashboard is a great tool to get information about the mixnet, gateways and mixnodes.
 * [Deployed Website App](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1)
@@ -65,9 +65,9 @@ We love seeing our developer community create applications using Nym. If you wou
 <!--NymDashboard *end-->
 
 <!--IsNymUp *start-->
-
-## <img src='../images/profile_picture/pastenym_ntv_pp.png' style="float: right; width: 75px; height: 75px;">IsNymUp
-
+ 
+## <img src='../images/profile_picture/pastenym_ntv_pp.png' style="float: right; width: 75px; height: 75px;">Is Nym Up
+ 
 > A tool that helps check the heath of the Nym network as well as some mixnet related statistics.
 * [Deployed Website App](https://isnymup.com/)
 
@@ -76,7 +76,7 @@ We love seeing our developer community create applications using Nym. If you wou
 
 <!--DarkFi *start-->
 
-## <img src='../images/profile_picture/darkfi_over_nym_pp.webp' style="float: right; width: 75px; height: 75px;">DarkFi over Nym
+## <img src='../images/profile_picture/darkfi_over_nym_pp.png' style="float: right; width: 75px; height: 75px;">DarkFi over Nym
 
 > In this example, DarkFi used Nym's Mixnet to allow users to anonymously connect to other peers in the Darkfi network.
 * [Github](https://github.com/darkrenaissance/darkfi)
@@ -85,6 +85,7 @@ We love seeing our developer community create applications using Nym. If you wou
 <!--DarkFi *end-->
 
 
+<br/> <br/>
   
 # Community Guides
 

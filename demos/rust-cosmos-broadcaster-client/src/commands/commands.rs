@@ -15,7 +15,7 @@ use bip39;
 use bs58; 
 use nym_sdk::mixnet::{self, MixnetClient, ReconstructedMessage};
 use serde::{Deserialize, Serialize};
-use crate::commands::reqres::{SequenceRequest, RequestTypes, ResponseTypes, SequenceRequestResponse, self};
+use crate::commands::reqres::{SequenceRequest, RequestTypes, ResponseTypes, SequenceRequestResponse, self, BroadcastRequest};
 
 
 // use super::reqres::SequenceRequestResponse;
@@ -49,7 +49,6 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     client.send_str(sp_address, &serde_json::to_string(&message).unwrap()).await;
 
     // handle incoming message - we presume its a reply from the SP 
-    // check incoming is empty - SURB requests also send data ( empty vec ) along 
     let mut message: Vec<ReconstructedMessage> = Vec::new(); 
 
     // get the actual message - discard the empty vec sent along with the SURB request  
@@ -67,9 +66,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
         parsed = String::from_utf8(r.message.clone()).unwrap();
         break
     };  
-    // println!("\n parsed reply message::::::::::::::::: {:#?}", parsed); 
     let sp_response: ResponseTypes = serde_json::from_str(&parsed).unwrap(); 
-    // println!("\n parsed reply message::::::::::::::::: {:#?}", sp_response);    
 
     let res = match sp_response {
         reqres::ResponseTypes::Sequence(request) => {
@@ -126,8 +123,15 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
 }
 
 pub async fn send_tx(base58_tx: String, sp_address: Recipient, client: &mut MixnetClient) -> Option<Vec<mixnet::ReconstructedMessage>> {
-    client.send_str(sp_address, &base58_tx).await; 
+
+    let broadcast_request = BroadcastRequest {
+        base58_tx_bytes: base58_tx
+    };
+
+    client.send_str(sp_address, &serde_json::to_string(&broadcast_request).unwrap()).await; 
+
     println!("\nWaiting for reply\n");
+    
     let res = client.wait_for_messages().await; 
     res 
 }

@@ -6,14 +6,15 @@ use nym_validator_client::nyxd::CosmWasmClient;
 // use nym_validator_client::signing::tx_signer::TxSigner;
 // use nym_validator_client::signing::SignerData;
 // use cosmrs::bank::MsgSend;
-use cosmrs::rpc::{HttpClient, Id, Client};
+use cosmrs::rpc::{HttpClient, Id, Client, Response};
+
 // use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom, tendermint};
 // use bip39; 
 use bs58; 
 use nym_sdk::mixnet::{self, MixnetClient};
 use serde::{Deserialize, Serialize};
-use crate::commands::reqres::{SequenceRequest, SequenceRequestResponse};
+use crate::commands::reqres::{SequenceRequest, SequenceRequestResponse, BroadcastRequest, BroadcastResponse};
 
 pub async fn get_sequence(validator: String, signer_address: AccountId) -> SequenceRequestResponse {
 
@@ -29,24 +30,44 @@ pub async fn get_sequence(validator: String, signer_address: AccountId) -> Seque
     res  
 }
 
-pub async fn broadcast(base58_tx_bytes: String) -> String {
-    todo!();
+pub async fn broadcast(base58_tx_bytes: String) -> BroadcastResponse {
+    // decode the base58 tx to vec<u8>
+    let tx_bytes = bs58::decode(base58_tx_bytes).into_vec().unwrap();  
+    println!("decoded tx bytes: {:#?}", tx_bytes); 
 
     /*
       TODO create broadcaster in different fn and build on setup - pass to both fns as arg 
      */
+    let broadcaster = HttpClient::new("https://qwerty-validator.qa.nymte.ch").unwrap();
 
-    // decode the base58 tx to vec<u8>
-    // let tx_bytes = bs58::decode(base58_tx_bytes);  
+    
+    let to_address: AccountId = "n1p8ayfmdash352gh6yy8zlxk24dm6yzc9mdq0p6".parse().unwrap();
 
-    // // create instance of Transaction struct w tx_bytes - tx_to_broadcast 
+    // compare balances from before and after the tx
+    let before = broadcaster
+        .get_balance(&to_address, "unym".to_string())
+        .await
+        .unwrap()
+        .unwrap();
 
-    // // broadcast the tx
-    // let res = Client::broadcast_tx_commit(&broadcaster, tx_to_broadcast)
-    // .await
-    // .unwrap();
+    // broadcast the tx
+    let broadcast_res = Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
+        .await
+        .unwrap();
 
-    // let placeholder = String::from("palceholder"); 
-    // placeholder 
+    let after = broadcaster
+        .get_balance(&to_address, "unym".to_string())
+        .await
+        .unwrap()
+        .unwrap();
+ 
+    println!("{:#?}", broadcast_res.hash); 
 
+    println!("balance before: {before}");
+    println!("balance after:  {after}");
+
+    let res = BroadcastResponse {
+      tx_hash: serde_json::to_string(&broadcast_res.hash).unwrap()
+    }; 
+    res  
 }

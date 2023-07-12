@@ -49,7 +49,7 @@ const ConnectionStatusContent: FCWithChildren<{
               </Typography>
             </Box>
           </Tooltip>
-          {userData?.privacy_mode === 'Medium' && (
+          {userData?.privacy_level === 'Medium' && (
             <Stack alignItems="center" color="warning.main">
               <Typography variant="caption" color="grey.400">
                 Speed boost activated

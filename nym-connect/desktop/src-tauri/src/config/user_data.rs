@@ -8,7 +8,7 @@ const DATA_DIR: &str = "nym-connect";
 const DATA_FILE: &str = "user-data.toml";
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
-pub enum PrivacyMode {
+pub enum PrivacyLevel {
     #[default]
     High,
     Medium,
@@ -17,7 +17,7 @@ pub enum PrivacyMode {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct UserData {
     pub monitoring: Option<bool>,
-    pub privacy_mode: Option<PrivacyMode>,
+    pub privacy_level: Option<PrivacyLevel>,
 }
 
 impl UserData {

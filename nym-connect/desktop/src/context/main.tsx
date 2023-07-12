@@ -6,7 +6,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { useEvents } from 'src/hooks/events';
 import { UserDefinedGateway, UserDefinedSPAddress } from 'src/types/service-provider';
 import { getItemFromStorage, setItemInStorage } from 'src/utils';
-import { ConnectionStatusKind, GatewayPerformance, PrivacyMode, UserData } from '../types';
+import { ConnectionStatusKind, GatewayPerformance, PrivacyLevel, UserData } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider } from '../types/directory';
 import initSentry from '../sentry';
@@ -42,7 +42,7 @@ export type TClientContext = {
   setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;
   setUserDefinedSPAddress: React.Dispatch<React.SetStateAction<UserDefinedSPAddress>>;
   setMonitoring: (value: boolean) => Promise<void>;
-  setPrivacyMode: (value: PrivacyMode) => Promise<void>;
+  setPrivacyLevel: (value: PrivacyLevel) => Promise<void>;
 };
 
 export const ClientContext = createContext({} as TClientContext);
@@ -76,8 +76,8 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const getUserData = async () => {
     const data = await invoke<UserData>('get_user_data');
     console.warn(data);
-    if (!data.privacy_mode) {
-      data.privacy_mode = 'High';
+    if (!data.privacy_level) {
+      data.privacy_level = 'High';
     }
     setUserData(data);
   };
@@ -196,8 +196,8 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     await getUserData();
   };
 
-  const setPrivacyMode = async (value: PrivacyMode) => {
-    await invoke('set_privacy_mode', { privacyMode: value });
+  const setPrivacyLevel = async (value: PrivacyLevel) => {
+    await invoke('set_privacy_level', { privacyLevel: value });
     await getUserData();
   };
 
@@ -230,7 +230,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       setUserDefinedGateway,
       setUserDefinedSPAddress,
       setMonitoring,
-      setPrivacyMode,
+      setPrivacyLevel,
     }),
     [
       mode,

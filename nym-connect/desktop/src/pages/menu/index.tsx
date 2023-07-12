@@ -7,7 +7,7 @@ import { AppVersion } from 'src/components/AppVersion';
 const menuSchema = [
   { title: 'Supported apps', icon: Apps, path: 'apps' },
   { title: 'How to connect guide', icon: HelpOutline, path: 'guide' },
-  { title: 'Privacy modes', icon: PrivacyTip, path: 'privacy-modes' },
+  { title: 'Privacy level', icon: PrivacyTip, path: 'privacy-level' },
   { title: 'Please help us improve the app', icon: BugReport, path: 'monitoring' },
   { title: 'Settings', icon: Settings, path: 'settings' },
 ];

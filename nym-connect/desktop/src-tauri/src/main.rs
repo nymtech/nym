@@ -50,7 +50,7 @@ fn main() {
             crate::operations::common::get_env,
             crate::operations::common::get_user_data,
             crate::operations::common::set_monitoring,
-            crate::operations::common::set_privacy_mode,
+            crate::operations::common::set_privacy_level,
             crate::operations::connection::connect::get_gateway,
             crate::operations::connection::connect::get_service_provider,
             crate::operations::connection::connect::set_gateway,

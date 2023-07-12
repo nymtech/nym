@@ -1,6 +1,6 @@
-export type PrivacyMode = 'High' | 'Medium';
+export type PrivacyLevel = 'High' | 'Medium';
 
 export type UserData = {
   monitoring?: boolean;
-  privacy_mode?: PrivacyMode;
+  privacy_level?: PrivacyLevel;
 };

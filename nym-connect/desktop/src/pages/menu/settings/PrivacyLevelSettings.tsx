@@ -2,15 +2,15 @@ import React, { ChangeEvent, useState } from 'react';
 import { Box, FormControl, FormControlLabel, FormHelperText, Stack, Switch, Typography } from '@mui/material';
 import { useClientContext } from 'src/context/main';
 
-export const PrivacyModeSettings = () => {
-  const { userData, setPrivacyMode } = useClientContext();
-  const [speedBoost, setSpeedBoost] = useState(userData?.privacy_mode !== 'High');
+export const PrivacyLevelSettings = () => {
+  const { userData, setPrivacyLevel } = useClientContext();
+  const [speedBoost, setSpeedBoost] = useState(userData?.privacy_level !== 'High');
   const [loading, setLoading] = useState(false);
 
   const handleChange = async (e: ChangeEvent<HTMLInputElement>) => {
     setLoading(true);
     setSpeedBoost(e.target.checked);
-    await setPrivacyMode(e.target.checked ? 'Medium' : 'High');
+    await setPrivacyLevel(e.target.checked ? 'Medium' : 'High');
     setLoading(false);
   };
 

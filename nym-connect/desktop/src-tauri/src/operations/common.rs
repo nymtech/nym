@@ -1,4 +1,4 @@
-use crate::config::PrivacyMode;
+use crate::config::PrivacyLevel;
 use crate::error::Result;
 use crate::{config::UserData, state::State};
 use std::env;
@@ -29,10 +29,10 @@ pub async fn set_monitoring(
 }
 
 #[tauri::command]
-pub async fn set_privacy_mode(
-    privacy_mode: PrivacyMode,
+pub async fn set_privacy_level(
+    privacy_level: PrivacyLevel,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<()> {
     let mut guard = state.write().await;
-    guard.set_privacy_mode(privacy_mode)
+    guard.set_privacy_level(privacy_level)
 }

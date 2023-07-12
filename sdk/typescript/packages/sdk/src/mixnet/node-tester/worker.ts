@@ -37,9 +37,8 @@ const postMessageWithType = <E>(event: E) => self.postMessage(event);
 
 console.log('[Nym WASM client] Starting Nym WASM web worker...');
 
-const buildTester = async (validatorUrl: string, nodeTesterId?: string): Promise<NymNodeTester> => {
-  return new NymNodeTester({ nymApi: validatorUrl, id: nodeTesterId });
-};
+const buildTester = async (validatorUrl: string, nodeTesterId?: string): Promise<NymNodeTester> =>
+  new NymNodeTester({ nymApi: validatorUrl, id: nodeTesterId });
 
 async function main() {
   const importResult = await init(wasmBytes());

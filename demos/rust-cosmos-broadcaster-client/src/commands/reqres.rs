@@ -8,10 +8,6 @@ pub struct SequenceRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-// pub struct SequenceResponse {
-//     pub sequence_response: u8, 
-//     pub chain_id: Id
-// }
 pub struct SequenceRequestResponse {
     pub account_number: u64,
     pub sequence: u64, 

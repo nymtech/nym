@@ -37,13 +37,13 @@ impl NymPeer {
 
 // Information about other Nym-Apis.
 pub(crate) struct NymApiEphemeraPeerInfo {
-    pub(crate) local_peer: NymPeer,
+    pub(crate) _local_peer: NymPeer,
     pub(crate) peers: HashMap<PeerId, NymPeer>,
 }
 
 impl NymApiEphemeraPeerInfo {
-    fn new(local_peer: NymPeer, peers: HashMap<PeerId, NymPeer>) -> Self {
-        Self { local_peer, peers }
+    fn new(_local_peer: NymPeer, peers: HashMap<PeerId, NymPeer>) -> Self {
+        Self { _local_peer, peers }
     }
 
     pub(crate) fn get_peers_count(&self) -> usize {

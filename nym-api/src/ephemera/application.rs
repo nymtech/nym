@@ -71,12 +71,11 @@ impl NymApi {
             ephemera_config.node.ip, ephemera_config.libp2p.port
         );
 
-        if nyxd_client
+        if !nyxd_client
             .get_ephemera_peers()
             .await?
             .iter()
-            .find(|peer_info| peer_info.cosmos_address.to_string() == cosmos_address)
-            .is_none()
+            .any(|peer_info| peer_info.cosmos_address == cosmos_address)
         {
             let local_peer = NymPeer::new(
                 cosmos_address,

@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@npmcli/node-gyp": "^3.0.0",
-    "@nymproject/nym-node-tester-wasm": "1",
+    "@nymproject/nym-node-tester-wasm": "1.0.0",
     "comlink": "^4.3.1",
     "lerna": "^6.6.2",
     "node-gyp": "^9.3.1"

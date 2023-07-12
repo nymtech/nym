@@ -1,4 +1,5 @@
 import React, { ChangeEvent, useState } from 'react';
+import * as Sentry from '@sentry/react';
 import { Box, FormControl, FormControlLabel, FormHelperText, Stack, Switch, Typography } from '@mui/material';
 import { useClientContext } from 'src/context/main';
 
@@ -10,6 +11,7 @@ export const PrivacyLevelSettings = () => {
   const handleChange = async (e: ChangeEvent<HTMLInputElement>) => {
     setLoading(true);
     setSpeedBoost(e.target.checked);
+    Sentry.captureMessage(`privacy level switched to ${e.target.checked ? 'Medium' : 'High'}`, 'info');
     await setPrivacyLevel(e.target.checked ? 'Medium' : 'High');
     setLoading(false);
   };

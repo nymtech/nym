@@ -14,6 +14,10 @@ pub enum PrivacyLevel {
     Medium,
 }
 
+// User data is read from and write on disk
+// Linux: $XDG_DATA_HOME or $HOME/.local/share/
+// macOS: $HOME/Library/Application Support
+// Windows: {FOLDERID_RoamingAppData}
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct UserData {
     pub monitoring: Option<bool>,

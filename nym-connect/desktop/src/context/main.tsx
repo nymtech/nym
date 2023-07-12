@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { invoke } from '@tauri-apps/api';
 import { Error } from 'src/types/error';
 import { getVersion } from '@tauri-apps/api/app';
+import * as Sentry from '@sentry/react';
 import { useEvents } from 'src/hooks/events';
 import { UserDefinedGateway, UserDefinedSPAddress } from 'src/types/service-provider';
 import { getItemFromStorage, setItemInStorage } from 'src/utils';
@@ -119,7 +120,10 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   };
 
   useEvents({
-    onError: (e) => setError(e),
+    onError: (e) => {
+      setError(e);
+      Sentry.captureException(e);
+    },
     onGatewayPerformanceChange: (performance) => setGatewayPerformance(performance),
     onStatusChange: (status) => setConnectionStatus(status),
   });
@@ -142,6 +146,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     } catch (e) {
       setError({ title: 'Could not connect', message: e as string });
       console.log(e);
+      Sentry.captureException(e);
     }
   }, []);
 
@@ -150,6 +155,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       await invoke('start_disconnecting');
     } catch (e) {
       console.log(e);
+      Sentry.captureException(e);
     }
   }, []);
 
@@ -202,8 +208,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     // refresh user data
     await getUserData();
   };
-
-  console.log(userData);
 
   const contextValue = useMemo(
     () => ({

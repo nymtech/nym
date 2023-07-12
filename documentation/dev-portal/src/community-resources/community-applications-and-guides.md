@@ -9,7 +9,7 @@ We love seeing our developer community create applications using Nym. If you wou
 >A [pastebin](https://pastebin.com) inspired project, offer a solution for sharing text with Nym products to offer full anonymity, even on metadata level.
 
 * [Github](https://github.com/notrustverify/pastenym)
-* [Deployed Website App](https://pastenym.ch)
+* [Deployed App](https://pastenym.ch)
 
 <!--Pastenym *end-->
 
@@ -17,10 +17,11 @@ We love seeing our developer community create applications using Nym. If you wou
 
 ## <img src='../images/profile_picture/pineappleproxy_pp.png' style="float: right; width: 75px; height: 75px;">Nostr-Nym
 
-> [Nostr-nym](https://github.com/notrustverify/nostr-nym) offer a solution to use [Nostr](https://nostr.how/) protocol by giving the possibility to run a relay on mixnet. By using a  nostr client compatible with the mixnet, users can protect their privacy to be able to use Nostr has the want, without being observed.
+> [Nostr-nym](https://github.com/notrustverify/nostr-nym) offer a solution to use [Nostr](https://nostr.how/en/what-is-nostr) protocol by giving the possibility to run a relay on mixnet. By using a  nostr client compatible with the mixnet, users can protect their privacy to be able to use Nostr has the want, without being observed.
 
 * [Github](https://github.com/notrustverify/nostr-nym)
-* Deployed Website App coming soon
+* [Deployed App](https://nostrnym.pnproxy.org/) 
+* [Documentation](https://blog.notrustverify.ch/nostr-relay-on-nym) 
 
 <!--Pineapple *end-->
 
@@ -60,29 +61,38 @@ We love seeing our developer community create applications using Nym. If you wou
 ## <img src='../images/profile_picture/nym_dashboard_pp.svg' style="float: right; width: 75px; height: 75px;">Nym Dashboard
 
 > Developed by No Trust Verify, this dashboard is a great tool to get information about the mixnet, gateways and mixnodes.
-* [Deployed Website App](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1)
+* [Deployed App](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1)
 
 <!--NymDashboard *end-->
+
 
 <!--IsNymUp *start-->
  
 ## <img src='../images/profile_picture/pastenym_ntv_pp.png' style="float: right; width: 75px; height: 75px;">Is Nym Up
  
-> A tool that helps check the heath of the Nym network as well as some mixnet related statistics.
-* [Deployed Website App](https://isnymup.com/)
+> Explore whether we're up through IsNymUp, a tool that helps check the heath of the Nym network as well as some mixnet related statistics!
+* [Deployed App](https://isnymup.com/)
 
 <!--IsNymUp *end-->
-
 
 <!--DarkFi *start-->
 
 ## <img src='../images/profile_picture/darkfi_over_nym_pp.png' style="float: right; width: 75px; height: 75px;">DarkFi over Nym
 
-> In this example, DarkFi used Nym's Mixnet to allow users to anonymously connect to other peers in the Darkfi network.
+> DarkFi leverages Nym's mixnet as a pluggable transport for IRCD, their p2p IRC variant. Users can anonymously connect to peers over the network, ensuring secure and private communication within the DarkFi ecosystem.
 * [Github](https://github.com/darkrenaissance/darkfi)
 * [Documentation](https://darkrenaissance.github.io/darkfi/clients/nym_outbound.html)
 
 <!--DarkFi *end-->
+
+<!--Nymstr email *start-->
+
+## <img src='../images/profile_picture/nymstr_email_pp.png' style="float: right; width: 75px; height: 75px;">Nymstr email
+
+> Experience secure and private email communication with ease using Nymstr email, which enables seamless transmission of emails over a SOCKS5 proxy and our NYM mixnet! 
+* [Github](https://github.com/dial0ut/nymstr-email)
+
+<!--Nymstr email *end-->
 
 
 <br/> <br/>

@@ -1,5 +1,6 @@
 TODO FOR DEMO
 - clippy
+- pass mnemonic as file 
 - nicer logging - show sequence response etc
 - pass tx hash back to client nicely & remove from service 
 

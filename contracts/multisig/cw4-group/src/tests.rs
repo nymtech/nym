@@ -150,7 +150,7 @@ fn assert_users<S: Storage, A: Api, Q: Querier>(
     // this is only valid if we are not doing a historical query
     if height.is_none() {
         // compute expected metrics
-        let weights = vec![user1_weight, user2_weight, user3_weight];
+        let weights = [user1_weight, user2_weight, user3_weight];
         let sum: u64 = weights.iter().map(|x| x.unwrap_or_default()).sum();
         let count = weights.iter().filter(|x| x.is_some()).count();
 
@@ -357,7 +357,7 @@ fn hooks_fire() {
     let add_msg2 = ExecuteMsg::AddHook {
         addr: contract2.clone(),
     };
-    for msg in vec![add_msg, add_msg2] {
+    for msg in [add_msg, add_msg2] {
         let _ = execute(deps.as_mut(), mock_env(), admin_info.clone(), msg).unwrap();
     }
 

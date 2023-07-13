@@ -3,6 +3,7 @@
 
 use crate::error::ContractError;
 use crate::peers::storage::PEERS;
+use crate::state::STATE;
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
 use nym_ephemera_common::types::JsonPeerInfo;
 
@@ -12,9 +13,18 @@ pub fn try_register_peer(
     peer_info: JsonPeerInfo,
 ) -> Result<Response, ContractError> {
     if PEERS.may_load(deps.storage, info.sender.clone())?.is_none() {
-        PEERS.save(deps.storage, info.sender, &peer_info)?;
+        if STATE
+            .load(deps.storage)?
+            .group_addr
+            .is_voting_member(&deps.querier, &info.sender, None)?
+            .is_some()
+        {
+            PEERS.save(deps.storage, info.sender, &peer_info)?;
+            Ok(Default::default())
+        } else {
+            Err(ContractError::Unauthorized {})
+        }
     } else {
-        return Err(ContractError::AlreadyRegistered);
+        Err(ContractError::AlreadyRegistered)
     }
-    Ok(Default::default())
 }

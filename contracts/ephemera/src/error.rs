@@ -13,6 +13,9 @@ pub enum ContractError {
     #[error("Group contract invalid address '{addr}'")]
     InvalidGroup { addr: String },
 
+    #[error("This potential ephemera peer is not in the ephemera group")]
+    Unauthorized,
+
     #[error("This sender is already registered")]
     AlreadyRegistered,
 }

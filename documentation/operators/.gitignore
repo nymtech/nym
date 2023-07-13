@@ -1,0 +1,27 @@
+# mdbook files
+book
+book/*
+theme/index.hbs
+theme/pagetoc.css
+theme/pagetoc.js
+theme/*
+theme
+
+# ---------------
+# Compiled assets
+# ---------------
+.sass-cache
+_site
+
+# ----------
+# Developing
+# ----------
+todo.md
+.vscode
+
+# OSX
+.DS_Store
+
+theme/
+theme
+theme/*

@@ -12,9 +12,14 @@ Built using:
 
 #### Useage 
 ```
-cargo build 
-./target/debug/server 
-./target/debug/client ... # fill in rest  
+example 1: sign & send @ same time 
+# start service 
+# sign tx - when prompted enter 'y' 
+
+example 2: sign first, send later 
+# start service 
+# sign tx - when prompted enter 'n' and copy encoded tx bytes from terminal 
+# send tx using encoded bytes as arg 
 ```
 
 
@@ -28,3 +33,9 @@ cargo build
     - lib     : `reqres` definitions + define CONSTs in there 
     - client  : `commands.rs` from `rust...client/`   
     - service : `commands.rs` from `rust...server/` 
+
+- added CONSTS to
+    - client src DONE 
+    - client bin -- make sp an optional cli arg otherwise set as DEFAULT
+    - service src 
+    - service bin 

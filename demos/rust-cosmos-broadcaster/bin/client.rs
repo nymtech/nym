@@ -3,8 +3,9 @@ use clap::{ Parser, Subcommand, Args};
 use nym_sdk::mixnet::{Recipient, MixnetClientBuilder, StoragePaths};
 use nym_validator_client::nyxd::AccountId;
 use nym_bin_common::logging::setup_logging;
-use rust_cosmos_broadcaster::client::{offline_sign, send_tx}; 
+use rust_cosmos_broadcaster::{client::{offline_sign, send_tx}, create_client}; 
 
+// move this somewhere else as well?? 
 #[derive(Debug, Parser)]
 #[clap(name = "nym cosmos tx signer ")]
 #[clap(about = "demo binary with which users can perform offline signing and transmission of signed tx to broadcaster via the mixnet ")]
@@ -33,28 +34,18 @@ struct OfflineSignTx {
 struct SendTx {
     /// the base58 encoded signed payload created in OfflineSign()
     base58_payload: String,
-    /// the nym address of the broadcaster service provider
-    sp_address: Recipient
 }
 
 #[tokio::main]
 async fn main() {
     // setup_logging();
     let cli = Cli::parse();
-    // TODO look @ arg env setup from NR main.rs
-    // TODO take from args
-    let sp_address = Recipient::try_from_base58_string("HfbesQm2pRYCN4BAdYXhkqXBbV1Pp929mtKsESVeWXh8.8AgoUPUQbXNBCPaqAaWd3vnxhc9484qwfgrrQwBngQk2@Ck8zpXTSXMtS9YZ7k7a5BiaoLZfffWuqGWLndujh4Lw4").unwrap();
-    let config_dir = PathBuf::from("/tmp/cosmos-broadcaster-mixnet-client-2");
-    let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
-    let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
-        .await
-        .unwrap()
-        .build()
-        .await
-        .unwrap();
-    let mut client = client.connect_to_mixnet().await.unwrap();
+    let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-client-2".into()).await; 
     let our_address = client.nym_address();
-    println!("\nOur client nym address is: {our_address}");
+    println!("\nSetup test ---- our client nym address is: {our_address}");
+
+    // TODO take from args as Option otherwise set as default this logic moves to src/client and remove this from here  
+    let sp_address = Recipient::try_from_base58_string("HfbesQm2pRYCN4BAdYXhkqXBbV1Pp929mtKsESVeWXh8.8AgoUPUQbXNBCPaqAaWd3vnxhc9484qwfgrrQwBngQk2@Ck8zpXTSXMtS9YZ7k7a5BiaoLZfffWuqGWLndujh4Lw4").unwrap();
 
     match &cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx { mnemonic, nyx_token_receipient} )) => {
@@ -78,11 +69,11 @@ async fn main() {
                 println!("\nunrecognised user input");
             }
         }
-        Some(Commands::SendTx(SendTx { base58_payload, sp_address} )) => {
+        Some(Commands::SendTx(SendTx { base58_payload } )) => {
             let tx_hash = send_tx(base58_payload.clone(), sp_address.clone(), &mut client).await;
             println!("the response from the broadcaster: {:#?}", tx_hash);
         }
         None => {println!("no command specified - nothing to do")}
     }
-    println!("\nend ~~(0.o)~ ~(0.o)~ (0.o)~ ")
+    println!("\nend")
 }

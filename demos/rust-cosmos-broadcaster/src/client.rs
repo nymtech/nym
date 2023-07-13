@@ -9,22 +9,20 @@ use cosmrs::{tx, AccountId, Coin, Denom};
 use bip39; 
 use bs58; 
 use nym_sdk::mixnet::{self, MixnetClient, ReconstructedMessage};
+use crate::{DEFAULT_VALIDATOR_RPC, DEFAULT_DENOM, DEFAULT_PREFIX};
 
+// TODO take coin amount from function args
 pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut MixnetClient , sp_address: Recipient) -> String {
 
-    // TODO take coin amount from function args, + load network vars from config file. 
-    let prefix = "n";
-    let denom: Denom = "unym".parse().unwrap();
-    let validator = String::from("https://qwerty-validator.qa.nymte.ch");
-
-    let signer = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.clone());
+    let denom: Denom =  DEFAULT_DENOM.parse().unwrap(); 
+    let signer = DirectSecp256k1HdWallet::from_mnemonic(DEFAULT_PREFIX, mnemonic.clone());
     let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
 
     // local 'client' ONLY signing messages
     let tx_signer = TxSigner::new(signer);
 
     let message = crate::SequenceRequest{
-        validator, 
+        validator: DEFAULT_VALIDATOR_RPC.to_owned(), 
         signer_address,
     }; 
 
@@ -34,7 +32,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     // handle incoming message - we presume its a reply from the SP 
     let mut message: Vec<ReconstructedMessage> = Vec::new(); 
 
-    // get the actual message - discard the empty vec sent along with the SURB request  
+    // get the actual message - discard the empty vec sent along with the SURB topup request  
     while let Some(new_message) = client.wait_for_messages().await {
        if new_message.is_empty() {
         continue;
@@ -43,7 +41,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
        break  
     }
 
-    // convert from vec<u8> -> JSON String 
+    // parse vec<u8> -> JSON String 
     let mut parsed = String::new(); 
     for r in message.iter() {
         parsed = String::from_utf8(r.message.clone()).unwrap();
@@ -51,6 +49,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     };  
     let sp_response: crate::ResponseTypes = serde_json::from_str(&parsed).unwrap(); 
 
+    // match JSON -> ResponseType 
     let res = match sp_response {
         crate::ResponseTypes::Sequence(request) => {
             println!("got a response to the chain sequence request. using this to sign our tx offline"); 
@@ -69,7 +68,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
             }];
 
             // TODO there must be a better way of doing this instead of re-generating the signer address from the mnemonic twice 
-            let signer = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.clone());
+            let signer = DirectSecp256k1HdWallet::from_mnemonic(DEFAULT_PREFIX, mnemonic.clone());
             let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
             
             let send_msg = MsgSend {

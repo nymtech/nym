@@ -2,7 +2,6 @@ use nym_validator_client::nyxd::CosmWasmClient;
 use cosmrs::rpc::{HttpClient, Client};
 use cosmrs::{AccountId, tendermint};
 use bs58; 
-// use crate::commands::reqres::{SequenceRequestResponse, BroadcastResponse};
 
 pub async fn get_sequence(validator: String, signer_address: AccountId) -> crate::SequenceRequestResponse {
     /*
@@ -20,6 +19,7 @@ pub async fn broadcast(base58_tx_bytes: String) -> crate::BroadcastResponse {
     // decode the base58 tx to vec<u8>
     let tx_bytes = bs58::decode(base58_tx_bytes).into_vec().unwrap();  
     println!("decoded tx bytes: {:#?}", tx_bytes); 
+    
     /*
       TODO create broadcaster in different fn and build on setup - pass to both fns as arg 
      */
@@ -46,7 +46,6 @@ pub async fn broadcast(base58_tx_bytes: String) -> crate::BroadcastResponse {
         .unwrap();
  
     println!("{:#?}", broadcast_res.hash); 
-
     println!("balance before: {before}");
     println!("balance after:  {after}");
 

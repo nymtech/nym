@@ -1,7 +1,14 @@
 use serde::{Deserialize, Serialize}; 
 use cosmrs::{AccountId, tendermint};
+use std::path::PathBuf;
+use nym_sdk::mixnet::{StoragePaths, MixnetClientBuilder, ReconstructedMessage, MixnetClient};
 pub mod client; 
-pub mod service; 
+pub mod service;
+
+pub const DEFAULT_VALIDATOR_RPC: &str = "https://qwerty-validator.qa.nymte.ch"; 
+pub const DEFAULT_DENOM: &str = "unym"; 
+pub const DEFAULT_PREFIX: &str = "n"; 
+// pub const DEFAULT_SERVICE_NYM_ADDRESS: &str = "HfbesQm2pRYCN4BAdYXhkqXBbV1Pp929mtKsESVeWXh8.8AgoUPUQbXNBCPaqAaWd3vnxhc9484qwfgrrQwBngQk2@Ck8zpXTSXMtS9YZ7k7a5BiaoLZfffWuqGWLndujh4Lw4"; 
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SequenceRequest {
@@ -39,3 +46,15 @@ pub enum ResponseTypes {
     Broadcast(BroadcastResponse)
 }
 
+pub async fn create_client(config_path: PathBuf) -> MixnetClient {
+    let config_dir = PathBuf::from(config_path);
+    let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
+    let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
+        .await
+        .unwrap()
+        .build()
+        .await
+        .unwrap();
+    let mut client = client.connect_to_mixnet().await.unwrap();
+    client
+}

@@ -1,25 +1,18 @@
-use nym_sdk::mixnet::{StoragePaths, MixnetClientBuilder, ReconstructedMessage};
+use nym_sdk::mixnet::{StoragePaths, MixnetClientBuilder, ReconstructedMessage, MixnetClient};
 use nym_bin_common::logging::setup_logging;
 use std::path::PathBuf;
 use nym_sphinx_anonymous_replies::{self, requests::AnonymousSenderTag};
-use rust_cosmos_broadcaster::service::{get_sequence, broadcast}; 
-use rust_cosmos_broadcaster::{RequestTypes, SequenceRequestResponse, BroadcastResponse};
+// use rust_cosmos_broadcaster::service::{get_sequence, broadcast}; 
+use rust_cosmos_broadcaster::{RequestTypes, SequenceRequestResponse, BroadcastResponse, service::{get_sequence, broadcast}, create_client};
 
 #[tokio::main]
 async fn main() {
-    setup_logging();
-    // TODO put client creation in own fn 
-    let config_dir = PathBuf::from("/tmp/cosmos-broadcaster-mixnet-server-2");
-    let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
-    let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
-        .await
-        .unwrap()
-        .build()
-        .await
-        .unwrap();
-    let mut client = client.connect_to_mixnet().await.unwrap();
+
+    // setup_logging();
+    let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-server-2".into()).await; 
     let our_address = client.nym_address();
-    println!("\nOur client nym address is: {our_address}");
+    println!("\nSetup test ---- our client nym address is: {our_address}");
+    // TODO create broadcaster in src/service fn, call here & save as var to pass to other fns 
 
     /*
        TODO 

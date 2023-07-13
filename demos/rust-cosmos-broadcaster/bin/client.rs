@@ -1,7 +1,7 @@
 use clap::{ Parser, Subcommand, Args};
 use nym_sdk::mixnet::{Recipient};
 use nym_validator_client::nyxd::AccountId;
-use nym_bin_common::logging::setup_logging;
+
 use rust_cosmos_broadcaster::{client::{offline_sign, send_tx}, create_client}; 
 
 #[derive(Debug, Parser)]
@@ -48,27 +48,27 @@ async fn main() {
     match &cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx { mnemonic, nyx_token_receipient} )) => {
             println!("sending offline sign info"); 
-            let base58_tx_bytes = offline_sign(mnemonic.clone(), nyx_token_receipient.clone(), &mut client, sp_address.clone()).await;
+            let base58_tx_bytes = offline_sign(mnemonic.clone(), nyx_token_receipient.clone(), &mut client, sp_address).await;
 
             println!("base58 encoded signed tx payload: \n\n{}\n\n", &base58_tx_bytes);
             println!("do you wish to send the tx? y/n");
 
             let mut input = String::new();
             let stdin = std::io::stdin();
-            let n = stdin.read_line(&mut input).unwrap();
+            let _n = stdin.read_line(&mut input).unwrap();
 
-            if input.chars().next().unwrap() == 'y' { // TODO add proper parsing for getting y/n
+            if input.starts_with('y') { // TODO add proper parsing for getting y/n
                 println!("\nsending tx thru the mixnet to broadcaster service");
                 let tx_hash = send_tx(base58_tx_bytes, sp_address, &mut client).await;
                 println!("the response from the broadcaster: {:#?}", tx_hash);
-            } else if input.chars().next().unwrap() == 'n' {
+            } else if input.starts_with('n') {
                 println!("\nok, you can send the signed tx at a later date by passing the base58 string above as the argument for send-tx")
             } else { //TODO make a loop & return to the question if input is not y/n?
                 println!("\nunrecognised user input");
             }
         }
         Some(Commands::SendTx(SendTx { base58_payload } )) => {
-            let tx_hash = send_tx(base58_payload.clone(), sp_address.clone(), &mut client).await;
+            let tx_hash = send_tx(base58_payload.clone(), sp_address, &mut client).await;
             println!("the response from the broadcaster: {:#?}", tx_hash);
         }
         None => {println!("no command specified - nothing to do")}

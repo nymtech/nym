@@ -1,5 +1,5 @@
 use nym_sdk::mixnet::ReconstructedMessage;
-use nym_bin_common::logging::setup_logging;
+
 use nym_sphinx_anonymous_replies::{self, requests::AnonymousSenderTag};
 use rust_cosmos_broadcaster::{RequestTypes, SequenceRequestResponse, BroadcastResponse, service::{get_sequence, broadcast, create_broadcaster}, create_client};
 

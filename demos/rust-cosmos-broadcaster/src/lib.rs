@@ -47,7 +47,7 @@ pub enum ResponseTypes {
 }
 
 pub async fn create_client(config_path: PathBuf) -> MixnetClient {
-    let config_dir = PathBuf::from(config_path);
+    let config_dir = config_path;
     let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
     let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
         .await
@@ -55,6 +55,6 @@ pub async fn create_client(config_path: PathBuf) -> MixnetClient {
         .build()
         .await
         .unwrap();
-    let client = client.connect_to_mixnet().await.unwrap();
-    client
+    
+    client.connect_to_mixnet().await.unwrap()
 }

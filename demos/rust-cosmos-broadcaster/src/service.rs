@@ -13,8 +13,8 @@ pub async fn get_sequence(broadcaster: HttpClient, signer_address: AccountId) ->
     // get signer information
     let sequence = broadcaster.get_sequence(&signer_address).await.unwrap();
     let chain_id: tendermint::chain::Id = broadcaster.get_chain_id().await.unwrap();
-    let res = crate::SequenceRequestResponse { account_number: sequence.account_number, sequence: sequence.sequence, chain_id };
-    res  
+    
+    crate::SequenceRequestResponse { account_number: sequence.account_number, sequence: sequence.sequence, chain_id }  
 }
 
 pub async fn broadcast(base58_tx_bytes: String, broadcaster: HttpClient) -> crate::BroadcastResponse {
@@ -47,8 +47,8 @@ pub async fn broadcast(base58_tx_bytes: String, broadcaster: HttpClient) -> crat
     println!("balance before: {before}");
     println!("balance after:  {after}");
 
-    let res = crate::BroadcastResponse {
+     
+    crate::BroadcastResponse {
       tx_hash: serde_json::to_string(&broadcast_res.hash).unwrap()
-    }; 
-    res  
+    }  
 }

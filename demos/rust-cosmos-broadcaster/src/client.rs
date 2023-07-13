@@ -114,6 +114,6 @@ pub async fn send_tx(base58_tx: String, sp_address: Recipient, client: &mut Mixn
 
     println!("\nWaiting for reply\n");
     
-    let res = client.wait_for_messages().await; 
-    res 
+     
+    client.wait_for_messages().await 
 }

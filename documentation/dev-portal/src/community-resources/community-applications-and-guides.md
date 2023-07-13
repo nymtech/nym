@@ -2,7 +2,7 @@
 
 We love seeing our developer community create applications using Nym. If you would like to share your application with the community, please submit a pull request to the `main` branch of the `nymtech/dev-portal` [repository](https://github.com/nymtech/dev-portal).
 
-<!--Pastenym *start-->
+
 
 ## <img src='../images/profile_picture/pastenym_ntv_pp.png' style="float: right; width: 75px; height: 75px;">Pastenym
 
@@ -11,9 +11,8 @@ We love seeing our developer community create applications using Nym. If you wou
 * [Github](https://github.com/notrustverify/pastenym)
 * [Deployed App](https://pastenym.ch)
 
-<!--Pastenym *end-->
 
-<!--Pineapple *start-->
+
 
 ## <img src='../images/profile_picture/pineappleproxy_pp.png' style="float: right; width: 75px; height: 75px;">Nostr-Nym
 
@@ -23,19 +22,16 @@ We love seeing our developer community create applications using Nym. If you wou
 * [Deployed App](https://nostrnym.pnproxy.org/) 
 * [Documentation](https://blog.notrustverify.ch/nostr-relay-on-nym) 
 
-<!--Pineapple *end-->
 
 
-<!--Ethereum RPC Provider *start-->
 
 ## <img src='../images/profile_picture/ethereum_rpc_spook_pp.png' style="float: right; width: 75px; height: 75px;"> Spook
 
 > Ethereum RPC request mixer uses the Nym network mixing service to anonymize RPC requests to the Ethereum network without revealing sensitive data and metadata.
 * [Github](https://github.com/EdenBlockVC/spook)
 	  
-<!--Ethereum RPC Provider *end-->
 
-<!--Ethereum Transaction Broadcaster *start-->
+
 
 ## <img src='../images/profile_picture/ethereum_transaction_broadcaster_root_pp.png' style="float: right; width: 75px; height: 75px;"> Ethereum Transaction Broadcaster
 
@@ -43,9 +39,8 @@ We love seeing our developer community create applications using Nym. If you wou
 
 * [Github](https://github.com/noot/nym-ethtx)
 
-<!--Ethereum Transaction Broadcaster *end-->
 
-<!--NymDrive *start-->
+
 
 ## <img src='../images/profile_picture/nymdrive_saleel_pp.png' style="float: right; width: 75px; height: 75px;">NymDrive
 
@@ -54,28 +49,24 @@ We love seeing our developer community create applications using Nym. If you wou
 * [Demo](https://www.youtube.com/watch?v=5Rx73nw8NYI)
 * [Presentation](https://docs.google.com/presentation/d/1MpvIK32Mx9VKLVfMTcvbeyrsKHHUsTvDQ-3n31dR0NE/edit#slide=id.p)
 
-<!--NymDrive *end-->
 
-<!--NymDashboard *start-->
+
 
 ## <img src='../images/profile_picture/nym_dashboard_pp.svg' style="float: right; width: 75px; height: 75px;">Nym Dashboard
 
 > Developed by No Trust Verify, this dashboard is a great tool to get information about the mixnet, gateways and mixnodes.
 * [Deployed App](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1)
 
-<!--NymDashboard *end-->
 
 
-<!--IsNymUp *start-->
- 
+
 ## <img src='../images/profile_picture/pastenym_ntv_pp.png' style="float: right; width: 75px; height: 75px;">Is Nym Up
  
 > Explore whether we're up through IsNymUp, a tool that helps check the heath of the Nym network as well as some mixnet related statistics!
 * [Deployed App](https://isnymup.com/)
 
-<!--IsNymUp *end-->
 
-<!--DarkFi *start-->
+
 
 ## <img src='../images/profile_picture/darkfi_over_nym_pp.png' style="float: right; width: 75px; height: 75px;">DarkFi over Nym
 
@@ -83,18 +74,16 @@ We love seeing our developer community create applications using Nym. If you wou
 * [Github](https://github.com/darkrenaissance/darkfi)
 * [Documentation](https://darkrenaissance.github.io/darkfi/clients/nym_outbound.html)
 
-<!--DarkFi *end-->
 
-<!--Nymstr email *start-->
+
 
 ## <img src='../images/profile_picture/nymstr_email_pp.png' style="float: right; width: 75px; height: 75px;">Nymstr email
 
 > Experience secure and private email communication with ease using Nymstr email, which enables seamless transmission of emails over a SOCKS5 proxy and our NYM mixnet! 
 * [Github](https://github.com/dial0ut/nymstr-email)
 
-<!--Nymstr email *end-->
 
-<!--Minibolt *start-->
+
 
 ## <img src='../images/profile_picture/minibolt_pp.png' style="float: right; width: 75px; height: 75px;">Minibolt
 
@@ -102,7 +91,6 @@ We love seeing our developer community create applications using Nym. If you wou
 * [Github](https://github.com/minibolt-guide/minibolt)
 * [Documentation](https://v2.minibolt.info/bonus-guides/system/nym-mixnet#proxying-bitcoin-core)
 
-<!--Minibolt *end-->
 
 
 <br/> <br/>
@@ -117,6 +105,7 @@ We aren't the only ones writing documentation: the Nym developer community is al
 
 * [Awesome Nym list](https://notrustverify.github.io/awesome-nym/) ([GitHub](https://github.com/notrustverify/awesome-nym))
 * A lot of guides can be found on the [NTV Blog](https://blog.notrustverify.ch/)
+
 
 ## <img src='../images/profile_picture/pineappleproxy_pp.png' style="float: right; width: 75px; height: 75px;">The Way of the NYMJA
 

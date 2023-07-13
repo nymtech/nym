@@ -3,7 +3,9 @@
 // Look at dom-utils.js for the DOM utility functionality referenced here.
 
 // Import the Nym mixnet ESM module.
-import { createNymMixnetClient } from '../sdk/index.js';
+import { createNymMixnetClient } from '../../../packages/sdk/dist/full-fat/index.js';
+import '../../../packages/sdk/dist/full-fat/web-worker-0.js';
+import '../../../packages/sdk/dist/full-fat/web-worker-1.js';
 
 const backgroundState = {
   isReady: false,

@@ -23,4 +23,16 @@ module.exports = {
       ],
     }),
   ],
+  module: {
+    rules: [
+      {
+        test: /web-worker.*\.js$/,
+        loader: 'worker-loader',
+        options: {
+          filename: '[name].js',
+          inline: 'fallback',
+        },
+      },
+    ],
+  },
 };

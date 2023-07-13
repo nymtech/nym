@@ -5,7 +5,6 @@
   "main": "index.js",
   "author": "",
   "license": "ISC",
-
   "devDependencies": {
     "copy-webpack-plugin": "^11.0.0",
     "webpack": "^5.88.1",
@@ -13,5 +12,8 @@
   },
   "scripts": {
     "build": "yarn webpack"
+  },
+  "dependencies": {
+    "worker-loader": "^3.0.8"
   }
 }

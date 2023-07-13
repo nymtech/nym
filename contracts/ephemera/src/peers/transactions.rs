@@ -28,3 +28,36 @@ pub fn try_register_peer(
         Err(ContractError::AlreadyRegistered)
     }
 }
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+    use crate::support::tests::fixtures::peer_fixture;
+    use crate::support::tests::helpers;
+    use crate::support::tests::helpers::GROUP_MEMBERS;
+    use cosmwasm_std::testing::mock_info;
+    use cw4::Member;
+
+    #[test]
+    fn peer_registration() {
+        let mut deps = helpers::init_contract();
+        let peer_info = peer_fixture("owner");
+        let info = mock_info("owner", &[]);
+
+        let ret = try_register_peer(deps.as_mut(), info.clone(), peer_info.clone()).unwrap_err();
+        assert_eq!(ret, ContractError::Unauthorized);
+
+        GROUP_MEMBERS.lock().unwrap().push((
+            Member {
+                addr: "owner".to_string(),
+                weight: 10,
+            },
+            1,
+        ));
+
+        try_register_peer(deps.as_mut(), info.clone(), peer_info.clone()).unwrap();
+
+        let ret = try_register_peer(deps.as_mut(), info, peer_info).unwrap_err();
+        assert_eq!(ret, ContractError::AlreadyRegistered);
+    }
+}

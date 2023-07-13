@@ -1,7 +1,6 @@
-use clap::{ Parser, Subcommand, Args};
-use nym_sdk::mixnet::{Recipient};
+use clap::{Parser, Subcommand, Args};
+use nym_sdk::mixnet::Recipient;
 use nym_validator_client::nyxd::AccountId;
-
 use rust_cosmos_broadcaster::{client::{offline_sign, send_tx}, create_client}; 
 
 #[derive(Debug, Parser)]
@@ -57,13 +56,13 @@ async fn main() {
             let stdin = std::io::stdin();
             let _n = stdin.read_line(&mut input).unwrap();
 
-            if input.starts_with('y') { // TODO add proper parsing for getting y/n
+            if input.starts_with('y') { 
                 println!("\nsending tx thru the mixnet to broadcaster service");
                 let tx_hash = send_tx(base58_tx_bytes, sp_address, &mut client).await;
                 println!("the response from the broadcaster: {:#?}", tx_hash);
             } else if input.starts_with('n') {
                 println!("\nok, you can send the signed tx at a later date by passing the base58 string above as the argument for send-tx")
-            } else { //TODO make a loop & return to the question if input is not y/n?
+            } else { 
                 println!("\nunrecognised user input");
             }
         }

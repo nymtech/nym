@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize}; 
 use cosmrs::{AccountId, tendermint};
 use std::path::PathBuf;
-use nym_sdk::mixnet::{StoragePaths, MixnetClientBuilder, ReconstructedMessage, MixnetClient};
+use nym_sdk::mixnet::{StoragePaths, MixnetClientBuilder, MixnetClient};
 pub mod client; 
 pub mod service;
 
@@ -55,6 +55,6 @@ pub async fn create_client(config_path: PathBuf) -> MixnetClient {
         .build()
         .await
         .unwrap();
-    let mut client = client.connect_to_mixnet().await.unwrap();
+    let client = client.connect_to_mixnet().await.unwrap();
     client
 }

@@ -1,13 +1,15 @@
 use nym_validator_client::nyxd::CosmWasmClient;
 use cosmrs::rpc::{HttpClient, Client};
 use cosmrs::{AccountId, tendermint};
-use bs58; 
+use bs58;
+use crate::DEFAULT_VALIDATOR_RPC; 
 
-pub async fn get_sequence(validator: String, signer_address: AccountId) -> crate::SequenceRequestResponse {
-    /*
-      TODO create broadcaster in different fn and build on setup - pass to both fns as arg 
-     */
-    let broadcaster = HttpClient::new(validator.as_str()).unwrap();
+pub async fn create_broadcaster() -> HttpClient { 
+   let broadcaster: HttpClient = HttpClient::new(DEFAULT_VALIDATOR_RPC).unwrap();
+   broadcaster
+}
+
+pub async fn get_sequence(broadcaster: HttpClient, signer_address: AccountId) -> crate::SequenceRequestResponse {
     // get signer information
     let sequence = broadcaster.get_sequence(&signer_address).await.unwrap();
     let chain_id: tendermint::chain::Id = broadcaster.get_chain_id().await.unwrap();
@@ -15,21 +17,17 @@ pub async fn get_sequence(validator: String, signer_address: AccountId) -> crate
     res  
 }
 
-pub async fn broadcast(base58_tx_bytes: String) -> crate::BroadcastResponse {
+pub async fn broadcast(base58_tx_bytes: String, broadcaster: HttpClient) -> crate::BroadcastResponse {
     // decode the base58 tx to vec<u8>
     let tx_bytes = bs58::decode(base58_tx_bytes).into_vec().unwrap();  
     println!("decoded tx bytes: {:#?}", tx_bytes); 
-    
-    /*
-      TODO create broadcaster in different fn and build on setup - pass to both fns as arg 
-     */
-    let broadcaster = HttpClient::new("https://qwerty-validator.qa.nymte.ch").unwrap();
-    
-    let to_address: AccountId = "n1p8ayfmdash352gh6yy8zlxk24dm6yzc9mdq0p6".parse().unwrap();
+
+    // this is our sender address hardcoded for ease of the demo logging 
+    let from_address: AccountId = "n1p8ayfmdash352gh6yy8zlxk24dm6yzc9mdq0p6".parse().unwrap();
 
     // compare balances from before and after the tx
     let before = broadcaster
-        .get_balance(&to_address, "unym".to_string())
+        .get_balance(&from_address, "unym".to_string())
         .await
         .unwrap()
         .unwrap();
@@ -40,7 +38,7 @@ pub async fn broadcast(base58_tx_bytes: String) -> crate::BroadcastResponse {
         .unwrap();
 
     let after = broadcaster
-        .get_balance(&to_address, "unym".to_string())
+        .get_balance(&from_address, "unym".to_string())
         .await
         .unwrap()
         .unwrap();

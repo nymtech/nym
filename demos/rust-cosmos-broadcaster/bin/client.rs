@@ -1,11 +1,9 @@
-use std::path::PathBuf;
 use clap::{ Parser, Subcommand, Args};
-use nym_sdk::mixnet::{Recipient, MixnetClientBuilder, StoragePaths};
+use nym_sdk::mixnet::{Recipient};
 use nym_validator_client::nyxd::AccountId;
 use nym_bin_common::logging::setup_logging;
 use rust_cosmos_broadcaster::{client::{offline_sign, send_tx}, create_client}; 
 
-// move this somewhere else as well?? 
 #[derive(Debug, Parser)]
 #[clap(name = "nym cosmos tx signer ")]
 #[clap(about = "demo binary with which users can perform offline signing and transmission of signed tx to broadcaster via the mixnet ")]
@@ -42,7 +40,7 @@ async fn main() {
     let cli = Cli::parse();
     let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-client-2".into()).await; 
     let our_address = client.nym_address();
-    println!("\nSetup test ---- our client nym address is: {our_address}");
+    println!("\nour client nym address is: {our_address}");
 
     // TODO take from args as Option otherwise set as default this logic moves to src/client and remove this from here  
     let sp_address = Recipient::try_from_base58_string("HfbesQm2pRYCN4BAdYXhkqXBbV1Pp929mtKsESVeWXh8.8AgoUPUQbXNBCPaqAaWd3vnxhc9484qwfgrrQwBngQk2@Ck8zpXTSXMtS9YZ7k7a5BiaoLZfffWuqGWLndujh4Lw4").unwrap();

@@ -1,3 +1,8 @@
+TODO FOR DEMO
+- clippy
+- nicer logging - show sequence response etc
+- pass tx hash back to client nicely & remove from service 
+
 ### Nym mixnet cosmos tx broadcaster demo 
 
 A demo showing how to: 
@@ -12,30 +17,18 @@ Built using:
 
 #### Useage 
 ```
+# compile
+cargo build --release
+
 example 1: sign & send @ same time 
-# start service 
+# start service
+../../target/release/service
+
 # sign tx - when prompted enter 'y' 
+../../target/release/client offline-sign-tx "<MNEMONIC>" "<RECIPIENT_NYX_ADDRESS>
 
 example 2: sign first, send later 
 # start service 
 # sign tx - when prompted enter 'n' and copy encoded tx bytes from terminal 
 # send tx using encoded bytes as arg 
 ```
-
-
-//
-
-- bin 
-    - client  : `main.rs` from `rust...client/` 
-    - service : `main.rs` from `rust...server/` 
-
-- src 
-    - lib     : `reqres` definitions + define CONSTs in there 
-    - client  : `commands.rs` from `rust...client/`   
-    - service : `commands.rs` from `rust...server/` 
-
-- added CONSTS to
-    - client src DONE 
-    - client bin -- make sp an optional cli arg otherwise set as DEFAULT
-    - service src 
-    - service bin 

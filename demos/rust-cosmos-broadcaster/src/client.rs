@@ -5,7 +5,7 @@ use nym_validator_client::signing::SignerData;
 use nym_validator_client::nyxd::cosmwasm_client::types;
 use cosmrs::bank::MsgSend;
 use cosmrs::tx::Msg;
-use cosmrs::{tx, AccountId, Coin, Denom};
+use cosmrs::{tx, AccountId, Coin, Denom, ErrorReport};
 use bip39; 
 use bs58; 
 use nym_sdk::mixnet::{self, MixnetClient, ReconstructedMessage};
@@ -36,7 +36,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     while let Some(new_message) = client.wait_for_messages().await {
        if new_message.is_empty() {
         continue;
-       } println!("got a response"); 
+       } 
         message = new_message;
        break  
     }
@@ -104,7 +104,7 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
 
 }
 
-pub async fn send_tx(base58_tx: String, sp_address: Recipient, client: &mut MixnetClient) -> Option<Vec<mixnet::ReconstructedMessage>> {
+pub async fn send_tx(base58_tx: String, sp_address: Recipient, client: &mut MixnetClient) -> (String, bool) {
 
     let broadcast_request = crate::BroadcastRequest {
         base58_tx_bytes: base58_tx
@@ -112,8 +112,41 @@ pub async fn send_tx(base58_tx: String, sp_address: Recipient, client: &mut Mixn
 
     client.send_str(sp_address, &serde_json::to_string(&broadcast_request).unwrap()).await; 
 
-    println!("\nWaiting for reply\n");
-    
+    println!("Waiting for reply");
+
+    // handle incoming message - we presume its a reply from the SP 
+    let mut message: Vec<ReconstructedMessage> = Vec::new(); 
+
+    // get the actual message - discard the empty vec sent along with the SURB topup request  
+    while let Some(new_message) = client.wait_for_messages().await {
+       if new_message.is_empty() {
+        continue;
+       } 
+        message = new_message;
+       break  
+    }
+
+    // parse vec<u8> -> JSON String 
+    let mut parsed = String::new(); 
+    for r in message.iter() {
+        parsed = String::from_utf8(r.message.clone()).unwrap();
+        break
+    };  
+    let sp_response: crate::ResponseTypes = serde_json::from_str(&parsed).unwrap(); 
+
+    let res = match sp_response {
+        crate::ResponseTypes::Broadcast(response) => {
+            let broadcast_response = crate::BroadcastResponse {
+                tx_hash: response.tx_hash,
+                success: response.success
+            }; 
+            (broadcast_response.tx_hash, broadcast_response.success) 
+        }, 
+        // TODO make this a proper error 
+        _ => { println!("weird response"); (String::from("placeholder error"), false) }
+    }; 
+
+    res 
+
      
-    client.wait_for_messages().await 
-}
+    }

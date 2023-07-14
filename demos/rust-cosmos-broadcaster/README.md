@@ -1,11 +1,10 @@
 TODO FOR DEMO
-- clippy
-- pass mnemonic as file 
-- nicer logging - show sequence response etc
-- pass tx hash back to client nicely & remove from service 
+- flags for cli 
+- single parse_incoming fn in lib and call from everywhere 
+- pass mnemonic as file (otherwise pass as env var)
+- create signer in main.rs and pass to commands (client/src) 
 
 ### Nym mixnet cosmos tx broadcaster demo 
-
 A demo showing how to: 
 * sign a cosmos tx (simple token transfer) offline 
 * broadcast this tx from a service on the other side of the mixnet
@@ -21,15 +20,20 @@ Built using:
 # compile
 cargo build --release
 
-example 1: sign & send @ same time 
+example 1: sign & send in one call  
 # start service
 ../../target/release/service
 
 # sign tx - when prompted enter 'y' 
-../../target/release/client offline-sign-tx "<MNEMONIC>" "<RECIPIENT_NYX_ADDRESS>
+../../target/release/client offline-sign-tx ${SENDER_MNEMONIC} ${RECIPIENT_NYX_ADDRESS}
 
-example 2: sign first, send later 
+example 2: create signed tx 
 # start service 
+../../target/release/service
+
 # sign tx - when prompted enter 'n' and copy encoded tx bytes from terminal 
+../../target/release/client offline-sign-tx ${SENDER_MNEMONIC} ${RECIPIENT_NYX_ADDRESS}
+
 # send tx using encoded bytes as arg 
+../../target/release/client send-tx ${}
 ```

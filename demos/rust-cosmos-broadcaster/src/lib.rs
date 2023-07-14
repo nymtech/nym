@@ -8,7 +8,6 @@ pub mod service;
 pub const DEFAULT_VALIDATOR_RPC: &str = "https://qwerty-validator.qa.nymte.ch"; 
 pub const DEFAULT_DENOM: &str = "unym"; 
 pub const DEFAULT_PREFIX: &str = "n"; 
-// pub const DEFAULT_SERVICE_NYM_ADDRESS: &str = "HfbesQm2pRYCN4BAdYXhkqXBbV1Pp929mtKsESVeWXh8.8AgoUPUQbXNBCPaqAaWd3vnxhc9484qwfgrrQwBngQk2@Ck8zpXTSXMtS9YZ7k7a5BiaoLZfffWuqGWLndujh4Lw4"; 
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SequenceRequest {
@@ -29,7 +28,8 @@ pub struct BroadcastRequest {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct BroadcastResponse{
-    pub tx_hash: String
+    pub tx_hash: String, 
+    pub success: bool
 }
 
 #[derive(Debug, Deserialize, Serialize)]

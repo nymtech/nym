@@ -13,14 +13,12 @@ pub async fn get_sequence(broadcaster: HttpClient, signer_address: AccountId) ->
     // get signer information
     let sequence = broadcaster.get_sequence(&signer_address).await.unwrap();
     let chain_id: tendermint::chain::Id = broadcaster.get_chain_id().await.unwrap();
-    
     crate::SequenceRequestResponse { account_number: sequence.account_number, sequence: sequence.sequence, chain_id }  
 }
 
 pub async fn broadcast(base58_tx_bytes: String, broadcaster: HttpClient) -> crate::BroadcastResponse {
     // decode the base58 tx to vec<u8>
     let tx_bytes = bs58::decode(base58_tx_bytes).into_vec().unwrap();  
-    println!("decoded tx bytes: {:#?}", tx_bytes); 
 
     // this is our sender address hardcoded for ease of the demo logging 
     let from_address: AccountId = "n1p8ayfmdash352gh6yy8zlxk24dm6yzc9mdq0p6".parse().unwrap();
@@ -33,6 +31,7 @@ pub async fn broadcast(base58_tx_bytes: String, broadcaster: HttpClient) -> crat
         .unwrap();
 
     // broadcast the tx
+    println!("broadcasting the tx to Nyx blockchain");
     let broadcast_res = Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
         .await
         .unwrap();
@@ -43,12 +42,19 @@ pub async fn broadcast(base58_tx_bytes: String, broadcaster: HttpClient) -> crat
         .unwrap()
         .unwrap();
  
-    println!("{:#?}", broadcast_res.hash); 
-    println!("balance before: {before}");
-    println!("balance after:  {after}");
-
+    println!("returned transaction hash: {:#?}", broadcast_res.hash.to_string()); 
+    println!("balance before transaction: {before}");
+    println!("balance after transaction:  {after}");
+    println!("returning tx hash to sender");
+    
+    let success: bool = if after.amount < before.amount {
+        true 
+    } else {
+        false 
+    }; 
      
     crate::BroadcastResponse {
-      tx_hash: serde_json::to_string(&broadcast_res.hash).unwrap()
+      tx_hash: serde_json::to_string(&broadcast_res.hash).unwrap(), 
+      success,  
     }  
 }

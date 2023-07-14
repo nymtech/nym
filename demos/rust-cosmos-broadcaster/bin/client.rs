@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand, Args};
 use nym_sdk::mixnet::Recipient;
 use nym_validator_client::nyxd::AccountId;
 use rust_cosmos_broadcaster::{client::{offline_sign, send_tx}, create_client}; 
+use nym_bin_common::logging::setup_logging;
 
 #[derive(Debug, Parser)]
 #[clap(name = "nym cosmos tx signer ")]
@@ -39,17 +40,16 @@ async fn main() {
     let cli = Cli::parse();
     let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-client-2".into()).await; 
     let our_address = client.nym_address();
-    println!("\nour client nym address is: {our_address}");
+    println!("\nclient's nym address: {our_address}\n");
 
-    // TODO take from args as Option otherwise set as default this logic moves to src/client and remove this from here  
     let sp_address = Recipient::try_from_base58_string("HfbesQm2pRYCN4BAdYXhkqXBbV1Pp929mtKsESVeWXh8.8AgoUPUQbXNBCPaqAaWd3vnxhc9484qwfgrrQwBngQk2@Ck8zpXTSXMtS9YZ7k7a5BiaoLZfffWuqGWLndujh4Lw4").unwrap();
 
     match &cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx { mnemonic, nyx_token_receipient} )) => {
-            println!("sending offline sign info"); 
+            println!("sending offline sign info to broadcaster via the mixnet: getting signing account sequence and chain ID"); 
             let base58_tx_bytes = offline_sign(mnemonic.clone(), nyx_token_receipient.clone(), &mut client, sp_address).await;
 
-            println!("base58 encoded signed tx payload: \n\n{}\n\n", &base58_tx_bytes);
+            println!("Encoded response (signed tx data) as base58 for tx broadcast: \n\n{}\n", &base58_tx_bytes);
             println!("do you wish to send the tx? y/n");
 
             let mut input = String::new();
@@ -58,19 +58,20 @@ async fn main() {
 
             if input.starts_with('y') { 
                 println!("\nsending tx thru the mixnet to broadcaster service");
-                let tx_hash = send_tx(base58_tx_bytes, sp_address, &mut client).await;
-                println!("the response from the broadcaster: {:#?}", tx_hash);
+                let (tx_hash, success) = send_tx(base58_tx_bytes, sp_address, &mut client).await;
+                println!("tx hash returned from the broadcaster: {}\ntx was successful: {}", tx_hash, success);
             } else if input.starts_with('n') {
-                println!("\nok, you can send the signed tx at a later date by passing the base58 string above as the argument for send-tx")
+                println!("\nok, you can send the signed tx at a later date by passing the base58 string above as the argument for send-tx"); 
             } else { 
                 println!("\nunrecognised user input");
             }
         }
         Some(Commands::SendTx(SendTx { base58_payload } )) => {
             let tx_hash = send_tx(base58_payload.clone(), sp_address, &mut client).await;
-            println!("the response from the broadcaster: {:#?}", tx_hash);
+            println!("response from the broadcaster (tx hash) {:#?}", tx_hash);
         }
-        None => {println!("no command specified - nothing to do")}
+        None => {println!("\nno command specified - nothing to do")}
     }
-    println!("\nend")
+    println!("\ndisconnecting client"); 
+    println!("end")
 }

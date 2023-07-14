@@ -10,6 +10,10 @@ TODO
 - [x] Add second console output to Initialising your mixnode manually as the automatized is not working
 - [ ] Point users to understand the requirements for becoming a part of the active set.
 - [ ] Include how to move a mix node from one VPS to another while keeping the delegation etc (ie init a new mix node and move `/home/nym/.nym/mixnodes/data/*` there ?)
+    - copy that dir over to the new vps
+    - re-run init - remember that init doesn't overwrite existing keys - to generate a  config with the new listening address etc
+    - change the node info via the wallet
+    - Since otherwise their keys will point to the old IP address in the smart contract, and their node will (a) not be able to be connected to, and (b) fail uptime checks 
 - [ ] Explain more about self hosted nodes in the 6.1 not only as a troubleshooting
 --->
 

@@ -28,13 +28,10 @@ async fn main() {
         for r in received.iter() {
                 // convert incoming vec<u8> -> String 
                 let s = String::from_utf8(r.message.clone());
-                // println!("{:#?}", &s);  
                 if s.is_ok() {
                     let p = s.unwrap();
-                    // println!("{:#?}", &p);  
                     // parse JSON string -> request type & match 
                     let request: RequestTypes = serde_json::from_str(&p).unwrap(); 
-                    // println!("\nincoming request: {:#?}", &request);
                     match request {
                         RequestTypes::Sequence(request) => {
                             println!("\nincoming sequence request details:\nsigner address: {}", request.signer_address); 

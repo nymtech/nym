@@ -23,7 +23,8 @@ If you are looking for information on grants and beta-release Nym apps, check ou
 * [Network requesters](./nodes/network-requester-setup.md)
 * [Validators](./nodes/validator-setup.md)
 
-**Troubleshooting and FAQ**
+**Maintenance, troubleshooting and FAQ**
+* [Maintenance](./nodes/maintenance.md)
 * [Troubleshooting](./nodes/troubleshooting.md)
 * [FAQ](./faq.md)
 

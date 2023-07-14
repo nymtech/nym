@@ -66,3 +66,32 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
 pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::Addr;
+
+    #[test]
+    fn initialize_contract() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+
+        let init_msg = InstantiateMsg {
+            group_addr: "group_addr".to_string(),
+            mix_denom: "uatom".to_string(),
+        };
+
+        let sender = mock_info("sender", &[]);
+        let res = instantiate(deps.as_mut(), env, sender, init_msg);
+        assert!(res.is_ok());
+
+        let expected_state = State {
+            group_addr: Cw4Contract::new(Addr::unchecked("group_addr")),
+            mix_denom: "uatom".to_string(),
+        };
+        let state = STATE.load(deps.as_ref().storage).unwrap();
+        assert_eq!(state, expected_state);
+    }
+}

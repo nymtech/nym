@@ -7,15 +7,16 @@ use ephemera::{
 };
 use log::{debug, error, info};
 
+use crate::ephemera::client::Client;
 use crate::ephemera::epoch::Epoch;
 use crate::ephemera::peers::members::MembersProvider;
-use crate::ephemera::peers::NymApiEphemeraPeerInfo;
+use crate::ephemera::peers::{NymApiEphemeraPeerInfo, NymPeer};
 use crate::ephemera::reward::aggregator::RewardsAggregator;
 use crate::ephemera::reward::MixnodeToReward;
 use crate::ephemera::reward::{EphemeraAccess, RewardManager};
 use crate::ephemera::Args;
 use crate::support::nyxd;
-use ephemera::crypto::{EphemeraKeypair, Keypair};
+use ephemera::crypto::{EphemeraKeypair, EphemeraPublicKey, Keypair};
 use ephemera::ephemera_api::CommandExecutor;
 use ephemera::{Ephemera, EphemeraStarterInit};
 use nym_task::TaskManager;
@@ -55,15 +56,39 @@ impl NymApi {
     ) -> anyhow::Result<Ephemera<RewardsEphemeraApplication>> {
         info!("Initializing ephemera ...");
 
-        //Application for Ephemera
-        let rewards_ephemera_application =
-            RewardsEphemeraApplication::init(ephemera_config.clone(), nyxd_client.clone()).await?;
+        let node_info = ephemera_config.node.clone();
+
+        let keypair = bs58::decode(&node_info.private_key).into_vec().unwrap();
+        let keypair = Keypair::from_bytes(&keypair).unwrap();
+        let local_peer_id = keypair.public_key().to_base58();
 
         //Members provider for Ephemera
-        let members_provider = MembersProvider::new(nyxd_client);
+        let members_provider = MembersProvider::new(nyxd_client.clone());
 
-        let local_peer = rewards_ephemera_application.peer_info.local_peer.clone();
-        members_provider.register_peer(local_peer).await?;
+        let cosmos_address = nyxd_client.client_address().await.to_string();
+        let ip_address = format!(
+            "/ip4/{}/tcp/{}",
+            ephemera_config.node.ip, ephemera_config.libp2p.port
+        );
+
+        if !nyxd_client
+            .get_ephemera_peers()
+            .await?
+            .iter()
+            .any(|peer_info| peer_info.cosmos_address == cosmos_address)
+        {
+            let local_peer = NymPeer::new(
+                cosmos_address,
+                ip_address,
+                keypair.public_key(),
+                local_peer_id.clone(),
+            );
+            members_provider.register_peer(local_peer).await?;
+        }
+
+        //Application for Ephemera
+        let rewards_ephemera_application =
+            RewardsEphemeraApplication::init(local_peer_id, nyxd_client.clone()).await?;
 
         //EPHEMERA
         let ephemera_builder = EphemeraStarterInit::new(ephemera_config)?;
@@ -107,11 +132,11 @@ pub(crate) struct RewardsEphemeraApplication {
 
 impl RewardsEphemeraApplication {
     pub(crate) async fn init(
-        ephemera_config: Configuration,
+        local_peer_id: String,
         nyxd_client: nyxd::Client,
     ) -> anyhow::Result<Self> {
         let peer_info = match NymApiEphemeraPeerInfo::from_ephemera_dev_cluster_conf(
-            &ephemera_config,
+            local_peer_id,
             nyxd_client,
         )
         .await

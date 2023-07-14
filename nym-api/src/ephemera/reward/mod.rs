@@ -259,7 +259,7 @@ where
             mix_node_rewards.push(mix_node_reward);
         }
 
-        let aggregated_rewards = self.aggregator().aggregate(mix_node_rewards);
+        let aggregated_rewards = self.aggregator().aggregate(mix_node_rewards)?;
         debug!("Aggregated rewards: {:?}", aggregated_rewards);
 
         Ok(aggregated_rewards)

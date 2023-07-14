@@ -13,7 +13,7 @@ impl RewardsAggregator {
     pub(crate) fn aggregate(
         &self,
         all_rewards: Vec<Vec<MixnodeToReward>>,
-    ) -> Vec<MixnodeWithPerformance> {
+    ) -> anyhow::Result<Vec<MixnodeWithPerformance>> {
         let mut mix_rewards = HashMap::new();
         for api_rewards in all_rewards {
             for mixnode in api_rewards {
@@ -29,14 +29,15 @@ impl RewardsAggregator {
         let mut mean_avg = vec![];
         for (mix_id, rewards) in mix_rewards {
             let sum: Decimal = rewards.iter().map(|r| r.value()).sum();
-            let avg = sum / Decimal::raw(rewards.len() as u128);
+            let avg = sum / Decimal::from_ratio(rewards.len() as u128, 1u128);
+            let performance = Performance::new(avg)?;
             mean_avg.push(MixnodeWithPerformance {
                 mix_id,
-                performance: Performance::new(avg).expect("Decimal average done wrong"),
+                performance,
             });
         }
         info!("Mean average rewards: {:?}", mean_avg);
 
-        mean_avg
+        Ok(mean_avg)
     }
 }

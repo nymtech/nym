@@ -5,8 +5,7 @@ use anyhow::anyhow;
 
 use crate::ephemera::client::Client;
 use crate::support::nyxd;
-use ephemera::configuration::Configuration;
-use ephemera::crypto::{EphemeraKeypair, EphemeraPublicKey, Keypair, PublicKey};
+use ephemera::crypto::PublicKey;
 
 pub(crate) type PeerId = String;
 
@@ -38,13 +37,13 @@ impl NymPeer {
 
 // Information about other Nym-Apis.
 pub(crate) struct NymApiEphemeraPeerInfo {
-    pub(crate) local_peer: NymPeer,
+    pub(crate) _local_peer: NymPeer,
     pub(crate) peers: HashMap<PeerId, NymPeer>,
 }
 
 impl NymApiEphemeraPeerInfo {
-    fn new(local_peer: NymPeer, peers: HashMap<PeerId, NymPeer>) -> Self {
-        Self { local_peer, peers }
+    fn new(_local_peer: NymPeer, peers: HashMap<PeerId, NymPeer>) -> Self {
+        Self { _local_peer, peers }
     }
 
     pub(crate) fn get_peers_count(&self) -> usize {
@@ -52,15 +51,9 @@ impl NymApiEphemeraPeerInfo {
     }
 
     pub(crate) async fn from_ephemera_dev_cluster_conf(
-        conf: &Configuration,
+        local_peer_id: String,
         nyxd_client: nyxd::Client,
     ) -> anyhow::Result<NymApiEphemeraPeerInfo> {
-        let node_info = conf.node.clone();
-
-        let keypair = bs58::decode(&node_info.private_key).into_vec().unwrap();
-        let keypair = Keypair::from_bytes(&keypair).unwrap();
-        let local_peer_id = keypair.public_key().to_base58();
-
         let mut peers = HashMap::new();
         for peer_info in nyxd_client.get_ephemera_peers().await? {
             let public_key = PublicKey::from_str(&peer_info.public_key)?;

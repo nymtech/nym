@@ -36,8 +36,8 @@ impl Default for MembershipKind {
     fn default() -> Self {
         MembershipKind {
             threshold: None,
-            all: true,
-            any: false,
+            all: false,
+            any: true,
         }
     }
 }

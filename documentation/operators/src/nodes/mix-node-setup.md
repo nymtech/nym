@@ -63,7 +63,7 @@ For now, see the below rough specs:
 
 ## Mix node setup
 
-Now that you have built the codebase, set up your wallet, and have a VPS with the `nym-mixnode` binary, you can set up your mix node with the instructions below.
+Now that you have built the [codebase](https://nymtech.net/docs/binaries/building-nym.html), set up your [wallet](https://nymtech.net/docs/wallet/desktop-wallet.html), and have a VPS with the `nym-mixnode` binary, you can set up your mix node with the instructions below.
 
 To begin, move to `/taget/release` directory from which you run the node commands:
 

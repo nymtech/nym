@@ -21,7 +21,13 @@ If you are looking for information on grants and beta-release Nym apps, check ou
 * [Mix nodes](./nodes/mix-node-setup.md)
 * [Gateways](./nodes/gateway-setup.md)
 * [Network requesters](./nodes/network-requester-setup.md)
-<!---* [Validators](./nodes/validator-setup.md)--->
+* [Validators](./nodes/validator-setup.md)
+
+**Troubleshooting and FAQ**
+* [Troubleshooting](./nodes/troubleshooting.md)
+* [FAQ](./faq.md)
+
+<!---dropping these:
 
 **Client setup and usage guides:**
 * [Websocket client](https://nymtech.net/docs/clients/websocket-client.html)
@@ -31,4 +37,4 @@ If you are looking for information on grants and beta-release Nym apps, check ou
 **SDK guides:**
 * [Typescript SDK](https://nymtech.net/docs/sdk/typescript.html)
 * [Rust SDK](https://nymtech.net/docs/sdk/rust.html)
-
+--->

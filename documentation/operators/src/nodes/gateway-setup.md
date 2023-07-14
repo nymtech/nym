@@ -1,3 +1,7 @@
+<!---
+TODO
+- [ ] Move ## VPS Setup and Automation to ./maintenance.md and merge it with mixnode and NR automation setup.
+--->
 # Gateways
 
 > The Nym gateway was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
@@ -153,9 +157,11 @@ You can either do this graphically via the Desktop Wallet, or the CLI.
 
 #### Updating node information via the Desktop Wallet
 * Navigate to the `Bonding` page and click the `Node Settings` link in the top right corner:
+/
 ![Bonding page](../images/wallet-screenshots/bonding.png)
 
 * Update the fields in the `Node Settings` page and click `Submit changes to the blockchain`.
+/
 ![Node Settings Page](../images/wallet-screenshots/node_settings.png)
 
 #### Updating node information via the CLI
@@ -244,7 +250,7 @@ This lets your operating system know it's ok to reload the service configuration
 Numerous gateway related API endpoints are documented on the Validator API's [Swagger Documentation](https://validator.nymtech.net/api/swagger/index.html). There you can also try out various requests from your broswer, and download the response from the API. Swagger will also show you what commands it is running, so that you can run these from an app or from your CLI if you prefer.
 
 ## Ports
-All gateway specific port configuration can be found in `$HOME/.nym/gateways/<your-id>/config/config.toml`. If you do edit any port configs, remember to restart your gateway.
+All gateway specific port configuration can be found in `$HOME/.nym/gateways/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your gateway.
 
 ### Gateway port reference
 | Default port | Use                       |

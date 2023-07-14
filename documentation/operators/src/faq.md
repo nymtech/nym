@@ -10,5 +10,7 @@ Hi, do you know if it's on the roadmap for network nodes (requesters, socks5 cli
 
 you should be able to switch gateway (and overwrite keys) using —force-register
 
+make a note that the keys will be overwritten in bold when you're noting it in the operators guides
+
 
 ---> 

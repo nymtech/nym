@@ -9,14 +9,14 @@
  * @param {Client} nymClient the nym client to use for message sending
  */
 async function sendMessageTo() {
-	const message = document.getElementById('message').value;
-	const recipient = document.getElementById('recipient').value;
-	browser.runtime.sendMessage({
-		type: 'nymClientSendMessage',
-		message,
-		recipient
-	})
-	displaySend(message);
+  const message = document.getElementById('message').value;
+  const recipient = document.getElementById('recipient').value;
+  browser.runtime.sendMessage({
+    type: 'nymClientSendMessage',
+    message,
+    recipient,
+  });
+  displaySend(message);
 }
 
 /**
@@ -25,14 +25,14 @@ async function sendMessageTo() {
  * @param {string} message
  */
 function displaySend(message) {
-	const timestamp = new Date().toISOString().substr(11, 12);
-	const sendDiv = document.createElement('div');
-	const paragraph = document.createElement('p');
-	paragraph.setAttribute('style', 'color: blue');
-	const paragraphContent = document.createTextNode(`${timestamp} sent >>> ${message}`);
-	paragraph.appendChild(paragraphContent);
-	sendDiv.appendChild(paragraph);
-	document.getElementById('output')?.appendChild(sendDiv);
+  const timestamp = new Date().toISOString().substr(11, 12);
+  const sendDiv = document.createElement('div');
+  const paragraph = document.createElement('p');
+  paragraph.setAttribute('style', 'color: blue');
+  const paragraphContent = document.createTextNode(`${timestamp} sent >>> ${message}`);
+  paragraph.appendChild(paragraphContent);
+  sendDiv.appendChild(paragraph);
+  document.getElementById('output')?.appendChild(sendDiv);
 }
 
 /**
@@ -41,15 +41,15 @@ function displaySend(message) {
  * @param {string} message
  */
 function displayReceived(message) {
-	const content = message;
-	const timestamp = new Date().toLocaleTimeString();
-	const receivedDiv = document.createElement('div');
-	const paragraph = document.createElement('p');
-	paragraph.setAttribute('style', 'color: green');
-	const paragraphContent = document.createTextNode(`${timestamp} received >>> ${content}`);
-	paragraph.appendChild(paragraphContent);
-	receivedDiv.appendChild(paragraph);
-	document.getElementById('output')?.appendChild(receivedDiv);
+  const content = message;
+  const timestamp = new Date().toLocaleTimeString();
+  const receivedDiv = document.createElement('div');
+  const paragraph = document.createElement('p');
+  paragraph.setAttribute('style', 'color: green');
+  const paragraphContent = document.createTextNode(`${timestamp} received >>> ${content}`);
+  paragraph.appendChild(paragraphContent);
+  receivedDiv.appendChild(paragraph);
+  document.getElementById('output')?.appendChild(receivedDiv);
 }
 
 /**
@@ -58,23 +58,17 @@ function displayReceived(message) {
  * @param {Client} nymClient
  */
 function displaySenderAddress(address) {
-	document.getElementById('sender').value = address;
+  document.getElementById('sender').value = address;
 }
 
 function displayMessageLog(messageLog) {
-	for (let i = 0; i < messageLog.length; i++) {
-		if (messageLog[i].type === 'sent') {
-			displaySend(messageLog[i].message)
-		} else if (messageLog[i].type === 'received') {
-			displayReceived(messageLog[i].message)
-		}
-	}
+  for (let i = 0; i < messageLog.length; i++) {
+    if (messageLog[i].type === 'sent') {
+      displaySend(messageLog[i].message);
+    } else if (messageLog[i].type === 'received') {
+      displayReceived(messageLog[i].message);
+    }
+  }
 }
 
-export {
-	sendMessageTo,
-	displaySend,
-	displayReceived,
-	displaySenderAddress,
-	displayMessageLog
-}
+export { sendMessageTo, displaySend, displayReceived, displaySenderAddress, displayMessageLog };

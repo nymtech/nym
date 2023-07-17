@@ -47,12 +47,6 @@ impl Listener {
                                 Err(err) => error!("Failed to establish connection - {err:?}"),
                             }
                         }
-                        // Some(Err(err)) => {
-                        //     error!(
-                        //         "The socket connection got corrupted with error: {err}. Closing the socket",
-                        //     );
-                        //     return;
-                        //}
                         None => {
                             error!("Endpoint closed");
                             break;

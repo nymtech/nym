@@ -128,7 +128,7 @@ pub async fn simulate_update_pledge(
                         .attempt_convert_to_base_coin(dec_delta.clone())?
                         .into(),
                 },
-                Some(dec_delta),
+                None,
                 &state,
             )
             .await

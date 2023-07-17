@@ -3,6 +3,8 @@
 // Look at dom-utils.js for the DOM utility functionality referenced here.
 
 // Import the Nym mixnet ESM module.
+// Import The web workers for the Nym mixnet ESM module.These are required for to run the Nym mixnet client.
+
 import { createNymMixnetClient } from '../../../packages/sdk/dist/full-fat/index.js';
 import '../../../packages/sdk/dist/full-fat/web-worker-0.js';
 import '../../../packages/sdk/dist/full-fat/web-worker-1.js';

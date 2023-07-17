@@ -4,22 +4,24 @@ This is an example of how Nym can be used within the context of a Mozilla Firefo
 
 ## Running the example
 
-Copy a build of the Nym TypeScript SDK (ESM version) into `./sdk`.
+First, build the Nym SDK:
 
-Then, Open `sdk/index.js` and change the following line:
-```js
-var WorkerFactory = createURLWorkerFactory('web-worker-0.js');
-```
-
-to:
+From the SDK directory `sdk/typescript/packages/sdk` run:
 
 ```js
-var WorkerFactory = createURLWorkerFactory('sdk/web-worker-0.js');
+npm run build:local
 ```
 
-The above annoying workaround is currently necessary for Firefox extensions.
+Then, from the example directory `sdk/typescript/examples/firefox-extension` run:
 
-Load the extension normally via manifest.json.
+```js
+npm install
+npm run build
+```
+
+## Workers
+
+Firefox browser extensions cannot run inline web workers. In order to overcome this limitation, the Nym Firefox Extension Example imports workers from the SDK and uses Webpack's `worker-loader` to allow the worker's to be bundled inline into the extension. In order for webpack to include the workers in the build, they are imported as modules in the `src/index.js` file:
 
 ## How does it work?
 

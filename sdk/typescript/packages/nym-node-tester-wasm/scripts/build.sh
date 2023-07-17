@@ -17,7 +17,7 @@ wasm-pack build --scope nymproject --target web --out-dir ../../sdk/typescript/p
 
 # run wasm-opt manually to circumvent wasm-pack issues with Apple Silicon
 cd ../../sdk/typescript/packages/nym-client-wasm
-wasm-opt -O4 nym_node_tester_wasm_bg.wasm -o nym_node_tester_wasm_bg.wasm
+wasm-opt -O4 nym_node_tester_wasm_bg.wasm -o nym_node_tester_wasm_bg.wasm || true
 
 # clean up some files that come with the build
-rm README.md LICENSE_APACHE
+rm README.md LICENSE_APACHE || true

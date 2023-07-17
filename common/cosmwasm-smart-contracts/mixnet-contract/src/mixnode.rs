@@ -33,7 +33,7 @@ impl RewardedSetNodeStatus {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
     pub rewarding_details: MixNodeRewarding,
@@ -86,7 +86,7 @@ impl MixNodeDetails {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct MixNodeRewarding {
     /// Information provided by the operator that influence the cost function.
     pub cost_params: MixNodeCostParams,
@@ -465,7 +465,7 @@ impl MixNodeRewarding {
 }
 
 // operator information + data assigned by the contract(s)
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
     /// Unique id assigned to the bonded mixnode.
     pub mix_id: MixId,
@@ -559,7 +559,7 @@ pub struct MixNode {
     pub version: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct MixNodeCostParams {
     pub profit_margin_percent: Percent,
 
@@ -686,7 +686,7 @@ impl MixNodeConfigUpdate {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedMixnodeBondsResponse {
     pub nodes: Vec<MixNodeBond>,
     pub per_page: usize,
@@ -703,7 +703,7 @@ impl PagedMixnodeBondsResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedMixnodesDetailsResponse {
     pub nodes: Vec<MixNodeDetails>,
     pub per_page: usize,
@@ -745,19 +745,19 @@ impl PagedUnbondedMixnodesResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct MixOwnershipResponse {
     pub address: Addr,
     pub mixnode_details: Option<MixNodeDetails>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct MixnodeDetailsResponse {
     pub mix_id: MixId,
     pub mixnode_details: Option<MixNodeDetails>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct MixnodeRewardingDetailsResponse {
     pub mix_id: MixId,
     pub rewarding_details: Option<MixNodeRewarding>,

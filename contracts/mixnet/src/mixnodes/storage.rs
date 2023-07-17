@@ -39,12 +39,12 @@ pub(crate) fn unbonded_mixnodes<'a>(
 ) -> IndexedMap<'a, MixId, UnbondedMixnode, UnbondedMixnodeIndex<'a>> {
     let indexes = UnbondedMixnodeIndex {
         owner: MultiIndex::new(
-            |d| d.owner.clone(),
+            |_pk, d| d.owner.clone(),
             UNBONDED_MIXNODES_PK_NAMESPACE,
             UNBONDED_MIXNODES_OWNER_IDX_NAMESPACE,
         ),
         identity_key: MultiIndex::new(
-            |d| d.identity_key.clone(),
+            |_pk, d| d.identity_key.clone(),
             UNBONDED_MIXNODES_PK_NAMESPACE,
             UNBONDED_MIXNODES_IDENTITY_IDX_NAMESPACE,
         ),

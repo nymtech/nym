@@ -117,19 +117,21 @@ anyhow = "1.0.71"
 async-trait = "0.1.64"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 cfg-if = "1.0.0"
-cosmwasm-derive = "=1.0.0"
-cosmwasm-schema = "=1.0.0"
-cosmwasm-std = "=1.0.0"
-cosmwasm-storage = "=1.0.0"
-cw-controllers = "=0.13.4"
-cw-storage-plus = "=0.13.4"
-cw-utils = "=0.13.4"
-cw2 = { version = "=0.13.4" }
-cw3 = { version = "=0.13.4" }
-cw3-fixed-multisig = { version = "=0.13.4" }
-cw4 = { version = "=0.13.4" }
+cosmwasm-derive = "=1.2.5"
+cosmwasm-schema = "=1.2.5"
+cosmwasm-std = "=1.2.5"
+cosmwasm-storage = "=1.2.5"
+cosmrs = "=0.8.0"
+cw-utils = "=1.0.1"
+cw-storage-plus = "=1.0.1"
+cw2 = { version = "=1.0.1" }
+cw3 = { version = "=1.0.1" }
+cw3-fixed-multisig = { version = "=1.0.1" }
+cw4 = { version = "=1.0.1" }
+cw-controllers = { version = "=1.0.1" }
 dotenvy = "0.15.6"
 generic-array = "0.14.7"
+k256 = "0.11"
 getrandom = "0.2.10"
 lazy_static = "1.4.0"
 log = "0.4"

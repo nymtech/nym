@@ -8,18 +8,19 @@ use cosmwasm_std::{
 };
 
 use cw2::set_contract_version;
+
 use cw3::{
-    ProposalListResponse, ProposalResponse, Status, Vote, VoteInfo, VoteListResponse, VoteResponse,
-    VoterDetail, VoterListResponse, VoterResponse,
+    Ballot, Proposal, ProposalListResponse, ProposalResponse, Status, Vote, VoteInfo,
+    VoteListResponse, VoteResponse, VoterDetail, VoterListResponse, VoterResponse, Votes,
 };
-use cw3_fixed_multisig::state::{next_id, Ballot, Proposal, Votes, BALLOTS, PROPOSALS};
+use cw3_fixed_multisig::state::{next_id, BALLOTS, PROPOSALS};
 use cw4::{Cw4Contract, MemberChangedHookMsg, MemberDiff};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration, ThresholdResponse};
 
-use crate::state::{Config, CONFIG};
 use nym_multisig_contract_common::error::ContractError;
 use nym_multisig_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use nym_multisig_contract_common::state::{Config, CONFIG};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:cw3-flex-multisig";
@@ -46,6 +47,11 @@ pub fn instantiate(
     let total_weight = group_addr.total_weight(&deps.querier)?;
     msg.threshold.validate(total_weight)?;
 
+    let proposal_deposit = msg
+        .proposal_deposit
+        .map(|deposit| deposit.into_checked(deps.as_ref()))
+        .transpose()?;
+
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let cfg = Config {
@@ -54,19 +60,12 @@ pub fn instantiate(
         group_addr,
         coconut_bandwidth_addr,
         coconut_dkg_addr,
+        executor: msg.executor,
+        proposal_deposit,
     };
     CONFIG.save(deps.storage, &cfg)?;
 
     Ok(Response::default())
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    let mut cfg = CONFIG.load(deps.storage)?;
-    cfg.coconut_bandwidth_addr = deps.api.addr_validate(&msg.coconut_bandwidth_address)?;
-    cfg.coconut_dkg_addr = deps.api.addr_validate(&msg.coconut_dkg_address)?;
-    CONFIG.save(deps.storage, &cfg)?;
-    Ok(Default::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -105,6 +104,11 @@ pub fn execute_propose(
     // only members of the multisig can create a proposal
     let cfg = CONFIG.load(deps.storage)?;
 
+    // Check that the native deposit was paid (as needed).
+    if let Some(deposit) = cfg.proposal_deposit.as_ref() {
+        deposit.check_native_deposit_paid(&info)?;
+    }
+
     // Only the coconut bandwidth or dkg contracts can create proposals
     if info.sender != cfg.coconut_bandwidth_addr && info.sender != cfg.coconut_dkg_addr {
         return Err(ContractError::Unauthorized {});
@@ -122,6 +126,15 @@ pub fn execute_propose(
         return Err(ContractError::WrongExpiration {});
     }
 
+    // Take the cw20 token deposit, if required. We do this before
+    // creating the proposal struct below so that we can avoid a clone
+    // and move the loaded deposit info into it.
+    let take_deposit_msg = if let Some(deposit_info) = cfg.proposal_deposit.as_ref() {
+        deposit_info.get_take_deposit_messages(&info.sender, &env.contract.address)?
+    } else {
+        vec![]
+    };
+
     // create a proposal
     let mut prop = Proposal {
         title,
@@ -133,6 +146,8 @@ pub fn execute_propose(
         votes: Votes::yes(vote_power),
         threshold: cfg.threshold,
         total_weight: cfg.group_addr.total_weight(&deps.querier)?,
+        proposer: info.sender.clone(),
+        deposit: cfg.proposal_deposit,
     };
     prop.update_status(&env.block);
     let id = next_id(deps.storage)?;
@@ -146,6 +161,7 @@ pub fn execute_propose(
     BALLOTS.save(deps.storage, (id, &info.sender), &ballot)?;
 
     Ok(Response::new()
+        .add_messages(take_deposit_msg)
         .add_attribute("action", "propose")
         .add_attribute("sender", info.sender)
         .add_attribute("proposal_id", id.to_string())
@@ -164,9 +180,11 @@ pub fn execute_vote(
 
     // ensure proposal exists and can be voted on
     let mut prop = PROPOSALS.load(deps.storage, proposal_id)?;
-    if prop.status != Status::Open {
+    // Allow voting on Passed and Rejected proposals too,
+    if ![Status::Open, Status::Passed, Status::Rejected].contains(&prop.status) {
         return Err(ContractError::NotOpen {});
     }
+    // if they are not expired
     if prop.expires.is_expired(&env.block) {
         return Err(ContractError::Expired {});
     }
@@ -206,21 +224,31 @@ pub fn execute_execute(
     info: MessageInfo,
     proposal_id: u64,
 ) -> Result<Response, ContractError> {
-    // anyone can trigger this if the vote passed
-
     let mut prop = PROPOSALS.load(deps.storage, proposal_id)?;
     // we allow execution even after the proposal "expiration" as long as all vote come in before
     // that point. If it was approved on time, it can be executed any time.
-    if prop.current_status(&env.block) != Status::Passed {
+    prop.update_status(&env.block);
+    if prop.status != Status::Passed {
         return Err(ContractError::WrongExecuteStatus {});
     }
+
+    let cfg = CONFIG.load(deps.storage)?;
+    cfg.authorize(&deps.querier, &info.sender)?;
 
     // set it to executed
     prop.status = Status::Executed;
     PROPOSALS.save(deps.storage, proposal_id, &prop)?;
 
+    // Unconditionally refund here.
+    let response = match prop.deposit {
+        Some(deposit) => {
+            Response::new().add_message(deposit.get_return_deposit_message(&prop.proposer)?)
+        }
+        None => Response::new(),
+    };
+
     // dispatch all proposed messages
-    Ok(Response::new()
+    Ok(response
         .add_messages(prop.msgs)
         .add_attribute("action", "execute")
         .add_attribute("sender", info.sender)
@@ -236,10 +264,11 @@ pub fn execute_close(
     // anyone can trigger this if the vote passed
 
     let mut prop = PROPOSALS.load(deps.storage, proposal_id)?;
-    if [Status::Executed, Status::Rejected, Status::Passed]
-        .iter()
-        .any(|x| *x == prop.status)
-    {
+    if [Status::Executed, Status::Rejected, Status::Passed].contains(&prop.status) {
+        return Err(ContractError::WrongCloseStatus {});
+    }
+    // Avoid closing of Passed due to expiration proposals
+    if prop.current_status(&env.block) == Status::Passed {
         return Err(ContractError::WrongCloseStatus {});
     }
     if !prop.expires.is_expired(&env.block) {
@@ -250,7 +279,15 @@ pub fn execute_close(
     prop.status = Status::Rejected;
     PROPOSALS.save(deps.storage, proposal_id, &prop)?;
 
-    Ok(Response::new()
+    // Refund the deposit if we have been configured to do so.
+    let mut response = Response::new();
+    if let Some(deposit) = prop.deposit {
+        if deposit.refund_failed_proposals {
+            response = response.add_message(deposit.get_return_deposit_message(&prop.proposer)?)
+        }
+    }
+
+    Ok(response
         .add_attribute("action", "close")
         .add_attribute("sender", info.sender)
         .add_attribute("proposal_id", proposal_id.to_string()))
@@ -294,6 +331,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ListVoters { start_after, limit } => {
             to_binary(&list_voters(deps, start_after, limit)?)
         }
+        QueryMsg::Config {} => to_binary(&query_config(deps)?),
     }
 }
 
@@ -301,6 +339,10 @@ fn query_threshold(deps: Deps) -> StdResult<ThresholdResponse> {
     let cfg = CONFIG.load(deps.storage)?;
     let total_weight = cfg.group_addr.total_weight(&deps.querier)?;
     Ok(cfg.threshold.to_response(total_weight))
+}
+
+fn query_config(deps: Deps) -> StdResult<Config> {
+    CONFIG.load(deps.storage)
 }
 
 fn query_proposal(deps: Deps, env: Env, id: u64) -> StdResult<ProposalResponse> {
@@ -314,6 +356,8 @@ fn query_proposal(deps: Deps, env: Env, id: u64) -> StdResult<ProposalResponse> 
         msgs: prop.msgs,
         status,
         expires: prop.expires,
+        proposer: prop.proposer,
+        deposit: prop.deposit,
         threshold,
     })
 }
@@ -370,6 +414,8 @@ fn map_proposal(
             msgs: prop.msgs,
             status,
             expires: prop.expires,
+            deposit: prop.deposit,
+            proposer: prop.proposer,
             threshold,
         }
     })
@@ -440,15 +486,26 @@ fn list_voters(
     Ok(VoterListResponse { voters })
 }
 
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    let mut cfg = CONFIG.load(deps.storage)?;
+    cfg.coconut_bandwidth_addr = deps.api.addr_validate(&msg.coconut_bandwidth_address)?;
+    cfg.coconut_dkg_addr = deps.api.addr_validate(&msg.coconut_dkg_address)?;
+    CONFIG.save(deps.storage, &cfg)?;
+    Ok(Default::default())
+}
+
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::{coin, coins, Addr, BankMsg, Coin, Decimal, Timestamp};
+    use cosmwasm_std::{coin, coins, Addr, BankMsg, Coin, Decimal, Timestamp, Uint128};
 
     use cw2::{query_contract_info, ContractVersion};
+    use cw20::{Cw20Coin, UncheckedDenom};
+    use cw3::{DepositError, UncheckedDepositInfo};
     use cw4::{Cw4ExecuteMsg, Member};
     use cw4_group::helpers::Cw4GroupContract;
     use cw_multi_test::{
-        next_block, App, AppBuilder, AppResponse, Contract, ContractWrapper, Executor,
+        next_block, App, AppBuilder, BankSudo, Contract, ContractWrapper, Executor, SudoMsg,
     };
     use cw_utils::{Duration, Threshold};
 
@@ -461,9 +518,8 @@ mod tests {
     const VOTER4: &str = "voter0004";
     const VOTER5: &str = "voter0005";
     const SOMEBODY: &str = "somebody";
-    const TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
-        "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
-    const TEST_COCONUT_DKG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+    const BANDWIDTH_CONTRACT: &str = "coconut_bandwidth_addr";
+    const DKG_CONTRACT: &str = "coconut_dkg_addr";
 
     fn member<T: Into<String>>(addr: T, weight: u64) -> Member {
         Member {
@@ -490,6 +546,15 @@ mod tests {
         Box::new(contract)
     }
 
+    fn contract_cw20() -> Box<dyn Contract<Empty>> {
+        let contract = ContractWrapper::new(
+            cw20_base::contract::execute,
+            cw20_base::contract::instantiate,
+            cw20_base::contract::query,
+        );
+        Box::new(contract)
+    }
+
     fn mock_app(init_funds: &[Coin]) -> App {
         AppBuilder::new().build(|router, _, storage| {
             router
@@ -510,40 +575,27 @@ mod tests {
             .unwrap()
     }
 
-    fn propose_and_vote(
-        app: &mut App,
-        flex_addr: Addr,
-        proposal: ExecuteMsg,
-        voter: &str,
-    ) -> AppResponse {
-        let proposer = TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string();
-        let res = app
-            .execute_contract(Addr::unchecked(proposer), flex_addr.clone(), &proposal, &[])
-            .unwrap();
-
-        let yes_vote = ExecuteMsg::Vote {
-            proposal_id: res.custom_attrs(1)[2].value.parse().unwrap(),
-            vote: Vote::Yes,
-        };
-        let _ = app.execute_contract(Addr::unchecked(voter), flex_addr, &yes_vote, &[]);
-
-        res
-    }
-
+    #[allow(clippy::too_many_arguments)]
     #[track_caller]
     fn instantiate_flex(
         app: &mut App,
         group: Addr,
+        coconut_bandwidth_contract_address: Addr,
+        coconut_dkg_contract_address: Addr,
         threshold: Threshold,
         max_voting_period: Duration,
+        executor: Option<nym_multisig_contract_common::state::Executor>,
+        proposal_deposit: Option<UncheckedDepositInfo>,
     ) -> Addr {
         let flex_id = app.store_code(contract_flex());
         let msg = InstantiateMsg {
             group_addr: group.to_string(),
+            coconut_bandwidth_contract_address: coconut_bandwidth_contract_address.to_string(),
+            coconut_dkg_contract_address: coconut_dkg_contract_address.to_string(),
             threshold,
             max_voting_period,
-            coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
-            coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),
+            executor,
+            proposal_deposit,
         };
         app.instantiate_contract(flex_id, Addr::unchecked(OWNER), &msg, &[], "flex", None)
             .unwrap()
@@ -568,6 +620,8 @@ mod tests {
             max_voting_period,
             init_funds,
             multisig_as_group_admin,
+            None,
+            None,
         )
     }
 
@@ -578,11 +632,11 @@ mod tests {
         max_voting_period: Duration,
         init_funds: Vec<Coin>,
         multisig_as_group_admin: bool,
+        executor: Option<nym_multisig_contract_common::state::Executor>,
+        proposal_deposit: Option<UncheckedDepositInfo>,
     ) -> (Addr, Addr) {
-        let coconut_bandwidth_contract = TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string();
-        // 1. Instantiate group contract with members (and OWNER as admin) and coconut bandwidth contract
+        // 1. Instantiate group contract with members (and OWNER as admin)
         let members = vec![
-            member(coconut_bandwidth_contract, 0),
             member(OWNER, 0),
             member(VOTER1, 1),
             member(VOTER2, 2),
@@ -594,7 +648,16 @@ mod tests {
         app.update_block(next_block);
 
         // 2. Set up Multisig backed by this group
-        let flex_addr = instantiate_flex(app, group_addr.clone(), threshold, max_voting_period);
+        let flex_addr = instantiate_flex(
+            app,
+            group_addr.clone(),
+            Addr::unchecked(BANDWIDTH_CONTRACT),
+            Addr::unchecked(DKG_CONTRACT),
+            threshold,
+            max_voting_period,
+            executor,
+            proposal_deposit,
+        );
         app.update_block(next_block);
 
         // 3. (Optional) Set the multisig as the group owner
@@ -641,6 +704,16 @@ mod tests {
         }
     }
 
+    fn text_proposal() -> ExecuteMsg {
+        let (_, title, description) = proposal_info();
+        ExecuteMsg::Propose {
+            title,
+            description,
+            msgs: vec![],
+            latest: None,
+        }
+    }
+
     #[test]
     fn test_instantiate_works() {
         let mut app = mock_app(&[]);
@@ -654,13 +727,15 @@ mod tests {
         // Zero required weight fails
         let instantiate_msg = InstantiateMsg {
             group_addr: group_addr.to_string(),
+            coconut_bandwidth_contract_address: BANDWIDTH_CONTRACT.to_string(),
+            coconut_dkg_contract_address: DKG_CONTRACT.to_string(),
             threshold: Threshold::ThresholdQuorum {
                 threshold: Decimal::zero(),
                 quorum: Decimal::percent(1),
             },
             max_voting_period,
-            coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
-            coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),
+            executor: None,
+            proposal_deposit: None,
         };
         let err = app
             .instantiate_contract(
@@ -680,10 +755,12 @@ mod tests {
         // Total weight less than required weight not allowed
         let instantiate_msg = InstantiateMsg {
             group_addr: group_addr.to_string(),
+            coconut_bandwidth_contract_address: BANDWIDTH_CONTRACT.to_string(),
+            coconut_dkg_contract_address: DKG_CONTRACT.to_string(),
             threshold: Threshold::AbsoluteCount { weight: 100 },
             max_voting_period,
-            coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
-            coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),
+            executor: None,
+            proposal_deposit: None,
         };
         let err = app
             .instantiate_contract(
@@ -703,10 +780,12 @@ mod tests {
         // All valid
         let instantiate_msg = InstantiateMsg {
             group_addr: group_addr.to_string(),
+            coconut_bandwidth_contract_address: BANDWIDTH_CONTRACT.to_string(),
+            coconut_dkg_contract_address: DKG_CONTRACT.to_string(),
             threshold: Threshold::AbsoluteCount { weight: 1 },
             max_voting_period,
-            coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
-            coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),
+            executor: None,
+            proposal_deposit: None,
         };
         let flex_addr = app
             .instantiate_contract(
@@ -720,7 +799,7 @@ mod tests {
             .unwrap();
 
         // Verify contract version set properly
-        let version = query_contract_info(&app, flex_addr.clone()).unwrap();
+        let version = query_contract_info(&app.wrap(), flex_addr.clone()).unwrap();
         assert_eq!(
             ContractVersion {
                 contract: CONTRACT_NAME.to_string(),
@@ -760,7 +839,7 @@ mod tests {
             setup_test_case_fixed(&mut app, required_weight, voting_period, init_funds, false);
 
         let proposal = pay_somebody_proposal();
-        // Only voters can propose
+        // Only special addresses can propose
         let err = app
             .execute_contract(Addr::unchecked(SOMEBODY), flex_addr.clone(), &proposal, &[])
             .unwrap_err();
@@ -779,13 +858,44 @@ mod tests {
         };
         let err = app
             .execute_contract(
-                Addr::unchecked(TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string()),
-                flex_addr,
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
                 &proposal_wrong_exp,
                 &[],
             )
             .unwrap_err();
         assert_eq!(ContractError::WrongExpiration {}, err.downcast().unwrap());
+
+        // Proposal from special address works
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
+        assert_eq!(
+            res.custom_attrs(1),
+            [
+                ("action", "propose"),
+                ("sender", BANDWIDTH_CONTRACT),
+                ("proposal_id", "1"),
+                ("status", "Open"),
+            ],
+        );
+        let res = app
+            .execute_contract(Addr::unchecked(DKG_CONTRACT), flex_addr, &proposal, &[])
+            .unwrap();
+        assert_eq!(
+            res.custom_attrs(1),
+            [
+                ("action", "propose"),
+                ("sender", DKG_CONTRACT),
+                ("proposal_id", "2"),
+                ("status", "Open"),
+            ],
+        );
     }
 
     fn get_tally(app: &App, flex_addr: &str, proposal_id: u64) -> u64 {
@@ -827,49 +937,6 @@ mod tests {
     }
 
     #[test]
-    fn test_proposer_limited_to_coconut_bandwidth() {
-        let init_funds = coins(10, "BTC");
-        let mut app = mock_app(&init_funds);
-
-        let voting_period = Duration::Time(2000000);
-        let threshold = Threshold::ThresholdQuorum {
-            threshold: Decimal::percent(80),
-            quorum: Decimal::percent(20),
-        };
-        let (flex_addr, _) = setup_test_case(&mut app, threshold, voting_period, init_funds, false);
-        let proposal = pay_somebody_proposal();
-
-        let err = app
-            .execute_contract(Addr::unchecked(OWNER), flex_addr.clone(), &proposal, &[])
-            .unwrap_err();
-        assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
-
-        let err = app
-            .execute_contract(Addr::unchecked(VOTER1), flex_addr.clone(), &proposal, &[])
-            .unwrap_err();
-        assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
-
-        let err = app
-            .execute_contract(Addr::unchecked(SOMEBODY), flex_addr.clone(), &proposal, &[])
-            .unwrap_err();
-        assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
-
-        let proposer = TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string();
-        let res = app
-            .execute_contract(Addr::unchecked(&proposer), flex_addr, &proposal, &[])
-            .unwrap();
-        assert_eq!(
-            res.custom_attrs(1),
-            [
-                ("action", "propose"),
-                ("sender", &proposer),
-                ("proposal_id", "1"),
-                ("status", "Open"),
-            ],
-        );
-    }
-
-    #[test]
     fn test_proposal_queries() {
         let init_funds = coins(10, "BTC");
         let mut app = mock_app(&init_funds);
@@ -879,26 +946,73 @@ mod tests {
             threshold: Decimal::percent(80),
             quorum: Decimal::percent(20),
         };
-        let (flex_addr, _) = setup_test_case(&mut app, threshold, voting_period, init_funds, false);
+        let (flex_addr, _) = setup_test_case(
+            &mut app,
+            threshold,
+            voting_period,
+            init_funds,
+            false,
+            None,
+            None,
+        );
 
         // create proposal with 1 vote power
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, VOTER1);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
         let proposal_id1: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id: proposal_id1,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER1), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
 
         // another proposal immediately passes
         app.update_block(next_block);
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, VOTER4);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
         let proposal_id2: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id: proposal_id2,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER4), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
 
         // expire them both
         app.update_block(expire(voting_period));
 
         // add one more open proposal, 2 votes
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, VOTER2);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
         let proposal_id3: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id: proposal_id3,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER2), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
         let proposed_at = app.block_info();
 
         // next block, let's query them all... make sure status is properly updated (1 should be rejected in query)
@@ -954,6 +1068,8 @@ mod tests {
                 threshold: Decimal::percent(80),
                 quorum: Decimal::percent(20),
             },
+            proposer: Addr::unchecked(BANDWIDTH_CONTRACT),
+            deposit: None,
         };
         assert_eq!(&expected, &res.proposals[0]);
     }
@@ -968,11 +1084,26 @@ mod tests {
             quorum: Decimal::percent(1),
         };
         let voting_period = Duration::Time(2000000);
-        let (flex_addr, _) = setup_test_case(&mut app, threshold, voting_period, init_funds, false);
+        let (flex_addr, _) = setup_test_case(
+            &mut app,
+            threshold,
+            voting_period,
+            init_funds,
+            false,
+            None,
+            None,
+        );
 
         // create proposal with 0 vote power
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, OWNER);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
 
         // Get the proposal id from the logs
         let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
@@ -1066,13 +1197,38 @@ mod tests {
             ],
         );
 
-        // non-Open proposals cannot be voted
-        let err = app
+        // Passed proposals can still be voted (while they are not expired or executed)
+        let res = app
             .execute_contract(Addr::unchecked(VOTER5), flex_addr.clone(), &yes_vote, &[])
-            .unwrap_err();
-        assert_eq!(ContractError::NotOpen {}, err.downcast().unwrap());
+            .unwrap();
+        // Verify
+        assert_eq!(
+            res.custom_attrs(1),
+            [
+                ("action", "vote"),
+                ("sender", VOTER5),
+                ("proposal_id", proposal_id.to_string().as_str()),
+                ("status", "Passed")
+            ]
+        );
 
         // query individual votes
+        // initial (with 0 weight)
+        let voter = BANDWIDTH_CONTRACT.into();
+        let vote: VoteResponse = app
+            .wrap()
+            .query_wasm_smart(&flex_addr, &QueryMsg::Vote { proposal_id, voter })
+            .unwrap();
+        assert_eq!(
+            vote.vote.unwrap(),
+            VoteInfo {
+                proposal_id,
+                voter: BANDWIDTH_CONTRACT.into(),
+                vote: Vote::Yes,
+                weight: 0
+            }
+        );
+
         // nay sayer
         let voter = VOTER2.into();
         let vote: VoteResponse = app
@@ -1090,7 +1246,7 @@ mod tests {
         );
 
         // non-voter
-        let voter = VOTER5.into();
+        let voter = SOMEBODY.into();
         let vote: VoteResponse = app
             .wrap()
             .query_wasm_smart(&flex_addr, &QueryMsg::Vote { proposal_id, voter })
@@ -1099,7 +1255,14 @@ mod tests {
 
         // create proposal with 0 vote power
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, OWNER);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
 
         // Get the proposal id from the logs
         let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
@@ -1115,7 +1278,7 @@ mod tests {
 
         // Powerful voter opposes it, so it rejects
         let res = app
-            .execute_contract(Addr::unchecked(VOTER4), flex_addr, &no_vote, &[])
+            .execute_contract(Addr::unchecked(VOTER4), flex_addr.clone(), &no_vote, &[])
             .unwrap();
 
         assert_eq!(
@@ -1123,6 +1286,25 @@ mod tests {
             [
                 ("action", "vote"),
                 ("sender", VOTER4),
+                ("proposal_id", proposal_id.to_string().as_str()),
+                ("status", "Rejected"),
+            ],
+        );
+
+        // Rejected proposals can still be voted (while they are not expired)
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id,
+            vote: Vote::Yes,
+        };
+        let res = app
+            .execute_contract(Addr::unchecked(VOTER5), flex_addr, &yes_vote, &[])
+            .unwrap();
+
+        assert_eq!(
+            res.custom_attrs(1),
+            [
+                ("action", "vote"),
+                ("sender", VOTER5),
                 ("proposal_id", proposal_id.to_string().as_str()),
                 ("status", "Rejected"),
             ],
@@ -1139,7 +1321,15 @@ mod tests {
             quorum: Decimal::percent(1),
         };
         let voting_period = Duration::Time(2000000);
-        let (flex_addr, _) = setup_test_case(&mut app, threshold, voting_period, init_funds, true);
+        let (flex_addr, _) = setup_test_case(
+            &mut app,
+            threshold,
+            voting_period,
+            init_funds,
+            true,
+            None,
+            None,
+        );
 
         // ensure we have cash to cover the proposal
         let contract_bal = app.wrap().query_balance(&flex_addr, "BTC").unwrap();
@@ -1147,7 +1337,14 @@ mod tests {
 
         // create proposal with 0 vote power
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, OWNER);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
 
         // Get the proposal id from the logs
         let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
@@ -1228,6 +1425,142 @@ mod tests {
     }
 
     #[test]
+    fn execute_with_executor_member() {
+        let init_funds = coins(10, "BTC");
+        let mut app = mock_app(&init_funds);
+
+        let threshold = Threshold::ThresholdQuorum {
+            threshold: Decimal::percent(51),
+            quorum: Decimal::percent(1),
+        };
+        let voting_period = Duration::Time(2000000);
+        let (flex_addr, _) = setup_test_case(
+            &mut app,
+            threshold,
+            voting_period,
+            init_funds,
+            true,
+            Some(nym_multisig_contract_common::state::Executor::Member), // set executor as Member of voting group
+            None,
+        );
+
+        // create proposal with 0 vote power
+        let proposal = pay_somebody_proposal();
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
+
+        // Get the proposal id from the logs
+        let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+
+        // Vote it, so it passes
+        let vote = ExecuteMsg::Vote {
+            proposal_id,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER4), flex_addr.clone(), &vote, &[])
+            .unwrap();
+
+        let execution = ExecuteMsg::Execute { proposal_id };
+        let err = app
+            .execute_contract(
+                Addr::unchecked(Addr::unchecked("anyone")), // anyone is not allowed to execute
+                flex_addr.clone(),
+                &execution,
+                &[],
+            )
+            .unwrap_err();
+        assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
+
+        app.execute_contract(
+            Addr::unchecked(Addr::unchecked(VOTER2)), // member of voting group is allowed to execute
+            flex_addr,
+            &execution,
+            &[],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn execute_with_executor_only() {
+        let init_funds = coins(10, "BTC");
+        let mut app = mock_app(&init_funds);
+
+        let threshold = Threshold::ThresholdQuorum {
+            threshold: Decimal::percent(51),
+            quorum: Decimal::percent(1),
+        };
+        let voting_period = Duration::Time(2000000);
+        let (flex_addr, _) = setup_test_case(
+            &mut app,
+            threshold,
+            voting_period,
+            init_funds,
+            true,
+            Some(nym_multisig_contract_common::state::Executor::Only(
+                Addr::unchecked(VOTER3),
+            )), // only VOTER3 can execute proposal
+            None,
+        );
+
+        // create proposal with 0 vote power
+        let proposal = pay_somebody_proposal();
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
+
+        // Get the proposal id from the logs
+        let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+
+        // Vote it, so it passes
+        let vote = ExecuteMsg::Vote {
+            proposal_id,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER4), flex_addr.clone(), &vote, &[])
+            .unwrap();
+
+        let execution = ExecuteMsg::Execute { proposal_id };
+        let err = app
+            .execute_contract(
+                Addr::unchecked(Addr::unchecked("anyone")), // anyone is not allowed to execute
+                flex_addr.clone(),
+                &execution,
+                &[],
+            )
+            .unwrap_err();
+        assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
+
+        let err = app
+            .execute_contract(
+                Addr::unchecked(Addr::unchecked(VOTER1)), // VOTER1 is not allowed to execute
+                flex_addr.clone(),
+                &execution,
+                &[],
+            )
+            .unwrap_err();
+        assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
+
+        app.execute_contract(
+            Addr::unchecked(Addr::unchecked(VOTER3)), // VOTER3 is allowed to execute
+            flex_addr,
+            &execution,
+            &[],
+        )
+        .unwrap();
+    }
+
+    #[test]
     fn proposal_pass_on_expiration() {
         let init_funds = coins(10, "BTC");
         let mut app = mock_app(&init_funds);
@@ -1243,6 +1576,8 @@ mod tests {
             Duration::Time(voting_period),
             init_funds,
             true,
+            None,
+            None,
         );
 
         // ensure we have cash to cover the proposal
@@ -1251,7 +1586,14 @@ mod tests {
 
         // create proposal with 0 vote power
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, OWNER);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
 
         // Get the proposal id from the logs
         let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
@@ -1287,6 +1629,17 @@ mod tests {
             .unwrap();
         assert_eq!(prop.status, Status::Passed);
 
+        // Closing should NOT be possible
+        let err = app
+            .execute_contract(
+                Addr::unchecked(SOMEBODY),
+                flex_addr.clone(),
+                &ExecuteMsg::Close { proposal_id },
+                &[],
+            )
+            .unwrap_err();
+        assert_eq!(ContractError::WrongCloseStatus {}, err.downcast().unwrap());
+
         // Execution should now be possible.
         let res = app
             .execute_contract(
@@ -1316,11 +1669,26 @@ mod tests {
             quorum: Decimal::percent(1),
         };
         let voting_period = Duration::Height(2000000);
-        let (flex_addr, _) = setup_test_case(&mut app, threshold, voting_period, init_funds, true);
+        let (flex_addr, _) = setup_test_case(
+            &mut app,
+            threshold,
+            voting_period,
+            init_funds,
+            true,
+            None,
+            None,
+        );
 
         // create proposal with 0 vote power
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, OWNER);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
 
         // Get the proposal id from the logs
         let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
@@ -1365,14 +1733,34 @@ mod tests {
             quorum: Decimal::percent(1),
         };
         let voting_period = Duration::Time(20000);
-        let (flex_addr, group_addr) =
-            setup_test_case(&mut app, threshold, voting_period, init_funds, false);
+        let (flex_addr, group_addr) = setup_test_case(
+            &mut app,
+            threshold,
+            voting_period,
+            init_funds,
+            false,
+            None,
+            None,
+        );
 
         // VOTER1 starts a proposal to send some tokens (1/4 votes)
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, VOTER1);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
         // Get the proposal id from the logs
         let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER1), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
         let prop_status = |app: &App, proposal_id: u64| -> Status {
             let query_prop = QueryMsg::Proposal { proposal_id };
             let prop: ProposalResponse = app
@@ -1430,9 +1818,22 @@ mod tests {
 
         // make a second proposal
         let proposal2 = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal2, VOTER1);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal2,
+                &[],
+            )
+            .unwrap();
         // Get the proposal id from the logs
         let proposal_id2: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id: proposal_id2,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER1), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
 
         // VOTER2 can pass this alone with the updated vote (newer height ignores snapshot)
         let yes_vote = ExecuteMsg::Vote {
@@ -1500,18 +1901,44 @@ mod tests {
             msgs: vec![update_msg],
             latest: None,
         };
-        let res = propose_and_vote(&mut app, flex_addr.clone(), update_proposal, VOTER1);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &update_proposal,
+                &[],
+            )
+            .unwrap();
         // Get the proposal id from the logs
         let update_proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id: update_proposal_id,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER1), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
 
         // next block...
         app.update_block(|b| b.height += 1);
 
         // VOTER1 starts a proposal to send some tokens
         let cash_proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), cash_proposal, VOTER1);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &cash_proposal,
+                &[],
+            )
+            .unwrap();
         // Get the proposal id from the logs
         let cash_proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id: cash_proposal_id,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER1), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
         assert_ne!(cash_proposal_id, update_proposal_id);
 
         // query proposal state
@@ -1593,14 +2020,34 @@ mod tests {
             quorum: Decimal::percent(1),
         };
         let voting_period = Duration::Time(20000);
-        let (flex_addr, group_addr) =
-            setup_test_case(&mut app, threshold, voting_period, init_funds, false);
+        let (flex_addr, group_addr) = setup_test_case(
+            &mut app,
+            threshold,
+            voting_period,
+            init_funds,
+            false,
+            None,
+            None,
+        );
 
         // VOTER3 starts a proposal to send some tokens (3/12 votes)
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, VOTER3);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
         // Get the proposal id from the logs
         let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER3), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
         let prop_status = |app: &App| -> Status {
             let query_prop = QueryMsg::Proposal { proposal_id };
             let prop: ProposalResponse = app
@@ -1640,9 +2087,22 @@ mod tests {
 
         // new proposal can be passed single-handedly by newbie
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, newbie);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
         // Get the proposal id from the logs
         let proposal_id2: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id: proposal_id2,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(newbie), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
 
         // check proposal2 status
         let query_prop = QueryMsg::Proposal {
@@ -1673,13 +2133,28 @@ mod tests {
             voting_period,
             init_funds,
             false,
+            None,
+            None,
         );
 
         // VOTER3 starts a proposal to send some tokens (3 votes)
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, VOTER3);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
         // Get the proposal id from the logs
         let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER3), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
         let prop_status = |app: &App| -> Status {
             let query_prop = QueryMsg::Proposal { proposal_id };
             let prop: ProposalResponse = app
@@ -1741,13 +2216,28 @@ mod tests {
             voting_period,
             init_funds,
             false,
+            None,
+            None,
         );
 
         // create proposal
         let proposal = pay_somebody_proposal();
-        let res = propose_and_vote(&mut app, flex_addr.clone(), proposal, VOTER5);
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
         // Get the proposal id from the logs
         let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER5), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
         let prop_status = |app: &App| -> Status {
             let query_prop = QueryMsg::Proposal { proposal_id };
             let prop: ProposalResponse = app
@@ -1777,5 +2267,491 @@ mod tests {
         app.execute_contract(Addr::unchecked(VOTER3), flex_addr.clone(), &no_vote, &[])
             .unwrap();
         assert_eq!(prop_status(&app), Status::Passed);
+    }
+
+    #[test]
+    fn test_instantiate_with_invalid_deposit() {
+        let mut app = App::default();
+
+        let flex_id = app.store_code(contract_flex());
+
+        let group_addr = instantiate_group(
+            &mut app,
+            vec![Member {
+                addr: OWNER.to_string(),
+                weight: 10,
+            }],
+        );
+
+        // Instantiate with an invalid cw20 token.
+        let instantiate = InstantiateMsg {
+            group_addr: group_addr.to_string(),
+            coconut_bandwidth_contract_address: BANDWIDTH_CONTRACT.to_string(),
+            coconut_dkg_contract_address: DKG_CONTRACT.to_string(),
+            threshold: Threshold::AbsoluteCount { weight: 10 },
+            max_voting_period: Duration::Time(10),
+            executor: None,
+            proposal_deposit: Some(UncheckedDepositInfo {
+                amount: Uint128::new(1),
+                refund_failed_proposals: true,
+                denom: UncheckedDenom::Cw20(group_addr.to_string()),
+            }),
+        };
+
+        let err: ContractError = app
+            .instantiate_contract(
+                flex_id,
+                Addr::unchecked(OWNER),
+                &instantiate,
+                &[],
+                "Bad cw20",
+                None,
+            )
+            .unwrap_err()
+            .downcast()
+            .unwrap();
+
+        assert_eq!(err, ContractError::Deposit(DepositError::InvalidCw20 {}));
+
+        // Instantiate with a zero amount.
+        let instantiate = InstantiateMsg {
+            group_addr: group_addr.to_string(),
+            coconut_bandwidth_contract_address: BANDWIDTH_CONTRACT.to_string(),
+            coconut_dkg_contract_address: DKG_CONTRACT.to_string(),
+            threshold: Threshold::AbsoluteCount { weight: 10 },
+            max_voting_period: Duration::Time(10),
+            executor: None,
+            proposal_deposit: Some(UncheckedDepositInfo {
+                amount: Uint128::zero(),
+                refund_failed_proposals: true,
+                denom: UncheckedDenom::Native("native".to_string()),
+            }),
+        };
+
+        let err: ContractError = app
+            .instantiate_contract(
+                flex_id,
+                Addr::unchecked(OWNER),
+                &instantiate,
+                &[],
+                "Bad cw20",
+                None,
+            )
+            .unwrap_err()
+            .downcast()
+            .unwrap();
+
+        assert_eq!(err, ContractError::Deposit(DepositError::ZeroDeposit {}))
+    }
+
+    #[test]
+    fn test_cw20_proposal_deposit() {
+        let mut app = App::default();
+
+        let cw20_id = app.store_code(contract_cw20());
+
+        let cw20_addr = app
+            .instantiate_contract(
+                cw20_id,
+                Addr::unchecked(OWNER),
+                &cw20_base::msg::InstantiateMsg {
+                    name: "Token".to_string(),
+                    symbol: "TOKEN".to_string(),
+                    decimals: 6,
+                    initial_balances: vec![
+                        Cw20Coin {
+                            address: VOTER4.to_string(),
+                            amount: Uint128::new(10),
+                        },
+                        Cw20Coin {
+                            address: BANDWIDTH_CONTRACT.to_string(),
+                            amount: Uint128::new(10),
+                        },
+                        Cw20Coin {
+                            address: OWNER.to_string(),
+                            amount: Uint128::new(10),
+                        },
+                    ],
+                    mint: None,
+                    marketing: None,
+                },
+                &[],
+                "Token",
+                None,
+            )
+            .unwrap();
+
+        let (flex_addr, _) = setup_test_case(
+            &mut app,
+            Threshold::AbsoluteCount { weight: 10 },
+            Duration::Height(10),
+            vec![],
+            true,
+            None,
+            Some(UncheckedDepositInfo {
+                amount: Uint128::new(10),
+                denom: UncheckedDenom::Cw20(cw20_addr.to_string()),
+                refund_failed_proposals: true,
+            }),
+        );
+
+        app.execute_contract(
+            Addr::unchecked(BANDWIDTH_CONTRACT),
+            cw20_addr.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: flex_addr.to_string(),
+                amount: Uint128::new(10),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        // Make a proposal that will pass.
+        let proposal = text_proposal();
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[],
+            )
+            .unwrap();
+        // Get the proposal id from the logs
+        let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER4), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
+
+        // Make sure the deposit was transfered.
+        let balance: cw20::BalanceResponse = app
+            .wrap()
+            .query_wasm_smart(
+                cw20_addr.clone(),
+                &cw20::Cw20QueryMsg::Balance {
+                    address: BANDWIDTH_CONTRACT.to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(balance.balance, Uint128::zero());
+
+        let balance: cw20::BalanceResponse = app
+            .wrap()
+            .query_wasm_smart(
+                cw20_addr.clone(),
+                &cw20::Cw20QueryMsg::Balance {
+                    address: flex_addr.to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(balance.balance, Uint128::new(10));
+
+        app.execute_contract(
+            Addr::unchecked(VOTER4),
+            flex_addr.clone(),
+            &ExecuteMsg::Execute { proposal_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        // Make sure the deposit was returned.
+        let balance: cw20::BalanceResponse = app
+            .wrap()
+            .query_wasm_smart(
+                cw20_addr.clone(),
+                &cw20::Cw20QueryMsg::Balance {
+                    address: VOTER4.to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(balance.balance, Uint128::new(10));
+
+        let balance: cw20::BalanceResponse = app
+            .wrap()
+            .query_wasm_smart(
+                cw20_addr.clone(),
+                &cw20::Cw20QueryMsg::Balance {
+                    address: flex_addr.to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(balance.balance, Uint128::zero());
+
+        app.execute_contract(
+            Addr::unchecked(BANDWIDTH_CONTRACT),
+            cw20_addr.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: flex_addr.to_string(),
+                amount: Uint128::new(10),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        // Make a proposal that fails.
+        let proposal = text_proposal();
+        app.execute_contract(
+            Addr::unchecked(BANDWIDTH_CONTRACT),
+            flex_addr.clone(),
+            &proposal,
+            &[],
+        )
+        .unwrap();
+
+        // Check that the deposit was transfered.
+        let balance: cw20::BalanceResponse = app
+            .wrap()
+            .query_wasm_smart(
+                cw20_addr.clone(),
+                &cw20::Cw20QueryMsg::Balance {
+                    address: flex_addr.to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(balance.balance, Uint128::new(10));
+
+        // Fail the proposal.
+        app.execute_contract(
+            Addr::unchecked(VOTER4),
+            flex_addr.clone(),
+            &ExecuteMsg::Vote {
+                proposal_id: 2,
+                vote: Vote::No,
+            },
+            &[],
+        )
+        .unwrap();
+
+        // Expire the proposal.
+        app.update_block(|b| b.height += 10);
+
+        app.execute_contract(
+            Addr::unchecked(VOTER4),
+            flex_addr,
+            &ExecuteMsg::Close { proposal_id: 2 },
+            &[],
+        )
+        .unwrap();
+
+        // Make sure the deposit was returned despite the proposal failing.
+        let balance: cw20::BalanceResponse = app
+            .wrap()
+            .query_wasm_smart(
+                cw20_addr,
+                &cw20::Cw20QueryMsg::Balance {
+                    address: VOTER4.to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(balance.balance, Uint128::new(10));
+    }
+
+    #[test]
+    fn proposal_deposit_no_failed_refunds() {
+        let mut app = App::default();
+
+        let (flex_addr, _) = setup_test_case(
+            &mut app,
+            Threshold::AbsoluteCount { weight: 10 },
+            Duration::Height(10),
+            vec![],
+            true,
+            None,
+            Some(UncheckedDepositInfo {
+                amount: Uint128::new(10),
+                denom: UncheckedDenom::Native("TOKEN".to_string()),
+                refund_failed_proposals: false,
+            }),
+        );
+
+        app.sudo(SudoMsg::Bank(BankSudo::Mint {
+            to_address: BANDWIDTH_CONTRACT.to_string(),
+            amount: vec![Coin {
+                amount: Uint128::new(10),
+                denom: "TOKEN".to_string(),
+            }],
+        }))
+        .unwrap();
+
+        // Make a proposal that fails.
+        let proposal = text_proposal();
+        app.execute_contract(
+            Addr::unchecked(BANDWIDTH_CONTRACT),
+            flex_addr.clone(),
+            &proposal,
+            &[Coin {
+                amount: Uint128::new(10),
+                denom: "TOKEN".to_string(),
+            }],
+        )
+        .unwrap();
+
+        // Check that the deposit was transfered.
+        let balance = app
+            .wrap()
+            .query_balance(OWNER, "TOKEN".to_string())
+            .unwrap();
+        assert_eq!(balance.amount, Uint128::zero());
+
+        // Fail the proposal.
+        app.execute_contract(
+            Addr::unchecked(VOTER4),
+            flex_addr.clone(),
+            &ExecuteMsg::Vote {
+                proposal_id: 1,
+                vote: Vote::No,
+            },
+            &[],
+        )
+        .unwrap();
+
+        // Expire the proposal.
+        app.update_block(|b| b.height += 10);
+
+        app.execute_contract(
+            Addr::unchecked(VOTER4),
+            flex_addr,
+            &ExecuteMsg::Close { proposal_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        // Check that the deposit wasn't returned.
+        let balance = app
+            .wrap()
+            .query_balance(OWNER, "TOKEN".to_string())
+            .unwrap();
+        assert_eq!(balance.amount, Uint128::zero());
+    }
+
+    #[test]
+    fn test_native_proposal_deposit() {
+        let mut app = App::default();
+
+        app.sudo(SudoMsg::Bank(BankSudo::Mint {
+            to_address: VOTER4.to_string(),
+            amount: vec![Coin {
+                amount: Uint128::new(10),
+                denom: "TOKEN".to_string(),
+            }],
+        }))
+        .unwrap();
+
+        app.sudo(SudoMsg::Bank(BankSudo::Mint {
+            to_address: BANDWIDTH_CONTRACT.to_string(),
+            amount: vec![Coin {
+                amount: Uint128::new(10),
+                denom: "TOKEN".to_string(),
+            }],
+        }))
+        .unwrap();
+
+        let (flex_addr, _) = setup_test_case(
+            &mut app,
+            Threshold::AbsoluteCount { weight: 10 },
+            Duration::Height(10),
+            vec![],
+            true,
+            None,
+            Some(UncheckedDepositInfo {
+                amount: Uint128::new(10),
+                denom: UncheckedDenom::Native("TOKEN".to_string()),
+                refund_failed_proposals: true,
+            }),
+        );
+
+        // Make a proposal that will pass.
+        let proposal = text_proposal();
+        let res = app
+            .execute_contract(
+                Addr::unchecked(BANDWIDTH_CONTRACT),
+                flex_addr.clone(),
+                &proposal,
+                &[Coin {
+                    amount: Uint128::new(10),
+                    denom: "TOKEN".to_string(),
+                }],
+            )
+            .unwrap();
+        // Get the proposal id from the logs
+        let proposal_id: u64 = res.custom_attrs(1)[2].value.parse().unwrap();
+        let yes_vote = ExecuteMsg::Vote {
+            proposal_id,
+            vote: Vote::Yes,
+        };
+        app.execute_contract(Addr::unchecked(VOTER4), flex_addr.clone(), &yes_vote, &[])
+            .unwrap();
+
+        // Make sure the deposit was transfered.
+        let balance = app
+            .wrap()
+            .query_balance(flex_addr.clone(), "TOKEN")
+            .unwrap();
+        assert_eq!(balance.amount, Uint128::new(10));
+
+        app.execute_contract(
+            Addr::unchecked(VOTER4),
+            flex_addr.clone(),
+            &ExecuteMsg::Execute { proposal_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        // Make sure the deposit was returned.
+        let balance = app.wrap().query_balance(VOTER4, "TOKEN").unwrap();
+        assert_eq!(balance.amount, Uint128::new(10));
+
+        // Make a proposal that fails.
+        let proposal = text_proposal();
+        app.execute_contract(
+            Addr::unchecked(BANDWIDTH_CONTRACT),
+            flex_addr.clone(),
+            &proposal,
+            &[Coin {
+                amount: Uint128::new(10),
+                denom: "TOKEN".to_string(),
+            }],
+        )
+        .unwrap();
+
+        let balance = app
+            .wrap()
+            .query_balance(flex_addr.clone(), "TOKEN")
+            .unwrap();
+        assert_eq!(balance.amount, Uint128::new(10));
+
+        // Fail the proposal.
+        app.execute_contract(
+            Addr::unchecked(VOTER4),
+            flex_addr.clone(),
+            &ExecuteMsg::Vote {
+                proposal_id: 2,
+                vote: Vote::No,
+            },
+            &[],
+        )
+        .unwrap();
+
+        // Expire the proposal.
+        app.update_block(|b| b.height += 10);
+
+        app.execute_contract(
+            Addr::unchecked(VOTER4),
+            flex_addr,
+            &ExecuteMsg::Close { proposal_id: 2 },
+            &[],
+        )
+        .unwrap();
+
+        // Make sure the deposit was returned despite the proposal failing.
+        let balance = app
+            .wrap()
+            .query_balance(BANDWIDTH_CONTRACT, "TOKEN")
+            .unwrap();
+        assert_eq!(balance.amount, Uint128::new(10));
     }
 }

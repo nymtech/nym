@@ -40,8 +40,7 @@
 # Community Resources
 
 - [Nym DevRel AMAs](community-resources/ama.md)
-- [Community Applications](community-resources/community-applications.md)
-- [Community Guides](community-resources/community-guides.md)
+- [Community Applications and Guides](community-resources/community-applications-and-guides.md)
 - [Change Service Grantee Information](info-request.md)
 - [Rewards FAQ](community-resources/rewards-faq.md)
 ---

@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use log::{debug, info, trace};
-use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::epoch_operations::MixnodeWithPerformance;
@@ -8,20 +7,12 @@ use ephemera::{
     crypto::Keypair,
     ephemera_api::{self, ApiBlock, ApiEphemeraMessage, ApiError, CommandExecutor},
 };
-use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::MixId;
 
 use super::epoch::Epoch;
 use super::reward::aggregator::RewardsAggregator;
 use super::Args;
 
 pub(crate) mod aggregator;
-
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
-pub struct MixnodeToReward {
-    pub mix_id: MixId,
-    pub performance: Performance,
-}
 
 pub struct EphemeraAccess {
     pub(crate) api: CommandExecutor,
@@ -255,7 +246,8 @@ where
 
         for message in block.messages {
             trace!("Message: {}", message);
-            let mix_node_reward: Vec<MixnodeToReward> = serde_json::from_slice(&message.data)?;
+            let mix_node_reward: Vec<MixnodeWithPerformance> =
+                serde_json::from_slice(&message.data)?;
             mix_node_rewards.push(mix_node_reward);
         }
 

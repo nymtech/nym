@@ -1,4 +1,3 @@
-use crate::ephemera::reward::MixnodeToReward;
 use cosmwasm_std::Decimal;
 use log::{info, trace};
 use nym_mixnet_contract_common::reward_params::Performance;
@@ -12,7 +11,7 @@ impl RewardsAggregator {
     //Simple mean average
     pub(crate) fn aggregate(
         &self,
-        all_rewards: Vec<Vec<MixnodeToReward>>,
+        all_rewards: Vec<Vec<MixnodeWithPerformance>>,
     ) -> anyhow::Result<Vec<MixnodeWithPerformance>> {
         let mut mix_rewards = HashMap::new();
         for api_rewards in all_rewards {

@@ -13,7 +13,6 @@ async fn main() {
     let broadcaster = create_broadcaster().await; 
 
     loop {    
-        println!("\nWaiting for new message");
         // check incoming is empty - SURB requests also send data ( empty vec ) along 
         let mut received: Vec<ReconstructedMessage> = Vec::new(); 
         // get the actual message - discard the empty vec sent along with the SURB request  

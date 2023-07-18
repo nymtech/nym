@@ -2,17 +2,17 @@ name: Publish Nym binaries
 
 on:
   workflow_dispatch:
-    inputs:  
+    inputs:
       add_tokio_unstable:
         description: 'True to add RUSTFLAGS="--cfg tokio_unstable"'
         required: true
         default: false
-        type: boolean 
+        type: boolean
   release:
     types: [created]
-    
+
 env:
-  NETWORK: mainnet    
+  NETWORK: mainnet
 
 jobs:
   publish-nym:
@@ -21,15 +21,33 @@ jobs:
       fail-fast: false
       matrix:
         platform: [custom-runner-linux]
-
     runs-on: ${{ matrix.platform }}
+
+    outputs:
+      release_id: ${{ steps.create-release.outputs.id }}
+      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].published_at }}
+      client_hash: ${{ steps.binary-hashes.outputs.client_hash }}
+      mixnode_hash: ${{ steps.binary-hashes.outputs.mixnode_hash }}
+      gateway_hash: ${{ steps.binary-hashes.outputs.gateway_hash }}
+      socks5_hash: ${{ steps.binary-hashes.outputs.socks5_hash }}
+      netreq_hash: ${{ steps.binary-hashes.outputs.netreq_hash }}
+      cli_hash: ${{ steps.binary-hashes.outputs.cli_hash }}
+      netstat_hash: ${{ steps.binary-hashes.outputs.netstat_hash }}
+      client_version: ${{ steps.binary-versions.outputs.client_version }}
+      mixnode_version: ${{ steps.binary-versions.outputs.mixnode_version }}
+      gateway_version: ${{ steps.binary-versions.outputs.gateway_version }}
+      socks5_version: ${{ steps.binary-versions.outputs.socks5_version }}
+      netreq_version: ${{ steps.binary-versions.outputs.netreq_version }}
+      cli_version: ${{ steps.binary-versions.outputs.cli_version }}
+      netstat_version: ${{ steps.binary-versions.outputs.netstat_version }}
+
     steps:
       - uses: actions/checkout@v3
 
       - name: Install Dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get -y install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools
+        run: sudo apt-get update && sudo apt-get -y install ripgrep libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools
         continue-on-error: true
-            
+
       - name: Sets env vars for tokio if set in manual dispatch inputs
         run: |
           echo 'RUSTFLAGS="--cfg tokio_unstable"' >> $GITHUB_ENV
@@ -62,7 +80,8 @@ jobs:
             target/release/nym-cli
           retention-days: 30
 
-      - name: Upload to release based on tag name
+      - id: create-release
+        name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
         if: github.event_name == 'release'
         with:
@@ -76,3 +95,150 @@ jobs:
             target/release/nym-network-requester
             target/release/nym-network-statistics
             target/release/nym-cli
+
+      - id: release-info
+        name: Prepare release info
+        run: |
+          semver="${${{ github.ref_name }}##nym-binaries-}" && semver="${semver##v}"
+          echo "version=$semver" >> "$GITHUB_OUTPUT"
+
+      - id: binary-hashes
+        name: Generate binary hashes
+        run: |
+          echo "client_hash=${{ hashFiles('target/release/nym-client') }}" >> "$GITHUB_OUTPUT"
+          echo "mixnode_hash=${{ hashFiles('target/release/nym-mixnode') }}" >> "$GITHUB_OUTPUT"
+          echo "gateway_hash=${{ hashFiles('target/release/nym-gateway') }}" >> "$GITHUB_OUTPUT"
+          echo "socks5_hash=${{ hashFiles('target/release/nym-socks5-client') }}" >> "$GITHUB_OUTPUT"
+          echo "netreq_hash=${{ hashFiles('target/release/nym-network-requester') }}" >> "$GITHUB_OUTPUT"
+          echo "cli_hash=${{ hashFiles('target/release/nym-cli') }}" >> "$GITHUB_OUTPUT"
+          echo "netstat_hash=${{ hashFiles('target/release/nym-network-statistics') }}" >> "$GITHUB_OUTPUT"
+
+      - id: binary-versions
+        name: Get binary versions
+        run: |
+          v=$(rg '^version = "(.*)"' -or '$1' clients/native/Cargo.toml) && echo "client_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' mixnode/Cargo.toml) && echo "mixnode_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' gateway/Cargo.toml) && echo "gateway_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' clients/socks5/Cargo.toml) && echo "socks5_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' service-providers/network-requester/Cargo.toml) && echo "netreq_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' tools/nym-cli/Cargo.toml) && echo "cli_version=$v" >> "$GITHUB_OUTPUT"
+          v=$(rg '^version = "(.*)"' -or '$1' service-providers/network-statistics/Cargo.toml) && echo "netstat_version=$v" >> "$GITHUB_OUTPUT"
+
+  push-release-data-client:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/push-release-data.yml
+    needs: publish-nym
+    with:
+      release_tag: ${{ github.ref_name }}
+      release_id: ${{ needs.publish-nym.outputs.release_id }}
+      release_date: ${{ needs.publish-nym.outputs.release_date }}
+      download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
+      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
+      version: ${{ needs.publish-nym.outputs.client_version }}
+      filename: nym-client
+      file_hash: ${{ needs.publish-nym.outputs.client_hash }}
+      name: Client
+      category: binaries
+    secrets: inherit
+
+  push-release-data-mixnode:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/push-release-data.yml
+    needs: publish-nym
+    with:
+      release_tag: ${{ github.ref_name }}
+      release_id: ${{ needs.publish-nym.outputs.release_id }}
+      release_date: ${{ needs.publish-nym.outputs.release_date }}
+      download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
+      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
+      version: ${{ needs.publish-nym.outputs.mixnode_version }}
+      filename: nym-mixnode
+      file_hash: ${{ needs.publish-nym.outputs.mixnode_hash }}
+      name: Mixnode
+      category: binaries
+    secrets: inherit
+
+  push-release-data-gateway:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/push-release-data.yml
+    needs: publish-nym
+    with:
+      release_tag: ${{ github.ref_name }}
+      release_id: ${{ needs.publish-nym.outputs.release_id }}
+      release_date: ${{ needs.publish-nym.outputs.release_date }}
+      download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
+      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
+      version: ${{ needs.publish-nym.outputs.gateway_version }}
+      filename: nym-gateway
+      file_hash: ${{ needs.publish-nym.outputs.gateway_hash }}
+      name: Gateway
+      category: binaries
+    secrets: inherit
+
+  push-release-data-socks5:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/push-release-data.yml
+    needs: publish-nym
+    with:
+      release_tag: ${{ github.ref_name }}
+      release_id: ${{ needs.publish-nym.outputs.release_id }}
+      release_date: ${{ needs.publish-nym.outputs.release_date }}
+      download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
+      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
+      version: ${{ needs.publish-nym.outputs.socks5_version }}
+      filename: nym-socks5-client
+      file_hash: ${{ needs.publish-nym.outputs.socks5_hash }}
+      name: Socks5 Client
+      category: binaries
+    secrets: inherit
+
+  push-release-data-network-requester:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/push-release-data.yml
+    needs: publish-nym
+    with:
+      release_tag: ${{ github.ref_name }}
+      release_id: ${{ needs.publish-nym.outputs.release_id }}
+      release_date: ${{ needs.publish-nym.outputs.release_date }}
+      download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
+      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
+      version: ${{ needs.publish-nym.outputs.netreq_version }}
+      filename: nym-network-requester
+      file_hash: ${{ needs.publish-nym.outputs.netreq_hash }}
+      name: Network Requester
+      category: binaries
+    secrets: inherit
+
+  push-release-data-cli:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/push-release-data.yml
+    needs: publish-nym
+    with:
+      release_tag: ${{ github.ref_name }}
+      release_id: ${{ needs.publish-nym.outputs.release_id }}
+      release_date: ${{ needs.publish-nym.outputs.release_date }}
+      download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
+      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
+      version: ${{ needs.publish-nym.outputs.cli_version }}
+      filename: nym-cli
+      file_hash: ${{ needs.publish-nym.outputs.cli_hash }}
+      name: Cli
+      category: binaries
+    secrets: inherit
+
+  push-release-data-network-stat:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/push-release-data.yml
+    needs: publish-nym
+    with:
+      release_tag: ${{ github.ref_name }}
+      release_id: ${{ needs.publish-nym.outputs.release_id }}
+      release_date: ${{ needs.publish-nym.outputs.release_date }}
+      download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
+      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/CHANGELOG.md
+      version: ${{ needs.publish-nym.outputs.netstat_version }}
+      filename: nym-network-statistics
+      file_hash: ${{ needs.publish-nym.outputs.netstat_hash }}
+      name: Network Statistics
+      category: binaries
+    secrets: inherit

@@ -12,7 +12,7 @@ Simply fill in the fields in your browser and click `Send`. In your browser you 
 
 <img src="../../images/tutorial_image_5.png"/>
 
-This small project can be used as a template to start conceptualizing and developing more complex PEApps. Stay tuned for more soon, and if you're searching for inspiration check out the [community apps](../../community-resources/community-applications.md) list! 
+This small project can be used as a template to start conceptualizing and developing more complex PEApps. Stay tuned for more soon, and if you're searching for inspiration check out the [community apps](../../community-resources/community-applications-and-guides.md) list! 
 
 
 

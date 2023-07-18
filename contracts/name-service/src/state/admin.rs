@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_controllers::Admin;
 
-use crate::{constants::ADMIN_KEY, error::Result};
+use crate::{constants::ADMIN_KEY, Result};
 
 const ADMIN: Admin = Admin::new(ADMIN_KEY);
 

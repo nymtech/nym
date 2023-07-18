@@ -124,11 +124,9 @@ pub async fn simulate_update_pledge(
             );
             simulate_mixnet_operation(
                 ExecuteMsg::DecreasePledge {
-                    decrease_by: guard
-                        .attempt_convert_to_base_coin(dec_delta.clone())?
-                        .into(),
+                    decrease_by: guard.attempt_convert_to_base_coin(dec_delta)?.into(),
                 },
-                Some(dec_delta),
+                None,
                 &state,
             )
             .await

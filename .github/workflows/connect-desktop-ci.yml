@@ -23,8 +23,14 @@ jobs:
         node-version: 18
     - name: Install Yarn
       run: npm install -g yarn
-    - run: yarn
+    
+    - name: Install project dependencies
+      run: cd ../.. && yarn --network-timeout 100000
+      
+    - name: Install app dependencies
+      run: yarn
       continue-on-error: true
+      
     - name: Set environment from the example
       run: cp .env.sample .env
     - run: yarn storybook:build

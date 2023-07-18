@@ -7,5 +7,9 @@ edition = "2021"
 
 [dependencies]
 cosmwasm-std = { workspace = true }
+cw-controllers = { workspace = true }
+cw-utils = { workspace = true }
+nym-contracts-common = { path = "../contracts-common", version = "0.5.0" }
 schemars = "0.8"
 serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }

@@ -6,7 +6,7 @@ env:
 
 on:
   workflow_call:
-    inputs: &wf-inputs
+    inputs:
       release_tag:
         required: true
         description: Release tag
@@ -61,7 +61,48 @@ on:
         type: string
   workflow_dispatch:
     inputs:
-      <<: *wf-inputs
+      # ⚠ since inputs are limited to 10 max for workflow_dispatch
+      # some properties were omitted
+      version:
+        required: true
+        description: Release version (semver)
+        type: string
+        default: '1.0.0'
+      release_id:
+        required: true
+        description: Release ID
+        type: string
+        default: '1234'
+      release_date:
+        required: true
+        description: Release date
+        type: string
+        default: '2023-06-26T10:09:16Z'
+      download_base_url:
+        required: true
+        description: Download base URL
+        type: string
+        default: 'https://github.com/nymtech/nym/releases/download/nym-wallet-v1.0.0'
+      changelog_url:
+        required: true
+        description: Changelog URL
+        type: string
+        default: 'https://github.com/nymtech/nym/blob/nym-wallet-v1.0.0/nym-wallet/CHANGELOG.md'
+      filename:
+        required: true
+        description: Binary file name
+        type: string
+        default: 'nym-wallet_1.0.0_amd64.AppImage'
+      file_hash:
+        required: true
+        description: Binary hash (sha256)
+        type: string
+        default: 'xxx'
+      name:
+        required: true
+        description: Name
+        type: string
+        default: 'Wallet'
       category:
         required: true
         description: Category
@@ -87,18 +128,24 @@ jobs:
     runs-on: custom-runner-linux
 
     steps:
+      - name: Release info
+        run: |
+          echo "version: ${{ inputs.version }}"
+          echo "tag: ${{ inputs.release_tag }}"
+
       - id: get_sig
         name: Get sig
         if: ${{ inputs.sig_url != null }}
         run: |
           output=$(curl -LsSf ${{ inputs.sig_url }})
           echo "sig=$output" >> "$GITHUB_OUTPUT"
-      - name: Push download data
+      - id: strapi-request
+        name: Strapi request
         uses: fjogeleit/http-request-action@v1
         with:
           url: ${{ env.strapi_download_url }}
           method: 'POST'
-          # bearerToken: ${{ secrets.STRAPI_AUTH_TOKEN }} TODO
+          bearerToken: ${{ secrets.STRAPI_API_TOKEN_RELEASES }}
           customHeaders: '{"Content-Type": "application/json"}'
           data: |
             {
@@ -116,26 +163,34 @@ jobs:
                 "sig": "${{ steps.get_sig.outputs.sig }}"
               }
             }
+      - name: Strapi Response
+        run: |
+          echo ${{ steps.strapi-request.outputs.response }}
 
   push-update-data:
     name: Push update data to Strapi
-    runs-on: ${{ matrix.platform }}
+    runs-on: custom-runner-linux
     # only push update data for tauri apps (desktop wallet and NC)
     if: ${{ inputs.category == 'wallet' || inputs.category == 'connect' }}
 
     steps:
+      - name: Release info
+        run: |
+          echo "version: ${{ inputs.version }}"
+          echo "tag: ${{ inputs.release_tag }}"
       - id: get_sig
         name: Get sig
         if: ${{ inputs.sig_url != null }}
         run: |
           output=$(curl -LsSf ${{ inputs.sig_url }})
           echo "sig=$output" >> "$GITHUB_OUTPUT"
-      - name: Push update data
+      - id: strapi-request
+        name: Strapi request
         uses: fjogeleit/http-request-action@v1
         with:
           url: ${{ env.strapi_updater_url }}
           method: 'POST'
-          # bearerToken: ${{ secrets.STRAPI_AUTH_TOKEN }} TODO
+          bearerToken: ${{ secrets.STRAPI_API_TOKEN_RELEASES }}
           customHeaders: '{"Content-Type": "application/json"}'
           data: |
             {
@@ -152,3 +207,6 @@ jobs:
                 "sig": "${{ steps.get_sig.outputs.sig }}"
               }
             }
+      - name: Strapi Response
+        run: |
+          echo ${{ steps.strapi-request.outputs.response }}

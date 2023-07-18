@@ -1411,6 +1411,7 @@ name = "nym-name-service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bs58",
  "cosmwasm-std",
  "cw-controllers",
  "cw-multi-test",
@@ -1418,8 +1419,10 @@ dependencies = [
  "cw-utils",
  "cw2",
  "nym-contracts-common",
+ "nym-crypto",
  "nym-name-service-common",
  "rand 0.8.5",
+ "rand_chacha 0.2.2",
  "rstest",
  "semver",
  "serde",
@@ -1432,8 +1435,12 @@ name = "nym-name-service-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "cw-controllers",
+ "cw-utils",
+ "nym-contracts-common",
  "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -1646,9 +1653,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.52"
+version = "1.0.63"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d0e1ae9e836cc3beddd63db0df682593d7e2d3d891ae8c9083d2113e1744224"
+checksum = "7b368fba921b0dce7e60f5e04ec15e565b3303972b42bcfde1d0713b881959eb"
 dependencies = [
  "unicode-ident",
 ]

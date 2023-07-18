@@ -30,19 +30,7 @@ pub enum Socks5ExitStatusMessage {
     Failed(Box<dyn std::error::Error + Send>),
 }
 
-/// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
-pub async fn start_nym_socks5_client(
-    id: &str,
-) -> Result<(
-    Socks5ControlMessageSender,
-    nym_task::StatusReceiver,
-    ExitStatusReceiver,
-    GatewayEndpointConfig,
-)> {
-    log::info!("Loading config from file: {id}");
-    let mut config = Config::read_from_default_path(id)
-        .tap_err(|_| log::warn!("Failed to load configuration file"))?;
-
+fn override_config_from_env(config: &mut Config) {
     // Disable both the loop cover traffic that runs in the background as well as the Poisson
     // process that injects cover traffic into the traffic stream.
     if std::env::var("NYM_CONNECT_DISABLE_COVER").is_ok() {
@@ -62,6 +50,22 @@ pub async fn start_nym_socks5_client(
         log::warn!("Disabling per-hop delay");
         config.core.base.set_no_per_hop_delays();
     }
+}
+
+/// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
+pub async fn start_nym_socks5_client(
+    id: &str,
+) -> Result<(
+    Socks5ControlMessageSender,
+    nym_task::StatusReceiver,
+    ExitStatusReceiver,
+    GatewayEndpointConfig,
+)> {
+    log::info!("Loading config from file: {id}");
+    let mut config = Config::read_from_default_path(id)
+        .tap_err(|_| log::warn!("Failed to load configuration file"))?;
+
+    override_config_from_env(&mut config);
 
     log::trace!("Configuration used: {:#?}", config);
 

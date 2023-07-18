@@ -1,0 +1,15 @@
+[package]
+name = "nym-issue-credential"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+thiserror = "1.0"
+
+nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
+nym-credentials = { path = "../../common/credentials" }
+nym-credential-storage = { path = "../../common/credential-storage" }
+nym-validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }

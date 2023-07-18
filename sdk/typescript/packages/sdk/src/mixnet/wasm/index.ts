@@ -3,16 +3,16 @@ import InlineWasmWebWorker from 'web-worker:./worker';
 import {
   BinaryMessageReceivedEvent,
   ConnectedEvent,
-  EventHandlerFn,
   EventKinds,
   IWebWorker,
   IWebWorkerAsync,
   IWebWorkerEvents,
   LoadedEvent,
   MimeTypes,
-  StringMessageReceivedEvent,
   RawMessageReceivedEvent,
+  StringMessageReceivedEvent,
 } from './types';
+import { createSubscriptions } from './subscriptions';
 
 /**
  * Client for the Nym mixnet.
@@ -33,25 +33,13 @@ export const createNymMixnetClient = async (options?: {
   // eslint-disable-next-line @typescript-eslint/no-use-before-define
   const worker = await createWorker();
 
-  // stores the subscriptions for events
-  const subscriptions: {
-    [key: string]: Array<EventHandlerFn<unknown>>;
-  } = {};
-
-  /**
-   * Helper method to get typed subscriptions
-   */
-  const getSubscriptions = <E>(key: EventKinds): Array<EventHandlerFn<E>> => {
-    if (!subscriptions[key]) {
-      subscriptions[key] = [];
-    }
-    return subscriptions[key] as Array<EventHandlerFn<E>>;
-  };
+  const subscriptions = createSubscriptions();
+  const { getSubscriptions, addSubscription } = subscriptions;
 
   // listen to messages from the worker, parse them and let the subscribers handle them, catching any unhandled exceptions
   worker.addEventListener('message', (msg) => {
     if (msg.data && msg.data.kind) {
-      const subscribers = subscriptions[msg.data.kind];
+      const subscribers = getSubscriptions(msg.data.kind);
       (subscribers || []).forEach((s) => {
         try {
           // let the subscriber handle the message
@@ -66,36 +54,14 @@ export const createNymMixnetClient = async (options?: {
 
   // manage the subscribers, returning self-unsubscribe methods
   const events: IWebWorkerEvents = {
-    subscribeToConnected: (handler) => {
-      getSubscriptions<ConnectedEvent>(EventKinds.Connected).push(handler);
-      return () => {
-        getSubscriptions<ConnectedEvent>(EventKinds.Connected).unshift(handler);
-      };
-    },
-    subscribeToLoaded: (handler) => {
-      getSubscriptions<LoadedEvent>(EventKinds.Loaded).push(handler);
-      return () => {
-        getSubscriptions<LoadedEvent>(EventKinds.Loaded).unshift(handler);
-      };
-    },
-    subscribeToTextMessageReceivedEvent: (handler) => {
-      getSubscriptions<StringMessageReceivedEvent>(EventKinds.StringMessageReceived).push(handler);
-      return () => {
-        getSubscriptions<StringMessageReceivedEvent>(EventKinds.StringMessageReceived).unshift(handler);
-      };
-    },
-    subscribeToBinaryMessageReceivedEvent: (handler) => {
-      getSubscriptions<BinaryMessageReceivedEvent>(EventKinds.BinaryMessageReceived).push(handler);
-      return () => {
-        getSubscriptions<BinaryMessageReceivedEvent>(EventKinds.BinaryMessageReceived).unshift(handler);
-      };
-    },
-    subscribeToRawMessageReceivedEvent: (handler) => {
-      getSubscriptions<RawMessageReceivedEvent>(EventKinds.RawMessageReceived).push(handler);
-      return () => {
-        getSubscriptions<RawMessageReceivedEvent>(EventKinds.RawMessageReceived).unshift(handler);
-      };
-    },
+    subscribeToConnected: (handler) => addSubscription<ConnectedEvent>(EventKinds.Connected, handler),
+    subscribeToLoaded: (handler) => addSubscription<LoadedEvent>(EventKinds.Loaded, handler),
+    subscribeToTextMessageReceivedEvent: (handler) =>
+      addSubscription<StringMessageReceivedEvent>(EventKinds.StringMessageReceived, handler),
+    subscribeToBinaryMessageReceivedEvent: (handler) =>
+      addSubscription<BinaryMessageReceivedEvent>(EventKinds.BinaryMessageReceived, handler),
+    subscribeToRawMessageReceivedEvent: (handler) =>
+      addSubscription<RawMessageReceivedEvent>(EventKinds.RawMessageReceived, handler),
   };
 
   // let comlink handle interop with the web worker

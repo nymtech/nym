@@ -4,7 +4,7 @@
 // due to expansion of #[wasm_bindgen] macro on `Debug` Config struct
 #![allow(clippy::drop_non_drop)]
 // another issue due to #[wasm_bindgen] and `Copy` trait
-#![allow(clippy::drop_copy)]
+#![allow(dropping_copy_types)]
 
 use nym_client_core::config::{
     Acknowledgements as ConfigAcknowledgements, Config as BaseClientConfig,

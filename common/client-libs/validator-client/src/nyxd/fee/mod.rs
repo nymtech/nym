@@ -130,23 +130,8 @@ mod sealed {
     use cosmrs::{AccountId, Denom as CosmosDenom};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-    fn cosmos_denom_inner_getter(val: &CosmosDenom) -> String {
-        val.as_ref().to_string()
-    }
-
-    #[derive(Serialize, Deserialize)]
-    #[serde(remote = "CosmosDenom")]
-    struct Denom(#[serde(getter = "cosmos_denom_inner_getter")] String);
-
-    impl From<Denom> for CosmosDenom {
-        fn from(val: Denom) -> Self {
-            val.0.parse().unwrap()
-        }
-    }
-
     #[derive(Serialize, Deserialize, Clone)]
     struct Coin {
-        #[serde(with = "Denom")]
         denom: CosmosDenom,
         amount: u128,
     }

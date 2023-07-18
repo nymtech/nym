@@ -16,6 +16,7 @@
   "scripts": {
     "clean": "lerna run clean",
     "build": "run-s build:types build:packages",
+    "build:wasm": "make sdk-wasm-build",
     "build:types": "lerna run --scope @nymproject/types build --stream",
     "build:packages": "run-s build:packages:theme build:packages:react",
     "build:packages:theme": "lerna run --scope @nymproject/mui-theme build",
@@ -28,9 +29,7 @@
     "lint:fix": "lerna run lint:fix --stream",
     "tsc": "lerna run tsc --stream",
     "types:lint:fix": "lerna run lint:fix --scope @nymproject/types --scope @nymproject/nym-wallet-app",
-    "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run",
-    "preinstall": "yarn install:copy-placeholders",
-    "install:copy-placeholders": "./scripts/copy_placeholders.sh"
+    "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run"
   },
   "devDependencies": {
     "lerna": "^6.6.2",

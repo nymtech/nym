@@ -61,6 +61,13 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
 
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nym-wallet_1.0.0_amd64.AppImage.tar.gz
+          path: nym-wallet/target/release/bundle/appimage/nym-wallet*.AppImage.tar.gz
+          retention-days: 30
+
       - id: create-release
         name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
@@ -69,6 +76,15 @@ jobs:
           files: |
             nym-wallet/target/release/bundle/appimage/*.AppImage
             nym-wallet/target/release/bundle/appimage/*.AppImage.tar.gz*
+
+      - name: Debug
+        run: |
+          semver="${${{ github.ref_name }}##nym-wallet-}" && semver="${semver##v}"
+          echo "${{ github.ref_name }}"
+          echo "${${{ github.ref_name }}##nym-wallet-}"
+          echo "version=$semver"
+          echo "filename=nym-wallet_$version_amd64.AppImage"
+          echo "file_hash=${{ hashFiles('nym-wallet/target/release/bundle/appimage/nym-wallet_*_amd64.AppImage') }}"
 
       - id: release-info
         name: Prepare release info

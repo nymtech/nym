@@ -1,5 +1,7 @@
 use cosmrs::{tendermint, AccountId};
-use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, StoragePaths, ReconstructedMessage, AnonymousSenderTag};
+use nym_sdk::mixnet::{
+    AnonymousSenderTag, MixnetClient, MixnetClientBuilder, ReconstructedMessage, StoragePaths,
+};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 pub mod client;
@@ -76,15 +78,17 @@ pub async fn listen_and_parse_response(client: &mut MixnetClient) -> ResponseTyp
     // parse vec<u8> -> JSON String
     let mut parsed = String::new();
     if let Some(r) = message.iter().next() {
-        parsed = String::from_utf8(r.message.clone()).unwrap(); 
+        parsed = String::from_utf8(r.message.clone()).unwrap();
     }
     let sp_response: crate::ResponseTypes = serde_json::from_str(&parsed).unwrap();
     sp_response
 }
 
-// parse incoming request: parse incoming message to struct + get sender_tag for SURB reply  
+// parse incoming request: parse incoming message to struct + get sender_tag for SURB reply
 // we know we are expecting JSON here but an irl helper would parse conditionally on bytes / string incoming
-pub async fn listen_and_parse_request(client: &mut MixnetClient) -> (RequestTypes, AnonymousSenderTag) {
+pub async fn listen_and_parse_request(
+    client: &mut MixnetClient,
+) -> (RequestTypes, AnonymousSenderTag) {
     let mut message: Vec<ReconstructedMessage> = Vec::new();
 
     // get the actual message - discard the empty vec sent along with the SURB topup request
@@ -99,12 +103,12 @@ pub async fn listen_and_parse_request(client: &mut MixnetClient) -> (RequestType
     // parse vec<u8> -> JSON String
     let mut parsed = String::new();
     if let Some(r) = message.iter().next() {
-        parsed = String::from_utf8(r.message.clone()).unwrap(); 
+        parsed = String::from_utf8(r.message.clone()).unwrap();
     }
     let client_request: crate::RequestTypes = serde_json::from_str(&parsed).unwrap();
 
-    // get the sender_tag for anon reply 
-    let return_recipient = message[0].sender_tag.unwrap(); 
+    // get the sender_tag for anon reply
+    let return_recipient = message[0].sender_tag.unwrap();
 
-    (client_request, return_recipient) 
+    (client_request, return_recipient)
 }

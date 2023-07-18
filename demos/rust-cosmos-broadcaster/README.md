@@ -1,8 +1,5 @@
 TODO FOR DEMO
 - flags for cli 
-- single parse_incoming fn in lib and call from everywhere 
-- pass mnemonic as file (otherwise pass as env var)
-- create signer in main.rs and pass to commands (client/src) 
 
 ### Nym mixnet cosmos tx broadcaster demo 
 A demo showing how to: 

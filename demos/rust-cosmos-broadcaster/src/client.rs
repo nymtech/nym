@@ -4,7 +4,7 @@ use bs58;
 use cosmrs::bank::MsgSend;
 use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
-use nym_sdk::mixnet::{MixnetClient};
+use nym_sdk::mixnet::MixnetClient;
 use nym_sphinx_addressing::clients::Recipient;
 use nym_validator_client::nyxd::cosmwasm_client::types;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
@@ -35,7 +35,7 @@ pub async fn offline_sign(
         .send_str(sp_address, &serde_json::to_string(&message).unwrap())
         .await;
 
-    let sp_response = crate::listen_and_parse_response(client).await; 
+    let sp_response = crate::listen_and_parse_response(client).await;
 
     // match JSON -> ResponseType
     let res = match sp_response {
@@ -86,9 +86,7 @@ pub async fn offline_sign(
             let base58_tx_bytes = bs58::encode(tx_bytes).into_string();
             base58_tx_bytes
         }
-        _ => {
-            String::from("unexpected response")
-        }
+        _ => String::from("unexpected response"),
     };
 
     Ok(res)
@@ -112,7 +110,7 @@ pub async fn send_tx(
 
     println!("Waiting for reply");
 
-    let sp_response = crate::listen_and_parse_response(client).await; 
+    let sp_response = crate::listen_and_parse_response(client).await;
 
     let res = match sp_response {
         crate::ResponseTypes::Broadcast(response) => {
@@ -122,9 +120,10 @@ pub async fn send_tx(
             };
             (broadcast_response.tx_hash, broadcast_response.success)
         }
-        _ => {
-            (String::from("Got strange incoming response, couldn't match"), false)
-        }
+        _ => (
+            String::from("Got strange incoming response, couldn't match"),
+            false,
+        ),
     };
 
     Ok(res)

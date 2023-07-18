@@ -4,7 +4,7 @@ import { Box } from '@mui/system';
 
 const appsSchema = {
   messagingApps: ['Matrix', 'Telegram', 'Keybase'],
-  wallets: ['Monero', 'Blockstream', 'Electrum'],
+  wallets: ['Monero', 'Blockstream', 'Electrum', 'Alephium'],
 };
 
 export const CompatibleApps = () => (

@@ -1,4 +1,4 @@
-build: build-go-opt build-rust
+build: build-go-opt build-rust build-package-json
 
 check-fmt: check-fmt-go check-fmt-rust
 
@@ -9,8 +9,11 @@ build-go-opt:
 	$(MAKE) -C go-mix-conn build-go-opt
 
 build-rust:
-	wasm-pack build --scope nymproject --target no-modules --out-dir ../../dist/wasm/mix-fetch
-	wasm-opt -Oz -o ../../dist/wasm/mix-fetch/nym_mix_fetch_bg.wasm ../../dist/wasm/mix-fetch/nym_mix_fetch_bg.wasm
+	wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/mix-fetch
+	wasm-opt -Oz -o ../../dist/wasm/mix-fetch/mix_fetch_wasm_bg.wasm ../../dist/wasm/mix-fetch/mix_fetch_wasm_bg.wasm
+
+build-package-json:
+	node build.mjs
 
 check-fmt-go:
 	$(MAKE) -C go-mix-conn check-fmt

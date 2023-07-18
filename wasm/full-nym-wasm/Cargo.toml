@@ -1,7 +1,7 @@
 [package]
 name = "nym-wasm-sdk"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-version = "0.1.0"
+version = "1.0.0-rc.0"
 edition = "2021"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy"]
 license = "Apache-2.0"
@@ -16,13 +16,13 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 nym-client-wasm = { path = "../client", optional = true }
 nym-node-tester-wasm = { path = "../node-tester", optional = true }
-nym-mix-fetch = { path = "../mix-fetch", optional = true }
+mix-fetch-wasm = { path = "../mix-fetch", optional = true }
 
 [features]
 default = ["client", "node-tester"]
 client = ["nym-client-wasm"]
 node-tester = ["nym-node-tester-wasm"]
-mix-fetch = ["nym-mix-fetch"]
+mix-fetch = ["mix-fetch-wasm"]
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

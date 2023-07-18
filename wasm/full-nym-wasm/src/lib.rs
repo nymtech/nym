@@ -8,4 +8,4 @@ pub use nym_client_wasm as client;
 pub use nym_node_tester_wasm as node_tester;
 
 #[cfg(all(target_arch = "wasm32", feature = "mix-fetch"))]
-pub use nym_mix_fetch as mix_fetch;
+pub use mix_fetch_wasm as mix_fetch;

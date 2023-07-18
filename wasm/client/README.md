@@ -19,18 +19,20 @@ They should be implemented soon. You can build your applications, but don't rely
 See the [SDK directory](../../sdk/typescript/examples) for examples on how to use it and the NPM packages available.
 
 ## Developing
-[Cargo.toml](Cargo.toml)
-This is a Rust crate which is set up to automatically cross-compile the contents of `src` to WebAssembly (aka wasm). It's published from the main [Nym platform monorepo](https://github.com/nymtech/nym) in the `clients/webassembly` directory.
 
-First, make sure you've got all the [Rust wasm to[Cargo.toml](Cargo.toml)olchain](https://rustwasm.github.io/docs/book/) installed. Cross-compilation sounds scary, but the Rust crew have enabled a remarkably simple setup.
+Make sure you have `wasm-pack` installed (`cargo install wasm-pack`) before you start.
 
-Furthermore, [wasm-bindgen documentation](https://rustwasm.github.io/docs/wasm-bindgen/) provides excellent tips to solving common problems.
+Please use the [Makefile](Makefile) targets to build this crate and compile it to WASM:
 
-Whenever you change any Rust in the `src` directory, run `wasm-pack build --scope nymproject` to update the built wasm artefact in the `pkg` directory.
+```
+make build
+```
 
-To be clear, this is not something that most JS developers need to worry about, this is only for Nym devs. The packages on NPM have all files in place. Just install and enjoy!
+The outputs will be found [here](../../dist/wasm/client) where it will be accessible to the rest of the monorepo using workspaces.
 
 ### Packaging
+
+> **TODO**
 
 If you're a Nym platform developer who's made changes to the Rust files and wants to re-publish the package to NPM, here's how you do it: 
 

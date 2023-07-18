@@ -3476,6 +3476,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "mix-fetch-wasm"
+version = "1.0.0-rc.0"
+dependencies = [
+ "futures",
+ "js-sys",
+ "nym-ordered-buffer",
+ "nym-service-providers-common",
+ "nym-socks5-requests",
+ "rand 0.7.3",
+ "serde",
+ "serde-wasm-bindgen",
+ "thiserror",
+ "tokio",
+ "tsify",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-client-core",
+ "wasm-utils",
+]
+
+[[package]]
 name = "multer"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3894,7 +3916,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "1.1.1"
+version = "1.1.1-rc.0"
 dependencies = [
  "futures",
  "js-sys",
@@ -4240,28 +4262,6 @@ dependencies = [
  "log",
  "rand 0.8.5",
  "thiserror",
-]
-
-[[package]]
-name = "nym-mix-fetch"
-version = "0.1.0"
-dependencies = [
- "futures",
- "js-sys",
- "nym-ordered-buffer",
- "nym-service-providers-common",
- "nym-socks5-requests",
- "rand 0.7.3",
- "serde",
- "serde-wasm-bindgen",
- "thiserror",
- "tokio",
- "tsify",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-client-core",
- "wasm-utils",
 ]
 
 [[package]]
@@ -5084,10 +5084,10 @@ dependencies = [
 
 [[package]]
 name = "nym-wasm-sdk"
-version = "0.1.0"
+version = "1.0.0-rc.0"
 dependencies = [
+ "mix-fetch-wasm",
  "nym-client-wasm",
- "nym-mix-fetch",
  "nym-node-tester-wasm",
 ]
 

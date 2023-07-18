@@ -15,7 +15,7 @@ pub type Nonce = u32;
 
 // define this type explicitly for [hopefully] better usability
 // (so you wouldn't need to worry about whether you should use bytes, bs58, etc.)
-#[derive(Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct MessageSignature(Vec<u8>);
 
 impl MessageSignature {

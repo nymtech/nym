@@ -7,19 +7,19 @@ use crate::{BlockHeight, EpochEventId, IntervalEventId, MixId};
 use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PendingEpochEvent {
     pub id: EpochEventId,
     pub event: PendingEpochEventData,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PendingEpochEventData {
     pub created_at: BlockHeight,
     pub kind: PendingEpochEventKind,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PendingEpochEventKind {
     // can't just pass the `Delegation` struct here as it's impossible to determine
     // `cumulative_reward_ratio` ahead of time
@@ -68,19 +68,19 @@ impl From<(EpochEventId, PendingEpochEventData)> for PendingEpochEvent {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PendingIntervalEvent {
     pub id: IntervalEventId,
     pub event: PendingIntervalEventData,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PendingIntervalEventData {
     pub created_at: BlockHeight,
     pub kind: PendingIntervalEventKind,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PendingIntervalEventKind {
     ChangeMixCostParams {
         mix_id: MixId,

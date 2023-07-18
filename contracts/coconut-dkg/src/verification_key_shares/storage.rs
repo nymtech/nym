@@ -30,7 +30,7 @@ impl<'a> IndexList<ContractVKShare> for VkShareIndex<'a> {
 pub(crate) fn vk_shares<'a>() -> IndexedMap<'a, VKShareKey<'a>, ContractVKShare, VkShareIndex<'a>> {
     let indexes = VkShareIndex {
         epoch_id: MultiIndex::new(
-            |d| d.epoch_id,
+            |_pk, d| d.epoch_id,
             VK_SHARES_PK_NAMESPACE,
             VK_SHARES_EPOCH_ID_IDX_NAMESPACE,
         ),

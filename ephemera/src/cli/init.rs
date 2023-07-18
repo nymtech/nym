@@ -160,8 +160,6 @@ impl Cmd {
             },
         };
 
-        if let Err(err) = configuration.try_write_home_dir(id) {
-            eprintln!("Error creating configuration file: {err:?}",);
-        }
+        configuration.try_write_home_dir(id).ok();
     }
 }

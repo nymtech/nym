@@ -21,10 +21,13 @@ pub struct Args {
     #[clap(skip)]
     pub ephemera_config: PathBuf,
     #[command(flatten)]
+    #[serde(skip)]
     pub cmd: Cmd,
     #[clap(skip)]
+    #[serde(skip)]
     pub block_polling_interval_seconds: u64,
     #[clap(skip)]
+    #[serde(skip)]
     pub block_polling_max_attempts: u64,
 }
 

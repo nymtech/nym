@@ -106,6 +106,10 @@ pub(crate) struct CliArgs {
         hide = true
     )]
     pub(crate) enable_coconut: Option<bool>,
+
+    /// Ephemera configuration arguments.
+    #[command(flatten)]
+    pub(crate) ephemera_args: ephemera::cli::init::Cmd,
 }
 
 pub(crate) fn override_config(config: Config, args: CliArgs) -> Config {
@@ -146,6 +150,19 @@ pub(crate) fn override_config(config: Config, args: CliArgs) -> Config {
         )
         .with_optional(Config::with_announce_address, args.announce_address)
         .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut)
+        .with_optional(Config::with_ephemera_ip, args.ephemera_args.ephemera_ip)
+        .with_optional(
+            Config::with_ephemera_protocol_port,
+            args.ephemera_args.ephemera_protocol_port,
+        )
+        .with_optional(
+            Config::with_ephemera_websocket_port,
+            args.ephemera_args.ephemera_websocket_port,
+        )
+        .with_optional(
+            Config::with_ephemera_http_api_port,
+            args.ephemera_args.ephemera_http_api_port,
+        )
 }
 
 pub(crate) fn build_config(args: CliArgs) -> Result<Config> {

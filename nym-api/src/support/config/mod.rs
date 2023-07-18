@@ -196,6 +196,26 @@ impl Config {
         self
     }
 
+    pub fn with_ephemera_ip(mut self, ip: String) -> Self {
+        self.ephemera.args.cmd.ephemera_ip = Some(ip);
+        self
+    }
+
+    pub fn with_ephemera_protocol_port(mut self, port: u16) -> Self {
+        self.ephemera.args.cmd.ephemera_protocol_port = Some(port);
+        self
+    }
+
+    pub fn with_ephemera_websocket_port(mut self, port: u16) -> Self {
+        self.ephemera.args.cmd.ephemera_websocket_port = Some(port);
+        self
+    }
+
+    pub fn with_ephemera_http_api_port(mut self, port: u16) -> Self {
+        self.ephemera.args.cmd.ephemera_http_api_port = Some(port);
+        self
+    }
+
     pub fn get_id(&self) -> String {
         self.base.id.clone()
     }

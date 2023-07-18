@@ -56,42 +56,42 @@ impl From<MembershipKind> for ConfigMembershipKind {
 
 #[derive(Parser, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Cmd {
-    #[clap(long, default_value = DEFAULT_LISTEN_ADDRESS)]
+    #[clap(long)]
     /// The IP address to listen on
-    pub ip: String,
+    pub ephemera_ip: Option<String>,
     /// The port which Ephemera uses for peer to peer communication
-    #[clap(long, default_value_t = DEFAULT_PROT_LISTEN_PORT)]
-    pub protocol_port: u16,
+    #[clap(long)]
+    pub ephemera_protocol_port: Option<u16>,
     /// The port which Ephemera listens on for websocket subscriptions
-    #[clap(long, default_value_t = DEFAULT_WS_LISTEN_PORT)]
-    pub websocket_port: u16,
+    #[clap(long)]
+    pub ephemera_websocket_port: Option<u16>,
     /// The port which Ephemera listens on for http api
-    #[clap(long, default_value_t = DEFAULT_HTTP_LISTEN_PORT)]
-    pub http_api_port: u16,
+    #[clap(long)]
+    pub ephemera_http_api_port: Option<u16>,
     /// Either this node produces blocks or not
-    #[clap(long, default_value_t = true)]
+    #[clap(skip)]
     pub block_producer: bool,
     /// At which interval to produce blocks
-    #[clap(long, default_value_t = 30)]
+    #[clap(skip)]
     pub block_creation_interval_sec: u64,
     /// When next block is created before previous one is finished, should we repeat it with the same messages
-    #[clap(long, default_value_t = false)]
+    #[clap(skip)]
     pub repeat_last_block_messages: bool,
     /// The interval at which Ephemera requests the list of members
-    #[clap(long, default_value_t = 60 * 60)]
+    #[clap(skip)]
     pub members_provider_delay_sec: u64,
     /// A rule how to choose members based on their online status
-    #[command(flatten)]
+    #[clap(skip)]
     pub membership_kind: MembershipKind,
 }
 
 impl Default for Cmd {
     fn default() -> Self {
         Cmd {
-            ip: String::from(DEFAULT_LISTEN_ADDRESS),
-            protocol_port: DEFAULT_PROT_LISTEN_PORT,
-            websocket_port: DEFAULT_WS_LISTEN_PORT,
-            http_api_port: DEFAULT_HTTP_LISTEN_PORT,
+            ephemera_ip: Some(String::from(DEFAULT_LISTEN_ADDRESS)),
+            ephemera_protocol_port: Some(DEFAULT_PROT_LISTEN_PORT),
+            ephemera_websocket_port: Some(DEFAULT_WS_LISTEN_PORT),
+            ephemera_http_api_port: Some(DEFAULT_HTTP_LISTEN_PORT),
             block_producer: true,
             block_creation_interval_sec: 30,
             repeat_last_block_messages: false,
@@ -122,13 +122,17 @@ impl Cmd {
         let keypair = Keypair::generate(None);
         let private_key = keypair.to_base58();
 
+        let default_cfg = Self::default();
+
         let configuration = Configuration {
             node: NodeConfiguration {
-                ip: self.ip,
+                ip: self.ephemera_ip.unwrap_or(default_cfg.ephemera_ip.unwrap()),
                 private_key,
             },
             libp2p: Libp2pConfiguration {
-                port: self.protocol_port,
+                port: self
+                    .ephemera_protocol_port
+                    .unwrap_or(default_cfg.ephemera_protocol_port.unwrap()),
                 ephemera_msg_topic_name: DEFAULT_MESSAGES_TOPIC_NAME.to_string(),
                 heartbeat_interval_sec: DEFAULT_HEARTBEAT_INTERVAL_SEC,
                 members_provider_delay_sec: self.members_provider_delay_sec,
@@ -140,10 +144,14 @@ impl Cmd {
                 create_if_not_exists: true,
             },
             websocket: WebsocketConfiguration {
-                port: self.websocket_port,
+                port: self
+                    .ephemera_websocket_port
+                    .unwrap_or(default_cfg.ephemera_websocket_port.unwrap()),
             },
             http: HttpConfiguration {
-                port: self.http_api_port,
+                port: self
+                    .ephemera_http_api_port
+                    .unwrap_or(default_cfg.ephemera_http_api_port.unwrap()),
             },
             block_manager: BlockManagerConfiguration {
                 producer: self.block_producer,

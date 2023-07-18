@@ -189,6 +189,11 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
     if save_to_file {
         info!("Saving the configuration to a file");
         config.save_to_default_location()?;
+        config
+            .get_ephemera_args()
+            .cmd
+            .clone()
+            .execute(Some(&config.get_id()));
         return Ok(());
     }
 

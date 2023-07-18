@@ -18,13 +18,13 @@ pub(crate) mod reward;
 
 #[derive(Parser, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Args {
-    #[clap(long)]
+    #[clap(skip)]
     pub ephemera_config: PathBuf,
     #[command(flatten)]
     pub cmd: Cmd,
-    #[clap(long, default_value = "1")]
+    #[clap(skip)]
     pub block_polling_interval_seconds: u64,
-    #[clap(long, default_value = "60")]
+    #[clap(skip)]
     pub block_polling_max_attempts: u64,
 }
 

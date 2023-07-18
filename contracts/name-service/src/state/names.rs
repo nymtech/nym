@@ -30,12 +30,12 @@ fn names<'a>() -> IndexedMap<'a, NameId, RegisteredName, NameIndex<'a>> {
     let indexes = NameIndex {
         name: UniqueIndex::new(|d| d.name.name.to_string(), NAMES_NAME_IDX_NAMESPACE),
         address: MultiIndex::new(
-            |d| d.name.address.to_string(),
+            |_pk, d| d.name.address.to_string(),
             NAMES_PK_NAMESPACE,
             NAMES_ADDRESS_IDX_NAMESPACE,
         ),
         owner: MultiIndex::new(
-            |d| d.owner.clone(),
+            |_pk, d| d.owner.clone(),
             NAMES_PK_NAMESPACE,
             NAMES_OWNER_IDX_NAMESPACE,
         ),

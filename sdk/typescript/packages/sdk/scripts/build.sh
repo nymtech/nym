@@ -49,6 +49,13 @@ rollup -c rollup-esm.config.mjs
 rollup -c rollup-cjs.config.mjs
 
 #-------------------------------------------------------
+# FULL FAT
+#-------------------------------------------------------
+
+# build the SDK as a ESM bundle
+rollup -c rollup-full-fat.config.mjs
+
+#-------------------------------------------------------
 # CLEAN UP
 #-------------------------------------------------------
 

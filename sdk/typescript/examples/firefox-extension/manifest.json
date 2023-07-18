@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Nym Firefox Extension Example",
+  "version": "1.0",
+  "description": "An example demonstrating how to integrate the Nym TypeScript SDK in the context of a Mozilla Firefox browser extension.",
+  "icons": {
+    "48": "icon.png"
+  },
+  "permissions": [],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval';"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "action": {
+    "default_icon": {
+      "32": "icon.png"
+    },
+    "default_title": "Nym Firefox Extension Example",
+    "default_popup": "popup.html"
+  }
+}

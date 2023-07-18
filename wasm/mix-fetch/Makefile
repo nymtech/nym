@@ -9,8 +9,8 @@ build-go-opt:
 	$(MAKE) -C go-mix-conn build-go-opt
 
 build-rust:
-	wasm-pack build --scope nymproject --target no-modules
-	wasm-opt -Oz -o pkg/nym_mix_fetch_bg.wasm pkg/nym_mix_fetch_bg.wasm
+	wasm-pack build --scope nymproject --target no-modules --out-dir ../../dist/wasm/mix-fetch
+	wasm-opt -Oz -o ../../dist/wasm/mix-fetch/nym_mix_fetch_bg.wasm ../../dist/wasm/mix-fetch/nym_mix_fetch_bg.wasm
 
 check-fmt-go:
 	$(MAKE) -C go-mix-conn check-fmt

@@ -111,16 +111,16 @@ sdk-wasm: sdk-wasm-build sdk-wasm-test sdk-wasm-lint
 
 sdk-wasm-build:
 	# client
-	cargo build -p nym-client-wasm --target wasm32-unknown-unknown
+	$(MAKE) -C wasm/client build
 
 	# node-tester
-	cargo build -p nym-node-tester-wasm --target wasm32-unknown-unknown
+	$(MAKE) -C wasm/node-tester build
 
 	# mix-fetch
 	$(MAKE) -C wasm/mix-fetch build
 
 	# full
-	cargo build -p nym-wasm-sdk --target wasm32-unknown-unknown
+	$(MAKE) -C wasm/full-nym-wasm build-full
 
 sdk-wasm-test:
 #	# client

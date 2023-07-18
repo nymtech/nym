@@ -77,23 +77,13 @@ jobs:
             nym-wallet/target/release/bundle/appimage/*.AppImage
             nym-wallet/target/release/bundle/appimage/*.AppImage.tar.gz*
 
-      - name: Debug
-        run: |
-          ref=${{ github.ref_name }}
-          semver="${ref##nym-wallet-}" && semver="${semver##v}"
-          echo "$ref"
-          echo "${ref##nym-wallet-}"
-          echo "${semver}"
-          version="${semver}"
-          echo "nym-wallet_${version}_amd64.AppImage"
-          echo "${{ hashFiles('nym-wallet/target/release/bundle/appimage/nym-wallet_*_amd64.AppImage') }}"
-
       - id: release-info
         name: Prepare release info
         run: |
-          semver="${${{ github.ref_name }}##nym-wallet-}" && semver="${semver##v}"
-          echo "version=$semver" >> "$GITHUB_OUTPUT"
-          echo "filename=nym-wallet_$version_amd64.AppImage" >> "$GITHUB_OUTPUT"
+          ref=${{ github.ref_name }}
+          semver="${ref##nym-wallet-}" && semver="${semver##v}"
+          echo "version=${semver}" >> "$GITHUB_OUTPUT"
+          echo "filename=nym-wallet_${version}_amd64.AppImage" >> "$GITHUB_OUTPUT"
           echo "file_hash=${{ hashFiles('nym-wallet/target/release/bundle/appimage/nym-wallet_*_amd64.AppImage') }}" >> "$GITHUB_OUTPUT"
 
   push-release-data:

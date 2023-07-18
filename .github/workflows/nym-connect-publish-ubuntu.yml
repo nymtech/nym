@@ -19,7 +19,7 @@ jobs:
 
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}
-      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].published_at }}
+      release_date: ${{ fromJSON(steps.create-release.outputs.assets[0].published_at) }}
       version: ${{ steps.release-info.outputs.version }}
       filename: ${{ steps.release-info.outputs.filename }}
       file_hash: ${{ steps.release-info.outputs.file_hash }}

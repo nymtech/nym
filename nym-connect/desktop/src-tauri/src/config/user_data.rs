@@ -24,8 +24,21 @@ pub struct UserData {
     pub privacy_level: Option<PrivacyLevel>,
 }
 
+fn create_directory_path() -> Result<()> {
+    let mut data_dir = data_dir().ok_or(eyre!("Failed to retrieve data directory"))?;
+    data_dir.push(DATA_DIR);
+
+    fs::create_dir_all(&data_dir).context(format!(
+        "Failed to create user data directory path {}",
+        data_dir.display()
+    ))
+}
+
 impl UserData {
     pub fn read() -> Result<Self> {
+        // create the full directory path if it is missing
+        create_directory_path()?;
+
         let mut data_path = data_dir().ok_or(eyre!("Failed to retrieve data directory"))?;
 
         data_path.push(DATA_DIR);
@@ -40,6 +53,9 @@ impl UserData {
     }
 
     pub fn write(&self) -> Result<()> {
+        // create the full directory path if it is missing
+        create_directory_path()?;
+
         let mut data_path = data_dir().ok_or(eyre!("Failed to retrieve data directory"))?;
 
         data_path.push(DATA_DIR);

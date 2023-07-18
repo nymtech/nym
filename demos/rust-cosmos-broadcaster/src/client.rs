@@ -1,26 +1,23 @@
-use nym_sphinx_addressing::clients::Recipient;
-use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
-use nym_validator_client::signing::tx_signer::TxSigner;
-use nym_validator_client::signing::SignerData;
-use nym_validator_client::nyxd::cosmwasm_client::types;
+use crate::{DEFAULT_DENOM, DEFAULT_PREFIX, DEFAULT_VALIDATOR_RPC};
+use bip39;
+use bs58;
 use cosmrs::bank::MsgSend;
 use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
-use bip39;
-use bs58;
 use nym_sdk::mixnet::{MixnetClient, ReconstructedMessage};
-use crate::{DEFAULT_VALIDATOR_RPC, DEFAULT_DENOM, DEFAULT_PREFIX, ResponseTypes};
+use nym_sphinx_addressing::clients::Recipient;
+use nym_validator_client::nyxd::cosmwasm_client::types;
+use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
+use nym_validator_client::signing::tx_signer::TxSigner;
+use nym_validator_client::signing::SignerData;
 
-// parse incoming: ignore empty SURB data packets + parse incoming message to struct or error
-// we know we are expecting JSON here but an irl helper would parse conditionally on bytes / string incoming
-pub fn parse_incoming(incoming: Option<Vec<ReconstructedMessage>>) -> ResponseTypes {
-    todo!()
-}
-
-// TODO take coin amount from function args
-pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut MixnetClient , sp_address: Recipient) -> String {
-
-    let denom: Denom =  DEFAULT_DENOM.parse().unwrap();
+pub async fn offline_sign(
+    mnemonic: bip39::Mnemonic,
+    to: AccountId,
+    client: &mut MixnetClient,
+    sp_address: Recipient,
+) -> Result<String, std::io::Error> {
+    let denom: Denom = DEFAULT_DENOM.parse().unwrap();
     let signer = DirectSecp256k1HdWallet::from_mnemonic(DEFAULT_PREFIX, mnemonic.clone());
     let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
 
@@ -28,45 +25,49 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
     let tx_signer = TxSigner::new(signer);
 
     // sequence request type
-    let message = crate::SequenceRequest{
+    let message = crate::SequenceRequest {
         validator: DEFAULT_VALIDATOR_RPC.to_owned(), // rpc endpoint for broadcaster to use
-        signer_address, // our (sender) address, derived from mnemonic
+        signer_address,                              // our (sender) address, derived from mnemonic
     };
 
     // send req to client
-    client.send_str(sp_address, &serde_json::to_string(&message).unwrap()).await;
+    client
+        .send_str(sp_address, &serde_json::to_string(&message).unwrap())
+        .await;
 
     // handle incoming message - we presume its a reply from the SP
     let mut message: Vec<ReconstructedMessage> = Vec::new();
 
     // get the actual message - discard the empty vec sent along with the SURB topup request
     while let Some(new_message) = client.wait_for_messages().await {
-       if new_message.is_empty() {
-        continue;
-       }
+        if new_message.is_empty() {
+            continue;
+        }
         message = new_message;
-       break
+        break;
     }
 
     // parse vec<u8> -> JSON String
     let mut parsed = String::new();
-    for r in message.iter() {
-        parsed = String::from_utf8(r.message.clone()).unwrap();
-        break
-    };
+    if let Some(r) = message.iter().next() {
+        parsed = String::from_utf8(r.message.clone()).unwrap(); 
+    }
     let sp_response: crate::ResponseTypes = serde_json::from_str(&parsed).unwrap();
 
     // match JSON -> ResponseType
     let res = match sp_response {
         crate::ResponseTypes::Sequence(request) => {
-            println!("got a response to the chain sequence request. using this to sign our tx offline");
+            println!(
+                "got a response to the chain sequence request. using this to sign our tx offline"
+            );
 
             // use the response to create SignerData instance
             let sequence_response = types::SequenceResponse {
                 account_number: request.account_number,
-                sequence: request.sequence
+                sequence: request.sequence,
             };
-            let signer_data = SignerData::new_from_sequence_response( sequence_response, request.chain_id);
+            let signer_data =
+                SignerData::new_from_sequence_response(sequence_response, request.chain_id);
 
             // create (and sign) the send message
             let amount = vec![Coin {
@@ -74,7 +75,6 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
                 amount: 12345u32.into(),
             }];
 
-            // TODO there must be a better way of doing this instead of re-generating the signer address from the mnemonic twice
             let signer = DirectSecp256k1HdWallet::from_mnemonic(DEFAULT_PREFIX, mnemonic.clone());
             let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
 
@@ -102,22 +102,30 @@ pub async fn offline_sign(mnemonic: bip39::Mnemonic, to: AccountId, client: &mut
             let tx_bytes = tx_raw.to_bytes().unwrap();
             let base58_tx_bytes = bs58::encode(tx_bytes).into_string();
             base58_tx_bytes
-        },
-        // TODO make this a proper error
-        _ => { println!("weird response"); String::from("placeholder error") }
+        }
+        _ => {
+            String::from("unexpected response")
+        }
     };
 
-    res
-
+    Ok(res)
 }
 
-pub async fn send_tx(base58_tx: String, sp_address: Recipient, client: &mut MixnetClient) -> (String, bool) {
-
+pub async fn send_tx(
+    base58_tx: String,
+    sp_address: Recipient,
+    client: &mut MixnetClient,
+) -> Result<(String, bool), std::io::Error> {
     let broadcast_request = crate::BroadcastRequest {
-        base58_tx_bytes: base58_tx
+        base58_tx_bytes: base58_tx,
     };
 
-    client.send_str(sp_address, &serde_json::to_string(&broadcast_request).unwrap()).await;
+    client
+        .send_str(
+            sp_address,
+            &serde_json::to_string(&broadcast_request).unwrap(),
+        )
+        .await;
 
     println!("Waiting for reply");
 
@@ -126,34 +134,33 @@ pub async fn send_tx(base58_tx: String, sp_address: Recipient, client: &mut Mixn
 
     // get the actual message - discard the empty vec sent along with the SURB topup request
     while let Some(new_message) = client.wait_for_messages().await {
-       if new_message.is_empty() {
-        continue;
-       }
+        if new_message.is_empty() {
+            continue;
+        }
         message = new_message;
-       break
+        break;
     }
 
     // parse vec<u8> -> JSON String
     let mut parsed = String::new();
-    for r in message.iter() {
-        parsed = String::from_utf8(r.message.clone()).unwrap();
-        break
-    };
+    if let Some(r) = message.iter().next() {
+        parsed = String::from_utf8(r.message.clone()).unwrap(); 
+    }
+
     let sp_response: crate::ResponseTypes = serde_json::from_str(&parsed).unwrap();
 
     let res = match sp_response {
         crate::ResponseTypes::Broadcast(response) => {
             let broadcast_response = crate::BroadcastResponse {
                 tx_hash: response.tx_hash,
-                success: response.success
+                success: response.success,
             };
             (broadcast_response.tx_hash, broadcast_response.success)
-        },
-        // TODO make this a proper error
-        _ => { println!("weird response"); (String::from("placeholder error"), false) }
+        }
+        _ => {
+            (String::from("Got strange incoming response, couldn't match"), false)
+        }
     };
 
-    res
-
-
-    }
+    Ok(res)
+}

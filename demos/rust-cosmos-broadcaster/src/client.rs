@@ -4,7 +4,7 @@ use bs58;
 use cosmrs::bank::MsgSend;
 use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
-use nym_sdk::mixnet::{MixnetClient, ReconstructedMessage};
+use nym_sdk::mixnet::{MixnetClient};
 use nym_sphinx_addressing::clients::Recipient;
 use nym_validator_client::nyxd::cosmwasm_client::types;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
@@ -35,24 +35,7 @@ pub async fn offline_sign(
         .send_str(sp_address, &serde_json::to_string(&message).unwrap())
         .await;
 
-    // handle incoming message - we presume its a reply from the SP
-    let mut message: Vec<ReconstructedMessage> = Vec::new();
-
-    // get the actual message - discard the empty vec sent along with the SURB topup request
-    while let Some(new_message) = client.wait_for_messages().await {
-        if new_message.is_empty() {
-            continue;
-        }
-        message = new_message;
-        break;
-    }
-
-    // parse vec<u8> -> JSON String
-    let mut parsed = String::new();
-    if let Some(r) = message.iter().next() {
-        parsed = String::from_utf8(r.message.clone()).unwrap(); 
-    }
-    let sp_response: crate::ResponseTypes = serde_json::from_str(&parsed).unwrap();
+    let sp_response = crate::listen_and_parse_response(client).await; 
 
     // match JSON -> ResponseType
     let res = match sp_response {
@@ -129,25 +112,7 @@ pub async fn send_tx(
 
     println!("Waiting for reply");
 
-    // handle incoming message - we presume its a reply from the SP
-    let mut message: Vec<ReconstructedMessage> = Vec::new();
-
-    // get the actual message - discard the empty vec sent along with the SURB topup request
-    while let Some(new_message) = client.wait_for_messages().await {
-        if new_message.is_empty() {
-            continue;
-        }
-        message = new_message;
-        break;
-    }
-
-    // parse vec<u8> -> JSON String
-    let mut parsed = String::new();
-    if let Some(r) = message.iter().next() {
-        parsed = String::from_utf8(r.message.clone()).unwrap(); 
-    }
-
-    let sp_response: crate::ResponseTypes = serde_json::from_str(&parsed).unwrap();
+    let sp_response = crate::listen_and_parse_response(client).await; 
 
     let res = match sp_response {
         crate::ResponseTypes::Broadcast(response) => {

@@ -1,8 +1,8 @@
 
-use nym_sdk::mixnet::ReconstructedMessage;
 use nym_sphinx_anonymous_replies::{self, requests::AnonymousSenderTag};
 use rust_cosmos_broadcaster::{
-    create_client,
+    create_client, 
+    listen_and_parse_request, 
     service::{broadcast, create_broadcaster, get_sequence},
     BroadcastResponse, RequestTypes, SequenceRequestResponse,
 };
@@ -17,25 +17,9 @@ async fn main() -> anyhow::Result<()> {
     let broadcaster = create_broadcaster().await;
 
     loop {
-        // check incoming is empty - SURB requests also send data ( empty vec ) along
-        let mut received: Vec<ReconstructedMessage> = Vec::new();
-        // get the actual message - discard the empty vec sent along with the SURB request
-        while let Some(new_message) = client.wait_for_messages().await {
-            if new_message.is_empty() {
-                continue;
-            }
-            received = new_message;
-            break;
-        }
-
-        for r in received.iter() {
-            // convert incoming vec<u8> -> String
-            let s = String::from_utf8(r.message.clone());
-            if s.is_ok() {
-                let p = s.unwrap();
-                // parse JSON string -> request type & match
-                let request: RequestTypes = serde_json::from_str(&p).unwrap();
-                match request {
+                let request: (RequestTypes, AnonymousSenderTag) = listen_and_parse_request(&mut client).await; 
+                let return_recipient: AnonymousSenderTag = request.1; 
+                match request.0 {
                     RequestTypes::Sequence(request) => {
                         println!(
                             "\nincoming sequence request details:\nsigner address: {}",
@@ -43,19 +27,12 @@ async fn main() -> anyhow::Result<()> {
                         );
                         let sequence: SequenceRequestResponse =
                             get_sequence(broadcaster.clone(), request.signer_address).await.unwrap();
-                        if Some(r.sender_tag).is_some() {
-                            let return_recipient: AnonymousSenderTag = r.sender_tag.unwrap();
-                            println!("replying to sender with sequence response from Nyx chain");
-                            println!("return recipient surb bucket: {}", &return_recipient);
-                            client
-                                .send_str_reply(
-                                    return_recipient,
-                                    &serde_json::to_string(&sequence).unwrap(),
-                                )
-                                .await;
-                        } else {
-                            println!("no surbs cannot reply an0n")
-                        }
+                        client
+                            .send_str_reply(
+                                return_recipient,
+                                &serde_json::to_string(&sequence).unwrap(),
+                            )
+                            .await;
                     }
                     RequestTypes::Broadcast(request) => {
                         println!(
@@ -64,8 +41,6 @@ async fn main() -> anyhow::Result<()> {
                         );
                         let tx_hash: BroadcastResponse =
                             broadcast(request.base58_tx_bytes, broadcaster.clone()).await.unwrap();
-                        if Some(r.sender_tag).is_some() {
-                            let return_recipient: AnonymousSenderTag = r.sender_tag.unwrap();
                             println!("return recipient surb bucket: {}", &return_recipient);
                             client
                                 .send_str_reply(
@@ -73,12 +48,7 @@ async fn main() -> anyhow::Result<()> {
                                     &serde_json::to_string(&tx_hash).unwrap(),
                                 )
                                 .await;
-                        } else {
-                            println!("no surbs cannot reply an0n")
-                        }
                     }
                 }
-            }
-        }
     }
 }

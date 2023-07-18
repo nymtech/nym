@@ -1,5 +1,5 @@
 use cosmrs::{tendermint, AccountId};
-use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, StoragePaths, ReconstructedMessage};
+use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, StoragePaths, ReconstructedMessage, AnonymousSenderTag};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 pub mod client;
@@ -59,8 +59,52 @@ pub async fn create_client(config_path: PathBuf) -> MixnetClient {
     client.connect_to_mixnet().await.unwrap()
 }
 
-// parse incoming: ignore empty SURB data packets + parse incoming message to struct or error
+// parse returned response from service: ignore empty SURB data packets + parse incoming message to struct or error
 // we know we are expecting JSON here but an irl helper would parse conditionally on bytes / string incoming
-pub fn _parse_incoming(_incoming: Option<Vec<ReconstructedMessage>>) -> ResponseTypes {
-    todo!()
+pub async fn listen_and_parse_response(client: &mut MixnetClient) -> ResponseTypes {
+    let mut message: Vec<ReconstructedMessage> = Vec::new();
+
+    // get the actual message - discard the empty vec sent along with the SURB topup request
+    while let Some(new_message) = client.wait_for_messages().await {
+        if new_message.is_empty() {
+            continue;
+        }
+        message = new_message;
+        break;
+    }
+
+    // parse vec<u8> -> JSON String
+    let mut parsed = String::new();
+    if let Some(r) = message.iter().next() {
+        parsed = String::from_utf8(r.message.clone()).unwrap(); 
+    }
+    let sp_response: crate::ResponseTypes = serde_json::from_str(&parsed).unwrap();
+    sp_response
+}
+
+// parse incoming request: parse incoming message to struct + get sender_tag for SURB reply  
+// we know we are expecting JSON here but an irl helper would parse conditionally on bytes / string incoming
+pub async fn listen_and_parse_request(client: &mut MixnetClient) -> (RequestTypes, AnonymousSenderTag) {
+    let mut message: Vec<ReconstructedMessage> = Vec::new();
+
+    // get the actual message - discard the empty vec sent along with the SURB topup request
+    while let Some(new_message) = client.wait_for_messages().await {
+        if new_message.is_empty() {
+            continue;
+        }
+        message = new_message;
+        break;
+    }
+
+    // parse vec<u8> -> JSON String
+    let mut parsed = String::new();
+    if let Some(r) = message.iter().next() {
+        parsed = String::from_utf8(r.message.clone()).unwrap(); 
+    }
+    let client_request: crate::RequestTypes = serde_json::from_str(&parsed).unwrap();
+
+    // get the sender_tag for anon reply 
+    let return_recipient = message[0].sender_tag.unwrap(); 
+
+    (client_request, return_recipient) 
 }

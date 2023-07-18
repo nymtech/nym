@@ -54,7 +54,7 @@ macro_rules! define_simple_version {
         }
 
         impl $name {
-            pub fn new(use_legacy: bool) -> Self {
+            pub const fn new(use_legacy: bool) -> Self {
                 if use_legacy {
                     Self::new_legacy()
                 } else {
@@ -62,23 +62,23 @@ macro_rules! define_simple_version {
                 }
             }
 
-            pub fn new_legacy() -> Self {
+            pub const fn new_legacy() -> Self {
                 $name::Legacy
             }
 
-            pub fn new_versioned(version: u8) -> Self {
+            pub const fn new_versioned(version: u8) -> Self {
                 $name::Versioned(version)
             }
 
-            pub fn new_current() -> Self {
+            pub const fn new_current() -> Self {
                 $name::new(false)
             }
 
-            pub fn is_legacy(&self) -> bool {
+            pub const fn is_legacy(&self) -> bool {
                 matches!(self, $name::Legacy)
             }
 
-            pub fn as_u8(&self) -> Option<u8> {
+            pub const fn as_u8(&self) -> Option<u8> {
                 match self {
                     $name::Legacy => None,
                     $name::Versioned(version) => Some(*version),

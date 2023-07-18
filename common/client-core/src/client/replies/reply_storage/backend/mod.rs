@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use std::error::Error;
 use thiserror::Error;
 
-#[cfg(target_arch = "wasm32")]
+// TODO: this should now live inside our wasm/client-core
 pub mod browser_backend;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]

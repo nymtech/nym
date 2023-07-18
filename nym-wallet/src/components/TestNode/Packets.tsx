@@ -1,6 +1,6 @@
 import React from 'react';
-import { TestStatus } from '@nymproject/sdk';
 import { Divider, Typography } from '@mui/material';
+import { TestStatus } from './types';
 import { ResultsCard, ResultsCardDetail } from './ResultsCard';
 
 export const Packets = ({

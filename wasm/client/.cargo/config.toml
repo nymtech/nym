@@ -1,0 +1,6 @@
+[build]
+target = "wasm32-unknown-unknown"
+target_arch = "wasm32"
+
+[target.wasm32-unknown-unknown]
+runner = 'wasm-bindgen-test-runner'

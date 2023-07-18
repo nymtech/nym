@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nym WebAssembly Demo</title>
+    <script src="bootstrap.js"></script>
+</head>
+
+<body>
+<p>
+    <label>Sender: </label><input disabled="true" size="85" type="text" id="sender" value="">
+</p>
+
+<p>
+    <label>Recipient: </label><input size="85" type="text" id="recipient" value="">
+</p>
+<p>
+    <label>Message: </label><input type="text" id="message" value="Hello mixnet!">
+</p>
+<p>
+    <button id="send-button">Send</button>
+</p>
+
+<div>
+    <label>Magic Payload: </label>
+    <input type="text" size = "60" id="magic_payload" value="...">
+    <button id="magic-button">✨ Magic Test Button ✨</button>
+</div>
+
+
+<p>Send messages from your browser, through the mixnet, and to the recipient using the "send" button.</p>
+<p><span style='color: blue;'>Sent</span> messages show in blue, <span style='color: green;'>received</span>
+    messages show in green.</p>
+
+<hr>
+<p>
+    <span id="output"></span>
+</p>
+
+</body>
+
+</html>

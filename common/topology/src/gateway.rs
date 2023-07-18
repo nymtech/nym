@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{filter, NetworkAddress};
+use crate::{filter, NetworkAddress, NodeVersion};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_contract_common::GatewayBond;
 use nym_sphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
@@ -38,7 +38,7 @@ pub struct Node {
     pub clients_port: u16,
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
-    pub version: String,
+    pub version: NodeVersion,
 }
 
 impl Node {
@@ -83,7 +83,8 @@ impl fmt::Display for Node {
 
 impl filter::Versioned for Node {
     fn version(&self) -> String {
-        self.version.clone()
+        // TODO: return semver instead
+        self.version.to_string()
     }
 }
 
@@ -114,7 +115,7 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
             clients_port: bond.gateway.clients_port,
             identity_key: identity::PublicKey::from_base58_string(&bond.gateway.identity_key)?,
             sphinx_key: encryption::PublicKey::from_base58_string(&bond.gateway.sphinx_key)?,
-            version: bond.gateway.version.clone(),
+            version: bond.gateway.version.as_str().into(),
         })
     }
 }

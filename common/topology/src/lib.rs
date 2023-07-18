@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::filter::VersionFilterable;
+pub use error::NymTopologyError;
 use log::warn;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
@@ -25,7 +26,38 @@ pub mod random_route_provider;
 #[cfg(feature = "provider-trait")]
 pub mod provider_trait;
 
-pub use error::NymTopologyError;
+#[cfg(feature = "provider-trait")]
+pub use provider_trait::{HardcodedTopologyProvider, TopologyProvider};
+
+#[derive(Debug, Default, Clone)]
+pub enum NodeVersion {
+    Explicit(semver::Version),
+
+    #[default]
+    Unknown,
+}
+
+// this is only implemented for backwards compatibility so we wouldn't need to change everything at once
+// (also I intentionally implemented `ToString` as opposed to `Display`)
+impl ToString for NodeVersion {
+    fn to_string(&self) -> String {
+        match self {
+            NodeVersion::Explicit(semver) => semver.to_string(),
+            NodeVersion::Unknown => String::new(),
+        }
+    }
+}
+
+// this is also for backwards compat.
+impl<'a> From<&'a str> for NodeVersion {
+    fn from(value: &'a str) -> Self {
+        if let Ok(semver) = value.parse() {
+            NodeVersion::Explicit(semver)
+        } else {
+            NodeVersion::Unknown
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum NetworkAddress {
@@ -390,7 +422,7 @@ mod converting_mixes_to_vec {
                 )
                 .unwrap(),
                 layer: Layer::One,
-                version: "0.x.0".to_string(),
+                version: "0.2.0".into(),
             };
 
             let node2 = mix::Node {

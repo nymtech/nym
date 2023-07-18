@@ -1,4 +1,6 @@
+use crate::PledgeCap;
 use contracts_common::signing::MessageSignature;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Timestamp};
 use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{
@@ -6,23 +8,18 @@ use mixnet_contract_common::{
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
     Gateway, IdentityKey, MixId, MixNode,
 };
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-use crate::PledgeCap;
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct InitMsg {
     pub mixnet_contract_address: String,
     pub mix_denom: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct MigrateMsg {}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, Default)]
+#[cw_serde]
+#[derive(Default)]
 pub struct VestingSpecification {
     start_time: Option<u64>,
     period_seconds: Option<u64>,
@@ -55,8 +52,7 @@ impl VestingSpecification {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     // Families
     /// Only owner of the node can crate the family with node as head
@@ -197,8 +193,7 @@ impl ExecuteMsg {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum QueryMsg {
     GetContractVersion {},
     #[serde(rename = "get_cw2_contract_version")]

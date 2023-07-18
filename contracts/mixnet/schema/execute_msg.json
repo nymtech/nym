@@ -23,7 +23,8 @@
               "format": "uint32",
               "minimum": 0.0
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -38,17 +39,14 @@
         "create_family": {
           "type": "object",
           "required": [
-            "label",
-            "owner_signature"
+            "label"
           ],
           "properties": {
             "label": {
               "type": "string"
-            },
-            "owner_signature": {
-              "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -64,16 +62,17 @@
           "type": "object",
           "required": [
             "family_head",
-            "signature"
+            "join_permit"
           ],
           "properties": {
             "family_head": {
-              "type": "string"
+              "$ref": "#/definitions/FamilyHead"
             },
-            "signature": {
-              "type": "string"
+            "join_permit": {
+              "$ref": "#/definitions/MessageSignature"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -87,17 +86,14 @@
         "leave_family": {
           "type": "object",
           "required": [
-            "family_head",
-            "signature"
+            "family_head"
           ],
           "properties": {
             "family_head": {
-              "type": "string"
-            },
-            "signature": {
-              "type": "string"
+              "$ref": "#/definitions/FamilyHead"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -111,17 +107,14 @@
         "kick_family_member": {
           "type": "object",
           "required": [
-            "member",
-            "signature"
+            "member"
           ],
           "properties": {
             "member": {
               "type": "string"
-            },
-            "signature": {
-              "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -136,8 +129,7 @@
           "type": "object",
           "required": [
             "label",
-            "owner_address",
-            "owner_signature"
+            "owner_address"
           ],
           "properties": {
             "label": {
@@ -145,17 +137,15 @@
             },
             "owner_address": {
               "type": "string"
-            },
-            "owner_signature": {
-              "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
     },
     {
-      "description": "Family head needs to sign the joining node IdentityKey",
+      "description": "Family head needs to sign the joining node IdentityKey, MixNode needs to provide its signature proving that it wants to join the family",
       "type": "object",
       "required": [
         "join_family_on_behalf"
@@ -165,20 +155,21 @@
           "type": "object",
           "required": [
             "family_head",
-            "member_address",
-            "signature"
+            "join_permit",
+            "member_address"
           ],
           "properties": {
             "family_head": {
-              "type": "string"
+              "$ref": "#/definitions/FamilyHead"
+            },
+            "join_permit": {
+              "$ref": "#/definitions/MessageSignature"
             },
             "member_address": {
               "type": "string"
-            },
-            "signature": {
-              "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -193,20 +184,17 @@
           "type": "object",
           "required": [
             "family_head",
-            "member_address",
-            "signature"
+            "member_address"
           ],
           "properties": {
             "family_head": {
-              "type": "string"
+              "$ref": "#/definitions/FamilyHead"
             },
             "member_address": {
               "type": "string"
-            },
-            "signature": {
-              "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -221,8 +209,7 @@
           "type": "object",
           "required": [
             "head_address",
-            "member",
-            "signature"
+            "member"
           ],
           "properties": {
             "head_address": {
@@ -230,11 +217,9 @@
             },
             "member": {
               "type": "string"
-            },
-            "signature": {
-              "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -254,7 +239,8 @@
             "address": {
               "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -274,7 +260,8 @@
             "updated_parameters": {
               "$ref": "#/definitions/ContractStateParams"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -300,7 +287,8 @@
             "force_immediately": {
               "type": "boolean"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -324,7 +312,8 @@
             "updated_params": {
               "$ref": "#/definitions/IntervalRewardingParamsUpdate"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -356,7 +345,21 @@
             "force_immediately": {
               "type": "boolean"
             }
-          }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "begin_epoch_transition"
+      ],
+      "properties": {
+        "begin_epoch_transition": {
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -385,7 +388,8 @@
                 "$ref": "#/definitions/LayerAssignment"
               }
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -407,7 +411,8 @@
               "format": "uint32",
               "minimum": 0.0
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -433,9 +438,10 @@
               "$ref": "#/definitions/MixNode"
             },
             "owner_signature": {
-              "type": "string"
+              "$ref": "#/definitions/MessageSignature"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -465,9 +471,10 @@
               "type": "string"
             },
             "owner_signature": {
-              "type": "string"
+              "$ref": "#/definitions/MessageSignature"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -479,7 +486,8 @@
       ],
       "properties": {
         "pledge_more": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -499,7 +507,54 @@
             "owner": {
               "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "decrease_pledge"
+      ],
+      "properties": {
+        "decrease_pledge": {
+          "type": "object",
+          "required": [
+            "decrease_by"
+          ],
+          "properties": {
+            "decrease_by": {
+              "$ref": "#/definitions/Coin"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "decrease_pledge_on_behalf"
+      ],
+      "properties": {
+        "decrease_pledge_on_behalf": {
+          "type": "object",
+          "required": [
+            "decrease_by",
+            "owner"
+          ],
+          "properties": {
+            "decrease_by": {
+              "$ref": "#/definitions/Coin"
+            },
+            "owner": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -511,7 +566,8 @@
       ],
       "properties": {
         "unbond_mixnode": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -531,7 +587,8 @@
             "owner": {
               "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -551,7 +608,8 @@
             "new_costs": {
               "$ref": "#/definitions/MixNodeCostParams"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -575,7 +633,8 @@
             "owner": {
               "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -595,7 +654,8 @@
             "new_config": {
               "$ref": "#/definitions/MixNodeConfigUpdate"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -619,7 +679,8 @@
             "owner": {
               "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -641,9 +702,10 @@
               "$ref": "#/definitions/Gateway"
             },
             "owner_signature": {
-              "type": "string"
+              "$ref": "#/definitions/MessageSignature"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -669,9 +731,10 @@
               "type": "string"
             },
             "owner_signature": {
-              "type": "string"
+              "$ref": "#/definitions/MessageSignature"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -683,7 +746,8 @@
       ],
       "properties": {
         "unbond_gateway": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -703,7 +767,54 @@
             "owner": {
               "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "update_gateway_config"
+      ],
+      "properties": {
+        "update_gateway_config": {
+          "type": "object",
+          "required": [
+            "new_config"
+          ],
+          "properties": {
+            "new_config": {
+              "$ref": "#/definitions/GatewayConfigUpdate"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "update_gateway_config_on_behalf"
+      ],
+      "properties": {
+        "update_gateway_config_on_behalf": {
+          "type": "object",
+          "required": [
+            "new_config",
+            "owner"
+          ],
+          "properties": {
+            "new_config": {
+              "$ref": "#/definitions/GatewayConfigUpdate"
+            },
+            "owner": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -725,7 +836,8 @@
               "format": "uint32",
               "minimum": 0.0
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -751,7 +863,8 @@
               "format": "uint32",
               "minimum": 0.0
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -773,7 +886,8 @@
               "format": "uint32",
               "minimum": 0.0
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -799,7 +913,8 @@
               "format": "uint32",
               "minimum": 0.0
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -825,7 +940,8 @@
             "performance": {
               "$ref": "#/definitions/Percent"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -837,7 +953,8 @@
       ],
       "properties": {
         "withdraw_operator_reward": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -857,7 +974,8 @@
             "owner": {
               "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -879,7 +997,8 @@
               "format": "uint32",
               "minimum": 0.0
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -905,7 +1024,8 @@
             "owner": {
               "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -961,10 +1081,14 @@
             }
           ]
         }
-      }
+      },
+      "additionalProperties": false
     },
     "Decimal": {
       "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    },
+    "FamilyHead": {
       "type": "string"
     },
     "Gateway": {
@@ -1005,7 +1129,40 @@
         "version": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
+    },
+    "GatewayConfigUpdate": {
+      "type": "object",
+      "required": [
+        "clients_port",
+        "host",
+        "location",
+        "mix_port",
+        "version"
+      ],
+      "properties": {
+        "clients_port": {
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0.0
+        },
+        "host": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "mix_port": {
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0.0
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     },
     "IntervalRewardingParamsUpdate": {
       "type": "object",
@@ -1078,7 +1235,8 @@
             }
           ]
         }
-      }
+      },
+      "additionalProperties": false
     },
     "Layer": {
       "type": "string",
@@ -1103,6 +1261,15 @@
           "format": "uint32",
           "minimum": 0.0
         }
+      },
+      "additionalProperties": false
+    },
+    "MessageSignature": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "format": "uint8",
+        "minimum": 0.0
       }
     },
     "MixNode": {
@@ -1147,7 +1314,8 @@
         "version": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "MixNodeConfigUpdate": {
       "type": "object",
@@ -1180,7 +1348,8 @@
         "version": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "MixNodeCostParams": {
       "type": "object",
@@ -1200,7 +1369,8 @@
         "profit_margin_percent": {
           "$ref": "#/definitions/Percent"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "Percent": {
       "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",

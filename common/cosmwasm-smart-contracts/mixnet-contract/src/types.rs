@@ -5,9 +5,9 @@ use crate::error::MixnetContractError;
 use crate::families::{Family, FamilyHead};
 use crate::{Layer, RewardedSetNodeStatus};
 use contracts_common::IdentityKey;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Coin;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::Index;
 
@@ -21,8 +21,7 @@ pub type BlockHeight = u64;
 pub type EpochEventId = u32;
 pub type IntervalEventId = u32;
 
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Eq)]
+#[cw_serde]
 pub struct LayerAssignment {
     mix_id: MixId,
     layer: Layer,
@@ -118,7 +117,7 @@ impl Index<Layer> for LayerDistribution {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct ContractState {
     pub owner: Addr, // only the owner account can update state
     pub rewarding_validator_address: Addr,
@@ -130,7 +129,7 @@ pub struct ContractState {
     pub params: ContractStateParams,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct ContractStateParams {
     /// Minimum amount a delegator must stake in orders for his delegation to get accepted.
     pub minimum_mixnode_delegation: Option<Coin>,
@@ -140,22 +139,4 @@ pub struct ContractStateParams {
 
     /// Minimum amount a gateway must pledge to get into the system.
     pub minimum_gateway_pledge: Coin,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
-pub struct PagedRewardedSetResponse {
-    pub nodes: Vec<(MixId, RewardedSetNodeStatus)>,
-    pub start_next_after: Option<MixId>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
-pub struct PagedFamiliesResponse {
-    pub families: Vec<Family>,
-    pub start_next_after: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
-pub struct PagedMembersResponse {
-    pub members: Vec<(IdentityKey, FamilyHead)>,
-    pub start_next_after: Option<String>,
 }

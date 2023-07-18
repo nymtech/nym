@@ -5,10 +5,9 @@
 #![warn(clippy::unwrap_used)]
 
 use contracts_common::Percent;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
 use mixnet_contract_common::MixId;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
@@ -21,14 +20,14 @@ pub mod messages;
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/Period.ts")
 )]
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
+#[cw_serde]
 pub enum Period {
     Before,
     In(usize),
     After,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct PledgeData {
     pub amount: Coin,
     pub block_time: Timestamp,
@@ -48,8 +47,7 @@ impl PledgeData {
     }
 }
 
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub enum PledgeCap {
     Percent(Percent),
     Absolute(Uint128), // This has to be in unym
@@ -77,7 +75,7 @@ impl Default for PledgeCap {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct OriginalVestingResponse {
     pub amount: Coin,
     pub number_of_periods: usize,
@@ -106,7 +104,7 @@ impl OriginalVestingResponse {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
+#[cw_serde]
 pub struct VestingDelegation {
     pub account_id: u32,
     pub mix_id: MixId,
@@ -120,7 +118,7 @@ impl VestingDelegation {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
+#[cw_serde]
 pub struct DelegationTimesResponse {
     pub owner: Addr,
     pub account_id: u32,
@@ -128,33 +126,33 @@ pub struct DelegationTimesResponse {
     pub delegation_timestamps: Vec<u64>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
+#[cw_serde]
 pub struct AllDelegationsResponse {
     pub delegations: Vec<VestingDelegation>,
     pub start_next_after: Option<(u32, MixId, u64)>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[cw_serde]
 pub struct AccountVestingCoins {
     pub account_id: u32,
     pub owner: Addr,
     pub still_vesting: Coin,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[cw_serde]
 pub struct VestingCoinsResponse {
     pub accounts: Vec<AccountVestingCoins>,
     pub start_next_after: Option<Addr>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[cw_serde]
 pub struct BaseVestingAccountInfo {
     pub account_id: u32,
     pub owner: Addr,
     // TODO: should this particular query/response expose anything else?
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[cw_serde]
 pub struct AccountsResponse {
     pub accounts: Vec<BaseVestingAccountInfo>,
     pub start_next_after: Option<Addr>,

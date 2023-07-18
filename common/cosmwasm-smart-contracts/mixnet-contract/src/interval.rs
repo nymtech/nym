@@ -7,10 +7,11 @@ use crate::{
     EpochEventId, EpochId, IntervalEventId, IntervalId, MixId, PendingEpochEventData,
     PendingIntervalEventData,
 };
+use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::schemars::gen::SchemaGenerator;
+use cosmwasm_schema::schemars::schema::{InstanceType, Schema, SchemaObject};
+use cosmwasm_schema::schemars::JsonSchema;
 use cosmwasm_std::{Addr, Env};
-use schemars::gen::SchemaGenerator;
-use schemars::schema::{InstanceType, Schema, SchemaObject};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
@@ -455,7 +456,7 @@ impl Display for Interval {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[cw_serde]
 pub struct CurrentIntervalResponse {
     pub interval: Interval,
     pub current_blocktime: u64,
@@ -489,7 +490,7 @@ impl CurrentIntervalResponse {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[cw_serde]
 pub struct PendingEpochEventsResponse {
     pub seconds_until_executable: i64,
     pub events: Vec<PendingEpochEvent>,
@@ -510,7 +511,7 @@ impl PendingEpochEventsResponse {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[cw_serde]
 pub struct PendingIntervalEventsResponse {
     pub seconds_until_executable: i64,
     pub events: Vec<PendingIntervalEvent>,
@@ -531,7 +532,7 @@ impl PendingIntervalEventsResponse {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[cw_serde]
 pub struct PendingEpochEventResponse {
     pub event_id: EpochEventId,
     pub event: Option<PendingEpochEventData>,
@@ -543,7 +544,7 @@ impl PendingEpochEventResponse {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[cw_serde]
 pub struct PendingIntervalEventResponse {
     pub event_id: IntervalEventId,
     pub event: Option<PendingIntervalEventData>,
@@ -555,7 +556,7 @@ impl PendingIntervalEventResponse {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[cw_serde]
 pub struct NumberOfPendingEventsResponse {
     pub epoch_events: u32,
     pub interval_events: u32,

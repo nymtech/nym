@@ -1,9 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::{MixId, RewardedSetNodeStatus};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
 pub mod helpers;
 pub mod simulator;
@@ -13,7 +13,7 @@ pub mod simulator;
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/RewardEstimate.ts")
 )]
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[cw_serde]
 pub struct RewardEstimate {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub total_node_reward: Decimal,
@@ -29,13 +29,15 @@ pub struct RewardEstimate {
     pub operating_cost: Decimal,
 }
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[cw_serde]
+#[derive(Copy, Default)]
 pub struct RewardDistribution {
     pub operator: Decimal,
     pub delegates: Decimal,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[cw_serde]
+#[derive(Default)]
 pub struct PendingRewardResponse {
     pub amount_staked: Option<Coin>,
     pub amount_earned: Option<Coin>,
@@ -46,7 +48,7 @@ pub struct PendingRewardResponse {
     pub mixnode_still_fully_bonded: bool,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[cw_serde]
 pub struct EstimatedCurrentEpochRewardResponse {
     pub original_stake: Option<Coin>,
 
@@ -67,4 +69,10 @@ impl EstimatedCurrentEpochRewardResponse {
             detailed_estimation_amount: None,
         }
     }
+}
+
+#[cw_serde]
+pub struct PagedRewardedSetResponse {
+    pub nodes: Vec<(MixId, RewardedSetNodeStatus)>,
+    pub start_next_after: Option<MixId>,
 }

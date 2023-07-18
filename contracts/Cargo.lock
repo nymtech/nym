@@ -1431,7 +1431,6 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-vesting-contract-common",
  "rand_chacha 0.2.2",
- "schemars",
  "semver",
  "serde",
  "thiserror",
@@ -1444,6 +1443,7 @@ name = "nym-mixnet-contract-common"
 version = "0.6.0"
 dependencies = [
  "bs58",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "humantime-serde",
  "log",
@@ -1604,10 +1604,10 @@ dependencies = [
 name = "nym-vesting-contract-common"
 version = "0.7.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
- "schemars",
  "serde",
 ]
 

@@ -3,7 +3,7 @@
 
 use crate::delegation::OwnerProxySubKey;
 use crate::error::MixnetContractError;
-use crate::families::FamilyHead;
+use crate::families::{FamilyHead, PagedFamiliesResponse, PagedMembersResponse};
 use crate::gateway::GatewayConfigUpdate;
 use crate::helpers::IntoBaseDecimal;
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
@@ -16,13 +16,11 @@ use crate::{
 };
 use crate::{Gateway, IdentityKey, MixNode};
 use contracts_common::signing::MessageSignature;
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Coin, Decimal};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
     pub vesting_contract_address: String,
@@ -33,8 +31,7 @@ pub struct InstantiateMsg {
     pub initial_rewarding_params: InitialRewardingParams,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct InitialRewardingParams {
     pub initial_reward_pool: Decimal,
     pub initial_staking_supply: Decimal,
@@ -76,8 +73,7 @@ impl InitialRewardingParams {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     AssignNodeLayer {
         mix_id: MixId,
@@ -365,177 +361,178 @@ impl ExecuteMsg {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[derive(QueryResponses)]
 pub enum QueryMsg {
     // families
+    #[returns(PagedFamiliesResponse)]
     GetAllFamiliesPaged {
         limit: Option<u32>,
         start_after: Option<String>,
     },
+    #[returns(PagedMembersResponse)]
     GetAllMembersPaged {
         limit: Option<u32>,
         start_after: Option<String>,
     },
-    GetFamilyByHead {
-        head: String,
-    },
-    GetFamilyByLabel {
-        label: String,
-    },
-    GetFamilyMembersByHead {
-        head: String,
-    },
-    GetFamilyMembersByLabel {
-        label: String,
-    },
-    // state/sys-params-related
-    GetContractVersion {},
-    #[serde(rename = "get_cw2_contract_version")]
-    GetCW2ContractVersion {},
-    GetRewardingValidatorAddress {},
-    GetStateParams {},
-    GetState {},
-    GetRewardingParams {},
-    GetEpochStatus {},
-    GetCurrentIntervalDetails {},
-    GetRewardedSet {
-        limit: Option<u32>,
-        start_after: Option<MixId>,
-    },
-
-    // mixnode-related:
-    GetMixNodeBonds {
-        limit: Option<u32>,
-        start_after: Option<MixId>,
-    },
-    GetMixNodesDetailed {
-        limit: Option<u32>,
-        start_after: Option<MixId>,
-    },
-    GetUnbondedMixNodes {
-        limit: Option<u32>,
-        start_after: Option<MixId>,
-    },
-    GetUnbondedMixNodesByOwner {
-        owner: String,
-        limit: Option<u32>,
-        start_after: Option<MixId>,
-    },
-    GetUnbondedMixNodesByIdentityKey {
-        identity_key: String,
-        limit: Option<u32>,
-        start_after: Option<MixId>,
-    },
-    GetOwnedMixnode {
-        address: String,
-    },
-    GetMixnodeDetails {
-        mix_id: MixId,
-    },
-    GetMixnodeRewardingDetails {
-        mix_id: MixId,
-    },
-    GetStakeSaturation {
-        mix_id: MixId,
-    },
-    GetUnbondedMixNodeInformation {
-        mix_id: MixId,
-    },
-    GetBondedMixnodeDetailsByIdentity {
-        mix_identity: IdentityKey,
-    },
-    GetLayerDistribution {},
-    // gateway-related:
-    GetGateways {
-        start_after: Option<IdentityKey>,
-        limit: Option<u32>,
-    },
-    GetGatewayBond {
-        identity: IdentityKey,
-    },
-    GetOwnedGateway {
-        address: String,
-    },
-
-    // delegation-related:
-    // gets all [paged] delegations associated with particular mixnode
-    GetMixnodeDelegations {
-        mix_id: MixId,
-        // since `start_after` is user-provided input, we can't use `Addr` as we
-        // can't guarantee it's validated.
-        start_after: Option<String>,
-        limit: Option<u32>,
-    },
-    // gets all [paged] delegations associated with particular delegator
-    GetDelegatorDelegations {
-        // since `delegator` is user-provided input, we can't use `Addr` as we
-        // can't guarantee it's validated.
-        delegator: String,
-        start_after: Option<(MixId, OwnerProxySubKey)>,
-        limit: Option<u32>,
-    },
-    // gets delegation associated with particular mixnode, delegator pair
-    GetDelegationDetails {
-        mix_id: MixId,
-        delegator: String,
-        proxy: Option<String>,
-    },
-    // gets all delegations in the system
-    GetAllDelegations {
-        start_after: Option<delegation::StorageKey>,
-        limit: Option<u32>,
-    },
-
-    // rewards related
-    GetPendingOperatorReward {
-        address: String,
-    },
-    GetPendingMixNodeOperatorReward {
-        mix_id: MixId,
-    },
-    GetPendingDelegatorReward {
-        address: String,
-        mix_id: MixId,
-        proxy: Option<String>,
-    },
-    // given the provided performance, estimate the reward at the end of the current epoch
-    GetEstimatedCurrentEpochOperatorReward {
-        mix_id: MixId,
-        estimated_performance: Performance,
-    },
-    GetEstimatedCurrentEpochDelegatorReward {
-        address: String,
-        mix_id: MixId,
-        proxy: Option<String>,
-        estimated_performance: Performance,
-    },
-
-    // interval-related
-    GetPendingEpochEvents {
-        limit: Option<u32>,
-        start_after: Option<u32>,
-    },
-    GetPendingIntervalEvents {
-        limit: Option<u32>,
-        start_after: Option<u32>,
-    },
-    GetPendingEpochEvent {
-        event_id: EpochEventId,
-    },
-    GetPendingIntervalEvent {
-        event_id: IntervalEventId,
-    },
-    GetNumberOfPendingEvents {},
-
-    // signing-related
-    GetSigningNonce {
-        address: String,
-    },
+    // GetFamilyByHead {
+    //     head: String,
+    // },
+    // GetFamilyByLabel {
+    //     label: String,
+    // },
+    // GetFamilyMembersByHead {
+    //     head: String,
+    // },
+    // GetFamilyMembersByLabel {
+    //     label: String,
+    // },
+    // // state/sys-params-related
+    // GetContractVersion {},
+    // #[serde(rename = "get_cw2_contract_version")]
+    // GetCW2ContractVersion {},
+    // GetRewardingValidatorAddress {},
+    // GetStateParams {},
+    // GetState {},
+    // GetRewardingParams {},
+    // GetEpochStatus {},
+    // GetCurrentIntervalDetails {},
+    // GetRewardedSet {
+    //     limit: Option<u32>,
+    //     start_after: Option<MixId>,
+    // },
+    //
+    // // mixnode-related:
+    // GetMixNodeBonds {
+    //     limit: Option<u32>,
+    //     start_after: Option<MixId>,
+    // },
+    // GetMixNodesDetailed {
+    //     limit: Option<u32>,
+    //     start_after: Option<MixId>,
+    // },
+    // GetUnbondedMixNodes {
+    //     limit: Option<u32>,
+    //     start_after: Option<MixId>,
+    // },
+    // GetUnbondedMixNodesByOwner {
+    //     owner: String,
+    //     limit: Option<u32>,
+    //     start_after: Option<MixId>,
+    // },
+    // GetUnbondedMixNodesByIdentityKey {
+    //     identity_key: String,
+    //     limit: Option<u32>,
+    //     start_after: Option<MixId>,
+    // },
+    // GetOwnedMixnode {
+    //     address: String,
+    // },
+    // GetMixnodeDetails {
+    //     mix_id: MixId,
+    // },
+    // GetMixnodeRewardingDetails {
+    //     mix_id: MixId,
+    // },
+    // GetStakeSaturation {
+    //     mix_id: MixId,
+    // },
+    // GetUnbondedMixNodeInformation {
+    //     mix_id: MixId,
+    // },
+    // GetBondedMixnodeDetailsByIdentity {
+    //     mix_identity: IdentityKey,
+    // },
+    // GetLayerDistribution {},
+    // // gateway-related:
+    // GetGateways {
+    //     start_after: Option<IdentityKey>,
+    //     limit: Option<u32>,
+    // },
+    // GetGatewayBond {
+    //     identity: IdentityKey,
+    // },
+    // GetOwnedGateway {
+    //     address: String,
+    // },
+    //
+    // // delegation-related:
+    // // gets all [paged] delegations associated with particular mixnode
+    // GetMixnodeDelegations {
+    //     mix_id: MixId,
+    //     // since `start_after` is user-provided input, we can't use `Addr` as we
+    //     // can't guarantee it's validated.
+    //     start_after: Option<String>,
+    //     limit: Option<u32>,
+    // },
+    // // gets all [paged] delegations associated with particular delegator
+    // GetDelegatorDelegations {
+    //     // since `delegator` is user-provided input, we can't use `Addr` as we
+    //     // can't guarantee it's validated.
+    //     delegator: String,
+    //     start_after: Option<(MixId, OwnerProxySubKey)>,
+    //     limit: Option<u32>,
+    // },
+    // // gets delegation associated with particular mixnode, delegator pair
+    // GetDelegationDetails {
+    //     mix_id: MixId,
+    //     delegator: String,
+    //     proxy: Option<String>,
+    // },
+    // // gets all delegations in the system
+    // GetAllDelegations {
+    //     start_after: Option<delegation::StorageKey>,
+    //     limit: Option<u32>,
+    // },
+    //
+    // // rewards related
+    // GetPendingOperatorReward {
+    //     address: String,
+    // },
+    // GetPendingMixNodeOperatorReward {
+    //     mix_id: MixId,
+    // },
+    // GetPendingDelegatorReward {
+    //     address: String,
+    //     mix_id: MixId,
+    //     proxy: Option<String>,
+    // },
+    // // given the provided performance, estimate the reward at the end of the current epoch
+    // GetEstimatedCurrentEpochOperatorReward {
+    //     mix_id: MixId,
+    //     estimated_performance: Performance,
+    // },
+    // GetEstimatedCurrentEpochDelegatorReward {
+    //     address: String,
+    //     mix_id: MixId,
+    //     proxy: Option<String>,
+    //     estimated_performance: Performance,
+    // },
+    //
+    // // interval-related
+    // GetPendingEpochEvents {
+    //     limit: Option<u32>,
+    //     start_after: Option<u32>,
+    // },
+    // GetPendingIntervalEvents {
+    //     limit: Option<u32>,
+    //     start_after: Option<u32>,
+    // },
+    // GetPendingEpochEvent {
+    //     event_id: EpochEventId,
+    // },
+    // GetPendingIntervalEvent {
+    //     event_id: IntervalEventId,
+    // },
+    // GetNumberOfPendingEvents {},
+    //
+    // // signing-related
+    // GetSigningNonce {
+    //     address: String,
+    // },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct MigrateMsg {
     pub vesting_contract_address: Option<String>,
 }

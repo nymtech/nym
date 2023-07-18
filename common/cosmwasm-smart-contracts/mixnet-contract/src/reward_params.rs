@@ -3,9 +3,8 @@
 
 use crate::helpers::IntoBaseDecimal;
 use crate::{error::MixnetContractError, Percent};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Decimal;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
 pub type Performance = Percent;
 
@@ -15,7 +14,8 @@ pub type Performance = Percent;
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardParams.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
+#[cw_serde]
+#[derive(Copy)]
 pub struct IntervalRewardParams {
     /// Current value of the rewarding pool.
     /// It is expected to be constant throughout the interval.
@@ -79,7 +79,7 @@ impl IntervalRewardParams {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/RewardingParams.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct RewardingParams {
     /// Parameters that should remain unchanged throughout an interval.
     pub interval: IntervalRewardParams,
@@ -224,7 +224,8 @@ impl RewardingParams {
 }
 
 // TODO: possibly refactor this
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
+#[cw_serde]
+#[derive(Copy)]
 pub struct NodeRewardParams {
     pub performance: Percent,
     pub in_active_set: bool,
@@ -244,9 +245,8 @@ impl NodeRewardParams {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardingParamsUpdate.ts")
 )]
-#[derive(
-    Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema,
-)]
+#[cw_serde]
+#[derive(Copy)]
 pub struct IntervalRewardingParamsUpdate {
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub reward_pool: Option<Decimal>,

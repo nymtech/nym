@@ -1,4 +1,8 @@
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::{IdentityKey, IdentityKeyRef};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -10,7 +14,7 @@ use std::str::FromStr;
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/NodeFamily.ts")
 )]
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct Family {
     head: FamilyHead,
     proxy: Option<String>,
@@ -97,6 +101,18 @@ impl Family {
     pub fn label(&self) -> &str {
         &self.label
     }
+}
+
+#[cw_serde]
+pub struct PagedFamiliesResponse {
+    pub families: Vec<Family>,
+    pub start_next_after: Option<String>,
+}
+
+#[cw_serde]
+pub struct PagedMembersResponse {
+    pub members: Vec<(IdentityKey, FamilyHead)>,
+    pub start_next_after: Option<String>,
 }
 
 #[cfg(test)]

@@ -9,5 +9,6 @@
         "null"
       ]
     }
-  }
+  },
+  "additionalProperties": false
 }

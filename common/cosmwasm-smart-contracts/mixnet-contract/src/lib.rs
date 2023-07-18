@@ -26,6 +26,7 @@ pub use delegation::{
     Delegation, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedMixNodeDelegationsResponse,
 };
+pub use families::{Family, FamilyHead, PagedFamiliesResponse, PagedMembersResponse};
 pub use gateway::{
     Gateway, GatewayBond, GatewayBondResponse, GatewayConfigUpdate, GatewayOwnershipResponse,
     PagedGatewayResponse,
@@ -46,5 +47,8 @@ pub use pending_events::{
     PendingIntervalEventData, PendingIntervalEventKind,
 };
 pub use reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate, RewardingParams};
+pub use rewarding::{
+    EstimatedCurrentEpochRewardResponse, PagedRewardedSetResponse, PendingRewardResponse,
+};
 pub use signing_types::*;
 pub use types::*;

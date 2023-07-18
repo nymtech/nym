@@ -11,9 +11,9 @@ use crate::reward_params::{NodeRewardParams, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::RewardDistribution;
 use crate::{Delegation, EpochEventId, EpochId, IdentityKey, MixId, Percent, SphinxKey};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -21,7 +21,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/RewardedSetNodeStatus.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[cw_serde]
 pub enum RewardedSetNodeStatus {
     Active,
     Standby,
@@ -33,7 +33,7 @@ impl RewardedSetNodeStatus {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
     pub rewarding_details: MixNodeRewarding,
@@ -86,7 +86,7 @@ impl MixNodeDetails {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct MixNodeRewarding {
     /// Information provided by the operator that influence the cost function.
     pub cost_params: MixNodeCostParams,
@@ -465,7 +465,7 @@ impl MixNodeRewarding {
 }
 
 // operator information + data assigned by the contract(s)
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct MixNodeBond {
     /// Unique id assigned to the bonded mixnode.
     pub mix_id: MixId,
@@ -534,7 +534,7 @@ impl MixNodeBond {
 }
 
 // information provided by the operator
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -559,7 +559,7 @@ pub struct MixNode {
     pub version: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct MixNodeCostParams {
     pub profit_margin_percent: Percent,
 
@@ -633,7 +633,8 @@ impl From<Layer> for u8 {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/PendingMixnodeChanges.ts")
 )]
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
+#[derive(Default, Copy)]
 pub struct PendingMixNodeChanges {
     pub pledge_change: Option<EpochEventId>,
     // pub cost_params_change: Option<IntervalEventId>,
@@ -652,7 +653,7 @@ impl PendingMixNodeChanges {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/UnbondedMixnode.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct UnbondedMixnode {
     pub identity_key: IdentityKey,
 
@@ -671,7 +672,7 @@ pub struct UnbondedMixnode {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/MixNodeConfigUpdate.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct MixNodeConfigUpdate {
     pub host: String,
     pub mix_port: u16,
@@ -686,7 +687,7 @@ impl MixNodeConfigUpdate {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct PagedMixnodeBondsResponse {
     pub nodes: Vec<MixNodeBond>,
     pub per_page: usize,
@@ -703,7 +704,7 @@ impl PagedMixnodeBondsResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct PagedMixnodesDetailsResponse {
     pub nodes: Vec<MixNodeDetails>,
     pub per_page: usize,
@@ -724,7 +725,7 @@ impl PagedMixnodesDetailsResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct PagedUnbondedMixnodesResponse {
     pub nodes: Vec<(MixId, UnbondedMixnode)>,
     pub per_page: usize,
@@ -745,31 +746,31 @@ impl PagedUnbondedMixnodesResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct MixOwnershipResponse {
     pub address: Addr,
     pub mixnode_details: Option<MixNodeDetails>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct MixnodeDetailsResponse {
     pub mix_id: MixId,
     pub mixnode_details: Option<MixNodeDetails>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct MixnodeRewardingDetailsResponse {
     pub mix_id: MixId,
     pub rewarding_details: Option<MixNodeRewarding>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct UnbondedMixnodeResponse {
     pub mix_id: MixId,
     pub unbonded_info: Option<UnbondedMixnode>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct StakeSaturationResponse {
     pub mix_id: MixId,
     pub current_saturation: Option<Decimal>,

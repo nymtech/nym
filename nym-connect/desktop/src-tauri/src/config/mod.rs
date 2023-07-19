@@ -28,8 +28,8 @@ mod template;
 mod upgrade;
 mod user_data;
 
-pub use user_data::UserData;
 pub use user_data::PrivacyLevel;
+pub use user_data::UserData;
 
 static SOCKS5_CONFIG_ID: &str = "nym-connect";
 

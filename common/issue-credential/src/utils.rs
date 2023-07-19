@@ -20,31 +20,31 @@ const SAFETY_BUFFER_SECS: u64 = 60; // 1 minute
 pub async fn issue_credential(
     client: nym_validator_client::Client<DirectSigningNyxdClient>,
     amount: Coin,
-    client_home_directory: PathBuf,
+    persistent_storage: &PersistentStorage,
     recovery_storage_path: PathBuf,
 ) {
-    let persistent_storage = setup_persistent_storage(client_home_directory.clone()).await;
     let recovery_storage = setup_recovery_storage(recovery_storage_path).await;
 
     block_until_coconut_is_available(&client).await.expect("");
     info!("Starting to deposit funds, don't kill the process");
 
     if let Ok(recovered_amount) =
-        recover_credentials(&client, &recovery_storage, &persistent_storage).await
+        recover_credentials(&client, &recovery_storage, persistent_storage).await
     {
-        info!(
-            "Recovered credentials for {} in the amount of {}",
-            client_home_directory.to_str().unwrap(),
-            recovered_amount,
-        );
-        return;
-    }
+        if recovered_amount != 0 {
+            info!(
+                "Recovered credentials in the amount of {}",
+                recovered_amount
+            );
+            return;
+        }
+    };
 
     let state = nym_bandwidth_controller::acquire::deposit(&client.nyxd, amount.clone())
         .await
         .expect("");
 
-    if nym_bandwidth_controller::acquire::get_credential(&state, &client, &persistent_storage)
+    if nym_bandwidth_controller::acquire::get_credential(&state, &client, persistent_storage)
         .await
         .is_err()
     {
@@ -61,10 +61,8 @@ pub async fn issue_credential(
     }
 
     info!(
-        "Succeeded adding a credential for {} with amount {}{}",
-        client_home_directory.to_str().unwrap(),
-        &amount.amount,
-        &amount.denom,
+        "Succeeded adding a credential with amount {}{}",
+        &amount.amount, &amount.denom,
     );
 }
 
@@ -85,16 +83,10 @@ pub async fn block_until_coconut_is_available(
 ) -> Result<()> {
     loop {
         let epoch = client.nyxd.get_current_epoch().await?;
-        println!("{:?}", epoch);
         let current_timestamp_secs = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs();
         if epoch.state.is_final() {
-            println!(
-                "{}, {}",
-                current_timestamp_secs,
-                epoch.finish_timestamp.seconds()
-            );
             if current_timestamp_secs + SAFETY_BUFFER_SECS >= epoch.finish_timestamp.seconds() {
                 info!("In the next {} minute(s), a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
                 exit(0);

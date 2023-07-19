@@ -1,5 +1,4 @@
 use clap::{Args, Parser, Subcommand};
-
 use nym_sdk::mixnet::Recipient;
 use nym_validator_client::nyxd::AccountId;
 use rust_cosmos_broadcaster::{

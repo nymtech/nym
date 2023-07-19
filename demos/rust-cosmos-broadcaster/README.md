@@ -1,6 +1,3 @@
-TODO FOR DEMO
-- flags for cli 
-
 ### Nym mixnet cosmos tx broadcaster demo 
 A demo showing how to: 
 * sign a cosmos tx (simple token transfer) offline 

@@ -26,7 +26,7 @@ enum Commands {
 
 #[derive(Debug, Clone, Args)]
 struct OfflineSignTx {
-    /// mnemonic of signing + sending account (you!) - TODO this will be removed and replaced with file
+    /// mnemonic of signing + sending account (you!) 
     mnemonic: bip39::Mnemonic,
     /// recipient nyx chain address for token transfer
     nyx_token_receipient: AccountId,

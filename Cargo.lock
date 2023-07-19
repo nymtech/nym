@@ -5952,30 +5952,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-cosmos-broadcaster-client"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "bip39",
- "bs58 0.5.0",
- "clap 4.2.7",
- "cosmrs",
- "nym-bin-common",
- "nym-cli-commands",
- "nym-crypto",
- "nym-network-defaults",
- "nym-sdk",
- "nym-sphinx-addressing",
- "nym-validator-client",
- "serde",
- "serde_json",
- "tokio",
- "ts-rs",
-]
-
-[[package]]
-name = "rust-cosmos-broadcaster-server"
+name = "rust-cosmos-broadcaster"
 version = "0.1.0"
 dependencies = [
  "anyhow",

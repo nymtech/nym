@@ -317,6 +317,7 @@ mod test {
 
         let family = get_family_by_head(family_head.identity(), test.deps().storage)
             .unwrap()
+            .family
             .unwrap();
         assert_eq!(family.head_identity(), family_head.identity());
 

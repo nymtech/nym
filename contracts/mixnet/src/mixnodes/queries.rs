@@ -1114,7 +1114,9 @@ pub(crate) mod tests {
         let mut test = TestSetup::new();
 
         // no node under this identity
-        let res = query_mixnode_details_by_identity(test.deps(), "foomp".into()).unwrap();
+        let res = query_mixnode_details_by_identity(test.deps(), "foomp".into())
+            .unwrap()
+            .mixnode_details;
         assert!(res.is_none());
 
         // it exists
@@ -1126,7 +1128,9 @@ pub(crate) mod tests {
             .unwrap();
         let mix_identity = expected.bond_information.identity();
 
-        let res = query_mixnode_details_by_identity(test.deps(), mix_identity.into()).unwrap();
+        let res = query_mixnode_details_by_identity(test.deps(), mix_identity.into())
+            .unwrap()
+            .mixnode_details;
         assert_eq!(expected, res.unwrap());
     }
 

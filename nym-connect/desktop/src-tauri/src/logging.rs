@@ -71,7 +71,10 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
                 Level::Info => SentryLevel::Info,
                 _ => SentryLevel::Debug,
             };
-            sentry::capture_message(&record.args().to_string(), level);
+            // only send to sentry error and warn logs
+            if let Level::Error | Level::Warn = record.level() {
+                sentry::capture_message(&record.args().to_string(), level);
+            };
         }));
 
     base_config

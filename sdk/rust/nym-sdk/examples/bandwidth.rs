@@ -1,55 +1,28 @@
-use std::path::PathBuf;
-
-use nym_issue_credential::utils;
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_validator_client::nyxd::Coin;
-use nym_validator_client::{Client, Config};
 
 #[tokio::main]
 async fn main() {
-    let amount = 1000000;
-    let mnemonic = String::from("");
-    let client_home_directory =
-        PathBuf::from("");
-    let recovery_dir = PathBuf::from("");
-
     nym_bin_common::logging::setup_logging();
     // right now, only sandbox has coconut setup
     // this should be run from the `sdk/rust/nym-sdk` directory
     dotenvy::from_path("../../../envs/sandbox.env").unwrap();
 
     let sandbox_network = mixnet::NymNetworkDetails::new_from_env();
-    let config = Config::try_from_nym_network_details(&sandbox_network).unwrap();
 
-    let coin = Coin::new(
-        amount as u128,
-        &sandbox_network.chain_details.mix_denom.base,
-    );
-
-    let storage_paths =
-        mixnet::StoragePaths::new_from_dir(client_home_directory.as_path()).unwrap();
-    let storage = storage_paths
-        .initialise_default_persistent_storage()
-        .await
-        .unwrap();
-
-    let signing_client = Client::new_signing(config, mnemonic.parse().unwrap()).unwrap();
-    log::info!("Issuing credentials!");
-    utils::issue_credential(
-        signing_client,
-        coin,
-        &storage.credential_store,
-        recovery_dir,
-    )
-    .await;
-
-    let mixnet_client = mixnet::MixnetClientBuilder::new_with_storage(storage)
-        .network_details(sandbox_network.clone())
+    let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
+        .network_details(sandbox_network)
         .enable_credentials_mode()
         .build()
         .await
         .unwrap();
+
+    let bandwidth_client = mixnet_client
+        .create_bandwidth_client(String::from("very secret mnemonic"))
+        .unwrap();
+
+    // Get a bandwidth credential worth 1000000 unym for the mixnet_client
+    bandwidth_client.acquire(1000000).await.unwrap();
 
     // Connect using paid bandwidth credential
     let mut client = mixnet_client.connect_to_mixnet().await.unwrap();

@@ -6,7 +6,8 @@ use crate::constants::{FAMILIES_DEFAULT_RETRIEVAL_LIMIT, FAMILIES_MAX_RETRIEVAL_
 use cosmwasm_std::{Order, Storage};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::families::{
-    Family, FamilyByHeadResponse, FamilyHead, PagedFamiliesResponse, PagedMembersResponse,
+    Family, FamilyByHeadResponse, FamilyByLabelResponse, FamilyHead, PagedFamiliesResponse,
+    PagedMembersResponse,
 };
 use mixnet_contract_common::IdentityKey;
 use mixnet_contract_common::{error::MixnetContractError, IdentityKeyRef};
@@ -15,8 +16,13 @@ use std::collections::HashSet;
 pub fn get_family_by_label(
     label: String,
     storage: &dyn Storage,
-) -> Result<Option<Family>, MixnetContractError> {
-    Ok(families().idx.label.item(storage, label)?.map(|o| o.1))
+) -> Result<FamilyByLabelResponse, MixnetContractError> {
+    let family = families()
+        .idx
+        .label
+        .item(storage, label.clone())?
+        .map(|o| o.1);
+    Ok(FamilyByLabelResponse { label, family })
 }
 
 pub fn get_family_by_head(

@@ -121,6 +121,12 @@ pub struct FamilyByHeadResponse {
     pub family: Option<Family>,
 }
 
+#[cw_serde]
+pub struct FamilyByLabelResponse {
+    pub label: String,
+    pub family: Option<Family>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

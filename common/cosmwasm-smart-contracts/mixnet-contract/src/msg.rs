@@ -24,7 +24,9 @@ use crate::{
         MixNodeDelegationResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
         PagedMixNodeDelegationsResponse,
     },
-    families::{Family, FamilyByHeadResponse, PagedFamiliesResponse, PagedMembersResponse},
+    families::{
+        FamilyByHeadResponse, FamilyByLabelResponse, PagedFamiliesResponse, PagedMembersResponse,
+    },
     gateway::{GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse},
     interval::{CurrentIntervalResponse, EpochStatus},
     mixnode::{
@@ -408,7 +410,7 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(FamilyByHeadResponse))]
     GetFamilyByHead { head: String },
 
-    #[cfg_attr(feature = "schema", returns(Option<Family>))]
+    #[cfg_attr(feature = "schema", returns(FamilyByLabelResponse))]
     GetFamilyByLabel { label: String },
 
     #[cfg_attr(feature = "schema", returns(HashSet<String>))]

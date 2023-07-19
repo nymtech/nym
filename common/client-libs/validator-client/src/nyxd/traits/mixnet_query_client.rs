@@ -8,7 +8,6 @@ use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::Nonce;
 use nym_mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
-use nym_mixnet_contract_common::families::Family;
 use nym_mixnet_contract_common::mixnode::{
     MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse, PagedUnbondedMixnodesResponse,
     StakeSaturationResponse, UnbondedMixnodeResponse,
@@ -19,14 +18,15 @@ use nym_mixnet_contract_common::rewarding::{
 };
 use nym_mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
-    CurrentIntervalResponse, EpochEventId, EpochStatus, FamilyByHeadResponse, GatewayBondResponse,
-    GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution, MixId,
-    MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse,
-    NumberOfPendingEventsResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedFamiliesResponse, PagedGatewayResponse, PagedMembersResponse,
-    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse,
-    PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEventResponse,
-    PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
+    CurrentIntervalResponse, EpochEventId, EpochStatus, FamilyByHeadResponse,
+    FamilyByLabelResponse, GatewayBondResponse, GatewayOwnershipResponse, IdentityKey,
+    IntervalEventId, LayerDistribution, MixId, MixOwnershipResponse,
+    MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse, NumberOfPendingEventsResponse,
+    PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedFamiliesResponse,
+    PagedGatewayResponse, PagedMembersResponse, PagedMixNodeDelegationsResponse,
+    PagedMixnodeBondsResponse, PagedRewardedSetResponse, PendingEpochEventResponse,
+    PendingEpochEventsResponse, PendingIntervalEventResponse, PendingIntervalEventsResponse,
+    QueryMsg as MixnetQueryMsg,
 };
 use serde::Deserialize;
 
@@ -415,7 +415,10 @@ pub trait MixnetQueryClient {
         .await
     }
 
-    async fn get_node_family_by_label(&self, label: &str) -> Result<Option<Family>, NyxdError> {
+    async fn get_node_family_by_label(
+        &self,
+        label: &str,
+    ) -> Result<FamilyByLabelResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByLabel {
             label: label.to_string(),
         })

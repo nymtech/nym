@@ -53,7 +53,10 @@ fn _try_create_family(
     }
 
     // the label must be unique
-    if get_family_by_label(label.clone(), deps.storage)?.is_some() {
+    if get_family_by_label(label.clone(), deps.storage)?
+        .family
+        .is_some()
+    {
         return Err(MixnetContractError::FamilyWithLabelExists(label));
     }
 
@@ -306,7 +309,9 @@ mod test {
             },
         }
 
-        let family = get_family_by_label("test".to_string(), test.deps().storage).unwrap();
+        let family = get_family_by_label("test".to_string(), test.deps().storage)
+            .unwrap()
+            .family;
         assert!(family.is_some());
         assert_eq!(family.unwrap().head_identity(), family_head.identity());
 

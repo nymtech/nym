@@ -26,10 +26,6 @@ pub struct Args {
     /// Path to a directory used to store recovery files for unconsumed deposits
     #[clap(long)]
     pub(crate) recovery_dir: std::path::PathBuf,
-
-    /// Recovery mode, when enabled, tries to recover any deposit data dumped in recovery_dir
-    #[clap(long)]
-    pub(crate) recovery_mode: bool,
 }
 
 pub async fn execute(args: Args, client: SigningClientWithNyxd) {

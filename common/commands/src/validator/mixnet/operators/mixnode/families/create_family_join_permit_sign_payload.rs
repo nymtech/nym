@@ -50,6 +50,7 @@ pub async fn create_family_join_permit_sign_payload(args: Args, client: QueryCli
         .get_node_family_by_head(mixnode.bond_information.identity())
         .await
         .unwrap()
+        .family
         .is_none()
     {
         eprintln!("{} does not even seem to own a family!", args.address);

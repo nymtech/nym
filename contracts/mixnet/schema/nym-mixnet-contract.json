@@ -3784,15 +3784,27 @@
     },
     "get_family_by_head": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Nullable_Family",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/Family"
-        },
-        {
-          "type": "null"
-        }
+      "title": "FamilyByHeadResponse",
+      "type": "object",
+      "required": [
+        "head"
       ],
+      "properties": {
+        "family": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Family"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "head": {
+          "$ref": "#/definitions/FamilyHead"
+        }
+      },
+      "additionalProperties": false,
       "definitions": {
         "Family": {
           "type": "object",

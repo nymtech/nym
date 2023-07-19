@@ -9,8 +9,10 @@ use std::collections::HashSet;
 
 use crate::constants::{FAMILIES_INDEX_NAMESPACE, FAMILIES_MAP_NAMESPACE, MEMBERS_MAP_NAMESPACE};
 
+type FamilyHeadKey = IdentityKey;
+
 pub struct FamilyIndex<'a> {
-    pub label: UniqueIndex<'a, String, Family>,
+    pub label: UniqueIndex<'a, FamilyHeadKey, Family>,
 }
 
 impl<'a> IndexList<Family> for FamilyIndex<'a> {
@@ -21,7 +23,7 @@ impl<'a> IndexList<Family> for FamilyIndex<'a> {
 }
 
 // storage access function.
-pub fn families<'a>() -> IndexedMap<'a, String, Family, FamilyIndex<'a>> {
+pub fn families<'a>() -> IndexedMap<'a, FamilyHeadKey, Family, FamilyIndex<'a>> {
     let indexes = FamilyIndex {
         label: UniqueIndex::new(|d| d.label().to_string(), FAMILIES_INDEX_NAMESPACE),
     };

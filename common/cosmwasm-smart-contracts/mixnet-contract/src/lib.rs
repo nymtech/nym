@@ -26,7 +26,9 @@ pub use delegation::{
     Delegation, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedMixNodeDelegationsResponse,
 };
-pub use families::{Family, FamilyHead, PagedFamiliesResponse, PagedMembersResponse};
+pub use families::{
+    Family, FamilyByHeadResponse, FamilyHead, PagedFamiliesResponse, PagedMembersResponse,
+};
 pub use gateway::{
     Gateway, GatewayBond, GatewayBondResponse, GatewayConfigUpdate, GatewayOwnershipResponse,
     PagedGatewayResponse,

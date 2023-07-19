@@ -66,8 +66,8 @@ impl Display for FamilyHead {
 }
 
 impl FamilyHead {
-    pub fn new(identity: IdentityKeyRef<'_>) -> Self {
-        FamilyHead(identity.to_string())
+    pub fn new<S: Into<String>>(identity: S) -> Self {
+        FamilyHead(identity.into())
     }
 
     pub fn identity(&self) -> IdentityKeyRef<'_> {
@@ -113,6 +113,12 @@ pub struct PagedFamiliesResponse {
 pub struct PagedMembersResponse {
     pub members: Vec<(IdentityKey, FamilyHead)>,
     pub start_next_after: Option<String>,
+}
+
+#[cw_serde]
+pub struct FamilyByHeadResponse {
+    pub head: FamilyHead,
+    pub family: Option<Family>,
 }
 
 #[cfg(test)]

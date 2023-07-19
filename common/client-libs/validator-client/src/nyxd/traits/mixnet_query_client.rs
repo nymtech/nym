@@ -19,7 +19,7 @@ use nym_mixnet_contract_common::rewarding::{
 };
 use nym_mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
-    CurrentIntervalResponse, EpochEventId, EpochStatus, GatewayBondResponse,
+    CurrentIntervalResponse, EpochEventId, EpochStatus, FamilyByHeadResponse, GatewayBondResponse,
     GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution, MixId,
     MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse,
     NumberOfPendingEventsResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
@@ -422,7 +422,7 @@ pub trait MixnetQueryClient {
         .await
     }
 
-    async fn get_node_family_by_head(&self, head: &str) -> Result<Option<Family>, NyxdError> {
+    async fn get_node_family_by_head(&self, head: &str) -> Result<FamilyByHeadResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByHead {
             head: head.to_string(),
         })

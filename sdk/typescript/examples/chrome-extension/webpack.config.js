@@ -1,25 +1,42 @@
-// Webpack configuration for the Chrome extension example
-
 const path = require('path');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const { mergeWithRules } = require('webpack-merge');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const { webpackCommon } = require('../.webpack/webpack.base');
 
-module.exports = {
-  mode: 'production',
-  entry: {
-    main: './src/main.js',
+module.exports = mergeWithRules({
+  module: {
+    rules: {
+      test: 'match',
+      use: 'replace',
+    },
   },
-  output: {
-    path: path.resolve(__dirname, 'dist'),
+})(
+  webpackCommon(__dirname, [
+    {
+      inject: true,
+      filename: 'popup.html',
+      template: path.resolve(__dirname, 'popup.html'),
+      chunks: ['index'],
+    },
+  ]),
+  {
+    mode: 'production',
+    entry: {
+      index: path.resolve(__dirname, '../shared/index.ts'),
+    },
+    output: {
+      path: path.resolve(__dirname, 'dist'),
+      publicPath: '/',
+    },
+    plugins: [
+      new CleanWebpackPlugin(),
+      new CopyWebpackPlugin({
+        patterns: [
+          'manifest.json',
+          { from: path.resolve(__dirname, '../../../../assets/favicon/favicon.png'), to: 'icon.png' },
+        ],
+      }),
+    ],
   },
-  plugins: [
-    new CleanWebpackPlugin(),
-    new CopyWebpackPlugin({
-      patterns: [
-        'manifest.json',
-        'popup.html',
-        { from: path.resolve(__dirname, '../../../../assets/favicon/favicon.png'), to: 'icon.png' },
-      ],
-    }),
-  ],
-};
+);

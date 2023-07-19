@@ -20,7 +20,7 @@ module.exports = mergeWithRules({
   ]),
   {
     entry: {
-      index: path.resolve(__dirname, 'src/index.ts'),
+      index: path.resolve(__dirname, '../../shared/index.ts'),
     },
     output: {
       path: path.resolve(__dirname, 'dist'),

@@ -12,25 +12,32 @@ export async function sendMessageTo(nym: NymMixnetClient) {
   const recipient = (document.getElementById('recipient') as HTMLFormElement).value;
 
   await nym.client.send({ payload: { message, mimeType: MimeTypes.TextPlain }, recipient });
-  displaySend(message);
+  createChatEntry({message, sendOrReceive: "SEND"});
 }
+
+const createISOTimeStamp = () => new Date().toISOString().substring(11, 12);
+
+const createChatEntry = ({message, sendOrReceive}: {message: string, sendOrReceive: "SEND" | "RECEIVE"}) => {
+  const timestamp = createISOTimeStamp();
+
+  const sendDiv = document.createElement('div');  
+  const paragraph = document.createElement('p');
+  paragraph.setAttribute('style', `color: ${sendOrReceive === "SEND" ? "blue" : "green"}`);
+  const paragraphContent = document.createTextNode(`${timestamp} sent >>> ${message}`);
+  paragraph.appendChild(paragraphContent);
+
+  sendDiv.appendChild(paragraph);
+  document.getElementById('output')?.appendChild(sendDiv);
 
 /**
  * Display messages that have been sent up the websocket. Colours them blue.
  *
  * @param {string} message
  */
+
 function displaySend(message: string) {
-  const timestamp = new Date().toISOString().substr(11, 12);
-
-  const sendDiv = document.createElement('div');
-  const paragraph = document.createElement('p');
-  paragraph.setAttribute('style', 'color: blue');
-  const paragraphContent = document.createTextNode(`${timestamp} sent >>> ${message}`);
-  paragraph.appendChild(paragraphContent);
-
-  sendDiv.appendChild(paragraph);
-  document.getElementById('output')?.appendChild(sendDiv);
+  createChatEntry({message, sendOrReceive: "SEND"});
+  return undefined
 }
 
 /**
@@ -38,18 +45,10 @@ function displaySend(message: string) {
  *
  * @param {string} message
  */
-export function displayReceived(message: string) {
-  const content = message;
 
-  const timestamp = new Date().toLocaleTimeString();
-  const receivedDiv = document.createElement('div');
-  const paragraph = document.createElement('p');
-  paragraph.setAttribute('style', 'color: green');
-  const paragraphContent = document.createTextNode(`${timestamp} received >>> ${content}`);
-  // const paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
-  paragraph.appendChild(paragraphContent);
-  receivedDiv.appendChild(paragraph);
-  document.getElementById('output')?.appendChild(receivedDiv);
+export function displayReceived(message: string) {
+  return createChatEntry({message, sendOrReceive: "RECEIVE"});
+   return undefined
 }
 
 /**

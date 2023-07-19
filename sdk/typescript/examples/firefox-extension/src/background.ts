@@ -9,7 +9,14 @@ import { createNymMixnetClient } from '../../../packages/sdk/dist/full-fat/index
 import '../../../packages/sdk/dist/full-fat/web-worker-0.js';
 import '../../../packages/sdk/dist/full-fat/web-worker-1.js';
 
-const backgroundState = {
+export type BackgroundState = {
+  isReady: boolean;
+  address: string;
+  recipient: string;
+  messageLog: { type: string; message: string }[];
+};
+
+const backgroundState: BackgroundState = {
   isReady: false,
   address: '',
   recipient: '',

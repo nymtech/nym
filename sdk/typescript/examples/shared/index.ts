@@ -29,9 +29,9 @@ async function main() {
     displayReceived(e.args.payload);
   });
 
-  const sendButton: HTMLButtonElement = document.querySelector('#send-button') as HTMLButtonElement;
+  const sendButton = document.querySelector('#send-button');
   if (sendButton) {
-    sendButton.onclick = function () {
+    (sendButton as HTMLButtonElement).onclick = function () {
       if (nym) {
         sendMessageTo(nym);
       }

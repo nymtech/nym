@@ -6,7 +6,10 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/firefox-webext-browser": "^111.0.1",
     "copy-webpack-plugin": "^11.0.0",
+    "html-webpack-plugin": "^5.5.3",
+    "ts-loader": "^9.4.4",
     "webpack": "^5.88.1",
     "webpack-cli": "^5.1.4"
   },

@@ -7,6 +7,7 @@ import { NymMixnetClient, MimeTypes } from '@nymproject/sdk';
  *
  * @param {Client} nymClient the nym client to use for message sending
  */
+
 export async function sendMessageTo(nym: NymMixnetClient) {
   const message = (document.getElementById('message') as HTMLFormElement).value;
   const recipient = (document.getElementById('recipient') as HTMLFormElement).value;
@@ -15,22 +16,33 @@ export async function sendMessageTo(nym: NymMixnetClient) {
   displaySend(message);
 }
 
+const createISOTimeStamp = () => new Date().toISOString().substring(11, 16);
+
+const createChatEntry = ({ message, sendOrReceive }: { message: string; sendOrReceive: 'SEND' | 'RECEIVE' }) => {
+  const timestamp = createISOTimeStamp();
+  console.log(timestamp);
+
+  const sendDiv = document.createElement('div');
+  const paragraph = document.createElement('p');
+  paragraph.setAttribute('style', `color: ${sendOrReceive === 'SEND' ? 'blue' : 'green'}`);
+  const paragraphContent = document.createTextNode(
+    `${timestamp} ${sendOrReceive === 'SEND' ? 'sent' : 'received'} >>> ${message}`,
+  );
+  paragraph.appendChild(paragraphContent);
+
+  sendDiv.appendChild(paragraph);
+  document.getElementById('output')?.appendChild(sendDiv);
+};
+
 /**
  * Display messages that have been sent up the websocket. Colours them blue.
  *
  * @param {string} message
  */
-function displaySend(message: string) {
-  const timestamp = new Date().toISOString().substr(11, 12);
 
-  const sendDiv = document.createElement('div');
-  const paragraph = document.createElement('p');
-  paragraph.setAttribute('style', 'color: blue');
-  const paragraphContent = document.createTextNode(`${timestamp} sent >>> ${message}`);
-  paragraph.appendChild(paragraphContent);
-
-  sendDiv.appendChild(paragraph);
-  document.getElementById('output')?.appendChild(sendDiv);
+export function displaySend(message: string) {
+  createChatEntry({ message, sendOrReceive: 'SEND' });
+  return undefined;
 }
 
 /**
@@ -38,24 +50,16 @@ function displaySend(message: string) {
  *
  * @param {string} message
  */
-export function displayReceived(message: string) {
-  const content = message;
 
-  const timestamp = new Date().toLocaleTimeString();
-  const receivedDiv = document.createElement('div');
-  const paragraph = document.createElement('p');
-  paragraph.setAttribute('style', 'color: green');
-  const paragraphContent = document.createTextNode(`${timestamp} received >>> ${content}`);
-  // const paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
-  paragraph.appendChild(paragraphContent);
-  receivedDiv.appendChild(paragraph);
-  document.getElementById('output')?.appendChild(receivedDiv);
+export function displayReceived(message: string) {
+  createChatEntry({ message, sendOrReceive: 'RECEIVE' });
+  return undefined;
 }
 
 /**
  * Display the nymClient's sender address in the user interface
  *
- * @param {Client} nymClient
+ * @param {string} address
  */
 export function displaySenderAddress(address: string) {
   (document.getElementById('sender') as HTMLFormElement).value = address;

@@ -1,14 +1,14 @@
 // Import the DOM utility functionality.
-import { displaySenderAddress, displayReceived, sendMessageTo, displayMessageLog } from './dom-utils.js';
+import { displaySenderAddress, displayReceived, sendMessageTo, displayMessageLog } from './dom-utils';
 
 window.addEventListener('DOMContentLoaded', () => {
-  const sendButton = document.querySelector('#send-button');
+  const sendButton = document.querySelector('#send-button') as HTMLButtonElement;
   if (sendButton) {
     sendButton.onclick = function () {
       sendMessageTo();
     };
   }
-  const recipient = document.getElementById('recipient');
+  const recipient = document.getElementById('recipient') as HTMLFormElement;
   recipient.onchange = () => {
     browser.runtime.sendMessage({
       type: 'updateRecipient',
@@ -23,9 +23,9 @@ window.addEventListener('DOMContentLoaded', () => {
       case 'displayReceived':
         displayReceived(data.message);
         break;
-      case 'sendMessageTo':
-        sendMessageTo(data.message);
-        break;
+      // case 'sendMessageTo':
+      //   sendMessageTo(data.message);
+      //   break;
       case 'displayMessageLog':
         displayMessageLog(data.message);
         break;

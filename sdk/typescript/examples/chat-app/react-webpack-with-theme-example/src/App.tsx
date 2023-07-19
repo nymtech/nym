@@ -31,7 +31,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { AppContextProvider, useAppContext } from './context';
 import { MixnetContextProvider, parseBinaryMessageHeaders, useMixnetContext } from './context/mixnet';
 // eslint-disable-next-line import/no-relative-packages
-import Logo from '../../../../../assets/logo/logo-circle.svg';
+import Logo from '../../../../../../assets/logo/logo-circle.svg';
 
 export const AppTheme: FCWithChildren = ({ children }) => {
   const { mode } = useAppContext();

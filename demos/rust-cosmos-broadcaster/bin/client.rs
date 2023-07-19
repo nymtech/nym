@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
 
             println!(
                 "Encoded response (signed tx data) as base58 for tx broadcast: \n\n{:?}\n",
-                &base58_tx_bytes
+                &base58_tx_bytes.as_ref()
             );
             println!("do you wish to send the tx? y/n");
 

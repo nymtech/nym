@@ -31,6 +31,7 @@ async fn main() -> anyhow::Result<()> {
                     get_sequence(broadcaster.clone(), request.signer_address)
                         .await
                         .unwrap();
+                println!("sequence information query returned account number: {}, sequence:{}, chain id: {} \nsending response to requesting client via mixnet", sequence.account_number, sequence.sequence, sequence.chain_id); 
                 // send serialised sequence response back to request sender via mixnet 
                 client
                     .send_str_reply(return_recipient, &serde_json::to_string(&sequence).unwrap())

@@ -1586,6 +1586,7 @@ dependencies = [
  "base64 0.21.0",
  "cosmwasm-crypto",
  "cosmwasm-derive",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
  "cw2",
@@ -1608,6 +1609,7 @@ version = "0.7.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
+ "cw2",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
  "serde",

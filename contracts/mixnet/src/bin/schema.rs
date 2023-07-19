@@ -12,32 +12,3 @@ fn main() {
         migrate: MigrateMsg,
     }
 }
-
-/*
-pub fn generate_api_impl(input: &Options) -> ExprStruct {
-    let Options {
-        name,
-        version,
-        instantiate,
-        execute,
-        query,
-        migrate,
-        sudo,
-        responses,
-    } = input;
-
-    parse_quote! {
-        ::cosmwasm_schema::Api {
-            contract_name: #name.to_string(),
-            contract_version: #version.to_string(),
-            instantiate: ::cosmwasm_schema::schema_for!(#instantiate),
-            execute: #execute,
-            query: #query,
-            migrate: #migrate,
-            sudo: #sudo,
-            responses: #responses,
-        }
-    }
-}
-
- */

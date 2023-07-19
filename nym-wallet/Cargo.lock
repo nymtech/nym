@@ -3335,6 +3335,7 @@ version = "0.7.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
+ "cw2",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
  "serde",

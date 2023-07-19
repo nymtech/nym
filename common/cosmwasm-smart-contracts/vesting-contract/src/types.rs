@@ -4,6 +4,7 @@
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Timestamp, Uint128};
+use mixnet_contract_common::MixId;
 use std::str::FromStr;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -121,5 +122,19 @@ impl VestingSpecification {
             periods.push(period);
         }
         periods
+    }
+}
+
+#[cw_serde]
+pub struct VestingDelegation {
+    pub account_id: u32,
+    pub mix_id: MixId,
+    pub block_timestamp: u64,
+    pub amount: Uint128,
+}
+
+impl VestingDelegation {
+    pub fn storage_key(&self) -> (u32, MixId, u64) {
+        (self.account_id, self.mix_id, self.block_timestamp)
     }
 }

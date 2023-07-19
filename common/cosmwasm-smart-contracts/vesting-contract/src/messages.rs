@@ -1,3 +1,6 @@
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::{PledgeCap, VestingSpecification};
 use contracts_common::signing::MessageSignature;
 use cosmwasm_schema::cw_serde;
@@ -7,6 +10,19 @@ use mixnet_contract_common::{
     gateway::GatewayConfigUpdate,
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
     Gateway, IdentityKey, MixId, MixNode,
+};
+
+#[cfg(feature = "schema")]
+use contracts_common::ContractBuildInformation;
+#[cfg(feature = "schema")]
+use cosmwasm_schema::QueryResponses;
+
+#[cfg(feature = "schema")]
+use crate::{
+    account::Account,
+    types::{Period, PledgeData, VestingDelegation},
+    AccountsResponse, AllDelegationsResponse, DelegationTimesResponse, OriginalVestingResponse,
+    VestingCoinsResponse,
 };
 
 #[cw_serde]
@@ -160,89 +176,107 @@ impl ExecuteMsg {
 }
 
 #[cw_serde]
+#[cfg_attr(feature = "schema", derive(QueryResponses))]
 pub enum QueryMsg {
+    #[cfg_attr(feature = "schema", returns(ContractBuildInformation))]
     GetContractVersion {},
+
     #[serde(rename = "get_cw2_contract_version")]
+    #[cfg_attr(feature = "schema", returns(cw2::ContractVersion))]
     GetCW2ContractVersion {},
+
+    #[cfg_attr(feature = "schema", returns(AccountsResponse))]
     GetAccountsPaged {
         start_next_after: Option<String>,
         limit: Option<u32>,
     },
+
+    #[cfg_attr(feature = "schema", returns(VestingCoinsResponse))]
     GetAccountsVestingCoinsPaged {
         start_next_after: Option<String>,
         limit: Option<u32>,
     },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
     LockedCoins {
         vesting_account_address: String,
         block_time: Option<Timestamp>,
     },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
     SpendableCoins {
         vesting_account_address: String,
         block_time: Option<Timestamp>,
     },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetVestedCoins {
         vesting_account_address: String,
         block_time: Option<Timestamp>,
     },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetVestingCoins {
         vesting_account_address: String,
         block_time: Option<Timestamp>,
     },
-    GetStartTime {
-        vesting_account_address: String,
-    },
-    GetEndTime {
-        vesting_account_address: String,
-    },
-    GetOriginalVesting {
-        vesting_account_address: String,
-    },
-    GetHistoricalVestingStakingReward {
-        vesting_account_address: String,
-    },
-    GetSpendableVestedCoins {
-        vesting_account_address: String,
-    },
-    GetSpendableRewardCoins {
-        vesting_account_address: String,
-    },
-    GetDelegatedCoins {
-        vesting_account_address: String,
-    },
-    GetPledgedCoins {
-        vesting_account_address: String,
-    },
-    GetStakedCoins {
-        vesting_account_address: String,
-    },
-    GetWithdrawnCoins {
-        vesting_account_address: String,
-    },
-    GetAccount {
-        address: String,
-    },
-    GetMixnode {
-        address: String,
-    },
-    GetGateway {
-        address: String,
-    },
-    GetCurrentVestingPeriod {
-        address: String,
-    },
+
+    #[cfg_attr(feature = "schema", returns(Timestamp))]
+    GetStartTime { vesting_account_address: String },
+
+    #[cfg_attr(feature = "schema", returns(Timestamp))]
+    GetEndTime { vesting_account_address: String },
+
+    #[cfg_attr(feature = "schema", returns(OriginalVestingResponse))]
+    GetOriginalVesting { vesting_account_address: String },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
+    GetHistoricalVestingStakingReward { vesting_account_address: String },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
+    GetSpendableVestedCoins { vesting_account_address: String },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
+    GetSpendableRewardCoins { vesting_account_address: String },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
+    GetDelegatedCoins { vesting_account_address: String },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
+    GetPledgedCoins { vesting_account_address: String },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
+    GetStakedCoins { vesting_account_address: String },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
+    GetWithdrawnCoins { vesting_account_address: String },
+
+    #[cfg_attr(feature = "schema", returns(Account))]
+    GetAccount { address: String },
+
+    #[cfg_attr(feature = "schema", returns(Option<PledgeData>))]
+    GetMixnode { address: String },
+
+    #[cfg_attr(feature = "schema", returns(Option<PledgeData>))]
+    GetGateway { address: String },
+
+    #[cfg_attr(feature = "schema", returns(Period))]
+    GetCurrentVestingPeriod { address: String },
+
+    #[cfg_attr(feature = "schema", returns(VestingDelegation))]
     GetDelegation {
         address: String,
         mix_id: MixId,
         block_timestamp_secs: u64,
     },
-    GetTotalDelegationAmount {
-        address: String,
-        mix_id: MixId,
-    },
-    GetDelegationTimes {
-        address: String,
-        mix_id: MixId,
-    },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
+    GetTotalDelegationAmount { address: String, mix_id: MixId },
+
+    #[cfg_attr(feature = "schema", returns(DelegationTimesResponse))]
+    GetDelegationTimes { address: String, mix_id: MixId },
+
+    #[cfg_attr(feature = "schema", returns(AllDelegationsResponse))]
     GetAllDelegations {
         start_after: Option<(u32, MixId, u64)>,
         limit: Option<u32>,

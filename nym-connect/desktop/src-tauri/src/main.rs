@@ -25,6 +25,7 @@ mod state;
 mod tasks;
 mod window;
 
+// TODO DSN shouldn't be hardcoded
 const SENTRY_DSN: &str =
     "https://68a2c55113ed47aaa30b9899039b0799@o967446.ingest.sentry.io/4505483113594880";
 
@@ -40,7 +41,7 @@ fn main() {
 
     let user_data = UserData::read().unwrap_or_else(|e| {
         println!("{}", e);
-        println!("Fallback to default, user confg data will not be persisted");
+        println!("Fallback to default");
         UserData::default()
     });
 
@@ -65,7 +66,7 @@ fn main() {
     });
 
     if user_data_monitoring {
-        println!("Sentry reporting and user data monitoring is enabled");
+        println!("Sentry reporting and monitoring is enabled");
     } else {
         println!("Monitoring is disabled, dropping sentry guard");
         drop(_guard)

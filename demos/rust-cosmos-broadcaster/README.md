@@ -19,15 +19,15 @@ example 1: sign & send in one call
 ../../target/release/service
 
 # sign tx - when prompted enter 'y' 
-../../target/release/client offline-sign-tx ${SENDER_MNEMONIC} ${RECIPIENT_NYX_ADDRESS}
+../../target/release/client offline-sign-tx ${SENDER_MNEMONIC} <RECIPIENT_NYX_ADDRESS>
 
 example 2: create signed tx 
 # start service 
 ../../target/release/service
 
 # sign tx - when prompted enter 'n' and copy encoded tx bytes from terminal 
-../../target/release/client offline-sign-tx ${SENDER_MNEMONIC} ${RECIPIENT_NYX_ADDRESS}
+../../target/release/client offline-sign-tx ${SENDER_MNEMONIC} <RECIPIENT_NYX_ADDRESS>
 
 # send tx using encoded bytes as arg 
-../../target/release/client send-tx ${}
+../../target/release/client send-tx <COPIED_BYTES> 
 ```

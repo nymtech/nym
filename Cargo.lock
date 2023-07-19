@@ -5824,11 +5824,17 @@ dependencies = [
  "humantime-serde",
  "k256 0.13.1",
  "log",
+ "nym-bandwidth-controller",
  "nym-bin-common",
+ "nym-client-core",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
+ "nym-config",
  "nym-contracts-common",
+ "nym-credential-storage",
+ "nym-credentials",
  "nym-crypto",
+ "nym-issue-credential",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-name-service-common",
@@ -6271,6 +6277,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-issue-credential"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "nym-bandwidth-controller",
+ "nym-client-core",
+ "nym-config",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-validator-client",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-mixnet-client"
 version = "0.1.0"
 dependencies = [
@@ -6582,6 +6602,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-issue-credential",
  "nym-network-defaults",
  "nym-socks5-client-core",
  "nym-sphinx",

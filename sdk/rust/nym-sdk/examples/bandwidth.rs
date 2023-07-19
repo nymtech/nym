@@ -1,8 +1,18 @@
+use std::path::PathBuf;
+
+use nym_issue_credential::utils;
+use nym_sdk::bandwidth::BandwidthAcquireClient;
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
+use nym_validator_client::nyxd::Coin;
 
 #[tokio::main]
 async fn main() {
+    let amount = 1000000;
+    let client_home_directory = PathBuf::from("");
+    let mnemonic = String::from("very secret mnemonic");
+    let recovery_dir = PathBuf::from("");
+
     nym_bin_common::logging::setup_logging();
     // right now, only sandbox has coconut setup
     // this should be run from the `sdk/rust/nym-sdk` directory
@@ -11,18 +21,21 @@ async fn main() {
     let sandbox_network = mixnet::NymNetworkDetails::new_from_env();
 
     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
-        .network_details(sandbox_network)
+        .network_details(sandbox_network.clone())
         .enable_credentials_mode()
         .build()
         .await
         .unwrap();
 
-    let bandwidth_client = mixnet_client
-        .create_bandwidth_client(String::from("very secret mnemonic"))
-        .unwrap();
+    let coin = Coin::new(
+        amount as u128,
+        &sandbox_network.chain_details.mix_denom.base,
+    );
 
-    // Get a bandwidth credential worth 1000000 unym for the mixnet_client
-    bandwidth_client.acquire(1000000).await.unwrap();
+    let persistent_storage = utils::setup_persistent_storage(client_home_directory.clone()).await;
+    let client =
+        BandwidthAcquireClient::new(sandbox_network, mnemonic, &persistent_storage).unwrap();
+    utils::issue_credential(client.client, coin, client_home_directory, recovery_dir).await;
 
     // Connect using paid bandwidth credential
     let mut client = mixnet_client.connect_to_mixnet().await.unwrap();

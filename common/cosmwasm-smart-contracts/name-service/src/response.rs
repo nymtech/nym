@@ -28,6 +28,8 @@ impl From<&[RegisteredName]> for NamesListResponse {
 pub struct PagedNamesListResponse {
     pub names: Vec<RegisteredName>,
     pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<NameId>,
 }
 

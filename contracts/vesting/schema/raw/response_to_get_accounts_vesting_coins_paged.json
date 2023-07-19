@@ -1,18 +1,21 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "VestingCoinsResponse",
+  "description": "Response containing vesting coins held in this contract",
   "type": "object",
   "required": [
     "accounts"
   ],
   "properties": {
     "accounts": {
+      "description": "The actual accounts, and their vesting coins, returned by the query.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/AccountVestingCoins"
       }
     },
     "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
       "anyOf": [
         {
           "$ref": "#/definitions/Addr"
@@ -26,6 +29,7 @@
   "additionalProperties": false,
   "definitions": {
     "AccountVestingCoins": {
+      "description": "Basic information regarding particular vesting account alongside the amount of vesting coins.",
       "type": "object",
       "required": [
         "account_id",
@@ -34,15 +38,26 @@
       ],
       "properties": {
         "account_id": {
+          "description": "Id associated with this account",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         },
         "owner": {
-          "$ref": "#/definitions/Addr"
+          "description": "Address of this account's owner",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
         },
         "still_vesting": {
-          "$ref": "#/definitions/Coin"
+          "description": "Coins that are still vesting belonging to this account.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Coin"
+            }
+          ]
         }
       },
       "additionalProperties": false

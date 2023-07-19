@@ -13,15 +13,25 @@ use std::str::FromStr;
     ts(export_to = "ts-packages/types/src/types/rust/Period.ts")
 )]
 #[cw_serde]
+/// The vesting period.
 pub enum Period {
+    /// Defines a pre-vesting period.
     Before,
+
+    /// Defines currently active vesting period.
     In(usize),
+
+    /// Defines a post-vesting period.
     After,
 }
 
+/// Information regarding pledge (i.e. mixnode or gateway bonding) made with vesting tokens.
 #[cw_serde]
 pub struct PledgeData {
+    /// The amount pledged.
     pub amount: Coin,
+
+    /// The block timestamp where the pledge occurred.
     pub block_time: Timestamp,
 }
 
@@ -39,9 +49,13 @@ impl PledgeData {
     }
 }
 
+/// Defines cap for pleding/staking tokens.
 #[cw_serde]
 pub enum PledgeCap {
+    /// Specifies a percent-based pledge cap, i.e. only given % of tokens could be pledged/staked.
     Percent(Percent),
+
+    /// Specifies an absolute pledge cap, i.e. an explicit value that could be pledged/staked.
     Absolute(Uint128), // This has to be in unym
 }
 
@@ -67,9 +81,13 @@ impl Default for PledgeCap {
     }
 }
 
+/// Vesting period details.
 #[cw_serde]
 pub struct VestingPeriod {
+    /// The start time of this vesting period, as unix timestamp.
     pub start_time: u64,
+
+    /// The duration (in seconds) of the vesting period.
     pub period_seconds: u64,
 }
 
@@ -125,11 +143,19 @@ impl VestingSpecification {
     }
 }
 
+/// Details about particular vesting delegation.
 #[cw_serde]
 pub struct VestingDelegation {
+    /// The id of the vesting account that has made the delegation.
     pub account_id: u32,
+
+    /// The id of the mixnode towards which the delegation has been made.
     pub mix_id: MixId,
+
+    /// The block timestamp when the delegation has been made.
     pub block_timestamp: u64,
+
+    /// The raw amount delegated (interpreted to be in the same denom as the underlying vesting specification)
     pub amount: Uint128,
 }
 

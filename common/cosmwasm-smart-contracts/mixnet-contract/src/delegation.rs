@@ -113,6 +113,8 @@ impl Delegation {
 #[cw_serde]
 pub struct PagedMixNodeDelegationsResponse {
     pub delegations: Vec<Delegation>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<OwnerProxySubKey>,
 }
 
@@ -128,6 +130,8 @@ impl PagedMixNodeDelegationsResponse {
 #[cw_serde]
 pub struct PagedDelegatorDelegationsResponse {
     pub delegations: Vec<Delegation>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<(MixId, OwnerProxySubKey)>,
 }
 
@@ -161,6 +165,8 @@ impl MixNodeDelegationResponse {
 #[cw_serde]
 pub struct PagedAllDelegationsResponse {
     pub delegations: Vec<Delegation>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<StorageKey>,
 }
 

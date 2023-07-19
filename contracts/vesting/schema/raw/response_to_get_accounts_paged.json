@@ -1,18 +1,21 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "AccountsResponse",
+  "description": "Response containing basic vesting account information",
   "type": "object",
   "required": [
     "accounts"
   ],
   "properties": {
     "accounts": {
+      "description": "The actual accounts returned by the query.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/BaseVestingAccountInfo"
       }
     },
     "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
       "anyOf": [
         {
           "$ref": "#/definitions/Addr"
@@ -30,6 +33,7 @@
       "type": "string"
     },
     "BaseVestingAccountInfo": {
+      "description": "Basic information regarding particular vesting account",
       "type": "object",
       "required": [
         "account_id",
@@ -37,12 +41,18 @@
       ],
       "properties": {
         "account_id": {
+          "description": "Id associated with this account",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         },
         "owner": {
-          "$ref": "#/definitions/Addr"
+          "description": "Address of this account's owner",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
         }
       },
       "additionalProperties": false

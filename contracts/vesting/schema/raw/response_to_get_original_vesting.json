@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "OriginalVestingResponse",
+  "description": "Details about the original vesting specification used when the account was created.",
   "type": "object",
   "required": [
     "amount",
@@ -9,14 +10,21 @@
   ],
   "properties": {
     "amount": {
-      "$ref": "#/definitions/Coin"
+      "description": "The original amount that was used for the creation of this vesting account",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Coin"
+        }
+      ]
     },
     "number_of_periods": {
+      "description": "The number of vesting periods that the account was created with",
       "type": "integer",
       "format": "uint",
       "minimum": 0.0
     },
     "period_duration": {
+      "description": "Duration of each vesting period in seconds",
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0

@@ -19,10 +19,16 @@ pub use error::VestingContractError;
 pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
 pub use types::*;
 
+/// Details about the original vesting specification used when the account was created.
 #[cw_serde]
 pub struct OriginalVestingResponse {
+    /// The original amount that was used for the creation of this vesting account
     pub amount: Coin,
+
+    /// The number of vesting periods that the account was created with
     pub number_of_periods: usize,
+
+    /// Duration of each vesting period in seconds
     pub period_duration: u64,
 }
 
@@ -48,43 +54,73 @@ impl OriginalVestingResponse {
     }
 }
 
+/// Response containing timestamps of all delegations made towards particular mixnode by given vesting account.
 #[cw_serde]
 pub struct DelegationTimesResponse {
+    /// Address of this account's owner
     pub owner: Addr,
+
+    /// Id associated with this account
     pub account_id: u32,
+
+    /// Id of the mixnode towards which the delegation was made
     pub mix_id: MixId,
+
+    /// All timestamps where a delegation was made
     pub delegation_timestamps: Vec<u64>,
 }
 
+/// Response containing paged list of all vesting delegations made using vesting coins.
 #[cw_serde]
 pub struct AllDelegationsResponse {
+    /// The actual vesting delegations made.
     pub delegations: Vec<VestingDelegation>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<(u32, MixId, u64)>,
 }
 
+/// Basic information regarding particular vesting account alongside the amount of vesting coins.
 #[cw_serde]
 pub struct AccountVestingCoins {
+    /// Id associated with this account
     pub account_id: u32,
+
+    /// Address of this account's owner
     pub owner: Addr,
+
+    /// Coins that are still vesting belonging to this account.
     pub still_vesting: Coin,
 }
 
+/// Response containing vesting coins held in this contract
 #[cw_serde]
 pub struct VestingCoinsResponse {
+    /// The actual accounts, and their vesting coins, returned by the query.
     pub accounts: Vec<AccountVestingCoins>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<Addr>,
 }
 
+/// Basic information regarding particular vesting account
 #[cw_serde]
 pub struct BaseVestingAccountInfo {
+    /// Id associated with this account
     pub account_id: u32,
+
+    /// Address of this account's owner
     pub owner: Addr,
     // TODO: should this particular query/response expose anything else?
 }
 
+/// Response containing basic vesting account information
 #[cw_serde]
 pub struct AccountsResponse {
+    /// The actual accounts returned by the query.
     pub accounts: Vec<BaseVestingAccountInfo>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<Addr>,
 }
 

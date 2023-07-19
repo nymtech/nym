@@ -120,6 +120,8 @@ impl From<(IntervalEventId, PendingIntervalEventData)> for PendingIntervalEvent 
 pub struct PendingEpochEventsResponse {
     pub seconds_until_executable: i64,
     pub events: Vec<PendingEpochEvent>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<u32>,
 }
 
@@ -141,6 +143,8 @@ impl PendingEpochEventsResponse {
 pub struct PendingIntervalEventsResponse {
     pub seconds_until_executable: i64,
     pub events: Vec<PendingIntervalEvent>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<u32>,
 }
 

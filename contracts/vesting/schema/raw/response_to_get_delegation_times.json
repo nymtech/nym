@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "DelegationTimesResponse",
+  "description": "Response containing timestamps of all delegations made towards particular mixnode by given vesting account.",
   "type": "object",
   "required": [
     "account_id",
@@ -10,11 +11,13 @@
   ],
   "properties": {
     "account_id": {
+      "description": "Id associated with this account",
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
     },
     "delegation_timestamps": {
+      "description": "All timestamps where a delegation was made",
       "type": "array",
       "items": {
         "type": "integer",
@@ -23,12 +26,18 @@
       }
     },
     "mix_id": {
+      "description": "Id of the mixnode towards which the delegation was made",
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
     },
     "owner": {
-      "$ref": "#/definitions/Addr"
+      "description": "Address of this account's owner",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        }
+      ]
     }
   },
   "additionalProperties": false,

@@ -133,6 +133,8 @@ impl GatewayConfigUpdate {
 pub struct PagedGatewayResponse {
     pub nodes: Vec<GatewayBond>,
     pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<IdentityKey>,
 }
 

@@ -1,8 +1,10 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "QueryMsg",
+  "description": "Queries exposed by this contract.",
   "oneOf": [
     {
+      "description": "Gets build information of this contract, such as the commit hash used for the build or rustc version.",
       "type": "object",
       "required": [
         "get_contract_version"
@@ -16,6 +18,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Gets the stored contract version information that's required by the CW2 spec interface for migrations.",
       "type": "object",
       "required": [
         "get_cw2_contract_version"
@@ -29,6 +32,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Gets the list of vesting accounts held in this contract.",
       "type": "object",
       "required": [
         "get_accounts_paged"
@@ -38,6 +42,7 @@
           "type": "object",
           "properties": {
             "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
               "type": [
                 "integer",
                 "null"
@@ -46,6 +51,7 @@
               "minimum": 0.0
             },
             "start_next_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
               "type": [
                 "string",
                 "null"
@@ -58,6 +64,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Gets the list of coins that are still vesting for each account held in this contract.",
       "type": "object",
       "required": [
         "get_accounts_vesting_coins_paged"
@@ -67,6 +74,7 @@
           "type": "object",
           "properties": {
             "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
               "type": [
                 "integer",
                 "null"
@@ -75,6 +83,7 @@
               "minimum": 0.0
             },
             "start_next_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
               "type": [
                 "string",
                 "null"
@@ -87,6 +96,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the amount of locked coins for the provided vesting account, i.e. coins that are still vesting but have not been staked. `locked_coins = vesting_coins - staked_coins`",
       "type": "object",
       "required": [
         "locked_coins"
@@ -99,6 +109,7 @@
           ],
           "properties": {
             "block_time": {
+              "description": "(deprecated) Optional argument specifying that the query should be performed against non-current block.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Timestamp"
@@ -109,6 +120,7 @@
               ]
             },
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -118,6 +130,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the amount of spendable coins for the provided vesting account, i.e. coins that could be withdrawn. `spendable_coins = account_balance - locked_coins` note: `account_balance` is the amount of coins still physically present in this contract, i.e. not withdrawn or staked.",
       "type": "object",
       "required": [
         "spendable_coins"
@@ -130,6 +143,7 @@
           ],
           "properties": {
             "block_time": {
+              "description": "(deprecated) Optional argument specifying that the query should be performed against non-current block.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Timestamp"
@@ -140,6 +154,7 @@
               ]
             },
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -149,6 +164,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the amount of coins that have already vested for the provided vesting account address.",
       "type": "object",
       "required": [
         "get_vested_coins"
@@ -161,6 +177,7 @@
           ],
           "properties": {
             "block_time": {
+              "description": "(deprecated) Optional argument specifying that the query should be performed against non-current block.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Timestamp"
@@ -171,6 +188,7 @@
               ]
             },
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -180,6 +198,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the amount of coins that are still vesting for the provided vesting account address.",
       "type": "object",
       "required": [
         "get_vesting_coins"
@@ -192,6 +211,7 @@
           ],
           "properties": {
             "block_time": {
+              "description": "(deprecated) Optional argument specifying that the query should be performed against non-current block.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Timestamp"
@@ -202,6 +222,7 @@
               ]
             },
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -211,6 +232,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the starting vesting time for the provided vesting account, i.e. the beginning of the first vesting period.",
       "type": "object",
       "required": [
         "get_start_time"
@@ -223,6 +245,7 @@
           ],
           "properties": {
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -232,6 +255,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the ending vesting time for the provided vesting account, i.e. the end of the last vesting period.",
       "type": "object",
       "required": [
         "get_end_time"
@@ -244,6 +268,7 @@
           ],
           "properties": {
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -253,6 +278,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the initial vesting specification used for the provided vesting account address.",
       "type": "object",
       "required": [
         "get_original_vesting"
@@ -265,6 +291,7 @@
           ],
           "properties": {
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -274,6 +301,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the total amount of coins accrued through claimed staking rewards by the provided vesting account.",
       "type": "object",
       "required": [
         "get_historical_vesting_staking_reward"
@@ -286,6 +314,7 @@
           ],
           "properties": {
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -295,6 +324,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the amount of spendable vesting coins for the provided vesting account, i.e. coins that could be withdrawn that originated from the vesting specification.",
       "type": "object",
       "required": [
         "get_spendable_vested_coins"
@@ -307,6 +337,7 @@
           ],
           "properties": {
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -316,6 +347,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the amount of spendable reward coins for the provided vesting account, i.e. coins that could be withdrawn that originated from the claimed staking rewards.",
       "type": "object",
       "required": [
         "get_spendable_reward_coins"
@@ -328,6 +360,7 @@
           ],
           "properties": {
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -337,6 +370,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the amount of coins that are currently delegated for the provided vesting account address.",
       "type": "object",
       "required": [
         "get_delegated_coins"
@@ -349,6 +383,7 @@
           ],
           "properties": {
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -358,6 +393,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the amount of coins that are currently pledged for the provided vesting account address.",
       "type": "object",
       "required": [
         "get_pledged_coins"
@@ -370,6 +406,7 @@
           ],
           "properties": {
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -379,6 +416,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the amount of coins that are currently staked (i.e. delegations + pledges) for the provided vesting account address.",
       "type": "object",
       "required": [
         "get_staked_coins"
@@ -391,6 +429,7 @@
           ],
           "properties": {
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -400,6 +439,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the amount of coins that got withdrawn for the provided vesting account address.",
       "type": "object",
       "required": [
         "get_withdrawn_coins"
@@ -412,6 +452,7 @@
           ],
           "properties": {
             "vesting_account_address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -421,6 +462,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns detailed information associated with the account for the provided vesting account address.",
       "type": "object",
       "required": [
         "get_account"
@@ -433,6 +475,7 @@
           ],
           "properties": {
             "address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -442,6 +485,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns pledge information (if applicable) for bonded mixnode for the provided vesting account address.",
       "type": "object",
       "required": [
         "get_mixnode"
@@ -454,6 +498,7 @@
           ],
           "properties": {
             "address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -463,6 +508,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns pledge information (if applicable) for bonded gateway for the provided vesting account address.",
       "type": "object",
       "required": [
         "get_gateway"
@@ -475,6 +521,7 @@
           ],
           "properties": {
             "address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -484,6 +531,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the current vesting period for the provided vesting account address.",
       "type": "object",
       "required": [
         "get_current_vesting_period"
@@ -496,6 +544,7 @@
           ],
           "properties": {
             "address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             }
           },
@@ -505,6 +554,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the information about particular vesting delegation.",
       "type": "object",
       "required": [
         "get_delegation"
@@ -519,14 +569,17 @@
           ],
           "properties": {
             "address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             },
             "block_timestamp_secs": {
+              "description": "Block timestamp of the delegation.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
             },
             "mix_id": {
+              "description": "Id of the mixnode towards which the delegation has been made.",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -538,6 +591,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns the total amount of coins delegated towards particular mixnode by the provided vesting account address.",
       "type": "object",
       "required": [
         "get_total_delegation_amount"
@@ -551,9 +605,11 @@
           ],
           "properties": {
             "address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             },
             "mix_id": {
+              "description": "Id of the mixnode towards which the delegations have been made.",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -565,6 +621,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns timestamps of delegations made towards particular mixnode by the provided vesting account address.",
       "type": "object",
       "required": [
         "get_delegation_times"
@@ -578,9 +635,11 @@
           ],
           "properties": {
             "address": {
+              "description": "Address of the vesting account in question.",
               "type": "string"
             },
             "mix_id": {
+              "description": "Id of the mixnode towards which the delegations have been made.",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -592,6 +651,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Returns all active delegations made with vesting tokens stored in this contract.",
       "type": "object",
       "required": [
         "get_all_delegations"
@@ -601,6 +661,7 @@
           "type": "object",
           "properties": {
             "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
               "type": [
                 "integer",
                 "null"
@@ -609,6 +670,7 @@
               "minimum": 0.0
             },
             "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
               "type": [
                 "array",
                 "null"

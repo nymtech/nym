@@ -106,12 +106,16 @@ impl Family {
 #[cw_serde]
 pub struct PagedFamiliesResponse {
     pub families: Vec<Family>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<String>,
 }
 
 #[cw_serde]
 pub struct PagedMembersResponse {
     pub members: Vec<(IdentityKey, FamilyHead)>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<String>,
 }
 

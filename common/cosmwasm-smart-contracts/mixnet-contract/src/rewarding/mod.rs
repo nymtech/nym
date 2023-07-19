@@ -75,5 +75,7 @@ impl EstimatedCurrentEpochRewardResponse {
 #[cw_serde]
 pub struct PagedRewardedSetResponse {
     pub nodes: Vec<(MixId, RewardedSetNodeStatus)>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<MixId>,
 }

@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Account",
+  "description": "Vesting account information.",
   "type": "object",
   "required": [
     "coin",
@@ -11,18 +12,30 @@
   ],
   "properties": {
     "coin": {
-      "$ref": "#/definitions/Coin"
+      "description": "The initial amount of coins used creation of this account.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Coin"
+        }
+      ]
     },
     "owner_address": {
-      "$ref": "#/definitions/Addr"
+      "description": "Address of the owner of the vesting account.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        }
+      ]
     },
     "periods": {
+      "description": "All vesting periods for this account.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/VestingPeriod"
       }
     },
     "pledge_cap": {
+      "description": "Optional custom pledge cap of this vesting account.",
       "default": null,
       "anyOf": [
         {
@@ -34,6 +47,7 @@
       ]
     },
     "staking_address": {
+      "description": "Optional address of an account allowed to perform staking on behalf of the owner.",
       "anyOf": [
         {
           "$ref": "#/definitions/Addr"
@@ -44,9 +58,15 @@
       ]
     },
     "start_time": {
-      "$ref": "#/definitions/Timestamp"
+      "description": "The starting vesting time.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Timestamp"
+        }
+      ]
     },
     "storage_key": {
+      "description": "The id/storage_key of this vesting account.",
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
@@ -86,8 +106,10 @@
       ]
     },
     "PledgeCap": {
+      "description": "Defines cap for pleding/staking tokens.",
       "oneOf": [
         {
+          "description": "Specifies a percent-based pledge cap, i.e. only given % of tokens could be pledged/staked.",
           "type": "object",
           "required": [
             "percent"
@@ -100,6 +122,7 @@
           "additionalProperties": false
         },
         {
+          "description": "Specifies an absolute pledge cap, i.e. an explicit value that could be pledged/staked.",
           "type": "object",
           "required": [
             "absolute"
@@ -130,6 +153,7 @@
       "type": "string"
     },
     "VestingPeriod": {
+      "description": "Vesting period details.",
       "type": "object",
       "required": [
         "period_seconds",
@@ -137,11 +161,13 @@
       ],
       "properties": {
         "period_seconds": {
+          "description": "The duration (in seconds) of the vesting period.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
         },
         "start_time": {
+          "description": "The start time of this vesting period, as unix timestamp.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0

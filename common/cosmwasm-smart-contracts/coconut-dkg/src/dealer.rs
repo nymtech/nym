@@ -49,6 +49,8 @@ impl DealerDetailsResponse {
 pub struct PagedDealerResponse {
     pub dealers: Vec<DealerDetails>,
     pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<Addr>,
 }
 
@@ -84,6 +86,8 @@ impl ContractDealing {
 pub struct PagedDealingsResponse {
     pub dealings: Vec<ContractDealing>,
     pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<Addr>,
 }
 

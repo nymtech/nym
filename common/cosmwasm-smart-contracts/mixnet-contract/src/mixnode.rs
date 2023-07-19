@@ -692,6 +692,8 @@ impl MixNodeConfigUpdate {
 pub struct PagedMixnodeBondsResponse {
     pub nodes: Vec<MixNodeBond>,
     pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<MixId>,
 }
 
@@ -709,6 +711,8 @@ impl PagedMixnodeBondsResponse {
 pub struct PagedMixnodesDetailsResponse {
     pub nodes: Vec<MixNodeDetails>,
     pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<MixId>,
 }
 
@@ -730,6 +734,8 @@ impl PagedMixnodesDetailsResponse {
 pub struct PagedUnbondedMixnodesResponse {
     pub nodes: Vec<(MixId, UnbondedMixnode)>,
     pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<MixId>,
 }
 

@@ -35,6 +35,8 @@ impl From<&[Service]> for ServicesListResponse {
 pub struct PagedServicesListResponse {
     pub services: Vec<Service>,
     pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<ServiceId>,
 }
 

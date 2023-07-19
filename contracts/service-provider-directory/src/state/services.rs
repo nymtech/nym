@@ -88,6 +88,8 @@ pub fn load_nym_address(store: &dyn Storage, nym_address: NymAddress) -> Result<
 pub struct PagedLoad {
     pub services: Vec<Service>,
     pub limit: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<ServiceId>,
 }
 

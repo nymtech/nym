@@ -26,6 +26,7 @@
       }
     },
     "PledgeData": {
+      "description": "Information regarding pledge (i.e. mixnode or gateway bonding) made with vesting tokens.",
       "type": "object",
       "required": [
         "amount",
@@ -33,10 +34,20 @@
       ],
       "properties": {
         "amount": {
-          "$ref": "#/definitions/Coin"
+          "description": "The amount pledged.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Coin"
+            }
+          ]
         },
         "block_time": {
-          "$ref": "#/definitions/Timestamp"
+          "description": "The block timestamp where the pledge occurred.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            }
+          ]
         }
       },
       "additionalProperties": false

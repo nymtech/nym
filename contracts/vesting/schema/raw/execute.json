@@ -884,8 +884,10 @@
       ]
     },
     "PledgeCap": {
+      "description": "Defines cap for pleding/staking tokens.",
       "oneOf": [
         {
+          "description": "Specifies a percent-based pledge cap, i.e. only given % of tokens could be pledged/staked.",
           "type": "object",
           "required": [
             "percent"
@@ -898,6 +900,7 @@
           "additionalProperties": false
         },
         {
+          "description": "Specifies an absolute pledge cap, i.e. an explicit value that could be pledged/staked.",
           "type": "object",
           "required": [
             "absolute"

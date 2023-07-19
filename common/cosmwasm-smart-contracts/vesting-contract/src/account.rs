@@ -8,14 +8,28 @@ use cosmwasm_std::{Addr, Coin, Timestamp};
 // this shouldn't really be exposed like this, but we really don't want to migrate the contract just for this...
 pub type VestingAccountStorageKey = u32;
 
+/// Vesting account information.
 #[cw_serde]
 pub struct Account {
+    /// Address of the owner of the vesting account.
     pub owner_address: Addr,
+
+    /// Optional address of an account allowed to perform staking on behalf of the owner.
     pub staking_address: Option<Addr>,
+
+    /// The starting vesting time.
     pub start_time: Timestamp,
+
+    /// All vesting periods for this account.
     pub periods: Vec<VestingPeriod>,
+
+    /// The initial amount of coins used creation of this account.
     pub coin: Coin,
+
+    /// The id/storage_key of this vesting account.
     pub storage_key: VestingAccountStorageKey,
+
+    /// Optional custom pledge cap of this vesting account.
     #[serde(default)]
     pub pledge_cap: Option<PledgeCap>,
 }

@@ -22,7 +22,7 @@ pub type VoucherBlob = Vec<u8>;
 /// client.
 pub struct BandwidthAcquireClient<'a, St: Storage> {
     network_details: NymNetworkDetails,
-    client: Client<SigningNyxdClient<DirectSecp256k1HdWallet>>,
+    pub client: Client<SigningNyxdClient<DirectSecp256k1HdWallet>>,
     storage: &'a St,
 }
 
@@ -31,7 +31,7 @@ where
     St: Storage,
     <St as Storage>::StorageError: Send + Sync + 'static,
 {
-    pub(crate) fn new(
+    pub fn new(
         network_details: NymNetworkDetails,
         mnemonic: String,
         storage: &'a St,

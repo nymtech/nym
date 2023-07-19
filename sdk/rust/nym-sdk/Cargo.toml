@@ -13,6 +13,7 @@ nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
 nym-bandwidth-controller = { path = "../../../common/bandwidth-controller" }
 nym-credentials = { path = "../../../common/credentials" }
 nym-credential-storage = { path = "../../../common/credential-storage" }
+nym-issue-credential = { path = "../../../common/issue-credential" }
 nym-network-defaults = { path = "../../../common/network-defaults" }
 nym-sphinx = { path = "../../../common/nymsphinx" }
 nym-task = { path = "../../../common/task" }

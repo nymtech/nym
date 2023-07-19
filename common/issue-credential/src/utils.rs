@@ -1,10 +1,14 @@
 use log::*;
+use std::path::PathBuf;
 use std::process::exit;
 use std::time::{Duration, SystemTime};
 
 use nym_bandwidth_controller::acquire::state::State;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
+use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::DirectSigningNyxdClient;
 use nym_validator_client::Client;
 
@@ -12,6 +16,69 @@ use crate::errors::Result;
 use crate::recovery_storage::RecoveryStorage;
 
 const SAFETY_BUFFER_SECS: u64 = 60; // 1 minute
+
+pub async fn issue_credential(
+    client: nym_validator_client::Client<DirectSigningNyxdClient>,
+    amount: Coin,
+    client_home_directory: PathBuf,
+    recovery_storage_path: PathBuf,
+) {
+    let persistent_storage = setup_persistent_storage(client_home_directory.clone()).await;
+    let recovery_storage = setup_recovery_storage(recovery_storage_path).await;
+
+    block_until_coconut_is_available(&client).await.expect("");
+    info!("Starting to deposit funds, don't kill the process");
+
+    if let Ok(recovered_amount) =
+        recover_credentials(&client, &recovery_storage, &persistent_storage).await
+    {
+        info!(
+            "Recovered credentials for {} in the amount of {}",
+            client_home_directory.to_str().unwrap(),
+            recovered_amount,
+        );
+        return;
+    }
+
+    let state = nym_bandwidth_controller::acquire::deposit(&client.nyxd, amount.clone())
+        .await
+        .expect("");
+
+    if nym_bandwidth_controller::acquire::get_credential(&state, &client, &persistent_storage)
+        .await
+        .is_err()
+    {
+        warn!("Failed to obtain credential. Dumping recovery data.",);
+        match recovery_storage.insert_voucher(&state.voucher) {
+            Ok(file_path) => {
+                warn!("Dumped recovery data to {}. Try using recovery mode to convert it to a credential", file_path.to_str().unwrap());
+            }
+            Err(e) => {
+                error!("Could not dump recovery data to file system due to {:?}, the deposit will be lost!", e)
+            }
+        }
+        exit(1);
+    }
+
+    info!(
+        "Succeeded adding a credential for {} with amount {}{}",
+        client_home_directory.to_str().unwrap(),
+        &amount.amount,
+        &amount.denom,
+    );
+}
+
+pub async fn setup_recovery_storage(recovery_dir: PathBuf) -> RecoveryStorage {
+    RecoveryStorage::new(recovery_dir).expect("")
+}
+
+pub async fn setup_persistent_storage(client_home_directory: PathBuf) -> PersistentStorage {
+    let data_dir = client_home_directory.join(DEFAULT_DATA_DIR);
+    let paths = CommonClientPaths::new_default(data_dir);
+    let db_path = paths.credentials_database;
+
+    nym_credential_storage::initialise_persistent_storage(db_path).await
+}
 
 pub async fn block_until_coconut_is_available(
     client: &Client<DirectSigningNyxdClient>,
@@ -52,8 +119,12 @@ pub async fn recover_credentials<C: DkgQueryClient + Send + Sync>(
     client: &C,
     recovery_storage: &RecoveryStorage,
     shared_storage: &PersistentStorage,
-) -> Result<()> {
+) -> Result<i32> {
+    let mut recovered_amount: i32 = 0;
     for voucher in recovery_storage.unconsumed_vouchers()? {
+        let voucher_value = voucher.get_voucher_value();
+        recovered_amount += voucher_value.parse::<i32>().unwrap();
+
         let state = State::new(voucher);
         if let Err(e) =
             nym_bandwidth_controller::acquire::get_credential(&state, client, shared_storage).await
@@ -74,5 +145,5 @@ pub async fn recover_credentials<C: DkgQueryClient + Send + Sync>(
         }
     }
 
-    Ok(())
+    Ok(recovered_amount)
 }

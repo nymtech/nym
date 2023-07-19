@@ -3276,7 +3276,6 @@ dependencies = [
  "nym-config",
  "nym-mixnet-contract-common",
  "nym-validator-client",
- "nym-vesting-contract",
  "nym-vesting-contract-common",
  "reqwest",
  "schemars",
@@ -3317,7 +3316,6 @@ dependencies = [
  "nym-name-service-common",
  "nym-network-defaults",
  "nym-service-provider-directory-common",
- "nym-vesting-contract",
  "nym-vesting-contract-common",
  "openssl",
  "prost",
@@ -3332,24 +3330,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-vesting-contract"
-version = "1.4.0"
-dependencies = [
- "cosmwasm-derive",
- "cosmwasm-std",
- "cw-storage-plus",
- "cw2",
- "nym-contracts-common",
- "nym-mixnet-contract-common",
- "nym-vesting-contract-common",
- "schemars",
- "semver 1.0.16",
- "serde",
- "thiserror",
- "vergen",
-]
-
-[[package]]
 name = "nym-vesting-contract-common"
 version = "0.7.0"
 dependencies = [
@@ -3358,6 +3338,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-mixnet-contract-common",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -3387,7 +3368,6 @@ dependencies = [
  "nym-network-defaults",
  "nym-types",
  "nym-validator-client",
- "nym-vesting-contract",
  "nym-vesting-contract-common",
  "serde",
  "serde_json",
@@ -3422,7 +3402,6 @@ dependencies = [
  "nym-store-cipher",
  "nym-types",
  "nym-validator-client",
- "nym-vesting-contract",
  "nym-vesting-contract-common",
  "nym-wallet-types",
  "once_cell",

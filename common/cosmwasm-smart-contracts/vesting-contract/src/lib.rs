@@ -4,76 +4,20 @@
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
 
-use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
+use cosmwasm_std::{Addr, Coin, Uint128};
 use mixnet_contract_common::MixId;
-use std::str::FromStr;
 
-pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
-
+pub mod account;
+pub mod error;
 pub mod events;
 pub mod messages;
+pub mod types;
 
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Period.ts")
-)]
-#[cw_serde]
-pub enum Period {
-    Before,
-    In(usize),
-    After,
-}
-
-#[cw_serde]
-pub struct PledgeData {
-    pub amount: Coin,
-    pub block_time: Timestamp,
-}
-
-impl PledgeData {
-    pub fn amount(&self) -> Coin {
-        self.amount.clone()
-    }
-
-    pub fn block_time(&self) -> Timestamp {
-        self.block_time
-    }
-
-    pub fn new(amount: Coin, block_time: Timestamp) -> Self {
-        Self { amount, block_time }
-    }
-}
-
-#[cw_serde]
-pub enum PledgeCap {
-    Percent(Percent),
-    Absolute(Uint128), // This has to be in unym
-}
-
-impl FromStr for PledgeCap {
-    type Err = String;
-
-    fn from_str(cap: &str) -> Result<Self, Self::Err> {
-        let cap = cap.replace('_', "").replace(',', ".");
-        match Percent::from_str(&cap) {
-            Ok(p) => Ok(PledgeCap::Percent(p)),
-            Err(_) => match cap.parse::<u128>() {
-                Ok(i) => Ok(PledgeCap::Absolute(Uint128::from(i))),
-                Err(_e) => Err(format!("Could not parse {cap} as Percent or Uint128")),
-            },
-        }
-    }
-}
-
-impl Default for PledgeCap {
-    fn default() -> Self {
-        #[allow(clippy::expect_used)]
-        PledgeCap::Percent(Percent::from_percentage_value(10).expect("This can never fail!"))
-    }
-}
+pub use account::Account;
+pub use error::VestingContractError;
+pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
+pub use types::*;
 
 #[cw_serde]
 pub struct OriginalVestingResponse {

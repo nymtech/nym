@@ -1611,6 +1611,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-mixnet-contract-common",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

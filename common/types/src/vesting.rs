@@ -1,10 +1,10 @@
 use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
+use nym_vesting_contract_common::account::Account as ContractVestingAccount;
+use nym_vesting_contract_common::types::VestingPeriod as ContractVestingPeriod;
 use nym_vesting_contract_common::OriginalVestingResponse as ContractOriginalVestingResponse;
 use nym_vesting_contract_common::PledgeData as ContractPledgeData;
 use serde::{Deserialize, Serialize};
-use vesting_contract::vesting::Account as ContractVestingAccount;
-use vesting_contract::vesting::VestingPeriod as ContractVestingPeriod;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(

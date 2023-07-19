@@ -72,7 +72,7 @@ pub mod helpers {
     use crate::storage::{ACCOUNTS, ADMIN, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
     use crate::support::tests::helpers::state_dump_decoder::RawState;
     use crate::traits::VestingAccount;
-    use crate::vesting::{populate_vesting_periods, Account};
+    use crate::vesting::{populate_vesting_periods, StorableVestingAccountExt};
     use contracts_common::Percent;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
     use cosmwasm_std::{
@@ -83,8 +83,8 @@ pub mod helpers {
     use rand_chacha::ChaCha20Rng;
     use std::path::Path;
     use std::str::FromStr;
-    use vesting_contract_common::messages::{InitMsg, VestingSpecification};
-    use vesting_contract_common::PledgeCap;
+    use vesting_contract_common::messages::InitMsg;
+    use vesting_contract_common::{Account, PledgeCap, VestingSpecification};
 
     // use rng with constant seed for all tests so that they would be deterministic
     #[allow(unused)]
@@ -337,7 +337,7 @@ pub mod helpers {
             VestingSpecification::new(None, Some(3600), None),
         );
 
-        Account::new(
+        Account::save_new(
             Addr::unchecked("owner"),
             Some(Addr::unchecked("staking")),
             Coin {
@@ -357,7 +357,7 @@ pub mod helpers {
         let periods =
             populate_vesting_periods(start_time.seconds(), VestingSpecification::default());
 
-        Account::new(
+        Account::save_new(
             Addr::unchecked("owner"),
             Some(Addr::unchecked("staking")),
             Coin {
@@ -377,7 +377,7 @@ pub mod helpers {
         let periods =
             populate_vesting_periods(start_time.seconds(), VestingSpecification::default());
 
-        Account::new(
+        Account::save_new(
             Addr::unchecked("owner"),
             Some(Addr::unchecked("staking")),
             Coin {

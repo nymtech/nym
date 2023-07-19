@@ -1,10 +1,13 @@
-use crate::storage::AccountStorageKey;
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::account::VestingAccountStorageKey;
 use cosmwasm_std::{Addr, Coin, OverflowError, StdError, Uint128};
 use mixnet_contract_common::MixId;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
-pub enum ContractError {
+pub enum VestingContractError {
     #[error("VESTING ({}): {0}", line!())]
     Std(#[from] StdError),
 
@@ -27,7 +30,7 @@ pub enum ContractError {
     InsufficientSpendable(String, u128),
 
     #[error(
-        "VESTING ({}):Only delegation owner can perform delegation actions, {0} is not the delegation owner"
+    "VESTING ({}):Only delegation owner can perform delegation actions, {0} is not the delegation owner"
     , line!())]
     NotDelegate(String),
 
@@ -91,7 +94,7 @@ pub enum ContractError {
     #[error("VESTING: {address} ({acc_id} has already performed {num} individual delegations towards {mix_id}. No further delegations are allowed. Please consider consolidating those delegations instead. The current cap is {cap}.")]
     TooManyDelegations {
         address: Addr,
-        acc_id: AccountStorageKey,
+        acc_id: VestingAccountStorageKey,
         mix_id: MixId,
         num: u32,
         cap: u32,

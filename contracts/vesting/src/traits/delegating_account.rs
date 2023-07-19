@@ -1,13 +1,13 @@
-use crate::errors::ContractError;
 use cosmwasm_std::{Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::MixId;
+use vesting_contract_common::VestingContractError;
 
 pub trait DelegatingAccount {
     fn try_claim_delegator_reward(
         &self,
         mix_id: MixId,
         storage: &dyn Storage,
-    ) -> Result<Response, ContractError>;
+    ) -> Result<Response, VestingContractError>;
 
     fn try_delegate_to_mixnode(
         &self,
@@ -15,13 +15,13 @@ pub trait DelegatingAccount {
         amount: Coin,
         env: &Env,
         storage: &mut dyn Storage,
-    ) -> Result<Response, ContractError>;
+    ) -> Result<Response, VestingContractError>;
 
     fn try_undelegate_from_mixnode(
         &self,
         mix_id: MixId,
         storage: &dyn Storage,
-    ) -> Result<Response, ContractError>;
+    ) -> Result<Response, VestingContractError>;
 
     // track_delegation performs internal vesting accounting necessary when
     // delegating from a vesting account. It accepts the current block height, the
@@ -35,7 +35,7 @@ pub trait DelegatingAccount {
         current_balance: Uint128,
         delegation: Coin,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError>;
+    ) -> Result<(), VestingContractError>;
     // track_undelegation performs internal vesting accounting necessary when a
     // vesting account performs an undelegation.
     fn track_undelegation(
@@ -43,5 +43,5 @@ pub trait DelegatingAccount {
         mix_id: MixId,
         amount: Coin,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError>;
+    ) -> Result<(), VestingContractError>;
 }

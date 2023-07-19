@@ -1,4 +1,4 @@
-use crate::PledgeCap;
+use crate::{PledgeCap, VestingSpecification};
 use contracts_common::signing::MessageSignature;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Timestamp};
@@ -17,40 +17,6 @@ pub struct InitMsg {
 
 #[cw_serde]
 pub struct MigrateMsg {}
-
-#[cw_serde]
-#[derive(Default)]
-pub struct VestingSpecification {
-    start_time: Option<u64>,
-    period_seconds: Option<u64>,
-    num_periods: Option<u64>,
-}
-
-impl VestingSpecification {
-    pub fn new(
-        start_time: Option<u64>,
-        period_seconds: Option<u64>,
-        num_periods: Option<u64>,
-    ) -> Self {
-        Self {
-            start_time,
-            period_seconds,
-            num_periods,
-        }
-    }
-
-    pub fn start_time(&self) -> Option<u64> {
-        self.start_time
-    }
-
-    pub fn period_seconds(&self) -> u64 {
-        self.period_seconds.unwrap_or(3 * 30 * 86400)
-    }
-
-    pub fn num_periods(&self) -> u64 {
-        self.num_periods.unwrap_or(8)
-    }
-}
 
 #[cw_serde]
 pub enum ExecuteMsg {

@@ -2,7 +2,6 @@ use futures::SinkExt;
 use log::error;
 use nym_client_core::error::ClientCoreStatusMessage;
 use nym_socks5_client_core::{Socks5ControlMessage, Socks5ControlMessageSender};
-use sentry::ClientInitGuard;
 use std::time::Duration;
 use tap::TapFallible;
 use tauri::Manager;

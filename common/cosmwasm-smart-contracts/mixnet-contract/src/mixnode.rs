@@ -760,6 +760,12 @@ pub struct MixnodeDetailsResponse {
 }
 
 #[cw_serde]
+pub struct MixnodeDetailsByIdentityResponse {
+    pub identity_key: IdentityKey,
+    pub mixnode_details: Option<MixNodeDetails>,
+}
+
+#[cw_serde]
 pub struct MixnodeRewardingDetailsResponse {
     pub mix_id: MixId,
     pub rewarding_details: Option<MixNodeRewarding>,

@@ -497,7 +497,7 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(UnbondedMixnodeResponse))]
     GetUnbondedMixNodeInformation { mix_id: MixId },
 
-    #[cfg_attr(feature = "schema", returns(Option<MixNodeDetails>))]
+    #[cfg_attr(feature = "schema", returns(MixNodeDetails))]
     GetBondedMixnodeDetailsByIdentity { mix_identity: IdentityKey },
 
     #[cfg_attr(feature = "schema", returns(LayerDistribution))]

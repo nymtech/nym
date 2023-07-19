@@ -36,8 +36,8 @@ pub use interval::{
 };
 pub use mixnode::{
     Layer, MixNode, MixNodeBond, MixNodeConfigUpdate, MixNodeCostParams, MixNodeDetails,
-    MixNodeRewarding, MixOwnershipResponse, MixnodeDetailsResponse, PagedMixnodeBondsResponse,
-    RewardedSetNodeStatus, UnbondedMixnode,
+    MixNodeRewarding, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
+    MixnodeDetailsResponse, PagedMixnodeBondsResponse, RewardedSetNodeStatus, UnbondedMixnode,
 };
 pub use msg::*;
 pub use pending_events::{

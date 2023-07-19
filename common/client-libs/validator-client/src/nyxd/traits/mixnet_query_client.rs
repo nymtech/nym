@@ -10,8 +10,8 @@ use nym_contracts_common::signing::Nonce;
 use nym_mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
 use nym_mixnet_contract_common::families::Family;
 use nym_mixnet_contract_common::mixnode::{
-    MixNodeDetails, MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse,
-    PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
+    MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse, PagedUnbondedMixnodesResponse,
+    StakeSaturationResponse, UnbondedMixnodeResponse,
 };
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::{
@@ -21,12 +21,12 @@ use nym_mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
     CurrentIntervalResponse, EpochEventId, EpochStatus, GatewayBondResponse,
     GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution, MixId,
-    MixOwnershipResponse, MixnodeDetailsResponse, NumberOfPendingEventsResponse,
-    PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedFamiliesResponse,
-    PagedGatewayResponse, PagedMembersResponse, PagedMixNodeDelegationsResponse,
-    PagedMixnodeBondsResponse, PagedRewardedSetResponse, PendingEpochEventResponse,
-    PendingEpochEventsResponse, PendingIntervalEventResponse, PendingIntervalEventsResponse,
-    QueryMsg as MixnetQueryMsg,
+    MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse,
+    NumberOfPendingEventsResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    PagedFamiliesResponse, PagedGatewayResponse, PagedMembersResponse,
+    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse,
+    PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEventResponse,
+    PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
 };
 use serde::Deserialize;
 
@@ -178,7 +178,7 @@ pub trait MixnetQueryClient {
     async fn get_mixnode_details_by_identity(
         &self,
         mix_identity: IdentityKey,
-    ) -> Result<Option<MixNodeDetails>, NyxdError> {
+    ) -> Result<MixnodeDetailsByIdentityResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity {
             mix_identity,
         })

@@ -19,8 +19,8 @@ use mixnet_contract_common::mixnode::{
     PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
 };
 use mixnet_contract_common::{
-    IdentityKey, LayerDistribution, MixId, MixOwnershipResponse, MixnodeDetailsResponse,
-    PagedMixnodeBondsResponse,
+    IdentityKey, LayerDistribution, MixId, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
+    MixnodeDetailsResponse, PagedMixnodeBondsResponse,
 };
 
 pub fn query_mixnode_bonds_paged(
@@ -189,12 +189,16 @@ pub fn query_mixnode_details(deps: Deps<'_>, mix_id: MixId) -> StdResult<Mixnode
     })
 }
 
-// TODO: change the return type to be consistent with the other details queries
 pub fn query_mixnode_details_by_identity(
     deps: Deps<'_>,
-    mix_identity: IdentityKey,
-) -> StdResult<Option<MixNodeDetails>> {
-    get_mixnode_details_by_identity(deps.storage, mix_identity)
+    identity_key: IdentityKey,
+) -> StdResult<MixnodeDetailsByIdentityResponse> {
+    let mixnode_details = get_mixnode_details_by_identity(deps.storage, identity_key.clone())?;
+
+    Ok(MixnodeDetailsByIdentityResponse {
+        identity_key,
+        mixnode_details,
+    })
 }
 
 pub fn query_mixnode_rewarding_details(

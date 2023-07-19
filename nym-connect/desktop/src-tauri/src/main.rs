@@ -45,7 +45,7 @@ fn main() {
         UserData::default()
     });
 
-    let user_data_monitoring = user_data.monitoring.unwrap_or(false);
+    let monitoring = user_data.monitoring.unwrap_or(false);
 
     let _guard = sentry::init((
         SENTRY_DSN,
@@ -65,7 +65,7 @@ fn main() {
         }));
     });
 
-    if user_data_monitoring {
+    if monitoring {
         println!("Sentry reporting and monitoring is enabled");
     } else {
         println!("Monitoring is disabled, dropping sentry guard");
@@ -123,7 +123,7 @@ fn main() {
                 );
             }
         })
-        .setup(|app| Ok(crate::logging::setup_logging(app.app_handle())?))
+        .setup(move |app| Ok(crate::logging::setup_logging(app.app_handle(), monitoring)?))
         .system_tray(create_tray_menu())
         .on_system_tray_event(tray_menu_event_handler)
         .run(context)

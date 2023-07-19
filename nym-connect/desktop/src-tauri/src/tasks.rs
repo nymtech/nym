@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tap::TapFallible;
 use tokio::sync::RwLock;
 
-use crate::config::Config;
+use crate::config::{Config, PrivacyLevel};
 use crate::{
     error::Result,
     events::{self, emit_event, emit_status_event},
@@ -30,23 +30,20 @@ pub enum Socks5ExitStatusMessage {
     Failed(Box<dyn std::error::Error + Send>),
 }
 
-fn override_config_from_env(config: &mut Config) {
+fn override_config_from_env(config: &mut Config, privacy_level: &PrivacyLevel) {
     // Disable both the loop cover traffic that runs in the background as well as the Poisson
     // process that injects cover traffic into the traffic stream.
-    if std::env::var("NYM_CONNECT_DISABLE_COVER").is_ok() {
+    if let PrivacyLevel::Medium = privacy_level {
+        log::info!("Running in Medium privacy level");
         log::warn!("Disabling cover traffic");
         config.core.base.set_no_cover_traffic_with_keepalive();
-    }
 
-    if std::env::var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS").is_ok() {
         log::warn!("Enabling mixed size packets");
         config
             .core
             .base
             .set_secondary_packet_size(Some(PacketSize::ExtendedPacket16));
-    }
 
-    if std::env::var("NYM_CONNECT_DISABLE_PER_HOP_DELAYS").is_ok() {
         log::warn!("Disabling per-hop delay");
         config.core.base.set_no_per_hop_delays();
     }
@@ -55,6 +52,7 @@ fn override_config_from_env(config: &mut Config) {
 /// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
 pub async fn start_nym_socks5_client(
     id: &str,
+    privacy_level: &PrivacyLevel,
 ) -> Result<(
     Socks5ControlMessageSender,
     nym_task::StatusReceiver,
@@ -65,7 +63,7 @@ pub async fn start_nym_socks5_client(
     let mut config = Config::read_from_default_path(id)
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
 
-    override_config_from_env(&mut config);
+    override_config_from_env(&mut config, privacy_level);
 
     log::trace!("Configuration used: {:#?}", config);
 

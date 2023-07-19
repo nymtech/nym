@@ -3886,24 +3886,50 @@
     },
     "get_family_members_by_head": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Set_of_String",
-      "type": "array",
-      "items": {
-        "type": "string"
+      "title": "FamilyMembersByHeadResponse",
+      "type": "object",
+      "required": [
+        "head",
+        "members"
+      ],
+      "properties": {
+        "head": {
+          "$ref": "#/definitions/FamilyHead"
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
-      "uniqueItems": true
+      "additionalProperties": false,
+      "definitions": {
+        "FamilyHead": {
+          "type": "string"
+        }
+      }
     },
     "get_family_members_by_label": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Nullable_Set_of_String",
-      "type": [
-        "array",
-        "null"
+      "title": "FamilyMembersByLabelResponse",
+      "type": "object",
+      "required": [
+        "label",
+        "members"
       ],
-      "items": {
-        "type": "string"
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
-      "uniqueItems": true
+      "additionalProperties": false
     },
     "get_gateway_bond": {
       "$schema": "http://json-schema.org/draft-07/schema#",

@@ -127,6 +127,18 @@ pub struct FamilyByLabelResponse {
     pub family: Option<Family>,
 }
 
+#[cw_serde]
+pub struct FamilyMembersByHeadResponse {
+    pub head: FamilyHead,
+    pub members: Vec<IdentityKey>,
+}
+
+#[cw_serde]
+pub struct FamilyMembersByLabelResponse {
+    pub label: String,
+    pub members: Vec<IdentityKey>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

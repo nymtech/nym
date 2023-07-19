@@ -25,7 +25,8 @@ use crate::{
         PagedMixNodeDelegationsResponse,
     },
     families::{
-        FamilyByHeadResponse, FamilyByLabelResponse, PagedFamiliesResponse, PagedMembersResponse,
+        FamilyByHeadResponse, FamilyByLabelResponse, FamilyMembersByHeadResponse,
+        FamilyMembersByLabelResponse, PagedFamiliesResponse, PagedMembersResponse,
     },
     gateway::{GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse},
     interval::{CurrentIntervalResponse, EpochStatus},
@@ -47,8 +48,6 @@ use crate::{
 use contracts_common::{signing::Nonce, ContractBuildInformation};
 #[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
-#[cfg(feature = "schema")]
-use std::collections::HashSet;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -413,10 +412,10 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(FamilyByLabelResponse))]
     GetFamilyByLabel { label: String },
 
-    #[cfg_attr(feature = "schema", returns(HashSet<String>))]
+    #[cfg_attr(feature = "schema", returns(FamilyMembersByHeadResponse))]
     GetFamilyMembersByHead { head: String },
 
-    #[cfg_attr(feature = "schema", returns(Option<HashSet<String>>))]
+    #[cfg_attr(feature = "schema", returns(FamilyMembersByLabelResponse))]
     GetFamilyMembersByLabel { label: String },
 
     // state/sys-params-related

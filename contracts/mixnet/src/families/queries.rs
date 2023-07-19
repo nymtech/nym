@@ -1,17 +1,17 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::storage::{families, get_family, get_members, MEMBERS};
+use super::storage::{families, get_members, must_get_family, MEMBERS};
 use crate::constants::{FAMILIES_DEFAULT_RETRIEVAL_LIMIT, FAMILIES_MAX_RETRIEVAL_LIMIT};
+use crate::families::storage::must_get_family_by_label;
 use cosmwasm_std::{Order, Storage};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::families::{
-    Family, FamilyByHeadResponse, FamilyByLabelResponse, FamilyHead, PagedFamiliesResponse,
-    PagedMembersResponse,
+    Family, FamilyByHeadResponse, FamilyByLabelResponse, FamilyHead, FamilyMembersByHeadResponse,
+    PagedFamiliesResponse, PagedMembersResponse,
 };
-use mixnet_contract_common::IdentityKey;
 use mixnet_contract_common::{error::MixnetContractError, IdentityKeyRef};
-use std::collections::HashSet;
+use mixnet_contract_common::{FamilyMembersByLabelResponse, IdentityKey};
 
 pub fn get_family_by_label(
     label: String,
@@ -39,21 +39,25 @@ pub fn get_family_by_head(
 pub fn get_family_members_by_head(
     head: IdentityKeyRef<'_>,
     storage: &dyn Storage,
-) -> Result<HashSet<String>, MixnetContractError> {
+) -> Result<FamilyMembersByHeadResponse, MixnetContractError> {
     let family_head = FamilyHead::new(head);
-    let family = get_family(&family_head, storage)?;
-    get_members(&family, storage)
+    let family = must_get_family(&family_head, storage)?;
+    let members = get_members(&family, storage)?;
+
+    Ok(FamilyMembersByHeadResponse {
+        head: family.head().to_owned(),
+        members,
+    })
 }
 
 pub fn get_family_members_by_label(
     label: String,
     storage: &dyn Storage,
-) -> Result<Option<HashSet<String>>, MixnetContractError> {
-    if let Some(family) = families().idx.label.item(storage, label)?.map(|o| o.1) {
-        Ok(Some(get_members(&family, storage)?))
-    } else {
-        Ok(None)
-    }
+) -> Result<FamilyMembersByLabelResponse, MixnetContractError> {
+    let family = must_get_family_by_label(label.clone(), storage)?;
+    let members = get_members(&family, storage)?;
+
+    Ok(FamilyMembersByLabelResponse { label, members })
 }
 
 pub fn get_all_families_paged(

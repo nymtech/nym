@@ -1,5 +1,5 @@
 use nym_sdk::mixnet::{
-    AnonymousSenderTag, MixnetClient, MixnetClientBuilder, ReconstructedMessage, StoragePaths,
+    AnonymousSenderTag, MixnetClientBuilder, ReconstructedMessage, StoragePaths,
 };
 use std::path::PathBuf; 
 

@@ -104,8 +104,8 @@ async fn execute(cli: Cli) -> anyhow::Result<()> {
         Commands::Signature(signature) => {
             validator::signature::execute(signature, &network_details, mnemonic).await?
         }
-        Commands::Coconut(coconut) {
-            => coconut::coconut::execute(args, coconut, &network_details).await?,
+        Commands::Coconut(coconut) => {
+            coconut::coconut::execute(args, coconut, &network_details).await?,
         }
         Commands::Block(block) => validator::block::execute(block, &network_details).await?,
         Commands::Cosmwasm(cosmwasm) => {

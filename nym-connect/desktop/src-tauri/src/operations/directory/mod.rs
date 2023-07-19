@@ -1,12 +1,15 @@
 use itertools::Itertools;
 
+use crate::config::PrivacyLevel;
 use crate::error::Result;
 use crate::models::{
     DirectoryService, DirectoryServiceProvider, HarbourMasterService, PagedResult,
 };
-use crate::state::is_medium_enabled;
+use crate::state::State;
 use nym_api_requests::models::GatewayBondAnnotated;
 use nym_contracts_common::types::Percent;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 static SERVICE_PROVIDER_WELLKNOWN_URL: &str =
     "https://nymtech.net/.wellknown/connect/service-providers.json";
@@ -20,21 +23,20 @@ static HARBOUR_MASTER_URL: &str = "https://harbourmaster.nymtech.net/v1/services
 static GATEWAYS_DETAILED_URL: &str =
     "https://validator.nymtech.net/api/v1/status/gateways/detailed";
 
-fn get_services_url() -> &'static str {
-    if is_medium_enabled() {
-        return SERVICE_PROVIDER_WELLKNOWN_URL_MEDIUM;
-    }
-    SERVICE_PROVIDER_WELLKNOWN_URL
-}
-
 #[tauri::command]
-pub async fn get_services() -> Result<Vec<DirectoryServiceProvider>> {
+pub async fn get_services(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Vec<DirectoryServiceProvider>> {
     log::trace!("Fetching services");
-    let all_services = fetch_services().await?;
+
+    let guard = state.read().await;
+    let privacy_level = guard.get_user_data().privacy_level.unwrap_or_default();
+
+    let all_services = fetch_services(&privacy_level).await?;
     log::trace!("Received: {:#?}", all_services);
 
     // Early return if we're running with medium toggle enabled
-    if is_medium_enabled() {
+    if let PrivacyLevel::Medium = privacy_level {
         return Ok(all_services.into_iter().flat_map(|sp| sp.items).collect());
     }
 
@@ -100,8 +102,12 @@ fn filter_out_poor_gateways(
         .collect()
 }
 
-async fn fetch_services() -> Result<Vec<DirectoryService>> {
-    let services_url = get_services_url();
+async fn fetch_services(privacy_level: &PrivacyLevel) -> Result<Vec<DirectoryService>> {
+    let services_url = match privacy_level {
+        PrivacyLevel::Medium => SERVICE_PROVIDER_WELLKNOWN_URL_MEDIUM,
+        _ => SERVICE_PROVIDER_WELLKNOWN_URL,
+    };
+
     let services_res = reqwest::get(services_url)
         .await?
         .json::<Vec<DirectoryService>>()

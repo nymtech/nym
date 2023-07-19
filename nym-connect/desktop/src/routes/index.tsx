@@ -9,14 +9,15 @@ import { SettingsMenu } from 'src/pages/menu/settings';
 import { GatewaySettings } from 'src/pages/menu/settings/GatewaySettings';
 import { ServiceProviderSettings } from 'src/pages/menu/settings/ServiceProviderSettings';
 import { MonitoringSettings } from '../pages/menu/settings/MonitoringSettings';
+import { PrivacyLevelSettings } from '../pages/menu/settings/PrivacyLevelSettings';
 import { useClientContext } from '../context/main';
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
 export const AppRoutes = () => {
-  const { monitoringEnabled } = useClientContext();
+  const { userData } = useClientContext();
 
-  const RoutesContainer = monitoringEnabled ? SentryRoutes : Routes;
+  const RoutesContainer = userData?.monitoring ? SentryRoutes : Routes;
 
   return (
     <RoutesContainer>
@@ -25,6 +26,7 @@ export const AppRoutes = () => {
         <Route index element={<Menu />} />
         <Route path="apps" element={<CompatibleApps />} />
         <Route path="guide" element={<HelpGuide />} />
+        <Route path="privacy-level" element={<PrivacyLevelSettings />} />
         <Route path="monitoring" element={<MonitoringSettings />} />
         <Route path="settings">
           <Route index element={<SettingsMenu />} />

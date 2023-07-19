@@ -237,7 +237,7 @@ To make things a bit less stressful for administrators, the Network Requester dr
 ### Global vs local allow lists 
 Your Network Requester will check for a domain against 2 lists before allowing traffic through for a particular domain or IP. 
 
-* The first list is the default list on the [nymtech.net server](). Your Requester will not check against this list every time, but instead will keep a record of accepted domains in memory. 
+* The first list is the default list on the [nymtech.net server](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt). Your Requester will not check against this list every time, but instead will keep a record of accepted domains in memory. 
 
 * The second is the local `allowed.list` file. 
 

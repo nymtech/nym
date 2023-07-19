@@ -388,216 +388,217 @@ pub fn query(
         QueryMsg::GetAllMembersPaged { limit, start_after } => to_binary(
             &crate::families::queries::get_all_members_paged(deps.storage, start_after, limit)?,
         ),
-        // QueryMsg::GetFamilyByHead { head } => to_binary(
-        //     &crate::families::queries::get_family_by_head(&head, deps.storage)?,
-        // ),
-        // QueryMsg::GetFamilyByLabel { label } => to_binary(
-        //     &crate::families::queries::get_family_by_label(label, deps.storage)?,
-        // ),
-        // QueryMsg::GetFamilyMembersByHead { head } => to_binary(
-        //     &crate::families::queries::get_family_members_by_head(&head, deps.storage)?,
-        // ),
-        // QueryMsg::GetFamilyMembersByLabel { label } => to_binary(
-        //     &crate::families::queries::get_family_members_by_label(label, deps.storage)?,
-        // ),
-        // QueryMsg::GetContractVersion {} => {
-        //     to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
-        // }
-        // QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
-        // QueryMsg::GetStateParams {} => to_binary(
-        //     &crate::mixnet_contract_settings::queries::query_contract_settings_params(deps)?,
-        // ),
-        // QueryMsg::GetRewardingValidatorAddress {} => to_binary(
-        //     &crate::mixnet_contract_settings::queries::query_rewarding_validator_address(deps)?,
-        // ),
-        // QueryMsg::GetState {} => {
-        //     to_binary(&crate::mixnet_contract_settings::queries::query_contract_state(deps)?)
-        // }
-        // QueryMsg::GetRewardingParams {} => {
-        //     to_binary(&crate::rewards::queries::query_rewarding_params(deps)?)
-        // }
-        // QueryMsg::GetEpochStatus {} => {
-        //     to_binary(&crate::interval::queries::query_epoch_status(deps)?)
-        // }
-        // QueryMsg::GetCurrentIntervalDetails {} => to_binary(
-        //     &crate::interval::queries::query_current_interval_details(deps, env)?,
-        // ),
-        // QueryMsg::GetRewardedSet { limit, start_after } => to_binary(
-        //     &crate::interval::queries::query_rewarded_set_paged(deps, start_after, limit)?,
-        // ),
-        //
-        // // mixnode-related:
-        // QueryMsg::GetMixNodeBonds { start_after, limit } => to_binary(
-        //     &crate::mixnodes::queries::query_mixnode_bonds_paged(deps, start_after, limit)?,
-        // ),
-        // QueryMsg::GetMixNodesDetailed { start_after, limit } => to_binary(
-        //     &crate::mixnodes::queries::query_mixnodes_details_paged(deps, start_after, limit)?,
-        // ),
-        // QueryMsg::GetUnbondedMixNodes { limit, start_after } => to_binary(
-        //     &crate::mixnodes::queries::query_unbonded_mixnodes_paged(deps, start_after, limit)?,
-        // ),
-        // QueryMsg::GetUnbondedMixNodesByOwner {
-        //     owner,
-        //     limit,
-        //     start_after,
-        // } => to_binary(
-        //     &crate::mixnodes::queries::query_unbonded_mixnodes_by_owner_paged(
-        //         deps,
-        //         owner,
-        //         start_after,
-        //         limit,
-        //     )?,
-        // ),
-        // QueryMsg::GetUnbondedMixNodesByIdentityKey {
-        //     identity_key,
-        //     limit,
-        //     start_after,
-        // } => to_binary(
-        //     &crate::mixnodes::queries::query_unbonded_mixnodes_by_identity_paged(
-        //         deps,
-        //         identity_key,
-        //         start_after,
-        //         limit,
-        //     )?,
-        // ),
-        // QueryMsg::GetOwnedMixnode { address } => to_binary(
-        //     &crate::mixnodes::queries::query_owned_mixnode(deps, address)?,
-        // ),
-        // QueryMsg::GetMixnodeDetails { mix_id } => to_binary(
-        //     &crate::mixnodes::queries::query_mixnode_details(deps, mix_id)?,
-        // ),
-        // QueryMsg::GetMixnodeRewardingDetails { mix_id } => to_binary(
-        //     &crate::mixnodes::queries::query_mixnode_rewarding_details(deps, mix_id)?,
-        // ),
-        // QueryMsg::GetStakeSaturation { mix_id } => to_binary(
-        //     &crate::mixnodes::queries::query_stake_saturation(deps, mix_id)?,
-        // ),
-        // QueryMsg::GetUnbondedMixNodeInformation { mix_id } => to_binary(
-        //     &crate::mixnodes::queries::query_unbonded_mixnode(deps, mix_id)?,
-        // ),
-        // QueryMsg::GetBondedMixnodeDetailsByIdentity { mix_identity } => to_binary(
-        //     &crate::mixnodes::queries::query_mixnode_details_by_identity(deps, mix_identity)?,
-        // ),
-        // QueryMsg::GetLayerDistribution {} => {
-        //     to_binary(&crate::mixnodes::queries::query_layer_distribution(deps)?)
-        // }
-        //
-        // // gateway-related:
-        // QueryMsg::GetGateways { limit, start_after } => to_binary(
-        //     &crate::gateways::queries::query_gateways_paged(deps, start_after, limit)?,
-        // ),
-        // QueryMsg::GetGatewayBond { identity } => to_binary(
-        //     &crate::gateways::queries::query_gateway_bond(deps, identity)?,
-        // ),
-        // QueryMsg::GetOwnedGateway { address } => to_binary(
-        //     &crate::gateways::queries::query_owned_gateway(deps, address)?,
-        // ),
-        //
-        // // delegation-related:
-        // QueryMsg::GetMixnodeDelegations {
-        //     mix_id,
-        //     start_after,
-        //     limit,
-        // } => to_binary(
-        //     &crate::delegations::queries::query_mixnode_delegations_paged(
-        //         deps,
-        //         mix_id,
-        //         start_after,
-        //         limit,
-        //     )?,
-        // ),
-        // QueryMsg::GetDelegatorDelegations {
-        //     delegator,
-        //     start_after,
-        //     limit,
-        // } => to_binary(
-        //     &crate::delegations::queries::query_delegator_delegations_paged(
-        //         deps,
-        //         delegator,
-        //         start_after,
-        //         limit,
-        //     )?,
-        // ),
-        // QueryMsg::GetDelegationDetails {
-        //     mix_id,
-        //     delegator,
-        //     proxy,
-        // } => to_binary(&crate::delegations::queries::query_mixnode_delegation(
-        //     deps, mix_id, delegator, proxy,
-        // )?),
-        // QueryMsg::GetAllDelegations { start_after, limit } => to_binary(
-        //     &crate::delegations::queries::query_all_delegations_paged(deps, start_after, limit)?,
-        // ),
-        //
-        // // rewards related
-        // QueryMsg::GetPendingOperatorReward { address } => to_binary(
-        //     &crate::rewards::queries::query_pending_operator_reward(deps, address)?,
-        // ),
-        // QueryMsg::GetPendingMixNodeOperatorReward { mix_id } => to_binary(
-        //     &crate::rewards::queries::query_pending_mixnode_operator_reward(deps, mix_id)?,
-        // ),
-        // QueryMsg::GetPendingDelegatorReward {
-        //     address,
-        //     mix_id,
-        //     proxy,
-        // } => to_binary(&crate::rewards::queries::query_pending_delegator_reward(
-        //     deps, address, mix_id, proxy,
-        // )?),
-        // QueryMsg::GetEstimatedCurrentEpochOperatorReward {
-        //     mix_id,
-        //     estimated_performance,
-        // } => to_binary(
-        //     &crate::rewards::queries::query_estimated_current_epoch_operator_reward(
-        //         deps,
-        //         mix_id,
-        //         estimated_performance,
-        //     )?,
-        // ),
-        // QueryMsg::GetEstimatedCurrentEpochDelegatorReward {
-        //     address,
-        //     mix_id,
-        //     proxy,
-        //     estimated_performance,
-        // } => to_binary(
-        //     &crate::rewards::queries::query_estimated_current_epoch_delegator_reward(
-        //         deps,
-        //         address,
-        //         mix_id,
-        //         proxy,
-        //         estimated_performance,
-        //     )?,
-        // ),
-        //
-        // // interval-related
-        // QueryMsg::GetPendingEpochEvents { limit, start_after } => {
-        //     to_binary(&crate::interval::queries::query_pending_epoch_events_paged(
-        //         deps,
-        //         env,
-        //         start_after,
-        //         limit,
-        //     )?)
-        // }
-        // QueryMsg::GetPendingIntervalEvents { limit, start_after } => to_binary(
-        //     &crate::interval::queries::query_pending_interval_events_paged(
-        //         deps,
-        //         env,
-        //         start_after,
-        //         limit,
-        //     )?,
-        // ),
-        // QueryMsg::GetPendingEpochEvent { event_id } => to_binary(
-        //     &crate::interval::queries::query_pending_epoch_event(deps, event_id)?,
-        // ),
-        // QueryMsg::GetPendingIntervalEvent { event_id } => to_binary(
-        //     &crate::interval::queries::query_pending_interval_event(deps, event_id)?,
-        // ),
-        // QueryMsg::GetNumberOfPendingEvents {} => to_binary(
-        //     &crate::interval::queries::query_number_of_pending_events(deps)?,
-        // ),
-        // QueryMsg::GetSigningNonce { address } => to_binary(
-        //     &crate::signing::queries::query_current_signing_nonce(deps, address)?,
-        // ),
-        _ => todo!(),
+        QueryMsg::GetFamilyByHead { head } => to_binary(
+            &crate::families::queries::get_family_by_head(&head, deps.storage)?,
+        ),
+        QueryMsg::GetFamilyByLabel { label } => to_binary(
+            &crate::families::queries::get_family_by_label(label, deps.storage)?,
+        ),
+        QueryMsg::GetFamilyMembersByHead { head } => to_binary(
+            &crate::families::queries::get_family_members_by_head(&head, deps.storage)?,
+        ),
+        QueryMsg::GetFamilyMembersByLabel { label } => to_binary(
+            &crate::families::queries::get_family_members_by_label(label, deps.storage)?,
+        ),
+        QueryMsg::GetContractVersion {} => {
+            to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
+        }
+        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
+        QueryMsg::GetRewardingValidatorAddress {} => to_binary(
+            &crate::mixnet_contract_settings::queries::query_rewarding_validator_address(deps)?,
+        ),
+        QueryMsg::GetStateParams {} => to_binary(
+            &crate::mixnet_contract_settings::queries::query_contract_settings_params(deps)?,
+        ),
+        QueryMsg::GetState {} => {
+            to_binary(&crate::mixnet_contract_settings::queries::query_contract_state(deps)?)
+        }
+        QueryMsg::GetRewardingParams {} => {
+            to_binary(&crate::rewards::queries::query_rewarding_params(deps)?)
+        }
+        QueryMsg::GetEpochStatus {} => {
+            to_binary(&crate::interval::queries::query_epoch_status(deps)?)
+        }
+        QueryMsg::GetCurrentIntervalDetails {} => to_binary(
+            &crate::interval::queries::query_current_interval_details(deps, env)?,
+        ),
+        QueryMsg::GetRewardedSet { limit, start_after } => to_binary(
+            &crate::interval::queries::query_rewarded_set_paged(deps, start_after, limit)?,
+        ),
+
+        // mixnode-related:
+        QueryMsg::GetMixNodeBonds { start_after, limit } => to_binary(
+            &crate::mixnodes::queries::query_mixnode_bonds_paged(deps, start_after, limit)?,
+        ),
+        QueryMsg::GetMixNodesDetailed { start_after, limit } => to_binary(
+            &crate::mixnodes::queries::query_mixnodes_details_paged(deps, start_after, limit)?,
+        ),
+        QueryMsg::GetUnbondedMixNodes { limit, start_after } => to_binary(
+            &crate::mixnodes::queries::query_unbonded_mixnodes_paged(deps, start_after, limit)?,
+        ),
+        QueryMsg::GetUnbondedMixNodesByOwner {
+            owner,
+            limit,
+            start_after,
+        } => to_binary(
+            &crate::mixnodes::queries::query_unbonded_mixnodes_by_owner_paged(
+                deps,
+                owner,
+                start_after,
+                limit,
+            )?,
+        ),
+        QueryMsg::GetUnbondedMixNodesByIdentityKey {
+            identity_key,
+            limit,
+            start_after,
+        } => to_binary(
+            &crate::mixnodes::queries::query_unbonded_mixnodes_by_identity_paged(
+                deps,
+                identity_key,
+                start_after,
+                limit,
+            )?,
+        ),
+        QueryMsg::GetOwnedMixnode { address } => to_binary(
+            &crate::mixnodes::queries::query_owned_mixnode(deps, address)?,
+        ),
+        QueryMsg::GetMixnodeDetails { mix_id } => to_binary(
+            &crate::mixnodes::queries::query_mixnode_details(deps, mix_id)?,
+        ),
+        QueryMsg::GetMixnodeRewardingDetails { mix_id } => to_binary(
+            &crate::mixnodes::queries::query_mixnode_rewarding_details(deps, mix_id)?,
+        ),
+        QueryMsg::GetStakeSaturation { mix_id } => to_binary(
+            &crate::mixnodes::queries::query_stake_saturation(deps, mix_id)?,
+        ),
+        QueryMsg::GetUnbondedMixNodeInformation { mix_id } => to_binary(
+            &crate::mixnodes::queries::query_unbonded_mixnode(deps, mix_id)?,
+        ),
+        QueryMsg::GetBondedMixnodeDetailsByIdentity { mix_identity } => to_binary(
+            &crate::mixnodes::queries::query_mixnode_details_by_identity(deps, mix_identity)?,
+        ),
+        QueryMsg::GetLayerDistribution {} => {
+            to_binary(&crate::mixnodes::queries::query_layer_distribution(deps)?)
+        }
+
+        // gateway-related:
+        QueryMsg::GetGateways { limit, start_after } => to_binary(
+            &crate::gateways::queries::query_gateways_paged(deps, start_after, limit)?,
+        ),
+        QueryMsg::GetGatewayBond { identity } => to_binary(
+            &crate::gateways::queries::query_gateway_bond(deps, identity)?,
+        ),
+        QueryMsg::GetOwnedGateway { address } => to_binary(
+            &crate::gateways::queries::query_owned_gateway(deps, address)?,
+        ),
+
+        // delegation-related:
+        QueryMsg::GetMixnodeDelegations {
+            mix_id,
+            start_after,
+            limit,
+        } => to_binary(
+            &crate::delegations::queries::query_mixnode_delegations_paged(
+                deps,
+                mix_id,
+                start_after,
+                limit,
+            )?,
+        ),
+        QueryMsg::GetDelegatorDelegations {
+            delegator,
+            start_after,
+            limit,
+        } => to_binary(
+            &crate::delegations::queries::query_delegator_delegations_paged(
+                deps,
+                delegator,
+                start_after,
+                limit,
+            )?,
+        ),
+        QueryMsg::GetDelegationDetails {
+            mix_id,
+            delegator,
+            proxy,
+        } => to_binary(&crate::delegations::queries::query_mixnode_delegation(
+            deps, mix_id, delegator, proxy,
+        )?),
+        QueryMsg::GetAllDelegations { start_after, limit } => to_binary(
+            &crate::delegations::queries::query_all_delegations_paged(deps, start_after, limit)?,
+        ),
+
+        // rewards related
+        QueryMsg::GetPendingOperatorReward { address } => to_binary(
+            &crate::rewards::queries::query_pending_operator_reward(deps, address)?,
+        ),
+        QueryMsg::GetPendingMixNodeOperatorReward { mix_id } => to_binary(
+            &crate::rewards::queries::query_pending_mixnode_operator_reward(deps, mix_id)?,
+        ),
+        QueryMsg::GetPendingDelegatorReward {
+            address,
+            mix_id,
+            proxy,
+        } => to_binary(&crate::rewards::queries::query_pending_delegator_reward(
+            deps, address, mix_id, proxy,
+        )?),
+        QueryMsg::GetEstimatedCurrentEpochOperatorReward {
+            mix_id,
+            estimated_performance,
+        } => to_binary(
+            &crate::rewards::queries::query_estimated_current_epoch_operator_reward(
+                deps,
+                mix_id,
+                estimated_performance,
+            )?,
+        ),
+        QueryMsg::GetEstimatedCurrentEpochDelegatorReward {
+            address,
+            mix_id,
+            proxy,
+            estimated_performance,
+        } => to_binary(
+            &crate::rewards::queries::query_estimated_current_epoch_delegator_reward(
+                deps,
+                address,
+                mix_id,
+                proxy,
+                estimated_performance,
+            )?,
+        ),
+
+        // interval-related
+        QueryMsg::GetPendingEpochEvents { limit, start_after } => {
+            to_binary(&crate::interval::queries::query_pending_epoch_events_paged(
+                deps,
+                env,
+                start_after,
+                limit,
+            )?)
+        }
+        QueryMsg::GetPendingIntervalEvents { limit, start_after } => to_binary(
+            &crate::interval::queries::query_pending_interval_events_paged(
+                deps,
+                env,
+                start_after,
+                limit,
+            )?,
+        ),
+        QueryMsg::GetPendingEpochEvent { event_id } => to_binary(
+            &crate::interval::queries::query_pending_epoch_event(deps, event_id)?,
+        ),
+        QueryMsg::GetPendingIntervalEvent { event_id } => to_binary(
+            &crate::interval::queries::query_pending_interval_event(deps, event_id)?,
+        ),
+        QueryMsg::GetNumberOfPendingEvents {} => to_binary(
+            &crate::interval::queries::query_number_of_pending_events(deps)?,
+        ),
+
+        // signing-related
+        QueryMsg::GetSigningNonce { address } => to_binary(
+            &crate::signing::queries::query_current_signing_nonce(deps, address)?,
+        ),
     };
 
     Ok(query_res?)

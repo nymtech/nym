@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixnetContractError;
-use crate::pending_events::{PendingEpochEvent, PendingIntervalEvent};
-use crate::{
-    EpochEventId, EpochId, IntervalEventId, IntervalId, MixId, PendingEpochEventData,
-    PendingIntervalEventData,
-};
+use crate::MixId;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_schema::schemars::gen::SchemaGenerator;
 use cosmwasm_schema::schemars::schema::{InstanceType, Schema, SchemaObject};
@@ -16,6 +12,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use time::OffsetDateTime;
+
+pub type EpochId = u32;
+pub type IntervalId = u32;
 
 // internally, since version 0.3.6, time uses deserialize_any for deserialization, which can't be handled
 // by serde wasm. We could just downgrade to 0.3.5 and call it a day, but then it would break
@@ -65,7 +64,7 @@ pub(crate) mod string_rfc3339_offset_date_time {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[cw_serde]
 pub struct EpochStatus {
     // TODO: introduce mechanism to allow another validator to take over if no progress has been made in X blocks / Y seconds
     /// Specifies either, which validator is currently performing progression into the following epoch (if the epoch is currently being progressed),
@@ -151,7 +150,8 @@ impl EpochStatus {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
+#[cw_serde]
+#[derive(Copy)]
 pub enum EpochState {
     /// Represents the state of an epoch that's in progress (well, duh.)
     /// All actions are allowed to be issued.
@@ -486,87 +486,6 @@ impl CurrentIntervalResponse {
             } else {
                 Duration::from_secs(remaining_secs as u64)
             }
-        }
-    }
-}
-
-#[cw_serde]
-pub struct PendingEpochEventsResponse {
-    pub seconds_until_executable: i64,
-    pub events: Vec<PendingEpochEvent>,
-    pub start_next_after: Option<u32>,
-}
-
-impl PendingEpochEventsResponse {
-    pub fn new(
-        seconds_until_executable: i64,
-        events: Vec<PendingEpochEvent>,
-        start_next_after: Option<u32>,
-    ) -> Self {
-        PendingEpochEventsResponse {
-            seconds_until_executable,
-            events,
-            start_next_after,
-        }
-    }
-}
-
-#[cw_serde]
-pub struct PendingIntervalEventsResponse {
-    pub seconds_until_executable: i64,
-    pub events: Vec<PendingIntervalEvent>,
-    pub start_next_after: Option<u32>,
-}
-
-impl PendingIntervalEventsResponse {
-    pub fn new(
-        seconds_until_executable: i64,
-        events: Vec<PendingIntervalEvent>,
-        start_next_after: Option<u32>,
-    ) -> Self {
-        PendingIntervalEventsResponse {
-            seconds_until_executable,
-            events,
-            start_next_after,
-        }
-    }
-}
-
-#[cw_serde]
-pub struct PendingEpochEventResponse {
-    pub event_id: EpochEventId,
-    pub event: Option<PendingEpochEventData>,
-}
-
-impl PendingEpochEventResponse {
-    pub fn new(event_id: EpochEventId, event: Option<PendingEpochEventData>) -> Self {
-        PendingEpochEventResponse { event_id, event }
-    }
-}
-
-#[cw_serde]
-pub struct PendingIntervalEventResponse {
-    pub event_id: IntervalEventId,
-    pub event: Option<PendingIntervalEventData>,
-}
-
-impl PendingIntervalEventResponse {
-    pub fn new(event_id: IntervalEventId, event: Option<PendingIntervalEventData>) -> Self {
-        PendingIntervalEventResponse { event_id, event }
-    }
-}
-
-#[cw_serde]
-pub struct NumberOfPendingEventsResponse {
-    pub epoch_events: u32,
-    pub interval_events: u32,
-}
-
-impl NumberOfPendingEventsResponse {
-    pub fn new(epoch_events: u32, interval_events: u32) -> Self {
-        Self {
-            epoch_events,
-            interval_events,
         }
     }
 }

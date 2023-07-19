@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PagedMembersResponse",
+  "type": "object",
+  "required": [
+    "members"
+  ],
+  "properties": {
+    "members": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/definitions/FamilyHead"
+          }
+        ],
+        "maxItems": 2,
+        "minItems": 2
+      }
+    },
+    "start_next_after": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "FamilyHead": {
+      "type": "string"
+    }
+  }
+}

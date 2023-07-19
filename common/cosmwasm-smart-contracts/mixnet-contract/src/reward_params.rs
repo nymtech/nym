@@ -80,6 +80,7 @@ impl IntervalRewardParams {
     ts(export_to = "ts-packages/types/src/types/rust/RewardingParams.ts")
 )]
 #[cw_serde]
+#[derive(Copy)]
 pub struct RewardingParams {
     /// Parameters that should remain unchanged throughout an interval.
     pub interval: IntervalRewardParams,
@@ -246,7 +247,7 @@ impl NodeRewardParams {
     ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardingParamsUpdate.ts")
 )]
 #[cw_serde]
-#[derive(Copy)]
+#[derive(Copy, Default)]
 pub struct IntervalRewardingParamsUpdate {
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub reward_pool: Option<Decimal>,

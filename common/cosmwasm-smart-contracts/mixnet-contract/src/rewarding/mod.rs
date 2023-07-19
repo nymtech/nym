@@ -14,6 +14,7 @@ pub mod simulator;
     ts(export_to = "ts-packages/types/src/types/rust/RewardEstimate.ts")
 )]
 #[cw_serde]
+#[derive(Copy, Default)]
 pub struct RewardEstimate {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub total_node_reward: Decimal,

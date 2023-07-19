@@ -22,6 +22,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
     ts(export_to = "ts-packages/types/src/types/rust/RewardedSetNodeStatus.ts")
 )]
 #[cw_serde]
+#[derive(Copy)]
 pub enum RewardedSetNodeStatus {
     Active,
     Standby,

@@ -3579,6 +3579,7 @@ name = "nym-contracts-common"
 version = "0.5.0"
 dependencies = [
  "bs58",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "schemars",
  "serde",
@@ -3723,6 +3724,7 @@ dependencies = [
  "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "cw2",
  "humantime-serde",
  "log",
  "nym-contracts-common",

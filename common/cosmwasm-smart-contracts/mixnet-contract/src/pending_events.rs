@@ -3,9 +3,12 @@
 
 use crate::mixnode::MixNodeCostParams;
 use crate::reward_params::IntervalRewardingParamsUpdate;
-use crate::{BlockHeight, EpochEventId, IntervalEventId, MixId};
+use crate::{BlockHeight, MixId};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin};
+
+pub type EpochEventId = u32;
+pub type IntervalEventId = u32;
 
 #[cw_serde]
 pub struct PendingEpochEvent {
@@ -109,6 +112,87 @@ impl From<(IntervalEventId, PendingIntervalEventData)> for PendingIntervalEvent 
         PendingIntervalEvent {
             id: data.0,
             event: data.1,
+        }
+    }
+}
+
+#[cw_serde]
+pub struct PendingEpochEventsResponse {
+    pub seconds_until_executable: i64,
+    pub events: Vec<PendingEpochEvent>,
+    pub start_next_after: Option<u32>,
+}
+
+impl PendingEpochEventsResponse {
+    pub fn new(
+        seconds_until_executable: i64,
+        events: Vec<PendingEpochEvent>,
+        start_next_after: Option<u32>,
+    ) -> Self {
+        PendingEpochEventsResponse {
+            seconds_until_executable,
+            events,
+            start_next_after,
+        }
+    }
+}
+
+#[cw_serde]
+pub struct PendingIntervalEventsResponse {
+    pub seconds_until_executable: i64,
+    pub events: Vec<PendingIntervalEvent>,
+    pub start_next_after: Option<u32>,
+}
+
+impl PendingIntervalEventsResponse {
+    pub fn new(
+        seconds_until_executable: i64,
+        events: Vec<PendingIntervalEvent>,
+        start_next_after: Option<u32>,
+    ) -> Self {
+        PendingIntervalEventsResponse {
+            seconds_until_executable,
+            events,
+            start_next_after,
+        }
+    }
+}
+
+#[cw_serde]
+pub struct PendingEpochEventResponse {
+    pub event_id: EpochEventId,
+    pub event: Option<PendingEpochEventData>,
+}
+
+impl PendingEpochEventResponse {
+    pub fn new(event_id: EpochEventId, event: Option<PendingEpochEventData>) -> Self {
+        PendingEpochEventResponse { event_id, event }
+    }
+}
+
+#[cw_serde]
+pub struct PendingIntervalEventResponse {
+    pub event_id: IntervalEventId,
+    pub event: Option<PendingIntervalEventData>,
+}
+
+impl PendingIntervalEventResponse {
+    pub fn new(event_id: IntervalEventId, event: Option<PendingIntervalEventData>) -> Self {
+        PendingIntervalEventResponse { event_id, event }
+    }
+}
+
+#[cw_serde]
+pub struct NumberOfPendingEventsResponse {
+    pub epoch_events: u32,
+    pub interval_events: u32,
+}
+
+impl NumberOfPendingEventsResponse {
+    pub fn new(epoch_events: u32, interval_events: u32) -> Self {
+        Self {
+            epoch_events,
+            interval_events,
         }
     }
 }

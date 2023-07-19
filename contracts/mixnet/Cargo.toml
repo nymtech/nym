@@ -17,6 +17,10 @@ exclude = [
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[bin]]
+name = "schema"
+required-features = ["mixnet-contract-common/schema"]
+
 [lib]
 name = "mixnet_contract"
 crate-type = ["cdylib", "rlib"]

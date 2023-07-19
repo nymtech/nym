@@ -126,6 +126,7 @@ cosmrs = "=0.14.0"
 tendermint-rpc = "=0.32"
 cw-utils = "=1.0.1"
 cw-storage-plus = "=1.1.0"
+cw2 = { version = "=1.1.0" }
 cw3 = { version = "=1.1.0" }
 cw4 = { version = "=1.1.0" }
 cw-controllers = { version = "=1.1.0" }

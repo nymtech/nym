@@ -1,24 +1,52 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::delegation::OwnerProxySubKey;
+use crate::delegation::{self, OwnerProxySubKey};
 use crate::error::MixnetContractError;
-use crate::families::{FamilyHead, PagedFamiliesResponse, PagedMembersResponse};
-use crate::gateway::GatewayConfigUpdate;
+use crate::families::FamilyHead;
+use crate::gateway::{Gateway, GatewayConfigUpdate};
 use crate::helpers::IntoBaseDecimal;
-use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
+use crate::mixnode::{Layer, MixNode, MixNodeConfigUpdate, MixNodeCostParams};
+use crate::pending_events::{EpochEventId, IntervalEventId};
 use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
-use crate::{
-    delegation, ContractStateParams, EpochEventId, IntervalEventId, Layer, LayerAssignment, MixId,
-    Percent,
-};
-use crate::{Gateway, IdentityKey, MixNode};
-use contracts_common::signing::MessageSignature;
-use cosmwasm_schema::{cw_serde, QueryResponses};
+
+use crate::types::{ContractStateParams, LayerAssignment, MixId};
+use contracts_common::{signing::MessageSignature, IdentityKey, Percent};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal};
 use std::time::Duration;
+
+#[cfg(feature = "schema")]
+use crate::{
+    delegation::{
+        MixNodeDelegationResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+        PagedMixNodeDelegationsResponse,
+    },
+    families::{Family, PagedFamiliesResponse, PagedMembersResponse},
+    gateway::{GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse},
+    interval::{CurrentIntervalResponse, EpochStatus},
+    mixnode::{
+        MixNodeDetails, MixOwnershipResponse, MixnodeDetailsResponse,
+        MixnodeRewardingDetailsResponse, PagedMixnodeBondsResponse, PagedMixnodesDetailsResponse,
+        PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
+    },
+    pending_events::{
+        NumberOfPendingEventsResponse, PendingEpochEventResponse, PendingEpochEventsResponse,
+        PendingIntervalEventResponse, PendingIntervalEventsResponse,
+    },
+    rewarding::{
+        EstimatedCurrentEpochRewardResponse, PagedRewardedSetResponse, PendingRewardResponse,
+    },
+    types::{ContractState, LayerDistribution},
+};
+#[cfg(feature = "schema")]
+use contracts_common::{signing::Nonce, ContractBuildInformation};
+#[cfg(feature = "schema")]
+use cosmwasm_schema::QueryResponses;
+#[cfg(feature = "schema")]
+use std::collections::HashSet;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -362,174 +390,222 @@ impl ExecuteMsg {
 }
 
 #[cw_serde]
-#[derive(QueryResponses)]
+#[cfg_attr(feature = "schema", derive(QueryResponses))]
 pub enum QueryMsg {
     // families
-    #[returns(PagedFamiliesResponse)]
+    #[cfg_attr(feature = "schema", returns(PagedFamiliesResponse))]
     GetAllFamiliesPaged {
         limit: Option<u32>,
         start_after: Option<String>,
     },
-    #[returns(PagedMembersResponse)]
+
+    #[cfg_attr(feature = "schema", returns(PagedMembersResponse))]
     GetAllMembersPaged {
         limit: Option<u32>,
         start_after: Option<String>,
     },
-    // GetFamilyByHead {
-    //     head: String,
-    // },
-    // GetFamilyByLabel {
-    //     label: String,
-    // },
-    // GetFamilyMembersByHead {
-    //     head: String,
-    // },
-    // GetFamilyMembersByLabel {
-    //     label: String,
-    // },
-    // // state/sys-params-related
-    // GetContractVersion {},
-    // #[serde(rename = "get_cw2_contract_version")]
-    // GetCW2ContractVersion {},
-    // GetRewardingValidatorAddress {},
-    // GetStateParams {},
-    // GetState {},
-    // GetRewardingParams {},
-    // GetEpochStatus {},
-    // GetCurrentIntervalDetails {},
-    // GetRewardedSet {
-    //     limit: Option<u32>,
-    //     start_after: Option<MixId>,
-    // },
-    //
-    // // mixnode-related:
-    // GetMixNodeBonds {
-    //     limit: Option<u32>,
-    //     start_after: Option<MixId>,
-    // },
-    // GetMixNodesDetailed {
-    //     limit: Option<u32>,
-    //     start_after: Option<MixId>,
-    // },
-    // GetUnbondedMixNodes {
-    //     limit: Option<u32>,
-    //     start_after: Option<MixId>,
-    // },
-    // GetUnbondedMixNodesByOwner {
-    //     owner: String,
-    //     limit: Option<u32>,
-    //     start_after: Option<MixId>,
-    // },
-    // GetUnbondedMixNodesByIdentityKey {
-    //     identity_key: String,
-    //     limit: Option<u32>,
-    //     start_after: Option<MixId>,
-    // },
-    // GetOwnedMixnode {
-    //     address: String,
-    // },
-    // GetMixnodeDetails {
-    //     mix_id: MixId,
-    // },
-    // GetMixnodeRewardingDetails {
-    //     mix_id: MixId,
-    // },
-    // GetStakeSaturation {
-    //     mix_id: MixId,
-    // },
-    // GetUnbondedMixNodeInformation {
-    //     mix_id: MixId,
-    // },
-    // GetBondedMixnodeDetailsByIdentity {
-    //     mix_identity: IdentityKey,
-    // },
-    // GetLayerDistribution {},
-    // // gateway-related:
-    // GetGateways {
-    //     start_after: Option<IdentityKey>,
-    //     limit: Option<u32>,
-    // },
-    // GetGatewayBond {
-    //     identity: IdentityKey,
-    // },
-    // GetOwnedGateway {
-    //     address: String,
-    // },
-    //
-    // // delegation-related:
-    // // gets all [paged] delegations associated with particular mixnode
-    // GetMixnodeDelegations {
-    //     mix_id: MixId,
-    //     // since `start_after` is user-provided input, we can't use `Addr` as we
-    //     // can't guarantee it's validated.
-    //     start_after: Option<String>,
-    //     limit: Option<u32>,
-    // },
-    // // gets all [paged] delegations associated with particular delegator
-    // GetDelegatorDelegations {
-    //     // since `delegator` is user-provided input, we can't use `Addr` as we
-    //     // can't guarantee it's validated.
-    //     delegator: String,
-    //     start_after: Option<(MixId, OwnerProxySubKey)>,
-    //     limit: Option<u32>,
-    // },
-    // // gets delegation associated with particular mixnode, delegator pair
-    // GetDelegationDetails {
-    //     mix_id: MixId,
-    //     delegator: String,
-    //     proxy: Option<String>,
-    // },
-    // // gets all delegations in the system
-    // GetAllDelegations {
-    //     start_after: Option<delegation::StorageKey>,
-    //     limit: Option<u32>,
-    // },
-    //
-    // // rewards related
-    // GetPendingOperatorReward {
-    //     address: String,
-    // },
-    // GetPendingMixNodeOperatorReward {
-    //     mix_id: MixId,
-    // },
-    // GetPendingDelegatorReward {
-    //     address: String,
-    //     mix_id: MixId,
-    //     proxy: Option<String>,
-    // },
-    // // given the provided performance, estimate the reward at the end of the current epoch
-    // GetEstimatedCurrentEpochOperatorReward {
-    //     mix_id: MixId,
-    //     estimated_performance: Performance,
-    // },
-    // GetEstimatedCurrentEpochDelegatorReward {
-    //     address: String,
-    //     mix_id: MixId,
-    //     proxy: Option<String>,
-    //     estimated_performance: Performance,
-    // },
-    //
-    // // interval-related
-    // GetPendingEpochEvents {
-    //     limit: Option<u32>,
-    //     start_after: Option<u32>,
-    // },
-    // GetPendingIntervalEvents {
-    //     limit: Option<u32>,
-    //     start_after: Option<u32>,
-    // },
-    // GetPendingEpochEvent {
-    //     event_id: EpochEventId,
-    // },
-    // GetPendingIntervalEvent {
-    //     event_id: IntervalEventId,
-    // },
-    // GetNumberOfPendingEvents {},
-    //
-    // // signing-related
-    // GetSigningNonce {
-    //     address: String,
-    // },
+
+    #[cfg_attr(feature = "schema", returns(Option<Family>))]
+    GetFamilyByHead { head: String },
+
+    #[cfg_attr(feature = "schema", returns(Option<Family>))]
+    GetFamilyByLabel { label: String },
+
+    #[cfg_attr(feature = "schema", returns(HashSet<String>))]
+    GetFamilyMembersByHead { head: String },
+
+    #[cfg_attr(feature = "schema", returns(Option<HashSet<String>>))]
+    GetFamilyMembersByLabel { label: String },
+
+    // state/sys-params-related
+    #[cfg_attr(feature = "schema", returns(ContractBuildInformation))]
+    GetContractVersion {},
+
+    #[serde(rename = "get_cw2_contract_version")]
+    #[cfg_attr(feature = "schema", returns(cw2::ContractVersion))]
+    GetCW2ContractVersion {},
+
+    #[cfg_attr(feature = "schema", returns(String))]
+    GetRewardingValidatorAddress {},
+
+    #[cfg_attr(feature = "schema", returns(ContractStateParams))]
+    GetStateParams {},
+
+    #[cfg_attr(feature = "schema", returns(ContractState))]
+    GetState {},
+
+    #[cfg_attr(feature = "schema", returns(RewardingParams))]
+    GetRewardingParams {},
+
+    #[cfg_attr(feature = "schema", returns(EpochStatus))]
+    GetEpochStatus {},
+
+    #[cfg_attr(feature = "schema", returns(CurrentIntervalResponse))]
+    GetCurrentIntervalDetails {},
+
+    #[cfg_attr(feature = "schema", returns(PagedRewardedSetResponse))]
+    GetRewardedSet {
+        limit: Option<u32>,
+        start_after: Option<MixId>,
+    },
+
+    // mixnode-related:
+    #[cfg_attr(feature = "schema", returns(PagedMixnodeBondsResponse))]
+    GetMixNodeBonds {
+        limit: Option<u32>,
+        start_after: Option<MixId>,
+    },
+
+    #[cfg_attr(feature = "schema", returns(PagedMixnodesDetailsResponse))]
+    GetMixNodesDetailed {
+        limit: Option<u32>,
+        start_after: Option<MixId>,
+    },
+
+    #[cfg_attr(feature = "schema", returns(PagedUnbondedMixnodesResponse))]
+    GetUnbondedMixNodes {
+        limit: Option<u32>,
+        start_after: Option<MixId>,
+    },
+
+    #[cfg_attr(feature = "schema", returns(PagedUnbondedMixnodesResponse))]
+    GetUnbondedMixNodesByOwner {
+        owner: String,
+        limit: Option<u32>,
+        start_after: Option<MixId>,
+    },
+
+    #[cfg_attr(feature = "schema", returns(PagedUnbondedMixnodesResponse))]
+    GetUnbondedMixNodesByIdentityKey {
+        identity_key: String,
+        limit: Option<u32>,
+        start_after: Option<MixId>,
+    },
+
+    #[cfg_attr(feature = "schema", returns(MixOwnershipResponse))]
+    GetOwnedMixnode { address: String },
+
+    #[cfg_attr(feature = "schema", returns(MixnodeDetailsResponse))]
+    GetMixnodeDetails { mix_id: MixId },
+
+    #[cfg_attr(feature = "schema", returns(MixnodeRewardingDetailsResponse))]
+    GetMixnodeRewardingDetails { mix_id: MixId },
+
+    #[cfg_attr(feature = "schema", returns(StakeSaturationResponse))]
+    GetStakeSaturation { mix_id: MixId },
+
+    #[cfg_attr(feature = "schema", returns(UnbondedMixnodeResponse))]
+    GetUnbondedMixNodeInformation { mix_id: MixId },
+
+    #[cfg_attr(feature = "schema", returns(Option<MixNodeDetails>))]
+    GetBondedMixnodeDetailsByIdentity { mix_identity: IdentityKey },
+
+    #[cfg_attr(feature = "schema", returns(LayerDistribution))]
+    GetLayerDistribution {},
+
+    // gateway-related:
+    #[cfg_attr(feature = "schema", returns(PagedGatewayResponse))]
+    GetGateways {
+        start_after: Option<IdentityKey>,
+        limit: Option<u32>,
+    },
+
+    #[cfg_attr(feature = "schema", returns(GatewayBondResponse))]
+    GetGatewayBond { identity: IdentityKey },
+
+    #[cfg_attr(feature = "schema", returns(GatewayOwnershipResponse))]
+    GetOwnedGateway { address: String },
+
+    // delegation-related:
+    // gets all [paged] delegations associated with particular mixnode
+    #[cfg_attr(feature = "schema", returns(PagedMixNodeDelegationsResponse))]
+    GetMixnodeDelegations {
+        mix_id: MixId,
+        // since `start_after` is user-provided input, we can't use `Addr` as we
+        // can't guarantee it's validated.
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
+    // gets all [paged] delegations associated with particular delegator
+    #[cfg_attr(feature = "schema", returns(PagedDelegatorDelegationsResponse))]
+    GetDelegatorDelegations {
+        // since `delegator` is user-provided input, we can't use `Addr` as we
+        // can't guarantee it's validated.
+        delegator: String,
+        start_after: Option<(MixId, OwnerProxySubKey)>,
+        limit: Option<u32>,
+    },
+
+    // gets delegation associated with particular mixnode, delegator pair
+    #[cfg_attr(feature = "schema", returns(MixNodeDelegationResponse))]
+    GetDelegationDetails {
+        mix_id: MixId,
+        delegator: String,
+        proxy: Option<String>,
+    },
+
+    // gets all delegations in the system
+    #[cfg_attr(feature = "schema", returns(PagedAllDelegationsResponse))]
+    GetAllDelegations {
+        start_after: Option<delegation::StorageKey>,
+        limit: Option<u32>,
+    },
+
+    // rewards related
+    #[cfg_attr(feature = "schema", returns(PendingRewardResponse))]
+    GetPendingOperatorReward { address: String },
+
+    #[cfg_attr(feature = "schema", returns(PendingRewardResponse))]
+    GetPendingMixNodeOperatorReward { mix_id: MixId },
+
+    #[cfg_attr(feature = "schema", returns(PendingRewardResponse))]
+    GetPendingDelegatorReward {
+        address: String,
+        mix_id: MixId,
+        proxy: Option<String>,
+    },
+
+    // given the provided performance, estimate the reward at the end of the current epoch
+    #[cfg_attr(feature = "schema", returns(EstimatedCurrentEpochRewardResponse))]
+    GetEstimatedCurrentEpochOperatorReward {
+        mix_id: MixId,
+        estimated_performance: Performance,
+    },
+
+    #[cfg_attr(feature = "schema", returns(EstimatedCurrentEpochRewardResponse))]
+    GetEstimatedCurrentEpochDelegatorReward {
+        address: String,
+        mix_id: MixId,
+        proxy: Option<String>,
+        estimated_performance: Performance,
+    },
+
+    // interval-related
+    #[cfg_attr(feature = "schema", returns(PendingEpochEventsResponse))]
+    GetPendingEpochEvents {
+        limit: Option<u32>,
+        start_after: Option<u32>,
+    },
+
+    #[cfg_attr(feature = "schema", returns(PendingIntervalEventsResponse))]
+    GetPendingIntervalEvents {
+        limit: Option<u32>,
+        start_after: Option<u32>,
+    },
+
+    #[cfg_attr(feature = "schema", returns(PendingEpochEventResponse))]
+    GetPendingEpochEvent { event_id: EpochEventId },
+
+    #[cfg_attr(feature = "schema", returns(PendingIntervalEventResponse))]
+    GetPendingIntervalEvent { event_id: IntervalEventId },
+
+    #[cfg_attr(feature = "schema", returns(NumberOfPendingEventsResponse))]
+    GetNumberOfPendingEvents {},
+
+    // signing-related
+    #[cfg_attr(feature = "schema", returns(Nonce))]
+    GetSigningNonce { address: String },
 }
 
 #[cw_serde]

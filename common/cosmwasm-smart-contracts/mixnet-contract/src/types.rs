@@ -2,24 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixnetContractError;
-use crate::families::{Family, FamilyHead};
-use crate::{Layer, RewardedSetNodeStatus};
-use contracts_common::IdentityKey;
+use crate::Layer;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Coin;
-use serde::{Deserialize, Serialize};
 use std::ops::Index;
 
 // type aliases for better reasoning about available data
 pub type SphinxKey = String;
 pub type SphinxKeyRef<'a> = &'a str;
-pub type EpochId = u32;
-pub type IntervalId = u32;
+
 pub type MixId = u32;
 pub type BlockHeight = u64;
-pub type EpochEventId = u32;
-pub type IntervalEventId = u32;
 
 #[cw_serde]
 pub struct LayerAssignment {
@@ -41,7 +35,8 @@ impl LayerAssignment {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
+#[cw_serde]
+#[derive(Copy, Default)]
 pub struct LayerDistribution {
     pub layer1: u64,
     pub layer2: u64,

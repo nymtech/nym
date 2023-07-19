@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PagedRewardedSetResponse",
+  "type": "object",
+  "required": [
+    "nodes"
+  ],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": [
+          {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          },
+          {
+            "$ref": "#/definitions/RewardedSetNodeStatus"
+          }
+        ],
+        "maxItems": 2,
+        "minItems": 2
+      }
+    },
+    "start_next_after": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "RewardedSetNodeStatus": {
+      "type": "string",
+      "enum": [
+        "active",
+        "standby"
+      ]
+    }
+  }
+}

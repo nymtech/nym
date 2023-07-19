@@ -12,6 +12,7 @@ repository = { workspace = true }
 bs58 = "0.4.0"
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
+cw2 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_repr = "0.1"
 
@@ -36,4 +37,5 @@ time = { version = "0.3.5", features = ["serde", "macros"] }
 [features]
 default = []
 contract-testing = []
+schema = []
 generate-ts = ['ts-rs']

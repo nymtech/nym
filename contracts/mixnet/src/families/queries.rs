@@ -36,6 +36,7 @@ pub fn get_family_by_head(
     })
 }
 
+// TODO: this should be returning a paged response!
 pub fn get_family_members_by_head(
     head: IdentityKeyRef<'_>,
     storage: &dyn Storage,
@@ -50,6 +51,7 @@ pub fn get_family_members_by_head(
     })
 }
 
+// TODO: this should be returning a paged response!
 pub fn get_family_members_by_label(
     label: String,
     storage: &dyn Storage,

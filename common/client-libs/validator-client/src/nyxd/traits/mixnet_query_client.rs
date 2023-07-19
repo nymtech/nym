@@ -19,14 +19,14 @@ use nym_mixnet_contract_common::rewarding::{
 use nym_mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
     CurrentIntervalResponse, EpochEventId, EpochStatus, FamilyByHeadResponse,
-    FamilyByLabelResponse, GatewayBondResponse, GatewayOwnershipResponse, IdentityKey,
-    IntervalEventId, LayerDistribution, MixId, MixOwnershipResponse,
-    MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse, NumberOfPendingEventsResponse,
-    PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedFamiliesResponse,
-    PagedGatewayResponse, PagedMembersResponse, PagedMixNodeDelegationsResponse,
-    PagedMixnodeBondsResponse, PagedRewardedSetResponse, PendingEpochEventResponse,
-    PendingEpochEventsResponse, PendingIntervalEventResponse, PendingIntervalEventsResponse,
-    QueryMsg as MixnetQueryMsg,
+    FamilyByLabelResponse, FamilyMembersByHeadResponse, FamilyMembersByLabelResponse,
+    GatewayBondResponse, GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution,
+    MixId, MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse,
+    NumberOfPendingEventsResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    PagedFamiliesResponse, PagedGatewayResponse, PagedMembersResponse,
+    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse,
+    PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEventResponse,
+    PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
 };
 use serde::Deserialize;
 
@@ -98,6 +98,24 @@ pub trait MixnetQueryClient {
     ) -> Result<PagedMembersResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetAllMembersPaged { limit, start_after })
             .await
+    }
+
+    async fn get_family_members_by_head<S: Into<String> + Send>(
+        &self,
+        head: S,
+    ) -> Result<FamilyMembersByHeadResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyMembersByHead { head: head.into() })
+            .await
+    }
+
+    async fn get_family_members_by_label<S: Into<String> + Send>(
+        &self,
+        label: S,
+    ) -> Result<FamilyMembersByLabelResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyMembersByLabel {
+            label: label.into(),
+        })
+        .await
     }
 
     // mixnode-related:

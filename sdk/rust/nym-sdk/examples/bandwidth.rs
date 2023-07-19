@@ -17,7 +17,7 @@ async fn main() {
     nym_bin_common::logging::setup_logging();
     // right now, only sandbox has coconut setup
     // this should be run from the `sdk/rust/nym-sdk` directory
-    dotenvy::from_path("../../../envs/qa.env").unwrap();
+    dotenvy::from_path("../../../envs/sandbox.env").unwrap();
 
     let sandbox_network = mixnet::NymNetworkDetails::new_from_env();
     let config = Config::try_from_nym_network_details(&sandbox_network).unwrap();

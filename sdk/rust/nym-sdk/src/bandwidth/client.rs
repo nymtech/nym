@@ -30,7 +30,7 @@ where
     St: Storage,
     <St as Storage>::StorageError: Send + Sync + 'static,
 {
-    pub fn new(
+    pub(crate) fn new(
         network_details: NymNetworkDetails,
         mnemonic: String,
         storage: &'a St,

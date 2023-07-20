@@ -17,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
     loop {
         // listen out for incoming requests from mixnet, parse and match them
         let request: (RequestTypes, AnonymousSenderTag) =
-            listen_and_parse_request(&mut client).await;
+            listen_and_parse_request(&mut client).await?;
         // grab sender_tag from parsed request for anonymous replies
         let return_recipient: AnonymousSenderTag = request.1;
         match request.0 {

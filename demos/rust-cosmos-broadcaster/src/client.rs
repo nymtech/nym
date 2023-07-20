@@ -36,7 +36,7 @@ pub async fn offline_sign(
         .await;
 
     // listen for response from service 
-    let sp_response = crate::listen_and_parse_response(client).await;
+    let sp_response = crate::listen_and_parse_response(client).await?;
 
     // match JSON -> ResponseType
     let res = match sp_response {
@@ -112,7 +112,7 @@ pub async fn send_tx(
     println!("Waiting for reply");
 
     // again, listen for response and parse accordingly 
-    let sp_response = crate::listen_and_parse_response(client).await;
+    let sp_response = crate::listen_and_parse_response(client).await?;
 
     let res = match sp_response {
         crate::ResponseTypes::Broadcast(response) => {

@@ -48,7 +48,7 @@ async fn main() -> anyhow::Result<()> {
 
     let sp_address = Recipient::try_from_base58_string("2f499xz7AfEmsdjd9zaxEVMZ4ed5pod2AqomZ74PSdTW.6heKJmwFZMw14Yz7CKF56iyKDaBBssmNWZJHErGg5jgm@HWdr8jgcr32cVGbjisjmwnVF4xrUBRGvbw86F9e3rFzS").unwrap();
 
-    match &cli.command {
+    match cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx {
             mnemonic,
             nyx_token_receipient,
@@ -70,7 +70,6 @@ async fn main() -> anyhow::Result<()> {
 
             let mut input = String::new();
             let stdin = std::io::stdin();
-            // let _n = stdin.read_line(&mut input).unwrap();
             stdin.read_line(&mut input)?;
 
             if input.starts_with('y') {

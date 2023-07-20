@@ -2,7 +2,7 @@ use crate::DEFAULT_VALIDATOR_RPC;
 use bs58;
 use cosmrs::rpc::{Client, HttpClient};
 use cosmrs::{tendermint, AccountId};
-use nym_validator_client::nyxd::CosmWasmClient;
+use nym_validator_client::nyxd::{CosmWasmClient,error::NyxdError};
 
 pub async fn create_broadcaster() -> HttpClient {
     let broadcaster: HttpClient = HttpClient::new(DEFAULT_VALIDATOR_RPC).unwrap();
@@ -12,10 +12,10 @@ pub async fn create_broadcaster() -> HttpClient {
 pub async fn get_sequence(
     broadcaster: HttpClient,
     signer_address: AccountId,
-) -> Result<crate::SequenceRequestResponse, std::io::Error> {
+) -> Result<crate::SequenceRequestResponse, NyxdError> { 
     // get signer information
-    let sequence = broadcaster.get_sequence(&signer_address).await.unwrap();
-    let chain_id: tendermint::chain::Id = broadcaster.get_chain_id().await.unwrap();
+    let sequence = broadcaster.get_sequence(&signer_address).await?;  
+    let chain_id: tendermint::chain::Id = broadcaster.get_chain_id().await?; 
     Ok(crate::SequenceRequestResponse {
         account_number: sequence.account_number,
         sequence: sequence.sequence,
@@ -41,7 +41,7 @@ pub async fn broadcast(
         .unwrap();
 
     // broadcast the tx
-    println!("broadcasting the tx to Nyx blockchain");
+    println!("broadcasting tx to validator");
     let broadcast_res = Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
         .await
         .unwrap();
@@ -60,7 +60,7 @@ pub async fn broadcast(
     println!("balance after transaction:  {after}");
     println!("returning tx hash to sender");
 
-    let success: bool = after.amount < before.amount;
+    let success: bool = broadcast_res.deliver_tx.code.is_ok();  
 
     Ok(crate::BroadcastResponse {
         tx_hash: serde_json::to_string(&broadcast_res.hash).unwrap(),

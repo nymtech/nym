@@ -26,12 +26,11 @@ async fn main() -> anyhow::Result<()> {
                     "\nincoming sequence request details:\nsigner address: {} \nquerying Nyx blockchain on behalf of requesting client",
                     request.signer_address
                 );
-                // query Nyx chain for sequence information on behalf of request sender
+                // query chain for sequence information on behalf of request sender
                 let sequence: SequenceRequestResponse =
                     get_sequence(broadcaster.clone(), request.signer_address)
-                        .await
-                        .unwrap();
-                println!("sequence information query returned account number: {}, sequence:{}, chain id: {} \nsending response to requesting client via mixnet", sequence.account_number, sequence.sequence, sequence.chain_id);
+                        .await?;  
+                println!("sequence information returned from chain: account number: {}, sequence:{}, chain id: {} \nsending response to requesting client via mixnet", sequence.account_number, sequence.sequence, sequence.chain_id);
                 // send serialised sequence response back to request sender via mixnet
                 client
                     .send_str_reply(return_recipient, &serde_json::to_string(&sequence).unwrap())
@@ -45,8 +44,7 @@ async fn main() -> anyhow::Result<()> {
                 // broadcast the signed tx on behalf of request sender
                 let tx_hash: BroadcastResponse =
                     broadcast(request.base58_tx_bytes, broadcaster.clone())
-                        .await
-                        .unwrap();
+                    .await?;
                 println!("return recipient surb bucket: {}", &return_recipient);
                 // send response to tx (transaction hash) back to request sender via mixnet
                 client

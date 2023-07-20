@@ -610,6 +610,7 @@ dependencies = [
 name = "cw3-flex-multisig"
 version = "1.0.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cw-multi-test",
  "cw-storage-plus",
@@ -623,7 +624,6 @@ dependencies = [
  "cw4-group",
  "nym-group-contract-common",
  "nym-multisig-contract-common",
- "schemars",
 ]
 
 [[package]]

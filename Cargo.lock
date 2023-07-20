@@ -4132,7 +4132,6 @@ dependencies = [
  "cw-utils",
  "cw2",
  "nym-contracts-common",
- "serde",
  "thiserror",
 ]
 
@@ -4329,12 +4328,12 @@ dependencies = [
 name = "nym-service-provider-directory-common"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
  "cw-utils",
+ "cw2",
  "nym-contracts-common",
- "schemars",
- "serde",
  "thiserror",
 ]
 

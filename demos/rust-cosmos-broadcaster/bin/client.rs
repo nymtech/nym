@@ -70,7 +70,8 @@ async fn main() -> anyhow::Result<()> {
 
             let mut input = String::new();
             let stdin = std::io::stdin();
-            let _n = stdin.read_line(&mut input).unwrap();
+            // let _n = stdin.read_line(&mut input).unwrap();
+            stdin.read_line(&mut input)?;
 
             if input.starts_with('y') {
                 println!("\nsending pre-signed tx through the mixnet to broadcaster service");

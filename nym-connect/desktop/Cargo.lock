@@ -3532,6 +3532,7 @@ dependencies = [
  "anyhow",
  "bip39",
  "dirs 4.0.0",
+ "dotenv",
  "eyre",
  "fern",
  "fix-path-env",

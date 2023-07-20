@@ -3,6 +3,8 @@
     windows_subsystem = "windows"
 )]
 
+use dotenv::dotenv;
+use std::env;
 use std::sync::Arc;
 
 use nym_config::defaults::setup_env;
@@ -20,16 +22,14 @@ mod events;
 mod logging;
 mod menu;
 mod models;
+mod monitoring;
 mod operations;
 mod state;
 mod tasks;
 mod window;
 
-// TODO DSN shouldn't be hardcoded
-const SENTRY_DSN: &str =
-    "https://68a2c55113ed47aaa30b9899039b0799@o967446.ingest.sentry.io/4505483113594880";
-
 fn main() {
+    dotenv().ok();
     setup_env(None);
     println!("Starting up...");
 
@@ -46,37 +46,21 @@ fn main() {
     });
 
     let monitoring = user_data.monitoring.unwrap_or(false);
-
-    let _guard = sentry::init((
-        SENTRY_DSN,
-        sentry::ClientOptions {
-            release: sentry::release_name!(),
-            sample_rate: 1.0, // TODO lower this in prod
-            traces_sample_rate: 1.0,
-            ..Default::default() // TODO add data scrubbing
-                                 // see https://docs.sentry.io/platforms/rust/data-management/sensitive-data/
-        },
-    ));
-
-    sentry::configure_scope(|scope| {
-        scope.set_user(Some(sentry::User {
-            id: Some("nym".into()),
-            ..Default::default()
-        }));
-    });
+    let mut _sentry_guard;
 
     if monitoring {
-        println!("Sentry reporting and monitoring is enabled");
-    } else {
-        println!("Monitoring is disabled, dropping sentry guard");
-        drop(_guard)
-    }
+        match monitoring::init() {
+            Ok(guard) => {
+                println!("Monitoring and error reporting enabled");
 
-    let user_data = UserData::read().unwrap_or_else(|e| {
-        println!("{}", e);
-        println!("Fallback to default");
-        UserData::default()
-    });
+                // we must keep the sentry guard in scope during app lifetime
+                _sentry_guard = guard;
+            }
+            Err(e) => {
+                println!("Unable to init monitoring: {e}");
+            }
+        }
+    }
 
     let context = tauri::generate_context!();
     tauri::Builder::default()
